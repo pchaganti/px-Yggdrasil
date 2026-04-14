@@ -19,7 +19,7 @@ jobs:
       - run: npm ci
         working-directory: docs
       - run: scripts/repo-check.sh
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v6
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         with:
           files: source/cli/coverage/lcov.info
