@@ -48,7 +48,7 @@ This applies to CLI output only. Rules.ts (system prompt) provides the map — w
 
 ## Quality Gate
 
-**ALWAYS run `scripts/repo-check.sh` from repo root before ANY commit and ensure it passes cleanly.** Do not commit with failing checks. This is non-negotiable — every commit must leave the repo in a green state.
+**ALWAYS run `scripts/repo-check.sh` from repo root before ANY commit and ensure it passes cleanly.** Do not commit with failing checks. This is non-negotiable — every commit must leave the repo in a green state. The script runs typecheck, lint, build, tests with coverage, docs build, markdown lint, and `yg check` in sequence. Do not run these individually before committing — `repo-check.sh` covers everything.
 
 ## When Evaluating `yg check` or `scripts/repo-check.sh`
 

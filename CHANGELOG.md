@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Replace `execSync` with `execFileSync`** in check command for proper
+  argument escaping. No more shell interpretation of arguments.
+
 ## [4.0.0] - 2026-04-14
 
 ### Architecture

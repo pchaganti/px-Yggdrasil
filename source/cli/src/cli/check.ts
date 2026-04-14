@@ -4,7 +4,7 @@ import { loadGraph } from '../core/graph-loader.js';
 import { initDebugLog } from '../utils/debug-log.js';
 import { runCheck } from '../core/check.js';
 import type { CheckIssue, CheckResult } from '../core/check.js';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 
 export function registerCheckCommand(program: Command): void {
@@ -21,7 +21,7 @@ export function registerCheckCommand(program: Command): void {
         let gitFiles: string[] | null = null;
         try {
           const projectRoot = path.dirname(graph.rootPath);
-          const output = execSync('git ls-files .', {
+          const output = execFileSync('git', ['ls-files', '.'], {
             cwd: projectRoot,
             encoding: 'utf-8',
             stdio: ['pipe', 'pipe', 'pipe'],
