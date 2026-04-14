@@ -86,36 +86,43 @@ describe.skipIf(!distExists)('CLI E2E', () => {
     expect(stdout).toContain('users');
   });
 
-  it('yg validate on valid graph', () => {
-    const { status } = run(['validate']);
-    expect(status).toBe(0);
+  it('yg check exits with code 0 or 1 and shows Result:', () => {
+    const { status, stdout } = run(['check']);
+    expect([0, 1]).toContain(status);
+    expect(stdout).toContain('Result:');
   });
 
-  it('yg build-context', () => {
-    const { stdout, status } = run(['build-context', '--node', 'orders/order-service']);
-    expect(status).toBe(0);
-    expect(stdout).toContain('meta:');
-    expect(stdout).toContain('name: OrderService');
-    expect(stdout).toContain('project:');
-    expect(stdout).toContain('glossary:');
-  });
-
-  it('yg build-context nonexistent node', () => {
-    const { status } = run(['build-context', '--node', 'does/not/exist']);
-    expect(status).toBe(1);
-  });
-
-  it('yg build-context without --node or --file returns exit 1', () => {
-    const { status, stderr } = run(['build-context']);
-    expect(status).toBe(1);
-    expect(stderr).toContain("either '--node <path>' or '--file <path>' is required");
-  });
-
-  it('yg deps', () => {
-    const { stdout, status } = run(['deps', '--node', 'orders/order-service']);
+  it('yg context', () => {
+    const { stdout, status } = run(['context', '--node', 'orders/order-service']);
     expect(status).toBe(0);
     expect(stdout).toContain('orders/order-service');
-    expect(stdout).toMatch(/├──|└──|calls|uses/);
+    expect(stdout).toContain('Source files');
+    expect(stdout).toContain('After modifying source files');
+  });
+
+  it('yg context nonexistent node', () => {
+    const { status } = run(['context', '--node', 'does/not/exist']);
+    expect(status).toBe(1);
+  });
+
+  it('yg context without --node or --file returns exit 1', () => {
+    const { status, stderr } = run(['context']);
+    expect(status).toBe(1);
+    expect(stderr).toContain("'--node <path>' or '--file <path>' is required");
+  });
+
+  it('yg context --node works', () => {
+    const { stdout, status } = run(['context', '--node', 'orders/order-service']);
+    expect(status).toBe(0);
+    expect(stdout).toContain('orders/order-service');
+    expect(stdout).toContain('Source files');
+    expect(stdout).toContain('After modifying source files');
+  });
+
+
+  it('yg deps returns non-zero (unknown command)', () => {
+    const { status } = run(['deps', '--node', 'orders/order-service']);
+    expect(status).not.toBe(0);
   });
 
   it('yg impact', () => {
@@ -142,20 +149,6 @@ describe.skipIf(!distExists)('CLI E2E', () => {
     expect(stderr).toContain('required option');
   });
 
-  it('yg status', () => {
-    const { stdout, status } = run(['status']);
-    expect(status).toBe(0);
-    expect(stdout).toContain('Sample E-Commerce');
-    expect(stdout).toContain('Nodes:');
-  });
-
-  it('yg drift', () => {
-    const { stdout, status } = run(['drift']);
-    expect(stdout).toContain('Summary');
-    expect(stdout).toMatch(/drift|missing|unmaterialized|ok/);
-    expect([0, 1]).toContain(status);
-  });
-
   // --- Tree options ---
 
   it('yg tree --depth 1 limits output', () => {
@@ -164,25 +157,25 @@ describe.skipIf(!distExists)('CLI E2E', () => {
     expect(stdout).toContain('auth');
     expect(stdout).toContain('orders');
     // depth 1 means we see top-level modules but NOT their children names as tree nodes
-    // Children metadata (artifacts count) should still appear at depth 1
+    // Children metadata should still appear at depth 1
   });
 
   it('yg tree --root auth shows only auth subtree', () => {
     const { stdout, status } = run(['tree', '--root', 'auth']);
     expect(status).toBe(0);
     expect(stdout).toContain('auth');
-    expect(stdout).toContain('auth-api');
-    expect(stdout).toContain('auth-api');
-    // Subtree mode: no project name as first line, auth is the root
-    expect(stdout).not.toContain('Sample E-Commerce');
+    expect(stdout).toContain('auth/auth-api');
+    // Subtree mode: only auth nodes
     expect(stdout).not.toContain('orders');
     expect(stdout).not.toContain('users');
   });
 
-  it('yg tree --compact hides metadata lines', () => {
+  it('yg tree shows flat list with type and description', () => {
     const { stdout, status } = run(['tree']);
     expect(status).toBe(0);
-    expect(stdout).toContain('auth');
+    // Flat format: path [type] — description
+    expect(stdout).toMatch(/auth \[/);
+    expect(stdout).toMatch(/\[module\]|\[service\]|\[project\]/);
   });
 
   it('yg tree --root nonexistent returns exit 1', () => {
@@ -191,91 +184,41 @@ describe.skipIf(!distExists)('CLI E2E', () => {
     expect(stderr).toContain('not found');
   });
 
-  // --- deps options ---
+  // --- approve ---
 
-  it('yg deps nonexistent node returns exit 1', () => {
-    const { status, stderr } = run(['deps', '--node', 'does/not/exist']);
-    expect(status).toBe(1);
-    expect(stderr).toContain('Node not found');
-  });
-
-  it('yg deps --node orders/order-service', () => {
-    const { stdout, status } = run(['deps', '--node', 'orders/order-service']);
-    expect(status).toBe(0);
-    expect(stdout).toContain('orders/order-service');
-    expect(stdout).toMatch(/├──|└──|uses|calls/);
-  });
-
-  it('yg deps --depth 1 limits tree depth', () => {
-    const { stdout, status } = run(['deps', '--node', 'orders/order-service', '--depth', '1']);
-    expect(status).toBe(0);
-    expect(stdout).toContain('orders/order-service');
-    expect(stdout).toContain('auth/auth-api');
-    expect(stdout).toContain('users/user-repo');
-  });
-
-  it('yg deps without --node returns exit 1', () => {
-    const { status, stderr } = run(['deps']);
-    expect(status).toBe(1);
-    expect(stderr).toContain('required option');
-  });
-
-  // --- drift options ---
-
-  it('yg drift --scope orders/order-service', () => {
-    const { stdout, status } = run(['drift', '--scope', 'orders/order-service']);
-    expect(stdout).toContain('orders/order-service');
-    expect(stdout).toContain('Summary');
-    expect([0, 1]).toContain(status);
-  });
-
-  // --- drift-sync ---
-
-  it('yg drift-sync --node records hash and clears drift', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-drift-sync-'));
+  it('yg approve --node records hash and clears drift', () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-approve-'));
     try {
       cpSync(FIXTURE, tmpDir, { recursive: true });
-      const { status: syncStatus, stdout } = run(
-        ['drift-sync', '--node', 'orders/order-service'],
+      const { status: approveStatus, stdout } = run(
+        ['approve', '--node', 'orders/order-service'],
         tmpDir,
       );
-      expect(syncStatus).toBe(0);
-      expect(stdout).toContain('Synchronized: orders/order-service');
-      expect(stdout).toMatch(/Hash: .+ -> .+/);
+      expect(approveStatus).toBe(0);
+      expect(stdout).toMatch(/Approved: orders\/order-service/);
 
-      const { status: driftStatus } = run(['drift', '--scope', 'orders/order-service'], tmpDir);
-      expect(driftStatus).toBe(0);
+      // After approving, check should not show source-drift for this node
+      const { stdout: checkOut } = run(['check'], tmpDir);
+      // The node was just approved — should not show drift for orders/order-service
+      const driftLines = checkOut.split('\n').filter((l: string) =>
+        l.includes('source-drift') && l.includes('orders/order-service'),
+      );
+      expect(driftLines.length).toBe(0);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
-  it('yg drift-sync without --node or --all returns exit 1', () => {
-    const { status, stderr } = run(['drift-sync']);
+  it('yg approve without --node returns exit 1', () => {
+    const { status, stderr } = run(['approve']);
     expect(status).toBe(1);
-    expect(stderr).toContain("either '--node <path>' or '--all' is required");
+    expect(stderr).toMatch(/required option|--node/);
   });
 
-  it('yg drift-sync nonexistent node returns exit 1', () => {
-    const { status, stderr } = run(['drift-sync', '--node', 'does/not/exist']);
+  it('yg approve nonexistent node returns exit 1', () => {
+    const { status, stderr } = run(['approve', '--node', 'does/not/exist']);
     expect(status).toBe(1);
-    expect(stderr).toContain('Node not found');
-  });
-
-  it('yg drift-sync --recursive syncs descendant nodes', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-drift-recursive-'));
-    try {
-      cpSync(FIXTURE, tmpDir, { recursive: true });
-      const { status, stdout } = run(
-        ['drift-sync', '--node', 'orders', '--recursive'],
-        tmpDir,
-      );
-      expect(status).toBe(0);
-      expect(stdout).toContain('Synchronized: orders/order-service');
-      expect(stdout).not.toContain('Synchronized: orders\n');
-    } finally {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
+    expect(stderr).toContain("does not exist");
   });
 
   // --- impact edge cases ---
@@ -304,7 +247,7 @@ describe.skipIf(!distExists)('CLI E2E', () => {
     expect(stdout).toContain('Impact of changes in aspect requires-audit');
     expect(stdout).toContain('Directly affected');
     expect(stdout).toContain('orders');
-    expect(stdout).toContain('Total scope:');
+    expect(stdout).toContain('Blast radius:');
   });
 
   it('yg impact --aspect requires-audit shows indirectly affected structural dependents', () => {
@@ -330,8 +273,8 @@ describe.skipIf(!distExists)('CLI E2E', () => {
   it('yg impact --aspect requires-logging shows flow propagation source', () => {
     const { stdout, status } = run(['impact', '--aspect', 'requires-logging']);
     expect(status).toBe(0);
-    // auth/auth-api gets requires-logging from checkout-flow
-    expect(stdout).toContain('auth/auth-api (flow: Checkout Flow)');
+    // orders/order-service gets requires-logging from checkout-flow
+    expect(stdout).toContain('orders/order-service (flow: Checkout Flow)');
     // orders gets requires-logging via implies from requires-audit
     expect(stdout).toContain('orders (implied)');
     expect(stdout).toContain('Flows propagating this aspect: Checkout Flow');
@@ -350,7 +293,7 @@ describe.skipIf(!distExists)('CLI E2E', () => {
     expect(stdout).toContain('Impact of changes in flow');
     expect(stdout).toContain('orders/order-service');
     expect(stdout).toContain('auth/auth-api');
-    expect(stdout).toContain('Total scope:');
+    expect(stdout).toContain('Blast radius:');
   });
 
   it('yg impact --flow checkout-flow shows flow aspects', () => {
@@ -388,95 +331,67 @@ describe.skipIf(!distExists)('CLI E2E', () => {
     expect(stdout).toContain('checkout/controller');
   });
 
-  // --- validate edge cases ---
-
-  it('yg validate --scope limits to node', () => {
-    const { stdout, status } = run(['validate', '--scope', 'orders/order-service']);
+  it('yg impact --file resolves owner and shows impact', () => {
+    const { stdout, status, stderr } = run(['impact', '--file', 'src/orders/order.service.ts']);
     expect(status).toBe(0);
-    expect(stdout).toContain('1 nodes scanned');
+    expect(stderr).toContain('orders/order-service');
+    expect(stdout).toContain('Impact of changes in orders/order-service');
   });
 
-  it('yg validate on broken-relation fixture returns exit 1', () => {
-    const brokenFixture = path.join(
-      CLI_ROOT,
-      'tests',
-      'fixtures',
-      'sample-project-broken-relation',
-    );
-    const { status, stdout } = run(['validate'], brokenFixture);
-    expect(status).toBe(1);
-    expect(stdout).toContain('E004');
+  it('yg impact --simulate is rejected (unknown option)', () => {
+    const { status, stderr } = run(['impact', '--node', 'auth/auth-api', '--simulate']);
+    // Commander treats unknown options as errors
+    expect(status).not.toBe(0);
+    expect(stderr).toContain('simulate');
   });
 
-  // --- drift exit codes ---
-
-  it('yg drift returns exit 1 when drift detected (order-service)', () => {
-    // order-service has mismatched hash in fixture
-    const { status } = run(['drift', '--scope', 'orders/order-service']);
-    expect(status).toBe(1);
+  it('yg impact --method is rejected (unknown option)', () => {
+    const { status, stderr } = run(['impact', '--node', 'auth/auth-api', '--method', 'verify']);
+    expect(status).not.toBe(0);
+    expect(stderr).toContain('method');
   });
 
-  it('yg drift returns exit 1 when mapped file missing (missing-service)', () => {
-    const { status } = run(['drift', '--scope', 'users/missing-service']);
-    expect(status).toBe(1);
-  });
-
-  it('yg drift returns exit 0 when all OK (auth-api)', () => {
-    const { status } = run(['drift', '--scope', 'auth/auth-api']);
+  it('yg aspects output has no stability field', () => {
+    const { stdout, status } = run(['aspects']);
     expect(status).toBe(0);
+    expect(stdout).not.toContain('stability');
   });
 
-  // --- init creates structure ---
+  // --- platform installation (direct unit tests) ---
 
-  it('yg init creates .yggdrasil directory structure', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-init-'));
+  it('installRulesForPlatform cursor creates .cursor/rules/yggdrasil.mdc', async () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-cursor-'));
+    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
 
     try {
-      const { status, stdout } = run(['init'], tmpDir);
-      expect(status).toBe(0);
-      expect(stdout).toContain('Yggdrasil initialized');
-      expect(existsSync(path.join(tmpDir, '.yggdrasil', 'yg-config.yaml'))).toBe(true);
-      expect(existsSync(path.join(tmpDir, '.yggdrasil', 'aspects'))).toBe(true);
-      expect(existsSync(path.join(tmpDir, '.yggdrasil', 'flows'))).toBe(true);
-      expect(existsSync(path.join(tmpDir, '.yggdrasil', 'model'))).toBe(true);
-    } finally {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  it('yg init --platform cursor creates .cursor/rules/yggdrasil.mdc', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-init-cursor-'));
-
-    try {
-      const { status, stdout } = run(['init', '--platform', 'cursor'], tmpDir);
-      expect(status).toBe(0);
-      expect(stdout).toContain('Yggdrasil initialized');
+      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
+      await installRulesForPlatform(tmpDir, 'cursor');
       expect(existsSync(path.join(tmpDir, '.cursor', 'rules', 'yggdrasil.mdc'))).toBe(true);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
-  it('yg init --platform cline creates .clinerules/yggdrasil.md', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-init-cline-'));
+  it('installRulesForPlatform cline creates .clinerules/yggdrasil.md', async () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-cline-'));
+    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
 
     try {
-      const { status, stdout } = run(['init', '--platform', 'cline'], tmpDir);
-      expect(status).toBe(0);
-      expect(stdout).toContain('Yggdrasil initialized');
+      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
+      await installRulesForPlatform(tmpDir, 'cline');
       expect(existsSync(path.join(tmpDir, '.clinerules', 'yggdrasil.md'))).toBe(true);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
-  it('yg init --platform claude-code creates CLAUDE.md and agent-rules.md', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-init-claude-'));
+  it('installRulesForPlatform claude-code creates CLAUDE.md and agent-rules.md', async () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-claude-'));
+    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
 
     try {
-      const { status, stdout } = run(['init', '--platform', 'claude-code'], tmpDir);
-      expect(status).toBe(0);
-      expect(stdout).toContain('Yggdrasil initialized');
+      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
+      await installRulesForPlatform(tmpDir, 'claude-code');
       expect(existsSync(path.join(tmpDir, 'CLAUDE.md'))).toBe(true);
       expect(existsSync(path.join(tmpDir, '.yggdrasil', 'agent-rules.md'))).toBe(true);
     } finally {
@@ -484,51 +399,39 @@ describe.skipIf(!distExists)('CLI E2E', () => {
     }
   });
 
-  it('yg init --platform copilot creates .github/copilot-instructions.md', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-init-copilot-'));
+  it('installRulesForPlatform copilot creates .github/copilot-instructions.md', async () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-copilot-'));
+    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
 
     try {
-      const { status, stdout } = run(['init', '--platform', 'copilot'], tmpDir);
-      expect(status).toBe(0);
-      expect(stdout).toContain('Yggdrasil initialized');
+      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
+      await installRulesForPlatform(tmpDir, 'copilot');
       expect(existsSync(path.join(tmpDir, '.github', 'copilot-instructions.md'))).toBe(true);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
-  it('yg init --platform invalid returns exit 1', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-init-invalid-'));
+  it('installRulesForPlatform windsurf creates .windsurf/rules/yggdrasil.md', async () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-windsurf-'));
+    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
 
     try {
-      const { status, stderr } = run(['init', '--platform', 'invalid-platform'], tmpDir);
-      expect(status).toBe(1);
-      expect(stderr).toContain('Unknown platform');
-    } finally {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  it('yg init --platform windsurf creates .windsurf/rules/yggdrasil.md', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-init-windsurf-'));
-
-    try {
-      const { status, stdout } = run(['init', '--platform', 'windsurf'], tmpDir);
-      expect(status).toBe(0);
-      expect(stdout).toContain('Yggdrasil initialized');
+      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
+      await installRulesForPlatform(tmpDir, 'windsurf');
       expect(existsSync(path.join(tmpDir, '.windsurf', 'rules', 'yggdrasil.md'))).toBe(true);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
-  it('yg init --platform aider creates .aider.conf.yml and agent-rules.md', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-init-aider-'));
+  it('installRulesForPlatform aider creates .aider.conf.yml and agent-rules.md', async () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-aider-'));
+    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
 
     try {
-      const { status, stdout } = run(['init', '--platform', 'aider'], tmpDir);
-      expect(status).toBe(0);
-      expect(stdout).toContain('Yggdrasil initialized');
+      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
+      await installRulesForPlatform(tmpDir, 'aider');
       expect(existsSync(path.join(tmpDir, '.aider.conf.yml'))).toBe(true);
       expect(existsSync(path.join(tmpDir, '.yggdrasil', 'agent-rules.md'))).toBe(true);
     } finally {
@@ -536,13 +439,13 @@ describe.skipIf(!distExists)('CLI E2E', () => {
     }
   });
 
-  it('yg init --platform gemini creates GEMINI.md and agent-rules.md', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-init-gemini-'));
+  it('installRulesForPlatform gemini creates GEMINI.md and agent-rules.md', async () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-gemini-'));
+    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
 
     try {
-      const { status, stdout } = run(['init', '--platform', 'gemini'], tmpDir);
-      expect(status).toBe(0);
-      expect(stdout).toContain('Yggdrasil initialized');
+      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
+      await installRulesForPlatform(tmpDir, 'gemini');
       expect(existsSync(path.join(tmpDir, 'GEMINI.md'))).toBe(true);
       expect(existsSync(path.join(tmpDir, '.yggdrasil', 'agent-rules.md'))).toBe(true);
     } finally {
@@ -550,193 +453,43 @@ describe.skipIf(!distExists)('CLI E2E', () => {
     }
   });
 
-  it('yg init --platform roocode creates .roo/rules/yggdrasil.md', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-init-roocode-'));
+  it('installRulesForPlatform roocode creates .roo/rules/yggdrasil.md', async () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-roocode-'));
+    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
 
     try {
-      const { status, stdout } = run(['init', '--platform', 'roocode'], tmpDir);
-      expect(status).toBe(0);
-      expect(stdout).toContain('Yggdrasil initialized');
+      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
+      await installRulesForPlatform(tmpDir, 'roocode');
       expect(existsSync(path.join(tmpDir, '.roo', 'rules', 'yggdrasil.md'))).toBe(true);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
-  it('yg init --platform generic creates agent-rules.md only', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-init-generic-'));
+  it('installRulesForPlatform codex creates AGENTS.md', async () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-codex-'));
+    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
 
     try {
-      const { status, stdout } = run(['init', '--platform', 'generic'], tmpDir);
-      expect(status).toBe(0);
-      expect(stdout).toContain('Yggdrasil initialized');
-      expect(existsSync(path.join(tmpDir, '.yggdrasil', 'agent-rules.md'))).toBe(true);
-    } finally {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  it('yg init --upgrade switches platform (codex -> amp)', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-init-upgrade-'));
-
-    try {
-      const { status: initStatus } = run(['init', '--platform', 'codex'], tmpDir);
-      expect(initStatus).toBe(0);
+      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
+      await installRulesForPlatform(tmpDir, 'codex');
       expect(existsSync(path.join(tmpDir, 'AGENTS.md'))).toBe(true);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 
-      const { status: upgradeStatus, stdout } = run(
-        ['init', '--platform', 'amp', '--upgrade'],
-        tmpDir,
-      );
-      expect(upgradeStatus).toBe(0);
-      expect(stdout).toContain('Rules refreshed');
+  it('installRulesForPlatform generic creates agent-rules.md only', async () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-generic-'));
+    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
+
+    try {
+      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
+      await installRulesForPlatform(tmpDir, 'generic');
       expect(existsSync(path.join(tmpDir, '.yggdrasil', 'agent-rules.md'))).toBe(true);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
-  it('yg init --upgrade migrates 1.x project to 2.0.0', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-init-migrate-'));
-
-    try {
-      // Create a 1.x-style project structure
-      const yggDir = path.join(tmpDir, '.yggdrasil');
-      mkdirSync(path.join(yggDir, 'model', 'svc'), { recursive: true });
-      mkdirSync(path.join(yggDir, 'aspects', 'audit'), { recursive: true });
-      writeFileSync(
-        path.join(yggDir, 'config.yaml'),
-        'name: TestProject\nnode_types: [module, service]\nartifacts:\n  responsibility.md:\n    required: always\n    description: x\nstack:\n  runtime: Node.js\n',
-      );
-      writeFileSync(
-        path.join(yggDir, 'model', 'svc', 'node.yaml'),
-        'name: Svc\ntype: service\naspects: [audit]\n',
-      );
-      writeFileSync(
-        path.join(yggDir, 'aspects', 'audit', 'aspect.yaml'),
-        'name: Audit\n',
-      );
-
-      const { status, stdout } = run(['init', '--upgrade', '--platform', 'generic'], tmpDir);
-      expect(status).toBe(0);
-      expect(stdout).toContain('Rules refreshed');
-
-      // Verify migration happened
-      expect(existsSync(path.join(yggDir, 'yg-config.yaml'))).toBe(true);
-      expect(existsSync(path.join(yggDir, 'config.yaml'))).toBe(false);
-      expect(existsSync(path.join(yggDir, 'model', 'svc', 'yg-node.yaml'))).toBe(true);
-      expect(existsSync(path.join(yggDir, 'model', 'svc', 'node.yaml'))).toBe(false);
-      expect(existsSync(path.join(yggDir, 'aspects', 'audit', 'yg-aspect.yaml'))).toBe(true);
-
-      // Verify config content
-      const config = parseYaml(
-        readFileSync(path.join(yggDir, 'yg-config.yaml'), 'utf-8'),
-      ) as Record<string, unknown>;
-      expect(config.version).toBe(PKG_VERSION);
-      expect(config.stack).toBeUndefined();
-
-      // Verify node transform
-      const node = parseYaml(
-        readFileSync(path.join(yggDir, 'model', 'svc', 'yg-node.yaml'), 'utf-8'),
-      ) as Record<string, unknown>;
-      expect(node.aspects).toEqual([{ aspect: 'audit' }]);
-
-      // Verify stack migrated to internals.md
-      expect(existsSync(path.join(yggDir, 'model', 'internals.md'))).toBe(true);
-    } finally {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  // --- select ---
-
-  it('yg select --task returns YAML with matching nodes', () => {
-    const { stdout, status } = run(['select', '--task', 'order lifecycle']);
-    expect(status).toBe(0);
-    const parsed = parseYaml(stdout);
-    expect(Array.isArray(parsed)).toBe(true);
-    expect(parsed.length).toBeGreaterThan(0);
-    expect(parsed[0]).toHaveProperty('node');
-    expect(parsed[0]).toHaveProperty('score');
-    expect(parsed[0]).toHaveProperty('name');
-  });
-
-  it('yg select --task with no matches returns empty YAML', () => {
-    const { stdout, status } = run(['select', '--task', 'quantum blockchain singularity']);
-    expect(status).toBe(0);
-    const parsed = parseYaml(stdout);
-    expect(Array.isArray(parsed)).toBe(true);
-    expect(parsed.length).toBe(0);
-  });
-
-  it('yg select --task --limit caps results', () => {
-    const { stdout, status } = run(['select', '--task', 'order', '--limit', '1']);
-    expect(status).toBe(0);
-    const parsed = parseYaml(stdout);
-    expect(parsed.length).toBeLessThanOrEqual(1);
-  });
-
-  it('yg select requires --task', () => {
-    const { status, stderr } = run(['select']);
-    expect(status).toBe(1);
-    expect(stderr).toMatch(/required option|--task/);
-  });
-
-  // --- status output details ---
-
-  it('yg status includes drift summary', () => {
-    const { stdout, status } = run(['status']);
-    expect(status).toBe(0);
-    expect(stdout).toContain('Drift:');
-  });
-
-  it('yg status includes graph summary', () => {
-    const { stdout, status } = run(['status']);
-    expect(status).toBe(0);
-    expect(stdout).toContain('Aspects:');
-    expect(stdout).toContain('Relations:');
-    expect(stdout).toContain('Nodes:');
-  });
-
-  // --- preflight ---
-
-  describe('preflight', () => {
-    it('outputs all four report sections', () => {
-      const { stdout, status } = run(['preflight']);
-      expect(stdout).toContain('=== Preflight Report ===');
-      expect(stdout).toContain('Drift:');
-      expect(stdout).toContain('Status:');
-      expect(stdout).toContain('Validation:');
-      expect(stdout).toMatch(/\d+ nodes/);
-    });
-
-    it('exits with numeric status code', () => {
-      const { status } = run(['preflight']);
-      expect(status === 0 || status === 1).toBe(true);
-    });
-
-    it('--quick skips drift detection', () => {
-      const { stdout } = run(['preflight', '--quick']);
-      expect(stdout).toContain('Drift:      skipped (--quick)');
-      expect(stdout).toContain('Status:');
-      expect(stdout).toContain('Validation:');
-    });
-  });
-
-  // --- drift-sync --all ---
-
-  it('yg drift-sync --all syncs all mapped nodes', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-drift-all-'));
-    try {
-      cpSync(FIXTURE, tmpDir, { recursive: true });
-      const { status, stdout } = run(['drift-sync', '--all'], tmpDir);
-      expect(status).toBe(0);
-      expect(stdout).toContain('Synchronized:');
-      // Should sync multiple nodes
-      const syncLines = stdout.split('\n').filter((l: string) => l.includes('Synchronized:'));
-      expect(syncLines.length).toBeGreaterThan(1);
-    } finally {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
 });

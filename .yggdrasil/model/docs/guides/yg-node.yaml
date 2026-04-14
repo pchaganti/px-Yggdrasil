@@ -1,0 +1,12 @@
+name: Adopter Guides
+type: project
+description: "Task-oriented adopter documentation: getting started, CLI reference, configuration, platforms, and site index"
+aspects: []
+relations: []
+mapping:
+  - docs/getting-started.md
+  - docs/core-concepts.md
+  - docs/cli-reference.md
+  - docs/configuration.md
+  - docs/platforms.md
+  - docs/index.md

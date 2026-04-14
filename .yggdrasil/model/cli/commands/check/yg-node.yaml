@@ -1,0 +1,11 @@
+name: CheckCommand
+type: command
+description: Unified graph gate CLI command — combines drift, validation, coverage, and completeness into a single yg check entry point with grouped output and exit code
+aspects: []
+relations:
+  - target: cli/core/loader
+    type: uses
+  - target: cli/core/check
+    type: uses
+mapping:
+  - source/cli/src/cli/check.ts

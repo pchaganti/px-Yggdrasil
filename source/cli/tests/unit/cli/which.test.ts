@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { Graph, GraphNode } from '../../../src/model/types.js';
+import type { Graph, GraphNode } from '../../../src/model/graph.js';
 import { findOwner } from '../../../src/cli/owner.js';
 
 function createNode(nodePath: string, mapping: { paths: string[] }): GraphNode {
@@ -8,9 +8,9 @@ function createNode(nodePath: string, mapping: { paths: string[] }): GraphNode {
     meta: {
       name: nodePath,
       type: 'service',
-      mapping,
+      mapping: mapping.paths,
     },
-    artifacts: [{ filename: 'responsibility.md', content: 'x' }],
+    artifacts: [],
     children: [],
     parent: null,
   };
@@ -18,11 +18,7 @@ function createNode(nodePath: string, mapping: { paths: string[] }): GraphNode {
 
 function createGraph(nodes: Array<[string, GraphNode]>): Graph {
   return {
-    config: {
-      name: 'Test',
-      node_types: { service: { description: 'x' } },
-      artifacts: { responsibility: { required: 'always', description: 'x' } },
-    },
+    config: {},
     nodes: new Map(nodes),
     aspects: [],
     flows: [],

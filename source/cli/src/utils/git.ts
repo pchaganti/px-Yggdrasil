@@ -1,5 +1,4 @@
-import { execSync } from 'node:child_process';
-import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 /**
  * Returns Unix timestamp (seconds) of the last commit touching the given path,
@@ -7,9 +6,9 @@ import path from 'node:path';
  * Path is relative to projectRoot.
  */
 export function getLastCommitTimestamp(projectRoot: string, relativePath: string): number | null {
-  const normalized = path.normalize(relativePath).replace(/\\/g, '/');
+  const normalized = relativePath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
   try {
-    const out = execSync(`git log -1 --format=%ct -- "${normalized}"`, {
+    const out = execFileSync('git', ['log', '-1', '--format=%ct', '--', normalized], {
       cwd: projectRoot,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],

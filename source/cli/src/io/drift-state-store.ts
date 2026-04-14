@@ -1,7 +1,7 @@
 import { readFile, writeFile, stat, readdir, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
-import { parse as yamlParse } from 'yaml';
-import type { DriftState, DriftNodeState } from '../model/types.js';
+import type { DriftState, DriftNodeState } from '../model/drift.js';
+import { debugWrite } from '../utils/debug-log.js';
 
 const DRIFT_STATE_DIR = '.drift-state';
 
@@ -19,7 +19,8 @@ async function scanJsonFiles(dir: string, baseDir: string): Promise<string[]> {
   let entries;
   try {
     entries = await readdir(dir, { withFileTypes: true });
-  } catch {
+  } catch (err) {
+    debugWrite(`[drift-state-store] scanJsonFiles readdir: ${(err as Error).message}`);
     return results;
   }
   for (const entry of entries) {
@@ -51,7 +52,8 @@ async function removeEmptyParents(filePath: string, stopDir: string): Promise<vo
       } else {
         break;
       }
-    } catch {
+    } catch (err) {
+      debugWrite(`[drift-state-store] removeEmptyParents: ${(err as Error).message}`);
       break;
     }
   }
@@ -67,7 +69,8 @@ export async function readNodeDriftState(
     const content = await readFile(filePath, 'utf-8');
     const parsed = JSON.parse(content) as DriftNodeState;
     return parsed;
-  } catch {
+  } catch (err) {
+    debugWrite(`[drift-state-store] readNodeDriftState: ${(err as Error).message}`);
     return undefined;
   }
 }
@@ -112,7 +115,6 @@ export async function garbageCollectDriftState(
 /**
  * Read full drift state.
  * - If .drift-state is a directory: scan for per-node .json files.
- * - If .drift-state is a file (legacy): parse it, migrate to per-node files, delete old file.
  * - If .drift-state doesn't exist: return {}.
  */
 export async function readDriftState(yggRoot: string): Promise<DriftState> {
@@ -121,40 +123,18 @@ export async function readDriftState(yggRoot: string): Promise<DriftState> {
   let driftStat;
   try {
     driftStat = await stat(driftPath);
-  } catch {
+  } catch (err) {
+    debugWrite(`[drift-state-store] readDriftState stat: ${(err as Error).message}`);
     return {};
   }
 
-  // Legacy single-file format: migrate to per-node files
+  // .drift-state must be a directory; if it's a file, ignore it
   if (driftStat.isFile()) {
-    const content = await readFile(driftPath, 'utf-8');
-    let raw: unknown;
-    try {
-      raw = JSON.parse(content);
-    } catch {
-      raw = yamlParse(content);
-    }
-
-    if (!raw || typeof raw !== 'object') return {};
-
-    const state: DriftState = {};
-    for (const [key, value] of Object.entries(raw)) {
-      if (typeof value === 'object' && value !== null && 'hash' in value) {
-        state[key] = value as DriftNodeState;
-      }
-      // Skip legacy string entries silently
-    }
-
-    // Migrate: delete old file, write per-node files
-    await rm(driftPath);
-    for (const [nodePath, nodeState] of Object.entries(state)) {
-      await writeNodeDriftState(yggRoot, nodePath, nodeState);
-    }
-
-    return state;
+    debugWrite(`[drift-state-store] readDriftState: .drift-state is a file, expected directory — returning empty`);
+    return {};
   }
 
-  // Directory format: scan for per-node .json files
+  // Scan for per-node .json files
   const nodePaths = await scanJsonFiles(driftPath, driftPath);
   const state: DriftState = {};
   for (const nodePath of nodePaths) {

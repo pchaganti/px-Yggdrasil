@@ -1,11 +1,7 @@
 name: Examples
-type: module
-description: "Self-contained example projects demonstrating Yggdrasil usage for adopters"
+type: project
+description: "Self-contained example projects demonstrating Yggdrasil usage"
 aspects: []
-blackbox: true
-
 relations: []
-
 mapping:
-  paths:
-    - examples
+  - examples/

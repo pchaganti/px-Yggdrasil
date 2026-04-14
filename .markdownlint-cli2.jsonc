@@ -17,11 +17,8 @@
     "**/tests/**",
     ".plans/**",
     ".lab/**",
+    ".temp/**",
     "**/agent-rules.md",
     ".cursor/rules/**",
-    "experiments/**",
-    "django-rest-framework/**",
-    "caddy/**",
-    "payload/**",
   ],
 }

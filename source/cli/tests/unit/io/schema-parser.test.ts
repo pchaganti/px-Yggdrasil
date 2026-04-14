@@ -22,7 +22,7 @@ describe('schema-parser', () => {
   it('infers schemaType for aspect', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-schema-aspect');
     await mkdir(tmpDir, { recursive: true });
-    await writeFile(path.join(tmpDir, 'yg-aspect.yaml'), 'name: X\ntag: requires-x\n', 'utf-8');
+    await writeFile(path.join(tmpDir, 'yg-aspect.yaml'), 'name: RequiresX\ndescription: x\n', 'utf-8');
 
     const s = await parseSchema(path.join(tmpDir, 'yg-aspect.yaml'));
 
@@ -49,6 +49,16 @@ describe('schema-parser', () => {
     const s = await parseSchema(path.join(tmpDir, 'custom-schema.yaml'));
 
     expect(s.schemaType).toBe('custom-schema');
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('throws when YAML is not a mapping', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-schema-notobj');
+    await mkdir(tmpDir, { recursive: true });
+    await writeFile(path.join(tmpDir, 'yg-node.yaml'), '42\n', 'utf-8');
+
+    await expect(parseSchema(path.join(tmpDir, 'yg-node.yaml'))).rejects.toThrow('expected YAML mapping');
 
     await rm(tmpDir, { recursive: true, force: true });
   });

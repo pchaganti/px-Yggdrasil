@@ -1,22 +1,23 @@
-export const DEFAULT_CONFIG = `version: "3.0.0"
+export const DEFAULT_CONFIG = `version: "4.0.0"
 
-name: ""
+quality:
+  max_direct_relations: 10
 
-node_types:
+parallel: 1
+`;
+
+export const DEFAULT_ARCHITECTURE = `node_types:
   module:
     description: "Business logic unit with clear domain responsibility"
   service:
     description: "Component providing functionality to other nodes"
+    relations:
+      calls: [service, library]
+      uses: [library]
   library:
     description: "Shared utility code with no domain knowledge"
   infrastructure:
     description: "Guards, middleware, interceptors — invisible in call graphs but affect blast radius"
-
-quality:
-  min_artifact_length: 50
-  max_direct_relations: 10
-  context_budget:
-    warning: 10000
-    error: 20000
-    own_warning: 5000
+  data:
+    description: "Database layer, persistence, and data access"
 `;

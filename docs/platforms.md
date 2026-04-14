@@ -3,7 +3,7 @@ title: Supported Platforms
 ---
 
 `yg init` integrates with your AI tool by creating or updating the right
-instruction file — so the agent knows how to use the repo's semantic memory.
+instruction file — so the agent knows how to work with Yggdrasil.
 
 | Platform | File created/updated by `yg init` | Touches user files? |
 |---|---|---|
@@ -17,6 +17,7 @@ instruction file — so the agent knows how to use the repo's semantic memory.
 | Aider | `.aider.conf.yml` (adds `read:` entry) | ⚠️ Minimal (1 line) |
 | Gemini CLI | `GEMINI.md` (single `@...` line) | ⚠️ Minimal (1 line) |
 | Amp | `AGENTS.md` (single `@...` line) | ⚠️ Minimal (1 line) |
+| OpenCode | `AGENTS.md` (append section) | ⚠️ Appends a section |
 | Generic | `.yggdrasil/agent-rules.md` | ❌ No |
 
 Notes:
@@ -24,4 +25,4 @@ Notes:
 - "No" — `yg init` creates a dedicated Yggdrasil file.
 - "Minimal" — one line is added to an existing file.
 - "Append section" — a clearly delimited section is added; no existing content is modified.
-- Codex and Amp both write to `AGENTS.md` using different formats. Do not initialize both platforms simultaneously.
+- Codex, Amp, and OpenCode all write to `AGENTS.md` using different formats. Do not initialize more than one of these platforms simultaneously.

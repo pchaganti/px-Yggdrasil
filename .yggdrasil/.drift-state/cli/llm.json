@@ -1,0 +1,22 @@
+{
+  "hash": "33a33aa21b7b87436ff44bfb8cd2a46874fd3be4a083ab223a796deeed214964",
+  "files": {
+    "own-subset:cli/llm": "fb10c29ca46e0f7e1546f47f81be9a88f6c74ee2aee2f6d6cf2ae802504455ce",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/aspects/diagnostic-logging/yg-aspect.yaml": "d2f92251b7ac3da65b1e00800a1839a14f7508c11905dc9089bf0b62d310ee2b",
+    ".yggdrasil/aspects/diagnostic-logging/content.md": "861da9ccecc91d8c08168ba10fb297a729158f272fe8da5c136fd6a7e997fb41",
+    "source/cli/src/llm/types.ts": "1bb10d257c71c7d73e037566802946887cb3d7319864575ecce6dc7881091274",
+    "source/cli/src/llm/provider.ts": "9639bef6c74ad697525f3b68b144c2a8864f03f5fd9715fe193eaab3809bb139",
+    "source/cli/src/llm/index.ts": "2d506311c3ae23d8855f043cd95c1b243b942920b75c70e5efc43eb13cc67a09",
+    "source/cli/src/llm/api-utils.ts": "83521e4ec05f235354f865e2ffdf4303e4c3df6bb5bc593903d015c6482483c3"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776082060141.5686,
+    ".yggdrasil/aspects/diagnostic-logging/yg-aspect.yaml": 1775639646041.8462,
+    ".yggdrasil/aspects/diagnostic-logging/content.md": 1775639651576.1426,
+    "source/cli/src/llm/types.ts": 1776087858647.5833,
+    "source/cli/src/llm/provider.ts": 1776019976813.8625,
+    "source/cli/src/llm/index.ts": 1776062930817.8694,
+    "source/cli/src/llm/api-utils.ts": 1776018699131.1387
+  }
+}

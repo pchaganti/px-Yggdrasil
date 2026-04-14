@@ -1,16 +1,12 @@
 import { Command } from 'commander';
+import chalk from 'chalk';
 import { loadGraph } from '../core/graph-loader.js';
-import { loadGraphFromRef } from '../core/graph-from-git.js';
-import {
-  buildContext,
-  collectAncestors,
-  collectEffectiveAspectIds,
-  computeBudgetBreakdown,
-} from '../core/context-builder.js';
-import { detectDrift } from '../core/drift-detector.js';
+import { initDebugLog } from '../utils/debug-log.js';
+import { collectAncestors } from '../core/context-builder.js';
+import { computeEffectiveAspects } from '../core/effective-aspects.js';
 import { findOwner } from './owner.js';
 import { projectRootFromGraph } from '../utils/paths.js';
-import type { Graph } from '../model/types.js';
+import type { Graph } from '../model/graph.js';
 
 const STRUCTURAL_TYPES = new Set(['uses', 'calls', 'extends', 'implements']);
 
@@ -169,93 +165,28 @@ export function collectIndirectDependents(
   return { indirectPaths, chains };
 }
 
-async function runSimulation(
-  graph: Graph,
-  nodePaths: Iterable<string>,
-  targetNodePath: string | null,
-): Promise<void> {
-  const budget = graph.config.quality?.context_budget ?? { warning: 10000, error: 20000 };
-  process.stdout.write('\nChanges in context packages:\n\n');
-  const baselineGraph = await loadGraphFromRef(process.cwd(), 'HEAD');
-  const driftReport = await detectDrift(graph);
-  const driftByNode = new Map(driftReport.entries.map((e) => [e.nodePath, e]));
-
-  for (const dep of nodePaths) {
-    try {
-      const pkg = await buildContext(graph, dep);
-      const breakdown = computeBudgetBreakdown(pkg, graph);
-      const status =
-        breakdown.total >= budget.error
-          ? 'severe'
-          : breakdown.total >= budget.warning
-            ? 'warning'
-            : 'ok';
-
-      let baselineTokens: number | null = null;
-      if (baselineGraph?.nodes.has(dep)) {
-        try {
-          const baselinePkg = await buildContext(baselineGraph, dep);
-          baselineTokens = baselinePkg.tokenCount;
-        } catch {
-          /* ignore */
-        }
-      }
-
-      const hasDepOnTarget =
-        targetNodePath &&
-        graph.nodes
-          .get(dep)
-          ?.meta.relations?.some(
-            (r) => r.target === targetNodePath && STRUCTURAL_TYPES.has(r.type),
-          );
-      const changedLine = hasDepOnTarget
-        ? `  + Changed dependency interface: ${targetNodePath}\n`
-        : '';
-
-      const budgetLine =
-        baselineTokens !== null
-          ? `  Budget: ${baselineTokens} -> ${breakdown.total} tokens (${status})\n`
-          : `  Budget: ${breakdown.total} tokens (${status})\n`;
-
-      const driftEntry = driftByNode.get(dep);
-      const driftLine =
-        driftEntry && driftEntry.status !== 'ok'
-          ? `  Mapped files (on-disk): ${driftEntry.status}${driftEntry.details ? ` (${driftEntry.details})` : ''}\n`
-          : driftEntry
-            ? `  Mapped files (on-disk): ok\n`
-            : '';
-
-      process.stdout.write(`${dep}:\n${changedLine}${budgetLine}${driftLine}\n`);
-    } catch {
-      process.stdout.write(`${dep}:\n  failed to build context\n\n`);
-    }
-  }
-}
-
 async function handleAspectImpact(
   graph: Graph,
   aspectId: string,
-  simulate?: boolean,
 ): Promise<void> {
   const aspect = graph.aspects.find((a) => a.id === aspectId);
   if (!aspect) {
-    process.stderr.write(`Aspect not found: ${aspectId}\n`);
+    process.stderr.write(chalk.red(`Aspect not found: ${aspectId}\n`));
     process.exit(1);
   }
 
   const affected: Array<{ path: string; source: string }> = [];
-  for (const [nodePath] of graph.nodes) {
-    const effective = collectEffectiveAspectIds(graph, nodePath);
+  for (const [nodePath, node] of graph.nodes) {
+    const effective = computeEffectiveAspects(node, graph);
     if (effective.has(aspectId)) {
-      const node = graph.nodes.get(nodePath)!;
-      const ownAspectIds = new Set((node.meta.aspects ?? []).map(a => a.aspect));
+      const ownAspectIds = new Set(node.meta.aspects ?? []);
       if (ownAspectIds.has(aspectId)) {
         affected.push({ path: nodePath, source: 'own' });
       } else {
         let fromHierarchy = false;
         let anc = node.parent;
         while (anc) {
-          if ((anc.meta.aspects ?? []).some(a => a.aspect === aspectId)) {
+          if ((anc.meta.aspects ?? []).includes(aspectId)) {
             fromHierarchy = true;
             break;
           }
@@ -303,8 +234,8 @@ async function handleAspectImpact(
   }
   if (chains.length > 0) {
     process.stdout.write(`\nIndirectly affected (structural dependents):\n`);
-    for (let i = 0; i < indirectPaths.length; i++) {
-      process.stdout.write(`  ${indirectPaths[i]}  ${chains[i]}\n`);
+    for (const chain of chains) {
+      process.stdout.write(`  ${chain}\n`);
     }
   }
   process.stdout.write(
@@ -312,26 +243,22 @@ async function handleAspectImpact(
   );
   process.stdout.write(`Implied by: ${impliedBy.length > 0 ? impliedBy.join(', ') : '(none)'}\n`);
   process.stdout.write(`Implies: ${implies.length > 0 ? implies.join(', ') : '(none)'}\n`);
-  process.stdout.write(`\nTotal scope: ${affected.length + indirectPaths.length} nodes, ${propagatingFlows.length} flows\n`);
-
-  const combinedPaths = [...affected.map((a) => a.path), ...indirectPaths];
-  if (simulate && combinedPaths.length > 0) {
-    await runSimulation(
-      graph,
-      combinedPaths,
-      null,
-    );
+  process.stdout.write(`\nBlast radius: ${affected.length + indirectPaths.length} nodes, ${propagatingFlows.length} flows\n`);
+  process.stdout.write(`  All ${affected.length} directly affected nodes would show upstream-drift if this aspect changes.\n`);
+  const totalAffected = affected.length + indirectPaths.length;
+  if (totalAffected >= 10) {
+    process.stdout.write(`  High blast radius — review aspect requirements in affected nodes before modifying this aspect.\n`);
   }
+
 }
 
 async function handleFlowImpact(
   graph: Graph,
   flowName: string,
-  simulate?: boolean,
 ): Promise<void> {
   const flow = graph.flows.find((f) => f.name === flowName || f.path === flowName);
   if (!flow) {
-    process.stderr.write(`Flow not found: ${flowName}\n`);
+    process.stderr.write(chalk.red(`Flow not found: ${flowName}\n`));
     process.exit(1);
   }
 
@@ -363,19 +290,21 @@ async function handleFlowImpact(
   }
   if (chains.length > 0) {
     process.stdout.write(`\nIndirectly affected (structural dependents):\n`);
-    for (let i = 0; i < indirectPaths.length; i++) {
-      process.stdout.write(`  ${indirectPaths[i]}  ${chains[i]}\n`);
+    for (const chain of chains) {
+      process.stdout.write(`  ${chain}\n`);
     }
   }
   process.stdout.write(
     `\nFlow aspects: ${flowAspects.length > 0 ? flowAspects.join(', ') : '(none)'}\n`,
   );
-  process.stdout.write(`\nTotal scope: ${sorted.length + indirectPaths.length} nodes\n`);
-
-  const combinedPaths = [...sorted, ...indirectPaths];
-  if (simulate && combinedPaths.length > 0) {
-    await runSimulation(graph, combinedPaths, null);
+  const declaredParticipants = flow.nodes.filter((n) => graph.nodes.has(n));
+  process.stdout.write(`\nBlast radius: ${sorted.length + indirectPaths.length} nodes\n`);
+  process.stdout.write(`  All ${declaredParticipants.length} participants would show upstream-drift if this flow changes.\n`);
+  const totalFlowAffected = sorted.length + indirectPaths.length;
+  if (totalFlowAffected >= 10) {
+    process.stdout.write(`  High blast radius — review flow compliance in participants before modifying.\n`);
   }
+
 }
 
 export function registerImpactCommand(program: Command): void {
@@ -386,38 +315,37 @@ export function registerImpactCommand(program: Command): void {
     .option('--file <file-path>', 'Source file path — resolves owner node automatically')
     .option('--aspect <id>', 'Aspect id (directory path under aspects/)')
     .option('--flow <name>', 'Flow name (directory name under flows/)')
-    .option('--method <name>', 'Filter impact to dependents consuming a specific method (requires --node or --file)')
-    .option('--simulate', 'Simulate context package impact (compare HEAD vs current)')
     .action(
-      async (options: { node?: string; file?: string; aspect?: string; flow?: string; method?: string; simulate?: boolean }) => {
+      async (options: { node?: string; file?: string; aspect?: string; flow?: string }) => {
         try {
           if (options.node && options.file) {
-            process.stderr.write("Error: '--node' and '--file' are mutually exclusive\n");
+            process.stderr.write(chalk.red("Error: '--node' and '--file' are mutually exclusive\n"));
             process.exit(1);
           }
 
           const modeCount = [options.node || options.file, options.aspect, options.flow].filter(Boolean).length;
           if (modeCount === 0) {
             process.stderr.write(
-              'Error: one of --node, --file, --aspect, or --flow is required\n',
+              chalk.red('Error: one of --node, --file, --aspect, or --flow is required\n'),
             );
             process.exit(1);
           }
           if (modeCount > 1) {
             process.stderr.write(
-              'Error: --node/--file, --aspect, and --flow are mutually exclusive\n',
+              chalk.red('Error: --node/--file, --aspect, and --flow are mutually exclusive\n'),
             );
             process.exit(1);
           }
 
           const graph = await loadGraph(process.cwd());
+          initDebugLog(graph.rootPath, graph.config.debug ?? false);
 
           // Resolve --file to --node
           if (options.file) {
             const repoRoot = projectRootFromGraph(graph.rootPath);
             const result = findOwner(graph, repoRoot, options.file.trim());
             if (!result.nodePath) {
-              process.stderr.write(`${result.file} -> no graph coverage\n`);
+              process.stderr.write(chalk.red(`${result.file} -> no graph coverage\n`));
               process.exit(1);
             }
             process.stderr.write(`${result.file} -> ${result.nodePath}\n`);
@@ -425,23 +353,18 @@ export function registerImpactCommand(program: Command): void {
           }
 
           if (options.aspect) {
-            await handleAspectImpact(graph, options.aspect.trim(), options.simulate);
+            await handleAspectImpact(graph, options.aspect.trim());
             return;
           }
           if (options.flow) {
-            await handleFlowImpact(graph, options.flow.trim(), options.simulate);
+            await handleFlowImpact(graph, options.flow.trim());
             return;
           }
 
-          const nodePath = options.node!.trim().replace(/^\.\//, '').replace(/\/+$/, '');
+          const nodePath = options.node!.trim().replace(/\/$/, '');
 
           if (!graph.nodes.has(nodePath)) {
-            process.stderr.write(`Node not found: ${nodePath}\n`);
-            process.exit(1);
-          }
-
-          if (options.method && !options.node) {
-            process.stderr.write('Error: --method requires --node\n');
+            process.stderr.write(chalk.red(`Node not found: ${nodePath}\n`));
             process.exit(1);
           }
 
@@ -450,21 +373,7 @@ export function registerImpactCommand(program: Command): void {
             nodePath,
           );
 
-          // When --method is specified, filter to only dependents consuming that method
-          const methodFilter = options.method?.trim();
-          let filteredDirect = direct;
-          let filteredAllDependents = allDependents;
-          if (methodFilter) {
-            filteredDirect = direct.filter((dep) => {
-              const rel = relationFrom.get(`${dep}->${nodePath}`);
-              return rel?.consumes?.includes(methodFilter) || !rel?.consumes?.length;
-            });
-            // Rebuild transitive from filtered direct
-            const filteredSet = new Set(filteredDirect);
-            filteredAllDependents = allDependents.filter((dep) => filteredSet.has(dep));
-          }
-
-          const chains = buildTransitiveChains(nodePath, filteredDirect, filteredAllDependents, reverse);
+          const chains = buildTransitiveChains(nodePath, direct, allDependents, reverse);
 
           // Collect event-based dependents (emits/listens)
           const eventDependents: Array<{ path: string; type: string; eventName: string }> = [];
@@ -507,7 +416,7 @@ export function registerImpactCommand(program: Command): void {
             }
           }
 
-          const targetEffective = collectEffectiveAspectIds(graph, nodePath);
+          const targetEffective = computeEffectiveAspects(graph.nodes.get(nodePath)!, graph);
           const aspectsInScope: string[] = [];
           for (const aspect of graph.aspects) {
             if (targetEffective.has(aspect.id)) {
@@ -515,13 +424,12 @@ export function registerImpactCommand(program: Command): void {
             }
           }
 
-          const methodLabel = methodFilter ? ` (method: ${methodFilter})` : '';
-          process.stdout.write(`Impact of changes in ${nodePath}${methodLabel}:\n\n`);
+          process.stdout.write(`Impact of changes in ${nodePath}:\n\n`);
           process.stdout.write('Directly dependent:\n');
-          if (filteredDirect.length === 0) {
+          if (direct.length === 0) {
             process.stdout.write('  (none)\n');
           } else {
-            for (const dep of filteredDirect) {
+            for (const dep of direct) {
               const rel = relationFrom.get(`${dep}->${nodePath}`);
               const annot = rel?.consumes?.length
                 ? ` (${rel.type}, consumes: ${rel.consumes.join(', ')})`
@@ -532,7 +440,7 @@ export function registerImpactCommand(program: Command): void {
             }
           }
 
-          if (eventDependents.length > 0 && !methodFilter) {
+          if (eventDependents.length > 0) {
             process.stdout.write('\nEvent-connected:\n');
             for (const { path: p, type, eventName } of eventDependents.sort((a, b) => a.path.localeCompare(b.path))) {
               process.stdout.write(`  ${p} (${type}: ${eventName})\n`);
@@ -556,7 +464,7 @@ export function registerImpactCommand(program: Command): void {
           }
 
           // Collect indirect dependents of descendants
-          const alreadyShown = new Set([nodePath, ...filteredAllDependents, ...descendants, ...eventDependents.map((e) => e.path)]);
+          const alreadyShown = new Set([nodePath, ...allDependents, ...descendants, ...eventDependents.map((e) => e.path)]);
           let descIndirectPaths: string[] = [];
           if (descendants.length > 0) {
             const { indirectPaths: rawIndirect, chains: rawChains } = collectIndirectDependents(graph, descendants);
@@ -569,10 +477,10 @@ export function registerImpactCommand(program: Command): void {
               }
             }
             descIndirectPaths = filteredIndirect;
-            if (filteredIndirect.length > 0) {
+            if (filteredChains.length > 0) {
               process.stdout.write('\nIndirectly affected (structural dependents of descendants):\n');
-              for (let i = 0; i < filteredIndirect.length; i++) {
-                process.stdout.write(`  ${filteredIndirect[i]}  ${filteredChains[i]}\n`);
+              for (const chain of filteredChains) {
+                process.stdout.write(`  ${chain}\n`);
               }
             }
           }
@@ -581,14 +489,14 @@ export function registerImpactCommand(program: Command): void {
             `\nFlows: ${flows.length > 0 ? flows.join(', ') : '(none)'}\n`,
           );
           process.stdout.write(
-            `Aspects (scope covers node): ${aspectsInScope.length > 0 ? aspectsInScope.join(', ') : '(none)'}\n`,
+            `Aspects: ${aspectsInScope.length > 0 ? aspectsInScope.join(', ') : '(none)'}\n`,
           );
 
           const coAspectNodes: Array<{ path: string; shared: string[] }> = [];
           if (targetEffective.size > 0) {
             for (const [p] of graph.nodes) {
               if (p === nodePath) continue;
-              const nodeEffective = collectEffectiveAspectIds(graph, p);
+              const nodeEffective = computeEffectiveAspects(graph.nodes.get(p)!, graph);
               const shared = [...targetEffective].filter((id) => nodeEffective.has(id));
               if (shared.length > 0) {
                 coAspectNodes.push({ path: p, shared });
@@ -604,16 +512,27 @@ export function registerImpactCommand(program: Command): void {
             }
           }
 
-          const allAffected = new Set([...filteredAllDependents, ...descendants, ...eventDependents.map((e) => e.path), ...descIndirectPaths]);
+          const allAffected = new Set([...allDependents, ...descendants, ...eventDependents.map((e) => e.path), ...descIndirectPaths]);
           process.stdout.write(
-            `\nTotal scope: ${allAffected.size} nodes, ${flows.length} flows, ${aspectsInScope.length} aspects\n`,
+            `\nBlast radius: ${allAffected.size} nodes, ${flows.length} flows, ${aspectsInScope.length} aspects\n`,
           );
-
-          if (options.simulate && allAffected.size > 0) {
-            await runSimulation(graph, allAffected, nodePath);
+          process.stdout.write(
+            `  All ${allAffected.size} nodes would show upstream-drift (cascade drift) if this node changes.\n`,
+          );
+          if (allAffected.size >= 10) {
+            process.stdout.write(`  High blast radius — review direct dependents before changing this node.\n`);
+          } else if (allAffected.size > 0) {
+            process.stdout.write(`  Review direct dependents before changing this node.\n`);
           }
         } catch (error) {
-          process.stderr.write(`Error: ${(error as Error).message}\n`);
+          const err = error as NodeJS.ErrnoException;
+          if (err.code === 'ENOENT') {
+            process.stderr.write(
+              chalk.red(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`),
+            );
+          } else {
+            process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
+          }
           process.exit(1);
         }
       },

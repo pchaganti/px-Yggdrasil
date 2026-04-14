@@ -88,10 +88,10 @@ implies:
     await writeFile(aspectPath, `name: Test\n`, 'utf-8');
 
     await expect(parseAspect(tmpDir, aspectPath, '')).rejects.toThrow(
-      'Aspect id must be non-empty',
+      'aspect id must be non-empty',
     );
     await expect(parseAspect(tmpDir, aspectPath, '   ')).rejects.toThrow(
-      'Aspect id must be non-empty',
+      'aspect id must be non-empty',
     );
 
     await rm(tmpDir, { recursive: true, force: true });
@@ -124,27 +124,37 @@ implies:
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('parses stability when present', async () => {
+  it('silently ignores unknown stability field', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-stability');
     await mkdir(tmpDir, { recursive: true });
     const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
     await writeFile(aspectPath, `name: Stable Aspect\nstability: protocol\n`, 'utf-8');
 
     const aspect = await parseAspect(tmpDir, aspectPath, 'stable');
-    expect(aspect.stability).toBe('protocol');
+    // unknown field should not throw
+    expect(aspect.name).toBe('Stable Aspect');
+    expect((aspect as Record<string, unknown>).stability).toBeUndefined();
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('throws when stability is invalid', async () => {
-    const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-bad-stability');
+  it('silently ignores unknown anchors field', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-anchors');
     await mkdir(tmpDir, { recursive: true });
     const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
-    await writeFile(aspectPath, `name: Test\nstability: bogus\n`, 'utf-8');
-
-    await expect(parseAspect(tmpDir, aspectPath, 'bad-stability')).rejects.toThrow(
-      "'stability' must be one of: schema, protocol, implementation",
+    await writeFile(
+      aspectPath,
+      `name: Logging
+anchors:
+  - id: audit-entry
+    claim: "All mutations record an audit entry"
+`,
+      'utf-8',
     );
+
+    const aspect = await parseAspect(tmpDir, aspectPath, 'logging');
+    expect(aspect.name).toBe('Logging');
+    expect((aspect as Record<string, unknown>).anchors).toBeUndefined();
 
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -159,7 +169,6 @@ implies:
 description: A fully specified aspect
 implies:
   - other-aspect
-stability: schema
 `,
       'utf-8',
     );
@@ -168,7 +177,6 @@ stability: schema
     expect(aspect.name).toBe('Full Aspect');
     expect(aspect.description).toBe('A fully specified aspect');
     expect(aspect.implies).toEqual(['other-aspect']);
-    expect(aspect.stability).toBe('schema');
 
     await rm(tmpDir, { recursive: true, force: true });
   });

@@ -1,8 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import type { FlowDef } from '../model/types.js';
-import { readArtifacts } from './artifact-reader.js';
+import type { FlowDef } from '../model/graph.js';
 
 export async function parseFlow(flowDir: string, flowYamlPath: string): Promise<FlowDef> {
   const content = await readFile(flowYamlPath, 'utf-8');
@@ -41,14 +40,11 @@ export async function parseFlow(flowDir: string, flowYamlPath: string): Promise<
     aspects = aspectTags.length > 0 ? aspectTags : [];
   }
 
-  const artifacts = await readArtifacts(flowDir, ['yg-flow.yaml']);
-
   return {
     path: path.basename(flowDir),
     name: (raw.name as string).trim(),
     description,
     nodes: nodePaths,
     ...(aspects !== undefined && { aspects }),
-    artifacts,
   };
 }

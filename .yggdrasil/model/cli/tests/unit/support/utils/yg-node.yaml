@@ -1,0 +1,7 @@
+name: Utils Unit Tests
+type: test
+description: "Unit tests for utility modules: git helpers, hash computation, path utilities, tokenizer, and token counting"
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/utils/

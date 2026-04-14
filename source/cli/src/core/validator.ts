@@ -1,17 +1,10 @@
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { STANDARD_ARTIFACTS } from '../model/types.js';
-import type { Graph, ValidationResult, ValidationIssue, ArtifactConfig, NodeAspectEntry } from '../model/types.js';
-import { buildContext, computeBudgetBreakdown, resolveAspects } from './context-builder.js';
+import type { Graph } from '../model/graph.js';
+import type { ValidationResult, ValidationIssue } from '../model/validation.js';
 import { normalizeMappingPaths } from '../utils/paths.js';
-
-/** Extract flat aspect id list from unified aspect entries */
-function getAspectIds(aspects: NodeAspectEntry[] | undefined): string[] {
-  return (aspects ?? []).map(a => a.aspect);
-}
-
-/** Reserved directories that are NOT nodes (within model/) */
-const RESERVED_DIRS = new Set<string>();
+import { buildIssueMessage } from '../formatters/message-builder.js';
+import { computeEffectiveAspects } from './effective-aspects.js';
 
 export async function validate(graph: Graph, scope: string = 'all'): Promise<ValidationResult> {
   const issues: ValidationIssue[] = [];
@@ -19,34 +12,37 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   if (graph.configError) {
     issues.push({
       severity: 'error',
-      code: 'E012',
+      code: 'config-invalid',
       rule: 'invalid-config',
-      message: graph.configError,
+      message: buildIssueMessage({
+        what: 'yg-config.yaml failed to parse.',
+        why: graph.configError,
+        next: 'Fix the syntax error in .yggdrasil/yg-config.yaml.',
+      }),
     });
   }
 
   for (const { nodePath, message } of graph.nodeParseErrors ?? []) {
     issues.push({
       severity: 'error',
-      code: 'E001',
+      code: 'yaml-invalid',
       rule: 'invalid-node-yaml',
-      message,
+      message: buildIssueMessage({
+        what: `yg-node.yaml parse error in ${nodePath}.`,
+        why: message,
+        next: `Fix the YAML in .yggdrasil/model/${nodePath}/yg-node.yaml.`,
+      }),
       nodePath,
     });
   }
 
   if (!graph.configError) {
-    issues.push(...checkNodeTypes(graph));
-    issues.push(...checkAspectsDefined(graph));
+    // Node type validation uses architecture file (yg-architecture.yaml), not config
+    issues.push(...checkDanglingAspectRefs(graph));
     issues.push(...checkAspectIds(graph));
     issues.push(...checkAspectIdUniqueness(graph));
     issues.push(...checkImpliedAspectsExist(graph));
     issues.push(...checkImpliesNoCycles(graph));
-    issues.push(...checkRequiredAspectsCoverage(graph));
-    issues.push(...(await checkAnchorPresence(graph)));
-    issues.push(...checkRequiredArtifacts(graph));
-    // E013 (invalid-artifact-condition) removed — standard artifacts don't use has_aspect: conditions
-    issues.push(...(await checkContextBudget(graph)));
     issues.push(...checkHighFanOut(graph));
     issues.push(...checkMissingDescriptions(graph));
   }
@@ -57,11 +53,13 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   issues.push(...checkMappingOverlap(graph));
   issues.push(...(await checkMappingPathsExist(graph)));
   issues.push(...checkBrokenFlowRefs(graph));
-  issues.push(...checkFlowAspectIds(graph));
   issues.push(...(await checkDirectoriesHaveNodeYaml(graph)));
-  issues.push(...(await checkShallowArtifacts(graph)));
   issues.push(...(await checkWideNodes(graph)));
   issues.push(...checkUnpairedEvents(graph));
+  issues.push(...checkArchitectureConstraints(graph));
+  issues.push(...checkPortAspectsDefined(graph));
+  issues.push(...checkPortConsumes(graph));
+  issues.push(...checkOrphanedAspects(graph));
 
   let filtered = issues;
   let nodesScanned = graph.nodes.size;
@@ -75,7 +73,7 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
         return {
           issues: [{
             severity: 'error',
-            code: 'E001',
+            code: 'yaml-invalid',
             rule: 'invalid-node-yaml',
             message: parseError.message,
             nodePath: parseError.nodePath,
@@ -84,7 +82,7 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
         };
       }
       return {
-        issues: [{ severity: 'error', rule: 'invalid-scope', message: `Node not found: ${scope}` }],
+        issues: [{ severity: 'error', rule: 'invalid-scope', message: buildIssueMessage({ what: `Node not found: ${scope}`, why: 'Validation scope references a node that does not exist in the graph.', next: 'Check the node path and try again.' }) }],
         nodesScanned: 0,
       };
     }
@@ -94,25 +92,6 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   }
 
   return { issues: filtered, nodesScanned };
-}
-
-// --- Rule 0: Node types from config ---
-
-function checkNodeTypes(graph: Graph): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
-  const allowedTypes = new Set(Object.keys(graph.config.node_types ?? {}));
-  for (const [nodePath, node] of graph.nodes) {
-    if (!allowedTypes.has(node.meta.type)) {
-      issues.push({
-        severity: 'error',
-        code: 'E002',
-        rule: 'unknown-node-type',
-        message: `Node type '${node.meta.type}' not in config.node_types (${[...allowedTypes].join(', ')})`,
-        nodePath,
-      });
-    }
-  }
-  return issues;
 }
 
 // --- Rule 1: Relation targets exist ---
@@ -165,9 +144,13 @@ function checkRelationTargets(graph: Graph): ValidationIssue[] {
         const hint = suggestion ? `\n     Did you mean '${suggestion}'?` : '';
         issues.push({
           severity: 'error',
-          code: 'E004',
+          code: 'relation-broken',
           rule: 'broken-relation',
-          message: `Relation target '${rel.target}' does not exist${existingLine}${hint}`,
+          message: buildIssueMessage({
+            what: `Relation target '${rel.target}' does not exist.`,
+            why: `This node declares a dependency that cannot be resolved.${existingLine}`,
+            next: `Fix the target path in yg-node.yaml relations.${hint}`,
+          }),
           nodePath,
         });
       }
@@ -176,24 +159,87 @@ function checkRelationTargets(graph: Graph): ValidationIssue[] {
   return issues;
 }
 
-// --- Rule 2: Node aspects must reference a defined aspect ---
+// --- Rule 2: All aspect references must point to defined aspects (aspect-undefined) ---
 
-function checkAspectsDefined(graph: Graph): ValidationIssue[] {
+function checkDanglingAspectRefs(graph: Graph): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  const validAspectIds = new Set(graph.aspects.map((a) => a.id));
+  const definedAspects = new Set(graph.aspects.map((a) => a.id));
+
+  // Check node aspects
   for (const [nodePath, node] of graph.nodes) {
-    for (const aspectId of getAspectIds(node.meta.aspects)) {
-      if (!validAspectIds.has(aspectId)) {
+    for (const aspectId of node.meta.aspects ?? []) {
+      if (!definedAspects.has(aspectId)) {
         issues.push({
           severity: 'error',
-          code: 'E003',
-          rule: 'unknown-aspect',
-          message: `Aspect '${aspectId}' has no corresponding directory in aspects/`,
+          code: 'aspect-undefined',
+          rule: 'dangling-aspect-ref',
           nodePath,
+          message: buildIssueMessage({
+            what: `Aspect '${aspectId}' is referenced by this node but not defined in aspects/.`,
+            why: `Node declares an aspect that does not exist — aspect requirements cannot be verified.`,
+            next: `Create aspects/${aspectId}/ with yg-aspect.yaml and content.md.`,
+          }),
+        });
+      }
+    }
+    // Check port aspects
+    if (node.meta.ports) {
+      for (const [portName, port] of Object.entries(node.meta.ports)) {
+        for (const aspectId of port.aspects) {
+          if (!definedAspects.has(aspectId)) {
+            issues.push({
+              severity: 'error',
+              code: 'aspect-undefined',
+              rule: 'dangling-aspect-ref',
+              nodePath,
+              message: buildIssueMessage({
+                what: `Aspect '${aspectId}' is referenced by port '${portName}' but not defined in aspects/.`,
+                why: `Port declares a required aspect that does not exist — port contracts cannot be enforced.`,
+                next: `Create aspects/${aspectId}/ with yg-aspect.yaml and content.md.`,
+              }),
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Check architecture aspects
+  for (const [typeId, typeDef] of Object.entries(graph.architecture?.node_types ?? {})) {
+    for (const aspectId of typeDef.aspects ?? []) {
+      if (!definedAspects.has(aspectId)) {
+        issues.push({
+          severity: 'error',
+          code: 'aspect-undefined',
+          rule: 'dangling-aspect-ref',
+          message: buildIssueMessage({
+            what: `Aspect '${aspectId}' is referenced by architecture type '${typeId}' but not defined in aspects/.`,
+            why: `Architecture declares a required aspect that does not exist.`,
+            next: `Create aspects/${aspectId}/ with yg-aspect.yaml and content.md.`,
+          }),
         });
       }
     }
   }
+
+  // Check flow aspects
+  for (const flow of graph.flows) {
+    for (const aspectId of flow.aspects ?? []) {
+      if (!definedAspects.has(aspectId)) {
+        issues.push({
+          severity: 'error',
+          code: 'aspect-undefined',
+          rule: 'dangling-aspect-ref',
+          message: buildIssueMessage({
+            what: `Aspect '${aspectId}' is referenced by flow '${flow.name}' but not defined in aspects/.`,
+            why: `Flow declares an aspect that does not exist — flow requirements cannot propagate.`,
+            next: `Create aspects/${aspectId}/ with yg-aspect.yaml and content.md.`,
+          }),
+        });
+      }
+    }
+  }
+
   return issues;
 }
 
@@ -216,9 +262,13 @@ function checkAspectIdUniqueness(graph: Graph): ValidationIssue[] {
     if (names.length <= 1) continue;
     issues.push({
       severity: 'error',
-      code: 'E014',
+      code: 'duplicate-aspect-id',
       rule: 'duplicate-aspect-binding',
-      message: `Aspect '${id}' is bound to multiple aspects (${names.join(', ')})`,
+      message: buildIssueMessage({
+        what: `Aspect '${id}' is bound to multiple aspects (${names.join(', ')}).`,
+        why: `Aspect ids must be unique — duplicate ids cause ambiguous aspect resolution.`,
+        next: `Rename one of the aspect directories to make ids unique.`,
+      }),
     });
   }
   return issues;
@@ -237,9 +287,13 @@ function checkImpliedAspectsExist(graph: Graph): ValidationIssue[] {
       if (!idToAspect.has(impliedId)) {
         issues.push({
           severity: 'error',
-          code: 'E016',
+          code: 'implied-aspect-missing',
           rule: 'implied-aspect-missing',
-          message: `Aspect '${aspect.name}' implies '${impliedId}' but no aspect with that id exists in aspects/`,
+          message: buildIssueMessage({
+            what: `Aspect '${aspect.name}' implies '${impliedId}' but no aspect with that id exists in aspects/.`,
+            why: `Implies chain is broken — implied aspect requirements cannot be resolved.`,
+            next: `Create the implied aspect or remove it from the implies list.`,
+          }),
         });
       }
     }
@@ -271,9 +325,13 @@ function checkImpliesNoCycles(graph: Graph): ValidationIssue[] {
         const cycle = pathArr.slice(pathArr.indexOf(implied)).concat(implied);
         issues.push({
           severity: 'error',
-          code: 'E017',
+          code: 'aspect-implies-cycle',
           rule: 'aspect-implies-cycle',
-          message: `Aspect implies cycle: ${cycle.join(' → ')}`,
+          message: buildIssueMessage({
+            what: `Aspect implies cycle: ${cycle.join(' → ')}.`,
+            why: `Cycles in implies prevent aspect resolution.`,
+            next: `Break the cycle by removing one implies edge.`,
+          }),
         });
         pathArr.pop();
         color.set(id, BLACK);
@@ -298,43 +356,7 @@ function checkImpliesNoCycles(graph: Graph): ValidationIssue[] {
   return issues;
 }
 
-// --- Rule: Required aspects coverage per node type ---
-
-function checkRequiredAspectsCoverage(graph: Graph): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
-  const typeConfig = new Map(
-    Object.entries(graph.config.node_types ?? {}).map(([name, cfg]) => [name, cfg.required_aspects ?? []]),
-  );
-  for (const [nodePath, node] of graph.nodes) {
-    if (node.meta.blackbox) continue;
-    const requiredAspects = typeConfig.get(node.meta.type);
-    if (!requiredAspects || requiredAspects.length === 0) continue;
-
-    const nodeAspectIds = getAspectIds(node.meta.aspects);
-    let effectiveAspects;
-    try {
-      effectiveAspects = resolveAspects(nodeAspectIds, graph.aspects);
-    } catch {
-      continue;
-    }
-    const effectiveAspectIds = new Set(effectiveAspects.map((a) => a.id));
-
-    for (const required of requiredAspects) {
-      if (!effectiveAspectIds.has(required)) {
-        issues.push({
-          severity: 'warning',
-          code: 'W011',
-          rule: 'missing-required-aspect-coverage',
-          message: `Node '${nodePath}' (type: ${node.meta.type}) missing required aspect coverage for '${required}'`,
-          nodePath,
-        });
-      }
-    }
-  }
-  return issues;
-}
-
-// --- Rule 4: No circular dependencies (cycles involving blackbox are tolerated) ---
+// --- Rule 4: No circular dependencies ---
 
 function checkNoCycles(graph: Graph): ValidationIssue[] {
   const WHITE = 0;
@@ -355,18 +377,16 @@ function checkNoCycles(graph: Graph): ValidationIssue[] {
       if (!structuralTypes.has(rel.type)) continue;
       if (color.get(rel.target) === GRAY) {
         const cyclePath = [...pathSegments, nodePath, rel.target];
-        const cycleNodes = pathSegments.slice(pathSegments.indexOf(rel.target)).concat(nodePath);
-        const hasBlackboxInCycle = cycleNodes.some(
-          (p) => graph.nodes.get(p)?.meta.blackbox === true,
-        );
-        if (!hasBlackboxInCycle) {
-          issues.push({
-            severity: 'error',
-            code: 'E010',
-            rule: 'structural-cycle',
-            message: `Circular dependency: ${cyclePath.join(' -> ')}`,
-          });
-        }
+        issues.push({
+          severity: 'error',
+          code: 'structural-cycle',
+          rule: 'structural-cycle',
+          message: buildIssueMessage({
+            what: `Circular dependency: ${cyclePath.join(' -> ')}.`,
+            why: `Cycles prevent deterministic context assembly and cascade tracking.`,
+            next: `Break the cycle: extract a shared interface, invert a dependency, or merge nodes.`,
+          }),
+        });
         return true;
       }
       if (color.get(rel.target) === WHITE) {
@@ -389,7 +409,7 @@ function checkNoCycles(graph: Graph): ValidationIssue[] {
 // --- Rule 5: Mapping ownership overlap ---
 
 function normalizePathForCompare(mappingPath: string): string {
-  return mappingPath.replace(/\\/g, '/').replace(/\/+$/, '');
+  return mappingPath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
 }
 
 function arePathsOverlapping(pathA: string, pathB: string): boolean {
@@ -432,12 +452,13 @@ function checkMappingOverlap(graph: Graph): ValidationIssue[] {
 
       issues.push({
         severity: 'error',
-        code: 'E009',
+        code: 'overlapping-mapping',
         rule: 'overlapping-mapping',
-        message:
-          `Mapping paths '${current.mappingPath}' (${current.nodePath}) and ` +
-          `'${candidate.mappingPath}' (${candidate.nodePath}) overlap. ` +
-          `Keep one owner mapping and model other concerns via relations.`,
+        message: buildIssueMessage({
+          what: `Mapping paths '${current.mappingPath}' (${current.nodePath}) and '${candidate.mappingPath}' (${candidate.nodePath}) overlap.`,
+          why: `Each source file must have exactly one owner node.`,
+          next: `Keep one owner mapping and model other concerns via relations.`,
+        }),
         nodePath: candidate.nodePath,
       });
     }
@@ -446,7 +467,7 @@ function checkMappingOverlap(graph: Graph): ValidationIssue[] {
   return issues;
 }
 
-// --- Rule: Mapping paths should exist on disk (W012) ---
+// --- Rule: Mapping paths should exist on disk (mapping-path-missing) ---
 
 async function checkMappingPathsExist(graph: Graph): Promise<ValidationIssue[]> {
   const issues: ValidationIssue[] = [];
@@ -461,10 +482,14 @@ async function checkMappingPathsExist(graph: Graph): Promise<ValidationIssue[]> 
         await access(absPath);
       } catch {
         issues.push({
-          severity: 'warning',
-          code: 'W012',
+          severity: 'error',
+          code: 'mapping-path-missing',
           rule: 'mapping-path-missing',
-          message: `Mapping path '${mp}' does not exist on disk`,
+          message: buildIssueMessage({
+            what: `Mapping path '${mp}' does not exist on disk.`,
+            why: `Node maps a file that was deleted or moved.`,
+            next: `Update mapping in yg-node.yaml: fix the path or remove the entry.`,
+          }),
           nodePath,
         });
       }
@@ -473,89 +498,8 @@ async function checkMappingPathsExist(graph: Graph): Promise<ValidationIssue[]> 
   return issues;
 }
 
-// --- Rule 6: Required artifacts per STANDARD_ARTIFACTS (W001) ---
 
-function getIncomingRelationSources(graph: Graph, nodePath: string): string[] {
-  const sources: string[] = [];
-  for (const [srcPath, node] of graph.nodes) {
-    for (const rel of node.meta.relations ?? []) {
-      if (rel.target === nodePath) sources.push(srcPath);
-    }
-  }
-  return sources;
-}
-
-function artifactRequiredReason(
-  graph: Graph,
-  nodePath: string,
-  node: {
-    meta: { relations?: Array<{ target: string }>; aspects?: NodeAspectEntry[]; blackbox?: boolean };
-    artifacts: Array<{ filename: string }>;
-  },
-  required: ArtifactConfig['required'],
-): string | null {
-  if (required === 'never') return null;
-  if (required === 'always') {
-    return node.meta.blackbox ? null : 'required: always';
-  }
-  const when = (required as { when: string }).when;
-  if (when === 'has_incoming_relations') {
-    const sources = getIncomingRelationSources(graph, nodePath);
-    return sources.length > 0
-      ? `${sources.length} incoming relation(s): ${sources.join(', ')}`
-      : null;
-  }
-  // has_outgoing_relations and has_aspect: conditions removed — standard artifacts don't use them
-  return null;
-}
-
-function getIncomingRelations(graph: Graph, nodePath: string): string[] {
-  const incoming: string[] = [];
-  for (const [fromPath, node] of graph.nodes) {
-    for (const rel of node.meta.relations ?? []) {
-      if (rel.target === nodePath) {
-        incoming.push(fromPath);
-        break;
-      }
-    }
-  }
-  return incoming.sort();
-}
-
-function checkRequiredArtifacts(graph: Graph): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
-  const artifacts = STANDARD_ARTIFACTS;
-
-  for (const [nodePath, node] of graph.nodes) {
-    for (const [filename, config] of Object.entries(artifacts)) {
-      const hasArtifact = node.artifacts.some((a) => a.filename === filename);
-      const reason = artifactRequiredReason(graph, nodePath, node, config.required);
-
-      if (reason && !hasArtifact) {
-        const action = config.description ?? '';
-        const incoming = getIncomingRelations(graph, nodePath);
-        const incomingStr =
-          incoming.length > 0
-            ? ` Node has ${incoming.length} incoming relation(s): ${incoming.slice(0, 5).join(', ')}${incoming.length > 5 ? '...' : ''}.`
-            : '';
-        const msg = action
-          ? `Missing required artifact '${filename}' (${reason}).${incomingStr} ${action}`
-          : `Missing required artifact '${filename}' (${reason}).${incomingStr}`;
-        issues.push({
-          severity: 'warning',
-          code: 'W001',
-          rule: 'missing-artifact',
-          message: msg.trim(),
-          nodePath,
-        });
-      }
-    }
-  }
-
-  return issues;
-}
-
-// --- E006: Broken flow refs (flow.nodes) ---
+// --- flow-node-broken: Broken flow refs (flow.nodes) ---
 
 function checkBrokenFlowRefs(graph: Graph): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
@@ -565,9 +509,13 @@ function checkBrokenFlowRefs(graph: Graph): ValidationIssue[] {
       if (!nodePaths.has(n)) {
         issues.push({
           severity: 'error',
-          code: 'E006',
+          code: 'flow-node-broken',
           rule: 'broken-flow-ref',
-          message: `Flow '${flow.name}' references non-existent node '${n}'`,
+          message: buildIssueMessage({
+            what: `Flow '${flow.name}' references non-existent node '${n}'.`,
+            why: `Flow participants must exist in the graph.`,
+            next: `Fix the nodes list in yg-flow.yaml or create the missing node.`,
+          }),
         });
       }
     }
@@ -575,51 +523,7 @@ function checkBrokenFlowRefs(graph: Graph): ValidationIssue[] {
   return issues;
 }
 
-// --- E007: Flow aspect ids must have corresponding aspect ---
-
-function checkFlowAspectIds(graph: Graph): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
-  const validAspectIds = new Set(graph.aspects.map((a) => a.id));
-
-  for (const flow of graph.flows) {
-    for (const aspectId of flow.aspects ?? []) {
-      if (!validAspectIds.has(aspectId)) {
-        issues.push({
-          severity: 'error',
-          code: 'E007',
-          rule: 'broken-aspect-ref',
-          message: `Flow '${flow.name}' references aspect '${aspectId}' but no aspect with that id exists in aspects/`,
-        });
-      }
-    }
-  }
-  return issues;
-}
-
-// E013 removed — standard artifacts don't use has_aspect: conditions
-
-// --- W002: Shallow artifacts (below min_artifact_length) ---
-
-async function checkShallowArtifacts(graph: Graph): Promise<ValidationIssue[]> {
-  const issues: ValidationIssue[] = [];
-  const minLen = graph.config.quality?.min_artifact_length ?? 50;
-  for (const [nodePath, node] of graph.nodes) {
-    for (const art of node.artifacts) {
-      if (art.content.trim().length < minLen) {
-        issues.push({
-          severity: 'warning',
-          code: 'W002',
-          rule: 'shallow-artifact',
-          message: `Artifact '${art.filename}' is below minimum length (${art.content.trim().length} < ${minLen})`,
-          nodePath,
-        });
-      }
-    }
-  }
-  return issues;
-}
-
-// --- W017: Wide node (maps too many source files) ---
+// --- wide-node: Maps too many source files ---
 
 async function checkWideNodes(graph: Graph): Promise<ValidationIssue[]> {
   const issues: ValidationIssue[] = [];
@@ -627,29 +531,30 @@ async function checkWideNodes(graph: Graph): Promise<ValidationIssue[]> {
   const projectRoot = path.dirname(graph.rootPath);
 
   for (const [nodePath, node] of graph.nodes) {
-    if (node.meta.blackbox) continue;
+    const effectiveAspects = computeEffectiveAspects(node, graph);
+    if (effectiveAspects.size === 0) continue;
     const mappingPaths = normalizeMappingPaths(node.meta.mapping);
     if (mappingPaths.length === 0) continue;
 
     const sourceFiles = await expandMappingToFiles(projectRoot, mappingPaths);
     if (sourceFiles.length <= maxFiles) continue;
 
-    const filledArtifacts = node.artifacts.filter(
-      (a) => a.content.trim().length >= (graph.config.quality?.min_artifact_length ?? 50),
-    ).length;
-
     issues.push({
       severity: 'warning',
-      code: 'W017',
+      code: 'wide-node',
       rule: 'wide-node',
-      message: `Node maps ${sourceFiles.length} source files (max: ${maxFiles}) with ${filledArtifacts} artifact(s). Consider splitting into child nodes with focused responsibilities.`,
+      message: buildIssueMessage({
+        what: `Node maps ${sourceFiles.length} source files (max: ${maxFiles}).`,
+        why: `Wide nodes degrade reviewer accuracy — the reviewer verifies aspects against all source files at once. Too many files dilute focus and cause false rejections.`,
+        next: `Split into child nodes with 2-5 source files each. Each child should map only the files relevant to its aspects.`,
+      }),
       nodePath,
     });
   }
   return issues;
 }
 
-// --- W007: High fan-out (exceeds max_direct_relations) ---
+// --- high-fan-out: Exceeds max_direct_relations ---
 
 function checkHighFanOut(graph: Graph): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
@@ -659,9 +564,13 @@ function checkHighFanOut(graph: Graph): ValidationIssue[] {
     if (count > maxRel) {
       issues.push({
         severity: 'warning',
-        code: 'W007',
+        code: 'high-fan-out',
         rule: 'high-fan-out',
-        message: `Node has ${count} direct relations (max: ${maxRel})`,
+        message: buildIssueMessage({
+          what: `Node has ${count} direct relations (max: ${maxRel}).`,
+          why: `High fan-out makes context packages large and suggests unclear separation of concerns.`,
+          next: `Consider splitting responsibilities or introducing an intermediary node.`,
+        }),
         nodePath,
       });
     }
@@ -669,7 +578,7 @@ function checkHighFanOut(graph: Graph): ValidationIssue[] {
   return issues;
 }
 
-// --- W009: Unpaired event relations (emits without listens or vice versa) ---
+// --- unpaired-event: Unpaired event relations (emits without listens or vice versa) ---
 
 function checkUnpairedEvents(graph: Graph): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
@@ -694,10 +603,14 @@ function checkUnpairedEvents(graph: Graph): ValidationIssue[] {
       const listenerSet = listensFrom.get(target);
       if (!listenerSet?.has(emitter)) {
         issues.push({
-          severity: 'warning',
-          code: 'W009',
+          severity: 'error',
+          code: 'event-unpaired',
           rule: 'unpaired-event',
-          message: `Node '${emitter}' emits to '${target}' but '${target}' has no listens from '${emitter}'`,
+          message: buildIssueMessage({
+            what: `Node '${emitter}' emits to '${target}' but '${target}' has no listens from '${emitter}'.`,
+            why: `Events need paired emits/listens for flow tracking.`,
+            next: `Add the complementary event relation.`,
+          }),
           nodePath: emitter,
         });
       }
@@ -708,10 +621,14 @@ function checkUnpairedEvents(graph: Graph): ValidationIssue[] {
       const emitterSet = emitsTo.get(source);
       if (!emitterSet?.has(listener)) {
         issues.push({
-          severity: 'warning',
-          code: 'W009',
+          severity: 'error',
+          code: 'event-unpaired',
           rule: 'unpaired-event',
-          message: `Node '${listener}' listens from '${source}' but '${source}' has no emits to '${listener}'`,
+          message: buildIssueMessage({
+            what: `Node '${listener}' listens from '${source}' but '${source}' has no emits to '${listener}'.`,
+            why: `Events need paired emits/listens for flow tracking.`,
+            next: `Add the complementary event relation.`,
+          }),
           nodePath: listener,
         });
       }
@@ -731,10 +648,14 @@ function checkSchemas(graph: Graph): ValidationIssue[] {
   for (const required of REQUIRED_SCHEMAS) {
     if (!present.has(required)) {
       issues.push({
-        severity: 'warning',
-        code: 'W010',
+        severity: 'error',
+        code: 'schema-missing',
         rule: 'missing-schema',
-        message: `Schema 'yg-${required}.yaml' missing from .yggdrasil/schemas/`,
+        message: buildIssueMessage({
+          what: `Schema 'yg-${required}.yaml' missing from .yggdrasil/schemas/.`,
+          why: `Schemas validate graph elements — missing schemas allow invalid ${required} definitions.`,
+          next: `Run yg init to restore missing schemas.`,
+        }),
       });
     }
   }
@@ -749,46 +670,38 @@ async function checkDirectoriesHaveNodeYaml(graph: Graph): Promise<ValidationIss
   const modelDir = path.join(graph.rootPath, 'model');
 
   async function scanDir(dirPath: string, segments: string[]): Promise<void> {
-    const entries = await readdir(dirPath, { withFileTypes: true });
+    const entries = (await readdir(dirPath, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
     const hasNodeYaml = entries.some((e) => e.isFile() && e.name === 'yg-node.yaml');
-    const dirName = path.basename(dirPath);
-
-    if (RESERVED_DIRS.has(dirName)) return;
 
     const hasFiles = entries.some((e) => e.isFile());
-    const hasSubdirs = entries.some((e) => e.isDirectory() && !RESERVED_DIRS.has(e.name) && !e.name.startsWith('.'));
     const graphPath = segments.join('/');
 
     if (!hasNodeYaml && graphPath !== '') {
       if (hasFiles) {
         issues.push({
           severity: 'error',
-          code: 'E015',
+          code: 'node-yaml-missing',
           rule: 'missing-node-yaml',
-          message: `Directory '${graphPath}' has files but no yg-node.yaml`,
-          nodePath: graphPath,
-        });
-      } else if (hasSubdirs) {
-        issues.push({
-          severity: 'warning',
-          code: 'W013',
-          rule: 'directory-without-node',
-          message: `Directory '${graphPath}' has subdirectories but no yg-node.yaml — consider creating a node`,
+          message: buildIssueMessage({
+            what: `Directory '${graphPath}' has files but no yg-node.yaml.`,
+            why: `Every directory in model/ must have a node definition.`,
+            next: `Create yg-node.yaml in ${graphPath}/ or move files to an existing node directory.`,
+          }),
           nodePath: graphPath,
         });
       }
+      // directory-without-node covered by unmapped-files check
     }
 
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
-      if (RESERVED_DIRS.has(entry.name)) continue;
       if (entry.name.startsWith('.')) continue;
       await scanDir(path.join(dirPath, entry.name), [...segments, entry.name]);
     }
   }
 
   try {
-    const rootEntries = await readdir(modelDir, { withFileTypes: true });
+    const rootEntries = (await readdir(modelDir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
     for (const entry of rootEntries) {
       if (!entry.isDirectory()) continue;
       if (entry.name.startsWith('.')) continue;
@@ -801,9 +714,9 @@ async function checkDirectoriesHaveNodeYaml(graph: Graph): Promise<ValidationIss
   return issues;
 }
 
-// --- Anchor validation (E019, W014) ---
+// --- Mapping expansion utility ---
 
-async function expandMappingToFiles(projectRoot: string, mappingPaths: string[]): Promise<string[]> {
+export async function expandMappingToFiles(projectRoot: string, mappingPaths: string[]): Promise<string[]> {
   const files: string[] = [];
 
   async function collectFiles(absPath: string): Promise<void> {
@@ -834,112 +747,7 @@ async function expandMappingToFiles(projectRoot: string, mappingPaths: string[])
   return files;
 }
 
-async function checkAnchorPresence(graph: Graph): Promise<ValidationIssue[]> {
-  const issues: ValidationIssue[] = [];
-  const projectRoot = path.dirname(graph.rootPath);
-
-  for (const [nodePath, node] of graph.nodes) {
-    const aspectsWithAnchors = (node.meta.aspects ?? []).filter(a => a.anchors && a.anchors.length > 0);
-    if (aspectsWithAnchors.length === 0) continue;
-
-    // W014: check anchor strings exist in source files
-    const mappingPaths = normalizeMappingPaths(node.meta.mapping);
-    if (mappingPaths.length === 0) continue;
-
-    const sourceFiles = await expandMappingToFiles(projectRoot, mappingPaths);
-    if (sourceFiles.length === 0) continue;
-
-    const fileContents: string[] = [];
-    for (const filePath of sourceFiles) {
-      try {
-        const content = await readFile(filePath, 'utf-8');
-        fileContents.push(content);
-      } catch {
-        // Skip unreadable files
-      }
-    }
-
-    for (const entry of aspectsWithAnchors) {
-      for (const anchor of entry.anchors!) {
-        const found = fileContents.some((content) => content.includes(anchor));
-        if (!found) {
-          issues.push({
-            severity: 'warning',
-            code: 'W014',
-            rule: 'anchor-not-found',
-            message: `Anchor '${anchor}' for aspect '${entry.aspect}' not found in mapped source files`,
-            nodePath,
-          });
-        }
-      }
-    }
-  }
-
-  return issues;
-}
-
-// --- Context budget (W005 warning, W006 error, W015 own-budget) ---
-
-async function checkContextBudget(graph: Graph): Promise<ValidationIssue[]> {
-  const issues: ValidationIssue[] = [];
-  const budget = graph.config.quality?.context_budget ?? { warning: 10000, error: 20000 };
-  const warningThreshold = budget.warning;
-  const errorThreshold = budget.error;
-  const ownWarningThreshold = budget.own_warning;
-
-  for (const [nodePath] of graph.nodes) {
-    const node = graph.nodes.get(nodePath)!;
-    if (node.meta.blackbox) continue;
-    try {
-      const pkg = await buildContext(graph, nodePath);
-      const breakdown = computeBudgetBreakdown(pkg, graph);
-      const breakdownLine =
-        `own: ${breakdown.own.toLocaleString()} (${pct(breakdown.own, breakdown.total)}) | ` +
-        `hierarchy: ${breakdown.hierarchy.toLocaleString()} (${pct(breakdown.hierarchy, breakdown.total)}) | ` +
-        `aspects: ${breakdown.aspects.toLocaleString()} (${pct(breakdown.aspects, breakdown.total)}) | ` +
-        `flows: ${breakdown.flows.toLocaleString()} (${pct(breakdown.flows, breakdown.total)}) | ` +
-        `dependencies: ${breakdown.dependencies.toLocaleString()} (${pct(breakdown.dependencies, breakdown.total)})`;
-
-      if (breakdown.total >= errorThreshold) {
-        issues.push({
-          severity: 'warning',
-          code: 'W006',
-          rule: 'budget-error',
-          message: `Context is ${breakdown.total.toLocaleString()} tokens (error threshold: ${errorThreshold.toLocaleString()}).\n     ${breakdownLine}`,
-          nodePath,
-        });
-      } else if (breakdown.total >= warningThreshold) {
-        issues.push({
-          severity: 'warning',
-          code: 'W005',
-          rule: 'budget-warning',
-          message: `Context is ${breakdown.total.toLocaleString()} tokens (warning threshold: ${warningThreshold.toLocaleString()}).\n     ${breakdownLine}`,
-          nodePath,
-        });
-      }
-
-      if (ownWarningThreshold !== undefined && breakdown.own >= ownWarningThreshold) {
-        issues.push({
-          severity: 'warning',
-          code: 'W015',
-          rule: 'own-budget-warning',
-          message: `Own artifacts: ${breakdown.own.toLocaleString()} tokens (threshold: ${ownWarningThreshold.toLocaleString()}). Consider splitting this node's responsibilities into child nodes.`,
-          nodePath,
-        });
-      }
-    } catch {
-      // buildContext may fail for structurally broken nodes — other rules catch those.
-    }
-  }
-  return issues;
-}
-
-function pct(value: number, total: number): string {
-  if (total === 0) return '0%';
-  return `${Math.round((value / total) * 100)}%`;
-}
-
-// --- W016: Missing description on nodes, aspects, and flows ---
+// --- missing-description: Missing description on nodes, aspects, and flows ---
 
 function checkMissingDescriptions(graph: Graph): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
@@ -948,10 +756,14 @@ function checkMissingDescriptions(graph: Graph): ValidationIssue[] {
   for (const [nodePath, node] of graph.nodes) {
     if (!node.meta.description?.trim()) {
       issues.push({
-        severity: 'warning',
-        code: 'W016',
+        severity: 'error',
+        code: 'description-missing',
         rule: 'missing-description',
-        message: `Node has no description`,
+        message: buildIssueMessage({
+          what: `Node has no description.`,
+          why: `Description is used in context output — agents need it for orientation.`,
+          next: `Add a description field to yg-node.yaml.`,
+        }),
         nodePath,
       });
     }
@@ -961,10 +773,14 @@ function checkMissingDescriptions(graph: Graph): ValidationIssue[] {
   for (const aspect of graph.aspects) {
     if (!aspect.description?.trim()) {
       issues.push({
-        severity: 'warning',
-        code: 'W016',
+        severity: 'error',
+        code: 'description-missing',
         rule: 'missing-description',
-        message: `Aspect '${aspect.id}' has no description`,
+        message: buildIssueMessage({
+          what: `Aspect '${aspect.id}' has no description.`,
+          why: `Description is used in context output — agents need it for orientation.`,
+          next: `Add a description field to yg-aspect.yaml.`,
+        }),
       });
     }
   }
@@ -973,10 +789,310 @@ function checkMissingDescriptions(graph: Graph): ValidationIssue[] {
   for (const flow of graph.flows) {
     if (!flow.description?.trim()) {
       issues.push({
-        severity: 'warning',
-        code: 'W016',
+        severity: 'error',
+        code: 'description-missing',
         rule: 'missing-description',
-        message: `Flow '${flow.name}' has no description`,
+        message: buildIssueMessage({
+          what: `Flow '${flow.name}' has no description.`,
+          why: `Description is used in context output — agents need it for orientation.`,
+          next: `Add a description field to yg-flow.yaml.`,
+        }),
+      });
+    }
+  }
+
+  return issues;
+}
+
+// --- Architecture Constraints (invalid-relation-target, invalid-parent-type) ---
+// Note: aspect-undefined (dangling-aspect-ref) is generated by checkDanglingAspectRefs above (line ~184).
+
+function checkArchitectureConstraints(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  // invalid-relation-target and invalid-parent-type require architecture to be defined and loaded
+  // Only validate if architecture has node_types entries
+  if (!graph.architecture || Object.keys(graph.architecture.node_types).length === 0) {
+    return issues;
+  }
+
+  // type-undefined: node uses a type not defined in architecture
+  issues.push(...checkNodeTypesExist(graph));
+
+  // invalid-relation-target (sync, no I/O)
+  issues.push(...checkArchitectureRelations(graph));
+
+  // invalid-parent-type (sync, no I/O)
+  issues.push(...checkArchitectureParents(graph));
+
+  return issues;
+}
+
+function checkNodeTypesExist(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const allowedTypes = new Set(Object.keys(graph.architecture!.node_types));
+
+  for (const [nodePath, node] of graph.nodes) {
+    if (!allowedTypes.has(node.meta.type)) {
+      issues.push({
+        severity: 'error',
+        code: 'type-undefined',
+        rule: 'unknown-node-type',
+        message: buildIssueMessage({
+          what: `Node type '${node.meta.type}' is not defined in yg-architecture.yaml.`,
+          why: `Allowed types: ${[...allowedTypes].join(', ')}.`,
+          next: `Add '${node.meta.type}' to yg-architecture.yaml or change the node type.`,
+        }),
+        nodePath,
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * integration-aspect-missing
+ * When a node consumes a port, that port's required aspects must be defined in aspects/.
+ */
+function checkPortAspectsDefined(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const definedAspects = new Set(graph.aspects.map((a) => a.id));
+
+  for (const [nodePath, node] of graph.nodes) {
+    for (const rel of node.meta.relations ?? []) {
+      const target = graph.nodes.get(rel.target);
+      if (!target?.meta.ports) continue;
+
+      for (const portName of rel.consumes ?? []) {
+        const port = target.meta.ports[portName];
+        if (!port) continue; // unknown-port catches this
+        for (const aspectId of port.aspects) {
+          if (!definedAspects.has(aspectId)) {
+            issues.push({
+              severity: 'error',
+              code: 'port-missing-aspect',
+              rule: 'integration-aspect-missing',
+              nodePath,
+              message: buildIssueMessage({
+                what: `Relation: ${rel.type} -> ${rel.target}, port '${portName}'`,
+                why: `Port requires aspect '${aspectId}' but it is not defined in aspects/ — port contracts are broken.`,
+                next: `Create aspects/${aspectId}/ with yg-aspect.yaml and content.md.`,
+              }),
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * invalid-relation-target
+ * Relation target type must be in architecture's allowed list for the relation type.
+ */
+function checkArchitectureRelations(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  for (const [nodePath, node] of graph.nodes) {
+    const typeConfig = graph.architecture.node_types[node.meta.type];
+    if (!typeConfig?.relations || !node.meta.relations || node.meta.relations.length === 0) {
+      continue;
+    }
+
+    for (const rel of node.meta.relations) {
+      const allowedTypes = typeConfig.relations[rel.type];
+      if (!allowedTypes) continue; // Unconstrained relation type
+
+      const target = graph.nodes.get(rel.target);
+      if (!target) continue; // relation-target-missing catches this
+
+      if (!allowedTypes.includes(target.meta.type)) {
+        issues.push({
+          severity: 'error',
+          code: 'relation-target-forbidden',
+          rule: 'invalid-relation-target',
+          nodePath,
+          message: buildIssueMessage({
+            what: `Relation: ${rel.type} -> ${rel.target} (type: ${target.meta.type})`,
+            why: `Architecture does not allow type '${node.meta.type}' to '${rel.type}' type '${target.meta.type}'. Allowed targets for '${rel.type}': [${allowedTypes.join(', ')}]`,
+            next: `Either change the relation type, change the target node's type, or update yg-architecture.yaml to allow this relation.`,
+          }),
+        });
+      }
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * invalid-parent-type
+ * Parent type must be in architecture's allowed list for this node type.
+ */
+function checkArchitectureParents(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  for (const [nodePath, node] of graph.nodes) {
+    const typeConfig = graph.architecture.node_types[node.meta.type];
+    if (!typeConfig?.parents || !node.parent) {
+      continue;
+    }
+
+    if (!typeConfig.parents.includes(node.parent.meta.type)) {
+      issues.push({
+        severity: 'error',
+        code: 'parent-type-forbidden',
+        rule: 'invalid-parent-type',
+        nodePath,
+        message: buildIssueMessage({
+          what: `Parent: ${node.parent.path} (type: ${node.parent.meta.type})`,
+          why: `Architecture does not allow type '${node.meta.type}' under parent type '${node.parent.meta.type}'. Allowed parents: [${typeConfig.parents.join(', ')}]`,
+          next: `Either move this node under an allowed parent type, change this node's type, or update yg-architecture.yaml to allow this parent.`,
+        }),
+      });
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * missing-consumes
+ * When a relation target has non-empty ports, the consumer must declare which port(s) it consumes.
+ *
+ * unknown-port
+ * When a consumer's consumes list references a port name that does not exist on the target.
+ */
+function checkPortConsumes(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  for (const [nodePath, node] of graph.nodes) {
+    for (const rel of node.meta.relations ?? []) {
+      // Skip event relations — they don't consume ports
+      if (rel.type === 'emits' || rel.type === 'listens') continue;
+
+      const target = graph.nodes.get(rel.target);
+      const hasPorts = target?.meta.ports && Object.keys(target.meta.ports).length > 0;
+
+      // consumes-without-ports: consumes on a relation to a target without ports
+      if (!hasPorts && rel.consumes && rel.consumes.length > 0) {
+        issues.push({
+          severity: 'error',
+          code: 'consumes-without-ports',
+          rule: 'consumes-without-ports',
+          nodePath,
+          message: buildIssueMessage({
+            what: `Relation: ${rel.type} -> ${rel.target} declares consumes: [${rel.consumes.join(', ')}]`,
+            why: `Target has no ports. consumes is only meaningful when the target declares ports with required aspects.`,
+            next: `Remove consumes from this relation in yg-node.yaml.`,
+          }),
+        });
+        continue;
+      }
+
+      if (!hasPorts) continue;
+      const ports = target!.meta.ports!;
+
+      // missing-consumes: target has ports but consumer has no consumes
+      if (!rel.consumes || rel.consumes.length === 0) {
+        const portNames = Object.keys(ports);
+        issues.push({
+          severity: 'error',
+          code: 'port-missing-consumes',
+          rule: 'missing-consumes',
+          nodePath,
+          message: buildIssueMessage({
+            what: `Relation: ${rel.type} -> ${rel.target}`,
+            why: `Target has ports: [${portNames.join(', ')}] — port-required aspects won't be verified without a consumes declaration.`,
+            next: `Add consumes: [<port-names>] to this relation in yg-node.yaml.`,
+          }),
+        });
+        continue;
+      }
+
+      // unknown-port: consumes references non-existent port
+      for (const portName of rel.consumes) {
+        if (!(portName in ports)) {
+          const available = Object.keys(ports);
+          issues.push({
+            severity: 'error',
+            code: 'port-undefined',
+            rule: 'unknown-port',
+            nodePath,
+            message: buildIssueMessage({
+              what: `Relation: ${rel.type} -> ${rel.target}, port '${portName}' not found.`,
+              why: `Port contract cannot be enforced for an undefined port. Available ports: [${available.join(', ')}]`,
+              next: `Fix the port name in consumes, or add the port definition to the target node.`,
+            }),
+          });
+        }
+      }
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * orphaned-aspect
+ * An aspect defined in aspects/ is not referenced by any node, architecture type, or flow.
+ * Implied aspects are exempt when the aspect that implies them is itself referenced.
+ */
+function checkOrphanedAspects(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const referenced = new Set<string>();
+
+  // Collect direct references from nodes (aspects field and port aspects)
+  for (const [, node] of graph.nodes) {
+    for (const a of node.meta.aspects ?? []) referenced.add(a);
+    if (node.meta.ports) {
+      for (const port of Object.values(node.meta.ports)) {
+        for (const a of port.aspects) referenced.add(a);
+      }
+    }
+  }
+
+  // Collect references from architecture node_types
+  for (const typeDef of Object.values(graph.architecture?.node_types ?? {})) {
+    for (const a of typeDef.aspects ?? []) referenced.add(a);
+  }
+
+  // Collect references from flows
+  for (const flow of graph.flows) {
+    for (const a of flow.aspects ?? []) referenced.add(a);
+  }
+
+  // Propagate: aspects implied by a referenced aspect are also considered referenced
+  // (iterate to fixpoint in case of chains)
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const aspect of graph.aspects) {
+      if (referenced.has(aspect.id) && aspect.implies) {
+        for (const implied of aspect.implies) {
+          if (!referenced.has(implied)) {
+            referenced.add(implied);
+            changed = true;
+          }
+        }
+      }
+    }
+  }
+
+  for (const aspect of graph.aspects) {
+    if (!referenced.has(aspect.id)) {
+      issues.push({
+        severity: 'warning',
+        code: 'orphaned-aspect',
+        rule: 'orphaned-aspect',
+        nodePath: `aspects/${aspect.id}`,
+        message: buildIssueMessage({
+          what: `Aspect '${aspect.id}' is defined but not referenced by any node, architecture type, or flow.`,
+          why: `Orphaned aspects add noise to the graph without enforcing any requirements.`,
+          next: `Either add it to a node/architecture/flow or remove it.`,
+        }),
       });
     }
   }

@@ -11,45 +11,20 @@ describe('default-config', () => {
 
   it('DEFAULT_CONFIG contains required keys', () => {
     const parsed = parseYaml(DEFAULT_CONFIG) as Record<string, unknown>;
-    expect(parsed.name).toBeDefined();
-    expect(parsed.node_types).toBeDefined();
+    expect(parsed.node_types).toBeUndefined();
     expect(parsed.artifacts).toBeUndefined();
     expect(parsed.quality).toBeDefined();
   });
 
-  it('DEFAULT_CONFIG contains version field equal to 3.0.0', () => {
+  it('DEFAULT_CONFIG contains version field equal to 4.0.0', () => {
     const parsed = parseYaml(DEFAULT_CONFIG) as Record<string, unknown>;
-    expect(parsed.version).toBe('3.0.0');
+    expect(parsed.version).toBe('4.0.0');
   });
 
-  it('DEFAULT_CONFIG node_types includes module, service, library', () => {
+  it('DEFAULT_CONFIG quality.max_direct_relations is 10', () => {
     const parsed = parseYaml(DEFAULT_CONFIG) as {
-      node_types: Record<string, { description: string }>;
+      quality: { max_direct_relations: number };
     };
-    const names = Object.keys(parsed.node_types);
-    expect(names).toContain('module');
-    expect(names).toContain('service');
-    expect(names).toContain('library');
-  });
-
-  it('DEFAULT_CONFIG does not contain artifacts section', () => {
-    const parsed = parseYaml(DEFAULT_CONFIG) as Record<string, unknown>;
-    expect(parsed.artifacts).toBeUndefined();
-  });
-
-  it('DEFAULT_CONFIG node_types includes infrastructure', () => {
-    const parsed = parseYaml(DEFAULT_CONFIG) as {
-      node_types: Record<string, { description: string }>;
-    };
-    const names = Object.keys(parsed.node_types);
-    expect(names).toContain('infrastructure');
-  });
-
-  it('DEFAULT_CONFIG quality.context_budget has warning and error', () => {
-    const parsed = parseYaml(DEFAULT_CONFIG) as {
-      quality: { context_budget: { warning: number; error: number } };
-    };
-    expect(parsed.quality.context_budget.warning).toBe(10000);
-    expect(parsed.quality.context_budget.error).toBe(20000);
+    expect(parsed.quality.max_direct_relations).toBe(10);
   });
 });

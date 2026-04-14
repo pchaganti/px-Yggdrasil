@@ -1,0 +1,7 @@
+name: Templates Unit Tests
+type: test
+description: "Unit tests for template generation: commands, default-config, platform rules, and project name resolution"
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/templates/

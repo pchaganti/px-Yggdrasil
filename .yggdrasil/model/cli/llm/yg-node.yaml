@@ -1,0 +1,13 @@
+name: LLM Core
+type: adapter
+description: LLM types, provider registry, and shared utilities
+aspects:
+  - diagnostic-logging
+
+relations: []
+
+mapping:
+  - source/cli/src/llm/types.ts
+  - source/cli/src/llm/provider.ts
+  - source/cli/src/llm/index.ts
+  - source/cli/src/llm/api-utils.ts

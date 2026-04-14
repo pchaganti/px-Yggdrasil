@@ -98,7 +98,7 @@ export async function perFileHashes(
     const absPath = path.join(root, p);
     const st = await stat(absPath);
     if (st.isFile()) {
-      result.push({ path: p, hash: await hashFile(absPath) });
+      result.push({ path: p.replace(/\\/g, '/').replace(/\/+$/, ''), hash: await hashFile(absPath) });
     } else if (st.isDirectory()) {
       const hashes = await collectDirectoryFileHashes(absPath, absPath, {
         projectRoot: root,
@@ -106,7 +106,7 @@ export async function perFileHashes(
       });
       for (const h of hashes) {
         result.push({
-          path: path.join(p, h.path).split(path.sep).join('/'),
+          path: path.join(p, h.path).replace(/\\/g, '/').replace(/\/+$/, ''),
           hash: h.hash,
         });
       }
@@ -131,10 +131,10 @@ export async function hashForMapping(
     const absPath = path.join(root, p);
     const st = await stat(absPath);
     if (st.isFile()) {
-      pairs.push({ path: p, hash: await hashFile(absPath) });
+      pairs.push({ path: p.replace(/\\/g, '/').replace(/\/+$/, ''), hash: await hashFile(absPath) });
     } else if (st.isDirectory()) {
       const dirHash = await hashPath(absPath, { projectRoot: root });
-      pairs.push({ path: p, hash: dirHash });
+      pairs.push({ path: p.replace(/\\/g, '/').replace(/\/+$/, ''), hash: dirHash });
     }
   }
 
@@ -175,6 +175,11 @@ export async function hashTrackedFiles(
   const allFiles: FileEntry[] = [];
 
   for (const tf of trackedFiles) {
+    // Synthetic entries have a pre-computed hash — use it directly without disk I/O
+    if (tf.syntheticHash) {
+      fileHashes[tf.path] = tf.syntheticHash;
+      continue;
+    }
     const absPath = path.join(projectRoot, tf.path);
     try {
       const st = await stat(absPath);
@@ -185,7 +190,7 @@ export async function hashTrackedFiles(
         });
         for (const entry of dirEntries) {
           allFiles.push({
-            relPath: path.join(tf.path, entry.relPath).replace(/\\/g, '/'),
+            relPath: path.join(tf.path, entry.relPath).replace(/\\/g, '/').replace(/\/+$/, ''),
             absPath: entry.absPath,
             mtimeMs: entry.mtimeMs,
           });
@@ -278,7 +283,7 @@ async function collectDirectoryFilePaths(
     Promise.all(files.map(async (f) => {
       const fileStat = await stat(f);
       return {
-        relPath: path.relative(rootDirectoryPath, f),
+        relPath: path.relative(rootDirectoryPath, f).replace(/\\/g, '/').replace(/\/+$/, ''),
         absPath: f,
         mtimeMs: fileStat.mtimeMs,
       };

@@ -42,15 +42,24 @@ export async function findYggRoot(projectRoot: string): Promise<string> {
   }
 }
 
-import type { NodeMapping } from '../model/types.js';
-
 /**
  * Normalize a mapping to always return an array of paths (relative to project root).
  * Each path can be a file or directory — type is detected at runtime by hash/owner.
+ * Format: flat string array.
  */
-export function normalizeMappingPaths(mapping: NodeMapping | undefined): string[] {
-  if (!mapping?.paths?.length) return [];
-  return mapping.paths.map((p) => p.trim()).filter(Boolean);
+export function normalizeMappingPaths(mapping: string[] | undefined): string[] {
+  if (!mapping || !Array.isArray(mapping)) return [];
+
+  const paths: string[] = [];
+  for (const item of mapping) {
+    if (typeof item === 'string') {
+      const normalized = item.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+      if (normalized) {
+        paths.push(normalized);
+      }
+    }
+  }
+  return paths;
 }
 
 /**
@@ -58,7 +67,7 @@ export function normalizeMappingPaths(mapping: NodeMapping | undefined): string[
  * E.g., "/abs/path/.yggdrasil/orders/order-service" → "orders/order-service"
  */
 export function toGraphPath(absolutePath: string, yggRoot: string): string {
-  return path.relative(yggRoot, absolutePath).split(path.sep).join('/');
+  return path.relative(yggRoot, absolutePath).replace(/\\/g, '/').replace(/\/+$/, '');
 }
 
 /**
@@ -66,7 +75,7 @@ export function toGraphPath(absolutePath: string, yggRoot: string): string {
  * Throws when the target path points outside the project root.
  */
 export function normalizeProjectRelativePath(projectRoot: string, rawPath: string): string {
-  const normalizedInput = rawPath.trim().replace(/\\/g, '/');
+  const normalizedInput = rawPath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
   if (normalizedInput.length === 0) {
     throw new Error('Path cannot be empty');
   }
@@ -78,14 +87,7 @@ export function normalizeProjectRelativePath(projectRoot: string, rawPath: strin
     throw new Error(`Path is outside project root: ${rawPath}`);
   }
 
-  return relative.split(path.sep).join('/');
-}
-
-/**
- * Normalize a --node path argument: strip leading ./ and trailing /.
- */
-export function normalizeNodePath(rawPath: string): string {
-  return rawPath.trim().replace(/^\.\//, '').replace(/\/+$/, '');
+  return relative.replace(/\\/g, '/').replace(/\/+$/, '');
 }
 
 /**

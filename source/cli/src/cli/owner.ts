@@ -1,8 +1,10 @@
 import path from 'node:path';
 import { access } from 'node:fs/promises';
 import { Command } from 'commander';
+import chalk from 'chalk';
 import { loadGraph } from '../core/graph-loader.js';
-import type { Graph, OwnerResult } from '../model/types.js';
+import { initDebugLog } from '../utils/debug-log.js';
+import type { Graph, OwnerResult } from '../model/graph.js';
 import { normalizeMappingPaths, normalizeProjectRelativePath, projectRootFromGraph } from '../utils/paths.js';
 
 function normalizeForMatch(inputPath: string): string {
@@ -44,12 +46,13 @@ export function registerOwnerCommand(program: Command): void {
       try {
         const cwd = process.cwd();
         const graph = await loadGraph(cwd);
+        initDebugLog(graph.rootPath, graph.config.debug ?? false);
         // Resolve the file path relative to CWD (so subdirectory-relative paths work),
         // then make it relative to the actual repo root (where .yggdrasil/ lives).
         const repoRoot = projectRootFromGraph(graph.rootPath);
         const rawPath = options.file.trim();
         const absolute = path.resolve(cwd, rawPath);
-        const repoRelative = path.relative(repoRoot, absolute).split(path.sep).join('/');
+        const repoRelative = path.relative(repoRoot, absolute).replace(/\\/g, '/').replace(/\/+$/, '');
         const result = findOwner(graph, repoRoot, repoRelative);
 
         if (!result.nodePath) {
@@ -66,12 +69,19 @@ export function registerOwnerCommand(program: Command): void {
           process.stdout.write(`${result.file} -> ${result.nodePath}\n`);
           if (result.direct === false && result.mappingPath) {
             process.stdout.write(
-              `  File has no direct mapping; context comes from ancestor directory ${result.mappingPath}. Use: yg build-context --node ${result.nodePath}\n`,
+              `  File has no direct mapping; context comes from ancestor directory ${result.mappingPath}. Use: yg context --node ${result.nodePath}\n`,
             );
           }
         }
       } catch (error) {
-        process.stderr.write(`Error: ${(error as Error).message}\n`);
+        const err = error as NodeJS.ErrnoException;
+        if (err.code === 'ENOENT') {
+          process.stderr.write(
+            chalk.red(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`),
+          );
+        } else {
+          process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
+        }
         process.exit(1);
       }
     });

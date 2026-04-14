@@ -1,25 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { writeFile, mkdir, rm } from 'node:fs/promises';
 import { validate } from '../../../src/core/validator.js';
 import { loadGraph } from '../../../src/core/graph-loader.js';
-import type { Graph, GraphNode } from '../../../src/model/types.js';
-
-vi.mock('../../../src/core/context-builder.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../src/core/context-builder.js')>();
-  return {
-    ...actual,
-    buildContext: vi.fn().mockResolvedValue({
-      nodePath: 'x',
-      nodeName: 'X',
-      layers: [],
-      mapping: null,
-      tokenCount: 100,
-    }),
-  };
-});
+import type { Graph, GraphNode } from '../../../src/model/graph.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_PROJECT = path.join(__dirname, '../../fixtures/sample-project');
@@ -35,7 +21,6 @@ function createNode(nodePath: string, overrides: Partial<GraphNode['meta']> = {}
       type: 'service',
       ...overrides,
     },
-    artifacts: [{ filename: 'responsibility.md', content: 'x'.repeat(60) }],
     children: [],
     parent: null,
   };
@@ -43,10 +28,8 @@ function createNode(nodePath: string, overrides: Partial<GraphNode['meta']> = {}
 
 function createGraph(overrides: Partial<Graph> = {}): Graph {
   return {
-    config: {
-      name: 'Test',
-      node_types: { service: { description: 'x' } },
-    },
+    config: {},
+    architecture: { node_types: {} },
     nodes: new Map(),
     aspects: [{ name: 'Valid', id: 'valid-tag', artifacts: [] }],
     flows: [],
@@ -75,18 +58,21 @@ describe('validator', () => {
     const result = await validate(graph);
     const configIssue = result.issues.find((i) => i.rule === 'invalid-config');
     expect(configIssue).toBeDefined();
-    expect(configIssue!.message).toBe('Config parse failed');
+    expect(configIssue!.message).toContain('yg-config.yaml failed to parse.');
+    expect(configIssue!.message).toContain('Config parse failed');
   });
 
-  it('returns 0 errors and 0 warnings for sample-project', async () => {
+  it('returns only expected errors for sample-project', async () => {
     const graph = await loadGraph(FIXTURE_PROJECT);
     const result = await validate(graph);
 
     const errors = result.issues.filter((i) => i.severity === 'error');
-    const warnings = result.issues.filter((i) => i.severity === 'warning');
-
-    expect(errors).toHaveLength(0);
-    expect(warnings.length).toBeGreaterThanOrEqual(0);
+    // mapping-path-missing: users/missing-service maps src/users/missing.service.ts which doesn't exist on disk
+    // (intentional fixture — used by drift tests to verify "missing" detection)
+    const unexpectedErrors = errors.filter(
+      (i) => !(i.code === 'mapping-path-missing' && i.nodePath === 'users/missing-service'),
+    );
+    expect(unexpectedErrors).toHaveLength(0);
     expect(result.nodesScanned).toBe(9);
   }, 10000);
 
@@ -103,18 +89,70 @@ describe('validator', () => {
     expect(issues[0].nodePath).toBe('a');
   });
 
-  it('unknown-aspect (E003) returns error when node aspect has no aspect def', async () => {
+  it('dangling-aspect-ref returns error when node aspect has no aspect def', async () => {
     const graph = createGraph();
-    graph.nodes.set('a', createNode('a', { aspects: [{ aspect: 'no-aspect-for-this' }] }));
+    graph.nodes.set('a', createNode('a', { aspects: ['no-aspect-for-this'] }));
 
     const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.rule === 'unknown-aspect');
+    const issues = result.issues.filter((i) => i.rule === 'dangling-aspect-ref');
     expect(issues).toHaveLength(1);
-    expect(issues[0].code).toBe('E003');
-    expect(issues[0].message).toContain('no corresponding directory');
+    expect(issues[0].code).toBe('aspect-undefined');
+    expect(issues[0].message).toContain('not defined in aspects/');
   });
 
-  it('duplicate-aspect-binding returns E014 when id bound to multiple aspects', async () => {
+  it('dangling-aspect-ref fires when a port references an undefined aspect', async () => {
+    const graph = createGraph();
+    graph.nodes.set('a', createNode('a', {
+      ports: { 'api': { description: 'API port', aspects: ['missing-aspect'] } },
+    }));
+
+    const result = await validate(graph);
+    const issues = result.issues.filter((i) => i.code === 'aspect-undefined' && i.nodePath === 'a');
+    expect(issues).toHaveLength(1);
+    expect(issues[0].rule).toBe('dangling-aspect-ref');
+    expect(issues[0].message).toContain('missing-aspect');
+    expect(issues[0].message).toContain("port 'api'");
+  });
+
+  it('dangling-aspect-ref fires when architecture node_type references an undefined aspect', async () => {
+    const graph = createGraph({
+      architecture: {
+        node_types: {
+          service: { description: 'A service', aspects: ['undefined-arch-aspect'] },
+        },
+      },
+      aspects: [],
+    });
+    graph.nodes.set('a', createNode('a'));
+
+    const result = await validate(graph);
+    const issues = result.issues.filter((i) => i.code === 'aspect-undefined' && !i.nodePath);
+    expect(issues).toHaveLength(1);
+    expect(issues[0].rule).toBe('dangling-aspect-ref');
+    expect(issues[0].message).toContain('undefined-arch-aspect');
+    expect(issues[0].message).toContain("architecture type 'service'");
+  });
+
+  it('dangling-aspect-ref fires when a flow references an undefined aspect', async () => {
+    const graph = createGraph({ aspects: [] });
+    graph.nodes.set('a', createNode('a'));
+    graph.flows.push({
+      path: 'checkout-flow',
+      name: 'Checkout',
+      nodes: ['a'],
+      aspects: ['missing-flow-aspect'],
+    });
+
+    const result = await validate(graph);
+    const issues = result.issues.filter((i) => i.code === 'aspect-undefined');
+    expect(issues).toHaveLength(1);
+    expect(issues[0].rule).toBe('dangling-aspect-ref');
+    expect(issues[0].message).toContain('missing-flow-aspect');
+    expect(issues[0].message).toContain("flow");
+    expect(issues[0].message).toContain("missing-flow-aspect");
+  });
+
+  it('duplicate-aspect-binding returns error when id bound to multiple aspects', async () => {
     const graph = createGraph({
       aspects: [
         { name: 'Aspect One', id: 'audit', artifacts: [] },
@@ -126,26 +164,12 @@ describe('validator', () => {
     const result = await validate(graph);
     const issues = result.issues.filter((i) => i.rule === 'duplicate-aspect-binding');
     expect(issues).toHaveLength(1);
-    expect(issues[0].code).toBe('E014');
+    expect(issues[0].code).toBe('duplicate-aspect-id');
     expect(issues[0].message).toContain('audit');
     expect(issues[0].message).toContain('Aspect One');
     expect(issues[0].message).toContain('Aspect Two');
   });
 
-
-  it('infrastructure is accepted as valid node type', async () => {
-    const graph = createGraph({
-      config: {
-        name: 'Test',
-        node_types: { service: { description: 'x' }, infrastructure: { description: 'x' } },
-      },
-    });
-    graph.nodes.set('guard', createNode('guard', { type: 'infrastructure' }));
-
-    const result = await validate(graph);
-    const typeErrors = result.issues.filter((i) => i.rule === 'unknown-node-type');
-    expect(typeErrors).toHaveLength(0);
-  });
 
   it('invalid-node-yaml reports parse errors from graph loader', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-validator-parse-error');
@@ -156,7 +180,7 @@ describe('validator', () => {
     await mkdir(badNodeDir, { recursive: true });
     await writeFile(
       path.join(yggRoot, 'yg-config.yaml'),
-      'name: V\nnode_types:\n  service:\n    description: x',
+      'version: "4.0.0"',
     );
     await writeFile(path.join(badNodeDir, 'yg-node.yaml'), 'type: service\n# missing name');
 
@@ -165,7 +189,7 @@ describe('validator', () => {
       const result = await validate(graph);
       const issues = result.issues.filter((i) => i.rule === 'invalid-node-yaml');
       expect(issues).toHaveLength(1);
-      expect(issues[0].code).toBe('E001');
+      expect(issues[0].code).toBe('yaml-invalid');
       expect(issues[0].nodePath).toBe('bad-node');
       expect(issues[0].message).toContain('name');
     } finally {
@@ -180,7 +204,7 @@ describe('validator', () => {
     expect(issues).toHaveLength(1);
     expect(issues[0].message).toContain('no yg-node.yaml');
     expect(issues[0].nodePath).toBe('orders/orphan-service');
-    expect(issues[0].code).toBe('E015');
+    expect(issues[0].code).toBe('node-yaml-missing');
   });
 
   it('directories-have-node-yaml catches orphan directory with content in model', async () => {
@@ -194,7 +218,7 @@ describe('validator', () => {
     await mkdir(serviceDir, { recursive: true });
     await writeFile(
       path.join(yggRoot, 'yg-config.yaml'),
-      'name: V\nnode_types:\n  service:\n    description: x',
+      'version: "4.0.0"',
     );
     await writeFile(path.join(serviceDir, 'yg-node.yaml'), 'name: Svc\ntype: service\n');
     await writeFile(path.join(orphanDir, 'readme.md'), '# orphan content');
@@ -205,90 +229,21 @@ describe('validator', () => {
       const issues = result.issues.filter((i) => i.rule === 'missing-node-yaml');
       expect(issues).toHaveLength(1);
       expect(issues[0].nodePath).toBe('orphan-with-content');
-      expect(issues[0].code).toBe('E015');
+      expect(issues[0].code).toBe('node-yaml-missing');
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
-  });
-
-  it('directory-without-node warns for bare directory with only subdirectories', async () => {
-    const tmpDir = path.join(__dirname, '../../fixtures/tmp-validator-bare-dir');
-    const yggRoot = path.join(tmpDir, '.yggdrasil');
-    const modelDir = path.join(yggRoot, 'model');
-    const bareDir = path.join(modelDir, 'bare-parent');
-    const childDir = path.join(bareDir, 'child');
-
-    await mkdir(childDir, { recursive: true });
-    await writeFile(
-      path.join(yggRoot, 'yg-config.yaml'),
-      'name: V\nnode_types:\n  service:\n    description: x',
-    );
-    await writeFile(path.join(childDir, 'yg-node.yaml'), 'name: Child\ntype: service\n');
-    await writeFile(path.join(childDir, 'responsibility.md'), 'Child responsibility content here — enough to pass.');
-
-    try {
-      const graph = await loadGraph(tmpDir);
-      const result = await validate(graph);
-      const issues = result.issues.filter((i) => i.rule === 'directory-without-node');
-      expect(issues).toHaveLength(1);
-      expect(issues[0].nodePath).toBe('bare-parent');
-      expect(issues[0].code).toBe('W013');
-      expect(issues[0].severity).toBe('warning');
-    } finally {
-      await rm(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  it('missing-artifact warns when non-blackbox node lacks required artifact', async () => {
-    const graph = createGraph();
-    graph.nodes.set('a/no-responsibility', {
-      ...createNode('a/no-responsibility', { blackbox: false }),
-      artifacts: [],
-    });
-
-    const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.rule === 'missing-artifact');
-    expect(issues).toHaveLength(1);
-    expect(issues[0].severity).toBe('warning');
-    expect(issues[0].message).toContain('responsibility');
-  });
-
-  it('missing-artifact does not warn when required is never (internals.md)', async () => {
-    const graph = createGraph();
-    graph.nodes.set('a', {
-      ...createNode('a'),
-      artifacts: [{ filename: 'responsibility.md', content: 'x'.repeat(60) }],
-    });
-
-    const result = await validate(graph);
-    // internals.md has required: 'never' in STANDARD_ARTIFACTS, so no warning for it
-    const issues = result.issues.filter(
-      (i) => i.rule === 'missing-artifact' && i.message.includes('internals.md'),
-    );
-    expect(issues).toHaveLength(0);
-  });
-
-  it('missing-artifact does not warn for blackbox nodes', async () => {
-    const graph = createGraph();
-    graph.nodes.set('a/blackbox-no-description', {
-      ...createNode('a/blackbox-no-description', { blackbox: true }),
-      artifacts: [],
-    });
-
-    const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.rule === 'missing-artifact');
-    expect(issues).toHaveLength(0);
   });
 
   it('overlapping-mapping errors for exact duplicate mapping paths', async () => {
     const graph = createGraph();
     graph.nodes.set(
       'svc/a',
-      createNode('svc/a', { mapping: { paths: ['src/shared/file.ts'] } }),
+      createNode('svc/a', { mapping: ['src/shared/file.ts'] }),
     );
     graph.nodes.set(
       'svc/b',
-      createNode('svc/b', { mapping: { paths: ['src/shared/file.ts'] } }),
+      createNode('svc/b', { mapping: ['src/shared/file.ts'] }),
     );
 
     const result = await validate(graph);
@@ -301,11 +256,11 @@ describe('validator', () => {
     const graph = createGraph();
     graph.nodes.set(
       'svc/a',
-      createNode('svc/a', { mapping: { paths: ['src/shared'] } }),
+      createNode('svc/a', { mapping: ['src/shared'] }),
     );
     graph.nodes.set(
       'svc/b',
-      createNode('svc/b', { mapping: { paths: ['src/shared/file.ts'] } }),
+      createNode('svc/b', { mapping: ['src/shared/file.ts'] }),
     );
 
     const result = await validate(graph);
@@ -318,11 +273,11 @@ describe('validator', () => {
     const graph = createGraph();
     graph.nodes.set(
       'platform',
-      createNode('platform', { mapping: { paths: ['src/platform'] } }),
+      createNode('platform', { mapping: ['src/platform'] }),
     );
     graph.nodes.set(
       'platform/auth',
-      createNode('platform/auth', { mapping: { paths: ['src/platform/auth'] } }),
+      createNode('platform/auth', { mapping: ['src/platform/auth'] }),
     );
 
     const result = await validate(graph);
@@ -334,11 +289,11 @@ describe('validator', () => {
     const graph = createGraph();
     graph.nodes.set(
       'platform',
-      createNode('platform', { mapping: { paths: ['src/platform'] } }),
+      createNode('platform', { mapping: ['src/platform'] }),
     );
     graph.nodes.set(
       'platform/auth',
-      createNode('platform/auth', { mapping: { paths: ['src/platform'] } }),
+      createNode('platform/auth', { mapping: ['src/platform'] }),
     );
 
     const result = await validate(graph);
@@ -347,13 +302,8 @@ describe('validator', () => {
     expect(issues[0].severity).toBe('error');
   });
 
-  it('config-populated is empty (v2.2: replaced by E012)', async () => {
-    const graph = createGraph({
-      config: {
-        name: 'Test',
-        node_types: { service: { description: 'x' } },
-      },
-    });
+  it('config-populated returns no issues for valid config', async () => {
+    const graph = createGraph();
     graph.nodes.set('a', createNode('a'));
 
     const result = await validate(graph);
@@ -363,10 +313,6 @@ describe('validator', () => {
 
   it('non-regression: does not enforce node/relation vocabulary', async () => {
     const graph = createGraph();
-    graph.config.node_types = {
-      'totally-custom-type': { description: 'x' },
-      'another-custom-type': { description: 'x' },
-    };
     graph.nodes.set(
       'strange/node',
       createNode('strange/node', {
@@ -388,11 +334,7 @@ describe('validator', () => {
 
   it('non-regression: does not require interface.yaml by node type', async () => {
     const graph = createGraph();
-    graph.config.node_types = { service: { description: 'x' }, api: { description: 'x' } };
-    graph.nodes.set('api/no-interface', {
-      ...createNode('api/no-interface', { type: 'api' }),
-      artifacts: [{ filename: 'responsibility.md', content: 'x' }],
-    });
+    graph.nodes.set('api/no-interface', createNode('api/no-interface', { type: 'api' }));
 
     const result = await validate(graph);
     const interfaceIssues = result.issues.filter((i) => i.message.includes('interface.yaml'));
@@ -404,7 +346,7 @@ describe('validator', () => {
     graph.nodes.set(
       'svc/nonexistent-mapping',
       createNode('svc/nonexistent-mapping', {
-        mapping: { type: 'file', path: 'src/does/not/exist.ts' },
+        mapping: ['src'],
       }),
     );
 
@@ -415,7 +357,7 @@ describe('validator', () => {
     expect(mappingExistenceIssues).toHaveLength(0);
   });
 
-  it('v2.2: flow rules removed (flows are FlowDef[], not nodes)', async () => {
+  it('flow validation uses FlowDef[] (not nodes)', async () => {
     const graph = createGraph();
     graph.nodes.set('svc/a', createNode('svc/a'));
     const result = await validate(graph);
@@ -428,150 +370,6 @@ describe('validator', () => {
       ].includes(i.rule),
     );
     expect(flowRules).toHaveLength(0);
-  });
-
-  it('budget-warning returns warning when over warning threshold with breakdown', async () => {
-    const { buildContext } = await import('../../../src/core/context-builder.js');
-    // 12000 tokens = 48000 chars of content in layers
-    vi.mocked(buildContext).mockResolvedValue({
-      nodePath: 'a',
-      nodeName: 'A',
-      layers: [
-        { type: 'own', label: 'Own', content: 'x'.repeat(20000) },
-        { type: 'hierarchy', label: 'Hierarchy', content: 'x'.repeat(12000) },
-        { type: 'aspects', label: 'Aspects', content: 'x'.repeat(8000) },
-        { type: 'flows', label: 'Flows', content: 'x'.repeat(4000) },
-        { type: 'relational', label: 'Deps', content: 'x'.repeat(4000) },
-      ],
-      mapping: null,
-      tokenCount: 12000,
-    } as Awaited<ReturnType<typeof buildContext>>);
-
-    const graph = createGraph();
-    graph.nodes.set('a', createNode('a'));
-
-    const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.rule === 'budget-warning');
-    expect(issues).toHaveLength(1);
-    expect(issues[0].severity).toBe('warning');
-    expect(issues[0].code).toBe('W005');
-    // Verify breakdown components in message
-    expect(issues[0].message).toContain('own:');
-    expect(issues[0].message).toContain('hierarchy:');
-    expect(issues[0].message).toContain('aspects:');
-    expect(issues[0].message).toContain('flows:');
-    expect(issues[0].message).toContain('dependencies:');
-  });
-
-  it('budget-error returns warning when over error threshold with breakdown', async () => {
-    const { buildContext } = await import('../../../src/core/context-builder.js');
-    vi.mocked(buildContext).mockResolvedValue({
-      nodePath: 'a',
-      nodeName: 'A',
-      layers: [
-        { type: 'own', label: 'Own', content: 'x'.repeat(80000) },
-        { type: 'hierarchy', label: 'Hierarchy', content: 'x'.repeat(12000) },
-        { type: 'aspects', label: 'Aspects', content: 'x'.repeat(4000) },
-        { type: 'flows', label: 'Flows', content: 'x'.repeat(2000) },
-        { type: 'relational', label: 'Deps', content: 'x'.repeat(2000) },
-      ],
-      mapping: null,
-      tokenCount: 25000,
-    } as Awaited<ReturnType<typeof buildContext>>);
-
-    const graph = createGraph();
-    graph.nodes.set('a', createNode('a'));
-
-    const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.rule === 'budget-error');
-    expect(issues).toHaveLength(1);
-    expect(issues[0].code).toBe('W006');
-    expect(issues[0].severity).toBe('warning');
-    // Verify breakdown components in message
-    expect(issues[0].message).toContain('own:');
-    expect(issues[0].message).toContain('hierarchy:');
-    expect(issues[0].message).toContain('aspects:');
-    expect(issues[0].message).toContain('flows:');
-    expect(issues[0].message).toContain('dependencies:');
-    // Should NOT contain "blocks materialization"
-    expect(issues[0].message).not.toContain('blocks materialization');
-  });
-
-  it('W015 own-budget-warning fires when own artifacts exceed own_warning threshold', async () => {
-    const { buildContext } = await import('../../../src/core/context-builder.js');
-    // own layer needs >= 5000 tokens => 20000 chars
-    vi.mocked(buildContext).mockResolvedValue({
-      nodePath: 'a',
-      nodeName: 'A',
-      layers: [
-        { type: 'own', label: 'Own', content: 'x'.repeat(24000) },
-      ],
-      mapping: null,
-      tokenCount: 6000,
-    } as Awaited<ReturnType<typeof buildContext>>);
-
-    const graph = createGraph();
-    graph.config.quality = {
-      min_artifact_length: 50,
-      max_direct_relations: 10,
-      context_budget: { warning: 10000, error: 20000, own_warning: 5000 },
-    };
-    graph.nodes.set('a', createNode('a'));
-
-    const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.rule === 'own-budget-warning');
-    expect(issues).toHaveLength(1);
-    expect(issues[0].code).toBe('W015');
-    expect(issues[0].severity).toBe('warning');
-    expect(issues[0].nodePath).toBe('a');
-  });
-
-  it('W015 not emitted when own_warning absent from config', async () => {
-    const { buildContext } = await import('../../../src/core/context-builder.js');
-    vi.mocked(buildContext).mockResolvedValue({
-      nodePath: 'a',
-      nodeName: 'A',
-      layers: [
-        { type: 'own', label: 'Own', content: 'x'.repeat(24000) },
-      ],
-      mapping: null,
-      tokenCount: 6000,
-    } as Awaited<ReturnType<typeof buildContext>>);
-
-    const graph = createGraph();
-    graph.config.quality = {
-      min_artifact_length: 50,
-      max_direct_relations: 10,
-      context_budget: { warning: 10000, error: 20000 },
-    };
-    graph.nodes.set('a', createNode('a'));
-
-    const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.rule === 'own-budget-warning');
-    expect(issues).toHaveLength(0);
-  });
-
-  it('context-budget catches buildContext errors and continues', async () => {
-    const { buildContext } = await import('../../../src/core/context-builder.js');
-    vi.mocked(buildContext).mockRejectedValueOnce(new Error('Context build failed'));
-
-    const graph = createGraph();
-    graph.nodes.set('a', createNode('a'));
-
-    const result = await validate(graph);
-    expect(result.issues.filter((i) => i.rule === 'budget-warning')).toHaveLength(0);
-    expect(result.issues.filter((i) => i.rule === 'budget-error')).toHaveLength(0);
-  });
-
-  it('context-budget skips blackbox nodes', async () => {
-    const { buildContext } = await import('../../../src/core/context-builder.js');
-    vi.mocked(buildContext).mockClear();
-
-    const graph = createGraph();
-    graph.nodes.set('a', createNode('a', { blackbox: true }));
-
-    await validate(graph);
-    expect(buildContext).not.toHaveBeenCalled();
   });
 
   it('relation-targets no suggestion when no similar candidates', async () => {
@@ -604,9 +402,9 @@ describe('validator', () => {
     const graph = createGraph();
     graph.nodes.set('a', createNode('a'));
     graph.flows.push({
+      path: 'f1',
       name: 'F1',
       nodes: ['a', 'nonexistent/node'],
-      artifacts: [{ filename: 'desc.md', content: 'x' }],
     });
 
     const result = await validate(graph);
@@ -618,16 +416,15 @@ describe('validator', () => {
     const graph = createGraph();
     graph.nodes.set('a', createNode('a'));
     graph.flows.push({
+      path: 'saga-flow',
       name: 'SagaFlow',
       nodes: ['a'],
       aspects: ['undefined-tag'],
-      artifacts: [{ filename: 'desc.md', content: 'x' }],
     });
 
     const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.rule === 'broken-aspect-ref');
+    const issues = result.issues.filter((i) => i.rule === 'dangling-aspect-ref' && i.message.includes('flow'));
     expect(issues).toHaveLength(1);
-    expect(issues[0].message).toContain("Flow 'SagaFlow'");
     expect(issues[0].message).toContain("undefined-tag");
   });
 
@@ -635,43 +432,23 @@ describe('validator', () => {
     const graph = createGraph({ aspects: [] });
     graph.nodes.set('a', createNode('a'));
     graph.flows.push({
+      path: 'f2',
       name: 'F2',
       nodes: ['a'],
       aspects: ['valid-tag'],
-      artifacts: [{ filename: 'desc.md', content: 'x' }],
     });
     // aspects[] is empty — no aspect binds to valid-tag
 
     const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.rule === 'broken-aspect-ref');
+    const issues = result.issues.filter((i) => i.rule === 'dangling-aspect-ref' && i.message.includes('flow'));
     expect(issues).toHaveLength(1);
-    expect(issues[0].message).toContain("no aspect with that id exists");
-  });
-
-  it('shallow-artifact warns when artifact below min_artifact_length', async () => {
-    const graph = createGraph();
-    graph.config.quality = {
-      min_artifact_length: 100,
-      max_direct_relations: 10,
-      context_budget: { warning: 5000, error: 10000 },
-    };
-    graph.nodes.set('a', {
-      ...createNode('a'),
-      artifacts: [{ filename: 'responsibility.md', content: 'short' }],
-    });
-
-    const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.rule === 'shallow-artifact');
-    expect(issues).toHaveLength(1);
-    expect(issues[0].message).toContain('below minimum length');
+    expect(issues[0].message).toContain("not defined in aspects");
   });
 
   it('high-fan-out warns when node exceeds max_direct_relations', async () => {
     const graph = createGraph();
     graph.config.quality = {
-      min_artifact_length: 50,
       max_direct_relations: 2,
-      context_budget: { warning: 5000, error: 10000 },
     };
     const relations = Array.from({ length: 5 }, (_, i) => ({
       target: `target/${i}`,
@@ -725,35 +502,6 @@ describe('validator', () => {
     expect(issues[0].message).toContain('Circular dependency');
   });
 
-  it('structural-cycle tolerates cycle when blackbox node is in cycle', async () => {
-    const graph = createGraph();
-    graph.nodes.set('a', createNode('a', { relations: [{ target: 'b', type: 'uses' }] }));
-    graph.nodes.set(
-      'b',
-      createNode('b', { blackbox: true, relations: [{ target: 'a', type: 'uses' }] }),
-    );
-
-    const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.rule === 'structural-cycle');
-    expect(issues).toHaveLength(0);
-  });
-
-  it('missing-artifact warns for interface.md when node has incoming relations', async () => {
-    const graph = createGraph();
-    graph.nodes.set('dep', createNode('dep', { relations: [{ target: 'svc', type: 'uses' }] }));
-    graph.nodes.set('svc', {
-      ...createNode('svc'),
-      artifacts: [{ filename: 'responsibility.md', content: 'x' }],
-    });
-
-    const result = await validate(graph);
-    const issues = result.issues.filter(
-      (i) => i.rule === 'missing-artifact' && i.nodePath === 'svc',
-    );
-    // interface.md has required: { when: 'has_incoming_relations' } in STANDARD_ARTIFACTS
-    expect(issues.some((i) => i.message.includes('interface.md'))).toBe(true);
-  });
-
   it('validate with scope filters issues to that node only', async () => {
     const graph = createGraph();
     graph.nodes.set('a', createNode('a', { relations: [{ target: 'missing', type: 'uses' }] }));
@@ -792,7 +540,7 @@ describe('validator', () => {
     const result = await validate(graph);
     const issues = result.issues.filter((i) => i.rule === 'duplicate-aspect-binding');
     expect(issues).toHaveLength(1);
-    expect(issues[0].code).toBe('E014');
+    expect(issues[0].code).toBe('duplicate-aspect-id');
     expect(issues[0].message).toContain('multiple aspects');
   });
 
@@ -807,7 +555,7 @@ describe('validator', () => {
     const result = await validate(graph);
     const issues = result.issues.filter((i) => i.rule === 'implied-aspect-missing');
     expect(issues).toHaveLength(1);
-    expect(issues[0].code).toBe('E016');
+    expect(issues[0].code).toBe('implied-aspect-missing');
     expect(issues[0].message).toContain('HIPAA');
     expect(issues[0].message).toContain('requires-audit');
   });
@@ -824,57 +572,13 @@ describe('validator', () => {
     const result = await validate(graph);
     const issues = result.issues.filter((i) => i.rule === 'aspect-implies-cycle');
     expect(issues).toHaveLength(1);
-    expect(issues[0].code).toBe('E017');
+    expect(issues[0].code).toBe('aspect-implies-cycle');
     expect(issues[0].message).toContain('cycle');
     expect(issues[0].message).toContain('tag-a');
     expect(issues[0].message).toContain('tag-b');
   });
 
-  it('missing-required-aspect-coverage returns warning when node type requires aspect', async () => {
-    const graph = createGraph({
-      aspects: [{ name: 'Audit', id: 'requires-audit', artifacts: [] }],
-      config: {
-        name: 'Test',
-        node_types: { service: { description: 'x', required_aspects: ['requires-audit'] } },
-      },
-    });
-    graph.nodes.set('svc', createNode('svc'));
-
-    const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.rule === 'missing-required-aspect-coverage');
-    expect(issues).toHaveLength(1);
-    expect(issues[0].code).toBe('W011');
-    expect(issues[0].message).toContain('requires-audit');
-  });
-
-  it('no missing-required-aspect-coverage when node has implied coverage', async () => {
-    const graph = createGraph({
-      config: {
-        name: 'Test',
-        node_types: { service: { description: 'x', required_aspects: ['requires-audit'] } },
-      },
-      aspects: [
-        { name: 'Audit', id: 'requires-audit', artifacts: [] },
-        { name: 'HIPAA', id: 'requires-hipaa', implies: ['requires-audit'], artifacts: [] },
-      ],
-    });
-    graph.nodes.set('svc', createNode('svc', { aspects: [{ aspect: 'requires-hipaa' }] }));
-
-    const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.rule === 'missing-required-aspect-coverage');
-    expect(issues).toHaveLength(0);
-  });
-
-  it('unknown-node-type returns error for node type not in config', async () => {
-    const graph = createGraph();
-    graph.nodes.set('a', createNode('a', { type: 'unknown-type' }));
-
-    const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.rule === 'unknown-node-type');
-    expect(issues).toHaveLength(1);
-  });
-
-  it('checkSchemas: W010 when required schema is missing', async () => {
+  it('checkSchemas: missing-schema when required schema is missing', async () => {
     const graph = createGraph();
     graph.schemas = [{ schemaType: 'node' }, { schemaType: 'aspect' }];
     // flow missing
@@ -882,11 +586,11 @@ describe('validator', () => {
     const result = await validate(graph);
     const issues = result.issues.filter((i) => i.rule === 'missing-schema');
     expect(issues).toHaveLength(1);
-    expect(issues[0].code).toBe('W010');
+    expect(issues[0].code).toBe('schema-missing');
     expect(issues[0].message).toContain('flow');
   });
 
-  it('checkSchemas: no W010 when all 3 schemas present', async () => {
+  it('checkSchemas: no missing-schema when all 3 schemas present', async () => {
     const graph = createGraph();
     graph.schemas = [
       { schemaType: 'node' },
@@ -908,7 +612,7 @@ describe('validator', () => {
     // The broken node is NOT in graph.nodes (it failed to parse)
     const result = await validate(graph, 'broken/node');
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0].code).toBe('E001');
+    expect(result.issues[0].code).toBe('yaml-invalid');
     expect(result.issues[0].rule).toBe('invalid-node-yaml');
     expect(result.issues[0].message).toContain('empty');
   });
@@ -921,23 +625,61 @@ describe('validator', () => {
     });
     const result = await validate(graph, 'broken/child');
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0].code).toBe('E001');
+    expect(result.issues[0].code).toBe('yaml-invalid');
   });
 
-  describe('W016 missing-description', () => {
-    it('W016 emitted for a node without description', async () => {
+  it('wide-node warns when directory mapping resolves to many files', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-validator-wide-node');
+    const srcDir = path.join(tmpDir, 'src', 'wide');
+    const yggRoot = path.join(tmpDir, '.yggdrasil');
+    const modelDir = path.join(yggRoot, 'model', 'wide');
+
+    await mkdir(srcDir, { recursive: true });
+    await mkdir(modelDir, { recursive: true });
+    // Create 12 source files (exceeds default max of 10)
+    for (let i = 0; i < 12; i++) {
+      await writeFile(path.join(srcDir, `file${i}.ts`), `export const x${i} = ${i};`);
+    }
+    await writeFile(
+      path.join(yggRoot, 'yg-config.yaml'),
+      'version: "4.0.0"',
+    );
+    // Create an aspect so the node has effective aspects (nodes without aspects skip wide-node check)
+    const aspDir = path.join(yggRoot, 'aspects', 'testing');
+    await mkdir(aspDir, { recursive: true });
+    await writeFile(path.join(aspDir, 'yg-aspect.yaml'), 'name: Testing\ndescription: test\n');
+    await writeFile(path.join(aspDir, 'content.md'), 'Test rule.\n');
+    await writeFile(
+      path.join(modelDir, 'yg-node.yaml'),
+      'name: Wide\ntype: service\ndescription: x\naspects:\n  - testing\nmapping:\n  - src/wide',
+    );
+    try {
+      const graph = await loadGraph(tmpDir);
+      const result = await validate(graph);
+      const issues = result.issues.filter((i) => i.rule === 'wide-node');
+      expect(issues).toHaveLength(1);
+      expect(issues[0].code).toBe('wide-node');
+      expect(issues[0].severity).toBe('warning');
+      expect(issues[0].message).toContain('12 source files');
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  describe('missing-description', () => {
+    it('missing-description emitted for a node without description', async () => {
       const graph = createGraph();
       graph.nodes.set('svc/no-desc', createNode('svc/no-desc'));
 
       const result = await validate(graph);
       const issues = result.issues.filter((i) => i.rule === 'missing-description' && i.nodePath === 'svc/no-desc');
       expect(issues).toHaveLength(1);
-      expect(issues[0].code).toBe('W016');
-      expect(issues[0].severity).toBe('warning');
+      expect(issues[0].code).toBe('description-missing');
+      expect(issues[0].severity).toBe('error');
       expect(issues[0].message).toContain('no description');
     });
 
-    it('no W016 when node has description set', async () => {
+    it('no missing-description when node has description set', async () => {
       const graph = createGraph();
       graph.nodes.set('svc/with-desc', createNode('svc/with-desc', { description: 'A useful service.' }));
 
@@ -946,7 +688,7 @@ describe('validator', () => {
       expect(issues).toHaveLength(0);
     });
 
-    it('W016 emitted for an aspect without description', async () => {
+    it('missing-description emitted for an aspect without description', async () => {
       const graph = createGraph({
         aspects: [{ name: 'NoDesc', id: 'no-desc-aspect', artifacts: [] }],
       });
@@ -957,17 +699,17 @@ describe('validator', () => {
         (i) => i.rule === 'missing-description' && i.message.includes("'no-desc-aspect'"),
       );
       expect(issues).toHaveLength(1);
-      expect(issues[0].code).toBe('W016');
-      expect(issues[0].severity).toBe('warning');
+      expect(issues[0].code).toBe('description-missing');
+      expect(issues[0].severity).toBe('error');
     });
 
-    it('W016 emitted for a flow without description', async () => {
+    it('missing-description emitted for a flow without description', async () => {
       const graph = createGraph();
       graph.nodes.set('a', createNode('a'));
       graph.flows.push({
+        path: 'checkout-flow',
         name: 'checkout-flow',
         nodes: ['a'],
-        artifacts: [{ filename: 'description.md', content: 'x'.repeat(60) }],
       });
 
       const result = await validate(graph);
@@ -975,8 +717,387 @@ describe('validator', () => {
         (i) => i.rule === 'missing-description' && i.message.includes("'checkout-flow'"),
       );
       expect(issues).toHaveLength(1);
-      expect(issues[0].code).toBe('W016');
-      expect(issues[0].severity).toBe('warning');
+      expect(issues[0].code).toBe('description-missing');
+      expect(issues[0].severity).toBe('error');
+    });
+  });
+
+  describe('Architecture Constraints', () => {
+    it('invalid-relation-target when relation target type not allowed', async () => {
+      const graph = createGraph({
+        architecture: {
+          node_types: {
+            service: {
+              description: 'A service',
+              relations: { calls: ['service', 'module'] }, // can call service or module only
+            },
+            library: { description: 'A library' },
+            module: { description: 'A module' },
+          },
+        },
+      });
+      graph.nodes.set('a', createNode('a', {
+        type: 'service',
+        relations: [{ target: 'b', type: 'calls' }],
+      }));
+      graph.nodes.set('b', createNode('b', { type: 'library' })); // library not in allowed list
+
+      const result = await validate(graph);
+      const relationTargetForbidden = result.issues.find(i => i.code === 'relation-target-forbidden' && i.nodePath === 'a');
+      expect(relationTargetForbidden).toBeDefined();
+      expect(relationTargetForbidden!.message).toContain('calls');
+      expect(relationTargetForbidden!.message).toContain('library');
+    });
+
+    it('invalid-relation-target not fired when relation target type is allowed', async () => {
+      const graph = createGraph({
+        architecture: {
+          node_types: {
+            service: {
+              description: 'A service',
+              relations: { calls: ['service', 'module'] },
+            },
+            module: { description: 'A module' },
+          },
+        },
+      });
+      graph.nodes.set('a', createNode('a', {
+        type: 'service',
+        relations: [{ target: 'b', type: 'calls' }],
+      }));
+      graph.nodes.set('b', createNode('b', { type: 'module' }));
+
+      const result = await validate(graph);
+      const relationTargetForbidden = result.issues.find(i => i.code === 'relation-target-forbidden' && i.nodePath === 'a');
+      expect(relationTargetForbidden).toBeUndefined();
+    });
+
+    it('invalid-parent-type when parent type not in allowed list', async () => {
+      const parentNode = createNode('parent', { type: 'library' });
+      const childNode = createNode('parent/child', { type: 'service' });
+      childNode.parent = parentNode;
+
+      const graph = createGraph({
+        architecture: {
+          node_types: {
+            service: {
+              description: 'A service',
+              parents: ['module'], // only 'module' is allowed as parent
+            },
+            library: { description: 'A library' },
+            module: { description: 'A module' },
+          },
+        },
+      });
+      graph.nodes.set('parent', parentNode);
+      graph.nodes.set('parent/child', childNode);
+
+      const result = await validate(graph);
+      const parentTypeForbidden = result.issues.find(i => i.code === 'parent-type-forbidden' && i.nodePath === 'parent/child');
+      expect(parentTypeForbidden).toBeDefined();
+      expect(parentTypeForbidden!.message).toContain('library');
+      expect(parentTypeForbidden!.message).toContain('service');
+    });
+
+    it('invalid-parent-type not fired when parent type is in allowed list', async () => {
+      const parentNode = createNode('parent', { type: 'module' });
+      const childNode = createNode('parent/child', { type: 'service' });
+      childNode.parent = parentNode;
+
+      const graph = createGraph({
+        architecture: {
+          node_types: {
+            service: {
+              description: 'A service',
+              parents: ['module'],
+            },
+            module: { description: 'A module' },
+          },
+        },
+      });
+      graph.nodes.set('parent', parentNode);
+      graph.nodes.set('parent/child', childNode);
+
+      const result = await validate(graph);
+      const parentTypeForbidden = result.issues.find(i => i.code === 'parent-type-forbidden' && i.nodePath === 'parent/child');
+      expect(parentTypeForbidden).toBeUndefined();
+    });
+
+    it('integration-aspect-missing when consumer uses a port whose required aspect is not defined', async () => {
+      const graph = createGraph({ aspects: [] }); // no aspects defined
+      // Target node with a port that requires 'audit-logging'
+      graph.nodes.set('target', createNode('target', {
+        ports: { 'api': { description: 'API port', aspects: ['audit-logging'] } },
+      }));
+      // Consumer node with a relation that consumes the port
+      graph.nodes.set('consumer', createNode('consumer', {
+        relations: [{ target: 'target', type: 'uses', consumes: ['api'] }],
+      }));
+
+      const result = await validate(graph);
+      const portMissingAspect = result.issues.filter(i => i.code === 'port-missing-aspect' && i.nodePath === 'consumer');
+      expect(portMissingAspect).toHaveLength(1);
+      expect(portMissingAspect[0].rule).toBe('integration-aspect-missing');
+      expect(portMissingAspect[0].message).toContain('audit-logging');
+      expect(portMissingAspect[0].message).toContain("port 'api'");
+    });
+
+    it('integration-aspect-missing not fired when consumer uses a port whose required aspect exists', async () => {
+      const graph = createGraph({
+        aspects: [{ name: 'Audit', id: 'audit-logging', artifacts: [] }],
+      });
+      graph.nodes.set('target', createNode('target', {
+        ports: { 'api': { description: 'API port', aspects: ['audit-logging'] } },
+      }));
+      graph.nodes.set('consumer', createNode('consumer', {
+        relations: [{ target: 'target', type: 'uses', consumes: ['api'] }],
+      }));
+
+      const result = await validate(graph);
+      const portMissingAspect = result.issues.filter(i => i.code === 'port-missing-aspect' && i.nodePath === 'consumer');
+      expect(portMissingAspect).toHaveLength(0);
+    });
+
+    it('integration-aspect-missing not fired when relation has no consumes field (no port consumption)', async () => {
+      const graph = createGraph({ aspects: [] });
+      graph.nodes.set('target', createNode('target', {
+        ports: { 'api': { description: 'API port', aspects: ['audit-logging'] } },
+      }));
+      // Relation to target but no consumes — not consuming any port
+      graph.nodes.set('consumer', createNode('consumer', {
+        relations: [{ target: 'target', type: 'uses' }],
+      }));
+
+      const result = await validate(graph);
+      const portMissingAspect = result.issues.filter(i => i.code === 'port-missing-aspect' && i.nodePath === 'consumer');
+      expect(portMissingAspect).toHaveLength(0);
+    });
+
+    it('skips architecture checks when architecture is empty', async () => {
+      const graph = createGraph({
+        architecture: { node_types: {} }, // empty architecture
+      });
+      graph.nodes.set('a', createNode('a', {
+        type: 'unknown-type',
+        relations: [{ target: 'b', type: 'unknown-rel' as any }],
+      }));
+
+      const result = await validate(graph);
+      const archErrors = result.issues.filter(i => ['aspect-undefined', 'relation-target-forbidden', 'parent-type-forbidden', 'port-missing-aspect'].includes(i.code));
+      // Should skip architecture checks when architecture has no node_types (fallback case)
+      expect(archErrors.length).toBe(0);
+    });
+  });
+
+  describe('missing-consumes', () => {
+    it('fires when relation target has ports but consumer has no consumes', async () => {
+      const graph = createGraph({
+        aspects: [{ name: 'Audit', id: 'valid-tag', artifacts: [] }],
+      });
+      graph.nodes.set('provider', createNode('provider', {
+        ports: { charge: { description: 'Pay', aspects: ['valid-tag'] } },
+      }));
+      graph.nodes.set('consumer', createNode('consumer', {
+        relations: [{ target: 'provider', type: 'calls' }],
+      }));
+
+      const result = await validate(graph);
+      const portMissingConsumes = result.issues.filter(i => i.code === 'port-missing-consumes');
+      expect(portMissingConsumes).toContainEqual(expect.objectContaining({
+        code: 'port-missing-consumes', rule: 'missing-consumes',
+      }));
+    });
+
+    it('does not fire when target has empty ports (ports: {})', async () => {
+      const graph = createGraph();
+      graph.nodes.set('provider', createNode('provider', { ports: {} }));
+      graph.nodes.set('consumer', createNode('consumer', {
+        relations: [{ target: 'provider', type: 'calls' }],
+      }));
+
+      const result = await validate(graph);
+      expect(result.issues.filter(i => i.code === 'port-missing-consumes')).toHaveLength(0);
+    });
+
+    it('does not fire when target has no ports', async () => {
+      const graph = createGraph();
+      graph.nodes.set('provider', createNode('provider'));
+      graph.nodes.set('consumer', createNode('consumer', {
+        relations: [{ target: 'provider', type: 'calls' }],
+      }));
+
+      const result = await validate(graph);
+      expect(result.issues.filter(i => i.code === 'port-missing-consumes')).toHaveLength(0);
+    });
+
+    it('does not fire when consumer has consumes field', async () => {
+      const graph = createGraph({
+        aspects: [{ name: 'Audit', id: 'valid-tag', artifacts: [] }],
+      });
+      graph.nodes.set('provider', createNode('provider', {
+        ports: { charge: { description: 'Pay', aspects: ['valid-tag'] } },
+      }));
+      graph.nodes.set('consumer', createNode('consumer', {
+        relations: [{ target: 'provider', type: 'calls', consumes: ['charge'] }],
+      }));
+
+      const result = await validate(graph);
+      expect(result.issues.filter(i => i.code === 'port-missing-consumes')).toHaveLength(0);
+    });
+
+    it('does not fire for emits/listens relations even when target has ports', async () => {
+      const graph = createGraph({
+        aspects: [{ name: 'Audit', id: 'valid-tag', artifacts: [] }],
+      });
+      graph.nodes.set('provider', createNode('provider', {
+        ports: { charge: { description: 'Pay', aspects: ['valid-tag'] } },
+      }));
+      graph.nodes.set('emitter', createNode('emitter', {
+        relations: [{ target: 'provider', type: 'emits' }],
+      }));
+      graph.nodes.set('listener', createNode('listener', {
+        relations: [{ target: 'provider', type: 'listens' }],
+      }));
+
+      const result = await validate(graph);
+      expect(result.issues.filter(i => i.code === 'port-missing-consumes')).toHaveLength(0);
+    });
+  });
+
+  describe('unknown-port', () => {
+    it('fires when consumes references non-existent port', async () => {
+      const graph = createGraph({
+        aspects: [{ name: 'Audit', id: 'valid-tag', artifacts: [] }],
+      });
+      graph.nodes.set('provider', createNode('provider', {
+        ports: { charge: { description: 'Pay', aspects: ['valid-tag'] } },
+      }));
+      graph.nodes.set('consumer', createNode('consumer', {
+        relations: [{ target: 'provider', type: 'calls', consumes: ['nonexistent'] }],
+      }));
+
+      const result = await validate(graph);
+      expect(result.issues).toContainEqual(expect.objectContaining({
+        code: 'port-undefined', rule: 'unknown-port',
+      }));
+    });
+
+    it('does not fire when consumes references a valid port', async () => {
+      const graph = createGraph({
+        aspects: [{ name: 'Audit', id: 'valid-tag', artifacts: [] }],
+      });
+      graph.nodes.set('provider', createNode('provider', {
+        ports: { charge: { description: 'Pay', aspects: ['valid-tag'] } },
+      }));
+      graph.nodes.set('consumer', createNode('consumer', {
+        relations: [{ target: 'provider', type: 'calls', consumes: ['charge'] }],
+      }));
+
+      const result = await validate(graph);
+      expect(result.issues.filter(i => i.code === 'port-undefined')).toHaveLength(0);
+    });
+  });
+
+  describe('consumes-without-ports', () => {
+    it('fires when relation has consumes but target has no ports', async () => {
+      const graph = createGraph();
+      // Provider has NO ports
+      graph.nodes.set('provider', createNode('provider'));
+      graph.nodes.set('consumer', createNode('consumer', {
+        relations: [{ target: 'provider', type: 'calls', consumes: ['some-port'] }],
+      }));
+
+      const result = await validate(graph);
+      expect(result.issues).toContainEqual(expect.objectContaining({
+        code: 'consumes-without-ports', rule: 'consumes-without-ports',
+      }));
+    });
+
+    it('does not fire when relation has consumes and target has ports', async () => {
+      const graph = createGraph({
+        aspects: [{ name: 'Audit', id: 'valid-tag', artifacts: [] }],
+      });
+      // Provider HAS ports
+      graph.nodes.set('provider', createNode('provider', {
+        ports: { charge: { description: 'Pay', aspects: ['valid-tag'] } },
+      }));
+      graph.nodes.set('consumer', createNode('consumer', {
+        relations: [{ target: 'provider', type: 'calls', consumes: ['charge'] }],
+      }));
+
+      const result = await validate(graph);
+      expect(result.issues.filter(i => i.code === 'consumes-without-ports')).toHaveLength(0);
+    });
+  });
+
+  describe('orphaned-aspect', () => {
+    it('fires when aspect is not used by any node, architecture, or flow', async () => {
+      const graph = createGraph({
+        aspects: [
+          { name: 'Valid', id: 'valid-tag', description: 'Referenced', artifacts: [] },
+          { name: 'Orphan', id: 'orphan-aspect', description: 'Never used', artifacts: [] },
+        ],
+      });
+      graph.nodes.set('a', createNode('a', { aspects: ['valid-tag'] }));
+
+      const result = await validate(graph);
+      const w006 = result.issues.filter(i => i.code === 'orphaned-aspect');
+      expect(w006).toContainEqual(expect.objectContaining({
+        code: 'orphaned-aspect', rule: 'orphaned-aspect',
+      }));
+      // 'valid-tag' is referenced so should not appear
+      expect(w006.every(i => !i.message.includes('valid-tag'))).toBe(true);
+    });
+
+    it('does not fire when aspect is referenced by a node', async () => {
+      const graph = createGraph({
+        aspects: [{ name: 'Used', id: 'valid-tag', description: 'Used', artifacts: [] }],
+      });
+      graph.nodes.set('a', createNode('a', { aspects: ['valid-tag'] }));
+
+      const result = await validate(graph);
+      expect(result.issues.filter(i => i.code === 'orphaned-aspect')).toHaveLength(0);
+    });
+
+    it('does not fire when aspect is referenced by a port', async () => {
+      const graph = createGraph({
+        aspects: [{ name: 'Used', id: 'valid-tag', description: 'Used', artifacts: [] }],
+      });
+      graph.nodes.set('a', createNode('a', {
+        ports: { api: { description: 'API', aspects: ['valid-tag'] } },
+      }));
+
+      const result = await validate(graph);
+      expect(result.issues.filter(i => i.code === 'orphaned-aspect')).toHaveLength(0);
+    });
+
+    it('does not fire when aspect is referenced by a flow', async () => {
+      const graph = createGraph({
+        aspects: [{ name: 'Used', id: 'valid-tag', description: 'Used', artifacts: [] }],
+      });
+      graph.nodes.set('a', createNode('a'));
+      graph.flows.push({
+        path: 'checkout-flow',
+        name: 'Checkout',
+        nodes: ['a'],
+        aspects: ['valid-tag'],
+      });
+
+      const result = await validate(graph);
+      expect(result.issues.filter(i => i.code === 'orphaned-aspect')).toHaveLength(0);
+    });
+
+    it('does not fire for implied aspects when the implying aspect is referenced', async () => {
+      const graph = createGraph({
+        aspects: [
+          { name: 'HIPAA', id: 'hipaa', description: 'Used', implies: ['audit'], artifacts: [] },
+          { name: 'Audit', id: 'audit', description: 'Implied', artifacts: [] },
+        ],
+      });
+      graph.nodes.set('a', createNode('a', { aspects: ['hipaa'] }));
+
+      const result = await validate(graph);
+      expect(result.issues.filter(i => i.code === 'orphaned-aspect')).toHaveLength(0);
     });
   });
 

@@ -1,22 +1,14 @@
 name: OwnerCommand
-type: library
-description: "Resolves a file path to its owning graph node via yg owner"
+type: command
+description: Resolves a file path to its owning graph node via yg owner
 aspects:
-  - aspect: deterministic
-  - aspect: cli-command-contract
-  - aspect: posix-paths
-
+  - posix-paths
 relations:
   - target: cli/core/loader
     type: uses
-    consumes: [loadGraph]
   - target: cli/utils
     type: uses
-    consumes: [normalizeMappingPaths, normalizeProjectRelativePath]
-  - target: cli/model
+  - target: cli/model/graph
     type: uses
-    consumes: [Graph, OwnerResult]
-
 mapping:
-  paths:
-    - source/cli/src/cli/owner.ts
+  - source/cli/src/cli/owner.ts

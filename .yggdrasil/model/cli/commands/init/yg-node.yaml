@@ -1,15 +1,9 @@
 name: InitCommand
-type: library
-description: "Bootstraps Yggdrasil graph structure in a project or refreshes platform rules via yg init"
-aspects:
-  - aspect: deterministic
-  - aspect: cli-command-contract
-
+type: command
+description: Bootstraps Yggdrasil graph structure in a project or refreshes platform rules via yg init
+aspects: []
 relations:
   - target: cli/templates
     type: uses
-    consumes: [DEFAULT_CONFIG, installRulesForPlatform, PLATFORMS, Platform]
-
 mapping:
-  paths:
-    - source/cli/src/cli/init.ts
+  - source/cli/src/cli/init.ts

@@ -1,0 +1,19 @@
+name: Check
+type: engine
+description: Unified check orchestrator — combines drift classification, coverage scan, orphaned drift state detection, validation issues, and suggested next command
+aspects:
+  - posix-paths
+  - what-why-next
+relations:
+  - target: cli/core/validator
+    type: uses
+  - target: cli/core/context
+    type: uses
+  - target: cli/model/graph
+    type: uses
+  - target: cli/model/drift
+    type: uses
+  - target: cli/model/validation
+    type: uses
+mapping:
+  - source/cli/src/core/check.ts

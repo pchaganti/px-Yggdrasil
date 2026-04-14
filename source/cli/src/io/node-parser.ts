@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { parse as parseYaml } from 'yaml';
-import type { NodeAspectEntry, NodeMeta, NodeMapping, Relation, RelationType } from '../model/types.js';
+import type { NodeMeta, PortDef, Relation, RelationType } from '../model/graph.js';
 
 const RELATION_TYPES: RelationType[] = [
   'uses',
@@ -34,78 +34,57 @@ export async function parseNodeYaml(filePath: string): Promise<NodeMeta> {
   const relations = parseRelations(raw.relations, filePath);
   const mapping = parseMapping(raw.mapping, filePath);
   const aspects = parseAspects(raw.aspects, filePath);
+  const ports = parsePorts(raw.ports, filePath);
 
   return {
     name: (raw.name as string).trim(),
     type: (raw.type as string).trim(),
     description,
     aspects,
-    blackbox: (raw.blackbox as boolean) ?? false,
     relations: relations.length > 0 ? relations : undefined,
     mapping,
+    ports,
   };
 }
 
-function parseAspects(raw: unknown, filePath: string): NodeAspectEntry[] | undefined {
+function parseAspects(raw: unknown, filePath: string): string[] | undefined {
   if (raw === undefined || raw === null) return undefined;
   if (!Array.isArray(raw)) {
     throw new Error(`yg-node.yaml at ${filePath}: 'aspects' must be an array`);
   }
   if (raw.length === 0) return undefined;
 
-  const result: NodeAspectEntry[] = [];
+  const result: string[] = [];
   const seenAspects = new Set<string>();
 
   for (let i = 0; i < raw.length; i++) {
     const item = raw[i];
-    if (typeof item !== 'object' || item === null) {
-      throw new Error(`yg-node.yaml at ${filePath}: aspects[${i}] must be an object with 'aspect' key`);
-    }
-    const obj = item as Record<string, unknown>;
 
-    if (typeof obj.aspect !== 'string' || obj.aspect.trim() === '') {
+    let aspectId: string;
+
+    if (typeof item === 'string') {
+      // New format: flat string array
+      aspectId = item.trim();
+      if (aspectId === '') {
+        throw new Error(
+          `yg-node.yaml at ${filePath}: aspects[${i}] must be a non-empty string`,
+        );
+      }
+    } else if (typeof item === 'object' && item !== null) {
       throw new Error(
-        `yg-node.yaml at ${filePath}: aspects[${i}].aspect must be a non-empty string`,
+        `yg-node.yaml at ${filePath}: aspects must be an array of strings.`,
       );
+    } else {
+      throw new Error(`yg-node.yaml at ${filePath}: aspects[${i}] must be a string`);
     }
 
-    const aspectId = obj.aspect.trim();
     if (seenAspects.has(aspectId)) {
       throw new Error(
         `yg-node.yaml at ${filePath}: duplicate aspect '${aspectId}' in aspects list`,
       );
     }
     seenAspects.add(aspectId);
-
-    const entry: NodeAspectEntry = { aspect: aspectId };
-
-    // Parse exceptions (optional string[])
-    if (obj.exceptions !== undefined && obj.exceptions !== null) {
-      if (!Array.isArray(obj.exceptions)) {
-        throw new Error(
-          `yg-node.yaml at ${filePath}: aspects[${i}].exceptions must be an array of strings`,
-        );
-      }
-      const exceptions = obj.exceptions.filter((e): e is string => typeof e === 'string' && e.trim() !== '');
-      if (exceptions.length > 0) {
-        entry.exceptions = exceptions;
-      }
-    }
-
-    // Parse anchors (optional string[])
-    if (obj.anchors !== undefined && obj.anchors !== null) {
-      if (!Array.isArray(obj.anchors)) {
-        throw new Error(
-          `yg-node.yaml at ${filePath}: aspects[${i}].anchors must be an array of strings`,
-        );
-      }
-      const anchors = obj.anchors.filter((a): a is string => typeof a === 'string' && a.trim() !== '');
-      if (anchors.length > 0) {
-        entry.anchors = anchors;
-      }
-    }
-
-    result.push(entry);
+    result.push(aspectId);
   }
 
   return result.length > 0 ? result : undefined;
@@ -143,12 +122,10 @@ function parseRelations(raw: unknown, filePath: string): Relation[] {
     if (Array.isArray(obj.consumes)) {
       rel.consumes = (obj.consumes as unknown[]).filter((c): c is string => typeof c === 'string');
     }
-    if (typeof obj.failure === 'string') {
-      rel.failure = obj.failure;
-    }
     if (typeof obj.event_name === 'string' && obj.event_name.trim()) {
       rel.event_name = obj.event_name.trim();
     }
+
     result.push(rel);
   }
   return result;
@@ -165,27 +142,70 @@ function validateRelativePath(pathValue: string, filePath: string, fieldName: st
   return normalized;
 }
 
-function parseMapping(rawMapping: unknown, filePath: string): NodeMapping | undefined {
-  if (!rawMapping || typeof rawMapping !== 'object') return undefined;
+function parseMapping(rawMapping: unknown, filePath: string): string[] | undefined {
+  if (!rawMapping) return undefined;
 
-  const obj = rawMapping as Record<string, unknown>;
-
-  // Unified format: mapping.paths — list of files and/or directories (type auto-detected at runtime)
-  if (Array.isArray(obj.paths) && obj.paths.length > 0) {
-    const paths = (obj.paths as unknown[])
-      .filter((p): p is string => typeof p === 'string')
-      .map((p) => validateRelativePath(p, filePath, 'mapping.paths[]'));
-    if (paths.length === 0) {
-      throw new Error(`yg-node.yaml at ${filePath}: mapping.paths must be a non-empty array`);
-    }
-    return { paths };
-  }
-
-  if (obj.paths !== undefined || obj.type !== undefined || obj.path !== undefined) {
+  if (!Array.isArray(rawMapping)) {
     throw new Error(
-      `yg-node.yaml at ${filePath}: mapping must have paths (array of file/directory paths)`,
+      `yg-node.yaml at ${filePath}: mapping must be an array of file/directory paths.`,
     );
   }
 
-  return undefined;
+  if (rawMapping.length === 0) {
+    throw new Error(`yg-node.yaml at ${filePath}: mapping array must not be empty`);
+  }
+
+  const paths: string[] = [];
+  for (let i = 0; i < rawMapping.length; i++) {
+    const entry = rawMapping[i];
+    if (typeof entry === 'object' && entry !== null) {
+      throw new Error(
+        `yg-node.yaml at ${filePath}: mapping[${i}] is an object. ` +
+        `Mapping must be a flat list of file/directory paths.`,
+      );
+    }
+    if (typeof entry !== 'string' || entry.trim() === '') {
+      throw new Error(
+        `yg-node.yaml at ${filePath}: mapping[${i}] must be a non-empty string (file or directory path)`,
+      );
+    }
+    paths.push(validateRelativePath(entry, filePath, `mapping[${i}]`));
+  }
+
+  return paths;
+}
+
+function parsePorts(rawPorts: unknown, filePath: string): Record<string, PortDef> | undefined {
+  if (!rawPorts || rawPorts === null) return undefined;
+
+  if (typeof rawPorts !== 'object' || Array.isArray(rawPorts)) {
+    throw new Error(`yg-node.yaml at ${filePath}: ports must be a mapping of port names to definitions`);
+  }
+
+  const ports: Record<string, PortDef> = {};
+  for (const [name, raw] of Object.entries(rawPorts as Record<string, unknown>)) {
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+      throw new Error(`yg-node.yaml at ${filePath}: ports.${name} must be an object`);
+    }
+    const obj = raw as Record<string, unknown>;
+
+    if (typeof obj.description !== 'string' || obj.description.trim() === '') {
+      throw new Error(`yg-node.yaml at ${filePath}: ports.${name}.description must be a non-empty string`);
+    }
+
+    if (!Array.isArray(obj.aspects)) {
+      throw new Error(`yg-node.yaml at ${filePath}: ports.${name}.aspects must be an array`);
+    }
+
+    const aspects = (obj.aspects as unknown[]).map((a, i) => {
+      if (typeof a !== 'string' || a.trim() === '') {
+        throw new Error(`yg-node.yaml at ${filePath}: ports.${name}.aspects[${i}] must be a non-empty string`);
+      }
+      return a.trim();
+    });
+
+    ports[name] = { description: obj.description.trim(), aspects };
+  }
+
+  return Object.keys(ports).length > 0 ? ports : undefined;
 }

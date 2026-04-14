@@ -1,14 +1,8 @@
 name: Utils
-type: library
-description: "Shared helper functions for path normalization, SHA-256 hashing, and token estimation"
+type: adapter
+description: Shared helper functions for path normalization, SHA-256 hashing, and token estimation
 aspects:
-  - aspect: posix-paths
-
-relations:
-  - target: cli/model
-    type: uses
-    consumes: [NodeMapping]
-
+  - posix-paths
+relations: []
 mapping:
-  paths:
-    - source/cli/src/utils/
+  - source/cli/src/utils/

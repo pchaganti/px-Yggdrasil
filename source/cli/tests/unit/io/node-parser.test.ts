@@ -8,19 +8,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_DIR = path.join(__dirname, '../../fixtures/sample-project/.yggdrasil/model');
 
 describe('node-parser', () => {
-  it('parses valid yg-node.yaml correctly (v2.2)', async () => {
+  it('parses valid yg-node.yaml correctly (v4.0)', async () => {
     const meta = await parseNodeYaml(path.join(FIXTURE_DIR, 'orders/order-service/yg-node.yaml'));
 
     expect(meta.name).toBe('OrderService');
     expect(meta.type).toBe('service');
     expect(meta.relations).toContainEqual(
-      expect.objectContaining({ target: 'auth/auth-api', type: 'uses', consumes: ['authenticate'], failure: 'reject-request' }),
+      expect.objectContaining({ target: 'auth/auth-api', type: 'uses' }),
     );
     expect(meta.relations).toContainEqual(
       expect.objectContaining({ target: 'users/user-repo', type: 'uses' }),
     );
-    expect(meta.blackbox).toBe(false);
-    expect(meta.mapping).toEqual({ paths: ['src/orders/order.service.ts'] });
+    expect(meta.mapping).toEqual(['src/orders/order.service.ts']);
   });
 
   it('throws on empty YAML file', async () => {
@@ -68,7 +67,7 @@ name: TestNode
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('handles mapping paths', async () => {
+  it('handles mapping paths (flat string array)', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-node');
     await mkdir(tmpDir, { recursive: true });
     const nodePath = path.join(tmpDir, 'yg-node.yaml');
@@ -78,19 +77,18 @@ name: TestNode
 name: TestNode
 type: service
 mapping:
-  paths:
-    - src/modules/test/service.ts
+  - src/modules/test/service.ts
 `,
       'utf-8',
     );
 
     const meta = await parseNodeYaml(nodePath);
-    expect(meta.mapping).toEqual({ paths: ['src/modules/test/service.ts'] });
+    expect(meta.mapping).toEqual(['src/modules/test/service.ts']);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('throws when mapping has type but no paths', async () => {
+  it('throws when mapping contains object instead of string', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-node');
     await mkdir(tmpDir, { recursive: true });
     const nodePath = path.join(tmpDir, 'yg-node.yaml');
@@ -100,17 +98,36 @@ mapping:
 name: TestNode
 type: service
 mapping:
-  type: directory
+  - type: directory
 `,
       'utf-8',
     );
 
-    await expect(parseNodeYaml(nodePath)).rejects.toThrow('mapping must have paths');
+    await expect(parseNodeYaml(nodePath)).rejects.toThrow(/flat list of file\/directory paths/i);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('throws when mapping paths is not array', async () => {
+  it('throws when mapping is not an array', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-node');
+    await mkdir(tmpDir, { recursive: true });
+    const nodePath = path.join(tmpDir, 'yg-node.yaml');
+    await writeFile(
+      nodePath,
+      `
+name: TestNode
+type: service
+mapping: "not-array"
+`,
+      'utf-8',
+    );
+
+    await expect(parseNodeYaml(nodePath)).rejects.toThrow('mapping');
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('throws when mapping array contains non-string entries', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-node');
     await mkdir(tmpDir, { recursive: true });
     const nodePath = path.join(tmpDir, 'yg-node.yaml');
@@ -120,34 +137,13 @@ mapping:
 name: TestNode
 type: service
 mapping:
-  paths: "not-array"
+  - 1
+  - 2
 `,
       'utf-8',
     );
 
-    await expect(parseNodeYaml(nodePath)).rejects.toThrow('mapping must have paths');
-
-    await rm(tmpDir, { recursive: true, force: true });
-  });
-
-  it('throws when mapping paths array has no valid string paths', async () => {
-    const tmpDir = path.join(__dirname, '../../fixtures/tmp-node');
-    await mkdir(tmpDir, { recursive: true });
-    const nodePath = path.join(tmpDir, 'yg-node.yaml');
-    await writeFile(
-      nodePath,
-      `
-name: TestNode
-type: service
-mapping:
-  paths:
-    - 1
-    - 2
-`,
-      'utf-8',
-    );
-
-    await expect(parseNodeYaml(nodePath)).rejects.toThrow('non-empty array');
+    await expect(parseNodeYaml(nodePath)).rejects.toThrow('must be a non-empty string');
 
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -162,24 +158,16 @@ mapping:
 name: TestNode
 type: component
 mapping:
-  paths:
-    - app/page.tsx
-    - app/loading.tsx
+  - app/page.tsx
+  - app/loading.tsx
 `,
       'utf-8',
     );
 
     const meta = await parseNodeYaml(nodePath);
-    expect(meta.mapping).toEqual({
-      paths: ['app/page.tsx', 'app/loading.tsx'],
-    });
+    expect(meta.mapping).toEqual(['app/page.tsx', 'app/loading.tsx']);
 
     await rm(tmpDir, { recursive: true, force: true });
-  });
-
-  it('defaults blackbox to false', async () => {
-    const meta = await parseNodeYaml(path.join(FIXTURE_DIR, 'orders/order-service/yg-node.yaml'));
-    expect(meta.blackbox).toBe(false);
   });
 
   it('defaults missing optional fields correctly', async () => {
@@ -199,34 +187,12 @@ type: module
     expect(meta.aspects).toBeUndefined();
     expect(meta.relations).toBeUndefined();
     expect(meta.mapping).toBeUndefined();
-    expect(meta.blackbox).toBe(false);
+    expect(meta.ports).toBeUndefined();
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('parses blackbox: true correctly', async () => {
-    const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-bb');
-    await mkdir(tmpDir, { recursive: true });
-    const nodePath = path.join(tmpDir, 'yg-node.yaml');
-    await writeFile(
-      nodePath,
-      `
-name: ExternalService
-type: service
-blackbox: true
-`,
-      'utf-8',
-    );
-
-    const meta = await parseNodeYaml(nodePath);
-    expect(meta.blackbox).toBe(true);
-    expect(meta.name).toBe('ExternalService');
-    expect(meta.type).toBe('service');
-
-    await rm(tmpDir, { recursive: true, force: true });
-  });
-
-  it('parses node with aspects field', async () => {
+  it('parses node with aspects field (new format)', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-aspects');
     await mkdir(tmpDir, { recursive: true });
     const nodePath = path.join(tmpDir, 'yg-node.yaml');
@@ -236,19 +202,19 @@ blackbox: true
 name: AspectedNode
 type: service
 aspects:
-  - aspect: requires-auth
-  - aspect: public-api
+  - "requires-auth"
+  - "public-api"
 `,
       'utf-8',
     );
 
     const meta = await parseNodeYaml(nodePath);
-    expect(meta.aspects).toEqual([{ aspect: 'requires-auth' }, { aspect: 'public-api' }]);
+    expect(meta.aspects).toEqual(['requires-auth', 'public-api']);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('returns undefined mapping when mapping is empty object', async () => {
+  it('throws when mapping is empty object', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-no-path');
     await mkdir(tmpDir, { recursive: true });
     const nodePath = path.join(tmpDir, 'yg-node.yaml');
@@ -262,13 +228,12 @@ mapping: {}
       'utf-8',
     );
 
-    const meta = await parseNodeYaml(nodePath);
-    expect(meta.mapping).toBeUndefined();
+    await expect(parseNodeYaml(nodePath)).rejects.toThrow('must be an array');
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('throws when mapping.paths contains empty string', async () => {
+  it('throws when mapping contains empty string', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-empty-path');
     await mkdir(tmpDir, { recursive: true });
     const nodePath = path.join(tmpDir, 'yg-node.yaml');
@@ -278,18 +243,17 @@ mapping: {}
 name: EmptyPath
 type: service
 mapping:
-  paths:
-    - ""
+  - ""
 `,
       'utf-8',
     );
 
-    await expect(parseNodeYaml(nodePath)).rejects.toThrow('must be non-empty');
+    await expect(parseNodeYaml(nodePath)).rejects.toThrow('must be a non-empty string');
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('throws when mapping.paths contains absolute path', async () => {
+  it('throws when mapping contains absolute path', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-abs-path');
     await mkdir(tmpDir, { recursive: true });
     const nodePath = path.join(tmpDir, 'yg-node.yaml');
@@ -299,8 +263,7 @@ mapping:
 name: AbsPath
 type: service
 mapping:
-  paths:
-    - /absolute/path.ts
+  - /absolute/path.ts
 `,
       'utf-8',
     );
@@ -310,7 +273,7 @@ mapping:
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('throws when mapping.paths is empty array', async () => {
+  it('throws when mapping is an empty array', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-empty-paths');
     await mkdir(tmpDir, { recursive: true });
     const nodePath = path.join(tmpDir, 'yg-node.yaml');
@@ -319,13 +282,12 @@ mapping:
       `
 name: EmptyPaths
 type: service
-mapping:
-  paths: []
+mapping: []
 `,
       'utf-8',
     );
 
-    await expect(parseNodeYaml(nodePath)).rejects.toThrow('mapping must have paths');
+    await expect(parseNodeYaml(nodePath)).rejects.toThrow('mapping');
 
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -400,12 +362,34 @@ relations:
 name: NoPath
 type: service
 mapping:
-  type: directory
+  - type: directory
 `,
       'utf-8',
     );
 
-    await expect(parseNodeYaml(nodePath)).rejects.toThrow('mapping must have paths');
+    await expect(parseNodeYaml(nodePath)).rejects.toThrow('mapping');
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+
+  it('throws when mapping is an object instead of array', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-mapping-legacy');
+    await mkdir(tmpDir, { recursive: true });
+    const nodePath = path.join(tmpDir, 'yg-node.yaml');
+    await writeFile(
+      nodePath,
+      `
+name: LegacyMapping
+type: service
+mapping:
+  paths:
+    - src/legacy/module.ts
+`,
+      'utf-8',
+    );
+
+    await expect(parseNodeYaml(nodePath)).rejects.toThrow('must be an array');
 
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -459,59 +443,7 @@ relations:
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('parses aspects with exceptions correctly', async () => {
-    const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-aspect-exc');
-    await mkdir(tmpDir, { recursive: true });
-    const nodePath = path.join(tmpDir, 'yg-node.yaml');
-    await writeFile(
-      nodePath,
-      `
-name: PubSubNode
-type: service
-aspects:
-  - aspect: pubsub-events
-    exceptions:
-      - "updateUserSessions uses await instead of fire-and-forget"
-  - aspect: pessimistic-locking
-`,
-      'utf-8',
-    );
-
-    const meta = await parseNodeYaml(nodePath);
-    expect(meta.aspects).toHaveLength(2);
-    expect(meta.aspects![0].aspect).toBe('pubsub-events');
-    expect(meta.aspects![0].exceptions).toEqual(['updateUserSessions uses await instead of fire-and-forget']);
-    expect(meta.aspects![1].aspect).toBe('pessimistic-locking');
-    expect(meta.aspects![1].exceptions).toBeUndefined();
-
-    await rm(tmpDir, { recursive: true, force: true });
-  });
-
-
-  it('aspects without exceptions have undefined exceptions field', async () => {
-    const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-no-exc');
-    await mkdir(tmpDir, { recursive: true });
-    const nodePath = path.join(tmpDir, 'yg-node.yaml');
-    await writeFile(
-      nodePath,
-      `
-name: NoExcNode
-type: service
-aspects:
-  - aspect: pubsub-events
-`,
-      'utf-8',
-    );
-
-    const meta = await parseNodeYaml(nodePath);
-    expect(meta.aspects).toHaveLength(1);
-    expect(meta.aspects![0].aspect).toBe('pubsub-events');
-    expect(meta.aspects![0].exceptions).toBeUndefined();
-
-    await rm(tmpDir, { recursive: true, force: true });
-  });
-
-  it('parses node with relations including consumes and failure', async () => {
+  it('parses node with relations including consumes', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-rels');
     await mkdir(tmpDir, { recursive: true });
     const nodePath = path.join(tmpDir, 'yg-node.yaml');
@@ -526,7 +458,6 @@ relations:
     consumes: [login, logout]
   - target: users/user-repo
     type: calls
-    failure: "retry 3x"
 `,
       'utf-8',
     );
@@ -541,101 +472,60 @@ relations:
     expect(meta.relations![1]).toEqual({
       target: 'users/user-repo',
       type: 'calls',
-      failure: 'retry 3x',
     });
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('parses anchors embedded in aspects entries', async () => {
-    const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-anchors');
+  it('parses flat string aspects array', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-flat-aspects');
     await mkdir(tmpDir, { recursive: true });
     const nodePath = path.join(tmpDir, 'yg-node.yaml');
-    await writeFile(
-      nodePath,
-      `name: AnchoredNode
-type: service
-aspects:
-  - aspect: pessimistic-locking
-    anchors:
-      - lockTeamCollection
-      - FOR UPDATE
-  - aspect: retry-on-deadlock
-    anchors:
-      - MAX_RETRIES
-      - TRANSACTION_DEADLOCK
-`,
-      'utf-8',
-    );
+    await writeFile(nodePath, `name: FlatAspects\ntype: service\naspects:\n  - "requires-auth"\n  - "audit-logging"\n`, 'utf-8');
 
     const meta = await parseNodeYaml(nodePath);
-    expect(meta.aspects).toHaveLength(2);
-    expect(meta.aspects![0].anchors).toEqual(['lockTeamCollection', 'FOR UPDATE']);
-    expect(meta.aspects![1].anchors).toEqual(['MAX_RETRIES', 'TRANSACTION_DEADLOCK']);
+    expect(meta.aspects).toEqual([
+      'requires-auth',
+      'audit-logging',
+    ]);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('aspects without anchors have undefined anchors field', async () => {
-    const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-no-anchors');
-    await mkdir(tmpDir, { recursive: true });
-    const nodePath = path.join(tmpDir, 'yg-node.yaml');
-    await writeFile(nodePath, `name: NoAnchors\ntype: service\naspects:\n  - aspect: my-aspect\n`, 'utf-8');
-
-    const meta = await parseNodeYaml(nodePath);
-    expect(meta.aspects).toHaveLength(1);
-    expect(meta.aspects![0].anchors).toBeUndefined();
-
-    await rm(tmpDir, { recursive: true, force: true });
-  });
-
-  it('throws when aspects entry is not an object', async () => {
+  it('throws when aspects entry is not a string', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-bad-aspect-entry');
     await mkdir(tmpDir, { recursive: true });
     const nodePath = path.join(tmpDir, 'yg-node.yaml');
-    await writeFile(nodePath, `name: Bad\ntype: service\naspects:\n  - "just-a-string"\n`, 'utf-8');
+    await writeFile(nodePath, `name: Bad\ntype: service\naspects:\n  - 123\n`, 'utf-8');
 
     await expect(parseNodeYaml(nodePath)).rejects.toThrow(
-      "aspects[0] must be an object with 'aspect' key",
+      "aspects[0] must be a string",
     );
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('throws when aspects entry has no aspect key', async () => {
+  it('throws when aspects entry is an object', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-no-aspect-key');
     await mkdir(tmpDir, { recursive: true });
     const nodePath = path.join(tmpDir, 'yg-node.yaml');
     await writeFile(nodePath, `name: Bad\ntype: service\naspects:\n  - exceptions:\n      - "some note"\n`, 'utf-8');
 
     await expect(parseNodeYaml(nodePath)).rejects.toThrow(
-      'aspects[0].aspect must be a non-empty string',
+      "aspects must be an array of strings.",
     );
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('throws when aspects entry has non-array exceptions', async () => {
+  it('throws when aspects entry is an object with exceptions', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-bad-exc-type');
     await mkdir(tmpDir, { recursive: true });
     const nodePath = path.join(tmpDir, 'yg-node.yaml');
     await writeFile(nodePath, `name: Bad\ntype: service\naspects:\n  - aspect: my-aspect\n    exceptions: "not-array"\n`, 'utf-8');
 
     await expect(parseNodeYaml(nodePath)).rejects.toThrow(
-      'aspects[0].exceptions must be an array of strings',
-    );
-
-    await rm(tmpDir, { recursive: true, force: true });
-  });
-
-  it('throws when aspects entry has non-array anchors', async () => {
-    const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-bad-anchor-type');
-    await mkdir(tmpDir, { recursive: true });
-    const nodePath = path.join(tmpDir, 'yg-node.yaml');
-    await writeFile(nodePath, `name: Bad\ntype: service\naspects:\n  - aspect: my-aspect\n    anchors: "not-array"\n`, 'utf-8');
-
-    await expect(parseNodeYaml(nodePath)).rejects.toThrow(
-      'aspects[0].anchors must be an array of strings',
+      "aspects must be an array of strings.",
     );
 
     await rm(tmpDir, { recursive: true, force: true });
@@ -645,7 +535,7 @@ aspects:
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-dup-aspect');
     await mkdir(tmpDir, { recursive: true });
     const nodePath = path.join(tmpDir, 'yg-node.yaml');
-    await writeFile(nodePath, `name: Bad\ntype: service\naspects:\n  - aspect: my-aspect\n  - aspect: my-aspect\n`, 'utf-8');
+    await writeFile(nodePath, `name: Bad\ntype: service\naspects:\n  - "my-aspect"\n  - "my-aspect"\n`, 'utf-8');
 
     await expect(parseNodeYaml(nodePath)).rejects.toThrow(
       "duplicate aspect 'my-aspect' in aspects list",
@@ -691,5 +581,113 @@ type: service
     expect(meta.description).toBeUndefined();
 
     await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  describe('node-parser flat mapping', () => {
+    it('parses mapping as flat string array', async () => {
+      const tmpDir = path.join(__dirname, '../../fixtures/tmp-flat-mapping');
+      await mkdir(tmpDir, { recursive: true });
+      const nodePath = path.join(tmpDir, 'yg-node.yaml');
+      await writeFile(
+        nodePath,
+        `
+name: Validator
+type: library
+mapping:
+  - source/cli/src/core/validator.ts
+  - source/cli/src/core/effective-aspects.ts
+`,
+        'utf-8',
+      );
+
+      const meta = await parseNodeYaml(nodePath);
+      expect(meta.mapping).toEqual([
+        'source/cli/src/core/validator.ts',
+        'source/cli/src/core/effective-aspects.ts',
+      ]);
+
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('rejects mapping group format with objects', async () => {
+      const tmpDir = path.join(__dirname, '../../fixtures/tmp-old-mapping-group');
+      await mkdir(tmpDir, { recursive: true });
+      const nodePath = path.join(tmpDir, 'yg-node.yaml');
+      await writeFile(
+        nodePath,
+        `
+name: Old
+type: library
+mapping:
+  - paths:
+      - source/cli/src/core/validator.ts
+    aspects:
+      - aspect: deterministic
+        anchors:
+          pure-function:
+            regex: "export function"
+            rationale: "migrated"
+`,
+        'utf-8',
+      );
+
+      await expect(parseNodeYaml(nodePath)).rejects.toThrow(/flat list of file\/directory paths/i);
+
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+  });
+
+  describe('node-parser ports', () => {
+    it('parses ports with aspects', async () => {
+      const tmpDir = path.join(__dirname, '../../fixtures/tmp-ports-with-aspects');
+      await mkdir(tmpDir, { recursive: true });
+      const nodePath = path.join(tmpDir, 'yg-node.yaml');
+      await writeFile(
+        nodePath,
+        `
+name: PaymentService
+type: service
+ports:
+  charge:
+    description: "Synchronous payment charge"
+    aspects:
+      - correlation-tracking
+      - idempotency
+  balance:
+    description: "Read-only balance check"
+    aspects: []
+`,
+        'utf-8',
+      );
+
+      const meta = await parseNodeYaml(nodePath);
+      expect(meta.ports).toEqual({
+        charge: { description: 'Synchronous payment charge', aspects: ['correlation-tracking', 'idempotency'] },
+        balance: { description: 'Read-only balance check', aspects: [] },
+      });
+
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('rejects port without description', async () => {
+      const tmpDir = path.join(__dirname, '../../fixtures/tmp-port-no-description');
+      await mkdir(tmpDir, { recursive: true });
+      const nodePath = path.join(tmpDir, 'yg-node.yaml');
+      await writeFile(
+        nodePath,
+        `
+name: Bad
+type: service
+ports:
+  charge:
+    aspects: [foo]
+`,
+        'utf-8',
+      );
+
+      await expect(parseNodeYaml(nodePath)).rejects.toThrow(/description/);
+
+      await rm(tmpDir, { recursive: true, force: true });
+    });
   });
 });

@@ -1,8 +1,5 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import {
-  STANDARD_ARTIFACTS,
-} from '../model/types.js';
 import type {
   Graph,
   GraphNode,
@@ -10,23 +7,21 @@ import type {
   FlowDef,
   SchemaDef,
   YggConfig,
-} from '../model/types.js';
+  ArchitectureDef,
+} from '../model/graph.js';
 import { parseConfig } from '../io/config-parser.js';
 import { parseNodeYaml } from '../io/node-parser.js';
 import { parseAspect } from '../io/aspect-parser.js';
 import { parseFlow } from '../io/flow-parser.js';
 import { parseSchema } from '../io/schema-parser.js';
-import { readArtifacts } from '../io/artifact-reader.js';
+import { parseArchitecture } from '../io/architecture-parser.js';
 import { findYggRoot } from '../utils/paths.js';
 
 function toModelPath(absolutePath: string, modelDir: string): string {
-  return path.relative(modelDir, absolutePath).split(path.sep).join('/');
+  return path.relative(modelDir, absolutePath).replace(/\\/g, '/').replace(/\/+$/, '');
 }
 
-const FALLBACK_CONFIG: YggConfig = {
-  name: '',
-  node_types: {},
-};
+const FALLBACK_CONFIG: YggConfig = {};
 
 export async function loadGraph(
   projectRoot: string,
@@ -44,12 +39,13 @@ export async function loadGraph(
     configError = (error as Error).message;
   }
 
+  const { architecture, error: architectureError } = await loadArchitecture(yggRoot);
+
   const modelDir = path.join(yggRoot, 'model');
   const nodes = new Map<string, GraphNode>();
   const nodeParseErrors: Array<{ nodePath: string; message: string }> = [];
-  const artifactFilenames = Object.keys(STANDARD_ARTIFACTS);
   try {
-    await scanModelDirectory(modelDir, modelDir, null, nodes, nodeParseErrors, artifactFilenames);
+    await scanModelDirectory(modelDir, modelDir, null, nodes, nodeParseErrors);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
       throw new Error(`Directory .yggdrasil/model/ does not exist. Run 'yg init' first.`, {
@@ -65,6 +61,8 @@ export async function loadGraph(
 
   return {
     config,
+    architecture,
+    architectureError,
     configError,
     nodeParseErrors: nodeParseErrors.length > 0 ? nodeParseErrors : undefined,
     nodes,
@@ -75,15 +73,32 @@ export async function loadGraph(
   };
 }
 
+async function loadArchitecture(
+  yggRoot: string,
+): Promise<{ architecture: ArchitectureDef; error?: string }> {
+  const architectureFilePath = path.join(yggRoot, 'yg-architecture.yaml');
+  const emptyArch: ArchitectureDef = { node_types: {} };
+
+  try {
+    const architecture = await parseArchitecture(architectureFilePath);
+    return { architecture };
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code === 'ENOENT') {
+      return { architecture: emptyArch };
+    }
+    return { architecture: emptyArch, error: (error as Error).message };
+  }
+}
+
 async function scanModelDirectory(
   dirPath: string,
   modelDir: string,
   parent: GraphNode | null,
   nodes: Map<string, GraphNode>,
   nodeParseErrors: Array<{ nodePath: string; message: string }>,
-  artifactFilenames: string[],
 ): Promise<void> {
-  const entries = await readdir(dirPath, { withFileTypes: true });
+  const entries = (await readdir(dirPath, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
   const hasNodeYaml = entries.some((e) => e.isFile() && e.name === 'yg-node.yaml');
 
   if (!hasNodeYaml && dirPath !== modelDir) {
@@ -105,13 +120,11 @@ async function scanModelDirectory(
       });
       return;
     }
-    const artifacts = await readArtifacts(dirPath, ['yg-node.yaml'], artifactFilenames);
 
     const node: GraphNode = {
       path: graphPath,
       meta,
       nodeYamlRaw,
-      artifacts,
       children: [],
       parent,
     };
@@ -131,7 +144,6 @@ async function scanModelDirectory(
         node,
         nodes,
         nodeParseErrors,
-        artifactFilenames,
       );
     }
   } else {
@@ -145,7 +157,6 @@ async function scanModelDirectory(
         null,
         nodes,
         nodeParseErrors,
-        artifactFilenames,
       );
     }
   }
@@ -166,11 +177,11 @@ async function scanAspectsDirectory(
   aspectsRoot: string,
   aspects: AspectDef[],
 ): Promise<void> {
-  const entries = await readdir(dirPath, { withFileTypes: true });
+  const entries = (await readdir(dirPath, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
   const hasAspectYaml = entries.some((e) => e.isFile() && e.name === 'yg-aspect.yaml');
 
   if (hasAspectYaml) {
-    const id = path.relative(aspectsRoot, dirPath).split(path.sep).join('/');
+    const id = path.relative(aspectsRoot, dirPath).replace(/\\/g, '/').replace(/\/+$/, '');
     const aspectYamlPath = path.join(dirPath, 'yg-aspect.yaml');
     const aspect = await parseAspect(dirPath, aspectYamlPath, id);
     aspects.push(aspect);
@@ -186,7 +197,7 @@ async function scanAspectsDirectory(
 async function loadFlows(flowsDir: string): Promise<FlowDef[]> {
   let entries;
   try {
-    entries = await readdir(flowsDir, { withFileTypes: true });
+    entries = (await readdir(flowsDir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
   } catch {
     return []; // flows/ directory does not exist — OK
   }
@@ -202,7 +213,7 @@ async function loadFlows(flowsDir: string): Promise<FlowDef[]> {
 
 async function loadSchemas(schemasDir: string): Promise<SchemaDef[]> {
   try {
-    const entries = await readdir(schemasDir, { withFileTypes: true });
+    const entries = (await readdir(schemasDir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
     const schemas: SchemaDef[] = [];
     for (const entry of entries) {
       if (!entry.isFile()) continue;

@@ -19,6 +19,7 @@ export type Platform =
   | 'aider'
   | 'gemini'
   | 'amp'
+  | 'opencode'
   | 'generic';
 
 export const PLATFORMS: Platform[] = [
@@ -32,6 +33,7 @@ export const PLATFORMS: Platform[] = [
   'aider',
   'gemini',
   'amp',
+  'opencode',
   'generic',
 ];
 
@@ -62,6 +64,8 @@ export async function installRulesForPlatform(
       return installForGemini(projectRoot, agentRulesPath);
     case 'amp':
       return installForAmp(projectRoot, agentRulesPath);
+    case 'opencode':
+      return installForOpenCode(projectRoot);
     case 'generic':
     default:
       return installForGeneric(projectRoot);
@@ -78,7 +82,7 @@ async function installForCursor(projectRoot: string): Promise<string> {
   await mkdir(dir, { recursive: true });
   const filePath = path.join(dir, 'yggdrasil.mdc');
   const content = `---
-description: Yggdrasil — semantic memory of the repository
+description: Yggdrasil — continuous architecture enforcement
 alwaysApply: true
 ---
 
@@ -244,6 +248,10 @@ async function installForAmp(projectRoot: string, agentRulesPath: string): Promi
   const content = existing.trimEnd() ? `${existing.trimEnd()}\n${importLine}\n` : `${importLine}\n`;
   await writeFile(filePath, content, 'utf-8');
   return agentRulesPath;
+}
+
+async function installForOpenCode(projectRoot: string): Promise<string> {
+  return installForCodex(projectRoot);
 }
 
 async function installForGeneric(projectRoot: string): Promise<string> {

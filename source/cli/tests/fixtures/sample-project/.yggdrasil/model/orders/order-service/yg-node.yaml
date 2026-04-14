@@ -1,18 +1,15 @@
 name: OrderService
+description: x
 type: service
 aspects:
-  - aspect: requires-audit
+  - "requires-audit"
 relations:
   - target: auth/auth-api
     type: uses
-    consumes:
-      - authenticate
-    failure: reject-request
   - target: users/user-repo
     type: uses
   - target: users/user-repo
     type: emits
     event_name: order.created
 mapping:
-  paths:
-    - src/orders/order.service.ts
+  - src/orders/order.service.ts

@@ -1,0 +1,15 @@
+name: Approve Core
+type: engine
+description: Core approve logic — records drift baseline, implements binary change detection. Nodes without aspects auto-approve. Deterministic only — no LLM calls.
+aspects:
+  - deterministic
+  - posix-paths
+  - what-why-next
+  - diagnostic-logging
+relations:
+  - target: cli/io
+    type: uses
+  - target: cli/utils
+    type: uses
+mapping:
+  - source/cli/src/core/approve.ts

@@ -1,30 +1,20 @@
 name: BuildContextCommand
-type: library
-description: "Assembles and outputs a context package for a node via yg build-context --node or --file"
+type: command
+description: Assembles and outputs a context package for a node via yg build-context --node or --file
 aspects:
-  - aspect: deterministic
-  - aspect: cli-command-contract
-
+  - what-why-next
 relations:
   - target: cli/core/loader
     type: uses
-    consumes: [loadGraph]
   - target: cli/core/context
     type: uses
-    consumes: [buildContext, collectAncestors, toContextMapOutput]
   - target: cli/core/validator
     type: uses
-    consumes: [validate]
   - target: cli/formatters
     type: uses
-    consumes: [formatContextYaml, formatFullContent]
   - target: cli/commands/owner
     type: uses
-    consumes: [findOwner]
   - target: cli/utils
     type: uses
-    consumes: [projectRootFromGraph]
-
 mapping:
-  paths:
-    - source/cli/src/cli/build-context.ts
+  - source/cli/src/cli/build-context.ts

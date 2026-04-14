@@ -1,11 +1,15 @@
 import { Command } from 'commander';
+import chalk from 'chalk';
 import { loadGraph } from '../core/graph-loader.js';
-import { buildContext, collectAncestors, toContextMapOutput } from '../core/context-builder.js';
-import { formatContextYaml, formatFullContent } from '../formatters/context-text.js';
+import { initDebugLog } from '../utils/debug-log.js';
+import { collectAncestors, buildNodeContextData, buildFileContextData } from '../core/context-builder.js';
+import { formatNodeContext } from '../formatters/context-node.js';
+import { formatFileContext } from '../formatters/context-file.js';
 import { validate } from '../core/validator.js';
 import { findOwner } from './owner.js';
 import { normalizeMappingPaths, projectRootFromGraph } from '../utils/paths.js';
-import type { Graph } from '../model/types.js';
+import { buildIssueMessage } from '../formatters/message-builder.js';
+import type { Graph } from '../model/graph.js';
 
 type CandidateNode = { nodePath: string; fileCount: number };
 
@@ -62,26 +66,29 @@ function collectRelevantNodePaths(graph: Graph, nodePath: string): Set<string> {
 }
 
 export function registerBuildCommand(program: Command): void {
-  program
-    .command('build-context')
-    .description('Assemble a context package for one node')
-    .option('--node <node-path>', 'Node path relative to .yggdrasil/model/')
-    .option('--file <file-path>', 'Source file path — resolves owner node automatically')
-    .option('--full', 'Include artifact file contents in output')
-    .option('--self', 'Only include the node\u2019s own artifacts (no hierarchy, dependencies, aspects, flows)')
-    .action(async (options: { node?: string; file?: string; full?: boolean; self?: boolean }) => {
+  const contextAction = async (options: { node?: string; file?: string }) => {
       try {
         if (!options.node && !options.file) {
-          process.stderr.write("Error: either '--node <path>' or '--file <path>' is required\n");
+          process.stderr.write(chalk.red(buildIssueMessage({
+            what: "No target specified.",
+            why: "Either '--node <path>' or '--file <path>' is required.",
+            next: "Run: yg context --node <path> or yg context --file <path>",
+          }) + '\n'));
           process.exit(1);
         }
         if (options.node && options.file) {
-          process.stderr.write("Error: '--node' and '--file' are mutually exclusive\n");
+          process.stderr.write(chalk.red(buildIssueMessage({
+            what: "Conflicting options.",
+            why: "'--node' and '--file' are mutually exclusive.",
+            next: "Use one or the other, not both.",
+          }) + '\n'));
           process.exit(1);
         }
 
         const graph = await loadGraph(process.cwd());
+        initDebugLog(graph.rootPath, graph.config.debug ?? false);
         let nodePath: string;
+        let resolvedFilePath: string | undefined;
 
         if (options.file) {
           const repoRoot = projectRootFromGraph(graph.rootPath);
@@ -89,20 +96,29 @@ export function registerBuildCommand(program: Command): void {
           if (!result.nodePath) {
             const candidates = findCandidateNodes(graph, result.file);
             if (candidates.length > 0) {
-              let msg = `${result.file} -> no graph coverage\n`;
-              msg += `\nCandidate nodes (other files in the same directory are mapped to these nodes):\n`;
+              let candidatesList = '';
               for (const c of candidates) {
-                msg += `  - ${c.nodePath} (${c.fileCount} file${c.fileCount === 1 ? '' : 's'} in same dir)\n`;
+                candidatesList += `  - ${c.nodePath} (${c.fileCount} file${c.fileCount === 1 ? '' : 's'} in same dir)\n`;
               }
-              msg += `\nUse: yg build-context --node <node-path>\n`;
-              process.stderr.write(msg);
+              const msg = buildIssueMessage({
+                what: `${result.file} has no graph coverage.`,
+                why: `File is not mapped to any node. Other files in the same directory are mapped to these nodes:\n${candidatesList}This suggests the file should be added to one of them.`,
+                next: 'Use: yg context --node <node-path>',
+              });
+              process.stderr.write(chalk.red(`${msg}\n`));
             } else {
-              process.stderr.write(`${result.file} -> no graph coverage\n`);
+              const noGraphMsg = buildIssueMessage({
+                what: `${result.file} has no graph coverage.`,
+                why: 'File is not mapped to any node and no candidate nodes found in the same directory.',
+                next: 'Add the file to an existing node mapping, or create a new node.',
+              });
+              process.stderr.write(chalk.red(`${noGraphMsg}\n`));
             }
             process.exit(1);
           }
           process.stderr.write(`${result.file} -> ${result.nodePath}\n`);
           nodePath = result.nodePath;
+          resolvedFilePath = result.file;
         } else {
           nodePath = options.node!.trim().replace(/^\.\//, '').replace(/\/$/, '');
         }
@@ -118,105 +134,54 @@ export function registerBuildCommand(program: Command): void {
         if (relevantErrors.length > 0) {
           const totalErrors = validationResult.issues.filter((i) => i.severity === 'error').length;
           const skippedErrors = totalErrors - relevantErrors.length;
-          let msg = `Error: build-context blocked by ${relevantErrors.length} error(s) affecting this node's context.\n`;
-          if (skippedErrors > 0) {
-            msg += `(${skippedErrors} unrelated error(s) in other nodes ignored.)\n`;
-          }
+          let errorList = '';
           for (const err of relevantErrors) {
             const loc = err.nodePath ? `${err.nodePath}: ` : '';
-            msg += `  ${err.code ?? ''} ${loc}${err.message}\n`;
+            errorList += `  ${err.code ?? ''} ${loc}${err.message}\n`;
           }
-          process.stderr.write(msg);
+          let whyText = 'Context cannot be assembled when structural errors exist.';
+          if (skippedErrors > 0) {
+            whyText += ` (${skippedErrors} unrelated error(s) in other nodes ignored.)`;
+          }
+          const msg = buildIssueMessage({
+            what: `build-context blocked by ${relevantErrors.length} error${relevantErrors.length === 1 ? '' : 's'} affecting this node's context.`,
+            why: whyText,
+            next: `Run yg check and fix the listed errors first:\n${errorList}`,
+          });
+          process.stderr.write(chalk.red(`Error: ${msg}\n`));
           process.exit(1);
         }
 
-        const pkg = await buildContext(graph, nodePath, { selfOnly: options.self });
-        const mapOutput = toContextMapOutput(pkg, graph, { selfOnly: options.self });
-
-        let output = formatContextYaml(mapOutput);
-
-        if (options.full) {
-          const seen = new Set<string>();
-          const allFiles: Array<{ path: string; content: string }> = [];
-
-          async function collectFile(filePath: string): Promise<void> {
-            if (seen.has(filePath)) return;
-            seen.add(filePath);
-            const content = await findFileContent(filePath, graph);
-            if (content !== undefined) {
-              allFiles.push({ path: filePath, content });
-            }
-          }
-
-          // Glossary files
-          for (const aspect of Object.values(mapOutput.glossary.aspects)) {
-            for (const f of aspect.files) await collectFile(f);
-          }
-          for (const flow of Object.values(mapOutput.glossary.flows)) {
-            for (const f of flow.files) await collectFile(f);
-          }
-
-          // Node files
-          for (const f of mapOutput.node.files) await collectFile(f);
-
-          // Hierarchy files
-          for (const ancestor of mapOutput.hierarchy) {
-            for (const f of ancestor.files ?? []) await collectFile(f);
-          }
-
-          // Dependency files (including their hierarchy)
-          for (const dep of mapOutput.dependencies) {
-            for (const ancestor of dep.hierarchy) {
-              for (const f of ancestor.files ?? []) await collectFile(f);
-            }
-            for (const f of dep.files ?? []) await collectFile(f);
-          }
-
-          output += formatFullContent(allFiles);
+        if (resolvedFilePath) {
+          const data = buildFileContextData(graph, resolvedFilePath, nodePath);
+          process.stdout.write(formatFileContext(data));
+        } else {
+          const data = buildNodeContextData(graph, nodePath);
+          process.stdout.write(formatNodeContext(data));
         }
-
-        process.stdout.write(output);
       } catch (error) {
-        process.stderr.write(`Error: ${(error as Error).message}\n`);
+        const err = error as NodeJS.ErrnoException;
+        if (err.code === 'ENOENT') {
+          process.stderr.write(
+            chalk.red(buildIssueMessage({
+              what: 'No .yggdrasil/ directory found.',
+              why: 'Yggdrasil is not initialized in this project.',
+              next: "Run 'yg init' to initialize.",
+            }) + '\n'),
+          );
+        } else {
+          process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
+        }
         process.exit(1);
       }
-    });
-}
+  };
 
-/**
- * Find file content from the loaded graph data.
- * Paths are relative to .yggdrasil/ (e.g., "model/cli/core/loader/responsibility.md").
- */
-async function findFileContent(filePath: string, graph: Graph): Promise<string | undefined> {
-  if (filePath.startsWith('model/')) {
-    const rest = filePath.slice('model/'.length);
-    const parts = rest.split('/');
-    const filename = parts.pop()!;
-    const nodePath = parts.join('/');
-    const node = graph.nodes.get(nodePath);
-    if (!node) return undefined;
-    const art = node.artifacts.find((a) => a.filename === filename);
-    return art?.content;
-  }
-  if (filePath.startsWith('aspects/')) {
-    const rest = filePath.slice('aspects/'.length);
-    const parts = rest.split('/');
-    const aspectId = parts[0];
-    const filename = parts.slice(1).join('/');
-    const aspect = graph.aspects.find((a) => a.id === aspectId);
-    if (!aspect) return undefined;
-    const art = aspect.artifacts.find((a) => a.filename === filename);
-    return art?.content;
-  }
-  if (filePath.startsWith('flows/')) {
-    const rest = filePath.slice('flows/'.length);
-    const parts = rest.split('/');
-    const flowPath = parts[0];
-    const filename = parts.slice(1).join('/');
-    const flow = graph.flows.find((f) => f.path === flowPath);
-    if (!flow) return undefined;
-    const art = flow.artifacts.find((a) => a.filename === filename);
-    return art?.content;
-  }
-  return undefined;
+  // Primary command: `yg context`
+  program
+    .command('context')
+    .description('Assemble a context package for one node')
+    .option('--node <node-path>', 'Node path relative to .yggdrasil/model/')
+    .option('--file <file-path>', 'Source file path — resolves owner node automatically')
+    .action(contextAction);
+
 }

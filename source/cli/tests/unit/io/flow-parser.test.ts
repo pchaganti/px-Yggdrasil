@@ -26,7 +26,6 @@ nodes:
 
     expect(flow.name).toBe('Checkout Flow');
     expect(flow.nodes).toEqual(['orders/order-service', 'auth/auth-api']);
-    expect(flow.artifacts).toBeDefined();
 
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -248,6 +247,19 @@ aspects:
     await expect(parseFlow(tmpDir, flowYaml)).rejects.toThrow(
       "'aspects' must be an array of strings",
     );
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('returns empty aspects when all entries are non-string', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-flow-nonstring-aspects');
+    await mkdir(tmpDir, { recursive: true });
+    const flowYaml = path.join(tmpDir, 'yg-flow.yaml');
+    await writeFile(flowYaml, 'name: Test\nnodes: [a/b]\naspects: [123, true]\n', 'utf-8');
+
+    const flow = await parseFlow(tmpDir, flowYaml);
+
+    expect(flow.aspects).toEqual([]);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
