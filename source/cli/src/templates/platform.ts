@@ -20,6 +20,7 @@ export type Platform =
   | 'gemini'
   | 'amp'
   | 'opencode'
+  | 'codebuddy'
   | 'generic';
 
 export const PLATFORMS: Platform[] = [
@@ -34,6 +35,7 @@ export const PLATFORMS: Platform[] = [
   'gemini',
   'amp',
   'opencode',
+  'codebuddy',
   'generic',
 ];
 
@@ -66,6 +68,8 @@ export async function installRulesForPlatform(
       return installForAmp(projectRoot, agentRulesPath);
     case 'opencode':
       return installForOpenCode(projectRoot);
+    case 'codebuddy':
+      return installForCodeBuddy(projectRoot);
     case 'generic':
     default:
       return installForGeneric(projectRoot);
@@ -252,6 +256,20 @@ async function installForAmp(projectRoot: string, agentRulesPath: string): Promi
 
 async function installForOpenCode(projectRoot: string): Promise<string> {
   return installForCodex(projectRoot);
+}
+
+async function installForCodeBuddy(projectRoot: string): Promise<string> {
+  const dir = path.join(projectRoot, '.codebuddy', 'rules', 'yggdrasil');
+  await mkdir(dir, { recursive: true });
+  const filePath = path.join(dir, 'RULE.mdc');
+  const content = `---
+description: Yggdrasil — continuous verification for AI-generated code
+alwaysApply: true
+---
+
+${AGENT_RULES_CONTENT}`;
+  await writeFile(filePath, content, 'utf-8');
+  return filePath;
 }
 
 async function installForGeneric(projectRoot: string): Promise<string> {

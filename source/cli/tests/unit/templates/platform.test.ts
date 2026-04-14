@@ -27,6 +27,7 @@ describe('installRulesForPlatform', () => {
     expect(PLATFORMS).toContain('gemini');
     expect(PLATFORMS).toContain('amp');
     expect(PLATFORMS).toContain('opencode');
+    expect(PLATFORMS).toContain('codebuddy');
     expect(PLATFORMS).toContain('generic');
   });
 
@@ -67,6 +68,18 @@ describe('installRulesForPlatform', () => {
       expect(out).toBe(path.join(root, '.windsurf', 'rules', 'yggdrasil.md'));
       expect(existsSync(out)).toBe(true);
       expect(readFileSync(out, 'utf-8')).toBe(AGENT_RULES_CONTENT);
+    });
+  });
+
+  it('codebuddy when empty: creates .codebuddy/rules/yggdrasil/RULE.mdc with frontmatter', async () => {
+    await withTempDir(async (root) => {
+      const out = await installRulesForPlatform(root, 'codebuddy');
+      expect(out).toBe(path.join(root, '.codebuddy', 'rules', 'yggdrasil', 'RULE.mdc'));
+      expect(existsSync(out)).toBe(true);
+      const content = readFileSync(out, 'utf-8');
+      expect(content).toContain('---');
+      expect(content).toContain('alwaysApply: true');
+      expect(content).toContain(AGENT_RULES_CONTENT);
     });
   });
 

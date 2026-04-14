@@ -88,7 +88,7 @@ No LLM calls in CI. Pure hash comparison. If code changed without being verified
 
 Works with any AI coding agent. `yg init` sets up the rules file your agent expects.
 
-**Agent platforms:** Cursor, Claude Code, GitHub Copilot, Codex, Cline, RooCode, Windsurf, Aider, Gemini CLI, Amp, OpenCode
+**Agent platforms:** Cursor, Claude Code, GitHub Copilot, Codex, Cline, RooCode, Windsurf, Aider, Gemini CLI, Amp, OpenCode, CodeBuddy
 
 **Reviewer providers:** API (Anthropic, OpenAI, Google, OpenAI-compatible, Ollama) or agent CLI (Claude Code, Codex, Gemini CLI).
 

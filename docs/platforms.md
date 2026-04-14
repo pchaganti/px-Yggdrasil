@@ -18,6 +18,7 @@ instruction file — so the agent knows how to work with Yggdrasil.
 | Gemini CLI | `GEMINI.md` (single `@...` line) | ⚠️ Minimal (1 line) |
 | Amp | `AGENTS.md` (single `@...` line) | ⚠️ Minimal (1 line) |
 | OpenCode | `AGENTS.md` (append section) | ⚠️ Appends a section |
+| CodeBuddy | `.codebuddy/rules/yggdrasil/RULE.mdc` | ❌ No |
 | Generic | `.yggdrasil/agent-rules.md` | ❌ No |
 
 Notes:
