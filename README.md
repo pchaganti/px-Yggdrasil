@@ -4,7 +4,7 @@
 
 # Yggdrasil
 
-**Continuous verification for AI-generated code.**
+**Continuous architecture enforcement for AI-assisted development.**
 
 [![CI](https://github.com/krzysztofdudek/Yggdrasil/actions/workflows/ci.yml/badge.svg)](https://github.com/krzysztofdudek/Yggdrasil/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@chrisdudek/yg.svg)](https://www.npmjs.com/package/@chrisdudek/yg)

@@ -1,0 +1,7 @@
+name: Tools
+type: project
+description: "Developer tools for asset generation: demo GIF renderer and related utilities"
+aspects: []
+relations: []
+mapping:
+  - tools/
