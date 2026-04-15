@@ -295,3 +295,41 @@ async function collectDirectoryFilePaths(
   result.push(...fileStats);
   return result;
 }
+
+/**
+ * Expand mapping paths to individual file paths.
+ * Directories are recursively expanded (respecting .gitignore).
+ * Files are returned as-is. Missing paths are silently skipped.
+ *
+ * Returns relative paths (forward-slash normalized) suitable for display.
+ */
+export async function expandMappingPaths(
+  projectRoot: string,
+  mappingPaths: string[],
+): Promise<string[]> {
+  const gitignoreStack = await loadRootGitignoreStack(projectRoot);
+  const result: string[] = [];
+
+  for (const mp of mappingPaths) {
+    const absPath = path.join(projectRoot, mp);
+    try {
+      const st = await stat(absPath);
+      if (st.isDirectory()) {
+        const dirEntries = await collectDirectoryFilePaths(absPath, absPath, {
+          projectRoot,
+          gitignoreStack,
+        });
+        for (const entry of dirEntries) {
+          result.push(path.join(mp, entry.relPath).replace(/\\/g, '/').replace(/\/+$/, ''));
+        }
+      } else {
+        result.push(mp);
+      }
+    } catch {
+      // Missing path — skip
+      continue;
+    }
+  }
+
+  return result;
+}

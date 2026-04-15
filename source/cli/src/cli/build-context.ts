@@ -8,6 +8,7 @@ import { formatFileContext } from '../formatters/context-file.js';
 import { validate } from '../core/validator.js';
 import { findOwner } from './owner.js';
 import { normalizeMappingPaths, projectRootFromGraph } from '../utils/paths.js';
+import { expandMappingPaths } from '../utils/hash.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import type { Graph } from '../model/graph.js';
 
@@ -157,17 +158,15 @@ export function registerBuildCommand(program: Command): void {
           process.stdout.write(formatFileContext(data));
         } else {
           const data = buildNodeContextData(graph, nodePath);
+          const projectRoot = projectRootFromGraph(graph.rootPath);
+          data.sourceFiles = await expandMappingPaths(projectRoot, data.sourceFiles);
           process.stdout.write(formatNodeContext(data));
         }
       } catch (error) {
         const err = error as NodeJS.ErrnoException;
         if (err.code === 'ENOENT') {
           process.stderr.write(
-            chalk.red(buildIssueMessage({
-              what: 'No .yggdrasil/ directory found.',
-              why: 'Yggdrasil is not initialized in this project.',
-              next: "Run 'yg init' to initialize.",
-            }) + '\n'),
+            chalk.red("Error: No .yggdrasil/ directory found. Run 'yg init' first.\n"),
           );
         } else {
           process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));

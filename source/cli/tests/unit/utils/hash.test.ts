@@ -9,6 +9,7 @@ import {
   hashForMapping,
   perFileHashes,
   hashTrackedFiles,
+  expandMappingPaths,
 } from '../../../src/utils/hash.js';
 import type { TrackedFile } from '../../../src/core/context-files.js';
 
@@ -486,6 +487,99 @@ describe('hash', () => {
         expect(hashedPaths).toContain('project/sub/index.ts');
         expect(hashedPaths.some((p) => p.endsWith('.db'))).toBe(false);
         expect(hashedPaths.some((p) => p.endsWith('.log'))).toBe(false);
+      } finally {
+        await rm(tmpDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  describe('expandMappingPaths', () => {
+    it('expands directory mapping to individual files', async () => {
+      const tmpDir = path.join(__dirname, '../../fixtures/tmp-expand-dir');
+      const srcDir = path.join(tmpDir, 'src');
+      await mkdir(srcDir, { recursive: true });
+      try {
+        await writeFile(path.join(srcDir, 'a.cs'), 'class A {}', 'utf-8');
+        await writeFile(path.join(srcDir, 'b.cs'), 'class B {}', 'utf-8');
+        await writeFile(path.join(srcDir, 'c.cs'), 'class C {}', 'utf-8');
+
+        const result = await expandMappingPaths(tmpDir, ['src']);
+        expect(result.sort()).toEqual(['src/a.cs', 'src/b.cs', 'src/c.cs']);
+      } finally {
+        await rm(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('returns file paths as-is', async () => {
+      const tmpDir = path.join(__dirname, '../../fixtures/tmp-expand-file');
+      await mkdir(tmpDir, { recursive: true });
+      try {
+        await writeFile(path.join(tmpDir, 'app.ts'), 'const x = 1;', 'utf-8');
+
+        const result = await expandMappingPaths(tmpDir, ['app.ts']);
+        expect(result).toEqual(['app.ts']);
+      } finally {
+        await rm(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('handles mixed files and directories', async () => {
+      const tmpDir = path.join(__dirname, '../../fixtures/tmp-expand-mixed');
+      const srcDir = path.join(tmpDir, 'src');
+      await mkdir(srcDir, { recursive: true });
+      try {
+        await writeFile(path.join(tmpDir, 'root.ts'), 'root', 'utf-8');
+        await writeFile(path.join(srcDir, 'a.ts'), 'A', 'utf-8');
+        await writeFile(path.join(srcDir, 'b.ts'), 'B', 'utf-8');
+
+        const result = await expandMappingPaths(tmpDir, ['root.ts', 'src']);
+        expect(result.sort()).toEqual(['root.ts', 'src/a.ts', 'src/b.ts']);
+      } finally {
+        await rm(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('skips missing paths silently', async () => {
+      const tmpDir = path.join(__dirname, '../../fixtures/tmp-expand-missing');
+      await mkdir(tmpDir, { recursive: true });
+      try {
+        await writeFile(path.join(tmpDir, 'exists.ts'), 'ok', 'utf-8');
+
+        const result = await expandMappingPaths(tmpDir, ['exists.ts', 'nonexistent/']);
+        expect(result).toEqual(['exists.ts']);
+      } finally {
+        await rm(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('respects gitignore when expanding directories', async () => {
+      const tmpDir = path.join(__dirname, '../../fixtures/tmp-expand-gitignore');
+      const srcDir = path.join(tmpDir, 'src');
+      const distDir = path.join(srcDir, 'dist');
+      await mkdir(distDir, { recursive: true });
+      try {
+        await writeFile(path.join(tmpDir, '.gitignore'), 'dist/\n', 'utf-8');
+        await writeFile(path.join(srcDir, 'app.ts'), 'app', 'utf-8');
+        await writeFile(path.join(distDir, 'bundle.js'), 'bundle', 'utf-8');
+
+        const result = await expandMappingPaths(tmpDir, ['src']);
+        expect(result).toEqual(['src/app.ts']);
+      } finally {
+        await rm(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('expands nested directories recursively', async () => {
+      const tmpDir = path.join(__dirname, '../../fixtures/tmp-expand-nested');
+      const deepDir = path.join(tmpDir, 'src', 'sub', 'deep');
+      await mkdir(deepDir, { recursive: true });
+      try {
+        await writeFile(path.join(tmpDir, 'src', 'a.ts'), 'A', 'utf-8');
+        await writeFile(path.join(tmpDir, 'src', 'sub', 'b.ts'), 'B', 'utf-8');
+        await writeFile(path.join(deepDir, 'c.ts'), 'C', 'utf-8');
+
+        const result = await expandMappingPaths(tmpDir, ['src']);
+        expect(result.sort()).toEqual(['src/a.ts', 'src/sub/b.ts', 'src/sub/deep/c.ts']);
       } finally {
         await rm(tmpDir, { recursive: true, force: true });
       }

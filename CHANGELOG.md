@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.1] - 2026-04-15
+
 ### Fixed
 
+- **Expand directory mappings in `yg context --node`** — previously showed
+  directory path as single entry instead of listing individual files.
+- **Expand directory mappings in `yg approve --dry-run`** — previously showed
+  0 source files for directory mappings because `readFile` on a directory
+  silently failed.
 - **Replace `execSync` with `execFileSync`** in check command for proper
   argument escaping. No more shell interpretation of arguments.
 

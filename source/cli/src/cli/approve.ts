@@ -1,7 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import path from 'node:path';
-import { readFile } from 'node:fs/promises';
 import { loadGraph } from '../core/graph-loader.js';
 import { initDebugLog } from '../utils/debug-log.js';
 import { approveNode, resolveAspects, loadSourceFiles, commitApproval } from '../core/approve.js';
@@ -383,13 +382,13 @@ export function registerApproveCommand(program: Command): void {
             if (!node) { process.stderr.write(chalk.red(`Node '${nodePath}' not found.\n`)); continue; }
             const aspects = resolveAspects(node, graph);
             const projectRoot = path.dirname(graph.rootPath);
-            const sourceFiles: Array<{ path: string; content: string }> = [];
-            for (const mp of node.meta.mapping ?? []) {
-              try {
-                const content = await readFile(path.join(projectRoot, mp), 'utf-8');
-                sourceFiles.push({ path: mp, content });
-              } catch { /* directory or missing */ }
-            }
+            const trackedFiles = collectTrackedFiles(node, graph);
+            const { fileHashes } = await hashTrackedFiles(projectRoot, trackedFiles, undefined, []);
+            const sourceFilePaths = Object.keys(fileHashes).filter(f => {
+              const normalized = f.replace(/\\/g, '/').replace(/\/+$/, '');
+              return !normalized.startsWith(yggPrefix);
+            });
+            const sourceFiles = await loadSourceFiles(sourceFilePaths, projectRoot);
             process.stdout.write(chalk.bold(`\n--- Dry run: ${nodePath} ---\n\n`));
             process.stdout.write(`Aspects (${aspects.length}): ${aspects.map(a => a.id).join(', ') || 'none'}\n`);
             process.stdout.write(`Source files (${sourceFiles.length}): ${sourceFiles.map(f => f.path).join(', ') || 'none'}\n\n`);

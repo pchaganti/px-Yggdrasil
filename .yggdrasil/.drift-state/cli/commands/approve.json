@@ -1,26 +1,26 @@
 {
-  "hash": "0070811ef4179c701c6319c1f5248b744dc2c4afe1bc599481ec905bcfe671ef",
+  "hash": "488e23d662a84a0c2eaabf8f2c994e499f1ad29c19350d50c51ade0ebab02fce",
   "files": {
     "own-subset:cli/commands/approve": "e298c13879afc4287598e6576fd2d604872905ad8d143b68045430565d15244a",
+    ".yggdrasil/aspects/cli-command-contract/yg-aspect.yaml": "81ba5d9318ec49940495487c056356f9bd462d67ca4bb06d3fd954cf26945d01",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/commands/yg-node.yaml": "4d929734cf56d8fbf3adfdbb908be64075a4a3322a892656ad00ea07bb026ab4",
-    ".yggdrasil/aspects/cli-command-contract/yg-aspect.yaml": "81ba5d9318ec49940495487c056356f9bd462d67ca4bb06d3fd954cf26945d01",
     ".yggdrasil/aspects/cli-command-contract/content.md": "b1509ccd44cc91f1cff43926b69f16845407f518ecf4d448d24a0b4a4e2894c3",
     ".yggdrasil/model/cli/core/loader/yg-node.yaml": "4ebc935b61c421bbf82d13e1ff9e8fa2c13966e40b58fcb4c68b1a8a9c411248",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
     ".yggdrasil/model/cli/core/approve/yg-node.yaml": "c257e5b8516800fa35e3e7db660a0418edc0993d69be95cab6da6f3dd99f23d9",
     ".yggdrasil/model/cli/llm/yg-node.yaml": "8e4fc1fbb1c68835ad685818543b322904254d5161e267b88e9e55ca37f4791e",
-    "source/cli/src/cli/approve.ts": "f11a1904ffcb3c2c7874249ee18b421d412ba2a9b2df8e3d286a11f0b8575f57"
+    "source/cli/src/cli/approve.ts": "0f9297a98cb882c9e231a26290724ea83f5388cda0a162c705ebfe83bab3e5ee"
   },
   "mtimes": {
-    ".yggdrasil/model/cli/yg-node.yaml": 1776082060141.5686,
-    ".yggdrasil/model/cli/commands/yg-node.yaml": 1775639607526.398,
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/commands/yg-node.yaml": 1776177846200.1738,
     ".yggdrasil/aspects/cli-command-contract/yg-aspect.yaml": 1775580555580.0303,
-    ".yggdrasil/aspects/cli-command-contract/content.md": 1772778786204.255,
-    ".yggdrasil/model/cli/core/loader/yg-node.yaml": 1775639601412.6663,
-    ".yggdrasil/model/cli/core/yg-node.yaml": 1775639609607.5476,
-    ".yggdrasil/model/cli/core/approve/yg-node.yaml": 1776148216453.2612,
-    ".yggdrasil/model/cli/llm/yg-node.yaml": 1776141039622.7668,
-    "source/cli/src/cli/approve.ts": 1776175491471.8057
+    ".yggdrasil/aspects/cli-command-contract/content.md": 1776176202110.4214,
+    ".yggdrasil/model/cli/core/loader/yg-node.yaml": 1776177846201.3625,
+    ".yggdrasil/model/cli/core/yg-node.yaml": 1776177846202.0774,
+    ".yggdrasil/model/cli/core/approve/yg-node.yaml": 1776177846200.918,
+    ".yggdrasil/model/cli/llm/yg-node.yaml": 1776177846203.1108,
+    "source/cli/src/cli/approve.ts": 1776257706539.253
   }
 }
