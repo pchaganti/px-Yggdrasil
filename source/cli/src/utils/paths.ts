@@ -96,3 +96,13 @@ export function normalizeProjectRelativePath(projectRoot: string, rawPath: strin
 export function projectRootFromGraph(yggRootPath: string): string {
   return path.dirname(yggRootPath);
 }
+
+/**
+ * Resolve a user-supplied file path to a project-root-relative path.
+ * Handles the case where CWD is a subdirectory of the project root:
+ * resolves relative to CWD first, then makes relative to repoRoot.
+ */
+export function resolveFileArg(cwd: string, repoRoot: string, rawPath: string): string {
+  const absolute = path.resolve(cwd, rawPath.trim());
+  return path.relative(repoRoot, absolute).replace(/\\/g, '/').replace(/\/+$/, '');
+}

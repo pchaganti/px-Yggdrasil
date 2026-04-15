@@ -5,7 +5,7 @@ import { initDebugLog } from '../utils/debug-log.js';
 import { collectAncestors } from '../core/context-builder.js';
 import { computeEffectiveAspects } from '../core/effective-aspects.js';
 import { findOwner } from './owner.js';
-import { projectRootFromGraph } from '../utils/paths.js';
+import { projectRootFromGraph, resolveFileArg } from '../utils/paths.js';
 import type { Graph } from '../model/graph.js';
 
 const STRUCTURAL_TYPES = new Set(['uses', 'calls', 'extends', 'implements']);
@@ -343,7 +343,8 @@ export function registerImpactCommand(program: Command): void {
           // Resolve --file to --node
           if (options.file) {
             const repoRoot = projectRootFromGraph(graph.rootPath);
-            const result = findOwner(graph, repoRoot, options.file.trim());
+            const repoRelative = resolveFileArg(process.cwd(), repoRoot, options.file);
+            const result = findOwner(graph, repoRoot, repoRelative);
             if (!result.nodePath) {
               process.stderr.write(chalk.red(`${result.file} -> no graph coverage\n`));
               process.exit(1);

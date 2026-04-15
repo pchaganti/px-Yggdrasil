@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`context --file` and `impact --file` now work from subdirectories** —
+  file paths are resolved relative to CWD then made repo-root-relative,
+  matching existing `owner --file` behavior. Shared via `resolveFileArg`.
+- **Wide-node check now respects `.gitignore`** — `expandMappingToFiles` in
+  validator used hardcoded skips (`.` prefix, `node_modules`) instead of
+  gitignore. Replaced with shared `expandMappingPaths` that walks the full
+  gitignore stack. Fixes false wide-node warnings from gitignored files.
+
 ## [4.0.1] - 2026-04-15
 
 ### Fixed

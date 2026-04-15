@@ -101,6 +101,212 @@ describe('context pipeline integration', () => {
     });
   });
 
+  /**
+   * Cross-command consistency test: context, approve --dry-run, and check (wide-node)
+   * must all agree on file count when directory mapping contains gitignored files
+   * at multiple directory levels.
+   *
+   * Fixture layout:
+   *   src/svc/           — mapped directory
+   *     a.cs, b.cs, c.cs — 3 source files
+   *     sub/
+   *       d.cs, e.cs     — 2 source files in subdirectory
+   *       f.cs           — 1 more source file
+   *       *.generated.cs — excluded by nested .gitignore
+   *     dist/            — excluded by root .gitignore
+   *       out.cs
+   *     debug.log        — excluded by root .gitignore
+   *
+   * Expected: 7 files (a, b, c, d, e, f + sub/.gitignore). Gitignored files must NOT be counted.
+   */
+  it('all commands agree on file count with nested gitignore', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'ygg-gitignore-count-'));
+    try {
+      // Source files
+      const svcDir = path.join(root, 'src', 'svc');
+      const subDir = path.join(svcDir, 'sub');
+      const distDir = path.join(svcDir, 'dist');
+      await mkdir(subDir, { recursive: true });
+      await mkdir(distDir, { recursive: true });
+
+      await writeFile(path.join(svcDir, 'a.cs'), 'class A {}', 'utf-8');
+      await writeFile(path.join(svcDir, 'b.cs'), 'class B {}', 'utf-8');
+      await writeFile(path.join(svcDir, 'c.cs'), 'class C {}', 'utf-8');
+      await writeFile(path.join(subDir, 'd.cs'), 'class D {}', 'utf-8');
+      await writeFile(path.join(subDir, 'e.cs'), 'class E {}', 'utf-8');
+      await writeFile(path.join(subDir, 'f.cs'), 'class F {}', 'utf-8');
+
+      // Gitignored files
+      await writeFile(path.join(svcDir, 'debug.log'), 'log data', 'utf-8');
+      await writeFile(path.join(distDir, 'out.cs'), 'compiled', 'utf-8');
+      await writeFile(path.join(subDir, 'model.generated.cs'), 'generated', 'utf-8');
+      await writeFile(path.join(subDir, 'dto.generated.cs'), 'generated', 'utf-8');
+
+      // Root .gitignore
+      await writeFile(path.join(root, '.gitignore'), 'dist/\n*.log\n', 'utf-8');
+      // Nested .gitignore in sub/ — tests multi-level gitignore stacking
+      await writeFile(path.join(subDir, '.gitignore'), '*.generated.cs\n', 'utf-8');
+
+      // Graph structure
+      const yggDir = path.join(root, '.yggdrasil');
+      await mkdir(path.join(yggDir, 'model', 'svc'), { recursive: true });
+      await mkdir(path.join(yggDir, 'aspects', 'code-style'), { recursive: true });
+      await cp(
+        path.join(FULL_FIXTURE, '.yggdrasil', 'schemas'),
+        path.join(yggDir, 'schemas'),
+        { recursive: true },
+      );
+
+      await writeFile(path.join(yggDir, 'yg-config.yaml'), [
+        'quality:',
+        '  max_mapping_source_files: 7',
+      ].join('\n'), 'utf-8');
+
+      await writeFile(path.join(yggDir, 'yg-architecture.yaml'), [
+        'node_types:',
+        '  service:',
+        '    description: Service unit',
+      ].join('\n'), 'utf-8');
+
+      await writeFile(path.join(yggDir, 'aspects', 'code-style', 'yg-aspect.yaml'), [
+        'name: Code Style',
+        'description: Consistent code style',
+      ].join('\n'), 'utf-8');
+      await writeFile(path.join(yggDir, 'aspects', 'code-style', 'content.md'), [
+        '# Code Style',
+        'Follow consistent naming conventions.',
+      ].join('\n'), 'utf-8');
+
+      await writeFile(path.join(yggDir, 'model', 'svc', 'yg-node.yaml'), [
+        'name: Service',
+        'description: Main service',
+        'type: service',
+        'aspects:',
+        '  - code-style',
+        'mapping:',
+        '  - src/svc/',
+      ].join('\n'), 'utf-8');
+
+      // 1. context --node: should show exactly 6 files
+      const contextResult = spawnSync(
+        'node', [BIN_PATH, 'context', '--node', 'svc'],
+        { cwd: root, encoding: 'utf-8' },
+      );
+      expect(contextResult.status).toBe(0);
+      expect(contextResult.stdout).toContain('Source files (7):');
+      // Extract source file list (between "Source files" and next section)
+      const contextSourceSection = contextResult.stdout.split('Source files')[1]?.split('Must satisfy')[0] ?? '';
+      // Gitignored files must NOT appear in source file list
+      expect(contextSourceSection).not.toContain('debug.log');
+      expect(contextSourceSection).not.toContain('.generated.cs');
+      expect(contextSourceSection).not.toContain('dist/out.cs');
+
+      // 2. approve --dry-run: should show exactly 7 files
+      const dryRunResult = spawnSync(
+        'node', [BIN_PATH, 'approve', '--dry-run', '--node', 'svc'],
+        { cwd: root, encoding: 'utf-8' },
+      );
+      expect(dryRunResult.status).toBe(0);
+      // Extract the "Source files (N): ..." line to check file count and paths
+      const dryRunSourceLine = dryRunResult.stdout.split('\n').find((l: string) => l.startsWith('Source files'));
+      expect(dryRunSourceLine).toContain('Source files (7):');
+      expect(dryRunSourceLine).not.toContain('.log');
+      expect(dryRunSourceLine).not.toContain('.generated.cs');
+
+      // 3. check: wide-node must NOT fire (7 <= max 7)
+      // If gitignored files were counted (11 > 7), wide-node would fire — that's the regression.
+      const checkResult = spawnSync(
+        'node', [BIN_PATH, 'check'],
+        { cwd: root, encoding: 'utf-8' },
+      );
+      expect(checkResult.stdout).not.toContain('wide-node');
+    } finally {
+      const { rm } = await import('node:fs/promises');
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  describe('subdirectory support', () => {
+    // All commands should work when CWD is a subdirectory of the project root.
+    // File paths are resolved relative to CWD, node paths are graph-level (unaffected by CWD).
+
+    it('owner --file resolves relative path from subdirectory', async () => {
+      await withFixtureCopy(FULL_FIXTURE, async (root) => {
+        const subDir = path.join(root, 'src', 'orders');
+        const result = spawnSync(
+          'node', [BIN_PATH, 'owner', '--file', 'order.service.ts'],
+          { cwd: subDir, encoding: 'utf-8' },
+        );
+        expect(result.stdout).toContain('src/orders/order.service.ts');
+        expect(result.stdout).toContain('orders/order-service');
+      });
+    });
+
+    it('context --file resolves relative path from subdirectory', async () => {
+      await withFixtureCopy(FULL_FIXTURE, async (root) => {
+        const subDir = path.join(root, 'src', 'orders');
+        const result = spawnSync(
+          'node', [BIN_PATH, 'context', '--file', 'order.service.ts'],
+          { cwd: subDir, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain('orders/order-service');
+        expect(result.stdout).toContain('src/orders/order.service.ts');
+      });
+    });
+
+    it('impact --file resolves relative path from subdirectory', async () => {
+      await withFixtureCopy(FULL_FIXTURE, async (root) => {
+        const subDir = path.join(root, 'src', 'orders');
+        const result = spawnSync(
+          'node', [BIN_PATH, 'impact', '--file', 'order.service.ts'],
+          { cwd: subDir, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain('orders/order-service');
+      });
+    });
+
+    it('context --node works from subdirectory', async () => {
+      await withFixtureCopy(FULL_FIXTURE, async (root) => {
+        const subDir = path.join(root, 'src', 'orders');
+        const result = spawnSync(
+          'node', [BIN_PATH, 'context', '--node', 'orders/order-service'],
+          { cwd: subDir, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain('orders/order-service');
+        expect(result.stdout).toContain('Source files');
+      });
+    });
+
+    it('check works from subdirectory', async () => {
+      await withFixtureCopy(FULL_FIXTURE, async (root) => {
+        const subDir = path.join(root, 'src', 'orders');
+        const result = spawnSync(
+          'node', [BIN_PATH, 'check'],
+          { cwd: subDir, encoding: 'utf-8' },
+        );
+        // Should find .yggdrasil/ by walking up and report nodes
+        expect(result.stdout).toContain('nodes');
+        expect(result.stdout).toContain('aspects');
+      });
+    });
+
+    it('approve --dry-run works from subdirectory', async () => {
+      await withFixtureCopy(FULL_FIXTURE, async (root) => {
+        const subDir = path.join(root, 'src');
+        const result = spawnSync(
+          'node', [BIN_PATH, 'approve', '--dry-run', '--node', 'orders/order-service'],
+          { cwd: subDir, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain('orders/order-service');
+        expect(result.stdout).toContain('Source files');
+      });
+    });
+  });
+
   it('context fails on broken relation with structural error message', async () => {
     await withFixtureCopy(BROKEN_FIXTURE, async (cwd) => {
       const result = spawnSync(

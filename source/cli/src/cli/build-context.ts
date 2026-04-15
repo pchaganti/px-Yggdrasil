@@ -7,7 +7,7 @@ import { formatNodeContext } from '../formatters/context-node.js';
 import { formatFileContext } from '../formatters/context-file.js';
 import { validate } from '../core/validator.js';
 import { findOwner } from './owner.js';
-import { normalizeMappingPaths, projectRootFromGraph } from '../utils/paths.js';
+import { normalizeMappingPaths, projectRootFromGraph, resolveFileArg } from '../utils/paths.js';
 import { expandMappingPaths } from '../utils/hash.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import type { Graph } from '../model/graph.js';
@@ -93,7 +93,8 @@ export function registerBuildCommand(program: Command): void {
 
         if (options.file) {
           const repoRoot = projectRootFromGraph(graph.rootPath);
-          const result = findOwner(graph, repoRoot, options.file.trim());
+          const repoRelative = resolveFileArg(process.cwd(), repoRoot, options.file);
+          const result = findOwner(graph, repoRoot, repoRelative);
           if (!result.nodePath) {
             const candidates = findCandidateNodes(graph, result.file);
             if (candidates.length > 0) {

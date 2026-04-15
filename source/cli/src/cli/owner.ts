@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import { loadGraph } from '../core/graph-loader.js';
 import { initDebugLog } from '../utils/debug-log.js';
 import type { Graph, OwnerResult } from '../model/graph.js';
-import { normalizeMappingPaths, normalizeProjectRelativePath, projectRootFromGraph } from '../utils/paths.js';
+import { normalizeMappingPaths, normalizeProjectRelativePath, projectRootFromGraph, resolveFileArg } from '../utils/paths.js';
 
 function normalizeForMatch(inputPath: string): string {
   return inputPath.replace(/\\/g, '/').replace(/\/+$/, '');
@@ -47,12 +47,8 @@ export function registerOwnerCommand(program: Command): void {
         const cwd = process.cwd();
         const graph = await loadGraph(cwd);
         initDebugLog(graph.rootPath, graph.config.debug ?? false);
-        // Resolve the file path relative to CWD (so subdirectory-relative paths work),
-        // then make it relative to the actual repo root (where .yggdrasil/ lives).
         const repoRoot = projectRootFromGraph(graph.rootPath);
-        const rawPath = options.file.trim();
-        const absolute = path.resolve(cwd, rawPath);
-        const repoRelative = path.relative(repoRoot, absolute).replace(/\\/g, '/').replace(/\/+$/, '');
+        const repoRelative = resolveFileArg(cwd, repoRoot, options.file);
         const result = findOwner(graph, repoRoot, repoRelative);
 
         if (!result.nodePath) {

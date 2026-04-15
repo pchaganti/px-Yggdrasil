@@ -1,8 +1,9 @@
-import { readdir, stat } from 'node:fs/promises';
+import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import type { Graph } from '../model/graph.js';
 import type { ValidationResult, ValidationIssue } from '../model/validation.js';
 import { normalizeMappingPaths } from '../utils/paths.js';
+import { expandMappingPaths } from '../utils/hash.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { computeEffectiveAspects } from './effective-aspects.js';
 
@@ -63,11 +64,12 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
 
   let filtered = issues;
   let nodesScanned = graph.nodes.size;
-  if (scope !== 'all' && scope.trim()) {
-    if (!graph.nodes.has(scope)) {
+  const normalizedScope = scope.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+  if (normalizedScope !== 'all' && normalizedScope) {
+    if (!graph.nodes.has(normalizedScope)) {
       // Check if the node exists but has a parse error
       const parseError = (graph.nodeParseErrors ?? []).find(
-        (e) => e.nodePath === scope || scope.startsWith(e.nodePath + '/'),
+        (e) => e.nodePath === normalizedScope || normalizedScope.startsWith(e.nodePath + '/'),
       );
       if (parseError) {
         return {
@@ -82,13 +84,13 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
         };
       }
       return {
-        issues: [{ severity: 'error', rule: 'invalid-scope', message: buildIssueMessage({ what: `Node not found: ${scope}`, why: 'Validation scope references a node that does not exist in the graph.', next: 'Check the node path and try again.' }) }],
+        issues: [{ severity: 'error', rule: 'invalid-scope', message: buildIssueMessage({ what: `Node not found: ${normalizedScope}`, why: 'Validation scope references a node that does not exist in the graph.', next: 'Check the node path and try again.' }) }],
         nodesScanned: 0,
       };
     }
-    const scopePrefix = scope + '/';
-    filtered = issues.filter((i) => !i.nodePath || i.nodePath === scope || i.nodePath.startsWith(scopePrefix));
-    nodesScanned = [...graph.nodes.keys()].filter((p) => p === scope || p.startsWith(scopePrefix)).length;
+    const scopePrefix = normalizedScope + '/';
+    filtered = issues.filter((i) => !i.nodePath || i.nodePath === normalizedScope || i.nodePath.startsWith(scopePrefix));
+    nodesScanned = [...graph.nodes.keys()].filter((p) => p === normalizedScope || p.startsWith(scopePrefix)).length;
   }
 
   return { issues: filtered, nodesScanned };
@@ -536,7 +538,7 @@ async function checkWideNodes(graph: Graph): Promise<ValidationIssue[]> {
     const mappingPaths = normalizeMappingPaths(node.meta.mapping);
     if (mappingPaths.length === 0) continue;
 
-    const sourceFiles = await expandMappingToFiles(projectRoot, mappingPaths);
+    const sourceFiles = await expandMappingPaths(projectRoot, mappingPaths);
     if (sourceFiles.length <= maxFiles) continue;
 
     issues.push({
@@ -716,36 +718,6 @@ async function checkDirectoriesHaveNodeYaml(graph: Graph): Promise<ValidationIss
 
 // --- Mapping expansion utility ---
 
-export async function expandMappingToFiles(projectRoot: string, mappingPaths: string[]): Promise<string[]> {
-  const files: string[] = [];
-
-  async function collectFiles(absPath: string): Promise<void> {
-    try {
-      const s = await stat(absPath);
-      if (s.isFile()) {
-        files.push(absPath);
-      } else if (s.isDirectory()) {
-        const entries = await readdir(absPath, { withFileTypes: true });
-        for (const entry of entries) {
-          if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
-          const entryPath = path.join(absPath, entry.name);
-          if (entry.isFile()) {
-            files.push(entryPath);
-          } else if (entry.isDirectory()) {
-            await collectFiles(entryPath);
-          }
-        }
-      }
-    } catch {
-      // Skip inaccessible paths
-    }
-  }
-
-  for (const mp of mappingPaths) {
-    await collectFiles(path.join(projectRoot, mp));
-  }
-  return files;
-}
 
 // --- missing-description: Missing description on nodes, aspects, and flows ---
 
