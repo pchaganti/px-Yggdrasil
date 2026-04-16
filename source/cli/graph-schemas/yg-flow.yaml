@@ -1,10 +1,22 @@
 # yg-flow.yaml — Schema for end-to-end business flows
 # Each flow is a directory under .yggdrasil/flows/ containing this file.
+#
+# A flow describes a business process — what happens in the world,
+# not code call sequences. "User places an order" is a flow.
+# "Handler calls service" is a relation between nodes.
+#
+# Descendants of a declared participant are automatically included —
+# listing a parent node covers all its children.
 
 name: EndToEndProcessName     # required — display name
-description: "Short description of this business process"  # optional
+description: "What this business process does"  # optional but recommended — shown in
+                                                # yg flows output and context packages
+
 nodes:                        # required, non-empty — participant nodes (alias: participants)
   - orders/order-service      # paths relative to model/
-  - payments/payment-service
-  - inventory/inventory-service
-# aspects: [requires-saga]    # optional — aspect tags propagated to ALL participants
+  - payments/payment-service  # each participant (and its descendants) must satisfy
+  - inventory/inventory-service  # any flow-level aspects declared below
+
+# aspects: [requires-saga]    # optional — aspect identifiers propagated to ALL participants
+                              # (channel 5 in aspect resolution). Use for requirements that
+                              # apply to every node in this process but not globally.

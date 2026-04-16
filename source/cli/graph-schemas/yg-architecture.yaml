@@ -1,12 +1,39 @@
 # yg-architecture.yaml — Schema for architecture constraints
 # File: .yggdrasil/yg-architecture.yaml
-# Defines node types with architectural constraints.
+#
+# Defines the project's type system: what kinds of nodes exist, how they can
+# relate, and which aspects apply by default. This is the foundation of the
+# graph — every node declares a type, and every type must be defined here.
+#
+# Changes to this file affect the entire graph and should be confirmed with the user.
 # All properties except description are optional — absence means no enforcement.
+# When a constraint is absent, anything is allowed. When present, only listed
+# values are permitted.
 
 node_types:
   <type-id>:
-    description: <string>                    # required — what this type is for
-    aspects: [<aspect-id>]                   # optional — required on every file of this type
-    parents: [<type-id>]                     # optional — allowed parent types
-    relations:                               # optional — allowed relation targets
-      <relation-type>: [<type-id>]           # calls | uses | extends | implements | emits | listens
+    description: <string>                    # required — what this type is for, when to use it
+
+    aspects: [<aspect-id>]                   # optional — aspects automatically applied to every node
+                                             # of this type (channel 3 in aspect resolution).
+                                             # These also cascade to children of nodes of this type
+                                             # (channel 4). Use for invariants that ALL nodes of
+                                             # this type must satisfy.
+
+    parents: [<type-id>]                     # optional — allowed parent node types in the hierarchy.
+                                             # If omitted, this type can appear under any parent.
+                                             # If specified, nesting under an unlisted parent type
+                                             # triggers a parent-type-forbidden error.
+
+    relations:                               # optional — allowed relation targets by relation type.
+                                             # If a relation type is listed, only the specified
+                                             # target types are allowed. Unlisted relation types
+                                             # are unrestricted. If omitted entirely, all relations
+                                             # are allowed.
+      <relation-type>: [<type-id>]           # Relation types:
+                                             #   calls       — runtime invocation
+                                             #   uses        — compile-time dependency
+                                             #   extends     — inheritance / specialization
+                                             #   implements  — interface contract
+                                             #   emits       — publishes events (must pair with listens)
+                                             #   listens     — subscribes to events (must pair with emits)

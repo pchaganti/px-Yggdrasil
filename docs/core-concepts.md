@@ -161,15 +161,17 @@ a code review comment.
 
 ### How aspects reach nodes
 
-Aspects propagate through five channels:
+Aspects propagate through seven channels:
 
-| Channel   | How it works                                              |
-|-----------|-----------------------------------------------------------|
-| Direct    | Listed in `aspects:` field of `yg-node.yaml`              |
-| Type      | Default aspects defined per node type in architecture file |
-| Hierarchy | Parent node aspects inherited by all children              |
-| Port      | Consumer must satisfy port-required aspects                |
-| Flow      | All flow participants inherit flow-level aspects           |
+| Channel       | How it works                                                |
+|---------------|-------------------------------------------------------------|
+| Own           | Listed in `aspects:` field of `yg-node.yaml`                |
+| Ancestor      | Parent node aspects inherited by all children               |
+| Own type      | Default aspects defined per node type in architecture file  |
+| Ancestor type | Architecture defaults from parent node types                |
+| Flows         | All flow participants inherit flow-level aspects            |
+| Ports         | Consumer must satisfy port-required aspects                 |
+| Implied       | Aspects included via `implies` chains (recursive)           |
 
 One aspect can reach dozens of nodes through these channels. When you change
 an aspect's content, every node that uses it gets flagged for re-approval.
@@ -244,7 +246,7 @@ Setting `aspects: [requires-audit]` on the `service` type means every
 service node automatically inherits that aspect without listing it explicitly.
 The `relations` constraint limits which node types a service can depend on.
 
-This is one of the five aspect distribution channels ("by node type")
+This is one of the seven aspect distribution channels ("by node type")
 and also how you enforce structural rules across your architecture.
 
 ---

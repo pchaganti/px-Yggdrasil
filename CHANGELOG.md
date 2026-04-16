@@ -7,12 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-04-16
+
 ### Added
 
 - **`yg-suppress` inline aspect waiver** — source code comments with the marker
   `yg-suppress(<aspect-path>) <reason>` are honored by the reviewer as deliberate
   waivers. Agents may propose suppress markers but must never write them without
   explicit user confirmation.
+
+### Changed
+
+- **Agent rules rewrite** — replaced 3-section procedural format (PROTOCOL,
+  REFERENCE, GUARD RAILS) with 2-section mechanics+consequences format (SYSTEM,
+  DECISIONS). Same information, better internalization: consequence-driven framing
+  instead of checklists, full 7-channel aspect model with ASCII diagram, CLI
+  command reference table, drift/cascade explanation, cost/impact trade-off table.
+- **Enriched graph schemas** — all YAML schemas (`yg-node.yaml`, `yg-aspect.yaml`,
+  `yg-flow.yaml`, `yg-architecture.yaml`) now include detailed comments explaining
+  each field's purpose, cascade behavior, and relation to aspect resolution channels.
+- **7-channel aspect model** — documentation updated from the old 5-channel table
+  to the full 7-channel model matching the implementation (Own, Ancestor, Own Type,
+  Ancestor Type, Flows, Ports, Implied).
 
 ## [4.0.2] - 2026-04-15
 

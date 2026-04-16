@@ -17,10 +17,19 @@ import { MIGRATIONS } from '../migrations/index.js';
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getGraphSchemasDir(): string {
+function getPackageRoot(): string {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  const packageRoot = path.join(currentDir, '..');
-  return path.join(packageRoot, 'graph-schemas');
+  return path.join(currentDir, '..');
+}
+
+function getGraphSchemasDir(): string {
+  return path.join(getPackageRoot(), 'graph-schemas');
+}
+
+async function getCliVersion(): Promise<string> {
+  const pkgPath = path.join(getPackageRoot(), 'package.json');
+  const pkg = JSON.parse(await readFile(pkgPath, 'utf-8'));
+  return pkg.version;
 }
 
 async function refreshSchemas(yggRoot: string): Promise<void> {
@@ -438,7 +447,7 @@ async function existingInit(projectRoot: string): Promise<void> {
 
   // Check for pending migrations
   const currentVersion = await detectVersion(yggRoot);
-  const cliVersion = '4.0.0';
+  const cliVersion = await getCliVersion();
 
   if (currentVersion && currentVersion !== cliVersion) {
     const migrate = await p.confirm({
@@ -556,6 +565,7 @@ export function registerInitCommand(program: Command): void {
           } catch {
             await writeFile(architecturePath, DEFAULT_ARCHITECTURE, 'utf-8');
           }
+          await updateConfigVersion(yggRoot, await getCliVersion());
           const rulesPath = await installRulesForPlatform(projectRoot, options.platform as Platform);
           process.stdout.write(`Rules and schemas refreshed: ${path.relative(projectRoot, rulesPath)}\n`);
           return;
