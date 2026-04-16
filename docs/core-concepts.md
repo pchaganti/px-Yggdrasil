@@ -270,3 +270,25 @@ passes and take the majority vote. Higher confidence, proportionally higher cost
 **False positives:** If the reviewer rejects compliant code, the fix is
 improving the aspect's `content.md` — make the rule clearer and more specific.
 The escape hatch is better rules, not bypassing enforcement.
+
+### Inline Suppress
+
+Source code comments can carry a `yg-suppress` marker to waive a specific aspect
+for the surrounding code. The reviewer honors these markers and treats the
+suppressed code as satisfied.
+
+**Format:** `yg-suppress(<aspect-path>) <reason>`
+
+- `<aspect-path>` — full aspect path (e.g., `cqrs/single-responsibility`)
+- `<reason>` — required free-text explanation
+
+```typescript
+// yg-suppress(cqrs/single-responsibility) brownfield handler, refactor planned
+```
+
+Place the marker near the code that violates the aspect. The reviewer interprets
+scope contextually — a marker in a function applies to that function, at file
+level it applies to the entire file.
+
+**Agent behavior:** Agents may propose adding a suppress marker but must never
+write one without explicit user confirmation.
