@@ -431,6 +431,30 @@ Trigger: \`yg check\` shows \`unmapped-files\` with high uncovered file count, o
 
 Constraint: Focus on the active area. Expand incrementally.
 
+### \`yg-suppress\` — Inline Aspect Waiver
+
+Source code comments can carry a \`yg-suppress\` marker to waive a specific aspect for the surrounding code. The reviewer honors these markers unconditionally.
+
+**Format:** \`yg-suppress(<aspect-path>) <reason>\`
+
+- \`<aspect-path>\` — full aspect path (e.g., \`cqrs/single-responsibility\`)
+- \`<reason>\` — required, free-text explanation
+
+Examples:
+\`\`\`
+// yg-suppress(cqrs/single-responsibility) brownfield handler, refactor planned
+# yg-suppress(security/input-validation) static config, no user input
+<!-- yg-suppress(accessibility/aria-labels) generated markup, tracked in JIRA-456 -->
+\`\`\`
+
+**Agent rules:**
+
+- You **may propose** a \`yg-suppress\` marker when you encounter brownfield code or known tech debt that violates an aspect
+- You **MUST NEVER** write a \`yg-suppress\` marker without explicit user confirmation — no exceptions
+- When proposing, provide the correct \`aspect-path\` from graph context and ask the user for the reason
+- You do not invent reasons — the user provides or approves the reason
+- The marker applies contextually: place it near the code that violates the aspect (in the function, class, or block). At file level, it applies to the entire file.
+
 ### Escape Hatch
 
 If the user explicitly requests a code-only change, comply but:
