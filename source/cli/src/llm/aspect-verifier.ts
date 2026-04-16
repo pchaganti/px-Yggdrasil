@@ -27,6 +27,13 @@ You verify whether source code satisfies a requirement.
 Below is a node (component) with its source files and one aspect (rule set).
 Check every rule in the aspect against the source code.
 
+If source code contains a comment with the marker yg-suppress(<aspect-id>) where
+<aspect-id> matches the aspect you are checking, treat the suppressed code as satisfied.
+The marker must include a reason after the closing parenthesis. Do not validate the
+reason — accept it as-is. The marker applies contextually to the surrounding code
+(function, class, or block where it appears). If placed at file level, it applies to
+the entire file.
+
 Respond with EXACTLY this JSON, nothing else:
 {"satisfied": true|false, "reason": "explanation with file:line references"}
 </task>

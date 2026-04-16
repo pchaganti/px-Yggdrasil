@@ -12,6 +12,17 @@ function mockProvider(responses: Array<{ satisfied: boolean; reason: string }>):
 }
 
 describe('buildPrompt', () => {
+  it('includes yg-suppress instruction in task block', () => {
+    const prompt = buildPrompt(
+      { id: 'test-aspect', description: 'Test', content: 'Must do X' },
+      'Test node',
+      'test/node',
+      [{ path: 'test.ts', content: 'code' }],
+    );
+    expect(prompt).toContain('yg-suppress');
+    expect(prompt).toContain('treat the suppressed code as satisfied');
+  });
+
   it('produces self-contained prompt with all content inline', () => {
     const prompt = buildPrompt(
       { id: 'posix-paths', description: 'POSIX path handling', content: 'Use forward slashes' },
