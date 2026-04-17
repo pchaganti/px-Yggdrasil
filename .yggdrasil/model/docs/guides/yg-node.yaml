@@ -1,6 +1,6 @@
 name: Adopter Guides
 type: project
-description: "Task-oriented adopter documentation: getting started, CLI reference, configuration, platforms, and site index"
+description: "Task-oriented adopter documentation: getting started, CLI reference, configuration, platforms, conditional aspects, and site index"
 aspects: []
 relations: []
 mapping:
