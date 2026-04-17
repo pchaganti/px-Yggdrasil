@@ -12,10 +12,17 @@ try {
 }
 ```
 
-## Applies to
+## Scope
+
+A component satisfies this aspect if every optional file or directory it reads
+uses the pattern above. Each component is evaluated against only the optional
+resources it is responsible for; presence of unrelated resources is out of scope.
+
+Known examples (each enforced on the owning component, not all of them on one):
 
 - **Graph loader:** `aspects/`, `flows/`, `schemas/` directories may not exist. Return empty arrays.
 - **Drift state store:** `.drift-state` file may not exist. Return empty object `{}`.
+- **Secrets parser:** `yg-secrets.yaml` may not exist. Return `undefined`.
 
 ## Rationale
 
