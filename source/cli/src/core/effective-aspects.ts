@@ -1,6 +1,7 @@
 import type { Graph, GraphNode } from '../model/graph.js';
 import type { WhenPredicate } from '../model/when.js';
 import { evaluateWhen } from './when-evaluator.js';
+import { debugWrite } from '../utils/debug-log.js';
 
 /**
  * Compute the full set of effective aspects for a node from ALL 7 channels,
@@ -23,8 +24,14 @@ export function computeEffectiveAspects(node: GraphNode, graph: Graph): Set<stri
   ): void => {
     const aspectDef = graph.aspects.find(a => a.id === aspectId);
     const globalWhen = aspectDef?.when;
-    if (globalWhen && !evaluateWhen(globalWhen, node, graph)) return;
-    if (attachWhen && !evaluateWhen(attachWhen, node, graph)) return;
+    if (globalWhen && !evaluateWhen(globalWhen, node, graph)) {
+      debugWrite(`[effective-aspects] node '${node.path}' aspect '${aspectId}' filtered: global when=false`);
+      return;
+    }
+    if (attachWhen && !evaluateWhen(attachWhen, node, graph)) {
+      debugWrite(`[effective-aspects] node '${node.path}' aspect '${aspectId}' filtered: attach-site when=false`);
+      return;
+    }
     direct.add(aspectId);
   };
 
@@ -106,12 +113,18 @@ function expandImpliesFiltered(
     if (visited.has(id)) return;
 
     const aspectDef = idToAspect.get(id);
-    if (aspectDef?.when && !evaluateWhen(aspectDef.when, node, graph)) return;
+    if (aspectDef?.when && !evaluateWhen(aspectDef.when, node, graph)) {
+      debugWrite(`[effective-aspects] node '${node.path}' aspect '${id}' filtered: global when=false (implies path)`);
+      return;
+    }
 
     if (implierId) {
       const implierDef = idToAspect.get(implierId);
       const perImplies = implierDef?.impliesWhens?.[id];
-      if (perImplies && !evaluateWhen(perImplies, node, graph)) return;
+      if (perImplies && !evaluateWhen(perImplies, node, graph)) {
+        debugWrite(`[effective-aspects] node '${node.path}' aspect '${id}' filtered: impliesWhens from '${implierId}' is false`);
+        return;
+      }
     }
 
     stack.add(id);
