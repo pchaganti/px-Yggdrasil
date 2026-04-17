@@ -504,27 +504,29 @@ async function existingInit(projectRoot: string): Promise<void> {
     assertNotCancelled(migrate);
 
     if (migrate) {
+      p.log.info('Select the agent platform so rules and schemas advance together.');
+      const platform = await promptPlatform();
+
       const s = p.spinner();
-      s.start('Running migrations...');
-      const results = await runMigrations(currentVersion, MIGRATIONS, yggRoot);
-      await updateConfigVersion(yggRoot, cliVersion);
-      await refreshSchemas(yggRoot);
+      s.start('Running migrations and installing rules...');
+      const result = await runVersionUpgrade(projectRoot, yggRoot, currentVersion, cliVersion, platform);
       s.stop('Migration complete.');
 
-      for (const result of results) {
-        for (const action of result.actions) {
-          p.log.info(action);
-        }
-        for (const warning of result.warnings) {
-          p.log.warning(warning);
-        }
+      for (const action of result.migrationActions) {
+        p.log.info(action);
+      }
+      for (const warning of result.migrationWarnings) {
+        p.log.warning(warning);
       }
 
       p.log.step('Next steps:');
-      p.log.info('1. Run yg init again to configure reviewer (if not set)');
-      p.log.info('2. Run yg check to verify graph integrity');
-      p.log.info('3. Run yg approve on all nodes to establish baselines');
-      p.outro(chalk.green(`Migrated from ${currentVersion} to ${cliVersion}.`));
+      p.log.info('1. Run yg check to verify graph integrity');
+      p.log.info('2. Run yg approve on all nodes to establish baselines');
+      p.outro(
+        chalk.green(
+          `Migrated from ${currentVersion} to ${cliVersion}. Rules installed: ${path.relative(projectRoot, result.rulesPath)}`,
+        ),
+      );
       return;
     }
   }
