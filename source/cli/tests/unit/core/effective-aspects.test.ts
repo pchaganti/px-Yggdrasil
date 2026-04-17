@@ -443,3 +443,128 @@ describe('getAspectSource', () => {
     expect(getAspectSource('auth', node, graph)).toBe('own declaration');
   });
 });
+
+describe('computeEffectiveAspects — when filter', () => {
+  it('global when=false removes aspect', () => {
+    const node = makeNode('svc', { meta: { name: 'svc', type: 'service', aspects: ['external-api'] } });
+    const graph = makeGraph({
+      nodes: new Map([['svc', node]]),
+      aspects: [{ name: 'EA', id: 'external-api', artifacts: [], when: { node: { type: 'command' } } }],
+    });
+    const result = computeEffectiveAspects(node, graph);
+    expect(result.has('external-api')).toBe(false);
+  });
+
+  it('attach-site when on type default filters per node', () => {
+    const nodeA = makeNode('a', { meta: { name: 'a', type: 'command', relations: [{ target: 'pay', type: 'calls' }] } });
+    const nodeB = makeNode('b', { meta: { name: 'b', type: 'command' } });
+    const pay = makeNode('pay', { meta: { name: 'pay', type: 'service-client' } });
+    const graph = makeGraph({
+      nodes: new Map([['a', nodeA], ['b', nodeB], ['pay', pay]]),
+      architecture: {
+        node_types: {
+          command: {
+            description: 'cmd',
+            aspects: ['external-api'],
+            aspectWhens: {
+              'external-api': { relations: { calls: { target_type: 'service-client' } } },
+            },
+          },
+        },
+      },
+      aspects: [{ name: 'EA', id: 'external-api', artifacts: [] }],
+    });
+    expect(computeEffectiveAspects(nodeA, graph).has('external-api')).toBe(true);
+    expect(computeEffectiveAspects(nodeB, graph).has('external-api')).toBe(false);
+  });
+
+  it('global AND attach-site combine via AND', () => {
+    const node = makeNode('a', { meta: { name: 'a', type: 'command', relations: [{ target: 'pay', type: 'calls' }] } });
+    const pay = makeNode('pay', { meta: { name: 'pay', type: 'service-client' } });
+    const graph = makeGraph({
+      nodes: new Map([['a', node], ['pay', pay]]),
+      architecture: {
+        node_types: {
+          command: {
+            description: 'cmd',
+            aspects: ['external-api'],
+            aspectWhens: { 'external-api': { node: { type: 'command' } } },
+          },
+        },
+      },
+      aspects: [{
+        name: 'EA', id: 'external-api', artifacts: [],
+        when: { relations: { calls: { target_type: 'service-client' } } },
+      }],
+    });
+    expect(computeEffectiveAspects(node, graph).has('external-api')).toBe(true);
+    graph.aspects[0].when = { node: { type: 'handler' } };
+    expect(computeEffectiveAspects(node, graph).has('external-api')).toBe(false);
+  });
+
+  it('multi-channel: aspect passes if ANY channel path satisfies both its global and attach-site when', () => {
+    const node = makeNode('a', { meta: { name: 'a', type: 'command', aspects: ['x'] } });
+    const graph = makeGraph({
+      nodes: new Map([['a', node]]),
+      architecture: {
+        node_types: {
+          command: {
+            description: 'cmd',
+            aspects: ['x'],
+            aspectWhens: { x: { node: { type: 'handler' } } }, // false
+          },
+        },
+      },
+      aspects: [{ name: 'X', id: 'x', artifacts: [] }],
+    });
+    expect(computeEffectiveAspects(node, graph).has('x')).toBe(true);
+  });
+
+  it('implied aspect inherits filter: A effective AND B.global true AND A.implies[B].when true', () => {
+    const node = makeNode('a', { meta: { name: 'a', type: 'service', aspects: ['a'] } });
+    const graph = makeGraph({
+      nodes: new Map([['a', node]]),
+      aspects: [
+        { name: 'A', id: 'a', implies: ['b'], impliesWhens: { b: { node: { type: 'handler' } } }, artifacts: [] },
+        { name: 'B', id: 'b', artifacts: [] },
+      ],
+    });
+    const result = computeEffectiveAspects(node, graph);
+    expect(result.has('a')).toBe(true);
+    expect(result.has('b')).toBe(false);
+
+    node.meta.type = 'handler';
+    const result2 = computeEffectiveAspects(node, graph);
+    expect(result2.has('b')).toBe(true);
+  });
+
+  it('implied aspect skipped when implier itself is filtered out', () => {
+    const node = makeNode('a', { meta: { name: 'a', type: 'service', aspects: ['a'] } });
+    const graph = makeGraph({
+      nodes: new Map([['a', node]]),
+      aspects: [
+        { name: 'A', id: 'a', implies: ['b'], when: { node: { type: 'command' } }, artifacts: [] },
+        { name: 'B', id: 'b', artifacts: [] },
+      ],
+    });
+    const result = computeEffectiveAspects(node, graph);
+    expect(result.has('a')).toBe(false);
+    expect(result.has('b')).toBe(false);
+  });
+
+  it('B stays effective via direct attach even when A.impliesWhens[B] is false', () => {
+    const node = makeNode('a', { meta: { name: 'a', type: 'service', aspects: ['a', 'b'] } });
+    const graph = makeGraph({
+      nodes: new Map([['a', node]]),
+      aspects: [
+        { name: 'A', id: 'a', implies: ['b'],
+          impliesWhens: { b: { node: { type: 'command' } } },
+          artifacts: [] },
+        { name: 'B', id: 'b', artifacts: [] },
+      ],
+    });
+    const result = computeEffectiveAspects(node, graph);
+    expect(result.has('a')).toBe(true);
+    expect(result.has('b')).toBe(true);
+  });
+});

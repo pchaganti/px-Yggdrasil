@@ -1,34 +1,42 @@
-import type {
-  Graph,
-  GraphNode,
-} from '../model/graph.js';
+import type { Graph, GraphNode } from '../model/graph.js';
+import type { WhenPredicate } from '../model/when.js';
+import { evaluateWhen } from './when-evaluator.js';
 
 /**
- * Compute the full set of effective aspects for a node from ALL 7 channels:
- * 1. Own — node.meta.aspects
- * 2. Ancestor nodes — walk parent chain, collect each ancestor.meta.aspects
- * 3. Own architecture type — graph.architecture.node_types[node.meta.type].aspects
- * 4. Ancestor architecture types — for each ancestor, architecture type aspects
- * 5. Flows — flows where this node OR any ancestor participates
- * 6. Ports — consumed port aspects from relations
- * 7. Implies — recursive expansion through aspect.implies chains
+ * Compute the full set of effective aspects for a node from ALL 7 channels,
+ * filtered by the 8th mechanism (`when` applicability predicate).
  *
- * @returns Flat Set<string> of all effective aspect IDs
- * @throws Error if aspect implies cycle is detected
+ * Flow per channel:
+ *   path_passes = evaluate(aspect.global_when) AND evaluate(attach_site.when)
+ *
+ * An aspect is effective on the node if AT LEAST ONE channel's path passes.
+ * Implies expansion applies aspect.global_when on B and implier.impliesWhens[B]
+ * additionally.
  */
 export function computeEffectiveAspects(node: GraphNode, graph: Graph): Set<string> {
-  const raw = new Set<string>();
+  const direct = new Set<string>();
+  const ancestors = collectAncestors(node);
+
+  const tryAdd = (
+    aspectId: string,
+    attachWhen: WhenPredicate | undefined,
+  ): void => {
+    const aspectDef = graph.aspects.find(a => a.id === aspectId);
+    const globalWhen = aspectDef?.when;
+    if (globalWhen && !evaluateWhen(globalWhen, node, graph)) return;
+    if (attachWhen && !evaluateWhen(attachWhen, node, graph)) return;
+    direct.add(aspectId);
+  };
 
   // 1. Own aspects
   for (const id of node.meta.aspects ?? []) {
-    raw.add(id);
+    tryAdd(id, node.meta.aspectWhens?.[id]);
   }
 
   // 2. Ancestor node direct aspects
-  const ancestors = collectAncestors(node);
   for (const ancestor of ancestors) {
     for (const id of ancestor.meta.aspects ?? []) {
-      raw.add(id);
+      tryAdd(id, ancestor.meta.aspectWhens?.[id]);
     }
   }
 
@@ -36,7 +44,7 @@ export function computeEffectiveAspects(node: GraphNode, graph: Graph): Set<stri
   if (graph.architecture) {
     const typeDef = graph.architecture.node_types[node.meta.type];
     for (const id of typeDef?.aspects ?? []) {
-      raw.add(id);
+      tryAdd(id, typeDef?.aspectWhens?.[id]);
     }
   }
 
@@ -45,18 +53,17 @@ export function computeEffectiveAspects(node: GraphNode, graph: Graph): Set<stri
     for (const ancestor of ancestors) {
       const typeDef = graph.architecture.node_types[ancestor.meta.type];
       for (const id of typeDef?.aspects ?? []) {
-        raw.add(id);
+        tryAdd(id, typeDef?.aspectWhens?.[id]);
       }
     }
   }
 
-  // 5. Flow aspects (flows where node or any ancestor participates)
+  // 5. Flow aspects
   const allPaths = new Set<string>([node.path, ...ancestors.map(a => a.path)]);
   for (const flow of graph.flows) {
-    if (flow.nodes.some(n => allPaths.has(n))) {
-      for (const id of flow.aspects ?? []) {
-        raw.add(id);
-      }
+    if (!flow.nodes.some(n => allPaths.has(n))) continue;
+    for (const id of flow.aspects ?? []) {
+      tryAdd(id, flow.aspectWhens?.[id]);
     }
   }
 
@@ -65,34 +72,74 @@ export function computeEffectiveAspects(node: GraphNode, graph: Graph): Set<stri
     for (const relation of node.meta.relations) {
       const targetNode = graph.nodes.get(relation.target);
       if (!targetNode) continue;
-      if (relation.consumes && targetNode.meta.ports) {
-        for (const portName of relation.consumes) {
-          const port = targetNode.meta.ports[portName];
-          if (port?.aspects) {
-            for (const id of port.aspects) {
-              raw.add(id);
-            }
-          }
+      if (!relation.consumes || !targetNode.meta.ports) continue;
+      for (const portName of relation.consumes) {
+        const port = targetNode.meta.ports[portName];
+        if (!port?.aspects) continue;
+        for (const id of port.aspects) {
+          tryAdd(id, port.aspectWhens?.[id]);
         }
       }
     }
   }
 
-  // 7. Expand implies chains
-  return expandImplies(raw, graph);
+  // 7. Expand implies (filter global + per-implies when)
+  return expandImpliesFiltered(direct, node, graph);
+}
+
+function expandImpliesFiltered(
+  directIds: Set<string>,
+  node: GraphNode,
+  graph: Graph,
+): Set<string> {
+  const idToAspect = new Map<string, typeof graph.aspects[number]>();
+  for (const a of graph.aspects) idToAspect.set(a.id, a);
+
+  const result = new Set<string>();
+  const visited = new Set<string>();
+  const stack = new Set<string>();
+
+  const visit = (id: string, implierId: string | null): void => {
+    if (stack.has(id)) {
+      throw new Error(`Aspect implies cycle detected involving aspect '${id}'`);
+    }
+    if (visited.has(id)) return;
+
+    const aspectDef = idToAspect.get(id);
+    if (aspectDef?.when && !evaluateWhen(aspectDef.when, node, graph)) return;
+
+    if (implierId) {
+      const implierDef = idToAspect.get(implierId);
+      const perImplies = implierDef?.impliesWhens?.[id];
+      if (perImplies && !evaluateWhen(perImplies, node, graph)) return;
+    }
+
+    stack.add(id);
+    visited.add(id);
+    result.add(id);
+
+    const implies = aspectDef?.implies;
+    if (implies) {
+      for (const implied of implies) {
+        visit(implied, id);
+      }
+    }
+    stack.delete(id);
+  };
+
+  for (const id of directIds) visit(id, null);
+  return result;
 }
 
 /**
  * Determine the source of an aspect for a node. Checks all 7 channels in order
- * and returns the first match.
+ * and returns the first match (ignoring `when` — informational).
  */
 export function getAspectSource(aspectId: string, node: GraphNode, graph: Graph): string {
-  // 1. Own declaration
   if (node.meta.aspects?.includes(aspectId)) {
     return 'own declaration';
   }
 
-  // 2. Ancestor node direct aspects
   const ancestors = collectAncestors(node);
   for (const ancestor of ancestors) {
     if (ancestor.meta.aspects?.includes(aspectId)) {
@@ -100,7 +147,6 @@ export function getAspectSource(aspectId: string, node: GraphNode, graph: Graph)
     }
   }
 
-  // 3. Architecture type (own)
   if (graph.architecture) {
     const typeDef = graph.architecture.node_types[node.meta.type];
     if (typeDef?.aspects?.includes(aspectId)) {
@@ -108,7 +154,6 @@ export function getAspectSource(aspectId: string, node: GraphNode, graph: Graph)
     }
   }
 
-  // 4. Architecture type (ancestor)
   if (graph.architecture) {
     for (const ancestor of ancestors) {
       const typeDef = graph.architecture.node_types[ancestor.meta.type];
@@ -118,11 +163,9 @@ export function getAspectSource(aspectId: string, node: GraphNode, graph: Graph)
     }
   }
 
-  // 5. Flow participation (direct or via ancestor)
   const allPaths = new Set<string>([node.path, ...ancestors.map(a => a.path)]);
   for (const flow of graph.flows) {
     if (flow.aspects?.includes(aspectId) && flow.nodes.some(n => allPaths.has(n))) {
-      // Check if it's via an ancestor
       if (flow.nodes.includes(node.path)) {
         return `flow '${flow.path}'`;
       }
@@ -134,7 +177,6 @@ export function getAspectSource(aspectId: string, node: GraphNode, graph: Graph)
     }
   }
 
-  // 6. Port consumption
   if (node.meta.relations) {
     for (const relation of node.meta.relations) {
       const targetNode = graph.nodes.get(relation.target);
@@ -148,7 +190,6 @@ export function getAspectSource(aspectId: string, node: GraphNode, graph: Graph)
     }
   }
 
-  // 7. Implied by another aspect
   for (const otherAspect of graph.aspects) {
     if (otherAspect.implies?.includes(aspectId)) {
       return `implied by '${otherAspect.id}'`;
@@ -158,8 +199,6 @@ export function getAspectSource(aspectId: string, node: GraphNode, graph: Graph)
   return 'unknown source';
 }
 
-// --- Internal helpers ---
-
 function collectAncestors(node: GraphNode): GraphNode[] {
   const ancestors: GraphNode[] = [];
   let current = node.parent;
@@ -168,47 +207,4 @@ function collectAncestors(node: GraphNode): GraphNode[] {
     current = current.parent;
   }
   return ancestors;
-}
-
-/**
- * Expand a set of aspect IDs to include all implied aspects recursively.
- * Detects cycles and throws if found.
- */
-function expandImplies(aspectIds: Set<string>, graph: Graph): Set<string> {
-  const idToImplies = new Map<string, string[]>();
-  for (const aspect of graph.aspects) {
-    if (aspect.implies) {
-      idToImplies.set(aspect.id, aspect.implies);
-    }
-  }
-
-  const result = new Set<string>();
-  const visited = new Set<string>();
-  const stack = new Set<string>();
-
-  function collect(id: string): void {
-    if (stack.has(id)) {
-      throw new Error(`Aspect implies cycle detected involving aspect '${id}'`);
-    }
-    if (visited.has(id)) return;
-
-    stack.add(id);
-    visited.add(id);
-    result.add(id);
-
-    const implies = idToImplies.get(id);
-    if (implies) {
-      for (const implied of implies) {
-        collect(implied);
-      }
-    }
-
-    stack.delete(id);
-  }
-
-  for (const id of aspectIds) {
-    collect(id);
-  }
-
-  return result;
 }
