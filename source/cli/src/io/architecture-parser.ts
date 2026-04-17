@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { parse as parseYaml } from 'yaml';
 import type { ArchitectureDef, ArchitectureNodeType, RelationType } from '../model/graph.js';
+import { parseAspectAttachment } from './when-parser.js';
+import type { WhenPredicate } from '../model/when.js';
 
 const VALID_RELATION_TYPES: Set<string> = new Set(['uses', 'calls', 'extends', 'implements', 'emits', 'listens']);
 
@@ -37,9 +39,22 @@ export async function parseArchitecture(filePath: string): Promise<ArchitectureD
       );
     }
 
-    const aspects = Array.isArray(entry.aspects)
-      ? (entry.aspects as unknown[]).filter((t): t is string => typeof t === 'string')
-      : undefined;
+    let aspects: string[] | undefined;
+    let aspectWhens: Record<string, WhenPredicate> | undefined;
+    if (Array.isArray(entry.aspects)) {
+      aspects = [];
+      for (let i = 0; i < (entry.aspects as unknown[]).length; i++) {
+        const parsed = parseAspectAttachment(
+          (entry.aspects as unknown[])[i],
+          `yg-architecture.yaml: node_types.${typeName}.aspects[${i}]`,
+        );
+        aspects.push(parsed.id);
+        if (parsed.when) {
+          (aspectWhens ??= {})[parsed.id] = parsed.when;
+        }
+      }
+      if (aspects.length === 0) aspects = undefined;
+    }
 
     const parents = Array.isArray(entry.parents)
       ? (entry.parents as unknown[]).filter((t): t is string => typeof t === 'string')
@@ -49,7 +64,8 @@ export async function parseArchitecture(filePath: string): Promise<ArchitectureD
 
     nodeTypes[typeName] = {
       description: entry.description as string,
-      aspects: aspects && aspects.length > 0 ? aspects : undefined,
+      aspects,
+      ...(aspectWhens && { aspectWhens }),
       parents: parents && parents.length > 0 ? parents : undefined,
       relations: relations,
     };

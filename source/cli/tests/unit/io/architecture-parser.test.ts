@@ -156,6 +156,25 @@ node_types:
     await cleanup(file);
   });
 
+  it('parses object form in node_types.*.aspects with when', async () => {
+    const file = await writeTmp('yg-architecture.yaml', `
+node_types:
+  command:
+    description: "A command"
+    aspects:
+      - simple-aspect
+      - id: conditional-aspect
+        when:
+          relations: { calls: { target_type: service-client } }
+`);
+    const result = await parseArchitecture(file);
+    expect(result.node_types.command.aspects).toEqual(['simple-aspect', 'conditional-aspect']);
+    expect(result.node_types.command.aspectWhens).toEqual({
+      'conditional-aspect': { relations: { calls: { target_type: 'service-client' } } },
+    });
+    await cleanup(file);
+  });
+
   describe('architecture-parser v4 changes', () => {
     it('rejects integration_aspects as unknown field', async () => {
       const file = await writeTmp('yg-architecture.yaml', `
