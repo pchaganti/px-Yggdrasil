@@ -1,3 +1,15 @@
+import type { WhenPredicate } from './when.js';
+
+export type {
+  WhenPredicate,
+  BooleanClause,
+  AtomicClause,
+  RelationClause,
+  RelationMatch,
+  DescendantsClause,
+  NodeClause,
+} from './when.js';
+
 // ============================================================
 // Config
 // ============================================================
@@ -17,6 +29,8 @@ export interface YggConfig {
 export interface ArchitectureNodeType {
   description: string;
   aspects?: string[];
+  /** Per-aspect applicability filters for aspects listed in `aspects` */
+  aspectWhens?: Record<string, WhenPredicate>;
   parents?: string[];
   relations?: Partial<Record<RelationType, string[]>>;
 }
@@ -40,6 +54,8 @@ export type RelationType = 'uses' | 'calls' | 'extends' | 'implements' | 'emits'
 export interface PortDef {
   description: string;
   aspects: string[];
+  /** Per-aspect applicability filters for aspects listed in `aspects` */
+  aspectWhens?: Record<string, WhenPredicate>;
 }
 
 export type ReviewerProvider =
@@ -68,6 +84,8 @@ export interface NodeMeta {
   type: string;
   description?: string;
   aspects?: string[];
+  /** Per-aspect applicability filters for aspects listed in `aspects` */
+  aspectWhens?: Record<string, WhenPredicate>;
   ports?: Record<string, PortDef>;
   relations?: Relation[];
   /** Flat list of file/directory paths relative to repo root */
@@ -111,6 +129,10 @@ export interface AspectDef {
   id: string;
   description?: string;
   implies?: string[];
+  /** Per-implies applicability filters for aspect ids listed in `implies` */
+  impliesWhens?: Record<string, WhenPredicate>;
+  /** Global applicability filter for this aspect, applied on every channel */
+  when?: WhenPredicate;
   artifacts: Artifact[];
 }
 
@@ -126,6 +148,8 @@ export interface FlowDef {
   nodes: string[];
   /** Optional aspect ids — aspects propagate to all participants */
   aspects?: string[];
+  /** Per-aspect applicability filters for aspects listed in `aspects` */
+  aspectWhens?: Record<string, WhenPredicate>;
 }
 
 // ============================================================
