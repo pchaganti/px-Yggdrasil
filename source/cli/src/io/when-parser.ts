@@ -41,7 +41,7 @@ export function parseWhen(raw: unknown, ctx: string): WhenPredicate {
   const unknownKeys = keys.filter(k => !BOOLEAN_KEYS.has(k) && !ATOMIC_KEYS.has(k));
 
   if (unknownKeys.length > 0) {
-    throw new Error(`${ctx}: Unknown when operator '${unknownKeys[0]}' (expected one of: all_of, any_of, not, relations, descendants, node)`);
+    throw new Error(`${ctx}: unknown when operator '${unknownKeys[0]}' (expected one of: all_of, any_of, not, relations, descendants, node)`);
   }
 
   if (booleanKeys.length > 0 && atomicKeys.length > 0) {
@@ -99,7 +99,7 @@ function parseRelationClause(raw: unknown, ctx: string): RelationClause {
   const out: RelationClause = {};
   for (const [relType, match] of entries) {
     if (!RELATION_TYPES.has(relType)) {
-      throw new Error(`${ctx}: Unknown relation type '${relType}' (valid: ${Array.from(RELATION_TYPES).join(', ')})`);
+      throw new Error(`${ctx}: unknown relation type '${relType}' (valid: ${Array.from(RELATION_TYPES).join(', ')})`);
     }
     out[relType as RelationType] = parseRelationMatch(match, `${ctx}/${relType}`);
   }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseWhen } from '../../../src/io/when-parser.js';
+import { parseWhen, parseAspectAttachment } from '../../../src/io/when-parser.js';
 
 describe('parseWhen', () => {
   it('parses top-level atomic clause (implicit all_of)', () => {
@@ -47,12 +47,12 @@ describe('parseWhen', () => {
 
   it('throws on unknown top-level operator', () => {
     expect(() => parseWhen({ mostly_of: [] }, 'ctx'))
-      .toThrow(/Unknown when operator 'mostly_of'/);
+      .toThrow(/unknown when operator 'mostly_of'/);
   });
 
   it('throws on unknown relation type inside relations', () => {
     expect(() => parseWhen({ relations: { invokes: {} } }, 'ctx'))
-      .toThrow(/Unknown relation type 'invokes'/);
+      .toThrow(/unknown relation type 'invokes'/);
   });
 
   it('throws when when is not an object', () => {
@@ -67,6 +67,72 @@ describe('parseWhen', () => {
 
   it('throws on unknown atomic clause key', () => {
     expect(() => parseWhen({ banana: {} }, 'ctx'))
-      .toThrow(/Unknown when operator 'banana'/);
+      .toThrow(/unknown when operator 'banana'/);
+  });
+});
+
+describe('parseAspectAttachment', () => {
+  it('parses a bare-string aspect id', () => {
+    const result = parseAspectAttachment('my-aspect', 'ctx');
+    expect(result).toEqual({ id: 'my-aspect' });
+  });
+
+  it('trims whitespace around a bare-string id', () => {
+    expect(parseAspectAttachment('  trimmed  ', 'ctx')).toEqual({ id: 'trimmed' });
+  });
+
+  it('rejects an empty bare string', () => {
+    expect(() => parseAspectAttachment('', 'ctx'))
+      .toThrow(/aspect id must be a non-empty string/);
+  });
+
+  it('rejects a whitespace-only bare string', () => {
+    expect(() => parseAspectAttachment('   ', 'ctx'))
+      .toThrow(/aspect id must be a non-empty string/);
+  });
+
+  it('parses object form with id only', () => {
+    expect(parseAspectAttachment({ id: 'my-aspect' }, 'ctx')).toEqual({ id: 'my-aspect' });
+  });
+
+  it('parses object form with id and when', () => {
+    const result = parseAspectAttachment(
+      { id: 'a', when: { node: { type: 'command' } } },
+      'ctx',
+    );
+    expect(result).toEqual({
+      id: 'a',
+      when: { node: { type: 'command' } },
+    });
+  });
+
+  it('rejects object form missing id', () => {
+    expect(() => parseAspectAttachment({ when: { node: { type: 'x' } } }, 'ctx'))
+      .toThrow(/object form requires 'id' as a non-empty string/);
+  });
+
+  it('rejects object form with empty id', () => {
+    expect(() => parseAspectAttachment({ id: '' }, 'ctx'))
+      .toThrow(/object form requires 'id' as a non-empty string/);
+  });
+
+  it('rejects object form with unknown field', () => {
+    expect(() => parseAspectAttachment({ id: 'a', exceptions: [] }, 'ctx'))
+      .toThrow(/unknown field 'exceptions' in aspect attachment/);
+  });
+
+  it('rejects arrays', () => {
+    expect(() => parseAspectAttachment(['a'], 'ctx'))
+      .toThrow(/aspect attachment must be a string or an object/);
+  });
+
+  it('rejects numbers', () => {
+    expect(() => parseAspectAttachment(42, 'ctx'))
+      .toThrow(/aspect attachment must be a string or an object/);
+  });
+
+  it('rejects null', () => {
+    expect(() => parseAspectAttachment(null, 'ctx'))
+      .toThrow(/aspect attachment must be a string or an object/);
   });
 });
