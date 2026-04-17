@@ -2,6 +2,13 @@ import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import type { Graph } from '../model/graph.js';
 import type { ValidationResult, ValidationIssue } from '../model/validation.js';
+import type {
+  WhenPredicate,
+  AtomicClause,
+  RelationClause,
+  DescendantsClause,
+  NodeClause,
+} from '../model/when.js';
 import { normalizeMappingPaths } from '../utils/paths.js';
 import { expandMappingPaths } from '../utils/hash.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
@@ -61,6 +68,7 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   issues.push(...checkPortAspectsDefined(graph));
   issues.push(...checkPortConsumes(graph));
   issues.push(...checkOrphanedAspects(graph));
+  issues.push(...checkWhenReferences(graph));
 
   let filtered = issues;
   let nodesScanned = graph.nodes.size;
@@ -1066,6 +1074,152 @@ function checkOrphanedAspects(graph: Graph): ValidationIssue[] {
           next: `Either add it to a node/architecture/flow or remove it.`,
         }),
       });
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * when-unknown-type / when-unknown-node / when-unknown-port
+ * Validates that every declared `when` predicate references types/nodes/ports
+ * that actually exist in the graph.
+ */
+function checkWhenReferences(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const knownTypes = new Set(Object.keys(graph.architecture?.node_types ?? {}));
+
+  const visitPredicate = (p: WhenPredicate, ctx: string): void => {
+    if ('all_of' in p) { p.all_of.forEach((c, i) => visitPredicate(c, `${ctx}/all_of[${i}]`)); return; }
+    if ('any_of' in p) { p.any_of.forEach((c, i) => visitPredicate(c, `${ctx}/any_of[${i}]`)); return; }
+    if ('not' in p) { visitPredicate(p.not, `${ctx}/not`); return; }
+    visitAtomic(p, ctx);
+  };
+
+  const visitAtomic = (a: AtomicClause, ctx: string): void => {
+    if (a.relations) visitRelationClause(a.relations, `${ctx}/relations`);
+    if (a.descendants) visitDescendantsClause(a.descendants, `${ctx}/descendants`);
+    if (a.node) visitNodeClause(a.node, `${ctx}/node`);
+  };
+
+  const visitRelationClause = (rc: RelationClause, ctx: string): void => {
+    for (const [relType, match] of Object.entries(rc)) {
+      if (!match) continue;
+      if (match.target_type !== undefined && !knownTypes.has(match.target_type)) {
+        issues.push({
+          severity: 'error',
+          code: 'when-unknown-type',
+          rule: 'when-unknown-type',
+          message: buildIssueMessage({
+            what: `Unknown node type '${match.target_type}' in when at ${ctx}/${relType}.target_type.`,
+            why: 'The predicate references a type that is not defined in yg-architecture.yaml; it will never evaluate.',
+            next: `Fix the type name or define it in yg-architecture.yaml. Known types: ${Array.from(knownTypes).join(', ')}.`,
+          }),
+        });
+      }
+      if (match.target !== undefined && !graph.nodes.has(match.target)) {
+        issues.push({
+          severity: 'error',
+          code: 'when-unknown-node',
+          rule: 'when-unknown-node',
+          message: buildIssueMessage({
+            what: `Referenced node '${match.target}' in when at ${ctx}/${relType}.target does not exist.`,
+            why: 'The predicate targets a node that is not in the graph.',
+            next: `Fix the node path or add the node under .yggdrasil/model/.`,
+          }),
+        });
+      }
+      if (match.consumes_port !== undefined && match.target !== undefined) {
+        const tgt = graph.nodes.get(match.target);
+        if (tgt && !(tgt.meta.ports && match.consumes_port in tgt.meta.ports)) {
+          issues.push({
+            severity: 'error',
+            code: 'when-unknown-port',
+            rule: 'when-unknown-port',
+            message: buildIssueMessage({
+              what: `Port '${match.consumes_port}' is not declared on node '${match.target}' in when at ${ctx}/${relType}.consumes_port.`,
+              why: 'The predicate references a port that does not exist on the target node.',
+              next: `Fix the port name or add it to .yggdrasil/model/${match.target}/yg-node.yaml.`,
+            }),
+          });
+        }
+      }
+    }
+  };
+
+  const visitDescendantsClause = (dc: DescendantsClause, ctx: string): void => {
+    if (dc.relations) visitRelationClause(dc.relations, `${ctx}/relations`);
+    if (dc.type !== undefined && !knownTypes.has(dc.type)) {
+      issues.push({
+        severity: 'error',
+        code: 'when-unknown-type',
+        rule: 'when-unknown-type',
+        message: buildIssueMessage({
+          what: `Unknown node type '${dc.type}' in when at ${ctx}/type.`,
+          why: 'The predicate references a type that is not defined in yg-architecture.yaml.',
+          next: `Fix the type name or define it in yg-architecture.yaml. Known types: ${Array.from(knownTypes).join(', ')}.`,
+        }),
+      });
+    }
+  };
+
+  const visitNodeClause = (nc: NodeClause, ctx: string): void => {
+    if (nc.type !== undefined && !knownTypes.has(nc.type)) {
+      issues.push({
+        severity: 'error',
+        code: 'when-unknown-type',
+        rule: 'when-unknown-type',
+        message: buildIssueMessage({
+          what: `Unknown node type '${nc.type}' in when at ${ctx}/type.`,
+          why: 'The predicate references a type that is not defined in yg-architecture.yaml.',
+          next: `Fix the type name or define it in yg-architecture.yaml. Known types: ${Array.from(knownTypes).join(', ')}.`,
+        }),
+      });
+    }
+  };
+
+  // 1. Aspect global and impliesWhens
+  for (const aspect of graph.aspects) {
+    if (aspect.when) visitPredicate(aspect.when, `aspect '${aspect.id}' when`);
+    if (aspect.impliesWhens) {
+      for (const [targetId, pred] of Object.entries(aspect.impliesWhens)) {
+        visitPredicate(pred, `aspect '${aspect.id}' implies[${targetId}] when`);
+      }
+    }
+  }
+
+  // 2. Architecture type defaults
+  if (graph.architecture) {
+    for (const [typeName, typeDef] of Object.entries(graph.architecture.node_types)) {
+      if (!typeDef.aspectWhens) continue;
+      for (const [aspectId, pred] of Object.entries(typeDef.aspectWhens)) {
+        visitPredicate(pred, `architecture node_types.${typeName} aspectWhens[${aspectId}]`);
+      }
+    }
+  }
+
+  // 3. Nodes
+  for (const [nodePath, node] of graph.nodes) {
+    if (node.meta.aspectWhens) {
+      for (const [aspectId, pred] of Object.entries(node.meta.aspectWhens)) {
+        visitPredicate(pred, `node '${nodePath}' aspectWhens[${aspectId}]`);
+      }
+    }
+    if (node.meta.ports) {
+      for (const [portName, portDef] of Object.entries(node.meta.ports)) {
+        if (!portDef.aspectWhens) continue;
+        for (const [aspectId, pred] of Object.entries(portDef.aspectWhens)) {
+          visitPredicate(pred, `node '${nodePath}' ports.${portName} aspectWhens[${aspectId}]`);
+        }
+      }
+    }
+  }
+
+  // 4. Flows
+  for (const flow of graph.flows) {
+    if (!flow.aspectWhens) continue;
+    for (const [aspectId, pred] of Object.entries(flow.aspectWhens)) {
+      visitPredicate(pred, `flow '${flow.path}' aspectWhens[${aspectId}]`);
     }
   }
 

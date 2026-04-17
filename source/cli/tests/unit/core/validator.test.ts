@@ -1101,6 +1101,76 @@ describe('validator', () => {
     });
   });
 
+  describe('validator — when schema checks', () => {
+    it('reports unknown target_type in global when', async () => {
+      const graph = createGraph({
+        architecture: { node_types: { command: { description: 'cmd' } } },
+        aspects: [{
+          name: 'X', id: 'x', artifacts: [],
+          when: { relations: { calls: { target_type: 'srvc-client' } } },
+        }],
+      });
+      const result = await validate(graph);
+      expect(result.issues.some(i =>
+        i.code === 'when-unknown-type' && /srvc-client/.test(i.message)
+      )).toBe(true);
+    });
+
+    it('reports unknown target node path in when', async () => {
+      const node = createNode('svc', { type: 'command' });
+      const graph = createGraph({
+        nodes: new Map([['svc', node]]),
+        architecture: { node_types: { command: { description: 'cmd' } } },
+        aspects: [{
+          name: 'X', id: 'x', artifacts: [],
+          when: { relations: { calls: { target: 'ghost/node' } } },
+        }],
+      });
+      const result = await validate(graph);
+      expect(result.issues.some(i =>
+        i.code === 'when-unknown-node' && /ghost\/node/.test(i.message)
+      )).toBe(true);
+    });
+
+    it('reports unknown consumes_port on referenced target', async () => {
+      const target = createNode('pay', {
+        type: 'service',
+        ports: { charge: { description: 'c', aspects: [] } },
+      });
+      const graph = createGraph({
+        nodes: new Map([['pay', target]]),
+        architecture: {
+          node_types: { command: { description: 'cmd' }, service: { description: 'svc' } },
+        },
+        aspects: [{
+          name: 'X', id: 'x', artifacts: [],
+          when: { relations: { calls: { target: 'pay', consumes_port: 'refund' } } },
+        }],
+      });
+      const result = await validate(graph);
+      expect(result.issues.some(i =>
+        i.code === 'when-unknown-port' && /refund/.test(i.message)
+      )).toBe(true);
+    });
+
+    it('allows when referencing a target_type when type exists', async () => {
+      const graph = createGraph({
+        architecture: {
+          node_types: {
+            command: { description: 'cmd' },
+            'service-client': { description: 'svc-client' },
+          },
+        },
+        aspects: [{
+          name: 'X', id: 'x', artifacts: [],
+          when: { relations: { calls: { target_type: 'service-client' } } },
+        }],
+      });
+      const result = await validate(graph);
+      expect(result.issues.some(i => i.code?.startsWith('when-'))).toBe(false);
+    });
+  });
+
   describe('CLI exit codes', () => {
     it('exit code 0 when no errors', () => {
       const fixturePath = path.resolve(CLI_ROOT, 'tests', 'fixtures', 'sample-project');
