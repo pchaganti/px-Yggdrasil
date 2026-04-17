@@ -16,6 +16,11 @@ export type BooleanClause =
   | { any_of: WhenPredicate[] }
   | { not: WhenPredicate };
 
+/**
+ * An atomic clause. All fields are optional — absent fields do not constrain.
+ * An empty object `{}` is therefore vacuously true. Parsers reject the empty
+ * form at the attach site (at least one operator/atomic key must be present).
+ */
 export interface AtomicClause {
   relations?: RelationClause;
   descendants?: DescendantsClause;
