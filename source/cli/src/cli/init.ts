@@ -13,6 +13,7 @@ import { testApiProvider, testCliProvider } from '../llm/reviewer-test.js';
 import type { ReviewerProvider } from '../model/graph.js';
 import { detectVersion, runMigrations, updateConfigVersion } from '../core/migrator.js';
 import { MIGRATIONS } from '../migrations/index.js';
+import { buildIssueMessage } from '../formatters/message-builder.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -439,7 +440,7 @@ async function createYggdrasilStructure(
 }
 
 // ---------------------------------------------------------------------------
-// Version upgrade — shared between interactive existingInit and flag path
+// Version upgrade — shared between the version-mismatch branch and --upgrade --platform flag path
 // ---------------------------------------------------------------------------
 
 export interface VersionUpgradeResult {
@@ -607,16 +608,26 @@ export function registerInitCommand(program: Command): void {
             process.exit(1);
           }
 
-          await refreshSchemas(yggRoot);
-          const architecturePath = path.join(yggRoot, 'yg-architecture.yaml');
-          try {
-            await stat(architecturePath);
-          } catch {
-            await writeFile(architecturePath, DEFAULT_ARCHITECTURE, 'utf-8');
+          const toVersion = await getCliVersion();
+          const fromVersion = await detectVersion(yggRoot);
+          if (fromVersion === null) {
+            process.stderr.write(chalk.red(buildIssueMessage({
+              what: 'No graph version detected.',
+              why: ".yggdrasil/yg-config.yaml is missing a 'version:' field, so --upgrade cannot determine which migrations to run.",
+              next: "Run 'yg init' interactively once to record the current version, then retry 'yg init --upgrade --platform <name>'.",
+            }) + '\n'));
+            process.exit(1);
           }
-          await updateConfigVersion(yggRoot, await getCliVersion());
-          const rulesPath = await installRulesForPlatform(projectRoot, options.platform as Platform);
-          process.stdout.write(`Rules and schemas refreshed: ${path.relative(projectRoot, rulesPath)}\n`);
+          const result = await runVersionUpgrade(
+            projectRoot,
+            yggRoot,
+            fromVersion,
+            toVersion,
+            options.platform as Platform,
+          );
+          process.stdout.write(
+            `Rules and schemas refreshed: ${path.relative(projectRoot, result.rulesPath)}\n`,
+          );
           return;
         }
 
