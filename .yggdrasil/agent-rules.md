@@ -29,7 +29,7 @@ The CLI (`yg`) reads and validates — it never modifies files. You create and e
 
 **Architecture** — `yg-architecture.yaml` defines the vocabulary: node types, default aspects per type, allowed parent types, allowed relation targets per type. This is the foundation — read it when starting work on a new repo. Changes require user confirmation. Structure details in `schemas/yg-architecture.yaml`.
 
-### How Aspects Reach a Node — 7 Channels
+### How Aspects Reach a Node — 7 Channels + Applicability Filter
 
 Aspects accumulate from multiple sources simultaneously. The reviewer checks ALL of them — the node must satisfy every aspect regardless of origin.
 
@@ -58,6 +58,36 @@ Consequences of this cascade:
 - Adding a node to a flow with aspects means that node must satisfy flow aspects.
 - Architecture default aspects apply to every node of that type automatically.
 - Implies chains expand recursively. Cycles are forbidden — CLI detects them.
+
+### Applicability Filter (`when`) — Evaluated on Every Channel
+
+Seven channels propagate aspects onto nodes. A separate mechanism — the `when`
+predicate — filters applicability. Every channel's attachment passes through
+`when` before the aspect becomes effective. The predicate is evaluated by the
+CLI against the graph (deterministic, no LLM call); if false, the aspect is
+silently skipped on that node.
+
+`when` can be declared globally on the aspect (applies across channels) or
+per attach site (per channel instance). Global and attach-site `when` combine
+via AND on each channel path. Multiple channels deliver independently — the
+aspect is effective if any channel's path passes both its global and
+attach-site filter.
+
+Use `when` when an aspect is meaningful for only a subset of nodes under a
+common attach channel. Example: `external-api-error-mapping` attached to
+type `command` but only applicable when the node calls `service-client` —
+declare on the aspect:
+
+    when:
+      relations:
+        calls:
+          target_type: service-client
+
+Domain-neutral examples: a `pii-encryption` aspect attached to all
+repositories, but only applicable when the repository stores a field of
+type `user-profile`; an `idempotency-key` aspect required only for commands
+that emit events; a `database-migration-review` aspect only for nodes with
+`has_mapping: true` pointing at `db/migrations/`.
 
 ### Reviewer
 
@@ -143,6 +173,13 @@ This is a cost/impact trade-off. Assess, propose the option to the user, let the
 **Node** — one per cohesive feature area. Not per directory, not per file. If a node would map >10 source files or cover >3 distinct workflows, split into children. Why: the reviewer sees ALL files in a node. Too many files = reviewer loses context and produces false rejections. Aim for 2-5 source files per node with aspects. Read `schemas/yg-node.yaml` before creating.
 
 **Architecture change** — when existing types don't fit the project structure. Always confirm with the user. Never silently modify `yg-architecture.yaml`. If a relation between types is forbidden, present the constraint and let the user decide: use an allowed relation type, change the node type, or update the architecture.
+
+**`when` predicate on an aspect or attach site** — when the aspect applies to
+only a subset of nodes under a common attach channel. Prefer `when` over
+splitting node types (proliferation of types). Prefer `when` over leaving
+the decision to the reviewer textually inside `content.md`; `when` is
+deterministic, has zero LLM cost, and keeps the graph as the source of
+truth for applicability.
 
 ### Aspect Discovery
 

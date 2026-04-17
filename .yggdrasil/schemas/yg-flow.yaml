@@ -17,6 +17,7 @@ nodes:                        # required, non-empty — participant nodes (alias
   - payments/payment-service  # each participant (and its descendants) must satisfy
   - inventory/inventory-service  # any flow-level aspects declared below
 
-# aspects: [requires-saga]    # optional — aspect identifiers propagated to ALL participants
-                              # (channel 5 in aspect resolution). Use for requirements that
-                              # apply to every node in this process but not globally.
+aspects:                      # optional — aspects propagate to all flow participants (channel 5)
+  - simple-aspect             #   bare string
+  - id: conditional-aspect    #   object form with per-site applicability filter
+    when: <predicate>         #   see graph-schemas/yg-aspect.yaml for grammar

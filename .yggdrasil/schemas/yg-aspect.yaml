@@ -14,7 +14,42 @@ name: CrossCuttingRequirementName  # required — display name
 description: "Short description"   # optional but recommended — shown in yg aspects output
                                    # and context packages, helps agents discover relevant aspects
 
-# implies: [other-aspect]          # optional — other aspect identifiers included automatically
-                                   # when this aspect is effective on a node. Recursive expansion
-                                   # (A implies B implies C = all three effective). Must be acyclic
-                                   # — CLI detects and rejects cycles.
+# implies:                         # optional — other aspects included automatically when this
+#                                  # aspect is effective on a node. Two forms:
+#   - simple-aspect-id             # bare string — implied unconditionally (when outer aspect passes)
+#   - id: conditional-aspect-id    # object form — imply only when `when` passes on the node
+#     when: <predicate>            # see `when` section below for grammar
+                                   # Chains expand recursively. Cycles are forbidden — CLI detects.
+
+# when: <predicate>                # optional — applicability filter. If the predicate evaluates
+                                   # to false on a node, this aspect is not effective on that node
+                                   # regardless of which channel attached it. Combines with
+                                   # attach-site `when` declarations via AND.
+                                   #
+                                   # Grammar:
+                                   #   when:
+                                   #     all_of: [<clause>, ...]    # AND
+                                   #     any_of: [<clause>, ...]    # OR
+                                   #     not: <clause>              # negation
+                                   #     <atomic>                   # top-level atomics imply all_of
+                                   #
+                                   # Atomic clauses:
+                                   #   relations:
+                                   #     <relation-type>:           # calls | uses | extends | implements | emits | listens
+                                   #       target_type: <type-id>   # match target node's declared type
+                                   #       target: <node-path>      # match exact node path (relative to model/)
+                                   #       consumes_port: <port>    # match a port consumed on this relation
+                                   #   descendants:                 # same as relations but evaluated against any descendant in model/
+                                   #     relations: {...}
+                                   #     type: <type-id>
+                                   #     has_port: <port-name>
+                                   #   node:
+                                   #     type: <type-id>
+                                   #     has_port: <port-name>
+                                   #     has_mapping: true | false
+                                   #
+                                   # Example:
+                                   #   when:
+                                   #     any_of:
+                                   #       - relations: { calls: { target_type: service-client } }
+                                   #       - descendants: { relations: { calls: { target_type: service-client } } }

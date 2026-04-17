@@ -9,14 +9,20 @@ type: service                 # required — must match a type defined in yg-arc
 description: "What this node does"  # optional but recommended — shown in context output,
                                     # helps agents understand purpose without reading code
 
-aspects:                      # optional — aspect identifiers applied directly to this node
-  - aspect-id                 # must match a directory name under aspects/
-                              # these aspects also cascade to all child nodes
+aspects:                      # optional — aspect identifiers applied directly to this node.
+                              # Two forms per entry:
+  - simple-aspect             #   bare string — always effective once attached (channel 1)
+  - id: conditional-aspect    #   object form — attach with per-site applicability filter
+    when: <predicate>         #   see graph-schemas/yg-aspect.yaml for grammar
+                              # Aspects cascade to all child nodes.
 
 ports:                        # optional — named entry points with required aspects
   port-name:                  # consumers of this node reference ports via consumes
     description: "What this port provides"  # required
-    aspects: [aspect-id]      # required — aspects that consumers must satisfy (channel 6)
+    aspects:                  # required — aspects consumers must satisfy (channel 6)
+      - simple-aspect         #   bare string form
+      - id: conditional-aspect
+        when: <predicate>     #   object form with per-attach applicability filter
 
 relations:                    # optional — outgoing dependencies to other nodes
   - target: other/module-path # required — node path relative to model/
