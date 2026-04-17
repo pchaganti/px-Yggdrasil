@@ -1,7 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { parse as parseYaml } from 'yaml';
 import type { AspectDef } from '../model/graph.js';
+import type { WhenPredicate } from '../model/when.js';
 import { readArtifacts } from './artifact-reader.js';
+import { parseWhen, parseAspectAttachment } from './when-parser.js';
 
 export async function parseAspect(
   aspectDir: string,
@@ -28,11 +30,27 @@ export async function parseAspect(
   const artifacts = await readArtifacts(aspectDir, ['yg-aspect.yaml']);
 
   let implies: string[] | undefined;
+  let impliesWhens: Record<string, WhenPredicate> | undefined;
   if (raw.implies !== undefined) {
     if (!Array.isArray(raw.implies)) {
-      throw new Error(`yg-aspect.yaml at ${aspectYamlPath}: 'implies' must be an array of strings`);
+      throw new Error(`yg-aspect.yaml at ${aspectYamlPath}: 'implies' must be an array`);
     }
-    implies = (raw.implies as unknown[]).filter((t): t is string => typeof t === 'string');
+    implies = [];
+    for (let i = 0; i < raw.implies.length; i++) {
+      const parsed = parseAspectAttachment(
+        raw.implies[i],
+        `yg-aspect.yaml at ${aspectYamlPath}: implies[${i}]`,
+      );
+      implies.push(parsed.id);
+      if (parsed.when) {
+        (impliesWhens ??= {})[parsed.id] = parsed.when;
+      }
+    }
+  }
+
+  let when: WhenPredicate | undefined;
+  if (raw.when !== undefined) {
+    when = parseWhen(raw.when, `yg-aspect.yaml at ${aspectYamlPath}: when`);
   }
 
   return {
@@ -40,6 +58,8 @@ export async function parseAspect(
     id: idTrimmed,
     description,
     implies,
+    impliesWhens,
+    when,
     artifacts,
   };
 }

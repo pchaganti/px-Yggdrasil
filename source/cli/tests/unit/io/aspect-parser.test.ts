@@ -104,7 +104,7 @@ implies:
     await writeFile(aspectPath, `name: Test\nimplies: "not-an-array"\n`, 'utf-8');
 
     await expect(parseAspect(tmpDir, aspectPath, 'bad-implies')).rejects.toThrow(
-      "'implies' must be an array of strings",
+      "'implies' must be an array",
     );
 
     await rm(tmpDir, { recursive: true, force: true });
@@ -177,6 +177,66 @@ implies:
     expect(aspect.name).toBe('Full Aspect');
     expect(aspect.description).toBe('A fully specified aspect');
     expect(aspect.implies).toEqual(['other-aspect']);
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+});
+
+describe('aspect-parser — when filter', () => {
+  it('parses top-level when', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-when');
+    await mkdir(tmpDir, { recursive: true });
+    const aspectYaml = path.join(tmpDir, 'yg-aspect.yaml');
+    await writeFile(aspectYaml, [
+      'name: ExampleAspect',
+      'when:',
+      '  relations:',
+      '    calls:',
+      '      target_type: service-client',
+    ].join('\n'), 'utf-8');
+
+    const result = await parseAspect(tmpDir, aspectYaml, 'example');
+    expect(result.when).toEqual({
+      relations: { calls: { target_type: 'service-client' } },
+    });
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('parses implies with object form and per-implies when', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-implies-when');
+    await mkdir(tmpDir, { recursive: true });
+    const aspectYaml = path.join(tmpDir, 'yg-aspect.yaml');
+    await writeFile(aspectYaml, [
+      'name: ExampleAspect',
+      'implies:',
+      '  - simple-aspect',
+      '  - id: conditional-aspect',
+      '    when:',
+      '      node: { has_port: charge }',
+    ].join('\n'), 'utf-8');
+
+    const result = await parseAspect(tmpDir, aspectYaml, 'example');
+    expect(result.implies).toEqual(['simple-aspect', 'conditional-aspect']);
+    expect(result.impliesWhens).toEqual({
+      'conditional-aspect': { node: { has_port: 'charge' } },
+    });
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('rejects invalid when at aspect level', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-when-bad');
+    await mkdir(tmpDir, { recursive: true });
+    const aspectYaml = path.join(tmpDir, 'yg-aspect.yaml');
+    await writeFile(aspectYaml, [
+      'name: ExampleAspect',
+      'when:',
+      '  mostly_of: []',
+    ].join('\n'), 'utf-8');
+
+    await expect(parseAspect(tmpDir, aspectYaml, 'example'))
+      .rejects.toThrow(/unknown when operator 'mostly_of'/);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
