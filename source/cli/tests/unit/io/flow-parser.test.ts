@@ -251,15 +251,13 @@ aspects:
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('returns empty aspects when all entries are non-string', async () => {
+  it('throws when aspects entries are non-string non-object', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-flow-nonstring-aspects');
     await mkdir(tmpDir, { recursive: true });
     const flowYaml = path.join(tmpDir, 'yg-flow.yaml');
     await writeFile(flowYaml, 'name: Test\nnodes: [a/b]\naspects: [123, true]\n', 'utf-8');
 
-    const flow = await parseFlow(tmpDir, flowYaml);
-
-    expect(flow.aspects).toEqual([]);
+    await expect(parseFlow(tmpDir, flowYaml)).rejects.toThrow();
 
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -306,6 +304,34 @@ description: "test flow desc"
 
     const flow = await parseFlow(tmpDir, flowYaml);
     expect(flow.description).toBeUndefined();
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+});
+
+describe('flow-parser — when filter', () => {
+  it('parses object form in aspects', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-flow-when');
+    await mkdir(tmpDir, { recursive: true });
+    const flowYaml = path.join(tmpDir, 'yg-flow.yaml');
+    await writeFile(
+      flowYaml,
+      [
+        'name: CheckoutFlow',
+        'nodes: [orders]',
+        'aspects:',
+        '  - transactional',
+        '  - id: deterministic',
+        '    when: { node: { type: command } }',
+      ].join('\n'),
+      'utf-8',
+    );
+
+    const result = await parseFlow(tmpDir, flowYaml);
+    expect(result.aspects).toEqual(['transactional', 'deterministic']);
+    expect(result.aspectWhens).toEqual({
+      deterministic: { node: { type: 'command' } },
+    });
 
     await rm(tmpDir, { recursive: true, force: true });
   });

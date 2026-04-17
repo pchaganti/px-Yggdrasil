@@ -2,6 +2,8 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { FlowDef } from '../model/graph.js';
+import { parseAspectAttachment } from './when-parser.js';
+import type { WhenPredicate } from '../model/when.js';
 
 export async function parseFlow(flowDir: string, flowYamlPath: string): Promise<FlowDef> {
   const content = await readFile(flowYamlPath, 'utf-8');
@@ -32,12 +34,22 @@ export async function parseFlow(flowDir: string, flowYamlPath: string): Promise<
   }
 
   let aspects: string[] | undefined;
+  let aspectWhens: Record<string, WhenPredicate> | undefined;
   if (raw.aspects !== undefined) {
     if (!Array.isArray(raw.aspects)) {
       throw new Error(`yg-flow.yaml at ${flowYamlPath}: 'aspects' must be an array of strings`);
     }
-    const aspectTags = (raw.aspects as unknown[]).filter((a): a is string => typeof a === 'string');
-    aspects = aspectTags.length > 0 ? aspectTags : [];
+    aspects = [];
+    for (let i = 0; i < raw.aspects.length; i++) {
+      const parsed = parseAspectAttachment(
+        (raw.aspects as unknown[])[i],
+        `yg-flow.yaml at ${flowYamlPath}: aspects[${i}]`,
+      );
+      aspects.push(parsed.id);
+      if (parsed.when) {
+        (aspectWhens ??= {})[parsed.id] = parsed.when;
+      }
+    }
   }
 
   return {
@@ -46,5 +58,6 @@ export async function parseFlow(flowDir: string, flowYamlPath: string): Promise<
     description,
     nodes: nodePaths,
     ...(aspects !== undefined && { aspects }),
+    ...(aspectWhens && { aspectWhens }),
   };
 }
