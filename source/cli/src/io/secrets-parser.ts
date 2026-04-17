@@ -7,7 +7,20 @@ import { debugWrite } from '../utils/debug-log.js';
 /**
  * Load yg-secrets.yaml from .yggdrasil/ and extract reviewer secrets.
  * Returns partial LLM config with only fields present in secrets file.
- * Returns undefined if no secrets file exists or no matching section.
+ *
+ * Silent (returns undefined) when:
+ *   - file does not exist
+ *   - file is empty
+ *   - top-level has no `reviewer:` mapping
+ *   - `providerName` is omitted
+ *   - no provider section matches `providerName`
+ *   - provider section has no recognized fields
+ *
+ * Throws (with file path + field name) when structure exists but types are wrong:
+ *   - top-level is not a YAML mapping
+ *   - `reviewer` is present but not a mapping
+ *   - `reviewer.<provider>` is present but not a mapping
+ *   - a known secret field is present with the wrong type
  */
 export async function loadSecrets(rootPath: string, providerName?: string): Promise<Partial<LlmConfig> | undefined> {
   const secretsPath = join(rootPath, 'yg-secrets.yaml');
@@ -16,35 +29,67 @@ export async function loadSecrets(rootPath: string, providerName?: string): Prom
     content = await readFile(secretsPath, 'utf-8');
   } catch (err) {
     debugWrite(`[secrets-parser] readFile: ${(err as Error).message}`);
-    return undefined; // No secrets file — graceful
+    return undefined;
   }
 
-  const raw = parseYaml(content) as Record<string, unknown>;
-  if (!raw) return undefined;
-
-  // Try new reviewer: format first
-  if (raw.reviewer && typeof raw.reviewer === 'object') {
-    const reviewerRaw = raw.reviewer as Record<string, unknown>;
-    if (!providerName) return undefined;
-    const providerKey = providerName;
-    const providerSection = reviewerRaw[providerKey] as Record<string, unknown> | undefined;
-    if (!providerSection || typeof providerSection !== 'object') return undefined;
-    return extractSecretFields(providerSection);
+  const raw = parseYaml(content) as unknown;
+  if (raw === null || raw === undefined) return undefined;
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error(`yg-secrets.yaml: top level must be a YAML mapping`);
   }
 
-  return undefined;
+  const rawObj = raw as Record<string, unknown>;
+  if (rawObj.reviewer === undefined) return undefined;
+  if (typeof rawObj.reviewer !== 'object' || rawObj.reviewer === null || Array.isArray(rawObj.reviewer)) {
+    throw new Error(`yg-secrets.yaml: 'reviewer' must be a YAML mapping`);
+  }
+
+  if (!providerName) return undefined;
+
+  const reviewerRaw = rawObj.reviewer as Record<string, unknown>;
+  const providerSection = reviewerRaw[providerName];
+  if (providerSection === undefined) return undefined;
+  if (typeof providerSection !== 'object' || providerSection === null || Array.isArray(providerSection)) {
+    throw new Error(`yg-secrets.yaml: 'reviewer.${providerName}' must be a YAML mapping`);
+  }
+
+  return extractSecretFields(providerSection as Record<string, unknown>, providerName);
 }
 
-function extractSecretFields(raw: Record<string, unknown>): Partial<LlmConfig> | undefined {
+function extractSecretFields(raw: Record<string, unknown>, providerName: string): Partial<LlmConfig> | undefined {
+  const ctx = (field: string) => `yg-secrets.yaml at reviewer.${providerName}.${field}`;
   const partial: Partial<LlmConfig> = {};
 
-  if (typeof raw.api_key === 'string') partial.api_key = raw.api_key;
-  if (typeof raw.provider === 'string') partial.provider = raw.provider as LlmConfig['provider'];
-  if (typeof raw.model === 'string') partial.model = raw.model;
-  if (typeof raw.endpoint === 'string') partial.endpoint = raw.endpoint;
-  if (typeof raw.temperature === 'number') partial.temperature = raw.temperature;
-  if (typeof raw.consensus === 'number') partial.consensus = raw.consensus;
-  if (raw.max_tokens !== undefined) partial.max_tokens = raw.max_tokens as LlmConfig['max_tokens'];
+  if (raw.api_key !== undefined) {
+    if (typeof raw.api_key !== 'string') throw new Error(`${ctx('api_key')}: must be a string`);
+    partial.api_key = raw.api_key;
+  }
+  if (raw.provider !== undefined) {
+    if (typeof raw.provider !== 'string') throw new Error(`${ctx('provider')}: must be a string`);
+    partial.provider = raw.provider as LlmConfig['provider'];
+  }
+  if (raw.model !== undefined) {
+    if (typeof raw.model !== 'string') throw new Error(`${ctx('model')}: must be a string`);
+    partial.model = raw.model;
+  }
+  if (raw.endpoint !== undefined) {
+    if (typeof raw.endpoint !== 'string') throw new Error(`${ctx('endpoint')}: must be a string`);
+    partial.endpoint = raw.endpoint;
+  }
+  if (raw.temperature !== undefined) {
+    if (typeof raw.temperature !== 'number') throw new Error(`${ctx('temperature')}: must be a number`);
+    partial.temperature = raw.temperature;
+  }
+  if (raw.consensus !== undefined) {
+    if (typeof raw.consensus !== 'number') throw new Error(`${ctx('consensus')}: must be a number`);
+    partial.consensus = raw.consensus;
+  }
+  if (raw.max_tokens !== undefined) {
+    if (typeof raw.max_tokens !== 'number' && raw.max_tokens !== 'auto') {
+      throw new Error(`${ctx('max_tokens')}: must be a number or 'auto'`);
+    }
+    partial.max_tokens = raw.max_tokens as LlmConfig['max_tokens'];
+  }
 
   return Object.keys(partial).length > 0 ? partial : undefined;
 }

@@ -249,4 +249,86 @@ reviewer:
 
     await rm(tmpDir, { recursive: true, force: true });
   });
+
+  it('throws when top level is not a YAML mapping', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-secrets-top-level-array');
+    const yggDir = path.join(tmpDir, '.yggdrasil');
+    await mkdir(yggDir, { recursive: true });
+    await writeFile(path.join(yggDir, 'yg-secrets.yaml'), `- one\n- two\n`, 'utf-8');
+
+    await expect(loadSecrets(yggDir, 'ollama')).rejects.toThrow(/top level must be a YAML mapping/);
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('throws when reviewer is present but not a mapping', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-secrets-reviewer-string');
+    const yggDir = path.join(tmpDir, '.yggdrasil');
+    await mkdir(yggDir, { recursive: true });
+    await writeFile(path.join(yggDir, 'yg-secrets.yaml'), `reviewer: "not an object"\n`, 'utf-8');
+
+    await expect(loadSecrets(yggDir, 'ollama')).rejects.toThrow(/'reviewer' must be a YAML mapping/);
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('throws when provider section is not a mapping', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-secrets-provider-string');
+    const yggDir = path.join(tmpDir, '.yggdrasil');
+    await mkdir(yggDir, { recursive: true });
+    await writeFile(
+      path.join(yggDir, 'yg-secrets.yaml'),
+      `reviewer:\n  ollama: "not a section"\n`,
+      'utf-8',
+    );
+
+    await expect(loadSecrets(yggDir, 'ollama')).rejects.toThrow(/'reviewer\.ollama' must be a YAML mapping/);
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('throws when api_key is not a string', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-secrets-bad-api-key');
+    const yggDir = path.join(tmpDir, '.yggdrasil');
+    await mkdir(yggDir, { recursive: true });
+    await writeFile(
+      path.join(yggDir, 'yg-secrets.yaml'),
+      `reviewer:\n  ollama:\n    api_key: 42\n`,
+      'utf-8',
+    );
+
+    await expect(loadSecrets(yggDir, 'ollama')).rejects.toThrow(/reviewer\.ollama\.api_key: must be a string/);
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('throws when temperature is not a number', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-secrets-bad-temp');
+    const yggDir = path.join(tmpDir, '.yggdrasil');
+    await mkdir(yggDir, { recursive: true });
+    await writeFile(
+      path.join(yggDir, 'yg-secrets.yaml'),
+      `reviewer:\n  ollama:\n    temperature: "hot"\n`,
+      'utf-8',
+    );
+
+    await expect(loadSecrets(yggDir, 'ollama')).rejects.toThrow(/reviewer\.ollama\.temperature: must be a number/);
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('throws when max_tokens is neither a number nor "auto"', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-secrets-bad-max-tokens');
+    const yggDir = path.join(tmpDir, '.yggdrasil');
+    await mkdir(yggDir, { recursive: true });
+    await writeFile(
+      path.join(yggDir, 'yg-secrets.yaml'),
+      `reviewer:\n  ollama:\n    max_tokens: "big"\n`,
+      'utf-8',
+    );
+
+    await expect(loadSecrets(yggDir, 'ollama')).rejects.toThrow(/reviewer\.ollama\.max_tokens: must be a number or 'auto'/);
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
 });
