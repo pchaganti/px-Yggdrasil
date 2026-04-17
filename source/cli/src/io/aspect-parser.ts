@@ -58,8 +58,8 @@ export async function parseAspect(
     id: idTrimmed,
     description,
     implies,
-    impliesWhens,
-    when,
+    ...(impliesWhens && { impliesWhens }),
+    ...(when && { when }),
     artifacts,
   };
 }
