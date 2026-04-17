@@ -233,10 +233,19 @@ function getChildMappingExclusions(graph: Graph, nodePath: string): string[] {
 }
 /* v8 ignore stop */
 
-/** GC orphaned drift state — remove entries for nodes not in graph */
+/** GC orphaned drift state — remove entries for nodes not in graph or with zero effective aspects */
 async function runGC(graph: Graph): Promise<string[]> {
   const validPaths = new Set(graph.nodes.keys());
-  return garbageCollectDriftState(graph.rootPath, validPaths);
+  return garbageCollectDriftState(
+    graph.rootPath,
+    validPaths,
+    (nodePath) => {
+      const node = graph.nodes.get(nodePath);
+      if (!node) return false;
+      const effective = computeEffectiveAspects(node, graph);
+      return effective.size > 0;
+    },
+  );
 }
 
 /** Persist drift state after LLM verification passes */

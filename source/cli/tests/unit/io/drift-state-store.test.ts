@@ -330,3 +330,26 @@ describe('drift-state-store', () => {
   });
 
 });
+
+describe('garbageCollectDriftState — shouldKeep predicate', () => {
+  it('removes drift file when shouldKeep returns false even though node is in graph', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-drift-should-keep');
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true });
+
+    await writeNodeDriftState(tmpDir, 'a', { hash: 'h', files: {}, mtimes: {} });
+    await writeNodeDriftState(tmpDir, 'b', { hash: 'h', files: {}, mtimes: {} });
+
+    const removed = await garbageCollectDriftState(
+      tmpDir,
+      new Set(['a', 'b']),
+      (nodePath) => nodePath !== 'b',
+    );
+    expect(removed).toContain('b');
+
+    const remaining = await readDriftState(tmpDir);
+    expect(Object.keys(remaining).sort()).toEqual(['a']);
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+});

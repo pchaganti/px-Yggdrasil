@@ -6,7 +6,7 @@ import { loadGraph } from '../../../src/core/graph-loader.js';
 import { approveNode } from '../../../src/core/approve.js';
 import { runLlmVerification } from '../../../src/cli/approve.js';
 import type { LlmConfig } from '../../../src/cli/approve.js';
-import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
+import { writeNodeDriftState, readNodeDriftState } from '../../../src/io/drift-state-store.js';
 import { hashTrackedFiles } from '../../../src/utils/hash.js';
 import { collectTrackedFiles } from '../../../src/core/context-files.js';
 
@@ -292,16 +292,17 @@ describe('approveNode — GC and recording', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('GC does NOT remove valid nodes drift state', async () => {
+  it('GC does NOT remove valid nodes drift state when they have effective aspects', async () => {
     const { tmpDir, yggRoot } = await createTmpProject('gc-valid', {
       nodePath: 'svc/my-service',
-      nodeYaml: 'name: MyService\ntype: service\ndescription: test\nmapping:\n  - src/svc/\n',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - testing\nmapping:\n  - src/svc/\n',
       mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
+      aspects: [TEST_ASPECT],
     });
     await recordBaseline(tmpDir);
     const graph = await loadGraph(tmpDir);
     await approveNode(graph, 'svc/my-service');
-    // Verify the node's own drift state still exists
+    // Verify the node's own drift state still exists (node has effective aspects)
     const { readNodeDriftState: readState } = await import('../../../src/io/drift-state-store.js');
     const state = await readState(yggRoot, 'svc/my-service');
     expect(state).toBeDefined();
@@ -385,6 +386,33 @@ describe('resolveAspects', () => {
     const node = graph.nodes.get('svc/my-service')!;
     const aspects = resolveAspects(node, graph);
     expect(aspects.some(a => a.id === 'direct-aspect')).toBe(true);
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+});
+
+describe('approveNode — zero effective aspects drift cleanup', () => {
+  it('deletes stale drift state file when node has no effective aspects', async () => {
+    const { tmpDir, yggRoot } = await createTmpProject('zero-effective-cleanup', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\nmapping:\n  - src/svc.ts\n',
+      mappingFiles: { 'src/svc.ts': 'export {};\n' },
+    });
+
+    await writeNodeDriftState(yggRoot, 'svc/my-service', {
+      hash: 'stale-hash',
+      files: { 'src/svc.ts': 'stale-hash' },
+      mtimes: { 'src/svc.ts': 0 },
+    });
+
+    const graph = await loadGraph(tmpDir);
+    const result = await approveNode(graph, 'svc/my-service');
+
+    expect(result.action).toBe('approved');
+    expect(result.gcPaths).toContain('svc/my-service');
+
+    const after = await readNodeDriftState(yggRoot, 'svc/my-service');
+    expect(after).toBeUndefined();
+
     await rm(tmpDir, { recursive: true, force: true });
   });
 });

@@ -88,20 +88,24 @@ export async function writeNodeDriftState(
 }
 
 /**
- * Garbage-collect drift state: remove .json files for node paths NOT in validNodePaths.
+ * Garbage-collect drift state: remove .json files for node paths NOT in validNodePaths,
+ * or for which shouldKeep returns false.
  * Cleans up empty parent directories after removal.
  * Returns sorted list of removed node paths.
  */
 export async function garbageCollectDriftState(
   yggRoot: string,
   validNodePaths: Set<string>,
+  shouldKeep?: (nodePath: string) => boolean,
 ): Promise<string[]> {
   const driftDir = path.join(yggRoot, DRIFT_STATE_DIR);
   const allNodePaths = await scanJsonFiles(driftDir, driftDir);
   const removed: string[] = [];
 
   for (const nodePath of allNodePaths) {
-    if (!validNodePaths.has(nodePath)) {
+    const inGraph = validNodePaths.has(nodePath);
+    const keep = inGraph && (shouldKeep ? shouldKeep(nodePath) : true);
+    if (!keep) {
       const filePath = nodeStatePath(yggRoot, nodePath);
       await rm(filePath);
       await removeEmptyParents(filePath, driftDir);

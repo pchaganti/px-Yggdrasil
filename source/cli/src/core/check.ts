@@ -6,7 +6,7 @@ import type {
   TrackedFileLayer,
 } from '../model/drift.js';
 import type { ValidationIssue } from '../model/validation.js';
-import { readDriftState, readNodeDriftState } from '../io/drift-state-store.js';
+import { readDriftState, readNodeDriftState, garbageCollectDriftState } from '../io/drift-state-store.js';
 import { hashTrackedFiles } from '../utils/hash.js';
 import { collectTrackedFiles } from './context-files.js';
 import { normalizeMappingPaths } from '../utils/paths.js';
@@ -420,8 +420,21 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
     coverageIssue = buildCoverageIssue(uncovered, totalFiles);
   }
 
-  // 4. Orphaned drift state
+  // 4. Orphaned drift state — detect BEFORE cleanup so orphans are still visible
   const orphanedPaths = await detectOrphanedDriftState(graph);
+
+  // 4b. Drift state cleanup: remove entries for nodes with zero effective aspects.
+  // Runs after orphan detection so orphaned entries are already captured above.
+  // Symmetric with the runGC behavior in `yg approve`. Silent — no issue emitted.
+  await garbageCollectDriftState(
+    graph.rootPath,
+    new Set(graph.nodes.keys()),
+    (nodePath) => {
+      const node = graph.nodes.get(nodePath);
+      if (!node) return false;
+      return computeEffectiveAspects(node, graph).size > 0;
+    },
+  );
   const yggRelative = path.relative(path.dirname(graph.rootPath), graph.rootPath).replace(/\\/g, '/').replace(/\/+$/, '');
   const orphanWarnings: CheckIssue[] = orphanedPaths.map(p => ({
     severity: 'warning' as const,
