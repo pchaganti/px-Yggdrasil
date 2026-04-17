@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
+import { existsSync } from 'node:fs';
 import { mkdir, writeFile, readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,8 +19,14 @@ import { MIGRATIONS } from '../migrations/index.js';
 // ---------------------------------------------------------------------------
 
 function getPackageRoot(): string {
-  const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  return path.join(currentDir, '..');
+  let dir = path.dirname(fileURLToPath(import.meta.url));
+  while (dir !== path.dirname(dir)) {
+    if (existsSync(path.join(dir, 'package.json'))) {
+      return dir;
+    }
+    dir = path.dirname(dir);
+  }
+  throw new Error('Could not locate package root (no package.json found walking up from init module).');
 }
 
 function getGraphSchemasDir(): string {
