@@ -11,4 +11,12 @@ relations:
   - target: cli/model/drift
     type: uses
 mapping:
-  - source/cli/src/io/
+  - source/cli/src/io/architecture-parser.ts
+  - source/cli/src/io/artifact-reader.ts
+  - source/cli/src/io/aspect-parser.ts
+  - source/cli/src/io/config-parser.ts
+  - source/cli/src/io/drift-state-store.ts
+  - source/cli/src/io/flow-parser.ts
+  - source/cli/src/io/node-parser.ts
+  - source/cli/src/io/schema-parser.ts
+  - source/cli/src/io/secrets-parser.ts

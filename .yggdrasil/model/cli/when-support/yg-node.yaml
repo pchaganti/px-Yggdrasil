@@ -1,0 +1,9 @@
+name: When Support
+type: engine
+description: Pure sub-parser and validator for the `when` applicability filter. Consumes already-parsed YAML values from caller parsers and produces validated WhenPredicate / AspectAttachment objects. No file I/O, no disk reads — not a YAML file parser.
+aspects: []
+relations:
+  - target: cli/model
+    type: uses
+mapping:
+  - source/cli/src/io/when-parser.ts

@@ -1,0 +1,18 @@
+{
+  "hash": "61d10726bc9c7cb211640d88c4dde1970aa8dd7bd6c9df489f1a52889e0341b6",
+  "files": {
+    "own-subset:cli/when-support": "6af265a8bfb7f289b2734e0103f2dd2ab9946b266835ab4282581c0d33c93b80",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/aspects/deterministic/yg-aspect.yaml": "20f321091b4f489efbf167feea9d42d73f7cffb21ea2e86958e565b550da164b",
+    ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
+    ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
+    "source/cli/src/io/when-parser.ts": "e792b6f84d4b53a4868d61b59c4510c80162bc53375f7b2e8df9ff2a91a18ebe"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/aspects/deterministic/yg-aspect.yaml": 1775580563004.8235,
+    ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
+    ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
+    "source/cli/src/io/when-parser.ts": 1776428857784.1924
+  }
+}
