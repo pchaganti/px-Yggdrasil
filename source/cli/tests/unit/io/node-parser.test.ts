@@ -499,7 +499,7 @@ relations:
     await writeFile(nodePath, `name: Bad\ntype: service\naspects:\n  - 123\n`, 'utf-8');
 
     await expect(parseNodeYaml(nodePath)).rejects.toThrow(
-      "aspects[0] must be a string",
+      /aspect attachment must be a string or an object/,
     );
 
     await rm(tmpDir, { recursive: true, force: true });
@@ -512,7 +512,7 @@ relations:
     await writeFile(nodePath, `name: Bad\ntype: service\naspects:\n  - exceptions:\n      - "some note"\n`, 'utf-8');
 
     await expect(parseNodeYaml(nodePath)).rejects.toThrow(
-      "aspects must be an array of strings.",
+      /object form requires 'id' as a non-empty string/,
     );
 
     await rm(tmpDir, { recursive: true, force: true });
@@ -525,7 +525,7 @@ relations:
     await writeFile(nodePath, `name: Bad\ntype: service\naspects:\n  - aspect: my-aspect\n    exceptions: "not-array"\n`, 'utf-8');
 
     await expect(parseNodeYaml(nodePath)).rejects.toThrow(
-      "aspects must be an array of strings.",
+      /object form requires 'id' as a non-empty string/,
     );
 
     await rm(tmpDir, { recursive: true, force: true });
@@ -686,6 +686,77 @@ ports:
       );
 
       await expect(parseNodeYaml(nodePath)).rejects.toThrow(/description/);
+
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+  });
+
+  describe('node-parser — when filter', () => {
+    it('parses object form in aspects', async () => {
+      const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-when');
+      await mkdir(tmpDir, { recursive: true });
+      const nodeYaml = path.join(tmpDir, 'yg-node.yaml');
+      await writeFile(nodeYaml, [
+        'name: Handler',
+        'type: command',
+        'aspects:',
+        '  - simple-aspect',
+        '  - id: conditional-aspect',
+        '    when:',
+        '      relations:',
+        '        calls: { target_type: service-client }',
+      ].join('\n'), 'utf-8');
+
+      const result = await parseNodeYaml(nodeYaml);
+      expect(result.aspects).toEqual(['simple-aspect', 'conditional-aspect']);
+      expect(result.aspectWhens).toEqual({
+        'conditional-aspect': {
+          relations: { calls: { target_type: 'service-client' } },
+        },
+      });
+
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('parses object form in ports.*.aspects', async () => {
+      const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-port-when');
+      await mkdir(tmpDir, { recursive: true });
+      const nodeYaml = path.join(tmpDir, 'yg-node.yaml');
+      await writeFile(nodeYaml, [
+        'name: Svc',
+        'type: service',
+        'ports:',
+        '  charge:',
+        '    description: "Charge port"',
+        '    aspects:',
+        '      - correlation-tracking',
+        '      - id: idempotency',
+        '        when:',
+        '          node: { has_mapping: true }',
+      ].join('\n'), 'utf-8');
+
+      const result = await parseNodeYaml(nodeYaml);
+      expect(result.ports?.charge?.aspects).toEqual(['correlation-tracking', 'idempotency']);
+      expect(result.ports?.charge?.aspectWhens).toEqual({
+        idempotency: { node: { has_mapping: true } },
+      });
+
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('rejects invalid when inside aspects object form', async () => {
+      const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-when-bad');
+      await mkdir(tmpDir, { recursive: true });
+      const nodeYaml = path.join(tmpDir, 'yg-node.yaml');
+      await writeFile(nodeYaml, [
+        'name: X',
+        'type: command',
+        'aspects:',
+        '  - id: a',
+        '    when: { mostly_of: [] }',
+      ].join('\n'), 'utf-8');
+
+      await expect(parseNodeYaml(nodeYaml)).rejects.toThrow(/unknown when operator 'mostly_of'/);
 
       await rm(tmpDir, { recursive: true, force: true });
     });

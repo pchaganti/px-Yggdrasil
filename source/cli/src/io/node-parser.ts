@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { parse as parseYaml } from 'yaml';
 import type { NodeMeta, PortDef, Relation, RelationType } from '../model/graph.js';
+import { parseAspectAttachment } from './when-parser.js';
+import type { WhenPredicate } from '../model/when.js';
 
 const RELATION_TYPES: RelationType[] = [
   'uses',
@@ -33,61 +35,51 @@ export async function parseNodeYaml(filePath: string): Promise<NodeMeta> {
   const description = typeof raw.description === 'string' ? raw.description.trim() : undefined;
   const relations = parseRelations(raw.relations, filePath);
   const mapping = parseMapping(raw.mapping, filePath);
-  const aspects = parseAspects(raw.aspects, filePath);
+  const aspectsResult = parseAspects(raw.aspects, filePath);
   const ports = parsePorts(raw.ports, filePath);
 
   return {
     name: (raw.name as string).trim(),
     type: (raw.type as string).trim(),
     description,
-    aspects,
+    aspects: aspectsResult.aspects,
+    aspectWhens: aspectsResult.aspectWhens,
     relations: relations.length > 0 ? relations : undefined,
     mapping,
     ports,
   };
 }
 
-function parseAspects(raw: unknown, filePath: string): string[] | undefined {
-  if (raw === undefined || raw === null) return undefined;
+function parseAspects(
+  raw: unknown,
+  filePath: string,
+): { aspects?: string[]; aspectWhens?: Record<string, WhenPredicate> } {
+  if (raw === undefined || raw === null) return {};
   if (!Array.isArray(raw)) {
     throw new Error(`yg-node.yaml at ${filePath}: 'aspects' must be an array`);
   }
-  if (raw.length === 0) return undefined;
+  if (raw.length === 0) return {};
 
-  const result: string[] = [];
-  const seenAspects = new Set<string>();
+  const aspects: string[] = [];
+  let aspectWhens: Record<string, WhenPredicate> | undefined;
+  const seen = new Set<string>();
 
   for (let i = 0; i < raw.length; i++) {
-    const item = raw[i];
-
-    let aspectId: string;
-
-    if (typeof item === 'string') {
-      // New format: flat string array
-      aspectId = item.trim();
-      if (aspectId === '') {
-        throw new Error(
-          `yg-node.yaml at ${filePath}: aspects[${i}] must be a non-empty string`,
-        );
-      }
-    } else if (typeof item === 'object' && item !== null) {
-      throw new Error(
-        `yg-node.yaml at ${filePath}: aspects must be an array of strings.`,
-      );
-    } else {
-      throw new Error(`yg-node.yaml at ${filePath}: aspects[${i}] must be a string`);
+    const parsed = parseAspectAttachment(
+      raw[i],
+      `yg-node.yaml at ${filePath}: aspects[${i}]`,
+    );
+    if (seen.has(parsed.id)) {
+      throw new Error(`yg-node.yaml at ${filePath}: duplicate aspect '${parsed.id}' in aspects list`);
     }
-
-    if (seenAspects.has(aspectId)) {
-      throw new Error(
-        `yg-node.yaml at ${filePath}: duplicate aspect '${aspectId}' in aspects list`,
-      );
+    seen.add(parsed.id);
+    aspects.push(parsed.id);
+    if (parsed.when) {
+      (aspectWhens ??= {})[parsed.id] = parsed.when;
     }
-    seenAspects.add(aspectId);
-    result.push(aspectId);
   }
 
-  return result.length > 0 ? result : undefined;
+  return { aspects: aspects.length > 0 ? aspects : undefined, aspectWhens };
 }
 
 function parseRelations(raw: unknown, filePath: string): Relation[] {
@@ -197,14 +189,28 @@ function parsePorts(rawPorts: unknown, filePath: string): Record<string, PortDef
       throw new Error(`yg-node.yaml at ${filePath}: ports.${name}.aspects must be an array`);
     }
 
-    const aspects = (obj.aspects as unknown[]).map((a, i) => {
-      if (typeof a !== 'string' || a.trim() === '') {
-        throw new Error(`yg-node.yaml at ${filePath}: ports.${name}.aspects[${i}] must be a non-empty string`);
+    const portAspects: string[] = [];
+    let portAspectWhens: Record<string, WhenPredicate> | undefined;
+    const seenPortAspects = new Set<string>();
+    for (let i = 0; i < (obj.aspects as unknown[]).length; i++) {
+      const parsed = parseAspectAttachment(
+        (obj.aspects as unknown[])[i],
+        `yg-node.yaml at ${filePath}: ports.${name}.aspects[${i}]`,
+      );
+      if (seenPortAspects.has(parsed.id)) {
+        throw new Error(`yg-node.yaml at ${filePath}: ports.${name}.aspects has duplicate '${parsed.id}'`);
       }
-      return a.trim();
-    });
-
-    ports[name] = { description: obj.description.trim(), aspects };
+      seenPortAspects.add(parsed.id);
+      portAspects.push(parsed.id);
+      if (parsed.when) {
+        (portAspectWhens ??= {})[parsed.id] = parsed.when;
+      }
+    }
+    ports[name] = {
+      description: obj.description.trim(),
+      aspects: portAspects,
+      ...(portAspectWhens && { aspectWhens: portAspectWhens }),
+    };
   }
 
   return Object.keys(ports).length > 0 ? ports : undefined;
