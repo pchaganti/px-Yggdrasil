@@ -14,4 +14,3 @@ mapping:
   - source/cli/tests/unit/core/migrator.test.ts
   - source/cli/tests/unit/migrations/to-4.0.0.test.ts
   - source/cli/tests/unit/core/when-evaluator.test.ts
-  - source/cli/tests/unit/model/when.test.ts

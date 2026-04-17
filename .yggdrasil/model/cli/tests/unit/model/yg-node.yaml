@@ -1,0 +1,7 @@
+name: Model Unit Tests
+type: test
+description: Unit tests for TypeScript model types, currently covering the WhenPredicate type shape.
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/model/when.test.ts
