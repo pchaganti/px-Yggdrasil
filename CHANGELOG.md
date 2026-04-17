@@ -27,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lists alongside bare strings. Bare-string form remains unchanged.
 - Reviewer no longer receives aspects filtered out by `when`. Existing graphs
   without `when` behave identically.
+- `yg init` interactive upgrade now prompts for the agent platform on version
+  mismatch and refreshes the platform-specific rules file alongside schemas
+  and the config version. The `--upgrade --platform` flag path now runs
+  pending migrations in addition to refreshing schemas and rules. When the
+  flag path runs against a config without a `version:` field, it now exits
+  with a structured diagnostic instead of silently skipping migrations.
 
 ## [4.1.0] - 2026-04-16
 
