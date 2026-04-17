@@ -240,4 +240,20 @@ describe('aspect-parser — when filter', () => {
 
     await rm(tmpDir, { recursive: true, force: true });
   });
+
+  it('rejects non-string non-object entries in implies', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-implies-bad');
+    await mkdir(tmpDir, { recursive: true });
+    const aspectYaml = path.join(tmpDir, 'yg-aspect.yaml');
+    await writeFile(aspectYaml, [
+      'name: ExampleAspect',
+      'implies:',
+      '  - 42',
+    ].join('\n'), 'utf-8');
+
+    await expect(parseAspect(tmpDir, aspectYaml, 'example'))
+      .rejects.toThrow(/aspect attachment must be a string or an object/);
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
 });
