@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Conditional aspects: declarative `when` predicate that filters aspect
+  applicability per node against the graph. Aspects with `when=false` are
+  silently skipped without invoking the reviewer. Declarable globally on
+  aspects, at every attach site (node, type default, port, flow, implies),
+  and supports boolean composition (`all_of`, `any_of`, `not`) over atomic
+  clauses on node relations, descendants, and properties. See
+  `docs/conditional-aspects.md`.
+- Drift state cleanup: nodes whose effective aspect set becomes empty now
+  have their drift state files removed by `yg approve`'s GC pass and by
+  `yg check`'s cleanup pass.
+
+### Changed
+
+- `yg-node.yaml`, `yg-architecture.yaml`, `yg-flow.yaml`, and `yg-aspect.yaml`
+  accept an object form (`- id: X`, `when: {...}`) in aspect attachment
+  lists alongside bare strings. Bare-string form remains unchanged.
+- Reviewer no longer receives aspects filtered out by `when`. Existing graphs
+  without `when` behave identically.
+
 ## [4.1.0] - 2026-04-16
 
 ### Added
