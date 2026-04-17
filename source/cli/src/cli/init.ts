@@ -432,6 +432,46 @@ async function createYggdrasilStructure(
 }
 
 // ---------------------------------------------------------------------------
+// Version upgrade — shared between interactive existingInit and flag path
+// ---------------------------------------------------------------------------
+
+export interface VersionUpgradeResult {
+  rulesPath: string;
+  migrationActions: string[];
+  migrationWarnings: string[];
+}
+
+export async function runVersionUpgrade(
+  projectRoot: string,
+  yggRoot: string,
+  fromVersion: string,
+  toVersion: string,
+  platform: Platform,
+): Promise<VersionUpgradeResult> {
+  const migrationResults = await runMigrations(fromVersion, MIGRATIONS, yggRoot);
+  await updateConfigVersion(yggRoot, toVersion);
+  await refreshSchemas(yggRoot);
+
+  const architecturePath = path.join(yggRoot, 'yg-architecture.yaml');
+  try {
+    await stat(architecturePath);
+  } catch {
+    await writeFile(architecturePath, DEFAULT_ARCHITECTURE, 'utf-8');
+  }
+
+  const rulesPath = await installRulesForPlatform(projectRoot, platform);
+
+  const migrationActions: string[] = [];
+  const migrationWarnings: string[] = [];
+  for (const r of migrationResults) {
+    migrationActions.push(...r.actions);
+    migrationWarnings.push(...r.warnings);
+  }
+
+  return { rulesPath, migrationActions, migrationWarnings };
+}
+
+// ---------------------------------------------------------------------------
 // Existing repo menu
 // ---------------------------------------------------------------------------
 
