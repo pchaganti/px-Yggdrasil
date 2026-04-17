@@ -10,3 +10,4 @@ mapping:
   - docs/configuration.md
   - docs/platforms.md
   - docs/index.md
+  - docs/conditional-aspects.md

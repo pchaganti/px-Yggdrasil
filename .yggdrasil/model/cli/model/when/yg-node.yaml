@@ -1,0 +1,7 @@
+name: WhenPredicateTypes
+type: types
+description: Type definitions for the `when` applicability filter — WhenPredicate, AtomicClause, BooleanClause, RelationMatch, DescendantsClause, NodeClause
+aspects: []
+relations: []
+mapping:
+  - source/cli/src/model/when.ts
