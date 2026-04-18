@@ -1,6 +1,6 @@
 {
   "name": "@chrisdudek/yg",
-  "version": "4.1.0",
+  "version": "4.2.0",
   "description": "Continuous architecture enforcement for AI-assisted development. Aspects, review, enforcement.",
   "type": "module",
   "bin": {
