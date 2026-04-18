@@ -1,9 +1,8 @@
 name: CLI Package Docs
 type: project
-description: "Package-level documentation and build helper scripts: CLAUDE.md agent rules reference, README, and scripts/"
+description: "Package-level documentation and build helper scripts: README and scripts/."
 aspects: []
 relations: []
 mapping:
-  - source/cli/CLAUDE.md
   - source/cli/README.md
   - source/cli/scripts/
