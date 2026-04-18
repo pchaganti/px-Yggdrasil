@@ -232,7 +232,7 @@ bigText = [
 
 bigText = [
   { text: 'YGGDRASIL', color: WHITE, font: '900 52px sans-serif' },
-  { text: 'Continuous architecture enforcement for AI-assisted development', color: '#888', font: '18px sans-serif' },
+  { text: 'Continuous code review for AI-assisted development', color: '#888', font: '18px sans-serif' },
   { text: 'npm install -g @chrisdudek/yg', color: GREEN, font: '14px monospace' },
 ]; frames(20);
 

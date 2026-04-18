@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="docs/public/demo.gif" alt="Yggdrasil enforcement loop" width="900" />
+  <img src="docs/public/demo.gif" alt="Yggdrasil review loop" width="900" />
 </p>
 
 # Yggdrasil
 
-**Continuous architecture enforcement for AI-assisted development.**
+**Continuous code review for AI-assisted development.**
 
 [![CI](https://github.com/krzysztofdudek/Yggdrasil/actions/workflows/ci.yml/badge.svg)](https://github.com/krzysztofdudek/Yggdrasil/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@chrisdudek/yg.svg)](https://www.npmjs.com/package/@chrisdudek/yg)
@@ -29,7 +29,7 @@ A rules file is a suggestion. There are no consequences for ignoring it, and no 
 
 You write rules in plain Markdown. "Every public endpoint must use rate limiting." "All command handlers must validate input with zod." "No direct database access from this layer." These are called **aspects**.
 
-Every time the agent writes code, it runs `yg approve`. A reviewer LLM reads the source files and checks them against every rule that applies. If something doesn't pass, the agent gets specific feedback, fixes it, and re-verifies. This happens while the agent is working, not when you're reviewing a PR.
+Every time the agent writes code, it runs `yg approve`. A reviewer LLM reads the source files and checks them against every rule that applies. If something doesn't pass, the agent gets specific feedback, fixes it, and re-verifies. This is code review while the agent is working, not after.
 
 ```
 agent writes code
@@ -47,6 +47,10 @@ Rules are scoped. The agent sees only the 3-5 rules relevant to the file it's wo
 **New project:** define rules before writing code. The agent builds the graph structure as it implements features. Every new file is verified from the start.
 
 **Existing project:** map the areas you're actively working on. Everything else stays unmapped until you need it. Coverage grows as you work, not as a day-one setup cost.
+
+## Rules can be anything enforceable
+
+Team conventions. Company standards. ISO compliance. Architecture boundaries. Error handling patterns. Logging formats. If you can describe it in plain language and a reviewer can check it, Yggdrasil enforces it.
 
 ## Getting started
 
@@ -95,10 +99,13 @@ Works with any AI coding agent. `yg init` sets up the rules file your agent expe
 ## FAQ
 
 **How is this different from CLAUDE.md or .cursorrules?**
-Rules files are flat text dumped into every prompt. No scoping, no verification. Yggdrasil delivers only the rules relevant to each file and checks compliance after every change.
+Rules files are flat text dumped into every prompt. No scoping, no verification. Yggdrasil delivers only the rules relevant to each file and reviews the output against them.
 
 **How is this different from linters?**
-Linters check syntax and patterns. "Rate limiting required" isn't a lint rule. "No direct DB access from this layer" isn't in any AST. "All mutations must emit audit events" can't be checked with regex. Yggdrasil enforces rules that only exist in your head until you write them down.
+Linters check syntax and patterns. "Rate limiting required" isn't a lint rule. "No direct DB access from this layer" isn't in any AST. "All mutations must emit audit events" can't be checked with regex. Yggdrasil reviews against rules that only exist in your head until you write them down.
+
+**How is this different from a PR review?**
+PR review happens after the code is written. By then the agent has moved on, context is lost, and you're catching up. Yggdrasil reviews while the agent is working, so violations get fixed in the same session.
 
 **Does it work?**
 `yg check` in CI compares file hashes. No LLM calls, pure hash comparison. If source files changed without being verified, check fails. Locally, `yg approve` sends code to the reviewer LLM. If a PR has unverified changes, CI catches it.
