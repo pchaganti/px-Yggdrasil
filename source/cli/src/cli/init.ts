@@ -498,38 +498,31 @@ async function existingInit(projectRoot: string): Promise<void> {
   const cliVersion = await getCliVersion();
 
   if (currentVersion && currentVersion !== cliVersion) {
-    const migrate = await p.confirm({
-      message: `Graph version ${currentVersion} detected — CLI is ${cliVersion}. Run migration?`,
-      initialValue: true,
-    });
-    assertNotCancelled(migrate);
+    p.log.step(`Graph version ${currentVersion} detected — CLI is ${cliVersion}. Upgrade required.`);
+    p.log.info('Select the agent platform so rules and schemas advance together.');
+    const platform = await promptPlatform();
 
-    if (migrate) {
-      p.log.info('Select the agent platform so rules and schemas advance together.');
-      const platform = await promptPlatform();
+    const s = p.spinner();
+    s.start('Running migrations and installing rules...');
+    const result = await runVersionUpgrade(projectRoot, yggRoot, currentVersion, cliVersion, platform);
+    s.stop('Upgrade complete.');
 
-      const s = p.spinner();
-      s.start('Running migrations and installing rules...');
-      const result = await runVersionUpgrade(projectRoot, yggRoot, currentVersion, cliVersion, platform);
-      s.stop('Migration complete.');
-
-      for (const action of result.migrationActions) {
-        p.log.info(action);
-      }
-      for (const warning of result.migrationWarnings) {
-        p.log.warning(warning);
-      }
-
-      p.log.step('Next steps:');
-      p.log.info('1. Run yg check to verify graph integrity');
-      p.log.info('2. Run yg approve on all nodes to establish baselines');
-      p.outro(
-        chalk.green(
-          `Migrated from ${currentVersion} to ${cliVersion}. Rules installed: ${path.relative(projectRoot, result.rulesPath)}`,
-        ),
-      );
-      return;
+    for (const action of result.migrationActions) {
+      p.log.info(action);
     }
+    for (const warning of result.migrationWarnings) {
+      p.log.warning(warning);
+    }
+
+    p.log.step('Next steps:');
+    p.log.info('1. Run yg check to verify graph integrity');
+    p.log.info('2. Run yg approve on all nodes to establish baselines');
+    p.outro(
+      chalk.green(
+        `Migrated from ${currentVersion} to ${cliVersion}. Rules installed: ${path.relative(projectRoot, result.rulesPath)}`,
+      ),
+    );
+    return;
   }
 
   const action = await p.select<string>({
@@ -545,17 +538,9 @@ async function existingInit(projectRoot: string): Promise<void> {
   switch (action) {
     case 'upgrade': {
       const platform = await promptPlatform();
-      await refreshSchemas(yggRoot);
-
-      const architecturePath = path.join(yggRoot, 'yg-architecture.yaml');
-      try {
-        await stat(architecturePath);
-      } catch {
-        await writeFile(architecturePath, DEFAULT_ARCHITECTURE, 'utf-8');
-      }
-
-      const rulesPath = await installRulesForPlatform(projectRoot, platform);
-      p.outro(chalk.green(`Rules and schemas refreshed: ${path.relative(projectRoot, rulesPath)}`));
+      const fromVersion = currentVersion ?? cliVersion;
+      const result = await runVersionUpgrade(projectRoot, yggRoot, fromVersion, cliVersion, platform);
+      p.outro(chalk.green(`Rules and schemas refreshed: ${path.relative(projectRoot, result.rulesPath)}`));
       break;
     }
     case 'reviewer': {

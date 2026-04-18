@@ -27,12 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lists alongside bare strings. Bare-string form remains unchanged.
 - Reviewer no longer receives aspects filtered out by `when`. Existing graphs
   without `when` behave identically.
-- `yg init` interactive upgrade now prompts for the agent platform on version
-  mismatch and refreshes the platform-specific rules file alongside schemas
-  and the config version. The `--upgrade --platform` flag path now runs
-  pending migrations in addition to refreshing schemas and rules. When the
-  flag path runs against a config without a `version:` field, it now exits
-  with a structured diagnostic instead of silently skipping migrations.
+- `yg init` detects CLI/graph version mismatch and upgrades non-optionally:
+  the user selects their agent platform and `yg init` runs migrations,
+  refreshes schemas, and reinstalls the platform-specific rules file in one
+  step. The previous yes/no "Run migration?" prompt is gone — if the CLI
+  was upgraded, the graph upgrades with it. The `--upgrade --platform` flag
+  path uses the same helper and exits with a structured diagnostic when the
+  config lacks a `version:` field. The existing action-menu entry
+  "Upgrade rules and schemas" shares the same code path.
 
 ## [4.1.0] - 2026-04-16
 
