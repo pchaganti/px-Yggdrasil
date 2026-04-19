@@ -4,7 +4,9 @@
 
 # Yggdrasil
 
-**Continuous code review for AI-assisted development.**
+**Your agent will ignore CLAUDE.md. Yggdrasil makes sure it doesn't.**
+
+An LLM reviewer that enforces your architecture rules on every change your coding agent makes — Claude Code, Cursor, Copilot, Codex, Cline. If the code violates a rule, the agent gets specific feedback and has to fix it before moving on. Review happens in the loop, not after on a PR.
 
 [![CI](https://github.com/krzysztofdudek/Yggdrasil/actions/workflows/ci.yml/badge.svg)](https://github.com/krzysztofdudek/Yggdrasil/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@chrisdudek/yg.svg)](https://www.npmjs.com/package/@chrisdudek/yg)
@@ -14,6 +16,10 @@
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/SZTbgsH8Wm)
 
 ---
+
+I built this after watching Claude Code quietly skip audit logging on a payment mutation for the third time. CLAUDE.md said to emit audit events. The agent read it. The agent ignored it. Tests passed. Lint passed. I only caught it because I happened to diff that specific file.
+
+A rules file is a suggestion. This is the reviewer that turns it into a rule.
 
 ## The problem
 

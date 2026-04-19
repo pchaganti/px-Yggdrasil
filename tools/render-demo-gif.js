@@ -232,7 +232,8 @@ bigText = [
 
 bigText = [
   { text: 'YGGDRASIL', color: WHITE, font: '900 52px sans-serif' },
-  { text: 'Continuous code review for AI-assisted development', color: '#888', font: '18px sans-serif' },
+  { text: 'Your agent will ignore CLAUDE.md.', color: '#888', font: '20px sans-serif' },
+  { text: 'Yggdrasil makes sure it doesn\u2019t.', color: WHITE, font: 'bold 22px sans-serif' },
   { text: 'npm install -g @chrisdudek/yg', color: GREEN, font: '14px monospace' },
 ]; frames(20);
 
