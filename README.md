@@ -13,7 +13,7 @@ An LLM reviewer that enforces your architecture rules on every change your codin
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![codecov](https://codecov.io/gh/krzysztofdudek/Yggdrasil/graph/badge.svg)](https://codecov.io/gh/krzysztofdudek/Yggdrasil)
 [![GitHub Stars](https://img.shields.io/github/stars/krzysztofdudek/Yggdrasil)](https://github.com/krzysztofdudek/Yggdrasil)
-[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/SZTbgsH8Wm)
+[![GitHub Discussions](https://img.shields.io/badge/Discussions-Join-181717?logo=github&logoColor=white)](https://github.com/krzysztofdudek/Yggdrasil/discussions)
 
 ---
 
@@ -138,9 +138,9 @@ MIT
 <div align="center">
   <img src="docs/public/logo.svg" alt="Yggdrasil" width="150" />
   <br/><br/>
-  <a href="https://discord.gg/SZTbgsH8Wm">
-    <img src="https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white" alt="Discord" />
+  <a href="https://github.com/krzysztofdudek/Yggdrasil/discussions">
+    <img src="https://img.shields.io/badge/Discussions-Join-181717?logo=github&logoColor=white" alt="GitHub Discussions" />
   </a>
   <br/>
-  <sub>Questions? Join the Discord.</sub>
+  <sub>Questions? Open a discussion on GitHub.</sub>
 </div>
