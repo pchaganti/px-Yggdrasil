@@ -1,8 +1,10 @@
 # @chrisdudek/yg
 
-Yggdrasil CLI — continuous architecture enforcement for AI-assisted development.
+**Your agent will ignore CLAUDE.md. Yggdrasil makes sure it doesn't.**
 
-See the [main README](../../README.md) for documentation, or visit
+An LLM reviewer that enforces your architecture rules on every change your coding agent makes — Claude Code, Cursor, Copilot, Codex, Cline. If the code violates a rule, the agent gets specific feedback and has to fix it before moving on. Review happens in the loop, not after on a PR.
+
+See the [main README](https://github.com/krzysztofdudek/Yggdrasil#readme) for documentation, or visit
 [krzysztofdudek.github.io/Yggdrasil](https://krzysztofdudek.github.io/Yggdrasil/).
 
 ## Install
