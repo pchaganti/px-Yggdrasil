@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   comparison table and a new FAQ entry addressing the "just another AI
   code review bot?" objection. No code or behavior changes.
 
+### Fixed
+
+- Release workflow now skips `npm publish` and GitHub release creation
+  when the current `source/cli/package.json` version is already on npm.
+  Previously, a non-version edit to `source/cli/package.json` triggered
+  `tag-release` (which correctly no-op'd on the existing tag) but still
+  reported `success`, causing the downstream `release` workflow to attempt
+  re-publishing and fail with `E403 already published`.
+
 ## [4.2.0] - 2026-04-18
 
 ### Added

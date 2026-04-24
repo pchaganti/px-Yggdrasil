@@ -22,20 +22,37 @@ jobs:
           fetch-tags: true
       - name: Get version
         id: version
-        run: echo "tag=v$(jq -r '.version' source/cli/package.json)" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=$(jq -r '.version' source/cli/package.json)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+      - name: Check npm for existing version
+        id: npm-check
+        run: |
+          if npm view "@chrisdudek/yg@${{ steps.version.outputs.version }}" version > /dev/null 2>&1; then
+            echo "published=true" >> $GITHUB_OUTPUT
+            echo "::notice::Version ${{ steps.version.outputs.version }} already published on npm. Skipping publish + GitHub release."
+          else
+            echo "published=false" >> $GITHUB_OUTPUT
+          fi
       - uses: actions/setup-node@v6
+        if: steps.npm-check.outputs.published == 'false'
         with:
           node-version: 22
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
+        if: steps.npm-check.outputs.published == 'false'
         working-directory: source/cli
       - run: npm run build
+        if: steps.npm-check.outputs.published == 'false'
         working-directory: source/cli
       - run: npm publish --provenance --access public
+        if: steps.npm-check.outputs.published == 'false'
         working-directory: source/cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - uses: softprops/action-gh-release@v3
+        if: steps.npm-check.outputs.published == 'false'
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           generate_release_notes: true
