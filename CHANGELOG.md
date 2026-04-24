@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Repositioned README, npm package description, and GitHub metadata away
+  from "LLM reviewer" as the category claim toward "architecture
+  enforcement / guardrails." Mechanism description retained deeper in the
+  README. Added a "Too heavy? Try AutoReview" sibling-tool section with a
+  comparison table and a new FAQ entry addressing the "just another AI
+  code review bot?" objection. No code or behavior changes.
+
 ## [4.2.0] - 2026-04-18
 
 ### Added

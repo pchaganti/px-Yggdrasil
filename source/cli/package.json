@@ -1,7 +1,7 @@
 {
   "name": "@chrisdudek/yg",
   "version": "4.2.0",
-  "description": "Continuous architecture enforcement for AI-assisted development. Aspects, review, enforcement.",
+  "description": "Architecture rules your coding agent can't ignore. Written in Markdown, verified on every change, enforced in the agent's loop — not after on a PR. Works with Claude Code, Cursor, Copilot, Codex, Cline.",
   "type": "module",
   "bin": {
     "yg": "dist/bin.js"
@@ -28,13 +28,19 @@
   },
   "keywords": [
     "yggdrasil",
-    "ai-agents",
     "architecture-enforcement",
-    "code-review",
-    "ai-governance",
+    "code-guardrails",
+    "agentic-guardrails",
+    "rule-engine",
+    "agents-md",
+    "claude-md",
+    "claude-code",
+    "ai-agents",
+    "coding-agents",
+    "ai-coding",
+    "ai-assisted-development",
     "cli",
-    "developer-tools",
-    "ai-coding"
+    "developer-tools"
   ],
   "author": "Krzysztof Dudek <me@chrisdudek.com>",
   "license": "MIT",

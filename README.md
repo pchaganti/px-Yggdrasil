@@ -6,7 +6,7 @@
 
 **Your agent will ignore CLAUDE.md. Yggdrasil makes sure it doesn't.**
 
-An LLM reviewer that enforces your architecture rules on every change your coding agent makes — Claude Code, Cursor, Copilot, Codex, Cline. If the code violates a rule, the agent gets specific feedback and has to fix it before moving on. Review happens in the loop, not after on a PR.
+Architecture rules your agent can't ignore. You write them in plain Markdown; a reviewer verifies every change and feeds violations back into the agent's loop — before it moves on. Works with Claude Code, Cursor, Copilot, Codex, Cline, and more. The reviewer runs against your code, not your diffs. The feedback is specific, and the agent has to fix before moving on.
 
 [![CI](https://github.com/krzysztofdudek/Yggdrasil/actions/workflows/ci.yml/badge.svg)](https://github.com/krzysztofdudek/Yggdrasil/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@chrisdudek/yg.svg)](https://www.npmjs.com/package/@chrisdudek/yg)
@@ -53,6 +53,20 @@ Rules are scoped. The agent sees only the 3-5 rules relevant to the file it's wo
 **New project:** define rules before writing code. The agent builds the graph structure as it implements features. Every new file is verified from the start.
 
 **Existing project:** map the areas you're actively working on. Everything else stays unmapped until you need it. Coverage grows as you work, not as a day-one setup cost.
+
+## Too heavy? Try AutoReview
+
+If you don't need a cross-file graph and just want per-file Markdown rules verified on every commit, [AutoReview](https://github.com/krzysztofdudek/AutoReview) is the lighter sibling. It ships as a Claude Code plugin, has zero npm deps, and runs against a local Ollama by default.
+
+|                      | Yggdrasil                       | AutoReview                    |
+| -------------------- | ------------------------------- | ----------------------------- |
+| Scope                | Cross-file, graph-aware         | Per-file only                 |
+| Setup                | Map your codebase               | Write a Markdown rule         |
+| CI                   | Hash-based incremental verify   | Pre-commit hook or `validate` |
+| Distribution         | npm package with CLI            | Claude Code plugin with CLI   |
+| When to reach for it | Rules that reason across files  | One rule on one file          |
+
+Both use the same reviewer loop and the same rule-authoring style. Start with AutoReview, graduate to Yggdrasil when rules need to span files.
 
 ## Rules can be anything enforceable
 
@@ -118,6 +132,9 @@ PR review happens after the code is written. By then the agent has moved on, con
 
 **What if I want to stop?**
 Delete `.yggdrasil/` and the rules file. No runtime dependencies, no build hooks, nothing left behind.
+
+**Is this just another AI code review bot?**
+No. AI code review bots scan diffs for bugs after the fact. Yggdrasil runs a reviewer against specific rules you wrote, inside the agent's loop, so violations get fixed in the same session rather than piling up in a PR that nobody has time to read. The rules are yours; the enforcement is what Yggdrasil adds.
 
 ## Examples
 
