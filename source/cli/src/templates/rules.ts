@@ -29,7 +29,7 @@ The CLI (\`yg\`) reads and validates — it never modifies files. You create and
 
 **Nodes** — components. \`model/<path>/yg-node.yaml\` with name, type, description, mapping (source files), relations, aspects, ports. Nodes nest by directory — children inherit parent aspects.
 
-**Aspects** — enforceable rules. \`aspects/<id>/yg-aspect.yaml\` + content \`.md\` files. The content files are what the reviewer checks against source code. An aspect can declare \`implies: [other-aspect]\` — implied aspects are included recursively (must be acyclic).
+**Aspects** — enforceable rules. \`aspects/<id>/yg-aspect.yaml\` + rule files. An aspect is verified by an LLM reviewer (when \`content.md\` is present) or an AST reviewer (when \`check.mjs\` is present). Exactly one form is allowed per aspect. An aspect can declare \`implies: [other-aspect]\` — implied aspects are included recursively (must be acyclic).
 
 **Flows** — business processes. \`flows/<name>/yg-flow.yaml\` with name, description, nodes (participants), aspects. Flow-level aspects propagate to all participants. Descendants of a declared participant are automatically included — adding a parent node to a flow covers all its children.
 
@@ -137,9 +137,11 @@ Do not interrupt \`yg approve\` — it processes each aspect across all source f
 | \`yg impact --aspect <id>\` | All nodes affected by this aspect |
 | \`yg impact --flow <name>\` | All nodes in this flow |
 | \`yg tree [--root <path>] [--depth <n>]\` | Browse graph structure — all nodes with type and description |
-| \`yg aspects\` | List all aspects with usage counts and sources |
+| \`yg aspects\` | List all aspects with usage counts, reviewer type, and sources |
 | \`yg flows\` | List all flows with participants and aspects |
 | \`yg owner --file <path>\` | Find which node owns a source file |
+| \`yg ast-test --aspect <id> --files <paths...>\` | Run AST aspect check against ad-hoc files (no baseline) |
+| \`yg ast-test --aspect <id> --node <path>\` | Run AST aspect check against a node's mapped files |
 | \`yg init\` | Bootstrap or refresh \`.yggdrasil/\` setup |
 
 ### Impact and Cost
@@ -163,7 +165,7 @@ const DECISIONS = `## DECISIONS
 
 **Start of conversation:** \`yg check\`. If errors — fix before any other work. \`yg check\` failures block commits and CI. Nothing passes until check is clean.
 
-**Before touching a source file:** \`yg context --file <path>\`. Read the aspect content files listed under \`read:\`. These are the rules the reviewer will check your code against. For blast radius: \`yg impact --file <path>\`.
+**Before touching a source file:** \`yg context --file <path>\`. Read the files listed under \`read:\` — these are the rules the reviewer will check your code against. For LLM aspects, \`read:\` points to \`content.md\`. For AST aspects (\`reviewer: ast\`), \`read:\` points to \`check.mjs\` — read it to know what structural rules will be enforced. For blast radius: \`yg impact --file <path>\`.
 
 **After modifying code:** \`yg check\` → fix errors → \`yg approve --node <path>\`. Approve is part of the change — the change is not done until approve passes. Do not defer approval.
 
@@ -175,7 +177,7 @@ const DECISIONS = `## DECISIONS
 
 ### When to Create Graph Elements
 
-**Aspect** — when the same pattern appears in 3+ files AND the reviewer can verify it against source code. Both conditions. "Every handler logs audit trail" — pattern + verifiable = aspect. "Code should be readable" — not verifiable, not an aspect. Read \`schemas/yg-aspect.yaml\` before creating. Content \`.md\` files state WHAT must be satisfied and WHY — use the user's words, never invent rationale. Things that do NOT become aspects: knowledge already visible in source code (imports, config), non-enforceable knowledge (business strategy, personas, pricing), and conventions the reviewer cannot check against code.
+**Aspect** — when the same pattern appears in 3+ files AND the reviewer can verify it against source code. Both conditions. "Every handler logs audit trail" — pattern + verifiable = aspect. "Code should be readable" — not verifiable, not an aspect. Read \`schemas/yg-aspect.yaml\` before creating. Choose reviewer: use \`reviewer: ast\` (+ \`check.mjs\`) for structural rules verifiable by syntax — forbidden API calls, naming conventions, import restrictions. Use \`reviewer: llm\` (+ \`content.md\`, the default) for semantic rules that need judgment. Content \`.md\` files state WHAT must be satisfied and WHY — use the user's words, never invent rationale. Things that do NOT become aspects: knowledge already visible in source code (imports, config), non-enforceable knowledge (business strategy, personas, pricing), and conventions the reviewer cannot check against code.
 
 **Flow** — when you see a sequence of steps toward a business goal. Not code call sequences — real-world processes. "User places an order" = flow. "Handler calls service" = relation between nodes. Read \`schemas/yg-flow.yaml\` before creating.
 
@@ -227,6 +229,50 @@ Source code comments with \`yg-suppress(<aspect-path>) <reason>\` waive a specif
 - Provide the correct aspect-path from graph context, ask the user for the reason
 - You do not invent reasons — the user provides or approves them
 - The marker applies contextually to surrounding code (function, class, block). At file level, it applies to the entire file.
+
+### Writing AST Aspects
+
+AST aspects use \`reviewer: ast\` in \`yg-aspect.yaml\` and ship a \`check.mjs\` file instead of \`content.md\`. The check function is deterministic, synchronous, and receives a typed context:
+
+\`\`\`javascript
+import { ast } from '@chrisdudek/yg/ast';
+
+export function check(ctx) {
+  const violations = [];
+  for (const file of ctx.files) {
+    for (const node of ast.within(file.ast.rootNode, 'call_expression', { crossFunctions: true })) {
+      const m = ast.call(node, { object: 'fs', method: /Sync$/ });
+      if (m) violations.push(ast.report(file, node, 'use async fs API'));
+    }
+  }
+  return violations;  // Violation[] — synchronous only
+}
+\`\`\`
+
+**The twelve helpers** (import from \`@chrisdudek/yg/ast\`, zero install required):
+- \`ast.report(file, node, message)\` — create Violation from a tree-sitter node (line 1-based)
+- \`ast.nameOf(node)\` — extract identifier name from declarations (class, function, interface, etc.)
+- \`ast.inFile(file, pattern)\` — glob / regex / substring path filter
+- \`ast.exports(rootNode)\` — all exported declarations (named, default, re-exports)
+- \`ast.imports(rootNode)\` — all ES imports, require() calls, dynamic imports
+- \`ast.call(node, target)\` — match call_expression: bare name, \`{ object, method }\`, or regex
+- \`ast.closest(node, types)\` — nearest ancestor of given types
+- \`ast.within(parent, type, opts?)\` — descendants of type; by default stops at function boundaries — set \`crossFunctions: true\` to cross them
+- \`ast.decoratorsOf(node)\` — decorators on class or member (handles export vs bare class positions)
+- \`ast.modifiersOf(node)\` — Set of modifiers: 'public' | 'private' | 'protected' | 'readonly' | 'abstract' | 'static' | 'async' | 'export'
+- \`ast.jsxElements(rootNode)\` — all JSX opening and self-closing elements
+- \`ast.casing.pascal(name)\` — naming checks: also camel, upperSnake, kebab
+
+**WARNING on \`ast.within\` default:** without \`crossFunctions: true\`, the walk stops at every nested function boundary. Use default (boundary-stopping) when your rule is "X within this function". Use \`crossFunctions: true\` when your rule is "X anywhere in the file". Using the wrong setting silently misses violations.
+
+**Purity rule:** \`check.mjs\` must not write files, make network calls, or call \`process.exit\`. The runner does not enforce this — violating it produces non-deterministic results.
+
+**Testing AST aspects:** \`yg ast-test --aspect <id> --files <path...>\` runs the check against ad-hoc files and exits 1 if violations exist. Use it to develop and verify \`check.mjs\` before wiring it to nodes.
+
+**Suppression — two forms (reason required, markers inside comments only):**
+- Single-line: \`// yg-suppress(<id>) <reason>\` — suppresses the immediately following line.
+- Bracket: \`// yg-suppress-disable(<id>) <reason>\` ... \`// yg-suppress-enable(<id>)\` — suppresses all lines in range.
+- Wildcard: use \`*\` as the id to suppress all AST aspects. A specific \`enable(<id>)\` does NOT punch through \`disable(*)\`.
 
 ### Escape Hatch
 
