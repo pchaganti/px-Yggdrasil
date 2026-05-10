@@ -45,6 +45,7 @@ export default defineConfig({
   entry: {
     bin: 'src/bin.ts',
     ast: 'src/ast/index.ts',
+    'loader-hook-impl': 'src/ast/loader-hook-impl.ts',
   },
   format: ['esm'],
   target: 'node22',
