@@ -69,6 +69,7 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   issues.push(...checkPortConsumes(graph));
   issues.push(...checkOrphanedAspects(graph));
   issues.push(...checkWhenReferences(graph));
+  issues.push(...checkAspectReviewerEnum(graph));
 
   let filtered = issues;
   let nodesScanned = graph.nodes.size;
@@ -1223,5 +1224,26 @@ function checkWhenReferences(graph: Graph): ValidationIssue[] {
     }
   }
 
+  return issues;
+}
+
+// --- aspect-invalid-reviewer: reviewer field must be 'ast' or 'llm' ---
+
+function checkAspectReviewerEnum(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  for (const aspect of graph.aspects) {
+    const reviewer = aspect.reviewer;
+    if (reviewer === undefined || reviewer === 'llm' || reviewer === 'ast') continue;
+    issues.push({
+      severity: 'error',
+      code: 'aspect-invalid-reviewer',
+      rule: 'reviewer-enum',
+      message: buildIssueMessage({
+        what: `Aspect '${aspect.id}' has invalid reviewer value '${reviewer}'.`,
+        why: `The reviewer field must be 'ast' or 'llm' (default 'llm').`,
+        next: `Set 'reviewer: ast' or 'reviewer: llm' in .yggdrasil/aspects/${aspect.id}/yg-aspect.yaml.`,
+      }),
+    });
+  }
   return issues;
 }
