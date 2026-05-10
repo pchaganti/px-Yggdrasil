@@ -18,6 +18,7 @@ export default defineConfig({
       { text: "Supported Platforms", link: "/platforms" },
       { text: "CLI Reference", link: "/cli-reference" },
       { text: "Configuration", link: "/configuration" },
+      { text: "AST Aspects", link: "/ast-aspects" },
     ],
   },
 });
