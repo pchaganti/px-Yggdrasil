@@ -54,6 +54,12 @@
     "url": "git+https://github.com/krzysztofdudek/Yggdrasil.git",
     "directory": "source/cli"
   },
+  "exports": {
+    "./ast": {
+      "import": "./dist/ast.js",
+      "types": "./dist/ast.d.ts"
+    }
+  },
   "publishConfig": {
     "access": "public"
   },

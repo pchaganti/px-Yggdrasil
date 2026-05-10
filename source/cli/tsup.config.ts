@@ -42,7 +42,10 @@ function findWasm(pkg: string, candidates: string[]): string {
 }
 
 export default defineConfig({
-  entry: ['src/bin.ts'],
+  entry: {
+    bin: 'src/bin.ts',
+    ast: 'src/ast/index.ts',
+  },
   format: ['esm'],
   target: 'node22',
   outDir: 'dist',
