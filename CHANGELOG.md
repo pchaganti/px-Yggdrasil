@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- AST aspect reviewer (`reviewer: ast` in `yg-aspect.yaml` + `check.mjs` file).
+  LLM reviewer remains the default. AST aspects ship a JavaScript `check`
+  function executed against tree-sitter parses of the node's mapped source
+  files; mutual exclusion with `content.md` is enforced by the validator.
+  Inline suppression honored — single-line `yg-suppress(<id>) <reason>`
+  (next-line scope) and bracket `yg-suppress-disable` / `yg-suppress-enable`
+  (range scope). Helper library exported from `@chrisdudek/yg/ast`.
+- `yg ast-test --aspect <id> --files <paths>` / `--node <path>` for ad-hoc
+  AST aspect runs without a baseline or graph attachment.
+- `yg aspects` now shows `Reviewer` field per aspect (`llm` or `ast`).
+- `yg context --file` / `--node` surfaces `check.mjs` under `read:` for
+  AST aspects (previously always showed `content.md`).
+
 ### Changed
 
 - Repositioned README, npm package description, and GitHub metadata away
