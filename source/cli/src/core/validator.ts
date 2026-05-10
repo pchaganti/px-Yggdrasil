@@ -1,4 +1,5 @@
 import { readdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import type { Graph } from '../model/graph.js';
 import type { ValidationResult, ValidationIssue } from '../model/validation.js';
@@ -70,6 +71,7 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   issues.push(...checkOrphanedAspects(graph));
   issues.push(...checkWhenReferences(graph));
   issues.push(...checkAspectReviewerEnum(graph));
+  issues.push(...checkAspectRuleSources(graph));
 
   let filtered = issues;
   let nodesScanned = graph.nodes.size;
@@ -1221,6 +1223,115 @@ function checkWhenReferences(graph: Graph): ValidationIssue[] {
     if (!flow.aspectWhens) continue;
     for (const [aspectId, pred] of Object.entries(flow.aspectWhens)) {
       visitPredicate(pred, `flow '${flow.path}' aspectWhens[${aspectId}]`);
+    }
+  }
+
+  return issues;
+}
+
+// --- aspect-rule-sources: content.md vs check.mjs mutual exclusion ---
+
+function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const projectRoot = path.dirname(graph.rootPath);
+
+  for (const aspect of graph.aspects) {
+    const reviewer = aspect.reviewer ?? 'llm';
+    if (reviewer !== 'ast' && reviewer !== 'llm') continue; // covered by enum check
+
+    const aspectDir = path.join(projectRoot, '.yggdrasil', 'aspects', aspect.id);
+    const hasContentMd = existsSync(path.join(aspectDir, 'content.md'));
+    const hasCheckMjs = existsSync(path.join(aspectDir, 'check.mjs'));
+
+    if (hasContentMd && hasCheckMjs) {
+      issues.push({
+        severity: 'error',
+        code: 'aspect-both-rule-sources',
+        rule: 'aspect-rule-sources',
+        message: buildIssueMessage({
+          what: `Aspect '${aspect.id}' has both content.md and check.mjs.`,
+          why: `Exactly one rule source is allowed per aspect; the validator cannot infer intent.`,
+          next: `Remove the file that does not match aspect's reviewer field (currently '${reviewer}').`,
+        }),
+      });
+      // Also flag the wrong file type for the declared reviewer
+      if (reviewer === 'llm') {
+        issues.push({
+          severity: 'error',
+          code: 'aspect-unexpected-rule-source',
+          rule: 'aspect-rule-sources',
+          message: buildIssueMessage({
+            what: `Aspect '${aspect.id}' has reviewer 'llm' but check.mjs is present.`,
+            why: `LLM aspects must not ship check.mjs (that's the AST reviewer's input).`,
+            next: `Remove .yggdrasil/aspects/${aspect.id}/check.mjs or change reviewer to 'ast'.`,
+          }),
+        });
+      } else {
+        issues.push({
+          severity: 'error',
+          code: 'aspect-unexpected-rule-source',
+          rule: 'aspect-rule-sources',
+          message: buildIssueMessage({
+            what: `Aspect '${aspect.id}' has reviewer 'ast' but content.md is present.`,
+            why: `AST aspects must not ship content.md (that's the LLM reviewer's input).`,
+            next: `Remove .yggdrasil/aspects/${aspect.id}/content.md or change reviewer to 'llm'.`,
+          }),
+        });
+      }
+      continue;
+    }
+
+    if (reviewer === 'llm') {
+      if (!hasContentMd) {
+        issues.push({
+          severity: 'error',
+          code: 'aspect-missing-rule-source',
+          rule: 'aspect-rule-sources',
+          message: buildIssueMessage({
+            what: `Aspect '${aspect.id}' has reviewer 'llm' but content.md is missing.`,
+            why: `LLM aspects need content.md as the rule definition the reviewer reads.`,
+            next: `Create .yggdrasil/aspects/${aspect.id}/content.md describing the rule.`,
+          }),
+        });
+      }
+      if (hasCheckMjs) {
+        issues.push({
+          severity: 'error',
+          code: 'aspect-unexpected-rule-source',
+          rule: 'aspect-rule-sources',
+          message: buildIssueMessage({
+            what: `Aspect '${aspect.id}' has reviewer 'llm' but check.mjs is present.`,
+            why: `LLM aspects must not ship check.mjs (that's the AST reviewer's input).`,
+            next: `Remove .yggdrasil/aspects/${aspect.id}/check.mjs or change reviewer to 'ast'.`,
+          }),
+        });
+      }
+    } else {
+      // reviewer === 'ast'
+      if (!hasCheckMjs) {
+        issues.push({
+          severity: 'error',
+          code: 'aspect-missing-rule-source',
+          rule: 'aspect-rule-sources',
+          message: buildIssueMessage({
+            what: `Aspect '${aspect.id}' has reviewer 'ast' but check.mjs is missing.`,
+            why: `AST aspects need check.mjs as the rule definition the runner executes.`,
+            next: `Create .yggdrasil/aspects/${aspect.id}/check.mjs exporting a check function.`,
+          }),
+        });
+      }
+      if (hasContentMd) {
+        issues.push({
+          severity: 'error',
+          code: 'aspect-unexpected-rule-source',
+          rule: 'aspect-rule-sources',
+          message: buildIssueMessage({
+            what: `Aspect '${aspect.id}' has reviewer 'ast' but content.md is present.`,
+            why: `AST aspects must not ship content.md (that's the LLM reviewer's input).`,
+            next: `Remove .yggdrasil/aspects/${aspect.id}/content.md or change reviewer to 'llm'.`,
+          }),
+        });
+      }
     }
   }
 
