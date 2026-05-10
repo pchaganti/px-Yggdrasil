@@ -597,4 +597,66 @@ describe('collectDependencyAncestors', () => {
   });
 });
 
+describe('verifiedAgainst path (Task 31)', () => {
+  const llmAspect: AspectDef = {
+    name: 'LLM Aspect',
+    id: 'llm-aspect',
+    artifacts: [{ filename: 'content.md', content: 'rule text' }],
+  };
+  const astAspect: AspectDef = {
+    name: 'AST Aspect',
+    id: 'ast-aspect',
+    reviewer: 'ast',
+    artifacts: [{ filename: 'check.mjs', content: 'export function check(ctx) { return []; }' }],
+  };
+  const svcNode: GraphNode = {
+    path: 'svc',
+    meta: {
+      name: 'Svc',
+      type: 'service',
+      aspects: ['llm-aspect', 'ast-aspect'],
+      mapping: ['src/svc.ts'],
+    },
+    children: [],
+    parent: null,
+  };
+  const graph: Graph = {
+    config: {},
+    architecture: { node_types: { service: { description: 'svc' } } },
+    nodes: new Map([['svc', svcNode]]),
+    aspects: [llmAspect, astAspect],
+    flows: [],
+    schemas: [],
+    rootPath: '/fake/.yggdrasil',
+  };
+
+  it('buildNodeContextData: LLM aspect uses content.md in verifiedAgainst', () => {
+    const data = buildNodeContextData(graph, 'svc');
+    const llm = data.aspects.find((a) => a.id === 'llm-aspect');
+    expect(llm).toBeDefined();
+    expect(llm!.verifiedAgainst).toBe('.yggdrasil/aspects/llm-aspect/content.md');
+  });
+
+  it('buildNodeContextData: AST aspect uses check.mjs in verifiedAgainst', () => {
+    const data = buildNodeContextData(graph, 'svc');
+    const ast = data.aspects.find((a) => a.id === 'ast-aspect');
+    expect(ast).toBeDefined();
+    expect(ast!.verifiedAgainst).toBe('.yggdrasil/aspects/ast-aspect/check.mjs');
+  });
+
+  it('buildFileContextData: LLM aspect uses content.md in verifiedAgainst', () => {
+    const data = buildFileContextData(graph, 'src/svc.ts', 'svc');
+    const llm = data.aspects.find((a) => a.aspectId === 'llm-aspect');
+    expect(llm).toBeDefined();
+    expect(llm!.verifiedAgainst).toBe('.yggdrasil/aspects/llm-aspect/content.md');
+  });
+
+  it('buildFileContextData: AST aspect uses check.mjs in verifiedAgainst', () => {
+    const data = buildFileContextData(graph, 'src/svc.ts', 'svc');
+    const ast = data.aspects.find((a) => a.aspectId === 'ast-aspect');
+    expect(ast).toBeDefined();
+    expect(ast!.verifiedAgainst).toBe('.yggdrasil/aspects/ast-aspect/check.mjs');
+  });
+});
+
 

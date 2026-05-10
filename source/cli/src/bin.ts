@@ -9,6 +9,7 @@ import { registerImpactCommand } from './cli/impact.js';
 import { registerAspectsCommand } from './cli/aspects.js';
 import { registerFlowsCommand } from './cli/flows.js';
 import { registerCheckCommand } from './cli/check.js';
+import { registerAstTestCommand } from './cli/ast-test.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -33,5 +34,6 @@ registerImpactCommand(program);
 registerAspectsCommand(program);
 registerFlowsCommand(program);
 registerCheckCommand(program);
+registerAstTestCommand(program);
 
 program.parse();

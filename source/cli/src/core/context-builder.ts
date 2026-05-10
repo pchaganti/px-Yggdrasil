@@ -215,7 +215,9 @@ export function buildNodeContextData(graph: Graph, nodePath: string): NodeContex
       name: aspectDef?.name ?? aspectId,
       description: aspectDef?.description ?? '',
       source,
-      verifiedAgainst: `.yggdrasil/aspects/${aspectId}/content.md`,
+      verifiedAgainst: aspectDef?.reviewer === 'ast'
+        ? `.yggdrasil/aspects/${aspectId}/check.mjs`
+        : `.yggdrasil/aspects/${aspectId}/content.md`,
       implies: aspectDef?.implies,
     };
   });
@@ -277,7 +279,9 @@ export function buildFileContextData(graph: Graph, filePath: string, ownerPath: 
     return {
       aspectId,
       aspectDescription: aspectDef?.description ?? aspectDef?.name ?? aspectId,
-      verifiedAgainst: `.yggdrasil/aspects/${aspectId}/content.md`,
+      verifiedAgainst: aspectDef?.reviewer === 'ast'
+        ? `.yggdrasil/aspects/${aspectId}/check.mjs`
+        : `.yggdrasil/aspects/${aspectId}/content.md`,
     };
   });
 

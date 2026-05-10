@@ -634,3 +634,76 @@ describe('collectTrackedFiles', () => {
     expect(paths).toContain('own-subset:my/svc');
   });
 });
+
+describe('Task 33 — drift hash uses check.mjs for AST aspects', () => {
+  it('AST aspect artifact check.mjs appears in tracked files', () => {
+    const svcNode: GraphNode = {
+      path: 'svc',
+      meta: {
+        name: 'Svc',
+        type: 'service',
+        aspects: ['async-fs'],
+        mapping: ['src/svc.ts'],
+      },
+      children: [],
+      parent: null,
+    };
+    const graph: Graph = {
+      config: {},
+      architecture: { node_types: {} },
+      nodes: new Map([['svc', svcNode]]),
+      aspects: [
+        {
+          id: 'async-fs',
+          name: 'AsyncFS',
+          reviewer: 'ast',
+          artifacts: [{ filename: 'check.mjs', content: 'export function check(ctx) { return []; }' }],
+        },
+      ],
+      flows: [],
+      schemas: [],
+      rootPath: '/project/.yggdrasil',
+    };
+
+    const files = collectTrackedFiles(svcNode, graph);
+    const paths = files.map((f) => f.path);
+
+    expect(paths).toContain('.yggdrasil/aspects/async-fs/check.mjs');
+    expect(paths).not.toContain('.yggdrasil/aspects/async-fs/content.md');
+  });
+
+  it('LLM aspect artifact content.md appears in tracked files', () => {
+    const svcNode: GraphNode = {
+      path: 'svc',
+      meta: {
+        name: 'Svc',
+        type: 'service',
+        aspects: ['my-rule'],
+        mapping: ['src/svc.ts'],
+      },
+      children: [],
+      parent: null,
+    };
+    const graph: Graph = {
+      config: {},
+      architecture: { node_types: {} },
+      nodes: new Map([['svc', svcNode]]),
+      aspects: [
+        {
+          id: 'my-rule',
+          name: 'MyRule',
+          artifacts: [{ filename: 'content.md', content: '# Rule\nMust log.' }],
+        },
+      ],
+      flows: [],
+      schemas: [],
+      rootPath: '/project/.yggdrasil',
+    };
+
+    const files = collectTrackedFiles(svcNode, graph);
+    const paths = files.map((f) => f.path);
+
+    expect(paths).toContain('.yggdrasil/aspects/my-rule/content.md');
+    expect(paths).not.toContain('.yggdrasil/aspects/my-rule/check.mjs');
+  });
+});

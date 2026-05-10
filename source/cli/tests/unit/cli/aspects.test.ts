@@ -153,4 +153,25 @@ describe('formatAspectsOutput', () => {
     const output = formatAspectsOutput(graph);
     expect(output).toContain('Used by: 1 node');
   });
+
+  it('shows Reviewer: ast for ast aspects', () => {
+    const aspects = [makeAspect('async-fs', { reviewer: 'ast' })];
+    const graph = makeGraph(aspects);
+    const output = formatAspectsOutput(graph);
+    expect(output).toMatch(/Reviewer:\s*ast/);
+  });
+
+  it('shows Reviewer: llm for aspects without explicit reviewer', () => {
+    const aspects = [makeAspect('posix-paths')];
+    const graph = makeGraph(aspects);
+    const output = formatAspectsOutput(graph);
+    expect(output).toMatch(/Reviewer:\s*llm/);
+  });
+
+  it('shows Reviewer: llm for aspects with explicit reviewer: llm', () => {
+    const aspects = [makeAspect('explicit-llm', { reviewer: 'llm' })];
+    const graph = makeGraph(aspects);
+    const output = formatAspectsOutput(graph);
+    expect(output).toMatch(/Reviewer:\s*llm/);
+  });
 });
