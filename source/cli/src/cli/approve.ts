@@ -16,6 +16,7 @@ import { resolveMaxTokens } from '../llm/api-utils.js';
 import type { LlmProvider } from '../llm/types.js';
 import type { ApproveResult, AspectVerificationResult } from '../model/drift.js';
 import type { Graph } from '../model/graph.js';
+import { runAstAspect } from '../ast/runner.js';
 
 /** Extended result that includes LLM verification data (tracked in CLI layer, not in core) */
 export interface LlmApproveResult extends ApproveResult {
@@ -83,15 +84,51 @@ export async function runLlmVerification(
   const aspectViolations: Array<{ aspectId: string; reason: string; providerError?: boolean }> = [];
 
   if (aspects.length > 0) {
-    aspectResults = await verifyAspects({
-      provider,
-      aspects,
-      sourceFiles,
-      nodePath,
-      nodeDescription,
-      consensus: llmConfig.consensus ?? 1,
-      maxTokens: resolvedMaxTokens,
-    });
+    const astAspects = aspects.filter(a => a.reviewer === 'ast');
+    const llmAspects = aspects.filter(a => a.reviewer !== 'ast');
+
+    const collectedResults: Record<string, AspectVerificationResult> = {};
+
+    // Run AST aspects
+    for (const aspect of astAspects) {
+      try {
+        const astResult = await runAstAspect({
+          aspectDir: path.join('.yggdrasil/aspects', aspect.id),
+          aspectId: aspect.id,
+          files: sourceFilePaths.map(f => ({ path: f })),
+          projectRoot,
+        });
+        const violated = astResult.violations.length > 0;
+        collectedResults[aspect.id] = {
+          satisfied: !violated,
+          reason: violated
+            ? astResult.violations.map(v => `${v.file}:${v.line}: ${v.message}`).join('\n')
+            : 'all rules satisfied',
+        };
+      } catch (e: any) {
+        const code: string = (e as { code?: string }).code ?? 'AST_RUNNER_UNKNOWN';
+        collectedResults[aspect.id] = {
+          satisfied: false,
+          reason: `[${code}] ${(e as Error).message}`,
+        };
+      }
+    }
+
+    // Run LLM aspects (existing path)
+    if (llmAspects.length > 0) {
+      const llmResults = await verifyAspects({
+        provider,
+        aspects: llmAspects,
+        sourceFiles,
+        nodePath,
+        nodeDescription,
+        consensus: llmConfig.consensus ?? 1,
+        maxTokens: resolvedMaxTokens,
+      });
+      Object.assign(collectedResults, llmResults);
+    }
+
+    aspectResults = collectedResults;
     for (const [aspectId, res] of Object.entries(aspectResults)) {
       if (!res.satisfied) {
         aspectViolations.push({ aspectId, reason: res.reason, providerError: res.providerError });
@@ -392,9 +429,41 @@ export function registerApproveCommand(program: Command): void {
             process.stdout.write(chalk.bold(`\n--- Dry run: ${nodePath} ---\n\n`));
             process.stdout.write(`Aspects (${aspects.length}): ${aspects.map(a => a.id).join(', ') || 'none'}\n`);
             process.stdout.write(`Source files (${sourceFiles.length}): ${sourceFiles.map(f => f.path).join(', ') || 'none'}\n\n`);
-            if (aspects.length > 0 && sourceFiles.length > 0) {
-              const prompt = buildPrompt(aspects[0], node.meta.description ?? '', nodePath, sourceFiles);
-              process.stdout.write(chalk.dim('--- Prompt for first aspect ---\n'));
+
+            const astAspects = aspects.filter(a => a.reviewer === 'ast');
+            const llmAspects = aspects.filter(a => a.reviewer !== 'ast');
+
+            // AST aspects — run check and print violations
+            for (const aspect of astAspects) {
+              process.stdout.write(chalk.bold(`\n--- AST aspect: ${aspect.id} ---\n\n`));
+              process.stdout.write(`Files:\n`);
+              for (const f of sourceFilePaths) {
+                process.stdout.write(`  ${f}\n`);
+              }
+              process.stdout.write('\n');
+              try {
+                const astResult = await runAstAspect({
+                  aspectDir: path.join('.yggdrasil/aspects', aspect.id),
+                  aspectId: aspect.id,
+                  files: sourceFilePaths.map(f => ({ path: f })),
+                  projectRoot,
+                });
+                if (astResult.violations.length === 0) {
+                  process.stdout.write('  no violations\n');
+                } else {
+                  for (const v of astResult.violations) {
+                    process.stdout.write(`  ${v.file}:${v.line}: ${v.message}\n`);
+                  }
+                }
+              } catch (e: any) {
+                process.stdout.write(chalk.red(`  Error: ${(e as Error).message}\n`));
+              }
+            }
+
+            // LLM aspects — show prompt for first
+            if (llmAspects.length > 0 && sourceFiles.length > 0) {
+              const prompt = buildPrompt(llmAspects[0], node.meta.description ?? '', nodePath, sourceFiles);
+              process.stdout.write(chalk.dim('--- Prompt for first LLM aspect ---\n'));
               process.stdout.write(prompt + '\n');
             }
           }
