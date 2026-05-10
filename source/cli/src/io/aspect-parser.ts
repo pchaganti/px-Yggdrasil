@@ -27,6 +27,14 @@ export async function parseAspect(
 
   const description = typeof raw.description === 'string' ? raw.description.trim() : undefined;
 
+  let reviewer: 'ast' | 'llm' | undefined;
+  if (raw.reviewer !== undefined) {
+    if (raw.reviewer !== 'ast' && raw.reviewer !== 'llm') {
+      throw new Error(`yg-aspect.yaml at ${aspectYamlPath}: 'reviewer' must be 'ast' or 'llm', got '${String(raw.reviewer)}'`);
+    }
+    reviewer = raw.reviewer;
+  }
+
   const artifacts = await readArtifacts(aspectDir, ['yg-aspect.yaml']);
 
   let implies: string[] | undefined;
@@ -57,6 +65,7 @@ export async function parseAspect(
     name: (raw.name as string).trim(),
     id: idTrimmed,
     description,
+    ...(reviewer && { reviewer }),
     implies,
     ...(impliesWhens && { impliesWhens }),
     ...(when && { when }),

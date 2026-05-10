@@ -128,6 +128,8 @@ export interface AspectDef {
   name: string;
   id: string;
   description?: string;
+  /** Reviewer type for this aspect: 'llm' (default) or 'ast' (deterministic) */
+  reviewer?: 'ast' | 'llm';
   implies?: string[];
   /** Per-implies applicability filters for aspect ids listed in `implies` */
   impliesWhens?: Record<string, WhenPredicate>;
