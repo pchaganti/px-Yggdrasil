@@ -159,6 +159,10 @@ The content `.md` files are the actual rules. The reviewer reads them and checks
 whether the source code satisfies them. Write them as clearly as you would write
 a code review comment.
 
+Aspects are verified by reviewers — Yggdrasil ships two reviewer types (LLM and AST).
+See [Reviewers](/reviewers) for the decision matrix, authoring guides for `content.md`
+and `check.mjs`, suppression mechanics, and edge cases.
+
 ### How aspects reach nodes
 
 Aspects propagate through seven channels:
@@ -251,46 +255,8 @@ and also how you enforce structural rules across your architecture.
 
 ---
 
-## The reviewer
+## Next
 
-The reviewer is an LLM that reads source code and checks it against aspect rules
-during `yg approve`. It's a separate call from your coding agent — one LLM
-verifying the work of another.
-
-`yg approve` sends each aspect's `content.md` plus the relevant source files
-to the reviewer. The reviewer responds with SATISFIED or NOT SATISFIED per
-aspect. One LLM call per aspect per node.
-
-**Cost:** A typical approve for a node with 3 aspects and 5 source files makes
-3 LLM calls. Using a fast model (Haiku, GPT-4o-mini, Gemini Flash) keeps
-cost under a few cents per approval. For local review, Ollama runs on your
-machine with no API cost.
-
-**Consensus:** Set `consensus: 3` (or any odd number) to run multiple review
-passes and take the majority vote. Higher confidence, proportionally higher cost.
-
-**False positives:** If the reviewer rejects compliant code, the fix is
-improving the aspect's `content.md` — make the rule clearer and more specific.
-The escape hatch is better rules, not bypassing enforcement.
-
-### Inline Suppress
-
-Source code comments can carry a `yg-suppress` marker to waive a specific aspect
-for the surrounding code. The reviewer honors these markers and treats the
-suppressed code as satisfied.
-
-**Format:** `yg-suppress(<aspect-path>) <reason>`
-
-- `<aspect-path>` — full aspect path (e.g., `cqrs/single-responsibility`)
-- `<reason>` — required free-text explanation
-
-```typescript
-// yg-suppress(cqrs/single-responsibility) brownfield handler, refactor planned
-```
-
-Place the marker near the code that violates the aspect. The reviewer interprets
-scope contextually — a marker in a function applies to that function, at file
-level it applies to the entire file.
-
-**Agent behavior:** Agents may propose adding a suppress marker but must never
-write one without explicit user confirmation.
+- [Reviewers](/reviewers) — LLM and AST reviewer types, authoring guides, suppression, drift, edge cases
+- [Conditional Aspects](/conditional-aspects) — `when` predicates for selective aspect application
+- [CLI Reference](/cli-reference) — full command surface
