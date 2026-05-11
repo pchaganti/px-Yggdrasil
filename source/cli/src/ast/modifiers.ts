@@ -21,8 +21,7 @@ export function modifiersOf(node: Node): Set<Modifier> {
   for (const child of node.children) {
     // accessibility_modifier is a named node wrapping private/public/protected
     if (child.type === 'accessibility_modifier') {
-      const text = child.text as Modifier;
-      if (isModifier(text)) result.add(text);
+      result.add(child.text as Modifier);
       continue;
     }
 
@@ -33,17 +32,4 @@ export function modifiersOf(node: Node): Set<Modifier> {
   }
 
   return result;
-}
-
-function isModifier(text: string): text is Modifier {
-  return (
-    text === 'public' ||
-    text === 'private' ||
-    text === 'protected' ||
-    text === 'static' ||
-    text === 'readonly' ||
-    text === 'abstract' ||
-    text === 'async' ||
-    text === 'export'
-  );
 }

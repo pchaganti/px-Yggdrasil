@@ -1,0 +1,7 @@
+name: AST Reviewer Unit Tests
+type: test
+description: Unit tests for AST traversal helpers and the check runner pipeline — call, casing, decorators, exports, imports, name, modifiers, report, suppress, walk, and parser.
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/ast/

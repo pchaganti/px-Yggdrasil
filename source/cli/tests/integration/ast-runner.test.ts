@@ -104,4 +104,115 @@ export function check(ctx) {
     expect(lines).toContain(1); // foo() not suppressed
     expect(lines).not.toContain(3); // bar() suppressed
   });
+
+  it('AST_CHECK_ASYNC when check returns a Promise', async () => {
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    writeFileSync(path.join(dir, 'check.mjs'), 'export async function check(ctx) { return []; }');
+    const tmpFile = path.join(dir, 'x.ts');
+    writeFileSync(tmpFile, 'const x = 1;');
+    await expect(
+      runAstAspect({ aspectDir: dir, aspectId: 'test', files: [{ path: tmpFile }], projectRoot: '/' }),
+    ).rejects.toMatchObject({ code: 'AST_CHECK_ASYNC' });
+  });
+
+  it('AST_CHECK_RETURN_SHAPE when check returns non-array', async () => {
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    writeFileSync(path.join(dir, 'check.mjs'), 'export function check(ctx) { return "not-an-array"; }');
+    const tmpFile = path.join(dir, 'x.ts');
+    writeFileSync(tmpFile, 'const x = 1;');
+    await expect(
+      runAstAspect({ aspectDir: dir, aspectId: 'test', files: [{ path: tmpFile }], projectRoot: '/' }),
+    ).rejects.toMatchObject({ code: 'AST_CHECK_RETURN_SHAPE' });
+  });
+
+  it('parse error node is detected and reported as AST_PARSE_ERROR', async () => {
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    writeFileSync(path.join(dir, 'check.mjs'), 'export function check(ctx) { return []; }');
+    const tmpFile = path.join(dir, 'bad.ts');
+    // Syntactically invalid TypeScript
+    writeFileSync(tmpFile, 'function )((\n');
+    await expect(
+      runAstAspect({ aspectDir: dir, aspectId: 'test', files: [{ path: tmpFile }], projectRoot: '/' }),
+    ).rejects.toMatchObject({ code: 'AST_SOURCE_PARSE_ERROR' });
+  });
+
+  it('AST_LOADER_RESOLVE_FAILED when check.mjs does not exist', async () => {
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    const tmpFile = path.join(dir, 'x.ts');
+    writeFileSync(tmpFile, 'const x = 1;');
+    // No check.mjs written → import() will throw ERR_MODULE_NOT_FOUND
+    await expect(
+      runAstAspect({ aspectDir: dir, aspectId: 'test', files: [{ path: tmpFile }], projectRoot: '/' }),
+    ).rejects.toMatchObject({ code: 'AST_LOADER_RESOLVE_FAILED' });
+  });
+
+  it('AST_CHECK_NOT_EXPORTED when check.mjs has no named check export', async () => {
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    writeFileSync(path.join(dir, 'check.mjs'), 'export const foo = 42;');
+    const tmpFile = path.join(dir, 'x.ts');
+    writeFileSync(tmpFile, 'const x = 1;');
+    await expect(
+      runAstAspect({ aspectDir: dir, aspectId: 'test', files: [{ path: tmpFile }], projectRoot: '/' }),
+    ).rejects.toMatchObject({ code: 'AST_CHECK_NOT_EXPORTED' });
+  });
+
+  it('AST_CHECK_NOT_FUNCTION when check is exported as non-function', async () => {
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    writeFileSync(path.join(dir, 'check.mjs'), 'export const check = 42;');
+    const tmpFile = path.join(dir, 'x.ts');
+    writeFileSync(tmpFile, 'const x = 1;');
+    await expect(
+      runAstAspect({ aspectDir: dir, aspectId: 'test', files: [{ path: tmpFile }], projectRoot: '/' }),
+    ).rejects.toMatchObject({ code: 'AST_CHECK_NOT_FUNCTION' });
+  });
+
+  it('AST_NO_PARSER_FOR_EXTENSION for unsupported file extension', async () => {
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    writeFileSync(path.join(dir, 'check.mjs'), 'export function check(ctx) { return []; }');
+    const tmpFile = path.join(dir, 'data.yaml');
+    writeFileSync(tmpFile, 'key: value\n');
+    await expect(
+      runAstAspect({ aspectDir: dir, aspectId: 'test', files: [{ path: tmpFile }], projectRoot: '/' }),
+    ).rejects.toMatchObject({ code: 'AST_NO_PARSER_FOR_EXTENSION' });
+  });
+
+  it('re-throws raw error when check.mjs has a JS syntax error (not MODULE_NOT_FOUND)', async () => {
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    // Invalid JS syntax — import() throws SyntaxError, not MODULE_NOT_FOUND
+    writeFileSync(path.join(dir, 'check.mjs'), 'export function check( }');
+    const tmpFile = path.join(dir, 'x.ts');
+    writeFileSync(tmpFile, 'const x = 1;');
+    await expect(
+      runAstAspect({ aspectDir: dir, aspectId: 'test', files: [{ path: tmpFile }], projectRoot: '/' }),
+    ).rejects.toSatisfy((e: any) => !(e instanceof AstRunnerError));
+  });
+
+  it('AST_SOURCE_PARSE_ERROR traverses clean nodes before finding error (findFirstErrorNode coverage)', async () => {
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    writeFileSync(path.join(dir, 'check.mjs'), 'export function check(ctx) { return []; }');
+    const tmpFile = path.join(dir, 'mixed.ts');
+    // Valid statement first, then invalid — findFirstErrorNode traverses clean lexical_declaration
+    writeFileSync(tmpFile, 'const x = 1;\n)((\n');
+    await expect(
+      runAstAspect({ aspectDir: dir, aspectId: 'test', files: [{ path: tmpFile }], projectRoot: '/' }),
+    ).rejects.toMatchObject({ code: 'AST_SOURCE_PARSE_ERROR' });
+  });
 });

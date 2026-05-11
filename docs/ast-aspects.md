@@ -73,6 +73,7 @@ export function check(ctx) {
 ```
 
 `ctx` has shape:
+
 ```typescript
 interface CheckContext {
   files: SourceFile[];
@@ -86,6 +87,7 @@ interface SourceFile {
 ```
 
 A `Violation` is:
+
 ```typescript
 interface Violation {
   file: string;   // relative to project root
@@ -146,6 +148,7 @@ Full type signatures are in the CLI's `dist/ast.d.ts`. Locally installed users g
 **Rule:** no array-mutation methods called on function parameters.
 
 **Without helpers** (~30 lines):
+
 ```javascript
 const fnTypes = ['function_declaration', 'function_expression', 'arrow_function', 'method_definition'];
 for (const fnType of fnTypes) {
@@ -170,6 +173,7 @@ for (const fnType of fnTypes) {
 ```
 
 **With helpers** (~8 lines):
+
 ```javascript
 import { ast } from '@chrisdudek/yg/ast';
 
@@ -204,6 +208,7 @@ yg approve --node orders/order-service
 ```
 
 `yg ast-test` exits 0 for clean, 1 for violations. Output:
+
 ```
 src/utils/config.ts
   L12: fs.readFileSync is synchronous — use async equivalent

@@ -1,0 +1,11 @@
+name: AstTestCommand
+type: command
+description: Runs an AST aspect check against ad-hoc files or a node's mapped files via yg ast-test, without recording a baseline.
+aspects: []
+relations:
+  - target: cli/ast
+    type: uses
+  - target: cli/core/loader
+    type: uses
+mapping:
+  - source/cli/src/cli/ast-test.ts

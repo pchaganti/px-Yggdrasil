@@ -62,4 +62,40 @@ describe('ast.call', () => {
     expect(call(c, { object: 'a.b.c', method: 'method' })).not.toBeNull();      // literal works
     expect(call(c, { object: /^a\./, method: 'method' })).not.toBeNull();       // regex works
   });
+
+  it('callee is parenthesized expression (not identifier/member) → returns null', async () => {
+    const tree = await parseFile('x.js', '(fn)();');
+    const c = tree.rootNode.descendantsOfType('call_expression')[0];
+    // callee is a parenthesized_expression, not identifier or member_expression
+    expect(call(c, 'fn')).toBeNull();
+    expect(call(c, { name: 'fn' })).toBeNull();
+  });
+
+  it('object target with no match when object is null (bare name call) → null', async () => {
+    const tree = await parseFile('x.js', 'foo();');
+    const c = tree.rootNode.descendantsOfType('call_expression')[0];
+    // target.object specified but callee has no object (it is a bare identifier)
+    expect(call(c, { object: 'foo' })).toBeNull();
+  });
+
+  it('method target with no match when property is null (bare name call) → null', async () => {
+    const tree = await parseFile('x.js', 'bar();');
+    const c = tree.rootNode.descendantsOfType('call_expression')[0];
+    // target.method specified but callee has no property (bare name)
+    expect(call(c, { method: 'bar' })).toBeNull();
+  });
+
+  it('name target with no match when bareName is null (member call) → null', async () => {
+    const tree = await parseFile('x.js', 'a.b();');
+    const c = tree.rootNode.descendantsOfType('call_expression')[0];
+    // target.name specified but callee is a member (no bareName)
+    expect(call(c, { name: 'a' })).toBeNull();
+  });
+
+  it('method target specified but property text does not match → null', async () => {
+    const tree = await parseFile('x.js', 'fs.readFileSync("x");');
+    const c = tree.rootNode.descendantsOfType('call_expression')[0];
+    // property exists ('readFileSync') but spec 'writeFile' does not match
+    expect(call(c, { method: 'writeFile' })).toBeNull();
+  });
 });

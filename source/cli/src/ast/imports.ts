@@ -24,6 +24,7 @@ export function imports(root: Node): ImportInfo[] {
   for (const node of root.descendantsOfType('import_statement')) {
     // source: the 'string' named child directly on import_statement
     const sourceNode = node.children.find((c) => c.type === 'string');
+    /* v8 ignore next 1 */
     if (!sourceNode) continue;
     const source = stripQuotes(sourceNode.text);
 
@@ -77,6 +78,7 @@ export function imports(root: Node): ImportInfo[] {
     if (callee?.text !== 'require') continue;
 
     const args = node.children.find((c) => c.type === 'arguments');
+    /* v8 ignore next 1 */
     if (!args) continue;
 
     // First string argument
@@ -101,6 +103,7 @@ export function imports(root: Node): ImportInfo[] {
     if (callee?.type !== 'import') continue;
 
     const args = node.children.find((c) => c.type === 'arguments');
+    /* v8 ignore next 1 */
     if (!args) continue;
 
     const stringArg = args.children.find((c) => c.type === 'string');

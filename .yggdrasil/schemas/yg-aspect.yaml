@@ -14,6 +14,13 @@ name: CrossCuttingRequirementName  # required — display name
 description: "Short description"   # optional but recommended — shown in yg aspects output
                                    # and context packages, helps agents discover relevant aspects
 
+# reviewer: llm | ast        # optional — which reviewer verifies this aspect.
+                              # 'llm' (default): aspect ships content.md; LLM reads and judges.
+                              # 'ast': aspect ships check.mjs; AST runner executes and collects violations.
+                              #   With reviewer: ast, content.md must NOT exist.
+                              #   With reviewer: llm or omitted, check.mjs must NOT exist.
+                              # See docs/ast-aspects.md for the full reviewer reference.
+
 # implies:                         # optional — other aspects included automatically when this
 #                                  # aspect is effective on a node. Two forms:
 #   - simple-aspect-id             # bare string — implied unconditionally (when outer aspect passes)

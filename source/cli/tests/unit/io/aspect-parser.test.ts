@@ -138,6 +138,19 @@ implies:
     await rm(tmpDir, { recursive: true, force: true });
   });
 
+  it('throws when reviewer is invalid value', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-bad-reviewer');
+    await mkdir(tmpDir, { recursive: true });
+    const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
+    await writeFile(aspectPath, `name: Test\nreviewer: invalid\n`, 'utf-8');
+
+    await expect(parseAspect(tmpDir, aspectPath, 'test')).rejects.toThrow(
+      "'reviewer' must be 'ast' or 'llm'",
+    );
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
   it('silently ignores unknown anchors field', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-anchors');
     await mkdir(tmpDir, { recursive: true });

@@ -1,0 +1,9 @@
+name: AST Reviewer
+type: adapter
+description: Tree-sitter AST parsing, traversal helpers, and synchronous check runner for AST-based aspect enforcement. Exposes the @chrisdudek/yg/ast public API and the check.mjs execution pipeline.
+aspects: []
+relations:
+  - target: cli/model
+    type: uses
+mapping:
+  - source/cli/src/ast/

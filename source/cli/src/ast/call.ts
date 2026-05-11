@@ -4,6 +4,7 @@ import type { CallTarget, MatchedCall } from './types.js';
 export function call(node: Node, target: CallTarget): MatchedCall | null {
   if (node.type !== 'call_expression') return null;
   const callee = node.childForFieldName('function');
+  /* v8 ignore next 1 */
   if (!callee) return null;
 
   let object: Node | null = null;

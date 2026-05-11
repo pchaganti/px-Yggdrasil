@@ -65,4 +65,18 @@ describe('ast.imports', () => {
     expect(i.namespaceName).toBeNull();
     expect(i.isTypeOnly).toBe(false);
   });
+
+  it('require with variable arg (non-string) → skipped', async () => {
+    const tree = await parseFile('x.js', 'const X = require(myVar);');
+    const result = importsHelper(tree.rootNode);
+    // require(variable) has no string literal arg — skipped, only import_statements returned (none here)
+    expect(result).toHaveLength(0);
+  });
+
+  it('dynamic import with variable arg → skipped', async () => {
+    const tree = await parseFile('x.js', 'const m = import(myVar);');
+    const result = importsHelper(tree.rootNode);
+    // import(variable) has no string literal arg — skipped
+    expect(result).toHaveLength(0);
+  });
 });

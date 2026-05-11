@@ -4,7 +4,7 @@ node_types:
 
   command:
     description: "CLI command handler — registers Commander subcommand and formats output"
-    aspects: [cli-command-contract]
+    aspects: [cli-command-contract, command-exit-codes]
 
   engine:
     description: "Core domain logic — algorithms, validation, assembly, detection"

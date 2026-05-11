@@ -107,4 +107,31 @@ describe('ast.exports', () => {
     expect(d.kind).toBe('reexport');
     expect(d.isReExport).toBe(true);
   });
+
+  it('export { x } without from → skipped (no inner declaration)', async () => {
+    const tree = await parseFile('x.ts', 'const x = 1; export { x };');
+    const result = exportsHelper(tree.rootNode);
+    // export { x } without from has only export_clause as named child → skipped
+    expect(result).toHaveLength(0);
+  });
+
+  it('export default literal → skipped (kindFromDecl returns null)', async () => {
+    const tree = await parseFile('x.ts', 'export default 42;');
+    const result = exportsHelper(tree.rootNode);
+    // number literal not handled by kindFromDecl → null → skipped
+    expect(result).toHaveLength(0);
+  });
+
+  it('export module namespace → kind=namespace', async () => {
+    const tree = await parseFile('x.ts', 'export module Foo {}');
+    const [d] = exportsHelper(tree.rootNode);
+    expect(d.kind).toBe('namespace');
+  });
+
+  it('export let → has lexicalKind=let', async () => {
+    const tree = await parseFile('x.ts', 'export let x = 1;');
+    const [d] = exportsHelper(tree.rootNode);
+    expect(d.kind).toBe('let');
+    expect(d.name).toBe('x');
+  });
 });
