@@ -1,0 +1,12 @@
+name: FindCommand
+type: command
+description: Natural-language search over graph nodes and aspects via yg find; uses MiniSearch index built from names, descriptions, and log.md content
+aspects:
+  - posix-paths
+relations:
+  - target: cli/core/loader
+    type: uses
+  - target: cli/io
+    type: uses
+mapping:
+  - source/cli/src/cli/find.ts

@@ -11,6 +11,7 @@ import { registerFlowsCommand } from './cli/flows.js';
 import { registerCheckCommand } from './cli/check.js';
 import { registerAstTestCommand } from './cli/ast-test.js';
 import { registerLogCommand } from './cli/log.js';
+import { registerFindCommand } from './cli/find.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -37,5 +38,6 @@ registerFlowsCommand(program);
 registerCheckCommand(program);
 registerAstTestCommand(program);
 registerLogCommand(program);
+registerFindCommand(program);
 
 program.parse();
