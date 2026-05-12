@@ -1,0 +1,11 @@
+name: Log Commands
+type: command
+description: CLI commands for managing per-node log.md files — yg log add, read, merge-resolve, and the parent registrar
+aspects: []
+relations:
+  - target: cli/core/log-validator
+    type: uses
+  - target: cli/io
+    type: uses
+mapping:
+  - source/cli/src/cli/log-add.ts
