@@ -1,0 +1,9 @@
+name: Log Validator
+type: engine
+description: Pure validation logic for log.md files — format checking (header shape, datetime precision, fence-aware body rules) and append-only integrity verification
+aspects: []
+relations:
+  - target: cli/io
+    type: uses
+mapping:
+  - source/cli/src/core/log-format.ts

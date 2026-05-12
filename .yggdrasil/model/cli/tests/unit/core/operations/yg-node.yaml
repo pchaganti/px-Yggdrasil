@@ -16,3 +16,4 @@ mapping:
   - source/cli/tests/unit/core/when-evaluator.test.ts
   - source/cli/tests/unit/core/validator-aspect-files.test.ts
   - source/cli/tests/unit/core/validator-reviewer.test.ts
+  - source/cli/tests/unit/core/log-format.test.ts
