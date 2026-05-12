@@ -18,7 +18,7 @@ describe('git', () => {
 
   describe('getLastCommitTimestamp', () => {
     it('returns timestamp when git log succeeds with valid output', () => {
-      vi.mocked(execFileSync).mockReturnValue('1730000000\n' as unknown as Buffer);
+      vi.mocked(execFileSync).mockReturnValue('1730000000\n');
       const result = getLastCommitTimestamp(FIXTURE_ROOT, '.yggdrasil/yg-config.yaml');
       expect(result).toBe(1730000000);
       expect(execFileSync).toHaveBeenCalledWith(
@@ -29,13 +29,13 @@ describe('git', () => {
     });
 
     it('returns null when git log returns non-numeric output', () => {
-      vi.mocked(execFileSync).mockReturnValue('' as unknown as Buffer);
+      vi.mocked(execFileSync).mockReturnValue('');
       const result = getLastCommitTimestamp(FIXTURE_ROOT, 'nonexistent');
       expect(result).toBeNull();
     });
 
     it('returns null when parseInt produces NaN', () => {
-      vi.mocked(execFileSync).mockReturnValue('not-a-number' as unknown as Buffer);
+      vi.mocked(execFileSync).mockReturnValue('not-a-number');
       const result = getLastCommitTimestamp(FIXTURE_ROOT, 'some/path');
       expect(result).toBeNull();
     });
@@ -49,7 +49,7 @@ describe('git', () => {
     });
 
     it('normalizes Windows-style paths to forward slashes', () => {
-      vi.mocked(execFileSync).mockReturnValue('1730000000\n' as unknown as Buffer);
+      vi.mocked(execFileSync).mockReturnValue('1730000000\n');
       getLastCommitTimestamp(FIXTURE_ROOT, 'path\\with\\backslashes');
       expect(execFileSync).toHaveBeenCalledWith(
         'git',

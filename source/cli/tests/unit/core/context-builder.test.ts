@@ -121,9 +121,10 @@ describe('context-builder', () => {
         rootPath: '/tmp/nonexistent',
         config,
         architecture: { node_types: {} },
-      nodes: new Map(),
+        nodes: new Map(),
         aspects: [],
         flows: [],
+        schemas: [],
       };
       const layer = await buildOwnLayer(node, config, '/tmp/nonexistent', graph);
       expect(layer.content).toContain('(not found)');
@@ -349,6 +350,7 @@ describe('buildNodeContextData', () => {
     // Graph has NO architecture — so determineFallbackAspectSource is used
     const graph: Graph = {
       config: {},
+      architecture: { node_types: {} },
       nodes: new Map([['svc', node]]),
       aspects: [parentAspect, childAspect],
       flows: [],

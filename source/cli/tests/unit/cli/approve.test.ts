@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import type { ApproveResult } from '../../../src/model/drift.js';
+import type { LlmApproveResult } from '../../../src/cli/approve.js';
 import { formatResult, formatBatchOutput } from '../../../src/cli/approve.js';
 
-function makeApproveResult(overrides: Partial<ApproveResult> = {}): ApproveResult {
+function makeApproveResult(overrides: Partial<LlmApproveResult> = {}): LlmApproveResult {
   return {
     action: 'approved',
     currentHash: 'abcdef01',

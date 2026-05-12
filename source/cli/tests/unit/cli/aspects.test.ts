@@ -24,7 +24,6 @@ function makeNode(
       type,
       aspects,
     },
-    artifacts: [],
     children: [],
     parent: null,
   };
@@ -92,7 +91,6 @@ describe('computeAspectUsage', () => {
         name: 'Test Flow',
         nodes: ['cli/flow'],
         aspects: ['flow-aspect'],
-        artifacts: [],
       },
     ];
     const usage = computeAspectUsage(graph);

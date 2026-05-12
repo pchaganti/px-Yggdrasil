@@ -883,7 +883,7 @@ describe('validator', () => {
       }));
 
       const result = await validate(graph);
-      const archErrors = result.issues.filter(i => ['aspect-undefined', 'relation-target-forbidden', 'parent-type-forbidden', 'port-missing-aspect'].includes(i.code));
+      const archErrors = result.issues.filter(i => i.code !== undefined && ['aspect-undefined', 'relation-target-forbidden', 'parent-type-forbidden', 'port-missing-aspect'].includes(i.code));
       // Should skip architecture checks when architecture has no node_types (fallback case)
       expect(archErrors.length).toBe(0);
     });

@@ -133,7 +133,7 @@ implies:
     const aspect = await parseAspect(tmpDir, aspectPath, 'stable');
     // unknown field should not throw
     expect(aspect.name).toBe('Stable Aspect');
-    expect((aspect as Record<string, unknown>).stability).toBeUndefined();
+    expect((aspect as unknown as Record<string, unknown>).stability).toBeUndefined();
 
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -167,7 +167,7 @@ anchors:
 
     const aspect = await parseAspect(tmpDir, aspectPath, 'logging');
     expect(aspect.name).toBe('Logging');
-    expect((aspect as Record<string, unknown>).anchors).toBeUndefined();
+    expect((aspect as unknown as Record<string, unknown>).anchors).toBeUndefined();
 
     await rm(tmpDir, { recursive: true, force: true });
   });

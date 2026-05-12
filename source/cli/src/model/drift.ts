@@ -31,6 +31,16 @@ export interface DriftNodeState {
   hash: string;
   files: Record<string, string>;  // path → sha256 hex — now required, not optional
   mtimes?: Record<string, number>; // path → mtime in ms — for mtime-based drift optimization
+  /**
+   * Log baseline — present only when log.md exists and last successful approve
+   * captured at least one entry. Drives append-only integrity verification.
+   */
+  log?: {
+    /** ISO 8601 UTC with millisecond precision, e.g. "2026-05-11T14:23:00.123Z" */
+    last_entry_datetime: string;
+    /** sha256 hex of bytes [0..offsetEnd of boundary entry) */
+    prefix_hash: string;
+  };
 }
 
 /** Upstream change with type annotation for CLI messages */

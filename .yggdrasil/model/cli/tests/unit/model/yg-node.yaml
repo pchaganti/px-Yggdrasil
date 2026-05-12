@@ -1,7 +1,8 @@
 name: Model Unit Tests
 type: test
-description: Unit tests for TypeScript model types, currently covering the WhenPredicate type shape.
+description: Unit tests for TypeScript model types, covering WhenPredicate and DriftNodeState type shapes.
 aspects: []
 relations: []
 mapping:
   - source/cli/tests/unit/model/when.test.ts
+  - source/cli/tests/unit/model/drift-state.test.ts

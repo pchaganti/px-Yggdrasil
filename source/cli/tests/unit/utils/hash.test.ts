@@ -358,7 +358,7 @@ describe('hash', () => {
         const relPath = 'single.txt';
         await writeFile(path.join(tmpDir, relPath), 'hello world', 'utf-8');
 
-        const trackedFiles: TrackedFile[] = [{ path: relPath, category: 'source' }];
+        const trackedFiles: TrackedFile[] = [{ path: relPath, category: 'source', layer: 'source' }];
         const { canonicalHash, fileHashes } = await hashTrackedFiles(tmpDir, trackedFiles);
 
         const expectedFileHash = hashString('hello world');
@@ -380,12 +380,12 @@ describe('hash', () => {
         await writeFile(path.join(tmpDir, 'beta.txt'), 'beta content', 'utf-8');
 
         const trackedFilesAB: TrackedFile[] = [
-          { path: 'alpha.txt', category: 'source' },
-          { path: 'beta.txt', category: 'graph' },
+          { path: 'alpha.txt', category: 'source', layer: 'source' },
+          { path: 'beta.txt', category: 'graph', layer: 'hierarchy' },
         ];
         const trackedFilesBA: TrackedFile[] = [
-          { path: 'beta.txt', category: 'graph' },
-          { path: 'alpha.txt', category: 'source' },
+          { path: 'beta.txt', category: 'graph', layer: 'hierarchy' },
+          { path: 'alpha.txt', category: 'source', layer: 'source' },
         ];
 
         const resultAB = await hashTrackedFiles(tmpDir, trackedFilesAB);
@@ -405,8 +405,8 @@ describe('hash', () => {
         await writeFile(path.join(tmpDir, 'present.txt'), 'exists', 'utf-8');
 
         const trackedFiles: TrackedFile[] = [
-          { path: 'present.txt', category: 'source' },
-          { path: 'does-not-exist.txt', category: 'graph' },
+          { path: 'present.txt', category: 'source', layer: 'source' },
+          { path: 'does-not-exist.txt', category: 'graph', layer: 'hierarchy' },
         ];
 
         // Should not throw even though one file is missing
@@ -450,7 +450,7 @@ describe('hash', () => {
         );
         await writeFile(path.join(tmpDir, 'src', 'dist', 'bundle.js'), 'bundled', 'utf-8');
 
-        const trackedFiles: TrackedFile[] = [{ path: 'src', category: 'source' }];
+        const trackedFiles: TrackedFile[] = [{ path: 'src', category: 'source', layer: 'source' }];
         const { fileHashes } = await hashTrackedFiles(tmpDir, trackedFiles);
 
         // Only app.ts should be hashed — node_modules and dist must be excluded
@@ -478,7 +478,7 @@ describe('hash', () => {
         await writeFile(path.join(tmpDir, 'project', 'sub', 'debug.log'), 'log data', 'utf-8');
         await writeFile(path.join(tmpDir, 'project', 'sub', 'index.ts'), 'export {}', 'utf-8');
 
-        const trackedFiles: TrackedFile[] = [{ path: 'project', category: 'source' }];
+        const trackedFiles: TrackedFile[] = [{ path: 'project', category: 'source', layer: 'source' }];
         const { fileHashes } = await hashTrackedFiles(tmpDir, trackedFiles);
 
         const hashedPaths = Object.keys(fileHashes);
@@ -628,7 +628,7 @@ describe('hash', () => {
 
         const syntheticHash = 'abc123def456abc123def456abc123def456abc123def456abc123def456';
         const trackedFiles: TrackedFile[] = [
-          { path: 'synthetic-entry', category: 'graph', syntheticHash },
+          { path: 'synthetic-entry', category: 'graph', syntheticHash, layer: 'hierarchy' },
         ];
         const { fileHashes } = await hashTrackedFiles(tmpDir, trackedFiles);
 
@@ -646,8 +646,8 @@ describe('hash', () => {
         await writeFile(path.join(tmpDir, 'exclude-me.ts'), 'excluded', 'utf-8');
 
         const trackedFiles: TrackedFile[] = [
-          { path: 'keep.ts', category: 'source' },
-          { path: 'exclude-me.ts', category: 'source' },
+          { path: 'keep.ts', category: 'source', layer: 'source' },
+          { path: 'exclude-me.ts', category: 'source', layer: 'source' },
         ];
         const { fileHashes } = await hashTrackedFiles(tmpDir, trackedFiles, undefined, [
           'exclude-me.ts',
@@ -669,8 +669,8 @@ describe('hash', () => {
         await writeFile(path.join(tmpDir, 'build', 'bundle.js'), 'bundle', 'utf-8');
 
         const trackedFiles: TrackedFile[] = [
-          { path: 'src', category: 'source' },
-          { path: 'build', category: 'source' },
+          { path: 'src', category: 'source', layer: 'source' },
+          { path: 'build', category: 'source', layer: 'source' },
         ];
         const { fileHashes } = await hashTrackedFiles(tmpDir, trackedFiles, undefined, [
           'build',
@@ -691,7 +691,7 @@ describe('hash', () => {
         await writeFile(filePath, 'cached content', 'utf-8');
 
         // First pass: compute hashes and mtimes
-        const trackedFiles: TrackedFile[] = [{ path: 'cache.txt', category: 'source' }];
+        const trackedFiles: TrackedFile[] = [{ path: 'cache.txt', category: 'source', layer: 'source' }];
         const result1 = await hashTrackedFiles(tmpDir, trackedFiles);
 
         // Second pass: with stored file data (should reuse hash)
@@ -714,7 +714,7 @@ describe('hash', () => {
         const filePath = path.join(tmpDir, 'changed.txt');
         await writeFile(filePath, 'original content', 'utf-8');
 
-        const trackedFiles: TrackedFile[] = [{ path: 'changed.txt', category: 'source' }];
+        const trackedFiles: TrackedFile[] = [{ path: 'changed.txt', category: 'source', layer: 'source' }];
         const result1 = await hashTrackedFiles(tmpDir, trackedFiles);
 
         // Modify file and wait a bit to ensure mtime changes
@@ -742,7 +742,7 @@ describe('hash', () => {
         for (let i = 0; i < 300; i++) {
           const fileName = `file-${String(i).padStart(4, '0')}.txt`;
           await writeFile(path.join(tmpDir, fileName), `content ${i}`, 'utf-8');
-          trackedFiles.push({ path: fileName, category: 'source' });
+          trackedFiles.push({ path: fileName, category: 'source', layer: 'source' });
         }
 
         const { fileHashes, canonicalHash } = await hashTrackedFiles(tmpDir, trackedFiles);

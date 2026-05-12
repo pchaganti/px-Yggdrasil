@@ -9,7 +9,6 @@ function makeFlow(id: string, overrides: Partial<FlowDef> = {}): FlowDef {
     description: `Description of ${id} flow`,
     nodes: ['service/a', 'service/b'],
     aspects: [],
-    artifacts: [],
     ...overrides,
   };
 }

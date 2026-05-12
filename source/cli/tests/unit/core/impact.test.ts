@@ -12,7 +12,6 @@ function makeNode(nodePath: string, overrides: Partial<GraphNode> = {}): GraphNo
   return {
     path: nodePath,
     meta: { name: nodePath.split('/').pop()!, type: 'service' },
-    artifacts: [],
     children: [],
     parent: null,
     ...overrides,
@@ -21,9 +20,8 @@ function makeNode(nodePath: string, overrides: Partial<GraphNode> = {}): GraphNo
 
 function makeGraph(nodes: GraphNode[]): Graph {
   return {
-    config: {
-      artifacts: {},
-    },
+    config: {},
+    architecture: { node_types: {} },
     nodes: new Map(nodes.map((n) => [n.path, n])),
     aspects: [],
     flows: [],
@@ -209,7 +207,7 @@ describe('collectEffectiveAspectIds', () => {
     graph.aspects = [{ name: 'Saga', id: 'requires-saga', artifacts: [] }];
     graph.flows = [{
       name: 'F', path: 'f', nodes: ['a'],
-      aspects: ['requires-saga'], artifacts: [],
+      aspects: ['requires-saga'],
     }];
     const result = computeEffectiveAspects(graph.nodes.get('a')!, graph);
     expect([...result]).toContain('requires-saga');
@@ -237,7 +235,7 @@ describe('collectEffectiveAspectIds', () => {
     graph.aspects = [{ name: 'Saga', id: 'requires-saga', artifacts: [] }];
     graph.flows = [{
       name: 'F', path: 'f', nodes: ['mod'],
-      aspects: ['requires-saga'], artifacts: [],
+      aspects: ['requires-saga'],
     }];
     const result = computeEffectiveAspects(graph.nodes.get('mod/svc')!, graph);
     expect([...result]).toContain('requires-saga');
@@ -277,7 +275,7 @@ describe('collectEffectiveAspectIds', () => {
     ];
     graph.flows = [{
       name: 'F', path: 'f', nodes: ['mod/svc'],
-      aspects: ['flow-aspect'], artifacts: [],
+      aspects: ['flow-aspect'],
     }];
     const result = computeEffectiveAspects(graph.nodes.get('mod/svc')!, graph);
     expect([...result]).toContain('own-aspect');
@@ -307,7 +305,7 @@ describe('collectEffectiveAspectIds', () => {
     graph.aspects = [{ name: 'Shared', id: 'shared', artifacts: [] }];
     graph.flows = [{
       name: 'F', path: 'f', nodes: ['mod/svc'],
-      aspects: ['shared'], artifacts: [],
+      aspects: ['shared'],
     }];
     const result = computeEffectiveAspects(graph.nodes.get('mod/svc')!, graph);
     expect([...result]).toEqual(['shared']);
@@ -373,7 +371,7 @@ describe('co-aspect nodes detection', () => {
     graph.aspects = [{ name: 'Logging', id: 'logging', artifacts: [] }];
     graph.flows = [{
       name: 'F', path: 'f', nodes: ['svc-b'],
-      aspects: ['logging'], artifacts: [],
+      aspects: ['logging'],
     }];
 
     const aEffective = computeEffectiveAspects(graph.nodes.get('svc-a')!, graph);

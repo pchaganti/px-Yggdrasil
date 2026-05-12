@@ -10,7 +10,6 @@ function createNode(nodePath: string, mapping: { paths: string[] }): GraphNode {
       type: 'service',
       mapping: mapping.paths,
     },
-    artifacts: [],
     children: [],
     parent: null,
   };
@@ -19,6 +18,7 @@ function createNode(nodePath: string, mapping: { paths: string[] }): GraphNode {
 function createGraph(nodes: Array<[string, GraphNode]>): Graph {
   return {
     config: {},
+    architecture: { node_types: {} },
     nodes: new Map(nodes),
     aspects: [],
     flows: [],

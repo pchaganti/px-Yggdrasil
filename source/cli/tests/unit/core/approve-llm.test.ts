@@ -92,7 +92,6 @@ async function recordBaseline(tmpDir: string) {
 function makeMockProvider(overrides: Partial<LlmProvider> = {}): LlmProvider {
   return {
     verifyAspect: async () => ({ satisfied: true, reason: 'ok' }),
-    needsChunking: true,
     isAvailable: async () => true,
     getContextWindowSize: async () => 8192,
     ...overrides,

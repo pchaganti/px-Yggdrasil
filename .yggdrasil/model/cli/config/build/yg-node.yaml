@@ -1,0 +1,14 @@
+name: Build Config
+type: project
+description: "TypeScript compilation and bundle configuration: tsconfig, tsup, npmignore, npmrc, and package-lock"
+aspects: []
+relations: []
+mapping:
+  - source/cli/tsconfig.json
+  - source/cli/tsconfig.check.json
+  - source/cli/tsup.config.ts
+  - source/cli/vitest.external.config.ts
+  - source/cli/.npmignore
+  - source/cli/.npmrc
+  - source/cli/package.json
+  - source/cli/package-lock.json
