@@ -143,6 +143,10 @@ Do not interrupt \`yg approve\` — it processes each aspect across all source f
 | \`yg ast-test --aspect <id> --files <paths...>\` | Run AST aspect check against ad-hoc files (no baseline) |
 | \`yg ast-test --aspect <id> --node <path>\` | Run AST aspect check against a node's mapped files |
 | \`yg init\` | Bootstrap or refresh \`.yggdrasil/\` setup |
+| \`yg find "<query>"\` | Locate entry-point nodes/aspects by natural-language query |
+| \`yg log add --node <path> --reason <text>\` | Append a per-node business-context log entry |
+| \`yg log read --node <path> [--top N | --all]\` | Read log entries (default top 10, newest first) |
+| \`yg log merge-resolve --node <path>\` | Reconcile log.md after a git merge commit |
 
 ### Impact and Cost
 
