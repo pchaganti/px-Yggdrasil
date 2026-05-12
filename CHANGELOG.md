@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `agent-rules.md` extended with sections: Working with architecture (pre-flight), Working with business-language requests, Per-node artifacts purpose, Log management, Finding entry points, Coordinated changes across multiple nodes. CLI commands table now lists `yg find` and `yg log` subcommands. Regenerate via `yg init --upgrade --platform <name>`.
 - `DriftNodeState` extended with optional `log: { last_entry_datetime, prefix_hash }` field. Backwards-compatible — absent for nodes without log.md.
 - `writeNodeDriftState` writes atomically via temp + rename.
 - `yg approve` pre-LLM step now validates log integrity → format → mandatory entry. Mandatory entry requires a new log entry after every source change when `log_required: true`.
