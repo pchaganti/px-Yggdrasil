@@ -12,9 +12,11 @@ import { collectTrackedFiles } from './context-files.js';
 import { normalizeMappingPaths } from '../utils/paths.js';
 import { validate } from './validator.js';
 import { computeEffectiveAspects } from './effective-aspects.js';
-import { access } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { buildIssueMessage } from '../formatters/message-builder.js';
+import { validateAppendOnly } from './log-integrity.js';
+import { validateFormat } from './log-format.js';
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -271,6 +273,59 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
         message,
         nodePath,
         cascadeCauses: nodeUpstreamCauses,
+      });
+    }
+  }
+
+  // ── Log checks (all nodes, including logical = no-mapping) ──
+  for (const [nodePath] of graph.nodes) {
+    const logRel = `.yggdrasil/model/${nodePath}/log.md`;
+    const logAbs = path.join(projectRoot, logRel);
+    let logContent: string | null = null;
+    try {
+      logContent = await readFile(logAbs, 'utf-8');
+    } catch { /* missing — keep null */ }
+
+    const storedEntryForLog = await readNodeDriftState(graph.rootPath, nodePath);
+
+    if (storedEntryForLog?.log) {
+      const check = validateAppendOnly(
+        logContent ?? '',
+        storedEntryForLog.log.last_entry_datetime,
+        storedEntryForLog.log.prefix_hash,
+      );
+      if (!check.ok) {
+        issues.push({
+          severity: 'error',
+          code: 'log-integrity',
+          rule: 'log-integrity',
+          message: buildIssueMessage({
+            what: `Log integrity broken (${check.reason}) at ${logRel}${logContent === null ? ' (file missing)' : ''}`,
+            why: check.reason === 'prefix_modified'
+              ? 'Historical (pre-baseline) log content was modified — append-only violated.'
+              : 'Baseline boundary entry not found — log was deleted or reset.',
+            next: `Restore from git: git checkout HEAD -- ${logRel} .yggdrasil/.drift-state/${nodePath}.json`,
+          }),
+          nodePath,
+        });
+        continue;
+      }
+    }
+
+    if (logContent === null) continue;
+
+    const violations = validateFormat(logContent);
+    if (violations.length > 0) {
+      issues.push({
+        severity: 'error',
+        code: 'log-format',
+        rule: 'log-format',
+        message: buildIssueMessage({
+          what: `Log format invalid at ${logRel}:\n${violations.map((v) => `  line ${v.line}: ${v.reason} — ${v.detail}`).join('\n')}`,
+          why: 'Log format must be parseable for indexing and integrity.',
+          next: 'Fix format violations (or git checkout) and re-run yg check.',
+        }),
+        nodePath,
       });
     }
   }
@@ -646,6 +701,19 @@ function computeSuggestedNext(issues: CheckIssue[], graph?: Graph): string | nul
     addRemaining(coverageErrors.length > 0 ? (coverageErrors[0].uncoveredCount ?? 0) : 0, 'files need coverage');
     const then = remaining.length > 0 ? `\n  Then: ${remaining.join(', ')}` : '';
     return `yg context --node ${node}\n  1 of ${driftErrors.length} drifted node${driftErrors.length === 1 ? '' : 's'} — post-modify workflow${then}`;
+  }
+
+  const logIntegrityErrors = errors.filter((i) => i.code === 'log-integrity');
+  const logFormatErrors = errors.filter((i) => i.code === 'log-format');
+
+  if (logIntegrityErrors.length > 0) {
+    const node = logIntegrityErrors[0].nodePath ?? '<unknown>';
+    return `git checkout HEAD -- .yggdrasil/model/${node}/log.md .yggdrasil/.drift-state/${node}.json\n  ${logIntegrityErrors.length} log integrity violation${logIntegrityErrors.length === 1 ? '' : 's'} — restore from git`;
+  }
+
+  if (logFormatErrors.length > 0) {
+    const node = logFormatErrors[0].nodePath ?? '<unknown>';
+    return `Edit .yggdrasil/model/${node}/log.md to fix format violations\n  ${logFormatErrors.length} log format violation${logFormatErrors.length === 1 ? '' : 's'} — post-baseline edit OR git checkout for pre-baseline`;
   }
 
   if (cascadeErrors.length > 0) {
