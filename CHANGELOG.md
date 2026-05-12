@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `yg log add --node <path> --reason <text>|--reason-file <path>` — append-only per-node business log. Each entry is timestamped (ISO 8601 UTC, milliseconds, strict monotonic).
+- `yg log read --node <path> [--top N | --all]` — print entries newest-first; default `--top 10`.
+- `yg log merge-resolve --node <path>` — reconcile log.md after a git merge (HEAD must be merge commit). Validates byte-exact ancestor prefix and union of new entries.
+- `log_required: boolean` field on architecture node types (default `true` when absent). Existing repos migrate to explicit `false` per type via migration `to-4.3.0` for graceful adoption.
+- Append-only integrity check (sha256 over baseline prefix) and CommonMark backtick-fence-aware format validator. Both surface as drift in `yg check` and block `yg approve`.
+- Logical nodes (no `mapping:`) now support `yg approve` for log-only baseline updates.
 - AST aspect reviewer (`reviewer: ast` in `yg-aspect.yaml` + `check.mjs` file).
   LLM reviewer remains the default. AST aspects ship a JavaScript `check`
   function executed against tree-sitter parses of the node's mapped source
@@ -24,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `DriftNodeState` extended with optional `log: { last_entry_datetime, prefix_hash }` field. Backwards-compatible — absent for nodes without log.md.
+- `writeNodeDriftState` writes atomically via temp + rename.
+- `yg approve` pre-LLM step now validates log integrity → format → mandatory entry. Mandatory entry requires a new log entry after every source change when `log_required: true`.
 - Repositioned README, npm package description, and GitHub metadata away
   from "LLM reviewer" as the category claim toward "architecture
   enforcement / guardrails." Mechanism description retained deeper in the
