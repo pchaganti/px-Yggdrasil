@@ -3,6 +3,7 @@ import path from 'node:path';
 import MiniSearch from 'minisearch';
 import type { Graph } from '../model/graph.js';
 import { debugWrite } from '../utils/debug-log.js';
+import { buildIssueMessage } from '../formatters/message-builder.js';
 
 const MAX_BODY_BYTES = 1_048_576; // 1 MiB
 
@@ -28,14 +29,34 @@ export async function buildIndex(graph: Graph): Promise<IndexedDocument[]> {
       const st = await lstat(logPath);
       if (!st.isSymbolicLink() && st.nlink === 1) {
         const raw = await readFile(logPath, 'utf-8');
-        body = truncateTail(raw, MAX_BODY_BYTES);
+        const truncated = truncateTail(raw, MAX_BODY_BYTES);
+        if (truncated !== raw) {
+          process.stderr.write(
+            buildIssueMessage({
+              what: `log.md for node '${nodePath}' exceeds 1 MiB — body truncated for indexing`,
+              why: 'Large logs are truncated to keep search index memory bounded.',
+              next: 'This does not affect append-only integrity. No action required.',
+            }) + '\n',
+          );
+        }
+        body = truncated;
       } else if (st.isSymbolicLink()) {
         process.stderr.write(`Warning: skipping symlinked log.md at ${path.relative(projectRoot, logPath)}\n`);
       /* v8 ignore next 2 -- hardlink (nlink>1, !symlink): skip silently; not testable without root */
       } else {
         /* skip hardlink */
       }
-    } catch (err) { debugWrite(`[find-index] log.md read for ${nodePath}: ${(err as Error).message}`); }
+    } catch (err) {
+      const msg = (err as NodeJS.ErrnoException).message;
+      debugWrite(`[find-index] log.md read for ${nodePath}: ${msg}`);
+      process.stderr.write(
+        buildIssueMessage({
+          what: `Cannot read log.md for node '${nodePath}': ${msg}`,
+          why: 'Node will be indexed without log body — search results may be less relevant.',
+          next: 'Check file permissions or restore from git.',
+        }) + '\n',
+      );
+    }
 
     docs.push({
       id: `node:${nodePath}`,

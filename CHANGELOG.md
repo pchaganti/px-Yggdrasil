@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `yg find` now emits visible stderr warnings when log.md cannot be read (filesystem error) or is truncated (>1 MiB) — previously these were silent or debug-only.
 - Release workflow now skips `npm publish` and GitHub release creation
   when the current `source/cli/package.json` version is already on npm.
   Previously, a non-version edit to `source/cli/package.json` triggered
