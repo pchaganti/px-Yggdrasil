@@ -8,6 +8,7 @@ relations:
   - target: cli/io
     type: uses
 mapping:
+  - source/cli/src/cli/log.ts
   - source/cli/src/cli/log-add.ts
   - source/cli/src/cli/log-read.ts
   - source/cli/src/cli/log-merge-resolve.ts
