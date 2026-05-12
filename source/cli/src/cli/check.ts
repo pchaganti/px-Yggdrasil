@@ -202,6 +202,18 @@ export function formatOutput(result: CheckResult): string {
       }
       lines.push('');
     }
+
+    const logErrors = errors.filter(i => i.code === 'log-integrity' || i.code === 'log-format');
+    if (logErrors.length > 0) {
+      lines.push('  Log:');
+      for (const issue of sortByNodePath(logErrors)) {
+        lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — ${issue.rule}`);
+        for (const line of issue.message.split('\n')) {
+          lines.push(`       ${line}`);
+        }
+      }
+      lines.push('');
+    }
   }
 
   if (warnings.length > 0) {

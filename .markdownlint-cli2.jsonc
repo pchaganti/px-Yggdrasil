@@ -20,5 +20,6 @@
     ".temp/**",
     "**/agent-rules.md",
     ".cursor/rules/**",
+    "**/log.md",
   ],
 }
