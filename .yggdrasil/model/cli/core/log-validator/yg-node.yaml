@@ -7,3 +7,4 @@ relations:
     type: uses
 mapping:
   - source/cli/src/core/log-format.ts
+  - source/cli/src/core/log-integrity.ts
