@@ -8,4 +8,5 @@ relations:
     type: uses
 mapping:
   - source/cli/src/migrations/to-4.0.0.ts
+  - source/cli/src/migrations/to-4.3.0.ts
   - source/cli/src/migrations/index.ts

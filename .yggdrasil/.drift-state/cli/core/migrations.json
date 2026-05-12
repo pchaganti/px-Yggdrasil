@@ -1,5 +1,5 @@
 {
-  "hash": "ab03d4e9441602d3ba6b2be61098db50e36232c5e20675c02872716e5baa5b17",
+  "hash": "9cf1f34484f948c48b4b549f559ddb576d0151e3ef43782345f6487a629fd5a0",
   "files": {
     "own-subset:cli/core/migrations": "99f222a2a33062c1189a65d4c27a323bb1d9a2a7e771731b2c2bd771ff0f4908",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -9,18 +9,20 @@
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": "20f321091b4f489efbf167feea9d42d73f7cffb21ea2e86958e565b550da164b",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
     ".yggdrasil/model/cli/core/migrator/yg-node.yaml": "1c74bffe5d90a259c330d68888caf4097753f5e929e3edc036b6a295f49e44d1",
-    "source/cli/src/migrations/index.ts": "66aa8357ccef8c8068a6879de4370b22f417596cb8327de8d06900ef6b8ed2ae",
-    "source/cli/src/migrations/to-4.0.0.ts": "0fb8f7069ee24b6ec202e97df4790c00b124e71173b72ab92822ade7ae470413"
+    "source/cli/src/migrations/to-4.0.0.ts": "0fb8f7069ee24b6ec202e97df4790c00b124e71173b72ab92822ade7ae470413",
+    "source/cli/src/migrations/index.ts": "82e0cd223eb0b3c7f7215862c22624c11a0ba75d5cd36783d85fb6a1f919cd7b",
+    "source/cli/src/migrations/to-4.3.0.ts": "7361a0a9858b0b755b5da800388cdcd407de9b8f68f66ed640de16dcffc8d943"
   },
   "mtimes": {
-    ".yggdrasil/model/cli/yg-node.yaml": 1776082060141.5686,
-    ".yggdrasil/model/cli/core/yg-node.yaml": 1775639609607.5476,
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/core/yg-node.yaml": 1776177846202.0774,
     ".yggdrasil/aspects/posix-paths/yg-aspect.yaml": 1775580557269.0808,
-    ".yggdrasil/aspects/posix-paths/content.md": 1776069544121.2842,
+    ".yggdrasil/aspects/posix-paths/content.md": 1776177846197.5266,
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": 1775580563004.8235,
-    ".yggdrasil/aspects/deterministic/content.md": 1775655562335.338,
-    ".yggdrasil/model/cli/core/migrator/yg-node.yaml": 1776160723074.13,
-    "source/cli/src/migrations/to-4.0.0.ts": 1776163243839.0627,
-    "source/cli/src/migrations/index.ts": 1776161550285.7195
+    ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
+    ".yggdrasil/model/cli/core/migrator/yg-node.yaml": 1776177846201.7908,
+    "source/cli/src/migrations/to-4.0.0.ts": 1776513183168.997,
+    "source/cli/src/migrations/to-4.3.0.ts": 1778578901506.5593,
+    "source/cli/src/migrations/index.ts": 1778578908569.0012
   }
 }
