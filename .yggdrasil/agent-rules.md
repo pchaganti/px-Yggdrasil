@@ -133,6 +133,10 @@ Do not interrupt `yg approve` — it processes each aspect across all source fil
 | `yg ast-test --aspect <id> --files <paths...>` | Run AST aspect check against ad-hoc files (no baseline) |
 | `yg ast-test --aspect <id> --node <path>` | Run AST aspect check against a node's mapped files |
 | `yg init` | Bootstrap or refresh `.yggdrasil/` setup |
+| `yg find "<query>"` | Locate entry-point nodes/aspects by natural-language query |
+| `yg log add --node <path> --reason <text>` | Append a per-node business-context log entry |
+| `yg log read --node <path> [--top N | --all]` | Read log entries (default top 10, newest first) |
+| `yg log merge-resolve --node <path>` | Reconcile log.md after a git merge commit |
 
 ### Impact and Cost
 
@@ -165,6 +169,254 @@ This is a cost/impact trade-off. Assess, propose the option to the user, let the
 **Unmapped files:** `yg context --file` will say if a file has no owner and suggest candidates. Either add it to an existing node's mapping or create a new node. Code without graph coverage works but is not verified — inform the user and propose options.
 
 **Greenfield (no nodes yet):** Graph before code. Create architecture types, aspects, and nodes first — they are the specification. Then implement code that satisfies the aspects. `yg check` will guide you through coverage gaps.
+
+### Working with architecture
+
+The graph already organizes existing code into nodes with established types
+and aspects. When you're EDITING existing files, you don't need to consult
+architecture — those files already belong to a node. Use `yg context --file`
+to see which node owns a file and what aspects apply.
+
+When you're CREATING something new (new file that doesn't fit any existing
+node's mapping, or new functionality that needs a new node), you need a
+pre-flight check against architecture FIRST.
+
+When pre-flight applies:
+- Creating a new file in a location not covered by any existing node's mapping
+- Creating a new node (yg-node.yaml) for new functionality
+- Adding a new module/feature area to the codebase
+
+When pre-flight does NOT apply:
+- Editing existing source files (their node and aspects are already established)
+- Adding source code to an existing node's mapping pattern
+- Refactoring within a node's scope
+
+Pre-flight procedure (only for new creation):
+
+1. Read `yg-architecture.yaml` to see what node types exist
+2. Pick the type that matches what you're creating (read the type's description)
+3. Use the type's allowed parents, allowed relations, default aspects, and
+   mapping convention to place the file correctly
+4. Create the file in the right location AND the corresponding `yg-node.yaml`
+   with the matching type
+
+Skipping pre-flight when it applies leads to aspect violations that block
+your commit. Pre-flight read is one file. Retry after rejection is many
+cycles.
+
+Example fail-flow (skipping pre-flight when creating new files):
+
+  You create src/api/billing/cancel.ts without checking architecture
+    ↓
+  yg approve --node billing/cancel
+    ↓
+  Aspect `ui-no-direct-db` fires: file is under ui/ pattern but imports the DB client
+    ↓
+  Approve fails: "UI components cannot directly import database clients."
+    ↓
+  You retry: move file, retry approve, possibly hit another aspect
+    ↓
+  Multiple iterations versus one pre-flight read.
+
+When no type fits the user's request, do not create files ad-hoc. Push back
+to user explaining that architecture lacks a fitting type and consultation
+with engineer is needed.
+
+### Working with business-language requests
+
+User requests come in natural language (any language). Yggdrasil artifacts
+are in English. Translate keywords before searching the graph.
+
+Translation flow:
+
+1. Read user request — what user-visible behavior do they want?
+2. Identify keywords, translate to English
+3. Run `yg find "<english keywords>"` to locate entry points
+4. Examine the top result's `Kind` line:
+   - `Kind: node` → take path from `model/<...>` portion as `--node` argument
+     (strip the `model/` prefix). Example: `model/billing/cancel/` → `--node billing/cancel`
+   - `Kind: aspect` → do NOT use as `--node`. Read aspect file directly (Read
+     tool on path). Look for next `Kind: node` result for entry point.
+5. If user request uses cross-cutting words ("all", "every", "across",
+   "everywhere"), treat top results as candidate SET, not ranked options.
+   Verify each via `yg impact`. Consider whether the change is an aspect
+   (cross-cutting concern) rather than per-node edit.
+6. Run `yg context --node <path>` for aspects, mapping, relations
+7. Read log.md (use `yg log read --node <path> --top 10` for recent context)
+8. Make the technical decision
+9. Implement
+
+When responding to user:
+- Describe changes as user-visible features
+  ("Added cancellation that takes effect at end of billing cycle")
+- Never use system terms (aspect, node, drift) in user-facing text
+- When a rule blocks a change: translate why into business consequence
+
+When reviewer rejects:
+- Read its technical message (it's for you, not the user)
+- Translate to user-facing explanation if surfaced to user
+
+### Per-node artifacts: what they are for
+
+Each node may have:
+
+**`yg-node.yaml`** — identity and scope. Type, mapping, aspects, relations,
+ports. Loaded by `yg context`. You consult this to know what aspects apply
+and what files this node owns.
+
+**`log.md`** — append-only history of WHY things happened in this node.
+Read this BEFORE editing the node's source files. It contains:
+- Business decisions with reasoning
+- Constraints from external sources (regulations, contracts, SLA)
+- Gotchas the next agent must know
+- Why a feature is implemented the way it is
+
+The log is for YOU (the agent). It is NOT visible to the reviewer that
+verifies your code against aspects. Reviewer sees aspect content + source
+files only. So log captures business context for agent decisions, but
+enforcement remains aspect-based.
+
+`yg context` does NOT include log content. Read it explicitly:
+- `yg log read --node <path> --top 10` for recent entries (ergonomic, default top 10)
+- `yg log read --node <path> --all` when you need the full history
+- Read tool on `.yggdrasil/model/<path>/log.md` for full content when needed
+
+### Log management
+
+Every change to source files in a node's mapping requires a log entry
+BEFORE running approve (for nodes whose type has `log_required: true`,
+which is the default).
+
+Workflow:
+
+  1. Edit source files
+  2. Run: yg log add --node <path> --reason "<justification>"
+  3. Run: yg approve --node <path>
+
+If you forget step 2: approve fails with clear error pointing you to fix.
+
+If approve fails (reviewer rejects), you can iterate on the code without
+adding new log entries. One log entry covers all source edits within a
+single approve cycle (including failed approves and retries) until the
+approve succeeds.
+
+Log file format constraints (validated by yg check):
+- Entry headers `## [<ISO datetime UTC with milliseconds>]` are reserved
+- Sub-headings in your reason must be `### ` or deeper (level 3+)
+- Do not put `## ` at the start of any line in your `--reason` content
+  (UNLESS inside a fenced code block — those are allowed)
+- Multi-line content via bash `$'multi\nline'` or via `--reason-file <path>`
+  (cross-platform alternative; reads the entire file as the entry body)
+- Datetimes must be strictly ascending across entries
+
+Correcting a previous entry that turned out to be wrong:
+- Append-only blocks editing historical entries
+- Convention: start your correction entry with `### Supersedes: <prior ISO datetime>`
+- Future agents reading the log will see structured supersedes
+
+Recovery from typo in fresh entry (BEFORE first approve):
+
+If you just ran `yg log add` and notice a typo in `--reason`, and no approve
+has run since (drift state baseline still points to previous state):
+
+  1. git checkout .yggdrasil/model/<path>/log.md
+     (restores log.md to state before your typo entry)
+  2. yg log add --node <path> --reason "<correct text>"
+
+The drift state baseline is unchanged (no approve happened), so checking out
+just log.md is safe and integrity remains intact. Do NOT use this path if
+approve has already run on the typo'd entry — at that point the entry is
+in the baseline and you must use the Supersedes convention instead.
+
+Reverting a change you regret:
+- Do NOT add a "correction" entry to log.md (would still leave wrong code)
+- Use git: `git checkout <previous>` on source, log.md, AND drift state file:
+  `git checkout HEAD~1 -- src/file.ts .yggdrasil/model/<path>/log.md .yggdrasil/.drift-state/<path>.json`
+- Then: `yg log add --node <path> --reason "Tried X, reverted because Y"`
+- Then: `yg approve --node <path>`
+
+After a git merge: if both branches added log entries to the same node,
+run `yg log merge-resolve --node <path>` from the merge commit. The tool
+validates byte-exact ancestor portion and union of new entries — it cannot
+silently drop or fabricate entries. Do NOT manually concatenate the two
+log histories — integrity hashes will break and yg check fails.
+
+Never edit log.md directly. Integrity verification will catch any
+modification of historical entries (entries before the last approve).
+
+When log.md is large (rough threshold: >50 entries OR >5000 tokens),
+do not load full content into your context. Delegate to a subagent:
+
+  Spawn subagent with: "Read .yggdrasil/model/<path>/log.md, summarize
+  relevant context for task: <task description>. Return key decisions,
+  constraints, and gotchas only."
+
+Use the returned summary, not the full log.
+
+`yg log add` does not trigger drift or run the reviewer. You can add
+context entries between code changes freely. Only source file changes
+in the mapping require entries paired with `yg approve`.
+
+### Finding entry points
+
+When a user request describes desired behavior:
+
+  1. Translate keywords to English (Yggdrasil artifacts are English)
+  2. Run: yg find "<keywords>"
+  3. Read the top-ranked candidate's score critically:
+     - Score >0.6: probably correct entry point
+     - Score 0.3-0.6: maybe — verify with yg context
+     - Score <0.3: weak match, consider fallback
+  4. Use the `Kind` line to interpret the result:
+     - `Kind: node` → strip `model/` prefix, use as `--node` value
+     - `Kind: aspect` → read aspect file directly, not as node
+  5. Run: yg context --node <node-path> for full context
+
+If user request is cross-cutting (uses words "all", "every", "across"):
+- Treat top 5 results as candidate SET
+- Verify each via `yg impact`
+- Consider whether the change should be a new aspect rather than per-node edit
+
+If no good matches, fall back to `yg tree` for full graph overview, or
+ask user for guidance.
+
+If you decide the change is cross-cutting and should become a new aspect
+(rather than per-node edit), follow the existing protocol from the
+"When to Create Graph Elements" section (Aspect subsection). Note that
+creating/modifying aspects (anything inside `.yggdrasil/`) does NOT require
+log entries — log entries are required only for source files in node
+mappings.
+
+### Coordinated changes across multiple nodes
+
+For changes that span multiple nodes (cross-cutting rename, schema migration,
+shared concept update):
+
+  1. Edit all affected source files first.
+     Do NOT approve incrementally — risks half-applied state if one fails.
+
+  2. Add log entry per affected node (each `yg log add --node X --reason "..."`
+     for each node).
+     One entry per node, even if the same business reason applies to many.
+
+  3. Approve all nodes together using batch invocation:
+     `yg approve --node A --node B --node C`
+     Or use `yg approve --aspect <id>` / `--flow <name>` for aspect/flow-driven batches.
+
+  4. Per-node independent execution:
+     - Each node runs full algorithm (integrity, format, drift, mandatory, reviewer, commit).
+     - One node failure does NOT abort others.
+     - Output lists all results. Exit code 1 if ANY failed.
+
+  5. On partial failure: fix per-node errors, re-run batch with only failed nodes.
+
+  6. For node renames specifically:
+     - Update `mapping:` w yg-node.yaml of affected nodes
+     - Update `flows/<name>/yg-flow.yaml` `nodes:` lists referencing old names
+     - `yg check` catches broken references; fix proactively
+
+If user request is a rename, the rationale in `--reason` should explicitly
+identify it as a cross-cutting rename to give future agents context.
 
 ### When to Create Graph Elements
 
