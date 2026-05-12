@@ -20,3 +20,4 @@ mapping:
   - source/cli/src/io/node-parser.ts
   - source/cli/src/io/schema-parser.ts
   - source/cli/src/io/secrets-parser.ts
+  - source/cli/src/io/log-parser.ts

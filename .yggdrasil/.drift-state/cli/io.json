@@ -1,5 +1,5 @@
 {
-  "hash": "2a09958eb501293d1c9f38cb20008bcb127b1f6a07be429a53af786bf69b833e",
+  "hash": "c5b64be4494cb26b38333627cac67cd1e7366a79d46e8b94511e05c993c1349f",
   "files": {
     "own-subset:cli/io": "93a2039db5969786ae9f539773e973950d2b11a6bc1c7846d5e0170dc969c748",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -16,11 +16,12 @@
     "source/cli/src/io/artifact-reader.ts": "88ceb67755c0725962910cf0bc31e756dd50ffa64127d09c47a79dc43935c5cc",
     "source/cli/src/io/aspect-parser.ts": "60557d9551bc04c222aa0beb9839b8f85543723bda894930cea6aaa83f8ec9dc",
     "source/cli/src/io/config-parser.ts": "b0d7c32698317a3498389c429a968f3536d487bda5b69b1b863625cf6d572d6c",
+    "source/cli/src/io/drift-state-store.ts": "d85533780c1fe7c5ba268c319658712e7a375cce27d9926f856bae0dea79bd14",
     "source/cli/src/io/flow-parser.ts": "475782d0f195be57f82505cb0b65cedb6259c79fceee4db83ea74802fbf1a474",
     "source/cli/src/io/node-parser.ts": "2f7c18c7f497f88f703daed29008791767e937ee94a974919b208e11f071873c",
     "source/cli/src/io/schema-parser.ts": "7a04832bf460fff9538f2037a9744b56ad1ec37e5565929b1b709cddc9202261",
     "source/cli/src/io/secrets-parser.ts": "6a1f2ba6eb0928fd50536863ee098df87892a32d858c3fb7e577337ef7ca0395",
-    "source/cli/src/io/drift-state-store.ts": "d85533780c1fe7c5ba268c319658712e7a375cce27d9926f856bae0dea79bd14"
+    "source/cli/src/io/log-parser.ts": "29aa2620d7f0223666b23b78f914dfc204ff5102be3a42d6546ba055f42e5523"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -41,6 +42,7 @@
     "source/cli/src/io/flow-parser.ts": 1776494731310.8044,
     "source/cli/src/io/node-parser.ts": 1778501876547.812,
     "source/cli/src/io/schema-parser.ts": 1776177846231.5789,
-    "source/cli/src/io/secrets-parser.ts": 1776494731311.3828
+    "source/cli/src/io/secrets-parser.ts": 1776494731311.3828,
+    "source/cli/src/io/log-parser.ts": 1778572714037.1997
   }
 }
