@@ -33,6 +33,11 @@ export interface ArchitectureNodeType {
   aspectWhens?: Record<string, WhenPredicate>;
   parents?: string[];
   relations?: Partial<Record<RelationType, string[]>>;
+  /**
+   * Whether nodes of this type require a log entry per source-file change.
+   * Undefined means caller should apply its own default (typically true).
+   */
+  log_required?: boolean;
 }
 
 export interface ArchitectureDef {

@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { writeFile, mkdir, rm } from 'node:fs/promises';
+import { writeFile, mkdir, rm, mkdtemp } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
 import { parseArchitecture } from '../../../src/io/architecture-parser.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -200,6 +201,50 @@ node_types:
       expect(arch.node_types.service.aspects).toEqual(['requires-auth']);
       expect(arch.node_types.service).not.toHaveProperty('integration_aspects');
       await cleanup(file);
+    });
+  });
+});
+
+describe('parseArchitecture — log_required', () => {
+  async function withArchYaml<T>(yaml: string, fn: (filePath: string) => Promise<T>): Promise<T> {
+    const dir = await mkdtemp(path.join(tmpdir(), 'yg-arch-'));
+    try {
+      const filePath = path.join(dir, 'yg-architecture.yaml');
+      await writeFile(filePath, yaml, 'utf-8');
+      return await fn(filePath);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  it('reads log_required: true', async () => {
+    const yaml = `node_types:\n  command:\n    description: CLI command handler\n    log_required: true\n`;
+    await withArchYaml(yaml, async (fp) => {
+      const arch = await parseArchitecture(fp);
+      expect(arch.node_types.command.log_required).toBe(true);
+    });
+  });
+
+  it('reads log_required: false', async () => {
+    const yaml = `node_types:\n  test:\n    description: Test fixtures\n    log_required: false\n`;
+    await withArchYaml(yaml, async (fp) => {
+      const arch = await parseArchitecture(fp);
+      expect(arch.node_types.test.log_required).toBe(false);
+    });
+  });
+
+  it('leaves log_required undefined when field absent', async () => {
+    const yaml = `node_types:\n  module:\n    description: Module\n`;
+    await withArchYaml(yaml, async (fp) => {
+      const arch = await parseArchitecture(fp);
+      expect(arch.node_types.module.log_required).toBeUndefined();
+    });
+  });
+
+  it('rejects log_required when not boolean', async () => {
+    const yaml = `node_types:\n  module:\n    description: Module\n    log_required: "yes"\n`;
+    await withArchYaml(yaml, async (fp) => {
+      await expect(parseArchitecture(fp)).rejects.toThrow(/log_required.*boolean/);
     });
   });
 });

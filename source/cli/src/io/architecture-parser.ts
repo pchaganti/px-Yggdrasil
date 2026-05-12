@@ -62,12 +62,23 @@ export async function parseArchitecture(filePath: string): Promise<ArchitectureD
 
     const relations: Partial<Record<RelationType, string[]>> | undefined = parseRelations(entry.relations, typeName);
 
+    let logRequired: boolean | undefined;
+    if (entry.log_required !== undefined) {
+      if (typeof entry.log_required !== 'boolean') {
+        throw new Error(
+          `yg-architecture.yaml: node_types.${typeName}.log_required must be boolean, got ${typeof entry.log_required}`,
+        );
+      }
+      logRequired = entry.log_required;
+    }
+
     nodeTypes[typeName] = {
       description: entry.description as string,
       aspects,
       ...(aspectWhens && { aspectWhens }),
       parents: parents && parents.length > 0 ? parents : undefined,
       relations: relations,
+      ...(logRequired !== undefined && { log_required: logRequired }),
     };
   }
 
