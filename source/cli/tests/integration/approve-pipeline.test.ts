@@ -147,15 +147,15 @@ describe('approve-pipeline', () => {
     expect(noChange.action).toBe('no-change');
   });
 
-  it('initial approve on node with no mapping throws', async () => {
+  it('refuses approve on node with no mapping and no log.md', async () => {
     const root = await setupProject();
     cleanupPaths.push(root);
 
     const graph = await loadGraph(root);
-    // 'orders' parent module has no mapping.paths
-    await expect(approveNode(graph, 'orders')).rejects.toThrow(
-      /no mapping/,
-    );
+    // 'orders' parent module has no mapping.paths and no log.md
+    const result = await approveNode(graph, 'orders');
+    expect(result.action).toBe('refused');
+    expect(result.refuseReason).toMatch(/no mapping|no log/i);
   });
 
   it('approve on nonexistent node throws', async () => {

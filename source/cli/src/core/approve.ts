@@ -13,9 +13,14 @@ import { hashTrackedFiles } from '../utils/hash.js';
 import { collectTrackedFiles } from './context-files.js';
 import { normalizeMappingPaths } from '../utils/paths.js';
 import { computeEffectiveAspects } from './effective-aspects.js';
-import { readFile } from 'node:fs/promises';
+import { readFile, lstat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { debugWrite } from '../utils/debug-log.js';
 import path from 'node:path';
+import { parseLog } from '../io/log-parser.js';
+import { validateFormat } from './log-format.js';
+import { validateAppendOnly } from './log-integrity.js';
+import { buildIssueMessage } from '../formatters/message-builder.js';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ApproveOptions {
@@ -34,31 +39,131 @@ export async function approveNode(
   const node = graph.nodes.get(nodePath);
   if (!node) throw new Error(`Node '${nodePath}' does not exist.`);
 
-  // Validate node has mapping
   const mappingPaths = normalizeMappingPaths(node.meta.mapping);
-  if (mappingPaths.length === 0) {
-    throw new Error(
-      `Node '${nodePath}' has no mapping. Only nodes with mapping.paths\n  participate in drift detection and require approval.`,
-    );
+
+  // ── Log snapshot (shared by all paths) ──────────────────
+  let logSnapshot: LogSnapshot;
+  try {
+    logSnapshot = await snapshotLog(graph.rootPath, nodePath);
+  } catch (err) {
+    const msg = (err as Error).message;
+    debugWrite(`[approve] snapshotLog error for node ${nodePath}: ${msg}`);
+    const logRel = `.yggdrasil/model/${nodePath}/log.md`;
+    let refuseReason: string;
+    if (msg.includes('symlink')) {
+      refuseReason = buildIssueMessage({
+        what: `${logRel} is a symbolic link`,
+        why: 'Symlinks bypass append-only guarantees and break integrity hashing.',
+        next: 'Remove the symlink and let yg log add create a regular file.',
+      });
+    } else if (msg.includes('hardlinks') || msg.includes('nlink')) {
+      refuseReason = buildIssueMessage({
+        what: `${logRel} has multiple hard links`,
+        why: 'Hard links would orphan integrity baselines on atomic rename.',
+        next: 'Copy to a unique file and replace the hard link.',
+      });
+    } else {
+      /* v8 ignore next */
+      refuseReason = msg;
+    }
+    return { action: 'refused', currentHash: '', refuseReason };
   }
 
-  // Nodes without effective aspects auto-approve — nothing to verify
+  const storedEntry = await readNodeDriftState(graph.rootPath, nodePath);
+
+  // ── Integrity check (runs even when log.md missing if baseline exists) ──
+  if (storedEntry?.log) {
+    const check = validateAppendOnly(
+      logSnapshot.content,
+      storedEntry.log.last_entry_datetime,
+      storedEntry.log.prefix_hash,
+    );
+    if (!check.ok) {
+      const logRel = `.yggdrasil/model/${nodePath}/log.md`;
+      return {
+        action: 'refused',
+        currentHash: '',
+        refuseReason: buildIssueMessage({
+          what: `Log integrity broken (${check.reason}) at ${logRel}${logSnapshot.existed ? '' : ' (file missing)'}`,
+          why: check.reason === 'prefix_modified'
+            ? 'Historical (pre-baseline) log content was modified — append-only violated.'
+            : 'Baseline boundary entry not found — log deleted or reset.',
+          next: `Restore from git: git checkout HEAD -- ${logRel} .yggdrasil/.drift-state/${nodePath}.json`,
+        }),
+      };
+    }
+  }
+
+  // ── Format check ────────────────────────────────────────
+  if (logSnapshot.existed) {
+    const violations = validateFormat(logSnapshot.content);
+    if (violations.length > 0) {
+      const logRel = `.yggdrasil/model/${nodePath}/log.md`;
+      const zone = classifyViolationZone(violations, logSnapshot.content, storedEntry?.log?.last_entry_datetime);
+      const next = zone === 'pre-baseline'
+        ? `Pre-baseline violation (in hashed history). Restore from git: git checkout HEAD -- ${logRel} .yggdrasil/.drift-state/${nodePath}.json`
+        : `Post-baseline violation (editable). Edit ${logRel} manually to remove the offending line(s), then re-run approve.`;
+      return {
+        action: 'refused',
+        currentHash: '',
+        refuseReason: buildIssueMessage({
+          what: `Log format invalid at ${logRel}:\n${violations.map((v) => `  line ${v.line}: ${v.reason} — ${v.detail}`).join('\n')}`,
+          why: 'Log format must be parseable for integrity + indexing.',
+          next,
+        }),
+      };
+    }
+  }
+
+  // ── Logical node (no mapping) — log-only path ───────────
+  if (mappingPaths.length === 0) {
+    if (!logSnapshot.existed) {
+      return {
+        action: 'refused',
+        currentHash: '',
+        refuseReason: buildIssueMessage({
+          what: `Node '${nodePath}' has no mapping and no log.md — nothing to approve`,
+          why: 'Nodes without source mapping participate in the log system only. A log.md entry is required.',
+          next: `yg log add --node ${nodePath} --reason '<justification>'`,
+        }),
+      };
+    }
+    const gcPaths = await runGC(graph);
+    const baseline = computeLogBaseline(logSnapshot.content);
+    const action: ApproveResult['action'] = !storedEntry
+      ? 'initial'
+      : storedEntry.log?.last_entry_datetime === baseline?.last_entry_datetime
+        ? 'no-change'
+        : 'approved';
+    const pendingDriftState = baseline && action !== 'no-change'
+      ? { nodePath, state: { hash: '', files: {}, log: baseline } }
+      : undefined;
+    return { action, currentHash: '', previousHash: storedEntry?.hash, gcPaths, pendingDriftState };
+  }
+
+  // ── Effective aspects — auto-approve aspect-free nodes ──
   const effectiveAspects = computeEffectiveAspects(node, graph);
   if (effectiveAspects.size === 0) {
     const gcPaths = await runGC(graph);
-    return {
-      action: 'approved',
-      currentHash: '',
-      gcPaths,
-    };
+    if (!logSnapshot.existed) {
+      return { action: 'approved', currentHash: '', gcPaths };
+    }
+    const baseline = computeLogBaseline(logSnapshot.content);
+    const action: ApproveResult['action'] = !storedEntry
+      ? 'initial'
+      : storedEntry.log?.last_entry_datetime === baseline?.last_entry_datetime
+        ? 'no-change'
+        : 'approved';
+    const pendingDriftState = baseline && action !== 'no-change'
+      ? { nodePath, state: { hash: '', files: {}, log: baseline } }
+      : undefined;
+    return { action, currentHash: '', previousHash: storedEntry?.hash, gcPaths, pendingDriftState };
   }
 
   const projectRoot = path.dirname(graph.rootPath);
-  const storedEntry = await readNodeDriftState(graph.rootPath, nodePath);
 
   // ── First approve (no baseline) ──────────────────────────
   if (!storedEntry) {
-    // First approve — compute hash, defer writing until LLM passes
     const trackedFiles = collectTrackedFiles(node, graph);
     const excludePrefixes = getChildMappingExclusions(graph, nodePath);
     const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
@@ -68,8 +173,8 @@ export async function approveNode(
       excludePrefixes,
     );
 
-    // GC orphaned drift state
     const gcPaths = await runGC(graph);
+    const logBaseline = logSnapshot.existed ? computeLogBaseline(logSnapshot.content) : undefined;
 
     return {
       action: 'initial',
@@ -78,7 +183,12 @@ export async function approveNode(
       gcPaths,
       pendingDriftState: {
         nodePath,
-        state: { hash: canonicalHash, files: fileHashes, mtimes: fileMtimes },
+        state: {
+          hash: canonicalHash,
+          files: fileHashes,
+          mtimes: fileMtimes,
+          ...(logBaseline ? { log: logBaseline } : {}),
+        },
       },
     };
   }
@@ -105,6 +215,7 @@ export async function approveNode(
       fileLayerMap.set(tfKey, tf.layer);
     }
     const trimmedPath = tf.path.trim().replace(/\\/g, '/');
+    /* v8 ignore next 3 -- normalizeMappingPaths strips trailing slashes; this branch is unreachable */
     if (trimmedPath.endsWith('/')) {
       dirPrefixes.push({ prefix: tfKey + '/', layer: tf.layer });
     }
@@ -115,6 +226,7 @@ export async function approveNode(
     const direct = fileLayerMap.get(normalized);
     if (direct) return direct;
     for (const { prefix, layer } of dirPrefixes) {
+      /* v8 ignore next -- dirPrefixes is always empty (see normalizeMappingPaths) */
       if (normalized.startsWith(prefix)) return layer;
     }
     return undefined;
@@ -179,21 +291,48 @@ export async function approveNode(
   const sourceChanged = changedSource.length > 0;
   const upstreamChanged = changedUpstream.length > 0;
 
+  // ── Mandatory entry check (source drift + log_required) ──
+  const nodeType = node.meta.type;
+  const archType = graph.architecture.node_types[nodeType];
+  const logRequired = archType?.log_required ?? true;
+
+  if (sourceChanged && logRequired && storedEntry?.log) {
+    const newestEntry = parseLog(logSnapshot.content).at(-1);
+    if (!newestEntry || newestEntry.datetime === storedEntry.log.last_entry_datetime) {
+      return {
+        action: 'refused',
+        currentHash: '',
+        refuseReason: buildIssueMessage({
+          what: `No log entry found — mandatory entry required when source files change:\n${changedSource.map((f) => '  ' + f).join('\n')}`,
+          why: `Node type '${nodeType}' has log_required: true — every source change requires a justification entry.`,
+          next: `yg log add --node ${nodePath} --reason '<justification>'`,
+        }),
+      };
+    }
+  }
+
   // ── Binary decision ─────────────────────────────────────
   let action: ApproveResult['action'];
 
   if (!sourceChanged && !upstreamChanged) {
     action = 'no-change';
   } else {
-    // Any changes → approved (LLM verification in CLI layer)
     action = 'approved';
   }
 
-  // GC orphaned drift state
   const gcPaths = await runGC(graph);
 
+  const logBaseline = logSnapshot.existed ? computeLogBaseline(logSnapshot.content) : undefined;
   const pending = action === 'approved'
-    ? { nodePath, state: { hash: canonicalHash, files: fileHashes, mtimes: fileMtimes } }
+    ? {
+        nodePath,
+        state: {
+          hash: canonicalHash,
+          files: fileHashes,
+          mtimes: fileMtimes,
+          ...(logBaseline ? { log: logBaseline } : {}),
+        },
+      }
     : undefined;
 
   return {
@@ -205,6 +344,71 @@ export async function approveNode(
     gcPaths,
     pendingDriftState: pending,
   };
+}
+
+// ── Log helpers ────────────────────────────────────────────
+
+interface LogSnapshot {
+  content: string;
+  existed: boolean;
+}
+
+async function snapshotLog(yggRoot: string, nodePath: string): Promise<LogSnapshot> {
+  const logPath = path.join(yggRoot, 'model', nodePath, 'log.md');
+  try {
+    const st = await lstat(logPath);
+    if (st.isSymbolicLink()) {
+      throw new Error(`log.md at .yggdrasil/model/${nodePath}/log.md is a symlink — refuse to approve`);
+    }
+    if (st.nlink > 1) {
+      throw new Error(`log.md at .yggdrasil/model/${nodePath}/log.md has multiple hardlinks — refuse to approve`);
+    }
+    const content = await readFile(logPath, 'utf-8');
+    return { content, existed: true };
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      debugWrite(`[approve] log.md not found at ${logPath} — treating as absent`);
+      return { content: '', existed: false };
+    }
+    /* v8 ignore next */
+    throw err;
+  }
+}
+
+function computeLogBaseline(
+  content: string,
+): { last_entry_datetime: string; prefix_hash: string } | undefined {
+  const entries = parseLog(content);
+  if (entries.length === 0) return undefined;
+  const newest = entries[entries.length - 1];
+  const bytes = Buffer.from(content, 'utf-8');
+  const prefix = bytes.subarray(0, newest.offsetEnd);
+  return {
+    last_entry_datetime: newest.datetime,
+    prefix_hash: createHash('sha256').update(prefix).digest('hex'),
+  };
+}
+
+function classifyViolationZone(
+  violations: { line: number; reason: string }[],
+  content: string,
+  storedDatetime: string | undefined,
+): 'pre-baseline' | 'post-baseline' {
+  const structural = new Set(['invalid_start', 'unclosed_code_fence']);
+  if (violations.every((v) => structural.has(v.reason))) return 'post-baseline';
+  if (!storedDatetime) return 'post-baseline';
+  const entries = parseLog(content);
+  const boundary = entries.find((e) => e.datetime === storedDatetime);
+  /* v8 ignore next */
+  if (!boundary) return 'pre-baseline';
+  const bytes = Buffer.from(content, 'utf-8');
+  let line = 1;
+  for (let i = 0; i < boundary.offsetEnd && i < bytes.length; i++) {
+    if (bytes[i] === 0x0a) line++;
+  }
+  const baselineLine = line;
+  const nonStructural = violations.filter((v) => !structural.has(v.reason));
+  return nonStructural.some((v) => v.line < baselineLine) ? 'pre-baseline' : 'post-baseline';
 }
 
 // ── Helpers ────────────────────────────────────────────────

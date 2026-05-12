@@ -196,20 +196,21 @@ describe('approveNode — proper nodes', () => {
   });
 
   // Node without mapping
-  it('throws for node without mapping', async () => {
+  it('refuses for node without mapping and no log.md', async () => {
     const { tmpDir } = await createTmpProject('no-mapping', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\n',
     });
     const graph = await loadGraph(tmpDir);
-    await expect(approveNode(graph, 'svc/my-service'))
-      .rejects.toThrow('no mapping');
+    const result = await approveNode(graph, 'svc/my-service');
+    expect(result.action).toBe('refused');
+    expect(result.refuseReason).toMatch(/no mapping|no log/i);
     await rm(tmpDir, { recursive: true, force: true });
   });
 });
 
 describe('approveNode — no-aspects auto-approve', () => {
-  it('auto-approves node with no effective aspects (skip hashing)', async () => {
+  it('auto-approves node with no effective aspects and no log.md (skip hashing)', async () => {
     const { tmpDir } = await createTmpProject('no-aspects', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\nmapping:\n  - src/svc/\n',
@@ -219,6 +220,23 @@ describe('approveNode — no-aspects auto-approve', () => {
     const result = await approveNode(graph, 'svc/my-service');
     expect(result.action).toBe('approved');
     expect(result.currentHash).toBe('');
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('aspect-free node with log.md — records log baseline', async () => {
+    const { tmpDir, yggRoot } = await createTmpProject('no-aspects-with-log', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
+    });
+    await writeFile(
+      path.join(yggRoot, 'model', 'svc', 'my-service', 'log.md'),
+      '## [2026-05-11T10:00:00.000Z]\nInitial setup.\n',
+    );
+    const graph = await loadGraph(tmpDir);
+    const result = await approveNode(graph, 'svc/my-service');
+    expect(result.action).toBe('initial');
+    expect(result.pendingDriftState?.state.log?.last_entry_datetime).toBe('2026-05-11T10:00:00.000Z');
     await rm(tmpDir, { recursive: true, force: true });
   });
 });
