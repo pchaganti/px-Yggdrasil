@@ -11,6 +11,13 @@ node_types:
   <type-id>:
     description: <string>                    # required — what this type is for, when to use it
 
+    log_required: <boolean>                  # optional — whether nodes of this type must maintain a
+                                             # log.md file. Default: true (require log). Set false
+                                             # for infrastructure or utility types where an approval
+                                             # log adds no value (e.g. config, types, constants).
+                                             # Migration to-4.3.0 writes false explicitly on all
+                                             # pre-existing types to preserve prior behaviour.
+
     aspects:                                 # optional — aspects automatically applied to every
                                              # node of this type (channel 3). Two forms per entry:
       - simple-aspect                        #   bare string — unconditional
