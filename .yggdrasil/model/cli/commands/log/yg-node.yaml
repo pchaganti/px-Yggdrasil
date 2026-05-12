@@ -9,3 +9,4 @@ relations:
     type: uses
 mapping:
   - source/cli/src/cli/log-add.ts
+  - source/cli/src/cli/log-read.ts
