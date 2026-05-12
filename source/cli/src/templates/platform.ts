@@ -127,7 +127,7 @@ async function installForCopilot(projectRoot: string): Promise<string> {
   if (existing.includes(YGGDRASIL_START) && existing.includes(YGGDRASIL_END)) {
     content = existing.replace(
       new RegExp(`${escapeRegex(YGGDRASIL_START)}[\\s\\S]*?${escapeRegex(YGGDRASIL_END)}`, 'g'),
-      YGGDRASIL_BLOCK,
+      () => YGGDRASIL_BLOCK,
     );
   } else {
     content = existing.trimEnd()
@@ -166,7 +166,7 @@ async function installForCodex(projectRoot: string): Promise<string> {
   if (existing.includes(YGGDRASIL_START) && existing.includes(YGGDRASIL_END)) {
     content = existing.replace(
       new RegExp(`${escapeRegex(YGGDRASIL_START)}[\\s\\S]*?${escapeRegex(YGGDRASIL_END)}`, 'g'),
-      YGGDRASIL_BLOCK,
+      () => YGGDRASIL_BLOCK,
     );
   } else {
     content = existing.trimEnd()
