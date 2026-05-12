@@ -1,0 +1,102 @@
+import { readFile, lstat } from 'node:fs/promises';
+import path from 'node:path';
+import MiniSearch from 'minisearch';
+import type { Graph } from '../model/graph.js';
+import { debugWrite } from '../utils/debug-log.js';
+
+const MAX_BODY_BYTES = 1_048_576; // 1 MiB
+
+export interface IndexedDocument {
+  id: string;
+  kind: 'node' | 'aspect';
+  path: string;
+  type?: string;
+  name: string;
+  description: string;
+  body: string;
+}
+
+export async function buildIndex(graph: Graph): Promise<IndexedDocument[]> {
+  const projectRoot = path.dirname(graph.rootPath);
+  const docs: IndexedDocument[] = [];
+
+  for (const [nodePath, node] of graph.nodes) {
+    const displayPath = `model/${nodePath}/`;
+    const logPath = path.join(graph.rootPath, 'model', nodePath, 'log.md');
+    let body = '';
+    try {
+      const st = await lstat(logPath);
+      if (!st.isSymbolicLink() && st.nlink === 1) {
+        const raw = await readFile(logPath, 'utf-8');
+        body = truncateTail(raw, MAX_BODY_BYTES);
+      } else if (st.isSymbolicLink()) {
+        process.stderr.write(`Warning: skipping symlinked log.md at ${path.relative(projectRoot, logPath)}\n`);
+      /* v8 ignore next 2 -- hardlink (nlink>1, !symlink): skip silently; not testable without root */
+      } else {
+        /* skip hardlink */
+      }
+    } catch (err) { debugWrite(`[find-index] log.md read for ${nodePath}: ${(err as Error).message}`); }
+
+    docs.push({
+      id: `node:${nodePath}`,
+      kind: 'node',
+      path: displayPath,
+      type: node.meta.type,
+      name: node.meta.name,
+      description: node.meta.description ?? '',
+      body,
+    });
+  }
+
+  for (const aspect of graph.aspects) {
+    const displayPath = `aspects/${aspect.id}`;
+    let body = '';
+    if (aspect.reviewer !== 'ast') {
+      // only content.md (exact filename), not any *.md artifact
+      const contentFiles = aspect.artifacts.filter((a) => a.filename === 'content.md');
+      body = contentFiles.map((a) => a.content).join('\n\n');
+    }
+    docs.push({
+      id: `aspect:${aspect.id}`,
+      kind: 'aspect',
+      path: displayPath,
+      name: aspect.name,
+      description: aspect.description ?? '',
+      body,
+    });
+  }
+
+  return docs;
+}
+
+export function createMiniSearch(): MiniSearch<IndexedDocument> {
+  return new MiniSearch<IndexedDocument>({
+    fields: ['name', 'description', 'body'],
+    storeFields: ['id', 'kind', 'path', 'type', 'name', 'description'],
+    searchOptions: {
+      boost: { description: 3, name: 2, body: 1 },
+      fuzzy: 0.2,
+      prefix: true,
+    },
+  });
+}
+
+/**
+ * Truncate to maxBytes keeping tail (newest entries).
+ * Cut precedence: entry-aligned → line-aligned → hard cut.
+ */
+function truncateTail(content: string, maxBytes: number): string {
+  const buf = Buffer.from(content, 'utf-8');
+  if (buf.length <= maxBytes) return content;
+  const dropOffset = buf.length - maxBytes;
+  let cut = dropOffset;
+  const headerIdx = buf.indexOf(Buffer.from('\n## [', 'utf-8'), dropOffset);
+  if (headerIdx !== -1) {
+    cut = headerIdx + 1;
+  } else {
+    const nlIdx = buf.indexOf(0x0a, dropOffset);
+    /* v8 ignore next */
+    if (nlIdx !== -1 && nlIdx + 1 <= buf.length) cut = nlIdx + 1;
+  }
+  return buf.subarray(cut).toString('utf-8');
+}

@@ -21,3 +21,4 @@ mapping:
   - source/cli/src/io/schema-parser.ts
   - source/cli/src/io/secrets-parser.ts
   - source/cli/src/io/log-parser.ts
+  - source/cli/src/io/find-index.ts
