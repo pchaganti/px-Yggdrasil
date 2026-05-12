@@ -323,6 +323,7 @@ export async function approveNode(
   const gcPaths = await runGC(graph);
 
   const logBaseline = logSnapshot.existed ? computeLogBaseline(logSnapshot.content) : undefined;
+  const logChanged = logBaseline?.last_entry_datetime !== storedEntry.log?.last_entry_datetime;
   const pending = action === 'approved'
     ? {
         nodePath,
@@ -331,6 +332,16 @@ export async function approveNode(
           files: fileHashes,
           mtimes: fileMtimes,
           ...(logBaseline ? { log: logBaseline } : {}),
+        },
+      }
+    : logBaseline && logChanged
+    ? {
+        nodePath,
+        state: {
+          hash: storedEntry.hash,
+          files: storedEntry.files,
+          ...(storedEntry.mtimes ? { mtimes: storedEntry.mtimes } : {}),
+          log: logBaseline,
         },
       }
     : undefined;

@@ -1,5 +1,5 @@
 {
-  "hash": "5387e7cc916e3efa2ff48779e86e0d5da614bfc102476002f62d24319d5208aa",
+  "hash": "6159522a9281b8c6130708afb10d3267ca57a5c7e2ba7974eb91706db7a1a8c1",
   "files": {
     "own-subset:cli/core/approve": "681efee37fca4c39cc19f328842e8154c097644e12a916cd34284e4d3a20f977",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -14,7 +14,7 @@
     ".yggdrasil/aspects/diagnostic-logging/content.md": "861da9ccecc91d8c08168ba10fb297a729158f272fe8da5c136fd6a7e997fb41",
     ".yggdrasil/model/cli/io/yg-node.yaml": "2f16490e869701498e60882b6cb781a8c16b2aa8bac55f94320129ff35791386",
     ".yggdrasil/model/cli/utils/yg-node.yaml": "acb4ea19cac9ad1811b281502e3d7bd6b6e2240dea1040c4a17127c7a0756dcb",
-    "source/cli/src/core/approve.ts": "3d3a24f03ef404d95516d6ed519496d58f18bae0a20ec483c107fbb40a92dd17"
+    "source/cli/src/core/approve.ts": "7345221fd70d8d41f54dc0353b7fa8e6cf17b4a8abf1713b4767cfe107e065a9"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -29,6 +29,6 @@
     ".yggdrasil/aspects/diagnostic-logging/content.md": 1776177846197.264,
     ".yggdrasil/model/cli/io/yg-node.yaml": 1778573044860.9119,
     ".yggdrasil/model/cli/utils/yg-node.yaml": 1776177846206.3977,
-    "source/cli/src/core/approve.ts": 1778577937508.7695
+    "source/cli/src/core/approve.ts": 1778579628182.0566
   }
 }
