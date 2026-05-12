@@ -1,7 +1,8 @@
-import { readFile, writeFile, stat, readdir, mkdir, rm } from 'node:fs/promises';
+import { readFile, stat, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import type { DriftState, DriftNodeState } from '../model/drift.js';
 import { debugWrite } from '../utils/debug-log.js';
+import { atomicWriteFile } from '../utils/atomic-write.js';
 
 const DRIFT_STATE_DIR = '.drift-state';
 
@@ -82,9 +83,8 @@ export async function writeNodeDriftState(
   nodeState: DriftNodeState,
 ): Promise<void> {
   const filePath = nodeStatePath(yggRoot, nodePath);
-  await mkdir(path.dirname(filePath), { recursive: true });
   const content = JSON.stringify(nodeState, null, 2) + '\n';
-  await writeFile(filePath, content, 'utf-8');
+  await atomicWriteFile(filePath, content);
 }
 
 /**
