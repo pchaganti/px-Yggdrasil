@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (range scope). Helper library exported from `@chrisdudek/yg/ast`.
 - `yg ast-test --aspect <id> --files <paths>` / `--node <path>` for ad-hoc
   AST aspect runs without a baseline or graph attachment.
+- `yg find "<query>"` — natural-language search over graph nodes and aspects.
+  Indexes node names, descriptions, and `log.md` content; uses MiniSearch with
+  prefix matching, fuzzy tolerance (20% of word length), and description-boosted
+  ranking. Returns top-5 results with path, kind, type, description, and matched
+  terms.
 - `yg aspects` now shows `Reviewer` field per aspect (`llm` or `ast`).
 - `yg context --file` / `--node` surfaces `check.mjs` under `read:` for
   AST aspects (previously always showed `content.md`).
