@@ -1,5 +1,5 @@
 {
-  "hash": "3863f82a86dcfab4de8e53ef08adc870e7ec3b34aa53ddb271e358f211e4247f",
+  "hash": "dbdd3b57a20ebc7533c30eb42703f08f778d8ac14b46a361613573e5a113403c",
   "files": {
     "own-subset:cli/utils": "b3f14205642c7484e87173b6901bb46127d7225969c67b25579130fd530a394f",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -10,8 +10,9 @@
     "source/cli/src/utils/debug-log.ts": "3dac4018019f5f93d725f1264c23448e5e79145114397686d8129e193021ec98",
     "source/cli/src/utils/git.ts": "66fc5759c3e5064385e123606f7df9b9a3c7d8afa3926dbcc03d4d6fc39da20f",
     "source/cli/src/utils/hash.ts": "84bb2aad47a28859a28c0b5ee858f276dac2186cdbd6dcb9f977def71d5dc09c",
+    "source/cli/src/utils/node-path-validator.ts": "9a137cde2f6a303214265afc7b629aacf28c1f6f5cd1a4a5211b40aeba6d70e8",
     "source/cli/src/utils/paths.ts": "a9a4035d1f27fcd837bcaaa03480c6c32db88ff7f80251d92e06dd527dd7567b",
-    "source/cli/src/utils/node-path-validator.ts": "9a137cde2f6a303214265afc7b629aacf28c1f6f5cd1a4a5211b40aeba6d70e8"
+    "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -20,6 +21,7 @@
     "source/cli/src/utils/.gitkeep": 1771702275795.9026,
     "source/cli/src/utils/atomic-write.ts": 1778571868781.7659,
     "source/cli/src/utils/debug-log.ts": 1776177846235.7266,
+    "source/cli/src/utils/git-introspect.ts": 1778573699364.3071,
     "source/cli/src/utils/git.ts": 1776177846235.8984,
     "source/cli/src/utils/hash.ts": 1776257665862.127,
     "source/cli/src/utils/node-path-validator.ts": 1778572609333.0933,

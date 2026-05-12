@@ -1,0 +1,56 @@
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execp = promisify(exec);
+
+/** Returns true if `ref` resolves to a merge commit (>= 2 parents). */
+export async function isMergeCommit(repoCwd: string, ref: string): Promise<boolean> {
+  try {
+    const { stdout } = await execp(`git rev-list --parents -n 1 ${ref}`, { cwd: repoCwd });
+    const parts = stdout.trim().split(/\s+/);
+    return parts.length >= 3;
+  } catch {
+    return false;
+  }
+}
+
+/** Returns parent SHAs of the merge commit at `ref`. Throws on non-merge. */
+export async function getMergeParents(repoCwd: string, ref: string): Promise<string[]> {
+  const { stdout } = await execp(`git rev-list --parents -n 1 ${ref}`, { cwd: repoCwd });
+  const parts = stdout.trim().split(/\s+/);
+  if (parts.length < 3) {
+    throw new Error(`${ref} is not a merge commit (has ${parts.length - 1} parent(s))`);
+  }
+  return parts.slice(1);
+}
+
+/** Returns the merge-base SHA of two refs. */
+export async function getMergeBase(repoCwd: string, refA: string, refB: string): Promise<string> {
+  const { stdout } = await execp(`git merge-base ${refA} ${refB}`, { cwd: repoCwd });
+  return stdout.trim();
+}
+
+/**
+ * Returns the content of `filePath` at the given `ref`.
+ * Returns empty string if the file does not exist at that ref.
+ */
+export async function getFileAtRef(
+  repoCwd: string,
+  ref: string,
+  filePath: string,
+): Promise<string> {
+  try {
+    const { stdout } = await execp(`git show ${ref}:${filePath}`, {
+      cwd: repoCwd,
+      maxBuffer: 100 * 1024 * 1024,
+    });
+    return stdout;
+  } catch (err) {
+    const e = err as { stderr?: string; message?: string };
+    const stderr = e.stderr ?? e.message ?? '';
+    if (stderr.includes('does not exist') || stderr.includes('exists on disk, but not in')) {
+      return '';
+    }
+    throw err;
+  }
+}
