@@ -165,6 +165,26 @@ export async function approveNode(
   // ── First approve (no baseline) ──────────────────────────
   if (!storedEntry) {
     const trackedFiles = collectTrackedFiles(node, graph);
+
+    // Mandatory entry check: first approve with source files requires a log entry
+    const nodeTypeFirst = node.meta.type;
+    const archTypeFirst = graph.architecture.node_types[nodeTypeFirst];
+    const logRequiredFirst = archTypeFirst?.log_required ?? true;
+    const sourcePathsFirst = trackedFiles
+      .filter((tf) => tf.layer === 'source')
+      .map((tf) => tf.path);
+    if (sourcePathsFirst.length > 0 && logRequiredFirst && parseLog(logSnapshot.content).length === 0) {
+      return {
+        action: 'refused',
+        currentHash: '',
+        refuseReason: buildIssueMessage({
+          what: `No log entry found — mandatory entry required when source files are added:\n${sourcePathsFirst.map((p) => '  ' + p).join('\n')}`,
+          why: `Node type '${nodeTypeFirst}' has log_required: true — every source change requires a justification entry.`,
+          next: `yg log add --node ${nodePath} --reason '<justification>'`,
+        }),
+      };
+    }
+
     const excludePrefixes = getChildMappingExclusions(graph, nodePath);
     const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
       projectRoot,

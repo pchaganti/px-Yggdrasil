@@ -140,6 +140,30 @@ describe('approveNode — log integration', () => {
     expect(result.action).toBe('approved');
   });
 
+  it('first approve: source files present, no log entry → refused (bootstrap mandatory)', async () => {
+    const { projectRoot, nodePath } = await setup({});
+    const graph = await loadGraph(projectRoot);
+    const result = await approveNode(graph, nodePath);
+    expect(result.action).toBe('refused');
+    expect(result.refuseReason).toMatch(/mandatory.*entry|no log entry/i);
+  });
+
+  it('first approve: log entry present → initial', async () => {
+    const log = '## [2026-05-11T10:00:00.000Z]\nInitial setup.\n';
+    const { projectRoot, nodePath } = await setup({ initialLogContent: log });
+    const graph = await loadGraph(projectRoot);
+    const result = await approveNode(graph, nodePath);
+    expect(result.action).toBe('initial');
+    expect(result.pendingDriftState?.state.log?.last_entry_datetime).toBe('2026-05-11T10:00:00.000Z');
+  });
+
+  it('first approve: log_required: false, no log entry → initial', async () => {
+    const { projectRoot, nodePath } = await setup({ logRequiredOnModule: false });
+    const graph = await loadGraph(projectRoot);
+    const result = await approveNode(graph, nodePath);
+    expect(result.action).toBe('initial');
+  });
+
   it('cascade approve (aspect changed, no source drift) skips mandatory check', async () => {
     const log = '## [2026-05-11T10:00:00.000Z]\nfirst.\n';
     const baseline = { last_entry_datetime: '2026-05-11T10:00:00.000Z', prefix_hash: sha(log) };

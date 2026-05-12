@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `yg approve` now enforces mandatory log entry on first approve (bootstrap) for nodes that have source files and `log_required: true`. Previously, the mandatory check was gated on an existing baseline (`storedEntry?.log`), which caused new nodes to silently bypass the requirement. First approve without a log entry now returns `refused`; `log_required: false` continues to bypass the check.
 - `yg find` now emits visible stderr warnings when log.md cannot be read (filesystem error) or is truncated (>1 MiB) — previously these were silent or debug-only.
 - Release workflow now skips `npm publish` and GitHub release creation
   when the current `source/cli/package.json` version is already on npm.

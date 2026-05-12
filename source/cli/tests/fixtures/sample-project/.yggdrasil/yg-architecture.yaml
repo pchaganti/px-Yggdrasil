@@ -1,7 +1,10 @@
 node_types:
   module:
     description: 'Logical grouping of related services'
+    log_required: false
   service:
     description: 'Discrete service unit'
+    log_required: false
   repository:
     description: 'Data access layer'
+    log_required: false

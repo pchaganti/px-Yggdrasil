@@ -166,14 +166,18 @@ describe('approveNode — proper nodes', () => {
   // yg-node.yaml only change → no-op (metadata only, no source change)
 
   // First approve (no baseline)
-  it('accepts first approve with no baseline', async () => {
-    const { tmpDir } = await createTmpProject('first-approve', {
+  it('accepts first approve with no baseline (log entry required)', async () => {
+    const { tmpDir, yggRoot } = await createTmpProject('first-approve', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - testing\nmapping:\n  - src/svc/\n',
       mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
       aspects: [TEST_ASPECT],
     });
-    // NO baseline recorded
+    // Log entry required for first approve when log_required=true (default)
+    await writeFile(
+      path.join(yggRoot, 'model', 'svc', 'my-service', 'log.md'),
+      '## [2026-05-11T10:00:00.000Z]\nInitial setup.\n',
+    );
     const graph = await loadGraph(tmpDir);
     const result = await approveNode(graph, 'svc/my-service');
     expect(result.action).toBe('initial');
