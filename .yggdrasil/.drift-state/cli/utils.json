@@ -1,5 +1,5 @@
 {
-  "hash": "4bdba2cb6de5831cf2ea8f2e9522989940e300b193238fb2fd354a4ba3a1b763",
+  "hash": "0f2c9ec0991b0bb34095b980dcad175d1c95e2294a7ed011c093644179ed50de",
   "files": {
     "own-subset:cli/utils": "b3f14205642c7484e87173b6901bb46127d7225969c67b25579130fd530a394f",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -9,6 +9,7 @@
     "source/cli/src/utils/debug-log.ts": "3dac4018019f5f93d725f1264c23448e5e79145114397686d8129e193021ec98",
     "source/cli/src/utils/git.ts": "66fc5759c3e5064385e123606f7df9b9a3c7d8afa3926dbcc03d4d6fc39da20f",
     "source/cli/src/utils/hash.ts": "84bb2aad47a28859a28c0b5ee858f276dac2186cdbd6dcb9f977def71d5dc09c",
+    "source/cli/src/utils/atomic-write.ts": "46202039fa117ba4236d82b60ead294b9b2751e57e34579a39341c50d125b47a",
     "source/cli/src/utils/paths.ts": "a9a4035d1f27fcd837bcaaa03480c6c32db88ff7f80251d92e06dd527dd7567b"
   },
   "mtimes": {
@@ -16,9 +17,10 @@
     ".yggdrasil/aspects/posix-paths/yg-aspect.yaml": 1775580557269.0808,
     ".yggdrasil/aspects/posix-paths/content.md": 1776177846197.5266,
     "source/cli/src/utils/.gitkeep": 1771702275795.9026,
+    "source/cli/src/utils/atomic-write.ts": 1778571868781.7659,
     "source/cli/src/utils/debug-log.ts": 1776177846235.7266,
     "source/cli/src/utils/git.ts": 1776177846235.8984,
     "source/cli/src/utils/hash.ts": 1776257665862.127,
-    "source/cli/src/utils/paths.ts": 1776283531782.692
+    "source/cli/src/utils/paths.ts": 1778501876536.2483
   }
 }
