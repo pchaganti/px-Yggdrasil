@@ -56,9 +56,10 @@ node_types:
     await cleanup(file);
   });
 
-  it('throws on missing node_types', async () => {
+  it('accepts file with no node_types field as empty', async () => {
     const file = await writeTmp('yg-architecture.yaml', `name: test`);
-    await expect(parseArchitecture(file)).rejects.toThrow('node_types');
+    const arch = await parseArchitecture(file);
+    expect(arch.node_types).toEqual({});
     await cleanup(file);
   });
 
@@ -133,9 +134,43 @@ node_types:
     await cleanup(file);
   });
 
-  it('throws on empty file', async () => {
+  it('accepts empty file as empty node_types', async () => {
     const file = await writeTmp('yg-architecture.yaml', '');
-    await expect(parseArchitecture(file)).rejects.toThrow('empty');
+    const arch = await parseArchitecture(file);
+    expect(arch.node_types).toEqual({});
+    await cleanup(file);
+  });
+
+  it('accepts empty node_types object', async () => {
+    const file = await writeTmp('yg-architecture.yaml', 'node_types: {}\n');
+    const arch = await parseArchitecture(file);
+    expect(arch.node_types).toEqual({});
+    await cleanup(file);
+  });
+
+  it('accepts null node_types value', async () => {
+    const file = await writeTmp('yg-architecture.yaml', 'node_types:\n');
+    const arch = await parseArchitecture(file);
+    expect(arch.node_types).toEqual({});
+    await cleanup(file);
+  });
+
+  it('accepts commented-only architecture file', async () => {
+    const file = await writeTmp('yg-architecture.yaml', '# commented placeholder\n');
+    const arch = await parseArchitecture(file);
+    expect(arch.node_types).toEqual({});
+    await cleanup(file);
+  });
+
+  it('rejects top-level YAML array', async () => {
+    const file = await writeTmp('yg-architecture.yaml', '- foo\n- bar\n');
+    await expect(parseArchitecture(file)).rejects.toThrow(/mapping/);
+    await cleanup(file);
+  });
+
+  it('rejects node_types as array', async () => {
+    const file = await writeTmp('yg-architecture.yaml', 'node_types:\n  - service\n');
+    await expect(parseArchitecture(file)).rejects.toThrow(/mapping/);
     await cleanup(file);
   });
 

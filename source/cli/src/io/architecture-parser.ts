@@ -8,24 +8,24 @@ const VALID_RELATION_TYPES: Set<string> = new Set(['uses', 'calls', 'extends', '
 
 export async function parseArchitecture(filePath: string): Promise<ArchitectureDef> {
   const content = await readFile(filePath, 'utf-8');
-  const raw = parseYaml(content) as Record<string, unknown>;
+  const raw = parseYaml(content) as unknown;
 
-  if (!raw || typeof raw !== 'object') {
-    throw new Error(`yg-architecture.yaml: file is empty or not a valid YAML mapping`);
+  if (raw !== null && raw !== undefined && (typeof raw !== 'object' || Array.isArray(raw))) {
+    throw new Error(`yg-architecture.yaml: file must be a YAML mapping (or empty/omitted)`);
   }
 
-  const nodeTypesRaw = raw.node_types;
+  const nodeTypesRaw = (raw as Record<string, unknown> | null | undefined)?.node_types;
   if (
-    !nodeTypesRaw ||
-    typeof nodeTypesRaw !== 'object' ||
-    Array.isArray(nodeTypesRaw) ||
-    Object.keys(nodeTypesRaw).length === 0
+    nodeTypesRaw !== undefined &&
+    nodeTypesRaw !== null &&
+    (typeof nodeTypesRaw !== 'object' || Array.isArray(nodeTypesRaw))
   ) {
-    throw new Error(`yg-architecture.yaml: 'node_types' must be a non-empty object`);
+    throw new Error(`yg-architecture.yaml: 'node_types' must be a YAML mapping (or empty/omitted)`);
   }
+  const nodeTypesObj = (nodeTypesRaw ?? {}) as Record<string, unknown>;
 
   const nodeTypes: Record<string, ArchitectureNodeType> = {};
-  for (const [typeName, val] of Object.entries(nodeTypesRaw)) {
+  for (const [typeName, val] of Object.entries(nodeTypesObj)) {
     const entry = val as Record<string, unknown>;
     if (!entry || typeof entry !== 'object' || typeof entry.description !== 'string' || entry.description.trim() === '') {
       throw new Error(
