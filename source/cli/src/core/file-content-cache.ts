@@ -8,6 +8,7 @@ export type FileContentResult = {
   isBinary: boolean;
   tooLarge: boolean;
   unreadable: boolean;
+  unreadableReason?: string;
 };
 
 /**
@@ -33,8 +34,13 @@ export class FileContentCache {
     let stats;
     try {
       stats = await stat(absPath);
-    } catch {
-      return { isBinary: false, tooLarge: false, unreadable: true };
+    } catch (e) {
+      return {
+        isBinary: false,
+        tooLarge: false,
+        unreadable: true,
+        unreadableReason: e instanceof Error ? e.message : String(e),
+      };
     }
 
     if (stats.size > SIZE_LIMIT_BYTES) {
@@ -44,8 +50,13 @@ export class FileContentCache {
     let buf: Buffer;
     try {
       buf = await readFile(absPath);
-    } catch {
-      return { isBinary: false, tooLarge: false, unreadable: true };
+    } catch (e) {
+      return {
+        isBinary: false,
+        tooLarge: false,
+        unreadable: true,
+        unreadableReason: e instanceof Error ? e.message : String(e),
+      };
     }
 
     const probe = buf.subarray(0, BINARY_PROBE_BYTES);

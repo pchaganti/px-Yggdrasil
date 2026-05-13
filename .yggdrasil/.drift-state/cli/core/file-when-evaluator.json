@@ -1,24 +1,28 @@
 {
-  "hash": "5388893a5a2e88e87a34a00f9aa292686594e8636071a5cfabfcd549e8f2be9e",
+  "hash": "376c73e94b885200ba191c5260f621b6f7f5ba4298973ef3aa4665f6fc6b79f3",
   "files": {
-    "own-subset:cli/core/file-content-cache": "6af265a8bfb7f289b2734e0103f2dd2ab9946b266835ab4282581c0d33c93b80",
+    "own-subset:cli/core/file-when-evaluator": "d5d3185549952f9abafe62830b4c18a74c78e7ee9f1e28059d999ec1c327dcfb",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": "20f321091b4f489efbf167feea9d42d73f7cffb21ea2e86958e565b550da164b",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
+    ".yggdrasil/model/cli/model/file-when/yg-node.yaml": "f9ecd1d6196e240a49928bcbf2d7fcc5b210985df3157b7291b0aea2fef69a3e",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
-    "source/cli/src/core/file-content-cache.ts": "2ff027936d2b3139a594d10df85bb6805f977e506bf181ec81cf87b4eeec84a0"
+    ".yggdrasil/model/cli/core/file-content-cache/yg-node.yaml": "a2a02cff1b208c0ae8100a0dd56fa8a03f685ffd264cc454a2cfb623d7423ef2",
+    "source/cli/src/core/file-when-evaluator.ts": "74ee76e15427f0f46be91e10bf6e13655a95cdcaef0a0c00660cb317be99adb6"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/core/yg-node.yaml": 1776177846202.0774,
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": 1775580563004.8235,
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
+    ".yggdrasil/model/cli/model/file-when/yg-node.yaml": 1778650103730.5442,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    "source/cli/src/core/file-content-cache.ts": 1778650662038.9546
+    ".yggdrasil/model/cli/core/file-content-cache/yg-node.yaml": 1778650469701.6416,
+    "source/cli/src/core/file-when-evaluator.ts": 1778650668973.0273
   },
   "log": {
-    "last_entry_datetime": "2026-05-13T05:38:36.240Z",
-    "prefix_hash": "213ecaada7880251ec7172e5a5d6ceeea0683de0f41d85d16616e8e830ea2bed"
+    "last_entry_datetime": "2026-05-13T05:38:36.351Z",
+    "prefix_hash": "b44c4b12754ffb73a92d92a7abfe21901adfeed6cea4757fb88dc26d11516214"
   }
 }

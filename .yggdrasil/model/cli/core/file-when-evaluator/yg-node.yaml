@@ -1,0 +1,11 @@
+name: File When Evaluator
+type: engine
+description: Recursive evaluator for FileWhenPredicate against a (file, FileContentCache) pair. Returns boolean result and PredicateTrace for diagnostic rendering. Auto-exempts .yggdrasil/ paths. Propagates unreadable flag from cache so callers can emit file-unreadable instead of type-when-mismatch. Includes a head-limited safeRegexTest wrapper to avoid catastrophic backtracking.
+aspects: []
+relations:
+  - target: cli/model/file-when
+    type: uses
+  - target: cli/core/file-content-cache
+    type: uses
+mapping:
+  - source/cli/src/core/file-when-evaluator.ts

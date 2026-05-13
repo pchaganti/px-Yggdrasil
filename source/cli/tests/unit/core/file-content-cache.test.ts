@@ -62,5 +62,27 @@ describe('FileContentCache', () => {
     const result = await cache.read(join(tmpDir, 'nonexistent.txt'));
     expect(result.unreadable).toBe(true);
     expect(result.content).toBeUndefined();
+    expect(result.unreadableReason).toMatch(/ENOENT/);
+  });
+
+  it('captures OS error message for unreadable files', async () => {
+    const cache = new FileContentCache();
+    const result = await cache.read(join(tmpDir, 'missing-X.txt'));
+    expect(result.unreadable).toBe(true);
+    expect(result.unreadableReason).toBeDefined();
+    expect(typeof result.unreadableReason).toBe('string');
+  });
+
+  it('reports unreadable when readFile fails after stat succeeds (broken symlink)', async () => {
+    const target = join(tmpDir, 'real.txt');
+    const link = join(tmpDir, 'link.txt');
+    writeFileSync(target, 'data');
+    const fs = await import('node:fs');
+    fs.symlinkSync(target, link);
+    fs.unlinkSync(target);
+    const cache = new FileContentCache();
+    const result = await cache.read(link);
+    expect(result.unreadable).toBe(true);
+    expect(result.unreadableReason).toBeDefined();
   });
 });
