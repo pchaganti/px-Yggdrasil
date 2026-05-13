@@ -1,9 +1,10 @@
 name: Operations Core Unit Tests
 type: test
-description: "Unit tests for core CLI operations: approve, check, impact, validator, effective-aspects, aspect-verifier, artifact-reviewer"
+description: "Unit tests for core CLI operations: approve, check, impact, validator, effective-aspects, aspect-verifier, artifact-reviewer, file-content-cache"
 aspects: []
 relations: []
 mapping:
+  - source/cli/tests/unit/core/file-content-cache.test.ts
   - source/cli/tests/unit/core/approve.test.ts
   - source/cli/tests/unit/core/check.test.ts
   - source/cli/tests/unit/core/effective-aspects.test.ts
