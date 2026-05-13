@@ -1,0 +1,7 @@
+name: FileWhenPredicateTypes
+type: types
+description: Type definitions for the per-file when predicate used in node_type classification — FileWhenPredicate, FileAtomicClause, FileBooleanClause, PredicateTrace, EvaluationResult
+aspects: []
+relations: []
+mapping:
+  - source/cli/src/model/file-when.ts

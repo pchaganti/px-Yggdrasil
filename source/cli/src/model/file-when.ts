@@ -1,0 +1,53 @@
+/**
+ * FileWhenPredicate — per-file predicate for node_type classification.
+ *
+ * Two atoms: `path` (glob against file path) and `content` (regex against file content).
+ * Three operators: `all_of`, `any_of`, `not`.
+ * Top-level single atom permitted (implicit single-clause predicate).
+ *
+ * Distinct from aspect-level `WhenPredicate` (which uses graph-shape atoms
+ * relations/descendants/node). Same operator names, different atoms.
+ */
+export type FileWhenPredicate =
+  | FileAtomicClause
+  | FileBooleanClause;
+
+export type FileAtomicClause = {
+  /** Glob pattern matched against the file's repo-relative path. */
+  path?: string;
+  /** Regex pattern matched against the file content. */
+  content?: string;
+};
+
+export type FileBooleanClause =
+  | { all_of: FileWhenPredicate[] }
+  | { any_of: FileWhenPredicate[] }
+  | { not: FileWhenPredicate };
+
+/**
+ * PredicateTrace — execution trace of a FileWhenPredicate evaluation.
+ *
+ * Returned by evaluator alongside boolean result for rendering predicate
+ * evaluation trees in error messages (see spec §7).
+ */
+export type PredicateTrace =
+  | { kind: 'atom-path'; pattern: string; result: boolean; detail?: string }
+  | { kind: 'atom-content'; pattern: string; result: boolean; detail?: string }
+  | { kind: 'all_of'; result: boolean; children: PredicateTrace[] }
+  | { kind: 'any_of'; result: boolean; children: PredicateTrace[] }
+  | { kind: 'not'; result: boolean; child: PredicateTrace }
+  | { kind: 'exempt'; result: true; reason: string };
+
+export type EvaluationResult = {
+  result: boolean;
+  trace: PredicateTrace;
+  /**
+   * Set to true when at least one file referenced by the predicate could not
+   * be read (permissions, broken symlink, etc.). The validator uses this to
+   * emit `file-unreadable` instead of `type-when-mismatch`. Per spec §7 L694,
+   * unreadable files are excluded from further validation.
+   */
+  unreadable?: boolean;
+  /** OS error string (e.g. "EACCES (permission denied)") — present when `unreadable`. */
+  unreadableReason?: string;
+};
