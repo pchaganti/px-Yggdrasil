@@ -13,6 +13,7 @@ import { registerAstTestCommand } from './cli/ast-test.js';
 import { registerLogCommand } from './cli/log.js';
 import { registerFindCommand } from './cli/find.js';
 import { registerTypeSuggestCommand } from './cli/type-suggest.js';
+import { registerKnowledgeCommand } from './cli/knowledge.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -41,5 +42,6 @@ registerAstTestCommand(program);
 registerLogCommand(program);
 registerFindCommand(program);
 registerTypeSuggestCommand(program);
+registerKnowledgeCommand(program);
 
 program.parse();

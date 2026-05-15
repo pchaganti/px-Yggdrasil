@@ -1,0 +1,28 @@
+{
+  "hash": "9f1680f56ceddbaafe9943eb6b9ff157e863fcbb2031df37321982cf12e2775a",
+  "files": {
+    "own-subset:cli/commands/knowledge": "84e5f201e0f8c6db41beaebbe9070b738596dce07930e3b68a251581b51daf02",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/commands/yg-node.yaml": "4d929734cf56d8fbf3adfdbb908be64075a4a3322a892656ad00ea07bb026ab4",
+    ".yggdrasil/aspects/cli-command-contract/yg-aspect.yaml": "81ba5d9318ec49940495487c056356f9bd462d67ca4bb06d3fd954cf26945d01",
+    ".yggdrasil/aspects/cli-command-contract/content.md": "b1509ccd44cc91f1cff43926b69f16845407f518ecf4d448d24a0b4a4e2894c3",
+    ".yggdrasil/aspects/command-exit-codes/yg-aspect.yaml": "9fe1bb69349b53310e74cd5a62812036a51b29a427a5c1d8ecca1de7e51fb0dd",
+    ".yggdrasil/aspects/command-exit-codes/check.mjs": "48e113c8e19ac3874b0efb8e0690cc245e7f3e2782e6aa6e9cab73ae62a1d120",
+    ".yggdrasil/model/cli/templates/yg-node.yaml": "57d0407f1e61237216ea4b0f77b439e6b6b55d2bb4147f73a7bd45052c17a0f0",
+    "source/cli/src/cli/knowledge.ts": "7b01fae0be5b65540d3931d7fba1071545400ddfc20cdd04b51a24f23293f92a"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/commands/yg-node.yaml": 1776177846200.1738,
+    ".yggdrasil/aspects/cli-command-contract/yg-aspect.yaml": 1775580555580.0303,
+    ".yggdrasil/aspects/cli-command-contract/content.md": 1776176202110.4214,
+    ".yggdrasil/aspects/command-exit-codes/yg-aspect.yaml": 1778444079600.2117,
+    ".yggdrasil/aspects/command-exit-codes/check.mjs": 1778444087239.257,
+    ".yggdrasil/model/cli/templates/yg-node.yaml": 1776177846203.893,
+    "source/cli/src/cli/knowledge.ts": 1778835703562.6958
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-15T09:01:20.032Z",
+    "prefix_hash": "7d1aa7e2e21030d069c4f80b3aecd01de28a2ed66954b8601bae61dcc4a207ab"
+  }
+}
