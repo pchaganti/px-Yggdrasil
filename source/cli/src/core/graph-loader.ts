@@ -1,5 +1,5 @@
-import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { readSortedDir, readSortedDirOrEmpty, readTextFile } from '../io/graph-fs.js';
 import { gt, valid } from 'semver';
 import type {
   Graph,
@@ -119,7 +119,7 @@ async function scanModelDirectory(
   nodes: Map<string, GraphNode>,
   nodeParseErrors: Array<{ nodePath: string; message: string }>,
 ): Promise<void> {
-  const entries = (await readdir(dirPath, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
+  const entries = await readSortedDir(dirPath);
   const hasNodeYaml = entries.some((e) => e.isFile() && e.name === 'yg-node.yaml');
 
   if (!hasNodeYaml && dirPath !== modelDir) {
@@ -132,7 +132,7 @@ async function scanModelDirectory(
     let meta;
     let nodeYamlRaw: string | undefined;
     try {
-      nodeYamlRaw = await readFile(nodeYamlPath, 'utf-8');
+      nodeYamlRaw = await readTextFile(nodeYamlPath);
       meta = await parseNodeYaml(nodeYamlPath);
     } catch (err) {
       nodeParseErrors.push({
@@ -198,7 +198,7 @@ async function scanAspectsDirectory(
   aspectsRoot: string,
   aspects: AspectDef[],
 ): Promise<void> {
-  const entries = (await readdir(dirPath, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
+  const entries = await readSortedDir(dirPath);
   const hasAspectYaml = entries.some((e) => e.isFile() && e.name === 'yg-aspect.yaml');
 
   if (hasAspectYaml) {
@@ -216,12 +216,8 @@ async function scanAspectsDirectory(
 }
 
 async function loadFlows(flowsDir: string): Promise<FlowDef[]> {
-  let entries;
-  try {
-    entries = (await readdir(flowsDir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
-  } catch {
-    return []; // flows/ directory does not exist — OK
-  }
+  const entries = await readSortedDirOrEmpty(flowsDir);
+  if (entries.length === 0) return [];
   const flows: FlowDef[] = [];
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
@@ -233,17 +229,13 @@ async function loadFlows(flowsDir: string): Promise<FlowDef[]> {
 }
 
 async function loadSchemas(schemasDir: string): Promise<SchemaDef[]> {
-  try {
-    const entries = (await readdir(schemasDir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
-    const schemas: SchemaDef[] = [];
-    for (const entry of entries) {
-      if (!entry.isFile()) continue;
-      if (!entry.name.endsWith('.yaml') && !entry.name.endsWith('.yml')) continue;
-      const s = await parseSchema(path.join(schemasDir, entry.name));
-      schemas.push(s);
-    }
-    return schemas;
-  } catch {
-    return [];
+  const entries = await readSortedDirOrEmpty(schemasDir);
+  const schemas: SchemaDef[] = [];
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    if (!entry.name.endsWith('.yaml') && !entry.name.endsWith('.yml')) continue;
+    const s = await parseSchema(path.join(schemasDir, entry.name));
+    schemas.push(s);
   }
+  return schemas;
 }

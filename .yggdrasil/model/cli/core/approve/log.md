@@ -6,3 +6,5 @@ Bootstrap mandatory log entry check: first approve on a node that has source fil
 R0.3: cascade from cli/io metadata update
 ## [2026-05-15T12:36:42.937Z]
 R0.4b: cascade from cli/io metadata update (atomic-write.ts added to mapping)
+## [2026-05-15T12:41:10.716Z]
+R0.5: graph-loader.ts now routes all fs calls through io/graph-fs.ts (readSortedDir, readTextFile)

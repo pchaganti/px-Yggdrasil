@@ -1,0 +1,18 @@
+name: IO Stores
+type: adapter
+description: Filesystem readers and writers for runtime state — drift state persistence, find index, artifact reading, repository scanning, and low-level fs utilities
+aspects:
+  - silent-missing-files
+  - diagnostic-logging
+relations:
+  - target: cli/model/graph
+    type: uses
+  - target: cli/model/drift
+    type: uses
+mapping:
+  - source/cli/src/io/artifact-reader.ts
+  - source/cli/src/io/atomic-write.ts
+  - source/cli/src/io/drift-state-store.ts
+  - source/cli/src/io/find-index.ts
+  - source/cli/src/io/graph-fs.ts
+  - source/cli/src/io/repo-scanner.ts

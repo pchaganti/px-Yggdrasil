@@ -157,6 +157,26 @@ quality:
     await rm(tmpDir, { recursive: true, force: true });
   });
 
+  it('throws when parallel is a string', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-config-parallel-string');
+    await mkdir(tmpDir, { recursive: true });
+    await writeFile(path.join(tmpDir, 'yg-config.yaml'), 'version: "4.0.0"\nparallel: "4"\n', 'utf-8');
+    await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toThrow(
+      'parallel must be a number',
+    );
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('throws when quality is not a mapping', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-config-quality-string');
+    await mkdir(tmpDir, { recursive: true });
+    await writeFile(path.join(tmpDir, 'yg-config.yaml'), 'version: "4.0.0"\nquality: "high"\n', 'utf-8');
+    await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toThrow(
+      'quality must be a mapping',
+    );
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
   it('parses debug: true', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-config-debug-true');
     await mkdir(tmpDir, { recursive: true });

@@ -1,26 +1,8 @@
 name: IO
 type: adapter
-description: Filesystem I/O layer for parsing graph YAML files and persisting drift state
-aspects:
-  - yaml-parser-contract
-  - silent-missing-files
-  - diagnostic-logging
+description: Filesystem I/O layer — parent grouping for parsers (cli/io/parsers) and storage adapters (cli/io/stores). Aspects are declared explicitly on each child.
 relations:
   - target: cli/model/graph
     type: uses
   - target: cli/model/drift
     type: uses
-mapping:
-  - source/cli/src/io/architecture-parser.ts
-  - source/cli/src/io/artifact-reader.ts
-  - source/cli/src/io/aspect-parser.ts
-  - source/cli/src/io/config-parser.ts
-  - source/cli/src/io/drift-state-store.ts
-  - source/cli/src/io/flow-parser.ts
-  - source/cli/src/io/node-parser.ts
-  - source/cli/src/io/schema-parser.ts
-  - source/cli/src/io/secrets-parser.ts
-  - source/cli/src/io/log-parser.ts
-  - source/cli/src/io/find-index.ts
-  - source/cli/src/io/repo-scanner.ts
-  - source/cli/src/io/atomic-write.ts

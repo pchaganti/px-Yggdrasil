@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Knowledge topic `conditional-aspects`: corrected example field name from `default_aspects:` to `aspects:` to match actual schema field in `yg-architecture.yaml`.
 - Knowledge topic `working-with-architecture`: added note that centralized test directories (e.g. `tests/`) should be excluded with `not: { path: 'tests/**' }`, not only `*.test.ts` negation.
 - `yg owner --file`, `yg impact --file`, `yg context --file` — `--file` argument is now always resolved relative to the repository root, not the current working directory. Running these commands from a subdirectory no longer produces doubled paths.
+- `config-parser`: `quality` field now validated with explicit type guard (throws descriptive error when not a mapping); `parallel` field validated with `typeof` guard before integer check. Aligns with `yaml-parser-contract` invariant that every required field is checked individually with a clear error message.
+
+### Refactored
+
+- `io/graph-fs.ts` extracted: `readSortedDir`, `readTextFile`, `readSortedDirOrEmpty` wrappers extracted from `core/graph-loader.ts` into dedicated IO module. `graph-loader.ts` no longer imports `node:fs` directly.
+- `cli/io` graph node split into `cli/io/parsers` (8 YAML parsers) and `cli/io/stores` (6 fs/state adapters), eliminating wide-node reviewer context overflow.
 
 ## [4.4.0] - 2026-05-15
 

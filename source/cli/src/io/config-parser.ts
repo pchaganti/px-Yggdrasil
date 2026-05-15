@@ -37,14 +37,20 @@ export async function parseConfig(filePath: string): Promise<YggConfig> {
 
   const version = typeof raw.version === 'string' ? raw.version.trim() : undefined;
 
-  const qualityRaw = raw.quality as Record<string, unknown> | undefined;
-  const quality: QualityConfig = qualityRaw
+  const qualityRaw = raw.quality;
+  if (qualityRaw !== undefined && (typeof qualityRaw !== 'object' || Array.isArray(qualityRaw))) {
+    throw new Error(`${filename}: quality must be a mapping`);
+  }
+  const qualityMap = qualityRaw as Record<string, unknown> | undefined;
+  const quality: QualityConfig = qualityMap
     ? {
         max_direct_relations:
-          (qualityRaw.max_direct_relations as number) ?? DEFAULT_QUALITY.max_direct_relations,
+          typeof qualityMap.max_direct_relations === 'number'
+            ? qualityMap.max_direct_relations
+            : DEFAULT_QUALITY.max_direct_relations,
         max_mapping_source_files:
-          qualityRaw.max_mapping_source_files !== undefined
-            ? (qualityRaw.max_mapping_source_files as number)
+          typeof qualityMap.max_mapping_source_files === 'number'
+            ? qualityMap.max_mapping_source_files
             : undefined,
       }
     : DEFAULT_QUALITY;
@@ -58,11 +64,13 @@ export async function parseConfig(filePath: string): Promise<YggConfig> {
 
   let parallel: number | undefined;
   if (raw.parallel !== undefined) {
-    const p = raw.parallel as number;
-    if (!Number.isInteger(p) || p < 1) {
-      throw new Error(`${filename}: parallel must be a positive integer >= 1, got ${p}`);
+    if (typeof raw.parallel !== 'number') {
+      throw new Error(`${filename}: parallel must be a number, got ${typeof raw.parallel}`);
     }
-    parallel = p;
+    if (!Number.isInteger(raw.parallel) || raw.parallel < 1) {
+      throw new Error(`${filename}: parallel must be a positive integer >= 1, got ${raw.parallel}`);
+    }
+    parallel = raw.parallel;
   }
 
   const debug = raw.debug === true ? true : undefined;

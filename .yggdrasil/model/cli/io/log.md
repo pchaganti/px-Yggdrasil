@@ -24,3 +24,7 @@ Fix silent-missing-files violation in find-index.ts: ENOENT on log.md is expecte
 R0.3: repo-scanner.ts moved here from utils/repo-scan.ts (io adapter, not a pure helper — reads fs)
 ## [2026-05-15T12:30:04.619Z]
 R0.4b: atomic-write.ts moved here from utils/ — persistence-adapter with atomicity guarantee (io layer)
+## [2026-05-15T12:41:10.307Z]
+R0.5: graph-loader.ts now routes all fs calls through io/graph-fs.ts (readSortedDir, readTextFile)
+## [2026-05-15T12:47:31.361Z]
+R0.5: fix yaml-parser-contract violation in config-parser.ts — added explicit typeof guards for quality sub-fields and parallel field instead of direct type casts without runtime checks
