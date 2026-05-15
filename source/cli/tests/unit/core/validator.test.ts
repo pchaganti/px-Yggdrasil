@@ -1303,3 +1303,57 @@ describe('validator — pipeline short-circuit', () => {
     expect(result.nodesScanned).toBeGreaterThanOrEqual(0);
   });
 });
+
+describe('checkArchitectureParentCycles', () => {
+  it('emits error for unresolvable cycle (a→b→a)', async () => {
+    const graph = createGraph({
+      architecture: {
+        node_types: {
+          a: { description: 'A', parents: ['b'] },
+          b: { description: 'B', parents: ['a'] },
+        },
+      },
+    });
+    const result = await validate(graph);
+    expect(result.issues.find((i) => i.code === 'architecture-cycle')).toBeDefined();
+  });
+
+  it('allows self-loop with alternative parent (escape path exists)', async () => {
+    const graph = createGraph({
+      architecture: {
+        node_types: {
+          module: { description: 'Mod', parents: ['module', 'root'] },
+          root: { description: 'Root' },
+        },
+      },
+    });
+    const result = await validate(graph);
+    expect(result.issues.find((i) => i.code === 'architecture-cycle')).toBeUndefined();
+  });
+
+  it('emits error for self-loop without alternative parent', async () => {
+    const graph = createGraph({
+      architecture: {
+        node_types: {
+          module: { description: 'Mod', parents: ['module'] },
+        },
+      },
+    });
+    const result = await validate(graph);
+    expect(result.issues.find((i) => i.code === 'architecture-cycle')).toBeDefined();
+  });
+
+  it('allows three-way chain with rootable end', async () => {
+    const graph = createGraph({
+      architecture: {
+        node_types: {
+          a: { description: 'A', parents: ['b'] },
+          b: { description: 'B', parents: ['a', 'c'] },
+          c: { description: 'C' },
+        },
+      },
+    });
+    const result = await validate(graph);
+    expect(result.issues.find((i) => i.code === 'architecture-cycle')).toBeUndefined();
+  });
+});

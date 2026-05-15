@@ -58,9 +58,27 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   if (graph.architectureError) {
     const archErr = graph.architectureError;
     if (typeof archErr === 'object' && archErr.code === 'when-predicate-invalid') {
-      issues.push({ severity: 'error', code: 'when-predicate-invalid', rule: 'when-predicate-invalid', message: archErr.message });
+      issues.push({
+        severity: 'error',
+        code: 'when-predicate-invalid',
+        rule: 'when-predicate-invalid',
+        message: buildIssueMessage({
+          what: archErr.message,
+          why: `The when: predicate in yg-architecture.yaml could not be parsed. Architecture cannot be loaded until this is fixed.`,
+          next: `Fix the when: predicate syntax in yg-architecture.yaml. See schemas/yg-architecture.yaml for the allowed shape.`,
+        }),
+      });
     } else {
-      issues.push({ severity: 'error', code: 'architecture-invalid', rule: 'architecture-invalid', message: archErr as string });
+      issues.push({
+        severity: 'error',
+        code: 'architecture-invalid',
+        rule: 'architecture-invalid',
+        message: buildIssueMessage({
+          what: archErr as string,
+          why: `yg-architecture.yaml failed to parse. No architecture-level rules can be checked until this is fixed.`,
+          next: `Fix the YAML syntax in yg-architecture.yaml. Run yg check again to verify.`,
+        }),
+      });
     }
     return { issues, nodesScanned: 0 };
   }
@@ -179,7 +197,76 @@ function checkTypeUnknownParent(graph: Graph): ValidationIssue[] {
   return issues;
 }
 
-function checkArchitectureParentCycles(_graph: Graph): ValidationIssue[] { return []; }
+function checkArchitectureParentCycles(graph: Graph): ValidationIssue[] {
+  const types = graph.architecture.node_types;
+  const typeIds = Object.keys(types);
+
+  // Skip if any parent reference is unknown — checkTypeUnknownParent handles that
+  const knownTypes = new Set(typeIds);
+  for (const def of Object.values(types)) {
+    if (def.parents?.some((p) => !knownTypes.has(p))) return [];
+  }
+
+  // Pass 1: DFS three-color — collect back-edges (cycle-forming edges)
+  const WHITE = 0, GRAY = 1, BLACK = 2;
+  const color = new Map<string, number>(typeIds.map((id) => [id, WHITE]));
+  const backEdges = new Set<string>();
+  const recordedCycles: string[][] = [];
+
+  function dfs(typeId: string, path: string[]): void {
+    if (color.get(typeId) === GRAY) {
+      const cycleStart = path.indexOf(typeId);
+      if (cycleStart !== -1) recordedCycles.push([...path.slice(cycleStart), typeId]);
+      const from = path[path.length - 1];
+      if (from !== undefined) backEdges.add(`${from}->${typeId}`);
+      return;
+    }
+    if (color.get(typeId) === BLACK) return;
+    color.set(typeId, GRAY);
+    path.push(typeId);
+    for (const parent of types[typeId]?.parents ?? []) dfs(parent, path);
+    path.pop();
+    color.set(typeId, BLACK);
+  }
+  for (const id of typeIds) { if (color.get(id) === WHITE) dfs(id, []); }
+
+  // Pass 2: BFS per type excluding back-edges — check if rootable type reachable
+  function isRootable(id: string): boolean {
+    const parents = types[id]?.parents;
+    return !parents || parents.length === 0;
+  }
+  function canReachRootable(typeId: string): boolean {
+    if (isRootable(typeId)) return true;
+    const visited = new Set<string>([typeId]);
+    const queue: string[] = [typeId];
+    while (queue.length) {
+      const cur = queue.shift()!;
+      for (const parent of types[cur]?.parents ?? []) {
+        if (backEdges.has(`${cur}->${parent}`)) continue;
+        if (isRootable(parent)) return true;
+        if (!visited.has(parent)) { visited.add(parent); queue.push(parent); }
+      }
+    }
+    return false;
+  }
+
+  const trapped = typeIds.filter((id) => !canReachRootable(id));
+  if (trapped.length === 0) return [];
+
+  const cycleStr = recordedCycles.length > 0
+    ? recordedCycles[0].join(' → ')
+    : trapped.join(' ↔ ');
+  return [{
+    severity: 'error',
+    code: 'architecture-cycle',
+    rule: 'architecture-cycle',
+    message: buildIssueMessage({
+      what: `Cycle in parents: declarations:\n  ${cycleStr}\nTrapped types: ${trapped.join(', ')}`,
+      why: `Every type in the cycle can only reach other cycle members — no rootable type is reachable. Nodes of these types can never be instantiated.`,
+      next: `Break the cycle: add a rootable parent (one with no parents:), remove one parents: declaration, or add a third type as alternative parent.`,
+    }),
+  }];
+}
 function checkEnforceStrictWithoutWhen(_graph: Graph): ValidationIssue[] { return []; }
 function checkTypeWithoutWhenWithMapping(graph: Graph): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
