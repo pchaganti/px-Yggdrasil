@@ -5,6 +5,9 @@ import { createRequire } from 'node:module';
 import { type Ignore, type Options as IgnoreOptions } from 'ignore';
 import type { TrackedFile } from '../core/context-files.js';
 
+export { loadRootGitignoreStack, isIgnoredByStack, walkRepoFiles } from './repo-scan.js';
+export type { GitignoreEntry } from './repo-scan.js';
+
 const require = createRequire(import.meta.url);
 const ignoreFactory = require('ignore') as (options?: IgnoreOptions) => Ignore;
 
