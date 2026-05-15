@@ -1,4 +1,5 @@
 import type { WhenPredicate } from './when.js';
+import type { FileWhenPredicate } from './file-when.js';
 
 export type {
   WhenPredicate,
@@ -9,6 +10,7 @@ export type {
   DescendantsClause,
   NodeClause,
 } from './when.js';
+export type { FileWhenPredicate } from './file-when.js';
 
 // ============================================================
 // Config
@@ -38,6 +40,17 @@ export interface ArchitectureNodeType {
    * Undefined means caller should apply its own default (typically true).
    */
   log_required?: boolean;
+  /**
+   * Per-file classification predicate. Types without `when` are organizational
+   * (parent-only — nodes of that type cannot carry a non-empty `mapping:`).
+   */
+  when?: FileWhenPredicate;
+  /**
+   * When set to 'strict', backward enforcement applies: any repo file matching
+   * `when` must be in a node mapping of this type, and conversely a mapping
+   * file must satisfy `when`.
+   */
+  enforce?: 'strict';
 }
 
 export interface ArchitectureDef {
@@ -172,11 +185,22 @@ export interface SchemaDef {
 // Graph (top-level)
 // ============================================================
 
+/**
+ * Architecture file load error.
+ *
+ * Bare string keeps backward compatibility with legacy parse failures.
+ * Structured form lets validators distinguish error codes — e.g.
+ * `when-predicate-invalid` (Spec §7 Klasa 6) vs. generic `architecture-invalid`.
+ */
+export type ArchitectureLoadError =
+  | string
+  | { code: 'when-predicate-invalid'; message: string };
+
 export interface Graph {
   config: YggConfig;
   architecture: ArchitectureDef;
   /** Present when yg-architecture.yaml could not be parsed */
-  architectureError?: string;
+  architectureError?: ArchitectureLoadError;
   /** Present when yg-config.yaml could not be parsed and loader used fallback config */
   configError?: string;
   /** Parse errors for yg-node.yaml files (path -> message); reported as yaml-invalid */

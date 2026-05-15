@@ -283,3 +283,84 @@ describe('parseArchitecture — log_required', () => {
     });
   });
 });
+
+describe('parseArchitecture — when and enforce', () => {
+  async function withArchYaml<T>(yaml: string, fn: (filePath: string) => Promise<T>): Promise<T> {
+    const dir = await mkdtemp(path.join(tmpdir(), 'yg-arch-'));
+    try {
+      const filePath = path.join(dir, 'yg-architecture.yaml');
+      await writeFile(filePath, yaml, 'utf-8');
+      return await fn(filePath);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  it('parses when on node_type', async () => {
+    const yaml = `node_types:
+  command:
+    description: "CLI command"
+    when:
+      all_of:
+        - path: "src/cli/**/*.ts"
+        - content: "register[A-Z]\\\\w*Command"
+`;
+    await withArchYaml(yaml, async (fp) => {
+      const result = await parseArchitecture(fp);
+      expect(result.node_types.command.when).toEqual({
+        all_of: [{ path: 'src/cli/**/*.ts' }, { content: 'register[A-Z]\\w*Command' }],
+      });
+    });
+  });
+
+  it('parses enforce: strict on node_type', async () => {
+    const yaml = `node_types:
+  command:
+    description: "CLI command"
+    when:
+      path: "**"
+    enforce: strict
+`;
+    await withArchYaml(yaml, async (fp) => {
+      const result = await parseArchitecture(fp);
+      expect(result.node_types.command.enforce).toBe('strict');
+    });
+  });
+
+  it("rejects enforce values other than 'strict'", async () => {
+    const yaml = `node_types:
+  command:
+    description: "CLI command"
+    when:
+      path: "**"
+    enforce: relaxed
+`;
+    await withArchYaml(yaml, async (fp) => {
+      await expect(parseArchitecture(fp)).rejects.toThrow(/enforce must be 'strict'/);
+    });
+  });
+
+  it('allows type without when (organizational)', async () => {
+    const yaml = `node_types:
+  module:
+    description: "Grouping node"
+`;
+    await withArchYaml(yaml, async (fp) => {
+      const result = await parseArchitecture(fp);
+      expect(result.node_types.module.when).toBeUndefined();
+      expect(result.node_types.module.description).toBe('Grouping node');
+    });
+  });
+
+  it('propagates WhenPredicateInvalidError for malformed when', async () => {
+    const yaml = `node_types:
+  command:
+    description: "CLI command"
+    when:
+      foo: bar
+`;
+    await withArchYaml(yaml, async (fp) => {
+      await expect(parseArchitecture(fp)).rejects.toThrow(/unknown.*key.*foo/);
+    });
+  });
+});

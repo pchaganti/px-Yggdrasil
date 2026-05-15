@@ -47,15 +47,17 @@ export async function buildIndex(graph: Graph): Promise<IndexedDocument[]> {
         /* skip hardlink */
       }
     } catch (err) {
-      const msg = (err as NodeJS.ErrnoException).message;
-      debugWrite(`[find-index] log.md read for ${nodePath}: ${msg}`);
-      process.stderr.write(
-        buildIssueMessage({
-          what: `Cannot read log.md for node '${nodePath}': ${msg}`,
-          why: 'Node will be indexed without log body — search results may be less relevant.',
-          next: 'Check file permissions or restore from git.',
-        }) + '\n',
-      );
+      const e = err as NodeJS.ErrnoException;
+      debugWrite(`[find-index] log.md read for ${nodePath}: ${e.message}`);
+      if (e.code !== 'ENOENT') {
+        process.stderr.write(
+          buildIssueMessage({
+            what: `Cannot read log.md for node '${nodePath}': ${e.message}`,
+            why: 'Node will be indexed without log body — search results may be less relevant.',
+            next: 'Check file permissions or restore from git.',
+          }) + '\n',
+        );
+      }
     }
 
     docs.push({

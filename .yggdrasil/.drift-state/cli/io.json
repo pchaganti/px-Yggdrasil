@@ -1,5 +1,5 @@
 {
-  "hash": "2984ea667275ec8c5e5bde7b4b41bd9a539991f9e8e3ed1c617d57c98f34239b",
+  "hash": "7efbaa7bfdbdaee62036ded226bce5b220601d503bcc5c4877bea61923a11b23",
   "files": {
     "own-subset:cli/io": "93a2039db5969786ae9f539773e973950d2b11a6bc1c7846d5e0170dc969c748",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -19,10 +19,10 @@
     "source/cli/src/io/flow-parser.ts": "475782d0f195be57f82505cb0b65cedb6259c79fceee4db83ea74802fbf1a474",
     "source/cli/src/io/node-parser.ts": "2f7c18c7f497f88f703daed29008791767e937ee94a974919b208e11f071873c",
     "source/cli/src/io/schema-parser.ts": "7a04832bf460fff9538f2037a9744b56ad1ec37e5565929b1b709cddc9202261",
-    "source/cli/src/io/secrets-parser.ts": "6a1f2ba6eb0928fd50536863ee098df87892a32d858c3fb7e577337ef7ca0395",
     "source/cli/src/io/log-parser.ts": "29aa2620d7f0223666b23b78f914dfc204ff5102be3a42d6546ba055f42e5523",
-    "source/cli/src/io/find-index.ts": "9ffc88ae20e2efe404b1558ea266e8c830500aac90ff8d7dd2ebc324be99099c",
-    "source/cli/src/io/architecture-parser.ts": "3b51ce7c3f23f124aa35c41be1a58cdebdc5ab3caf0f1221a14dcc452a9645d0"
+    "source/cli/src/io/architecture-parser.ts": "65b4ca20be6a5a607736cfbb95040b9a3b872cea604f3af40fe39925732b36ca",
+    "source/cli/src/io/secrets-parser.ts": "f72373fe382e2f76efab945074f2357945473005eaa002f906321d87516c863d",
+    "source/cli/src/io/find-index.ts": "f418695a7df06cc6b628c7bf9e5d3af3b73d46bffa73f662a38ed519ac1df449"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -35,7 +35,7 @@
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     ".yggdrasil/model/cli/model/drift/yg-node.yaml": 1776177846203.4216,
-    "source/cli/src/io/architecture-parser.ts": 1778649496657.32,
+    "source/cli/src/io/architecture-parser.ts": 1778651692556.5164,
     "source/cli/src/io/artifact-reader.ts": 1776177846230.4192,
     "source/cli/src/io/aspect-parser.ts": 1778431908787.9102,
     "source/cli/src/io/config-parser.ts": 1778501876536.1433,
@@ -43,12 +43,12 @@
     "source/cli/src/io/flow-parser.ts": 1776494731310.8044,
     "source/cli/src/io/node-parser.ts": 1778501876547.812,
     "source/cli/src/io/schema-parser.ts": 1776177846231.5789,
-    "source/cli/src/io/secrets-parser.ts": 1776494731311.3828,
+    "source/cli/src/io/secrets-parser.ts": 1778651700191.4011,
     "source/cli/src/io/log-parser.ts": 1778572714037.1997,
-    "source/cli/src/io/find-index.ts": 1778583633459.0183
+    "source/cli/src/io/find-index.ts": 1778825877463.962
   },
   "log": {
-    "last_entry_datetime": "2026-05-13T05:19:31.112Z",
-    "prefix_hash": "f31c5b9297ebf903d8b2b7c10cdafcca42d2a9359b6bd42a0a67883baeaada12"
+    "last_entry_datetime": "2026-05-15T06:18:08.224Z",
+    "prefix_hash": "faac0e45d01efbea69d87995959db238655109ead37dbc5d3c9bbc10c0e0bdf1"
   }
 }

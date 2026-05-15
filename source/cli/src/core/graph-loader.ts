@@ -15,6 +15,8 @@ import { parseAspect } from '../io/aspect-parser.js';
 import { parseFlow } from '../io/flow-parser.js';
 import { parseSchema } from '../io/schema-parser.js';
 import { parseArchitecture } from '../io/architecture-parser.js';
+import { WhenPredicateInvalidError } from '../io/file-when-parser.js';
+import type { ArchitectureLoadError } from '../model/graph.js';
 import { findYggRoot } from '../utils/paths.js';
 
 function toModelPath(absolutePath: string, modelDir: string): string {
@@ -75,7 +77,7 @@ export async function loadGraph(
 
 async function loadArchitecture(
   yggRoot: string,
-): Promise<{ architecture: ArchitectureDef; error?: string }> {
+): Promise<{ architecture: ArchitectureDef; error?: ArchitectureLoadError }> {
   const architectureFilePath = path.join(yggRoot, 'yg-architecture.yaml');
   const emptyArch: ArchitectureDef = { node_types: {} };
 
@@ -86,6 +88,12 @@ async function loadArchitecture(
     const err = error as NodeJS.ErrnoException;
     if (err.code === 'ENOENT') {
       return { architecture: emptyArch };
+    }
+    if (error instanceof WhenPredicateInvalidError) {
+      return {
+        architecture: emptyArch,
+        error: { code: 'when-predicate-invalid', message: error.message },
+      };
     }
     return { architecture: emptyArch, error: (error as Error).message };
   }

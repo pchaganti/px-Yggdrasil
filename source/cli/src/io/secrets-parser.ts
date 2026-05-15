@@ -32,13 +32,13 @@ export async function loadSecrets(rootPath: string, providerName?: string): Prom
     return undefined;
   }
 
-  const raw = parseYaml(content) as unknown;
+  const raw = parseYaml(content) as Record<string, unknown>;
   if (raw === null || raw === undefined) return undefined;
   if (typeof raw !== 'object' || Array.isArray(raw)) {
     throw new Error(`yg-secrets.yaml: top level must be a YAML mapping`);
   }
 
-  const rawObj = raw as Record<string, unknown>;
+  const rawObj = raw;
   if (rawObj.reviewer === undefined) return undefined;
   if (typeof rawObj.reviewer !== 'object' || rawObj.reviewer === null || Array.isArray(rawObj.reviewer)) {
     throw new Error(`yg-secrets.yaml: 'reviewer' must be a YAML mapping`);
