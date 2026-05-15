@@ -267,7 +267,24 @@ function checkArchitectureParentCycles(graph: Graph): ValidationIssue[] {
     }),
   }];
 }
-function checkEnforceStrictWithoutWhen(_graph: Graph): ValidationIssue[] { return []; }
+function checkEnforceStrictWithoutWhen(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  for (const [typeId, def] of Object.entries(graph.architecture.node_types)) {
+    if (def.enforce === 'strict' && def.when === undefined) {
+      issues.push({
+        severity: 'error',
+        code: 'enforce-strict-without-when',
+        rule: 'enforce-strict-without-when',
+        message: buildIssueMessage({
+          what: `Type '${typeId}' has enforce: strict but no when predicate.`,
+          why: `enforce: strict requires when — it tells the validator which files must belong to a node of this type. Without when, there's no condition to evaluate.`,
+          next: `Either add a when predicate to type '${typeId}', or remove enforce: strict. See schemas/yg-architecture.yaml.`,
+        }),
+      });
+    }
+  }
+  return issues;
+}
 function checkTypeWithoutWhenWithMapping(graph: Graph): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   for (const [nodePath, node] of graph.nodes) {

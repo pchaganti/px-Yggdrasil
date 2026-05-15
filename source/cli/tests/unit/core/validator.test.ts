@@ -1357,3 +1357,29 @@ describe('checkArchitectureParentCycles', () => {
     expect(result.issues.find((i) => i.code === 'architecture-cycle')).toBeUndefined();
   });
 });
+
+describe('checkEnforceStrictWithoutWhen', () => {
+  it('emits error when type has enforce: strict without when', async () => {
+    const graph = createGraph({
+      architecture: {
+        node_types: {
+          command: { description: 'CLI', enforce: 'strict' },
+        },
+      },
+    });
+    const result = await validate(graph);
+    expect(result.issues.find((i) => i.code === 'enforce-strict-without-when')).toBeDefined();
+  });
+
+  it('does not emit when enforce: strict has when', async () => {
+    const graph = createGraph({
+      architecture: {
+        node_types: {
+          command: { description: 'CLI', enforce: 'strict', when: { path: '**' } },
+        },
+      },
+    });
+    const result = await validate(graph);
+    expect(result.issues.find((i) => i.code === 'enforce-strict-without-when')).toBeUndefined();
+  });
+});
