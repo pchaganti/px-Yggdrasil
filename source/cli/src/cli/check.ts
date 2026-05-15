@@ -161,7 +161,7 @@ export function formatOutput(result: CheckResult): string {
         lines.push(`  Architecture (${architecture.length} errors):`);
         const aspectNodes = new Map<string, Set<string>>();
         for (const issue of architecture) {
-          const match = issue.message.match(/Aspect '([^']+)'/);
+          const match = issue.messageData.what.match(/Aspect '([^']+)'/);
           if (match) {
             const nodes = aspectNodes.get(match[1]) ?? new Set<string>();
             if (issue.nodePath) nodes.add(issue.nodePath);
@@ -300,5 +300,5 @@ function sortByNodePath(issues: CheckIssue[]): CheckIssue[] {
 }
 
 function msg(issue: CheckIssue): string {
-  return issue.messageData ? buildIssueMessage(issue.messageData) : issue.message;
+  return buildIssueMessage(issue.messageData);
 }

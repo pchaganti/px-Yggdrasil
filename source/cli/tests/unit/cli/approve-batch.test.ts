@@ -7,7 +7,7 @@ describe('filterCascadeNodes', () => {
     severity: 'error',
     code: 'upstream-drift',
     rule: 'cascade-drift',
-    message: 'cascade',
+    messageData: { what: 'cascade', why: '', next: '' },
     nodePath,
     cascadeCauses: causeFiles.map(f => ({
       file: f,
@@ -39,7 +39,7 @@ describe('filterCascadeNodes', () => {
       severity: 'error',
       code: 'source-drift',
       rule: 'direct-drift',
-      message: 'direct drift',
+      messageData: { what: 'direct drift', why: '', next: '' },
       nodePath: 'cli/commands/approve',
     }];
     const result = filterCascadeNodes(issues, '.yggdrasil/aspects/deterministic/');

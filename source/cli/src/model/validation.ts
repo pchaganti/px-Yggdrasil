@@ -10,8 +10,7 @@ export interface ValidationIssue {
   severity: IssueSeverity;
   code?: string;
   rule: string;
-  message: string;
-  messageData?: IssueMessage;
+  messageData: IssueMessage;
   nodePath?: string;
 }
 

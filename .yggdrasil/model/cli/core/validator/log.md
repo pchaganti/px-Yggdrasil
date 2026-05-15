@@ -28,3 +28,5 @@ R0.3: updated import from utils/repo-scan to io/repo-scanner (no logic change)
 R0.4: file-content-cache import updated from ./file-content-cache to ../io/file-content-cache (no logic change)
 ## [2026-05-15T13:55:50.486Z]
 R0.1 Phase 4: populate messageData via issueMsg() helper on every ValidationIssue. buildIssueMessage still called for backward compat message field; Phase 5 will drop message.
+## [2026-05-15T14:17:01.550Z]
+Drop deprecated message field: issueMsg() returns only messageData; buildIssueMessage import removed; de-duplication uses messageData.what. R0.1 Phase 5.

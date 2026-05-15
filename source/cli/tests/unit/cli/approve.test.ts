@@ -36,7 +36,7 @@ describe('formatResult — LLM results', () => {
   it('displays aspect verification results in approve output', () => {
     const result = makeApproveResult({
       action: 'refused',
-      refuseReason: 'Reviewer verification found issues',
+      refuseReasonData: { what: 'Reviewer verification found issues', why: 'Aspect check failed.', next: 'Fix violations and re-run.' },
       aspectResults: {
         'deterministic': { satisfied: true, reason: 'ok' },
         'pure-transforms': { satisfied: false, reason: 'fs.readFileSync on line 89' },
@@ -75,7 +75,7 @@ describe('formatBatchOutput', () => {
         nodePath: 'cli/core/validator',
         result: makeApproveResult({
           action: 'refused',
-          refuseReason: 'Reviewer verification found issues',
+          refuseReasonData: { what: 'Reviewer verification found issues', why: 'Aspect check failed.', next: 'Fix violations and re-run.' },
           aspectResults: {
             'posix-paths': { satisfied: false, reason: 'Missing normalization on line 42' },
           },

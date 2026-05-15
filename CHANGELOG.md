@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactored
 
+- `buildIssueMessage` import removed from all engine modules (`core/`, `ast/`, `io/`). Engines now populate `messageData: IssueMessage` only; CLI layer calls `buildIssueMessage()` for presentation. Drops deprecated `message: string` from `ValidationIssue` and `refuseReason: string` from `ApproveResult` — both fields replaced by typed `messageData`/`refuseReasonData` counterparts.
 - `io/graph-fs.ts` extracted: `readSortedDir`, `readTextFile`, `readSortedDirOrEmpty` wrappers extracted from `core/graph-loader.ts` into dedicated IO module. `graph-loader.ts` no longer imports `node:fs` directly.
 - `cli/io` graph node split into `cli/io/parsers` (8 YAML parsers) and `cli/io/stores` (6 fs/state adapters), eliminating wide-node reviewer context overflow.
 - `core/parsing/` module extracted: `log-parser.ts`, `file-when-parser.ts`, `when-parser.ts` moved from `io/` to `core/parsing/`. These are pure in-memory parsers (no file I/O) that belong in the core layer. Consolidates the formerly-separate `cli/file-when-support` and `cli/when-support` graph nodes into `cli/core/parsing`.

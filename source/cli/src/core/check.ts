@@ -14,7 +14,6 @@ import { validate } from './validator.js';
 import { computeEffectiveAspects } from './effective-aspects.js';
 import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { buildIssueMessage } from '../formatters/message-builder.js';
 import { validateAppendOnly } from './log-integrity.js';
 import { validateFormat } from './log-format.js';
 
@@ -95,7 +94,6 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
         severity: 'error',
         code: allMissing ? 'source-drift' : 'unapproved',
         rule: allMissing ? 'source-drift' : 'unapproved',
-        message: buildIssueMessage(md),
         messageData: md,
         nodePath,
         lifecycleState: 'unapproved',
@@ -116,7 +114,6 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
         severity: 'error',
         code: 'source-drift',
         rule: 'source-drift',
-        message: buildIssueMessage(sourceGoneMd),
         messageData: sourceGoneMd,
         nodePath,
         lifecycleState: 'missing',
@@ -237,7 +234,6 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
         severity: 'error',
         code: 'source-drift',
         rule: 'source-drift',
-        message: buildIssueMessage(sourceDriftMd),
         messageData: sourceDriftMd,
         nodePath,
         lifecycleState: 'ok',
@@ -275,7 +271,6 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
         severity: 'error',
         code: 'upstream-drift',
         rule: 'cascade-drift',
-        message: buildIssueMessage(upstreamDriftMd),
         messageData: upstreamDriftMd,
         nodePath,
         cascadeCauses: nodeUpstreamCauses,
@@ -312,7 +307,6 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
           severity: 'error',
           code: 'log-integrity',
           rule: 'log-integrity',
-          message: buildIssueMessage(logIntegrityMd),
           messageData: logIntegrityMd,
           nodePath,
         });
@@ -333,7 +327,6 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
         severity: 'error',
         code: 'log-format',
         rule: 'log-format',
-        message: buildIssueMessage(logFormatMd),
         messageData: logFormatMd,
         nodePath,
       });
@@ -429,7 +422,6 @@ export function buildCoverageIssue(uncoveredFiles: string[], totalGitFiles: numb
     severity: 'error',
     code: 'unmapped-files',
     rule: 'unmapped-file',
-    message: buildIssueMessage(coverageMd),
     messageData: coverageMd,
     uncoveredFiles,
     uncoveredCount: uncoveredFiles.length,
@@ -512,7 +504,6 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
       severity: 'warning' as const,
       code: 'orphaned-drift-state',
       rule: 'orphaned-drift-state',
-      message: buildIssueMessage(orphanMd),
       messageData: orphanMd,
       nodePath: p,
     };

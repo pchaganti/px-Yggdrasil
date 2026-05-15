@@ -20,7 +20,7 @@ import path from 'node:path';
 import { parseLog } from './parsing/log-parser.js';
 import { validateFormat } from './log-format.js';
 import { validateAppendOnly } from './log-integrity.js';
-import { buildIssueMessage, type IssueMessage } from '../formatters/message-builder.js';
+import type { IssueMessage } from '../formatters/message-builder.js';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ApproveOptions {
@@ -49,27 +49,24 @@ export async function approveNode(
     const msg = (err as Error).message;
     debugWrite(`[approve] snapshotLog error for node ${nodePath}: ${msg}`);
     const logRel = `.yggdrasil/model/${nodePath}/log.md`;
-    let refuseReasonMd: IssueMessage | undefined;
-    let refuseReason: string;
+    let refuseReasonMd: IssueMessage;
     if (msg.includes('symlink')) {
       refuseReasonMd = {
         what: `${logRel} is a symbolic link`,
         why: 'Symlinks bypass append-only guarantees and break integrity hashing.',
         next: 'Remove the symlink and let yg log add create a regular file.',
       };
-      refuseReason = buildIssueMessage(refuseReasonMd);
     } else if (msg.includes('hardlinks') || msg.includes('nlink')) {
       refuseReasonMd = {
         what: `${logRel} has multiple hard links`,
         why: 'Hard links would orphan integrity baselines on atomic rename.',
         next: 'Copy to a unique file and replace the hard link.',
       };
-      refuseReason = buildIssueMessage(refuseReasonMd);
     } else {
       /* v8 ignore next */
-      refuseReason = msg;
+      refuseReasonMd = { what: msg, why: 'Unexpected error reading log.md.', next: 'Check file permissions and restore from git if needed.' };
     }
-    return { action: 'refused', currentHash: '', refuseReason, refuseReasonData: refuseReasonMd };
+    return { action: 'refused', currentHash: '', refuseReasonData: refuseReasonMd };
   }
 
   const storedEntry = await readNodeDriftState(graph.rootPath, nodePath);
@@ -93,7 +90,6 @@ export async function approveNode(
       return {
         action: 'refused',
         currentHash: '',
-        refuseReason: buildIssueMessage(logIntegrityMd),
         refuseReasonData: logIntegrityMd,
       };
     }
@@ -116,7 +112,6 @@ export async function approveNode(
       return {
         action: 'refused',
         currentHash: '',
-        refuseReason: buildIssueMessage(logFormatMd),
         refuseReasonData: logFormatMd,
       };
     }
@@ -133,7 +128,6 @@ export async function approveNode(
       return {
         action: 'refused',
         currentHash: '',
-        refuseReason: buildIssueMessage(noLogMd),
         refuseReasonData: noLogMd,
       };
     }
@@ -191,7 +185,6 @@ export async function approveNode(
       return {
         action: 'refused',
         currentHash: '',
-        refuseReason: buildIssueMessage(noLogFirstMd),
         refuseReasonData: noLogFirstMd,
       };
     }
@@ -338,7 +331,6 @@ export async function approveNode(
       return {
         action: 'refused',
         currentHash: '',
-        refuseReason: buildIssueMessage(noLogChangedMd),
         refuseReasonData: noLogChangedMd,
       };
     }

@@ -122,7 +122,7 @@ export function registerBuildCommand(program: Command): void {
           nodePath = result.nodePath;
           resolvedFilePath = result.file;
         } else {
-          nodePath = options.node!.trim().replace(/^\.\//, '').replace(/\/$/, '');
+          nodePath = options.node!.trim().replace(/\/$/, '');
         }
 
         const relevantNodes = collectRelevantNodePaths(graph, nodePath);
@@ -139,7 +139,7 @@ export function registerBuildCommand(program: Command): void {
           let errorList = '';
           for (const err of relevantErrors) {
             const loc = err.nodePath ? `${err.nodePath}: ` : '';
-            errorList += `  ${err.code ?? ''} ${loc}${err.message}\n`;
+            errorList += `  ${err.code ?? ''} ${loc}${buildIssueMessage(err.messageData)}\n`;
           }
           let whyText = 'Context cannot be assembled when structural errors exist.';
           if (skippedErrors > 0) {

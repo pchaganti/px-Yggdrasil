@@ -4,3 +4,5 @@ Fix no-explicit-any ESLint warnings: catch (e: any) → catch (e: unknown) with 
 Fix dry-run node path normalization: align to contract pattern trim().replace(/\/$/, '')
 ## [2026-05-15T13:55:50.688Z]
 R0.1 Phase 4: import AstRunnerError + buildIssueMessage; AstRunnerError catch now reads e.messageData to render error reason.
+## [2026-05-15T14:17:00.919Z]
+Drop deprecated refuseReason/message fields: cli/approve.ts now uses refuseReasonData for provider error and violation results; formatRefused reads refuseReasonData via buildIssueMessage. R0.1 Phase 5.

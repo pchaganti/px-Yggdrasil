@@ -5,6 +5,9 @@ import { tmpdir } from 'node:os';
 import { loadGraph } from '../../src/core/graph-loader.js';
 import { approveNode, commitApproval } from '../../src/core/approve.js';
 import { logAddCommand } from '../../src/cli/log-add.js';
+import { buildIssueMessage } from '../../src/formatters/message-builder.js';
+const refuseMsg = (r: { refuseReasonData?: Parameters<typeof buildIssueMessage>[0] }) =>
+  r.refuseReasonData ? buildIssueMessage(r.refuseReasonData) : '';
 
 const dirs: string[] = [];
 afterEach(async () => {
@@ -58,7 +61,7 @@ describe('log workflow integration', () => {
     const graph = await loadGraph(projectRoot);
     const r = await approveNode(graph, nodePath);
     expect(r.action).toBe('refused');
-    expect(r.refuseReason).toMatch(/mandatory.*entry|no log entry/i);
+    expect(refuseMsg(r)).toMatch(/mandatory.*entry|no log entry/i);
   });
 
   it('new node bootstrap: log entry present → initial', async () => {
@@ -93,7 +96,7 @@ describe('log workflow integration', () => {
     let graph = await loadGraph(projectRoot);
     let r = await approveNode(graph, nodePath);
     expect(r.action).toBe('refused');
-    expect(r.refuseReason).toMatch(/no.*log.*entry|mandatory/i);
+    expect(refuseMsg(r)).toMatch(/no.*log.*entry|mandatory/i);
 
     // Add log entry, retry
     await logAddCommand({ node: nodePath, reason: 'Updated' }, projectRoot);
@@ -143,8 +146,8 @@ describe('log workflow integration', () => {
     let graph = await loadGraph(projectRoot);
     const r = await approveNode(graph, nodePath);
     expect(r.action).toBe('refused');
-    expect(r.refuseReason).toMatch(/integrity|prefix_modified/);
-    expect(r.refuseReason).not.toMatch(/format/);
+    expect(refuseMsg(r)).toMatch(/integrity|prefix_modified/);
+    expect(refuseMsg(r)).not.toMatch(/format/);
   });
 
   it('flag flip true → false: mandatory stops, integrity continues', async () => {

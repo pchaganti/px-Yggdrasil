@@ -13,14 +13,14 @@ import type {
 import { normalizeMappingPaths } from '../utils/paths.js';
 import { expandMappingPaths } from '../utils/hash.js';
 import { walkRepoFiles } from '../io/repo-scanner.js';
-import { buildIssueMessage, type IssueMessage } from '../formatters/message-builder.js';
+import type { IssueMessage } from '../formatters/message-builder.js';
 import { computeEffectiveAspects } from './effective-aspects.js';
 import { FileContentCache } from '../io/file-content-cache.js';
 import { evaluateFileWhen } from './file-when-evaluator.js';
 import { renderTrace } from '../formatters/predicate-trace.js';
 
-function issueMsg(data: IssueMessage): { message: string; messageData: IssueMessage } {
-  return { message: buildIssueMessage(data), messageData: data };
+function issueMsg(data: IssueMessage): { messageData: IssueMessage } {
+  return { messageData: data };
 }
 
 // Architecture-level errors that abort per-node and global validation stages.
@@ -168,11 +168,11 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   issues.push(...strictOutcome.issues);
   allUnreadable.push(...strictOutcome.unreadable);
 
-  // De-duplicate file-unreadable by message (same file may surface from multiple checks).
+  // De-duplicate file-unreadable by what (same file may surface from multiple checks).
   const seenUnreadable = new Set<string>();
   for (const u of allUnreadable) {
-    if (!seenUnreadable.has(u.message)) {
-      seenUnreadable.add(u.message);
+    if (!seenUnreadable.has(u.messageData.what)) {
+      seenUnreadable.add(u.messageData.what);
       issues.push(u);
     }
   }

@@ -208,7 +208,7 @@ describe('approveNode — proper nodes', () => {
     const graph = await loadGraph(tmpDir);
     const result = await approveNode(graph, 'svc/my-service');
     expect(result.action).toBe('refused');
-    expect(result.refuseReason).toMatch(/no mapping|no log/i);
+    expect(result.refuseReasonData?.what ?? '').toMatch(/no mapping|no log/i);
     await rm(tmpDir, { recursive: true, force: true });
   });
 });

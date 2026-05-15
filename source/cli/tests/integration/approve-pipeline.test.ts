@@ -6,6 +6,9 @@ import { tmpdir } from 'node:os';
 import { loadGraph } from '../../src/core/graph-loader.js';
 import { approveNode, commitApproval } from '../../src/core/approve.js';
 import { writeNodeDriftState } from '../../src/io/drift-state-store.js';
+import { buildIssueMessage } from '../../src/formatters/message-builder.js';
+const refuseMsg = (r: { refuseReasonData?: Parameters<typeof buildIssueMessage>[0] }) =>
+  r.refuseReasonData ? buildIssueMessage(r.refuseReasonData) : '';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_PROJECT = path.join(__dirname, '../fixtures/sample-project');
@@ -155,7 +158,7 @@ describe('approve-pipeline', () => {
     // 'orders' parent module has no mapping.paths and no log.md
     const result = await approveNode(graph, 'orders');
     expect(result.action).toBe('refused');
-    expect(result.refuseReason).toMatch(/no mapping|no log/i);
+    expect(refuseMsg(result)).toMatch(/no mapping|no log/i);
   });
 
   it('approve on nonexistent node throws', async () => {

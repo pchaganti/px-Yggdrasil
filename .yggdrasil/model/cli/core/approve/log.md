@@ -12,3 +12,5 @@ R0.5: graph-loader.ts now routes all fs calls through io/graph-fs.ts (readSorted
 R0.6: update log-parser import — approve.ts now imports parseLog from ./parsing/log-parser (moved from io/). No logic change.
 ## [2026-05-15T13:55:50.587Z]
 R0.1 Phase 4: populate refuseReasonData alongside refuseReason on all refused ApproveResult returns. buildIssueMessage still called for backward compat; Phase 5 will drop refuseReason.
+## [2026-05-15T14:17:01.278Z]
+Drop deprecated refuseReason/buildIssueMessage: all approve refusals now set only refuseReasonData; buildIssueMessage import removed from core layer. R0.1 Phase 5.

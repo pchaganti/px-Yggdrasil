@@ -6,6 +6,8 @@ import { createHash } from 'node:crypto';
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import { classifyDrift, runCheck } from '../../../src/core/check.js';
 import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
+import { buildIssueMessage } from '../../../src/formatters/message-builder.js';
+const msgOf = (i: { messageData: Parameters<typeof buildIssueMessage>[0] }) => buildIssueMessage(i.messageData);
 
 const dirs: string[] = [];
 afterEach(async () => {
@@ -109,7 +111,7 @@ describe('classifyDrift — log issues', () => {
     const issues = await classifyDrift(graph);
     const integrityIssue = issues.find((i) => i.code === 'log-integrity');
     expect(integrityIssue).toBeDefined();
-    expect(integrityIssue?.message).toMatch(/boundary_missing|file missing/i);
+    expect(msgOf(integrityIssue!)).toMatch(/boundary_missing|file missing/i);
   });
 });
 

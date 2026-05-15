@@ -7,6 +7,9 @@ import { createHash } from 'node:crypto';
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import { approveNode, commitApproval } from '../../../src/core/approve.js';
 import { writeNodeDriftState, readNodeDriftState } from '../../../src/io/drift-state-store.js';
+import { buildIssueMessage } from '../../../src/formatters/message-builder.js';
+const refuseMsg = (r: { refuseReasonData?: Parameters<typeof buildIssueMessage>[0] }) =>
+  r.refuseReasonData ? buildIssueMessage(r.refuseReasonData) : '';
 
 const dirs: string[] = [];
 afterEach(async () => {
@@ -83,7 +86,7 @@ describe('approveNode — log integration', () => {
     const graph = await loadGraph(projectRoot);
     const result = await approveNode(graph, nodePath);
     expect(result.action).toBe('refused');
-    expect(result.refuseReason).toMatch(/integrity|prefix_modified/i);
+    expect(refuseMsg(result)).toMatch(/integrity|prefix_modified/i);
   });
 
   it('refuses on format violation (level2 header in body)', async () => {
@@ -94,7 +97,7 @@ describe('approveNode — log integration', () => {
     const graph = await loadGraph(projectRoot);
     const result = await approveNode(graph, nodePath);
     expect(result.action).toBe('refused');
-    expect(result.refuseReason).toMatch(/format/i);
+    expect(refuseMsg(result)).toMatch(/format/i);
   });
 
   it('refuses on missing mandatory entry when source changed and log_required true', async () => {
@@ -109,7 +112,7 @@ describe('approveNode — log integration', () => {
     const graph = await loadGraph(projectRoot);
     const result = await approveNode(graph, nodePath);
     expect(result.action).toBe('refused');
-    expect(result.refuseReason).toMatch(/no log entry|mandatory/i);
+    expect(refuseMsg(result)).toMatch(/no log entry|mandatory/i);
   });
 
   it('approves when log entry added after source change', async () => {
@@ -145,7 +148,7 @@ describe('approveNode — log integration', () => {
     const graph = await loadGraph(projectRoot);
     const result = await approveNode(graph, nodePath);
     expect(result.action).toBe('refused');
-    expect(result.refuseReason).toMatch(/mandatory.*entry|no log entry/i);
+    expect(refuseMsg(result)).toMatch(/mandatory.*entry|no log entry/i);
   });
 
   it('first approve: log entry present → initial', async () => {
@@ -202,7 +205,7 @@ describe('approveNode — log integration', () => {
     const graph = await loadGraph(projectRoot);
     const result = await approveNode(graph, nodePath);
     expect(result.action).toBe('refused');
-    expect(result.refuseReason).toMatch(/integrity|boundary_missing/i);
+    expect(refuseMsg(result)).toMatch(/integrity|boundary_missing/i);
   });
 
   it('refuses when log.md is a symlink', async () => {
@@ -215,7 +218,7 @@ describe('approveNode — log integration', () => {
     const graph = await loadGraph(projectRoot);
     const result = await approveNode(graph, nodePath);
     expect(result.action).toBe('refused');
-    expect(result.refuseReason).toMatch(/symlink/i);
+    expect(refuseMsg(result)).toMatch(/symlink/i);
   });
 
   it('refuses when log.md has hard links', async () => {
@@ -228,7 +231,7 @@ describe('approveNode — log integration', () => {
     const graph = await loadGraph(projectRoot);
     const result = await approveNode(graph, nodePath);
     expect(result.action).toBe('refused');
-    expect(result.refuseReason).toMatch(/hard link/i);
+    expect(refuseMsg(result)).toMatch(/hard link/i);
     await rm(extra);
   });
 
@@ -245,8 +248,8 @@ describe('approveNode — log integration', () => {
     const graph = await loadGraph(projectRoot);
     const result = await approveNode(graph, nodePath);
     expect(result.action).toBe('refused');
-    expect(result.refuseReason).toMatch(/format/i);
-    expect(result.refuseReason).toMatch(/Post-baseline/i);
+    expect(refuseMsg(result)).toMatch(/format/i);
+    expect(refuseMsg(result)).toMatch(/Post-baseline/i);
   });
 
   it('format violation in pre-baseline zone (history modified)', async () => {
@@ -260,8 +263,8 @@ describe('approveNode — log integration', () => {
     const graph = await loadGraph(projectRoot);
     const result = await approveNode(graph, nodePath);
     expect(result.action).toBe('refused');
-    expect(result.refuseReason).toMatch(/format/i);
-    expect(result.refuseReason).toMatch(/Pre-baseline/i);
+    expect(refuseMsg(result)).toMatch(/format/i);
+    expect(refuseMsg(result)).toMatch(/Pre-baseline/i);
   });
 
   it('commitApproval persists log baseline alongside files map', async () => {
@@ -312,6 +315,6 @@ describe('approveNode — logical node (no mapping)', () => {
     const graph = await loadGraph(projectRoot);
     const result = await approveNode(graph, nodePath);
     expect(result.action).toBe('refused');
-    expect(result.refuseReason).toMatch(/no mapping|no log/i);
+    expect(refuseMsg(result)).toMatch(/no mapping|no log/i);
   });
 });

@@ -3,6 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadGraph } from '../../src/core/graph-loader.js';
 import { validate } from '../../src/core/validator.js';
+import { buildIssueMessage } from '../../src/formatters/message-builder.js';
+const msgOf = (i: { messageData: Parameters<typeof buildIssueMessage>[0] }) => buildIssueMessage(i.messageData);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_PROJECT = path.join(__dirname, '../fixtures/sample-project');
@@ -29,7 +31,7 @@ describe('validation-pipeline', () => {
 
     expect(result.issues.length).toBeGreaterThan(0);
     const relationError = result.issues.find(
-      (i) => i.rule === 'broken-relation' && i.message.includes('nonexistent/missing-target'),
+      (i) => i.rule === 'broken-relation' && msgOf(i).includes('nonexistent/missing-target'),
     );
     expect(relationError).toBeDefined();
     expect(relationError?.nodePath).toBe('orders/broken-service');

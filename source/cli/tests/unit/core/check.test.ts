@@ -3,6 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { loadGraph } from '../../../src/core/graph-loader.js';
+import { buildIssueMessage } from '../../../src/formatters/message-builder.js';
+const msgOf = (i: { messageData: Parameters<typeof buildIssueMessage>[0] }) => buildIssueMessage(i.messageData);
 import {
   classifyDrift,
   scanUncoveredFiles,
@@ -267,7 +269,7 @@ describe('classifyDrift', () => {
     const sourceDrift = result.filter(i => i.code === 'source-drift');
     expect(sourceDrift).toHaveLength(1);
     expect(sourceDrift[0].lifecycleState).toBe('unapproved');
-    expect(sourceDrift[0].message).toContain('never created');
+    expect(msgOf(sourceDrift[0])).toContain('never created');
     await rm(tmpDir, { recursive: true, force: true });
   });
 
@@ -616,9 +618,9 @@ describe('buildCoverageIssue', () => {
     expect(issue!.code).toBe('unmapped-files');
     expect(issue!.severity).toBe('error');
     expect(issue!.uncoveredCount).toBe(2);
-    expect(issue!.message).toContain('2 source files');
-    expect(issue!.message).toContain('a.ts');
-    expect(issue!.message).toContain('b.ts');
+    expect(msgOf(issue!)).toContain('2 source files');
+    expect(msgOf(issue!)).toContain('a.ts');
+    expect(msgOf(issue!)).toContain('b.ts');
   });
 
   it('returns unmapped-files for large count (>5 files) with guidance before examples', () => {
@@ -628,7 +630,7 @@ describe('buildCoverageIssue', () => {
     expect(issue!.code).toBe('unmapped-files');
     expect(issue!.uncoveredCount).toBe(20);
     // Examples come before guidance (what → why → next)
-    const msg = issue!.message;
+    const msg = msgOf(issue!);
     const examplesIdx = msg.indexOf('Examples:');
     const guidanceIdx = msg.indexOf('Add to an existing');
     expect(examplesIdx).toBeLessThan(guidanceIdx);
@@ -639,15 +641,15 @@ describe('buildCoverageIssue', () => {
     const files = Array.from({ length: 80 }, (_, i) => `file${i}.ts`);
     const issue = buildCoverageIssue(files, 100);
     expect(issue).not.toBeNull();
-    expect(issue!.message).toContain('Establish coverage');
+    expect(msgOf(issue!)).toContain('Establish coverage');
   });
 
   it('uses singular form for exactly 1 uncovered file', () => {
     const issue = buildCoverageIssue(['lonely.ts'], 10);
     expect(issue).not.toBeNull();
-    expect(issue!.message).toContain('1 source file not covered');
+    expect(msgOf(issue!)).toContain('1 source file not covered');
     // Should NOT say "files" (plural)
-    expect(issue!.message).not.toContain('1 source files');
+    expect(msgOf(issue!)).not.toContain('1 source files');
   });
 });
 

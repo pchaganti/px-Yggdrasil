@@ -3,6 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validate } from '../../../src/core/validator.js';
 import type { Graph, GraphNode, AspectDef } from '../../../src/model/graph.js';
+import { buildIssueMessage } from '../../../src/formatters/message-builder.js';
+const msgOf = (i: { messageData: Parameters<typeof buildIssueMessage>[0] }) => buildIssueMessage(i.messageData);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_PROJECT = path.join(__dirname, '../../fixtures/sample-project');
@@ -43,8 +45,8 @@ describe('validator — reviewer enum check', () => {
     expect(issues).toHaveLength(1);
     expect(issues[0].severity).toBe('error');
     expect(issues[0].code).toBe('aspect-invalid-reviewer');
-    expect(issues[0].message).toContain("my-aspect");
-    expect(issues[0].message).toContain("foo");
+    expect(msgOf(issues[0])).toContain("my-aspect");
+    expect(msgOf(issues[0])).toContain("foo");
   });
 
   it('does not report aspect-invalid-reviewer for reviewer: llm', async () => {

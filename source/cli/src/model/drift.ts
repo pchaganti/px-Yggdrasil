@@ -55,7 +55,6 @@ export interface ApproveResult {
   action: 'approved' | 'initial' | 'refused' | 'no-change';
   previousHash?: string;
   currentHash: string;
-  refuseReason?: string;
   refuseReasonData?: import('../formatters/message-builder.js').IssueMessage;
   aspectViolations?: Array<{ aspectId: string; reason: string }>;
   changedSource?: string[];

@@ -22,7 +22,7 @@ function makeError(code: string, message: string, nodePath?: string): CheckIssue
     severity: 'error',
     code,
     rule: code,
-    message,
+    messageData: { what: message, why: '', next: '' },
     nodePath: nodePath ?? 'some/node',
   };
 }
@@ -32,7 +32,7 @@ function makeWarning(code: string, message: string): CheckIssue {
     severity: 'warning',
     code,
     rule: code,
-    message,
+    messageData: { what: message, why: '', next: '' },
     nodePath: 'some/node',
   };
 }
@@ -41,12 +41,15 @@ function makeCascadeIssue(nodePath: string, causeDescription: string): CheckIssu
   const causes: CascadeCause[] = [
     { file: `.yggdrasil/aspects/some-aspect/content.md`, layer: 'aspects', description: causeDescription },
   ];
-  const message = `Context package changed due to 1 upstream modification:\n  Cause: ${causeDescription}\nSource may no longer satisfy updated aspect requirements.\nLoad context: yg context --node ${nodePath}\nVerify source compliance, update if needed, then: yg approve --node ${nodePath}`;
   return {
     severity: 'error',
     code: 'upstream-drift',
     rule: 'cascade-drift',
-    message,
+    messageData: {
+      what: `Context package changed due to 1 upstream modification:\n  Cause: ${causeDescription}`,
+      why: 'Source may no longer satisfy updated aspect requirements.',
+      next: `Load context: yg context --node ${nodePath}\nVerify source compliance, update if needed, then: yg approve --node ${nodePath}`,
+    },
     nodePath,
     cascadeCauses: causes,
   };
@@ -55,17 +58,21 @@ function makeCascadeIssue(nodePath: string, causeDescription: string): CheckIssu
 function makeCoverageIssue(uncoveredCount: number): CheckIssue {
   const files = Array.from({ length: Math.min(uncoveredCount, 5) }, (_, i) => `src/file-${i}.ts`);
   const remaining = uncoveredCount - files.length;
-  let message: string;
+  let what: string;
+  const why = 'Files without graph coverage cannot be modified under the protocol.';
+  let next: string;
   if (uncoveredCount <= 5) {
-    message = `${uncoveredCount} source file${uncoveredCount === 1 ? '' : 's'} not covered by any node.\n${files.map(f => '  ' + f).join('\n')}\nFiles without graph coverage cannot be modified under the protocol.\nCheck ownership candidates: yg context --file <path>\nThen: add to existing node mapping, or create a new node.`;
+    what = `${uncoveredCount} source file${uncoveredCount === 1 ? '' : 's'} not covered by any node.\n${files.map(f => '  ' + f).join('\n')}`;
+    next = 'Check ownership candidates: yg context --file <path>\nThen: add to existing node mapping, or create a new node.';
   } else {
-    message = `${uncoveredCount.toLocaleString()} source files have no graph coverage.\nExamples:\n${files.map(f => '  ' + f).join('\n')}\n... and ${remaining.toLocaleString()} more\nFiles without graph coverage cannot be modified under the protocol.\nEstablish coverage: create nodes for active areas first, expand coverage incrementally.\nCheck ownership candidates: yg context --file <path>`;
+    what = `${uncoveredCount.toLocaleString()} source files have no graph coverage.\nExamples:\n${files.map(f => '  ' + f).join('\n')}\n... and ${remaining.toLocaleString()} more`;
+    next = 'Establish coverage: create nodes for active areas first, expand coverage incrementally.\nCheck ownership candidates: yg context --file <path>';
   }
   return {
     severity: 'error',
     code: 'unmapped-files',
     rule: 'unmapped-file',
-    message,
+    messageData: { what, why, next },
     uncoveredFiles: files,
     uncoveredCount,
   };

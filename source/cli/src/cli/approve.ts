@@ -149,7 +149,11 @@ export async function runLlmVerification(
     return {
       ...result,
       action: 'refused',
-      refuseReason: 'Reviewer provider failed — this is not a code issue. Check your API key and provider configuration.',
+      refuseReasonData: {
+        what: 'Reviewer provider failed — this is not a code issue.',
+        why: 'Provider connection or authentication error, not a code violation.',
+        next: 'Check your API key and provider configuration.',
+      },
       aspectResults,
       aspectViolations,
     };
@@ -159,7 +163,11 @@ export async function runLlmVerification(
     return {
       ...result,
       action: 'refused',
-      refuseReason: 'Reviewer found aspect violations',
+      refuseReasonData: {
+        what: 'Reviewer found aspect violations.',
+        why: 'One or more aspects were not satisfied by the source code.',
+        next: `Fix the violations and re-run: yg approve --node ${nodePath}`,
+      },
       aspectResults,
       aspectViolations,
     };
@@ -252,7 +260,7 @@ function formatRefused(nodePath: string, result: LlmApproveResult): void {
 
   // Fallback
   process.stderr.write(
-    chalk.red(`ERROR: ${result.refuseReason ?? 'Approve refused.'}\n`),
+    chalk.red(`ERROR: ${result.refuseReasonData ? buildIssueMessage(result.refuseReasonData) : 'Approve refused.'}\n`),
   );
 }
 
