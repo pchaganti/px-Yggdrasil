@@ -45,6 +45,7 @@ node_types:
     aspects:
       - cli-command-contract
       - diagnostic-logging
+      - command-contract-shape
     parents: [module]
     relations:
       calls: [engine, parser-adapter, persistence-adapter, llm-shared, llm-subprocess-base, formatter, utility, ast-adapter, template]

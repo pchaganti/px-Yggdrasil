@@ -1,0 +1,3 @@
+name: CommandContractShape
+description: "Each command file (cli/*.ts) must export exactly one register<PascalCase>Command(program) function — no fewer, no more, and the name must be PascalCase-prefixed matching the Commander subcommand pattern."
+reviewer: ast
