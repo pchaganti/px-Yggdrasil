@@ -80,21 +80,23 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
     // No baseline -> unapproved (node exists but was never approved)
     if (!storedEntry) {
       const allMissing = await allPathsMissing(projectRoot, mappingPaths);
+      const md = allMissing
+        ? {
+            what: `Mapping declared but source files never created:\n${mappingPaths.map(p => '  ' + p).join('\n')}`,
+            why: 'Node specifies files that do not exist yet.',
+            next: `Implement from the graph specification, then: yg approve --node ${nodePath}`,
+          }
+        : {
+            what: `Node has never been approved (no baseline):\n${mappingPaths.map(p => '  ' + p).join('\n')}`,
+            why: 'Drift tracking is not active until the first approve.',
+            next: `Verify source, then: yg approve --node ${nodePath}`,
+          };
       issues.push({
         severity: 'error',
         code: allMissing ? 'source-drift' : 'unapproved',
         rule: allMissing ? 'source-drift' : 'unapproved',
-        message: allMissing
-          ? buildIssueMessage({
-              what: `Mapping declared but source files never created:\n${mappingPaths.map(p => '  ' + p).join('\n')}`,
-              why: 'Node specifies files that do not exist yet.',
-              next: `Implement from the graph specification, then: yg approve --node ${nodePath}`,
-            })
-          : buildIssueMessage({
-              what: `Node has never been approved (no baseline):\n${mappingPaths.map(p => '  ' + p).join('\n')}`,
-              why: 'Drift tracking is not active until the first approve.',
-              next: `Verify source, then: yg approve --node ${nodePath}`,
-            }),
+        message: buildIssueMessage(md),
+        messageData: md,
         nodePath,
         lifecycleState: 'unapproved',
         directChangedFiles: [],
@@ -105,15 +107,17 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
     // Check if all source paths are gone
     const sourceGone = await allPathsMissing(projectRoot, mappingPaths);
     if (sourceGone) {
+      const sourceGoneMd = {
+        what: `Mapped source files not found on disk:\n${mappingPaths.map(p => '  ' + p).join('\n')}`,
+        why: 'Mapped files were deleted or moved.',
+        next: `Re-create the file, or remove the mapping from yg-node.yaml.`,
+      };
       issues.push({
         severity: 'error',
         code: 'source-drift',
         rule: 'source-drift',
-        message: buildIssueMessage({
-          what: `Mapped source files not found on disk:\n${mappingPaths.map(p => '  ' + p).join('\n')}`,
-          why: 'Mapped files were deleted or moved.',
-          next: `Re-create the file, or remove the mapping from yg-node.yaml.`,
-        }),
+        message: buildIssueMessage(sourceGoneMd),
+        messageData: sourceGoneMd,
         nodePath,
         lifecycleState: 'missing',
         directChangedFiles: mappingPaths.map(p => ({ filePath: p, category: 'source' as DriftCategory })),
@@ -223,17 +227,18 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
     if (directChanges.length > 0) {
       const sourceFiles = directChanges.filter(f => f.category === 'source').map(f => f.filePath);
 
-      const message = buildIssueMessage({
+      const sourceDriftMd = {
         what: `Source files changed since last approve.\nChanged:\n${sourceFiles.map(f => '  ' + f).join('\n')}`,
         why: 'Node needs re-approval after source changes.',
         next: `yg approve --node ${nodePath}`,
-      });
+      };
 
       issues.push({
         severity: 'error',
         code: 'source-drift',
         rule: 'source-drift',
-        message,
+        message: buildIssueMessage(sourceDriftMd),
+        messageData: sourceDriftMd,
         nodePath,
         lifecycleState: 'ok',
         directChangedFiles: directChanges,
@@ -260,17 +265,18 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
       // Use causeGroups.size for the count -- reflects distinct logical upstream sources, not raw file count
       const causeCount = causeGroups.size;
       const causeLines = nodeUpstreamCauses.map((c: CascadeCause) => '  Cause: ' + c.description).join('\n');
-      const message = buildIssueMessage({
+      const upstreamDriftMd = {
         what: `Context package changed due to ${causeCount} upstream modification${causeCount === 1 ? '' : 's'}:\n${causeLines}`,
         why: 'Source may no longer satisfy updated aspect requirements.',
         next: `Load context: yg context --node ${nodePath}\nVerify source compliance, update if needed, then: yg approve --node ${nodePath}`,
-      });
+      };
 
       issues.push({
         severity: 'error',
         code: 'upstream-drift',
         rule: 'cascade-drift',
-        message,
+        message: buildIssueMessage(upstreamDriftMd),
+        messageData: upstreamDriftMd,
         nodePath,
         cascadeCauses: nodeUpstreamCauses,
       });
@@ -295,17 +301,19 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
         storedEntryForLog.log.prefix_hash,
       );
       if (!check.ok) {
+        const logIntegrityMd = {
+          what: `Log integrity broken (${check.reason}) at ${logRel}${logContent === null ? ' (file missing)' : ''}`,
+          why: check.reason === 'prefix_modified'
+            ? 'Historical (pre-baseline) log content was modified — append-only violated.'
+            : 'Baseline boundary entry not found — log was deleted or reset.',
+          next: `Restore from git: git checkout HEAD -- ${logRel} .yggdrasil/.drift-state/${nodePath}.json`,
+        };
         issues.push({
           severity: 'error',
           code: 'log-integrity',
           rule: 'log-integrity',
-          message: buildIssueMessage({
-            what: `Log integrity broken (${check.reason}) at ${logRel}${logContent === null ? ' (file missing)' : ''}`,
-            why: check.reason === 'prefix_modified'
-              ? 'Historical (pre-baseline) log content was modified — append-only violated.'
-              : 'Baseline boundary entry not found — log was deleted or reset.',
-            next: `Restore from git: git checkout HEAD -- ${logRel} .yggdrasil/.drift-state/${nodePath}.json`,
-          }),
+          message: buildIssueMessage(logIntegrityMd),
+          messageData: logIntegrityMd,
           nodePath,
         });
         continue;
@@ -316,15 +324,17 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
 
     const violations = validateFormat(logContent);
     if (violations.length > 0) {
+      const logFormatMd = {
+        what: `Log format invalid at ${logRel}:\n${violations.map((v) => `  line ${v.line}: ${v.reason} — ${v.detail}`).join('\n')}`,
+        why: 'Log format must be parseable for indexing and integrity.',
+        next: 'Fix format violations (or git checkout) and re-run yg check.',
+      };
       issues.push({
         severity: 'error',
         code: 'log-format',
         rule: 'log-format',
-        message: buildIssueMessage({
-          what: `Log format invalid at ${logRel}:\n${violations.map((v) => `  line ${v.line}: ${v.reason} — ${v.detail}`).join('\n')}`,
-          why: 'Log format must be parseable for indexing and integrity.',
-          next: 'Fix format violations (or git checkout) and re-run yg check.',
-        }),
+        message: buildIssueMessage(logFormatMd),
+        messageData: logFormatMd,
         nodePath,
       });
     }
@@ -390,36 +400,37 @@ export function buildCoverageIssue(uncoveredFiles: string[], totalGitFiles: numb
   const sample = uncoveredFiles.slice(0, sampleSize);
   const remaining = uncoveredFiles.length - sample.length;
 
-  let message: string;
   // Learning tip for cold start
   const coveragePct = totalGitFiles > 0
     ? ((totalGitFiles - uncoveredFiles.length) / totalGitFiles) * 100
     : 100;
 
+  let coverageMd;
   if (uncoveredFiles.length <= sampleSize) {
     // Small count: files listed directly, guidance after
-    message = buildIssueMessage({
+    coverageMd = {
       what: `${uncoveredFiles.length} source file${uncoveredFiles.length === 1 ? '' : 's'} not covered by any node.\n${sample.map(f => '  ' + f).join('\n')}`,
       why: 'Files without graph coverage cannot be modified under the protocol.',
       next: `Check ownership candidates: yg context --file <path>\nThen: add to existing node mapping, or create a new node.`,
-    });
+    };
   } else {
     // Large count: guidance BEFORE examples (per CLI messages spec)
     const guidance = coveragePct < 50
       ? 'Establish coverage: create nodes for active areas first, expand coverage incrementally.'
       : 'Add to an existing node mapping, or create a new node.';
-    message = buildIssueMessage({
+    coverageMd = {
       what: `${uncoveredFiles.length} source files have no graph coverage.\nExamples:\n${sample.map(f => '  ' + f).join('\n')}\n... and ${remaining} more`,
       why: 'Files without graph coverage cannot be modified under the protocol.',
       next: `${guidance}\nCheck ownership candidates: yg context --file <path>`,
-    });
+    };
   }
 
   return {
     severity: 'error',
     code: 'unmapped-files',
     rule: 'unmapped-file',
-    message,
+    message: buildIssueMessage(coverageMd),
+    messageData: coverageMd,
     uncoveredFiles,
     uncoveredCount: uncoveredFiles.length,
   };
@@ -491,17 +502,21 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
     },
   );
   const yggRelative = path.relative(path.dirname(graph.rootPath), graph.rootPath).replace(/\\/g, '/').replace(/\/+$/, '');
-  const orphanWarnings: CheckIssue[] = orphanedPaths.map(p => ({
-    severity: 'warning' as const,
-    code: 'orphaned-drift-state',
-    rule: 'orphaned-drift-state',
-    message: buildIssueMessage({
+  const orphanWarnings: CheckIssue[] = orphanedPaths.map(p => {
+    const orphanMd = {
       what: `Drift state file exists for '${p}' but node is no longer in the graph.`,
       why: `Orphaned file: ${yggRelative}/.drift-state/${p}.json`,
       next: `Remove the orphaned file or restore the node.`,
-    }),
-    nodePath: p,
-  }));
+    };
+    return {
+      severity: 'warning' as const,
+      code: 'orphaned-drift-state',
+      rule: 'orphaned-drift-state',
+      message: buildIssueMessage(orphanMd),
+      messageData: orphanMd,
+      nodePath: p,
+    };
+  });
 
   // Combine all issues
   const allIssues: CheckIssue[] = [
