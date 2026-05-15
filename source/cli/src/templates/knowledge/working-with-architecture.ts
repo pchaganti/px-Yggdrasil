@@ -78,6 +78,9 @@ distinct symptoms with distinct fixes — no de-duplication.
   placeholder during migration, dangerous in production strict mode.
 - **Forgotten not**: command type without \`not: { path: "**/*.test.ts" }\`
   will reject test files that happen to call command APIs.
+  For centralized test directories (e.g. \`tests/\`), exclude with
+  \`not: { path: 'tests/**' }\` instead of (or in addition to) the
+  per-file \`*.test.ts\` negation.
 - **Mixing organizational with classifying parents**: a classifying type's
   parents can include organizational types (they're allowed as parents
   in the hierarchy). Validator imposes no semantic restriction.

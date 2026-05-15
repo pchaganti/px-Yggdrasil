@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Knowledge topic `conditional-aspects`: corrected example field name from `default_aspects:` to `aspects:` to match actual schema field in `yg-architecture.yaml`.
+- Knowledge topic `working-with-architecture`: added note that centralized test directories (e.g. `tests/`) should be excluded with `not: { path: 'tests/**' }`, not only `*.test.ts` negation.
 - `yg owner --file`, `yg impact --file`, `yg context --file` — `--file` argument is now always resolved relative to the repository root, not the current working directory. Running these commands from a subdirectory no longer produces doubled paths.
 
 ## [4.4.0] - 2026-05-15

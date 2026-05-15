@@ -76,8 +76,8 @@ when:
 
 **Architecture default — apply only to a specific node type:**
 \`\`\`yaml
-# In yg-architecture.yaml default_aspects for type 'command':
-default_aspects:
+# In yg-architecture.yaml aspects for type 'command':
+aspects:
   - id: audit-logging
     when:
       relations:

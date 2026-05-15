@@ -50,6 +50,20 @@ This applies to CLI output only. Rules.ts (system prompt) provides the map — w
 
 **ALWAYS run `scripts/repo-check.sh` from repo root before ANY commit and ensure it passes cleanly.** Do not commit with failing checks. This is non-negotiable — every commit must leave the repo in a green state. The script runs typecheck, lint, build, tests with coverage, docs build, markdown lint, and `yg check` in sequence. Do not run these individually before committing — `repo-check.sh` covers everything.
 
+## Dogfood Issue Tracking
+
+While working in this repo, if you encounter a problem with the CLI itself or with the rules/knowledge content (contradictions, missing warnings, misleading examples), append an entry to `.dogfood-report.md` at the repo root. Format:
+
+```
+## <date> — <short title>
+**WHAT:** <what happened>
+**WHERE:** <file:line or command>
+**WHY:** <why it matters>
+**REPRO:** <steps to reproduce>
+```
+
+Mark entries **RESOLVED** (with commit SHA) once fixed, or **DEFERRED** (with reason) when punted.
+
 ## When Evaluating `yg check` or `scripts/repo-check.sh`
 
 Consider both:
