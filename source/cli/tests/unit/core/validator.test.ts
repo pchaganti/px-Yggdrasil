@@ -1169,6 +1169,25 @@ describe('validator', () => {
       const result = await validate(graph);
       expect(result.issues.some(i => i.code?.startsWith('when-'))).toBe(false);
     });
+
+    it('validates when predicate inside flow aspectWhens', async () => {
+      const graph = createGraph({
+        architecture: { node_types: { command: { description: 'cmd' } } },
+        aspects: [{ name: 'X', id: 'x', artifacts: [] }],
+        flows: [{
+          path: 'checkout',
+          name: 'Checkout',
+          description: 'flow',
+          nodes: [],
+          aspects: [],
+          aspectWhens: { x: { relations: { calls: { target_type: 'ghost-type' } } } },
+        }],
+      });
+      const result = await validate(graph);
+      expect(result.issues.some(i =>
+        i.code === 'when-unknown-type' && /ghost-type/.test(i.message)
+      )).toBe(true);
+    });
   });
 
   describe('CLI exit codes', () => {
@@ -1578,6 +1597,174 @@ describe('checkFileMappingGitignored', () => {
       const graph = await loadGraph(tmpDir);
       const result = await validate(graph);
       expect(result.issues.find((i) => i.code === 'file-mapping-gitignored')).toBeUndefined();
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('checkStrictBackwardCoverage', () => {
+  async function makeStrictGraph(tmpDir: string, opts: {
+    fileContent: string;
+    mappedTo?: { type: string; nodePath: string };
+  }) {
+    const yggDir = path.join(tmpDir, '.yggdrasil');
+    await mkdir(path.join(yggDir, 'model', 'svc'), { recursive: true });
+    await mkdir(path.join(tmpDir, 'src'), { recursive: true });
+    await writeFile(path.join(tmpDir, 'src', 'handler.ts'), opts.fileContent);
+    await writeFile(path.join(yggDir, 'yg-config.yaml'), 'version: "4.3.0"\n');
+    const archLines = [
+      'node_types:',
+      '  command:',
+      '    description: Command',
+      '    enforce: strict',
+      '    when:',
+      '      content: "registerCommand"',
+    ];
+    if (opts.mappedTo) {
+      archLines.push(...[
+        '  utility:',
+        '    description: Utility',
+        '    when:',
+        '      path: "**"',
+      ]);
+    }
+    await writeFile(path.join(yggDir, 'yg-architecture.yaml'), archLines.join('\n'));
+    if (opts.mappedTo) {
+      await mkdir(path.join(yggDir, 'model', opts.mappedTo.nodePath.split('/')[0], opts.mappedTo.nodePath.split('/').slice(1).join('/')), { recursive: true }).catch(() => {});
+      await mkdir(path.join(yggDir, 'model', ...opts.mappedTo.nodePath.split('/')), { recursive: true });
+      await writeFile(path.join(yggDir, 'model', ...opts.mappedTo.nodePath.split('/'), 'yg-node.yaml'), [
+        `name: ${opts.mappedTo.nodePath.split('/').pop()}`,
+        `type: ${opts.mappedTo.type}`,
+        'description: x',
+        'mapping:',
+        '  - src/handler.ts',
+      ].join('\n'));
+    }
+    return loadGraph(tmpDir);
+  }
+
+  it('emits type-strict-orphan for matching file not in any mapping', async () => {
+    const tmpDir = path.join(CLI_ROOT, '.temp-test-strict-orphan');
+    try {
+      const graph = await makeStrictGraph(tmpDir, { fileContent: 'registerCommand("foo");' });
+      const result = await validate(graph);
+      expect(result.issues.find((i) => i.code === 'type-strict-orphan')).toBeDefined();
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('emits type-strict-misplaced when matching file mapped to wrong type', async () => {
+    const tmpDir = path.join(CLI_ROOT, '.temp-test-strict-misplaced');
+    try {
+      const graph = await makeStrictGraph(tmpDir, {
+        fileContent: 'registerCommand("bar");',
+        mappedTo: { type: 'utility', nodePath: 'util' },
+      });
+      const result = await validate(graph);
+      expect(result.issues.find((i) => i.code === 'type-strict-misplaced')).toBeDefined();
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('does not emit when matching file is in correct strict-type node', async () => {
+    const tmpDir = path.join(CLI_ROOT, '.temp-test-strict-ok');
+    try {
+      const yggDir = path.join(tmpDir, '.yggdrasil');
+      await mkdir(path.join(yggDir, 'model', 'cmd'), { recursive: true });
+      await mkdir(path.join(tmpDir, 'src'), { recursive: true });
+      await writeFile(path.join(tmpDir, 'src', 'handler.ts'), 'registerCommand("baz");');
+      await writeFile(path.join(yggDir, 'yg-config.yaml'), 'version: "4.3.0"\n');
+      await writeFile(path.join(yggDir, 'yg-architecture.yaml'), [
+        'node_types:',
+        '  command:',
+        '    description: Command',
+        '    enforce: strict',
+        '    when:',
+        '      content: "registerCommand"',
+      ].join('\n'));
+      await writeFile(path.join(yggDir, 'model', 'cmd', 'yg-node.yaml'), [
+        'name: cmd',
+        'type: command',
+        'description: x',
+        'mapping:',
+        '  - src/handler.ts',
+      ].join('\n'));
+      const graph = await loadGraph(tmpDir);
+      const result = await validate(graph);
+      expect(result.issues.find((i) => i.code === 'type-strict-orphan')).toBeUndefined();
+      expect(result.issues.find((i) => i.code === 'type-strict-misplaced')).toBeUndefined();
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('checkStrictOverlapConflict', () => {
+  async function makeOverlapGraph(tmpDir: string, typeCount: number) {
+    const yggDir = path.join(tmpDir, '.yggdrasil');
+    await mkdir(path.join(yggDir, 'model', 'dummy'), { recursive: true });
+    await mkdir(path.join(tmpDir, 'src'), { recursive: true });
+    await writeFile(path.join(tmpDir, 'src', 'foo.ts'), 'anything', 'utf-8');
+    await writeFile(path.join(yggDir, 'yg-config.yaml'), 'version: "4.3.0"\n');
+    const lines = ['node_types:'];
+    for (let i = 0; i < typeCount; i++) {
+      lines.push(`  type${i}:`, '    description: x', '    enforce: strict', '    when:', '      path: "**"');
+    }
+    await writeFile(path.join(yggDir, 'yg-architecture.yaml'), lines.join('\n'));
+    await writeFile(path.join(yggDir, 'model', 'dummy', 'yg-node.yaml'), [
+      'name: dummy', 'type: type0', 'description: x',
+    ].join('\n'));
+    return loadGraph(tmpDir);
+  }
+
+  it('emits strict-overlap-conflict when two strict types match same file', async () => {
+    const tmpDir = path.join(CLI_ROOT, '.temp-test-strict-overlap-2');
+    try {
+      const graph = await makeOverlapGraph(tmpDir, 2);
+      const result = await validate(graph);
+      expect(result.issues.find((i) => i.code === 'strict-overlap-conflict')).toBeDefined();
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('emits N-choose-2 pairs when 3 strict types all overlap', async () => {
+    const tmpDir = path.join(CLI_ROOT, '.temp-test-strict-overlap-3');
+    try {
+      const graph = await makeOverlapGraph(tmpDir, 3);
+      const result = await validate(graph);
+      const conflicts = result.issues.filter((i) => i.code === 'strict-overlap-conflict');
+      expect(conflicts.length).toBe(3);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('emits one error per pair not per file (deduplication)', async () => {
+    const tmpDir = path.join(CLI_ROOT, '.temp-test-strict-overlap-dedup');
+    try {
+      const yggDir = path.join(tmpDir, '.yggdrasil');
+      await mkdir(path.join(yggDir, 'model', 'dummy'), { recursive: true });
+      await mkdir(path.join(tmpDir, 'src'), { recursive: true });
+      await writeFile(path.join(tmpDir, 'src', 'a.ts'), 'aaa', 'utf-8');
+      await writeFile(path.join(tmpDir, 'src', 'b.ts'), 'bbb', 'utf-8');
+      await writeFile(path.join(yggDir, 'yg-config.yaml'), 'version: "4.3.0"\n');
+      await writeFile(path.join(yggDir, 'yg-architecture.yaml'), [
+        'node_types:',
+        '  typeA:', '    description: x', '    enforce: strict', '    when:', '      path: "**"',
+        '  typeB:', '    description: y', '    enforce: strict', '    when:', '      path: "**"',
+      ].join('\n'));
+      await writeFile(path.join(yggDir, 'model', 'dummy', 'yg-node.yaml'), [
+        'name: dummy', 'type: typeA', 'description: x',
+      ].join('\n'));
+      const graph = await loadGraph(tmpDir);
+      const result = await validate(graph);
+      const conflicts = result.issues.filter((i) => i.code === 'strict-overlap-conflict');
+      // 2 files both match same pair (typeA, typeB) → exactly 1 conflict error, not 2
+      expect(conflicts.length).toBe(1);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }

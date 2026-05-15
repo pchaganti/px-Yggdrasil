@@ -410,10 +410,117 @@ async function checkFileMappingGitignored(graph: Graph): Promise<ValidationIssue
 }
 function checkFileDuplicateMapping(_graph: Graph): ValidationIssue[] { return []; }
 async function checkStrictBackwardCoverage(
-  _graph: Graph,
-  _cache: FileContentCache,
+  graph: Graph,
+  cache: FileContentCache,
 ): Promise<{ issues: ValidationIssue[]; unreadable: ValidationIssue[] }> {
-  return { issues: [], unreadable: [] };
+  const strictTypes = Object.entries(graph.architecture.node_types).filter(
+    ([, def]) => def.enforce === 'strict' && def.when !== undefined,
+  );
+  if (strictTypes.length === 0) return { issues: [], unreadable: [] };
+
+  const projectRoot = path.dirname(graph.rootPath);
+
+  // Build file → first owner map
+  const fileToOwner = new Map<string, { nodePath: string; nodeType: string }>();
+  for (const [nodePath, node] of graph.nodes) {
+    for (const relPath of node.meta.mapping ?? []) {
+      if (!fileToOwner.has(relPath)) fileToOwner.set(relPath, { nodePath, nodeType: node.meta.type });
+    }
+  }
+
+  const repoFiles = await walkRepoFiles(projectRoot);
+  const issues: ValidationIssue[] = [];
+  const unreadable: ValidationIssue[] = [];
+  const overlapPairsSeen = new Set<string>();
+
+  for (const relPath of repoFiles) {
+    const absPath = path.join(projectRoot, relPath);
+
+    // Evaluate each strict type's when against this file.
+    const matchingTypes: Array<{ typeId: string; trace: string }> = [];
+    let fileSkipped = false;
+
+    for (const [typeId, def] of strictTypes) {
+      const result = await evaluateFileWhen(def.when!, {
+        absPath,
+        repoRelPath: relPath,
+        projectRoot,
+        cache,
+      });
+
+      if (result.unreadable) {
+        unreadable.push({
+          severity: 'error',
+          code: 'file-unreadable',
+          rule: 'file-unreadable',
+          message: buildIssueMessage({
+            what: `Validator could not read '${relPath}' during strict backward scan.\nOS error: ${result.unreadableReason ?? 'unknown'}`,
+            why: `Strict enforcement of type '${typeId}' requires reading file content. Files that cannot be opened cannot be classified.`,
+            next: `Fix file permissions, or add to .gitignore if it's a generated artifact.`,
+          }),
+        });
+        fileSkipped = true;
+        break;
+      }
+
+      if (result.result) matchingTypes.push({ typeId, trace: renderTrace(result.trace, '  ') });
+    }
+
+    if (fileSkipped) continue;
+
+    if (matchingTypes.length > 1) {
+      // Two or more strict types claim this file — conflicting architecture.
+      const sorted = matchingTypes.map((m) => m.typeId).sort();
+      for (let i = 0; i < sorted.length; i++) {
+        for (let j = i + 1; j < sorted.length; j++) {
+          const key = `${sorted[i]}|${sorted[j]}`;
+          if (overlapPairsSeen.has(key)) continue;
+          overlapPairsSeen.add(key);
+          issues.push({
+            severity: 'error',
+            code: 'strict-overlap-conflict',
+            rule: 'strict-overlap-conflict',
+            message: buildIssueMessage({
+              what: `Two types with enforce: strict have overlapping when predicates:\n  '${sorted[i]}'.when matches\n  '${sorted[j]}'.when matches\nExample matching file: '${relPath}'`,
+              why: `Both types declare enforce: strict — each demands that any matching file be owned by a node of its type. With the one-owner rule, satisfying both simultaneously is impossible.`,
+              next: `Narrow one of the when predicates so they cannot both match the same file.\nRun: yg impact --type ${sorted[i]}\nRun: yg impact --type ${sorted[j]}`,
+            }),
+          });
+        }
+      }
+      continue; // Conflict supersedes orphan/misplaced for this file.
+    }
+
+    if (matchingTypes.length === 0) continue;
+
+    const { typeId, trace } = matchingTypes[0];
+    const owner = fileToOwner.get(relPath);
+    if (owner === undefined) {
+      issues.push({
+        severity: 'error',
+        code: 'type-strict-orphan',
+        rule: 'type-strict-orphan',
+        message: buildIssueMessage({
+          what: `File '${relPath}' satisfies when of type '${typeId}' (enforce: strict):\n${trace}\nBut file is not in any node's mapping.`,
+          why: `Type '${typeId}' has enforce: strict — every file satisfying its when must belong to a mapping of a node of type '${typeId}'. Otherwise the file looks like a ${typeId} but bypasses ${typeId}-level enforcement.`,
+          next: `Create yg-node.yaml with type: ${typeId} and add '${relPath}' to its mapping.`,
+        }),
+      });
+    } else if (owner.nodeType !== typeId) {
+      issues.push({
+        severity: 'error',
+        code: 'type-strict-misplaced',
+        rule: 'type-strict-misplaced',
+        nodePath: owner.nodePath,
+        message: buildIssueMessage({
+          what: `File '${relPath}' satisfies when of type '${typeId}' (enforce: strict):\n${trace}\nBut is in mapping of node '${owner.nodePath}' (type: ${owner.nodeType}).`,
+          why: `Type '${typeId}' has enforce: strict — every file satisfying its when must be owned by a node of type '${typeId}'. Current owner has wrong type.`,
+          next: `Options:\n  1. Move mapping entry to a ${typeId}-type node.\n  2. Refactor file so it no longer matches ${typeId}.when.\n  3. Change '${owner.nodePath}' type to '${typeId}' if conceptually correct.`,
+        }),
+      });
+    }
+  }
+  return { issues, unreadable };
 }
 
 // --- Rule 1: Relation targets exist ---
