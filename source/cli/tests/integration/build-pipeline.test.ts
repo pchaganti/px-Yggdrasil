@@ -166,6 +166,8 @@ describe('context pipeline integration', () => {
         'node_types:',
         '  service:',
         '    description: Service unit',
+        '    when:',
+        '      path: "**"',
       ].join('\n'), 'utf-8');
 
       await writeFile(path.join(yggDir, 'aspects', 'code-style', 'yg-aspect.yaml'), [

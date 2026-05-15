@@ -1204,6 +1204,42 @@ describe('validator', () => {
   });
 });
 
+describe('checkTypeWithoutWhenWithMapping', () => {
+  it('emits error when node of type without when has non-empty mapping', async () => {
+    const node = createNode('foo/bar', { type: 'module', mapping: ['src/foo.ts'] });
+    const graph = createGraph({
+      architecture: { node_types: { module: { description: 'Grouping' } } },
+      nodes: new Map([['foo/bar', node]]),
+    });
+    const result = await validate(graph);
+    const offending = result.issues.find((i) => i.code === 'type-without-when-with-mapping');
+    expect(offending).toBeDefined();
+    expect(offending?.nodePath).toBe('foo/bar');
+  });
+
+  it('does not emit when node of type without when has empty mapping', async () => {
+    const node = createNode('foo/bar', { type: 'module', mapping: [] });
+    const graph = createGraph({
+      architecture: { node_types: { module: { description: 'Grouping' } } },
+      nodes: new Map([['foo/bar', node]]),
+    });
+    const result = await validate(graph);
+    expect(result.issues.find((i) => i.code === 'type-without-when-with-mapping')).toBeUndefined();
+  });
+
+  it('does not emit when node of type with when has mapping', async () => {
+    const node = createNode('foo/bar', { type: 'command', mapping: ['src/foo.ts'] });
+    const graph = createGraph({
+      architecture: {
+        node_types: { command: { description: 'CLI', when: { path: '**' } } },
+      },
+      nodes: new Map([['foo/bar', node]]),
+    });
+    const result = await validate(graph);
+    expect(result.issues.find((i) => i.code === 'type-without-when-with-mapping')).toBeUndefined();
+  });
+});
+
 describe('validator — pipeline short-circuit', () => {
   it('short-circuits per-node and global stages on architecture-level error', async () => {
     const graph = createGraph({

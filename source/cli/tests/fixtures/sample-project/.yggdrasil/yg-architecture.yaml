@@ -5,6 +5,10 @@ node_types:
   service:
     description: 'Discrete service unit'
     log_required: false
+    when:
+      path: "**"
   repository:
     description: 'Data access layer'
     log_required: false
+    when:
+      path: "**"

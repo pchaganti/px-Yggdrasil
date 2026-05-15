@@ -5,19 +5,31 @@ node_types:
   command:
     description: "CLI command handler — registers Commander subcommand and formats output"
     aspects: [cli-command-contract, command-exit-codes]
+    when:
+      path: "**"
 
   engine:
     description: "Core domain logic — algorithms, validation, assembly, detection"
     aspects: [deterministic]
+    when:
+      path: "**"
 
   adapter:
     description: "I/O boundary — parsers, persistence, LLM providers, formatters"
+    when:
+      path: "**"
 
   types:
     description: "Pure type definitions — no runtime behavior, no executable code"
+    when:
+      path: "**"
 
   test:
     description: "Test suite guarding system invariants"
+    when:
+      path: "**"
 
   project:
     description: "Top-level project infrastructure — CI, documentation, configuration"
+    when:
+      path: "**"

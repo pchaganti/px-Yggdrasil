@@ -181,7 +181,31 @@ function checkTypeUnknownParent(graph: Graph): ValidationIssue[] {
 
 function checkArchitectureParentCycles(_graph: Graph): ValidationIssue[] { return []; }
 function checkEnforceStrictWithoutWhen(_graph: Graph): ValidationIssue[] { return []; }
-function checkTypeWithoutWhenWithMapping(_graph: Graph): ValidationIssue[] { return []; }
+function checkTypeWithoutWhenWithMapping(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  for (const [nodePath, node] of graph.nodes) {
+    const typeDef = graph.architecture.node_types[node.meta.type];
+    if (typeDef === undefined) continue;
+    if (typeDef.when !== undefined) continue;
+    const mapping = node.meta.mapping ?? [];
+    if (mapping.length === 0) continue;
+
+    const preview = mapping.slice(0, 3).map((m) => `  - ${m}`).join('\n');
+    const ellipsis = mapping.length > 3 ? `\n  ... (${mapping.length - 3} more)` : '';
+    issues.push({
+      severity: 'error',
+      code: 'type-without-when-with-mapping',
+      rule: 'type-without-when-with-mapping',
+      nodePath,
+      message: buildIssueMessage({
+        what: `Node '${nodePath}' has type '${node.meta.type}' (no \`when\` — organizational type) but mapping is not empty:\n  mapping:\n${preview}${ellipsis}`,
+        why: `Types without \`when\` are organizational (parent-only). Nodes of such types cannot have mapped files.`,
+        next: `Add a \`when\` predicate to type '${node.meta.type}' in yg-architecture.yaml, move the file(s) to a node whose type has \`when\`, or empty this node's mapping.`,
+      }),
+    });
+  }
+  return issues;
+}
 async function checkTypeWhenMismatch(
   _graph: Graph,
   _cache: FileContentCache,
