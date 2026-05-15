@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- AST aspect `migration-bumps-version`: enforces that each `migrations/to-X.Y.Z.ts` file references the target version string matching its filename. Applied to `migration` type via architecture defaults.
+- `to-4.3.0.ts`: now calls `updateConfigVersion('4.3.0')` to record the schema version bump in `yg-config.yaml` (previously updated architecture YAML without bumping the version).
+
 - `eslint-plugin-boundaries` added to `devDependencies`; `eslint.config.js` configured with `boundaries/dependencies` rule mirroring the §4.4 `allowed_relations` table. Enforces that actual import statements match the declared architecture — CI fails on a forbidden cross-layer import before `yg check` even runs.
 - `IssueMessage` type moved from `formatters/message-builder.ts` to `model/validation.ts`; `message-builder.ts` re-exports it for backward compatibility. Eliminates engine→formatter import violations detected by the new boundaries rule.
 

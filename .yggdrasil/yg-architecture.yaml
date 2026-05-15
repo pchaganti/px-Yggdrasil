@@ -72,6 +72,7 @@ node_types:
       path: "source/cli/src/migrations/*.ts"
     aspects:
       - migration-idempotent
+      - migration-bumps-version
     parents: [module]
     relations:
       calls: [engine, parser-adapter, persistence-adapter, utility]

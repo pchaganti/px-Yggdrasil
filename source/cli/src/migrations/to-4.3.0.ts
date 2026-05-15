@@ -2,6 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { MigrationResult } from '../core/migrator.js';
+import { updateConfigVersion } from '../core/migrator.js';
 
 /**
  * Migration 4.3.0: introduce `log_required` field on architecture node types.
@@ -47,5 +48,11 @@ export async function migrateTo43(yggRoot: string): Promise<MigrationResult> {
 
   await writeFile(archPath, stringifyYaml(parsed, { lineWidth: 0 }), 'utf-8');
   actions.push(`Set log_required: false explicitly on ${touched.length} node_type(s): ${touched.join(', ')}`);
+  try {
+    await updateConfigVersion(yggRoot, '4.3.0');
+    actions.push('Updated yg-config.yaml: version → 4.3.0');
+  } catch {
+    warnings.push('yg-config.yaml not found — version not updated to 4.3.0');
+  }
   return { actions, warnings };
 }

@@ -16,6 +16,7 @@ async function setupYgg(archYaml: string): Promise<string> {
   const ygg = path.join(root, '.yggdrasil');
   await mkdir(ygg, { recursive: true });
   await writeFile(path.join(ygg, 'yg-architecture.yaml'), archYaml);
+  await writeFile(path.join(ygg, 'yg-config.yaml'), 'version: "4.2.0"\n');
   return ygg;
 }
 
@@ -28,6 +29,7 @@ describe('migrateTo43', () => {
     expect(updated.node_types.command.log_required).toBe(false);
     expect(updated.node_types.module.log_required).toBe(false);
     expect(result.actions.some((a) => a.includes('log_required'))).toBe(true);
+    expect(result.actions.some((a) => a.includes('4.3.0'))).toBe(true);
   });
 
   it('preserves explicit log_required: true', async () => {

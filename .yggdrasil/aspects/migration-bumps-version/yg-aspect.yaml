@@ -1,0 +1,3 @@
+name: MigrationBumpsVersion
+description: "Each migration file (to-X.Y.Z.ts) must reference the target version string (X.Y.Z) that matches its filename, confirming the migration explicitly targets the version it is named for."
+reviewer: ast
