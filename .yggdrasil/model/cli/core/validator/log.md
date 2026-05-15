@@ -8,3 +8,11 @@ Add checkArchitectureParentCycles: two-pass DFS+BFS cycle detection. Pass 1 (DFS
 Fix: wrap architectureError branches in buildIssueMessage (what-why-next aspect). Both when-predicate-invalid and architecture-invalid branches were passing raw strings directly as message. Now use structured format per aspect requirement.
 ## [2026-05-15T07:05:26.982Z]
 Add checkEnforceStrictWithoutWhen: emits enforce-strict-without-when when type declares enforce: strict without a when predicate. enforce: strict without when is meaningless — no files to evaluate against. Spec §7 Klasa 5.
+## [2026-05-15T07:15:16.618Z]
+Add checkTypeWhenMismatch: per-node check evaluating each mapped file against the node type's when predicate. Emits type-when-mismatch with predicate trace on failure. Emits file-unreadable (not type-when-mismatch) for files that cannot be opened. Imports evaluateFileWhen and renderTrace.
+## [2026-05-15T07:18:26.460Z]
+Fix: scope-filter block was passing raw parseError.message instead of buildIssueMessage. Now uses structured what/why/next.
+## [2026-05-15T07:22:55.685Z]
+Fix: scope-filter block was passing raw parseError.message as issue message instead of buildIssueMessage. Now uses structured what/why/next format to satisfy what-why-next aspect.
+## [2026-05-15T07:28:53.036Z]
+Fix checkTypeWhenMismatch: unreadable issues were collected but never merged into the main issues list. Now allUnreadable accumulates from Stage 4 (whenMismatch) and Stage 5 (strict), de-duplicated by message, then pushed into issues.

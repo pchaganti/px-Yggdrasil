@@ -15,6 +15,8 @@ import { expandMappingPaths } from '../utils/hash.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { computeEffectiveAspects } from './effective-aspects.js';
 import { FileContentCache } from './file-content-cache.js';
+import { evaluateFileWhen } from './file-when-evaluator.js';
+import { renderTrace } from '../formatters/predicate-trace.js';
 
 // Architecture-level errors that abort per-node and global validation stages.
 const ARCHITECTURE_FATAL_CODES = new Set<string>([
@@ -115,6 +117,7 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   issues.push(...checkTypeWithoutWhenWithMapping(graph));
   const whenMismatchOutcome = await checkTypeWhenMismatch(graph, cache);
   issues.push(...whenMismatchOutcome.issues);
+  const allUnreadable: ValidationIssue[] = [...whenMismatchOutcome.unreadable];
   issues.push(...(await checkFileMappingGitignored(graph)));
 
   issues.push(...checkSchemas(graph));
@@ -138,6 +141,16 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   issues.push(...checkFileDuplicateMapping(graph));
   const strictOutcome = await checkStrictBackwardCoverage(graph, cache);
   issues.push(...strictOutcome.issues);
+  allUnreadable.push(...strictOutcome.unreadable);
+
+  // De-duplicate file-unreadable by message (same file may surface from multiple checks).
+  const seenUnreadable = new Set<string>();
+  for (const u of allUnreadable) {
+    if (!seenUnreadable.has(u.message)) {
+      seenUnreadable.add(u.message);
+      issues.push(u);
+    }
+  }
 
   let filtered = issues;
   let nodesScanned = graph.nodes.size;
@@ -154,7 +167,11 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
             severity: 'error',
             code: 'yaml-invalid',
             rule: 'invalid-node-yaml',
-            message: parseError.message,
+            message: buildIssueMessage({
+              what: `yg-node.yaml parse error in ${parseError.nodePath}.`,
+              why: parseError.message,
+              next: `Fix the YAML in .yggdrasil/model/${parseError.nodePath}/yg-node.yaml.`,
+            }),
             nodePath: parseError.nodePath,
           }],
           nodesScanned: 0,
@@ -311,10 +328,56 @@ function checkTypeWithoutWhenWithMapping(graph: Graph): ValidationIssue[] {
   return issues;
 }
 async function checkTypeWhenMismatch(
-  _graph: Graph,
-  _cache: FileContentCache,
+  graph: Graph,
+  cache: FileContentCache,
 ): Promise<{ issues: ValidationIssue[]; unreadable: ValidationIssue[] }> {
-  return { issues: [], unreadable: [] };
+  const issues: ValidationIssue[] = [];
+  const unreadable: ValidationIssue[] = [];
+  const projectRoot = path.dirname(graph.rootPath);
+
+  for (const [nodePath, node] of graph.nodes) {
+    const typeDef = graph.architecture.node_types[node.meta.type];
+    if (typeDef === undefined || typeDef.when === undefined) continue;
+    const mapping = node.meta.mapping ?? [];
+    for (const relPath of mapping) {
+      const absPath = path.join(projectRoot, relPath);
+      const result = await evaluateFileWhen(typeDef.when, {
+        absPath,
+        repoRelPath: relPath,
+        projectRoot,
+        cache,
+      });
+
+      if (result.unreadable) {
+        unreadable.push({
+          severity: 'error',
+          code: 'file-unreadable',
+          rule: 'file-unreadable',
+          message: buildIssueMessage({
+            what: `Validator could not read '${relPath}' for when evaluation.\nOS error: ${result.unreadableReason ?? 'unknown'}`,
+            why: `Type classification requires reading file content for content: predicates. Files that cannot be opened cannot be classified.`,
+            next: `Fix file permissions, or remove the file from the node's mapping if it's not actually source code.`,
+          }),
+        });
+        continue;
+      }
+
+      if (!result.result) {
+        issues.push({
+          severity: 'error',
+          code: 'type-when-mismatch',
+          rule: 'type-when-mismatch',
+          nodePath,
+          message: buildIssueMessage({
+            what: `File '${relPath}' is in mapping of node '${nodePath}' (type: ${node.meta.type}) but does not satisfy '${node.meta.type}'.when:\n${renderTrace(result.trace, '  ')}`,
+            why: `When a node is declared as type '${node.meta.type}', every file in its mapping must satisfy the type's when predicate. This ensures type-default aspects apply to relevant code only.`,
+            next: `Options:\n  1. Move file to a node of a different type that fits\n     (run: yg type-suggest --file ${relPath})\n  2. Refactor the file so it satisfies ${node.meta.type}.when\n  3. Broaden '${node.meta.type}'.when in yg-architecture.yaml`,
+          }),
+        });
+      }
+    }
+  }
+  return { issues, unreadable };
 }
 async function checkFileMappingGitignored(_graph: Graph): Promise<ValidationIssue[]> { return []; }
 function checkFileDuplicateMapping(_graph: Graph): ValidationIssue[] { return []; }

@@ -1383,3 +1383,109 @@ describe('checkEnforceStrictWithoutWhen', () => {
     expect(result.issues.find((i) => i.code === 'enforce-strict-without-when')).toBeUndefined();
   });
 });
+
+describe('checkTypeWhenMismatch', () => {
+  it('emits type-when-mismatch when file does not satisfy type when predicate', async () => {
+    const tmpDir = path.join(CLI_ROOT, '.temp-test-when-mismatch');
+    try {
+      const yggDir = path.join(tmpDir, '.yggdrasil');
+      await mkdir(path.join(yggDir, 'model', 'svc'), { recursive: true });
+      await mkdir(path.join(tmpDir, 'src'), { recursive: true });
+      await writeFile(path.join(tmpDir, 'src', 'handler.ts'), 'export function handler() {}');
+      await writeFile(path.join(yggDir, 'yg-config.yaml'), 'version: "4.3.0"\n');
+      await writeFile(path.join(yggDir, 'yg-architecture.yaml'), [
+        'node_types:',
+        '  service:',
+        '    description: Service',
+        '    when:',
+        '      content: "@Injectable"',
+      ].join('\n'));
+      await writeFile(path.join(yggDir, 'model', 'svc', 'yg-node.yaml'), [
+        'name: svc',
+        'type: service',
+        'description: x',
+        'mapping:',
+        '  - src/handler.ts',
+      ].join('\n'));
+      const graph = await loadGraph(tmpDir);
+      const result = await validate(graph);
+      expect(result.issues.find((i) => i.code === 'type-when-mismatch')).toBeDefined();
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('does not emit type-when-mismatch when file satisfies type when predicate', async () => {
+    const tmpDir = path.join(CLI_ROOT, '.temp-test-when-match');
+    try {
+      const yggDir = path.join(tmpDir, '.yggdrasil');
+      await mkdir(path.join(yggDir, 'model', 'svc'), { recursive: true });
+      await mkdir(path.join(tmpDir, 'src'), { recursive: true });
+      await writeFile(path.join(tmpDir, 'src', 'handler.ts'), '@Injectable()\nexport class SvcService {}');
+      await writeFile(path.join(yggDir, 'yg-config.yaml'), 'version: "4.3.0"\n');
+      await writeFile(path.join(yggDir, 'yg-architecture.yaml'), [
+        'node_types:',
+        '  service:',
+        '    description: Service',
+        '    when:',
+        '      content: "@Injectable"',
+      ].join('\n'));
+      await writeFile(path.join(yggDir, 'model', 'svc', 'yg-node.yaml'), [
+        'name: svc',
+        'type: service',
+        'description: x',
+        'mapping:',
+        '  - src/handler.ts',
+      ].join('\n'));
+      const graph = await loadGraph(tmpDir);
+      const result = await validate(graph);
+      expect(result.issues.find((i) => i.code === 'type-when-mismatch')).toBeUndefined();
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('does not emit type-when-mismatch when type has no when predicate', async () => {
+    const graph = createGraph({
+      architecture: {
+        node_types: {
+          module: { description: 'Module' },
+        },
+      },
+    });
+    const result = await validate(graph);
+    expect(result.issues.find((i) => i.code === 'type-when-mismatch')).toBeUndefined();
+  });
+
+  it('emits file-unreadable (not type-when-mismatch) when content predicate cannot read file', async () => {
+    const tmpDir = path.join(CLI_ROOT, '.temp-test-file-unreadable');
+    try {
+      const yggDir = path.join(tmpDir, '.yggdrasil');
+      await mkdir(path.join(yggDir, 'model', 'svc'), { recursive: true });
+      await mkdir(path.join(tmpDir, 'src'), { recursive: true });
+      await writeFile(path.join(yggDir, 'yg-config.yaml'), 'version: "4.3.0"\n');
+      await writeFile(path.join(yggDir, 'yg-architecture.yaml'), [
+        'node_types:',
+        '  service:',
+        '    description: Service',
+        '    when:',
+        '      content: "@Injectable"',
+      ].join('\n'));
+      await writeFile(path.join(yggDir, 'model', 'svc', 'yg-node.yaml'), [
+        'name: svc',
+        'type: service',
+        'description: x',
+        'mapping:',
+        '  - src/ghost.ts',
+      ].join('\n'));
+      // src/ghost.ts intentionally NOT created — stat() fails → unreadable
+      const graph = await loadGraph(tmpDir);
+      const result = await validate(graph);
+      const codes = new Set(result.issues.map((i) => i.code));
+      expect(codes.has('file-unreadable')).toBe(true);
+      expect(codes.has('type-when-mismatch')).toBe(false);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
