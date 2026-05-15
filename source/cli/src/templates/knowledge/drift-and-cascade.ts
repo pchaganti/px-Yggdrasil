@@ -89,5 +89,16 @@ Batch at most 3-5 nodes per invocation when using \`--node\` — the reviewer
 loses accuracy with too many files in context. \`--aspect\` and \`--flow\`
 automatically batch at their own scope.
 
+## Per-node independent execution
+
+In any batch invocation (\`--node A --node B --node C\`, \`--aspect <id>\`, or
+\`--flow <name>\`), each node runs the full approve algorithm independently:
+
+  integrity → format → drift → mandatory → reviewer → commit
+
+One node's failure does NOT abort the others. The CLI lists per-node
+results and exits 1 if ANY node failed. On partial failure: fix the
+per-node errors and re-run the batch with only the failed nodes.
+
 Do not interrupt \`yg approve\` mid-run — it leaves drift state unrecorded.
 `;

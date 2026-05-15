@@ -7,6 +7,9 @@ import * as suppressSyntax from './suppress-syntax.js';
 import * as driftAndCascade from './drift-and-cascade.js';
 import * as configuration from './configuration.js';
 import * as cliReference from './cli-reference.js';
+import * as logManagement from './log-management.js';
+import * as portsAndRelations from './ports-and-relations.js';
+import * as flows from './flows.js';
 
 export type KnowledgeTopic = {
   summary: string;
@@ -49,5 +52,17 @@ export const KNOWLEDGE_TOPICS: Record<string, KnowledgeTopic> = {
   'cli-reference': {
     summary: cliReference.summary,
     content: cliReference.content,
+  },
+  'log-management': {
+    summary: logManagement.summary,
+    content: logManagement.content,
+  },
+  'ports-and-relations': {
+    summary: portsAndRelations.summary,
+    content: portsAndRelations.content,
+  },
+  flows: {
+    summary: flows.summary,
+    content: flows.content,
   },
 };

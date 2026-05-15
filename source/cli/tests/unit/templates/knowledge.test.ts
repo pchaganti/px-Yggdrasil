@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { KNOWLEDGE_TOPICS } from '../../../src/templates/knowledge/index.js';
 
 describe('KNOWLEDGE_TOPICS', () => {
-  it('exports exactly 9 topics', () => {
-    expect(Object.keys(KNOWLEDGE_TOPICS).length).toBe(9);
+  it('exports exactly 12 topics', () => {
+    expect(Object.keys(KNOWLEDGE_TOPICS).length).toBe(12);
   });
 
   it('has expected topic names', () => {
@@ -14,6 +14,9 @@ describe('KNOWLEDGE_TOPICS', () => {
       'conditional-aspects',
       'configuration',
       'drift-and-cascade',
+      'flows',
+      'log-management',
+      'ports-and-relations',
       'suppress-syntax',
       'working-with-architecture',
       'writing-ast-aspects',
@@ -35,7 +38,6 @@ describe('KNOWLEDGE_TOPICS', () => {
       '## Type kinds',
       '## Predicate grammar',
       '## When to use enforce: strict',
-      '## Defending against cross-file evasion',
       '## Pitfalls',
     ],
     'aspects-overview': [
@@ -76,6 +78,25 @@ describe('KNOWLEDGE_TOPICS', () => {
       '## yg impact',
       '## yg type-suggest',
       '## yg knowledge',
+    ],
+    'log-management': [
+      '## Format constraints',
+      '## Recovery from typo',
+      '## Reverting a change',
+      '## After a git merge',
+      '## Large logs',
+    ],
+    'ports-and-relations': [
+      '## Relation types',
+      '## Why ports exist',
+      '## Missing port contracts',
+      '## When to use ports',
+    ],
+    flows: [
+      '## Flow file structure',
+      '## Descendant inclusion',
+      '## Flow-level aspect propagation',
+      '## When to create a flow',
     ],
   };
 

@@ -44,7 +44,7 @@ describe('listKnowledge', () => {
     expect(stdout).toMatch(/Available knowledge topics:/);
   });
 
-  it('shows all 9 topic names', () => {
+  it('shows all 12 topic names', () => {
     const { stdout } = captureOutput(() => listKnowledge());
     expect(stdout).toContain('working-with-architecture');
     expect(stdout).toContain('aspects-overview');
@@ -55,6 +55,9 @@ describe('listKnowledge', () => {
     expect(stdout).toContain('suppress-syntax');
     expect(stdout).toContain('writing-ast-aspects');
     expect(stdout).toContain('writing-llm-aspects');
+    expect(stdout).toContain('log-management');
+    expect(stdout).toContain('ports-and-relations');
+    expect(stdout).toContain('flows');
   });
 
   it('shows summaries alongside topic names', () => {

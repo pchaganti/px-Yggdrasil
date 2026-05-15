@@ -1,0 +1,4 @@
+## [2026-05-15T10:51:59.840Z]
+Remove the auto-generated Yggdrasil rules block (and its yggdrasil:start/end markers) from AGENTS.md. Why: this repo's only active agent is Claude Code, which reaches the rules via CLAUDE.md @-importing .yggdrasil/agent-rules.md. The codex/opencode-style yggdrasil block in AGENTS.md was therefore pure duplication. Also updated the Constraints bullet to (a) drop the now-stale 'Yggdrasil section in AGENTS.md' reference, (b) state explicitly that AGENTS.md is hand-authored project context only, and (c) note that the rules reach the agent through CLAUDE.md → @.yggdrasil/agent-rules.md, not through AGENTS.md.
+## [2026-05-15T11:05:58.272Z]
+Add CHANGELOG.md Unreleased entry documenting the rules.ts + knowledge redesign and the AGENTS.md cleanup (per AGENTS.md guidance: changelog always updated alongside every code/behavior change).

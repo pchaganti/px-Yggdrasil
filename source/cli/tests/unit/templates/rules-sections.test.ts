@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { AGENT_RULES_CONTENT } from '../../../src/templates/rules.js';
+import { KNOWLEDGE_TOPICS } from '../../../src/templates/knowledge/index.js';
 
 describe('AGENT_RULES_CONTENT — required sections', () => {
   const REQUIRED_HEADINGS = [
@@ -25,7 +26,7 @@ describe('AGENT_RULES_CONTENT — required sections', () => {
   ];
 
   for (const row of REQUIRED_CLI_TABLE_ROWS) {
-    it(`CLI table mentions ${row}`, () => {
+    it(`CLI essentials table mentions ${row}`, () => {
       expect(AGENT_RULES_CONTENT).toContain(row);
     });
   }
@@ -34,7 +35,44 @@ describe('AGENT_RULES_CONTENT — required sections', () => {
     expect(AGENT_RULES_CONTENT).toMatch(/log_required:.*true.*default/s);
   });
 
-  it('mentions yg log merge-resolve workflow', () => {
+  it('mentions yg log merge-resolve narrative in rules.ts', () => {
     expect(AGENT_RULES_CONTENT).toMatch(/yg log merge-resolve/);
   });
+
+  it('mentions yg-suppress proposal step 1 — show the violation', () => {
+    expect(AGENT_RULES_CONTENT).toMatch(/Show the user the violation/);
+  });
+
+  it('routes deep log topics (format, merge-resolve, recovery) to log-management knowledge', () => {
+    expect(AGENT_RULES_CONTENT).toMatch(/yg knowledge read log-management/);
+  });
+
+  it('log-management knowledge topic documents yg log merge-resolve workflow', () => {
+    expect(KNOWLEDGE_TOPICS['log-management'].content).toMatch(/yg log merge-resolve/);
+  });
+
+  it('cli-reference knowledge topic documents yg log merge-resolve', () => {
+    expect(KNOWLEDGE_TOPICS['cli-reference'].content).toMatch(/yg log merge-resolve/);
+  });
+
+  const REQUIRED_KNOWLEDGE_ROUTES = [
+    'yg knowledge read working-with-architecture',
+    'yg knowledge read aspects-overview',
+    'yg knowledge read writing-llm-aspects',
+    'yg knowledge read writing-ast-aspects',
+    'yg knowledge read conditional-aspects',
+    'yg knowledge read suppress-syntax',
+    'yg knowledge read drift-and-cascade',
+    'yg knowledge read configuration',
+    'yg knowledge read cli-reference',
+    'yg knowledge read log-management',
+    'yg knowledge read ports-and-relations',
+    'yg knowledge read flows',
+  ];
+
+  for (const route of REQUIRED_KNOWLEDGE_ROUTES) {
+    it(`rules.ts routes to ${route}`, () => {
+      expect(AGENT_RULES_CONTENT).toContain(route);
+    });
+  }
 });

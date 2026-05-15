@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Three new `yg knowledge` topics for deep-reference material kept out of `rules.ts`:
+  - `log-management` — log format constraints, Supersedes convention, typo recovery, revert with drift state, git-merge resolution, large-log delegation.
+  - `ports-and-relations` — six relation types, paired events, port contracts, channel 6 propagation, defense against cross-file evasion.
+  - `flows` — flow vs relation, descendant inclusion, flow-level aspect propagation, when to create a flow.
+
+### Changed
+
+- `rules.ts` reorganized as a lean primer + router. CLI commands trimmed to essentials in the always-loaded rules content; full reference now lives in `yg knowledge read cli-reference`. Deep log-management mechanics, port/relation grammar, and flow internals routed to the three new knowledge topics above. Mental model (graph elements, 7 channels with concrete example, drift/cascade definitions, decisions/heuristics, authorization rules for `yg-suppress`) retained in `rules.ts`. The "Where to find more" table now indexes all 12 knowledge topics.
+- `aspects-overview` knowledge topic trimmed: the "7 propagation channels" summary table and "Discovering aspects in brownfield code" section removed (both now live in `rules.ts` as the killer-example mental model and the Aspect Discovery heuristic respectively).
+- `suppress-syntax` knowledge topic trimmed: authorization rules (when an agent may write a suppress, who approves the reason) moved to `rules.ts` as behavioral, not syntactic, guidance.
+- `working-with-architecture` knowledge topic trimmed: the "Defending against cross-file evasion (Channel 6)" section moved to the new `ports-and-relations` topic where it belongs.
+- `drift-and-cascade` knowledge topic gains a "Per-node independent execution" section describing the full approve algorithm phases (integrity → format → drift → mandatory → reviewer → commit) and partial-failure recovery.
+- `AGENTS.md` cleaned up: the auto-generated Yggdrasil rules block (and its `yggdrasil:start`/`yggdrasil:end` markers) removed. This repo uses only the `claude-code` platform; rules reach the agent via `CLAUDE.md` → `@.yggdrasil/agent-rules.md`. Constraints bullet updated accordingly.
+
 ### Fixed
 
 - `yg owner --file`, `yg impact --file`, `yg context --file` — `--file` argument is now always resolved relative to the repository root, not the current working directory. Running these commands from a subdirectory no longer produces doubled paths.

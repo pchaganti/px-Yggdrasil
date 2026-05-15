@@ -1,4 +1,4 @@
-export const summary = 'yg-suppress inline waiver syntax: single-line, bracket form, wildcard, when to use, who approves';
+export const summary = 'yg-suppress inline waiver syntax: single-line, bracket disable/enable, wildcard, file-level placement';
 
 export const content = `# Suppress syntax
 
@@ -6,7 +6,11 @@ export const content = `# Suppress syntax
 aspect for a piece of code. Use it for known tech debt or intentional
 exceptions — not to silence valid violations you intend to fix.
 
-## When to suppress
+Authorization rules (when you may write a suppress, who approves the reason)
+live in agent-rules.md, section "yg-suppress — Inline Aspect Waiver". This
+file documents only the on-the-line syntax.
+
+## When to suppress (briefly)
 
 Appropriate uses:
 - Brownfield code: known violation, refactor planned but not now
@@ -17,9 +21,6 @@ Inappropriate uses:
 - Silencing a violation you haven't understood yet
 - Avoiding the work of fixing code that should comply
 - Hiding security-relevant violations from the graph
-
-You MUST obtain explicit user confirmation before writing any suppress.
-Never write a suppress unilaterally — even for obvious tech debt.
 
 ## Single-line
 
@@ -70,24 +71,21 @@ export const GENERATED_MAPPING = { ... };
 // yg-suppress-enable(*)
 \`\`\`
 
-A specific \`enable(<id>)\` does NOT punch through \`disable(*)\` — the wildcard
-disable covers the entire range regardless of specific enables within it.
+A specific \`enable(<id>)\` does NOT punch through \`disable(*)\` — the
+wildcard disable covers the entire range regardless of specific enables
+within it.
+
+## File-level placement
 
 For generated files where the entire file is exempt, place the marker at
-the file level (outside any function or class).
+the file level (outside any function or class). At file level, the
+contextual scope is the whole file.
 
-## Authorization rule
+## Reason text
 
-You MUST obtain explicit user confirmation before writing any suppress.
-
-When proposing a suppress:
-1. Show the violation and explain why the code cannot comply now
-2. Provide the correct aspect id from graph context
-3. Ask the user to provide or approve the reason text
-4. Only then write the marker with the user-supplied reason
-
-The reason text is permanent and will be read by future maintainers and
-agents to understand why the waiver exists. Do not invent reasons.
+The reason text after the aspect-id is permanent. Future maintainers and
+agents will read it to understand why the waiver exists. Do not invent
+reasons — see the authorization rules in agent-rules.md.
 
 ## Effect on approve
 

@@ -21,11 +21,11 @@ The CLI (`yg`) reads and validates — it never modifies files. You create and e
 
 **Aspects** — enforceable rules. `aspects/<id>/yg-aspect.yaml` + either `content.md` (LLM reviewer) or `check.mjs` (AST reviewer). An aspect can declare `implies: [other-aspect]` — implied aspects are included recursively (must be acyclic). Schema: `schemas/yg-aspect.yaml`.
 
-**Flows** — business processes. `flows/<name>/yg-flow.yaml` with name, description, nodes (participants), aspects. Flow-level aspects propagate to all participants. Descendants of a declared participant are automatically included — adding a parent node to a flow covers all its children.
+**Flows** — business processes. `flows/<name>/yg-flow.yaml` with name, description, nodes (participants), aspects. Flow-level aspects propagate to all participants. Descendants of a declared participant are automatically included — adding a parent node to a flow covers all its children. Deep dive: `yg knowledge read flows`.
 
-**Relations** — typed dependencies between nodes. Six types: `calls`, `uses`, `extends`, `implements` (structural) and `emits`, `listens` (event-based). Event relations must be paired — if A emits to B, B must have a listens from A. Architecture controls which relation types are allowed between which node types.
+**Relations** — typed dependencies between nodes. Six types: `calls`, `uses`, `extends`, `implements` (structural) and `emits`, `listens` (event-based). Event relations must be paired. Architecture controls which relation types are allowed between which node types.
 
-**Ports** — named entry points on a node with required aspects. A node declares ports to say "consumers of this endpoint must satisfy these aspects." Consumers reference ports via `consumes` on their relation. The consumed port's aspects become effective on the consumer (channel 6). If a target has ports, the consumer must declare which it consumes — otherwise check warns about missing port contracts.
+**Ports** — named entry points on a node with required aspects. A consumer references a port via `consumes` on its relation; the port's aspects then become effective on the consumer (channel 6 below). Ports are how a critical aspect crosses node boundaries — bare relations do NOT propagate aspects. Deep dive (port contracts, channel 6 defense, missing-contract warnings): `yg knowledge read ports-and-relations`.
 
 **Architecture** — `yg-architecture.yaml` defines the vocabulary: node types, default aspects per type, allowed parent types, allowed relation targets per type. This is the foundation — read it when starting work on a new repo. Changes require user confirmation. Structure details in `schemas/yg-architecture.yaml`.
 
@@ -59,6 +59,8 @@ Consequences of this cascade:
 - Architecture default aspects apply to every node of that type automatically.
 - Implies chains expand recursively. Cycles are forbidden — CLI detects them.
 
+A `when` predicate on an aspect (or on a per-attach-site reference) filters applicability per channel — deterministic, zero LLM cost. Grammar deep dive: `yg knowledge read conditional-aspects`.
+
 ### Reviewer
 
 The reviewer is an LLM invoked by `yg approve`. It receives: the aspect's content.md + all source files of the node. It checks every rule from content.md against the code.
@@ -66,7 +68,9 @@ The reviewer is an LLM invoked by `yg approve`. It receives: the aspect's conten
 - **Approved** → baseline recorded, drift cleared.
 - **Refused** → violation report with what and where. Fix the code, re-run approve.
 
-Three approve modes: `--node <path>` (one or more nodes), `--aspect <id>` (batch all nodes affected by this aspect change), `--flow <name>` (batch all nodes in this flow). Batch at most 3-5 nodes per invocation — the reviewer loses accuracy with too many. Use `--dry-run` to preview the reviewer prompt without making an LLM call.
+Three approve modes: `--node <path>` (one or more nodes), `--aspect <id>` (batch all nodes affected by this aspect change), `--flow <name>` (batch all nodes in this flow). Batch at most 3-5 nodes per invocation when using multiple `--node` flags — the reviewer loses accuracy with too many. Use `--dry-run` to preview the reviewer prompt without making an LLM call.
+
+In a batch invocation each node runs the full approve algorithm independently — one node's failure does NOT abort the others. Details (algorithm phases, partial-failure recovery, scenario cost table): `yg knowledge read drift-and-cascade`.
 
 ### Drift and Cascade
 
@@ -81,36 +85,23 @@ If you modify code without reading the aspect content files (`yg context --file`
 
 Do not interrupt `yg approve` — it processes each aspect across all source files. Interrupting leaves drift state unrecorded. Always read the full raw output — no `| grep`, `| head`, `| tail`. The reviewer already ran; the output is the return on that cost.
 
-### CLI Commands
+### CLI Commands — essentials
 
 | Command | Purpose |
 |---|---|
-| `yg check` | Unified gate — drift, validation, coverage, completeness. Blocks CI. |
+| `yg check` | Unified gate — drift, validation, coverage. Blocks CI. |
 | `yg context --file <path>` | Show owning node, effective aspects (`read:` paths), dependencies |
 | `yg context --node <path>` | Show node overview — aspects, flows, dependents, source files |
-| `yg approve --node <path> [<path2>...]` | Run reviewer on one or more nodes |
-| `yg approve --aspect <id>` | Batch approve all nodes affected by this aspect change |
-| `yg approve --flow <name>` | Batch approve all nodes in this flow |
-| `yg approve --dry-run --node <path>` | Preview reviewer prompt without LLM call |
-| `yg impact --node <path>` | Blast radius — dependents, flows, cascade scope |
-| `yg impact --file <path>` | Blast radius for a specific file |
-| `yg impact --aspect <id>` | All nodes affected by this aspect |
-| `yg impact --flow <name>` | All nodes in this flow |
-| `yg impact --type <id>` | All nodes of this type, source files, strict coverage gap |
-| `yg tree [--root <path>] [--depth <n>]` | Browse graph structure — all nodes with type and description |
-| `yg aspects` | List all aspects with usage counts, reviewer type, and sources |
-| `yg flows` | List all flows with participants and aspects |
-| `yg owner --file <path>` | Find which node owns a source file |
-| `yg ast-test --aspect <id> --files <paths...>` | Run AST aspect check against ad-hoc files (no baseline) |
-| `yg ast-test --aspect <id> --node <path>` | Run AST aspect check against a node's mapped files |
-| `yg type-suggest --file <path>` | Suggest which architecture type best matches a file |
-| `yg knowledge list` | List all embedded knowledge topics with summaries |
-| `yg knowledge read <name>` | Print the full content of a knowledge topic |
-| `yg init` | Bootstrap or refresh `.yggdrasil/` setup |
+| `yg approve --node <path>` | Run reviewer on one or more nodes (also `--aspect`, `--flow`, `--dry-run`) |
+| `yg impact --node\|--file\|--aspect\|--flow\|--type <x>` | Blast radius before a change |
+| `yg tree [--root <path>] [--depth <n>]` | Browse graph structure |
 | `yg find "<query>"` | Locate entry-point nodes/aspects by natural-language query |
-| `yg log add --node <path> --reason <text>` | Append a per-node business-context log entry |
+| `yg log add --node <path> --reason <text>` | Append per-node business-context entry |
 | `yg log read --node <path> [--top N \| --all]` | Read log entries (default top 10, newest first) |
-| `yg log merge-resolve --node <path>` | Reconcile log.md after a git merge commit |
+| `yg log merge-resolve --node <path>` | Reconcile log.md after a git merge (validates byte-exact ancestor + union of new entries) |
+| `yg knowledge list` / `yg knowledge read <name>` | Browse deep-reference topics |
+
+Full command reference (`yg aspects`, `yg flows`, `yg owner`, `yg ast-test`, `yg type-suggest`, `yg init`, `yg log merge-resolve`, all option flags): `yg knowledge read cli-reference`.
 
 ### Impact and Cost
 
@@ -136,7 +127,7 @@ This is a cost/impact trade-off. Assess, propose the option to the user, let the
 
 **Before touching a source file:** `yg context --file <path>`. Read the files listed under `read:` — these are the rules the reviewer will check your code against. For LLM aspects, `read:` points to `content.md`. For AST aspects (`reviewer: ast`), `read:` points to `check.mjs` — read it to know what structural rules will be enforced. For blast radius: `yg impact --file <path>`.
 
-**After modifying code:** `yg check` → fix errors → `yg approve --node <path>`. Approve is part of the change — the change is not done until approve passes. Do not defer approval.
+**After modifying code:** `yg check` → fix errors → `yg log add` (per affected node) → `yg approve --node <path>`. Approve is part of the change — the change is not done until approve passes. Do not defer approval.
 
 **End of conversation:** `yg check` — resolve all drift. `yg check` failures block CI. If drift remains, the build breaks.
 
@@ -195,6 +186,9 @@ Example fail-flow (skipping pre-flight when creating new files):
 When no type fits the user's request, do not create files ad-hoc. Push back
 to user explaining that architecture lacks a fitting type and consultation
 with engineer is needed.
+
+For type selection details (`when` grammar, `enforce: strict`,
+organizational types, pitfalls): `yg knowledge read working-with-architecture`.
 
 ### Working with business-language requests
 
@@ -255,96 +249,55 @@ enforcement remains aspect-based.
 - `yg log read --node <path> --all` when you need the full history
 - Read tool on `.yggdrasil/model/<path>/log.md` for full content when needed
 
-### Log management
+### Log management — workflow
 
 Every change to source files in a node's mapping requires a log entry
 BEFORE running approve (for nodes whose type has `log_required: true`,
-which is the default).
-
-Workflow:
+the default).
 
   1. Edit source files
-  2. Run: yg log add --node <path> --reason "<justification>"
-  3. Run: yg approve --node <path>
+  2. `yg log add --node <path> --reason "<justification>"`
+  3. `yg approve --node <path>`
 
-If you forget step 2: approve fails with clear error pointing you to fix.
+If you forget step 2: approve fails with a clear error pointing you to fix.
 
-If approve fails (reviewer rejects), you can iterate on the code without
-adding new log entries. One log entry covers all source edits within a
-single approve cycle (including failed approves and retries) until the
-approve succeeds.
+If approve fails (reviewer rejects), iterate on the code WITHOUT adding new
+log entries. One log entry covers all source edits within a single approve
+cycle (including failed approves and retries) until approve succeeds.
 
-Log file format constraints (validated by yg check):
-- Entry headers `## [<ISO datetime UTC with milliseconds>]` are reserved
-- Sub-headings in your reason must be level 3+ (`###` or deeper)
-- Do not put a level-2 heading (`##`) at the start of any line in your `--reason` content
-  (UNLESS inside a fenced code block — those are allowed)
-- Multi-line content via bash `$'multi\nline'` or via `--reason-file <path>`
-  (cross-platform alternative; reads the entire file as the entry body)
-- Datetimes must be strictly ascending across entries
+`yg log add` does NOT trigger drift or run the reviewer. You can append
+context entries between code changes freely. Only source-file changes in the
+mapping require entries paired with `yg approve`.
 
-Correcting a previous entry that turned out to be wrong:
-- Append-only blocks editing historical entries
-- Convention: start your correction entry with `### Supersedes: <prior ISO datetime>`
-- Future agents reading the log will see structured supersedes
-
-Recovery from typo in fresh entry (BEFORE first approve):
-
-If you just ran `yg log add` and notice a typo in `--reason`, and no approve
-has run since (drift state baseline still points to previous state):
-
-  1. git checkout .yggdrasil/model/<path>/log.md
-     (restores log.md to state before your typo entry)
-  2. yg log add --node <path> --reason "<correct text>"
-
-The drift state baseline is unchanged (no approve happened), so checking out
-just log.md is safe and integrity remains intact. Do NOT use this path if
-approve has already run on the typo'd entry — at that point the entry is
-in the baseline and you must use the Supersedes convention instead.
-
-Reverting a change you regret:
-- Do NOT add a "correction" entry to log.md (would still leave wrong code)
-- Use git: `git checkout <previous>` on source, log.md, AND drift state file:
-  `git checkout HEAD~1 -- src/file.ts .yggdrasil/model/<path>/log.md .yggdrasil/.drift-state/<path>.json`
-- Then: `yg log add --node <path> --reason "Tried X, reverted because Y"`
-- Then: `yg approve --node <path>`
+Critical content gotcha: do not put a level-2 heading (`##`) at the start
+of any line inside your `--reason` content (entry headers are reserved).
+Use `###` or deeper for sub-headings. Multi-line content via bash
+`$'multi\nline'` or `--reason-file <path>`.
 
 After a git merge: if both branches added log entries to the same node,
 run `yg log merge-resolve --node <path>` from the merge commit. The tool
 validates byte-exact ancestor portion and union of new entries — it cannot
 silently drop or fabricate entries. Do NOT manually concatenate the two
-log histories — integrity hashes will break and yg check fails.
+log histories — integrity hashes will break and `yg check` will fail.
 
-Never edit log.md directly. Integrity verification will catch any
-modification of historical entries (entries before the last approve).
-
-When log.md is large (rough threshold: >50 entries OR >5000 tokens),
-do not load full content into your context. Delegate to a subagent:
-
-  Spawn subagent with: "Read .yggdrasil/model/<path>/log.md, summarize
-  relevant context for task: <task description>. Return key decisions,
-  constraints, and gotchas only."
-
-Use the returned summary, not the full log.
-
-`yg log add` does not trigger drift or run the reviewer. You can add
-context entries between code changes freely. Only source file changes
-in the mapping require entries paired with `yg approve`.
+Deep dive (full format constraints, Supersedes convention, typo recovery,
+revert with drift state, merge-resolve mechanics, large-log delegation):
+`yg knowledge read log-management`.
 
 ### Finding entry points
 
 When a user request describes desired behavior:
 
   1. Translate keywords to English (Yggdrasil artifacts are English)
-  2. Run: yg find "<keywords>"
+  2. Run: `yg find "<keywords>"`
   3. Read the top-ranked candidate's score critically:
      - Score >0.6: probably correct entry point
-     - Score 0.3-0.6: maybe — verify with yg context
+     - Score 0.3-0.6: maybe — verify with `yg context`
      - Score <0.3: weak match, consider fallback
   4. Use the `Kind` line to interpret the result:
      - `Kind: node` → strip `model/` prefix, use as `--node` value
      - `Kind: aspect` → read aspect file directly, not as node
-  5. Run: yg context --node <node-path> for full context
+  5. Run: `yg context --node <node-path>` for full context
 
 If user request is cross-cutting (uses words "all", "every", "across"):
 - Treat top 5 results as candidate SET
@@ -355,67 +308,74 @@ If no good matches, fall back to `yg tree` for full graph overview, or
 ask user for guidance.
 
 If you decide the change is cross-cutting and should become a new aspect
-(rather than per-node edit), follow the existing protocol from the
-"When to Create Graph Elements" section (Aspect subsection). Note that
-creating/modifying aspects (anything inside `.yggdrasil/`) does NOT require
-log entries — log entries are required only for source files in node
-mappings.
+(rather than per-node edit), follow the protocol from "When to Create
+Graph Elements > Aspect" below. Creating/modifying aspects (anything inside
+`.yggdrasil/`) does NOT require log entries — log entries are required
+only for source files in node mappings.
 
 ### Coordinated changes across multiple nodes
 
 For changes that span multiple nodes (cross-cutting rename, schema migration,
 shared concept update):
 
-  1. Edit all affected source files first.
-     Do NOT approve incrementally — risks half-applied state if one fails.
+  1. Edit all affected source files first. Do NOT approve incrementally —
+     risks half-applied state if one fails.
 
-  2. Add log entry per affected node (each `yg log add --node X --reason "..."`
-     for each node).
-     One entry per node, even if the same business reason applies to many.
+  2. Add a log entry per affected node (`yg log add --node X --reason "..."`
+     for each). One entry per node, even if the same business reason
+     applies to many.
 
   3. Approve all nodes together using batch invocation:
      `yg approve --node A --node B --node C`
-     Or use `yg approve --aspect <id>` / `--flow <name>` for aspect/flow-driven batches.
+     Or use `yg approve --aspect <id>` / `--flow <name>` for aspect/flow
+     batches.
 
-  4. Per-node independent execution:
-     - Each node runs full algorithm (integrity, format, drift, mandatory, reviewer, commit).
-     - One node failure does NOT abort others.
-     - Output lists all results. Exit code 1 if ANY failed.
+  4. Each node runs its full approve algorithm (integrity, format, drift,
+     mandatory, reviewer, commit) INDEPENDENTLY. One node's failure does
+     not abort the others. Exit code 1 if ANY failed; the output lists all
+     per-node results.
 
-  5. On partial failure: fix per-node errors, re-run batch with only failed nodes.
+  5. On partial failure: fix per-node errors, re-run the batch with only
+     the failed nodes.
 
   6. For node renames specifically:
-     - Update `mapping:` w yg-node.yaml of affected nodes
+     - Update `mapping:` in `yg-node.yaml` of affected nodes
      - Update `flows/<name>/yg-flow.yaml` `nodes:` lists referencing old names
      - `yg check` catches broken references; fix proactively
 
-If user request is a rename, the rationale in `--reason` should explicitly
-identify it as a cross-cutting rename to give future agents context.
+If the user request is a rename, the rationale in `--reason` should
+explicitly identify it as a cross-cutting rename to give future agents
+context.
 
 ### When to Create Graph Elements
 
-**Aspect** — when the same pattern appears in 3+ files AND the reviewer can verify it against source code. Both conditions. "Every handler logs audit trail" — pattern + verifiable = aspect. "Code should be readable" — not verifiable, not an aspect. Read `schemas/yg-aspect.yaml` before creating. For reviewer choice (LLM vs AST): `yg knowledge read aspects-overview`. Content `.md` files state WHAT must be satisfied and WHY — use the user's words, never invent rationale. Things that do NOT become aspects: knowledge already visible in source code (imports, config), non-enforceable knowledge (business strategy, personas, pricing), and conventions the reviewer cannot check against code.
+**Aspect** — when the same pattern appears in 3+ files AND the reviewer can verify it against source code. Both conditions. "Every handler logs audit trail" — pattern + verifiable = aspect. "Code should be readable" — not verifiable, not an aspect. Read `schemas/yg-aspect.yaml` before creating. For reviewer choice (LLM vs AST), aspect format, cost model: `yg knowledge read aspects-overview`. To write the rules: `yg knowledge read writing-llm-aspects` (or `writing-ast-aspects`). Content `.md` files state WHAT must be satisfied and WHY — use the user's words, never invent rationale. Things that do NOT become aspects: knowledge already visible in source code (imports, config), non-enforceable knowledge (business strategy, personas, pricing), and conventions the reviewer cannot check against code.
 
-**Flow** — when you see a sequence of steps toward a business goal. Not code call sequences — real-world processes. "User places an order" = flow. "Handler calls service" = relation between nodes. Read `schemas/yg-flow.yaml` before creating.
+**Flow** — when you see a sequence of steps toward a business goal. Not code call sequences — real-world processes. "User places an order" = flow. "Handler calls service" = relation between nodes. Read `schemas/yg-flow.yaml` and `yg knowledge read flows` before creating.
 
 **Node** — one per cohesive feature area. Not per directory, not per file. If a node would map >10 source files or cover >3 distinct workflows, split into children. Why: the reviewer sees ALL files in a node. Too many files = reviewer loses context and produces false rejections. Aim for 2-5 source files per node with aspects. Read `schemas/yg-node.yaml` before creating.
 
+**Port / relation** — when a critical aspect must cross a node boundary, or when a new typed dependency is needed. Bare relations do NOT propagate aspects; ports do. Six relation types exist (`calls`, `uses`, `extends`, `implements`, `emits`, `listens`); event relations must be paired. Deep dive: `yg knowledge read ports-and-relations`.
+
 **Architecture change** — when existing types don't fit the project structure. Always confirm with the user. Never silently modify `yg-architecture.yaml`. If a relation between types is forbidden, present the constraint and let the user decide: use an allowed relation type, change the node type, or update the architecture.
 
-**`when` predicate on an aspect or attach site** — when the aspect applies to
-only a subset of nodes under a common attach channel. Prefer `when` over
-splitting node types (proliferation of types). Prefer `when` over leaving
-the decision to the reviewer textually inside `content.md`; `when` is
-deterministic, has zero LLM cost, and keeps the graph as the source of
-truth for applicability.
+**`when` predicate on an aspect or attach site** — when the aspect applies to only a subset of nodes under a common attach channel. Prefer `when` over splitting node types (proliferation of types). Prefer `when` over leaving the decision to the reviewer textually inside `content.md`; `when` is deterministic, has zero LLM cost, and keeps the graph as the source of truth for applicability. Grammar: `yg knowledge read conditional-aspects`.
 
 ### Aspect Discovery
 
-Aspects emerge from patterns — greenfield and brownfield:
+Aspects emerge from patterns — greenfield and brownfield. Signs that an
+aspect should exist:
 
-- After working on 3+ files in the same area: are you applying the same pattern? If yes, create an aspect.
-- Watch for "invisible" aspects: audit logging, webhook dispatch, auth guards, job dispatch — cross-cutting but easy to miss.
-- Brownfield: same utility called in 3+ files = aspect waiting to be created.
+- Same utility called in 3+ files
+- Same comment repeated across files ("must not call X directly")
+- Same pattern enforced in code review across multiple PRs
+- Cross-cutting "invisible" concerns: audit logging, webhook dispatch,
+  auth guards, job dispatch — easy to miss because they're not in any
+  single file's name
+
+Before creating: `yg aspects` to see existing aspects — avoid duplicates.
+After working on 3+ files in the same area, ask yourself if you're
+applying the same pattern. If yes, propose an aspect to the user.
 
 ### Delegating to Subagents
 
@@ -433,13 +393,20 @@ Code without graph updates = incomplete work.
 
 ### `yg-suppress` — Inline Aspect Waiver
 
-Source code comments with `yg-suppress(<aspect-path>) <reason>` waive a specific aspect. The reviewer honors these unconditionally. Syntax: `yg knowledge read suppress-syntax`.
+Source code comments with `yg-suppress(<aspect-path>) <reason>` waive a specific aspect. The reviewer honors these unconditionally. Forms (single-line, bracket disable/enable, wildcard `*`, file-level placement): `yg knowledge read suppress-syntax`.
 
-- You may propose a suppress when you see brownfield code or known tech debt violating an aspect
-- You MUST NEVER write a suppress without explicit user confirmation — no exceptions
-- Provide the correct aspect-path from graph context, ask the user for the reason
-- You do not invent reasons — the user provides or approves them
+Authorization rules (these live here — behavioral, not syntax):
+
+- You MUST NEVER write a suppress without explicit user confirmation — no exceptions.
+- You do not invent reasons — the user provides or approves them.
 - The marker applies contextually to surrounding code (function, class, block). At file level, it applies to the entire file.
+
+When proposing a suppress (the only path to a written suppress):
+
+1. Show the user the violation and explain why the code cannot comply now.
+2. Provide the correct aspect-path from graph context.
+3. Ask the user to provide or approve the reason text.
+4. Only then write the marker with the user-supplied reason.
 
 ### Escape Hatch
 
@@ -464,6 +431,7 @@ If a new source file does not fit any type's `when`:
 Note: a node_type with `when` classifies files (forward — and optionally backward
 with `enforce: strict`). A node_type without `when` is organizational — usable as a
 parent in the hierarchy, but nodes of such types cannot have a non-empty `mapping:`.
+Deep dive: `yg knowledge read working-with-architecture`.
 
 ### Where to find more
 
@@ -471,10 +439,10 @@ When you need to do X, run/read Y:
 
 | Task | Resource |
 |---|---|
-| Edit `yg-architecture.yaml` | `schemas/yg-architecture.yaml` |
+| Edit `yg-architecture.yaml` | `schemas/yg-architecture.yaml` + `yg knowledge read working-with-architecture` |
 | Edit `yg-node.yaml` | `schemas/yg-node.yaml` |
-| Edit `yg-flow.yaml` | `schemas/yg-flow.yaml` |
-| Edit `yg-aspect.yaml` | `schemas/yg-aspect.yaml` |
+| Edit `yg-flow.yaml` | `schemas/yg-flow.yaml` + `yg knowledge read flows` |
+| Edit `yg-aspect.yaml` | `schemas/yg-aspect.yaml` + `yg knowledge read aspects-overview` |
 | Edit `yg-config.yaml` | `schemas/yg-config.yaml` + `yg knowledge read configuration` |
 | Pick the right type for new file | `yg knowledge read working-with-architecture` |
 | Choose LLM vs AST reviewer | `yg knowledge read aspects-overview` |
@@ -482,9 +450,12 @@ When you need to do X, run/read Y:
 | Write an AST aspect | `yg knowledge read writing-ast-aspects` |
 | Use `when` on an aspect | `yg knowledge read conditional-aspects` |
 | Write `yg-suppress` in code | `yg knowledge read suppress-syntax` |
-| Understand drift and cascade | `yg knowledge read drift-and-cascade` |
-| Use CLI commands deep | `yg knowledge read cli-reference` |
-| Browse available knowledge topics | `yg knowledge list` |
+| Understand drift, batch approve, costs | `yg knowledge read drift-and-cascade` |
+| Log format, recovery, merge, large logs | `yg knowledge read log-management` |
+| Ports, relations, channel 6 | `yg knowledge read ports-and-relations` |
+| Flows — definition, participation, propagation | `yg knowledge read flows` |
+| Use CLI commands deeply | `yg knowledge read cli-reference` |
+| Browse all available knowledge topics | `yg knowledge list` |
 
 ### Operational Notes
 

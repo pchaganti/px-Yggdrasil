@@ -1,4 +1,4 @@
-export const summary = 'What aspects are, 7 propagation channels, how to discover patterns, LLM vs AST reviewer choice';
+export const summary = 'What aspects are, when to create, LLM vs AST reviewer choice, cost model';
 
 export const content = `# Aspects overview
 
@@ -9,13 +9,17 @@ checks every source file of a node against every effective aspect.
 
 An aspect pairs a description (\`content.md\` for LLM, \`check.mjs\` for AST)
 with metadata (\`yg-aspect.yaml\`). When you run \`yg approve --node <path>\`,
-the reviewer receives the aspect description and all source files of the node,
-then returns approved or refused with a violation report.
+the reviewer receives the aspect description and all source files of the
+node, then returns approved or refused with a violation report.
 
 An aspect is always verified — not just when the code changes, but whenever
 any upstream input changes (aspect content, parent node, flow membership).
 This cascade is deliberate: the reviewer must confirm compliance with the
 current state of every constraint.
+
+For HOW aspects reach a node (the 7 propagation channels with concrete
+example), see the SYSTEM section of agent-rules.md — that mental model is
+loaded by default and is not duplicated here.
 
 ## When to create an aspect
 
@@ -26,39 +30,15 @@ Create an aspect when:
 Both conditions must hold. "Code should be readable" fails condition 2.
 "Every handler must log an audit trail" satisfies both.
 
-## 7 propagation channels
-
-Every node accumulates aspects from 7 sources simultaneously:
-
-| Channel | Source |
-|---------|--------|
-| 1. Own | \`node.aspects\` in \`yg-node.yaml\` |
-| 2. Ancestor | Parent node's aspects cascade to all children |
-| 3. Own type | Architecture default aspects for the node's type |
-| 4. Ancestor type | Default aspects for parent's type |
-| 5. Flows | Flow-level aspects apply to all participants |
-| 6. Ports | Consumed port's aspects become effective on consumer |
-| 7. Implied | \`implies: [other-aspect]\` chains expand recursively |
-
-The reviewer checks ALL channels. A node must satisfy every effective aspect
-regardless of origin. Adding an aspect to a parent node applies it to ALL
-descendants — check blast radius with \`yg impact --aspect <id>\` first.
-
-## Discovering aspects in brownfield code
-
-Signs that an aspect should exist:
-- Same utility called in 3+ files
-- Same comment repeated across files ("must not call X directly")
-- Same pattern enforced in code review across multiple PRs
-- Cross-cutting concerns: auth guards, audit logging, webhook dispatch
-
-Use \`yg aspects\` to see existing aspects — avoid creating duplicates.
+See agent-rules.md "Aspect Discovery" for the brownfield triggers
+(repeated patterns, "invisible" cross-cutting concerns) — also not
+duplicated here.
 
 ## LLM vs AST
 
 Two reviewer types are available. Each has a distinct sweet spot.
 
-## When to use LLM
+### When to use LLM
 
 Choose LLM (\`reviewer: llm\`, default) when:
 - The rule requires judgment ("no business logic in controllers")
@@ -69,7 +49,7 @@ Choose LLM (\`reviewer: llm\`, default) when:
 LLM reviewers understand context, read prose rules, and can assess whether
 code satisfies a nuanced requirement. They are slower and cost per call.
 
-## When to use AST
+### When to use AST
 
 Choose AST (\`reviewer: ast\`) when:
 - The rule is structural ("never import from \`db/\` in \`ui/\`")
@@ -80,7 +60,7 @@ Choose AST (\`reviewer: ast\`) when:
 AST aspects run synchronously with no LLM call; they are free to run
 and produce exact, deterministic results.
 
-## Decision tree
+### Decision tree
 
 1. Can the rule be expressed as "this syntax pattern must (not) appear"?
    → Yes: use AST
@@ -107,4 +87,8 @@ calls when you run \`yg approve --aspect <id>\`.
 
 Use \`yg impact --aspect <id>\` before creating or modifying a widely-used
 aspect to assess the re-approval cost.
+
+For full scenario-by-scenario cost breakdown (edit one file, add implies,
+change content.md, add aspect to parent, add node to flow) and batch
+approve strategies: \`yg knowledge read drift-and-cascade\`.
 `;

@@ -1,4 +1,4 @@
-export const summary = 'How to read yg-architecture.yaml, type selection, when grammar deep dive, enforce strict, organizational types';
+export const summary = 'How to read yg-architecture.yaml: classifying vs organizational types, when grammar, enforce strict, pitfalls, type-suggest';
 
 export const content = `# Working with the architecture file
 
@@ -12,6 +12,9 @@ You're editing \`yg-architecture.yaml\` and need to understand:
 - How to write a \`when\` predicate (path + content atoms, operators)
 - When to use \`enforce: strict\` vs forward-only
 - Organizational types (no \`when\`, parent-only)
+
+For port-based defense against cross-file evasion (channel 6) — a related
+but distinct concern — see \`yg knowledge read ports-and-relations\`.
 
 ## Type kinds
 
@@ -68,19 +71,6 @@ Strict enforcement fires two error codes:
 
 Both are reported alongside \`unmapped-files\` when applicable. They are
 distinct symptoms with distinct fixes — no de-duplication.
-
-## Defending against cross-file evasion (Channel 6)
-
-If a critical aspect must extend across a file boundary (e.g. a helper
-must inherit the parent's audit-logging), use ports:
-
-1. Define a port on the owner node with the aspect.
-2. Helper node declares \`consumes: [port-name]\` on a relation.
-3. Helper inherits the port's aspects (channel 6 propagation).
-
-This is opt-in; bare relations do not propagate aspects. An attacker who
-routes calls through an intermediary without declaring \`consumes\` will
-not inherit the port's aspects — the graph will flag the missing port contract.
 
 ## Pitfalls
 
