@@ -1,12 +1,43 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { loadGraph } from '../../../src/core/graph-loader.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_PROJECT = path.join(__dirname, '../../fixtures/sample-project');
+
+describe('loadGraph version gate', () => {
+  let tmpRoot: string;
+  beforeEach(() => {
+    tmpRoot = mkdtempSync(join(tmpdir(), 'gl-'));
+    mkdirSync(join(tmpRoot, '.yggdrasil', 'model'), { recursive: true });
+    writeFileSync(join(tmpRoot, '.yggdrasil', 'yg-architecture.yaml'), 'node_types: {}\n');
+  });
+  afterEach(() => {
+    rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
+  it('refuses to load when version > "4.4.0"', async () => {
+    writeFileSync(join(tmpRoot, '.yggdrasil', 'yg-config.yaml'), 'version: "4.5.0"\n');
+    await expect(loadGraph(tmpRoot)).rejects.toThrow(/version "4\.5\.0"/);
+    await expect(loadGraph(tmpRoot)).rejects.toThrow(/Upgrade CLI/i);
+  });
+
+  it('loads when version === "4.4.0"', async () => {
+    writeFileSync(join(tmpRoot, '.yggdrasil', 'yg-config.yaml'), 'version: "4.4.0"\n');
+    await expect(loadGraph(tmpRoot)).resolves.toBeDefined();
+  });
+
+  it('loads when version < "4.4.0" (migration handles upgrade)', async () => {
+    writeFileSync(join(tmpRoot, '.yggdrasil', 'yg-config.yaml'), 'version: "4.3.0"\n');
+    await expect(loadGraph(tmpRoot)).resolves.toBeDefined();
+  });
+});
 
 describe('graph-loader', () => {
   it('throws when model/ directory does not exist', async () => {

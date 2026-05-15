@@ -24,3 +24,4 @@ mapping:
   - source/cli/tests/unit/core/approve-log.test.ts
   - source/cli/tests/unit/core/check-log.test.ts
   - source/cli/tests/unit/core/type-classifier.test.ts
+  - source/cli/tests/unit/migrations/to-4.4.0.test.ts

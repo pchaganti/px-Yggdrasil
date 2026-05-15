@@ -1,5 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { gt, valid } from 'semver';
 import type {
   Graph,
   GraphNode,
@@ -18,6 +19,9 @@ import { parseArchitecture } from '../io/architecture-parser.js';
 import { WhenPredicateInvalidError } from '../io/file-when-parser.js';
 import type { ArchitectureLoadError } from '../model/graph.js';
 import { findYggRoot } from '../utils/paths.js';
+import { detectVersion } from './migrator.js';
+
+const CLI_SUPPORTED_SCHEMA = '4.4.0';
 
 function toModelPath(absolutePath: string, modelDir: string): string {
   return path.relative(modelDir, absolutePath).replace(/\\/g, '/').replace(/\/+$/, '');
@@ -30,6 +34,15 @@ export async function loadGraph(
   options: { tolerateInvalidConfig?: boolean } = {},
 ): Promise<Graph> {
   const yggRoot = await findYggRoot(projectRoot);
+
+  const detected = await detectVersion(yggRoot);
+  if (detected !== null && valid(detected) && gt(detected, CLI_SUPPORTED_SCHEMA)) {
+    throw new Error(
+      `yg-config.yaml version "${detected}" is newer than this CLI supports ` +
+        `(max: ${CLI_SUPPORTED_SCHEMA}).\nUpgrade CLI: \`npm i -g @chrisdudek/yg\`.`,
+    );
+  }
+
   let configError: string | undefined;
   let config = FALLBACK_CONFIG;
   try {
