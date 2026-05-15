@@ -12,7 +12,7 @@ import type {
 } from '../model/when.js';
 import { normalizeMappingPaths } from '../utils/paths.js';
 import { expandMappingPaths } from '../utils/hash.js';
-import { walkRepoFiles } from '../utils/repo-scan.js';
+import { walkRepoFiles } from '../io/repo-scanner.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { computeEffectiveAspects } from './effective-aspects.js';
 import { FileContentCache } from './file-content-cache.js';

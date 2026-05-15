@@ -6,7 +6,7 @@ import { loadGraph } from '../core/graph-loader.js';
 import { classifyFile } from '../core/type-classifier.js';
 import { FileContentCache } from '../core/file-content-cache.js';
 import { renderTrace } from '../formatters/predicate-trace.js';
-import { loadRootGitignoreStack, isIgnoredByStack } from '../utils/repo-scan.js';
+import { loadRootGitignoreStack, isIgnoredByStack } from '../io/repo-scanner.js';
 import { projectRootFromGraph, resolveFileArg } from '../utils/paths.js';
 
 /**

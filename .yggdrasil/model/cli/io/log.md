@@ -20,3 +20,5 @@ Why: Reviewer flagged 'as unknown' as a deviation from the literal pipeline text
 How to apply: cast is now Record<string, unknown> in both files (the cast is a TS-level convenience when raw is null at runtime; subsequent null/Array.isArray checks remain the runtime gate). Resolves the approve rejection from the previous attempt; covers the same Task 1.7 cycle.
 ## [2026-05-15T06:18:08.224Z]
 Fix silent-missing-files violation in find-index.ts: ENOENT on log.md is expected for freshly created nodes; only emit warning for non-ENOENT errors, silently skip with debugWrite for absent files.
+## [2026-05-15T12:12:58.592Z]
+R0.3: repo-scanner.ts moved here from utils/repo-scan.ts (io adapter, not a pure helper — reads fs)

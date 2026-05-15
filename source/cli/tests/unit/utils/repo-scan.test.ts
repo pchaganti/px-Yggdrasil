@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { walkRepoFiles } from '../../../src/utils/repo-scan.js';
+import { walkRepoFiles } from '../../../src/io/repo-scanner.js';
 
 describe('walkRepoFiles', () => {
   let tmpDir: string;

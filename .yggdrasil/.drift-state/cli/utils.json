@@ -1,19 +1,18 @@
 {
-  "hash": "3183ff6b85ab1878982ae4a0b406771f82214adb474533cdc79afe02ec6c36ce",
+  "hash": "c031d8291a4febc77bc3a6af2be71ac8b4d12c7deaf80a79fd26f47bf020bffa",
   "files": {
     "own-subset:cli/utils": "b3f14205642c7484e87173b6901bb46127d7225969c67b25579130fd530a394f",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/posix-paths/yg-aspect.yaml": "3f025d4986e5dceea0b8fec8695cf9224305ef75229632e7a21a78600b0da29b",
+    ".yggdrasil/aspects/posix-paths/content.md": "05922cacd6b2cbeb849ca06d1d75a02609c90995cc701eb0b3602b0d401a9a26",
     "source/cli/src/utils/.gitkeep": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
     "source/cli/src/utils/atomic-write.ts": "46202039fa117ba4236d82b60ead294b9b2751e57e34579a39341c50d125b47a",
     "source/cli/src/utils/debug-log.ts": "3dac4018019f5f93d725f1264c23448e5e79145114397686d8129e193021ec98",
     "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
     "source/cli/src/utils/git.ts": "66fc5759c3e5064385e123606f7df9b9a3c7d8afa3926dbcc03d4d6fc39da20f",
-    "source/cli/src/utils/hash.ts": "68584e2e001427343dbc72a26ba2f44e9a4905b8133121bca370a164b2fc1284",
     "source/cli/src/utils/node-path-validator.ts": "9a137cde2f6a303214265afc7b629aacf28c1f6f5cd1a4a5211b40aeba6d70e8",
     "source/cli/src/utils/paths.ts": "7963ce71c72939400cff032aaba1030885ebcd0dde1e4110b2bfce8a7fd2dc95",
-    "source/cli/src/utils/repo-scan.ts": "1beb756bc0ff2b49e1798dec6d14ff5b68ca82b4eca77250b3003929fcdf7f7b",
-    ".yggdrasil/aspects/posix-paths/content.md": "05922cacd6b2cbeb849ca06d1d75a02609c90995cc701eb0b3602b0d401a9a26"
+    "source/cli/src/utils/hash.ts": "acecfb9b52e7199f9bbf53e58cfb1fbcef0e80992350909feb6763ec517d1058"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -24,13 +23,12 @@
     "source/cli/src/utils/debug-log.ts": 1776177846235.7266,
     "source/cli/src/utils/git-introspect.ts": 1778573699364.3071,
     "source/cli/src/utils/git.ts": 1776177846235.8984,
-    "source/cli/src/utils/hash.ts": 1778826722901.573,
+    "source/cli/src/utils/hash.ts": 1778847983894.1785,
     "source/cli/src/utils/node-path-validator.ts": 1778572609333.0933,
-    "source/cli/src/utils/paths.ts": 1778838962663.4138,
-    "source/cli/src/utils/repo-scan.ts": 1778826707993.8547
+    "source/cli/src/utils/paths.ts": 1778838962663.4138
   },
   "log": {
-    "last_entry_datetime": "2026-05-15T09:57:38.417Z",
-    "prefix_hash": "1d0fde629ef82d687a2065d99f3246577119cb24b00f090e9304d4f4a3798de6"
+    "last_entry_datetime": "2026-05-15T12:26:34.062Z",
+    "prefix_hash": "05009a43d981dca95c50c7c64348c79bd8638ee60fa3618efb78b7ec24f289e7"
   }
 }

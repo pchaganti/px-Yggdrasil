@@ -2,6 +2,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 import { createRequire } from 'node:module';
 import { type Ignore, type Options as IgnoreOptions } from 'ignore';
+import { debugWrite } from '../utils/debug-log.js';
 
 const require = createRequire(import.meta.url);
 const ignoreFactory = require('ignore') as (options?: IgnoreOptions) => Ignore;
@@ -16,7 +17,8 @@ export async function loadRootGitignoreStack(projectRoot: string): Promise<Gitig
     const ig = ignoreFactory();
     ig.add(content);
     return [{ dir: projectRoot, ig }];
-  } catch {
+  } catch (err) {
+    debugWrite(`[repo-scanner] root .gitignore not readable: ${(err as Error).message}`);
     return [];
   }
 }
@@ -42,14 +44,15 @@ async function collectFiles(
     const ig = ignoreFactory();
     ig.add(content);
     localStack = [...stack, { dir, ig }];
-  } catch {
-    // no local .gitignore
+  } catch (err) {
+    debugWrite(`[repo-scanner] local .gitignore not readable in ${dir}: ${(err as Error).message}`);
   }
 
   let entries;
   try {
     entries = await readdir(dir, { withFileTypes: true });
-  } catch {
+  } catch (err) {
+    debugWrite(`[repo-scanner] readdir failed for ${dir}: ${(err as Error).message}`);
     return [];
   }
 

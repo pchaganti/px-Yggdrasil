@@ -22,3 +22,4 @@ mapping:
   - source/cli/src/io/secrets-parser.ts
   - source/cli/src/io/log-parser.ts
   - source/cli/src/io/find-index.ts
+  - source/cli/src/io/repo-scanner.ts

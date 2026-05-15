@@ -8,7 +8,7 @@ import { computeEffectiveAspects } from '../core/effective-aspects.js';
 import { findOwner } from './owner.js';
 import { projectRootFromGraph, resolveFileArg } from '../utils/paths.js';
 import { FileContentCache } from '../core/file-content-cache.js';
-import { walkRepoFiles } from '../utils/repo-scan.js';
+import { walkRepoFiles } from '../io/repo-scanner.js';
 import { evaluateFileWhen } from '../core/file-when-evaluator.js';
 import type { Graph } from '../model/graph.js';
 

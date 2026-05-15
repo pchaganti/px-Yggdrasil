@@ -2,3 +2,5 @@
 Add yg type-suggest --file command: suggests node_type based on architecture when predicates. Shows matching types, closest 3 by satisfied-fraction, or edge-case messages for .yggdrasil/ and non-existent files.
 ## [2026-05-15T10:11:11.572Z]
 Restructure: loadGraph first, resolve --file via resolveFileArg(repoRoot), fix posix-paths trailing slash strip
+## [2026-05-15T12:12:58.996Z]
+R0.3: updated import from utils/repo-scan to io/repo-scanner (no logic change)

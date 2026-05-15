@@ -22,3 +22,5 @@ Add checkFileMappingGitignored: emits file-mapping-gitignored when a concrete fi
 Add checkStrictBackwardCoverage: scans all repo files against each strict type's when predicate, emitting type-strict-orphan (file matches strict type but unmapped), type-strict-misplaced (file mapped to wrong-type node), and strict-overlap-conflict (two strict types' when predicates overlap — one error per ordered pair). Overlap detection supersedes orphan/misplaced for conflicting files. Also fixed checkStrictBackwardCoverage tests: intermediate directories without yg-node.yaml are not scanned by loadGraph; tests now use flat (one-level) node paths.
 ## [2026-05-15T08:14:21.206Z]
 Split file-duplicate-mapping from overlapping-mapping: exact path duplicate in two nodes now emits file-duplicate-mapping (new code); containment (non-ancestor) continues to emit overlapping-mapping. Updated two test cases that were checking overlapping-mapping on exact duplicates.
+## [2026-05-15T12:12:58.789Z]
+R0.3: updated import from utils/repo-scan to io/repo-scanner (no logic change)
