@@ -4,7 +4,7 @@ description: API and CLI provider implementations — each adapter translates a 
 
 relations:
   - target: cli/llm/shared
-    type: uses
+    type: calls
 
 mapping:
   - source/cli/src/llm/anthropic.ts

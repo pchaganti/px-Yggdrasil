@@ -5,16 +5,15 @@ aspects:
   - what-why-next
 relations:
   - target: cli/core/loader
-    type: uses
+    type: calls
   - target: cli/core/context
-    type: uses
+    type: calls
   - target: cli/core/validator
-    type: uses
+    type: calls
   - target: cli/formatters
-    type: uses
-  - target: cli/commands/owner
-    type: uses
+    type: calls
+
   - target: cli/utils
-    type: uses
+    type: calls
 mapping:
   - source/cli/src/cli/build-context.ts

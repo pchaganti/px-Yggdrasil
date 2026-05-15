@@ -4,6 +4,6 @@ description: Bootstraps Yggdrasil graph structure in a project or refreshes plat
 aspects: []
 relations:
   - target: cli/templates
-    type: uses
+    type: calls
 mapping:
   - source/cli/src/cli/init.ts

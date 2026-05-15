@@ -7,8 +7,8 @@ aspects:
   - diagnostic-logging
 relations:
   - target: cli/core/approve
-    type: uses
+    type: calls
   - target: cli/llm/shared
-    type: uses
+    type: calls
 mapping:
   - source/cli/src/core/approve-reviewer.ts

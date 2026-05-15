@@ -6,6 +6,6 @@ relations:
   - target: cli/model/file-when
     type: uses
   - target: cli/core/file-when-evaluator
-    type: uses
+    type: calls
 mapping:
   - source/cli/src/core/type-classifier.ts

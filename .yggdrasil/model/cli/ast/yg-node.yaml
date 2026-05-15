@@ -3,4 +3,4 @@ type: module
 description: Tree-sitter AST parsing, traversal helpers, and synchronous check runner for AST-based aspect enforcement. Parent grouping for helpers-syntactic, helpers-naming, runtime, and report sub-nodes.
 relations:
   - target: cli/model
-    type: uses
+    type: calls

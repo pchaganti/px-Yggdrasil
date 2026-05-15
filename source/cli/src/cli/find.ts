@@ -1,5 +1,6 @@
 import type { Command } from 'commander';
 import chalk from 'chalk';
+import { debugWrite } from '../utils/debug-log.js';
 import { loadGraph } from '../core/graph-loader.js';
 import { buildIndex, createMiniSearch } from '../io/find-index.js';
 import type { IndexedDocument } from '../io/find-index.js';
@@ -55,6 +56,7 @@ export async function findCommand(query: string, projectRoot: string): Promise<n
     return 0;
   } catch (error) {
     const err = error as NodeJS.ErrnoException;
+    debugWrite(`[find] findCommand failed: ${error instanceof Error ? error.message : String(error)}`);
     if (err.code === 'ENOENT') {
       process.stderr.write(chalk.red(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`));
     } else {
@@ -75,6 +77,7 @@ export function registerFindCommand(program: Command): void {
         process.exit(exit);
       } catch (error) {
         const err = error as NodeJS.ErrnoException;
+        debugWrite(`[find] registerFindCommand action failed: ${error instanceof Error ? error.message : String(error)}`);
         if (err.code === 'ENOENT') {
           process.stderr.write(chalk.red(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`));
         } else {

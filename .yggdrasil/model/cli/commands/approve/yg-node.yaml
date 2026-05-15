@@ -4,10 +4,10 @@ description: CLI command implementing yg approve — orchestrates binary approve
 aspects: []
 relations:
   - target: cli/core/loader
-    type: uses
+    type: calls
   - target: cli/core/approve
-    type: uses
+    type: calls
   - target: cli/llm/shared
-    type: uses
+    type: calls
 mapping:
   - source/cli/src/cli/approve.ts

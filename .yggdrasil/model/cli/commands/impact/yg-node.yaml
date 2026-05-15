@@ -4,12 +4,11 @@ description: Blast radius analysis across node, aspect, and flow modes via yg im
 aspects: []
 relations:
   - target: cli/core/loader
-    type: uses
+    type: calls
   - target: cli/core/context
-    type: uses
-  - target: cli/commands/owner
-    type: uses
+    type: calls
+
   - target: cli/utils
-    type: uses
+    type: calls
 mapping:
   - source/cli/src/cli/impact.ts

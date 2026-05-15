@@ -4,6 +4,6 @@ description: Implements `yg knowledge list` and `yg knowledge read <name>` — r
 aspects: []
 relations:
   - target: cli/templates
-    type: uses
+    type: calls
 mapping:
   - source/cli/src/cli/knowledge.ts

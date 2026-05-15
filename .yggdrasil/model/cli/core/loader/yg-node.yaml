@@ -4,11 +4,13 @@ description: Loads the graph from .yggdrasil/ — model nodes, aspects, flows, s
 aspects:
   - silent-missing-files
 relations:
-  - target: cli/io
-    type: uses
+  - target: cli/io/stores
+    type: calls
+  - target: cli/io/parsers
+    type: calls
   - target: cli/model/graph
     type: uses
   - target: cli/utils
-    type: uses
+    type: calls
 mapping:
   - source/cli/src/core/graph-loader.ts

@@ -6,6 +6,6 @@ relations:
   - target: cli/model/file-when
     type: uses
   - target: cli/io/file-content-cache
-    type: uses
+    type: calls
 mapping:
   - source/cli/src/core/file-when-evaluator.ts

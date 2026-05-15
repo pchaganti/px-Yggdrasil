@@ -5,8 +5,10 @@ aspects:
   - posix-paths
 relations:
   - target: cli/core/loader
-    type: uses
-  - target: cli/io
-    type: uses
+    type: calls
+  - target: cli/io/stores
+    type: calls
+  - target: cli/io/file-content-cache
+    type: calls
 mapping:
   - source/cli/src/cli/find.ts

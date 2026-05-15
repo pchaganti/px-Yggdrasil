@@ -5,12 +5,12 @@ aspects:
   - posix-paths
 relations:
   - target: cli/core/loader
-    type: uses
+    type: calls
   - target: cli/core/type-classifier
-    type: uses
+    type: calls
   - target: cli/io/file-content-cache
-    type: uses
-  - target: cli/io
-    type: uses
+    type: calls
+  - target: cli/io/stores
+    type: calls
 mapping:
   - source/cli/src/cli/type-suggest.ts

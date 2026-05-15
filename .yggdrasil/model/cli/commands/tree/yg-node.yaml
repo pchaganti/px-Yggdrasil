@@ -4,7 +4,7 @@ description: Prints flat list of all nodes with path, type, and description via 
 aspects: []
 relations:
   - target: cli/core/loader
-    type: uses
+    type: calls
   - target: cli/model/graph
     type: uses
 mapping:

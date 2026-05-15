@@ -31,6 +31,8 @@ node_types:
       - top-level-error-handler
       - command-exit-codes
     parents: [module]
+    relations:
+      calls: [command]
 
   command:
     description: "CLI command handler — registers a Commander subcommand and formats output. Every file must export register<X>Command."
@@ -44,6 +46,9 @@ node_types:
       - cli-command-contract
       - diagnostic-logging
     parents: [module]
+    relations:
+      calls: [engine, parser-adapter, persistence-adapter, llm-shared, llm-subprocess-base, formatter, utility, ast-adapter, template]
+      uses: [types]
 
   engine:
     description: "Core domain logic — algorithms, validation, assembly, drift detection. No I/O, no console output, no LLM calls."
@@ -57,6 +62,9 @@ node_types:
       - no-direct-fs
       - no-direct-console
     parents: [module]
+    relations:
+      calls: [engine, parser-adapter, persistence-adapter, llm-shared, utility]
+      uses: [types]
 
   migration:
     description: "Schema migration — upgrades a .yggdrasil graph from one version to the next. Named to-X.Y.Z.ts."
@@ -65,6 +73,9 @@ node_types:
     aspects:
       - migration-idempotent
     parents: [module]
+    relations:
+      calls: [engine, parser-adapter, persistence-adapter, utility]
+      uses: [types]
 
   parser-adapter:
     description: "File-reading parser adapter — reads a file from disk and returns a typed model object. After R0.6, only true file-reading parsers remain here; in-memory parsers live in engine."
@@ -77,6 +88,9 @@ node_types:
       - yaml-parser-contract   # renamed to parser-contract in Phase 5
       - silent-missing-files
     parents: [module]
+    relations:
+      calls: [utility]
+      uses: [types]
 
   persistence-adapter:
     description: "Persistence adapter — file-system read/write helpers: stores, caches, scanners, graph I/O, atomic writes. After R0.3/R0.4/R0.5 every file-touching helper lives here."
@@ -94,6 +108,9 @@ node_types:
       - silent-missing-files
       - atomic-write-contract
     parents: [module]
+    relations:
+      calls: [persistence-adapter, utility]
+      uses: [types]
 
   ast-adapter:
     description: "AST adapter — AST runtime, structural helpers, and report types for deterministic code analysis."
@@ -105,6 +122,9 @@ node_types:
     aspects:
       - deterministic
     parents: [module]
+    relations:
+      calls: [utility, llm-shared]
+      uses: [types]
 
   llm-provider:
     description: "LLM provider — vendor-specific adapter implementing the provider interface. One file per vendor."
@@ -114,6 +134,9 @@ node_types:
       - provider-retry-contract
       - provider-redaction
     parents: [module]
+    relations:
+      calls: [llm-shared, llm-subprocess-base, utility]
+      uses: [types]
 
   llm-shared:
     description: "LLM shared infrastructure — aspect verifier, model fetcher, provider factory, API utilities, types, index. Plumbing; no uniform semantic contract."
@@ -125,6 +148,9 @@ node_types:
         - not:
             path: "**/*.test.ts"
     parents: [module]
+    relations:
+      calls: [llm-provider, utility]
+      uses: [types]
 
   llm-subprocess-base:
     description: "Subprocess-based LLM provider substrate — spawns child processes for CLI-native LLMs (claude-code, codex, gemini-cli). Exempt from deterministic; redaction is what matters."
@@ -133,6 +159,9 @@ node_types:
     aspects:
       - provider-redaction
     parents: [module]
+    relations:
+      calls: [utility]
+      uses: [types]
 
   formatter:
     description: "Output formatter — pure functions that assemble human/agent-readable CLI output strings. No I/O, no business logic."
@@ -141,6 +170,9 @@ node_types:
     aspects:
       - what-why-next
     parents: [module]
+    relations:
+      calls: [utility]
+      uses: [types]
 
   types:
     description: "Type definitions — pure TypeScript type/interface/enum declarations. No runtime behavior, no executable statements."
@@ -160,6 +192,9 @@ node_types:
       - no-side-effects-on-import
       - no-direct-fs
     parents: [module]
+    relations:
+      calls: [utility]
+      uses: [types]
 
   template:
     description: "Content template — generates agent-facing rules content and platform installation files."
@@ -168,6 +203,9 @@ node_types:
     aspects:
       - what-why-next
     parents: [module]
+    relations:
+      calls: [utility]
+      uses: [types]
 
   knowledge-doc:
     description: "Knowledge document — TypeScript module exporting a markdown string for yg knowledge read."

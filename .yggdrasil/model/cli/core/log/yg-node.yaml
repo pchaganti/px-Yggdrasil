@@ -7,9 +7,9 @@ aspects:
   - diagnostic-logging
 relations:
   - target: cli/core/log-validator
-    type: uses
+    type: calls
   - target: cli/io/stores
-    type: uses
+    type: calls
 mapping:
   - source/cli/src/core/log/log-add.ts
   - source/cli/src/core/log/log-read.ts

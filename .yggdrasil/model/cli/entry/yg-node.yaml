@@ -3,20 +3,20 @@ type: entry-point
 description: CLI entry point that bootstraps Commander and registers all yg subcommands
 relations:
   - target: cli/commands/init
-    type: uses
+    type: calls
   - target: cli/commands/build-context
-    type: uses
+    type: calls
   - target: cli/commands/owner
-    type: uses
+    type: calls
   - target: cli/commands/tree
-    type: uses
+    type: calls
   - target: cli/commands/impact
-    type: uses
+    type: calls
   - target: cli/commands/aspects
-    type: uses
+    type: calls
   - target: cli/commands/flows
-    type: uses
+    type: calls
   - target: cli/commands/check
-    type: uses
+    type: calls
 mapping:
   - source/cli/src/bin.ts

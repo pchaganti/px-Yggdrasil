@@ -5,7 +5,7 @@ aspects:
   - posix-paths
 relations:
   - target: cli/core/migrator
-    type: uses
+    type: calls
 mapping:
   - source/cli/src/migrations/to-4.0.0.ts
   - source/cli/src/migrations/to-4.3.0.ts

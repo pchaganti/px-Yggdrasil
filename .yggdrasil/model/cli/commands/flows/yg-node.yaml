@@ -4,6 +4,6 @@ description: Lists all flows with metadata in YAML format via yg flows
 aspects: []
 relations:
   - target: cli/core/loader
-    type: uses
+    type: calls
 mapping:
   - source/cli/src/cli/flows.ts

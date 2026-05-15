@@ -4,8 +4,8 @@ description: Lists all aspects with usage statistics in human-readable format vi
 aspects: []
 relations:
   - target: cli/core/loader
-    type: uses
+    type: calls
   - target: cli/core/context
-    type: uses
+    type: calls
 mapping:
   - source/cli/src/cli/aspects.ts

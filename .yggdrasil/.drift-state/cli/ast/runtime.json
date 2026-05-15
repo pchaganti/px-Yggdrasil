@@ -1,20 +1,20 @@
 {
-  "hash": "3d153a36ee18949e78f4c53c47a16fa87752466111c2370f587de6b26ac5b9d3",
+  "hash": "076ce9776fa9a0bc35d25dba7f258ca3de2cb57cdfbdc43b5996cd9328ea5d0b",
   "files": {
     "own-subset:cli/ast/runtime": "81c446303e7f0f81e4442926d9268b200464da4ffadf167ab4d6c49a0da2a341",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
-    ".yggdrasil/model/cli/ast/yg-node.yaml": "ba7734ec098d7ddc76f60d07bf689c4ccaede496055b139a3c77499b3de08fbd",
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": "20f321091b4f489efbf167feea9d42d73f7cffb21ea2e86958e565b550da164b",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
     "source/cli/src/ast/loader-hook-impl.ts": "7f184721c2121038768e06ea66b2661e99460e336151d2649e0fecdbe8459f37",
     "source/cli/src/ast/loader-hook.ts": "e34275e1bbf8e5197db94706a589266bc31d6dd0879b6e8428d3f7191155f72b",
     "source/cli/src/ast/parser.ts": "9451597848af970126af4eff49dfae7210dec2ea1a0aef51c0f445343557a508",
     "source/cli/src/ast/runner.ts": "af721e7a9f5b9de0c83b5f04041006154df2fd6960d4053f5f2b4e3d5177a2c1",
-    "source/cli/src/ast/suppress.ts": "66a5d612886d53b3bb4460b13054a491a41fac0c8c5d9379ca81039f3a394a0b"
+    "source/cli/src/ast/suppress.ts": "66a5d612886d53b3bb4460b13054a491a41fac0c8c5d9379ca81039f3a394a0b",
+    ".yggdrasil/model/cli/ast/yg-node.yaml": "5b06201b1c50bfd1ccb696b1f9f445d2b7aa4ca80e7c198bb219df2f8a60f8cb"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
-    ".yggdrasil/model/cli/ast/yg-node.yaml": 1778866346736.1907,
+    ".yggdrasil/model/cli/ast/yg-node.yaml": 1778872081128.6223,
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": 1775580563004.8235,
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
     "source/cli/src/ast/loader-hook-impl.ts": 1778434435909.4355,

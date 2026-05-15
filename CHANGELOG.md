@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Graph: `allowed_parents` and `allowed_relations` constraints added to all 21 classifying node types in `yg-architecture.yaml`. Relations are now validated against the architecture — forbidden relation types produce errors at `yg check` time.
+- Graph: two new node types: `repo-config` (classifying, covers root/tool/CI config files) and `test-fixture` (classifying, covers self-contained mini-repos used as test data). Eliminates the 305-file unmapped-files warning.
+- Graph: `cli/io/file-content-cache`, `cli/tests/fixtures` nodes added; `cli/io/parsers` and `cli/io/stores` added (split from the former `cli/io` wide node).
+- `find.ts`: `debugWrite()` added to both catch blocks to satisfy the `diagnostic-logging` aspect.
+
 - `core/approve-reviewer.ts`: new `runApproveWithReviewer()` entry point that runs LLM verification (aspects filtered to non-AST) and commits drift state on success. `LlmApproveResult` and `ApproveWithReviewerInput` types moved here from CLI layer.
 - `verifyAspects` now propagates `providerError: true` from provider responses to the returned `AspectVerificationResult`, enabling caller-side provider-vs-code error classification.
 - Three new `yg knowledge` topics for deep-reference material kept out of `rules.ts`:
