@@ -26,7 +26,7 @@ function isInsideRedactCall(node) {
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
-    if (!ast.inFile(file, 'src/llm/*.ts')) continue;
+    if (!ast.inFile(file, '**/src/llm/*.ts')) continue;
 
     // Check debugWrite() and process.stderr.write() calls for raw sensitive vars
     for (const node of ast.within(file.ast.rootNode, 'call_expression', { crossFunctions: true })) {

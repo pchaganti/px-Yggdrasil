@@ -1,4 +1,3 @@
-// yg-suppress(deterministic) log entry datetime is functional output of logAdd (returned to caller and written to log.md); Date.now() use is a conscious design decision accepted here
 import path from 'node:path';
 import type { Graph } from '../../model/graph.js';
 import type { IssueMessage } from '../../model/validation.js';
@@ -10,6 +9,7 @@ export interface LogAddInput {
   graph: Graph;
   nodePath: string;
   reasonText: string;
+  nowMs: number;
 }
 
 export type LogAddResult =
@@ -17,7 +17,7 @@ export type LogAddResult =
   | { ok: false; error: IssueMessage };
 
 export async function logAdd(input: LogAddInput): Promise<LogAddResult> {
-  const { graph, reasonText } = input;
+  const { graph, reasonText, nowMs } = input;
 
   const nv = validateNodePath(input.nodePath.trim().replace(/\\/g, '/').replace(/\/$/, ''));
   if (!nv.ok) {
@@ -93,7 +93,7 @@ export async function logAdd(input: LogAddInput): Promise<LogAddResult> {
   }
 
   const existing = await readLogSafe(logPath);
-  const datetime = monotonicNow(lastEntryDatetime(existing));
+  const datetime = monotonicNow(lastEntryDatetime(existing), nowMs);
 
   const body = reasonText.endsWith('\n') ? reasonText : reasonText + '\n';
   const entry = `## [${datetime}]\n${body}`;
@@ -113,8 +113,8 @@ function lastEntryDatetime(content: string): string | null {
   return entries[entries.length - 1].datetime;
 }
 
-function monotonicNow(lastEntry: string | null): string {
-  let now = Date.now();
+function monotonicNow(lastEntry: string | null, nowMs: number): string {
+  let now = nowMs;
   if (lastEntry !== null) {
     const lastMs = Date.parse(lastEntry);
     if (!Number.isNaN(lastMs) && now <= lastMs) {

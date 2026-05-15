@@ -6,3 +6,5 @@ R0.10: extracted log-add, log-read, log-merge-resolve from cli/ to core/log/ as 
 Add yg-suppress-disable/enable(deterministic) around monotonicNow — log entry datetime is functional output returned to caller; Date.now() use is a conscious design decision accepted here
 ## [2026-05-15T19:28:50.332Z]
 Move IssueMessage type from formatters/message-builder to model/validation — engine→formatter import violation fix for boundaries enforcement
+## [2026-05-15T20:41:33.677Z]
+Refactor logAdd to require nowMs parameter: move Date.now() call out of engine (log-add.ts) and into the CLI layer (log.ts). This satisfies the no-nondeterminism-direct AST aspect which forbids direct Date.now() calls in engine code.

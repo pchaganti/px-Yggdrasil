@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { join } from 'node:path';
 import { loadGraph } from '../core/graph-loader.js';
-import { initDebugLog } from '../utils/debug-log.js';
+import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { collectAncestors } from '../core/context-builder.js';
 import { computeEffectiveAspects } from '../core/effective-aspects.js';
 import { findOwner } from './owner.js';
@@ -627,6 +627,7 @@ export function registerImpactCommand(program: Command): void {
           }
         } catch (error) {
           const err = error as NodeJS.ErrnoException;
+          debugWrite(`[impact] command failed: ${(error as Error).message}`);
           if (err.code === 'ENOENT') {
             process.stderr.write(
               chalk.red(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`),

@@ -12,3 +12,5 @@ Thin wrapper now delegates log-add/read/merge-resolve logic to core/log/. Presen
 R0.10: rewrote cli/log.ts as pure presentation layer — removed direct fs/parsing logic, imports logAdd/logRead/logMergeResolve from core/log/, handles --reason-file and graph loading, normalizes node path with trim+posix before passing to core.
 ## [2026-05-15T17:52:31.371Z]
 Fix diagnostic-logging violations: add debugWrite() to catch blocks that exit without re-throwing.
+## [2026-05-15T20:44:47.418Z]
+Pass nowMs: Date.now() to logAdd — inject the current timestamp at the CLI boundary instead of inside the engine.

@@ -25,7 +25,7 @@ describe('logAdd (core)', () => {
   it('creates log.md when not present', async () => {
     const { projectRoot, nodePath } = await setupNode('billing');
     const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
-    const result = await logAdd({ graph, nodePath, reasonText: 'Initial setup' });
+    const result = await logAdd({ graph, nodePath, reasonText: 'Initial setup', nowMs: 1000 });
     expect(result.ok).toBe(true);
     const logPath = path.join(projectRoot, '.yggdrasil', 'model', nodePath, 'log.md');
     const content = await readFile(logPath, 'utf-8');
@@ -37,7 +37,7 @@ describe('logAdd (core)', () => {
     const logPath = path.join(projectRoot, '.yggdrasil', 'model', nodePath, 'log.md');
     await writeFile(logPath, '## [2026-05-11T14:00:00.000Z]\nFirst.\n');
     const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
-    const result = await logAdd({ graph, nodePath, reasonText: 'Second' });
+    const result = await logAdd({ graph, nodePath, reasonText: 'Second', nowMs: 1000 });
     expect(result.ok).toBe(true);
     const content = await readFile(logPath, 'utf-8');
     expect(content.match(/^## \[/gm)?.length).toBe(2);
@@ -49,14 +49,14 @@ describe('logAdd (core)', () => {
     const { projectRoot, nodePath } = await setupNode('billing');
     const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
     const logPath = path.join(projectRoot, '.yggdrasil', 'model', nodePath, 'log.md');
-    await logAdd({ graph, nodePath, reasonText: 'first' });
+    await logAdd({ graph, nodePath, reasonText: 'first', nowMs: 1000 });
     const afterFirst = await readFile(logPath, 'utf-8');
     const entriesAfterFirst = parseLog(afterFirst);
     expect(entriesAfterFirst).toHaveLength(1);
     const baselineOffsetEnd = entriesAfterFirst[0].offsetEnd;
     expect(baselineOffsetEnd).toBe(Buffer.byteLength(afterFirst, 'utf-8'));
 
-    await logAdd({ graph, nodePath, reasonText: 'second' });
+    await logAdd({ graph, nodePath, reasonText: 'second', nowMs: 2000 });
     const afterSecond = await readFile(logPath, 'utf-8');
     const entriesAfterSecond = parseLog(afterSecond);
     expect(entriesAfterSecond).toHaveLength(2);
@@ -69,7 +69,7 @@ describe('logAdd (core)', () => {
     const future = new Date(Date.now() + 60_000).toISOString();
     await writeFile(logPath, `## [${future}]\nFuture.\n`);
     const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
-    const result = await logAdd({ graph, nodePath, reasonText: 'Now' });
+    const result = await logAdd({ graph, nodePath, reasonText: 'Now', nowMs: 1000 });
     expect(result.ok).toBe(true);
     const content = await readFile(logPath, 'utf-8');
     const headers = [...content.matchAll(/^## \[(.+?)\]/gm)].map((m) => m[1]);
@@ -80,7 +80,7 @@ describe('logAdd (core)', () => {
   it('rejects empty reasonText after trim', async () => {
     const { projectRoot, nodePath } = await setupNode('billing');
     const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
-    const result = await logAdd({ graph, nodePath, reasonText: '   ' });
+    const result = await logAdd({ graph, nodePath, reasonText: '   ', nowMs: 1000 });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.what).toMatch(/reason.*empty/i);
   });
@@ -88,7 +88,7 @@ describe('logAdd (core)', () => {
   it('rejects reasonText with level-2 header outside fence', async () => {
     const { projectRoot, nodePath } = await setupNode('billing');
     const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
-    const result = await logAdd({ graph, nodePath, reasonText: 'intro\n## stray\n' });
+    const result = await logAdd({ graph, nodePath, reasonText: 'intro\n## stray\n', nowMs: 1000 });
     expect(result.ok).toBe(false);
   });
 
@@ -99,6 +99,7 @@ describe('logAdd (core)', () => {
       graph,
       nodePath,
       reasonText: 'before\n```python\n## comment\n```\nafter',
+      nowMs: 1000,
     });
     expect(result.ok).toBe(true);
   });
@@ -110,7 +111,7 @@ describe('logAdd (core)', () => {
     await writeFile(target, '');
     await symlink(target, logPath);
     const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
-    const result = await logAdd({ graph, nodePath, reasonText: 'x' });
+    const result = await logAdd({ graph, nodePath, reasonText: 'x', nowMs: 1000 });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.what).toContain('symbolic link');
   });
@@ -124,7 +125,7 @@ describe('logAdd (core)', () => {
     const s = await lstat(logPath);
     expect(s.nlink).toBe(2);
     const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
-    const result = await logAdd({ graph, nodePath, reasonText: 'x' });
+    const result = await logAdd({ graph, nodePath, reasonText: 'x', nowMs: 1000 });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.what).toContain('hard links');
   });
@@ -132,14 +133,14 @@ describe('logAdd (core)', () => {
   it('rejects invalid node path (..)', async () => {
     const { projectRoot } = await setupNode('billing');
     const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
-    const result = await logAdd({ graph, nodePath: '../escape', reasonText: 'x' });
+    const result = await logAdd({ graph, nodePath: '../escape', reasonText: 'x', nowMs: 1000 });
     expect(result.ok).toBe(false);
   });
 
   it('rejects when node does not exist (no yg-node.yaml)', async () => {
     const { projectRoot } = await setupNode('billing');
     const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
-    const result = await logAdd({ graph, nodePath: 'missing', reasonText: 'x' });
+    const result = await logAdd({ graph, nodePath: 'missing', reasonText: 'x', nowMs: 1000 });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.what).toContain('Node not found');
   });

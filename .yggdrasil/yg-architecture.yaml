@@ -62,6 +62,7 @@ node_types:
       - deterministic
       - no-direct-fs
       - no-direct-console
+      - no-nondeterminism-direct
     parents: [module]
     relations:
       calls: [engine, parser-adapter, persistence-adapter, llm-shared, utility]

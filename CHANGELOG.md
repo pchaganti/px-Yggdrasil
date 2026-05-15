@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- AST aspect `no-nondeterminism-direct`: enforces that engine files cannot call `Date.now()`, `Math.random()`, or access `process.env` directly — all non-deterministic inputs must be injected as parameters by the CLI layer. Applied to `engine` type via architecture defaults.
+- `logAdd` (engine): refactored `nowMs` from optional to required parameter — `Date.now()` call moved out of the engine into the CLI layer (`log.ts`). Tests updated to pass a fixed `nowMs` value for determinism.
+- Bug fix: all AST aspect `check.mjs` path filter patterns prefixed with `**/` to match actual file paths (e.g. `source/cli/src/cli/log.ts`) via minimatch glob. Without the prefix, the path filter never matched and aspects were silently skipped.
+- `impact.ts`: added `debugWrite()` to catch block to satisfy the `diagnostic-logging` aspect.
 - AST aspect `atomic-write-contract`: enforces that persistence-adapter files use `atomicWriteFile()` instead of raw `writeFile`/`appendFile` from `node:fs/promises`. Applied to `persistence-adapter` type via architecture defaults.
 - AST aspect `provider-redaction`: enforces that LLM provider files do not reference raw `prompt`, `response`, `content`, or `body` identifiers in log calls without `redactSecrets()` wrapping. Applied to `llm-provider` and `llm-subprocess-base` types via architecture defaults.
 - AST aspect `command-contract-shape`: enforces that each `cli/*.ts` command file exports exactly one `register<PascalCase>Command` function. Applied to `command` type via architecture defaults.

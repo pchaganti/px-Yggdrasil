@@ -9,7 +9,7 @@ export function check(ctx) {
     // atomic-write.ts itself is the implementation — exempt
     if (ast.inFile(file, '**/atomic-write.ts')) continue;
     // Only check persistence-adapter files (src/io/)
-    if (!ast.inFile(file, 'src/io/*.ts')) continue;
+    if (!ast.inFile(file, '**/src/io/*.ts')) continue;
 
     // Collect names imported from node:fs or node:fs/promises
     const fsImports = new Set();

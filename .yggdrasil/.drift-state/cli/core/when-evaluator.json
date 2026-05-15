@@ -1,5 +1,5 @@
 {
-  "hash": "fd894de1d82d7adcc345efa483ff8e13de6f9cd642d398ad853e21237961ea30",
+  "hash": "955b17f0f42595eb537b706db8deb2c126c9a13d890c3e0215588a6bd380856f",
   "files": {
     "own-subset:cli/core/when-evaluator": "08ba0223e2c2452cdfd008254d57daa56f83d17d01ccfe9b5db59c3078e13c16",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -10,10 +10,12 @@
     ".yggdrasil/aspects/no-direct-fs/check.mjs": "7419c97758e5b959eb745cf9a7752dfe4dde9505ef7e4add6325a43b5abf1038",
     ".yggdrasil/aspects/no-direct-console/yg-aspect.yaml": "a0054a1a26651b5b6e2c02d8557d4dcb87e85e2169e68f9fcf144e691a65ee6d",
     ".yggdrasil/aspects/no-direct-console/check.mjs": "7419c97758e5b959eb745cf9a7752dfe4dde9505ef7e4add6325a43b5abf1038",
-    ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
-    "source/cli/src/core/when-evaluator.ts": "37f280c7524b1777338ff57f16cd6f8bd8c1e34cf9b996c348e7fe0bb11599a1",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
-    ".yggdrasil/model/cli/model/when/yg-node.yaml": "52f97601d09e031e33e0e34aa869ab75bcc015f4e4f4905bc2891380be57ca69"
+    ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
+    ".yggdrasil/model/cli/model/when/yg-node.yaml": "52f97601d09e031e33e0e34aa869ab75bcc015f4e4f4905bc2891380be57ca69",
+    "source/cli/src/core/when-evaluator.ts": "37f280c7524b1777338ff57f16cd6f8bd8c1e34cf9b996c348e7fe0bb11599a1",
+    ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": "c51515d479377b0abc3d3d84a6c4d1bd43f81f3323966b2e0773282c2c445be7",
+    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": "5a8d98ab81d3c3f7e15f5fdaeb4e0ea05349fd2c8ae5dc50e0b85e7a788a9de9"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -24,6 +26,8 @@
     ".yggdrasil/aspects/no-direct-fs/check.mjs": 1778864424633.1697,
     ".yggdrasil/aspects/no-direct-console/yg-aspect.yaml": 1778864405391.7302,
     ".yggdrasil/aspects/no-direct-console/check.mjs": 1778864425699.0137,
+    ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": 1778876045985.2808,
+    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": 1778876910319.6726,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     ".yggdrasil/model/cli/model/when/yg-node.yaml": 1776494731303.1743,

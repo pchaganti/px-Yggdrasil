@@ -6,3 +6,5 @@ resolveFileArg call updated: cwd arg removed, file arg now repo-root-relative
 R0.3: updated import from utils/repo-scan to io/repo-scanner (no logic change)
 ## [2026-05-15T12:28:17.897Z]
 R0.4: file-content-cache import updated from core to io (no logic change)
+## [2026-05-15T20:45:36.280Z]
+Add debugWrite() to catch block — required by diagnostic-logging aspect to surface errors via debug channel.

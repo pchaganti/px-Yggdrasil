@@ -87,7 +87,7 @@ export function registerLogCommand(program: Command): void {
         }
 
         const nodePath = opts.node.trim().replace(/\\/g, '/').replace(/\/$/, '');
-        const result = await logAdd({ graph, nodePath, reasonText });
+        const result = await logAdd({ graph, nodePath, reasonText, nowMs: Date.now() });
         if (!result.ok) {
           process.stderr.write(chalk.red(buildIssueMessage(result.error)) + '\n');
           process.exit(1);

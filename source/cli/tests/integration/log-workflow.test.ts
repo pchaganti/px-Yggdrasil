@@ -50,7 +50,7 @@ async function setupProject(opts: { logRequired?: boolean } = {}): Promise<{
 
 async function logAddCmd(nodePath: string, reasonText: string, projectRoot: string): Promise<void> {
   const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
-  const result = await logAdd({ graph, nodePath, reasonText });
+  const result = await logAdd({ graph, nodePath, reasonText, nowMs: Date.now() });
   if (!result.ok) throw new Error(result.error.what);
 }
 

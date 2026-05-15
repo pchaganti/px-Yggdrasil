@@ -1,5 +1,5 @@
 {
-  "hash": "e726ced2a609e2eb0a01e16da52894daa4d1585f341cd7152acb157d4cead79c",
+  "hash": "00ab334e64546ac39d736555ceccbb8ba0955dd96ed43272b7717b12a7dd33ca",
   "files": {
     "own-subset:cli/core/type-classifier": "8c5f39069eed3c5018efc48092ac41336f371d30b415f5426550d06522ce8b96",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -12,8 +12,10 @@
     ".yggdrasil/aspects/no-direct-console/check.mjs": "7419c97758e5b959eb745cf9a7752dfe4dde9505ef7e4add6325a43b5abf1038",
     ".yggdrasil/model/cli/model/file-when/yg-node.yaml": "f9ecd1d6196e240a49928bcbf2d7fcc5b210985df3157b7291b0aea2fef69a3e",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
+    ".yggdrasil/model/cli/core/file-when-evaluator/yg-node.yaml": "4459ef68412ac9955e37b62ab6d5541c250a3b8278458fa319021e5a11203807",
     "source/cli/src/core/type-classifier.ts": "3cf419eeeebd3f7839134f74130d468d133faa9f12e134bcc58d16517f3acc7d",
-    ".yggdrasil/model/cli/core/file-when-evaluator/yg-node.yaml": "4459ef68412ac9955e37b62ab6d5541c250a3b8278458fa319021e5a11203807"
+    ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": "c51515d479377b0abc3d3d84a6c4d1bd43f81f3323966b2e0773282c2c445be7",
+    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": "5a8d98ab81d3c3f7e15f5fdaeb4e0ea05349fd2c8ae5dc50e0b85e7a788a9de9"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -24,6 +26,8 @@
     ".yggdrasil/aspects/no-direct-fs/check.mjs": 1778864424633.1697,
     ".yggdrasil/aspects/no-direct-console/yg-aspect.yaml": 1778864405391.7302,
     ".yggdrasil/aspects/no-direct-console/check.mjs": 1778864425699.0137,
+    ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": 1778876045985.2808,
+    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": 1778876910319.6726,
     ".yggdrasil/model/cli/model/file-when/yg-node.yaml": 1778650103730.5442,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     ".yggdrasil/model/cli/core/file-when-evaluator/yg-node.yaml": 1778872081124.2942,

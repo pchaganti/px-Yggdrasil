@@ -1,5 +1,5 @@
 {
-  "hash": "70723accab4b1585458b7d39b3642c2055a7930a7b0d59e0e6eda487f9c9af53",
+  "hash": "a40f8e71605ad741bc0ccff851828181a008759bf53c6acbfb10d72a6a4e13b4",
   "files": {
     "own-subset:cli/core/validator": "75d1d1d5b26df8b51ca62d9f24c5712dd6fa2d93d1c1ae81213d18c19a528c22",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -22,8 +22,10 @@
     ".yggdrasil/flows/build-context/yg-flow.yaml": "ad7b1fd9f74aacd66fe207b87d611c0b39f13903cc2737f6b0a971c110e07359",
     ".yggdrasil/flows/preflight/yg-flow.yaml": "b9c35e5bac6b7096f0085041a808206cb1968ddc33e18a8b741557962d43a410",
     ".yggdrasil/flows/validate/yg-flow.yaml": "ac7d3e18c4d443b113e4883426d03a35af4f3d8a6f92e97803eb6b8ef8d3efb5",
+    "source/cli/src/core/validator.ts": "028ea0873d01f6658e3ef90b8df4187f7652503ed72714a487eaf3fc7ecf46eb",
     "source/cli/src/core/effective-aspects.ts": "c10b0c3e927fcff8e00f3acb3ab50bb10dc919654045376fd36d37638a6b2da5",
-    "source/cli/src/core/validator.ts": "028ea0873d01f6658e3ef90b8df4187f7652503ed72714a487eaf3fc7ecf46eb"
+    ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": "c51515d479377b0abc3d3d84a6c4d1bd43f81f3323966b2e0773282c2c445be7",
+    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": "5a8d98ab81d3c3f7e15f5fdaeb4e0ea05349fd2c8ae5dc50e0b85e7a788a9de9"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -38,6 +40,8 @@
     ".yggdrasil/aspects/no-direct-fs/check.mjs": 1778864424633.1697,
     ".yggdrasil/aspects/no-direct-console/yg-aspect.yaml": 1778864405391.7302,
     ".yggdrasil/aspects/no-direct-console/check.mjs": 1778864425699.0137,
+    ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": 1778876045985.2808,
+    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": 1778876910319.6726,
     ".yggdrasil/model/cli/core/context/yg-node.yaml": 1778872081120.968,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
