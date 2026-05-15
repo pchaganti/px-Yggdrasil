@@ -1,0 +1,11 @@
+name: Type Classifier
+type: engine
+description: Classifies a file against all architecture node types that have a `when` predicate. Returns full matches (types whose when evaluates to true) and top-3 closest non-matching types ranked by satisfied-fraction (all_of average, any_of max, not invert, atom 0/1, exempt 1.0). Powers yg type-suggest.
+aspects: []
+relations:
+  - target: cli/model/file-when
+    type: uses
+  - target: cli/core/file-when-evaluator
+    type: uses
+mapping:
+  - source/cli/src/core/type-classifier.ts
