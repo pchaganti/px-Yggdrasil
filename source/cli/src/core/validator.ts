@@ -14,6 +14,15 @@ import { normalizeMappingPaths } from '../utils/paths.js';
 import { expandMappingPaths } from '../utils/hash.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { computeEffectiveAspects } from './effective-aspects.js';
+import { FileContentCache } from './file-content-cache.js';
+
+// Architecture-level errors that abort per-node and global validation stages.
+const ARCHITECTURE_FATAL_CODES = new Set<string>([
+  'type-unknown-parent',
+  'architecture-cycle',
+  'enforce-strict-without-when',
+  'when-predicate-invalid',
+]);
 
 export async function validate(graph: Graph, scope: string = 'all'): Promise<ValidationResult> {
   const issues: ValidationIssue[] = [];
@@ -45,6 +54,18 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
     });
   }
 
+  // Stage 1: architecture file failed to parse — cannot proceed.
+  if (graph.architectureError) {
+    const archErr = graph.architectureError;
+    if (typeof archErr === 'object' && archErr.code === 'when-predicate-invalid') {
+      issues.push({ severity: 'error', code: 'when-predicate-invalid', rule: 'when-predicate-invalid', message: archErr.message });
+    } else {
+      issues.push({ severity: 'error', code: 'architecture-invalid', rule: 'architecture-invalid', message: archErr as string });
+    }
+    return { issues, nodesScanned: 0 };
+  }
+
+  // Stage 2: schema-independent checks (run even when architecture has semantic errors).
   if (!graph.configError) {
     // Node type validation uses architecture file (yg-architecture.yaml), not config
     issues.push(...checkDanglingAspectRefs(graph));
@@ -55,6 +76,28 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
     issues.push(...checkHighFanOut(graph));
     issues.push(...checkMissingDescriptions(graph));
   }
+
+  // Stage 3: architecture-level checks — fatal errors short-circuit per-node + global stages.
+  const archIssues: ValidationIssue[] = [];
+  archIssues.push(...checkTypeUnknownParent(graph));
+  archIssues.push(...checkArchitectureParentCycles(graph));
+  archIssues.push(...checkEnforceStrictWithoutWhen(graph));
+  issues.push(...archIssues);
+  const hasArchFatal = archIssues.some(
+    (i) => i.severity === 'error' && i.code !== undefined && ARCHITECTURE_FATAL_CODES.has(i.code),
+  );
+  if (hasArchFatal) {
+    return { issues, nodesScanned: 0 };
+  }
+
+  // Shared cache for file-content reads in Stage 4/5.
+  const cache = new FileContentCache();
+
+  // Stage 4: per-node checks.
+  issues.push(...checkTypeWithoutWhenWithMapping(graph));
+  const whenMismatchOutcome = await checkTypeWhenMismatch(graph, cache);
+  issues.push(...whenMismatchOutcome.issues);
+  issues.push(...(await checkFileMappingGitignored(graph)));
 
   issues.push(...checkSchemas(graph));
   issues.push(...checkRelationTargets(graph));
@@ -72,6 +115,11 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   issues.push(...checkWhenReferences(graph));
   issues.push(...checkAspectReviewerEnum(graph));
   issues.push(...checkAspectRuleSources(graph));
+
+  // Stage 5: global checks.
+  issues.push(...checkFileDuplicateMapping(graph));
+  const strictOutcome = await checkStrictBackwardCoverage(graph, cache);
+  issues.push(...strictOutcome.issues);
 
   let filtered = issues;
   let nodesScanned = graph.nodes.size;
@@ -105,6 +153,48 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   }
 
   return { issues: filtered, nodesScanned };
+}
+
+// --- New Stage 3/4/5 checks (implementations follow in subsequent tasks) ---
+
+function checkTypeUnknownParent(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const knownTypes = new Set(Object.keys(graph.architecture.node_types));
+  for (const [typeName, typeConfig] of Object.entries(graph.architecture.node_types)) {
+    for (const parent of typeConfig.parents ?? []) {
+      if (!knownTypes.has(parent)) {
+        issues.push({
+          severity: 'error',
+          code: 'type-unknown-parent',
+          rule: 'type-unknown-parent',
+          message: buildIssueMessage({
+            what: `Architecture type '${typeName}' declares parent '${parent}' which is not defined in node_types.`,
+            why: `Parent types must be defined in yg-architecture.yaml — referencing an undefined type makes the architecture semantically invalid.`,
+            next: `Add '${parent}' to node_types or remove it from '${typeName}.parents'.`,
+          }),
+        });
+      }
+    }
+  }
+  return issues;
+}
+
+function checkArchitectureParentCycles(_graph: Graph): ValidationIssue[] { return []; }
+function checkEnforceStrictWithoutWhen(_graph: Graph): ValidationIssue[] { return []; }
+function checkTypeWithoutWhenWithMapping(_graph: Graph): ValidationIssue[] { return []; }
+async function checkTypeWhenMismatch(
+  _graph: Graph,
+  _cache: FileContentCache,
+): Promise<{ issues: ValidationIssue[]; unreadable: ValidationIssue[] }> {
+  return { issues: [], unreadable: [] };
+}
+async function checkFileMappingGitignored(_graph: Graph): Promise<ValidationIssue[]> { return []; }
+function checkFileDuplicateMapping(_graph: Graph): ValidationIssue[] { return []; }
+async function checkStrictBackwardCoverage(
+  _graph: Graph,
+  _cache: FileContentCache,
+): Promise<{ issues: ValidationIssue[]; unreadable: ValidationIssue[] }> {
+  return { issues: [], unreadable: [] };
 }
 
 // --- Rule 1: Relation targets exist ---

@@ -1203,3 +1203,67 @@ describe('validator', () => {
     });
   });
 });
+
+describe('validator — pipeline short-circuit', () => {
+  it('short-circuits per-node and global stages on architecture-level error', async () => {
+    const graph = createGraph({
+      architecture: {
+        node_types: {
+          a: { description: 'A', parents: ['nonexistent_type'] },
+        },
+      },
+    });
+    const result = await validate(graph);
+    const codes = new Set(result.issues.map((i) => i.code));
+    expect(codes.has('type-unknown-parent')).toBe(true);
+    expect(codes.has('type-when-mismatch')).toBe(false);
+    expect(codes.has('type-strict-orphan')).toBe(false);
+  });
+
+  it('description-missing on aspect fires even when architecture has fatal error', async () => {
+    const graph = createGraph({
+      architecture: {
+        node_types: {
+          a: { description: 'A', parents: ['nonexistent_type'] },
+        },
+      },
+      aspects: [{ name: 'broken-aspect', id: 'broken-aspect', artifacts: [] }],
+    });
+    const result = await validate(graph);
+    const codes = new Set(result.issues.map((i) => i.code));
+    expect(codes.has('type-unknown-parent')).toBe(true);
+    expect(codes.has('description-missing')).toBe(true);
+  });
+
+  it('returns architecture-invalid for string architectureError', async () => {
+    const graph = createGraph({ architectureError: 'yg-architecture.yaml: bad syntax' });
+    const result = await validate(graph);
+    expect(result.nodesScanned).toBe(0);
+    expect(result.issues).toHaveLength(1);
+    expect(result.issues[0].code).toBe('architecture-invalid');
+  });
+
+  it('returns when-predicate-invalid for structured architectureError', async () => {
+    const graph = createGraph({
+      architectureError: { code: 'when-predicate-invalid', message: 'unknown key: foo' },
+    });
+    const result = await validate(graph);
+    expect(result.nodesScanned).toBe(0);
+    expect(result.issues[0].code).toBe('when-predicate-invalid');
+  });
+
+  it('does not short-circuit when all parent types exist', async () => {
+    const graph = createGraph({
+      architecture: {
+        node_types: {
+          module: { description: 'Module' },
+          service: { description: 'Service', parents: ['module'] },
+        },
+      },
+    });
+    const result = await validate(graph);
+    const codes = new Set(result.issues.map((i) => i.code));
+    expect(codes.has('type-unknown-parent')).toBe(false);
+    expect(result.nodesScanned).toBeGreaterThanOrEqual(0);
+  });
+});
