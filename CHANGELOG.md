@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- AST aspect `provider-redaction`: enforces that LLM provider files do not reference raw `prompt`, `response`, `content`, or `body` identifiers in log calls without `redactSecrets()` wrapping. Applied to `llm-provider` and `llm-subprocess-base` types via architecture defaults.
 - AST aspect `command-contract-shape`: enforces that each `cli/*.ts` command file exports exactly one `register<PascalCase>Command` function. Applied to `command` type via architecture defaults.
 - AST aspect `migration-bumps-version`: enforces that each `migrations/to-X.Y.Z.ts` file references the target version string matching its filename. Applied to `migration` type via architecture defaults.
 - `to-4.3.0.ts`: now calls `updateConfigVersion('4.3.0')` to record the schema version bump in `yg-config.yaml` (previously updated architecture YAML without bumping the version).
