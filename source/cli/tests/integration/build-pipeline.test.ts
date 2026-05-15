@@ -229,14 +229,15 @@ describe('context pipeline integration', () => {
   });
 
   describe('subdirectory support', () => {
-    // All commands should work when CWD is a subdirectory of the project root.
-    // File paths are resolved relative to CWD, node paths are graph-level (unaffected by CWD).
+    // All commands work when CWD is a subdirectory of the project root.
+    // --file is always relative to the repository root, not CWD.
+    // --node paths are graph-level (unaffected by CWD).
 
-    it('owner --file resolves relative path from subdirectory', async () => {
+    it('owner --file resolves repo-root-relative path from subdirectory', async () => {
       await withFixtureCopy(FULL_FIXTURE, async (root) => {
         const subDir = path.join(root, 'src', 'orders');
         const result = spawnSync(
-          'node', [BIN_PATH, 'owner', '--file', 'order.service.ts'],
+          'node', [BIN_PATH, 'owner', '--file', 'src/orders/order.service.ts'],
           { cwd: subDir, encoding: 'utf-8' },
         );
         expect(result.stdout).toContain('src/orders/order.service.ts');
@@ -244,11 +245,11 @@ describe('context pipeline integration', () => {
       });
     });
 
-    it('context --file resolves relative path from subdirectory', async () => {
+    it('context --file resolves repo-root-relative path from subdirectory', async () => {
       await withFixtureCopy(FULL_FIXTURE, async (root) => {
         const subDir = path.join(root, 'src', 'orders');
         const result = spawnSync(
-          'node', [BIN_PATH, 'context', '--file', 'order.service.ts'],
+          'node', [BIN_PATH, 'context', '--file', 'src/orders/order.service.ts'],
           { cwd: subDir, encoding: 'utf-8' },
         );
         expect(result.status).toBe(0);
@@ -257,11 +258,11 @@ describe('context pipeline integration', () => {
       });
     });
 
-    it('impact --file resolves relative path from subdirectory', async () => {
+    it('impact --file resolves repo-root-relative path from subdirectory', async () => {
       await withFixtureCopy(FULL_FIXTURE, async (root) => {
         const subDir = path.join(root, 'src', 'orders');
         const result = spawnSync(
-          'node', [BIN_PATH, 'impact', '--file', 'order.service.ts'],
+          'node', [BIN_PATH, 'impact', '--file', 'src/orders/order.service.ts'],
           { cwd: subDir, encoding: 'utf-8' },
         );
         expect(result.status).toBe(0);

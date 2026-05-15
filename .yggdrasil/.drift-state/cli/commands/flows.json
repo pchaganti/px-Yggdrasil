@@ -1,22 +1,22 @@
 {
-  "hash": "51b014839709653c4efd21e96d9102f2fdf312c4f43f96db2886f1c208004418",
+  "hash": "3b6d89e02f6623306fc7856236cbad9e175bbd3b93dd28133292e176b2bfd296",
   "files": {
     "own-subset:cli/commands/flows": "9932bc67f551ca007b5b1d0d2b80619bebf08f1abf2219cc65aab5f54dacbde2",
-    ".yggdrasil/aspects/cli-command-contract/yg-aspect.yaml": "81ba5d9318ec49940495487c056356f9bd462d67ca4bb06d3fd954cf26945d01",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/commands/yg-node.yaml": "4d929734cf56d8fbf3adfdbb908be64075a4a3322a892656ad00ea07bb026ab4",
-    ".yggdrasil/aspects/cli-command-contract/content.md": "b1509ccd44cc91f1cff43926b69f16845407f518ecf4d448d24a0b4a4e2894c3",
+    ".yggdrasil/aspects/cli-command-contract/yg-aspect.yaml": "81ba5d9318ec49940495487c056356f9bd462d67ca4bb06d3fd954cf26945d01",
     ".yggdrasil/aspects/command-exit-codes/yg-aspect.yaml": "9fe1bb69349b53310e74cd5a62812036a51b29a427a5c1d8ecca1de7e51fb0dd",
     ".yggdrasil/aspects/command-exit-codes/check.mjs": "48e113c8e19ac3874b0efb8e0690cc245e7f3e2782e6aa6e9cab73ae62a1d120",
     ".yggdrasil/model/cli/core/loader/yg-node.yaml": "4ebc935b61c421bbf82d13e1ff9e8fa2c13966e40b58fcb4c68b1a8a9c411248",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
-    "source/cli/src/cli/flows.ts": "3db182e2200867c370f7aa41680b990a07d76feeea42d7dfc6fc22de2c0278d4"
+    "source/cli/src/cli/flows.ts": "3db182e2200867c370f7aa41680b990a07d76feeea42d7dfc6fc22de2c0278d4",
+    ".yggdrasil/aspects/cli-command-contract/content.md": "9962172737d5995bea14ff99e14d7b5aa7400ba602eeec73eac020dc025c3374"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/commands/yg-node.yaml": 1776177846200.1738,
     ".yggdrasil/aspects/cli-command-contract/yg-aspect.yaml": 1775580555580.0303,
-    ".yggdrasil/aspects/cli-command-contract/content.md": 1776176202110.4214,
+    ".yggdrasil/aspects/cli-command-contract/content.md": 1778839584428.2527,
     ".yggdrasil/aspects/command-exit-codes/yg-aspect.yaml": 1778444079600.2117,
     ".yggdrasil/aspects/command-exit-codes/check.mjs": 1778444087239.257,
     ".yggdrasil/model/cli/core/loader/yg-node.yaml": 1776177846201.3625,

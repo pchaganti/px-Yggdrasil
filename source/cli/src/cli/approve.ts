@@ -105,7 +105,7 @@ export async function runLlmVerification(
             ? astResult.violations.map(v => `${v.file}:${v.line}: ${v.message}`).join('\n')
             : 'all rules satisfied',
         };
-      } catch (e: any) {
+      } catch (e: unknown) {
         const code: string = (e as { code?: string }).code ?? 'AST_RUNNER_UNKNOWN';
         collectedResults[aspect.id] = {
           satisfied: false,
@@ -414,7 +414,7 @@ export function registerApproveCommand(program: Command): void {
         if (options.dryRun && options.node) {
           const { buildPrompt } = await import('../llm/aspect-verifier.js');
           for (const rawPath of options.node) {
-            const nodePath = rawPath.trim().replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '');
+            const nodePath = rawPath.trim().replace(/\/$/, '');
             const node = graph.nodes.get(nodePath);
             if (!node) { process.stderr.write(chalk.red(`Node '${nodePath}' not found.\n`)); continue; }
             const aspects = resolveAspects(node, graph);
@@ -455,7 +455,7 @@ export function registerApproveCommand(program: Command): void {
                     process.stdout.write(`  ${v.file}:${v.line}: ${v.message}\n`);
                   }
                 }
-              } catch (e: any) {
+              } catch (e: unknown) {
                 process.stdout.write(chalk.red(`  Error: ${(e as Error).message}\n`));
               }
             }

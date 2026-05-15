@@ -6,3 +6,4 @@ relations: []
 mapping:
   - source/cli/tests/integration/
   - source/cli/tests/fixtures/
+  - source/cli/tests/setup.ts

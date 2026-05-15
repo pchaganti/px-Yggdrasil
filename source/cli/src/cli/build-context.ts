@@ -93,7 +93,7 @@ export function registerBuildCommand(program: Command): void {
 
         if (options.file) {
           const repoRoot = projectRootFromGraph(graph.rootPath);
-          const repoRelative = resolveFileArg(process.cwd(), repoRoot, options.file);
+          const repoRelative = resolveFileArg(repoRoot, options.file);
           const result = findOwner(graph, repoRoot, repoRelative);
           if (!result.nodePath) {
             const candidates = findCandidateNodes(graph, result.file);

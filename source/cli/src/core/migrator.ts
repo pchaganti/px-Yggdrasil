@@ -19,7 +19,8 @@ export interface MigrationResult {
  * Returns semver string or null if no config found.
  */
 export async function detectVersion(yggRoot: string): Promise<string | null> {
-  const configPath = path.join(yggRoot, 'yg-config.yaml');
+  const root = yggRoot.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+  const configPath = path.join(root, 'yg-config.yaml');
   try {
     const content = await readFile(configPath, 'utf-8');
     const raw = parseYaml(content) as Record<string, unknown>;
@@ -41,6 +42,7 @@ export async function runMigrations(
   migrations: Migration[],
   yggRoot: string,
 ): Promise<MigrationResult[]> {
+  const root = yggRoot.trim().replace(/\\/g, '/').replace(/\/+$/, '');
   const cVer = valid(currentVersion);
   if (!cVer) return [];
 
@@ -54,7 +56,7 @@ export async function runMigrations(
 
   const results: MigrationResult[] = [];
   for (const migration of applicable) {
-    const result = await migration.run(yggRoot);
+    const result = await migration.run(root);
     results.push(result);
   }
   return results;
@@ -64,7 +66,8 @@ export async function runMigrations(
  * Update version field in yg-config.yaml.
  */
 export async function updateConfigVersion(yggRoot: string, version: string): Promise<void> {
-  const configPath = path.join(yggRoot, 'yg-config.yaml');
+  const root = yggRoot.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+  const configPath = path.join(root, 'yg-config.yaml');
   const content = await readFile(configPath, 'utf-8');
   const updated = content.match(/^version:\s/m)
     ? content.replace(/^version:\s.*$/m, `version: "${version}"`)

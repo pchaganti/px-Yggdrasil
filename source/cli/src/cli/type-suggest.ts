@@ -1,23 +1,23 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { existsSync } from 'node:fs';
-import { resolve, relative, sep } from 'node:path';
+import { resolve } from 'node:path';
 import { loadGraph } from '../core/graph-loader.js';
 import { classifyFile } from '../core/type-classifier.js';
 import { FileContentCache } from '../core/file-content-cache.js';
 import { renderTrace } from '../formatters/predicate-trace.js';
 import { loadRootGitignoreStack, isIgnoredByStack } from '../utils/repo-scan.js';
+import { projectRootFromGraph, resolveFileArg } from '../utils/paths.js';
 
 /**
  * Core logic for `yg type-suggest --file <path>`.
  * Exported for testability.
  */
 export async function typeSuggestCommand(file: string, projectRoot: string): Promise<void> {
-  const trimmedFile = file.trim();
-  const absPath = resolve(projectRoot, trimmedFile);
-  const repoRelPath = relative(projectRoot, absPath).split(sep).join('/');
-
   const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+  const repoRoot = projectRootFromGraph(graph.rootPath);
+  const repoRelPath = resolveFileArg(repoRoot, file.trim()).replace(/\/+$/, '');
+  const absPath = resolve(repoRoot, repoRelPath);
   const cache = new FileContentCache();
 
   if (repoRelPath.startsWith('.yggdrasil/')) {

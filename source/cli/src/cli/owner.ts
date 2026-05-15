@@ -8,7 +8,7 @@ import type { Graph, OwnerResult } from '../model/graph.js';
 import { normalizeMappingPaths, normalizeProjectRelativePath, projectRootFromGraph, resolveFileArg } from '../utils/paths.js';
 
 function normalizeForMatch(inputPath: string): string {
-  return inputPath.replace(/\\/g, '/').replace(/\/+$/, '');
+  return inputPath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
 }
 
 export function findOwner(graph: Graph, projectRoot: string, rawPath: string): OwnerResult {
@@ -44,11 +44,10 @@ export function registerOwnerCommand(program: Command): void {
     .requiredOption('--file <path>', 'File path (relative to repository root)')
     .action(async (options: { file: string }) => {
       try {
-        const cwd = process.cwd();
-        const graph = await loadGraph(cwd);
+        const graph = await loadGraph(process.cwd());
         initDebugLog(graph.rootPath, graph.config.debug ?? false);
         const repoRoot = projectRootFromGraph(graph.rootPath);
-        const repoRelative = resolveFileArg(cwd, repoRoot, options.file);
+        const repoRelative = resolveFileArg(repoRoot, options.file);
         const result = findOwner(graph, repoRoot, repoRelative);
 
         if (!result.nodePath) {

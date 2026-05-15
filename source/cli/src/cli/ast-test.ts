@@ -90,7 +90,7 @@ export function registerAstTestCommand(program: Command): void {
 
         printViolations(result.violations);
         process.exit(1);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
           process.stderr.write(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`);
         } else {

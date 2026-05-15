@@ -27,3 +27,7 @@ Every CLI command handler follows these conventions:
 ## Node path normalization
 
 - Commands accepting `--node <path>` normalize with: `options.node.trim().replace(/\/$/, '')`.
+
+## File path normalization
+
+- Commands accepting `--file <path>` resolve it via `resolveFileArg(repoRoot, options.file)` where `repoRoot = projectRootFromGraph(graph.rootPath)`. Never resolve relative to `process.cwd()` directly.

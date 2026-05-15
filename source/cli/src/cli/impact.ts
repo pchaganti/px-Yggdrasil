@@ -439,7 +439,7 @@ export function registerImpactCommand(program: Command): void {
           // Resolve --file to --node
           if (options.file) {
             const repoRoot = projectRootFromGraph(graph.rootPath);
-            const repoRelative = resolveFileArg(process.cwd(), repoRoot, options.file);
+            const repoRelative = resolveFileArg(repoRoot, options.file);
             const result = findOwner(graph, repoRoot, repoRelative);
             if (!result.nodePath) {
               process.stderr.write(chalk.red(`${result.file} -> no graph coverage\n`));

@@ -16,4 +16,4 @@ All internal path handling normalizes to POSIX format for cross-platform consist
 path.replace(/\\/g, '/').replace(/\/+$/, '')
 ```
 
-This appears in: `utils/paths.ts` (normalizeProjectRelativePath, normalizeMappingPaths), `cli/owner.ts` (normalizeForMatch), `core/validator.ts` (normalizePathForCompare), `core/check.ts`, `core/approve.ts`, and all command handlers processing `--node` options.
+This appears in: `utils/paths.ts` (normalizeProjectRelativePath, normalizeMappingPaths, resolveFileArg), `cli/owner.ts` (normalizeForMatch), `core/validator.ts` (normalizePathForCompare), `core/check.ts`, `core/approve.ts`, and all command handlers processing `--node` or `--file` options. Handlers that delegate to `resolveFileArg` satisfy this rule via that function.

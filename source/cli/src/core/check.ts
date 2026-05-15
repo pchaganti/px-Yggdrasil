@@ -399,7 +399,7 @@ export function buildCoverageIssue(uncoveredFiles: string[], totalGitFiles: numb
   if (uncoveredFiles.length <= sampleSize) {
     // Small count: files listed directly, guidance after
     message = buildIssueMessage({
-      what: `${uncoveredFiles.length.toLocaleString()} source file${uncoveredFiles.length === 1 ? '' : 's'} not covered by any node.\n${sample.map(f => '  ' + f).join('\n')}`,
+      what: `${uncoveredFiles.length} source file${uncoveredFiles.length === 1 ? '' : 's'} not covered by any node.\n${sample.map(f => '  ' + f).join('\n')}`,
       why: 'Files without graph coverage cannot be modified under the protocol.',
       next: `Check ownership candidates: yg context --file <path>\nThen: add to existing node mapping, or create a new node.`,
     });
@@ -409,7 +409,7 @@ export function buildCoverageIssue(uncoveredFiles: string[], totalGitFiles: numb
       ? 'Establish coverage: create nodes for active areas first, expand coverage incrementally.'
       : 'Add to an existing node mapping, or create a new node.';
     message = buildIssueMessage({
-      what: `${uncoveredFiles.length.toLocaleString()} source files have no graph coverage.\nExamples:\n${sample.map(f => '  ' + f).join('\n')}\n... and ${remaining.toLocaleString()} more`,
+      what: `${uncoveredFiles.length} source files have no graph coverage.\nExamples:\n${sample.map(f => '  ' + f).join('\n')}\n... and ${remaining} more`,
       why: 'Files without graph coverage cannot be modified under the protocol.',
       next: `${guidance}\nCheck ownership candidates: yg context --file <path>`,
     });

@@ -5,6 +5,7 @@ import { ensureLoaderRegistered } from './loader-hook.js';
 import { parseFile } from './parser.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { collectSuppressions, isLineSuppressed, SuppressMarkerError } from './suppress.js';
+import type { Node } from 'web-tree-sitter';
 import type { CheckContext, Violation } from './types.js';
 
 export interface RunAstAspectParams {
@@ -32,14 +33,15 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
 
   const checkPath = path.resolve(params.projectRoot, params.aspectDir, 'check.mjs');
 
-  let mod: any;
+  let mod: Record<string, unknown>;
   try {
-    mod = await import(pathToFileURL(checkPath).href);
-  } catch (e: any) {
-    if (e?.code === 'MODULE_NOT_FOUND' || e?.code === 'ERR_MODULE_NOT_FOUND') {
+    mod = await import(pathToFileURL(checkPath).href) as Record<string, unknown>;
+  } catch (e: unknown) {
+    const code = (e as NodeJS.ErrnoException).code;
+    if (code === 'MODULE_NOT_FOUND' || code === 'ERR_MODULE_NOT_FOUND') {
       throw new AstRunnerError('AST_LOADER_RESOLVE_FAILED', buildIssueMessage({
         what: `Could not resolve a module imported by check.mjs (aspect '${params.aspectId}').`,
-        why: `Missing module: ${e.message}.`,
+        why: `Missing module: ${(e as Error).message}.`,
         next: `Reinstall the CLI or remove the unresolved import from check.mjs.`,
       }));
     }
@@ -82,16 +84,17 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
     let ast;
     try {
       ast = await parseFile(f.path, content);
-    } catch (e: any) {
-      if (e?.message?.startsWith('no parser for extension')) {
+    } catch (e: unknown) {
+      const msg = (e as Error).message ?? String(e);
+      if (msg.startsWith('no parser for extension')) {
         throw new AstRunnerError('AST_NO_PARSER_FOR_EXTENSION', buildIssueMessage({
-          what: e.message + ` (file: ${f.path})`,
+          what: msg + ` (file: ${f.path})`,
           why: `v1 supports only .ts/.tsx/.js/.mjs/.cjs/.jsx.`,
           next: `Remove ${f.path} from the node's mapping.`,
         }));
       }
       throw new AstRunnerError('AST_GRAMMAR_LOAD_FAILED', buildIssueMessage({
-        what: `Failed to load tree-sitter grammar for ${f.path}: ${e.message}`,
+        what: `Failed to load tree-sitter grammar for ${f.path}: ${msg}`,
         why: `The bundled WASM grammar could not be loaded.`,
         next: `Reinstall the CLI.`,
       }));
@@ -118,15 +121,15 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
   let raw: unknown;
   try {
     raw = mod.check(ctx);
-  } catch (e: any) {
+  } catch (e: unknown) {
     throw new AstRunnerError('AST_CHECK_THROWN', buildIssueMessage({
       what: `check.mjs threw an exception while running (aspect '${params.aspectId}').`,
-      why: e?.stack ?? String(e),
+      why: (e instanceof Error ? e.stack : undefined) ?? String(e),
       next: `Fix the bug in check.mjs and re-run yg approve.`,
     }));
   }
 
-  if (raw && typeof (raw as any).then === 'function') {
+  if (raw !== null && typeof raw === 'object' && typeof (raw as Record<string, unknown>).then === 'function') {
     throw new AstRunnerError('AST_CHECK_ASYNC', buildIssueMessage({
       what: `check.mjs returned a Promise; only synchronous returns are supported in v1.`,
       why: `The runner does not await check's return value.`,
@@ -152,9 +155,9 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
   return { violations: filtered };
 }
 
-function findFirstErrorNode(node: any): any {
+function findFirstErrorNode(node: Node): Node | null {
   if (node.isError) return node;
-  for (const child of node.children ?? []) {
+  for (const child of node.children) {
     const found = findFirstErrorNode(child);
     if (found) return found;
   }
