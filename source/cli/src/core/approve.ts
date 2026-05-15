@@ -20,7 +20,7 @@ import path from 'node:path';
 import { parseLog } from './parsing/log-parser.js';
 import { validateFormat } from './log-format.js';
 import { validateAppendOnly } from './log-integrity.js';
-import type { IssueMessage } from '../formatters/message-builder.js';
+import type { IssueMessage } from '../model/validation.js';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ApproveOptions {

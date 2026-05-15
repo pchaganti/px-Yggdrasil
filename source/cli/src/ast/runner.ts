@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { ensureLoaderRegistered } from './loader-hook.js';
 import { parseFile } from './parser.js';
-import type { IssueMessage } from '../formatters/message-builder.js';
+import type { IssueMessage } from '../model/validation.js';
 import { collectSuppressions, isLineSuppressed, SuppressMarkerError } from './suppress.js';
 import type { Node } from 'web-tree-sitter';
 import type { CheckContext, Violation } from './types.js';

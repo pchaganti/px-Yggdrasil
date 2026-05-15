@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `eslint-plugin-boundaries` added to `devDependencies`; `eslint.config.js` configured with `boundaries/dependencies` rule mirroring the §4.4 `allowed_relations` table. Enforces that actual import statements match the declared architecture — CI fails on a forbidden cross-layer import before `yg check` even runs.
+- `IssueMessage` type moved from `formatters/message-builder.ts` to `model/validation.ts`; `message-builder.ts` re-exports it for backward compatibility. Eliminates engine→formatter import violations detected by the new boundaries rule.
+
 - Graph: `allowed_parents` and `allowed_relations` constraints added to all 21 classifying node types in `yg-architecture.yaml`. Relations are now validated against the architecture — forbidden relation types produce errors at `yg check` time.
 - Graph: two new node types: `repo-config` (classifying, covers root/tool/CI config files) and `test-fixture` (classifying, covers self-contained mini-repos used as test data). Eliminates the 305-file unmapped-files warning.
 - Graph: `cli/io/file-content-cache`, `cli/tests/fixtures` nodes added; `cli/io/parsers` and `cli/io/stores` added (split from the former `cli/io` wide node).

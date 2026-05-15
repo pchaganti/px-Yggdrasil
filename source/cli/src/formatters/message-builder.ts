@@ -1,15 +1,6 @@
-/**
- * Structured issue message for CLI output.
- * Every diagnostic message follows: what happened → why it's a problem → next command.
- */
-export interface IssueMessage {
-  /** What happened — facts, one line or short block */
-  what: string;
-  /** Why it's a problem — context for the agent */
-  why: string;
-  /** Concrete command or instruction to resolve */
-  next: string;
-}
+import type { IssueMessage } from '../model/validation.js';
+
+export type { IssueMessage };
 
 /**
  * Build a structured issue message.

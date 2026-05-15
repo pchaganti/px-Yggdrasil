@@ -1,7 +1,7 @@
 // yg-suppress(deterministic) log entry datetime is functional output of logAdd (returned to caller and written to log.md); Date.now() use is a conscious design decision accepted here
 import path from 'node:path';
 import type { Graph } from '../../model/graph.js';
-import type { IssueMessage } from '../../formatters/message-builder.js';
+import type { IssueMessage } from '../../model/validation.js';
 import { validateNodePath } from '../../utils/node-path-validator.js';
 import { parseLog } from '../parsing/log-parser.js';
 import { readLogSafe, statLogFile, writeLogFile } from '../../io/log-store.js';

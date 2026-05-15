@@ -30,3 +30,5 @@ R0.4: file-content-cache import updated from ./file-content-cache to ../io/file-
 R0.1 Phase 4: populate messageData via issueMsg() helper on every ValidationIssue. buildIssueMessage still called for backward compat message field; Phase 5 will drop message.
 ## [2026-05-15T14:17:01.550Z]
 Drop deprecated message field: issueMsg() returns only messageData; buildIssueMessage import removed; de-duplication uses messageData.what. R0.1 Phase 5.
+## [2026-05-15T19:28:50.442Z]
+Move IssueMessage type from formatters/message-builder to model/validation — engine→formatter import violation fix for boundaries enforcement

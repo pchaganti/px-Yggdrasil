@@ -1,3 +1,5 @@
+import type { IssueMessage } from './validation.js';
+
 // ============================================================
 // LLM Verification Results (shared by drift and LLM subsystems)
 // ============================================================
@@ -55,7 +57,7 @@ export interface ApproveResult {
   action: 'approved' | 'initial' | 'refused' | 'no-change';
   previousHash?: string;
   currentHash: string;
-  refuseReasonData?: import('../formatters/message-builder.js').IssueMessage;
+  refuseReasonData?: IssueMessage;
   aspectViolations?: Array<{ aspectId: string; reason: string }>;
   changedSource?: string[];
   changedUpstream?: AnnotatedChange[];

@@ -2,7 +2,7 @@
 import type { Graph } from '../model/graph.js';
 import type { ApproveResult, AspectVerificationResult } from '../model/drift.js';
 import type { LlmProvider } from '../llm/types.js';
-import type { IssueMessage } from '../formatters/message-builder.js';
+import type { IssueMessage } from '../model/validation.js';
 import { verifyAspects } from '../llm/aspect-verifier.js';
 import { resolveMaxTokens } from '../llm/api-utils.js';
 import { commitApproval, resolveAspects, loadSourceFiles } from './approve.js';

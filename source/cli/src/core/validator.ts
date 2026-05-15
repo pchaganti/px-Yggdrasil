@@ -13,7 +13,7 @@ import type {
 import { normalizeMappingPaths } from '../utils/paths.js';
 import { expandMappingPaths } from '../utils/hash.js';
 import { walkRepoFiles } from '../io/repo-scanner.js';
-import type { IssueMessage } from '../formatters/message-builder.js';
+import type { IssueMessage } from '../model/validation.js';
 import { computeEffectiveAspects } from './effective-aspects.js';
 import { FileContentCache } from '../io/file-content-cache.js';
 import { evaluateFileWhen } from './file-when-evaluator.js';

@@ -14,3 +14,5 @@ R0.6: update log-parser import — approve.ts now imports parseLog from ./parsin
 R0.1 Phase 4: populate refuseReasonData alongside refuseReason on all refused ApproveResult returns. buildIssueMessage still called for backward compat; Phase 5 will drop refuseReason.
 ## [2026-05-15T14:17:01.278Z]
 Drop deprecated refuseReason/buildIssueMessage: all approve refusals now set only refuseReasonData; buildIssueMessage import removed from core layer. R0.1 Phase 5.
+## [2026-05-15T19:28:50.095Z]
+Move IssueMessage type from formatters/message-builder to model/validation — engine→formatter import violation fix for boundaries enforcement

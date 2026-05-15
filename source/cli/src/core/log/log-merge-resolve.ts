@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import type { Graph } from '../../model/graph.js';
-import type { IssueMessage } from '../../formatters/message-builder.js';
+import type { IssueMessage } from '../../model/validation.js';
 import { validateNodePath } from '../../utils/node-path-validator.js';
 import { parseLog } from '../parsing/log-parser.js';
 import {
