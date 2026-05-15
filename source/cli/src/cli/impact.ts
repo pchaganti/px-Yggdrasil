@@ -1,11 +1,15 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
+import { join } from 'node:path';
 import { loadGraph } from '../core/graph-loader.js';
 import { initDebugLog } from '../utils/debug-log.js';
 import { collectAncestors } from '../core/context-builder.js';
 import { computeEffectiveAspects } from '../core/effective-aspects.js';
 import { findOwner } from './owner.js';
 import { projectRootFromGraph, resolveFileArg } from '../utils/paths.js';
+import { FileContentCache } from '../core/file-content-cache.js';
+import { walkRepoFiles } from '../utils/repo-scan.js';
+import { evaluateFileWhen } from '../core/file-when-evaluator.js';
 import type { Graph } from '../model/graph.js';
 
 const STRUCTURAL_TYPES = new Set(['uses', 'calls', 'extends', 'implements']);
@@ -307,32 +311,124 @@ async function handleFlowImpact(
 
 }
 
+async function handleTypeImpact(graph: Graph, typeId: string): Promise<void> {
+  const def = graph.architecture.node_types[typeId];
+  if (!def) {
+    process.stderr.write(chalk.red(`Type '${typeId}' not found in architecture.\n`));
+    process.exit(1);
+  }
+
+  const projectRoot = join(graph.rootPath, '..');
+
+  process.stdout.write(`\nType: ${typeId}\n`);
+  process.stdout.write(`Description: ${def.description}\n`);
+  if (def.enforce === 'strict') process.stdout.write(`enforce: strict\n`);
+  if (def.when) {
+    const { stringify } = await import('yaml');
+    const rendered = stringify(def.when, { lineWidth: 0 }).trimEnd();
+    process.stdout.write(`when:\n`);
+    for (const line of rendered.split('\n')) {
+      process.stdout.write(`  ${line}\n`);
+    }
+  }
+  if (def.aspects && def.aspects.length > 0) {
+    process.stdout.write(`aspects: [${def.aspects.join(', ')}]\n`);
+  }
+
+  const nodesOfType: string[] = [];
+  for (const [nodePath, node] of graph.nodes) {
+    if (node.meta.type === typeId) nodesOfType.push(nodePath);
+  }
+  nodesOfType.sort();
+
+  process.stdout.write(`\nNodes of this type (${nodesOfType.length}):\n`);
+  for (const p of nodesOfType) {
+    process.stdout.write(`  ${p}\n`);
+  }
+
+  const sourceFiles: Array<{ path: string; node: string }> = [];
+  for (const nodePath of nodesOfType) {
+    for (const p of graph.nodes.get(nodePath)?.meta.mapping ?? []) {
+      sourceFiles.push({ path: p, node: nodePath });
+    }
+  }
+  process.stdout.write(`\nSource files covered (${sourceFiles.length}):\n`);
+  for (const f of sourceFiles.slice(0, 20)) {
+    process.stdout.write(`  ${f.path} (in ${f.node})\n`);
+  }
+  if (sourceFiles.length > 20) {
+    process.stdout.write(`  ... (${sourceFiles.length - 20} more)\n`);
+  }
+
+  if (def.enforce === 'strict' && def.when) {
+    const cache = new FileContentCache();
+    const repoFiles = await walkRepoFiles(projectRoot);
+    const owners = new Map<string, string>();
+    for (const [np, n] of graph.nodes) {
+      for (const m of n.meta.mapping ?? []) owners.set(m, np);
+    }
+    const orphans: string[] = [];
+    const misplaced: Array<{ file: string; owner: string; ownerType: string }> = [];
+    for (const rel of repoFiles) {
+      const abs = join(projectRoot, rel);
+      const result = await evaluateFileWhen(def.when, {
+        absPath: abs, repoRelPath: rel, projectRoot, cache,
+      });
+      if (!result.result) continue;
+      const owner = owners.get(rel);
+      if (owner === undefined) {
+        orphans.push(rel);
+      } else {
+        const ownerType = graph.nodes.get(owner)?.meta.type ?? '?';
+        if (ownerType !== typeId) misplaced.push({ file: rel, owner, ownerType });
+      }
+    }
+    if (orphans.length === 0 && misplaced.length === 0) {
+      process.stdout.write(
+        `\nStrict coverage gap (0 files): None — all files satisfying when are in ${typeId}-type nodes.\n`,
+      );
+    } else {
+      process.stdout.write(`\nStrict coverage gap:\n`);
+      process.stdout.write(`  Orphans (matching files not in any mapping): ${orphans.length}\n`);
+      for (const p of orphans.slice(0, 10)) process.stdout.write(`    ${p}\n`);
+      if (orphans.length > 10) process.stdout.write(`    ... (${orphans.length - 10} more)\n`);
+      process.stdout.write(`  Misplaced (in wrong-type node mapping): ${misplaced.length}\n`);
+      for (const m of misplaced.slice(0, 10)) {
+        process.stdout.write(`    ${m.file} → ${m.owner} (type: ${m.ownerType})\n`);
+      }
+      if (misplaced.length > 10) process.stdout.write(`    ... (${misplaced.length - 10} more)\n`);
+    }
+  }
+  process.stdout.write('\n');
+}
+
 export function registerImpactCommand(program: Command): void {
   program
     .command('impact')
-    .description('Show reverse dependency impact for a node, aspect, or flow')
+    .description('Show reverse dependency impact for a node, aspect, flow, or type')
     .option('--node <path>', 'Node path relative to .yggdrasil/model/')
     .option('--file <file-path>', 'Source file path — resolves owner node automatically')
     .option('--aspect <id>', 'Aspect id (directory path under aspects/)')
     .option('--flow <name>', 'Flow name (directory name under flows/)')
+    .option('--type <id>', 'Architecture type id')
     .action(
-      async (options: { node?: string; file?: string; aspect?: string; flow?: string }) => {
+      async (options: { node?: string; file?: string; aspect?: string; flow?: string; type?: string }) => {
         try {
           if (options.node && options.file) {
             process.stderr.write(chalk.red("Error: '--node' and '--file' are mutually exclusive\n"));
             process.exit(1);
           }
 
-          const modeCount = [options.node || options.file, options.aspect, options.flow].filter(Boolean).length;
+          const modeCount = [options.node || options.file, options.aspect, options.flow, options.type].filter(Boolean).length;
           if (modeCount === 0) {
             process.stderr.write(
-              chalk.red('Error: one of --node, --file, --aspect, or --flow is required\n'),
+              chalk.red('Error: one of --node, --file, --aspect, --flow, or --type is required\n'),
             );
             process.exit(1);
           }
           if (modeCount > 1) {
             process.stderr.write(
-              chalk.red('Error: --node/--file, --aspect, and --flow are mutually exclusive\n'),
+              chalk.red('Error: --node/--file, --aspect, --flow, and --type are mutually exclusive\n'),
             );
             process.exit(1);
           }
@@ -359,6 +455,10 @@ export function registerImpactCommand(program: Command): void {
           }
           if (options.flow) {
             await handleFlowImpact(graph, options.flow.trim());
+            return;
+          }
+          if (options.type) {
+            await handleTypeImpact(graph, options.type.trim());
             return;
           }
 

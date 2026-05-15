@@ -292,4 +292,55 @@ describe('impact command', () => {
       });
     });
   });
+
+  describe('--type', () => {
+    it('shows type info and nodes of that type', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync(
+          'node',
+          [BIN_PATH, 'impact', '--type', 'service'],
+          { cwd, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain('Type: service');
+        expect(result.stdout).toContain('Nodes of this type (4):');
+      });
+    });
+
+    it('shows source files covered', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync(
+          'node',
+          [BIN_PATH, 'impact', '--type', 'service'],
+          { cwd, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain('Source files covered');
+      });
+    });
+
+    it('returns exit 1 for non-existent type', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync(
+          'node',
+          [BIN_PATH, 'impact', '--type', 'does-not-exist'],
+          { cwd, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain("Type 'does-not-exist' not found");
+      });
+    });
+
+    it('rejects --type combined with --node', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync(
+          'node',
+          [BIN_PATH, 'impact', '--type', 'service', '--node', 'orders/order-service'],
+          { cwd, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain('mutually exclusive');
+      });
+    });
+  });
 });
