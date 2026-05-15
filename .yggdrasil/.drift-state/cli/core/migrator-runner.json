@@ -1,5 +1,5 @@
 {
-  "hash": "3d2326215c3b59a48f0ff386141f7bc373cfc5e552a9309b812684257e2de4fd",
+  "hash": "981f3260549db8fee1f985a01fa2b02d2964577ea96072a80dce1c90c73a5b3f",
   "files": {
     "own-subset:cli/core/migrator-runner": "99f222a2a33062c1189a65d4c27a323bb1d9a2a7e771731b2c2bd771ff0f4908",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -9,7 +9,11 @@
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": "20f321091b4f489efbf167feea9d42d73f7cffb21ea2e86958e565b550da164b",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
     ".yggdrasil/model/cli/core/migrator/yg-node.yaml": "1c74bffe5d90a259c330d68888caf4097753f5e929e3edc036b6a295f49e44d1",
-    "source/cli/src/core/migrator-runner.ts": "24b53c6004c9ac36c65a20dd6c1df93ab977e70393e0a4c4b0b1fa2a1ee4033b"
+    "source/cli/src/core/migrator-runner.ts": "24b53c6004c9ac36c65a20dd6c1df93ab977e70393e0a4c4b0b1fa2a1ee4033b",
+    ".yggdrasil/aspects/no-direct-fs/yg-aspect.yaml": "1a218639a559be63f83f7e3f6604c710b9eff09936c51f3cc08ba521b41fd599",
+    ".yggdrasil/aspects/no-direct-fs/check.mjs": "7419c97758e5b959eb745cf9a7752dfe4dde9505ef7e4add6325a43b5abf1038",
+    ".yggdrasil/aspects/no-direct-console/yg-aspect.yaml": "a0054a1a26651b5b6e2c02d8557d4dcb87e85e2169e68f9fcf144e691a65ee6d",
+    ".yggdrasil/aspects/no-direct-console/check.mjs": "7419c97758e5b959eb745cf9a7752dfe4dde9505ef7e4add6325a43b5abf1038"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -18,6 +22,10 @@
     ".yggdrasil/aspects/posix-paths/content.md": 1778839996845.8894,
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": 1775580563004.8235,
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
+    ".yggdrasil/aspects/no-direct-fs/yg-aspect.yaml": 1778864403467.7827,
+    ".yggdrasil/aspects/no-direct-fs/check.mjs": 1778864424633.1697,
+    ".yggdrasil/aspects/no-direct-console/yg-aspect.yaml": 1778864405391.7302,
+    ".yggdrasil/aspects/no-direct-console/check.mjs": 1778864425699.0137,
     ".yggdrasil/model/cli/core/migrator/yg-node.yaml": 1776177846201.7908,
     "source/cli/src/core/migrator-runner.ts": 1778860917993.536
   },

@@ -1,7 +1,25 @@
 name: CLI Command Unit Tests
-type: test
+type: test-suite
 description: "Unit tests for thin CLI command wrappers: build-command, impact, owner, which"
 aspects: []
 relations: []
 mapping:
-  - source/cli/tests/unit/cli/
+  - source/cli/tests/unit/cli/approve-batch-integration.test.ts
+  - source/cli/tests/unit/cli/approve-batch.test.ts
+  - source/cli/tests/unit/cli/approve.test.ts
+  - source/cli/tests/unit/cli/aspects.test.ts
+  - source/cli/tests/unit/cli/build-command.test.ts
+  - source/cli/tests/unit/cli/check.test.ts
+  - source/cli/tests/unit/cli/find.test.ts
+  - source/cli/tests/unit/cli/flows.test.ts
+  - source/cli/tests/unit/cli/impact.test.ts
+  - source/cli/tests/unit/cli/init-upgrade.test.ts
+  - source/cli/tests/unit/cli/knowledge.test.ts
+  - source/cli/tests/unit/cli/log-add.test.ts
+  - source/cli/tests/unit/cli/log-merge-resolve.test.ts
+  - source/cli/tests/unit/cli/log-read.test.ts
+  - source/cli/tests/unit/cli/log.test.ts
+  - source/cli/tests/unit/cli/owner.test.ts
+  - source/cli/tests/unit/cli/run-batch.test.ts
+  - source/cli/tests/unit/cli/type-suggest.test.ts
+  - source/cli/tests/unit/cli/which.test.ts

@@ -3,7 +3,7 @@ import { access } from 'node:fs/promises';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { loadGraph } from '../core/graph-loader.js';
-import { initDebugLog } from '../utils/debug-log.js';
+import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import type { Graph, OwnerResult } from '../model/graph.js';
 import { normalizeMappingPaths, normalizeProjectRelativePath, projectRootFromGraph, resolveFileArg } from '../utils/paths.js';
 
@@ -54,7 +54,7 @@ export function registerOwnerCommand(program: Command): void {
           // Distinguish "file doesn't exist" from "file exists but not mapped"
           const absPath = path.resolve(repoRoot, result.file);
           let exists = true;
-          try { await access(absPath); } catch { exists = false; }
+          try { await access(absPath); } catch (e: unknown) { debugWrite(`[owner] access check failed: ${e instanceof Error ? e.message : String(e)}`); exists = false; }
           if (exists) {
             process.stdout.write(`${result.file} -> no graph coverage\n`);
           } else {

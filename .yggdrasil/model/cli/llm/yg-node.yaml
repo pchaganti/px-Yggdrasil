@@ -1,13 +1,5 @@
-name: LLM Core
-type: adapter
-description: LLM types, provider registry, and shared utilities
-aspects:
-  - diagnostic-logging
+name: LLM
+type: module
+description: LLM layer — parent grouping for providers, shared utilities, and subprocess base. Children own all source mappings.
 
 relations: []
-
-mapping:
-  - source/cli/src/llm/types.ts
-  - source/cli/src/llm/provider.ts
-  - source/cli/src/llm/index.ts
-  - source/cli/src/llm/api-utils.ts

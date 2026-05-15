@@ -1,5 +1,5 @@
 name: Migrations
-type: engine
+type: migration
 description: "Version-specific migration implementations — transforms .yggdrasil/ directory structure between major versions"
 aspects:
   - posix-paths

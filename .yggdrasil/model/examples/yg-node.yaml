@@ -1,5 +1,5 @@
 name: Examples
-type: project
+type: example
 description: "Self-contained example projects demonstrating Yggdrasil usage"
 aspects: []
 relations: []

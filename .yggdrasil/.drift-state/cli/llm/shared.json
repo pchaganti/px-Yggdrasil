@@ -1,0 +1,34 @@
+{
+  "hash": "9ea42959d89c242f5d734fe6f700a023895dada69a2e7ed35dae76bb0160a11b",
+  "files": {
+    "own-subset:cli/llm/shared": "78c235f3cf8c38ab5f01ff2d70f00cda29b714ffa1adaf5dad7ac84c6a7a0146",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/llm/yg-node.yaml": "eb86d7c0b81642af0c1d40cba6a1f5a780293a2304635bd100bd64677a4c8838",
+    ".yggdrasil/aspects/diagnostic-logging/yg-aspect.yaml": "d2f92251b7ac3da65b1e00800a1839a14f7508c11905dc9089bf0b62d310ee2b",
+    ".yggdrasil/aspects/diagnostic-logging/content.md": "861da9ccecc91d8c08168ba10fb297a729158f272fe8da5c136fd6a7e997fb41",
+    "source/cli/src/llm/types.ts": "1bb10d257c71c7d73e037566802946887cb3d7319864575ecce6dc7881091274",
+    "source/cli/src/llm/provider.ts": "9639bef6c74ad697525f3b68b144c2a8864f03f5fd9715fe193eaab3809bb139",
+    "source/cli/src/llm/index.ts": "2d506311c3ae23d8855f043cd95c1b243b942920b75c70e5efc43eb13cc67a09",
+    "source/cli/src/llm/api-utils.ts": "83521e4ec05f235354f865e2ffdf4303e4c3df6bb5bc593903d015c6482483c3",
+    "source/cli/src/llm/reviewer-test.ts": "05c8a5b09320643bb76df54e8abe221e252686e08e8152be3a26e3b4089e001d",
+    "source/cli/src/llm/model-fetcher.ts": "0c986bd9b6bf33393e48ec1bee70481d8db3dbd42b2eb4c69200798cf777afc3",
+    "source/cli/src/llm/aspect-verifier.ts": "416c7b6e5be4f2ba057c5aa82058523e9bc303f36ee5b0b5bedbd604150fef6e"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/llm/yg-node.yaml": 1778866396180.118,
+    ".yggdrasil/aspects/diagnostic-logging/yg-aspect.yaml": 1776177846197.3423,
+    ".yggdrasil/aspects/diagnostic-logging/content.md": 1776177846197.264,
+    "source/cli/src/llm/types.ts": 1776177846233.8337,
+    "source/cli/src/llm/provider.ts": 1776177846233.5361,
+    "source/cli/src/llm/index.ts": 1776177846232.9993,
+    "source/cli/src/llm/api-utils.ts": 1776177846232.0527,
+    "source/cli/src/llm/aspect-verifier.ts": 1778869821122.7275,
+    "source/cli/src/llm/reviewer-test.ts": 1776177846233.7026,
+    "source/cli/src/llm/model-fetcher.ts": 1776177846233.1375
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-15T18:32:03.036Z",
+    "prefix_hash": "da843cdb54749e07aa55e9f9cd0a834e31a49ac275a09e4d1f7a3e41ea05af09"
+  }
+}

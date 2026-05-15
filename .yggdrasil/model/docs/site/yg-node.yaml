@@ -1,5 +1,5 @@
 name: Docs Site Config
-type: project
+type: repo-config
 description: "VitePress documentation site infrastructure: package manifests, static assets (logo, og-image), and public directory"
 aspects: []
 relations: []
@@ -7,5 +7,4 @@ mapping:
   - docs/package.json
   - docs/package-lock.json
   - docs/public/
-  - docs/.vitepress/config.ts
-  - docs/.vitepress/theme/
+  - docs/.vitepress/

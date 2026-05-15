@@ -1,0 +1,5 @@
+name: Atomic Write
+type: persistence-adapter
+description: Low-level atomic file write helper — writes via a temp file + rename to avoid partial writes on crash or signal.
+mapping:
+  - source/cli/src/io/atomic-write.ts

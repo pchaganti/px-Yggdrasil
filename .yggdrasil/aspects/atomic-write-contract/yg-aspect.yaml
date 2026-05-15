@@ -1,0 +1,3 @@
+name: AtomicWriteContract
+description: "STUB — content added in Phase 4. Persistence-adapter writes to the filesystem must go through io/atomic-write, not raw fs.writeFile."
+reviewer: ast

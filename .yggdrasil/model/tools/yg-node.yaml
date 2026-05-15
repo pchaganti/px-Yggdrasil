@@ -1,5 +1,5 @@
 name: Tools
-type: project
+type: repo-config
 description: "Developer tools for asset generation: demo GIF renderer and related utilities"
 aspects: []
 relations: []

@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import path from 'node:path';
 import { loadGraph } from '../core/graph-loader.js';
-import { initDebugLog } from '../utils/debug-log.js';
+import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { approveNode, resolveAspects, loadSourceFiles, commitApproval } from '../core/approve.js';
 import { runApproveWithReviewer, type LlmApproveResult } from '../core/approve-reviewer.js';
 export type { LlmApproveResult };
@@ -84,6 +84,7 @@ export async function runLlmVerification(
           : 'all rules satisfied',
       };
     } catch (e: unknown) {
+      debugWrite(`[approve] ast aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
       const code: string = (e as { code?: string }).code ?? 'AST_RUNNER_UNKNOWN';
       const rendered = e instanceof AstRunnerError
         ? buildIssueMessage(e.messageData)
@@ -158,7 +159,7 @@ function formatLlmResults(result: LlmApproveResult): void {
     const messages: Record<NonNullable<LlmApproveResult['llmSkipped']>, string> = {
       'unavailable': 'Reviewer configured but not reachable — aspects not verified. Structural checks only.',
     };
-    process.stdout.write(chalk.dim(`  ${messages[result.llmSkipped]}\n`));
+    process.stdout.write(chalk.yellow(`  ${messages[result.llmSkipped]}\n`));
     return;
   }
 
@@ -404,6 +405,7 @@ export function registerApproveCommand(program: Command): void {
                   }
                 }
               } catch (e: unknown) {
+                debugWrite(`[approve] dry-run ast aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
                 process.stdout.write(chalk.red(`  Error: ${(e as Error).message}\n`));
               }
             }
@@ -411,7 +413,7 @@ export function registerApproveCommand(program: Command): void {
             // LLM aspects — show prompt for first
             if (llmAspects.length > 0 && sourceFiles.length > 0) {
               const prompt = buildPrompt(llmAspects[0], node.meta.description ?? '', nodePath, sourceFiles);
-              process.stdout.write(chalk.dim('--- Prompt for first LLM aspect ---\n'));
+              process.stdout.write(chalk.bold('--- Prompt for first LLM aspect ---\n'));
               process.stdout.write(prompt + '\n');
             }
           }
@@ -485,7 +487,7 @@ export function registerApproveCommand(program: Command): void {
         // Has mapping — single node approve
         const { provider, maxTokens, consensus } = await loadLlmProvider(graph);
         if (provider) {
-          process.stdout.write(chalk.dim(`Verifying aspects with reviewer — this may take a while. Do not interrupt.\n`));
+          process.stdout.write(chalk.yellow(`Verifying aspects with reviewer — this may take a while. Do not interrupt.\n`));
         }
         const coreResult = await approveNode(graph, nodePath);
         const llmCfg: LlmConfig = { provider, maxTokens, consensus };
@@ -495,6 +497,7 @@ export function registerApproveCommand(program: Command): void {
           process.exit(1);
         }
       } catch (error) {
+        debugWrite(`[approve] command failed: ${error instanceof Error ? error.message : String(error)}`);
         const err = error as NodeJS.ErrnoException;
         if (err.code === 'ENOENT') {
           process.stderr.write(

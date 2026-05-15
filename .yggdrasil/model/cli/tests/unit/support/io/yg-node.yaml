@@ -1,7 +1,19 @@
 name: I/O Unit Tests
-type: test
+type: test-suite
 description: "Unit tests for I/O parsers: artifact-reader, aspect-parser, config-parser, drift-state-store, flow-parser, node-parser, schema-parser"
 aspects: []
 relations: []
 mapping:
-  - source/cli/tests/unit/io/
+  - source/cli/tests/unit/io/architecture-parser.test.ts
+  - source/cli/tests/unit/io/artifact-reader.test.ts
+  - source/cli/tests/unit/io/aspect-parser.test.ts
+  - source/cli/tests/unit/io/config-parser.test.ts
+  - source/cli/tests/unit/io/drift-state-store.test.ts
+  - source/cli/tests/unit/io/file-when-parser.test.ts
+  - source/cli/tests/unit/io/find-index.test.ts
+  - source/cli/tests/unit/io/flow-parser.test.ts
+  - source/cli/tests/unit/io/log-parser.test.ts
+  - source/cli/tests/unit/io/node-parser.test.ts
+  - source/cli/tests/unit/io/schema-parser.test.ts
+  - source/cli/tests/unit/io/secrets-parser.test.ts
+  - source/cli/tests/unit/io/when-parser.test.ts

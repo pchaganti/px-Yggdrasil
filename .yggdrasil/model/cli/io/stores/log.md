@@ -8,3 +8,5 @@ R0.1 Phase 4: io/find-index.ts removes buildIssueMessage import — inline templ
 Add log-store.ts — readLogSafe, statLogFile, writeLogFile — fs operations for log.md that core/log modules route through instead of using node:fs directly.
 ## [2026-05-15T16:28:17.782Z]
 R0.10: added log-store.ts — fs wrapper for log.md files (readLogSafe, statLogFile, writeLogFile) with diagnostic-logging on ENOENT catch blocks.
+## [2026-05-15T17:44:23.192Z]
+Phase 2: reclassified from adapter to persistence-adapter. Removed atomic-write.ts (split to cli/io/atomic-write).

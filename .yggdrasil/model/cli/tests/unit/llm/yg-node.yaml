@@ -1,7 +1,16 @@
 name: LLM Unit Tests
-type: test
+type: test-suite
 description: Unit tests for LLM provider factory and provider implementations
 aspects: []
 relations: []
 mapping:
-  - source/cli/tests/unit/llm/
+  - source/cli/tests/unit/llm/anthropic.test.ts
+  - source/cli/tests/unit/llm/api-utils.test.ts
+  - source/cli/tests/unit/llm/claude-code.test.ts
+  - source/cli/tests/unit/llm/cli-base.test.ts
+  - source/cli/tests/unit/llm/cli-providers.test.ts
+  - source/cli/tests/unit/llm/google.test.ts
+  - source/cli/tests/unit/llm/model-fetcher.test.ts
+  - source/cli/tests/unit/llm/openai.test.ts
+  - source/cli/tests/unit/llm/provider.test.ts
+  - source/cli/tests/unit/llm/reviewer-test.test.ts

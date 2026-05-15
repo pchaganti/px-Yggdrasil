@@ -1,5 +1,5 @@
 name: Entry
-type: adapter
+type: entry-point
 description: CLI entry point that bootstraps Commander and registers all yg subcommands
 relations:
   - target: cli/commands/init

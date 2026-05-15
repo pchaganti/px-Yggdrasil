@@ -1,0 +1,3 @@
+name: TopLevelErrorHandler
+description: "STUB — content added in Phase 5. bin.ts must wrap the dispatcher so every thrown error becomes a structured CLI message with an exit code."
+reviewer: llm

@@ -1,5 +1,5 @@
 {
-  "hash": "96178c54d4b313abc024601b4e72f8137a8ac43083cd6a5b8992632574bbcd93",
+  "hash": "4e52b876d6452ea2d83263345e80ebc02e191454af156760d54c0b687ccd9fc1",
   "files": {
     "own-subset:cli/core/when-evaluator": "6af265a8bfb7f289b2734e0103f2dd2ab9946b266835ab4282581c0d33c93b80",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -7,6 +7,10 @@
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": "20f321091b4f489efbf167feea9d42d73f7cffb21ea2e86958e565b550da164b",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
+    ".yggdrasil/aspects/no-direct-fs/yg-aspect.yaml": "1a218639a559be63f83f7e3f6604c710b9eff09936c51f3cc08ba521b41fd599",
+    ".yggdrasil/aspects/no-direct-fs/check.mjs": "7419c97758e5b959eb745cf9a7752dfe4dde9505ef7e4add6325a43b5abf1038",
+    ".yggdrasil/aspects/no-direct-console/yg-aspect.yaml": "a0054a1a26651b5b6e2c02d8557d4dcb87e85e2169e68f9fcf144e691a65ee6d",
+    ".yggdrasil/aspects/no-direct-console/check.mjs": "7419c97758e5b959eb745cf9a7752dfe4dde9505ef7e4add6325a43b5abf1038",
     "source/cli/src/core/when-evaluator.ts": "37f280c7524b1777338ff57f16cd6f8bd8c1e34cf9b996c348e7fe0bb11599a1"
   },
   "mtimes": {
@@ -14,7 +18,11 @@
     ".yggdrasil/model/cli/core/yg-node.yaml": 1776177846202.0774,
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": 1775580563004.8235,
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
+    ".yggdrasil/aspects/no-direct-fs/yg-aspect.yaml": 1778864403467.7827,
+    ".yggdrasil/aspects/no-direct-fs/check.mjs": 1778864424633.1697,
+    ".yggdrasil/aspects/no-direct-console/yg-aspect.yaml": 1778864405391.7302,
+    ".yggdrasil/aspects/no-direct-console/check.mjs": 1778864425699.0137,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    "source/cli/src/core/when-evaluator.ts": 1776430119046.446
+    "source/cli/src/core/when-evaluator.ts": 1776494731309.59
   }
 }

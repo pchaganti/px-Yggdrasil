@@ -8,7 +8,7 @@ relations:
     type: uses
   - target: cli/core/type-classifier
     type: uses
-  - target: cli/core/file-content-cache
+  - target: cli/io/file-content-cache
     type: uses
   - target: cli/io
     type: uses

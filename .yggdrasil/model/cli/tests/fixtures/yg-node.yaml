@@ -1,0 +1,7 @@
+name: Test Fixtures
+type: test-fixture
+description: "Self-contained mini-repos used as test data for integration and E2E tests"
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/fixtures/

@@ -7,7 +7,7 @@ export async function parseSchema(filePath: string): Promise<SchemaDef> {
   const filename = path.basename(filePath);
   const content = await readFile(filePath, 'utf-8');
   const raw = parseYaml(content) as Record<string, unknown>;
-  if (raw != null && typeof raw !== 'object') {
+  if (raw != null && (typeof raw !== 'object' || Array.isArray(raw))) {
     throw new Error(`${filename} at ${filePath}: expected YAML mapping or empty document`);
   }
   const rawName = path.basename(filePath, path.extname(filePath));

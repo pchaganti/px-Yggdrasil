@@ -1,8 +1,13 @@
 name: Utils
-type: adapter
+type: utility
 description: Shared helper functions for path normalization, SHA-256 hashing, and token estimation
 aspects:
   - posix-paths
 relations: []
 mapping:
-  - source/cli/src/utils/
+  - source/cli/src/utils/debug-log.ts
+  - source/cli/src/utils/git-introspect.ts
+  - source/cli/src/utils/git.ts
+  - source/cli/src/utils/hash.ts
+  - source/cli/src/utils/node-path-validator.ts
+  - source/cli/src/utils/paths.ts

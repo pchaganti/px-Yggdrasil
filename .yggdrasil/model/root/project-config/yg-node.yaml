@@ -1,0 +1,25 @@
+name: Project Config
+type: repo-config
+description: "Root-level repository configuration: dev tool settings, CI, editor config, and project documentation files"
+aspects: []
+relations: []
+mapping:
+  - .claude/
+  - .devcontainer/
+  - .editorconfig
+  - .gitattributes
+  - .github/
+  - .gitignore
+  - .markdownlint-cli2.jsonc
+  - .nvmrc
+  - .rtk/
+  - Yggdrasil.code-workspace
+  - AGENTS.md
+  - CHANGELOG.md
+  - CLAUDE.md
+  - CODE_OF_CONDUCT.md
+  - CONTRIBUTING.md
+  - LICENSE
+  - README.md
+  - SECURITY.md
+  - SUPPORT.md

@@ -1,7 +1,7 @@
 name: E2E Tests
-type: test
+type: test-suite
 description: Subprocess-based end-to-end tests that spawn the compiled dist/bin.js binary and assert on stdout/stderr/exit code
 aspects: []
 relations: []
 mapping:
-  - source/cli/tests/e2e/
+  - source/cli/tests/e2e/cli.test.ts

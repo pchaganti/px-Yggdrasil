@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { loadGraph } from '../core/graph-loader.js';
+import { debugWrite } from '../utils/debug-log.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { logAdd } from '../core/log/log-add.js';
 import { logRead } from '../core/log/log-read.js';
@@ -10,6 +11,7 @@ import { logMergeResolve } from '../core/log/log-merge-resolve.js';
 
 function handleError(error: unknown): never {
   const msg = (error as Error).message;
+  debugWrite(`[log] command failed: ${msg}`);
   if (msg.includes('No .yggdrasil/ directory found') || msg.includes('does not exist')) {
     process.stderr.write(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`);
   } else {
@@ -65,6 +67,7 @@ export function registerLogCommand(program: Command): void {
           } catch (err) {
             const e = err as NodeJS.ErrnoException;
             if (e.code === 'ENOENT' || !e.code) {
+              debugWrite(`[log] reason-file not found: ${e.message}`);
               process.stderr.write(
                 chalk.red(
                   buildIssueMessage({

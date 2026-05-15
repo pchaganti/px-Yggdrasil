@@ -1,7 +1,5 @@
 name: Support Unit Tests
-type: test
-description: Parent node for CLI support unit tests — covers formatters directly; I/O, templates, and utils have child nodes
+type: module
+description: Parent node for CLI support unit tests — I/O, formatters, templates, and utils have child nodes
 aspects: []
 relations: []
-mapping:
-  - source/cli/tests/unit/formatters/

@@ -10,3 +10,5 @@ R0.6: update log-parser import — log-add.ts, log-read.ts, log-merge-resolve.ts
 Thin wrapper now delegates log-add/read/merge-resolve logic to core/log/. Presentation (chalk, buildIssueMessage, process.exit) and --reason-file reading remain at CLI layer.
 ## [2026-05-15T16:28:22.013Z]
 R0.10: rewrote cli/log.ts as pure presentation layer — removed direct fs/parsing logic, imports logAdd/logRead/logMergeResolve from core/log/, handles --reason-file and graph loading, normalizes node path with trim+posix before passing to core.
+## [2026-05-15T17:52:31.371Z]
+Fix diagnostic-logging violations: add debugWrite() to catch blocks that exit without re-throwing.

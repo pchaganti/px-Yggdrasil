@@ -8,3 +8,5 @@ R0.1 Phase 4: import AstRunnerError + buildIssueMessage; AstRunnerError catch no
 Drop deprecated refuseReason/message fields: cli/approve.ts now uses refuseReasonData for provider error and violation results; formatRefused reads refuseReasonData via buildIssueMessage. R0.1 Phase 5.
 ## [2026-05-15T15:48:44.813Z]
 R0.2: thin cli/approve.ts — runLlmVerification now delegates LLM aspects to core/approve-reviewer::runApproveWithReviewer. AST aspects still handled at CLI layer. LlmApproveResult re-exported from core for backward compat.
+## [2026-05-15T17:52:30.771Z]
+Fix diagnostic-logging violations: add debugWrite() to catch blocks that swallow errors without re-throwing.

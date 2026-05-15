@@ -1,5 +1,5 @@
 name: Unit Tests
-type: test
+type: module
 description: Parent node for CLI unit tests — children cover core, CLI command wrappers, and support modules
 aspects: []
 relations: []

@@ -74,7 +74,7 @@ async function loadRootGitignoreStack(projectRoot?: string): Promise<GitignoreEn
 
 function isIgnoredByStack(candidatePath: string, stack: GitignoreEntry[]): boolean {
   for (const { basePath, matcher } of stack) {
-    const relativePath = path.relative(basePath, candidatePath);
+    const relativePath = path.relative(basePath, candidatePath).replace(/\\/g, '/');
     if (relativePath === '' || relativePath.startsWith('..')) continue;
     if (matcher.ignores(relativePath) || matcher.ignores(relativePath + '/')) return true;
   }

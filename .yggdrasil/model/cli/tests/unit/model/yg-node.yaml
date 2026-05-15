@@ -1,5 +1,5 @@
 name: Model Unit Tests
-type: test
+type: test-suite
 description: Unit tests for TypeScript model types, covering WhenPredicate, FileWhenPredicate, and DriftNodeState type shapes.
 aspects: []
 relations: []

@@ -6,3 +6,5 @@ Drop deprecated .message field: build-context.ts now renders ValidationIssue via
 Fix ENOENT handler to use buildIssueMessage: 'Run yg init first' is a remediation command requiring structured what/why/next format per what-why-next aspect.
 ## [2026-05-15T14:25:36.164Z]
 Fix node normalization: remove extra .replace(/^\.\//,'') not in cli-command-contract; restore ENOENT message to required verbatim string per cli-command-contract (what-why-next aspect updated to exempt this standardized string).
+## [2026-05-15T17:52:31.033Z]
+Fix diagnostic-logging violations: add debugWrite() to catch block that exits without re-throwing.

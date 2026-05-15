@@ -1,9 +1,0 @@
-name: File Content Cache
-type: engine
-description: Per-run cache of file content for predicate evaluation. Memoizes reads by absolute path and applies binary detection (null bytes in first 8KB) plus a 5MB size guard so the file-when evaluator never streams huge or non-text payloads through regex.
-aspects: []
-relations:
-  - target: cli/model
-    type: uses
-mapping:
-  - source/cli/src/io/file-content-cache.ts

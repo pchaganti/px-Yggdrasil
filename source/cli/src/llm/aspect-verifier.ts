@@ -34,6 +34,10 @@ reason — accept it as-is. The marker applies contextually to the surrounding c
 (function, class, or block where it appears). If placed at file level, it applies to
 the entire file.
 
+A bracket form also exists: yg-suppress-disable(<aspect-id>) <reason> placed before a
+block, and yg-suppress-enable(<aspect-id>) placed after it, suppresses all code between
+the two markers. Honor the bracket form the same way as the single-line form.
+
 Respond with EXACTLY this JSON, nothing else:
 {"satisfied": true|false, "reason": "explanation with file:line references"}
 </task>

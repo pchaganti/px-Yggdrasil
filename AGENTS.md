@@ -52,7 +52,7 @@ This applies to CLI output only. Rules.ts (system prompt) provides the map — w
 
 ## Dogfood Issue Tracking
 
-While working in this repo, if you encounter a problem with the CLI itself or with the rules/knowledge content (contradictions, missing warnings, misleading examples), append an entry to `.dogfood-report.md` at the repo root. Format:
+While working in this repo, if you encounter a problem with the CLI itself or with the rules/knowledge content (contradictions, missing warnings, misleading examples), append an entry to `.temp/dogfood-report.md`. Format:
 
 ```
 ## <date> — <short title>
@@ -69,4 +69,4 @@ Mark entries **RESOLVED** (with commit SHA) once fixed, or **DEFERRED** (with re
 Consider both:
 
 1. **Product** — Is the command correct and useful for adopters?
-2. **Dogfood** — Is this repo's graph coverage mature enough? Gaps are expected.
+2. **Dogfood** — Is this repo's graph coverage correct and complete?

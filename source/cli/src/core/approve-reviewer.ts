@@ -1,3 +1,4 @@
+// yg-suppress(deterministic) approve-reviewer must invoke the configured LLM provider for verification; non-determinism is intentional and inherent to this engine's purpose
 import type { Graph } from '../model/graph.js';
 import type { ApproveResult, AspectVerificationResult } from '../model/drift.js';
 import type { LlmProvider } from '../llm/types.js';

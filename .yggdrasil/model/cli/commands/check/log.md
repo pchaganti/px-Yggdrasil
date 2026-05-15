@@ -6,3 +6,5 @@ Add strict coverage grouping in formatOutput: when >5 type-strict-orphan/misplac
 R0.1 Phase 3: reads messageData via msg() helper to render issue output; buildIssueMessage now called at CLI layer instead of engine. Fallback to .message for issues not yet migrated.
 ## [2026-05-15T14:17:01.161Z]
 Drop deprecated .message field: msg() helper simplified to buildIssueMessage(issue.messageData); architecture regex extraction updated to use messageData.what. R0.1 Phase 5.
+## [2026-05-15T17:52:31.150Z]
+Fix diagnostic-logging violations: add debugWrite() to catch block that swallows git ls-files error.

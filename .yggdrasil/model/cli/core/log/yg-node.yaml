@@ -1,5 +1,5 @@
 name: Core Log
-type: adapter
+type: engine
 description: Pure log-entry orchestration — logAdd, logRead, logMergeResolve return structured IssueMessage-shaped results with no presentation concerns.
 aspects:
   - what-why-next

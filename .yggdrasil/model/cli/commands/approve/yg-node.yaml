@@ -7,7 +7,7 @@ relations:
     type: uses
   - target: cli/core/approve
     type: uses
-  - target: cli/llm
+  - target: cli/llm/shared
     type: uses
 mapping:
   - source/cli/src/cli/approve.ts

@@ -5,7 +5,7 @@ aspects: []
 relations:
   - target: cli/model/file-when
     type: uses
-  - target: cli/core/file-content-cache
+  - target: cli/io/file-content-cache
     type: uses
 mapping:
   - source/cli/src/core/file-when-evaluator.ts

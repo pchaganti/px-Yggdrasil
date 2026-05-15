@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import path from 'node:path';
 import { loadGraph } from '../core/graph-loader.js';
+import { debugWrite } from '../utils/debug-log.js';
 import { runAstAspect } from '../ast/runner.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { normalizeMappingPaths } from '../utils/paths.js';
@@ -91,6 +92,7 @@ export function registerAstTestCommand(program: Command): void {
         printViolations(result.violations);
         process.exit(1);
       } catch (e: unknown) {
+        debugWrite(`[ast-test] run failed: ${e instanceof Error ? e.message : String(e)}`);
         if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
           process.stderr.write(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`);
         } else {

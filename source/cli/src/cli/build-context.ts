@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { loadGraph } from '../core/graph-loader.js';
-import { initDebugLog } from '../utils/debug-log.js';
+import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { collectAncestors, buildNodeContextData, buildFileContextData } from '../core/context-builder.js';
 import { formatNodeContext } from '../formatters/context-node.js';
 import { formatFileContext } from '../formatters/context-file.js';
@@ -164,6 +164,7 @@ export function registerBuildCommand(program: Command): void {
           process.stdout.write(formatNodeContext(data));
         }
       } catch (error) {
+        debugWrite(`[build-context] context assembly failed: ${error instanceof Error ? error.message : String(error)}`);
         const err = error as NodeJS.ErrnoException;
         if (err.code === 'ENOENT') {
           process.stderr.write(

@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { loadGraph } from '../core/graph-loader.js';
-import { initDebugLog } from '../utils/debug-log.js';
+import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { runCheck } from '../core/check.js';
 import type { CheckIssue, CheckResult } from '../core/check.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
@@ -28,7 +28,8 @@ export function registerCheckCommand(program: Command): void {
             stdio: ['pipe', 'pipe', 'pipe'],
           });
           gitFiles = output.trim().split('\n').filter(f => f.length > 0);
-        } catch {
+        } catch (e: unknown) {
+          debugWrite(`[check] git ls-files failed: ${e instanceof Error ? e.message : String(e)}`);
           // Not a git repo or git not available — skip unmapped-files check
         }
 

@@ -1,0 +1,8 @@
+name: Formatters Unit Tests
+type: test-suite
+description: Unit tests for CLI formatters — context-file, context-node, message-builder, predicate-trace output rendering
+mapping:
+  - source/cli/tests/unit/formatters/context-file.test.ts
+  - source/cli/tests/unit/formatters/context-node.test.ts
+  - source/cli/tests/unit/formatters/message-builder.test.ts
+  - source/cli/tests/unit/formatters/predicate-trace.test.ts

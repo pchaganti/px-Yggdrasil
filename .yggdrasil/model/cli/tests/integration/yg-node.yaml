@@ -1,9 +1,20 @@
 name: Integration Tests
-type: test
+type: test-suite
 description: Pipeline integration tests that exercise multiple CLI layers together using real temp-copy fixture projects
 aspects: []
 relations: []
 mapping:
-  - source/cli/tests/integration/
-  - source/cli/tests/fixtures/
+  - source/cli/tests/integration/approve-pipeline.test.ts
+  - source/cli/tests/integration/ast-runner.test.ts
+  - source/cli/tests/integration/ast-test-cli.test.ts
+  - source/cli/tests/integration/build-pipeline.test.ts
+  - source/cli/tests/integration/check-pipeline.test.ts
+  - source/cli/tests/integration/find.test.ts
+  - source/cli/tests/integration/flow-support.test.ts
+  - source/cli/tests/integration/impact-ast.test.ts
+  - source/cli/tests/integration/loader-hook.test.ts
+  - source/cli/tests/integration/log-workflow.test.ts
+  - source/cli/tests/integration/migration-4.3-to-4.4.test.ts
+  - source/cli/tests/integration/ollama-reviewer.external.test.ts
+  - source/cli/tests/integration/validation-pipeline.test.ts
   - source/cli/tests/setup.ts

@@ -1,35 +1,282 @@
+# .plans/artifacts/yg-architecture-phase1.yaml
+#
+# Phase 1 target — architecture skeleton after Phase 0 code restructuring.
+# Contains: node_types, when predicates, parents, default aspects, log_required.
+# NOT included: enforce: strict (Phase 8), relations (Phase 3).
+#
+# Source of truth: design doc §4.1–§4.3
+# Companion: yg-architecture-final.yaml (full end-state)
+#
+# To install: copy to .yggdrasil/yg-architecture.yaml at start of Phase 1.
+
 node_types:
-  module:
-    description: "Grouping node — organizes children under shared domain responsibility"
 
-  command:
-    description: "CLI command handler — registers Commander subcommand and formats output"
-    aspects: [cli-command-contract, command-exit-codes]
-    when:
-      path: "**"
-
-  engine:
-    description: "Core domain logic — algorithms, validation, assembly, detection"
-    aspects: [deterministic]
-    when:
-      path: "**"
-
-  adapter:
-    description: "I/O boundary — parsers, persistence, LLM providers, formatters"
-    when:
-      path: "**"
-
-  types:
-    description: "Pure type definitions — no runtime behavior, no executable code"
-    when:
-      path: "**"
-
-  test:
-    description: "Test suite guarding system invariants"
-    when:
-      path: "**"
+  # ── Organizational types (no when — parent-only, no source file classification) ──
 
   project:
-    description: "Top-level project infrastructure — CI, documentation, configuration"
+    description: "Top-level grouping — root of the hierarchy. One per repository."
+    parents: []
+
+  module:
+    description: "Domain grouping — organizes children under shared domain responsibility."
+    parents: [project, module]
+
+  # ── Classifying types (have when — Phase 8 adds enforce: strict to all except example) ──
+
+  entry-point:
+    description: "Executable entry point — the bin.ts dispatcher. Singleton; wraps all CLI commands and top-level error handling."
     when:
-      path: "**"
+      path: "source/cli/src/bin.ts"
+    aspects:
+      - top-level-error-handler
+      - command-exit-codes
+    parents: [module]
+
+  command:
+    description: "CLI command handler — registers a Commander subcommand and formats output. Every file must export register<X>Command."
+    when:
+      all_of:
+        - path: "source/cli/src/cli/*.ts"
+        - not:
+            path: "**/*.test.ts"
+        - content: "export\\s+function\\s+register[A-Z]\\w*Command\\("
+    aspects:
+      - cli-command-contract
+      - diagnostic-logging
+    parents: [module]
+
+  engine:
+    description: "Core domain logic — algorithms, validation, assembly, drift detection. No I/O, no console output, no LLM calls."
+    when:
+      all_of:
+        - path: "source/cli/src/core/**/*.ts"
+        - not:
+            path: "**/*.test.ts"
+    aspects:
+      - deterministic
+      - no-direct-fs
+      - no-direct-console
+    parents: [module]
+
+  migration:
+    description: "Schema migration — upgrades a .yggdrasil graph from one version to the next. Named to-X.Y.Z.ts."
+    when:
+      path: "source/cli/src/migrations/*.ts"
+    aspects:
+      - migration-idempotent
+    parents: [module]
+
+  parser-adapter:
+    description: "File-reading parser adapter — reads a file from disk and returns a typed model object. After R0.6, only true file-reading parsers remain here; in-memory parsers live in engine."
+    when:
+      all_of:
+        - path: "source/cli/src/io/*-parser.ts"
+        - not:
+            path: "**/*.test.ts"
+    aspects:
+      - yaml-parser-contract   # renamed to parser-contract in Phase 5
+      - silent-missing-files
+    parents: [module]
+
+  persistence-adapter:
+    description: "Persistence adapter — file-system read/write helpers: stores, caches, scanners, graph I/O, atomic writes. After R0.3/R0.4/R0.5 every file-touching helper lives here."
+    when:
+      any_of:
+        - path: "source/cli/src/io/*-store.ts"
+        - path: "source/cli/src/io/*-cache.ts"
+        - path: "source/cli/src/io/artifact-reader.ts"
+        - path: "source/cli/src/io/repo-scanner.ts"
+        - path: "source/cli/src/io/find-index.ts"
+        - path: "source/cli/src/io/file-content-cache.ts"
+        - path: "source/cli/src/io/graph-fs.ts"
+        - path: "source/cli/src/io/atomic-write.ts"
+    aspects:
+      - silent-missing-files
+      - atomic-write-contract
+    parents: [module]
+
+  ast-adapter:
+    description: "AST adapter — AST runtime, structural helpers, and report types for deterministic code analysis."
+    when:
+      all_of:
+        - path: "source/cli/src/ast/*.ts"
+        - not:
+            path: "**/*.test.ts"
+    aspects:
+      - deterministic
+    parents: [module]
+
+  llm-provider:
+    description: "LLM provider — vendor-specific adapter implementing the provider interface. One file per vendor."
+    when:
+      path: "source/cli/src/llm/{anthropic,claude-code,codex,gemini-cli,google,ollama,openai}.ts"
+    aspects:
+      - provider-retry-contract
+      - provider-redaction
+    parents: [module]
+
+  llm-shared:
+    description: "LLM shared infrastructure — aspect verifier, model fetcher, provider factory, API utilities, types, index. Plumbing; no uniform semantic contract."
+    when:
+      all_of:
+        - path: "source/cli/src/llm/*.ts"
+        - not:
+            path: "source/cli/src/llm/{anthropic,claude-code,codex,gemini-cli,google,ollama,openai,cli-base}.ts"
+        - not:
+            path: "**/*.test.ts"
+    parents: [module]
+
+  llm-subprocess-base:
+    description: "Subprocess-based LLM provider substrate — spawns child processes for CLI-native LLMs (claude-code, codex, gemini-cli). Exempt from deterministic; redaction is what matters."
+    when:
+      path: "source/cli/src/llm/cli-base.ts"
+    aspects:
+      - provider-redaction
+    parents: [module]
+
+  formatter:
+    description: "Output formatter — pure functions that assemble human/agent-readable CLI output strings. No I/O, no business logic."
+    when:
+      path: "source/cli/src/formatters/*.ts"
+    aspects:
+      - what-why-next
+    parents: [module]
+
+  types:
+    description: "Type definitions — pure TypeScript type/interface/enum declarations. No runtime behavior, no executable statements."
+    when:
+      path: "source/cli/src/model/*.ts"
+    log_required: false
+    parents: [module]
+
+  utility:
+    description: "Pure helper utilities — no I/O, no side effects on import, no direct filesystem access. After R0.3 all fs-touching helpers are in persistence-adapter."
+    when:
+      all_of:
+        - path: "source/cli/src/utils/*.ts"
+        - not:
+            path: "**/*.test.ts"
+    aspects:
+      - no-side-effects-on-import
+      - no-direct-fs
+    parents: [module]
+
+  template:
+    description: "Content template — generates agent-facing rules content and platform installation files."
+    when:
+      path: "source/cli/src/templates/{default-config,platform,rules}.ts"
+    aspects:
+      - what-why-next
+    parents: [module]
+
+  knowledge-doc:
+    description: "Knowledge document — TypeScript module exporting a markdown string for yg knowledge read."
+    when:
+      path: "source/cli/src/templates/knowledge/*.ts"
+    log_required: false
+    parents: [module]
+
+  schema-doc:
+    description: "Schema reference document — YAML file describing the shape and fields of a graph element."
+    when:
+      path: ".yggdrasil/schemas/*.yaml"
+    log_required: false
+    parents: [module]
+
+  test-suite:
+    description: "Test suite — integration and unit tests guarding system invariants. Centralized under source/cli/tests/ (plural)."
+    when:
+      path: "source/cli/tests/**/*.ts"
+    log_required: false
+    parents: [module]
+
+  doc-page:
+    description: "Documentation page — user-facing markdown under docs/ for Yggdrasil adopters."
+    when:
+      path: "docs/**/*.md"
+    log_required: false
+    parents: [module]
+
+  build-script:
+    description: "Build/repo script — shell, JS, or TS scripts for CI and local development tasks under scripts/."
+    when:
+      any_of:
+        - path: "scripts/*.sh"
+        - path: "scripts/*.mjs"
+        - path: "scripts/*.ts"
+    log_required: false
+    parents: [module]
+
+  example:
+    description: "Example material — demo files for Yggdrasil adopters. Not enforced strict (examples may be incomplete by design)."
+    when:
+      path: "examples/**"
+    log_required: false
+    parents: [module]
+
+  ci-config:
+    description: "CI and tooling configuration — GitHub Actions workflows, TypeScript config, package manifests, test/build tooling config."
+    when:
+      any_of:
+        - path: ".github/workflows/*.yml"
+        - path: "source/cli/tsconfig*.json"
+        - path: "source/cli/package.json"
+        - path: "source/cli/package-lock.json"
+        - path: ".markdownlint*"
+        - path: "source/cli/eslint.config.*"
+        - path: "source/cli/vitest*.config.ts"
+        - path: "source/cli/tsup.config.ts"
+    log_required: false
+    parents: [module]
+
+  repo-config:
+    description: "Repository configuration and developer tooling — root-level dotfiles, dev tool config, docs site infrastructure, and CLI package configuration files."
+    when:
+      any_of:
+        - path: ".claude/**"
+        - path: ".cursor/**"
+        - path: ".devcontainer/**"
+        - path: ".editorconfig"
+        - path: ".gitattributes"
+        - path: ".gitignore"
+        - path: ".github/**"
+        - path: ".markdownlint*"
+        - path: ".nvmrc"
+        - path: ".rtk/**"
+        - path: "*.code-workspace"
+        - path: "AGENTS.md"
+        - path: "CHANGELOG.md"
+        - path: "CLAUDE.md"
+        - path: "CODE_OF_CONDUCT.md"
+        - path: "CONTRIBUTING.md"
+        - path: "LICENSE"
+        - path: "README.md"
+        - path: "SECURITY.md"
+        - path: "SUPPORT.md"
+        - path: "docs/package.json"
+        - path: "docs/package-lock.json"
+        - path: "docs/public/**"
+        - path: "docs/.vitepress/**"
+        - path: "tools/**"
+        - path: "source/cli/.npmignore"
+        - path: "source/cli/.npmrc"
+        - path: "source/cli/README.md"
+        - path: "source/cli/.prettierrc"
+        - path: "source/cli/.prettierignore"
+        - path: "source/cli/eslint.config.js"
+        - path: "source/cli/tsup.config.ts"
+        - path: "source/cli/vitest.config.ts"
+        - path: "source/cli/vitest.external.config.ts"
+        - path: "source/cli/graph-schemas/**"
+        - path: "source/cli/scripts/**"
+        - path: "source/cli/src/**/.gitkeep"
+        - path: "source/cli/tests/**/.gitkeep"
+    log_required: false
+    parents: [project, module]
+
+  test-fixture:
+    description: "Test fixture projects — self-contained mini-repos used as data for integration and E2E tests."
+    when:
+      path: "source/cli/tests/fixtures/**"
+    log_required: false
+    parents: [module]

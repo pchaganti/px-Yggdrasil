@@ -1,7 +1,19 @@
 name: AST Reviewer Unit Tests
-type: test
+type: test-suite
 description: Unit tests for AST traversal helpers and the check runner pipeline — call, casing, decorators, exports, imports, name, modifiers, report, suppress, walk, and parser.
 aspects: []
 relations: []
 mapping:
-  - source/cli/tests/unit/ast/
+  - source/cli/tests/unit/ast/call.test.ts
+  - source/cli/tests/unit/ast/casing.test.ts
+  - source/cli/tests/unit/ast/decorators.test.ts
+  - source/cli/tests/unit/ast/exports.test.ts
+  - source/cli/tests/unit/ast/file-path.test.ts
+  - source/cli/tests/unit/ast/imports.test.ts
+  - source/cli/tests/unit/ast/jsx.test.ts
+  - source/cli/tests/unit/ast/modifiers.test.ts
+  - source/cli/tests/unit/ast/name.test.ts
+  - source/cli/tests/unit/ast/parser.test.ts
+  - source/cli/tests/unit/ast/report.test.ts
+  - source/cli/tests/unit/ast/suppress.test.ts
+  - source/cli/tests/unit/ast/walk.test.ts

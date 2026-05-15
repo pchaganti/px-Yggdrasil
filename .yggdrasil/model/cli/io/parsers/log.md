@@ -8,3 +8,5 @@ R0.6: update when-parser and file-when-parser imports — architecture-parser.ts
 R0.6: fix aspect-parser.ts import — when-parser moved to core/parsing/ so import updated from './when-parser.js' to '../core/parsing/when-parser.js'. No logic change.
 ## [2026-05-15T13:34:06.614Z]
 R0.8: add header comment to secrets-parser.ts clarifying its parser-adapter role — reads yg-secrets.yaml from disk (hence io/), yields structured config fragment.
+## [2026-05-15T17:52:31.581Z]
+Fix yaml-parser-contract violation: add Array.isArray() guard to schema-parser.ts type check.

@@ -1,0 +1,3 @@
+name: MigrationIdempotent
+description: "STUB — content added in Phase 5. Migration code must be safe to re-run if interrupted mid-way; running the same migration twice must not corrupt state."
+reviewer: llm

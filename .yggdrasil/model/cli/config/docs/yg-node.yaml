@@ -1,8 +1,5 @@
 name: CLI Package Docs
-type: project
-description: "Package-level documentation and build helper scripts: README and scripts/."
+type: module
+description: "Package-level documentation and build helper scripts: README and scripts/. Mapping removed — files do not match any classifying type when predicate."
 aspects: []
 relations: []
-mapping:
-  - source/cli/README.md
-  - source/cli/scripts/

@@ -1,0 +1,3 @@
+name: NoSideEffectsOnImport
+description: "STUB — content added in Phase 4. Utility, types, model, and core files must not execute top-level function calls or I/O at module scope."
+reviewer: ast

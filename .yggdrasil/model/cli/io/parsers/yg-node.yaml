@@ -1,9 +1,6 @@
 name: IO Parsers
-type: adapter
+type: parser-adapter
 description: YAML parsers for graph definition files (nodes, aspects, config, flows, schemas, secrets, architecture). In-memory parsers (log-parser, file-when-parser, when-parser) are in cli/core/parsing.
-aspects:
-  - yaml-parser-contract
-  - diagnostic-logging
 relations:
   - target: cli/model/graph
     type: uses

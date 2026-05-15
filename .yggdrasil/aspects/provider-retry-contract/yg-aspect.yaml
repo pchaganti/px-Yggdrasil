@@ -1,0 +1,3 @@
+name: ProviderRetryContract
+description: "STUB — content added in Phase 5. LLM provider implementations must honor retry/backoff for transient errors and must not retry on auth failures."
+reviewer: llm

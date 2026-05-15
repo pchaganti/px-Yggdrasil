@@ -1,7 +1,14 @@
 name: Utils Unit Tests
-type: test
+type: test-suite
 description: "Unit tests for utility modules: git helpers, hash computation, path utilities, tokenizer, and token counting"
 aspects: []
 relations: []
 mapping:
-  - source/cli/tests/unit/utils/
+  - source/cli/tests/unit/utils/atomic-write.test.ts
+  - source/cli/tests/unit/utils/debug-log.test.ts
+  - source/cli/tests/unit/utils/git-introspect.test.ts
+  - source/cli/tests/unit/utils/git.test.ts
+  - source/cli/tests/unit/utils/hash.test.ts
+  - source/cli/tests/unit/utils/node-path-validator.test.ts
+  - source/cli/tests/unit/utils/paths.test.ts
+  - source/cli/tests/unit/utils/repo-scan.test.ts

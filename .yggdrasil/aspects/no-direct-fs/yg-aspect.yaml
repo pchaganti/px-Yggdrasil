@@ -1,0 +1,3 @@
+name: NoDirectFs
+description: "STUB — content added in Phase 4. Engine, command, formatter, template, utility, ast-adapter, llm-provider, llm-shared files must not import node:fs or node:fs/promises directly."
+reviewer: ast

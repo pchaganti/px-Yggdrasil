@@ -1,5 +1,5 @@
 name: IO
-type: adapter
+type: module
 description: Filesystem I/O layer — parent grouping for parsers (cli/io/parsers) and storage adapters (cli/io/stores). Aspects are declared explicitly on each child.
 relations:
   - target: cli/model/graph

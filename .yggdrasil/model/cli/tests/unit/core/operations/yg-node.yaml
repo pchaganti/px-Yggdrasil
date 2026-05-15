@@ -1,5 +1,5 @@
 name: Operations Core Unit Tests
-type: test
+type: test-suite
 description: "Unit tests for core CLI operations: approve, check, impact, validator, effective-aspects, aspect-verifier, artifact-reviewer, file-content-cache, file-when-evaluator"
 aspects: []
 relations: []

@@ -15,6 +15,7 @@ import { detectVersion } from '../core/migrator.js';
 import { runVersionUpgrade as coreRunVersionUpgrade } from '../core/migrator-runner.js';
 import { MIGRATIONS } from '../migrations/index.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
+import { debugWrite } from '../utils/debug-log.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -53,8 +54,8 @@ async function refreshSchemas(yggRoot: string): Promise<void> {
       const content = await readFile(srcPath, 'utf-8');
       await writeFile(path.join(schemasDir, file), content, 'utf-8');
     }
-  } catch {
-    // Ignore schema copy errors
+  } catch (e: unknown) {
+    debugWrite(`[init] refreshSchemas schema copy failed: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 
@@ -306,6 +307,7 @@ async function writeReviewerConfig(
     if (e.code !== 'ENOENT') {
       throw new Error(`Failed to parse ${configPath}: ${e.message}`, { cause: err });
     }
+    debugWrite(`[init] writeReviewerConfig: ${configPath} not found, starting fresh`);
   }
 
   // Build reviewer section with visible defaults
@@ -346,6 +348,7 @@ async function writeSecretsFile(
     if (e.code !== 'ENOENT') {
       throw new Error(`Failed to parse ${secretsPath}: ${e.message}`, { cause: err });
     }
+    debugWrite(`[init] writeSecretsFile: ${secretsPath} not found, starting fresh`);
   }
 
   if (!raw.reviewer || typeof raw.reviewer !== 'object') {
@@ -427,6 +430,7 @@ async function createYggdrasilStructure(
       await writeFile(path.join(schemasDir, file), content, 'utf-8');
     }
   } catch (err) {
+    debugWrite(`[init] createYggdrasilStructure schema copy failed: ${err instanceof Error ? err.message : String(err)}`);
     process.stderr.write(
       chalk.yellow(`Warning: Could not copy graph schemas: ${(err as Error).message}\n`),
     );
@@ -466,7 +470,8 @@ export async function runVersionUpgrade(
   const architecturePath = path.join(yggRoot, 'yg-architecture.yaml');
   try {
     await stat(architecturePath);
-  } catch {
+  } catch (e: unknown) {
+    debugWrite(`[init] runVersionUpgrade architecture file missing, writing default: ${e instanceof Error ? e.message : String(e)}`);
     await writeFile(architecturePath, DEFAULT_ARCHITECTURE, 'utf-8');
   }
 
@@ -584,7 +589,8 @@ export function registerInitCommand(program: Command): void {
           }
           try {
             await stat(yggRoot);
-          } catch {
+          } catch (e: unknown) {
+            debugWrite(`[init] upgrade: .yggdrasil not found: ${e instanceof Error ? e.message : String(e)}`);
             process.stderr.write(chalk.red('Error: No .yggdrasil/ directory found. Run \'yg init\' first.\n'));
             process.exit(1);
           }
@@ -621,7 +627,8 @@ export function registerInitCommand(program: Command): void {
             process.exit(1);
           }
           exists = true;
-        } catch {
+        } catch (e: unknown) {
+          debugWrite(`[init] .yggdrasil stat: ${e instanceof Error ? e.message : String(e)}`);
           // Directory does not exist
         }
 
@@ -631,6 +638,7 @@ export function registerInitCommand(program: Command): void {
           await freshInit(projectRoot);
         }
       } catch (err) {
+        debugWrite(`[init] command failed: ${err instanceof Error ? err.message : String(err)}`);
         process.stderr.write(chalk.red(`Error: ${(err as Error).message}\n`));
         process.exit(1);
       }
