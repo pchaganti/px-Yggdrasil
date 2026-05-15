@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { execFile } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { promisify } from 'node:util';
 import type { LlmProvider, AspectResponse } from './types.js';
 import { debugWrite } from '../utils/debug-log.js';
@@ -68,6 +69,7 @@ export abstract class CliAgentProvider implements LlmProvider {
       const child = spawn(this.binary, args, {
         stdio: ['pipe', 'pipe', 'pipe'],
         timeout: this.timeout,
+        cwd: tmpdir(),
         env: { ...process.env },
       });
 
