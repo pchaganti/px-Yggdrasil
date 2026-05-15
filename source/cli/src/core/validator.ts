@@ -870,14 +870,27 @@ function checkMappingOverlap(graph: Graph): ValidationIssue[] {
       if (current.nodePath === candidate.nodePath) continue;
       if (!arePathsOverlapping(current.mappingPath, candidate.mappingPath)) continue;
 
+      if (current.mappingPath === candidate.mappingPath) {
+        issues.push({
+          severity: 'error',
+          code: 'file-duplicate-mapping',
+          rule: 'file-duplicate-mapping',
+          nodePath: candidate.nodePath,
+          message: buildIssueMessage({
+            what: `File '${current.mappingPath}' appears in mappings of multiple nodes:\n  ${current.nodePath}\n  ${candidate.nodePath}`,
+            why: `Each source file must have exactly one owner node. Duplicate mappings lead to ambiguous classification and conflicting aspect attribution.`,
+            next: `Remove the file from one of the mappings. Decide which node logically owns the file based on its primary role. The other node should reference it via relations if needed.`,
+          }),
+        });
+        continue;
+      }
+
       // Allow containment overlaps between ancestor-descendant nodes ("child wins" model).
-      // Exact duplicates (same path) are always errors regardless of hierarchy.
-      const isContainment = current.mappingPath !== candidate.mappingPath;
       const isHierarchical =
         isAncestorNode(current.nodePath, candidate.nodePath) ||
         isAncestorNode(candidate.nodePath, current.nodePath);
 
-      if (isContainment && isHierarchical) continue;
+      if (isHierarchical) continue;
 
       issues.push({
         severity: 'error',

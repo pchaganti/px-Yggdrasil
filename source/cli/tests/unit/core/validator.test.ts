@@ -235,7 +235,7 @@ describe('validator', () => {
     }
   });
 
-  it('overlapping-mapping errors for exact duplicate mapping paths', async () => {
+  it('file-duplicate-mapping errors for exact duplicate mapping paths', async () => {
     const graph = createGraph();
     graph.nodes.set(
       'svc/a',
@@ -247,9 +247,10 @@ describe('validator', () => {
     );
 
     const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.rule === 'overlapping-mapping');
+    const issues = result.issues.filter((i) => i.rule === 'file-duplicate-mapping');
     expect(issues).toHaveLength(1);
     expect(issues[0].severity).toBe('error');
+    expect(result.issues.filter((i) => i.rule === 'overlapping-mapping')).toHaveLength(0);
   });
 
   it('overlapping-mapping errors for containment overlap between siblings', async () => {
@@ -285,7 +286,7 @@ describe('validator', () => {
     expect(issues).toHaveLength(0);
   });
 
-  it('overlapping-mapping errors for exact duplicate between parent and child nodes', async () => {
+  it('file-duplicate-mapping errors for exact duplicate between parent and child nodes', async () => {
     const graph = createGraph();
     graph.nodes.set(
       'platform',
@@ -297,7 +298,7 @@ describe('validator', () => {
     );
 
     const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.rule === 'overlapping-mapping');
+    const issues = result.issues.filter((i) => i.rule === 'file-duplicate-mapping');
     expect(issues).toHaveLength(1);
     expect(issues[0].severity).toBe('error');
   });
