@@ -1,4 +1,4 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
 import type { Dirent } from 'node:fs';
 import { debugWrite } from '../utils/debug-log.js';
 
@@ -18,4 +18,8 @@ export async function readSortedDirOrEmpty(dirPath: string): Promise<Dirent[]> {
     debugWrite(`[graph-fs] readdir failed for ${dirPath}: ${(err as Error).message}`);
     return [];
   }
+}
+
+export async function writeTextFile(filePath: string, content: string): Promise<void> {
+  await writeFile(filePath, content, 'utf-8');
 }

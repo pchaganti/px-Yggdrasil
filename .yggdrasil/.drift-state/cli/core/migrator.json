@@ -1,16 +1,16 @@
 {
-  "hash": "5342f4a3279a4b606c19c0d1cbf62af140205b5962fadc5cc19c22e8d0444e97",
+  "hash": "99584084b079924f580eda13840512f56b79c6962e1c46cd99326bff84859d12",
   "files": {
     "own-subset:cli/core/migrator": "b150f116eff359bb6a5866b476ca277465f01b92d608bf688e55481aa060b686",
-    ".yggdrasil/aspects/posix-paths/yg-aspect.yaml": "3f025d4986e5dceea0b8fec8695cf9224305ef75229632e7a21a78600b0da29b",
-    ".yggdrasil/aspects/deterministic/yg-aspect.yaml": "20f321091b4f489efbf167feea9d42d73f7cffb21ea2e86958e565b550da164b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
+    ".yggdrasil/aspects/posix-paths/yg-aspect.yaml": "3f025d4986e5dceea0b8fec8695cf9224305ef75229632e7a21a78600b0da29b",
     ".yggdrasil/aspects/posix-paths/content.md": "05922cacd6b2cbeb849ca06d1d75a02609c90995cc701eb0b3602b0d401a9a26",
+    ".yggdrasil/aspects/deterministic/yg-aspect.yaml": "20f321091b4f489efbf167feea9d42d73f7cffb21ea2e86958e565b550da164b",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
-    "source/cli/src/core/migrator.ts": "a06e27941950486daae75a7eb034ae282bc7200951fc2078b5320f7caf5acad1"
+    "source/cli/src/core/migrator.ts": "84967567f17f6a10f6b40a03ea14f975b58e3edf8142ffe1c07d06287b6d3717"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -21,10 +21,10 @@
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    "source/cli/src/core/migrator.ts": 1778840221113.3982
+    "source/cli/src/core/migrator.ts": 1778851790995.5764
   },
   "log": {
-    "last_entry_datetime": "2026-05-15T10:17:15.781Z",
-    "prefix_hash": "b7bc6f923c9c96bde2dbd40fd876d4b563736f8619838f71c7543174b0247e63"
+    "last_entry_datetime": "2026-05-15T13:32:17.143Z",
+    "prefix_hash": "a09f55e4fd3d7033d1e52a730a9f76f9716e1f55f70be798e6769cec6e8fecac"
   }
 }

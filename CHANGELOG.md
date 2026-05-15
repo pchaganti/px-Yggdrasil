@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `io/graph-fs.ts` extracted: `readSortedDir`, `readTextFile`, `readSortedDirOrEmpty` wrappers extracted from `core/graph-loader.ts` into dedicated IO module. `graph-loader.ts` no longer imports `node:fs` directly.
 - `cli/io` graph node split into `cli/io/parsers` (8 YAML parsers) and `cli/io/stores` (6 fs/state adapters), eliminating wide-node reviewer context overflow.
 - `core/parsing/` module extracted: `log-parser.ts`, `file-when-parser.ts`, `when-parser.ts` moved from `io/` to `core/parsing/`. These are pure in-memory parsers (no file I/O) that belong in the core layer. Consolidates the formerly-separate `cli/file-when-support` and `cli/when-support` graph nodes into `cli/core/parsing`.
+- `core/migrator.ts` now routes fs access through `io/graph-fs.ts` (`readTextFile`, `writeTextFile`) instead of importing `node:fs/promises` directly. `io/graph-fs.ts` gains `writeTextFile` export.
 
 ## [4.4.0] - 2026-05-15
 

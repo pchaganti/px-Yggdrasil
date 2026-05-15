@@ -1,6 +1,6 @@
-import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import { readTextFile, writeTextFile } from '../io/graph-fs.js';
 import { gt, valid, compare } from 'semver';
 
 export interface Migration {
@@ -22,7 +22,7 @@ export async function detectVersion(yggRoot: string): Promise<string | null> {
   const root = yggRoot.trim().replace(/\\/g, '/').replace(/\/+$/, '');
   const configPath = path.join(root, 'yg-config.yaml');
   try {
-    const content = await readFile(configPath, 'utf-8');
+    const content = await readTextFile(configPath);
     const raw = parseYaml(content) as Record<string, unknown>;
     if (raw && typeof raw === 'object' && typeof raw.version === 'string') {
       return raw.version.trim();
@@ -68,9 +68,9 @@ export async function runMigrations(
 export async function updateConfigVersion(yggRoot: string, version: string): Promise<void> {
   const root = yggRoot.trim().replace(/\\/g, '/').replace(/\/+$/, '');
   const configPath = path.join(root, 'yg-config.yaml');
-  const content = await readFile(configPath, 'utf-8');
+  const content = await readTextFile(configPath);
   const updated = content.match(/^version:\s/m)
     ? content.replace(/^version:\s.*$/m, `version: "${version}"`)
     : `version: "${version}"\n` + content;
-  await writeFile(configPath, updated, 'utf-8');
+  await writeTextFile(configPath, updated);
 }

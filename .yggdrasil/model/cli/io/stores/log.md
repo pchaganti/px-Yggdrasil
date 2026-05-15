@@ -1,2 +1,4 @@
 ## [2026-05-15T13:00:20.230Z]
 Initial creation: split from cli/io parent (wide-node false positive blocked silent-missing-files approve with 14 files). Stores child contains 6 files responsible for drift state persistence, find index, artifact reading, git-ignore scanning, atomic writes, and low-level fs utilities; inherits yaml-parser-contract, silent-missing-files, diagnostic-logging from parent via channel 2.
+## [2026-05-15T13:32:21.184Z]
+R0.9: add writeTextFile to graph-fs.ts — io/stores now exports both read and write fs utilities. Used by migrator.ts to avoid direct node:fs imports in engine types.
