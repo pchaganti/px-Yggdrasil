@@ -25,7 +25,8 @@
         "davidanson.vscode-markdownlint",
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
-        "vitest.explorer"
+        "vitest.explorer",
+        "ms-azuretools.vscode-docker"
       ],
       "settings": {
         "editor.defaultFormatter": "esbenp.prettier-vscode",
