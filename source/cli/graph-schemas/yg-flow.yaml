@@ -9,8 +9,8 @@
 # listing a parent node covers all its children.
 
 name: EndToEndProcessName     # required — display name
-description: "What this business process does"  # optional but recommended — shown in
-                                                # yg flows output and context packages
+description: "What this business process does"  # required — shown in yg flows output and
+                                                # context packages. Validator emits description-missing if absent.
 
 nodes:                        # required, non-empty — participant nodes (alias: participants)
   - orders/order-service      # paths relative to model/

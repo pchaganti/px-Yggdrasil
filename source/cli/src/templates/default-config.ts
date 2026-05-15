@@ -1,23 +1,31 @@
-export const DEFAULT_CONFIG = `version: "4.0.0"
+export const DEFAULT_CONFIG = `version: "4.4.0"
 
+# Quality thresholds
 quality:
   max_direct_relations: 10
+  max_mapping_source_files: 10
 
+# Reviewer configuration (see schemas/yg-config.yaml + yg knowledge read configuration)
 parallel: 1
+
+debug: false
 `;
 
-export const DEFAULT_ARCHITECTURE = `node_types:
-  module:
-    description: "Business logic unit with clear domain responsibility"
-  service:
-    description: "Component providing functionality to other nodes"
-    relations:
-      calls: [service, library]
-      uses: [library]
-  library:
-    description: "Shared utility code with no domain knowledge"
-  infrastructure:
-    description: "Guards, middleware, interceptors — invisible in call graphs but affect blast radius"
-  data:
-    description: "Database layer, persistence, and data access"
+export const DEFAULT_ARCHITECTURE = `# Define your node types below. Each type may have:
+#   description: <string>           — required
+#   when: <predicate>               — optional. Types with \`when\` classify files;
+#                                     types without \`when\` are organizational (parent-only).
+#   aspects: [<aspect-id>...]       — optional. Aspects applied to nodes of this type.
+#   enforce: strict                 — optional. Requires \`when\`. Bidirectional enforcement.
+#   parents: [<type-id>...]         — optional. Allowed parent types.
+#
+# Example (commented out):
+#
+#   service:
+#     description: "Backend HTTP service"
+#     when:
+#       path: "src/services/**/*.ts"
+#     aspects: [auth-required]
+
+node_types: {}
 `;

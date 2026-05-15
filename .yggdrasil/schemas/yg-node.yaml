@@ -6,8 +6,8 @@
 
 name: ComponentName           # required — display name
 type: service                 # required — must match a type defined in yg-architecture.yaml
-description: "What this node does"  # optional but recommended — shown in context output,
-                                    # helps agents understand purpose without reading code
+description: "What this node does"  # required — shown in context output and helps agents
+                                    # understand purpose. Validator emits description-missing if absent.
 
 aspects:                      # optional — aspect identifiers applied directly to this node.
                               # Two forms per entry:

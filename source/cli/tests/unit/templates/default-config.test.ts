@@ -1,12 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { parse as parseYaml } from 'yaml';
-import { DEFAULT_CONFIG } from '../../../src/templates/default-config.js';
+import { DEFAULT_CONFIG, DEFAULT_ARCHITECTURE } from '../../../src/templates/default-config.js';
 
-describe('default-config', () => {
+describe('DEFAULT_CONFIG', () => {
   it('DEFAULT_CONFIG is valid YAML', () => {
     const parsed = parseYaml(DEFAULT_CONFIG);
     expect(parsed).toBeDefined();
     expect(typeof parsed).toBe('object');
+  });
+
+  it('version is 4.4.0', () => {
+    expect(DEFAULT_CONFIG).toMatch(/version: "4\.4\.0"/);
   });
 
   it('DEFAULT_CONFIG contains required keys', () => {
@@ -16,15 +20,24 @@ describe('default-config', () => {
     expect(parsed.quality).toBeDefined();
   });
 
-  it('DEFAULT_CONFIG contains version field equal to 4.0.0', () => {
-    const parsed = parseYaml(DEFAULT_CONFIG) as Record<string, unknown>;
-    expect(parsed.version).toBe('4.0.0');
-  });
-
   it('DEFAULT_CONFIG quality.max_direct_relations is 10', () => {
     const parsed = parseYaml(DEFAULT_CONFIG) as {
       quality: { max_direct_relations: number };
     };
     expect(parsed.quality.max_direct_relations).toBe(10);
+  });
+});
+
+describe('DEFAULT_ARCHITECTURE', () => {
+  it('ships with empty node_types and commented placeholder', () => {
+    expect(DEFAULT_ARCHITECTURE).toMatch(/node_types: \{\}/);
+    expect(DEFAULT_ARCHITECTURE).toMatch(/# Define your node types/);
+    expect(DEFAULT_ARCHITECTURE).toMatch(/# Example/);
+  });
+
+  it('has no pre-defined types', () => {
+    const parsed = parseYaml(DEFAULT_ARCHITECTURE) as Record<string, unknown>;
+    const nodeTypes = parsed.node_types as Record<string, unknown>;
+    expect(Object.keys(nodeTypes).length).toBe(0);
   });
 });

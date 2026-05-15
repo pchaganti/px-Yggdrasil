@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.4.0] - 2026-05-15
+
 ### Added
 
 - `yg log add --node <path> --reason <text>|--reason-file <path>` — append-only per-node business log. Each entry is timestamped (ISO 8601 UTC, milliseconds, strict monotonic).
@@ -32,6 +34,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `yg aspects` now shows `Reviewer` field per aspect (`llm` or `ast`).
 - `yg context --file` / `--node` surfaces `check.mjs` under `read:` for
   AST aspects (previously always showed `content.md`).
+- `when:` predicate on `node_type` entries in `yg-architecture.yaml` for per-file
+  classification (path glob and/or content substring atoms; `all_of`/`any_of`/`not`
+  operators). A type with `when` is file-classifying: every mapped file must satisfy
+  the predicate. Types without `when` are organizational (parent-only; nodes may not
+  have mapping).
+- `enforce: strict` on node types — bidirectional enforcement. Every repo file
+  matching the type's `when` predicate must be owned by a node of that type.
+- `yg type-suggest --file <path>` — suggests which architecture type best matches a
+  given file based on `when` predicates, ranked by satisfied-fraction with trace output.
+- `yg impact --type <id>` — shows all nodes of that type, their source files, and
+  (for strict types) the coverage gap: files matching `when` that are not yet mapped.
+- `yg knowledge list` — lists all embedded knowledge topics with one-line summaries.
+- `yg knowledge read <name>` — prints the full content of a knowledge topic.
+  Nine topics ship: `working-with-architecture`, `aspects-overview`, `writing-llm-aspects`,
+  `writing-ast-aspects`, `conditional-aspects`, `suppress-syntax`, `drift-and-cascade`,
+  `configuration`, `cli-reference`.
 
 ### Changed
 
@@ -45,12 +63,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   README. Added a "Too heavy? Try AutoReview" sibling-tool section with a
   comparison table and a new FAQ entry addressing the "just another AI
   code review bot?" objection. No code or behavior changes.
+- `description:` is now required (hard error `description-missing`) on `yg-node.yaml`,
+  `yg-aspect.yaml`, and `yg-flow.yaml`. Previously optional; omitting it now blocks `yg check`.
+- `yg init` ships an empty `node_types: {}` placeholder in `yg-architecture.yaml`;
+  adopters define their own types with `when` predicates.
+- CLI refuses to load `yg-config.yaml` whose `version` field exceeds `"4.4.0"`. Upgrade
+  the CLI when working on a repo configured for a newer schema version.
 
 ### Fixed
 
 - `yg approve` now enforces mandatory log entry on first approve (bootstrap) for nodes that have source files and `log_required: true`. Previously, the mandatory check was gated on an existing baseline (`storedEntry?.log`), which caused new nodes to silently bypass the requirement. First approve without a log entry now returns `refused`; `log_required: false` continues to bypass the check.
 - `yg find` now emits visible stderr warnings when log.md cannot be read (filesystem error) or is truncated (>1 MiB) — previously these were silent or debug-only.
-- `when:` and `enforce: strict` on `node_types` in `yg-architecture.yaml`. A `when:` predicate (path glob and/or content substring) marks a type as file-classifying: every file in a node's mapping must satisfy the predicate. `enforce: strict` additionally requires that every repo file matching the predicate be owned by a node of that type. New validator errors: `type-without-when-with-mapping` (node with mapping but type has no `when`), `type-when-mismatch` (mapped file does not satisfy its node type's `when`), `type-strict-orphan` (file matches strict type's `when` but is not in any mapping), `type-strict-misplaced` (file matches strict type's `when` but is mapped to a node of a different type), `strict-overlap-conflict` (two strict types' `when` predicates overlap — any file matching both is architecturally unsatisfiable), `file-mapping-gitignored` (mapped file is excluded by `.gitignore`, breaking strict scan), `enforce-strict-without-when` (fatal: `enforce: strict` declared without a `when` predicate), `architecture-cycle` (fatal: `parents:` references form a cycle in the type hierarchy). Predicate traces are included in all error messages.
+- New validator errors for type/file consistency: `type-without-when-with-mapping`,
+  `type-when-mismatch`, `type-strict-orphan`, `type-strict-misplaced`,
+  `strict-overlap-conflict`, `file-mapping-gitignored`, `enforce-strict-without-when`,
+  `architecture-cycle`, `type-unknown-parent`, `file-duplicate-mapping`,
+  `file-unreadable`. Predicate traces are included in all relevant error messages.
 - Release workflow now skips `npm publish` and GitHub release creation
   when the current `source/cli/package.json` version is already on npm.
   Previously, a non-version edit to `source/cli/package.json` triggered

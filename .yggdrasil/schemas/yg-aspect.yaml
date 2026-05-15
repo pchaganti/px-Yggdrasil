@@ -11,8 +11,8 @@
 # They should state WHAT must be satisfied and WHY.
 
 name: CrossCuttingRequirementName  # required — display name
-description: "Short description"   # optional but recommended — shown in yg aspects output
-                                   # and context packages, helps agents discover relevant aspects
+description: "Short description"   # required — shown in yg aspects output and context packages.
+                                   # Validator emits description-missing if absent.
 
 # reviewer: llm | ast        # optional — which reviewer verifies this aspect.
                               # 'llm' (default): aspect ships content.md; LLM reads and judges.

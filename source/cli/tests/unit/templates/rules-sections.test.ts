@@ -31,7 +31,7 @@ describe('AGENT_RULES_CONTENT — required sections', () => {
   }
 
   it('mentions log_required default true', () => {
-    expect(AGENT_RULES_CONTENT).toMatch(/log_required:.*true.*default|default.*true/);
+    expect(AGENT_RULES_CONTENT).toMatch(/log_required:.*true.*default/s);
   });
 
   it('mentions yg log merge-resolve workflow', () => {

@@ -19,6 +19,7 @@
     ".lab/**",
     ".temp/**",
     "**/agent-rules.md",
+    "AGENTS.md",
     ".cursor/rules/**",
     "**/log.md",
   ],
