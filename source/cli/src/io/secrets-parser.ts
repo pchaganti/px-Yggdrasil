@@ -1,3 +1,5 @@
+// Parser-adapter — reads the user's `yg-secrets.yaml` from disk and parses it.
+// Lives in `io/` because it touches the filesystem. Yields a structured config fragment.
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';

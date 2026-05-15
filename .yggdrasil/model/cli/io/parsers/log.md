@@ -6,3 +6,5 @@ Aspect restructuring: removed silent-missing-files from parent inheritance (pare
 R0.6: update when-parser and file-when-parser imports — architecture-parser.ts, flow-parser.ts, node-parser.ts now import from ../core/parsing/ (files moved from io/). log-parser.ts removed from this node mapping (now owned by cli/core/parsing).
 ## [2026-05-15T13:26:16.840Z]
 R0.6: fix aspect-parser.ts import — when-parser moved to core/parsing/ so import updated from './when-parser.js' to '../core/parsing/when-parser.js'. No logic change.
+## [2026-05-15T13:34:06.614Z]
+R0.8: add header comment to secrets-parser.ts clarifying its parser-adapter role — reads yg-secrets.yaml from disk (hence io/), yields structured config fragment.
