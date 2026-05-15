@@ -155,4 +155,22 @@ describe('preserved check features', () => {
     }));
     expect(output).toMatch(/coverage|node/i);
   });
+
+  it('groups type-strict-orphan errors when count > 5', () => {
+    const issues = Array.from({ length: 23 }, (_, i) =>
+      makeError('type-strict-orphan', `File 'src/file${i}.ts' satisfies strict when\nBut file is not in any mapping.\nCreate yg-node.yaml.`),
+    );
+    const output = formatOutput(makeCheckResult({ issues }));
+    expect(output).toMatch(/23 files satisfy strict/);
+    expect(output).toMatch(/\.\.\. \(18 more\)/);
+  });
+
+  it('shows type-strict-orphan individually when count <= 5', () => {
+    const issues = Array.from({ length: 3 }, (_, i) =>
+      makeError('type-strict-orphan', `File 'src/file${i}.ts' satisfies strict when`),
+    );
+    const output = formatOutput(makeCheckResult({ issues }));
+    expect(output).toContain('type-strict-orphan');
+    expect(output).not.toMatch(/\.\.\. \(\d+ more\)/);
+  });
 });

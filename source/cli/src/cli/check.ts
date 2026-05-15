@@ -72,10 +72,11 @@ export function formatOutput(result: CheckResult): string {
   const warnings = result.issues.filter(i => i.severity === 'warning');
 
   // Code category sets for grouping
-  const STRUCTURAL_CODES = new Set(['yaml-invalid', 'type-invalid', 'relation-broken', 'flow-node-broken', 'aspect-undefined', 'overlapping-mapping', 'structural-cycle', 'config-invalid', 'duplicate-aspect-id', 'node-yaml-missing', 'implied-aspect-missing', 'aspect-implies-cycle', 'event-unpaired', 'schema-missing']);
+  const STRUCTURAL_CODES = new Set(['yaml-invalid', 'type-invalid', 'relation-broken', 'flow-node-broken', 'aspect-undefined', 'overlapping-mapping', 'file-duplicate-mapping', 'structural-cycle', 'config-invalid', 'duplicate-aspect-id', 'node-yaml-missing', 'implied-aspect-missing', 'aspect-implies-cycle', 'event-unpaired', 'schema-missing', 'type-without-when-with-mapping', 'type-when-mismatch', 'file-mapping-gitignored', 'enforce-strict-without-when', 'architecture-cycle', 'when-predicate-invalid', 'when-unknown-type', 'when-unknown-node', 'when-unknown-port', 'aspect-unexpected-rule-source', 'aspect-missing-rule-source', 'file-unreadable']);
   const ARCHITECTURE_CODES = new Set(['relation-target-forbidden', 'parent-type-forbidden', 'type-undefined', 'port-missing-aspect', 'port-missing-consumes', 'port-undefined', 'consumes-without-ports']);
   const COVERAGE_CODES = new Set(['unmapped-files', 'mapping-path-missing']);
   const COMPLETENESS_CODES = new Set(['description-missing']);
+  const STRICT_CODES = new Set(['type-strict-orphan', 'type-strict-misplaced', 'strict-overlap-conflict']);
 
   if (errors.length > 0) {
     lines.push(chalk.red(`Errors (${errors.length}):`));
@@ -88,6 +89,7 @@ export function formatOutput(result: CheckResult): string {
     const architecture = errors.filter(i => ARCHITECTURE_CODES.has(i.code));
     const coverage = errors.filter(i => COVERAGE_CODES.has(i.code));
     const completeness = errors.filter(i => COMPLETENESS_CODES.has(i.code));
+    const strictCoverage = errors.filter(i => STRICT_CODES.has(i.code));
 
     if (drift.length > 0) {
       lines.push('  Drift:');
@@ -203,6 +205,27 @@ export function formatOutput(result: CheckResult): string {
       lines.push('');
     }
 
+    if (strictCoverage.length > 0) {
+      const SAMPLE_COUNT = 5;
+      if (strictCoverage.length > SAMPLE_COUNT) {
+        lines.push(`  Strict coverage (${strictCoverage.length} errors):`);
+        lines.push(`  ${strictCoverage.length} files satisfy strict type when — missing or misplaced in mapping`);
+        for (const issue of strictCoverage.slice(0, SAMPLE_COUNT)) {
+          lines.push(`  ${issue.code} — ${issue.message.split('\n')[0]}`);
+        }
+        lines.push(`  ... (${strictCoverage.length - SAMPLE_COUNT} more)`);
+      } else {
+        lines.push('  Strict coverage:');
+        for (const issue of sortByNodePath(strictCoverage)) {
+          lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — ${issue.rule}`);
+          for (const line of issue.message.split('\n')) {
+            lines.push(`       ${line}`);
+          }
+        }
+      }
+      lines.push('');
+    }
+
     const logErrors = errors.filter(i => i.code === 'log-integrity' || i.code === 'log-format');
     if (logErrors.length > 0) {
       lines.push('  Log:');
@@ -250,12 +273,14 @@ export function formatOutput(result: CheckResult): string {
     const archCount = errors.filter(i => ARCHITECTURE_CODES.has(i.code)).length;
     const cov = errors.filter(i => COVERAGE_CODES.has(i.code)).length;
     const comp = errors.filter(i => COMPLETENESS_CODES.has(i.code)).length;
+    const strictCount = errors.filter(i => STRICT_CODES.has(i.code)).length;
     if (driftCount) cats.push(`${driftCount} drift`);
     if (cascadeCount) cats.push(`${cascadeCount} cascade`);
     if (structuralCount) cats.push(`${structuralCount} structural`);
     if (archCount) cats.push(`${archCount} architecture`);
     if (cov) cats.push(`${cov} coverage`);
     if (comp) cats.push(`${comp} completeness`);
+    if (strictCount) cats.push(`${strictCount} strict`);
     lines.push(chalk.red(`Result: FAIL`) + ` (${cats.join(', ')} — ${errorCount} error${errorCount === 1 ? '' : 's'}, ${warningCount} warning${warningCount === 1 ? '' : 's'})`);
   }
 
