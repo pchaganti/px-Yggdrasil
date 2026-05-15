@@ -118,6 +118,7 @@ export async function verifyAspects(
   for (const aspect of aspects) {
     let failed = false;
     let failReason = '';
+    let failProviderError = false;
 
     for (const chunk of chunks) {
       if (chunk.length === 0) continue;
@@ -126,12 +127,13 @@ export async function verifyAspects(
       if (!result.satisfied) {
         failed = true;
         failReason = result.reason;
+        failProviderError = result.providerError ?? false;
         break;
       }
     }
 
     results[aspect.id] = failed
-      ? { satisfied: false, reason: failReason }
+      ? { satisfied: false, reason: failReason, ...(failProviderError ? { providerError: true } : {}) }
       : { satisfied: true, reason: `All rules satisfied across ${chunks.length} file group(s)` };
   }
 

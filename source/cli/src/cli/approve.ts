@@ -4,30 +4,20 @@ import path from 'node:path';
 import { loadGraph } from '../core/graph-loader.js';
 import { initDebugLog } from '../utils/debug-log.js';
 import { approveNode, resolveAspects, loadSourceFiles, commitApproval } from '../core/approve.js';
+import { runApproveWithReviewer, type LlmApproveResult } from '../core/approve-reviewer.js';
+export type { LlmApproveResult };
 import { collectTrackedFiles } from '../core/context-files.js';
 import { hashTrackedFiles } from '../utils/hash.js';
 import { classifyDrift } from '../core/check.js';
 import type { CheckIssue, CascadeCause } from '../core/check.js';
 import { createLlmProvider } from '../llm/index.js';
-import { verifyAspects } from '../llm/aspect-verifier.js';
 import { loadSecrets, mergeLlmConfig } from '../io/secrets-parser.js';
 import { normalizeMappingPaths } from '../utils/paths.js';
-import { resolveMaxTokens } from '../llm/api-utils.js';
 import type { LlmProvider } from '../llm/types.js';
 import type { ApproveResult, AspectVerificationResult } from '../model/drift.js';
 import type { Graph } from '../model/graph.js';
 import { runAstAspect, AstRunnerError } from '../ast/runner.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
-
-/** Extended result that includes LLM verification data (tracked in CLI layer, not in core) */
-export interface LlmApproveResult extends ApproveResult {
-  /** LLM aspect verification results */
-  aspectResults?: Record<string, AspectVerificationResult>;
-  /** Why LLM verification was skipped, if it was */
-  llmSkipped?: 'unavailable';
-  /** Aspect violations for programmatic consumption */
-  aspectViolations?: Array<{ aspectId: string; reason: string; providerError?: boolean }>;
-}
 
 /** LLM configuration resolved from graph config */
 export interface LlmConfig {
@@ -37,8 +27,9 @@ export interface LlmConfig {
 }
 
 /**
- * Run LLM verification on an approved node result, returning an extended result.
- * If LLM refuses, the result action is set to 'refused'.
+ * Run aspect verification on an approved node result, returning an extended result.
+ * Handles AST aspects in CLI layer; delegates LLM aspects to core/approve-reviewer.
+ * If any aspect refuses, the result action is set to 'refused'.
  */
 export async function runLlmVerification(
   graph: Graph,
@@ -49,117 +40,63 @@ export async function runLlmVerification(
   const { provider } = llmConfig;
   const node = graph.nodes.get(nodePath);
 
-  // Determine if LLM should be skipped
   if (!provider) {
-    // Reviewer unreachable — commit hash (structural approve) but flag as unverified
     await commitApproval(graph.rootPath, result);
-    return {
-      ...result,
-      llmSkipped: 'unavailable',
-    };
+    return { ...result, llmSkipped: 'unavailable' };
   }
 
   if (result.action === 'refused' || !node) {
     return result;
   }
 
-  const projectRoot = path.dirname(graph.rootPath);
-  const llmCfg = graph.config.llm ?? { provider: 'ollama' as const, model: '', temperature: 0, consensus: 1, max_tokens: 'auto' as const };
-  const resolvedMaxTokens = await resolveMaxTokens(llmCfg, provider);
-
   const aspects = resolveAspects(node, graph);
+  const astAspects = aspects.filter(a => a.reviewer === 'ast');
 
-  // Collect source file paths by expanding directory mappings to actual files
+  if (astAspects.length === 0) {
+    return runApproveWithReviewer({ graph, nodePath, result, provider, maxTokens: llmConfig.maxTokens, consensus: llmConfig.consensus });
+  }
+
+  // Compute source file paths for AST verification
+  const projectRoot = path.dirname(graph.rootPath);
+  const yggPrefix = path.relative(projectRoot, graph.rootPath).split(path.sep).join('/');
   const trackedFiles = collectTrackedFiles(node, graph);
   const { fileHashes } = await hashTrackedFiles(projectRoot, trackedFiles, undefined, []);
-  const yggPrefix = path.relative(projectRoot, graph.rootPath).split(path.sep).join('/');
   const sourceFilePaths = Object.keys(fileHashes).filter(f => {
     const normalized = f.replace(/\\/g, '/').replace(/\/+$/, '');
     return !normalized.startsWith(yggPrefix);
   });
-  const sourceFiles = await loadSourceFiles(sourceFilePaths, projectRoot);
 
-  const nodeDescription = node.meta.description ?? '';
-
-  let aspectResults: Record<string, AspectVerificationResult> | undefined;
-  const aspectViolations: Array<{ aspectId: string; reason: string; providerError?: boolean }> = [];
-
-  if (aspects.length > 0) {
-    const astAspects = aspects.filter(a => a.reviewer === 'ast');
-    const llmAspects = aspects.filter(a => a.reviewer !== 'ast');
-
-    const collectedResults: Record<string, AspectVerificationResult> = {};
-
-    // Run AST aspects
-    for (const aspect of astAspects) {
-      try {
-        const astResult = await runAstAspect({
-          aspectDir: path.join('.yggdrasil/aspects', aspect.id),
-          aspectId: aspect.id,
-          files: sourceFilePaths.map(f => ({ path: f })),
-          projectRoot,
-        });
-        const violated = astResult.violations.length > 0;
-        collectedResults[aspect.id] = {
-          satisfied: !violated,
-          reason: violated
-            ? astResult.violations.map(v => `${v.file}:${v.line}: ${v.message}`).join('\n')
-            : 'all rules satisfied',
-        };
-      } catch (e: unknown) {
-        const code: string = (e as { code?: string }).code ?? 'AST_RUNNER_UNKNOWN';
-        const rendered = e instanceof AstRunnerError
-          ? buildIssueMessage(e.messageData)
-          : (e as Error).message;
-        collectedResults[aspect.id] = {
-          satisfied: false,
-          reason: `[${code}] ${rendered}`,
-        };
-      }
-    }
-
-    // Run LLM aspects (existing path)
-    if (llmAspects.length > 0) {
-      const llmResults = await verifyAspects({
-        provider,
-        aspects: llmAspects,
-        sourceFiles,
-        nodePath,
-        nodeDescription,
-        consensus: llmConfig.consensus ?? 1,
-        maxTokens: resolvedMaxTokens,
+  // Run AST aspects
+  const astResults: Record<string, AspectVerificationResult> = {};
+  for (const aspect of astAspects) {
+    try {
+      const astResult = await runAstAspect({
+        aspectDir: path.join('.yggdrasil/aspects', aspect.id),
+        aspectId: aspect.id,
+        files: sourceFilePaths.map(f => ({ path: f })),
+        projectRoot,
       });
-      Object.assign(collectedResults, llmResults);
-    }
-
-    aspectResults = collectedResults;
-    for (const [aspectId, res] of Object.entries(aspectResults)) {
-      if (!res.satisfied) {
-        aspectViolations.push({ aspectId, reason: res.reason, providerError: res.providerError });
-      }
+      const violated = astResult.violations.length > 0;
+      astResults[aspect.id] = {
+        satisfied: !violated,
+        reason: violated
+          ? astResult.violations.map(v => `${v.file}:${v.line}: ${v.message}`).join('\n')
+          : 'all rules satisfied',
+      };
+    } catch (e: unknown) {
+      const code: string = (e as { code?: string }).code ?? 'AST_RUNNER_UNKNOWN';
+      const rendered = e instanceof AstRunnerError
+        ? buildIssueMessage(e.messageData)
+        : (e as Error).message;
+      astResults[aspect.id] = { satisfied: false, reason: `[${code}] ${rendered}` };
     }
   }
 
-  // Separate provider errors from actual violations
-  const providerErrors = aspectViolations.filter(v => v.providerError);
-  const codeViolations = aspectViolations.filter(v => !v.providerError);
+  const astViolations = Object.entries(astResults)
+    .filter(([, r]) => !r.satisfied)
+    .map(([aspectId, r]) => ({ aspectId, reason: r.reason }));
 
-  if (providerErrors.length > 0 && codeViolations.length === 0) {
-    // All failures are provider errors, not code issues
-    return {
-      ...result,
-      action: 'refused',
-      refuseReasonData: {
-        what: 'Reviewer provider failed — this is not a code issue.',
-        why: 'Provider connection or authentication error, not a code violation.',
-        next: 'Check your API key and provider configuration.',
-      },
-      aspectResults,
-      aspectViolations,
-    };
-  }
-
-  if (aspectViolations.length > 0) {
+  if (astViolations.length > 0) {
     return {
       ...result,
       action: 'refused',
@@ -168,17 +105,16 @@ export async function runLlmVerification(
         why: 'One or more aspects were not satisfied by the source code.',
         next: `Fix the violations and re-run: yg approve --node ${nodePath}`,
       },
-      aspectResults,
-      aspectViolations,
+      aspectResults: astResults,
+      aspectViolations: astViolations,
     };
   }
 
-  // LLM passed — commit drift state
-  await commitApproval(graph.rootPath, result);
-
+  // AST passed — delegate LLM verification to core
+  const llmResult = await runApproveWithReviewer({ graph, nodePath, result, provider, maxTokens: llmConfig.maxTokens, consensus: llmConfig.consensus });
   return {
-    ...result,
-    aspectResults,
+    ...llmResult,
+    aspectResults: { ...astResults, ...(llmResult.aspectResults ?? {}) },
   };
 }
 

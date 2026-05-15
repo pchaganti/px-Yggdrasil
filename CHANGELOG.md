@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `core/approve-reviewer.ts`: new `runApproveWithReviewer()` entry point that runs LLM verification (aspects filtered to non-AST) and commits drift state on success. `LlmApproveResult` and `ApproveWithReviewerInput` types moved here from CLI layer.
+- `verifyAspects` now propagates `providerError: true` from provider responses to the returned `AspectVerificationResult`, enabling caller-side provider-vs-code error classification.
 - Three new `yg knowledge` topics for deep-reference material kept out of `rules.ts`:
   - `log-management` — log format constraints, Supersedes convention, typo recovery, revert with drift state, git-merge resolution, large-log delegation.
   - `ports-and-relations` — six relation types, paired events, port contracts, channel 6 propagation, defense against cross-file evasion.
@@ -16,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `cli/approve.ts`: `runLlmVerification` refactored as a thin wrapper — handles AST aspects and no-provider early exit at the CLI layer, delegates LLM verification to `runApproveWithReviewer` in `core/approve-reviewer`. `LlmApproveResult` re-exported from `core/approve-reviewer` for backward compatibility.
 - `rules.ts` reorganized as a lean primer + router. CLI commands trimmed to essentials in the always-loaded rules content; full reference now lives in `yg knowledge read cli-reference`. Deep log-management mechanics, port/relation grammar, and flow internals routed to the three new knowledge topics above. Mental model (graph elements, 7 channels with concrete example, drift/cascade definitions, decisions/heuristics, authorization rules for `yg-suppress`) retained in `rules.ts`. The "Where to find more" table now indexes all 12 knowledge topics.
 - `aspects-overview` knowledge topic trimmed: the "7 propagation channels" summary table and "Discovering aspects in brownfield code" section removed (both now live in `rules.ts` as the killer-example mental model and the Aspect Discovery heuristic respectively).
 - `suppress-syntax` knowledge topic trimmed: authorization rules (when an agent may write a suppress, who approves the reason) moved to `rules.ts` as behavioral, not syntactic, guidance.

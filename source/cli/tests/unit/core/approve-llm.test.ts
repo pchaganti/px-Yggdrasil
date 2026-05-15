@@ -4,9 +4,10 @@ import { fileURLToPath } from 'node:url';
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import { approveNode } from '../../../src/core/approve.js';
+import { runApproveWithReviewer } from '../../../src/core/approve-reviewer.js';
 import { runLlmVerification } from '../../../src/cli/approve.js';
 import type { LlmConfig } from '../../../src/cli/approve.js';
-import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
+import { writeNodeDriftState, readNodeDriftState } from '../../../src/io/drift-state-store.js';
 import { hashTrackedFiles } from '../../../src/utils/hash.js';
 import { collectTrackedFiles } from '../../../src/core/context-files.js';
 import type { LlmProvider } from '../../../src/llm/types.js';
@@ -106,6 +107,119 @@ function makeLlmConfig(provider: LlmProvider | undefined, overrides: Partial<Llm
     ...overrides,
   };
 }
+
+describe('runApproveWithReviewer (core layer)', () => {
+  it('refuses when LLM aspect not satisfied', async () => {
+    const { tmpDir } = await createTmpProject('reviewer-refuse', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - deterministic\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [{
+        id: 'deterministic',
+        yaml: ASPECT_YAML,
+        files: { 'content.md': 'Code must be deterministic.\n' },
+      }],
+    });
+    await recordBaseline(tmpDir);
+    await writeFile(path.join(tmpDir, 'src/svc/index.ts'), 'const x = Date.now();\n');
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    const provider = makeMockProvider({
+      async verifyAspect() { return { satisfied: false, reason: 'Date.now() found' }; },
+    });
+    const result = await runApproveWithReviewer({ graph, nodePath: 'svc/my-service', result: coreResult, provider, maxTokens: undefined, consensus: undefined });
+    expect(result.action).toBe('refused');
+    expect(result.aspectViolations?.length).toBeGreaterThan(0);
+    expect(result.aspectViolations![0].reason).toContain('Date.now()');
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('commits drift state and returns approved when LLM passes', async () => {
+    const { tmpDir } = await createTmpProject('reviewer-approve', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - deterministic\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [{
+        id: 'deterministic',
+        yaml: ASPECT_YAML,
+        files: { 'content.md': 'Code must be deterministic.\n' },
+      }],
+    });
+    await recordBaseline(tmpDir);
+    await writeFile(path.join(tmpDir, 'src/svc/index.ts'), 'const x = 2;\n');
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    const provider = makeMockProvider();
+    const result = await runApproveWithReviewer({ graph, nodePath: 'svc/my-service', result: coreResult, provider, maxTokens: undefined, consensus: undefined });
+    expect(result.action).toBe('approved');
+    expect(result.aspectResults?.['deterministic']?.satisfied).toBe(true);
+    // Drift state committed
+    const stored = await readNodeDriftState(graph.rootPath, 'svc/my-service');
+    expect(stored).toBeDefined();
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('returns provider error message when all failures are provider errors', async () => {
+    const { tmpDir } = await createTmpProject('reviewer-provider-err', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - deterministic\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [{
+        id: 'deterministic',
+        yaml: ASPECT_YAML,
+        files: { 'content.md': 'Code must be deterministic.\n' },
+      }],
+    });
+    await recordBaseline(tmpDir);
+    await writeFile(path.join(tmpDir, 'src/svc/index.ts'), 'const x = 2;\n');
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    const provider = makeMockProvider({
+      async verifyAspect() { return { satisfied: false, reason: 'network error', providerError: true }; },
+    });
+    const result = await runApproveWithReviewer({ graph, nodePath: 'svc/my-service', result: coreResult, provider, maxTokens: undefined, consensus: undefined });
+    expect(result.action).toBe('refused');
+    expect(result.refuseReasonData?.what).toContain('provider failed');
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('returns result unchanged when result.action is already refused', async () => {
+    const { tmpDir } = await createTmpProject('reviewer-already-refused', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - deterministic\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [{ id: 'deterministic', yaml: ASPECT_YAML }],
+    });
+
+    const graph = await loadGraph(tmpDir);
+    const provider = makeMockProvider();
+    const alreadyRefused = { action: 'refused' as const, currentHash: '', refuseReasonData: { what: 'pre-refused', why: '', next: '' } };
+    const result = await runApproveWithReviewer({ graph, nodePath: 'svc/my-service', result: alreadyRefused, provider, maxTokens: undefined, consensus: undefined });
+    expect(result.action).toBe('refused');
+    expect(result.refuseReasonData?.what).toBe('pre-refused');
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('skips verifyAspects and commits when no LLM aspects exist', async () => {
+    const { tmpDir } = await createTmpProject('reviewer-no-llm-aspects', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+    });
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    let verifyAspectCalled = false;
+    const provider = makeMockProvider({ async verifyAspect() { verifyAspectCalled = true; return { satisfied: true, reason: 'ok' }; } });
+    const result = await runApproveWithReviewer({ graph, nodePath: 'svc/my-service', result: coreResult, provider, maxTokens: undefined, consensus: undefined });
+    expect(result.action).toBe('approved');
+    expect(verifyAspectCalled).toBe(false);
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+});
 
 describe('LLM verification (CLI layer)', () => {
   it('runs LLM aspect verification and refuses when aspect not satisfied', async () => {

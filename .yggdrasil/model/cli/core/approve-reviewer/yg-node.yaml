@@ -1,0 +1,14 @@
+name: Approve Reviewer
+type: adapter
+description: LLM verification orchestration — runs verifyAspects against resolved source files, classifies violations, commits approved drift state.
+aspects:
+  - what-why-next
+  - posix-paths
+  - diagnostic-logging
+relations:
+  - target: cli/core/approve
+    type: uses
+  - target: cli/llm
+    type: uses
+mapping:
+  - source/cli/src/core/approve-reviewer.ts
