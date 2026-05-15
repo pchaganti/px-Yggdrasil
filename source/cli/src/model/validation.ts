@@ -2,6 +2,8 @@
 // Validation
 // ============================================================
 
+import type { IssueMessage } from '../formatters/message-builder.js';
+
 export type IssueSeverity = 'error' | 'warning';
 
 export interface ValidationIssue {
@@ -9,6 +11,7 @@ export interface ValidationIssue {
   code?: string;
   rule: string;
   message: string;
+  messageData?: IssueMessage;
   nodePath?: string;
 }
 
