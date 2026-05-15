@@ -1489,3 +1489,97 @@ describe('checkTypeWhenMismatch', () => {
     }
   });
 });
+
+describe('checkFileMappingGitignored', () => {
+  it('emits error for gitignored file in mapping', async () => {
+    const tmpDir = path.join(CLI_ROOT, '.temp-test-gitignored');
+    try {
+      const yggDir = path.join(tmpDir, '.yggdrasil');
+      await mkdir(path.join(yggDir, 'model', 'svc'), { recursive: true });
+      await mkdir(path.join(tmpDir, 'src'), { recursive: true });
+      await writeFile(path.join(tmpDir, '.gitignore'), 'src/generated.ts\n');
+      await writeFile(path.join(tmpDir, 'src', 'generated.ts'), 'export const x = 1;');
+      await writeFile(path.join(yggDir, 'yg-config.yaml'), 'version: "4.3.0"\n');
+      await writeFile(path.join(yggDir, 'yg-architecture.yaml'), [
+        'node_types:',
+        '  service:',
+        '    description: Service',
+        '    when:',
+        '      path: "**"',
+      ].join('\n'));
+      await writeFile(path.join(yggDir, 'model', 'svc', 'yg-node.yaml'), [
+        'name: svc',
+        'type: service',
+        'description: x',
+        'mapping:',
+        '  - src/generated.ts',
+      ].join('\n'));
+      const graph = await loadGraph(tmpDir);
+      const result = await validate(graph);
+      expect(result.issues.find((i) => i.code === 'file-mapping-gitignored')).toBeDefined();
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('emits error for cascading-gitignored file', async () => {
+    const tmpDir = path.join(CLI_ROOT, '.temp-test-cascading-gitignored');
+    try {
+      const yggDir = path.join(tmpDir, '.yggdrasil');
+      await mkdir(path.join(yggDir, 'model', 'svc'), { recursive: true });
+      await mkdir(path.join(tmpDir, 'src', 'sub'), { recursive: true });
+      await writeFile(path.join(tmpDir, 'src', 'sub', '.gitignore'), 'local.ts\n');
+      await writeFile(path.join(tmpDir, 'src', 'sub', 'local.ts'), 'export const y = 2;');
+      await writeFile(path.join(yggDir, 'yg-config.yaml'), 'version: "4.3.0"\n');
+      await writeFile(path.join(yggDir, 'yg-architecture.yaml'), [
+        'node_types:',
+        '  service:',
+        '    description: Service',
+        '    when:',
+        '      path: "**"',
+      ].join('\n'));
+      await writeFile(path.join(yggDir, 'model', 'svc', 'yg-node.yaml'), [
+        'name: svc',
+        'type: service',
+        'description: x',
+        'mapping:',
+        '  - src/sub/local.ts',
+      ].join('\n'));
+      const graph = await loadGraph(tmpDir);
+      const result = await validate(graph);
+      expect(result.issues.find((i) => i.code === 'file-mapping-gitignored')).toBeDefined();
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('does not emit for non-gitignored file', async () => {
+    const tmpDir = path.join(CLI_ROOT, '.temp-test-not-gitignored');
+    try {
+      const yggDir = path.join(tmpDir, '.yggdrasil');
+      await mkdir(path.join(yggDir, 'model', 'svc'), { recursive: true });
+      await mkdir(path.join(tmpDir, 'src'), { recursive: true });
+      await writeFile(path.join(tmpDir, 'src', 'handler.ts'), 'export function handle() {}');
+      await writeFile(path.join(yggDir, 'yg-config.yaml'), 'version: "4.3.0"\n');
+      await writeFile(path.join(yggDir, 'yg-architecture.yaml'), [
+        'node_types:',
+        '  service:',
+        '    description: Service',
+        '    when:',
+        '      path: "**"',
+      ].join('\n'));
+      await writeFile(path.join(yggDir, 'model', 'svc', 'yg-node.yaml'), [
+        'name: svc',
+        'type: service',
+        'description: x',
+        'mapping:',
+        '  - src/handler.ts',
+      ].join('\n'));
+      const graph = await loadGraph(tmpDir);
+      const result = await validate(graph);
+      expect(result.issues.find((i) => i.code === 'file-mapping-gitignored')).toBeUndefined();
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+});

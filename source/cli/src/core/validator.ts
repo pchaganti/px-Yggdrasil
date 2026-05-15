@@ -1,4 +1,4 @@
-import { readdir } from 'node:fs/promises';
+import { readdir, stat as fsStat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import type { Graph } from '../model/graph.js';
@@ -12,6 +12,7 @@ import type {
 } from '../model/when.js';
 import { normalizeMappingPaths } from '../utils/paths.js';
 import { expandMappingPaths } from '../utils/hash.js';
+import { walkRepoFiles } from '../utils/repo-scan.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { computeEffectiveAspects } from './effective-aspects.js';
 import { FileContentCache } from './file-content-cache.js';
@@ -379,7 +380,34 @@ async function checkTypeWhenMismatch(
   }
   return { issues, unreadable };
 }
-async function checkFileMappingGitignored(_graph: Graph): Promise<ValidationIssue[]> { return []; }
+async function checkFileMappingGitignored(graph: Graph): Promise<ValidationIssue[]> {
+  const projectRoot = path.dirname(graph.rootPath);
+  const tracked = new Set(await walkRepoFiles(projectRoot));
+  const issues: ValidationIssue[] = [];
+
+  for (const [nodePath, node] of graph.nodes) {
+    const mapping = node.meta.mapping ?? [];
+    for (const relPath of mapping) {
+      const absPath = path.join(projectRoot, relPath);
+      if (!existsSync(absPath)) continue;
+      const st = await fsStat(absPath);
+      if (!st.isFile()) continue;
+      if (tracked.has(relPath)) continue;
+      issues.push({
+        severity: 'error',
+        code: 'file-mapping-gitignored',
+        rule: 'file-mapping-gitignored',
+        nodePath,
+        message: buildIssueMessage({
+          what: `File '${relPath}' is in mapping of node '${nodePath}' but is excluded by .gitignore.`,
+          why: `Mappings cannot contain .gitignored files — strict backward scan skips them, creating a gap where agent-created files matching a strict type's when could evade enforcement.`,
+          next: `Either:\n  1. Remove the file from .gitignore (if it should be tracked code).\n  2. Remove the file from the mapping (if it's a generated artifact).`,
+        }),
+      });
+    }
+  }
+  return issues;
+}
 function checkFileDuplicateMapping(_graph: Graph): ValidationIssue[] { return []; }
 async function checkStrictBackwardCoverage(
   _graph: Graph,

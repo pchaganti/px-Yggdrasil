@@ -16,3 +16,5 @@ Fix: scope-filter block was passing raw parseError.message instead of buildIssue
 Fix: scope-filter block was passing raw parseError.message as issue message instead of buildIssueMessage. Now uses structured what/why/next format to satisfy what-why-next aspect.
 ## [2026-05-15T07:28:53.036Z]
 Fix checkTypeWhenMismatch: unreadable issues were collected but never merged into the main issues list. Now allUnreadable accumulates from Stage 4 (whenMismatch) and Stage 5 (strict), de-duplicated by message, then pushed into issues.
+## [2026-05-15T07:32:22.551Z]
+Add checkFileMappingGitignored: emits file-mapping-gitignored when a concrete file in a node mapping is excluded by .gitignore (root or cascading). Uses walkRepoFiles to build the tracked-file set, then flags mapping entries absent from it. Only fires for files that exist on disk (not typo errors).
