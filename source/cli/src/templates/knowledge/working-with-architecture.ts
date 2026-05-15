@@ -62,10 +62,51 @@ type. Closes the type-shopping evasion entirely for the type.
 Don't use \`enforce: strict\` when the \`when\` predicate is broad (e.g.
 \`path: "**"\`) — every repo file would be required in that type's mapping.
 
+Strict enforcement fires two error codes:
+- \`type-strict-orphan\` — file matches \`when\` but is in no mapping
+- \`type-strict-misplaced\` — file matches \`when\` but is in a wrong-type mapping
+
+Both are reported alongside \`unmapped-files\` when applicable. They are
+distinct symptoms with distinct fixes — no de-duplication.
+
+## Defending against cross-file evasion (Channel 6)
+
+If a critical aspect must extend across a file boundary (e.g. a helper
+must inherit the parent's audit-logging), use ports:
+
+1. Define a port on the owner node with the aspect.
+2. Helper node declares \`consumes: [port-name]\` on a relation.
+3. Helper inherits the port's aspects (channel 6 propagation).
+
+This is opt-in; bare relations do not propagate aspects. An attacker who
+routes calls through an intermediary without declaring \`consumes\` will
+not inherit the port's aspects — the graph will flag the missing port contract.
+
 ## Pitfalls
 
 - **Overly broad when**: \`path: "**"\` matches everything. Useful for
   placeholder during migration, dangerous in production strict mode.
 - **Forgotten not**: command type without \`not: { path: "**/*.test.ts" }\`
   will reject test files that happen to call command APIs.
+- **Mixing organizational with classifying parents**: a classifying type's
+  parents can include organizational types (they're allowed as parents
+  in the hierarchy). Validator imposes no semantic restriction.
+- **Narrow content regex**: a content predicate that is too specific may
+  fail to match valid files when implementation details change.
+
+## Type-suggest workflow
+
+Use \`yg type-suggest --file <path>\` to verify that a file would be
+classified correctly under the defined predicates:
+
+\`\`\`bash
+yg type-suggest --file src/orders/handler.ts
+\`\`\`
+
+Output shows matching types (✓), closest non-matching types ranked by
+predicate satisfaction fraction, or edge-case messages for files inside
+\`.yggdrasil/\` or for non-existent files (path-only check).
+
+Run this whenever you add or modify a type's \`when\` predicate and want
+to verify that existing files are classified as expected.
 `;

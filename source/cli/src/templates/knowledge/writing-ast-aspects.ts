@@ -15,7 +15,9 @@ Use AST when the rule is structural:
 
 Use LLM for semantic rules that require reading intent.
 
-## Skeleton
+## check.mjs structure
+
+A complete AST check file follows this structure:
 
 \`\`\`javascript
 import { ast } from '@chrisdudek/yg/ast';
@@ -23,18 +25,23 @@ import { ast } from '@chrisdudek/yg/ast';
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
-    for (const node of ast.within(file.ast.rootNode, 'call_expression')) {
+    // optional: filter by path
+    if (!ast.inFile(file, 'src/api/**')) continue;
+
+    // walk the AST for the pattern
+    for (const node of ast.within(file.ast.rootNode, 'call_expression', { crossFunctions: true })) {
       const m = ast.call(node, { object: 'fs', method: /Sync$/ });
       if (m) violations.push(ast.report(file, node, 'use async fs API'));
     }
   }
-  return violations;
+  return violations;  // Violation[] — synchronous only
 }
 \`\`\`
 
 Return \`Violation[]\` — synchronous only. No \`async\`, no \`Promise\`.
+The function receives \`ctx.files\`: an array of \`{ path, ast }\` objects.
 
-## The 12 helpers
+## The twelve helpers
 
 Import all from \`@chrisdudek/yg/ast\` — zero install required.
 
@@ -53,69 +60,61 @@ Import all from \`@chrisdudek/yg/ast\` — zero install required.
 | \`ast.jsxElements(rootNode)\` | All JSX opening and self-closing elements |
 | \`ast.casing.pascal(name)\` | Naming checks: also camel, upperSnake, kebab |
 
-## Critical: \`ast.within\` boundary behavior
+### ast.within boundary behavior (critical)
 
-By default, \`ast.within\` stops at function boundaries. This is intentional:
-if your rule is "X within this function", the default is correct.
-
-Use \`crossFunctions: true\` when the rule is "X anywhere in the file":
+By default, \`ast.within\` stops at function boundaries. Use
+\`crossFunctions: true\` when the rule is "X anywhere in the file":
 
 \`\`\`javascript
 // File-level scan — crosses all function boundaries
 for (const node of ast.within(file.ast.rootNode, 'call_expression', { crossFunctions: true })) { ... }
 
-// Function-scoped scan — stops at nested functions
+// Function-scoped scan — stops at nested functions (default)
 for (const node of ast.within(functionNode, 'await_expression')) { ... }
 \`\`\`
 
 Using the wrong setting silently misses violations.
 
-## Matching calls
+### ast.call matching
 
 \`\`\`javascript
-// Bare function call: foo()
-ast.call(node, 'foo')
-
-// Method call: obj.method()
-ast.call(node, { object: 'db', method: 'query' })
-
-// Regex on method name: obj.methodAsync(), obj.methodSync()
-ast.call(node, { object: 'fs', method: /Sync$/ })
+ast.call(node, 'foo')                              // bare: foo()
+ast.call(node, { object: 'db', method: 'query' }) // method: db.query()
+ast.call(node, { object: 'fs', method: /Sync$/ }) // regex on method name
 \`\`\`
-
-Returns the match object (truthy) if matched, null if not.
-
-## Suppression in AST aspects
-
-Suppression markers inside comments are honored by the runner:
-
-\`\`\`typescript
-// yg-suppress(my-aspect/id) reason here
-someCall(); // this line is suppressed
-
-// yg-suppress-disable(my-aspect/id) reason
-someCall();
-anotherCall();
-// yg-suppress-enable(my-aspect/id)
-\`\`\`
-
-Wildcard: \`disable(*)\` suppresses all AST aspects in range.
 
 ## Purity rule
 
 \`check.mjs\` must not write files, make network calls, or call
 \`process.exit\`. The runner does not enforce this — violating it produces
-non-deterministic results.
+non-deterministic results. The function must be pure and synchronous.
 
-## Testing
+## Testing with yg ast-test
 
 \`\`\`bash
-yg ast-test --aspect <id> --files src/example.ts
+yg ast-test --aspect <id> --files src/example.ts src/other.ts
 yg ast-test --aspect <id> --node <node-path>
 \`\`\`
 
-Exits 1 if violations exist. Use this during development before wiring
-the aspect to nodes.
+Exits 1 if violations exist. Use during \`check.mjs\` development before
+wiring the aspect to nodes. Run against both violating and non-violating
+files to confirm no false positives.
+
+## Suppression in AST aspects
+
+\`\`\`typescript
+// yg-suppress(my-aspect/id) reason — suppresses following line
+someCall();
+
+// yg-suppress-disable(my-aspect/id) reason
+someCall();
+// yg-suppress-enable(my-aspect/id)
+
+// yg-suppress-disable(*) reason — all AST aspects in range
+// yg-suppress-enable(*)
+\`\`\`
+
+A specific \`enable(<id>)\` does NOT punch through \`disable(*)\`.
 
 ## Example: forbid direct DB import in API layer
 

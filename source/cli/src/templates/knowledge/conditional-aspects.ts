@@ -19,53 +19,9 @@ Examples where \`when\` helps:
 - \`idempotency-key\` required only for commands that emit events
 - \`database-migration-review\` only for nodes with mappings under \`db/migrations/\`
 
-## Declaring when
+## Aspect-level when grammar
 
-### Global (on the aspect)
-
-Applies across all channels. Every attach site for this aspect passes through
-this filter.
-
-\`\`\`yaml
-# aspects/idempotency-key/yg-aspect.yaml
-id: idempotency-key
-description: Commands that emit events must carry an idempotency key.
-when:
-  relations:
-    emits:
-      count_gte: 1
-\`\`\`
-
-### Per-attach-site
-
-Declared inline on the aspect reference at the attach point.
-
-\`\`\`yaml
-# In yg-node.yaml aspects list:
-aspects:
-  - id: pii-encryption
-    when:
-      has_mapping:
-        path: "src/profiles/**"
-\`\`\`
-
-\`\`\`yaml
-# In architecture default_aspects for a type:
-default_aspects:
-  - id: audit-logging
-    when:
-      relations:
-        calls:
-          target_type: payment-service
-\`\`\`
-
-## AND combination
-
-Global and per-attach-site \`when\` combine via AND on each channel path.
-The aspect is effective on a node if ANY channel's path passes BOTH its
-global and its attach-site filter.
-
-## Available when atoms
+The \`when\` predicate supports the following atoms:
 
 ### relations filter
 
@@ -93,21 +49,67 @@ when:
   node_type: command                # node is of this type
 \`\`\`
 
+### AND combination
+
+Filters at the same level combine with AND. For OR semantics, create
+separate attach sites with different \`when\` predicates.
+
+## Applicability examples
+
+**Attach to all repositories, apply only when mapping includes user files:**
+\`\`\`yaml
+aspects:
+  - id: pii-encryption
+    when:
+      has_mapping:
+        path: "src/profiles/**"
+\`\`\`
+
+**Apply only to commands that emit events:**
+\`\`\`yaml
+# aspects/idempotency-key/yg-aspect.yaml
+when:
+  relations:
+    emits:
+      count_gte: 1
+\`\`\`
+
+**Architecture default — apply only to a specific node type:**
+\`\`\`yaml
+# In yg-architecture.yaml default_aspects for type 'command':
+default_aspects:
+  - id: audit-logging
+    when:
+      relations:
+        calls:
+          target_type: payment-service
+\`\`\`
+
+## Propagation through channels
+
+Global \`when\` (on the aspect definition) and per-attach-site \`when\`
+(on the aspect reference) combine via AND for each channel path.
+
+The aspect is effective on a node if ANY channel's path passes BOTH
+its global and attach-site filter.
+
+Multiple channels deliver independently. Example: if an aspect is both
+directly attached to a node (channel 1, no when) AND delivered via
+ancestor (channel 2, with when), the aspect is effective on the node
+from channel 1 regardless of whether channel 2's when passes.
+
+\`yg context --node <path>\` shows effective aspects with their channel
+source. An aspect that is silently skipped due to \`when\` does not appear
+in the effective list — this is correct behavior.
+
 ## Cost
 
-\`when\` evaluation is deterministic — no LLM call. Use \`when\` freely to
-narrow applicability. It is cheaper than letting the reviewer decide by
-reading code.
+\`when\` evaluation is deterministic — no LLM call. It runs at \`yg check\`
+time and is essentially free. Use \`when\` freely to narrow applicability.
+It is cheaper than letting the reviewer decide by reading code.
 
-## Prefer when over splitting types
-
-When you find yourself wanting to create \`command-with-events\` and
-\`command-without-events\` as separate types just to control aspect
-applicability, use \`when\` instead. Fewer types, same precision.
-
-## Checking applicability
-
-\`yg context --node <path>\` shows effective aspects with their channel source.
-An aspect that appears silently skipped due to \`when\` will not appear in the
-effective list — this is correct behavior, not a bug.
+Prefer \`when\` over splitting types (fewer types, same precision).
+Prefer \`when\` over leaving applicability decisions inside \`content.md\`
+prose (\`when\` is enforced by the graph engine — prose rules can be
+overlooked by the reviewer).
 `;
