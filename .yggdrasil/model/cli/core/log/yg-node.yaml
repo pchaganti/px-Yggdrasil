@@ -1,0 +1,16 @@
+name: Core Log
+type: adapter
+description: Pure log-entry orchestration — logAdd, logRead, logMergeResolve return structured IssueMessage-shaped results with no presentation concerns.
+aspects:
+  - what-why-next
+  - posix-paths
+  - diagnostic-logging
+relations:
+  - target: cli/core/log-validator
+    type: uses
+  - target: cli/io/stores
+    type: uses
+mapping:
+  - source/cli/src/core/log/log-add.ts
+  - source/cli/src/core/log/log-read.ts
+  - source/cli/src/core/log/log-merge-resolve.ts

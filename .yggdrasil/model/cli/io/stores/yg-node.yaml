@@ -15,4 +15,5 @@ mapping:
   - source/cli/src/io/drift-state-store.ts
   - source/cli/src/io/find-index.ts
   - source/cli/src/io/graph-fs.ts
+  - source/cli/src/io/log-store.ts
   - source/cli/src/io/repo-scanner.ts

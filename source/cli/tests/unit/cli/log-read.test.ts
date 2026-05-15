@@ -1,20 +1,14 @@
-import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import path from 'node:path';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { logReadCommand } from '../../../src/cli/log-read.js';
+import { loadGraph } from '../../../src/core/graph-loader.js';
+import { logRead } from '../../../src/core/log/log-read.js';
 
 const dirs: string[] = [];
 
-beforeEach(() => {
-  vi.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
-    throw new Error(`process.exit:${code}`);
-  });
-});
-
 afterEach(async () => {
   for (const d of dirs.splice(0)) await rm(d, { recursive: true, force: true });
-  vi.restoreAllMocks();
 });
 
 async function setupNode(
@@ -32,16 +26,13 @@ async function setupNode(
   return { projectRoot: root, nodePath: name };
 }
 
-describe('logReadCommand', () => {
-  it('emits "No log entries." when file missing', async () => {
+describe('logRead (core)', () => {
+  it('returns empty entries when log file missing', async () => {
     const { projectRoot, nodePath } = await setupNode('billing');
-    const out: string[] = [];
-    vi.spyOn(process.stdout, 'write').mockImplementation((s: unknown) => {
-      out.push(String(s));
-      return true;
-    });
-    await logReadCommand({ node: nodePath }, projectRoot);
-    expect(out.join('')).toMatch(/No log entries/);
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logRead({ graph, nodePath });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.entries).toHaveLength(0);
   });
 
   it('default --top is 10', async () => {
@@ -50,14 +41,10 @@ describe('logReadCommand', () => {
       return `## [2026-05-11T14:23:00.${ms}Z]\nentry ${i}\n`;
     }).join('');
     const { projectRoot, nodePath } = await setupNode('billing', entries);
-    const out: string[] = [];
-    vi.spyOn(process.stdout, 'write').mockImplementation((s: unknown) => {
-      out.push(String(s));
-      return true;
-    });
-    await logReadCommand({ node: nodePath }, projectRoot);
-    const matches = out.join('').match(/^## \[/gm) ?? [];
-    expect(matches.length).toBe(10);
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logRead({ graph, nodePath });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.entries).toHaveLength(10);
   });
 
   it('--top 3 returns 3 newest first', async () => {
@@ -66,16 +53,14 @@ describe('logReadCommand', () => {
       return `## [2026-05-11T14:23:00.${ms}Z]\nentry ${i}\n`;
     }).join('');
     const { projectRoot, nodePath } = await setupNode('billing', entries);
-    const out: string[] = [];
-    vi.spyOn(process.stdout, 'write').mockImplementation((s: unknown) => {
-      out.push(String(s));
-      return true;
-    });
-    await logReadCommand({ node: nodePath, top: 3 }, projectRoot);
-    const printed = out.join('');
-    expect(printed.indexOf('entry 4')).toBeLessThan(printed.indexOf('entry 2'));
-    const matches = printed.match(/^## \[/gm) ?? [];
-    expect(matches.length).toBe(3);
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logRead({ graph, nodePath, top: 3 });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.entries).toHaveLength(3);
+      expect(result.entries[0].body).toContain('entry 4');
+      expect(result.entries[2].body).toContain('entry 2');
+    }
   });
 
   it('--all returns all entries', async () => {
@@ -84,60 +69,57 @@ describe('logReadCommand', () => {
       return `## [2026-05-11T14:23:00.${ms}Z]\nentry ${i}\n`;
     }).join('');
     const { projectRoot, nodePath } = await setupNode('billing', entries);
-    const out: string[] = [];
-    vi.spyOn(process.stdout, 'write').mockImplementation((s: unknown) => {
-      out.push(String(s));
-      return true;
-    });
-    await logReadCommand({ node: nodePath, all: true }, projectRoot);
-    const matches = out.join('').match(/^## \[/gm) ?? [];
-    expect(matches.length).toBe(15);
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logRead({ graph, nodePath, all: true });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.entries).toHaveLength(15);
   });
 
   it('rejects --top with --all', async () => {
-    const { projectRoot, nodePath } = await setupNode(
-      'billing',
-      '## [2026-05-11T14:23:00.000Z]\nx\n',
-    );
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
-    await expect(
-      logReadCommand({ node: nodePath, top: 5, all: true }, projectRoot),
-    ).rejects.toThrow('process.exit:1');
+    const { projectRoot, nodePath } = await setupNode('billing', '## [2026-05-11T14:23:00.000Z]\nx\n');
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logRead({ graph, nodePath, top: 5, all: true });
+    expect(result.ok).toBe(false);
   });
 
   it('--top N > total returns all', async () => {
     const entries = '## [2026-05-11T14:23:00.000Z]\nonly.\n';
     const { projectRoot, nodePath } = await setupNode('billing', entries);
-    const out: string[] = [];
-    vi.spyOn(process.stdout, 'write').mockImplementation((s: unknown) => {
-      out.push(String(s));
-      return true;
-    });
-    await logReadCommand({ node: nodePath, top: 99 }, projectRoot);
-    const matches = out.join('').match(/^## \[/gm) ?? [];
-    expect(matches.length).toBe(1);
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logRead({ graph, nodePath, top: 99 });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.entries).toHaveLength(1);
   });
 
-  it('rejects --top 0 or negative', async () => {
-    const { projectRoot, nodePath } = await setupNode(
-      'billing',
-      '## [2026-05-11T14:23:00.000Z]\nx\n',
-    );
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
-    await expect(
-      logReadCommand({ node: nodePath, top: 0 }, projectRoot),
-    ).rejects.toThrow('process.exit:1');
-    await expect(
-      logReadCommand({ node: nodePath, top: -3 }, projectRoot),
-    ).rejects.toThrow('process.exit:1');
+  it('rejects --top 0', async () => {
+    const { projectRoot, nodePath } = await setupNode('billing', '## [2026-05-11T14:23:00.000Z]\nx\n');
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const r0 = await logRead({ graph, nodePath, top: 0 });
+    expect(r0.ok).toBe(false);
+    const rn = await logRead({ graph, nodePath, top: -3 });
+    expect(rn.ok).toBe(false);
   });
 
-  it('format violation → stderr and exit 1', async () => {
+  it('returns error on format violation', async () => {
     const bad = 'garbage\n## [bad]\ncontent\n';
     const { projectRoot, nodePath } = await setupNode('billing', bad);
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
-    await expect(
-      logReadCommand({ node: nodePath, top: 10 }, projectRoot),
-    ).rejects.toThrow('process.exit:1');
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logRead({ graph, nodePath, top: 10 });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects invalid node path (..)', async () => {
+    const { projectRoot } = await setupNode('billing');
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logRead({ graph, nodePath: '../escape' });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects when node does not exist', async () => {
+    const { projectRoot } = await setupNode('billing');
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logRead({ graph, nodePath: 'nonexistent' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.what).toContain('Node not found');
   });
 });

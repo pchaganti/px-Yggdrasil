@@ -1,23 +1,17 @@
-import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { execSync } from 'node:child_process';
 import path from 'node:path';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
-import { logMergeResolveCommand } from '../../../src/cli/log-merge-resolve.js';
+import { loadGraph } from '../../../src/core/graph-loader.js';
+import { logMergeResolve } from '../../../src/core/log/log-merge-resolve.js';
 import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
 
 const dirs: string[] = [];
 
-beforeEach(() => {
-  vi.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
-    throw new Error(`process.exit:${code}`);
-  });
-});
-
 afterEach(async () => {
   for (const d of dirs.splice(0)) await rm(d, { recursive: true, force: true });
-  vi.restoreAllMocks();
 });
 
 const ANCESTOR_LOG = '## [2026-05-11T10:00:00.000Z]\nbase.\n';
@@ -57,19 +51,19 @@ async function setupMergeRepo(): Promise<{ projectRoot: string; nodePath: string
   return { projectRoot: repo, nodePath: 'billing' };
 }
 
-describe('logMergeResolveCommand', () => {
+describe('logMergeResolve (core)', () => {
   it('accepts byte-exact ancestor prefix + union of new entries', async () => {
     const { projectRoot, nodePath } = await setupMergeRepo();
+    const yggRoot = path.join(projectRoot, '.yggdrasil');
     const prefixHash = createHash('sha256').update(Buffer.from(ANCESTOR_LOG, 'utf-8')).digest('hex');
-    await writeNodeDriftState(path.join(projectRoot, '.yggdrasil'), nodePath, {
+    await writeNodeDriftState(yggRoot, nodePath, {
       hash: 'h',
       files: {},
-      log: {
-        last_entry_datetime: '2026-05-11T10:00:00.000Z',
-        prefix_hash: prefixHash,
-      },
+      log: { last_entry_datetime: '2026-05-11T10:00:00.000Z', prefix_hash: prefixHash },
     });
-    await expect(logMergeResolveCommand({ node: nodePath }, projectRoot)).resolves.toBeUndefined();
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logMergeResolve({ graph, nodePath, repoRoot: projectRoot });
+    expect(result.ok).toBe(true);
   });
 
   it('rejects when HEAD is not a merge commit', async () => {
@@ -84,16 +78,20 @@ describe('logMergeResolveCommand', () => {
     await writeFile(path.join(nodeDir, 'yg-node.yaml'), 'name: billing\ntype: module\ndescription: x\n');
     await writeFile(path.join(nodeDir, 'log.md'), ANCESTOR_LOG);
     r('git add -A && git commit -qm only');
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
-    await expect(logMergeResolveCommand({ node: 'billing' }, repo)).rejects.toThrow('process.exit:1');
+    const graph = await loadGraph(repo, { tolerateInvalidConfig: true });
+    const result = await logMergeResolve({ graph, nodePath: 'billing', repoRoot: repo });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.what).toContain('not a merge commit');
   });
 
   it('rejects when log.md still has conflict markers', async () => {
     const { projectRoot, nodePath } = await setupMergeRepo();
     const logPath = path.join(projectRoot, '.yggdrasil', 'model', nodePath, 'log.md');
     await writeFile(logPath, '<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> feat\n');
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
-    await expect(logMergeResolveCommand({ node: nodePath }, projectRoot)).rejects.toThrow('process.exit:1');
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logMergeResolve({ graph, nodePath, repoRoot: projectRoot });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.what).toContain('conflict markers');
   });
 
   it('rejects when old portion modified vs ancestor', async () => {
@@ -104,8 +102,10 @@ describe('logMergeResolveCommand', () => {
       '## [2026-05-11T11:00:00.000Z]\nfeat1.\n' +
       '## [2026-05-11T12:00:00.000Z]\nfeat2.\n';
     await writeFile(logPath, tampered);
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
-    await expect(logMergeResolveCommand({ node: nodePath }, projectRoot)).rejects.toThrow('process.exit:1');
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logMergeResolve({ graph, nodePath, repoRoot: projectRoot });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.what).toContain('ancestor prefix');
   });
 
   it('rejects when new entries dropped (union missing)', async () => {
@@ -113,8 +113,10 @@ describe('logMergeResolveCommand', () => {
     const logPath = path.join(projectRoot, '.yggdrasil', 'model', nodePath, 'log.md');
     const missing = ANCESTOR_LOG + '## [2026-05-11T11:00:00.000Z]\nfeat1.\n';
     await writeFile(logPath, missing);
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
-    await expect(logMergeResolveCommand({ node: nodePath }, projectRoot)).rejects.toThrow('process.exit:1');
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logMergeResolve({ graph, nodePath, repoRoot: projectRoot });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.what).toContain('missing');
   });
 
   it('rejects when new entries out of chronological order', async () => {
@@ -125,7 +127,24 @@ describe('logMergeResolveCommand', () => {
       '## [2026-05-11T12:00:00.000Z]\nfeat2.\n' +
       '## [2026-05-11T11:00:00.000Z]\nfeat1.\n';
     await writeFile(logPath, outOfOrder);
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
-    await expect(logMergeResolveCommand({ node: nodePath }, projectRoot)).rejects.toThrow('process.exit:1');
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logMergeResolve({ graph, nodePath, repoRoot: projectRoot });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.what).toContain('chronological');
+  });
+
+  it('rejects invalid node path (..)', async () => {
+    const { projectRoot } = await setupMergeRepo();
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logMergeResolve({ graph, nodePath: '../escape', repoRoot: projectRoot });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects when node does not exist', async () => {
+    const { projectRoot } = await setupMergeRepo();
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logMergeResolve({ graph, nodePath: 'nonexistent', repoRoot: projectRoot });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.what).toContain('Node not found');
   });
 });
