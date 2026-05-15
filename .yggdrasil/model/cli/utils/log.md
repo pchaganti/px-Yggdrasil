@@ -8,3 +8,5 @@ R0.3: repo-scan.ts removed — moved to io/repo-scanner.ts; utils now contains o
 R0.3: hash.ts re-exports updated from utils/repo-scan to io/repo-scanner (no logic change)
 ## [2026-05-15T12:26:34.062Z]
 Fix posix-paths violation in expandMappingPaths: file branch now normalizes path with replace(/\\/g, '/') matching directory branch
+## [2026-05-15T12:30:04.721Z]
+R0.4b: atomic-write.ts removed from utils — moved to io/atomic-write.ts

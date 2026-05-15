@@ -24,3 +24,5 @@ Add checkStrictBackwardCoverage: scans all repo files against each strict type's
 Split file-duplicate-mapping from overlapping-mapping: exact path duplicate in two nodes now emits file-duplicate-mapping (new code); containment (non-ancestor) continues to emit overlapping-mapping. Updated two test cases that were checking overlapping-mapping on exact duplicates.
 ## [2026-05-15T12:12:58.789Z]
 R0.3: updated import from utils/repo-scan to io/repo-scanner (no logic change)
+## [2026-05-15T12:34:39.053Z]
+R0.4: file-content-cache import updated from ./file-content-cache to ../io/file-content-cache (no logic change)

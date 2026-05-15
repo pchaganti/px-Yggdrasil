@@ -3,7 +3,7 @@ import path from 'node:path';
 import chalk from 'chalk';
 import { loadGraph } from '../core/graph-loader.js';
 import { validateNodePath } from '../utils/node-path-validator.js';
-import { atomicWriteFile } from '../utils/atomic-write.js';
+import { atomicWriteFile } from '../io/atomic-write.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { parseLog } from '../io/log-parser.js';
 

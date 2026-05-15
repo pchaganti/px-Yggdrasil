@@ -1,5 +1,5 @@
 {
-  "hash": "4c9487f5a783846aa9000a9886cab06a234af1e36ed0b3e5fbc8136c8e23d9d5",
+  "hash": "9e093832bbfa69385c89b5b1f6cfcbe370061bc558146f1436992e554aa55fbf",
   "files": {
     "own-subset:cli/commands/log": "ea9f8881a4f75c3226c6d3a19a7b1b033c085ce16dd94cb47d68f5d588c4b12d",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -11,10 +11,10 @@
     ".yggdrasil/model/cli/core/log-validator/yg-node.yaml": "7640a6fa1d398f0c43316d769fe3dc4852186c2c5022c3a713bf41d84a16f898",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
     "source/cli/src/cli/log.ts": "a6062fbb33ce91b0b4a525f3a0f0a4523359210f49d609b7448edffe56a8e83e",
-    "source/cli/src/cli/log-add.ts": "c0ff2b9e3b9f6f9959c551c1f1986c3fcb15a0b960abdd01e509e0f2212a6b3f",
     "source/cli/src/cli/log-read.ts": "232db373fe11561ff1ae6e33de481fbb84bcd5d621549bbe1824613ec98a5fb7",
     "source/cli/src/cli/log-merge-resolve.ts": "ae8de0ce41507ee0307d5330eb41f30cb685ec0378c63ad3bb94e96537f3074f",
-    ".yggdrasil/model/cli/io/yg-node.yaml": "b6b89cd3862bc7fde57214c349836ab10d994af3d96a24c9868237013f881be8"
+    ".yggdrasil/model/cli/io/yg-node.yaml": "c3beac048dcff9bdafce542ead98993e8547fbb1b8831834b5a39adce80a40ff",
+    "source/cli/src/cli/log-add.ts": "64a640c279a9693513af0ea04b4da548319c545efe443611bdf20bd6b5e11bf4"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -25,14 +25,14 @@
     ".yggdrasil/aspects/command-exit-codes/check.mjs": 1778444087239.257,
     ".yggdrasil/model/cli/core/log-validator/yg-node.yaml": 1778573614480.0288,
     ".yggdrasil/model/cli/core/yg-node.yaml": 1776177846202.0774,
-    ".yggdrasil/model/cli/io/yg-node.yaml": 1778847170265.5906,
+    ".yggdrasil/model/cli/io/yg-node.yaml": 1778848198800.4563,
     "source/cli/src/cli/log.ts": 1778576262093.4302,
-    "source/cli/src/cli/log-add.ts": 1778575210980.5693,
+    "source/cli/src/cli/log-add.ts": 1778848166884.3645,
     "source/cli/src/cli/log-read.ts": 1778575586290.4065,
     "source/cli/src/cli/log-merge-resolve.ts": 1778576155199.5847
   },
   "log": {
-    "last_entry_datetime": "2026-05-15T12:24:34.046Z",
-    "prefix_hash": "db99fcb4a4e85a0c030ffa9ae71dd75e218b0c75469eca01961756ed2a963be1"
+    "last_entry_datetime": "2026-05-15T12:30:04.814Z",
+    "prefix_hash": "73bb0ebb79effa516b7b34511167dc01f8a7fe7ef8894d46020b89f27bc1289d"
   }
 }

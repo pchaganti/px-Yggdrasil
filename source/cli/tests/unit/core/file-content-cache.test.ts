@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { FileContentCache } from '../../../src/core/file-content-cache.js';
+import { FileContentCache } from '../../../src/io/file-content-cache.js';
 
 describe('FileContentCache', () => {
   let tmpDir: string;

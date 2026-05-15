@@ -4,7 +4,7 @@ import type {
   PredicateTrace,
   EvaluationResult,
 } from '../model/file-when.js';
-import type { FileContentCache } from './file-content-cache.js';
+import type { FileContentCache } from '../io/file-content-cache.js';
 
 const YGGDRASIL_PREFIX = '.yggdrasil/';
 

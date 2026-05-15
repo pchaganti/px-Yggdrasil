@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { classifyFile } from '../../../src/core/type-classifier.js';
-import { FileContentCache } from '../../../src/core/file-content-cache.js';
+import { FileContentCache } from '../../../src/io/file-content-cache.js';
 import type { Graph, ArchitectureNodeType } from '../../../src/model/graph.js';
 import type { FileWhenPredicate } from '../../../src/model/file-when.js';
 

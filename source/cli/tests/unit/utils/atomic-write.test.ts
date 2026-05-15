@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import path from 'node:path';
 import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { atomicWriteFile } from '../../../src/utils/atomic-write.js';
+import { atomicWriteFile } from '../../../src/io/atomic-write.js';
 
 describe('atomicWriteFile', () => {
   const dirs: string[] = [];

@@ -7,7 +7,7 @@ import { collectAncestors } from '../core/context-builder.js';
 import { computeEffectiveAspects } from '../core/effective-aspects.js';
 import { findOwner } from './owner.js';
 import { projectRootFromGraph, resolveFileArg } from '../utils/paths.js';
-import { FileContentCache } from '../core/file-content-cache.js';
+import { FileContentCache } from '../io/file-content-cache.js';
 import { walkRepoFiles } from '../io/repo-scanner.js';
 import { evaluateFileWhen } from '../core/file-when-evaluator.js';
 import type { Graph } from '../model/graph.js';

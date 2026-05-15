@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { evaluateFileWhen } from '../../../src/core/file-when-evaluator.js';
-import { FileContentCache } from '../../../src/core/file-content-cache.js';
+import { FileContentCache } from '../../../src/io/file-content-cache.js';
 import type { FileWhenPredicate } from '../../../src/model/file-when.js';
 
 describe('evaluateFileWhen', () => {

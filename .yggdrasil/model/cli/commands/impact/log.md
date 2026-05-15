@@ -4,3 +4,5 @@ Add --type <id> mode: shows type metadata (description, enforce, when, aspects),
 resolveFileArg call updated: cwd arg removed, file arg now repo-root-relative
 ## [2026-05-15T12:12:58.897Z]
 R0.3: updated import from utils/repo-scan to io/repo-scanner (no logic change)
+## [2026-05-15T12:28:17.897Z]
+R0.4: file-content-cache import updated from core to io (no logic change)

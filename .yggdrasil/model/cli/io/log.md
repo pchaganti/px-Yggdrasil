@@ -22,3 +22,5 @@ How to apply: cast is now Record<string, unknown> in both files (the cast is a T
 Fix silent-missing-files violation in find-index.ts: ENOENT on log.md is expected for freshly created nodes; only emit warning for non-ENOENT errors, silently skip with debugWrite for absent files.
 ## [2026-05-15T12:12:58.592Z]
 R0.3: repo-scanner.ts moved here from utils/repo-scan.ts (io adapter, not a pure helper — reads fs)
+## [2026-05-15T12:30:04.619Z]
+R0.4b: atomic-write.ts moved here from utils/ — persistence-adapter with atomicity guarantee (io layer)

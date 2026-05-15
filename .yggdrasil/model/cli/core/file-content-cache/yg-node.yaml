@@ -6,4 +6,4 @@ relations:
   - target: cli/model
     type: uses
 mapping:
-  - source/cli/src/core/file-content-cache.ts
+  - source/cli/src/io/file-content-cache.ts

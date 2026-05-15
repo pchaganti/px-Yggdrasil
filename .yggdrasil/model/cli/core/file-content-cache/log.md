@@ -10,3 +10,5 @@ Extend FileContentResult with unreadableReason field.
 Why: file-when-evaluator (Task 1.5) needs the underlying OS error message (e.g. ENOENT, EACCES) to attach to the EvaluationResult so the validator can render file-unreadable diagnostics with actionable detail. Task 1.4 returned a bare unreadable=true which lost that signal.
 
 How to apply: stat/readFile catch blocks now capture err.message into unreadableReason. No behavior change for binary/tooLarge paths. Plan Task 1.5 (companion to evaluator).
+## [2026-05-15T12:28:18.105Z]
+R0.4: file moved from core/ to io/ — engine node mapping updated; type stays engine until Phase 2 reclassification

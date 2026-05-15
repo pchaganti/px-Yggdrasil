@@ -8,3 +8,5 @@ How to apply: graph-loader catches WhenPredicateInvalidError and returns structu
 Add version gate: after findYggRoot, detect config version via detectVersion(yggRoot). If version > CLI_SUPPORTED_SCHEMA (4.4.0), throw with upgrade instruction. Gate runs before config parsing and is not affected by tolerateInvalidConfig. Uses semver.gt and semver.valid for comparison.
 ## [2026-05-15T12:24:34.251Z]
 R0.3: cascade from cli/io metadata update
+## [2026-05-15T12:36:43.047Z]
+R0.4b: cascade from cli/io metadata update (atomic-write.ts added to mapping)

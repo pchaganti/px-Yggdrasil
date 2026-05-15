@@ -2,7 +2,7 @@ import { readFile, stat, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import type { DriftState, DriftNodeState } from '../model/drift.js';
 import { debugWrite } from '../utils/debug-log.js';
-import { atomicWriteFile } from '../utils/atomic-write.js';
+import { atomicWriteFile } from '../io/atomic-write.js';
 
 const DRIFT_STATE_DIR = '.drift-state';
 

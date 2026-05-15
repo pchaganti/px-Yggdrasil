@@ -2,7 +2,7 @@ import path from 'node:path';
 import type { Graph } from '../model/graph.js';
 import type { PredicateTrace } from '../model/file-when.js';
 import { evaluateFileWhen, type EvalContext } from './file-when-evaluator.js';
-import type { FileContentCache } from './file-content-cache.js';
+import type { FileContentCache } from '../io/file-content-cache.js';
 
 export type TypeMatch = {
   typeId: string;
