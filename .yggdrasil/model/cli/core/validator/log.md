@@ -26,3 +26,5 @@ Split file-duplicate-mapping from overlapping-mapping: exact path duplicate in t
 R0.3: updated import from utils/repo-scan to io/repo-scanner (no logic change)
 ## [2026-05-15T12:34:39.053Z]
 R0.4: file-content-cache import updated from ./file-content-cache to ../io/file-content-cache (no logic change)
+## [2026-05-15T13:55:50.486Z]
+R0.1 Phase 4: populate messageData via issueMsg() helper on every ValidationIssue. buildIssueMessage still called for backward compat message field; Phase 5 will drop message.

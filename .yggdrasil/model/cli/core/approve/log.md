@@ -10,3 +10,5 @@ R0.4b: cascade from cli/io metadata update (atomic-write.ts added to mapping)
 R0.5: graph-loader.ts now routes all fs calls through io/graph-fs.ts (readSortedDir, readTextFile)
 ## [2026-05-15T13:21:54.671Z]
 R0.6: update log-parser import — approve.ts now imports parseLog from ./parsing/log-parser (moved from io/). No logic change.
+## [2026-05-15T13:55:50.587Z]
+R0.1 Phase 4: populate refuseReasonData alongside refuseReason on all refused ApproveResult returns. buildIssueMessage still called for backward compat; Phase 5 will drop refuseReason.

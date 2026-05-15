@@ -1,5 +1,5 @@
 {
-  "hash": "e20c3b8c6de8c4acf4730659100552e1e2a434f42d15171cc4189cfe91761f4f",
+  "hash": "3a051aed733b2e9f20d9fa1e6ca8c7033dd82a3f4474b5afbd47de462b37b8cc",
   "files": {
     "own-subset:cli/io/stores": "987fc266e9b1a5649a47f4f97069d8885a8e6e4be5e2fd0d8073d24b5cd988c0",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -14,9 +14,9 @@
     "source/cli/src/io/artifact-reader.ts": "88ceb67755c0725962910cf0bc31e756dd50ffa64127d09c47a79dc43935c5cc",
     "source/cli/src/io/atomic-write.ts": "46202039fa117ba4236d82b60ead294b9b2751e57e34579a39341c50d125b47a",
     "source/cli/src/io/drift-state-store.ts": "a2e3498efa500fb8f2cec255b94950c4ad4d590255f2458a9b4c243853d0859a",
-    "source/cli/src/io/find-index.ts": "f418695a7df06cc6b628c7bf9e5d3af3b73d46bffa73f662a38ed519ac1df449",
+    "source/cli/src/io/graph-fs.ts": "573f3c63eabb814ea48a51902a0035b3e61d04be9c5df83c7bb74ccdae6c5037",
     "source/cli/src/io/repo-scanner.ts": "ab2f8f748c3745a6f82117ddbf09ffbb7995bf245484b4cd0f0a11a72137b52a",
-    "source/cli/src/io/graph-fs.ts": "573f3c63eabb814ea48a51902a0035b3e61d04be9c5df83c7bb74ccdae6c5037"
+    "source/cli/src/io/find-index.ts": "6a8946d19296900714fea3b6409f173243a7f8a562f8f71c3a7729ca319b2b8f"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -31,12 +31,12 @@
     "source/cli/src/io/artifact-reader.ts": 1776177846230.4192,
     "source/cli/src/io/atomic-write.ts": 1778571868781.7659,
     "source/cli/src/io/drift-state-store.ts": 1778848166883.539,
-    "source/cli/src/io/find-index.ts": 1778825877463.962,
+    "source/cli/src/io/find-index.ts": 1778853255814.8872,
     "source/cli/src/io/graph-fs.ts": 1778851771527.5347,
     "source/cli/src/io/repo-scanner.ts": 1778847561619.7393
   },
   "log": {
-    "last_entry_datetime": "2026-05-15T13:32:21.184Z",
-    "prefix_hash": "6c186c06c7b19fc1d14b18e68ceb3a10d6502c0c5f6bc1a11ed5c0cf6576f09c"
+    "last_entry_datetime": "2026-05-15T13:56:01.081Z",
+    "prefix_hash": "607ab056b09d0d45c15f5472816f9712163201b5122eb3fec6def320b36748f6"
   }
 }

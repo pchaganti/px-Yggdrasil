@@ -20,7 +20,7 @@ import path from 'node:path';
 import { parseLog } from './parsing/log-parser.js';
 import { validateFormat } from './log-format.js';
 import { validateAppendOnly } from './log-integrity.js';
-import { buildIssueMessage } from '../formatters/message-builder.js';
+import { buildIssueMessage, type IssueMessage } from '../formatters/message-builder.js';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ApproveOptions {
@@ -49,24 +49,27 @@ export async function approveNode(
     const msg = (err as Error).message;
     debugWrite(`[approve] snapshotLog error for node ${nodePath}: ${msg}`);
     const logRel = `.yggdrasil/model/${nodePath}/log.md`;
+    let refuseReasonMd: IssueMessage | undefined;
     let refuseReason: string;
     if (msg.includes('symlink')) {
-      refuseReason = buildIssueMessage({
+      refuseReasonMd = {
         what: `${logRel} is a symbolic link`,
         why: 'Symlinks bypass append-only guarantees and break integrity hashing.',
         next: 'Remove the symlink and let yg log add create a regular file.',
-      });
+      };
+      refuseReason = buildIssueMessage(refuseReasonMd);
     } else if (msg.includes('hardlinks') || msg.includes('nlink')) {
-      refuseReason = buildIssueMessage({
+      refuseReasonMd = {
         what: `${logRel} has multiple hard links`,
         why: 'Hard links would orphan integrity baselines on atomic rename.',
         next: 'Copy to a unique file and replace the hard link.',
-      });
+      };
+      refuseReason = buildIssueMessage(refuseReasonMd);
     } else {
       /* v8 ignore next */
       refuseReason = msg;
     }
-    return { action: 'refused', currentHash: '', refuseReason };
+    return { action: 'refused', currentHash: '', refuseReason, refuseReasonData: refuseReasonMd };
   }
 
   const storedEntry = await readNodeDriftState(graph.rootPath, nodePath);
@@ -80,16 +83,18 @@ export async function approveNode(
     );
     if (!check.ok) {
       const logRel = `.yggdrasil/model/${nodePath}/log.md`;
+      const logIntegrityMd: IssueMessage = {
+        what: `Log integrity broken (${check.reason}) at ${logRel}${logSnapshot.existed ? '' : ' (file missing)'}`,
+        why: check.reason === 'prefix_modified'
+          ? 'Historical (pre-baseline) log content was modified — append-only violated.'
+          : 'Baseline boundary entry not found — log deleted or reset.',
+        next: `Restore from git: git checkout HEAD -- ${logRel} .yggdrasil/.drift-state/${nodePath}.json`,
+      };
       return {
         action: 'refused',
         currentHash: '',
-        refuseReason: buildIssueMessage({
-          what: `Log integrity broken (${check.reason}) at ${logRel}${logSnapshot.existed ? '' : ' (file missing)'}`,
-          why: check.reason === 'prefix_modified'
-            ? 'Historical (pre-baseline) log content was modified — append-only violated.'
-            : 'Baseline boundary entry not found — log deleted or reset.',
-          next: `Restore from git: git checkout HEAD -- ${logRel} .yggdrasil/.drift-state/${nodePath}.json`,
-        }),
+        refuseReason: buildIssueMessage(logIntegrityMd),
+        refuseReasonData: logIntegrityMd,
       };
     }
   }
@@ -103,14 +108,16 @@ export async function approveNode(
       const next = zone === 'pre-baseline'
         ? `Pre-baseline violation (in hashed history). Restore from git: git checkout HEAD -- ${logRel} .yggdrasil/.drift-state/${nodePath}.json`
         : `Post-baseline violation (editable). Edit ${logRel} manually to remove the offending line(s), then re-run approve.`;
+      const logFormatMd: IssueMessage = {
+        what: `Log format invalid at ${logRel}:\n${violations.map((v) => `  line ${v.line}: ${v.reason} — ${v.detail}`).join('\n')}`,
+        why: 'Log format must be parseable for integrity + indexing.',
+        next,
+      };
       return {
         action: 'refused',
         currentHash: '',
-        refuseReason: buildIssueMessage({
-          what: `Log format invalid at ${logRel}:\n${violations.map((v) => `  line ${v.line}: ${v.reason} — ${v.detail}`).join('\n')}`,
-          why: 'Log format must be parseable for integrity + indexing.',
-          next,
-        }),
+        refuseReason: buildIssueMessage(logFormatMd),
+        refuseReasonData: logFormatMd,
       };
     }
   }
@@ -118,14 +125,16 @@ export async function approveNode(
   // ── Logical node (no mapping) — log-only path ───────────
   if (mappingPaths.length === 0) {
     if (!logSnapshot.existed) {
+      const noLogMd: IssueMessage = {
+        what: `Node '${nodePath}' has no mapping and no log.md — nothing to approve`,
+        why: 'Nodes without source mapping participate in the log system only. A log.md entry is required.',
+        next: `yg log add --node ${nodePath} --reason '<justification>'`,
+      };
       return {
         action: 'refused',
         currentHash: '',
-        refuseReason: buildIssueMessage({
-          what: `Node '${nodePath}' has no mapping and no log.md — nothing to approve`,
-          why: 'Nodes without source mapping participate in the log system only. A log.md entry is required.',
-          next: `yg log add --node ${nodePath} --reason '<justification>'`,
-        }),
+        refuseReason: buildIssueMessage(noLogMd),
+        refuseReasonData: noLogMd,
       };
     }
     const gcPaths = await runGC(graph);
@@ -174,14 +183,16 @@ export async function approveNode(
       .filter((tf) => tf.layer === 'source')
       .map((tf) => tf.path);
     if (sourcePathsFirst.length > 0 && logRequiredFirst && parseLog(logSnapshot.content).length === 0) {
+      const noLogFirstMd: IssueMessage = {
+        what: `No log entry found — mandatory entry required when source files are added:\n${sourcePathsFirst.map((p) => '  ' + p).join('\n')}`,
+        why: `Node type '${nodeTypeFirst}' has log_required: true — every source change requires a justification entry.`,
+        next: `yg log add --node ${nodePath} --reason '<justification>'`,
+      };
       return {
         action: 'refused',
         currentHash: '',
-        refuseReason: buildIssueMessage({
-          what: `No log entry found — mandatory entry required when source files are added:\n${sourcePathsFirst.map((p) => '  ' + p).join('\n')}`,
-          why: `Node type '${nodeTypeFirst}' has log_required: true — every source change requires a justification entry.`,
-          next: `yg log add --node ${nodePath} --reason '<justification>'`,
-        }),
+        refuseReason: buildIssueMessage(noLogFirstMd),
+        refuseReasonData: noLogFirstMd,
       };
     }
 
@@ -319,14 +330,16 @@ export async function approveNode(
   if (sourceChanged && logRequired && storedEntry?.log) {
     const newestEntry = parseLog(logSnapshot.content).at(-1);
     if (!newestEntry || newestEntry.datetime === storedEntry.log.last_entry_datetime) {
+      const noLogChangedMd: IssueMessage = {
+        what: `No log entry found — mandatory entry required when source files change:\n${changedSource.map((f) => '  ' + f).join('\n')}`,
+        why: `Node type '${nodeType}' has log_required: true — every source change requires a justification entry.`,
+        next: `yg log add --node ${nodePath} --reason '<justification>'`,
+      };
       return {
         action: 'refused',
         currentHash: '',
-        refuseReason: buildIssueMessage({
-          what: `No log entry found — mandatory entry required when source files change:\n${changedSource.map((f) => '  ' + f).join('\n')}`,
-          why: `Node type '${nodeType}' has log_required: true — every source change requires a justification entry.`,
-          next: `yg log add --node ${nodePath} --reason '<justification>'`,
-        }),
+        refuseReason: buildIssueMessage(noLogChangedMd),
+        refuseReasonData: noLogChangedMd,
       };
     }
   }

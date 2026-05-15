@@ -3,7 +3,6 @@ import path from 'node:path';
 import MiniSearch from 'minisearch';
 import type { Graph } from '../model/graph.js';
 import { debugWrite } from '../utils/debug-log.js';
-import { buildIssueMessage } from '../formatters/message-builder.js';
 
 const MAX_BODY_BYTES = 1_048_576; // 1 MiB
 
@@ -32,11 +31,7 @@ export async function buildIndex(graph: Graph): Promise<IndexedDocument[]> {
         const truncated = truncateTail(raw, MAX_BODY_BYTES);
         if (truncated !== raw) {
           process.stderr.write(
-            buildIssueMessage({
-              what: `log.md for node '${nodePath}' exceeds 1 MiB — body truncated for indexing`,
-              why: 'Large logs are truncated to keep search index memory bounded.',
-              next: 'This does not affect append-only integrity. No action required.',
-            }) + '\n',
+            `log.md for node '${nodePath}' exceeds 1 MiB — body truncated for indexing\nLarge logs are truncated to keep search index memory bounded.\nThis does not affect append-only integrity. No action required.\n`,
           );
         }
         body = truncated;
@@ -51,11 +46,7 @@ export async function buildIndex(graph: Graph): Promise<IndexedDocument[]> {
       debugWrite(`[find-index] log.md read for ${nodePath}: ${e.message}`);
       if (e.code !== 'ENOENT') {
         process.stderr.write(
-          buildIssueMessage({
-            what: `Cannot read log.md for node '${nodePath}': ${e.message}`,
-            why: 'Node will be indexed without log body — search results may be less relevant.',
-            next: 'Check file permissions or restore from git.',
-          }) + '\n',
+          `Cannot read log.md for node '${nodePath}': ${e.message}\nNode will be indexed without log body — search results may be less relevant.\nCheck file permissions or restore from git.\n`,
         );
       }
     }

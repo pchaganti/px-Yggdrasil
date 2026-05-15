@@ -16,7 +16,8 @@ import { resolveMaxTokens } from '../llm/api-utils.js';
 import type { LlmProvider } from '../llm/types.js';
 import type { ApproveResult, AspectVerificationResult } from '../model/drift.js';
 import type { Graph } from '../model/graph.js';
-import { runAstAspect } from '../ast/runner.js';
+import { runAstAspect, AstRunnerError } from '../ast/runner.js';
+import { buildIssueMessage } from '../formatters/message-builder.js';
 
 /** Extended result that includes LLM verification data (tracked in CLI layer, not in core) */
 export interface LlmApproveResult extends ApproveResult {
@@ -107,9 +108,12 @@ export async function runLlmVerification(
         };
       } catch (e: unknown) {
         const code: string = (e as { code?: string }).code ?? 'AST_RUNNER_UNKNOWN';
+        const rendered = e instanceof AstRunnerError
+          ? buildIssueMessage(e.messageData)
+          : (e as Error).message;
         collectedResults[aspect.id] = {
           satisfied: false,
-          reason: `[${code}] ${(e as Error).message}`,
+          reason: `[${code}] ${rendered}`,
         };
       }
     }

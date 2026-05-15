@@ -13,11 +13,15 @@ import type {
 import { normalizeMappingPaths } from '../utils/paths.js';
 import { expandMappingPaths } from '../utils/hash.js';
 import { walkRepoFiles } from '../io/repo-scanner.js';
-import { buildIssueMessage } from '../formatters/message-builder.js';
+import { buildIssueMessage, type IssueMessage } from '../formatters/message-builder.js';
 import { computeEffectiveAspects } from './effective-aspects.js';
 import { FileContentCache } from '../io/file-content-cache.js';
 import { evaluateFileWhen } from './file-when-evaluator.js';
 import { renderTrace } from '../formatters/predicate-trace.js';
+
+function issueMsg(data: IssueMessage): { message: string; messageData: IssueMessage } {
+  return { message: buildIssueMessage(data), messageData: data };
+}
 
 // Architecture-level errors that abort per-node and global validation stages.
 const ARCHITECTURE_FATAL_CODES = new Set<string>([
@@ -35,11 +39,16 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
       severity: 'error',
       code: 'config-invalid',
       rule: 'invalid-config',
-      message: buildIssueMessage({
+      ...issueMsg({
         what: 'yg-config.yaml failed to parse.',
         why: graph.configError,
         next: 'Fix the syntax error in .yggdrasil/yg-config.yaml.',
       }),
+      messageData: {
+        what: 'yg-config.yaml failed to parse.',
+        why: graph.configError,
+        next: 'Fix the syntax error in .yggdrasil/yg-config.yaml.',
+      },
     });
   }
 
@@ -48,11 +57,16 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
       severity: 'error',
       code: 'yaml-invalid',
       rule: 'invalid-node-yaml',
-      message: buildIssueMessage({
+      ...issueMsg({
         what: `yg-node.yaml parse error in ${nodePath}.`,
         why: message,
         next: `Fix the YAML in .yggdrasil/model/${nodePath}/yg-node.yaml.`,
       }),
+      messageData: {
+        what: `yg-node.yaml parse error in ${nodePath}.`,
+        why: message,
+        next: `Fix the YAML in .yggdrasil/model/${nodePath}/yg-node.yaml.`,
+      },
       nodePath,
     });
   }
@@ -65,22 +79,32 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
         severity: 'error',
         code: 'when-predicate-invalid',
         rule: 'when-predicate-invalid',
-        message: buildIssueMessage({
+        ...issueMsg({
           what: archErr.message,
           why: `The when: predicate in yg-architecture.yaml could not be parsed. Architecture cannot be loaded until this is fixed.`,
           next: `Fix the when: predicate syntax in yg-architecture.yaml. See schemas/yg-architecture.yaml for the allowed shape.`,
         }),
+        messageData: {
+          what: archErr.message,
+          why: `The when: predicate in yg-architecture.yaml could not be parsed. Architecture cannot be loaded until this is fixed.`,
+          next: `Fix the when: predicate syntax in yg-architecture.yaml. See schemas/yg-architecture.yaml for the allowed shape.`,
+        },
       });
     } else {
       issues.push({
         severity: 'error',
         code: 'architecture-invalid',
         rule: 'architecture-invalid',
-        message: buildIssueMessage({
+        ...issueMsg({
           what: archErr as string,
           why: `yg-architecture.yaml failed to parse. No architecture-level rules can be checked until this is fixed.`,
           next: `Fix the YAML syntax in yg-architecture.yaml. Run yg check again to verify.`,
         }),
+        messageData: {
+          what: archErr as string,
+          why: `yg-architecture.yaml failed to parse. No architecture-level rules can be checked until this is fixed.`,
+          next: `Fix the YAML syntax in yg-architecture.yaml. Run yg check again to verify.`,
+        },
       });
     }
     return { issues, nodesScanned: 0 };
@@ -168,18 +192,23 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
             severity: 'error',
             code: 'yaml-invalid',
             rule: 'invalid-node-yaml',
-            message: buildIssueMessage({
+            ...issueMsg({
               what: `yg-node.yaml parse error in ${parseError.nodePath}.`,
               why: parseError.message,
               next: `Fix the YAML in .yggdrasil/model/${parseError.nodePath}/yg-node.yaml.`,
             }),
+            messageData: {
+              what: `yg-node.yaml parse error in ${parseError.nodePath}.`,
+              why: parseError.message,
+              next: `Fix the YAML in .yggdrasil/model/${parseError.nodePath}/yg-node.yaml.`,
+            },
             nodePath: parseError.nodePath,
           }],
           nodesScanned: 0,
         };
       }
       return {
-        issues: [{ severity: 'error', rule: 'invalid-scope', message: buildIssueMessage({ what: `Node not found: ${normalizedScope}`, why: 'Validation scope references a node that does not exist in the graph.', next: 'Check the node path and try again.' }) }],
+        issues: [{ severity: 'error', rule: 'invalid-scope', ...issueMsg({ what: `Node not found: ${normalizedScope}`, why: 'Validation scope references a node that does not exist in the graph.', next: 'Check the node path and try again.' }) }],
         nodesScanned: 0,
       };
     }
@@ -203,11 +232,16 @@ function checkTypeUnknownParent(graph: Graph): ValidationIssue[] {
           severity: 'error',
           code: 'type-unknown-parent',
           rule: 'type-unknown-parent',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Architecture type '${typeName}' declares parent '${parent}' which is not defined in node_types.`,
             why: `Parent types must be defined in yg-architecture.yaml — referencing an undefined type makes the architecture semantically invalid.`,
             next: `Add '${parent}' to node_types or remove it from '${typeName}.parents'.`,
           }),
+          messageData: {
+            what: `Architecture type '${typeName}' declares parent '${parent}' which is not defined in node_types.`,
+            why: `Parent types must be defined in yg-architecture.yaml — referencing an undefined type makes the architecture semantically invalid.`,
+            next: `Add '${parent}' to node_types or remove it from '${typeName}.parents'.`,
+          },
         });
       }
     }
@@ -278,7 +312,7 @@ function checkArchitectureParentCycles(graph: Graph): ValidationIssue[] {
     severity: 'error',
     code: 'architecture-cycle',
     rule: 'architecture-cycle',
-    message: buildIssueMessage({
+    ...issueMsg({
       what: `Cycle in parents: declarations:\n  ${cycleStr}\nTrapped types: ${trapped.join(', ')}`,
       why: `Every type in the cycle can only reach other cycle members — no rootable type is reachable. Nodes of these types can never be instantiated.`,
       next: `Break the cycle: add a rootable parent (one with no parents:), remove one parents: declaration, or add a third type as alternative parent.`,
@@ -293,11 +327,16 @@ function checkEnforceStrictWithoutWhen(graph: Graph): ValidationIssue[] {
         severity: 'error',
         code: 'enforce-strict-without-when',
         rule: 'enforce-strict-without-when',
-        message: buildIssueMessage({
+        ...issueMsg({
           what: `Type '${typeId}' has enforce: strict but no when predicate.`,
           why: `enforce: strict requires when — it tells the validator which files must belong to a node of this type. Without when, there's no condition to evaluate.`,
           next: `Either add a when predicate to type '${typeId}', or remove enforce: strict. See schemas/yg-architecture.yaml.`,
         }),
+        messageData: {
+          what: `Type '${typeId}' has enforce: strict but no when predicate.`,
+          why: `enforce: strict requires when — it tells the validator which files must belong to a node of this type. Without when, there's no condition to evaluate.`,
+          next: `Either add a when predicate to type '${typeId}', or remove enforce: strict. See schemas/yg-architecture.yaml.`,
+        },
       });
     }
   }
@@ -319,11 +358,16 @@ function checkTypeWithoutWhenWithMapping(graph: Graph): ValidationIssue[] {
       code: 'type-without-when-with-mapping',
       rule: 'type-without-when-with-mapping',
       nodePath,
-      message: buildIssueMessage({
+      ...issueMsg({
         what: `Node '${nodePath}' has type '${node.meta.type}' (no \`when\` — organizational type) but mapping is not empty:\n  mapping:\n${preview}${ellipsis}`,
         why: `Types without \`when\` are organizational (parent-only). Nodes of such types cannot have mapped files.`,
         next: `Add a \`when\` predicate to type '${node.meta.type}' in yg-architecture.yaml, move the file(s) to a node whose type has \`when\`, or empty this node's mapping.`,
       }),
+      messageData: {
+        what: `Node '${nodePath}' has type '${node.meta.type}' (no \`when\` — organizational type) but mapping is not empty:\n  mapping:\n${preview}${ellipsis}`,
+        why: `Types without \`when\` are organizational (parent-only). Nodes of such types cannot have mapped files.`,
+        next: `Add a \`when\` predicate to type '${node.meta.type}' in yg-architecture.yaml, move the file(s) to a node whose type has \`when\`, or empty this node's mapping.`,
+      },
     });
   }
   return issues;
@@ -354,7 +398,7 @@ async function checkTypeWhenMismatch(
           severity: 'error',
           code: 'file-unreadable',
           rule: 'file-unreadable',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Validator could not read '${relPath}' for when evaluation.\nOS error: ${result.unreadableReason ?? 'unknown'}`,
             why: `Type classification requires reading file content for content: predicates. Files that cannot be opened cannot be classified.`,
             next: `Fix file permissions, or remove the file from the node's mapping if it's not actually source code.`,
@@ -369,7 +413,7 @@ async function checkTypeWhenMismatch(
           code: 'type-when-mismatch',
           rule: 'type-when-mismatch',
           nodePath,
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `File '${relPath}' is in mapping of node '${nodePath}' (type: ${node.meta.type}) but does not satisfy '${node.meta.type}'.when:\n${renderTrace(result.trace, '  ')}`,
             why: `When a node is declared as type '${node.meta.type}', every file in its mapping must satisfy the type's when predicate. This ensures type-default aspects apply to relevant code only.`,
             next: `Options:\n  1. Move file to a node of a different type that fits\n     (run: yg type-suggest --file ${relPath})\n  2. Refactor the file so it satisfies ${node.meta.type}.when\n  3. Broaden '${node.meta.type}'.when in yg-architecture.yaml`,
@@ -398,7 +442,7 @@ async function checkFileMappingGitignored(graph: Graph): Promise<ValidationIssue
         code: 'file-mapping-gitignored',
         rule: 'file-mapping-gitignored',
         nodePath,
-        message: buildIssueMessage({
+        ...issueMsg({
           what: `File '${relPath}' is in mapping of node '${nodePath}' but is excluded by .gitignore.`,
           why: `Mappings cannot contain .gitignored files — strict backward scan skips them, creating a gap where agent-created files matching a strict type's when could evade enforcement.`,
           next: `Either:\n  1. Remove the file from .gitignore (if it should be tracked code).\n  2. Remove the file from the mapping (if it's a generated artifact).`,
@@ -453,7 +497,7 @@ async function checkStrictBackwardCoverage(
           severity: 'error',
           code: 'file-unreadable',
           rule: 'file-unreadable',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Validator could not read '${relPath}' during strict backward scan.\nOS error: ${result.unreadableReason ?? 'unknown'}`,
             why: `Strict enforcement of type '${typeId}' requires reading file content. Files that cannot be opened cannot be classified.`,
             next: `Fix file permissions, or add to .gitignore if it's a generated artifact.`,
@@ -480,7 +524,7 @@ async function checkStrictBackwardCoverage(
             severity: 'error',
             code: 'strict-overlap-conflict',
             rule: 'strict-overlap-conflict',
-            message: buildIssueMessage({
+            ...issueMsg({
               what: `Two types with enforce: strict have overlapping when predicates:\n  '${sorted[i]}'.when matches\n  '${sorted[j]}'.when matches\nExample matching file: '${relPath}'`,
               why: `Both types declare enforce: strict — each demands that any matching file be owned by a node of its type. With the one-owner rule, satisfying both simultaneously is impossible.`,
               next: `Narrow one of the when predicates so they cannot both match the same file.\nRun: yg impact --type ${sorted[i]}\nRun: yg impact --type ${sorted[j]}`,
@@ -500,7 +544,7 @@ async function checkStrictBackwardCoverage(
         severity: 'error',
         code: 'type-strict-orphan',
         rule: 'type-strict-orphan',
-        message: buildIssueMessage({
+        ...issueMsg({
           what: `File '${relPath}' satisfies when of type '${typeId}' (enforce: strict):\n${trace}\nBut file is not in any node's mapping.`,
           why: `Type '${typeId}' has enforce: strict — every file satisfying its when must belong to a mapping of a node of type '${typeId}'. Otherwise the file looks like a ${typeId} but bypasses ${typeId}-level enforcement.`,
           next: `Create yg-node.yaml with type: ${typeId} and add '${relPath}' to its mapping.`,
@@ -512,7 +556,7 @@ async function checkStrictBackwardCoverage(
         code: 'type-strict-misplaced',
         rule: 'type-strict-misplaced',
         nodePath: owner.nodePath,
-        message: buildIssueMessage({
+        ...issueMsg({
           what: `File '${relPath}' satisfies when of type '${typeId}' (enforce: strict):\n${trace}\nBut is in mapping of node '${owner.nodePath}' (type: ${owner.nodeType}).`,
           why: `Type '${typeId}' has enforce: strict — every file satisfying its when must be owned by a node of type '${typeId}'. Current owner has wrong type.`,
           next: `Options:\n  1. Move mapping entry to a ${typeId}-type node.\n  2. Refactor file so it no longer matches ${typeId}.when.\n  3. Change '${owner.nodePath}' type to '${typeId}' if conceptually correct.`,
@@ -575,7 +619,7 @@ function checkRelationTargets(graph: Graph): ValidationIssue[] {
           severity: 'error',
           code: 'relation-broken',
           rule: 'broken-relation',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Relation target '${rel.target}' does not exist.`,
             why: `This node declares a dependency that cannot be resolved.${existingLine}`,
             next: `Fix the target path in yg-node.yaml relations.${hint}`,
@@ -603,7 +647,7 @@ function checkDanglingAspectRefs(graph: Graph): ValidationIssue[] {
           code: 'aspect-undefined',
           rule: 'dangling-aspect-ref',
           nodePath,
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Aspect '${aspectId}' is referenced by this node but not defined in aspects/.`,
             why: `Node declares an aspect that does not exist — aspect requirements cannot be verified.`,
             next: `Create aspects/${aspectId}/ with yg-aspect.yaml and content.md.`,
@@ -621,7 +665,7 @@ function checkDanglingAspectRefs(graph: Graph): ValidationIssue[] {
               code: 'aspect-undefined',
               rule: 'dangling-aspect-ref',
               nodePath,
-              message: buildIssueMessage({
+              ...issueMsg({
                 what: `Aspect '${aspectId}' is referenced by port '${portName}' but not defined in aspects/.`,
                 why: `Port declares a required aspect that does not exist — port contracts cannot be enforced.`,
                 next: `Create aspects/${aspectId}/ with yg-aspect.yaml and content.md.`,
@@ -641,7 +685,7 @@ function checkDanglingAspectRefs(graph: Graph): ValidationIssue[] {
           severity: 'error',
           code: 'aspect-undefined',
           rule: 'dangling-aspect-ref',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Aspect '${aspectId}' is referenced by architecture type '${typeId}' but not defined in aspects/.`,
             why: `Architecture declares a required aspect that does not exist.`,
             next: `Create aspects/${aspectId}/ with yg-aspect.yaml and content.md.`,
@@ -659,7 +703,7 @@ function checkDanglingAspectRefs(graph: Graph): ValidationIssue[] {
           severity: 'error',
           code: 'aspect-undefined',
           rule: 'dangling-aspect-ref',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Aspect '${aspectId}' is referenced by flow '${flow.name}' but not defined in aspects/.`,
             why: `Flow declares an aspect that does not exist — flow requirements cannot propagate.`,
             next: `Create aspects/${aspectId}/ with yg-aspect.yaml and content.md.`,
@@ -693,7 +737,7 @@ function checkAspectIdUniqueness(graph: Graph): ValidationIssue[] {
       severity: 'error',
       code: 'duplicate-aspect-id',
       rule: 'duplicate-aspect-binding',
-      message: buildIssueMessage({
+      ...issueMsg({
         what: `Aspect '${id}' is bound to multiple aspects (${names.join(', ')}).`,
         why: `Aspect ids must be unique — duplicate ids cause ambiguous aspect resolution.`,
         next: `Rename one of the aspect directories to make ids unique.`,
@@ -718,7 +762,7 @@ function checkImpliedAspectsExist(graph: Graph): ValidationIssue[] {
           severity: 'error',
           code: 'implied-aspect-missing',
           rule: 'implied-aspect-missing',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Aspect '${aspect.name}' implies '${impliedId}' but no aspect with that id exists in aspects/.`,
             why: `Implies chain is broken — implied aspect requirements cannot be resolved.`,
             next: `Create the implied aspect or remove it from the implies list.`,
@@ -756,7 +800,7 @@ function checkImpliesNoCycles(graph: Graph): ValidationIssue[] {
           severity: 'error',
           code: 'aspect-implies-cycle',
           rule: 'aspect-implies-cycle',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Aspect implies cycle: ${cycle.join(' → ')}.`,
             why: `Cycles in implies prevent aspect resolution.`,
             next: `Break the cycle by removing one implies edge.`,
@@ -810,7 +854,7 @@ function checkNoCycles(graph: Graph): ValidationIssue[] {
           severity: 'error',
           code: 'structural-cycle',
           rule: 'structural-cycle',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Circular dependency: ${cyclePath.join(' -> ')}.`,
             why: `Cycles prevent deterministic context assembly and cascade tracking.`,
             next: `Break the cycle: extract a shared interface, invert a dependency, or merge nodes.`,
@@ -876,7 +920,7 @@ function checkMappingOverlap(graph: Graph): ValidationIssue[] {
           code: 'file-duplicate-mapping',
           rule: 'file-duplicate-mapping',
           nodePath: candidate.nodePath,
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `File '${current.mappingPath}' appears in mappings of multiple nodes:\n  ${current.nodePath}\n  ${candidate.nodePath}`,
             why: `Each source file must have exactly one owner node. Duplicate mappings lead to ambiguous classification and conflicting aspect attribution.`,
             next: `Remove the file from one of the mappings. Decide which node logically owns the file based on its primary role. The other node should reference it via relations if needed.`,
@@ -896,7 +940,7 @@ function checkMappingOverlap(graph: Graph): ValidationIssue[] {
         severity: 'error',
         code: 'overlapping-mapping',
         rule: 'overlapping-mapping',
-        message: buildIssueMessage({
+        ...issueMsg({
           what: `Mapping paths '${current.mappingPath}' (${current.nodePath}) and '${candidate.mappingPath}' (${candidate.nodePath}) overlap.`,
           why: `Each source file must have exactly one owner node.`,
           next: `Keep one owner mapping and model other concerns via relations.`,
@@ -927,7 +971,7 @@ async function checkMappingPathsExist(graph: Graph): Promise<ValidationIssue[]> 
           severity: 'error',
           code: 'mapping-path-missing',
           rule: 'mapping-path-missing',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Mapping path '${mp}' does not exist on disk.`,
             why: `Node maps a file that was deleted or moved.`,
             next: `Update mapping in yg-node.yaml: fix the path or remove the entry.`,
@@ -953,7 +997,7 @@ function checkBrokenFlowRefs(graph: Graph): ValidationIssue[] {
           severity: 'error',
           code: 'flow-node-broken',
           rule: 'broken-flow-ref',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Flow '${flow.name}' references non-existent node '${n}'.`,
             why: `Flow participants must exist in the graph.`,
             next: `Fix the nodes list in yg-flow.yaml or create the missing node.`,
@@ -985,7 +1029,7 @@ async function checkWideNodes(graph: Graph): Promise<ValidationIssue[]> {
       severity: 'warning',
       code: 'wide-node',
       rule: 'wide-node',
-      message: buildIssueMessage({
+      ...issueMsg({
         what: `Node maps ${sourceFiles.length} source files (max: ${maxFiles}).`,
         why: `Wide nodes degrade reviewer accuracy — the reviewer verifies aspects against all source files at once. Too many files dilute focus and cause false rejections.`,
         next: `Split into child nodes with 2-5 source files each. Each child should map only the files relevant to its aspects.`,
@@ -1008,7 +1052,7 @@ function checkHighFanOut(graph: Graph): ValidationIssue[] {
         severity: 'warning',
         code: 'high-fan-out',
         rule: 'high-fan-out',
-        message: buildIssueMessage({
+        ...issueMsg({
           what: `Node has ${count} direct relations (max: ${maxRel}).`,
           why: `High fan-out makes context packages large and suggests unclear separation of concerns.`,
           next: `Consider splitting responsibilities or introducing an intermediary node.`,
@@ -1048,7 +1092,7 @@ function checkUnpairedEvents(graph: Graph): ValidationIssue[] {
           severity: 'error',
           code: 'event-unpaired',
           rule: 'unpaired-event',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Node '${emitter}' emits to '${target}' but '${target}' has no listens from '${emitter}'.`,
             why: `Events need paired emits/listens for flow tracking.`,
             next: `Add the complementary event relation.`,
@@ -1066,7 +1110,7 @@ function checkUnpairedEvents(graph: Graph): ValidationIssue[] {
           severity: 'error',
           code: 'event-unpaired',
           rule: 'unpaired-event',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Node '${listener}' listens from '${source}' but '${source}' has no emits to '${listener}'.`,
             why: `Events need paired emits/listens for flow tracking.`,
             next: `Add the complementary event relation.`,
@@ -1093,7 +1137,7 @@ function checkSchemas(graph: Graph): ValidationIssue[] {
         severity: 'error',
         code: 'schema-missing',
         rule: 'missing-schema',
-        message: buildIssueMessage({
+        ...issueMsg({
           what: `Schema 'yg-${required}.yaml' missing from .yggdrasil/schemas/.`,
           why: `Schemas validate graph elements — missing schemas allow invalid ${required} definitions.`,
           next: `Run yg init to restore missing schemas.`,
@@ -1124,7 +1168,7 @@ async function checkDirectoriesHaveNodeYaml(graph: Graph): Promise<ValidationIss
           severity: 'error',
           code: 'node-yaml-missing',
           rule: 'missing-node-yaml',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Directory '${graphPath}' has files but no yg-node.yaml.`,
             why: `Every directory in model/ must have a node definition.`,
             next: `Create yg-node.yaml in ${graphPath}/ or move files to an existing node directory.`,
@@ -1171,7 +1215,7 @@ function checkMissingDescriptions(graph: Graph): ValidationIssue[] {
         severity: 'error',
         code: 'description-missing',
         rule: 'missing-description',
-        message: buildIssueMessage({
+        ...issueMsg({
           what: `Node has no description.`,
           why: `Description is used in context output — agents need it for orientation.`,
           next: `Add a description field to yg-node.yaml.`,
@@ -1188,7 +1232,7 @@ function checkMissingDescriptions(graph: Graph): ValidationIssue[] {
         severity: 'error',
         code: 'description-missing',
         rule: 'missing-description',
-        message: buildIssueMessage({
+        ...issueMsg({
           what: `Aspect '${aspect.id}' has no description.`,
           why: `Description is used in context output — agents need it for orientation.`,
           next: `Add a description field to yg-aspect.yaml.`,
@@ -1204,7 +1248,7 @@ function checkMissingDescriptions(graph: Graph): ValidationIssue[] {
         severity: 'error',
         code: 'description-missing',
         rule: 'missing-description',
-        message: buildIssueMessage({
+        ...issueMsg({
           what: `Flow '${flow.name}' has no description.`,
           why: `Description is used in context output — agents need it for orientation.`,
           next: `Add a description field to yg-flow.yaml.`,
@@ -1250,7 +1294,7 @@ function checkNodeTypesExist(graph: Graph): ValidationIssue[] {
         severity: 'error',
         code: 'type-undefined',
         rule: 'unknown-node-type',
-        message: buildIssueMessage({
+        ...issueMsg({
           what: `Node type '${node.meta.type}' is not defined in yg-architecture.yaml.`,
           why: `Allowed types: ${[...allowedTypes].join(', ')}.`,
           next: `Add '${node.meta.type}' to yg-architecture.yaml or change the node type.`,
@@ -1285,7 +1329,7 @@ function checkPortAspectsDefined(graph: Graph): ValidationIssue[] {
               code: 'port-missing-aspect',
               rule: 'integration-aspect-missing',
               nodePath,
-              message: buildIssueMessage({
+              ...issueMsg({
                 what: `Relation: ${rel.type} -> ${rel.target}, port '${portName}'`,
                 why: `Port requires aspect '${aspectId}' but it is not defined in aspects/ — port contracts are broken.`,
                 next: `Create aspects/${aspectId}/ with yg-aspect.yaml and content.md.`,
@@ -1326,7 +1370,7 @@ function checkArchitectureRelations(graph: Graph): ValidationIssue[] {
           code: 'relation-target-forbidden',
           rule: 'invalid-relation-target',
           nodePath,
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Relation: ${rel.type} -> ${rel.target} (type: ${target.meta.type})`,
             why: `Architecture does not allow type '${node.meta.type}' to '${rel.type}' type '${target.meta.type}'. Allowed targets for '${rel.type}': [${allowedTypes.join(', ')}]`,
             next: `Either change the relation type, change the target node's type, or update yg-architecture.yaml to allow this relation.`,
@@ -1358,7 +1402,7 @@ function checkArchitectureParents(graph: Graph): ValidationIssue[] {
         code: 'parent-type-forbidden',
         rule: 'invalid-parent-type',
         nodePath,
-        message: buildIssueMessage({
+        ...issueMsg({
           what: `Parent: ${node.parent.path} (type: ${node.parent.meta.type})`,
           why: `Architecture does not allow type '${node.meta.type}' under parent type '${node.parent.meta.type}'. Allowed parents: [${typeConfig.parents.join(', ')}]`,
           next: `Either move this node under an allowed parent type, change this node's type, or update yg-architecture.yaml to allow this parent.`,
@@ -1395,7 +1439,7 @@ function checkPortConsumes(graph: Graph): ValidationIssue[] {
           code: 'consumes-without-ports',
           rule: 'consumes-without-ports',
           nodePath,
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Relation: ${rel.type} -> ${rel.target} declares consumes: [${rel.consumes.join(', ')}]`,
             why: `Target has no ports. consumes is only meaningful when the target declares ports with required aspects.`,
             next: `Remove consumes from this relation in yg-node.yaml.`,
@@ -1415,7 +1459,7 @@ function checkPortConsumes(graph: Graph): ValidationIssue[] {
           code: 'port-missing-consumes',
           rule: 'missing-consumes',
           nodePath,
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Relation: ${rel.type} -> ${rel.target}`,
             why: `Target has ports: [${portNames.join(', ')}] — port-required aspects won't be verified without a consumes declaration.`,
             next: `Add consumes: [<port-names>] to this relation in yg-node.yaml.`,
@@ -1433,7 +1477,7 @@ function checkPortConsumes(graph: Graph): ValidationIssue[] {
             code: 'port-undefined',
             rule: 'unknown-port',
             nodePath,
-            message: buildIssueMessage({
+            ...issueMsg({
               what: `Relation: ${rel.type} -> ${rel.target}, port '${portName}' not found.`,
               why: `Port contract cannot be enforced for an undefined port. Available ports: [${available.join(', ')}]`,
               next: `Fix the port name in consumes, or add the port definition to the target node.`,
@@ -1500,7 +1544,7 @@ function checkOrphanedAspects(graph: Graph): ValidationIssue[] {
         code: 'orphaned-aspect',
         rule: 'orphaned-aspect',
         nodePath: `aspects/${aspect.id}`,
-        message: buildIssueMessage({
+        ...issueMsg({
           what: `Aspect '${aspect.id}' is defined but not referenced by any node, architecture type, or flow.`,
           why: `Orphaned aspects add noise to the graph without enforcing any requirements.`,
           next: `Either add it to a node/architecture/flow or remove it.`,
@@ -1542,7 +1586,7 @@ function checkWhenReferences(graph: Graph): ValidationIssue[] {
           severity: 'error',
           code: 'when-unknown-type',
           rule: 'when-unknown-type',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Unknown node type '${match.target_type}' in when at ${ctx}/${relType}.target_type.`,
             why: 'The predicate references a type that is not defined in yg-architecture.yaml; it will never evaluate.',
             next: `Fix the type name or define it in yg-architecture.yaml. Known types: ${Array.from(knownTypes).join(', ')}.`,
@@ -1554,7 +1598,7 @@ function checkWhenReferences(graph: Graph): ValidationIssue[] {
           severity: 'error',
           code: 'when-unknown-node',
           rule: 'when-unknown-node',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Referenced node '${match.target}' in when at ${ctx}/${relType}.target does not exist.`,
             why: 'The predicate targets a node that is not in the graph.',
             next: `Fix the node path or add the node under .yggdrasil/model/.`,
@@ -1568,7 +1612,7 @@ function checkWhenReferences(graph: Graph): ValidationIssue[] {
             severity: 'error',
             code: 'when-unknown-port',
             rule: 'when-unknown-port',
-            message: buildIssueMessage({
+            ...issueMsg({
               what: `Port '${match.consumes_port}' is not declared on node '${match.target}' in when at ${ctx}/${relType}.consumes_port.`,
               why: 'The predicate references a port that does not exist on the target node.',
               next: `Fix the port name or add it to .yggdrasil/model/${match.target}/yg-node.yaml.`,
@@ -1586,7 +1630,7 @@ function checkWhenReferences(graph: Graph): ValidationIssue[] {
         severity: 'error',
         code: 'when-unknown-type',
         rule: 'when-unknown-type',
-        message: buildIssueMessage({
+        ...issueMsg({
           what: `Unknown node type '${dc.type}' in when at ${ctx}/type.`,
           why: 'The predicate references a type that is not defined in yg-architecture.yaml.',
           next: `Fix the type name or define it in yg-architecture.yaml. Known types: ${Array.from(knownTypes).join(', ')}.`,
@@ -1601,7 +1645,7 @@ function checkWhenReferences(graph: Graph): ValidationIssue[] {
         severity: 'error',
         code: 'when-unknown-type',
         rule: 'when-unknown-type',
-        message: buildIssueMessage({
+        ...issueMsg({
           what: `Unknown node type '${nc.type}' in when at ${ctx}/type.`,
           why: 'The predicate references a type that is not defined in yg-architecture.yaml.',
           next: `Fix the type name or define it in yg-architecture.yaml. Known types: ${Array.from(knownTypes).join(', ')}.`,
@@ -1677,7 +1721,7 @@ function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
         severity: 'error',
         code: 'aspect-both-rule-sources',
         rule: 'aspect-rule-sources',
-        message: buildIssueMessage({
+        ...issueMsg({
           what: `Aspect '${aspect.id}' has both content.md and check.mjs.`,
           why: `Exactly one rule source is allowed per aspect; the validator cannot infer intent.`,
           next: `Remove the file that does not match aspect's reviewer field (currently '${reviewer}').`,
@@ -1689,7 +1733,7 @@ function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
           severity: 'error',
           code: 'aspect-unexpected-rule-source',
           rule: 'aspect-rule-sources',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Aspect '${aspect.id}' has reviewer 'llm' but check.mjs is present.`,
             why: `LLM aspects must not ship check.mjs (that's the AST reviewer's input).`,
             next: `Remove .yggdrasil/aspects/${aspect.id}/check.mjs or change reviewer to 'ast'.`,
@@ -1700,7 +1744,7 @@ function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
           severity: 'error',
           code: 'aspect-unexpected-rule-source',
           rule: 'aspect-rule-sources',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Aspect '${aspect.id}' has reviewer 'ast' but content.md is present.`,
             why: `AST aspects must not ship content.md (that's the LLM reviewer's input).`,
             next: `Remove .yggdrasil/aspects/${aspect.id}/content.md or change reviewer to 'llm'.`,
@@ -1716,7 +1760,7 @@ function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
           severity: 'error',
           code: 'aspect-missing-rule-source',
           rule: 'aspect-rule-sources',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Aspect '${aspect.id}' has reviewer 'llm' but content.md is missing.`,
             why: `LLM aspects need content.md as the rule definition the reviewer reads.`,
             next: `Create .yggdrasil/aspects/${aspect.id}/content.md describing the rule.`,
@@ -1728,7 +1772,7 @@ function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
           severity: 'error',
           code: 'aspect-unexpected-rule-source',
           rule: 'aspect-rule-sources',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Aspect '${aspect.id}' has reviewer 'llm' but check.mjs is present.`,
             why: `LLM aspects must not ship check.mjs (that's the AST reviewer's input).`,
             next: `Remove .yggdrasil/aspects/${aspect.id}/check.mjs or change reviewer to 'ast'.`,
@@ -1742,7 +1786,7 @@ function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
           severity: 'error',
           code: 'aspect-missing-rule-source',
           rule: 'aspect-rule-sources',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Aspect '${aspect.id}' has reviewer 'ast' but check.mjs is missing.`,
             why: `AST aspects need check.mjs as the rule definition the runner executes.`,
             next: `Create .yggdrasil/aspects/${aspect.id}/check.mjs exporting a check function.`,
@@ -1754,7 +1798,7 @@ function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
           severity: 'error',
           code: 'aspect-unexpected-rule-source',
           rule: 'aspect-rule-sources',
-          message: buildIssueMessage({
+          ...issueMsg({
             what: `Aspect '${aspect.id}' has reviewer 'ast' but content.md is present.`,
             why: `AST aspects must not ship content.md (that's the LLM reviewer's input).`,
             next: `Remove .yggdrasil/aspects/${aspect.id}/content.md or change reviewer to 'llm'.`,
@@ -1778,7 +1822,7 @@ function checkAspectReviewerEnum(graph: Graph): ValidationIssue[] {
       severity: 'error',
       code: 'aspect-invalid-reviewer',
       rule: 'reviewer-enum',
-      message: buildIssueMessage({
+      ...issueMsg({
         what: `Aspect '${aspect.id}' has invalid reviewer value '${reviewer}'.`,
         why: `The reviewer field must be 'ast' or 'llm' (default 'llm').`,
         next: `Set 'reviewer: ast' or 'reviewer: llm' in .yggdrasil/aspects/${aspect.id}/yg-aspect.yaml.`,

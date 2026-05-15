@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { ensureLoaderRegistered } from './loader-hook.js';
 import { parseFile } from './parser.js';
-import { buildIssueMessage } from '../formatters/message-builder.js';
+import type { IssueMessage } from '../formatters/message-builder.js';
 import { collectSuppressions, isLineSuppressed, SuppressMarkerError } from './suppress.js';
 import type { Node } from 'web-tree-sitter';
 import type { CheckContext, Violation } from './types.js';
@@ -20,8 +20,10 @@ export interface RunAstAspectResult {
 }
 
 export class AstRunnerError extends Error {
-  constructor(public readonly code: string, message: string) {
-    super(message);
+  public readonly messageData: IssueMessage;
+  constructor(public readonly code: string, data: IssueMessage) {
+    super(`${data.what}\n${data.why}\n${data.next}`);
+    this.messageData = data;
     this.name = 'AstRunnerError';
   }
 }
@@ -39,11 +41,11 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
   } catch (e: unknown) {
     const code = (e as NodeJS.ErrnoException).code;
     if (code === 'MODULE_NOT_FOUND' || code === 'ERR_MODULE_NOT_FOUND') {
-      throw new AstRunnerError('AST_LOADER_RESOLVE_FAILED', buildIssueMessage({
+      throw new AstRunnerError('AST_LOADER_RESOLVE_FAILED', {
         what: `Could not resolve a module imported by check.mjs (aspect '${params.aspectId}').`,
         why: `Missing module: ${(e as Error).message}.`,
         next: `Reinstall the CLI or remove the unresolved import from check.mjs.`,
-      }));
+      });
     }
     throw e;
   }
@@ -51,31 +53,31 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
   if (mod.check === undefined) {
     const defaultExport = mod.default;
     if (typeof defaultExport === 'function' && defaultExport.name === 'check') {
-      throw new AstRunnerError('AST_CHECK_DEFAULT_EXPORT', buildIssueMessage({
+      throw new AstRunnerError('AST_CHECK_DEFAULT_EXPORT', {
         what: `check.mjs exports 'check' as default, but a NAMED export is required.`,
         why: `The runner imports the named export. A default export is invisible to it.`,
         next: `Change 'export default function check(...)' to 'export function check(...)'`,
-      }));
+      });
     }
-    throw new AstRunnerError('AST_CHECK_NOT_EXPORTED', buildIssueMessage({
+    throw new AstRunnerError('AST_CHECK_NOT_EXPORTED', {
       what: `check.mjs does not export a function named 'check' (aspect '${params.aspectId}').`,
       why: `The runner expects 'export function check(ctx) { ... }'.`,
       next: `Add a named export 'check' in check.mjs.`,
-    }));
+    });
   }
   if (typeof mod.check !== 'function') {
-    throw new AstRunnerError('AST_CHECK_NOT_FUNCTION', buildIssueMessage({
+    throw new AstRunnerError('AST_CHECK_NOT_FUNCTION', {
       what: `'check' is exported but is not a function (got ${typeof mod.check}).`,
       why: `The runner calls check(ctx).`,
       next: `Re-export check as a function.`,
-    }));
+    });
   }
   if (mod.check.length !== 1) {
-    throw new AstRunnerError('AST_CHECK_WRONG_ARITY', buildIssueMessage({
+    throw new AstRunnerError('AST_CHECK_WRONG_ARITY', {
       what: `'check' must accept exactly 1 parameter (ctx); declared arity is ${mod.check.length}.`,
       why: `The runner invokes check(ctx).`,
       next: `Change the signature to function check(ctx).`,
-    }));
+    });
   }
 
   const sourceFiles = [];
@@ -87,25 +89,25 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
     } catch (e: unknown) {
       const msg = (e as Error).message ?? String(e);
       if (msg.startsWith('no parser for extension')) {
-        throw new AstRunnerError('AST_NO_PARSER_FOR_EXTENSION', buildIssueMessage({
+        throw new AstRunnerError('AST_NO_PARSER_FOR_EXTENSION', {
           what: msg + ` (file: ${f.path})`,
           why: `v1 supports only .ts/.tsx/.js/.mjs/.cjs/.jsx.`,
           next: `Remove ${f.path} from the node's mapping.`,
-        }));
+        });
       }
-      throw new AstRunnerError('AST_GRAMMAR_LOAD_FAILED', buildIssueMessage({
+      throw new AstRunnerError('AST_GRAMMAR_LOAD_FAILED', {
         what: `Failed to load tree-sitter grammar for ${f.path}: ${msg}`,
         why: `The bundled WASM grammar could not be loaded.`,
         next: `Reinstall the CLI.`,
-      }));
+      });
     }
     if (ast.rootNode.hasError) {
       const err = findFirstErrorNode(ast.rootNode);
-      throw new AstRunnerError('AST_SOURCE_PARSE_ERROR', buildIssueMessage({
+      throw new AstRunnerError('AST_SOURCE_PARSE_ERROR', {
         what: `Source file ${f.path} has a syntax error at line ${(err?.startPosition.row ?? 0) + 1}.`,
         why: `Tree-sitter could not parse the file cleanly.`,
         next: `Fix the syntax error in ${f.path}.`,
-      }));
+      });
     }
     sourceFiles.push({ path: f.path, content, ast });
   }
@@ -122,27 +124,27 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
   try {
     raw = mod.check(ctx);
   } catch (e: unknown) {
-    throw new AstRunnerError('AST_CHECK_THROWN', buildIssueMessage({
+    throw new AstRunnerError('AST_CHECK_THROWN', {
       what: `check.mjs threw an exception while running (aspect '${params.aspectId}').`,
       why: (e instanceof Error ? e.stack : undefined) ?? String(e),
       next: `Fix the bug in check.mjs and re-run yg approve.`,
-    }));
+    });
   }
 
   if (raw !== null && typeof raw === 'object' && typeof (raw as Record<string, unknown>).then === 'function') {
-    throw new AstRunnerError('AST_CHECK_ASYNC', buildIssueMessage({
+    throw new AstRunnerError('AST_CHECK_ASYNC', {
       what: `check.mjs returned a Promise; only synchronous returns are supported in v1.`,
       why: `The runner does not await check's return value.`,
       next: `Refactor check to be synchronous.`,
-    }));
+    });
   }
 
   if (!Array.isArray(raw)) {
-    throw new AstRunnerError('AST_CHECK_RETURN_SHAPE', buildIssueMessage({
+    throw new AstRunnerError('AST_CHECK_RETURN_SHAPE', {
       what: `check.mjs returned ${typeof raw}, expected Violation[].`,
       why: `The runner reports violations from the array returned by check.`,
       next: `Return [] or Violation[] from check.`,
-    }));
+    });
   }
 
   // Filter suppressed violations
