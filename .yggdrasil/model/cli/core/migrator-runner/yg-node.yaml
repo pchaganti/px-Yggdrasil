@@ -1,0 +1,10 @@
+name: Migrator Runner
+type: engine
+description: Upgrade orchestration — sequences runMigrations and updateConfigVersion, collects and flattens migration actions and warnings.
+aspects:
+  - posix-paths
+relations:
+  - target: cli/core/migrator
+    type: uses
+mapping:
+  - source/cli/src/core/migrator-runner.ts

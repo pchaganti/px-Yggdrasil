@@ -1,16 +1,16 @@
 {
-  "hash": "038aab90f026dcf1a9ddf1b89bccb029ec549e3182879192786bf3f44e7acad6",
+  "hash": "7abc5c8e5648f960ad097d4fc1af0126c6a1f641bbccebfb42c003ce24cc470e",
   "files": {
     "own-subset:cli/commands/init": "84e5f201e0f8c6db41beaebbe9070b738596dce07930e3b68a251581b51daf02",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/commands/yg-node.yaml": "4d929734cf56d8fbf3adfdbb908be64075a4a3322a892656ad00ea07bb026ab4",
     ".yggdrasil/aspects/cli-command-contract/yg-aspect.yaml": "81ba5d9318ec49940495487c056356f9bd462d67ca4bb06d3fd954cf26945d01",
+    ".yggdrasil/aspects/cli-command-contract/content.md": "9962172737d5995bea14ff99e14d7b5aa7400ba602eeec73eac020dc025c3374",
     ".yggdrasil/aspects/command-exit-codes/yg-aspect.yaml": "9fe1bb69349b53310e74cd5a62812036a51b29a427a5c1d8ecca1de7e51fb0dd",
     ".yggdrasil/aspects/command-exit-codes/check.mjs": "48e113c8e19ac3874b0efb8e0690cc245e7f3e2782e6aa6e9cab73ae62a1d120",
     ".yggdrasil/model/cli/templates/yg-node.yaml": "57d0407f1e61237216ea4b0f77b439e6b6b55d2bb4147f73a7bd45052c17a0f0",
     ".yggdrasil/flows/init/yg-flow.yaml": "eb35f927c712f8bae38cb5c5fcd0193432aea2fb7adc5e75f777764300ce3177",
-    "source/cli/src/cli/init.ts": "a7466139ab089324ed05d7125ad77dd3494508762d2086246e5d11a538c9ffb2",
-    ".yggdrasil/aspects/cli-command-contract/content.md": "9962172737d5995bea14ff99e14d7b5aa7400ba602eeec73eac020dc025c3374"
+    "source/cli/src/cli/init.ts": "ad78ae3721a76e5d4073e37e0613ba36a0612fb9817206708bfe72296bc52aeb"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -21,6 +21,10 @@
     ".yggdrasil/aspects/command-exit-codes/check.mjs": 1778444087239.257,
     ".yggdrasil/model/cli/templates/yg-node.yaml": 1776177846203.893,
     ".yggdrasil/flows/init/yg-flow.yaml": 1774035679161.664,
-    "source/cli/src/cli/init.ts": 1776494731307.6018
+    "source/cli/src/cli/init.ts": 1778860959047.4612
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-15T16:03:14.564Z",
+    "prefix_hash": "4e4759bea0135783a9c757207b53d963a5fc465fc73ebade3a7435ae98f0b962"
   }
 }

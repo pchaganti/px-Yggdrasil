@@ -11,7 +11,8 @@ import { installRulesForPlatform, PLATFORMS, type Platform } from '../templates/
 import { fetchAnthropicModels, fetchOpenAIModels, fetchGoogleModels, fetchOllamaModels } from '../llm/model-fetcher.js';
 import { testApiProvider, testCliProvider } from '../llm/reviewer-test.js';
 import type { ReviewerProvider } from '../model/graph.js';
-import { detectVersion, runMigrations, updateConfigVersion } from '../core/migrator.js';
+import { detectVersion } from '../core/migrator.js';
+import { runVersionUpgrade as coreRunVersionUpgrade } from '../core/migrator-runner.js';
 import { MIGRATIONS } from '../migrations/index.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 
@@ -456,8 +457,10 @@ export async function runVersionUpgrade(
   toVersion: string,
   platform: Platform,
 ): Promise<VersionUpgradeResult> {
-  const migrationResults = await runMigrations(fromVersion, MIGRATIONS, yggRoot);
-  await updateConfigVersion(yggRoot, toVersion);
+  const { migrationActions, migrationWarnings } = await coreRunVersionUpgrade({
+    yggRoot, fromVersion, toVersion, migrations: MIGRATIONS,
+  });
+
   await refreshSchemas(yggRoot);
 
   const architecturePath = path.join(yggRoot, 'yg-architecture.yaml');
@@ -468,13 +471,6 @@ export async function runVersionUpgrade(
   }
 
   const rulesPath = await installRulesForPlatform(projectRoot, platform);
-
-  const migrationActions: string[] = [];
-  const migrationWarnings: string[] = [];
-  for (const r of migrationResults) {
-    migrationActions.push(...r.actions);
-    migrationWarnings.push(...r.warnings);
-  }
 
   return { rulesPath, migrationActions, migrationWarnings };
 }
