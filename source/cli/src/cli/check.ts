@@ -4,6 +4,7 @@ import { loadGraph } from '../core/graph-loader.js';
 import { initDebugLog } from '../utils/debug-log.js';
 import { runCheck } from '../core/check.js';
 import type { CheckIssue, CheckResult } from '../core/check.js';
+import { buildIssueMessage } from '../formatters/message-builder.js';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 
@@ -101,7 +102,7 @@ export function formatOutput(result: CheckResult): string {
         };
         const stateLabel = stateMap[issue.lifecycleState ?? ''] ?? 'source drift';
         lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — ${stateLabel}`);
-        for (const line of issue.message.split('\n')) {
+        for (const line of msg(issue).split('\n')) {
           lines.push(`       ${line}`);
         }
       }
@@ -119,7 +120,7 @@ export function formatOutput(result: CheckResult): string {
       });
       for (const issue of sortedCascade) {
         lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — cascade drift`);
-        for (const line of issue.message.split('\n')) {
+        for (const line of msg(issue).split('\n')) {
           lines.push(`       ${line}`);
         }
       }
@@ -147,7 +148,7 @@ export function formatOutput(result: CheckResult): string {
       lines.push('  Structural:');
       for (const issue of sortByNodePath(structural)) {
         lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — ${issue.rule}`);
-        for (const line of issue.message.split('\n')) {
+        for (const line of msg(issue).split('\n')) {
           lines.push(`       ${line}`);
         }
       }
@@ -176,7 +177,7 @@ export function formatOutput(result: CheckResult): string {
       }
       for (const issue of sortByNodePath(architecture)) {
         lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — ${issue.rule}`);
-        for (const line of issue.message.split('\n')) {
+        for (const line of msg(issue).split('\n')) {
           lines.push(`       ${line}`);
         }
       }
@@ -186,8 +187,8 @@ export function formatOutput(result: CheckResult): string {
     if (coverage.length > 0) {
       lines.push('  Coverage:');
       for (const issue of coverage) {
-        lines.push(`  ${issue.code} — ${issue.message.split('\n')[0]}`);
-        for (const line of issue.message.split('\n').slice(1)) {
+        lines.push(`  ${issue.code} — ${msg(issue).split('\n')[0]}`);
+        for (const line of msg(issue).split('\n').slice(1)) {
           lines.push(`       ${line}`);
         }
       }
@@ -198,7 +199,7 @@ export function formatOutput(result: CheckResult): string {
       lines.push('  Completeness:');
       for (const issue of sortByNodePath(completeness)) {
         lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — ${issue.rule}`);
-        for (const line of issue.message.split('\n')) {
+        for (const line of msg(issue).split('\n')) {
           lines.push(`       ${line}`);
         }
       }
@@ -211,14 +212,14 @@ export function formatOutput(result: CheckResult): string {
         lines.push(`  Strict coverage (${strictCoverage.length} errors):`);
         lines.push(`  ${strictCoverage.length} files satisfy strict type when — missing or misplaced in mapping`);
         for (const issue of strictCoverage.slice(0, SAMPLE_COUNT)) {
-          lines.push(`  ${issue.code} — ${issue.message.split('\n')[0]}`);
+          lines.push(`  ${issue.code} — ${msg(issue).split('\n')[0]}`);
         }
         lines.push(`  ... (${strictCoverage.length - SAMPLE_COUNT} more)`);
       } else {
         lines.push('  Strict coverage:');
         for (const issue of sortByNodePath(strictCoverage)) {
           lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — ${issue.rule}`);
-          for (const line of issue.message.split('\n')) {
+          for (const line of msg(issue).split('\n')) {
             lines.push(`       ${line}`);
           }
         }
@@ -231,7 +232,7 @@ export function formatOutput(result: CheckResult): string {
       lines.push('  Log:');
       for (const issue of sortByNodePath(logErrors)) {
         lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — ${issue.rule}`);
-        for (const line of issue.message.split('\n')) {
+        for (const line of msg(issue).split('\n')) {
           lines.push(`       ${line}`);
         }
       }
@@ -247,7 +248,7 @@ export function formatOutput(result: CheckResult): string {
     for (const group of [structureWarnings, otherWarnings]) {
       for (const issue of sortByNodePath(group)) {
         lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — ${issue.rule}`);
-        for (const line of issue.message.split('\n')) {
+        for (const line of msg(issue).split('\n')) {
           lines.push(`       ${line}`);
         }
       }
@@ -296,4 +297,8 @@ export function formatOutput(result: CheckResult): string {
 
 function sortByNodePath(issues: CheckIssue[]): CheckIssue[] {
   return [...issues].sort((a, b) => (a.nodePath ?? '').localeCompare(b.nodePath ?? ''));
+}
+
+function msg(issue: CheckIssue): string {
+  return issue.messageData ? buildIssueMessage(issue.messageData) : issue.message;
 }
