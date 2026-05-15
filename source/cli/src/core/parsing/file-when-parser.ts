@@ -2,7 +2,7 @@ import type {
   FileWhenPredicate,
   FileBooleanClause,
   FileAtomicClause,
-} from '../model/file-when.js';
+} from '../../model/file-when.js';
 
 /**
  * Distinguished error class for when-predicate failures so callers

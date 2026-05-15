@@ -1,9 +1,0 @@
-name: File When Support
-type: engine
-description: Pure sub-parser for the per-file `when` predicate used in node_type classification. Consumes pre-parsed YAML values from architecture-parser and produces validated FileWhenPredicate objects. No file I/O, no disk reads — not a YAML file parser. Parallel to cli/when-support but for the file-level predicate grammar (path/content atoms vs relations/descendants/node).
-aspects: []
-relations:
-  - target: cli/model/file-when
-    type: uses
-mapping:
-  - source/cli/src/io/file-when-parser.ts

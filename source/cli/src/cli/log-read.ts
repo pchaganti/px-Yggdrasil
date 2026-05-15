@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import { loadGraph } from '../core/graph-loader.js';
 import { validateNodePath } from '../utils/node-path-validator.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
-import { parseLog } from '../io/log-parser.js';
+import { parseLog } from '../core/parsing/log-parser.js';
 import { validateFormat } from '../core/log-format.js';
 
 export interface LogReadOptions {

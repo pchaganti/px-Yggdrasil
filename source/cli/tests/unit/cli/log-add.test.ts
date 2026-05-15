@@ -51,7 +51,7 @@ describe('logAddCommand', () => {
     const logPath = path.join(projectRoot, '.yggdrasil', 'model', nodePath, 'log.md');
     await logAddCommand({ node: nodePath, reason: 'first' }, projectRoot);
     const afterFirst = await readFile(logPath, 'utf-8');
-    const { parseLog } = await import('../../../src/io/log-parser.js');
+    const { parseLog } = await import('../../../src/core/parsing/log-parser.js');
     const entriesAfterFirst = parseLog(afterFirst);
     expect(entriesAfterFirst).toHaveLength(1);
     const baselineOffsetEnd = entriesAfterFirst[0].offsetEnd;

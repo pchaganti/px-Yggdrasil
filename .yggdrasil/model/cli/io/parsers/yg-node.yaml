@@ -1,6 +1,6 @@
 name: IO Parsers
 type: adapter
-description: YAML parsers for graph definition files (nodes, aspects, config, flows, schemas, secrets, architecture) plus the log.md entry parser
+description: YAML parsers for graph definition files (nodes, aspects, config, flows, schemas, secrets, architecture). In-memory parsers (log-parser, file-when-parser, when-parser) are in cli/core/parsing.
 aspects:
   - yaml-parser-contract
   - diagnostic-logging
@@ -12,7 +12,6 @@ mapping:
   - source/cli/src/io/aspect-parser.ts
   - source/cli/src/io/config-parser.ts
   - source/cli/src/io/flow-parser.ts
-  - source/cli/src/io/log-parser.ts
   - source/cli/src/io/node-parser.ts
   - source/cli/src/io/schema-parser.ts
   - source/cli/src/io/secrets-parser.ts

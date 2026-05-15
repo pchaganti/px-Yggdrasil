@@ -3,7 +3,7 @@ import { parse as parseYaml } from 'yaml';
 import type { AspectDef } from '../model/graph.js';
 import type { WhenPredicate } from '../model/when.js';
 import { readArtifacts } from './artifact-reader.js';
-import { parseWhen, parseAspectAttachment } from './when-parser.js';
+import { parseWhen, parseAspectAttachment } from '../core/parsing/when-parser.js';
 
 export async function parseAspect(
   aspectDir: string,

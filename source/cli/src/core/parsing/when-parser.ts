@@ -6,8 +6,8 @@ import type {
   RelationMatch,
   DescendantsClause,
   NodeClause,
-} from '../model/when.js';
-import type { RelationType } from '../model/graph.js';
+} from '../../model/when.js';
+import type { RelationType } from '../../model/graph.js';
 
 const RELATION_TYPES = new Set<string>([
   'calls',

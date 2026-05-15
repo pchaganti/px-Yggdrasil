@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseLog } from '../../../src/io/log-parser.js';
+import { parseLog } from '../../../src/core/parsing/log-parser.js';
 
 describe('parseLog', () => {
   it('returns empty array for empty string', () => {

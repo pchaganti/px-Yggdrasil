@@ -17,7 +17,7 @@ import { readFile, lstat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { debugWrite } from '../utils/debug-log.js';
 import path from 'node:path';
-import { parseLog } from '../io/log-parser.js';
+import { parseLog } from './parsing/log-parser.js';
 import { validateFormat } from './log-format.js';
 import { validateAppendOnly } from './log-integrity.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseFileWhen } from '../../../src/io/file-when-parser.js';
+import { parseFileWhen } from '../../../src/core/parsing/file-when-parser.js';
 
 describe('parseFileWhen', () => {
   describe('atomic clauses', () => {

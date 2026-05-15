@@ -5,7 +5,7 @@ import { loadGraph } from '../core/graph-loader.js';
 import { validateNodePath } from '../utils/node-path-validator.js';
 import { atomicWriteFile } from '../io/atomic-write.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
-import { parseLog } from '../io/log-parser.js';
+import { parseLog } from '../core/parsing/log-parser.js';
 
 export interface LogAddOptions {
   node: string;

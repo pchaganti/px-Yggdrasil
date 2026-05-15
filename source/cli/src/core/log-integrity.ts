@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { parseLog } from '../io/log-parser.js';
+import { parseLog } from './parsing/log-parser.js';
 
 export type IntegrityCheck =
   | { ok: true }

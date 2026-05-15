@@ -1,5 +1,5 @@
 {
-  "hash": "d093208cb792c9704f1df1b5d2583b6f5613cd42f00760b82e5cbdfe077eaf05",
+  "hash": "08ffdd56b281569a82576b14172c98ffd64a00a1ece6b9fe9f4c8333d853129a",
   "files": {
     "own-subset:cli/io/parsers": "27dda586ba79eb6bdbaaa99355d5b9462dd1eee0dde7cae62b2704137c2e5ae6",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -10,14 +10,13 @@
     ".yggdrasil/aspects/diagnostic-logging/content.md": "861da9ccecc91d8c08168ba10fb297a729158f272fe8da5c136fd6a7e997fb41",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
-    "source/cli/src/io/architecture-parser.ts": "65b4ca20be6a5a607736cfbb95040b9a3b872cea604f3af40fe39925732b36ca",
-    "source/cli/src/io/aspect-parser.ts": "60557d9551bc04c222aa0beb9839b8f85543723bda894930cea6aaa83f8ec9dc",
+    "source/cli/src/io/architecture-parser.ts": "b5c8f11d0d4faeca93f25a6b1e634accd902c58f80505dbb01654c5ec45d5b56",
     "source/cli/src/io/config-parser.ts": "e946673a83a8e5eee8545f0d6dc75ad5e070594cf40efe9ec2369a6a6abd5448",
-    "source/cli/src/io/flow-parser.ts": "475782d0f195be57f82505cb0b65cedb6259c79fceee4db83ea74802fbf1a474",
-    "source/cli/src/io/log-parser.ts": "29aa2620d7f0223666b23b78f914dfc204ff5102be3a42d6546ba055f42e5523",
-    "source/cli/src/io/node-parser.ts": "2f7c18c7f497f88f703daed29008791767e937ee94a974919b208e11f071873c",
+    "source/cli/src/io/flow-parser.ts": "2034051bb0b88e9532627252e4af5894f1958b5dc8295166665d5b32269917c6",
+    "source/cli/src/io/node-parser.ts": "02f92b0076d6be26f3bc895a63ca39fda63072a77d889fe27a8f28fe1b15eb72",
     "source/cli/src/io/schema-parser.ts": "7a04832bf460fff9538f2037a9744b56ad1ec37e5565929b1b709cddc9202261",
-    "source/cli/src/io/secrets-parser.ts": "f72373fe382e2f76efab945074f2357945473005eaa002f906321d87516c863d"
+    "source/cli/src/io/secrets-parser.ts": "f72373fe382e2f76efab945074f2357945473005eaa002f906321d87516c863d",
+    "source/cli/src/io/aspect-parser.ts": "eb226d1e06372e4bd693af8a03d25bfbe8f1a96daf184a14d703d84beaa916ae"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -28,17 +27,16 @@
     ".yggdrasil/aspects/diagnostic-logging/content.md": 1776177846197.264,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    "source/cli/src/io/architecture-parser.ts": 1778651692556.5164,
-    "source/cli/src/io/aspect-parser.ts": 1778431908787.9102,
+    "source/cli/src/io/architecture-parser.ts": 1778851225036.454,
+    "source/cli/src/io/aspect-parser.ts": 1778851524773.27,
     "source/cli/src/io/config-parser.ts": 1778849081937.468,
-    "source/cli/src/io/flow-parser.ts": 1776494731310.8044,
-    "source/cli/src/io/log-parser.ts": 1778572714037.1997,
-    "source/cli/src/io/node-parser.ts": 1778501876547.812,
+    "source/cli/src/io/flow-parser.ts": 1778851225034.4282,
+    "source/cli/src/io/node-parser.ts": 1778851225035.081,
     "source/cli/src/io/schema-parser.ts": 1776177846231.5789,
     "source/cli/src/io/secrets-parser.ts": 1778651700191.4011
   },
   "log": {
-    "last_entry_datetime": "2026-05-15T13:09:48.512Z",
-    "prefix_hash": "7c53cd8c7cca81648623ac062f6dcf7c881e8ea203cee5502e2917b7766cae09"
+    "last_entry_datetime": "2026-05-15T13:26:16.840Z",
+    "prefix_hash": "bb4d5f915b563b9008b30e94b2debcba63b5527f842733dff68c840d6a08599f"
   }
 }
