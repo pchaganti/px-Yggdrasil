@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cli/io` graph node split into `cli/io/parsers` (8 YAML parsers) and `cli/io/stores` (6 fs/state adapters), eliminating wide-node reviewer context overflow.
 - `core/parsing/` module extracted: `log-parser.ts`, `file-when-parser.ts`, `when-parser.ts` moved from `io/` to `core/parsing/`. These are pure in-memory parsers (no file I/O) that belong in the core layer. Consolidates the formerly-separate `cli/file-when-support` and `cli/when-support` graph nodes into `cli/core/parsing`.
 - `core/migrator.ts` now routes fs access through `io/graph-fs.ts` (`readTextFile`, `writeTextFile`) instead of importing `node:fs/promises` directly. `io/graph-fs.ts` gains `writeTextFile` export.
+- `core/migrator-runner.ts` extracted: version-upgrade orchestration (migration sequencing + config version update) moved from `cli/init.ts` into a dedicated core module. `cli/init.ts` retains platform-specific concerns (schema refresh, architecture file creation, rules installation).
+- `core/log/` extracted: `logAdd`, `logRead`, `logMergeResolve` moved from `cli/` to `core/log/` as pure orchestration functions returning structured `IssueMessage`-shaped results. `cli/log.ts` becomes a thin presentation layer (reads `--reason-file`, loads graph, calls core, formats output). `io/log-store.ts` added as the fs adapter for log files.
 
 ## [4.4.0] - 2026-05-15
 
