@@ -1,0 +1,14 @@
+name: AST Core Traversal Tests
+type: test-suite
+description: Unit tests for core AST traversal utilities — call detection, imports, exports, naming, walking, reporting, suppression, and parsing
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/ast/call.test.ts
+  - source/cli/tests/unit/ast/exports.test.ts
+  - source/cli/tests/unit/ast/imports.test.ts
+  - source/cli/tests/unit/ast/name.test.ts
+  - source/cli/tests/unit/ast/parser.test.ts
+  - source/cli/tests/unit/ast/report.test.ts
+  - source/cli/tests/unit/ast/suppress.test.ts
+  - source/cli/tests/unit/ast/walk.test.ts

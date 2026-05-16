@@ -1,0 +1,28 @@
+{
+  "hash": "3b9a23ccba61982116bf0eada2d99104f23186aec410d93a6badd8e2504b1470",
+  "files": {
+    "own-subset:cli/tests/unit/core/migrations": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
+    ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": "de00f518b04112cb692d73d15acfd232c3f1874b163d22d482f0b8e5a7163f48",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "c9db3b691b776caed9de57f4a2db93fd6dd368c1e5cff30e81cbf12a356c4fcf",
+    ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/unit/core/migrator.test.ts": "73bbe57e884de96e7d36784e0abb1a03d2e3b72d57248e0a4e66fade6d1966ad",
+    "source/cli/tests/unit/migrations/to-4.0.0.test.ts": "eb11f61e028ad1479bf07ad2bb13ba8551fcff3e4c3044be3dcc49cc2d0f31b9",
+    "source/cli/tests/unit/migrations/to-4.3.0.test.ts": "1e93635769f2192168d00c098ebb13f1deca04a8a3da7eb6ff6b4fce9fcf6ac5",
+    "source/cli/tests/unit/migrations/to-4.4.0.test.ts": "9decde243243d76a4f7bcd8eb3dc6c6d54f3dd91acbc243f1068d3c09ecbd5c1"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
+    ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": 1778866543616.299,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1778915335937.2456,
+    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
+    "source/cli/tests/unit/core/migrator.test.ts": 1778916655152.1458,
+    "source/cli/tests/unit/migrations/to-4.0.0.test.ts": 1778917051873.1067,
+    "source/cli/tests/unit/migrations/to-4.3.0.test.ts": 1778873952482.6267,
+    "source/cli/tests/unit/migrations/to-4.4.0.test.ts": 1778836588858.0923
+  }
+}

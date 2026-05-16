@@ -1,0 +1,11 @@
+name: CLI General Command Tests
+type: test-suite
+description: Unit tests for general CLI commands — build-command, check, init/upgrade, knowledge, and type-suggest
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/cli/build-command.test.ts
+  - source/cli/tests/unit/cli/check.test.ts
+  - source/cli/tests/unit/cli/init-upgrade.test.ts
+  - source/cli/tests/unit/cli/knowledge.test.ts
+  - source/cli/tests/unit/cli/type-suggest.test.ts

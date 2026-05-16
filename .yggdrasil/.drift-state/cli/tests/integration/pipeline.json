@@ -1,0 +1,28 @@
+{
+  "hash": "b65431f777b76d9821fc9c1efe51d7ed85b2df88cf86309fb1a1b7122c1a9b78",
+  "files": {
+    "own-subset:cli/tests/integration/pipeline": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
+    ".yggdrasil/model/cli/tests/integration/yg-node.yaml": "f6203e633f0cb0b6bc84c3337606df49a00920a414f6557fe2f3f91bfd034442",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "c9db3b691b776caed9de57f4a2db93fd6dd368c1e5cff30e81cbf12a356c4fcf",
+    ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/integration/approve-pipeline.test.ts": "0ad034b8cb710f87f7a77e9132dbaac2415e92b7225f78e7abc47dc676007f98",
+    "source/cli/tests/integration/build-pipeline.test.ts": "51aeed45ab92853741addbf9c8154e69114fe527bfadd8136fe8a925774b0b5a",
+    "source/cli/tests/integration/check-pipeline.test.ts": "ca3009a773fdbc0e9418764012b7ee24138f0c806af2222ec4797ecaaee6dab8",
+    "source/cli/tests/integration/validation-pipeline.test.ts": "1cfc150458fe5fdc3db62caf4fae35c1d7d8768c4b20f396c9396b990d026122",
+    "source/cli/tests/setup.ts": "1a5c111c22e5faf263043c7844a0c844e50428cc7225cf47eac7ca23d15b220d"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
+    ".yggdrasil/model/cli/tests/integration/yg-node.yaml": 1778923836291.2395,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1778915335937.2456,
+    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
+    "source/cli/tests/integration/approve-pipeline.test.ts": 1778854337753.3848,
+    "source/cli/tests/integration/build-pipeline.test.ts": 1778916293304.6687,
+    "source/cli/tests/integration/check-pipeline.test.ts": 1776177846281.1602,
+    "source/cli/tests/integration/validation-pipeline.test.ts": 1778854351492.1548,
+    "source/cli/tests/setup.ts": 1778838384333.1035
+  }
+}

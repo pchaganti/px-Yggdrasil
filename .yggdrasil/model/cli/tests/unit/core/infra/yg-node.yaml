@@ -1,0 +1,10 @@
+name: Core Infrastructure Tests
+type: test-suite
+description: Unit tests for low-level core infrastructure — file-content caching, when-predicate evaluation, and type classification
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/core/file-content-cache.test.ts
+  - source/cli/tests/unit/core/file-when-evaluator.test.ts
+  - source/cli/tests/unit/core/when-evaluator.test.ts
+  - source/cli/tests/unit/core/type-classifier.test.ts

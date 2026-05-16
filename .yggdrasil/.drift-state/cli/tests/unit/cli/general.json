@@ -1,0 +1,30 @@
+{
+  "hash": "056895c7b13931b568c0fc5a22a66261ebe3a9893a8b6b5a724d538867a784a8",
+  "files": {
+    "own-subset:cli/tests/unit/cli/general": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
+    ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": "6e62b47935c2d36ecfefe4a9dd75287fc122ba0e13999e0747798d385c2c832d",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "c9db3b691b776caed9de57f4a2db93fd6dd368c1e5cff30e81cbf12a356c4fcf",
+    ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/unit/cli/build-command.test.ts": "bd569709160f53f5adc190c998b6eb5326b4820594b87c339d4e656984fa9ddb",
+    "source/cli/tests/unit/cli/check.test.ts": "420448c144cbcfd2739fe73f08f2686fa317b2d5d9bfbbbd3cf06687a166099d",
+    "source/cli/tests/unit/cli/init-upgrade.test.ts": "e617651c7bb48aeac3b94c4403b2adb643217e4c5e2eebf2484dd544061682b4",
+    "source/cli/tests/unit/cli/knowledge.test.ts": "2cff7ae295bd3cecf302b69a476bed004d275560fae883e5e381da4ce554902c",
+    "source/cli/tests/unit/cli/type-suggest.test.ts": "bb015a4b5b68666fc449a285692fee36f9c3238d58d755691644ce403ff46398"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
+    ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": 1778923837494.2686,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1778915335937.2456,
+    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
+    "source/cli/tests/unit/cli/build-command.test.ts": 1778916203008.6572,
+    "source/cli/tests/unit/cli/check.test.ts": 1778854527333.66,
+    "source/cli/tests/unit/cli/init-upgrade.test.ts": 1778916337521.3137,
+    "source/cli/tests/unit/cli/knowledge.test.ts": 1778841822673.267,
+    "source/cli/tests/unit/cli/type-suggest.test.ts": 1778834244672.9507
+  }
+}

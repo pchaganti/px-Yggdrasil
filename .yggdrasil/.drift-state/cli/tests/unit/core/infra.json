@@ -1,0 +1,28 @@
+{
+  "hash": "46691e5425bfab7b541929bca40ab9384ee4c6d46f8e37992feb0faebb001194",
+  "files": {
+    "own-subset:cli/tests/unit/core/infra": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
+    ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": "de00f518b04112cb692d73d15acfd232c3f1874b163d22d482f0b8e5a7163f48",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "c9db3b691b776caed9de57f4a2db93fd6dd368c1e5cff30e81cbf12a356c4fcf",
+    ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/unit/core/file-content-cache.test.ts": "5306e182213c9bd3a1a4e2898d0ffd4acd33ec6b0f93d098b8ddbc346ca2e686",
+    "source/cli/tests/unit/core/file-when-evaluator.test.ts": "c36e852cd00260543b556fccc7feaea49ba872c0188824b28629db8fc37724e8",
+    "source/cli/tests/unit/core/when-evaluator.test.ts": "28372d21604e60091407447ec613c7e3e9efe0e983279784c3d1f021a9ef8894",
+    "source/cli/tests/unit/core/type-classifier.test.ts": "3f5010e2903145e4452a7278c5ce74aae187d565a6761817df9c7b8299a5d2eb"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
+    ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": 1778866543616.299,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1778915335937.2456,
+    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
+    "source/cli/tests/unit/core/file-content-cache.test.ts": 1778848078685.5066,
+    "source/cli/tests/unit/core/file-when-evaluator.test.ts": 1778916344949.0588,
+    "source/cli/tests/unit/core/when-evaluator.test.ts": 1776494731315.2185,
+    "source/cli/tests/unit/core/type-classifier.test.ts": 1778848078686.5747
+  }
+}

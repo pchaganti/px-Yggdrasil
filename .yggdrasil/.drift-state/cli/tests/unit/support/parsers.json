@@ -1,0 +1,34 @@
+{
+  "hash": "3cd36942e1be662dd6a9eafbaa50d0691527f7051e357d0bd3fa444ffa2f1f35",
+  "files": {
+    "own-subset:cli/tests/unit/support/parsers": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
+    ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": "e00d9fa0fe37a252b92888b2e217811de7fa6df420f60cdbc3e692833a16be4d",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "c9db3b691b776caed9de57f4a2db93fd6dd368c1e5cff30e81cbf12a356c4fcf",
+    ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/unit/io/architecture-parser.test.ts": "912466fe0664f80617d97063aef671c3272274ff2216b4de995de79fb3bbaff5",
+    "source/cli/tests/unit/io/aspect-parser.test.ts": "b1f9b4806be0a0d8404015962b6f5e68769d8a3b6606a525a77f45b226834c1c",
+    "source/cli/tests/unit/io/file-when-parser.test.ts": "97783e8495cc46933dfb585564794cd42d18860061857eee099b356a611de86b",
+    "source/cli/tests/unit/io/flow-parser.test.ts": "22cd03e5b59de13106d6e9b9b37032c4ea8c711bc26eedda74fc7cd42232c451",
+    "source/cli/tests/unit/io/log-parser.test.ts": "72cbfd947e54141c3352f179b84e6a96ce5f4ecbef59490cc02438560c21d8df",
+    "source/cli/tests/unit/io/node-parser.test.ts": "8b43620723c53acc9b752552fca803e2280802a8c2a3743737181aac07ed60b3",
+    "source/cli/tests/unit/io/when-parser.test.ts": "46211247127c155656c1d67bd28a2b78b7a8ab845923498701e04fd3cd2f2389"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
+    ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": 1778866544645.0125,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1778915335937.2456,
+    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
+    "source/cli/tests/unit/io/architecture-parser.test.ts": 1778917592468.0361,
+    "source/cli/tests/unit/io/aspect-parser.test.ts": 1778918901573.2368,
+    "source/cli/tests/unit/io/file-when-parser.test.ts": 1778851229833.6035,
+    "source/cli/tests/unit/io/flow-parser.test.ts": 1778918778052.933,
+    "source/cli/tests/unit/io/log-parser.test.ts": 1778851229832.0247,
+    "source/cli/tests/unit/io/node-parser.test.ts": 1778919028682.8257,
+    "source/cli/tests/unit/io/when-parser.test.ts": 1778851229835.2869
+  }
+}

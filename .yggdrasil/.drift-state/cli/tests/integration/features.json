@@ -1,0 +1,30 @@
+{
+  "hash": "3a86553f12ed6c694e597d8ff77b162382199bdadf4f8225482d14b82cfd4b5a",
+  "files": {
+    "own-subset:cli/tests/integration/features": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
+    ".yggdrasil/model/cli/tests/integration/yg-node.yaml": "f6203e633f0cb0b6bc84c3337606df49a00920a414f6557fe2f3f91bfd034442",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "c9db3b691b776caed9de57f4a2db93fd6dd368c1e5cff30e81cbf12a356c4fcf",
+    ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/integration/find.test.ts": "c7d420fccc59f6fff6dd580ffeed905befe7903ff5814bf982c8b301a7b1eb16",
+    "source/cli/tests/integration/flow-support.test.ts": "8089568e7aa5708eab47ca3aac4db73b937795c009d0d36d0608a88a7f82070b",
+    "source/cli/tests/integration/loader-hook.test.ts": "47c93a9c12ce8fa601f14656b0b39ac5128a07b2c0ac8f332b373fe5dcccd011",
+    "source/cli/tests/integration/log-workflow.test.ts": "b11bf35e70f19279596c490c8237857d464e25bddf2899d7d7a3627c6e24b7c6",
+    "source/cli/tests/integration/migration-4.3-to-4.4.test.ts": "18d8506d216580ee2567fa1066f65160746dc80149d69b391e4b7c3b1a45c924",
+    "source/cli/tests/integration/ollama-reviewer.external.test.ts": "2a07d56495326b845a9fb46e8dffdd7b28606651afd430bc70ef635dd56f9a4c"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
+    ".yggdrasil/model/cli/tests/integration/yg-node.yaml": 1778923836291.2395,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1778915335937.2456,
+    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
+    "source/cli/tests/integration/find.test.ts": 1778581313840.5718,
+    "source/cli/tests/integration/flow-support.test.ts": 1776177846281.4727,
+    "source/cli/tests/integration/loader-hook.test.ts": 1778433712028.673,
+    "source/cli/tests/integration/log-workflow.test.ts": 1778875948926.2815,
+    "source/cli/tests/integration/migration-4.3-to-4.4.test.ts": 1778837807149.1218,
+    "source/cli/tests/integration/ollama-reviewer.external.test.ts": 1776177846281.6396
+  }
+}

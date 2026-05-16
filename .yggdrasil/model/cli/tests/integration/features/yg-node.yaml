@@ -1,0 +1,12 @@
+name: Integration Feature Tests
+type: test-suite
+description: Integration tests for individual graph commands and cross-cutting features — find, flows, loader hook, log workflow, migration, and external LLM reviewer
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/integration/find.test.ts
+  - source/cli/tests/integration/flow-support.test.ts
+  - source/cli/tests/integration/loader-hook.test.ts
+  - source/cli/tests/integration/log-workflow.test.ts
+  - source/cli/tests/integration/migration-4.3-to-4.4.test.ts
+  - source/cli/tests/integration/ollama-reviewer.external.test.ts

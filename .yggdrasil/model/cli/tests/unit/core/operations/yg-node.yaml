@@ -1,27 +1,15 @@
 name: Operations Core Unit Tests
 type: test-suite
-description: "Unit tests for core CLI operations: approve, check, impact, validator, effective-aspects, aspect-verifier, artifact-reviewer, file-content-cache, file-when-evaluator"
+description: "Unit tests for approve and check orchestration including log integration — approve, approve-llm, approve-log, check, check-log, effective-aspects, impact, log-format, log-integrity"
 aspects: []
 relations: []
 mapping:
-  - source/cli/tests/unit/core/file-content-cache.test.ts
-  - source/cli/tests/unit/core/file-when-evaluator.test.ts
   - source/cli/tests/unit/core/approve.test.ts
+  - source/cli/tests/unit/core/approve-llm.test.ts
+  - source/cli/tests/unit/core/approve-log.test.ts
   - source/cli/tests/unit/core/check.test.ts
+  - source/cli/tests/unit/core/check-log.test.ts
   - source/cli/tests/unit/core/effective-aspects.test.ts
   - source/cli/tests/unit/core/impact.test.ts
-  - source/cli/tests/unit/core/validator.test.ts
-  - source/cli/tests/unit/core/aspect-verifier.test.ts
-  - source/cli/tests/unit/core/approve-llm.test.ts
-  - source/cli/tests/unit/core/migrator.test.ts
-  - source/cli/tests/unit/migrations/to-4.0.0.test.ts
-  - source/cli/tests/unit/migrations/to-4.3.0.test.ts
-  - source/cli/tests/unit/core/when-evaluator.test.ts
-  - source/cli/tests/unit/core/validator-aspect-files.test.ts
-  - source/cli/tests/unit/core/validator-reviewer.test.ts
   - source/cli/tests/unit/core/log-format.test.ts
   - source/cli/tests/unit/core/log-integrity.test.ts
-  - source/cli/tests/unit/core/approve-log.test.ts
-  - source/cli/tests/unit/core/check-log.test.ts
-  - source/cli/tests/unit/core/type-classifier.test.ts
-  - source/cli/tests/unit/migrations/to-4.4.0.test.ts

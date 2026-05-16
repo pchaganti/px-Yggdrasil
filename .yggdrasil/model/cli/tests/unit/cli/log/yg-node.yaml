@@ -1,0 +1,10 @@
+name: CLI Log Command Tests
+type: test-suite
+description: Unit tests for the log command family — log, log-add, log-read, and log-merge-resolve
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/cli/log.test.ts
+  - source/cli/tests/unit/cli/log-add.test.ts
+  - source/cli/tests/unit/cli/log-read.test.ts
+  - source/cli/tests/unit/cli/log-merge-resolve.test.ts
