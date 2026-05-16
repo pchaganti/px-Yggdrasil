@@ -12,7 +12,7 @@ and it builds the graph structure.
 
 ## Directory structure
 
-```
+```text
 .yggdrasil/
   yg-config.yaml          ← project config (reviewer, quality thresholds)
   yg-architecture.yaml    ← node type definitions
@@ -163,6 +163,24 @@ Aspects are verified by reviewers — Yggdrasil ships two reviewer types (LLM an
 See [Reviewers](/reviewers) for the decision matrix, authoring guides for `content.md`
 and `check.mjs`, suppression mechanics, and edge cases.
 
+### The `implies` field
+
+An aspect can declare that it implies other aspects. Implied aspects are included
+recursively — if A implies B and B implies C, then a node with A automatically gets
+B and C as well.
+
+```yaml
+# .yggdrasil/aspects/requires-audit/yg-aspect.yaml
+name: Audit Logging
+description: "Every mutation must emit an audit event"
+implies:
+  - requires-logging
+```
+
+Implied aspects must exist in the graph. Cycles are forbidden — `yg check` detects them.
+Use implies when one rule logically requires another to be satisfied first. For example,
+audit logging only makes sense if diagnostic logging is also active.
+
 ### How aspects reach nodes
 
 Aspects propagate through seven channels:
@@ -232,26 +250,54 @@ need to. The agent knows the schema and can modify this file on your behalf.
 node_types:
   module:
     description: "Business logic unit with clear domain responsibility"
+    log_required: false
   service:
     description: "Component providing functionality to other nodes"
     aspects: [requires-audit]
+    log_required: true
+    enforce: strict
+    parents: [module]
     relations:
       calls: [service, library]
       uses: [library]
+    when:
+      path: "src/**/*.service.ts"
   library:
     description: "Shared utility code with no domain knowledge"
-  infrastructure:
-    description: "Guards, middleware, interceptors"
-  data:
-    description: "Database layer, persistence, and data access"
+    when:
+      path: "src/shared/**"
 ```
 
-Setting `aspects: [requires-audit]` on the `service` type means every
-service node automatically inherits that aspect without listing it explicitly.
-The `relations` constraint limits which node types a service can depend on.
+**Fields per type:**
 
-This is one of the seven aspect distribution channels ("by node type")
-and also how you enforce structural rules across your architecture.
+- **`description`** — Human-readable label shown in `yg tree` and `yg type-suggest` output.
+
+- **`aspects`** — Default aspects automatically applied to every node of this type.
+  This is one of the seven aspect distribution channels ("by node type"). Use it for
+  cross-cutting rules that all nodes of a type must satisfy — e.g. every `service` must
+  have audit logging. Run `yg impact --type <id>` before adding an aspect here to see
+  how many nodes will be affected.
+
+- **`log_required`** — Whether `yg approve` requires at least one log entry before
+  running the reviewer. Defaults to `true`. Set to `false` for types where business
+  reasoning entries aren't needed (e.g. test suites, config nodes).
+
+- **`enforce: strict`** — When set to `true`, every source file matched by the type's
+  `when` predicate must belong to exactly one node of this type. Files matched by `when`
+  but not in any node's `mapping:` produce a `strict-coverage` error in `yg check`.
+  Use this to prevent new files from being added to the codebase without graph coverage.
+
+- **`parents`** — List of type IDs that nodes of this type may nest under. If specified,
+  `yg check` rejects nodes placed under an unlisted parent type. Omit to allow any parent.
+
+- **`relations`** — Map of relation type → allowed target types. Restricts which node
+  types a node of this type may declare relations to. `yg check` rejects relations
+  that violate these constraints.
+
+- **`when`** — Predicate that classifies files into this type. Can match on `path`
+  (glob pattern) and/or `content` (text patterns). Used by `yg type-suggest` and by
+  `enforce: strict` backward coverage. See [Conditional Aspects](/conditional-aspects)
+  for the full predicate grammar — the same grammar applies here.
 
 ---
 
