@@ -517,4 +517,184 @@ describe.skipIf(!distExists)('CLI E2E', () => {
     expect(PKG_VERSION).toMatch(/^\d+\.\d+\.\d+/);
   });
 
+  // --- flows ---
+
+  it('yg flows lists flows with participants and aspects', () => {
+    const { stdout, status } = run(['flows']);
+    expect(status).toBe(0);
+    expect(stdout).toContain('Checkout Flow');
+    expect(stdout).toContain('orders/order-service');
+    expect(stdout).toContain('Aspects: requires-logging');
+  });
+
+  it('yg flows without .yggdrasil returns exit 1', () => {
+    const emptyDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-flows-no-ygg-'));
+    try {
+      const { status, stderr } = run(['flows'], emptyDir);
+      expect(status).toBe(1);
+      expect(stderr).toContain('yg init');
+    } finally {
+      rmSync(emptyDir, { recursive: true, force: true });
+    }
+  });
+
+  // --- find ---
+
+  it('yg find returns ranked entry points matching the query', () => {
+    const { stdout, status } = run(['find', 'order']);
+    expect(status).toBe(0);
+    expect(stdout).toContain('orders');
+    expect(stdout).toContain('score:');
+  });
+
+  it('yg find without query returns exit 1', () => {
+    const { status, stderr } = run(['find']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('query');
+  });
+
+  // --- context --file ---
+
+  it('yg context --file resolves a source file to its owning node', () => {
+    const { stdout, status } = run(['context', '--file', 'src/orders/order.service.ts']);
+    expect(status).toBe(0);
+    expect(stdout).toContain('orders/order-service');
+    expect(stdout).toContain('Must satisfy');
+  });
+
+  // --- log ---
+
+  it('yg log add appends an entry to the node log', () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-log-add-'));
+    try {
+      cpSync(FIXTURE, tmpDir, { recursive: true });
+      const { status, stdout } = run(
+        ['log', 'add', '--node', 'orders/order-service', '--reason', 'E2E test entry'],
+        tmpDir,
+      );
+      expect(status).toBe(0);
+      expect(stdout).toContain('Added log entry');
+      expect(stdout).toContain('orders/order-service');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('yg log read returns entries written by log add', () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-log-read-'));
+    try {
+      cpSync(FIXTURE, tmpDir, { recursive: true });
+      run(['log', 'add', '--node', 'orders/order-service', '--reason', 'Readable entry'], tmpDir);
+      const { status, stdout } = run(
+        ['log', 'read', '--node', 'orders/order-service'],
+        tmpDir,
+      );
+      expect(status).toBe(0);
+      expect(stdout).toContain('Readable entry');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('yg log read --all returns full history including multiple entries', () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-log-read-all-'));
+    try {
+      cpSync(FIXTURE, tmpDir, { recursive: true });
+      run(['log', 'add', '--node', 'orders/order-service', '--reason', 'Alpha entry'], tmpDir);
+      run(['log', 'add', '--node', 'orders/order-service', '--reason', 'Beta entry'], tmpDir);
+      const { status, stdout } = run(
+        ['log', 'read', '--node', 'orders/order-service', '--all'],
+        tmpDir,
+      );
+      expect(status).toBe(0);
+      expect(stdout).toContain('Alpha entry');
+      expect(stdout).toContain('Beta entry');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('yg log add without --reason returns exit 1', () => {
+    const { status, stderr } = run(['log', 'add', '--node', 'orders/order-service']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('reason');
+  });
+
+  it('yg log read without --node returns exit 1', () => {
+    const { status, stderr } = run(['log', 'read']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('node');
+  });
+
+  // --- ast-test ---
+
+  it('yg ast-test with unknown aspect returns exit 1', () => {
+    const { status, stderr } = run(['ast-test', '--aspect', 'nonexistent-aspect-xyz']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('not found');
+  });
+
+  it('yg ast-test with LLM reviewer aspect returns exit 1 with reviewer error', () => {
+    const { status, stderr } = run(['ast-test', '--aspect', 'requires-audit']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('reviewer');
+  });
+
+  it('yg ast-test runs AST check and reports no violations on clean code', () => {
+    // Use the dogfood project which has real AST aspects and a proper node_modules tree
+    const WORKSPACE_ROOT = path.resolve(CLI_ROOT, '../..');
+    const { stdout, status } = run(
+      ['ast-test', '--aspect', 'no-direct-console', '--node', 'cli/formatters'],
+      WORKSPACE_ROOT,
+    );
+    expect(status).toBe(0);
+    expect(stdout).toContain('No violations');
+  });
+
+  // --- type-suggest ---
+
+  it('yg type-suggest --file shows matching architecture types', () => {
+    const { stdout, status } = run(['type-suggest', '--file', 'src/orders/order.service.ts']);
+    expect(status).toBe(0);
+    expect(stdout).toMatch(/service|repository/);
+  });
+
+  it('yg type-suggest without --file returns exit 1', () => {
+    const { status, stderr } = run(['type-suggest']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('file');
+  });
+
+  // --- knowledge ---
+
+  it('yg knowledge list shows all available topics', () => {
+    const { stdout, status } = run(['knowledge', 'list']);
+    expect(status).toBe(0);
+    expect(stdout).toContain('flows');
+    expect(stdout).toContain('cli-reference');
+    expect(stdout).toContain('To read a topic:');
+  });
+
+  it('yg knowledge read returns the topic content', () => {
+    const { stdout, status } = run(['knowledge', 'read', 'flows']);
+    expect(status).toBe(0);
+    expect(stdout.length).toBeGreaterThan(200);
+    expect(stdout.toLowerCase()).toContain('flow');
+  });
+
+  it('yg knowledge read with unknown topic returns exit 1', () => {
+    const { status, stderr } = run(['knowledge', 'read', 'nonexistent-topic-xyz']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('nonexistent-topic-xyz');
+  });
+
+  // --- approve --dry-run ---
+
+  it('yg approve --dry-run shows reviewer prompt without making an LLM call', () => {
+    const { stdout, status } = run(['approve', '--node', 'orders/order-service', '--dry-run']);
+    expect(status).toBe(0);
+    expect(stdout).toContain('Dry run');
+    expect(stdout).toContain('orders/order-service');
+  });
+
 });
