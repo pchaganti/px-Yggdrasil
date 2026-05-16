@@ -70,6 +70,7 @@ node_types:
       - no-direct-console
       - no-nondeterminism-direct
       - posix-paths-source
+      - single-source-graph-queries
     parents: [module]
     relations:
       calls: [engine, parser-adapter, persistence-adapter, llm-shared, utility]
