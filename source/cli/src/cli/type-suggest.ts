@@ -17,7 +17,7 @@ import { debugWrite } from '../utils/debug-log.js';
 export async function typeSuggestCommand(file: string, projectRoot: string): Promise<void> {
   const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
   const repoRoot = projectRootFromGraph(graph.rootPath);
-  const repoRelPath = resolveFileArg(repoRoot, file.trim()).replace(/\/+$/, '');
+  const repoRelPath = resolveFileArg(repoRoot, file.trim()).replace(/\\/g, '/').replace(/\/+$/, '');
   const absPath = resolve(repoRoot, repoRelPath);
   const cache = new FileContentCache();
 

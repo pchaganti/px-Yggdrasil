@@ -46,7 +46,8 @@ export async function findCommand(query: string, projectRoot: string): Promise<n
       if (!doc) continue;
       const matched = (r.terms ?? []).join(', ');
       const score = (r.score ?? 0).toFixed(2);
-      process.stdout.write(`${i + 1}. ${doc.path.padEnd(40)} score: ${score}\n`);
+      const docPath = doc.path.replace(/\\/g, '/').replace(/\/+$/, '');
+      process.stdout.write(`${i + 1}. ${docPath.padEnd(40)} score: ${score}\n`);
       process.stdout.write(`   Kind: ${doc.kind}\n`);
       if (doc.type) process.stdout.write(`   Type: ${doc.type}\n`);
       process.stdout.write(`   Description: "${doc.description}"\n`);

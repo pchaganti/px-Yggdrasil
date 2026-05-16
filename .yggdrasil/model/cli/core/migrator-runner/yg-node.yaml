@@ -2,7 +2,7 @@ name: Migrator Runner
 type: engine
 description: Upgrade orchestration — sequences runMigrations and updateConfigVersion, collects and flattens migration actions and warnings.
 aspects:
-  - posix-paths
+  - posix-paths-output
 relations:
   - target: cli/core/migrator
     type: calls

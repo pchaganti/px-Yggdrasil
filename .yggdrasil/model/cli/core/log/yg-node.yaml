@@ -3,7 +3,7 @@ type: engine
 description: Pure log-entry orchestration — logAdd, logRead, logMergeResolve return structured IssueMessage-shaped results with no presentation concerns.
 aspects:
   - what-why-next
-  - posix-paths
+  - posix-paths-output
   - diagnostic-logging
 relations:
   - target: cli/core/log-validator

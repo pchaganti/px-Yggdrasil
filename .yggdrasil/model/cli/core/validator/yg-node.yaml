@@ -2,7 +2,7 @@ name: Validator
 type: engine
 description: Structural validation and completeness checks enforcing graph integrity across structural, coverage, completeness, and architecture rules
 aspects:
-  - posix-paths
+  - posix-paths-output
   - what-why-next
 relations:
   - target: cli/core/context

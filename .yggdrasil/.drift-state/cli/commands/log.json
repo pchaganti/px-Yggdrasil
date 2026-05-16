@@ -1,5 +1,5 @@
 {
-  "hash": "810fe61e9419bd9f227cb3e390a113813ef62b7929aeac305aea8d7d6ba9b754",
+  "hash": "4de9fc38e1159b58a908cd25f2270a57d584435dd873f29464b3ff4e51ce83bd",
   "files": {
     "own-subset:cli/commands/log": "3b8cd84e4a7bd0d36d5d7905aa31a12cdf4f99e8bee69309825059c055875877",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -10,12 +10,12 @@
     ".yggdrasil/aspects/diagnostic-logging/content.md": "861da9ccecc91d8c08168ba10fb297a729158f272fe8da5c136fd6a7e997fb41",
     ".yggdrasil/aspects/command-contract-shape/yg-aspect.yaml": "88da726dc2494c5d45840dbd02670e8a1a0ecbd081344ed1dc0d671c8d06d867",
     ".yggdrasil/aspects/command-contract-shape/check.mjs": "8e51df457c569bbfa161a4d9fe8d7fb181f66f996dcce17af8c77809b7802065",
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "9a5d512752a6f1fea12e50a6ef249cbf0aae2cc2097597057e4dd429df65f7c9",
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678",
     ".yggdrasil/model/cli/core/loader/yg-node.yaml": "17e035c33e9ec16b6e43878d5e26947e4f170dff7ece47ae19098bbd590028c0",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
-    ".yggdrasil/model/cli/core/log/yg-node.yaml": "ffb378f34dc8e421dea94f72e5b1b37f6878063ba60778624a2e9080937e6503",
     "source/cli/src/cli/log.ts": "e829f3f3191901cf99070f38e1c57bb21a4fa281c683f42170e4b6f6bb214c29",
-    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "9a5d512752a6f1fea12e50a6ef249cbf0aae2cc2097597057e4dd429df65f7c9",
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678"
+    ".yggdrasil/model/cli/core/log/yg-node.yaml": "c5d37b136b7bf386c5a44c9c5614d52ecde8b1fad04a2cc7ea1dbe8a96c5c765"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -30,7 +30,7 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
     ".yggdrasil/model/cli/core/loader/yg-node.yaml": 1778872183686.477,
     ".yggdrasil/model/cli/core/yg-node.yaml": 1776177846202.0774,
-    ".yggdrasil/model/cli/core/log/yg-node.yaml": 1778872081123.5518,
+    ".yggdrasil/model/cli/core/log/yg-node.yaml": 1778912998931.0999,
     "source/cli/src/cli/log.ts": 1778875546214.0498
   },
   "log": {

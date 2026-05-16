@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Aspect `parser-contract`: renamed from `yaml-parser-contract`; content updated to cover any text format (YAML, JSON, NDJSON, plain text), not just YAML. Architecture default for `parser-adapter` type updated.
+- Aspect `posix-paths-output` (LLM): new aspect split from `posix-paths` covering output boundary — paths written to stdout/stored in outputs must use forward-slash separators. Old `posix-paths` aspect removed.
+- `cli/commands/find`: normalize `doc.path` with `.replace(/\\/g, '/')` before writing to stdout (posix-paths-output compliance).
+- `cli/commands/type-suggest`: complete POSIX normalization on `repoRelPath` — add `.replace(/\\/g, '/')` alongside existing trailing-slash strip.
+
 - AST aspect `no-direct-console`: enforces that engine files cannot call `console.log/warn/error/info/debug` directly — engine output must go through `debugWrite()` or formatters. Applied to `engine` type via architecture defaults.
 - AST aspect `no-side-effects-on-import`: enforces that utility modules cannot execute bare top-level function calls (standalone `expression_statement` containing a `call_expression`) at module scope. Applied to `utility` type via architecture defaults.
 

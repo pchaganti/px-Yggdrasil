@@ -3,7 +3,7 @@ type: engine
 description: Core approve logic — records drift baseline, implements binary change detection. Nodes without aspects auto-approve. Deterministic only — no LLM calls.
 aspects:
   - deterministic
-  - posix-paths
+  - posix-paths-output
   - what-why-next
   - diagnostic-logging
 relations:

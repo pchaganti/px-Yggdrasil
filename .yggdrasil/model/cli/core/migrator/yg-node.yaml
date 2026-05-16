@@ -2,7 +2,7 @@ name: Migrator
 type: engine
 description: "Migration framework — detects config version, runs sequential migrations, updates config version field"
 aspects:
-  - posix-paths
+  - posix-paths-output
 relations:
   - target: cli/model/graph
     type: uses

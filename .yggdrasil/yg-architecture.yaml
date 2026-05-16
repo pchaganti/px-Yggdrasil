@@ -92,7 +92,7 @@ node_types:
         - not:
             path: "**/*.test.ts"
     aspects:
-      - yaml-parser-contract   # renamed to parser-contract in Phase 5
+      - parser-contract
       - silent-missing-files
       - posix-paths-source
     parents: [module]

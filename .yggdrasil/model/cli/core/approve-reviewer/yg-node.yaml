@@ -3,7 +3,7 @@ type: engine
 description: LLM verification orchestration — runs verifyAspects against resolved source files, classifies violations, commits approved drift state.
 aspects:
   - what-why-next
-  - posix-paths
+  - posix-paths-output
   - diagnostic-logging
 relations:
   - target: cli/core/approve

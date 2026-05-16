@@ -2,7 +2,7 @@ name: OwnerCommand
 type: command
 description: Resolves a file path to its owning graph node via yg owner
 aspects:
-  - posix-paths
+  - posix-paths-output
 relations:
   - target: cli/core/loader
     type: calls

@@ -2,7 +2,7 @@ name: Migrations
 type: migration
 description: "Version-specific migration implementations — transforms .yggdrasil/ directory structure between major versions"
 aspects:
-  - posix-paths
+  - posix-paths-output
 relations:
   - target: cli/core/migrator
     type: calls

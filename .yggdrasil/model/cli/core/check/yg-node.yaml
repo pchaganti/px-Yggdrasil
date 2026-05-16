@@ -2,7 +2,7 @@ name: Check
 type: engine
 description: Unified check orchestrator — combines drift classification, coverage scan, orphaned drift state detection, validation issues, and suggested next command
 aspects:
-  - posix-paths
+  - posix-paths-output
   - what-why-next
 relations:
   - target: cli/core/validator

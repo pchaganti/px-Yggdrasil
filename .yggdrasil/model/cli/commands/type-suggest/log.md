@@ -12,3 +12,5 @@ R0.4b: cascade from cli/io metadata update (atomic-write.ts added to mapping)
 R0.5: graph-loader.ts now routes all fs calls through io/graph-fs.ts (readSortedDir, readTextFile)
 ## [2026-05-16T05:58:01.036Z]
 Phase 4.7 (no-direct-fs): update paths import from utils/ to io/ following move of paths module to persistence-adapter layer
+## [2026-05-16T06:34:16.259Z]
+Phase 5.2 (posix-paths-output): add backslash replacement to repoRelPath normalization
