@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
+import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
 import { initDebugLog } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
@@ -46,8 +46,7 @@ export function registerTreeCommand(program: Command): void {
           process.stdout.write(line + '\n');
         }
       } catch (error) {
-        process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
-        process.exit(1);
+        abortOnUnexpectedError(error, 'building the tree');
       }
     });
 }

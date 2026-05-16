@@ -1,5 +1,5 @@
 {
-  "hash": "1694de4b5561bf7e26228f061b599c5c2f555bdbb7c3fd7a8a546b9c7f55b600",
+  "hash": "e6de02259fa7f373c9b327f973368afbb37e8cf8e75d34d5d06c3661dc44209b",
   "files": {
     "own-subset:cli/commands/flows": "0a51b7d1ac5a58794c1670bfd55ad87d54ad038b053e9f92b59283ca58ed78b9",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -15,14 +15,14 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678",
     ".yggdrasil/model/cli/core/loader/yg-node.yaml": "17e035c33e9ec16b6e43878d5e26947e4f170dff7ece47ae19098bbd590028c0",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
-    ".yggdrasil/aspects/cli-command-contract/content.md": "51baab9a4a451d009e973c8ac00ad74ca60a5b203c5cdbc77981943681dfe2c3",
-    "source/cli/src/cli/flows.ts": "e50d33948000dcf1d811c6f67144f69b6a9312a6dc92eba2ac4503cbc7309b3e"
+    ".yggdrasil/aspects/cli-command-contract/content.md": "880d0cfeac04154018cd396b7993fbdc9223158f4016c22ac58e68703b7f6991",
+    "source/cli/src/cli/flows.ts": "09e93db5a89710dad59d6e6c748ef9a8e8b31b8755bf586f30e34b2e78e75fcb"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/commands/yg-node.yaml": 1776177846200.1738,
     ".yggdrasil/aspects/cli-command-contract/yg-aspect.yaml": 1778914965341.456,
-    ".yggdrasil/aspects/cli-command-contract/content.md": 1778953227974.227,
+    ".yggdrasil/aspects/cli-command-contract/content.md": 1778957313187.7256,
     ".yggdrasil/aspects/command-exit-codes/yg-aspect.yaml": 1778444079600.2117,
     ".yggdrasil/aspects/command-exit-codes/check.mjs": 1778444087239.257,
     ".yggdrasil/aspects/diagnostic-logging/yg-aspect.yaml": 1776177846197.3423,
@@ -33,10 +33,10 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
     ".yggdrasil/model/cli/core/loader/yg-node.yaml": 1778872183686.477,
     ".yggdrasil/model/cli/core/yg-node.yaml": 1776177846202.0774,
-    "source/cli/src/cli/flows.ts": 1778952713746.017
+    "source/cli/src/cli/flows.ts": 1778957100702.7378
   },
   "log": {
-    "last_entry_datetime": "2026-05-16T17:37:13.800Z",
-    "prefix_hash": "ecca5691fa933bd48b8db2263b6cfe51ef16d66ca2485e016f982609fe5a0437"
+    "last_entry_datetime": "2026-05-16T18:46:28.310Z",
+    "prefix_hash": "6e064be6fa0ba08c28d7dd84875a98997a9aa033b0cd39de903feaefac2b8b1c"
   }
 }

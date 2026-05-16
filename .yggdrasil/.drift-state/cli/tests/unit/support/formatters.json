@@ -1,5 +1,5 @@
 {
-  "hash": "14444e563e0f4816822f2ce0a7c3d7b2d4d74b0c0ab1e16e3ed2623e98528578",
+  "hash": "7d37ebe6666155174963ffc85511af0937dc21aa5f4638603ca75c29e4d10460",
   "files": {
     "own-subset:cli/tests/unit/support/formatters": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -12,7 +12,7 @@
     "source/cli/tests/unit/formatters/context-node.test.ts": "36203edb3b0caa12f6c03a31d1726316b5e924f58b80ab2eee0f8a7be8b73c68",
     "source/cli/tests/unit/formatters/message-builder.test.ts": "dae4e20ba6f4bc07f48c3f5ebf07b057d9503e21dbd67dd94f6288d83afded97",
     "source/cli/tests/unit/formatters/predicate-trace.test.ts": "d9ec5fe6351e5ecfb8b5903bcb5d1b3a170d67dd1a94e585eb3181b482b3eba2",
-    "source/cli/tests/unit/formatters/cli-preamble.test.ts": "8bb416bdb5c87b5c3c70d72fe7e40be4f841136b895934e46784cb6ee9538501"
+    "source/cli/tests/unit/formatters/cli-preamble.test.ts": "c94879afee429cd66e72ae15f562839245c6ecea547ef7bf4d084d1ece13d822"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -21,7 +21,7 @@
     ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": 1778866544645.0125,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1778915335937.2456,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/formatters/cli-preamble.test.ts": 1778954375905.8113,
+    "source/cli/tests/unit/formatters/cli-preamble.test.ts": 1778957142618.7937,
     "source/cli/tests/unit/formatters/context-file.test.ts": 1776177846286.5605,
     "source/cli/tests/unit/formatters/context-node.test.ts": 1776177846287.1533,
     "source/cli/tests/unit/formatters/message-builder.test.ts": 1776177846287.37,

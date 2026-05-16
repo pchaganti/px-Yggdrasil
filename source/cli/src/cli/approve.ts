@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import path from 'node:path';
-import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
+import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { approveNode, resolveAspects, loadSourceFiles, commitApproval } from '../core/approve.js';
@@ -352,11 +352,27 @@ export function registerApproveCommand(program: Command): void {
         // Validate: exactly one of --node, --aspect, --flow
         const targets = [options.node, options.aspect, options.flow].filter(Boolean);
         if (targets.length === 0) {
-          process.stderr.write(chalk.red('ERROR: One of --node, --aspect, or --flow is required.\n'));
+          process.stderr.write(
+            chalk.red(
+              `Error: ${buildIssueMessage({
+                what: 'No target specified.',
+                why: 'yg approve needs exactly one of --node, --aspect, or --flow.',
+                next: 'Pass --node <path> (repeatable), --aspect <id>, or --flow <name>.',
+              })}\n`,
+            ),
+          );
           process.exit(1);
         }
         if (targets.length > 1) {
-          process.stderr.write(chalk.red('ERROR: Only one of --node, --aspect, or --flow can be specified.\n'));
+          process.stderr.write(
+            chalk.red(
+              `Error: ${buildIssueMessage({
+                what: 'Multiple targets specified.',
+                why: 'yg approve accepts only one of --node, --aspect, or --flow per invocation.',
+                next: 'Re-run with a single target form.',
+              })}\n`,
+            ),
+          );
           process.exit(1);
         }
 
@@ -371,7 +387,18 @@ export function registerApproveCommand(program: Command): void {
           for (const rawPath of options.node) {
             const nodePath = rawPath.trim().replace(/\/$/, '');
             const node = graph.nodes.get(nodePath);
-            if (!node) { process.stderr.write(chalk.red(`Node '${nodePath}' not found.\n`)); continue; }
+            if (!node) {
+              process.stderr.write(
+                chalk.red(
+                  `Error: ${buildIssueMessage({
+                    what: `Node '${nodePath}' not found.`,
+                    why: 'The path does not match any node in the loaded graph.',
+                    next: "Run 'yg tree' to list all nodes; verify the path and re-run.",
+                  })}\n`,
+                ),
+              );
+              continue;
+            }
             const aspects = resolveAspects(node, graph);
             const projectRoot = path.dirname(graph.rootPath);
             const trackedFiles = collectTrackedFiles(node, graph);
@@ -487,7 +514,15 @@ export function registerApproveCommand(program: Command): void {
         // No-mapping parent redirect to batch
         const node = graph.nodes.get(nodePath);
         if (!node) {
-          process.stderr.write(chalk.red(`ERROR: Node '${nodePath}' does not exist.\n`));
+          process.stderr.write(
+            chalk.red(
+              `Error: ${buildIssueMessage({
+                what: `Node '${nodePath}' does not exist.`,
+                why: 'The given path does not match any node in the loaded graph.',
+                next: "Run 'yg tree' to list all nodes; verify the path and re-run.",
+              })}\n`,
+            ),
+          );
           process.exit(1);
         }
 
@@ -512,8 +547,7 @@ export function registerApproveCommand(program: Command): void {
         }
       } catch (error) {
         debugWrite(`[approve] command failed: ${error instanceof Error ? error.message : String(error)}`);
-        process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
-        process.exit(1);
+        abortOnUnexpectedError(error, 'running approve');
       }
     });
 

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { loadGraphOrAbort } from '../../../src/formatters/cli-preamble.js';
+import { loadGraphOrAbort, abortOnUnexpectedError } from '../../../src/formatters/cli-preamble.js';
 
 describe('loadGraphOrAbort', () => {
   let dir: string;
@@ -46,6 +46,20 @@ describe('loadGraphOrAbort', () => {
     const written = errSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('');
     expect(written).toContain('No .yggdrasil/ directory found');
     expect(written).toContain("'yg init'");
+  });
+
+  it('abortOnUnexpectedError writes structured message and exits 1', () => {
+    expect(() => abortOnUnexpectedError(new Error('boom'), 'doing stuff')).toThrow('__exit__');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    const written = errSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('');
+    expect(written).toContain('Unexpected error while doing stuff: boom');
+    expect(written).toContain('file an issue');
+  });
+
+  it('abortOnUnexpectedError handles non-Error inputs by stringifying them', () => {
+    expect(() => abortOnUnexpectedError('plain string', 'loading')).toThrow('__exit__');
+    const written = errSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('');
+    expect(written).toContain('Unexpected error while loading: plain string');
   });
 
   it('rethrows non-ENOENT errors so callers can decide', async () => {

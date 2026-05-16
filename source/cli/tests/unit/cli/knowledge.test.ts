@@ -85,8 +85,8 @@ describe('readKnowledge', () => {
   it('exits 1 and writes to stderr for unknown topic', () => {
     const { stderr, exitCode } = captureOutput(() => readKnowledge('nonexistent-topic'));
     expect(exitCode).toBe(1);
-    expect(stderr).toMatch(/Unknown topic: nonexistent-topic/);
-    expect(stderr).toContain('Available topics:');
+    expect(stderr).toMatch(/Unknown knowledge topic 'nonexistent-topic'/);
+    expect(stderr).toContain('Available:');
     expect(stderr).toMatch(/yg knowledge list/);
   });
 

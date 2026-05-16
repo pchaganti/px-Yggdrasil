@@ -2,7 +2,7 @@ import type { Command } from 'commander';
 import chalk from 'chalk';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
+import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
 import { debugWrite } from '../utils/debug-log.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { logAdd } from '../core/log/log-add.js';
@@ -10,10 +10,8 @@ import { logRead } from '../core/log/log-read.js';
 import { logMergeResolve } from '../core/log/log-merge-resolve.js';
 
 function handleError(error: unknown): never {
-  const msg = (error as Error).message;
-  debugWrite(`[log] command failed: ${msg}`);
-  process.stderr.write(`Error: ${msg}\n`);
-  process.exit(1);
+  debugWrite(`[log] command failed: ${(error as Error).message}`);
+  abortOnUnexpectedError(error, 'running log command');
 }
 
 export function registerLogCommand(program: Command): void {

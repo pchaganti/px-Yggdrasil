@@ -1,7 +1,7 @@
 import type { Command } from 'commander';
 import chalk from 'chalk';
 import { debugWrite } from '../utils/debug-log.js';
-import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
+import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
 import { buildIndex, createMiniSearch } from '../io/find-index.js';
 import type { IndexedDocument } from '../io/find-index.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
@@ -57,7 +57,15 @@ export async function findCommand(query: string, projectRoot: string): Promise<n
     return 0;
   } catch (error) {
     debugWrite(`[find] findCommand failed: ${error instanceof Error ? error.message : String(error)}`);
-    process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
+    process.stderr.write(
+      chalk.red(
+        `Error: ${buildIssueMessage({
+          what: `find failed: ${(error as Error).message}`,
+          why: 'Unexpected error while running the find command.',
+          next: 'Re-run after fixing the underlying issue, or file a bug if it persists.',
+        })}\n`,
+      ),
+    );
     return 1;
   }
 }
@@ -73,8 +81,7 @@ export function registerFindCommand(program: Command): void {
         process.exit(exit);
       } catch (error) {
         debugWrite(`[find] registerFindCommand action failed: ${error instanceof Error ? error.message : String(error)}`);
-        process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
-        process.exit(1);
+        abortOnUnexpectedError(error, 'running find');
       }
     });
 }

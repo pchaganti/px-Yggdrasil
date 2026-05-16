@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
+import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { runCheck } from '../core/check.js';
@@ -40,10 +40,8 @@ export function registerCheckCommand(program: Command): void {
         const hasErrors = result.issues.some(i => i.severity === 'error');
         process.exit(hasErrors ? 1 : 0);
       } catch (error) {
-        const msg = (error as Error).message;
-        debugWrite(`[check] error: ${msg}`);
-        process.stderr.write(chalk.red(`Error: ${msg}\n`));
-        process.exit(1);
+        debugWrite(`[check] error: ${(error as Error).message}`);
+        abortOnUnexpectedError(error, 'running check');
       }
     });
 }

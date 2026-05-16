@@ -11,8 +11,12 @@ Every CLI command handler follows these conventions:
 ## Error handling
 
 - Every command action body is wrapped in try/catch.
-- Catch block: `process.stderr.write(`Error: ${(error as Error).message}\n`)` then `process.exit(1)`.
+- Catch block uses ONE of these forms:
+  - `abortOnUnexpectedError(error, '<context>')` (canonical — emits a structured what/why/next via `buildIssueMessage`).
+  - `process.stderr.write(`Error: ${buildIssueMessage({ what, why, next })}\n`)` then `process.exit(1)` for command-specific errors that need bespoke wording.
+  - Raw `process.stderr.write(`Error: ${(error as Error).message}\n`) + process.exit(1)` is permitted ONLY when the surrounding code has already routed the message through `buildIssueMessage` upstream (rare).
 - The missing-graph case is handled by `loadGraphOrAbort` (see **Graph loading** below) — commands do NOT inline a `'No .yggdrasil/ directory found'` string or ENOENT branch themselves.
+- Constant-text command errors (option-mutex violations, "node not found", "unknown topic", etc.) wrap the message in `buildIssueMessage` inline — they do NOT route through `abortOnUnexpectedError` (which is for genuinely unexpected errors).
 
 ## Exit codes
 

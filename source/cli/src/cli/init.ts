@@ -13,6 +13,7 @@ import { testApiProvider, testCliProvider } from '../llm/reviewer-test.js';
 import type { ReviewerProvider } from '../model/graph.js';
 import { detectVersion } from '../core/migrator.js';
 import { runVersionUpgrade as coreRunVersionUpgrade } from '../core/migrator-runner.js';
+import { abortOnUnexpectedError } from '../formatters/cli-preamble.js';
 import { MIGRATIONS } from '../migrations/index.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { debugWrite } from '../utils/debug-log.js';
@@ -588,18 +589,42 @@ export function registerInitCommand(program: Command): void {
         // Non-interactive upgrade: --upgrade --platform <name>
         if (options.upgrade) {
           if (!options.platform) {
-            process.stderr.write(chalk.red('Error: --upgrade requires --platform.\n'));
+            process.stderr.write(
+              chalk.red(
+                `Error: ${buildIssueMessage({
+                  what: '--upgrade requires --platform.',
+                  why: 'yg init --upgrade must know which platform rules to regenerate after migration.',
+                  next: `Pass --platform <name>. Supported: ${PLATFORMS.join(', ')}.`,
+                })}\n`,
+              ),
+            );
             process.exit(1);
           }
           if (!PLATFORMS.includes(options.platform as Platform)) {
-            process.stderr.write(chalk.red(`Error: Unknown platform '${options.platform}'. Valid: ${PLATFORMS.join(', ')}\n`));
+            process.stderr.write(
+              chalk.red(
+                `Error: ${buildIssueMessage({
+                  what: `Unknown platform '${options.platform}'.`,
+                  why: 'The --platform value must match one of the supported agent platforms.',
+                  next: `Use one of: ${PLATFORMS.join(', ')}`,
+                })}\n`,
+              ),
+            );
             process.exit(1);
           }
           try {
             await stat(yggRoot);
           } catch (e: unknown) {
             debugWrite(`[init] upgrade: .yggdrasil not found: ${e instanceof Error ? e.message : String(e)}`);
-            process.stderr.write(chalk.red('Error: No .yggdrasil/ directory found. Run \'yg init\' first.\n'));
+            process.stderr.write(
+              chalk.red(
+                `Error: ${buildIssueMessage({
+                  what: 'No .yggdrasil/ directory found in the current project.',
+                  why: '`yg init --upgrade` operates on an existing graph; the bootstrap form (without --upgrade) creates one.',
+                  next: "Run 'yg init' to bootstrap a fresh graph, then re-run --upgrade.",
+                })}\n`,
+              ),
+            );
             process.exit(1);
           }
 
@@ -647,8 +672,7 @@ export function registerInitCommand(program: Command): void {
         }
       } catch (err) {
         debugWrite(`[init] command failed: ${err instanceof Error ? err.message : String(err)}`);
-        process.stderr.write(chalk.red(`Error: ${(err as Error).message}\n`));
-        process.exit(1);
+        abortOnUnexpectedError(err, 'running init');
       }
     });
 }

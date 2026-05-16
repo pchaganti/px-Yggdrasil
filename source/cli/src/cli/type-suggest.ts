@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
+import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
 import { classifyFile } from '../core/type-classifier.js';
 import { FileContentCache } from '../io/file-content-cache.js';
 import { renderTrace } from '../formatters/predicate-trace.js';
@@ -110,10 +110,8 @@ export function registerTypeSuggestCommand(program: Command): void {
       try {
         await typeSuggestCommand(options.file, process.cwd());
       } catch (error) {
-        const msg = (error as Error).message;
-        debugWrite(`[type-suggest] error: ${msg}`);
-        process.stderr.write(chalk.red(`Error: ${msg}\n`));
-        process.exit(1);
+        debugWrite(`[type-suggest] error: ${(error as Error).message}`);
+        abortOnUnexpectedError(error, 'running type-suggest');
       }
     });
 }

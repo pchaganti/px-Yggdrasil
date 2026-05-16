@@ -4,6 +4,23 @@ import { loadGraph } from '../core/graph-loader.js';
 import type { Graph } from '../model/graph.js';
 
 /**
+ * Format and emit an unexpected error from a generic catch block, then
+ * process.exit(1). Used as the fallback path after specific error
+ * classifications have failed. The `context` string describes what was
+ * being attempted, so the message reads "Unexpected error while <context>".
+ */
+export function abortOnUnexpectedError(error: unknown, context: string): never {
+  const message = error instanceof Error ? error.message : String(error);
+  const formatted = buildIssueMessage({
+    what: `Unexpected error while ${context}: ${message}`,
+    why: 'The CLI encountered an error it does not classify.',
+    next: 'This is a bug — please file an issue with the command you ran and the full error output.',
+  });
+  process.stderr.write(chalk.red(`Error: ${formatted}\n`));
+  process.exit(1);
+}
+
+/**
  * Load the graph from the given root, or print a uniform what/why/next error
  * and exit(1).
  *

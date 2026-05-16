@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
+import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { collectAncestors, buildNodeContextData, buildFileContextData } from '../core/context-builder.js';
@@ -167,8 +167,7 @@ export function registerBuildCommand(program: Command): void {
         }
       } catch (error) {
         debugWrite(`[build-context] context assembly failed: ${error instanceof Error ? error.message : String(error)}`);
-        process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
-        process.exit(1);
+        abortOnUnexpectedError(error, 'building context');
       }
   };
 

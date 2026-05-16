@@ -235,13 +235,13 @@ describe.skipIf(!distExists)('CLI E2E', () => {
   it('yg impact without any mode returns exit 1', () => {
     const { status, stderr } = run(['impact']);
     expect(status).toBe(1);
-    expect(stderr).toContain('required');
+    expect(stderr).toContain('No target specified');
   });
 
   it('yg impact --node and --aspect together returns exit 1', () => {
     const { status, stderr } = run(['impact', '--node', 'auth/auth-api', '--aspect', 'requires-audit']);
     expect(status).toBe(1);
-    expect(stderr).toContain('mutually exclusive');
+    expect(stderr).toContain('Multiple targets specified');
   });
 
   it('yg impact --aspect requires-audit shows directly affected nodes', () => {
@@ -727,19 +727,19 @@ describe.skipIf(!distExists)('CLI E2E', () => {
   it('yg approve --node and --aspect together returns exit 1', () => {
     const { status, stderr } = run(['approve', '--node', 'orders/order-service', '--aspect', 'requires-audit']);
     expect(status).toBe(1);
-    expect(stderr).toContain('Only one');
+    expect(stderr).toContain('Multiple targets specified');
   });
 
   it('yg approve --node and --flow together returns exit 1', () => {
     const { status, stderr } = run(['approve', '--node', 'orders/order-service', '--flow', 'checkout-flow']);
     expect(status).toBe(1);
-    expect(stderr).toContain('Only one');
+    expect(stderr).toContain('Multiple targets specified');
   });
 
   it('yg approve --aspect and --flow together returns exit 1', () => {
     const { status, stderr } = run(['approve', '--aspect', 'requires-audit', '--flow', 'checkout-flow']);
     expect(status).toBe(1);
-    expect(stderr).toContain('Only one');
+    expect(stderr).toContain('Multiple targets specified');
   });
 
   it('yg approve multiple --node flags with --dry-run runs batch', () => {
@@ -822,7 +822,7 @@ describe.skipIf(!distExists)('CLI E2E', () => {
   it('yg impact --flow and --aspect together returns exit 1', () => {
     const { status, stderr } = run(['impact', '--flow', 'checkout-flow', '--aspect', 'requires-audit']);
     expect(status).toBe(1);
-    expect(stderr).toContain('mutually exclusive');
+    expect(stderr).toContain('Multiple targets specified');
   });
 
   it('yg impact --file nonexistent path returns exit 1', () => {

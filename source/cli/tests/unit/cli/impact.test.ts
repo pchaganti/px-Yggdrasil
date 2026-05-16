@@ -292,7 +292,7 @@ describe('impact command', () => {
           { cwd, encoding: 'utf-8' },
         );
         expect(result.status).toBe(1);
-        expect(result.stderr).toContain('mutually exclusive');
+        expect(result.stderr).toContain('Multiple targets specified');
       });
     });
   });
@@ -343,7 +343,7 @@ describe('impact command', () => {
           { cwd, encoding: 'utf-8' },
         );
         expect(result.status).toBe(1);
-        expect(result.stderr).toContain('mutually exclusive');
+        expect(result.stderr).toContain('Multiple targets specified');
       });
     });
   });

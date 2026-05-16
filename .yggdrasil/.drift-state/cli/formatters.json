@@ -1,5 +1,5 @@
 {
-  "hash": "92b1518fe8028f88329dcd7546cf3ed3c2bcc921512f92598a85cc8550826b62",
+  "hash": "4755fbb84e09f399a1eb3d57b168016fdcc9f4d06c6b6e16af7d3c0b93d2b28e",
   "files": {
     "own-subset:cli/formatters": "15ceb1b16c4614dc0a81954fcf485bf53e3db603b33388864d56a989412db3a3",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -17,7 +17,7 @@
     "source/cli/src/formatters/context-node.ts": "81c43d372c46dea586f8c1febad01d1c8e584001b498c10d7479fe23abf7e55a",
     "source/cli/src/formatters/message-builder.ts": "eb9f5e94c04b9d372cb8299a84ee5f85daa463620ed195ee01e736e13ab9f518",
     "source/cli/src/formatters/predicate-trace.ts": "8f484e857c19c2a976ad78b1230ae7689aef23259e58af702d3d7f9e5d50a216",
-    "source/cli/src/formatters/cli-preamble.ts": "2769221429114d1a2eb69a09c5a228c102eb042a90817d5ecf0d67a76167becf"
+    "source/cli/src/formatters/cli-preamble.ts": "b4bde83c3ef1d0e1ca99dc0c670d701899175b6f4d4dc7b497b662fc48778ea7"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -31,14 +31,14 @@
     ".yggdrasil/aspects/posix-paths-output/content.md": 1778912983383.063,
     ".yggdrasil/model/cli/model/context/yg-node.yaml": 1776177846203.256,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    "source/cli/src/formatters/cli-preamble.ts": 1778952598295.401,
+    "source/cli/src/formatters/cli-preamble.ts": 1778954493811.726,
     "source/cli/src/formatters/context-file.ts": 1778920940819.536,
     "source/cli/src/formatters/context-node.ts": 1778920977107.716,
     "source/cli/src/formatters/message-builder.ts": 1778872978779.9426,
     "source/cli/src/formatters/predicate-trace.ts": 1778651000120.3818
   },
   "log": {
-    "last_entry_datetime": "2026-05-16T17:37:14.559Z",
-    "prefix_hash": "84bdc90fca0ad6fc5811fe51338658b20ea7f556f139f6d3fbbb171dd876bb2d"
+    "last_entry_datetime": "2026-05-16T18:22:21.557Z",
+    "prefix_hash": "e6e62af8ef5feec539323ab542c0d7c449bfac2780e1d4aa1774f0c64df6b69e"
   }
 }

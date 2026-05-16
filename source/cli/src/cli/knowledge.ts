@@ -1,6 +1,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { KNOWLEDGE_TOPICS } from '../templates/knowledge/index.js';
+import { buildIssueMessage } from '../formatters/message-builder.js';
+import { abortOnUnexpectedError } from '../formatters/cli-preamble.js';
 
 export function listKnowledge(): void {
   process.stdout.write('\nAvailable knowledge topics:\n\n');
@@ -14,12 +16,16 @@ export function listKnowledge(): void {
 export function readKnowledge(name: string): void {
   const topic = KNOWLEDGE_TOPICS[name];
   if (topic === undefined) {
-    process.stderr.write(chalk.red(`Unknown topic: ${name}\n`));
-    process.stderr.write(`\nAvailable topics:\n`);
-    for (const n of Object.keys(KNOWLEDGE_TOPICS).sort()) {
-      process.stderr.write(`  ${n}\n`);
-    }
-    process.stderr.write(`\nRun \`yg knowledge list\` for summaries.\n`);
+    const available = Object.keys(KNOWLEDGE_TOPICS).sort().join(', ');
+    process.stderr.write(
+      chalk.red(
+        `Error: ${buildIssueMessage({
+          what: `Unknown knowledge topic '${name}'.`,
+          why: 'The topic name does not match any entry in the embedded knowledge base.',
+          next: `Available: ${available}. Run 'yg knowledge list' for summaries.`,
+        })}\n`,
+      ),
+    );
     process.exit(1);
   }
   process.stdout.write(topic.content);
@@ -37,8 +43,7 @@ export function registerKnowledgeCommand(program: Command): void {
       try {
         listKnowledge();
       } catch (error) {
-        process.stderr.write(`Error: ${(error as Error).message}\n`);
-        process.exit(1);
+        abortOnUnexpectedError(error, 'listing knowledge topics');
       }
     });
 
@@ -49,8 +54,7 @@ export function registerKnowledgeCommand(program: Command): void {
       try {
         readKnowledge(name);
       } catch (error) {
-        process.stderr.write(`Error: ${(error as Error).message}\n`);
-        process.exit(1);
+        abortOnUnexpectedError(error, 'reading knowledge topic');
       }
     });
 }

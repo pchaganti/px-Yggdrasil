@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { join } from 'node:path';
 import { buildIssueMessage } from '../formatters/message-builder.js';
-import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
+import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { collectAncestors } from '../core/context-builder.js';
@@ -429,20 +429,40 @@ export function registerImpactCommand(program: Command): void {
       async (options: { node?: string; file?: string; aspect?: string; flow?: string; type?: string }) => {
         try {
           if (options.node && options.file) {
-            process.stderr.write(chalk.red("Error: '--node' and '--file' are mutually exclusive\n"));
+            process.stderr.write(
+              chalk.red(
+                `Error: ${buildIssueMessage({
+                  what: '--node and --file are mutually exclusive.',
+                  why: 'yg impact accepts at most one of these target forms per invocation.',
+                  next: 'Re-run with only --node <path> OR --file <path>.',
+                })}\n`,
+              ),
+            );
             process.exit(1);
           }
 
           const modeCount = [options.node || options.file, options.aspect, options.flow, options.type].filter(Boolean).length;
           if (modeCount === 0) {
             process.stderr.write(
-              chalk.red('Error: one of --node, --file, --aspect, --flow, or --type is required\n'),
+              chalk.red(
+                `Error: ${buildIssueMessage({
+                  what: 'No target specified.',
+                  why: 'yg impact needs exactly one of --node, --file, --aspect, --flow, or --type.',
+                  next: 'Pass one of: --node <path>, --file <path>, --aspect <id>, --flow <name>, --type <id>.',
+                })}\n`,
+              ),
             );
             process.exit(1);
           }
           if (modeCount > 1) {
             process.stderr.write(
-              chalk.red('Error: --node/--file, --aspect, --flow, and --type are mutually exclusive\n'),
+              chalk.red(
+                `Error: ${buildIssueMessage({
+                  what: 'Multiple targets specified.',
+                  why: 'yg impact accepts only one of --node/--file, --aspect, --flow, or --type per invocation.',
+                  next: 'Re-run with a single target form.',
+                })}\n`,
+              ),
             );
             process.exit(1);
           }
@@ -649,8 +669,7 @@ export function registerImpactCommand(program: Command): void {
           }
         } catch (error) {
           debugWrite(`[impact] command failed: ${(error as Error).message}`);
-          process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
-          process.exit(1);
+          abortOnUnexpectedError(error, 'running impact');
         }
       },
     );

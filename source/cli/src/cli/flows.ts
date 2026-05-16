@@ -1,6 +1,5 @@
 import { Command } from 'commander';
-import chalk from 'chalk';
-import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
+import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
 import { initDebugLog } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import type { Graph } from '../model/graph.js';
@@ -35,8 +34,7 @@ export function registerFlowsCommand(program: Command): void {
         initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
         process.stdout.write(formatFlowsOutput(graph));
       } catch (error) {
-        process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
-        process.exit(1);
+        abortOnUnexpectedError(error, 'listing flows');
       }
     });
 }

@@ -1,5 +1,5 @@
 {
-  "hash": "d541b171649639ed9f876357d0771e6988dfaa2fc38f9f0ae62885ae17f67b60",
+  "hash": "d8030c489876a297f30f2bf2a1f3536a62cddef121a3c9089e35acded46e2b03",
   "files": {
     "own-subset:cli/commands/knowledge": "5672aac01235acf105466e94241b5a1e2d2fad142d23671b49d9d6fc834636d9",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -14,14 +14,14 @@
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "9a5d512752a6f1fea12e50a6ef249cbf0aae2cc2097597057e4dd429df65f7c9",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678",
     ".yggdrasil/model/cli/templates/yg-node.yaml": "f05d7c0dcbad24556070ad1f9e97f0cb1f072919a57fbca1bb75211f28ef1783",
-    "source/cli/src/cli/knowledge.ts": "7b01fae0be5b65540d3931d7fba1071545400ddfc20cdd04b51a24f23293f92a",
-    ".yggdrasil/aspects/cli-command-contract/content.md": "51baab9a4a451d009e973c8ac00ad74ca60a5b203c5cdbc77981943681dfe2c3"
+    "source/cli/src/cli/knowledge.ts": "4279a7ec1c7c3006a3a15e73e5ef3dc3047f7f69f321dfcd033c372516cb7929",
+    ".yggdrasil/aspects/cli-command-contract/content.md": "880d0cfeac04154018cd396b7993fbdc9223158f4016c22ac58e68703b7f6991"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/commands/yg-node.yaml": 1776177846200.1738,
     ".yggdrasil/aspects/cli-command-contract/yg-aspect.yaml": 1778914965341.456,
-    ".yggdrasil/aspects/cli-command-contract/content.md": 1778953227974.227,
+    ".yggdrasil/aspects/cli-command-contract/content.md": 1778957313187.7256,
     ".yggdrasil/aspects/command-exit-codes/yg-aspect.yaml": 1778444079600.2117,
     ".yggdrasil/aspects/command-exit-codes/check.mjs": 1778444087239.257,
     ".yggdrasil/aspects/diagnostic-logging/yg-aspect.yaml": 1776177846197.3423,
@@ -31,10 +31,10 @@
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1778878288425.0745,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
     ".yggdrasil/model/cli/templates/yg-node.yaml": 1778866520999.6177,
-    "source/cli/src/cli/knowledge.ts": 1778835703562.6958
+    "source/cli/src/cli/knowledge.ts": 1778955542328.449
   },
   "log": {
-    "last_entry_datetime": "2026-05-15T09:01:20.032Z",
-    "prefix_hash": "7d1aa7e2e21030d069c4f80b3aecd01de28a2ed66954b8601bae61dcc4a207ab"
+    "last_entry_datetime": "2026-05-16T18:22:20.940Z",
+    "prefix_hash": "c704ad4a5f42b1f03a65fa02a5a23e12a7ebd28760db76754fd83a4ffb615a18"
   }
 }

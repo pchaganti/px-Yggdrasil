@@ -18,3 +18,7 @@ Phase 4.7 (no-direct-fs): inject appendToDebugLog as third argument to initDebug
 Use buildIssueMessage for all 5 not-found/no-coverage errors: satisfies what-why-next aspect added via graph-analysis flow
 ## [2026-05-16T17:37:13.929Z]
 Replaced inline 'No .yggdrasil/ directory found' error block with the shared loadGraphOrAbort helper from formatters/cli-preamble.ts. Reason: the same string and exit-1 logic was duplicated across 12 CLI command handlers; centralization eliminates a copy-paste class and routes the missing-graph message through buildIssueMessage uniformly. Other errors continue to flow through the surrounding catch and will be migrated to buildIssueMessage in the next task.
+## [2026-05-16T18:22:20.678Z]
+Migrated remaining ad-hoc stderr errors to buildIssueMessage (constant-text errors wrapped inline) and routed generic catch-blocks through the new abortOnUnexpectedError helper from formatters/cli-preamble.ts. Reason: even after the loadGraphOrAbort centralization, command-specific errors and option-validation messages bypassed the what/why/next structure; this commit aligns them so the AST aspect added in the next commit can enforce the rule mechanically.
+## [2026-05-16T18:54:56.519Z]
+Wrapped three option-validation errors (--node/--file mutex, missing target, multiple targets) in buildIssueMessage. Matches the cli-command-contract requirement that constant-text remediation errors use the structured what/why/next form.

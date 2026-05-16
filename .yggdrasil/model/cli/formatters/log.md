@@ -10,3 +10,5 @@ Move IssueMessage type to model/validation, re-export from message-builder for b
 Add posixPath() helper to context-file.ts and context-node.ts; normalize all file paths at output boundary — satisfies posix-paths-output aspect added via multiple flows
 ## [2026-05-16T17:37:14.559Z]
 Added loadGraphOrAbort helper (cli-preamble.ts) to centralize the 'No .yggdrasil/ directory' error previously duplicated across 12 commands. The helper exits with a structured what/why/next message on ENOENT-shaped loader failures and rethrows other errors.
+## [2026-05-16T18:22:21.557Z]
+Added abortOnUnexpectedError helper to cli-preamble.ts. Generic catch-block errors across all commands now route through this single emit point, producing a uniform 'Unexpected error while <context>: <msg>' wrapped in buildIssueMessage.

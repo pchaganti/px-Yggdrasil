@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
+import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
 import { initDebugLog } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { computeEffectiveAspects } from '../core/effective-aspects.js';
@@ -91,8 +91,7 @@ export function registerAspectsCommand(program: Command): void {
         initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
         process.stdout.write(formatAspectsOutput(graph));
       } catch (error) {
-        process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
-        process.exit(1);
+        abortOnUnexpectedError(error, 'listing aspects');
       }
     });
 }
