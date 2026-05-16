@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cli/commands/find`: normalize `doc.path` with `.replace(/\\/g, '/')` before writing to stdout (posix-paths-output compliance).
 - `cli/commands/type-suggest`: complete POSIX normalization on `repoRelPath` — add `.replace(/\\/g, '/')` alongside existing trailing-slash strip.
 
+- Port `write-atomic` added to `cli/io/atomic-write` node: declares the `atomic-write-contract` aspect on the port; `cli/io/stores` now declares `consumes: [write-atomic]` on its `calls` relation, propagating the contract via channel 6. Path normalization fix in `core/approve.ts`: `filePath` values pushed to `changedSource`/`changedUpstream` and `tf.path` values in `sourcePathsFirst` are now POSIX-normalized before use in output and return values.
+
 - AST aspect `no-direct-console`: enforces that engine files cannot call `console.log/warn/error/info/debug` directly — engine output must go through `debugWrite()` or formatters. Applied to `engine` type via architecture defaults.
 - AST aspect `no-side-effects-on-import`: enforces that utility modules cannot execute bare top-level function calls (standalone `expression_statement` containing a `call_expression`) at module scope. Applied to `utility` type via architecture defaults.
 

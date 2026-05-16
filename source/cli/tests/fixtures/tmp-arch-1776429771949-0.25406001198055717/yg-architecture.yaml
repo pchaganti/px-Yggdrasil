@@ -1,9 +1,0 @@
-
-node_types:
-  command:
-    description: "A command"
-    aspects:
-      - simple-aspect
-      - id: conditional-aspect
-        when:
-          relations: { calls: { target_type: service-client } }

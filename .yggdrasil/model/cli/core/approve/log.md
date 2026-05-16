@@ -22,3 +22,5 @@ Replace path.sep with split(/[\\/]/) to remove platform-specific separator — p
 Simplify annotateUpstreamChange: remove layer === 'flows' condition (dead code after flow YAML removed from tracked files) while keeping normalized.includes('/flows/') for old drift state compatibility.
 ## [2026-05-16T05:58:05.247Z]
 Phase 4.7 (no-direct-fs): route all fs calls through io/graph-fs.ts; update hash and paths imports from utils/ to io/ following module moves
+## [2026-05-16T08:22:40.888Z]
+Normalize filePath before pushing to changedSource/changedUpstream and normalize tf.path in sourcePathsFirst — raw paths were emitted to IssueMessage.what and returned in ApproveResult without POSIX normalization

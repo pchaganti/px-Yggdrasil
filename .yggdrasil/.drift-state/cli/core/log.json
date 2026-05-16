@@ -1,5 +1,5 @@
 {
-  "hash": "7d4e8633e21a04e54c587b45e473d01516f6e2094a62af62d6e48cb59c42813d",
+  "hash": "553e4a839fc4b50af5bcbb2534ea7fc434ef18e029655239bd833367bb44d3a7",
   "files": {
     "own-subset:cli/core/log": "c207eac4fb79e9918608111fb641f0579541fde01cbb91d10dee6af679c939d9",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -12,6 +12,7 @@
     ".yggdrasil/aspects/diagnostic-logging/content.md": "861da9ccecc91d8c08168ba10fb297a729158f272fe8da5c136fd6a7e997fb41",
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": "7758b81e33dd9ac9b27788f1facd47a42a0d14134aca0786f7df12a218c69cd8",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
+    ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": "6183bb91b7aa0f7144fca5949cab9d7886e722f5c608ca48966b1f1237195e81",
     ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": "5a8d98ab81d3c3f7e15f5fdaeb4e0ea05349fd2c8ae5dc50e0b85e7a788a9de9",
     ".yggdrasil/aspects/no-direct-fs/yg-aspect.yaml": "e743ba7636ca33791e03269153cb54f032442178800d60ec33c51ad536dcfcad",
     ".yggdrasil/aspects/no-direct-fs/check.mjs": "cd876c851ae5b00d1fcca7af16bd4a3e69c0cda516b4c7c47aecd56518eeba8c",
@@ -20,12 +21,11 @@
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "9a5d512752a6f1fea12e50a6ef249cbf0aae2cc2097597057e4dd429df65f7c9",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678",
     ".yggdrasil/model/cli/core/log-validator/yg-node.yaml": "f93fdb59738beed6b41953f9e2818b2cf8dad7cc1d759eea7778271739d6bfee",
-    ".yggdrasil/model/cli/io/stores/yg-node.yaml": "f3853915795e7381c81d3c8f2de2defd6e83db31681c169fe0261d34f476c335",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
     "source/cli/src/core/log/log-add.ts": "b30d6fe42daa41e32f580afe4fe26d5e506535368b714ee0eed4547b9400472d",
     "source/cli/src/core/log/log-read.ts": "39837b333dc1d87fd3061b4669aff8a7606af146aa304400b07aaef65727f182",
     "source/cli/src/core/log/log-merge-resolve.ts": "ab692ce29d27a5298b3919134a8ee6b5275be135403f8c0ec43e73b4c6c073a8",
-    ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": "6183bb91b7aa0f7144fca5949cab9d7886e722f5c608ca48966b1f1237195e81"
+    ".yggdrasil/model/cli/io/stores/yg-node.yaml": "a375ca2db5160041ccdef301c4231acd32dc85c8025b20394022eb3fd6b48287"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -47,7 +47,7 @@
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1778878288425.0745,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
     ".yggdrasil/model/cli/core/log-validator/yg-node.yaml": 1778872191535.3835,
-    ".yggdrasil/model/cli/io/stores/yg-node.yaml": 1778910440224.0007,
+    ".yggdrasil/model/cli/io/stores/yg-node.yaml": 1778919538567.7102,
     ".yggdrasil/model/cli/io/yg-node.yaml": 1778865790703.1045,
     "source/cli/src/core/log/log-add.ts": 1778875830317.2158,
     "source/cli/src/core/log/log-read.ts": 1778872988635.4143,

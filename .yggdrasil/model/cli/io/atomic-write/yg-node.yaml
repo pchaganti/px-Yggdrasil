@@ -3,3 +3,8 @@ type: persistence-adapter
 description: Low-level atomic file write helper — writes via a temp file + rename to avoid partial writes on crash or signal.
 mapping:
   - source/cli/src/io/atomic-write.ts
+ports:
+  write-atomic:
+    description: "Atomic file write — consumers must route all fs writes through atomicWriteFile() to prevent partial writes on crash or signal."
+    aspects:
+      - atomic-write-contract

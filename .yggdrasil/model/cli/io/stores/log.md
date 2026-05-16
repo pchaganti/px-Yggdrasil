@@ -12,3 +12,5 @@ R0.10: added log-store.ts — fs wrapper for log.md files (readLogSafe, statLogF
 Phase 2: reclassified from adapter to persistence-adapter. Removed atomic-write.ts (split to cli/io/atomic-write).
 ## [2026-05-16T05:58:12.005Z]
 Phase 4.7 (no-direct-fs): moved hash.ts and paths.ts here from utils/ (now persistence-adapter); added debug-log-writer.ts (appendFileSync DI implementation); expanded graph-fs.ts with fileAccess, lstatFile, statPath, fileExistsSync wrappers
+## [2026-05-16T08:19:17.767Z]
+Add calls relation to cli/io/atomic-write with consumes: [write-atomic] — declares the port contract so channel 6 propagates atomic-write-contract to this node

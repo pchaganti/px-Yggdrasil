@@ -175,7 +175,7 @@ export async function approveNode(
     const logRequiredFirst = archTypeFirst?.log_required ?? true;
     const sourcePathsFirst = trackedFiles
       .filter((tf) => tf.layer === 'source')
-      .map((tf) => tf.path);
+      .map((tf) => tf.path.trim().replace(/\\/g, '/').replace(/\/+$/, ''));
     if (sourcePathsFirst.length > 0 && logRequiredFirst && parseLog(logSnapshot.content).length === 0) {
       const noLogFirstMd: IssueMessage = {
         what: `No log entry found — mandatory entry required when source files are added:\n${sourcePathsFirst.map((p) => '  ' + p).join('\n')}`,
@@ -294,18 +294,19 @@ export async function approveNode(
     const layer = resolveLayer(filePath);
     const isGraph = filePath.trim().replace(/\\/g, '/').replace(/\/+$/, '').startsWith(yggPrefix);
 
+    const normalizedFilePath = filePath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
     if (layer === 'source' || (!isGraph && !layer)) {
-      changedSource.push(filePath);
+      changedSource.push(normalizedFilePath);
     } else if (layer) {
       // hierarchy, aspects, relational, flows = upstream
       changedUpstream.push({
-        filePath,
+        filePath: normalizedFilePath,
         annotation: annotateUpstreamChange(filePath, layer),
       });
     } else if (isGraph) {
       /* v8 ignore start -- defensive */
       changedUpstream.push({
-        filePath,
+        filePath: normalizedFilePath,
         annotation: annotateUpstreamChange(filePath, undefined),
       });
       /* v8 ignore stop */
