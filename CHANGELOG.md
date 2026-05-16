@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- AST aspect `no-direct-console`: enforces that engine files cannot call `console.log/warn/error/info/debug` directly — engine output must go through `debugWrite()` or formatters. Applied to `engine` type via architecture defaults.
+- AST aspect `no-side-effects-on-import`: enforces that utility modules cannot execute bare top-level function calls (standalone `expression_statement` containing a `call_expression`) at module scope. Applied to `utility` type via architecture defaults.
+
 - AST aspect `no-direct-fs`: enforces that engine and utility files cannot import `node:fs` or `node:fs/promises` directly — all filesystem calls must go through `io/graph-fs.ts` or other persistence-adapter helpers. Applied to `engine` and `utility` types via architecture defaults.
 - `io/graph-fs.ts`: new wrapper exports `fileAccess`, `lstatFile`, `statPath`, `fileExistsSync` delegating to Node fs primitives; engine and utility files now use these instead of importing fs directly.
 - `io/hash.ts`, `io/paths.ts`: moved from `utils/` to `io/` and reclassified as persistence-adapter (these files touch the filesystem and belong in that layer).

@@ -1,3 +1,3 @@
 name: NoDirectConsole
-description: "STUB — content added in Phase 4. Files outside bin.ts and formatters/ must not call console.log/warn/error directly; diagnostic output goes through utils/debug-log."
+description: "Engine files must not call console.log/warn/error/info/debug directly — engine output goes through debugWrite() or formatters; console.* is reserved for CLI command handlers."
 reviewer: ast
