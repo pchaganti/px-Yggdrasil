@@ -190,6 +190,10 @@ describe.skipIf(!distExists)('CLI E2E', () => {
     const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-approve-'));
     try {
       cpSync(FIXTURE, tmpDir, { recursive: true });
+      // Remove the stored drift state to force the node to be (re-)approved
+      rmSync(path.join(tmpDir, '.yggdrasil', '.drift-state', 'orders', 'order-service.json'), {
+        force: true,
+      });
       const { status: approveStatus, stdout } = run(
         ['approve', '--node', 'orders/order-service'],
         tmpDir,
@@ -199,7 +203,6 @@ describe.skipIf(!distExists)('CLI E2E', () => {
 
       // After approving, check should not show source-drift for this node
       const { stdout: checkOut } = run(['check'], tmpDir);
-      // The node was just approved — should not show drift for orders/order-service
       const driftLines = checkOut.split('\n').filter((l: string) =>
         l.includes('source-drift') && l.includes('orders/order-service'),
       );
@@ -695,6 +698,318 @@ describe.skipIf(!distExists)('CLI E2E', () => {
     expect(status).toBe(0);
     expect(stdout).toContain('Dry run');
     expect(stdout).toContain('orders/order-service');
+  });
+
+  it('yg approve --aspect exits 0 and runs batch approval', () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-approve-aspect-'));
+    try {
+      cpSync(FIXTURE, tmpDir, { recursive: true });
+      const { stdout, status } = run(['approve', '--aspect', 'requires-audit'], tmpDir);
+      expect(status).toBe(0);
+      expect(stdout).toContain('requires-audit');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('yg approve --flow exits 0 and runs batch approval', () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-approve-flow-'));
+    try {
+      cpSync(FIXTURE, tmpDir, { recursive: true });
+      const { stdout, status } = run(['approve', '--flow', 'checkout-flow'], tmpDir);
+      expect(status).toBe(0);
+      expect(stdout).toContain('checkout-flow');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('yg approve --node and --aspect together returns exit 1', () => {
+    const { status, stderr } = run(['approve', '--node', 'orders/order-service', '--aspect', 'requires-audit']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('Only one');
+  });
+
+  it('yg approve --node and --flow together returns exit 1', () => {
+    const { status, stderr } = run(['approve', '--node', 'orders/order-service', '--flow', 'checkout-flow']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('Only one');
+  });
+
+  it('yg approve --aspect and --flow together returns exit 1', () => {
+    const { status, stderr } = run(['approve', '--aspect', 'requires-audit', '--flow', 'checkout-flow']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('Only one');
+  });
+
+  it('yg approve multiple --node flags with --dry-run runs batch', () => {
+    const { stdout, status } = run([
+      'approve',
+      '--node', 'orders/order-service',
+      '--node', 'auth/auth-api',
+      '--dry-run',
+    ]);
+    expect(status).toBe(0);
+    expect(stdout).toContain('orders/order-service');
+    expect(stdout).toContain('auth/auth-api');
+  });
+
+  // --- check - no .yggdrasil ---
+
+  it('yg check without .yggdrasil returns exit 1', () => {
+    const emptyDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-check-no-ygg-'));
+    try {
+      const { status, stderr } = run(['check'], emptyDir);
+      expect(status).toBe(1);
+      expect(stderr).toContain('yg init');
+    } finally {
+      rmSync(emptyDir, { recursive: true, force: true });
+    }
+  });
+
+  // --- init edge cases ---
+
+  it('yg init --upgrade without --platform returns exit 1', () => {
+    const { status, stderr } = run(['init', '--upgrade']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('--upgrade requires --platform');
+  });
+
+  it('yg init --upgrade without .yggdrasil returns exit 1', () => {
+    const emptyDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-init-no-ygg-'));
+    try {
+      const { status, stderr } = run(['init', '--upgrade', '--platform', 'generic'], emptyDir);
+      expect(status).toBe(1);
+      expect(stderr).toContain('No .yggdrasil/');
+    } finally {
+      rmSync(emptyDir, { recursive: true, force: true });
+    }
+  });
+
+  it('yg init fresh in non-TTY returns exit 1', () => {
+    const emptyDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-init-fresh-'));
+    try {
+      const { status, stderr } = run(['init'], emptyDir);
+      expect(status).toBe(1);
+      expect(stderr).toContain('interactive terminal');
+    } finally {
+      rmSync(emptyDir, { recursive: true, force: true });
+    }
+  });
+
+  // --- impact extended ---
+
+  it('yg impact --type service shows nodes of that type', () => {
+    const { stdout, status } = run(['impact', '--type', 'service']);
+    expect(status).toBe(0);
+    expect(stdout).toContain('Type: service');
+    expect(stdout).toContain('auth/auth-api');
+    expect(stdout).toContain('orders/order-service');
+  });
+
+  it('yg impact --type nonexistent returns exit 1', () => {
+    const { status, stderr } = run(['impact', '--type', 'nonexistent-type-xyz']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('not found in architecture');
+  });
+
+  it('yg impact --node and --file together returns exit 1', () => {
+    const { status, stderr } = run(['impact', '--node', 'orders/order-service', '--file', 'src/orders/order.service.ts']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('mutually exclusive');
+  });
+
+  it('yg impact --flow and --aspect together returns exit 1', () => {
+    const { status, stderr } = run(['impact', '--flow', 'checkout-flow', '--aspect', 'requires-audit']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('mutually exclusive');
+  });
+
+  it('yg impact --file nonexistent path returns exit 1', () => {
+    const { status, stderr } = run(['impact', '--file', 'src/does-not-exist.ts']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('not mapped');
+  });
+
+  // --- owner extended ---
+
+  it('yg owner without .yggdrasil returns exit 1', () => {
+    const emptyDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-owner-no-ygg-'));
+    try {
+      const { status, stderr } = run(['owner', '--file', 'src/foo.ts'], emptyDir);
+      expect(status).toBe(1);
+      expect(stderr).toContain('yg init');
+    } finally {
+      rmSync(emptyDir, { recursive: true, force: true });
+    }
+  });
+
+  // --- find extended ---
+
+  it('yg find without .yggdrasil returns exit 1', () => {
+    const emptyDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-find-no-ygg-'));
+    try {
+      const { status, stderr } = run(['find', 'order'], emptyDir);
+      expect(status).toBe(1);
+      expect(stderr).toContain('yg init');
+    } finally {
+      rmSync(emptyDir, { recursive: true, force: true });
+    }
+  });
+
+  it('yg find with no matching query returns exit 0 with no matches', () => {
+    const { stdout, status } = run(['find', 'xyzqwerty123nonexistent']);
+    expect(status).toBe(0);
+    expect(stdout).toContain('No matches');
+  });
+
+  // --- context extended ---
+
+  it('yg context --file unmapped file returns exit 1', () => {
+    const { status, stderr } = run(['context', '--file', 'src/unmapped-file.ts']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('no graph coverage');
+  });
+
+  it('yg context without .yggdrasil returns exit 1', () => {
+    const emptyDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-ctx-no-ygg-'));
+    try {
+      const { status, stderr } = run(['context', '--node', 'foo'], emptyDir);
+      expect(status).toBe(1);
+      expect(stderr).toContain('yg init');
+    } finally {
+      rmSync(emptyDir, { recursive: true, force: true });
+    }
+  });
+
+  // --- type-suggest extended ---
+
+  it('yg type-suggest --file nonexistent path runs path-only check', () => {
+    const { stdout, status } = run(['type-suggest', '--file', 'src/nonexistent/foo.ts']);
+    expect(status).toBe(0);
+    expect(stdout).toContain('path predicates only');
+    expect(stdout).toContain('service');
+  });
+
+  it('yg type-suggest --file inside .yggdrasil/ is auto-exempt', () => {
+    const { stdout, status } = run(['type-suggest', '--file', '.yggdrasil/model/auth/yg-node.yaml']);
+    expect(status).toBe(0);
+    expect(stdout).toContain('auto-exempt');
+  });
+
+  it('yg type-suggest without .yggdrasil returns exit 1', () => {
+    const emptyDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-ts-no-ygg-'));
+    try {
+      const { status, stderr } = run(['type-suggest', '--file', 'src/foo.ts'], emptyDir);
+      expect(status).toBe(1);
+      expect(stderr).toContain('yg init');
+    } finally {
+      rmSync(emptyDir, { recursive: true, force: true });
+    }
+  });
+
+  // --- log extended ---
+
+  it('yg log add without --node returns exit 1', () => {
+    const { status, stderr } = run(['log', 'add', '--reason', 'test']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('--node');
+  });
+
+  it('yg log add for nonexistent node returns exit 1', () => {
+    const { status, stderr } = run(['log', 'add', '--node', 'nonexistent/node', '--reason', 'test']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('Node not found');
+  });
+
+  it('yg log add with --reason-file appends entry from file', () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-log-reason-file-'));
+    try {
+      cpSync(FIXTURE, tmpDir, { recursive: true });
+      const reasonFile = path.join(tmpDir, 'reason.txt');
+      writeFileSync(reasonFile, 'Entry from reason-file', 'utf-8');
+      const { status, stdout } = run(
+        ['log', 'add', '--node', 'orders/order-service', '--reason-file', reasonFile],
+        tmpDir,
+      );
+      expect(status).toBe(0);
+      expect(stdout).toContain('Added log entry');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('yg log read --top 1 returns only the latest entry', () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-log-top-'));
+    try {
+      cpSync(FIXTURE, tmpDir, { recursive: true });
+      run(['log', 'add', '--node', 'orders/order-service', '--reason', 'Older entry'], tmpDir);
+      run(['log', 'add', '--node', 'orders/order-service', '--reason', 'Newer entry'], tmpDir);
+      const { status, stdout } = run(
+        ['log', 'read', '--node', 'orders/order-service', '--top', '1'],
+        tmpDir,
+      );
+      expect(status).toBe(0);
+      expect(stdout).toContain('Newer entry');
+      expect(stdout).not.toContain('Older entry');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('yg log read for nonexistent node returns exit 1', () => {
+    const { status, stderr } = run(['log', 'read', '--node', 'nonexistent/node']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('Node not found');
+  });
+
+  it('yg log merge-resolve without --node returns exit 1', () => {
+    const { status, stderr } = run(['log', 'merge-resolve']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('--node');
+  });
+
+  it('yg log without subcommand shows usage and returns exit 1', () => {
+    const { status, stdout, stderr } = run(['log']);
+    expect(status).toBe(1);
+    expect(stdout + stderr).toContain('Usage: yg log');
+  });
+
+  // --- ast-test extended ---
+
+  it('yg ast-test without --aspect returns exit 1', () => {
+    const { status, stderr } = run(['ast-test']);
+    expect(status).toBe(1);
+    expect(stderr).toContain('--aspect');
+  });
+
+  it('yg ast-test with valid AST aspect but no --files or --node returns exit 1', () => {
+    const WORKSPACE_ROOT = path.resolve(CLI_ROOT, '../..');
+    const { status, stderr } = run(['ast-test', '--aspect', 'no-direct-console'], WORKSPACE_ROOT);
+    expect(status).toBe(1);
+    expect(stderr).toContain('--files');
+  });
+
+  it('yg ast-test with --files runs check against specific files', () => {
+    const WORKSPACE_ROOT = path.resolve(CLI_ROOT, '../..');
+    const { stdout, status } = run(
+      [
+        'ast-test',
+        '--aspect', 'no-direct-console',
+        '--files', 'source/cli/src/formatters/message-builder.ts',
+      ],
+      WORKSPACE_ROOT,
+    );
+    expect(status).toBe(0);
+    expect(stdout).toContain('No violations');
+  });
+
+  // --- knowledge extended ---
+
+  it('yg knowledge without subcommand shows usage and returns exit 1', () => {
+    const { status, stdout, stderr } = run(['knowledge']);
+    expect(status).toBe(1);
+    expect(stdout + stderr).toContain('Usage: yg knowledge');
   });
 
 });
