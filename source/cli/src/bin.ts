@@ -44,4 +44,15 @@ registerFindCommand(program);
 registerTypeSuggestCommand(program);
 registerKnowledgeCommand(program);
 
-program.parse();
+process.on('unhandledRejection', (reason) => {
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  process.stderr.write(`Error: ${msg}\n`);
+  process.exit(1);
+});
+
+try {
+  program.parse();
+} catch (err) {
+  process.stderr.write(`Error: ${(err as Error).message}\n`);
+  process.exit(1);
+}

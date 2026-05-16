@@ -23,19 +23,23 @@ export interface ApproveWithReviewerInput {
   provider: LlmProvider;
   maxTokens: number | undefined;
   consensus: number | undefined;
+  filterAspectId?: string;
 }
 
 export async function runApproveWithReviewer(
   input: ApproveWithReviewerInput,
 ): Promise<LlmApproveResult> {
-  const { graph, nodePath, result, provider, maxTokens, consensus } = input;
+  const { graph, nodePath, result, provider, maxTokens, consensus, filterAspectId } = input;
 
   if (result.action === 'refused') return result;
 
   const node = graph.nodes.get(nodePath);
   if (!node) return result;
 
-  const llmAspects = resolveAspects(node, graph).filter(a => a.reviewer !== 'ast');
+  const allLlmAspects = resolveAspects(node, graph).filter(a => a.reviewer !== 'ast');
+  const llmAspects = filterAspectId
+    ? allLlmAspects.filter(a => a.id === filterAspectId)
+    : allLlmAspects;
 
   if (llmAspects.length === 0) {
     await commitApproval(graph.rootPath, result);
@@ -45,7 +49,7 @@ export async function runApproveWithReviewer(
   const projectRoot = path.dirname(graph.rootPath);
   const trackedFiles = collectTrackedFiles(node, graph);
   const { fileHashes } = await hashTrackedFiles(projectRoot, trackedFiles, undefined, []);
-  const yggPrefix = path.relative(projectRoot, graph.rootPath).split(path.sep).join('/');
+  const yggPrefix = path.relative(projectRoot, graph.rootPath).split(/[\\/]/).join('/');
   const sourceFilePaths = Object.keys(fileHashes).filter(f => {
     const normalized = f.replace(/\\/g, '/').replace(/\/+$/, '');
     return !normalized.startsWith(yggPrefix);

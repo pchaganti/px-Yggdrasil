@@ -16,3 +16,7 @@ R0.1 Phase 4: populate refuseReasonData alongside refuseReason on all refused Ap
 Drop deprecated refuseReason/buildIssueMessage: all approve refusals now set only refuseReasonData; buildIssueMessage import removed from core layer. R0.1 Phase 5.
 ## [2026-05-15T19:28:50.095Z]
 Move IssueMessage type from formatters/message-builder to model/validation — engine→formatter import violation fix for boundaries enforcement
+## [2026-05-16T03:56:28.552Z]
+Replace path.sep with split(/[\\/]/) to remove platform-specific separator — posix-paths-source aspect compliance.
+## [2026-05-16T04:54:08.571Z]
+Simplify annotateUpstreamChange: remove layer === 'flows' condition (dead code after flow YAML removed from tracked files) while keeping normalized.includes('/flows/') for old drift state compatibility.

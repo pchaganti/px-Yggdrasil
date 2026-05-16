@@ -4,3 +4,7 @@ R0.2: new engine module — LLM verification orchestration extracted from cli/ap
 Add yg-suppress(deterministic) at file level — approve-reviewer must invoke the configured LLM provider for verification; non-determinism is intentional and inherent to this engine's purpose
 ## [2026-05-15T19:28:50.216Z]
 Move IssueMessage type from formatters/message-builder to model/validation — engine→formatter import violation fix for boundaries enforcement
+## [2026-05-16T03:56:28.692Z]
+Replace path.sep with split(/[\\/]/) to remove platform-specific separator — posix-paths-source aspect compliance.
+## [2026-05-16T04:34:29.494Z]
+Add filterAspectId to ApproveWithReviewerInput — when set, LLM aspects are filtered to only the specified aspect ID. Enables targeted cascade approve from approve --aspect X.

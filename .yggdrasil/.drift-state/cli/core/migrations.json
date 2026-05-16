@@ -1,5 +1,5 @@
 {
-  "hash": "dc3014f0d6e4b8551c9cf7e634def13a6621b235b3265d81cf56cd76b2e2f5d6",
+  "hash": "14dc6dd68a296a4ed509303a80c01df5bff694563599a1d844a00fdd036d11da",
   "files": {
     "own-subset:cli/core/migrations": "d28b1f21d011a19663a47e31e9eba919546e6610d39e8f2b53f4b3ad06652cb9",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -12,9 +12,11 @@
     ".yggdrasil/aspects/migration-bumps-version/check.mjs": "80357b1095aa479ea1f33a38207643a4d53be71a02b69da4a27d3ac0582b1f43",
     ".yggdrasil/model/cli/core/migrator/yg-node.yaml": "1c74bffe5d90a259c330d68888caf4097753f5e929e3edc036b6a295f49e44d1",
     "source/cli/src/migrations/to-4.0.0.ts": "0fb8f7069ee24b6ec202e97df4790c00b124e71173b72ab92822ade7ae470413",
+    "source/cli/src/migrations/to-4.3.0.ts": "b1ac32207559fe1341a9c9a48b90d070a1d68b052a6375118e7f342dee1af8c1",
     "source/cli/src/migrations/to-4.4.0.ts": "06011c0a634b2182c0cb92d634189af53b932974cdd87b32ef1db15e3834cd8d",
     "source/cli/src/migrations/index.ts": "f9a409787bf379939599e64a4c533bd7e2250bc9e1277704592116be5fa59624",
-    "source/cli/src/migrations/to-4.3.0.ts": "b1ac32207559fe1341a9c9a48b90d070a1d68b052a6375118e7f342dee1af8c1"
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "9a5d512752a6f1fea12e50a6ef249cbf0aae2cc2097597057e4dd429df65f7c9",
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -25,6 +27,8 @@
     ".yggdrasil/aspects/migration-idempotent/content.md": 1778864442170.9705,
     ".yggdrasil/aspects/migration-bumps-version/yg-aspect.yaml": 1778873706788.792,
     ".yggdrasil/aspects/migration-bumps-version/check.mjs": 1778873717502.2686,
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1778878288425.0745,
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
     ".yggdrasil/model/cli/core/migrator/yg-node.yaml": 1776177846201.7908,
     "source/cli/src/migrations/to-4.0.0.ts": 1776513183168.997,
     "source/cli/src/migrations/to-4.3.0.ts": 1778873963289.6868,

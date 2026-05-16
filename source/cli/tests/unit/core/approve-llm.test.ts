@@ -203,6 +203,39 @@ describe('runApproveWithReviewer (core layer)', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
+  it('filters to only filterAspectId when set, skipping other aspects', async () => {
+    const { tmpDir } = await createTmpProject('reviewer-filter-aspect', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - deterministic\n  - stable\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [
+        { id: 'deterministic', yaml: ASPECT_YAML, files: { 'content.md': 'Deterministic rules.\n' } },
+        { id: 'stable', yaml: 'name: Stable\ndescription: Must be stable\n', files: { 'content.md': 'Stable rules.\n' } },
+      ],
+    });
+    await recordBaseline(tmpDir);
+    await writeFile(path.join(tmpDir, 'src/svc/index.ts'), 'const x = 2;\n');
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+
+    let verifyCallCount = 0;
+    const provider = makeMockProvider({
+      async verifyAspect() { verifyCallCount++; return { satisfied: true, reason: 'ok' }; },
+    });
+
+    const result = await runApproveWithReviewer({
+      graph, nodePath: 'svc/my-service', result: coreResult, provider,
+      maxTokens: undefined, consensus: undefined, filterAspectId: 'deterministic',
+    });
+
+    expect(result.action).toBe('approved');
+    expect(verifyCallCount).toBe(1);
+    expect(result.aspectResults?.['deterministic']?.satisfied).toBe(true);
+    expect(result.aspectResults?.['stable']).toBeUndefined();
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
   it('skips verifyAspects and commits when no LLM aspects exist', async () => {
     const { tmpDir } = await createTmpProject('reviewer-no-llm-aspects', {
       nodePath: 'svc/my-service',
@@ -251,6 +284,42 @@ describe('LLM verification (CLI layer)', () => {
     expect(result.aspectViolations!.length).toBeGreaterThan(0);
     expect(result.aspectViolations![0].reason).toContain('Date.now()');
     expect(result.aspectResults?.['deterministic']?.satisfied).toBe(false);
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('evaluates only filterAspectId aspect when set and no source drift', async () => {
+    const { tmpDir } = await createTmpProject('llm-filter-aspect', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - deterministic\n  - stable\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [
+        { id: 'deterministic', yaml: ASPECT_YAML, files: { 'content.md': 'Deterministic rules.\n' } },
+        { id: 'stable', yaml: 'name: Stable\ndescription: Must be stable\n', files: { 'content.md': 'Stable rules.\n' } },
+      ],
+    });
+    await recordBaseline(tmpDir);
+    // Trigger upstream drift only (change aspect content, not source) by rewriting aspect file
+    const aspectContentPath = path.join(tmpDir, '.yggdrasil/aspects/deterministic/content.md');
+    await writeFile(aspectContentPath, 'Updated deterministic rules.\n');
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    // upstream drift only — changedSource is undefined
+    expect(coreResult.changedSource).toBeUndefined();
+
+    let verifyCallCount = 0;
+    const provider = makeMockProvider({
+      async verifyAspect() { verifyCallCount++; return { satisfied: true, reason: 'ok' }; },
+    });
+
+    const result = await runLlmVerification(
+      graph, 'svc/my-service', coreResult, makeLlmConfig(provider), 'deterministic',
+    );
+
+    expect(result.action).toBe('approved');
+    expect(verifyCallCount).toBe(1);
+    expect(result.aspectResults?.['deterministic']?.satisfied).toBe(true);
+    expect(result.aspectResults?.['stable']).toBeUndefined();
     await rm(tmpDir, { recursive: true, force: true });
   });
 

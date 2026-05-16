@@ -1,5 +1,5 @@
 {
-  "hash": "624c0bd16a2958d2aff55cb1d33f51eee0f73cdd6c96d61e0d540defbc866f00",
+  "hash": "de2f7e9bd78903c9df351d25c23b9fd0f0bc098227d5b47424921ac0d8895ab9",
   "files": {
     "own-subset:cli/core/migrator-runner": "05b82913018f21c3cc47a5a92464df0ee15220c1bdf108dfbd86ca7dbcd4c24d",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -12,10 +12,12 @@
     ".yggdrasil/aspects/no-direct-fs/check.mjs": "7419c97758e5b959eb745cf9a7752dfe4dde9505ef7e4add6325a43b5abf1038",
     ".yggdrasil/aspects/no-direct-console/yg-aspect.yaml": "a0054a1a26651b5b6e2c02d8557d4dcb87e85e2169e68f9fcf144e691a65ee6d",
     ".yggdrasil/aspects/no-direct-console/check.mjs": "7419c97758e5b959eb745cf9a7752dfe4dde9505ef7e4add6325a43b5abf1038",
+    ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": "c51515d479377b0abc3d3d84a6c4d1bd43f81f3323966b2e0773282c2c445be7",
+    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": "5a8d98ab81d3c3f7e15f5fdaeb4e0ea05349fd2c8ae5dc50e0b85e7a788a9de9",
     ".yggdrasil/model/cli/core/migrator/yg-node.yaml": "1c74bffe5d90a259c330d68888caf4097753f5e929e3edc036b6a295f49e44d1",
     "source/cli/src/core/migrator-runner.ts": "24b53c6004c9ac36c65a20dd6c1df93ab977e70393e0a4c4b0b1fa2a1ee4033b",
-    ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": "c51515d479377b0abc3d3d84a6c4d1bd43f81f3323966b2e0773282c2c445be7",
-    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": "5a8d98ab81d3c3f7e15f5fdaeb4e0ea05349fd2c8ae5dc50e0b85e7a788a9de9"
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "9a5d512752a6f1fea12e50a6ef249cbf0aae2cc2097597057e4dd429df65f7c9",
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -30,6 +32,8 @@
     ".yggdrasil/aspects/no-direct-console/check.mjs": 1778864425699.0137,
     ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": 1778876045985.2808,
     ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": 1778876910319.6726,
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1778878288425.0745,
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
     ".yggdrasil/model/cli/core/migrator/yg-node.yaml": 1776177846201.7908,
     "source/cli/src/core/migrator-runner.ts": 1778860917993.536
   },

@@ -258,7 +258,7 @@ export async function approveNode(
 
   const yggPrefix = path
     .relative(projectRoot, graph.rootPath)
-    .split(path.sep)
+    .split(/[\\/]/)
     .join('/');
 
   // Classify changed files into two categories
@@ -284,7 +284,7 @@ export async function approveNode(
   ): string {
     const normalized = filePath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
     if (layer === 'aspects' || normalized.includes('/aspects/')) return 'aspect content';
-    if (layer === 'flows' || normalized.includes('/flows/')) return 'flow description';
+    if (normalized.includes('/flows/')) return 'flow description';
     if (layer === 'hierarchy') return 'parent metadata';
     if (layer === 'relational') return 'dependency metadata';
     return 'upstream content';

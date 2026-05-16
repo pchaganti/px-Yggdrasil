@@ -30,6 +30,7 @@ node_types:
     aspects:
       - top-level-error-handler
       - command-exit-codes
+      - posix-paths-source
     parents: [module]
     relations:
       calls: [command]
@@ -46,6 +47,7 @@ node_types:
       - cli-command-contract
       - diagnostic-logging
       - command-contract-shape
+      - posix-paths-source
     parents: [module]
     relations:
       calls: [engine, parser-adapter, persistence-adapter, llm-shared, llm-subprocess-base, formatter, utility, ast-adapter, template]
@@ -63,6 +65,7 @@ node_types:
       - no-direct-fs
       - no-direct-console
       - no-nondeterminism-direct
+      - posix-paths-source
     parents: [module]
     relations:
       calls: [engine, parser-adapter, persistence-adapter, llm-shared, utility]
@@ -75,6 +78,7 @@ node_types:
     aspects:
       - migration-idempotent
       - migration-bumps-version
+      - posix-paths-source
     parents: [module]
     relations:
       calls: [engine, parser-adapter, persistence-adapter, utility]
@@ -90,6 +94,7 @@ node_types:
     aspects:
       - yaml-parser-contract   # renamed to parser-contract in Phase 5
       - silent-missing-files
+      - posix-paths-source
     parents: [module]
     relations:
       calls: [utility]
@@ -110,6 +115,7 @@ node_types:
     aspects:
       - silent-missing-files
       - atomic-write-contract
+      - posix-paths-source
     parents: [module]
     relations:
       calls: [persistence-adapter, utility]
@@ -124,6 +130,7 @@ node_types:
             path: "**/*.test.ts"
     aspects:
       - deterministic
+      - posix-paths-source
     parents: [module]
     relations:
       calls: [utility, llm-shared]
@@ -136,6 +143,7 @@ node_types:
     aspects:
       - provider-retry-contract
       - provider-redaction
+      - posix-paths-source
     parents: [module]
     relations:
       calls: [llm-shared, llm-subprocess-base, utility]
@@ -161,6 +169,7 @@ node_types:
       path: "source/cli/src/llm/cli-base.ts"
     aspects:
       - provider-redaction
+      - posix-paths-source
     parents: [module]
     relations:
       calls: [utility]
@@ -172,6 +181,7 @@ node_types:
       path: "source/cli/src/formatters/*.ts"
     aspects:
       - what-why-next
+      - posix-paths-source
     parents: [module]
     relations:
       calls: [utility]
@@ -194,6 +204,7 @@ node_types:
     aspects:
       - no-side-effects-on-import
       - no-direct-fs
+      - posix-paths-source
     parents: [module]
     relations:
       calls: [utility]
@@ -205,6 +216,7 @@ node_types:
       path: "source/cli/src/templates/{default-config,platform,rules}.ts"
     aspects:
       - what-why-next
+      - posix-paths-source
     parents: [module]
     relations:
       calls: [utility]

@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import type { Graph, GraphNode, FlowDef } from '../model/graph.js';
+import type { Graph, GraphNode } from '../model/graph.js';
 import type { DriftCategory, TrackedFileLayer } from '../model/drift.js';
 import { normalizeMappingPaths } from '../utils/paths.js';
 import { collectAncestors } from './context-builder.js';
@@ -78,7 +78,6 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph): TrackedFile[
   }
 
   // 3. ASPECTS — use computeEffectiveAspects for ALL aspects from all 7 channels
-  const participatingFlows = collectParticipatingFlows(graph, node, ancestors);
   const allAspectIds = computeEffectiveAspects(node, graph);
 
   for (const aspectId of allAspectIds) {
@@ -135,12 +134,7 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph): TrackedFile[
     }
   }
 
-  // 5. RELATIONAL-FLOWS — yg-flow.yaml only for participating flows
-  for (const flow of participatingFlows) {
-    addFile(graphPath('flows', flow.path, 'yg-flow.yaml'), 'graph', 'flows');
-  }
-
-  // 6. SOURCE — files from mapping.paths
+  // 5. SOURCE — files from mapping.paths
   const mappingPaths = normalizeMappingPaths(node.meta.mapping);
   for (const p of mappingPaths) {
     addFile(p, 'source', 'source');
@@ -149,15 +143,3 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph): TrackedFile[
   return result;
 }
 
-/**
- * Find all flows where the node or any of its ancestors is a participant.
- * Same logic as collectParticipatingFlows in context-builder.ts.
- */
-function collectParticipatingFlows(
-  graph: Graph,
-  node: GraphNode,
-  ancestors: GraphNode[],
-): FlowDef[] {
-  const paths = new Set<string>([node.path, ...ancestors.map((a) => a.path)]);
-  return graph.flows.filter((f) => f.nodes.some((n) => paths.has(n)));
-}

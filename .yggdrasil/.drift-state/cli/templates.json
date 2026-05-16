@@ -1,11 +1,12 @@
 {
-  "hash": "959c736f1cf6dc3ae4298d04ee83a9ac483c9eaa3c2789bcb6bffa6e1fb9bada",
+  "hash": "d127cc3adecfd5696122bf063565cc2d3601230029689774059d0a0ead189f42",
   "files": {
     "own-subset:cli/templates": "f68bcd5143fd11da71f121095f5b7b88f309ccecd0a1190a8d557b7eeeda9f51",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": "3dc44ca9f217265beaf528bbfd13720e77985be4ec8fae0ce1f2c044968c8faf",
     ".yggdrasil/aspects/what-why-next/content.md": "bbe835c049672dd09076de1be3a2dd2ed70c38e31a327f98176f1a0d15fb0838",
-    ".yggdrasil/flows/init/yg-flow.yaml": "eb35f927c712f8bae38cb5c5fcd0193432aea2fb7adc5e75f777764300ce3177",
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "9a5d512752a6f1fea12e50a6ef249cbf0aae2cc2097597057e4dd429df65f7c9",
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678",
     "source/cli/src/templates/default-config.ts": "82217e590c8907205bb0a0d40a9aa7195d1e905975e97d7959ea561c40986b25",
     "source/cli/src/templates/platform.ts": "ba4b3b22f545667980a531b73b40cfffb2462199ab6da09e752e5ef9b6037e36",
     "source/cli/src/templates/rules.ts": "7ae9be8b5b55a82496ec9a647d56eac12e60d369b74a1c0a9501094378151003"
@@ -14,7 +15,8 @@
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": 1776177846197.8352,
     ".yggdrasil/aspects/what-why-next/content.md": 1778855561245.8606,
-    ".yggdrasil/flows/init/yg-flow.yaml": 1774035679161.664,
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1778878288425.0745,
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
     "source/cli/src/templates/default-config.ts": 1778836745921.711,
     "source/cli/src/templates/platform.ts": 1778581979191.5073,
     "source/cli/src/templates/rules.ts": 1778842979873.588

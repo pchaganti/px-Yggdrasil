@@ -385,7 +385,9 @@ describe('classifyDrift', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('returns upstream-drift when flow yg-flow.yaml changes', async () => {
+  it('does NOT trigger drift when only flow yg-flow.yaml description changes', async () => {
+    // Flow YAML is not tracked — only aspect propagation via aspect files causes drift.
+    // Description-only flow changes should produce zero false drift.
     const { tmpDir, yggRoot } = await createTmpProject('cascade-flow', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - testing\nmapping:\n  - src/svc/\n',
@@ -397,13 +399,12 @@ describe('classifyDrift', () => {
     await mkdir(flowDir, { recursive: true });
     await writeFile(path.join(flowDir, 'yg-flow.yaml'), 'name: Checkout Flow\ndescription: test flow\nnodes:\n  - svc/my-service\n');
     await recordBaseline(tmpDir);
-    // Modify flow yg-flow.yaml (now the only flow-tracked file)
+    // Modify only the flow description — no aspect or node list changes
     await writeFile(path.join(flowDir, 'yg-flow.yaml'), 'name: Checkout Flow\ndescription: updated flow\nnodes:\n  - svc/my-service\n');
     const graph = await loadGraph(tmpDir);
     const result = await classifyDrift(graph);
     const upstreamDrift = result.filter(i => i.code === 'upstream-drift' && i.nodePath === 'svc/my-service');
-    expect(upstreamDrift.length).toBeGreaterThanOrEqual(1);
-    expect(upstreamDrift[0].cascadeCauses!.some(c => c.layer === 'flows')).toBe(true);
+    expect(upstreamDrift.length).toBe(0);
     await rm(tmpDir, { recursive: true, force: true });
   });
 
@@ -956,48 +957,6 @@ describe('runCheck', () => {
     // With only 1 cascade node, should suggest yg context --node, not batch
     expect(result.suggestedNext).toContain('yg context --node');
     expect(result.suggestedNext).not.toContain('--aspect');
-
-    await rm(tmpDir, { recursive: true, force: true });
-  });
-
-  it('suggests --flow batch command when >=2 upstream-drift share same flow cause', async () => {
-    // Create two nodes that share a flow, then trigger cascade from flow artifact change
-    const { tmpDir, yggRoot } = await createTmpProject('cascade-suggest-flow', {
-      nodePath: 'svc/alpha',
-      nodeYaml: 'name: Alpha\ntype: service\ndescription: alpha\naspects:\n  - testing\nmapping:\n  - src/alpha/\n',
-      aspects: [TEST_ASPECT],
-      mappingFiles: { 'src/alpha/index.ts': 'export const a = 1;\n' },
-    });
-
-    // Create second node
-    const node2Dir = path.join(yggRoot, 'model/svc/beta');
-    await mkdir(node2Dir, { recursive: true });
-    await writeFile(path.join(node2Dir, 'yg-node.yaml'),
-      'name: Beta\ntype: service\ndescription: beta\naspects:\n  - testing\nmapping:\n  - src/beta/\n');
-    await mkdir(path.join(tmpDir, 'src/beta'), { recursive: true });
-    await writeFile(path.join(tmpDir, 'src/beta/index.ts'), 'export const b = 2;\n');
-
-    // Create a flow that references both nodes
-    const flowDir = path.join(yggRoot, 'flows/checkout-flow');
-    await mkdir(flowDir, { recursive: true });
-    await writeFile(path.join(flowDir, 'yg-flow.yaml'),
-      'name: Checkout\ndescription: checkout\nnodes:\n  - svc/alpha\n  - svc/beta\n');
-
-    await recordBaseline(tmpDir);
-
-    // Modify flow yg-flow.yaml to trigger cascade on both nodes
-    await writeFile(path.join(flowDir, 'yg-flow.yaml'),
-      'name: Checkout\ndescription: updated checkout\nnodes:\n  - svc/alpha\n  - svc/beta\n');
-
-    const graph = await loadGraph(tmpDir);
-    const result = await runCheck(graph, ['src/alpha/index.ts', 'src/beta/index.ts']);
-
-    // Both nodes should have upstream-drift cascade from flow
-    const upstreamDrift = result.issues.filter(i => i.code === 'upstream-drift');
-    expect(upstreamDrift.length).toBeGreaterThanOrEqual(2);
-
-    // suggestedNext should reference --flow batch command
-    expect(result.suggestedNext).toContain('--flow checkout-flow');
 
     await rm(tmpDir, { recursive: true, force: true });
   });

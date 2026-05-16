@@ -579,12 +579,6 @@ function describeCascadeCause(filePath: string, layer: TrackedFileLayer, graph: 
     return `dependency '${depPath}' ${artifactLabel} changed\n       (${normalized})`;
   }
 
-  if (layer === 'flows') {
-    const match = normalized.match(new RegExp(`${escPrefix}/flows/([^/]+)/`));
-    const flowName = match ? match[1] : 'unknown';
-    return `flow '${flowName}' description changed\n       (${normalized})`;
-  }
-
   return `tracked file changed\n       (${normalized})`;
 }
 
@@ -653,13 +647,6 @@ function groupCascadeByCause(cascadeErrors: CheckIssue[], graph?: Graph): Map<st
       const aspectMatch = normalized.match(new RegExp(`^${escPrefix}/aspects/([^/]+(?:/[^/]+)*)/`));
       if (aspectMatch) {
         key = `aspect:${aspectMatch[1]}`;
-      }
-
-      if (!key) {
-        const flowMatch = normalized.match(new RegExp(`^${escPrefix}/flows/([^/]+)/`));
-        if (flowMatch) {
-          key = `flow:${flowMatch[1]}`;
-        }
       }
 
       if (!key) {
@@ -737,7 +724,6 @@ function computeSuggestedNext(issues: CheckIssue[], graph?: Graph): string | nul
     if (bestEntity) {
       const flagMap: Record<string, string> = {
         aspect: '--aspect',
-        flow: '--flow',
         parent: '--node',
       };
       const flag = flagMap[bestEntity.type] ?? '--aspect';

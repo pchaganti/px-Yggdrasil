@@ -1,5 +1,5 @@
 {
-  "hash": "7c2a7f1a9e37eda3ade83c1a6d92b01cf1c32b660c46e1eaa821cc6b2e87fb9f",
+  "hash": "0fa4da2e0074dd7d721600e7232b5215323c507ee5b9d6bd51b47bdee257274b",
   "files": {
     "own-subset:cli/llm/providers": "ea05c9ef2db84f762ecbc438c885b0d8bdbd9eb62dcd0835662cae7c1d3398b5",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -7,6 +7,7 @@
     ".yggdrasil/aspects/provider-retry-contract/yg-aspect.yaml": "ada572d114f1729875e122bea58fc8f9a1de48c69a909ea888f95d50e2f21774",
     ".yggdrasil/aspects/provider-retry-contract/content.md": "d36eb759b4db5074c18f961c630f90130b7c3655713bd07a446a3fd09bcd1d1a",
     ".yggdrasil/aspects/provider-redaction/yg-aspect.yaml": "d758e56d713b99b856ecf30d07a023f29becc01c55f5e4bc1530629486e86a55",
+    ".yggdrasil/aspects/provider-redaction/check.mjs": "8369d4fa186c69b90cb2a13cd0cf1fa8822a982ac29269e22e1cc07002577c92",
     ".yggdrasil/model/cli/llm/shared/yg-node.yaml": "4352942ef6ad2e8b85558e7d31b16d9089a8f842db12f8598394a64aef2b6648",
     "source/cli/src/llm/anthropic.ts": "8af1fb4fa1bc9292ff6d3c375715f19d45db81666b65704fa34407d578c36343",
     "source/cli/src/llm/openai.ts": "9f37ca5ee9c288663a7e055ae93e6b158114961945ce720978b7ff333104ba30",
@@ -15,7 +16,8 @@
     "source/cli/src/llm/claude-code.ts": "fa1fa53507f8359c40eb74e6d28af3eec755ede927efe4ca0ec5224f19f55118",
     "source/cli/src/llm/codex.ts": "cdb8f0acf6f797c6efa5f69a659eed1830f9c35a128d75fa72d26c12e5cf9771",
     "source/cli/src/llm/gemini-cli.ts": "a13ad7858c81e040ab32a4a229e59c64e75cef38d9da600efd9ef95c931362b2",
-    ".yggdrasil/aspects/provider-redaction/check.mjs": "8369d4fa186c69b90cb2a13cd0cf1fa8822a982ac29269e22e1cc07002577c92"
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "9a5d512752a6f1fea12e50a6ef249cbf0aae2cc2097597057e4dd429df65f7c9",
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -24,6 +26,8 @@
     ".yggdrasil/aspects/provider-retry-contract/content.md": 1778864440015.0603,
     ".yggdrasil/aspects/provider-redaction/yg-aspect.yaml": 1778874630298.1333,
     ".yggdrasil/aspects/provider-redaction/check.mjs": 1778876579664.5938,
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1778878288425.0745,
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
     ".yggdrasil/model/cli/llm/shared/yg-node.yaml": 1778866412199.3052,
     "source/cli/src/llm/anthropic.ts": 1776177846231.9204,
     "source/cli/src/llm/openai.ts": 1776177846233.4124,

@@ -1,5 +1,5 @@
 {
-  "hash": "f5c3ec6d8756ac24de68a39f382392e91dce8394e593c3ca866d7f5f8f634d82",
+  "hash": "717ee28966c3d1af2694152b99919a0d8a71052ee7520aecfcfe21d677ad4eaa",
   "files": {
     "own-subset:cli/core/context": "f024c01db6a22a541747c0be08271eb81721e0870a5fae237bcf3068e1a3db3b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -10,17 +10,17 @@
     ".yggdrasil/aspects/no-direct-fs/check.mjs": "7419c97758e5b959eb745cf9a7752dfe4dde9505ef7e4add6325a43b5abf1038",
     ".yggdrasil/aspects/no-direct-console/yg-aspect.yaml": "a0054a1a26651b5b6e2c02d8557d4dcb87e85e2169e68f9fcf144e691a65ee6d",
     ".yggdrasil/aspects/no-direct-console/check.mjs": "7419c97758e5b959eb745cf9a7752dfe4dde9505ef7e4add6325a43b5abf1038",
+    ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": "c51515d479377b0abc3d3d84a6c4d1bd43f81f3323966b2e0773282c2c445be7",
+    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": "5a8d98ab81d3c3f7e15f5fdaeb4e0ea05349fd2c8ae5dc50e0b85e7a788a9de9",
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "9a5d512752a6f1fea12e50a6ef249cbf0aae2cc2097597057e4dd429df65f7c9",
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
     ".yggdrasil/model/cli/model/context/yg-node.yaml": "64e105e412ef925827cde4f59346925000f405ec38cd36676ed4318a34590a33",
     ".yggdrasil/model/cli/model/drift/yg-node.yaml": "8818cf691e94ebf918022c7af9ff4f200a3d9cdf4a95a0e10f7e3c476e12320e",
     ".yggdrasil/model/cli/utils/yg-node.yaml": "dc04f86e1dab9c579eddb8242fd2ff6e0b89ba7e75f504f255c8a669fac10157",
-    ".yggdrasil/flows/build-context/yg-flow.yaml": "ad7b1fd9f74aacd66fe207b87d611c0b39f13903cc2737f6b0a971c110e07359",
-    ".yggdrasil/flows/graph-analysis/yg-flow.yaml": "ad33ff3a4f7de1f9f97d3a728660e6abbeeb47fa6f858c8949f25747535cca80",
     "source/cli/src/core/context-builder.ts": "870b62c147dd232feebde80a9f1effb74cb0f6c06a931df9d259f7269d359089",
-    "source/cli/src/core/context-files.ts": "542a5f99a3e00b1aaccd2f5e3432ed1140f3d97d60bd899a1562f45f8457107a",
-    ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": "c51515d479377b0abc3d3d84a6c4d1bd43f81f3323966b2e0773282c2c445be7",
-    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": "5a8d98ab81d3c3f7e15f5fdaeb4e0ea05349fd2c8ae5dc50e0b85e7a788a9de9"
+    "source/cli/src/core/context-files.ts": "f1cb689ff88cecc9dbcf7c68c04ecdfdd6d43a603e898902e0d9a368b349765f"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -33,14 +33,18 @@
     ".yggdrasil/aspects/no-direct-console/check.mjs": 1778864425699.0137,
     ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": 1778876045985.2808,
     ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": 1778876910319.6726,
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1778878288425.0745,
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     ".yggdrasil/model/cli/model/context/yg-node.yaml": 1776177846203.256,
     ".yggdrasil/model/cli/model/drift/yg-node.yaml": 1776177846203.4216,
     ".yggdrasil/model/cli/utils/yg-node.yaml": 1778866829697.229,
-    ".yggdrasil/flows/build-context/yg-flow.yaml": 1774035679160.1672,
-    ".yggdrasil/flows/graph-analysis/yg-flow.yaml": 1776177846198.22,
     "source/cli/src/core/context-builder.ts": 1778501876536.141,
-    "source/cli/src/core/context-files.ts": 1778501876536.157
+    "source/cli/src/core/context-files.ts": 1778905579532.6323
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-16T04:34:06.578Z",
+    "prefix_hash": "3dbccc002b9ddd3965fdb305f801bd08d533ad387440c63a363da4d9d94b5e9b"
   }
 }

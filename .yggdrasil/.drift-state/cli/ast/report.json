@@ -1,20 +1,24 @@
 {
-  "hash": "9a3d203e89e9b16fd3cdff2e574d81b3dea2d1f12288234b131339ae503284f6",
+  "hash": "28b7391cf8df90e90f54019e39d1171d942a059361b266652e7697928a112ced",
   "files": {
     "own-subset:cli/ast/report": "81c446303e7f0f81e4442926d9268b200464da4ffadf167ab4d6c49a0da2a341",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/ast/yg-node.yaml": "5b06201b1c50bfd1ccb696b1f9f445d2b7aa4ca80e7c198bb219df2f8a60f8cb",
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": "20f321091b4f489efbf167feea9d42d73f7cffb21ea2e86958e565b550da164b",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
     "source/cli/src/ast/types.ts": "d1acb6e1ffef3a35e8ef763b3b50e5f84d24c6cc27d1d3d8db0d897cf9ae3c3f",
     "source/cli/src/ast/report.ts": "82ed2e0a496007b229331aa99655c37ec609a8d700254a19fe58bc5307c337c9",
     "source/cli/src/ast/index.ts": "70a76c3099e362d702ac1ca8cd902cc37e5f609fbb8b3a435f9fcc476d9784cc",
-    ".yggdrasil/model/cli/ast/yg-node.yaml": "5b06201b1c50bfd1ccb696b1f9f445d2b7aa4ca80e7c198bb219df2f8a60f8cb"
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "9a5d512752a6f1fea12e50a6ef249cbf0aae2cc2097597057e4dd429df65f7c9",
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/ast/yg-node.yaml": 1778872081128.6223,
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": 1775580563004.8235,
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1778878288425.0745,
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
     "source/cli/src/ast/types.ts": 1778432628642.5593,
     "source/cli/src/ast/report.ts": 1778432642279.1853,
     "source/cli/src/ast/index.ts": 1778433585985.1313

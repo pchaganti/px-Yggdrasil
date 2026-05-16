@@ -10,3 +10,7 @@ Drop deprecated refuseReason/message fields: cli/approve.ts now uses refuseReaso
 R0.2: thin cli/approve.ts — runLlmVerification now delegates LLM aspects to core/approve-reviewer::runApproveWithReviewer. AST aspects still handled at CLI layer. LlmApproveResult re-exported from core for backward compat.
 ## [2026-05-15T17:52:30.771Z]
 Fix diagnostic-logging violations: add debugWrite() to catch blocks that swallow errors without re-throwing.
+## [2026-05-16T03:56:28.408Z]
+Replace path.sep with split(/[\\/]/) to remove platform-specific separator — posix-paths-source aspect compliance.
+## [2026-05-16T04:34:29.373Z]
+Add targeted aspect review: approve --aspect X now evaluates only aspect X per node (not all aspects) when no source drift exists. Pass filterAspectId through runBatchApprove → runLlmVerification. Source drift still triggers full re-verification.

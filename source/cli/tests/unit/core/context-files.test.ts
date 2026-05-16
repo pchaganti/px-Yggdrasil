@@ -39,16 +39,6 @@ describe('collectTrackedFiles', () => {
     expect(paths).toContain('.yggdrasil/aspects/requires-audit/content.md');
   });
 
-  it('includes flow yg-flow.yaml', async () => {
-    const graph = await loadGraph(FIXTURE_PROJECT);
-    const node = graph.nodes.get('orders/order-service')!;
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
-
-    // orders/order-service participates in checkout-flow
-    expect(paths).toContain('.yggdrasil/flows/checkout-flow/yg-flow.yaml');
-  });
-
   it('includes source files from mapping', async () => {
     const graph = await loadGraph(FIXTURE_PROJECT);
     const node = graph.nodes.get('orders/order-service')!;
@@ -103,11 +93,6 @@ describe('collectTrackedFiles', () => {
     const aspectContent = files.find((f) => f.path === '.yggdrasil/aspects/requires-audit/content.md');
     expect(aspectContent).toBeDefined();
     expect(aspectContent?.layer).toBe('aspects');
-
-    // Flows layer: flow files
-    const flowYaml = files.find((f) => f.path === '.yggdrasil/flows/checkout-flow/yg-flow.yaml');
-    expect(flowYaml).toBeDefined();
-    expect(flowYaml?.layer).toBe('flows');
 
     // Source layer: mapped source files
     const sourceFile = files.find((f) => f.path === 'src/orders/order.service.ts');
@@ -194,47 +179,6 @@ describe('collectTrackedFiles', () => {
 
     // Only yg-node.yaml is tracked for relational deps
     expect(paths).toContain('.yggdrasil/model/dep/svc/yg-node.yaml');
-  });
-
-  it('flow participation checks ancestor paths', () => {
-    const parent: GraphNode = {
-      path: 'orders',
-      meta: { name: 'Orders', type: 'module' },
-      children: [],
-      parent: null,
-    };
-    const child: GraphNode = {
-      path: 'orders/order-service',
-      meta: { name: 'OrderService', type: 'service' },
-      children: [],
-      parent,
-    };
-    parent.children = [child];
-
-    const graph: Graph = {
-      config: {},
-      architecture: { node_types: {} },
-      nodes: new Map([
-        ['orders', parent],
-        ['orders/order-service', child],
-      ]),
-      aspects: [],
-      flows: [
-        {
-          path: 'parent-flow',
-          name: 'Parent Flow',
-          nodes: ['orders'],
-        },
-      ],
-      schemas: [],
-      rootPath: '/project/.yggdrasil',
-    };
-
-    // Child node should still pick up the flow through ancestor
-    const files = collectTrackedFiles(child, graph);
-    const paths = files.map((f) => f.path);
-
-    expect(paths).toContain('.yggdrasil/flows/parent-flow/yg-flow.yaml');
   });
 
   it('handles nodes without aspects', async () => {

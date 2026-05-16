@@ -36,6 +36,7 @@ export async function runLlmVerification(
   nodePath: string,
   result: ApproveResult,
   llmConfig: LlmConfig,
+  filterAspectId?: string,
 ): Promise<LlmApproveResult> {
   const { provider } = llmConfig;
   const node = graph.nodes.get(nodePath);
@@ -49,16 +50,20 @@ export async function runLlmVerification(
     return result;
   }
 
-  const aspects = resolveAspects(node, graph);
+  // When filterAspectId is set and no source files changed, only evaluate that aspect.
+  // Source drift requires full re-verification regardless of what triggered the batch.
+  const shouldFilter = filterAspectId !== undefined && !result.changedSource?.length;
+  const allAspects = resolveAspects(node, graph);
+  const aspects = shouldFilter ? allAspects.filter(a => a.id === filterAspectId) : allAspects;
   const astAspects = aspects.filter(a => a.reviewer === 'ast');
 
   if (astAspects.length === 0) {
-    return runApproveWithReviewer({ graph, nodePath, result, provider, maxTokens: llmConfig.maxTokens, consensus: llmConfig.consensus });
+    return runApproveWithReviewer({ graph, nodePath, result, provider, maxTokens: llmConfig.maxTokens, consensus: llmConfig.consensus, filterAspectId: shouldFilter ? filterAspectId : undefined });
   }
 
   // Compute source file paths for AST verification
   const projectRoot = path.dirname(graph.rootPath);
-  const yggPrefix = path.relative(projectRoot, graph.rootPath).split(path.sep).join('/');
+  const yggPrefix = path.relative(projectRoot, graph.rootPath).split(/[\\/]/).join('/');
   const trackedFiles = collectTrackedFiles(node, graph);
   const { fileHashes } = await hashTrackedFiles(projectRoot, trackedFiles, undefined, []);
   const sourceFilePaths = Object.keys(fileHashes).filter(f => {
@@ -112,7 +117,7 @@ export async function runLlmVerification(
   }
 
   // AST passed — delegate LLM verification to core
-  const llmResult = await runApproveWithReviewer({ graph, nodePath, result, provider, maxTokens: llmConfig.maxTokens, consensus: llmConfig.consensus });
+  const llmResult = await runApproveWithReviewer({ graph, nodePath, result, provider, maxTokens: llmConfig.maxTokens, consensus: llmConfig.consensus, filterAspectId: shouldFilter ? filterAspectId : undefined });
   return {
     ...llmResult,
     aspectResults: { ...astResults, ...(llmResult.aspectResults ?? {}) },
@@ -300,6 +305,7 @@ async function runBatchApprove(
   graph: Graph,
   entityLabel: string,
   causePrefix: string,
+  filterAspectId?: string,
 ): Promise<boolean> {
   const issues = await classifyDrift(graph);
   const matchedNodes = filterCascadeNodes(issues, causePrefix);
@@ -323,7 +329,7 @@ async function runBatchApprove(
   const llmCfg: LlmConfig = { provider, maxTokens, consensus };
   const results = await runBatch(sorted, parallel, async (nodePath) => {
     const result = await approveNode(graph, nodePath);
-    return runLlmVerification(graph, nodePath, result, llmCfg);
+    return runLlmVerification(graph, nodePath, result, llmCfg, filterAspectId);
   });
 
   formatBatchOutput(results);
@@ -429,7 +435,7 @@ export function registerApproveCommand(program: Command): void {
             process.exit(1);
           }
           const causePrefix = `${yggPrefix}/aspects/${aspectId}/`;
-          const allPassed = await runBatchApprove(graph, `aspect '${aspectId}'`, causePrefix);
+          const allPassed = await runBatchApprove(graph, `aspect '${aspectId}'`, causePrefix, aspectId);
           process.exit(allPassed ? 0 : 1);
         }
 

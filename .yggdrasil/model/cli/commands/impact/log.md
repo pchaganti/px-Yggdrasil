@@ -8,3 +8,7 @@ R0.3: updated import from utils/repo-scan to io/repo-scanner (no logic change)
 R0.4: file-content-cache import updated from core to io (no logic change)
 ## [2026-05-15T20:45:36.280Z]
 Add debugWrite() to catch block — required by diagnostic-logging aspect to surface errors via debug channel.
+## [2026-05-16T03:57:21.039Z]
+Fix: stdout (not stderr) for --file resolution success message; add debugWrite() already present in catch block.
+## [2026-05-16T04:42:33.168Z]
+Revert file->node resolution to stderr — test suite explicitly expects this diagnostic output on stderr (not stdout). The previous change was incorrect.

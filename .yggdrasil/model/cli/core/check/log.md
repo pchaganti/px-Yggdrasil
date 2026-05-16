@@ -6,3 +6,5 @@ R0.1 Phase 2: populate messageData alongside message at each buildIssueMessage c
 R0.1 Phase 3: cli/check.ts now reads messageData via msg() helper to render issue output; buildIssueMessage called at CLI layer. Fallback to .message for issues not yet migrated in Phase 4.
 ## [2026-05-15T14:17:01.394Z]
 Drop deprecated message field and buildIssueMessage import: CheckIssue objects now set only messageData; buildIssueMessage import removed from core layer. R0.1 Phase 5.
+## [2026-05-16T04:54:08.442Z]
+Remove dead flow-related branches: layer === 'flows' check in describeUpstreamCause and flowMatch block in groupCascadeByCause — flow YAML is no longer tracked, so these paths are unreachable. Also remove 'flow: --flow' from flagMap in computeSuggestedNext.
