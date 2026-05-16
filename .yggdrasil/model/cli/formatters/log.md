@@ -8,3 +8,5 @@ How to apply: pure renderer, no I/O. Recursively walks the trace and pushes line
 Move IssueMessage type to model/validation, re-export from message-builder for backward compat; add eslint-plugin-boundaries to enforce §4.4 allowed_relations as file-level import constraints
 ## [2026-05-16T08:39:07.512Z]
 Add posixPath() helper to context-file.ts and context-node.ts; normalize all file paths at output boundary — satisfies posix-paths-output aspect added via multiple flows
+## [2026-05-16T17:37:14.559Z]
+Added loadGraphOrAbort helper (cli-preamble.ts) to centralize the 'No .yggdrasil/ directory' error previously duplicated across 12 commands. The helper exits with a structured what/why/next message on ENOENT-shaped loader failures and rethrows other errors.

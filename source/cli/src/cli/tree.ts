@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { loadGraph } from '../core/graph-loader.js';
+import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
 import { initDebugLog } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
@@ -14,7 +14,7 @@ export function registerTreeCommand(program: Command): void {
     .option('--depth <n>', 'Maximum depth', (v) => parseInt(v, 10))
     .action(async (options: { root?: string; depth?: number }) => {
       try {
-        const graph = await loadGraph(process.cwd());
+        const graph = await loadGraphOrAbort(process.cwd());
         initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
 
         let roots: GraphNode[];
@@ -46,14 +46,7 @@ export function registerTreeCommand(program: Command): void {
           process.stdout.write(line + '\n');
         }
       } catch (error) {
-        const err = error as NodeJS.ErrnoException;
-        if (err.code === 'ENOENT') {
-          process.stderr.write(
-            chalk.red(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`),
-          );
-        } else {
-          process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
-        }
+        process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
         process.exit(1);
       }
     });

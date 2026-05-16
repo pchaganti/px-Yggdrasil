@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import path from 'node:path';
-import { loadGraph } from '../core/graph-loader.js';
+import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { approveNode, resolveAspects, loadSourceFiles, commitApproval } from '../core/approve.js';
@@ -360,7 +360,7 @@ export function registerApproveCommand(program: Command): void {
           process.exit(1);
         }
 
-        const graph = await loadGraph(process.cwd());
+        const graph = await loadGraphOrAbort(process.cwd());
         initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
         const yggPrefix = path.relative(path.dirname(graph.rootPath), graph.rootPath)
           .replace(/\\/g, '/').replace(/\/+$/, '');
@@ -512,14 +512,7 @@ export function registerApproveCommand(program: Command): void {
         }
       } catch (error) {
         debugWrite(`[approve] command failed: ${error instanceof Error ? error.message : String(error)}`);
-        const err = error as NodeJS.ErrnoException;
-        if (err.code === 'ENOENT') {
-          process.stderr.write(
-            chalk.red(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`),
-          );
-        } else {
-          process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
-        }
+        process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
         process.exit(1);
       }
     });

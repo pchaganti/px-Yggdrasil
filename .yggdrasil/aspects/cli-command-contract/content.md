@@ -12,7 +12,7 @@ Every CLI command handler follows these conventions:
 
 - Every command action body is wrapped in try/catch.
 - Catch block: `process.stderr.write(`Error: ${(error as Error).message}\n`)` then `process.exit(1)`.
-- ENOENT from loadGraph: special message `Error: No .yggdrasil/ directory found. Run 'yg init' first.`
+- The missing-graph case is handled by `loadGraphOrAbort` (see **Graph loading** below) — commands do NOT inline a `'No .yggdrasil/ directory found'` string or ENOENT branch themselves.
 
 ## Exit codes
 
@@ -22,7 +22,9 @@ Every CLI command handler follows these conventions:
 
 ## Graph loading
 
-- Commands requiring graph state start with `await loadGraph(process.cwd())`.
+- Commands requiring graph state start with `await loadGraphOrAbort(process.cwd())` (from `formatters/cli-preamble.js`).
+- `loadGraphOrAbort` writes the canonical what/why/next missing-graph error to stderr and `process.exit(1)`s on ENOENT-shaped loader failures, then rethrows any other error so the surrounding try/catch handles it.
+- The bootstrap command `init` is the only exception — it must run when no `.yggdrasil/` exists and therefore calls `loadGraph` directly inside its `--upgrade` path (covered by a separate suppression if the wider aspect ever forbids it).
 
 ## Node path normalization
 

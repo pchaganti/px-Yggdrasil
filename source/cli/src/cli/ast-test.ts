@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import path from 'node:path';
-import { loadGraph } from '../core/graph-loader.js';
+import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
 import { debugWrite } from '../utils/debug-log.js';
 import { runAstAspect } from '../ast/runner.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
@@ -18,7 +18,7 @@ export function registerAstTestCommand(program: Command): void {
     .action(async (opts) => {
       const projectRoot = process.cwd();
       try {
-        const graph = await loadGraph(projectRoot);
+        const graph = await loadGraphOrAbort(projectRoot);
 
         const aspect = graph.aspects.find((a) => a.id === opts.aspect);
         if (!aspect) {
@@ -93,11 +93,7 @@ export function registerAstTestCommand(program: Command): void {
         process.exit(1);
       } catch (e: unknown) {
         debugWrite(`[ast-test] run failed: ${e instanceof Error ? e.message : String(e)}`);
-        if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
-          process.stderr.write(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`);
-        } else {
-          process.stderr.write(`Error: ${(e as Error).message}\n`);
-        }
+        process.stderr.write(`Error: ${(e as Error).message}\n`);
         process.exit(1);
       }
     });

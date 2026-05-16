@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { loadGraph } from '../core/graph-loader.js';
+import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
 import { classifyFile } from '../core/type-classifier.js';
 import { FileContentCache } from '../io/file-content-cache.js';
 import { renderTrace } from '../formatters/predicate-trace.js';
@@ -15,7 +15,7 @@ import { debugWrite } from '../utils/debug-log.js';
  * Exported for testability.
  */
 export async function typeSuggestCommand(file: string, projectRoot: string): Promise<void> {
-  const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+  const graph = await loadGraphOrAbort(projectRoot, { tolerateInvalidConfig: true });
   const repoRoot = projectRootFromGraph(graph.rootPath);
   const repoRelPath = resolveFileArg(repoRoot, file.trim()).replace(/\\/g, '/').replace(/\/+$/, '');
   const absPath = resolve(repoRoot, repoRelPath);
@@ -112,13 +112,7 @@ export function registerTypeSuggestCommand(program: Command): void {
       } catch (error) {
         const msg = (error as Error).message;
         debugWrite(`[type-suggest] error: ${msg}`);
-        if (msg.includes('No .yggdrasil/ directory found') || msg.includes('does not exist')) {
-          process.stderr.write(
-            chalk.red(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`),
-          );
-        } else {
-          process.stderr.write(chalk.red(`Error: ${msg}\n`));
-        }
+        process.stderr.write(chalk.red(`Error: ${msg}\n`));
         process.exit(1);
       }
     });

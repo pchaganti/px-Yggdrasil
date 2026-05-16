@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { join } from 'node:path';
 import { buildIssueMessage } from '../formatters/message-builder.js';
-import { loadGraph } from '../core/graph-loader.js';
+import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { collectAncestors } from '../core/context-builder.js';
@@ -447,7 +447,7 @@ export function registerImpactCommand(program: Command): void {
             process.exit(1);
           }
 
-          const graph = await loadGraph(process.cwd());
+          const graph = await loadGraphOrAbort(process.cwd());
           initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
 
           // Resolve --file to --node
@@ -648,15 +648,8 @@ export function registerImpactCommand(program: Command): void {
             process.stdout.write(`  Review direct dependents before changing this node.\n`);
           }
         } catch (error) {
-          const err = error as NodeJS.ErrnoException;
           debugWrite(`[impact] command failed: ${(error as Error).message}`);
-          if (err.code === 'ENOENT') {
-            process.stderr.write(
-              chalk.red(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`),
-            );
-          } else {
-            process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
-          }
+          process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
           process.exit(1);
         }
       },

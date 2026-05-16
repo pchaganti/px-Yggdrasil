@@ -1,7 +1,7 @@
 import type { Command } from 'commander';
 import chalk from 'chalk';
 import { debugWrite } from '../utils/debug-log.js';
-import { loadGraph } from '../core/graph-loader.js';
+import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
 import { buildIndex, createMiniSearch } from '../io/find-index.js';
 import type { IndexedDocument } from '../io/find-index.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
@@ -23,7 +23,7 @@ export async function findCommand(query: string, projectRoot: string): Promise<n
   }
 
   try {
-    const graph = await loadGraph(projectRoot);
+    const graph = await loadGraphOrAbort(projectRoot);
     const docs = await buildIndex(graph);
     if (docs.length === 0) {
       process.stdout.write('Empty graph, nothing to search.\n');
@@ -56,13 +56,8 @@ export async function findCommand(query: string, projectRoot: string): Promise<n
     }
     return 0;
   } catch (error) {
-    const err = error as NodeJS.ErrnoException;
     debugWrite(`[find] findCommand failed: ${error instanceof Error ? error.message : String(error)}`);
-    if (err.code === 'ENOENT') {
-      process.stderr.write(chalk.red(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`));
-    } else {
-      process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
-    }
+    process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
     return 1;
   }
 }
@@ -77,13 +72,8 @@ export function registerFindCommand(program: Command): void {
         const exit = await findCommand(query, process.cwd());
         process.exit(exit);
       } catch (error) {
-        const err = error as NodeJS.ErrnoException;
         debugWrite(`[find] registerFindCommand action failed: ${error instanceof Error ? error.message : String(error)}`);
-        if (err.code === 'ENOENT') {
-          process.stderr.write(chalk.red(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`));
-        } else {
-          process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
-        }
+        process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
         process.exit(1);
       }
     });

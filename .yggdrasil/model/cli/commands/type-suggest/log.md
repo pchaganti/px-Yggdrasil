@@ -14,3 +14,5 @@ R0.5: graph-loader.ts now routes all fs calls through io/graph-fs.ts (readSorted
 Phase 4.7 (no-direct-fs): update paths import from utils/ to io/ following move of paths module to persistence-adapter layer
 ## [2026-05-16T06:34:16.259Z]
 Phase 5.2 (posix-paths-output): add backslash replacement to repoRelPath normalization
+## [2026-05-16T17:37:14.424Z]
+Replaced inline 'No .yggdrasil/ directory found' error block with the shared loadGraphOrAbort helper from formatters/cli-preamble.ts. Reason: the same string and exit-1 logic was duplicated across 12 CLI command handlers; centralization eliminates a copy-paste class and routes the missing-graph message through buildIssueMessage uniformly. Other errors continue to flow through the surrounding catch and will be migrated to buildIssueMessage in the next task.

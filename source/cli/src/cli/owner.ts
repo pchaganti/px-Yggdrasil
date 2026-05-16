@@ -2,9 +2,10 @@ import path from 'node:path';
 import { access } from 'node:fs/promises';
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { loadGraph } from '../core/graph-loader.js';
+import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
+import { buildIssueMessage } from '../formatters/message-builder.js';
 import type { Graph, OwnerResult } from '../model/graph.js';
 import { normalizeMappingPaths, normalizeProjectRelativePath, projectRootFromGraph, resolveFileArg } from '../io/paths.js';
 
@@ -45,7 +46,7 @@ export function registerOwnerCommand(program: Command): void {
     .requiredOption('--file <path>', 'File path (relative to repository root)')
     .action(async (options: { file: string }) => {
       try {
-        const graph = await loadGraph(process.cwd());
+        const graph = await loadGraphOrAbort(process.cwd());
         initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
         const repoRoot = projectRootFromGraph(graph.rootPath);
         const repoRelative = resolveFileArg(repoRoot, options.file);
@@ -65,19 +66,18 @@ export function registerOwnerCommand(program: Command): void {
           process.stdout.write(`${result.file} -> ${result.nodePath}\n`);
           if (result.direct === false && result.mappingPath) {
             process.stdout.write(
-              `  File has no direct mapping; context comes from ancestor directory ${result.mappingPath}. Use: yg context --node ${result.nodePath}\n`,
+              '  ' +
+                buildIssueMessage({
+                  what: 'File has no direct mapping.',
+                  why: `Context comes from ancestor directory '${result.mappingPath}'.`,
+                  next: `yg context --node ${result.nodePath}`,
+                }) +
+                '\n',
             );
           }
         }
       } catch (error) {
-        const err = error as NodeJS.ErrnoException;
-        if (err.code === 'ENOENT') {
-          process.stderr.write(
-            chalk.red(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`),
-          );
-        } else {
-          process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
-        }
+        process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
         process.exit(1);
       }
     });

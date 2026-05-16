@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { loadGraph } from '../core/graph-loader.js';
+import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { collectAncestors, buildNodeContextData, buildFileContextData } from '../core/context-builder.js';
@@ -87,7 +87,7 @@ export function registerBuildCommand(program: Command): void {
           process.exit(1);
         }
 
-        const graph = await loadGraph(process.cwd());
+        const graph = await loadGraphOrAbort(process.cwd());
         initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
         let nodePath: string;
         let resolvedFilePath: string | undefined;
@@ -167,14 +167,7 @@ export function registerBuildCommand(program: Command): void {
         }
       } catch (error) {
         debugWrite(`[build-context] context assembly failed: ${error instanceof Error ? error.message : String(error)}`);
-        const err = error as NodeJS.ErrnoException;
-        if (err.code === 'ENOENT') {
-          process.stderr.write(
-            chalk.red("Error: No .yggdrasil/ directory found. Run 'yg init' first.\n"),
-          );
-        } else {
-          process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
-        }
+        process.stderr.write(chalk.red(`Error: ${(error as Error).message}\n`));
         process.exit(1);
       }
   };

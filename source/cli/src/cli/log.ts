@@ -2,7 +2,7 @@ import type { Command } from 'commander';
 import chalk from 'chalk';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { loadGraph } from '../core/graph-loader.js';
+import { loadGraphOrAbort } from '../formatters/cli-preamble.js';
 import { debugWrite } from '../utils/debug-log.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { logAdd } from '../core/log/log-add.js';
@@ -12,11 +12,7 @@ import { logMergeResolve } from '../core/log/log-merge-resolve.js';
 function handleError(error: unknown): never {
   const msg = (error as Error).message;
   debugWrite(`[log] command failed: ${msg}`);
-  if (msg.includes('No .yggdrasil/ directory found') || msg.includes('does not exist')) {
-    process.stderr.write(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`);
-  } else {
-    process.stderr.write(`Error: ${msg}\n`);
-  }
+  process.stderr.write(`Error: ${msg}\n`);
   process.exit(1);
 }
 
@@ -33,7 +29,7 @@ export function registerLogCommand(program: Command): void {
     .option('--reason-file <path>', 'Read justification from a file (alternative to --reason)')
     .action(async (opts: { node: string; reason?: string; reasonFile?: string }) => {
       try {
-        const graph = await loadGraph(process.cwd(), { tolerateInvalidConfig: true });
+        const graph = await loadGraphOrAbort(process.cwd(), { tolerateInvalidConfig: true });
 
         if ((opts.reason !== undefined) === (opts.reasonFile !== undefined)) {
           process.stderr.write(
@@ -110,7 +106,7 @@ export function registerLogCommand(program: Command): void {
     .option('--all', 'Return all entries (cannot combine with --top)')
     .action(async (opts: { node: string; top?: number; all?: boolean }) => {
       try {
-        const graph = await loadGraph(process.cwd(), { tolerateInvalidConfig: true });
+        const graph = await loadGraphOrAbort(process.cwd(), { tolerateInvalidConfig: true });
         const nodePath = opts.node.trim().replace(/\\/g, '/').replace(/\/$/, '');
         const result = await logRead({ graph, nodePath, top: opts.top, all: opts.all });
         if (!result.ok) {
@@ -135,7 +131,7 @@ export function registerLogCommand(program: Command): void {
     .requiredOption('--node <path>', 'Node path (relative to .yggdrasil/model/)')
     .action(async (opts: { node: string }) => {
       try {
-        const graph = await loadGraph(process.cwd(), { tolerateInvalidConfig: true });
+        const graph = await loadGraphOrAbort(process.cwd(), { tolerateInvalidConfig: true });
         const repoRoot = path.dirname(graph.rootPath);
         const nodePath = opts.node.trim().replace(/\\/g, '/').replace(/\/$/, '');
         const result = await logMergeResolve({ graph, nodePath, repoRoot });

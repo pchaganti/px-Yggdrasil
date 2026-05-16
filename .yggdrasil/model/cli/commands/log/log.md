@@ -14,3 +14,5 @@ R0.10: rewrote cli/log.ts as pure presentation layer — removed direct fs/parsi
 Fix diagnostic-logging violations: add debugWrite() to catch blocks that exit without re-throwing.
 ## [2026-05-15T20:44:47.418Z]
 Pass nowMs: Date.now() to logAdd — inject the current timestamp at the CLI boundary instead of inside the engine.
+## [2026-05-16T17:37:14.060Z]
+Replaced inline 'No .yggdrasil/ directory found' error block with the shared loadGraphOrAbort helper from formatters/cli-preamble.ts. Reason: the same string and exit-1 logic was duplicated across 12 CLI command handlers; centralization eliminates a copy-paste class and routes the missing-graph message through buildIssueMessage uniformly. Other errors continue to flow through the surrounding catch and will be migrated to buildIssueMessage in the next task.
