@@ -1,5 +1,5 @@
 {
-  "hash": "d02f1f0d30805c49600867ef06f789e4d4a67158def5d08b6dc334af73c338c5",
+  "hash": "231c4e1c525f073b572198c846811c02899c1d666bf105bd0be7ab3629e483bc",
   "files": {
     "own-subset:cli/templates": "f68bcd5143fd11da71f121095f5b7b88f309ccecd0a1190a8d557b7eeeda9f51",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -9,9 +9,9 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678",
     ".yggdrasil/aspects/posix-paths-output/yg-aspect.yaml": "e87b85d4dbf34539f7d04f5648d3e0e510e9dc71850d9d49753e5b85cf802e69",
     ".yggdrasil/aspects/posix-paths-output/content.md": "2659859dc13a8efe32e098b0c220d24c9ecddff26b42a4f22e3135d8b750bc13",
+    "source/cli/src/templates/default-config.ts": "de8c0b20e460c0b18e5888ed144a61f25dc92b92b334a5cedbfde91513c57f2e",
     "source/cli/src/templates/platform.ts": "d96addc8b4fc854500c14acda1846fef398a39d1c1df4668de3cc4c5425d2f7e",
-    "source/cli/src/templates/rules.ts": "7ae9be8b5b55a82496ec9a647d56eac12e60d369b74a1c0a9501094378151003",
-    "source/cli/src/templates/default-config.ts": "de8c0b20e460c0b18e5888ed144a61f25dc92b92b334a5cedbfde91513c57f2e"
+    "source/cli/src/templates/rules.ts": "ba6a434004fec593f831d9f2ff204935b8a3211da3f5bce1028483619f89ce49"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -23,10 +23,10 @@
     ".yggdrasil/aspects/posix-paths-output/content.md": 1778912983383.063,
     "source/cli/src/templates/default-config.ts": 1778938686710.4575,
     "source/cli/src/templates/platform.ts": 1778920718473.7297,
-    "source/cli/src/templates/rules.ts": 1778842979873.588
+    "source/cli/src/templates/rules.ts": 1778940808441.6472
   },
   "log": {
-    "last_entry_datetime": "2026-05-16T13:46:18.742Z",
-    "prefix_hash": "65c739f6abba4bef33d7eb2b89d04e621632bcc5f6fced43723297151d747fea"
+    "last_entry_datetime": "2026-05-16T14:15:27.164Z",
+    "prefix_hash": "f54071ab1f6f96d151c27a0471d2eec5d6fdc578af745e5988a2d2028491649b"
   }
 }

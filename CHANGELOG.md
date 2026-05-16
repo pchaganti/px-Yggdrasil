@@ -127,6 +127,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `working-with-architecture` knowledge topic trimmed: the "Defending against cross-file evasion (Channel 6)" section moved to the new `ports-and-relations` topic where it belongs.
 - `drift-and-cascade` knowledge topic gains a "Per-node independent execution" section describing the full approve algorithm phases (integrity → format → drift → mandatory → reviewer → commit) and partial-failure recovery.
 - `AGENTS.md` cleaned up: the auto-generated Yggdrasil rules block (and its `yggdrasil:start`/`yggdrasil:end` markers) removed. This repo uses only the `claude-code` platform; rules reach the agent via `CLAUDE.md` → `@.yggdrasil/agent-rules.md`. Constraints bullet updated accordingly.
+- Log entry content guidance: agent-rules.md (Log management section) and `log-management` knowledge topic now require each log entry to be self-contained — no references to external artifacts (plans, design docs, scratch files, conversation history, tickets, PR descriptions), file paths or identifiers outside the entry text, plan/task/step/phase numbers, or pointers to current code state. Rationale must be embedded in prose inside the entry; stable external standards may be cited only by canonical identifier plus an inline summary of the relevant rule. Forward-only rule — existing entries are not rewritten. Regenerate via `yg init --upgrade --platform <name>`.
 
 ### Fixed
 

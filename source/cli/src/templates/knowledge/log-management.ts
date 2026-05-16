@@ -11,6 +11,36 @@ The basic workflow (edit → log add → approve) is in agent-rules.md. This
 file covers everything else: format constraints, recovery, revert, merging,
 large-log handling.
 
+## Self-contained entry — worked example
+
+The rules for self-contained entries are in agent-rules.md (Log management
+section). This example illustrates them in practice.
+
+Avoid:
+
+\`\`\`
+Plan Task 3.2. Generate IDs client-side as discussed in the design doc.
+Matches the pattern used by the existing order-create handler.
+\`\`\`
+
+A reader cannot find the plan, the design doc, or the handler in its
+original form. None of the references survive the next iteration.
+
+Prefer:
+
+\`\`\`
+Order IDs are generated client-side (UUIDv7) instead of via a database
+sequence. UUIDv7 keeps inserts roughly time-ordered for index locality
+while removing the round-trip needed to fetch the next sequence value
+before publishing the order to downstream services. Collision risk at
+expected volume is negligible and accepted in exchange for the simpler
+write path.
+\`\`\`
+
+Same decision, all rationale embedded in the entry. A reader years from
+now still understands what was decided and why, regardless of what
+happened to the plan or the code.
+
 ## Format constraints (validated by yg check)
 
 - Entry headers \`## [<ISO datetime UTC with milliseconds>]\` are reserved.

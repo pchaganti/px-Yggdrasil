@@ -274,6 +274,28 @@ of any line inside your `--reason` content (entry headers are reserved).
 Use `###` or deeper for sub-headings. Multi-line content via bash
 `$'multi\nline'` or `--reason-file <path>`.
 
+**Self-contained content.** Each entry must stand alone. The only context
+a future reader has is the entry text itself — not the conversation that
+led to it, not the plan you were following, not the state of the code at
+the moment you wrote it.
+
+- No references to external artifacts: plans, design docs, scratch files,
+  conversation history, tickets, PR descriptions, other repositories.
+- No references to file paths, directory names, or identifiers outside
+  the entry text.
+- No plan, task, step, or phase numbers.
+- No pointers to current code state (file:line, function names,
+  "the existing X"). Code evolves; pointers rot.
+- Embed the rationale in prose inside the entry: the constraint,
+  decision, or trade-off, fully explained.
+- Stable external standards may be cited only by canonical identifier
+  plus a brief inline summary of the relevant rule, so the entry remains
+  understandable without fetching the source.
+
+The log carries WHY a change was made — the motivation that does not
+decay when code or planning artifacts evolve. WHAT changed is already
+in the diff and aspect content; do not duplicate it.
+
 After a git merge: if both branches added log entries to the same node,
 run `yg log merge-resolve --node <path>` from the merge commit. The tool
 validates byte-exact ancestor portion and union of new entries — it cannot
