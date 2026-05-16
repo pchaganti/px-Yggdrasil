@@ -7,7 +7,7 @@ import { classifyDrift } from '../../../src/core/check.js';
 import { approveNode } from '../../../src/core/approve.js';
 import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
 import { hashTrackedFiles } from '../../../src/io/hash.js';
-import { collectTrackedFiles } from '../../../src/core/context-files.js';
+import { collectTrackedFiles } from '../../../src/core/graph/files.js';
 import { filterCascadeNodes } from '../../../src/cli/approve.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

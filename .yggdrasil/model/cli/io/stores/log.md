@@ -16,3 +16,5 @@ Phase 4.7 (no-direct-fs): moved hash.ts and paths.ts here from utils/ (now persi
 Add calls relation to cli/io/atomic-write with consumes: [write-atomic] — declares the port contract so channel 6 propagates atomic-write-contract to this node
 ## [2026-05-16T17:17:49.788Z]
 Migrated log-store.readLogSafe to the new readFileOrDefault helper (io/read-or-default.ts). The helper handles ENOENT uniformly, rethrows other errors, and emits a single debugWrite line on miss. Other IO sites (secrets-parser, repo-scanner, find-index, log-store.statLogFile) intentionally retain their existing semantics — they catch all errors silently (different from ENOENT-only) or operate on stat instead of readFile, so they do not fit the helper. The persistence-adapter type's when predicate and the cli/io/stores node mapping were extended to include the new file.
+## [2026-05-16T19:44:32.383Z]
+Updated context-files import path to core/graph/files following the file move (collectTrackedFiles + TrackedFile). cli/core/context node drops context-files from its mapping; cli/core/graph node claims it.

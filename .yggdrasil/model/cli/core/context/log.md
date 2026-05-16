@@ -12,3 +12,5 @@ Removed unused FlowDef type import after the local collectParticipatingFlows def
 Removed trailing slash from buildHierarchyLayer 'Module Context (path/)' label. The slash was a visual hint for directory but posix-paths-output prohibits stored trailing slashes in graph output values. Label still reads naturally.
 ## [2026-05-16T19:31:39.022Z]
 Updated effective-aspects import path to core/graph/aspects following the file move.
+## [2026-05-16T19:44:31.850Z]
+Updated context-files import path to core/graph/files following the file move (collectTrackedFiles + TrackedFile). cli/core/context node drops context-files from its mapping; cli/core/graph node claims it.

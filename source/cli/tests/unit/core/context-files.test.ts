@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { collectTrackedFiles } from '../../../src/core/context-files.js';
+import { collectTrackedFiles } from '../../../src/core/graph/files.js';
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import type { Graph, GraphNode } from '../../../src/model/graph.js';
 

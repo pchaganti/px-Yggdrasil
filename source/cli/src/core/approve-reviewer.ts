@@ -6,7 +6,7 @@ import type { IssueMessage } from '../model/validation.js';
 import { verifyAspects } from '../llm/aspect-verifier.js';
 import { resolveMaxTokens } from '../llm/api-utils.js';
 import { commitApproval, resolveAspects, loadSourceFiles } from './approve.js';
-import { collectTrackedFiles } from './context-files.js';
+import { collectTrackedFiles } from './graph/files.js';
 import { hashTrackedFiles } from '../io/hash.js';
 import path from 'node:path';
 

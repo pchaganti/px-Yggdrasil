@@ -10,7 +10,7 @@ import {
   garbageCollectDriftState,
 } from '../io/drift-state-store.js';
 import { hashTrackedFiles } from '../io/hash.js';
-import { collectTrackedFiles } from './context-files.js';
+import { collectTrackedFiles } from './graph/files.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import { computeEffectiveAspects } from './graph/aspects.js';
 import { readTextFile, lstatFile } from '../io/graph-fs.js';

@@ -7,7 +7,7 @@ import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { approveNode, resolveAspects, loadSourceFiles, commitApproval } from '../core/approve.js';
 import { runApproveWithReviewer, type LlmApproveResult } from '../core/approve-reviewer.js';
 export type { LlmApproveResult };
-import { collectTrackedFiles } from '../core/context-files.js';
+import { collectTrackedFiles } from '../core/graph/files.js';
 import { hashTrackedFiles } from '../io/hash.js';
 import { classifyDrift } from '../core/check.js';
 import type { CheckIssue, CascadeCause } from '../core/check.js';
@@ -202,7 +202,13 @@ function formatRefused(nodePath: string, result: LlmApproveResult): void {
 
   // Fallback
   process.stderr.write(
-    chalk.red(`ERROR: ${result.refuseReasonData ? buildIssueMessage(result.refuseReasonData) : 'Approve refused.'}\n`),
+    chalk.red(
+      `Error: ${buildIssueMessage(result.refuseReasonData ?? {
+        what: 'Approve refused.',
+        why: 'The reviewer rejected this node but did not return a structured reason.',
+        next: 'Re-run with YG_DEBUG_LLM=1 to capture the raw reviewer transcript.',
+      })}\n`,
+    ),
   );
 }
 
@@ -281,7 +287,13 @@ async function loadLlmProvider(
 ): Promise<{ provider: LlmProvider | undefined; maxTokens: number | undefined; consensus: number | undefined }> {
   const llmConfig = graph.config.llm;
   if (!llmConfig) {
-    throw new Error('No reviewer configured. Add a reviewer section to yg-config.yaml or run yg init to set one up.');
+    throw new Error(
+      buildIssueMessage({
+        what: 'No reviewer configured.',
+        why: 'yg approve requires an LLM reviewer to verify aspect satisfaction; the graph config has no reviewer section.',
+        next: "Add a 'reviewer:' section to yg-config.yaml, or run 'yg init' and select a reviewer.",
+      }),
+    );
   }
 
   const secrets = await loadSecrets(graph.rootPath, llmConfig.provider);

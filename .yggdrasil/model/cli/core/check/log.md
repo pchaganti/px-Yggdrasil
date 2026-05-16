@@ -12,3 +12,5 @@ Remove dead flow-related branches: layer === 'flows' check in describeUpstreamCa
 Phase 4.7 (no-direct-fs): route all fs calls through io/graph-fs.ts; update hash and paths imports from utils/ to io/ following module moves
 ## [2026-05-16T19:31:38.898Z]
 Updated effective-aspects import path to core/graph/aspects following the file move.
+## [2026-05-16T19:44:32.245Z]
+Updated context-files import path to core/graph/files following the file move (collectTrackedFiles + TrackedFile). cli/core/context node drops context-files from its mapping; cli/core/graph node claims it.

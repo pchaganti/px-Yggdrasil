@@ -9,7 +9,7 @@ import { runLlmVerification } from '../../../src/cli/approve.js';
 import type { LlmConfig } from '../../../src/cli/approve.js';
 import { writeNodeDriftState, readNodeDriftState } from '../../../src/io/drift-state-store.js';
 import { hashTrackedFiles } from '../../../src/io/hash.js';
-import { collectTrackedFiles } from '../../../src/core/context-files.js';
+import { collectTrackedFiles } from '../../../src/core/graph/files.js';
 import type { LlmProvider } from '../../../src/llm/types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

@@ -7,6 +7,7 @@ relations:
 mapping:
   - source/cli/src/core/graph/aspects.ts
   - source/cli/src/core/graph/dependencies.ts
+  - source/cli/src/core/graph/files.ts
   - source/cli/src/core/graph/flows.ts
   - source/cli/src/core/graph/index.ts
   - source/cli/src/core/graph/traversal.ts

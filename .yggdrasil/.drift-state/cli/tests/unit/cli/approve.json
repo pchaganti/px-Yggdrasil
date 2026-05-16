@@ -1,5 +1,5 @@
 {
-  "hash": "4699e1b1017ebaae79b807c3c3ec212add251fee48476dc3622979a45ef6119f",
+  "hash": "9fd3394ff151c50762ee15e2c63af1b9f4b6fca76316efb5b94751de4d46c16b",
   "files": {
     "own-subset:cli/tests/unit/cli/approve": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -10,8 +10,8 @@
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/cli/approve.test.ts": "99d974b28847b269f4e155bfb882c9488426734b6aebd6d3e667094dc172f73d",
     "source/cli/tests/unit/cli/approve-batch.test.ts": "c59619ad846ed53db20f63cf8c5f1e55d720963e056cff106a758331e4f514a3",
-    "source/cli/tests/unit/cli/approve-batch-integration.test.ts": "1dde4a4e1a8772aa65f3cfd38b5e597bf21c19ab54c8074eede87e6b7f1fb03b",
-    "source/cli/tests/unit/cli/run-batch.test.ts": "15dcfa3052af8f7adef71fbc1ce9865f6640d745ca0300a56d519aa921c32887"
+    "source/cli/tests/unit/cli/run-batch.test.ts": "15dcfa3052af8f7adef71fbc1ce9865f6640d745ca0300a56d519aa921c32887",
+    "source/cli/tests/unit/cli/approve-batch-integration.test.ts": "62dc9d3a47d691aadeaa4b5b9ea13a2df72bee8acdb460b2415250d01563bcaa"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -22,7 +22,7 @@
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/cli/approve.test.ts": 1778854262313.549,
     "source/cli/tests/unit/cli/approve-batch.test.ts": 1778854589347.4822,
-    "source/cli/tests/unit/cli/approve-batch-integration.test.ts": 1778910898423.9512,
+    "source/cli/tests/unit/cli/approve-batch-integration.test.ts": 1778960620327.0735,
     "source/cli/tests/unit/cli/run-batch.test.ts": 1778917038514.553
   }
 }

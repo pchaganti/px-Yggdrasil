@@ -11,7 +11,7 @@ import {
   hashTrackedFiles,
   expandMappingPaths,
 } from '../../../src/io/hash.js';
-import type { TrackedFile } from '../../../src/core/context-files.js';
+import type { TrackedFile } from '../../../src/core/graph/files.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

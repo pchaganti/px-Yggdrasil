@@ -8,7 +8,7 @@ import type {
 import type { ValidationIssue } from '../model/validation.js';
 import { readDriftState, readNodeDriftState, garbageCollectDriftState } from '../io/drift-state-store.js';
 import { hashTrackedFiles } from '../io/hash.js';
-import { collectTrackedFiles } from './context-files.js';
+import { collectTrackedFiles } from './graph/files.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import { validate } from './validator.js';
 import { computeEffectiveAspects } from './graph/aspects.js';
