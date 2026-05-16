@@ -1,0 +1,177 @@
+# Yggdrasil Dogfood Showcase
+
+This document captures how the Yggdrasil CLI applies its own enforcement rules to itself — a real-world case study of every major feature in production. Use it to calibrate which capabilities are worth introducing early vs. which emerge only as the system grows.
+
+Each section covers one schema feature, how we used it in our self-architecture, its earn-rate (measured in reviewer rejection prevention vs. maintenance overhead), and what we recommend to adopters.
+
+## The Phase 0 Reality
+
+Before writing a single YAML file, we spent the equivalent of several days restructuring code. Here is what we learned:
+
+**Real codebases don't fit ideal types.** Our engine had direct `fs` calls. Our CLI commands imported formatters at the wrong layer. Our utility module had side effects on import. The architecture *described* what we wanted; the code was what we had. We fixed the code first, then installed the architecture.
+
+**Recommendation for adopters:** Treat Phase 0 (code restructuring) as a first-class phase, not a precondition you can skip. Run `yg type-suggest --file <path>` on every file in your project before creating nodes — it tells you which type each file should belong to, and that often surfaces layering problems you didn't know you had. Fix the layering first, then write the architecture. This is not extra work; it is the work.
+
+---
+
+## Feature Showcase
+
+### `path:` atom in `when`
+
+**Used as:** The primary classifier for every node type — `engine` matches `source/cli/src/core/**/*.ts`, `command` matches `source/cli/src/cli/*.ts`, etc.
+
+**Earn-rate: high.** This is the foundation. Without `path:` predicates you have no automatic classification, no strict coverage, and no type-default aspects.
+
+**Recommendation:** Start here. Every project needs at least five type definitions with `path:` predicates before `enforce: strict` becomes useful.
+
+---
+
+### `content:` atom in `when`
+
+**Used as:** `command` type requires `content: "export\\s+function\\s+register[A-Z]\\w*Command\\("` to distinguish command files from other CLI infrastructure.
+
+**Earn-rate: medium.** The `path:` predicate alone could not separate command files from helper files in the same directory. `content:` closed the gap with zero false positives.
+
+**Recommendation:** Use `content:` when files in the same directory have structurally different roles. The pattern is a JavaScript regex matched against file content — keep it anchored to an exported symbol name to stay stable across refactors.
+
+---
+
+### `all_of` / `any_of` / `not` combinators
+
+**Used as:** `command` requires `all_of: [path: cli/*.ts, not: {path: **/*.test.ts}]`. `parser-adapter` requires `all_of` with a path match. `persistence-adapter` uses `any_of` across seven explicit paths.
+
+**Earn-rate: high.** Combinators are essential whenever test files share a directory with production code, or when a type is defined by a fixed list of files rather than a glob.
+
+**Recommendation:** The `not: {path: "**/*.test.ts"}` exclusion is so common it should be in every classifying type that shares directories with tests. For centralized test directories (e.g. `tests/`), use `not: {path: "tests/**"}` instead.
+
+---
+
+### `enforce: strict`
+
+**Used as:** Enabled on all classifying types except `example`, `repo-config`, and `test-fixture`. Any file matching a type's `when` predicate must be in a mapping of that type.
+
+**Earn-rate: high.** Caught 18 violations when we flipped the flag: fixture TypeScript files leaking into the `test-suite` type, GitHub Actions workflows and linting configs not in dedicated ci-config nodes. Each was a real gap, not a false positive.
+
+**Recommendation:** Do not enable `enforce: strict` until coverage is 100% and your type `when` predicates are correct. Run `yg impact --type <id>` for each type first to preview orphans and misplaced files. Fix the gaps, then flip the flag.
+
+---
+
+### `parents:` (allowed parents)
+
+**Used as:** Every type declares which parent types it can appear under — `engine` and `command` only under `module`; `ci-config` under `project` or `module`.
+
+**Earn-rate: medium.** Prevents structural nonsense (a `command` node nested inside a `types` node) without requiring complex validation.
+
+**Recommendation:** Declare `parents:` on every type from day one. It takes ten seconds and prevents hierarchy mistakes that are annoying to untangle later.
+
+---
+
+### `log_required`
+
+**Used as:** Set to `false` on types that don't benefit from business-context logs: `types`, `knowledge-doc`, `schema-doc`, `test-suite`, `doc-page`, `build-script`, `example`, `ci-config`. Engine nodes and command nodes require log entries before `yg approve`.
+
+**Earn-rate: high.** Without this distinction, agents accumulate meaningless log entries on config files and test suites. The default (`true`) is the right default for code that an LLM reviewer will scrutinize.
+
+**Recommendation:** Set `log_required: false` on any type whose files are not verified by an LLM reviewer. Documentation, schemas, test data, and CI configs rarely benefit from business-context logs.
+
+---
+
+### `aspects:` (type-level defaults — channel 3)
+
+**Used as:** `engine` type automatically applies `deterministic`, `no-direct-fs`, `no-direct-console`, `no-nondeterminism-direct`. `command` type applies `cli-command-contract`, `diagnostic-logging`, `command-contract-shape`. Eight types carry at least one default aspect.
+
+**Earn-rate: high.** This is the architecture-as-policy layer. Adding one aspect to a type applies it to every node of that type, past and future. We used it to roll out `test-deterministic` to all 12 test-suite nodes simultaneously.
+
+**Recommendation:** Add type-level defaults only for aspects that genuinely apply to every node of that type without exception. When you find yourself suppressing an aspect on half the nodes of a type, the aspect probably doesn't belong at the type level.
+
+---
+
+### `aspects:` (node-level — channel 1)
+
+**Used as:** Specific nodes carry aspects not shared by their type — for example, `cli/io/atomic-write` carries `atomic-write-contract` only at the node level, not as a type default.
+
+**Earn-rate: high.** Node-level aspects handle exceptions to type defaults and one-off requirements on specific components.
+
+**Recommendation:** Keep node-level aspects to a minimum. If three or more nodes of the same type share a node-level aspect, move it to the type default.
+
+---
+
+### `implies:` chains
+
+**Used as:** Three chains: `cli-command-contract` → `[command-exit-codes, diagnostic-logging]`; `deterministic` → `[no-nondeterminism-direct]`; `top-level-error-handler` → `[command-exit-codes]`. Implied aspects propagate automatically — no duplication in node or architecture defaults.
+
+**Earn-rate: medium.** The `deterministic` → `no-nondeterminism-direct` chain is the best example: every node that must be deterministic also must not use `Math.random()` or `Date.now()` directly. Declaring this once in the implies chain beats repeating it across 14 engine nodes.
+
+**Recommendation:** Use `implies:` when one aspect logically entails another with no exceptions. Keep chains short — depth > 3 is a code smell indicating the aspect boundaries need rethinking.
+
+---
+
+### `when:` on aspect definitions
+
+**Used as:** Six aspects carry `when:` filters that limit which nodes the aspect checks: `silent-missing-files` fires only on `parser-adapter`, `persistence-adapter`, and `engine` nodes; `atomic-write-contract` fires only on `persistence-adapter`; `test-deterministic` fires only on `test-suite` nodes.
+
+**Earn-rate: high.** Without these filters, attaching an aspect to a flow or type default would fire the reviewer on every node in the graph. Filters eliminate false positives without suppression markers.
+
+**Recommendation:** Add a `when:` filter to every aspect that has a natural home type. The filter costs nothing at approve time and eliminates accidental over-application. Start with `node_type:`.
+
+---
+
+### `when: descendants:`
+
+**Used as:** `provider-redaction-cascade` uses `descendants: { relations: { calls: { target_type: llm-provider } } }` — applies the aspect to any non-provider node whose call chain eventually reaches an LLM provider. One genuine site: the `approve` flow.
+
+**Earn-rate: medium.** The filter correctly identified the approve orchestration layer as needing redaction review — without it, we would have needed to attach the aspect manually to six nodes.
+
+**Recommendation:** Introduce `descendants:` only when you have a real concern about transitive propagation of a security or correctness property. It is the most complex filter in the grammar; use it only when simpler alternatives (`node_type:`, `any_of:`) don't cover the case.
+
+---
+
+### Ports + `consumes:` (channel 6)
+
+**Used as:** `cli/io/atomic-write` declares a `write-atomic` port with `atomic-write-contract`. `cli/io/stores` declares `consumes: [write-atomic]` on its `calls` relation, pulling the contract into the consumer's effective aspects.
+
+**Earn-rate: medium.** The port closed a real gap: persistence-adapters could route raw `fs.writeFile` through a helper module and evade the atomic-write requirement. Channel 6 makes the aspect enforceable on the consumer's own code.
+
+**Recommendation:** Declare ports sparingly — only when a critical aspect must be verifiable on the consumer's own source files, not just the target's. A bare `calls` relation is sufficient when you only need to document the dependency. Three questions to ask before creating a port: (1) Is there an aspect that must hold on the consumer? (2) Could the consumer evade the aspect without the port? (3) Are there multiple consumers you would otherwise have to annotate individually?
+
+---
+
+### Flow-level aspects (channel 5)
+
+**Used as:** Nine flows carry aspects. `validate` flow applies `deterministic` and `what-why-next` to its three participant nodes. `approve` flow applies `provider-redaction`, `provider-retry-contract`, and `provider-redaction-cascade`. Flow-level aspects propagate to all participant nodes automatically.
+
+**Earn-rate: high.** Flows are the right place for cross-cutting process requirements. The `what-why-next` aspect was attached to eight flows covering 30+ nodes — a single flow-level declaration instead of 30 node-level ones.
+
+**Recommendation:** Think of flows as the "cross-cutting concern" layer. If an aspect should apply to every node that participates in a named business process (authentication, payment, approval), put it on the flow. If an aspect applies only to a specific code layer (engine, formatter), use a type default instead.
+
+---
+
+### `enforce: strict` — features deliberately not used
+
+The following features exist in the schema but were not exercised because no genuine use case arose. We document them here so adopters can calibrate expectations:
+
+| Feature | Status | Why not used |
+|---|---|---|
+| `implies:` object form (conditional gate) | Deferred | No implies chain needed a conditional filter |
+| `when: has_mapping:` | Deferred | No aspect needs file-mapping path filter |
+| `when: has_port:` | Deferred | Only one port; no aspect needs port-existence predicate |
+| `when: target:` (exact node path) | Deferred | No aspect needs to pin to one specific node |
+| `when: consumes_port:` | Deferred | Single consumer set; predicate not needed |
+| Multi-port `consumes:` | Deferred | Only one port in catalog |
+| Paired `emits` / `listens` | Deferred | No event bus in the codebase |
+| `extends` / `implements` relations | Deferred | No inheritance hierarchy in TypeScript code |
+
+Deferred does not mean unsupported — these features are tested and documented. They simply had no real use case in this particular dogfood project.
+
+---
+
+## Summary Verdict
+
+| Tier | Features |
+|---|---|
+| **Use from day one** | `path:` when, combinators (`all_of`/`not`), `parents:`, `log_required`, type-level `aspects:`, `when:` on aspects |
+| **Introduce when you have 5+ nodes** | `enforce: strict`, node-level aspects, `implies:`, flow-level aspects |
+| **Introduce when a specific problem arises** | `content:` when, ports + `consumes:`, `when: descendants:` |
+| **Defer until the schema demands it** | Event relations, `extends`/`implements`, multi-port, conditional implies |
+
+The biggest ROI in our dogfood came from three things: type-level aspect defaults (one YAML line covers all current and future nodes of a type), flow-level aspects (one YAML block covers all participants in a business process), and `enforce: strict` (zero uncovered files at merge time). Everything else is additive.
