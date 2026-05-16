@@ -19,4 +19,5 @@ mapping:
   - source/cli/src/io/hash.ts
   - source/cli/src/io/log-store.ts
   - source/cli/src/io/paths.ts
+  - source/cli/src/io/read-or-default.ts
   - source/cli/src/io/repo-scanner.ts

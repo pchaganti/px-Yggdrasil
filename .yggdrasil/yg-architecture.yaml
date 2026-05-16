@@ -122,6 +122,7 @@ node_types:
         - path: "source/cli/src/io/hash.ts"
         - path: "source/cli/src/io/paths.ts"
         - path: "source/cli/src/io/debug-log-writer.ts"
+        - path: "source/cli/src/io/read-or-default.ts"
     aspects:
       - silent-missing-files
       - atomic-write-contract

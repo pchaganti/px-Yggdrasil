@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Deduplicated `collectAncestors` in `core/effective-aspects.ts` — removed the leaf-first duplicate; the file now imports the canonical root-first implementation from `core/context-builder.ts`. Removes a bug-in-waiting where future callers could silently reverse traversal order by importing the wrong helper.
 - Extracted shared `parsePredicateBoolean` helper into `core/parsing/predicate-boolean.ts`. Both `when-parser` and `file-when-parser` now delegate the `all_of`/`any_of`/`not` parsing to it — eliminates ~50 LOC of identical logic. The helper accepts an optional error class so `file-when-parser` preserves its `WhenPredicateInvalidError` contract.
+- Added `io/read-or-default.ts` — small helper that wraps `readFile` with ENOENT-only handling (returns the supplied default on missing file, rethrows other errors). `log-store.readLogSafe` migrated to use it. Persistence-adapter type's `when` predicate extended to claim the new file.
 
 ## [4.3.0] - 2026-05-16
 

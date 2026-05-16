@@ -1,17 +1,10 @@
-import { readFile, lstat } from 'node:fs/promises';
+import { lstat } from 'node:fs/promises';
 import { atomicWriteFile } from './atomic-write.js';
+import { readFileOrDefault } from './read-or-default.js';
 import { debugWrite } from '../utils/debug-log.js';
 
 export async function readLogSafe(logPath: string): Promise<string> {
-  try {
-    return await readFile(logPath, 'utf-8');
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-      debugWrite(`[log-store] readLogSafe: file not found: ${logPath}`);
-      return '';
-    }
-    throw err;
-  }
+  return await readFileOrDefault(logPath, '', '[log-store] readLogSafe');
 }
 
 export interface LogFileStats {
