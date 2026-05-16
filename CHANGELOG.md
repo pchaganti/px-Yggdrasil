@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Deduplicated `collectAncestors` in `core/effective-aspects.ts` — removed the leaf-first duplicate; the file now imports the canonical root-first implementation from `core/context-builder.ts`. Removes a bug-in-waiting where future callers could silently reverse traversal order by importing the wrong helper.
+
 ## [4.3.0] - 2026-05-16
 
 ### Added

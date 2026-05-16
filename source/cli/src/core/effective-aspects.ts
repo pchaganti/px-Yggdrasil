@@ -1,6 +1,7 @@
 import type { Graph, GraphNode } from '../model/graph.js';
 import type { WhenPredicate } from '../model/when.js';
 import { evaluateWhen } from './when-evaluator.js';
+import { collectAncestors } from './context-builder.js';
 import { debugWrite } from '../utils/debug-log.js';
 
 /**
@@ -212,12 +213,3 @@ export function getAspectSource(aspectId: string, node: GraphNode, graph: Graph)
   return 'unknown source';
 }
 
-function collectAncestors(node: GraphNode): GraphNode[] {
-  const ancestors: GraphNode[] = [];
-  let current = node.parent;
-  while (current) {
-    ancestors.push(current);
-    current = current.parent;
-  }
-  return ancestors;
-}
