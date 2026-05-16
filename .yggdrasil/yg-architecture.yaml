@@ -102,6 +102,7 @@ node_types:
       - silent-missing-files
       - posix-paths-source
       - read-or-default-via-helper
+      - parser-yaml-guard
     parents: [module]
     relations:
       calls: [utility]

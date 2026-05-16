@@ -17,7 +17,7 @@ export async function parseAspect(
   const content = await readFile(aspectYamlPath, 'utf-8');
   const raw = parseYaml(content) as Record<string, unknown>;
 
-  if (!raw || typeof raw !== 'object') {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new Error(`yg-aspect.yaml at ${aspectYamlPath}: file is empty or not a valid YAML mapping`);
   }
 

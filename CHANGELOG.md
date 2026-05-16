@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - AST aspect `read-or-default-via-helper` — applied to `persistence-adapter` and `parser-adapter` node types. Forbids inline ENOENT-swallow around `readFile` in IO files; future code must use `readFileOrDefault`. Compound try blocks (e.g. `lstat` + `readFile`) and non-readFile fs operations are correctly skipped.
+- AST aspect `parser-yaml-guard` — applied to `parser-adapter`. Requires every YAML parser to include `Array.isArray(raw)` in the top-level shape guard. Fixes a latent bug where a YAML array document silently passed the existing `typeof raw === 'object'` check (since arrays are typeof `'object'`) and failed later at the first property access. `flow-parser`, `node-parser`, and `aspect-parser` had their guards extended; `schema-parser` and `architecture-parser` already conformed.
 
 ## [4.3.0] - 2026-05-16
 

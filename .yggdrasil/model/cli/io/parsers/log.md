@@ -10,3 +10,5 @@ R0.6: fix aspect-parser.ts import — when-parser moved to core/parsing/ so impo
 R0.8: add header comment to secrets-parser.ts clarifying its parser-adapter role — reads yg-secrets.yaml from disk (hence io/), yields structured config fragment.
 ## [2026-05-15T17:52:31.581Z]
 Fix yaml-parser-contract violation: add Array.isArray() guard to schema-parser.ts type check.
+## [2026-05-16T17:27:12.596Z]
+Added Array.isArray(raw) to top-level shape guards in flow-parser, node-parser, and aspect-parser. Reason: typeof [] === 'object' means a YAML array document silently passed the previous typeof-only check, then failed later at the first property access with a confusing error. The new condition rejects arrays at the same site as null/non-object. schema-parser and architecture-parser already had Array.isArray and are unchanged. Wording of each error message is preserved so existing tests are unaffected.
