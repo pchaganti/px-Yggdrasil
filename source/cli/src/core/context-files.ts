@@ -4,7 +4,7 @@ import type { Graph, GraphNode } from '../model/graph.js';
 import type { DriftCategory, TrackedFileLayer } from '../model/drift.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import { collectAncestors } from './context-builder.js';
-import { computeEffectiveAspects } from './effective-aspects.js';
+import { computeEffectiveAspects } from './graph/aspects.js';
 
 export interface TrackedFile {
   path: string;           // relative to project root

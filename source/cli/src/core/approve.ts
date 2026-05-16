@@ -12,7 +12,7 @@ import {
 import { hashTrackedFiles } from '../io/hash.js';
 import { collectTrackedFiles } from './context-files.js';
 import { normalizeMappingPaths } from '../io/paths.js';
-import { computeEffectiveAspects } from './effective-aspects.js';
+import { computeEffectiveAspects } from './graph/aspects.js';
 import { readTextFile, lstatFile } from '../io/graph-fs.js';
 import { createHash } from 'node:crypto';
 import { debugWrite } from '../utils/debug-log.js';

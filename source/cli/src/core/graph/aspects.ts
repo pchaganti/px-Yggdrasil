@@ -1,8 +1,8 @@
-import type { Graph, GraphNode } from '../model/graph.js';
-import type { WhenPredicate } from '../model/when.js';
-import { evaluateWhen } from './when-evaluator.js';
-import { collectAncestors } from './context-builder.js';
-import { debugWrite } from '../utils/debug-log.js';
+import type { Graph, GraphNode } from '../../model/graph.js';
+import type { WhenPredicate } from '../../model/when.js';
+import { evaluateWhen } from '../when-evaluator.js';
+import { collectAncestors } from './traversal.js';
+import { debugWrite } from '../../utils/debug-log.js';
 
 /**
  * Compute the full set of effective aspects for a node from ALL 7 channels,

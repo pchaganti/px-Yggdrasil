@@ -1,5 +1,5 @@
 {
-  "hash": "279b35f47b1e7e63a52f556aee159a81ebd045eab5b1a89b730d8dfa9a9c3c7d",
+  "hash": "c92c9ddca7263c93dca2f1d8686fc854d46057ce9ec9c359edd45b3be60ee1ee",
   "files": {
     "own-subset:cli/tests/unit/core/operations": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -13,10 +13,10 @@
     "source/cli/tests/unit/core/approve-log.test.ts": "b1c6dd8521f259c6dd4457225043345d63718b05a283d7a6ca63dc3fd04b49d5",
     "source/cli/tests/unit/core/check.test.ts": "9d396e69f4c66cce72614df7a58ec71b2ea65f4d3cf981ec87a4140000f4d902",
     "source/cli/tests/unit/core/check-log.test.ts": "3024110025bf28d0f4912cc73cf513fa08d6f9db757ba573e40b25df1842f50e",
-    "source/cli/tests/unit/core/effective-aspects.test.ts": "89af7a3e32ccae45b98d187accf973cce46fc1c90b606a41403c712577761da8",
-    "source/cli/tests/unit/core/impact.test.ts": "8cbef4ae4877d98e6a8e8321b5c5b6c2aaf03de6c90a12c2aebf2382c9e50a61",
     "source/cli/tests/unit/core/log-format.test.ts": "bb52340c7c6cbc08dad98efbb81aa8fe9f7888c2a81d9e684f9602a96d4b592f",
-    "source/cli/tests/unit/core/log-integrity.test.ts": "aa2ee7eb50e2dc30ea0afafe1ce36ef48ad6cec59ec85a136cee3748c46e9b21"
+    "source/cli/tests/unit/core/log-integrity.test.ts": "aa2ee7eb50e2dc30ea0afafe1ce36ef48ad6cec59ec85a136cee3748c46e9b21",
+    "source/cli/tests/unit/core/effective-aspects.test.ts": "73f5228d3fc0adf8956255a35635482b220cfd75b89476426375d9771d398069",
+    "source/cli/tests/unit/core/impact.test.ts": "2ece0b755fbda573d1b79c02ffe32cb5b5c88e5ea95436598b00859d08298ba6"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -30,8 +30,8 @@
     "source/cli/tests/unit/core/approve-log.test.ts": 1778854276923.1697,
     "source/cli/tests/unit/core/check.test.ts": 1778910901463.2573,
     "source/cli/tests/unit/core/check-log.test.ts": 1778854223542.9958,
-    "source/cli/tests/unit/core/effective-aspects.test.ts": 1776494731314.5347,
-    "source/cli/tests/unit/core/impact.test.ts": 1778571103899.5764,
+    "source/cli/tests/unit/core/effective-aspects.test.ts": 1778959829852.9443,
+    "source/cli/tests/unit/core/impact.test.ts": 1778959829852.3022,
     "source/cli/tests/unit/core/log-format.test.ts": 1778573444835.2947,
     "source/cli/tests/unit/core/log-integrity.test.ts": 1778573590477.678
   },

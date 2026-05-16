@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   computeEffectiveAspects,
   getAspectSource,
-} from '../../../src/core/effective-aspects.js';
+} from '../../../src/core/graph/aspects.js';
 import type { Graph, GraphNode } from '../../../src/model/graph.js';
 
 // --- Helpers ---

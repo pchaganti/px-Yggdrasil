@@ -11,7 +11,7 @@ import { hashTrackedFiles } from '../io/hash.js';
 import { collectTrackedFiles } from './context-files.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import { validate } from './validator.js';
-import { computeEffectiveAspects } from './effective-aspects.js';
+import { computeEffectiveAspects } from './graph/aspects.js';
 import { readTextFile, fileAccess } from '../io/graph-fs.js';
 import path from 'node:path';
 import { validateAppendOnly } from './log-integrity.js';

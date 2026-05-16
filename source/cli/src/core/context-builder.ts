@@ -13,7 +13,7 @@ import type { NodeContextData } from '../formatters/context-node.js';
 import type { FileContextData } from '../formatters/context-file.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import { readTextFile } from '../io/graph-fs.js';
-import { computeEffectiveAspects, getAspectSource } from './effective-aspects.js';
+import { computeEffectiveAspects, getAspectSource } from './graph/aspects.js';
 import {
   collectAncestors,
   collectParticipatingFlows,

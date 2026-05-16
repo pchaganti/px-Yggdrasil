@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
 import { initDebugLog } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
-import { computeEffectiveAspects } from '../core/effective-aspects.js';
+import { computeEffectiveAspects } from '../core/graph/aspects.js';
 import type { Graph } from '../model/graph.js';
 
 interface AspectUsage {

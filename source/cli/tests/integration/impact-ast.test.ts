@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Graph, GraphNode } from '../../src/model/graph.js';
-import { computeEffectiveAspects } from '../../src/core/effective-aspects.js';
+import { computeEffectiveAspects } from '../../src/core/graph/aspects.js';
 
 describe('yg impact --aspect cascade scope (regression)', () => {
   it('AST aspect cascade equals LLM aspect cascade for identical node attachment', () => {

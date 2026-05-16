@@ -10,3 +10,5 @@ Fixed posix-paths-output gap in buildFileContextData: filePath parameter is now 
 Removed unused FlowDef type import after the local collectParticipatingFlows definition was moved to core/graph/flows.ts.
 ## [2026-05-16T19:27:24.119Z]
 Removed trailing slash from buildHierarchyLayer 'Module Context (path/)' label. The slash was a visual hint for directory but posix-paths-output prohibits stored trailing slashes in graph output values. Label still reads naturally.
+## [2026-05-16T19:31:39.022Z]
+Updated effective-aspects import path to core/graph/aspects following the file move.

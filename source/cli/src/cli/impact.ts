@@ -6,7 +6,7 @@ import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-prea
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { collectAncestors } from '../core/context-builder.js';
-import { computeEffectiveAspects } from '../core/effective-aspects.js';
+import { computeEffectiveAspects } from '../core/graph/aspects.js';
 import { findOwner } from './owner.js';
 import { projectRootFromGraph, resolveFileArg } from '../io/paths.js';
 import { FileContentCache } from '../io/file-content-cache.js';

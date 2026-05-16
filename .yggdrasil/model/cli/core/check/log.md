@@ -10,3 +10,5 @@ Drop deprecated message field and buildIssueMessage import: CheckIssue objects n
 Remove dead flow-related branches: layer === 'flows' check in describeUpstreamCause and flowMatch block in groupCascadeByCause — flow YAML is no longer tracked, so these paths are unreachable. Also remove 'flow: --flow' from flagMap in computeSuggestedNext.
 ## [2026-05-16T05:58:05.490Z]
 Phase 4.7 (no-direct-fs): route all fs calls through io/graph-fs.ts; update hash and paths imports from utils/ to io/ following module moves
+## [2026-05-16T19:31:38.898Z]
+Updated effective-aspects import path to core/graph/aspects following the file move.

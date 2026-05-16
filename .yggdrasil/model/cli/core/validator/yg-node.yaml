@@ -15,4 +15,3 @@ relations:
     type: calls
 mapping:
   - source/cli/src/core/validator.ts
-  - source/cli/src/core/effective-aspects.ts

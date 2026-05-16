@@ -1,6 +1,6 @@
 import type { Graph, GraphNode, YggConfig } from '../../model/graph.js';
 import { collectAncestors } from './traversal.js';
-import { computeEffectiveAspects } from '../effective-aspects.js';
+import { computeEffectiveAspects } from './aspects.js';
 
 export interface DependencyAncestorInfo {
   path: string;

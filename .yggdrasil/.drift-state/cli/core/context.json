@@ -1,5 +1,5 @@
 {
-  "hash": "b4261f015af6f431d4afef7ac9400f884b7aff5ec629dae0ac70f319ed25e1aa",
+  "hash": "11edbd33b9c910ee0536e4caad294b532d18fde0bfb97b3a701737919a4b0549",
   "files": {
     "own-subset:cli/core/context": "f024c01db6a22a541747c0be08271eb81721e0870a5fae237bcf3068e1a3db3b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -23,8 +23,8 @@
     ".yggdrasil/model/cli/model/context/yg-node.yaml": "64e105e412ef925827cde4f59346925000f405ec38cd36676ed4318a34590a33",
     ".yggdrasil/model/cli/model/drift/yg-node.yaml": "8818cf691e94ebf918022c7af9ff4f200a3d9cdf4a95a0e10f7e3c476e12320e",
     ".yggdrasil/model/cli/utils/yg-node.yaml": "cf275fbf896e28c60a3545bd48e0108dd3f6e91e82bfb769d856bf47cc70135f",
-    "source/cli/src/core/context-files.ts": "25a53c8908b60069b8a5945f98f8240268ea8e64535ec11eee8a1dad15bdde8f",
-    "source/cli/src/core/context-builder.ts": "b9aa9e1ec0889c50bd663a16ad249692d8674e944b6dfcc159dc013f02c3d453"
+    "source/cli/src/core/context-builder.ts": "24d15dbf8d0274188176ad8d1b24b06e3e42dc91dd0511d5f3ec784a6cf817bd",
+    "source/cli/src/core/context-files.ts": "945c989f9d0e6202783cef8be30d8510e1808e4aaaa08f56bd6f96883648e9c0"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -48,11 +48,11 @@
     ".yggdrasil/model/cli/model/context/yg-node.yaml": 1776177846203.256,
     ".yggdrasil/model/cli/model/drift/yg-node.yaml": 1776177846203.4216,
     ".yggdrasil/model/cli/utils/yg-node.yaml": 1778912998933.0781,
-    "source/cli/src/core/context-builder.ts": 1778959628978.2026,
-    "source/cli/src/core/context-files.ts": 1778910244559.3113
+    "source/cli/src/core/context-builder.ts": 1778959829845.4736,
+    "source/cli/src/core/context-files.ts": 1778959829846.5095
   },
   "log": {
-    "last_entry_datetime": "2026-05-16T19:27:24.119Z",
-    "prefix_hash": "47a008a65d500e0a6d2c7edba0860ee94be0426d99cae3e8deb7fe24f4a51795"
+    "last_entry_datetime": "2026-05-16T19:31:39.022Z",
+    "prefix_hash": "cedd8662bdd0912770c24c8ca19141135ac734e9f6db0bbe0f9331390a9cd5c9"
   }
 }

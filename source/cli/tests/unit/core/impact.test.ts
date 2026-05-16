@@ -5,7 +5,7 @@ import {
   collectDescendants,
   collectIndirectDependents,
 } from '../../../src/cli/impact.js';
-import { computeEffectiveAspects } from '../../../src/core/effective-aspects.js';
+import { computeEffectiveAspects } from '../../../src/core/graph/aspects.js';
 import type { Graph, GraphNode } from '../../../src/model/graph.js';
 
 function makeNode(nodePath: string, overrides: Partial<GraphNode> = {}): GraphNode {

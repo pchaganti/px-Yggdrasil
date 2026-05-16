@@ -1,5 +1,5 @@
 {
-  "hash": "f60989e4b359aaed7aacc0dbc4ada8b8985c3f456bc0080453c9080f24e56792",
+  "hash": "e0697c2b6e39ed9d38dcce4e789a61c01b89470f367db8f2a05e78d1d20aa97c",
   "files": {
     "own-subset:cli/core/graph": "017d50656501e8b443151a1fb73d7403f5b0a9279ac7e31e3d3029b12ad7399f",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -16,10 +16,11 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
-    "source/cli/src/core/graph/dependencies.ts": "dd88b2393db5461f67bc3ee7c64def5b5be4833707af8713066e87b6c2002764",
     "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
-    "source/cli/src/core/graph/index.ts": "b681a230bc5d851cf417986f04e1ef0a0413509aae52817e8a0129fe3dcfdacc",
-    "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b"
+    "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b",
+    "source/cli/src/core/graph/aspects.ts": "5ff836d86c80ca5419248a1c99d5adfd383b81a3a237d77b8f10e21155b5166d",
+    "source/cli/src/core/graph/dependencies.ts": "ef894f905b8a3b48edae8ca053c1a93f1d85b6e6ab8ad852e3d8fb8021334966",
+    "source/cli/src/core/graph/index.ts": "59eca161b4abbece2351a4096f386457b338cba2674ac12fbc9ce8ec8e143d96"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -36,13 +37,14 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    "source/cli/src/core/graph/dependencies.ts": 1778958990834.8933,
+    "source/cli/src/core/graph/aspects.ts": 1778959804511.0735,
+    "source/cli/src/core/graph/dependencies.ts": 1778959819575.0183,
     "source/cli/src/core/graph/flows.ts": 1778958982525.8142,
-    "source/cli/src/core/graph/index.ts": 1778958997609.3477,
+    "source/cli/src/core/graph/index.ts": 1778959812503.9866,
     "source/cli/src/core/graph/traversal.ts": 1778958972950.3818
   },
   "log": {
-    "last_entry_datetime": "2026-05-16T19:18:57.383Z",
-    "prefix_hash": "a922eced179f18b446ee55503ca859490de4153c020c36e4386602aa74d6c4f3"
+    "last_entry_datetime": "2026-05-16T19:31:38.504Z",
+    "prefix_hash": "56f461e4f95668d89eedfbf1e496bc7de1182322756e9bf954904fe86a08bc39"
   }
 }

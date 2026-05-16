@@ -13,7 +13,7 @@ import { expandMappingPaths } from '../io/hash.js';
 import { readSortedDir, statPath, fileAccess, fileExistsSync } from '../io/graph-fs.js';
 import { walkRepoFiles } from '../io/repo-scanner.js';
 import type { IssueMessage } from '../model/validation.js';
-import { computeEffectiveAspects } from './effective-aspects.js';
+import { computeEffectiveAspects } from './graph/aspects.js';
 import { FileContentCache } from '../io/file-content-cache.js';
 import { evaluateFileWhen } from './file-when-evaluator.js';
 import { renderTrace } from '../formatters/predicate-trace.js';
