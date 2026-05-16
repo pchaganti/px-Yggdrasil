@@ -8,3 +8,5 @@ Use buildIssueMessage for non-TTY already-exists warning: satisfies what-why-nex
 Migrated remaining ad-hoc stderr errors to buildIssueMessage (constant-text errors wrapped inline) and routed generic catch-blocks through the new abortOnUnexpectedError helper from formatters/cli-preamble.ts. Reason: even after the loadGraphOrAbort centralization, command-specific errors and option-validation messages bypassed the what/why/next structure; this commit aligns them so the AST aspect added in the next commit can enforce the rule mechanically.
 ## [2026-05-16T18:54:56.640Z]
 Wrapped --upgrade requires --platform error in buildIssueMessage. All option-validation messages in init now use the structured what/why/next form.
+## [2026-05-16T19:12:22.102Z]
+Wrapped '.yggdrasil exists but is not a directory' error in buildIssueMessage. All raw error writes in init.ts now route through buildIssueMessage or abortOnUnexpectedError.

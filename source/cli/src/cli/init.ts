@@ -656,7 +656,15 @@ export function registerInitCommand(program: Command): void {
         try {
           const statResult = await stat(yggRoot);
           if (!statResult.isDirectory()) {
-            process.stderr.write(chalk.red('Error: .yggdrasil exists but is not a directory.\n'));
+            process.stderr.write(
+              chalk.red(
+                `Error: ${buildIssueMessage({
+                  what: '.yggdrasil exists at the project root but is not a directory.',
+                  why: 'yg init requires the .yggdrasil path to be a directory it can populate.',
+                  next: 'Inspect the path manually; remove or rename the conflicting file, then re-run yg init.',
+                })}\n`,
+              ),
+            );
             process.exit(1);
           }
           exists = true;

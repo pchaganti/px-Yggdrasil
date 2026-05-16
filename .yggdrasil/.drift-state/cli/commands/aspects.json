@@ -1,10 +1,11 @@
 {
-  "hash": "3e53ae737365165010c786568a451739d89a7c76ad4188bf1a92534b81e9600c",
+  "hash": "488528b86cf4d3d53c078856ec208373bd29b436f2d9965180231d338e903d27",
   "files": {
     "own-subset:cli/commands/aspects": "c1264506d434b0854217c1dd836e887fde93beab9c6d440d84d1cdb8d789931c",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/commands/yg-node.yaml": "4d929734cf56d8fbf3adfdbb908be64075a4a3322a892656ad00ea07bb026ab4",
     ".yggdrasil/aspects/cli-command-contract/yg-aspect.yaml": "896b4f74947a010bbb32b1fcbf42cf3ba2c3ad0ecea39f635d623a212b2f7b22",
+    ".yggdrasil/aspects/cli-command-contract/content.md": "880d0cfeac04154018cd396b7993fbdc9223158f4016c22ac58e68703b7f6991",
     ".yggdrasil/aspects/command-exit-codes/yg-aspect.yaml": "9fe1bb69349b53310e74cd5a62812036a51b29a427a5c1d8ecca1de7e51fb0dd",
     ".yggdrasil/aspects/command-exit-codes/check.mjs": "48e113c8e19ac3874b0efb8e0690cc245e7f3e2782e6aa6e9cab73ae62a1d120",
     ".yggdrasil/aspects/diagnostic-logging/yg-aspect.yaml": "d2f92251b7ac3da65b1e00800a1839a14f7508c11905dc9089bf0b62d310ee2b",
@@ -21,7 +22,8 @@
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
     ".yggdrasil/model/cli/core/context/yg-node.yaml": "ee82a930cc1a5f132fa468e0fe302b28c65e8cd9acb6e3a51fb6bb020b991b0a",
     "source/cli/src/cli/aspects.ts": "efec6300212343188162cc6003070de25649f33ac76f04407746303625a0dc7c",
-    ".yggdrasil/aspects/cli-command-contract/content.md": "880d0cfeac04154018cd396b7993fbdc9223158f4016c22ac58e68703b7f6991"
+    ".yggdrasil/aspects/command-error-via-buildissuemessage/yg-aspect.yaml": "65aebe9b066a02a68c0082b01fc03a81a00340a0608420498d98a5d77f783c3e",
+    ".yggdrasil/aspects/command-error-via-buildissuemessage/check.mjs": "259c0db9200c213f4e798aa40b5534555a4455ee63d034c470a857a80c0e5245"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -36,6 +38,8 @@
     ".yggdrasil/aspects/command-contract-shape/check.mjs": 1778877330293.9934,
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1778878288425.0745,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
+    ".yggdrasil/aspects/command-error-via-buildissuemessage/yg-aspect.yaml": 1778958484458.5105,
+    ".yggdrasil/aspects/command-error-via-buildissuemessage/check.mjs": 1778958604464.9697,
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": 1778914969544.898,
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
     ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": 1776177846197.8352,

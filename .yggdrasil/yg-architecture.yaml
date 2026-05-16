@@ -50,6 +50,7 @@ node_types:
       - diagnostic-logging
       - command-contract-shape
       - posix-paths-source
+      - command-error-via-buildissuemessage
     parents: [module]
     relations:
       calls: [engine, parser-adapter, persistence-adapter, llm-shared, llm-subprocess-base, formatter, utility, ast-adapter, template]
