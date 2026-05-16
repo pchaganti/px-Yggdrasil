@@ -45,35 +45,37 @@ export async function installRulesForPlatform(
 ): Promise<string> {
   const agentRulesPath = path.join(projectRoot, '.yggdrasil', 'agent-rules.md');
 
+  let result: string;
   switch (platform) {
     case 'cursor':
-      return installForCursor(projectRoot);
+      result = await installForCursor(projectRoot); break;
     case 'claude-code':
-      return installForClaudeCode(projectRoot, agentRulesPath);
+      result = await installForClaudeCode(projectRoot, agentRulesPath); break;
     case 'copilot':
-      return installForCopilot(projectRoot);
+      result = await installForCopilot(projectRoot); break;
     case 'cline':
-      return installForCline(projectRoot);
+      result = await installForCline(projectRoot); break;
     case 'roocode':
-      return installForRooCode(projectRoot);
+      result = await installForRooCode(projectRoot); break;
     case 'codex':
-      return installForCodex(projectRoot);
+      result = await installForCodex(projectRoot); break;
     case 'windsurf':
-      return installForWindsurf(projectRoot);
+      result = await installForWindsurf(projectRoot); break;
     case 'aider':
-      return installForAider(projectRoot, agentRulesPath);
+      result = await installForAider(projectRoot, agentRulesPath); break;
     case 'gemini':
-      return installForGemini(projectRoot, agentRulesPath);
+      result = await installForGemini(projectRoot, agentRulesPath); break;
     case 'amp':
-      return installForAmp(projectRoot, agentRulesPath);
+      result = await installForAmp(projectRoot, agentRulesPath); break;
     case 'opencode':
-      return installForOpenCode(projectRoot);
+      result = await installForOpenCode(projectRoot); break;
     case 'codebuddy':
-      return installForCodeBuddy(projectRoot);
+      result = await installForCodeBuddy(projectRoot); break;
     case 'generic':
     default:
-      return installForGeneric(projectRoot);
+      result = await installForGeneric(projectRoot); break;
   }
+  return result.replace(/\\/g, '/').replace(/\/+$/, '');
 }
 
 async function ensureAgentRules(agentRulesPath: string): Promise<void> {

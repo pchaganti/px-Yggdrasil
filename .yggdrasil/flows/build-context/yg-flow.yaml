@@ -1,5 +1,9 @@
 name: Build context
 description: "Assemble a context package for a node so agents have the specification needed before working on code"
+aspects:
+  - deterministic
+  - posix-paths-output
+  - what-why-next
 nodes:
   - cli/commands/build-context
   - cli/core/loader

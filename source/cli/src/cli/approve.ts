@@ -192,12 +192,11 @@ function formatLlmResults(result: LlmApproveResult): void {
 function formatRefused(nodePath: string, result: LlmApproveResult): void {
   // LLM reviewer refused — details printed by formatLlmResults
   if (result.aspectViolations && result.aspectViolations.length > 0) {
-    process.stderr.write(
-      chalk.red(`ERROR: Reviewer found aspect violations.\n`),
-    );
-    process.stderr.write(
-      `  Fix the violations and re-run: yg approve --node ${nodePath}\n`,
-    );
+    process.stderr.write(chalk.red(buildIssueMessage({
+      what: 'Reviewer found aspect violations.',
+      why: 'One or more aspects listed above were not satisfied by the source code.',
+      next: `Fix the violations and re-run: yg approve --node ${nodePath}`,
+    }) + '\n'));
     return;
   }
 
@@ -432,7 +431,11 @@ export function registerApproveCommand(program: Command): void {
           const aspectId = options.aspect.trim();
           const aspectExists = graph.aspects.some(a => a.id === aspectId);
           if (!aspectExists) {
-            process.stderr.write(chalk.red(`ERROR: Aspect '${aspectId}' does not exist.\n`));
+            process.stderr.write(chalk.red(buildIssueMessage({
+              what: `Aspect '${aspectId}' does not exist.`,
+              why: 'The aspect id must match a directory name under .yggdrasil/aspects/.',
+              next: 'Run: yg aspects — to list all defined aspects.',
+            }) + '\n'));
             process.exit(1);
           }
           const causePrefix = `${yggPrefix}/aspects/${aspectId}/`;
@@ -445,7 +448,11 @@ export function registerApproveCommand(program: Command): void {
           const flowName = options.flow.trim();
           const flowExists = graph.flows.some(f => f.path === flowName);
           if (!flowExists) {
-            process.stderr.write(chalk.red(`ERROR: Flow '${flowName}' does not exist.\n`));
+            process.stderr.write(chalk.red(buildIssueMessage({
+              what: `Flow '${flowName}' does not exist.`,
+              why: 'The flow name must match a directory name under .yggdrasil/flows/.',
+              next: 'Run: yg flows — to list all defined flows.',
+            }) + '\n'));
             process.exit(1);
           }
           const causePrefix = `${yggPrefix}/flows/${flowName}/`;

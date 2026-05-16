@@ -1,5 +1,9 @@
 name: Init
 description: "Bootstrap .yggdrasil/ structure for a new project or refresh platform rules for an existing one"
+aspects:
+  - what-why-next
+  - posix-paths-output
+  - atomic-write-contract
 nodes:
   - cli/commands/init
   - cli/templates

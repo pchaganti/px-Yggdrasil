@@ -96,6 +96,7 @@ export function registerBuildCommand(program: Command): void {
           const repoRoot = projectRootFromGraph(graph.rootPath);
           const repoRelative = resolveFileArg(repoRoot, options.file);
           const result = findOwner(graph, repoRoot, repoRelative);
+          const displayFile = result.file.replace(/\\/g, '/').replace(/\/+$/, '');
           if (!result.nodePath) {
             const candidates = findCandidateNodes(graph, result.file);
             if (candidates.length > 0) {
@@ -104,14 +105,14 @@ export function registerBuildCommand(program: Command): void {
                 candidatesList += `  - ${c.nodePath} (${c.fileCount} file${c.fileCount === 1 ? '' : 's'} in same dir)\n`;
               }
               const msg = buildIssueMessage({
-                what: `${result.file} has no graph coverage.`,
+                what: `${displayFile} has no graph coverage.`,
                 why: `File is not mapped to any node. Other files in the same directory are mapped to these nodes:\n${candidatesList}This suggests the file should be added to one of them.`,
                 next: 'Use: yg context --node <node-path>',
               });
               process.stderr.write(chalk.red(`${msg}\n`));
             } else {
               const noGraphMsg = buildIssueMessage({
-                what: `${result.file} has no graph coverage.`,
+                what: `${displayFile} has no graph coverage.`,
                 why: 'File is not mapped to any node and no candidate nodes found in the same directory.',
                 next: 'Add the file to an existing node mapping, or create a new node.',
               });
@@ -119,11 +120,11 @@ export function registerBuildCommand(program: Command): void {
             }
             process.exit(1);
           }
-          process.stderr.write(`${result.file} -> ${result.nodePath}\n`);
+          process.stderr.write(`${displayFile} -> ${result.nodePath}\n`);
           nodePath = result.nodePath;
           resolvedFilePath = result.file;
         } else {
-          nodePath = options.node!.trim().replace(/\/$/, '');
+          nodePath = options.node!.trim().replace(/\\/g, '/').replace(/\/+$/, '');
         }
 
         const relevantNodes = collectRelevantNodePaths(graph, nodePath);

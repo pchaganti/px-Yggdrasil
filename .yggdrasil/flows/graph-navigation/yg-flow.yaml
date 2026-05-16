@@ -1,5 +1,7 @@
 name: Graph navigation
 description: "Navigational queries to locate nodes, browse hierarchy, and trace forward dependencies"
+aspects:
+  - what-why-next
 nodes:
   - cli/commands/owner
   - cli/commands/tree

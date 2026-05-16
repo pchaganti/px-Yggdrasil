@@ -1,0 +1,9 @@
+name: AST verification
+description: "AST-based aspect enforcement — runs tree-sitter checks against node source files without LLM involvement"
+aspects:
+  - deterministic
+  - what-why-next
+nodes:
+  - cli/ast/runtime
+  - cli/ast/helpers-naming
+  - cli/ast/helpers-syntactic

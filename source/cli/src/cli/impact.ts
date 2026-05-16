@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { join } from 'node:path';
+import { buildIssueMessage } from '../formatters/message-builder.js';
 import { loadGraph } from '../core/graph-loader.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
@@ -176,7 +177,11 @@ async function handleAspectImpact(
 ): Promise<void> {
   const aspect = graph.aspects.find((a) => a.id === aspectId);
   if (!aspect) {
-    process.stderr.write(chalk.red(`Aspect not found: ${aspectId}\n`));
+    process.stderr.write(chalk.red(buildIssueMessage({
+      what: `Aspect not found: ${aspectId}`,
+      why: 'The aspect id must match a directory name under .yggdrasil/aspects/.',
+      next: 'Run: yg aspects — to list all defined aspects.',
+    }) + '\n'));
     process.exit(1);
   }
 
@@ -263,7 +268,11 @@ async function handleFlowImpact(
 ): Promise<void> {
   const flow = graph.flows.find((f) => f.name === flowName || f.path === flowName);
   if (!flow) {
-    process.stderr.write(chalk.red(`Flow not found: ${flowName}\n`));
+    process.stderr.write(chalk.red(buildIssueMessage({
+      what: `Flow not found: ${flowName}`,
+      why: 'The flow name must match a directory name under .yggdrasil/flows/.',
+      next: 'Run: yg flows — to list all defined flows.',
+    }) + '\n'));
     process.exit(1);
   }
 
@@ -315,7 +324,11 @@ async function handleFlowImpact(
 async function handleTypeImpact(graph: Graph, typeId: string): Promise<void> {
   const def = graph.architecture.node_types[typeId];
   if (!def) {
-    process.stderr.write(chalk.red(`Type '${typeId}' not found in architecture.\n`));
+    process.stderr.write(chalk.red(buildIssueMessage({
+      what: `Type '${typeId}' not found in architecture.`,
+      why: 'The type id must match a node_types key in .yggdrasil/yg-architecture.yaml.',
+      next: 'Read .yggdrasil/yg-architecture.yaml to see defined types.',
+    }) + '\n'));
     process.exit(1);
   }
 
@@ -443,7 +456,11 @@ export function registerImpactCommand(program: Command): void {
             const repoRelative = resolveFileArg(repoRoot, options.file);
             const result = findOwner(graph, repoRoot, repoRelative);
             if (!result.nodePath) {
-              process.stderr.write(chalk.red(`${result.file} -> no graph coverage\n`));
+              process.stderr.write(chalk.red(buildIssueMessage({
+                what: `${result.file.replace(/\\/g, '/').replace(/\/+$/, '')} -> no graph coverage`,
+                why: 'File is not mapped to any node in the graph.',
+                next: 'Add the file to an existing node mapping, or create a new node.',
+              }) + '\n'));
               process.exit(1);
             }
             process.stderr.write(`${result.file} -> ${result.nodePath}\n`);
@@ -466,7 +483,11 @@ export function registerImpactCommand(program: Command): void {
           const nodePath = options.node!.trim().replace(/\/$/, '');
 
           if (!graph.nodes.has(nodePath)) {
-            process.stderr.write(chalk.red(`Node not found: ${nodePath}\n`));
+            process.stderr.write(chalk.red(buildIssueMessage({
+              what: `Node not found: ${nodePath}`,
+              why: 'The node path must match a node in the graph.',
+              next: 'Run: yg tree — to list all nodes.',
+            }) + '\n'));
             process.exit(1);
           }
 

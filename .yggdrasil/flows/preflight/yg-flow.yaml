@@ -1,5 +1,8 @@
 name: Preflight diagnostics
 description: "Unified session health check combining drift, status, and validation into a single pass/fail signal"
+aspects:
+  - deterministic
+  - what-why-next
 nodes:
   - cli/commands/check
   - cli/core/loader

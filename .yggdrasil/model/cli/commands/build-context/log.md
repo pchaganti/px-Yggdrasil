@@ -10,3 +10,5 @@ Fix node normalization: remove extra .replace(/^\.\//,'') not in cli-command-con
 Fix diagnostic-logging violations: add debugWrite() to catch block that exits without re-throwing.
 ## [2026-05-16T05:57:54.796Z]
 Phase 4.7 (no-direct-fs): inject appendToDebugLog as third argument to initDebugLog; debug-log DI refactor decouples utils/debug-log from node:fs
+## [2026-05-16T08:39:07.376Z]
+Normalize result.file at output boundary (displayFile) before use in buildIssueMessage and stderr write — satisfies posix-paths-output aspect added via build-context flow

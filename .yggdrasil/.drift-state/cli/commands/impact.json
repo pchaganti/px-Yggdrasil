@@ -1,5 +1,5 @@
 {
-  "hash": "235a6458a0c639a36aaeeea07dc3cbe3ea5381c0eb62a23c8684298b0ea1d0aa",
+  "hash": "fe3bc51f98a61c62682980be63ebc99bf8bab1069558235d431011e68bd6fc8e",
   "files": {
     "own-subset:cli/commands/impact": "8860ad0576e6e4e27f12eee6eed97fbb4c380115aa189106e84b34b47d2e64fd",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -20,7 +20,9 @@
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
     ".yggdrasil/model/cli/core/context/yg-node.yaml": "ee82a930cc1a5f132fa468e0fe302b28c65e8cd9acb6e3a51fb6bb020b991b0a",
     ".yggdrasil/model/cli/utils/yg-node.yaml": "cf275fbf896e28c60a3545bd48e0108dd3f6e91e82bfb769d856bf47cc70135f",
-    "source/cli/src/cli/impact.ts": "fc1974faedb5fce1541dd9f915677a8373677f31a0a35abf8522299a2b47611e"
+    ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": "3dc44ca9f217265beaf528bbfd13720e77985be4ec8fae0ce1f2c044968c8faf",
+    ".yggdrasil/aspects/what-why-next/content.md": "bbe835c049672dd09076de1be3a2dd2ed70c38e31a327f98176f1a0d15fb0838",
+    "source/cli/src/cli/impact.ts": "d7eac5a8282e8c7a5b6df6e75e017e69b0abc07cb5400a2bc822f58e0a4b46d6"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -37,14 +39,16 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": 1778914969544.898,
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
+    ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": 1776177846197.8352,
+    ".yggdrasil/aspects/what-why-next/content.md": 1778855561245.8606,
     ".yggdrasil/model/cli/core/loader/yg-node.yaml": 1778872183686.477,
     ".yggdrasil/model/cli/core/yg-node.yaml": 1776177846202.0774,
     ".yggdrasil/model/cli/core/context/yg-node.yaml": 1778872081120.968,
     ".yggdrasil/model/cli/utils/yg-node.yaml": 1778912998933.0781,
-    "source/cli/src/cli/impact.ts": 1778910366857.9536
+    "source/cli/src/cli/impact.ts": 1778920625865.7625
   },
   "log": {
-    "last_entry_datetime": "2026-05-16T05:57:55.222Z",
-    "prefix_hash": "ed99884f4a40902b691b9ab9fd37aebc148b266f2329bc10703274b6fd984b5e"
+    "last_entry_datetime": "2026-05-16T08:39:07.117Z",
+    "prefix_hash": "ae4153bd8f45803b40e953d09e2b1053b30bcf7ff7ee71e87f0bb05311552f8c"
   }
 }

@@ -6,3 +6,5 @@ Lint fix: escape pipe inside CLI essentials table row at TypeScript level (\\| �
 Restore three items I had over-trimmed during the redesign — user feedback that nothing should be lost from rules.ts: (1) re-add yg-suppress proposal procedure step 1 ('Show the user the violation and explain why the code cannot comply now') as an explicit numbered step in the rules.ts Authorization section — previously only implicit in 'PROPOSE'. (2) re-add the yg log merge-resolve narrative paragraph (what the tool validates, why not to concatenate manually) to the rules.ts 'Log management — workflow' section — previously only in log-management knowledge. (3) re-add yg log merge-resolve to the rules.ts CLI essentials table. Knowledge files keep their full coverage too.
 ## [2026-05-15T17:44:40.170Z]
 Phase 2: reclassified from adapter to template. Mapping narrowed to {default-config,platform,rules}.ts. Knowledge docs moved to cli/knowledge.
+## [2026-05-16T08:39:07.651Z]
+installRulesForPlatform: normalize returned path with POSIX replace before returning — satisfies posix-paths-output aspect added via init flow

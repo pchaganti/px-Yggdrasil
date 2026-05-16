@@ -1,5 +1,5 @@
 {
-  "hash": "d127cc3adecfd5696122bf063565cc2d3601230029689774059d0a0ead189f42",
+  "hash": "b64bdbc3f2d2d1bba16b3de764307249157d597fb3ac283de3d2ddaba53129b9",
   "files": {
     "own-subset:cli/templates": "f68bcd5143fd11da71f121095f5b7b88f309ccecd0a1190a8d557b7eeeda9f51",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -8,8 +8,10 @@
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "9a5d512752a6f1fea12e50a6ef249cbf0aae2cc2097597057e4dd429df65f7c9",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678",
     "source/cli/src/templates/default-config.ts": "82217e590c8907205bb0a0d40a9aa7195d1e905975e97d7959ea561c40986b25",
-    "source/cli/src/templates/platform.ts": "ba4b3b22f545667980a531b73b40cfffb2462199ab6da09e752e5ef9b6037e36",
-    "source/cli/src/templates/rules.ts": "7ae9be8b5b55a82496ec9a647d56eac12e60d369b74a1c0a9501094378151003"
+    "source/cli/src/templates/rules.ts": "7ae9be8b5b55a82496ec9a647d56eac12e60d369b74a1c0a9501094378151003",
+    ".yggdrasil/aspects/posix-paths-output/yg-aspect.yaml": "e87b85d4dbf34539f7d04f5648d3e0e510e9dc71850d9d49753e5b85cf802e69",
+    ".yggdrasil/aspects/posix-paths-output/content.md": "2659859dc13a8efe32e098b0c220d24c9ecddff26b42a4f22e3135d8b750bc13",
+    "source/cli/src/templates/platform.ts": "d96addc8b4fc854500c14acda1846fef398a39d1c1df4668de3cc4c5425d2f7e"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -17,12 +19,14 @@
     ".yggdrasil/aspects/what-why-next/content.md": 1778855561245.8606,
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1778878288425.0745,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
+    ".yggdrasil/aspects/posix-paths-output/yg-aspect.yaml": 1778912957941.51,
+    ".yggdrasil/aspects/posix-paths-output/content.md": 1778912983383.063,
     "source/cli/src/templates/default-config.ts": 1778836745921.711,
-    "source/cli/src/templates/platform.ts": 1778581979191.5073,
+    "source/cli/src/templates/platform.ts": 1778920718473.7297,
     "source/cli/src/templates/rules.ts": 1778842979873.588
   },
   "log": {
-    "last_entry_datetime": "2026-05-15T17:44:40.170Z",
-    "prefix_hash": "7d53b9a99f38b68c65f035ca473f3a1d838dcd016317ca9baf1c2b87d5b36283"
+    "last_entry_datetime": "2026-05-16T08:39:07.651Z",
+    "prefix_hash": "945e50d26448377848ca1e3c25ee16c043210da2a7f1c7a3ed638644bdbbd020"
   }
 }

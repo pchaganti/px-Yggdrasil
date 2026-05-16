@@ -39,18 +39,22 @@ export interface NodeContextDep {
   portAspects?: Array<{ aspectId: string; verifiedAgainst: string }>;
 }
 
+function posixPath(p: string): string {
+  return p.replace(/\\/g, '/').replace(/\/+$/, '');
+}
+
 export function formatNodeContext(data: NodeContextData): string {
   const lines: string[] = [];
 
   // Header
   const desc = data.description ? ` — ${data.description}` : '';
-  lines.push(`${data.path}${desc} (${data.type})`);
+  lines.push(`${posixPath(data.path)}${desc} (${data.type})`);
   lines.push('');
 
   // Source files
   lines.push(`Source files (${data.sourceFiles.length}):`);
   for (const f of data.sourceFiles) {
-    lines.push(`  ${f}`);
+    lines.push(`  ${posixPath(f)}`);
   }
   lines.push('');
 
@@ -60,8 +64,8 @@ export function formatNodeContext(data: NodeContextData): string {
     lines.push('');
     for (const aspect of data.aspects) {
       lines.push(`  ${aspect.id} — ${aspect.description}`);
-      lines.push(`    Source: ${aspect.source}`);
-      lines.push(`    read: ${aspect.verifiedAgainst}`);
+      lines.push(`    Source: ${posixPath(aspect.source)}`);
+      lines.push(`    read: ${posixPath(aspect.verifiedAgainst)}`);
       if (aspect.implies && aspect.implies.length > 0) {
         lines.push(`    Implies: ${aspect.implies.join(', ')}`);
       }
@@ -74,7 +78,7 @@ export function formatNodeContext(data: NodeContextData): string {
     lines.push(`Participates in (${data.flows.length} flow${data.flows.length === 1 ? '' : 's'}):`);
     for (const flow of data.flows) {
       lines.push(`  ${flow.id} — ${flow.description}`);
-      lines.push(`    read: ${flow.readPath}`);
+      lines.push(`    read: ${posixPath(flow.readPath)}`);
     }
     lines.push('');
   }
@@ -85,14 +89,14 @@ export function formatNodeContext(data: NodeContextData): string {
     for (const dep of data.dependencies) {
       const depDesc = dep.description ? ` — ${dep.description}` : '';
       const consumes = dep.consumes ? ` — consumes: ${dep.consumes.join(', ')}` : '';
-      lines.push(`  ${dep.path} (${dep.relation})${depDesc}${consumes}`);
+      lines.push(`  ${posixPath(dep.path)} (${dep.relation})${depDesc}${consumes}`);
       if (dep.portAspects && dep.portAspects.length > 0) {
         for (const pa of dep.portAspects) {
           lines.push(`    Required: ${pa.aspectId}`);
         }
       }
       if (dep.readPath) {
-        lines.push(`    read: ${dep.readPath}`);
+        lines.push(`    read: ${posixPath(dep.readPath)}`);
       }
     }
     lines.push('');
@@ -103,31 +107,31 @@ export function formatNodeContext(data: NodeContextData): string {
     lines.push(`Dependents (${data.dependentCount}):`);
     if (data.dependentCount >= 16) {
       lines.push(`  HIGH blast radius — changes cascade to ${data.dependentCount} nodes.`);
-      lines.push(`  Strongly recommended: yg impact --node ${data.path}`);
+      lines.push(`  Strongly recommended: yg impact --node ${posixPath(data.path)}`);
     } else if (data.dependentCount >= 6) {
       lines.push(`  Moderate blast radius — changes trigger cascade review on ${data.dependentCount} nodes.`);
-      lines.push(`  Run: yg impact --node ${data.path}`);
+      lines.push(`  Run: yg impact --node ${posixPath(data.path)}`);
     } else {
       // 1-5: plain list of dependent node paths
       for (const dep of data.dependentPaths ?? []) {
-        lines.push(`  ${dep}`);
+        lines.push(`  ${posixPath(dep)}`);
       }
-      lines.push(`  Run: yg impact --node ${data.path}`);
+      lines.push(`  Run: yg impact --node ${posixPath(data.path)}`);
     }
     lines.push('');
   }
 
   // Parent
   if (data.parentPath) {
-    lines.push(`Parent: ${data.parentPath} (${data.parentType ?? 'module'})`);
+    lines.push(`Parent: ${posixPath(data.parentPath)} (${data.parentType ?? 'module'})`);
     if (data.parentReadPath) {
-      lines.push(`  read: ${data.parentReadPath}`);
+      lines.push(`  read: ${posixPath(data.parentReadPath)}`);
     }
     lines.push('');
   }
 
   // Workflow footer
-  lines.push(`After modifying source files in this node: run yg check, then yg approve --node ${data.path}`);
+  lines.push(`After modifying source files in this node: run yg check, then yg approve --node ${posixPath(data.path)}`);
   lines.push('');
 
   return lines.join('\n');

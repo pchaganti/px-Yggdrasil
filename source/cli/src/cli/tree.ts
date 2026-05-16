@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import { loadGraph } from '../core/graph-loader.js';
 import { initDebugLog } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
+import { buildIssueMessage } from '../formatters/message-builder.js';
 import type { GraphNode } from '../model/graph.js';
 
 export function registerTreeCommand(program: Command): void {
@@ -22,7 +23,11 @@ export function registerTreeCommand(program: Command): void {
           const path = options.root.trim().replace(/\/$/, '');
           const node = graph.nodes.get(path);
           if (!node) {
-            process.stderr.write(chalk.red(`Error: path '${path}' not found\n`));
+            process.stderr.write(chalk.red(buildIssueMessage({
+              what: `Node '${path}' not found.`,
+              why: `The --root path must be a valid node path in the graph.`,
+              next: `Run yg tree (no --root) to list all nodes, then pick a valid path.`,
+            }) + '\n'));
             process.exit(1);
           }
           roots = [node];

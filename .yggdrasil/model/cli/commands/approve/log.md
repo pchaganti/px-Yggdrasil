@@ -16,3 +16,5 @@ Replace path.sep with split(/[\\/]/) to remove platform-specific separator — p
 Add targeted aspect review: approve --aspect X now evaluates only aspect X per node (not all aspects) when no source drift exists. Pass filterAspectId through runBatchApprove → runLlmVerification. Source drift still triggers full re-verification.
 ## [2026-05-16T05:57:54.530Z]
 Phase 4.7 (no-direct-fs): inject appendToDebugLog as third argument to initDebugLog; debug-log DI refactor decouples utils/debug-log from node:fs
+## [2026-05-16T08:39:07.251Z]
+formatRefused: use buildIssueMessage instead of raw stderr writes; aspect/flow not-found: use buildIssueMessage — satisfies what-why-next aspect added via approve flow

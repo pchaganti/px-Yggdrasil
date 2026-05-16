@@ -1,5 +1,9 @@
 name: Validate
 description: "Validate graph structural integrity and completeness, reporting errors and warnings"
+aspects:
+  - deterministic
+  - what-why-next
+  - silent-missing-files
 nodes:
   - cli/commands/check
   - cli/core/loader

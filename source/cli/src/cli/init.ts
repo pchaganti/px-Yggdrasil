@@ -372,7 +372,11 @@ async function freshInit(projectRoot: string): Promise<void> {
   const yggRoot = path.join(projectRoot, '.yggdrasil');
 
   if (!isTTY()) {
-    process.stderr.write(chalk.red('Error: yg init requires an interactive terminal.\n'));
+    process.stderr.write(chalk.red(buildIssueMessage({
+      what: 'yg init requires an interactive terminal.',
+      why: 'Setup requires interactive prompts to configure platform and reviewer.',
+      next: 'Run yg init in an interactive terminal session.',
+    }) + '\n'));
     process.exit(1);
   }
 
@@ -488,7 +492,11 @@ async function existingInit(projectRoot: string): Promise<void> {
   const yggRoot = path.join(projectRoot, '.yggdrasil');
 
   if (!isTTY()) {
-    process.stderr.write(chalk.yellow('.yggdrasil/ already exists. Run yg init interactively to reconfigure.\n'));
+    process.stderr.write(chalk.yellow(buildIssueMessage({
+      what: '.yggdrasil/ already exists.',
+      why: 'Re-configuration requires interactive prompts which are not available in non-TTY mode.',
+      next: 'Run yg init interactively in a terminal to reconfigure.',
+    }) + '\n'));
     return;
   }
 
@@ -520,7 +528,7 @@ async function existingInit(projectRoot: string): Promise<void> {
     p.log.info('2. Run yg approve on all nodes to establish baselines');
     p.outro(
       chalk.green(
-        `Migrated from ${currentVersion} to ${cliVersion}. Rules installed: ${path.relative(projectRoot, result.rulesPath)}`,
+        `Migrated from ${currentVersion} to ${cliVersion}. Rules installed: ${path.relative(projectRoot, result.rulesPath).replace(/\\/g, '/').replace(/\/+$/, '')}`,
       ),
     );
     return;
@@ -541,7 +549,7 @@ async function existingInit(projectRoot: string): Promise<void> {
       const platform = await promptPlatform();
       const fromVersion = currentVersion ?? cliVersion;
       const result = await runVersionUpgrade(projectRoot, yggRoot, fromVersion, cliVersion, platform);
-      p.outro(chalk.green(`Rules and schemas refreshed: ${path.relative(projectRoot, result.rulesPath)}`));
+      p.outro(chalk.green(`Rules and schemas refreshed: ${path.relative(projectRoot, result.rulesPath).replace(/\\/g, '/').replace(/\/+$/, '')}`));
       break;
     }
     case 'reviewer': {
@@ -556,7 +564,7 @@ async function existingInit(projectRoot: string): Promise<void> {
     case 'platform': {
       const platform = await promptPlatform();
       const rulesPath = await installRulesForPlatform(projectRoot, platform);
-      p.outro(chalk.green(`Platform changed: ${path.relative(projectRoot, rulesPath)}`));
+      p.outro(chalk.green(`Platform changed: ${path.relative(projectRoot, rulesPath).replace(/\\/g, '/').replace(/\/+$/, '')}`));
       break;
     }
   }
@@ -613,7 +621,7 @@ export function registerInitCommand(program: Command): void {
             options.platform as Platform,
           );
           process.stdout.write(
-            `Rules and schemas refreshed: ${path.relative(projectRoot, result.rulesPath)}\n`,
+            `Rules and schemas refreshed: ${path.relative(projectRoot, result.rulesPath).replace(/\\/g, '/').replace(/\/+$/, '')}\n`,
           );
           return;
         }
