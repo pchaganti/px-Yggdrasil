@@ -1,3 +1,5 @@
 name: TopLevelErrorHandler
 description: "bin.ts must handle both synchronous and asynchronous uncaught errors at the top level, producing a consistent stderr message and exiting with code 1."
 reviewer: llm
+implies:
+  - command-exit-codes
