@@ -3,6 +3,7 @@ import type {
   FileBooleanClause,
   FileAtomicClause,
 } from '../../model/file-when.js';
+import { BOOLEAN_KEYS, parsePredicateBoolean } from './predicate-boolean.js';
 
 /**
  * Distinguished error class for when-predicate failures so callers
@@ -18,7 +19,6 @@ export class WhenPredicateInvalidError extends Error {
 }
 
 const ATOMIC_KEYS = new Set<string>(['path', 'content']);
-const BOOLEAN_KEYS = new Set<string>(['all_of', 'any_of', 'not']);
 
 /**
  * Parse a raw YAML value into a FileWhenPredicate. `ctx` is a human-readable
@@ -67,18 +67,7 @@ export function parseFileWhen(raw: unknown, ctx: string): FileWhenPredicate {
 }
 
 function parseBoolean(raw: Record<string, unknown>, key: string, ctx: string): FileBooleanClause {
-  const val = raw[key];
-  if (key === 'not') {
-    return { not: parseFileWhen(val, `${ctx}/not`) };
-  }
-  if (!Array.isArray(val)) {
-    throw new WhenPredicateInvalidError(`${ctx}: '${key}' must be an array`);
-  }
-  if (val.length === 0) {
-    throw new WhenPredicateInvalidError(`${ctx}: '${key}' array must not be empty`);
-  }
-  const items = val.map((v, i) => parseFileWhen(v, `${ctx}/${key}[${i}]`));
-  return key === 'all_of' ? { all_of: items } : { any_of: items };
+  return parsePredicateBoolean<FileWhenPredicate>(raw, key, ctx, parseFileWhen, WhenPredicateInvalidError) as FileBooleanClause;
 }
 
 function parseAtomic(raw: Record<string, unknown>, ctx: string): FileAtomicClause {

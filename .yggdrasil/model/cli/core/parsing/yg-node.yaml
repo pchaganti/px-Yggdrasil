@@ -12,3 +12,4 @@ mapping:
   - source/cli/src/core/parsing/log-parser.ts
   - source/cli/src/core/parsing/file-when-parser.ts
   - source/cli/src/core/parsing/when-parser.ts
+  - source/cli/src/core/parsing/predicate-boolean.ts

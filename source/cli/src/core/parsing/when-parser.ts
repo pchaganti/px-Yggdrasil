@@ -8,6 +8,7 @@ import type {
   NodeClause,
 } from '../../model/when.js';
 import type { RelationType } from '../../model/graph.js';
+import { BOOLEAN_KEYS, parsePredicateBoolean } from './predicate-boolean.js';
 
 const RELATION_TYPES = new Set<string>([
   'calls',
@@ -19,7 +20,6 @@ const RELATION_TYPES = new Set<string>([
 ]);
 
 const ATOMIC_KEYS = new Set<string>(['relations', 'descendants', 'node']);
-const BOOLEAN_KEYS = new Set<string>(['all_of', 'any_of', 'not']);
 
 /**
  * Parse a raw YAML value into a WhenPredicate. `ctx` is a human-readable
@@ -60,18 +60,7 @@ export function parseWhen(raw: unknown, ctx: string): WhenPredicate {
 }
 
 function parseBoolean(raw: Record<string, unknown>, key: string, ctx: string): BooleanClause {
-  const val = raw[key];
-  if (key === 'not') {
-    return { not: parseWhen(val, `${ctx}/not`) };
-  }
-  if (!Array.isArray(val)) {
-    throw new Error(`${ctx}: '${key}' must be an array`);
-  }
-  if (val.length === 0) {
-    throw new Error(`${ctx}: '${key}' array must not be empty`);
-  }
-  const items = val.map((v, i) => parseWhen(v, `${ctx}/${key}[${i}]`));
-  return key === 'all_of' ? { all_of: items } : { any_of: items };
+  return parsePredicateBoolean<WhenPredicate>(raw, key, ctx, parseWhen) as BooleanClause;
 }
 
 function parseAtomic(raw: Record<string, unknown>, ctx: string): AtomicClause {
