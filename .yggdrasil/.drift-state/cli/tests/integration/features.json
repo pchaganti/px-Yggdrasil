@@ -1,5 +1,5 @@
 {
-  "hash": "3a86553f12ed6c694e597d8ff77b162382199bdadf4f8225482d14b82cfd4b5a",
+  "hash": "0dac9bf70a51d8e50d9ce16597e52765186a4419d90c60ee8eb85439a0586dc9",
   "files": {
     "own-subset:cli/tests/integration/features": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -11,8 +11,8 @@
     "source/cli/tests/integration/flow-support.test.ts": "8089568e7aa5708eab47ca3aac4db73b937795c009d0d36d0608a88a7f82070b",
     "source/cli/tests/integration/loader-hook.test.ts": "47c93a9c12ce8fa601f14656b0b39ac5128a07b2c0ac8f332b373fe5dcccd011",
     "source/cli/tests/integration/log-workflow.test.ts": "b11bf35e70f19279596c490c8237857d464e25bddf2899d7d7a3627c6e24b7c6",
-    "source/cli/tests/integration/migration-4.3-to-4.4.test.ts": "18d8506d216580ee2567fa1066f65160746dc80149d69b391e4b7c3b1a45c924",
-    "source/cli/tests/integration/ollama-reviewer.external.test.ts": "2a07d56495326b845a9fb46e8dffdd7b28606651afd430bc70ef635dd56f9a4c"
+    "source/cli/tests/integration/ollama-reviewer.external.test.ts": "2a07d56495326b845a9fb46e8dffdd7b28606651afd430bc70ef635dd56f9a4c",
+    "source/cli/tests/integration/migration-4.2-to-4.3.test.ts": "d67b09eb3a46b13456208df24ee16c0fdc3617fcefcf9b644974ae5eda7b1c16"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -24,7 +24,11 @@
     "source/cli/tests/integration/flow-support.test.ts": 1776177846281.4727,
     "source/cli/tests/integration/loader-hook.test.ts": 1778433712028.673,
     "source/cli/tests/integration/log-workflow.test.ts": 1778875948926.2815,
-    "source/cli/tests/integration/migration-4.3-to-4.4.test.ts": 1778837807149.1218,
+    "source/cli/tests/integration/migration-4.2-to-4.3.test.ts": 1778938763240.6704,
     "source/cli/tests/integration/ollama-reviewer.external.test.ts": 1776177846281.6396
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-16T13:42:18.151Z",
+    "prefix_hash": "382b99db66bcb7524ec6f0734c8bfe53760ae17e7f3177fba8a0f2736a50f86d"
   }
 }

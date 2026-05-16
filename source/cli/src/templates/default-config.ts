@@ -1,4 +1,4 @@
-export const DEFAULT_CONFIG = `version: "4.4.0"
+export const DEFAULT_CONFIG = `version: "4.3.0"
 
 # Quality thresholds
 quality:

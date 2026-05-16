@@ -1,10 +1,9 @@
 name: Core Migration Tests
 type: test-suite
-description: Unit tests for the migrator runner and each version-specific migration — migrator, to-4.0.0, to-4.3.0, to-4.4.0
+description: Unit tests for the migrator runner and each version-specific migration — migrator, to-4.0.0, to-4.3.0
 aspects: []
 relations: []
 mapping:
   - source/cli/tests/unit/core/migrator.test.ts
   - source/cli/tests/unit/migrations/to-4.0.0.test.ts
   - source/cli/tests/unit/migrations/to-4.3.0.test.ts
-  - source/cli/tests/unit/migrations/to-4.4.0.test.ts

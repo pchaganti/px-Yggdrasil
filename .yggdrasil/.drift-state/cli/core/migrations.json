@@ -1,5 +1,5 @@
 {
-  "hash": "087935459c657e9b0b5f09ed7cce0a7a8ec6fa61503d74f2ce6d2a8741596a3e",
+  "hash": "c466d2ed25e215bb584c6ca2b53ea57a05dbbaf2e791fe065da8fe8753545968",
   "files": {
     "own-subset:cli/core/migrations": "07bc7823ac9953fb68a52fea8196741be8e01c254d90b34870384af0a3ed7a9c",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -10,15 +10,14 @@
     ".yggdrasil/aspects/migration-idempotent/content.md": "facbb0f3868a9938808b717a335c75b291d263ecb40a7ebae6c2cb76e5333e06",
     ".yggdrasil/aspects/migration-bumps-version/yg-aspect.yaml": "f72c5510bca39bc37e04307dfeed1526c9162b04ebc8b0f2258e37220d6537dc",
     ".yggdrasil/aspects/migration-bumps-version/check.mjs": "80357b1095aa479ea1f33a38207643a4d53be71a02b69da4a27d3ac0582b1f43",
+    ".yggdrasil/aspects/schema-bump-bookkeeping/yg-aspect.yaml": "f12ab4d5dd295c0cbe17e828193abe0dab07d514f0a76e7b836b41190968c500",
+    ".yggdrasil/aspects/schema-bump-bookkeeping/content.md": "fa1e9e4420334f797ddde5113b143764149f08e2296bc9a5ed03a9cbc6eba75d",
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "9a5d512752a6f1fea12e50a6ef249cbf0aae2cc2097597057e4dd429df65f7c9",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678",
     ".yggdrasil/model/cli/core/migrator/yg-node.yaml": "b641bb974fa2139fb5fc5670f8889e91ea2f2f23600149b1a8eca98f1b953946",
-    "source/cli/src/migrations/to-4.3.0.ts": "b1ac32207559fe1341a9c9a48b90d070a1d68b052a6375118e7f342dee1af8c1",
-    "source/cli/src/migrations/index.ts": "f9a409787bf379939599e64a4c533bd7e2250bc9e1277704592116be5fa59624",
-    ".yggdrasil/aspects/schema-bump-bookkeeping/yg-aspect.yaml": "f12ab4d5dd295c0cbe17e828193abe0dab07d514f0a76e7b836b41190968c500",
-    ".yggdrasil/aspects/schema-bump-bookkeeping/content.md": "fa1e9e4420334f797ddde5113b143764149f08e2296bc9a5ed03a9cbc6eba75d",
     "source/cli/src/migrations/to-4.0.0.ts": "cf6b81f7b08f62e2015841f2b3a54628a5d7c44ecd953ed28cad67ffeb5943e6",
-    "source/cli/src/migrations/to-4.4.0.ts": "a1a0b006010efa8e8e92df10e6ed54d1b298df0dc2ecfd6e57a2a4f3ec349503"
+    "source/cli/src/migrations/to-4.3.0.ts": "2943de828be04b5570116ea23511134e45a363ae81145abfefc8ded1bd647cbb",
+    "source/cli/src/migrations/index.ts": "4347de6e63867aae250fe1b1cd794524a39cbf7e2ba9fd8d9cf68061e626e927"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -35,12 +34,11 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
     ".yggdrasil/model/cli/core/migrator/yg-node.yaml": 1778912998928.313,
     "source/cli/src/migrations/to-4.0.0.ts": 1778915756837.5725,
-    "source/cli/src/migrations/to-4.3.0.ts": 1778873963289.6868,
-    "source/cli/src/migrations/to-4.4.0.ts": 1778915774265.857,
-    "source/cli/src/migrations/index.ts": 1778836264717.8103
+    "source/cli/src/migrations/to-4.3.0.ts": 1778938666443.6206,
+    "source/cli/src/migrations/index.ts": 1778938677751.1096
   },
   "log": {
-    "last_entry_datetime": "2026-05-16T07:16:25.354Z",
-    "prefix_hash": "8fa199137280e3bb30cb6a9f78b341c09eb111a64e369c9fcce97f2bfac0720b"
+    "last_entry_datetime": "2026-05-16T13:40:04.206Z",
+    "prefix_hash": "76ccb751bd334cb1feff62b972114a848ad0043123cbd67552fc59370da401b5"
   }
 }

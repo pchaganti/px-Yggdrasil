@@ -51,21 +51,13 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
     });
   }
 
-  for (const { nodePath, message } of graph.nodeParseErrors ?? []) {
+  for (const { nodePath, messageData } of graph.nodeParseErrors ?? []) {
     issues.push({
       severity: 'error',
       code: 'yaml-invalid',
       rule: 'invalid-node-yaml',
-      ...issueMsg({
-        what: `yg-node.yaml parse error in ${nodePath}.`,
-        why: message,
-        next: `Fix the YAML in .yggdrasil/model/${nodePath}/yg-node.yaml.`,
-      }),
-      messageData: {
-        what: `yg-node.yaml parse error in ${nodePath}.`,
-        why: message,
-        next: `Fix the YAML in .yggdrasil/model/${nodePath}/yg-node.yaml.`,
-      },
+      ...issueMsg(messageData),
+      messageData,
       nodePath,
     });
   }
@@ -90,20 +82,13 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
         },
       });
     } else {
+      const archInvalid = archErr as { code: 'architecture-invalid'; messageData: IssueMessage };
       issues.push({
         severity: 'error',
         code: 'architecture-invalid',
         rule: 'architecture-invalid',
-        ...issueMsg({
-          what: archErr as string,
-          why: `yg-architecture.yaml failed to parse. No architecture-level rules can be checked until this is fixed.`,
-          next: `Fix the YAML syntax in yg-architecture.yaml. Run yg check again to verify.`,
-        }),
-        messageData: {
-          what: archErr as string,
-          why: `yg-architecture.yaml failed to parse. No architecture-level rules can be checked until this is fixed.`,
-          next: `Fix the YAML syntax in yg-architecture.yaml. Run yg check again to verify.`,
-        },
+        ...issueMsg(archInvalid.messageData),
+        messageData: archInvalid.messageData,
       });
     }
     return { issues, nodesScanned: 0 };
@@ -191,16 +176,8 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
             severity: 'error',
             code: 'yaml-invalid',
             rule: 'invalid-node-yaml',
-            ...issueMsg({
-              what: `yg-node.yaml parse error in ${parseError.nodePath}.`,
-              why: parseError.message,
-              next: `Fix the YAML in .yggdrasil/model/${parseError.nodePath}/yg-node.yaml.`,
-            }),
-            messageData: {
-              what: `yg-node.yaml parse error in ${parseError.nodePath}.`,
-              why: parseError.message,
-              next: `Fix the YAML in .yggdrasil/model/${parseError.nodePath}/yg-node.yaml.`,
-            },
+            ...issueMsg(parseError.messageData),
+            messageData: parseError.messageData,
             nodePath: parseError.nodePath,
           }],
           nodesScanned: 0,

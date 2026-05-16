@@ -8,3 +8,5 @@ Restore three items I had over-trimmed during the redesign — user feedback tha
 Phase 2: reclassified from adapter to template. Mapping narrowed to {default-config,platform,rules}.ts. Knowledge docs moved to cli/knowledge.
 ## [2026-05-16T08:39:07.651Z]
 installRulesForPlatform: normalize returned path with POSIX replace before returning — satisfies posix-paths-output aspect added via init flow
+## [2026-05-16T13:46:18.742Z]
+Update default-config.ts and knowledge/configuration.ts: version 4.4.0 → 4.3.0 as part of flattening 4.3.0+4.4.0 into single 4.3.0 release.

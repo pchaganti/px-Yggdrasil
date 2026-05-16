@@ -10,3 +10,5 @@ Make updateConfigVersion call graceful (try/catch) and update test fixture to in
 Fix non-idempotent rm calls in to-4.0.0.ts: added force:true to rm() in processNodesRecursive and resetDriftStateRecursive so re-runs don't throw ENOENT on already-deleted files.
 ## [2026-05-16T07:16:25.354Z]
 Fix to-4.0.0.ts: remove inline version bump from cleanConfig, call updateConfigVersion() at end of migrateTo4() conditioned on writes having occurred (schema-bump-bookkeeping). Fix to-4.4.0.ts: wrap updateConfigVersion() in try/catch, push failure to warnings instead of throwing.
+## [2026-05-16T13:40:04.206Z]
+Flatten 4.3.0+4.4.0 into single 4.3.0 release: merged to-4.4.0.ts (version-bump-only migration) into to-4.3.0.ts (adds log_required:false + when-predicate warning). Removed to-4.4.0.ts file and its MIGRATIONS entry. Updated index.ts description to reflect combined migration.

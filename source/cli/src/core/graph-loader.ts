@@ -18,10 +18,11 @@ import { parseSchema } from '../io/schema-parser.js';
 import { parseArchitecture } from '../io/architecture-parser.js';
 import { WhenPredicateInvalidError } from './parsing/file-when-parser.js';
 import type { ArchitectureLoadError } from '../model/graph.js';
+import type { IssueMessage } from '../model/validation.js';
 import { findYggRoot } from '../io/paths.js';
 import { detectVersion } from './migrator.js';
 
-const CLI_SUPPORTED_SCHEMA = '4.4.0';
+const CLI_SUPPORTED_SCHEMA = '4.3.0';
 
 function toModelPath(absolutePath: string, modelDir: string): string {
   return path.relative(modelDir, absolutePath).replace(/\\/g, '/').replace(/\/+$/, '');
@@ -58,7 +59,7 @@ export async function loadGraph(
 
   const modelDir = path.join(yggRoot, 'model');
   const nodes = new Map<string, GraphNode>();
-  const nodeParseErrors: Array<{ nodePath: string; message: string }> = [];
+  const nodeParseErrors: Array<{ nodePath: string; messageData: IssueMessage }> = [];
   try {
     await scanModelDirectory(modelDir, modelDir, null, nodes, nodeParseErrors);
   } catch (err) {
@@ -84,7 +85,7 @@ export async function loadGraph(
     aspects,
     flows,
     schemas,
-    rootPath: yggRoot,
+    rootPath: yggRoot.replace(/\\/g, '/').replace(/\/+$/, ''),
   };
 }
 
@@ -108,7 +109,13 @@ async function loadArchitecture(
         error: { code: 'when-predicate-invalid', message: error.message },
       };
     }
-    return { architecture: emptyArch, error: (error as Error).message };
+    const msg = (error as Error).message;
+    const archInvalidMsg: IssueMessage = {
+      what: msg,
+      why: `yg-architecture.yaml failed to parse. No architecture-level rules can be checked until this is fixed.`,
+      next: `Fix the YAML syntax in yg-architecture.yaml. Run yg check again to verify.`,
+    };
+    return { architecture: emptyArch, error: { code: 'architecture-invalid', messageData: archInvalidMsg } };
   }
 }
 
@@ -117,7 +124,7 @@ async function scanModelDirectory(
   modelDir: string,
   parent: GraphNode | null,
   nodes: Map<string, GraphNode>,
-  nodeParseErrors: Array<{ nodePath: string; message: string }>,
+  nodeParseErrors: Array<{ nodePath: string; messageData: IssueMessage }>,
 ): Promise<void> {
   const entries = await readSortedDir(dirPath);
   const hasNodeYaml = entries.some((e) => e.isFile() && e.name === 'yg-node.yaml');
@@ -137,7 +144,11 @@ async function scanModelDirectory(
     } catch (err) {
       nodeParseErrors.push({
         nodePath: graphPath,
-        message: (err as Error).message,
+        messageData: {
+          what: `yg-node.yaml parse error in ${graphPath}.`,
+          why: (err as Error).message,
+          next: `Fix the YAML in .yggdrasil/model/${graphPath}/yg-node.yaml.`,
+        },
       });
       return;
     }

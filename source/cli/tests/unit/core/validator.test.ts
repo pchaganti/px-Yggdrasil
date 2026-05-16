@@ -609,7 +609,7 @@ describe('validator', () => {
   it('scoped validate returns parse error instead of "not found" for broken node', async () => {
     const graph = createGraph({
       nodeParseErrors: [
-        { nodePath: 'broken/node', message: 'yg-node.yaml at broken/node/yg-node.yaml: file is empty' },
+        { nodePath: 'broken/node', messageData: { what: 'yg-node.yaml parse error in broken/node.', why: 'yg-node.yaml at broken/node/yg-node.yaml: file is empty', next: 'Fix the YAML in .yggdrasil/model/broken/node/yg-node.yaml.' } },
       ],
     });
     // The broken node is NOT in graph.nodes (it failed to parse)
@@ -623,7 +623,7 @@ describe('validator', () => {
   it('scoped validate returns parse error for child of broken node', async () => {
     const graph = createGraph({
       nodeParseErrors: [
-        { nodePath: 'broken', message: 'yg-node.yaml at broken/yg-node.yaml: file is empty' },
+        { nodePath: 'broken', messageData: { what: 'yg-node.yaml parse error in broken.', why: 'yg-node.yaml at broken/yg-node.yaml: file is empty', next: 'Fix the YAML in .yggdrasil/model/broken/yg-node.yaml.' } },
       ],
     });
     const result = await validate(graph, 'broken/child');
@@ -1294,7 +1294,7 @@ describe('validator — pipeline short-circuit', () => {
   });
 
   it('returns architecture-invalid for string architectureError', async () => {
-    const graph = createGraph({ architectureError: 'yg-architecture.yaml: bad syntax' });
+    const graph = createGraph({ architectureError: { code: 'architecture-invalid', messageData: { what: 'yg-architecture.yaml: bad syntax', why: 'yg-architecture.yaml failed to parse. No architecture-level rules can be checked until this is fixed.', next: 'Fix the YAML syntax in yg-architecture.yaml. Run yg check again to verify.' } } });
     const result = await validate(graph);
     expect(result.nodesScanned).toBe(0);
     expect(result.issues).toHaveLength(1);

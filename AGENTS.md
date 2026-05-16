@@ -48,7 +48,7 @@ This applies to CLI output only. Rules.ts (system prompt) provides the map — w
 
 ## Quality Gate
 
-**ALWAYS run `scripts/repo-check.sh` from repo root before ANY commit and ensure it passes cleanly.** Do not commit with failing checks. This is non-negotiable — every commit must leave the repo in a green state. The script runs typecheck, lint, build, tests with coverage, docs build, markdown lint, and `yg check` in sequence. Do not run these individually before committing — `repo-check.sh` covers everything.
+**ALWAYS run `scripts/repo-check.sh` from repo root before ANY commit and ensure it passes cleanly.** Do not commit with failing checks. This is non-negotiable — every commit must leave the repo in a green state. The script runs typecheck, lint, build, tests with coverage, docs build, markdown lint, and `yg check` in sequence. Do not run these individually before committing — `repo-check.sh` covers everything. The pre-commit hook also runs `repo-check.sh`, so there is no need to run it manually before committing either.
 
 ## Dogfood Issue Tracking
 
@@ -63,6 +63,10 @@ While working in this repo, if you encounter a problem with the CLI itself or wi
 ```
 
 Mark entries **RESOLVED** (with commit SHA) once fixed, or **DEFERRED** (with reason) when punted.
+
+## Memory
+
+Do NOT use the auto memory system. All persistent knowledge goes into CLAUDE.md or AGENTS.md — nowhere else.
 
 ## When Evaluating `yg check` or `scripts/repo-check.sh`
 

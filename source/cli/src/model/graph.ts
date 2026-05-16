@@ -1,5 +1,6 @@
 import type { WhenPredicate } from './when.js';
 import type { FileWhenPredicate } from './file-when.js';
+import type { IssueMessage } from './validation.js';
 
 export type {
   WhenPredicate,
@@ -193,7 +194,7 @@ export interface SchemaDef {
  * `when-predicate-invalid` (Spec §7 Klasa 6) vs. generic `architecture-invalid`.
  */
 export type ArchitectureLoadError =
-  | string
+  | { code: 'architecture-invalid'; messageData: IssueMessage }
   | { code: 'when-predicate-invalid'; message: string };
 
 export interface Graph {
@@ -203,8 +204,8 @@ export interface Graph {
   architectureError?: ArchitectureLoadError;
   /** Present when yg-config.yaml could not be parsed and loader used fallback config */
   configError?: string;
-  /** Parse errors for yg-node.yaml files (path -> message); reported as yaml-invalid */
-  nodeParseErrors?: Array<{ nodePath: string; message: string }>;
+  /** Parse errors for yg-node.yaml files; reported as yaml-invalid */
+  nodeParseErrors?: Array<{ nodePath: string; messageData: IssueMessage }>;
   /** All nodes indexed by their path (e.g. "orders/order-service") */
   nodes: Map<string, GraphNode>;
   aspects: AspectDef[];

@@ -34,3 +34,5 @@ Drop deprecated message field: issueMsg() returns only messageData; buildIssueMe
 Move IssueMessage type from formatters/message-builder to model/validation — engine→formatter import violation fix for boundaries enforcement
 ## [2026-05-16T05:58:05.841Z]
 Phase 4.7 (no-direct-fs): route all fs calls through io/graph-fs.ts; update hash and paths imports from utils/ to io/ following module moves
+## [2026-05-16T13:56:23.582Z]
+Fix what-why-next violation: read messageData from nodeParseErrors and architectureError instead of reconstructing IssueMessage inline. Align with updated Graph model where nodeParseErrors stores IssueMessage and architectureError removes bare string variant.

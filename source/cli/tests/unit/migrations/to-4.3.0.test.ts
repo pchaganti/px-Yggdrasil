@@ -48,4 +48,11 @@ describe('migrateTo43', () => {
     const result = await migrateTo43(ygg);
     expect(result.warnings.some((w) => w.includes('not found'))).toBe(true);
   });
+
+  it('emits warning about when predicate validation rules', async () => {
+    const ygg = await setupYgg('node_types:\n  module:\n    description: mod\n');
+    const result = await migrateTo43(ygg);
+    expect(result.warnings.some((w) => w.includes('when'))).toBe(true);
+    expect(result.warnings.some((w) => w.includes('type-without-when-with-mapping'))).toBe(true);
+  });
 });
