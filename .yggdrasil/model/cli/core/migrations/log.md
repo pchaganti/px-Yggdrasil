@@ -6,3 +6,5 @@ Fix migrateTo44: remove strict version pre-check (was checking for exactly 4.3.0
 Add migration-bumps-version AST aspect to enforce that migration files reference their target version; fix to-4.3.0.ts to call updateConfigVersion('4.3.0') — it previously modified architecture YAML without bumping the schema version in config
 ## [2026-05-15T19:39:59.328Z]
 Make updateConfigVersion call graceful (try/catch) and update test fixture to include yg-config.yaml so the migration properly exercises the version bump path in tests
+## [2026-05-16T06:51:33.685Z]
+Fix non-idempotent rm calls in to-4.0.0.ts: added force:true to rm() in processNodesRecursive and resetDriftStateRecursive so re-runs don't throw ENOENT on already-deleted files.

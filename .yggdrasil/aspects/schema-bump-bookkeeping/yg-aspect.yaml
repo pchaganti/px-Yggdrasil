@@ -1,0 +1,3 @@
+name: SchemaBumpBookkeeping
+description: "Migrations that perform writes must call updateConfigVersion() at the end; migrations that detect no changes and return early must not call it — preserving the migrator's version-based completion detection."
+reviewer: llm

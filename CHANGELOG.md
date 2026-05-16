@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- LLM aspect `migration-idempotent`: enforces that migrations inspect current state before acting, all write operations are idempotent (no unconditional appends or unguarded deletes), and `MigrationResult` accurately describes only what was actually changed. Applied to `migration` type via architecture defaults. Code fixes: `to-4.0.0.ts` — `rm()` calls in `processNodesRecursive` and `resetDriftStateRecursive` now use `{ force: true }`; `cleanConfig` now tracks `dirty` flag and skips write when no fields changed. `to-4.4.0.ts` — added early-return guard when version already equals `4.4.0`.
+- LLM aspect `top-level-error-handler`: enforces that `bin.ts` wraps `program.parse()` in a `try-catch` and registers an `unhandledRejection` handler — both producing `"Error: <message>\n"` on stderr and calling `process.exit(1)`. Applied to `entry-point` type via architecture defaults.
+- LLM aspect `provider-retry-contract`: enforces that all LLM provider HTTP calls go through `apiFetch()` (which handles 429 retry), `verifyAspect()` catches all errors and returns a fallback `AspectResponse`, and `isAvailable()` / `getContextWindowSize()` never throw. Applied to `llm-provider` type via architecture defaults. Code fix: `ollama.ts` replaced raw `fetch()` and a hand-rolled retry loop with `apiFetch()` from `api-utils.ts`. `apiFetch()` gained an optional `timeoutMs` parameter (default 60 s) so Ollama's health-check endpoints can use a 5 s timeout.
+- LLM aspect `schema-bump-bookkeeping`: enforces that migrations call `updateConfigVersion()` after all writes (and not on no-op early returns), and that `MigrationResult.actions` includes a version-update description when the call is made.
+- LLM aspect `test-deterministic`: enforces that test suites are reproducible — no `Math.random()`, no wall-clock assertions, fresh temp dirs per test in `beforeEach`/`afterEach`, no ambient environment dependencies.
+
 - Aspect `parser-contract`: renamed from `yaml-parser-contract`; content updated to cover any text format (YAML, JSON, NDJSON, plain text), not just YAML. Architecture default for `parser-adapter` type updated.
 - Aspect `posix-paths-output` (LLM): new aspect split from `posix-paths` covering output boundary — paths written to stdout/stored in outputs must use forward-slash separators. Old `posix-paths` aspect removed.
 - `cli/commands/find`: normalize `doc.path` with `.replace(/\\/g, '/')` before writing to stdout (posix-paths-output compliance).

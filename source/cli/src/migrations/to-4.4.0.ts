@@ -10,6 +10,10 @@ export async function migrateTo44(yggRoot: string): Promise<MigrationResult> {
     );
   }
 
+  if (current === '4.4.0') {
+    return { actions: ['yg-config.yaml already at 4.4.0 — no changes needed'], warnings: [] };
+  }
+
   await updateConfigVersion(yggRoot, '4.4.0');
 
   return {

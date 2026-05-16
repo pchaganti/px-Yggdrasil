@@ -2,3 +2,5 @@
 Add reviewer isolation: spawn from tmpdir (no CLAUDE.md loaded) and pass isolation flags to claude-code provider (no tools, skills, hooks, MCP, session persistence, or dynamic system prompt sections). Prevents caller-side context from polluting LLM reviewer verdicts.
 ## [2026-05-15T17:44:40.056Z]
 Phase 2: reclassified from adapter to llm-provider. Removed cli-base.ts (moved to cli/llm/subprocess-base).
+## [2026-05-16T06:58:02.423Z]
+Fix ollama.ts: replace raw fetch() and custom retry loop with apiFetch() from api-utils.ts — satisfies provider-retry-contract (retry responsibility belongs to apiFetch).

@@ -72,27 +72,32 @@ async function cleanConfig(
   const content = await readFile(configPath, 'utf-8');
   const config = parseYaml(content) as Record<string, unknown>;
 
-  delete config.name;
-  delete config.node_types;
+  let dirty = false;
+  if ('name' in config) { delete config.name; dirty = true; }
+  if ('node_types' in config) { delete config.node_types; dirty = true; }
 
   const quality = config.quality as Record<string, unknown> | undefined;
   if (quality) {
-    delete quality.min_artifact_length;
-    delete quality.context_budget;
-    if (Object.keys(quality).length === 0) {
-      delete config.quality;
-    }
+    if ('min_artifact_length' in quality) { delete quality.min_artifact_length; dirty = true; }
+    if ('context_budget' in quality) { delete quality.context_budget; dirty = true; }
+    if (Object.keys(quality).length === 0) { delete config.quality; }
   }
 
   if (config.parallel === undefined) {
     config.parallel = 1;
+    dirty = true;
     actions.push('Added parallel: 1 to config');
   }
 
-  config.version = '4.0.0';
+  if (config.version !== '4.0.0') {
+    config.version = '4.0.0';
+    dirty = true;
+  }
 
-  await writeFile(configPath, stringifyYaml(config, { lineWidth: 0 }), 'utf-8');
-  actions.push('Cleaned config: removed name, node_types, obsolete quality fields; set version to 4.0.0');
+  if (dirty) {
+    await writeFile(configPath, stringifyYaml(config, { lineWidth: 0 }), 'utf-8');
+    actions.push('Cleaned config: removed name, node_types, obsolete quality fields; set version to 4.0.0');
+  }
 }
 
 async function processNodesRecursive(
@@ -116,7 +121,7 @@ async function processNodesRecursive(
     }
 
     if (NODE_ARTIFACTS.includes(entry.name)) {
-      await rm(fullPath);
+      await rm(fullPath, { force: true });
       actions.push(`Deleted node artifact: ${posix(fullPath)}`);
     }
   }
@@ -257,7 +262,7 @@ async function resetDriftStateRecursive(
     if (entry.isDirectory()) {
       await resetDriftStateRecursive(fullPath, actions);
     } else if (entry.isFile() && entry.name.endsWith('.json')) {
-      await rm(fullPath);
+      await rm(fullPath, { force: true });
       actions.push(`Deleted drift state: ${posix(fullPath)}`);
     }
   }

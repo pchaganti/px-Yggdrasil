@@ -1,5 +1,6 @@
 import type { LlmProvider, AspectResponse } from './types.js';
 import { debugWrite } from '../utils/debug-log.js';
+import { apiFetch } from './api-utils.js';
 import { parseAspectResponse } from './cli-base.js';
 import type { LlmConfig } from '../model/graph.js';
 import { registerProvider } from './provider.js';
@@ -19,7 +20,7 @@ export class OllamaProvider implements LlmProvider {
 
   async isAvailable(): Promise<boolean> {
     try {
-      const res = await fetch(`${this.endpoint}/api/tags`, { signal: AbortSignal.timeout(5000) });
+      const res = await apiFetch(`${this.endpoint}/api/tags`, {}, 'ollama', 5000);
       return res.ok;
     } catch (err) {
       debugWrite(`[ollama] isAvailable: ${(err as Error).message}`);
@@ -29,12 +30,11 @@ export class OllamaProvider implements LlmProvider {
 
   async getContextWindowSize(): Promise<number | undefined> {
     try {
-      const res = await fetch(`${this.endpoint}/api/show`, {
+      const res = await apiFetch(`${this.endpoint}/api/show`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: this.model }),
-        signal: AbortSignal.timeout(5000),
-      });
+      }, 'ollama', 5000);
       if (!res.ok) return undefined;
       const data = await res.json() as Record<string, unknown>;
       const params = data.model_info as Record<string, unknown> | undefined;
@@ -61,27 +61,23 @@ export class OllamaProvider implements LlmProvider {
       format: 'json',
     };
 
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const res = await fetch(`${this.endpoint}/api/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-          signal: AbortSignal.timeout(60_000),
-        });
-        if (!res.ok) {
-          debugWrite(`[ollama] http_error attempt=${attempt}: ${res.status} ${res.statusText}`);
-          continue;
-        }
-        const data = await res.json() as { message?: { content?: string } };
-        const content = data.message?.content ?? '';
-        return parseAspectResponse(content) ?? fallback;
-      } catch (err) {
-        debugWrite(`[ollama] error attempt=${attempt}: ${(err as Error).message}`);
-        if (attempt === 1) return fallback;
+    try {
+      const res = await apiFetch(`${this.endpoint}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }, 'ollama');
+      if (!res.ok) {
+        debugWrite(`[ollama] http_error: ${res.status} ${res.statusText}`);
+        return fallback;
       }
+      const data = await res.json() as { message?: { content?: string } };
+      const content = data.message?.content ?? '';
+      return parseAspectResponse(content) ?? fallback;
+    } catch (err) {
+      debugWrite(`[ollama] error: ${(err as Error).message}`);
+      return fallback;
     }
-    return fallback;
   }
 }
 

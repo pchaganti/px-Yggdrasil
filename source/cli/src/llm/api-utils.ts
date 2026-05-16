@@ -22,12 +22,12 @@ export async function resolveMaxTokens(config: LlmConfig, provider: LlmProvider)
 }
 
 /** Retry-aware fetch. Retries once on 429 with 2s backoff. */
-export async function apiFetch(url: string, init: RequestInit, providerName: string): Promise<Response> {
+export async function apiFetch(url: string, init: RequestInit, providerName: string, timeoutMs = 60_000): Promise<Response> {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await fetch(url, {
         ...init,
-        signal: AbortSignal.timeout(60_000),
+        signal: AbortSignal.timeout(timeoutMs),
       });
       if (res.status === 429 && attempt === 0) {
         debugWrite(`[${providerName}] rate limited, retry in 2s`);

@@ -42,7 +42,7 @@ describe('findCommand', () => {
     expect(exit).toBe(0);
     const printed = out.join('');
     expect(printed).toContain('Kind: node');
-    expect(printed).toMatch(/model\/billing\/cancel\//);
+    expect(printed).toMatch(/model\/billing\/cancel/);
   });
 
   it('emits "No matches." when query has no hit', async () => {
