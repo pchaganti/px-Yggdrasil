@@ -19,6 +19,7 @@ export default defineConfig({
       { text: "CLI Reference", link: "/cli-reference" },
       { text: "Configuration", link: "/configuration" },
       { text: "Reviewers", link: "/reviewers" },
+      { text: "Dogfood Showcase", link: "/showcase" },
     ],
   },
 });
