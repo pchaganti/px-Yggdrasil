@@ -25,6 +25,7 @@ node_types:
 
   entry-point:
     description: "Executable entry point — the bin.ts dispatcher. Singleton; wraps all CLI commands and top-level error handling."
+    enforce: strict
     when:
       path: "source/cli/src/bin.ts"
     aspects:
@@ -37,6 +38,7 @@ node_types:
 
   command:
     description: "CLI command handler — registers a Commander subcommand and formats output. Every file must export register<X>Command."
+    enforce: strict
     when:
       all_of:
         - path: "source/cli/src/cli/*.ts"
@@ -55,6 +57,7 @@ node_types:
 
   engine:
     description: "Core domain logic — algorithms, validation, assembly, drift detection. No I/O, no console output, no LLM calls."
+    enforce: strict
     when:
       all_of:
         - path: "source/cli/src/core/**/*.ts"
@@ -73,6 +76,7 @@ node_types:
 
   migration:
     description: "Schema migration — upgrades a .yggdrasil graph from one version to the next. Named to-X.Y.Z.ts."
+    enforce: strict
     when:
       path: "source/cli/src/migrations/*.ts"
     aspects:
@@ -87,6 +91,7 @@ node_types:
 
   parser-adapter:
     description: "File-reading parser adapter — reads a file from disk and returns a typed model object. After R0.6, only true file-reading parsers remain here; in-memory parsers live in engine."
+    enforce: strict
     when:
       all_of:
         - path: "source/cli/src/io/*-parser.ts"
@@ -103,6 +108,7 @@ node_types:
 
   persistence-adapter:
     description: "Persistence adapter — file-system read/write helpers: stores, caches, scanners, graph I/O, atomic writes. After R0.3/R0.4/R0.5 every file-touching helper lives here."
+    enforce: strict
     when:
       any_of:
         - path: "source/cli/src/io/*-store.ts"
@@ -127,6 +133,7 @@ node_types:
 
   ast-adapter:
     description: "AST adapter — AST runtime, structural helpers, and report types for deterministic code analysis."
+    enforce: strict
     when:
       all_of:
         - path: "source/cli/src/ast/*.ts"
@@ -142,6 +149,7 @@ node_types:
 
   llm-provider:
     description: "LLM provider — vendor-specific adapter implementing the provider interface. One file per vendor."
+    enforce: strict
     when:
       path: "source/cli/src/llm/{anthropic,claude-code,codex,gemini-cli,google,ollama,openai}.ts"
     aspects:
@@ -155,6 +163,7 @@ node_types:
 
   llm-shared:
     description: "LLM shared infrastructure — aspect verifier, model fetcher, provider factory, API utilities, types, index. Plumbing; no uniform semantic contract."
+    enforce: strict
     when:
       all_of:
         - path: "source/cli/src/llm/*.ts"
@@ -169,6 +178,7 @@ node_types:
 
   llm-subprocess-base:
     description: "Subprocess-based LLM provider substrate — spawns child processes for CLI-native LLMs (claude-code, codex, gemini-cli). Exempt from deterministic; redaction is what matters."
+    enforce: strict
     when:
       path: "source/cli/src/llm/cli-base.ts"
     aspects:
@@ -181,6 +191,7 @@ node_types:
 
   formatter:
     description: "Output formatter — pure functions that assemble human/agent-readable CLI output strings. No I/O, no business logic."
+    enforce: strict
     when:
       path: "source/cli/src/formatters/*.ts"
     aspects:
@@ -193,6 +204,7 @@ node_types:
 
   types:
     description: "Type definitions — pure TypeScript type/interface/enum declarations. No runtime behavior, no executable statements."
+    enforce: strict
     when:
       path: "source/cli/src/model/*.ts"
     log_required: false
@@ -200,6 +212,7 @@ node_types:
 
   utility:
     description: "Pure helper utilities — no I/O, no side effects on import, no direct filesystem access. After R0.3 all fs-touching helpers are in persistence-adapter."
+    enforce: strict
     when:
       all_of:
         - path: "source/cli/src/utils/*.ts"
@@ -216,6 +229,7 @@ node_types:
 
   template:
     description: "Content template — generates agent-facing rules content and platform installation files."
+    enforce: strict
     when:
       path: "source/cli/src/templates/{default-config,platform,rules}.ts"
     aspects:
@@ -228,6 +242,7 @@ node_types:
 
   knowledge-doc:
     description: "Knowledge document — TypeScript module exporting a markdown string for yg knowledge read."
+    enforce: strict
     when:
       path: "source/cli/src/templates/knowledge/*.ts"
     log_required: false
@@ -235,6 +250,7 @@ node_types:
 
   schema-doc:
     description: "Schema reference document — YAML file describing the shape and fields of a graph element."
+    enforce: strict
     when:
       path: ".yggdrasil/schemas/*.yaml"
     log_required: false
@@ -242,8 +258,12 @@ node_types:
 
   test-suite:
     description: "Test suite — integration and unit tests guarding system invariants. Centralized under source/cli/tests/ (plural)."
+    enforce: strict
     when:
-      path: "source/cli/tests/**/*.ts"
+      all_of:
+        - path: "source/cli/tests/**/*.ts"
+        - not:
+            path: "source/cli/tests/fixtures/**"
     aspects:
       - test-deterministic
     log_required: false
@@ -251,6 +271,7 @@ node_types:
 
   doc-page:
     description: "Documentation page — user-facing markdown under docs/ for Yggdrasil adopters."
+    enforce: strict
     when:
       path: "docs/**/*.md"
     log_required: false
@@ -258,6 +279,7 @@ node_types:
 
   build-script:
     description: "Build/repo script — shell, JS, or TS scripts for CI and local development tasks under scripts/."
+    enforce: strict
     when:
       any_of:
         - path: "scripts/*.sh"
@@ -275,6 +297,7 @@ node_types:
 
   ci-config:
     description: "CI and tooling configuration — GitHub Actions workflows, TypeScript config, package manifests, test/build tooling config."
+    enforce: strict
     when:
       any_of:
         - path: ".github/workflows/*.yml"
@@ -286,7 +309,7 @@ node_types:
         - path: "source/cli/vitest*.config.ts"
         - path: "source/cli/tsup.config.ts"
     log_required: false
-    parents: [module]
+    parents: [project, module]
 
   repo-config:
     description: "Repository configuration and developer tooling — root-level dotfiles, dev tool config, docs site infrastructure, and CLI package configuration files."

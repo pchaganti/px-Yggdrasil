@@ -1,17 +1,13 @@
 name: Quality Config
 type: repo-config
-description: "Code quality tooling configuration: ESLint, Vitest, Prettier rules and ignore files"
+description: "Code quality tooling configuration: Prettier rules and ignore files, npm publish config"
 aspects: []
 relations: []
 mapping:
   - source/cli/.prettierrc
   - source/cli/.prettierignore
-  - source/cli/eslint.config.js
-  - source/cli/vitest.config.ts
-  - source/cli/vitest.external.config.ts
   - source/cli/.npmignore
   - source/cli/.npmrc
   - source/cli/README.md
-  - source/cli/tsup.config.ts
   - source/cli/graph-schemas/
   - source/cli/scripts/

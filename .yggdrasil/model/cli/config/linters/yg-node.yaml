@@ -1,0 +1,10 @@
+name: Linter Config
+type: ci-config
+description: "Static analysis and test runner configuration: ESLint, Vitest, and tsup build bundler settings"
+aspects: []
+relations: []
+mapping:
+  - source/cli/eslint.config.js
+  - source/cli/vitest.config.ts
+  - source/cli/vitest.external.config.ts
+  - source/cli/tsup.config.ts

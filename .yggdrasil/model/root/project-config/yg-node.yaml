@@ -8,9 +8,9 @@ mapping:
   - .devcontainer/
   - .editorconfig
   - .gitattributes
-  - .github/
+  - .github/CODEOWNERS
+  - .github/dependabot.yml
   - .gitignore
-  - .markdownlint-cli2.jsonc
   - .nvmrc
   - .rtk/
   - Yggdrasil.code-workspace
