@@ -4,7 +4,6 @@ import type {
   GraphNode,
   YggConfig,
   AspectDef,
-  FlowDef,
   Relation,
 } from '../model/graph.js';
 import type {
@@ -15,14 +14,19 @@ import type { FileContextData } from '../formatters/context-file.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import { readTextFile } from '../io/graph-fs.js';
 import { computeEffectiveAspects, getAspectSource } from './effective-aspects.js';
+import {
+  collectAncestors,
+  collectParticipatingFlows,
+  collectDependencyAncestors,
+  type DependencyAncestorInfo,
+} from './graph/index.js';
+
+// Re-export shim — preserves the public import path for legacy callers.
+// Folded into direct imports in a later cleanup sweep.
+export { collectAncestors, collectDependencyAncestors, type DependencyAncestorInfo };
 
 const STRUCTURAL_RELATION_TYPES = new Set(['uses', 'calls', 'extends', 'implements']);
 const EVENT_RELATION_TYPES = new Set(['emits', 'listens']);
-
-function collectParticipatingFlows(graph: Graph, node: GraphNode): FlowDef[] {
-  const paths = new Set<string>([node.path, ...collectAncestors(node).map((a) => a.path)]);
-  return graph.flows.filter((f) => f.nodes.some((n) => paths.has(n)));
-}
 
 
 // --- Layer builders (exported for testing) ---
@@ -48,7 +52,7 @@ export function buildHierarchyLayer(
     effectiveIds.size > 0 ? { aspects: [...effectiveIds].join(',') } : undefined;
   return {
     type: 'hierarchy',
-    label: `Module Context (${ancestor.path}/)`,
+    label: `Module Context (${ancestor.path})`,
     content,
     attrs,
   };
@@ -146,44 +150,6 @@ export function buildAspectLayer(aspect: AspectDef): ContextLayer {
   };
 }
 
-// --- Helpers (exported for testing) ---
-
-export function collectAncestors(node: GraphNode): GraphNode[] {
-  const ancestors: GraphNode[] = [];
-  let current = node.parent;
-  while (current) {
-    ancestors.unshift(current);
-    current = current.parent;
-  }
-  return ancestors;
-}
-
-export interface DependencyAncestorInfo {
-  path: string;
-  name: string;
-  type: string;
-  aspects: string[];
-}
-
-export function collectDependencyAncestors(
-  target: GraphNode,
-  _config: YggConfig,
-  graph: Graph,
-): DependencyAncestorInfo[] {
-  const ancestors = collectAncestors(target);
-
-  return ancestors.map((ancestor) => {
-    const effectiveIds = computeEffectiveAspects(ancestor, graph);
-    return {
-      path: ancestor.path,
-      name: ancestor.meta.name,
-      type: ancestor.meta.type,
-      aspects: [...effectiveIds],
-    };
-  });
-}
-
-
 /**
  * Compute how many nodes have a structural relation targeting nodePath.
  */
@@ -270,6 +236,7 @@ export function buildFileContextData(graph: Graph, filePath: string, ownerPath: 
   const node = graph.nodes.get(ownerPath);
   if (!node) throw new Error(`Node not found: ${ownerPath}`);
 
+  const normalizedFilePath = filePath.replace(/\\/g, '/').replace(/\/+$/, '');
   const ancestors = collectAncestors(node);
 
   const effectiveAspectIds = computeEffectiveAspects(node, graph);
@@ -296,7 +263,7 @@ export function buildFileContextData(graph: Graph, filePath: string, ownerPath: 
   const { count: dependentCount } = countDependents(graph, ownerPath);
 
   return {
-    filePath,
+    filePath: normalizedFilePath,
     ownerPath,
     ownerType: node.meta.type,
     aspects,

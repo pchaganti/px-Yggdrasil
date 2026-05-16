@@ -1,0 +1,2 @@
+## [2026-05-16T19:18:57.383Z]
+Initial population: pure graph-query helpers extracted from context-builder and when-evaluator. Reason: establish a canonical home so future graph queries land in one place. Three helpers move here in this task — traversal (collectAncestors, collectDescendants), flows (collectParticipatingFlows), dependencies (collectDependencyAncestors + DependencyAncestorInfo). Two more files move in subsequent tasks (effective-aspects, context-files). Aspect locking the location is added after the moves.

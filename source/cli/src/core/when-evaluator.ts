@@ -7,6 +7,7 @@ import type {
   DescendantsClause,
   NodeClause,
 } from '../model/when.js';
+import { collectDescendants } from './graph/traversal.js';
 
 /**
  * Evaluate a WhenPredicate against a (node, graph) pair.
@@ -97,13 +98,3 @@ function evaluateNodeClause(nc: NodeClause, node: GraphNode): boolean {
   return true;
 }
 
-function collectDescendants(node: GraphNode): GraphNode[] {
-  const out: GraphNode[] = [];
-  const queue = [...node.children];
-  while (queue.length > 0) {
-    const curr = queue.shift()!;
-    out.push(curr);
-    for (const c of curr.children) queue.push(c);
-  }
-  return out;
-}
