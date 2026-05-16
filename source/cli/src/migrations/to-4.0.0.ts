@@ -2,6 +2,7 @@ import { readdir, readFile, writeFile, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { MigrationResult } from '../core/migrator.js';
+import { updateConfigVersion } from '../core/migrator.js';
 
 const NODE_ARTIFACTS = ['responsibility.md', 'interface.md', 'internals.md'];
 
@@ -34,6 +35,15 @@ export async function migrateTo4(yggRoot: string): Promise<MigrationResult> {
   const driftDir = path.join(yggRoot, '.drift-state');
   if (await dirExists(driftDir)) {
     await resetDriftState(driftDir, actions);
+  }
+
+  if (actions.length > 0) {
+    try {
+      await updateConfigVersion(yggRoot, '4.0.0');
+      actions.push('Updated yg-config.yaml: version → 4.0.0');
+    } catch (err) {
+      warnings.push(`Failed to update yg-config.yaml version: ${(err as Error).message}`);
+    }
   }
 
   return { actions, warnings };
@@ -89,14 +99,9 @@ async function cleanConfig(
     actions.push('Added parallel: 1 to config');
   }
 
-  if (config.version !== '4.0.0') {
-    config.version = '4.0.0';
-    dirty = true;
-  }
-
   if (dirty) {
     await writeFile(configPath, stringifyYaml(config, { lineWidth: 0 }), 'utf-8');
-    actions.push('Cleaned config: removed name, node_types, obsolete quality fields; set version to 4.0.0');
+    actions.push('Cleaned config: removed name, node_types, obsolete quality fields');
   }
 }
 

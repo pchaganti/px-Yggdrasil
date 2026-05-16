@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { migrateTo4 } from '../../../src/migrations/to-4.0.0.js';
-import { mkdtemp, writeFile, readFile, mkdir, stat } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile, mkdir, stat, rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { parse as parseYaml } from 'yaml';
@@ -27,8 +27,14 @@ async function fileExists(filePath: string): Promise<boolean> {
   }
 }
 
+const dirsToCleanup: string[] = [];
+afterEach(async () => {
+  for (const d of dirsToCleanup.splice(0)) await rm(d, { recursive: true, force: true });
+});
+
 async function createV3Root(): Promise<string> {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig4-'));
+  dirsToCleanup.push(dir);
   await makeDir(dir, 'model');
   await makeDir(dir, 'flows');
   await makeDir(dir, 'aspects');

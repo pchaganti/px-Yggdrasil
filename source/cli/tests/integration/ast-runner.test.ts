@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
+import { rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runAstAspect, AstRunnerError } from '../../src/ast/runner.js';
@@ -7,6 +8,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CWD = path.resolve(__dirname, '../..');  // source/cli/
 
 describe('ast runner', () => {
+  const tmpDirs: string[] = [];
+  afterEach(() => {
+    for (const d of tmpDirs.splice(0)) rmSync(d, { recursive: true, force: true });
+  });
   it('runs check.mjs and returns violations for bad file', async () => {
     const result = await runAstAspect({
       aspectDir: 'tests/fixtures/ast-aspects/async-fs',
@@ -32,7 +37,7 @@ describe('ast runner', () => {
     // Create a temp fixture inline
     const { mkdtempSync, writeFileSync, mkdirSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
-    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-')); tmpDirs.push(dir);
     writeFileSync(path.join(dir, 'check.mjs'), 'export function check(a, b) { return []; }');
     const tmpFile = path.join(dir, 'x.ts');
     writeFileSync(tmpFile, 'const x = 1;');
@@ -47,7 +52,7 @@ describe('ast runner', () => {
   it('AST_CHECK_THROWN with stack in message', async () => {
     const { mkdtempSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
-    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-')); tmpDirs.push(dir);
     writeFileSync(path.join(dir, 'check.mjs'), "export function check(ctx) { throw new Error('boom'); }");
     const tmpFile = path.join(dir, 'x.ts');
     writeFileSync(tmpFile, 'const x = 1;');
@@ -63,7 +68,7 @@ describe('ast runner', () => {
   it('AST_CHECK_DEFAULT_EXPORT when check is default export', async () => {
     const { mkdtempSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
-    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-')); tmpDirs.push(dir);
     writeFileSync(path.join(dir, 'check.mjs'), 'export default function check(ctx) { return []; }');
     const tmpFile = path.join(dir, 'x.ts');
     writeFileSync(tmpFile, 'const x = 1;');
@@ -74,7 +79,7 @@ describe('ast runner', () => {
   it('suppressed violation is filtered from results', async () => {
     const { mkdtempSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
-    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-')); tmpDirs.push(dir);
     // check.mjs: flag all call_expressions — no @chrisdudek/yg/ast import needed,
     // we use the raw tree-sitter API via ctx.files[].ast directly.
     writeFileSync(path.join(dir, 'check.mjs'), `
@@ -108,7 +113,7 @@ export function check(ctx) {
   it('AST_CHECK_ASYNC when check returns a Promise', async () => {
     const { mkdtempSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
-    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-')); tmpDirs.push(dir);
     writeFileSync(path.join(dir, 'check.mjs'), 'export async function check(ctx) { return []; }');
     const tmpFile = path.join(dir, 'x.ts');
     writeFileSync(tmpFile, 'const x = 1;');
@@ -120,7 +125,7 @@ export function check(ctx) {
   it('AST_CHECK_RETURN_SHAPE when check returns non-array', async () => {
     const { mkdtempSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
-    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-')); tmpDirs.push(dir);
     writeFileSync(path.join(dir, 'check.mjs'), 'export function check(ctx) { return "not-an-array"; }');
     const tmpFile = path.join(dir, 'x.ts');
     writeFileSync(tmpFile, 'const x = 1;');
@@ -132,7 +137,7 @@ export function check(ctx) {
   it('parse error node is detected and reported as AST_PARSE_ERROR', async () => {
     const { mkdtempSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
-    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-')); tmpDirs.push(dir);
     writeFileSync(path.join(dir, 'check.mjs'), 'export function check(ctx) { return []; }');
     const tmpFile = path.join(dir, 'bad.ts');
     // Syntactically invalid TypeScript
@@ -145,7 +150,7 @@ export function check(ctx) {
   it('AST_LOADER_RESOLVE_FAILED when check.mjs does not exist', async () => {
     const { mkdtempSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
-    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-')); tmpDirs.push(dir);
     const tmpFile = path.join(dir, 'x.ts');
     writeFileSync(tmpFile, 'const x = 1;');
     // No check.mjs written → import() will throw ERR_MODULE_NOT_FOUND
@@ -157,7 +162,7 @@ export function check(ctx) {
   it('AST_CHECK_NOT_EXPORTED when check.mjs has no named check export', async () => {
     const { mkdtempSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
-    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-')); tmpDirs.push(dir);
     writeFileSync(path.join(dir, 'check.mjs'), 'export const foo = 42;');
     const tmpFile = path.join(dir, 'x.ts');
     writeFileSync(tmpFile, 'const x = 1;');
@@ -169,7 +174,7 @@ export function check(ctx) {
   it('AST_CHECK_NOT_FUNCTION when check is exported as non-function', async () => {
     const { mkdtempSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
-    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-')); tmpDirs.push(dir);
     writeFileSync(path.join(dir, 'check.mjs'), 'export const check = 42;');
     const tmpFile = path.join(dir, 'x.ts');
     writeFileSync(tmpFile, 'const x = 1;');
@@ -181,7 +186,7 @@ export function check(ctx) {
   it('AST_NO_PARSER_FOR_EXTENSION for unsupported file extension', async () => {
     const { mkdtempSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
-    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-')); tmpDirs.push(dir);
     writeFileSync(path.join(dir, 'check.mjs'), 'export function check(ctx) { return []; }');
     const tmpFile = path.join(dir, 'data.yaml');
     writeFileSync(tmpFile, 'key: value\n');
@@ -193,7 +198,7 @@ export function check(ctx) {
   it('re-throws raw error when check.mjs has a JS syntax error (not MODULE_NOT_FOUND)', async () => {
     const { mkdtempSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
-    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-')); tmpDirs.push(dir);
     // Invalid JS syntax — import() throws SyntaxError, not MODULE_NOT_FOUND
     writeFileSync(path.join(dir, 'check.mjs'), 'export function check( }');
     const tmpFile = path.join(dir, 'x.ts');
@@ -206,7 +211,7 @@ export function check(ctx) {
   it('AST_SOURCE_PARSE_ERROR traverses clean nodes before finding error (findFirstErrorNode coverage)', async () => {
     const { mkdtempSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
-    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-'));
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-')); tmpDirs.push(dir);
     writeFileSync(path.join(dir, 'check.mjs'), 'export function check(ctx) { return []; }');
     const tmpFile = path.join(dir, 'mixed.ts');
     // Valid statement first, then invalid — findFirstErrorNode traverses clean lexical_declaration

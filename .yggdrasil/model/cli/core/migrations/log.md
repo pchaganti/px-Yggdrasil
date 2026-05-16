@@ -8,3 +8,5 @@ Add migration-bumps-version AST aspect to enforce that migration files reference
 Make updateConfigVersion call graceful (try/catch) and update test fixture to include yg-config.yaml so the migration properly exercises the version bump path in tests
 ## [2026-05-16T06:51:33.685Z]
 Fix non-idempotent rm calls in to-4.0.0.ts: added force:true to rm() in processNodesRecursive and resetDriftStateRecursive so re-runs don't throw ENOENT on already-deleted files.
+## [2026-05-16T07:16:25.354Z]
+Fix to-4.0.0.ts: remove inline version bump from cleanConfig, call updateConfigVersion() at end of migrateTo4() conditioned on writes having occurred (schema-bump-bookkeeping). Fix to-4.4.0.ts: wrap updateConfigVersion() in try/catch, push failure to warnings instead of throwing.

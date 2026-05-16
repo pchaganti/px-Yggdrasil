@@ -1,24 +1,29 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { runMigrations, detectVersion, updateConfigVersion } from '../../../src/core/migrator.js';
 import type { Migration, MigrationResult } from '../../../src/core/migrator.js';
-import { mkdtemp, writeFile, readFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 
+const dirsToCleanup: string[] = [];
+afterEach(async () => {
+  for (const d of dirsToCleanup.splice(0)) await rm(d, { recursive: true, force: true });
+});
+
 describe('detectVersion', () => {
   it('reads version from yg-config.yaml', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-'));
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-')); dirsToCleanup.push(dir);
     await writeFile(path.join(dir, 'yg-config.yaml'), 'version: "3.0.0"\nname: "test"\n');
     expect(await detectVersion(dir)).toBe('3.0.0');
   });
 
   it('returns null when no config exists', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-'));
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-')); dirsToCleanup.push(dir);
     expect(await detectVersion(dir)).toBeNull();
   });
 
   it('returns null when version field missing', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-'));
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-')); dirsToCleanup.push(dir);
     await writeFile(path.join(dir, 'yg-config.yaml'), 'name: "test"\n');
     expect(await detectVersion(dir)).toBeNull();
   });
@@ -26,7 +31,7 @@ describe('detectVersion', () => {
 
 describe('runMigrations', () => {
   it('runs applicable migrations in order', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-'));
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-')); dirsToCleanup.push(dir);
     const order: string[] = [];
     const migrations: Migration[] = [
       { to: '5.0.0', description: 'future', run: async () => { order.push('5'); return { actions: ['5'], warnings: [] }; } },
@@ -38,7 +43,7 @@ describe('runMigrations', () => {
   });
 
   it('skips migrations at or below current version', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-'));
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-')); dirsToCleanup.push(dir);
     const migrations: Migration[] = [
       { to: '3.0.0', description: 'old', run: async () => ({ actions: ['old'], warnings: [] }) },
       { to: '4.0.0', description: 'current', run: async () => ({ actions: ['current'], warnings: [] }) },
@@ -48,7 +53,7 @@ describe('runMigrations', () => {
   });
 
   it('returns empty for invalid current version', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-'));
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-')); dirsToCleanup.push(dir);
     const migrations: Migration[] = [
       { to: '4.0.0', description: 'v4', run: async () => ({ actions: ['4'], warnings: [] }) },
     ];
@@ -57,7 +62,7 @@ describe('runMigrations', () => {
   });
 
   it('skips migrations with invalid target version', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-'));
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-')); dirsToCleanup.push(dir);
     const migrations: Migration[] = [
       { to: 'bad', description: 'invalid', run: async () => ({ actions: ['bad'], warnings: [] }) },
       { to: '4.0.0', description: 'v4', run: async () => ({ actions: ['4'], warnings: [] }) },
@@ -70,7 +75,7 @@ describe('runMigrations', () => {
 
 describe('updateConfigVersion', () => {
   it('updates existing version field', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-'));
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-')); dirsToCleanup.push(dir);
     const configPath = path.join(dir, 'yg-config.yaml');
     await writeFile(configPath, 'version: "3.0.0"\nquality:\n  max_direct_relations: 10\n');
     await updateConfigVersion(dir, '4.0.0');
@@ -80,7 +85,7 @@ describe('updateConfigVersion', () => {
   });
 
   it('prepends version when field is missing', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-'));
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-')); dirsToCleanup.push(dir);
     const configPath = path.join(dir, 'yg-config.yaml');
     await writeFile(configPath, 'quality:\n  max_direct_relations: 10\n');
     await updateConfigVersion(dir, '4.0.0');

@@ -1,11 +1,21 @@
-import { describe, it, expect, vi } from 'vitest';
-import { writeFile, mkdir, rm } from 'node:fs/promises';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { writeFile, mkdir, rm, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseConfig } from '../../../src/io/config-parser.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_DIR = path.join(__dirname, '../../fixtures/sample-project/.yggdrasil');
+const FIXTURES_DIR = path.join(__dirname, '../../fixtures');
+
+afterEach(async () => {
+  const entries = await readdir(FIXTURES_DIR).catch(() => []);
+  await Promise.all(
+    entries
+      .filter((e) => e.startsWith('tmp-config') || e.startsWith('tmp-no-llm') || e.startsWith('tmp-reviewer'))
+      .map((e) => rm(path.join(FIXTURES_DIR, e), { recursive: true, force: true })),
+  );
+});
 
 describe('config-parser', () => {
   it('parses valid yg-config.yaml correctly', async () => {

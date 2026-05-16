@@ -1,2 +1,10 @@
 name: Silent Missing Files
 description: "Optional graph files and state files return empty defaults instead of throwing on absence"
+when:
+  any_of:
+    - node:
+        type: parser-adapter
+    - node:
+        type: persistence-adapter
+    - node:
+        type: engine

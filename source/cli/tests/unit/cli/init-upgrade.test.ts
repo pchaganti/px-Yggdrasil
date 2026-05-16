@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { mkdtemp, writeFile, mkdir, readFile, stat } from 'node:fs/promises';
+import { describe, it, expect, afterEach } from 'vitest';
+import { mkdtemp, writeFile, mkdir, readFile, stat, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runVersionUpgrade } from '../../../src/cli/init.js';
@@ -19,8 +19,14 @@ async function scaffoldExistingYgg(projectRoot: string, version: string): Promis
 }
 
 describe('runVersionUpgrade', () => {
+  const dirsToCleanup: string[] = [];
+  afterEach(async () => {
+    for (const d of dirsToCleanup.splice(0)) await rm(d, { recursive: true, force: true });
+  });
+
   it('refreshes schemas, bumps version, installs rules for platform', async () => {
     const projectRoot = await mkdtemp(path.join(tmpdir(), 'yg-init-upgrade-'));
+    dirsToCleanup.push(projectRoot);
     const yggRoot = await scaffoldExistingYgg(projectRoot, '4.0.0');
 
     const result = await runVersionUpgrade(
@@ -56,6 +62,7 @@ describe('runVersionUpgrade', () => {
 
   it('installs the rules file for a different platform on re-run', async () => {
     const projectRoot = await mkdtemp(path.join(tmpdir(), 'yg-init-upgrade-'));
+    dirsToCleanup.push(projectRoot);
     const yggRoot = await scaffoldExistingYgg(projectRoot, '4.0.0');
 
     const result = await runVersionUpgrade(

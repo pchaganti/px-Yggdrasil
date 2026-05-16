@@ -1,10 +1,20 @@
-import { describe, it, expect } from 'vitest';
-import { writeFile, mkdir, rm } from 'node:fs/promises';
+import { describe, it, expect, afterEach } from 'vitest';
+import { writeFile, mkdir, rm, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadSecrets, mergeLlmConfig } from '../../../src/io/secrets-parser.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const FIXTURES_DIR = path.join(__dirname, '../../fixtures');
+
+afterEach(async () => {
+  const entries = await readdir(FIXTURES_DIR).catch(() => []);
+  await Promise.all(
+    entries
+      .filter((e) => e.startsWith('tmp-secrets'))
+      .map((e) => rm(path.join(FIXTURES_DIR, e), { recursive: true, force: true })),
+  );
+});
 
 describe('secrets-parser', () => {
   it('loads api_key from secrets and merges with config', async () => {

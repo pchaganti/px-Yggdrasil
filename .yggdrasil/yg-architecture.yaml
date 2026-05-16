@@ -78,6 +78,7 @@ node_types:
     aspects:
       - migration-idempotent
       - migration-bumps-version
+      - schema-bump-bookkeeping
       - posix-paths-source
     parents: [module]
     relations:
@@ -243,6 +244,8 @@ node_types:
     description: "Test suite — integration and unit tests guarding system invariants. Centralized under source/cli/tests/ (plural)."
     when:
       path: "source/cli/tests/**/*.ts"
+    aspects:
+      - test-deterministic
     log_required: false
     parents: [module]
 

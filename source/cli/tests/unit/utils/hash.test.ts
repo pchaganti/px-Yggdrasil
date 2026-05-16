@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { writeFile, mkdir, rm } from 'node:fs/promises';
+import { describe, it, expect, afterEach } from 'vitest';
+import { writeFile, mkdir, rm, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -15,7 +15,19 @@ import type { TrackedFile } from '../../../src/core/context-files.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const HASH_TMP_PREFIXES = ['tmp-hash', 'tmp-expand', 'tmp-htf', 'tmp-perfile', 'tmp-hashpath'];
+
 describe('hash', () => {
+  afterEach(async () => {
+    const fixturesDir = path.join(__dirname, '../../fixtures');
+    const entries = await readdir(fixturesDir).catch(() => []);
+    await Promise.all(
+      entries
+        .filter((e) => HASH_TMP_PREFIXES.some((p) => e.startsWith(p)))
+        .map((e) => rm(path.join(fixturesDir, e), { recursive: true, force: true })),
+    );
+  });
+
   describe('hashString', () => {
     it('returns deterministic sha256 hash (hex)', () => {
       const h1 = hashString('hello');

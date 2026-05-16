@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { writeFile, mkdir, rm, mkdtemp } from 'node:fs/promises';
+import { describe, it, expect, afterEach } from 'vitest';
+import { writeFile, rm, mkdtemp } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -8,9 +8,14 @@ import { parseArchitecture } from '../../../src/io/architecture-parser.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe('parseArchitecture', () => {
+  const dirsToCleanup: string[] = [];
+  afterEach(async () => {
+    for (const d of dirsToCleanup.splice(0)) await rm(d, { recursive: true, force: true });
+  });
+
   async function writeTmp(fileName: string, content: string): Promise<string> {
-    const tmpDir = path.join(__dirname, `../../fixtures/tmp-arch-${Date.now()}-${Math.random()}`);
-    await mkdir(tmpDir, { recursive: true });
+    const tmpDir = await mkdtemp(path.join(tmpdir(), 'yg-arch-'));
+    dirsToCleanup.push(tmpDir);
     const file = path.join(tmpDir, fileName);
     await writeFile(file, content, 'utf-8');
     return file;

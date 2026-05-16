@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { writeFile, mkdir, rm, readFile } from 'node:fs/promises';
+import { describe, it, expect, afterEach } from 'vitest';
+import { writeFile, mkdir, rm, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -12,6 +12,16 @@ import {
 import type { DriftState } from '../../../src/model/drift.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const FIXTURES_DIR = path.join(__dirname, '../../fixtures');
+
+afterEach(async () => {
+  const entries = await readdir(FIXTURES_DIR).catch(() => []);
+  await Promise.all(
+    entries
+      .filter((e) => e.startsWith('tmp-drift'))
+      .map((e) => rm(path.join(FIXTURES_DIR, e), { recursive: true, force: true })),
+  );
+});
 
 describe('drift-state-store', () => {
   it('reads existing drift state from per-node directory format', async () => {

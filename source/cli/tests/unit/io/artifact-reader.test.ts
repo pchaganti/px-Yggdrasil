@@ -1,11 +1,21 @@
-import { describe, it, expect } from 'vitest';
-import { writeFile, mkdir, rm } from 'node:fs/promises';
+import { describe, it, expect, afterEach } from 'vitest';
+import { writeFile, mkdir, rm, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readArtifacts } from '../../../src/io/artifact-reader.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_BASE = path.join(__dirname, '../../fixtures/sample-project/.yggdrasil');
+const FIXTURES_DIR = path.join(__dirname, '../../fixtures');
+
+afterEach(async () => {
+  const entries = await readdir(FIXTURES_DIR).catch(() => []);
+  await Promise.all(
+    entries
+      .filter((e) => e.startsWith('tmp-artifacts'))
+      .map((e) => rm(path.join(FIXTURES_DIR, e), { recursive: true, force: true })),
+  );
+});
 
 describe('artifact-reader', () => {
   it('reads all .md files from a directory', async () => {

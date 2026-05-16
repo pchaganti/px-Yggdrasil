@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -13,6 +13,9 @@ describe('evaluateFileWhen', () => {
   beforeEach(() => {
     tmpDir = mkdtempSync(join(tmpdir(), 'fwe-'));
     cache = new FileContentCache();
+  });
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
   });
 
   function ctx(filePath: string) {

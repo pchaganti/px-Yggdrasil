@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, cp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, cp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -14,7 +14,11 @@ const BROKEN_FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'sample-project-
 async function withFixtureCopy<T>(fixture: string, fn: (cwd: string) => Promise<T>): Promise<T> {
   const root = await mkdtemp(path.join(tmpdir(), 'ygg-build-pipeline-'));
   await cp(fixture, root, { recursive: true });
-  return fn(root);
+  try {
+    return await fn(root);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 }
 
 describe('context pipeline integration', () => {
