@@ -1,5 +1,5 @@
 {
-  "hash": "4973b3e279560b3285e06e449801a91f5db71ec67ba427286697fa1cef2ececa",
+  "hash": "ff8a9348bbe5de2e64bbedd75145b956daf2ea35530127c10f9baae96b04d88f",
   "files": {
     "own-subset:cli/commands/build-context": "a21cf56daf083a32f19f0dc31b2773eb4d78f1ed4fc251f030ea904ec504f484",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -21,8 +21,8 @@
     ".yggdrasil/model/cli/core/context/yg-node.yaml": "ee82a930cc1a5f132fa468e0fe302b28c65e8cd9acb6e3a51fb6bb020b991b0a",
     ".yggdrasil/model/cli/core/validator/yg-node.yaml": "ef438cee4ec17c4038342a62859840177d8bdeb4fb347816e47c2af798790f2e",
     ".yggdrasil/model/cli/formatters/yg-node.yaml": "fb61d002a5d1e55140c484b4150a88f831771716d5896d995386c36e99b1a3af",
-    ".yggdrasil/model/cli/utils/yg-node.yaml": "dc04f86e1dab9c579eddb8242fd2ff6e0b89ba7e75f504f255c8a669fac10157",
-    "source/cli/src/cli/build-context.ts": "6466b07b57c0faa93a41c2afc8fcf33aa6e4abecfe605e34d363f5c0a43b086f"
+    ".yggdrasil/model/cli/utils/yg-node.yaml": "eff96ee912b1a89b17a6065990992660c87d1ddb3e668defc5b462e57a083466",
+    "source/cli/src/cli/build-context.ts": "a57ea1d0b6a241a51e2509a8ad06a065e9a909bc5d77b8371d80a61487970667"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -44,11 +44,11 @@
     ".yggdrasil/model/cli/core/context/yg-node.yaml": 1778872081120.968,
     ".yggdrasil/model/cli/core/validator/yg-node.yaml": 1778872081121.2773,
     ".yggdrasil/model/cli/formatters/yg-node.yaml": 1778866513265.6265,
-    ".yggdrasil/model/cli/utils/yg-node.yaml": 1778866829697.229,
-    "source/cli/src/cli/build-context.ts": 1778867906598.5623
+    ".yggdrasil/model/cli/utils/yg-node.yaml": 1778910449057.5657,
+    "source/cli/src/cli/build-context.ts": 1778910385863.8389
   },
   "log": {
-    "last_entry_datetime": "2026-05-15T17:52:31.033Z",
-    "prefix_hash": "7dbb19e5a9b5bb8d19f26eeb21aad7ffe65cf9daa5e2f2f3c099febd92580c6f"
+    "last_entry_datetime": "2026-05-16T05:57:54.796Z",
+    "prefix_hash": "2b1cd0943e3b8441022fdb32a5af93ae338430a9327660be757dfc3ac4fc2fc7"
   }
 }

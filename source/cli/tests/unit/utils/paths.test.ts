@@ -7,7 +7,7 @@ import {
   normalizeMappingPaths,
   normalizeProjectRelativePath,
   toGraphPath,
-} from '../../../src/utils/paths.js';
+} from '../../../src/io/paths.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_PROJECT = path.join(__dirname, '../../fixtures/sample-project');
@@ -117,7 +117,7 @@ describe('paths', () => {
 
   describe('getPackageRoot', () => {
     it('returns a string path', async () => {
-      const { getPackageRoot } = await import('../../../src/utils/paths.js');
+      const { getPackageRoot } = await import('../../../src/io/paths.js');
       const root = getPackageRoot();
       expect(typeof root).toBe('string');
       expect(root.length).toBeGreaterThan(0);

@@ -4,8 +4,8 @@ import { loadGraph } from '../core/graph-loader.js';
 import { debugWrite } from '../utils/debug-log.js';
 import { runAstAspect } from '../ast/runner.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
-import { normalizeMappingPaths } from '../utils/paths.js';
-import { expandMappingPaths } from '../utils/hash.js';
+import { normalizeMappingPaths } from '../io/paths.js';
+import { expandMappingPaths } from '../io/hash.js';
 import type { Violation } from '../ast/types.js';
 
 export function registerAstTestCommand(program: Command): void {

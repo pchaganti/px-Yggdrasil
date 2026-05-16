@@ -4,8 +4,9 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { loadGraph } from '../core/graph-loader.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
+import { appendToDebugLog } from '../io/debug-log-writer.js';
 import type { Graph, OwnerResult } from '../model/graph.js';
-import { normalizeMappingPaths, normalizeProjectRelativePath, projectRootFromGraph, resolveFileArg } from '../utils/paths.js';
+import { normalizeMappingPaths, normalizeProjectRelativePath, projectRootFromGraph, resolveFileArg } from '../io/paths.js';
 
 function normalizeForMatch(inputPath: string): string {
   return inputPath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
@@ -45,7 +46,7 @@ export function registerOwnerCommand(program: Command): void {
     .action(async (options: { file: string }) => {
       try {
         const graph = await loadGraph(process.cwd());
-        initDebugLog(graph.rootPath, graph.config.debug ?? false);
+        initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
         const repoRoot = projectRootFromGraph(graph.rootPath);
         const repoRelative = resolveFileArg(repoRoot, options.file);
         const result = findOwner(graph, repoRoot, repoRelative);

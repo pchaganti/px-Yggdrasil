@@ -32,3 +32,5 @@ R0.1 Phase 4: populate messageData via issueMsg() helper on every ValidationIssu
 Drop deprecated message field: issueMsg() returns only messageData; buildIssueMessage import removed; de-duplication uses messageData.what. R0.1 Phase 5.
 ## [2026-05-15T19:28:50.442Z]
 Move IssueMessage type from formatters/message-builder to model/validation — engine→formatter import violation fix for boundaries enforcement
+## [2026-05-16T05:58:05.841Z]
+Phase 4.7 (no-direct-fs): route all fs calls through io/graph-fs.ts; update hash and paths imports from utils/ to io/ following module moves

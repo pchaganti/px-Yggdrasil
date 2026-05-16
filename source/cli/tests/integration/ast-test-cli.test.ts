@@ -5,8 +5,8 @@ import { cp, mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { loadGraph } from '../../src/core/graph-loader.js';
 import { runAstAspect, AstRunnerError } from '../../src/ast/runner.js';
-import { normalizeMappingPaths } from '../../src/utils/paths.js';
-import { expandMappingPaths } from '../../src/utils/hash.js';
+import { normalizeMappingPaths } from '../../src/io/paths.js';
+import { expandMappingPaths } from '../../src/io/hash.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SAMPLE_PROJECT = path.join(__dirname, '../fixtures/sample-project');

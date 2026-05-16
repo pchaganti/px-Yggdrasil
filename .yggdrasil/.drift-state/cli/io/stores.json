@@ -1,5 +1,5 @@
 {
-  "hash": "d9247ff543116545f1ea196f6547e4feb0b28e968ff42c1fe46e19a7ec8ba294",
+  "hash": "e5d3f96bb5cb49566a4a0474c431b116860a2076f19bea1e15ce89e4ca9d8c4d",
   "files": {
     "own-subset:cli/io/stores": "812bc2707c14379888511f98af25b08a91660070527056aa4b20111a07d5ef99",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -7,18 +7,21 @@
     ".yggdrasil/aspects/silent-missing-files/yg-aspect.yaml": "ac618b4ddfc9f9c844899feb9ee6334f02ee634ee550d2bfbd8e7f5e080bf665",
     ".yggdrasil/aspects/silent-missing-files/content.md": "fe5f8f88a4e6a49f20fba61836d04c3796f5c97c3a7c1c366582f16cd4ec93b7",
     ".yggdrasil/aspects/atomic-write-contract/yg-aspect.yaml": "f9253113a91b6b526f5ad3f433e96a7a060106468a927b1024398eefd0f299ff",
-    ".yggdrasil/aspects/atomic-write-contract/check.mjs": "1a89f89accaaca06b723eb98e772679c88785f7f5833c498a1cf0f2ff2a9721f",
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "9a5d512752a6f1fea12e50a6ef249cbf0aae2cc2097597057e4dd429df65f7c9",
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
     ".yggdrasil/model/cli/model/drift/yg-node.yaml": "8818cf691e94ebf918022c7af9ff4f200a3d9cdf4a95a0e10f7e3c476e12320e",
     "source/cli/src/io/artifact-reader.ts": "88ceb67755c0725962910cf0bc31e756dd50ffa64127d09c47a79dc43935c5cc",
     "source/cli/src/io/drift-state-store.ts": "a2e3498efa500fb8f2cec255b94950c4ad4d590255f2458a9b4c243853d0859a",
     "source/cli/src/io/find-index.ts": "6a8946d19296900714fea3b6409f173243a7f8a562f8f71c3a7729ca319b2b8f",
-    "source/cli/src/io/graph-fs.ts": "573f3c63eabb814ea48a51902a0035b3e61d04be9c5df83c7bb74ccdae6c5037",
     "source/cli/src/io/log-store.ts": "4ebbef7fcae0d9e443192831f82e31a04c9261af60710446c2b4a55b5e6d3913",
     "source/cli/src/io/repo-scanner.ts": "ab2f8f748c3745a6f82117ddbf09ffbb7995bf245484b4cd0f0a11a72137b52a",
-    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "9a5d512752a6f1fea12e50a6ef249cbf0aae2cc2097597057e4dd429df65f7c9",
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678"
+    ".yggdrasil/aspects/atomic-write-contract/check.mjs": "59c43e3a0f819dbdcc49d1fc25423ebd450f0f2c149bf5a356e16c386f0ffbd5",
+    "source/cli/src/io/debug-log-writer.ts": "ba34244ed4decc481b0bf40046742667e34a4aaabdfa5a03b402d35b7685c361",
+    "source/cli/src/io/graph-fs.ts": "b216722295d1e2e3c53811ee610421c58ed44024a0cd96f7aa95cdff38145d82",
+    "source/cli/src/io/hash.ts": "3f0ea46fbe5a3dfad436ed38c1d6a75fc6507fdf11e7a5d84ca36f808e14a01c",
+    "source/cli/src/io/paths.ts": "7963ce71c72939400cff032aaba1030885ebcd0dde1e4110b2bfce8a7fd2dc95"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -26,21 +29,24 @@
     ".yggdrasil/aspects/silent-missing-files/yg-aspect.yaml": 1775580564981.8828,
     ".yggdrasil/aspects/silent-missing-files/content.md": 1776494731302.076,
     ".yggdrasil/aspects/atomic-write-contract/yg-aspect.yaml": 1778874790096.6377,
-    ".yggdrasil/aspects/atomic-write-contract/check.mjs": 1778876670288.7156,
+    ".yggdrasil/aspects/atomic-write-contract/check.mjs": 1778910490051.8596,
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1778878288425.0745,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     ".yggdrasil/model/cli/model/drift/yg-node.yaml": 1776177846203.4216,
     "source/cli/src/io/artifact-reader.ts": 1776177846230.4192,
+    "source/cli/src/io/debug-log-writer.ts": 1778910277504.241,
     "source/cli/src/io/drift-state-store.ts": 1778848166883.539,
     "source/cli/src/io/find-index.ts": 1778853255814.8872,
-    "source/cli/src/io/graph-fs.ts": 1778851771527.5347,
+    "source/cli/src/io/graph-fs.ts": 1778910103922.5334,
+    "source/cli/src/io/hash.ts": 1778867304550.6165,
     "source/cli/src/io/log-store.ts": 1778862209597.0725,
+    "source/cli/src/io/paths.ts": 1778838962663.4138,
     "source/cli/src/io/repo-scanner.ts": 1778847561619.7393
   },
   "log": {
-    "last_entry_datetime": "2026-05-15T17:44:23.192Z",
-    "prefix_hash": "cc3c9e56f3170cd567296d8f6d036a7a1b3981cd564d7564325dbc8925b9678b"
+    "last_entry_datetime": "2026-05-16T05:58:12.005Z",
+    "prefix_hash": "6e01f7a350f0952714431e281aeea439558489338bfa4cf63a0baa51a2627910"
   }
 }

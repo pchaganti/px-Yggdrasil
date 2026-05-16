@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- AST aspect `no-direct-fs`: enforces that engine and utility files cannot import `node:fs` or `node:fs/promises` directly — all filesystem calls must go through `io/graph-fs.ts` or other persistence-adapter helpers. Applied to `engine` and `utility` types via architecture defaults.
+- `io/graph-fs.ts`: new wrapper exports `fileAccess`, `lstatFile`, `statPath`, `fileExistsSync` delegating to Node fs primitives; engine and utility files now use these instead of importing fs directly.
+- `io/hash.ts`, `io/paths.ts`: moved from `utils/` to `io/` and reclassified as persistence-adapter (these files touch the filesystem and belong in that layer).
+- `io/debug-log-writer.ts`: new persistence-adapter file containing the `appendFileSync` implementation; `utils/debug-log.ts` now accepts an injected `appendFn` parameter so the utility layer stays fs-free.
+- `atomic-write-contract` AST aspect: added exemption for `debug-log-writer.ts` (uses append semantics, not atomic-write semantics — exemption is appropriate).
+- `check.ts`, `type-suggest.ts`: added `debugWrite()` to outer catch blocks to satisfy the `diagnostic-logging` aspect.
+- `core/approve-reviewer.ts`: fixed POSIX path normalization — `projectRoot` and `sourceFilePaths` now use `.replace(/\\/g, '/').replace(/\/+$/, '')` to satisfy the `posix-paths` aspect.
+
 - AST aspect `no-nondeterminism-direct`: enforces that engine files cannot call `Date.now()`, `Math.random()`, or access `process.env` directly — all non-deterministic inputs must be injected as parameters by the CLI layer. Applied to `engine` type via architecture defaults.
 - `logAdd` (engine): refactored `nowMs` from optional to required parameter — `Date.now()` call moved out of the engine into the CLI layer (`log.ts`). Tests updated to pass a fixed `nowMs` value for determinism.
 - Bug fix: all AST aspect `check.mjs` path filter patterns prefixed with `**/` to match actual file paths (e.g. `source/cli/src/cli/log.ts`) via minimatch glob. Without the prefix, the path filter never matched and aspects were silently skipped.

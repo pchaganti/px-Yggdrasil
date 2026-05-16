@@ -14,3 +14,5 @@ R0.4b: cascade from cli/io metadata update (atomic-write.ts added to mapping)
 R0.5: graph-loader.ts now routes all fs calls through io/graph-fs.ts (readSortedDir, readTextFile)
 ## [2026-05-15T13:21:54.776Z]
 R0.6: update file-when-parser import — graph-loader.ts now imports WhenPredicateInvalidError from ./parsing/file-when-parser (moved from io/). No logic change.
+## [2026-05-16T05:58:05.723Z]
+Phase 4.7 (no-direct-fs): route all fs calls through io/graph-fs.ts; update hash and paths imports from utils/ to io/ following module moves

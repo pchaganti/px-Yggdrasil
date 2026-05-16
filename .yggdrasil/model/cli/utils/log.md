@@ -12,3 +12,5 @@ Fix posix-paths violation in expandMappingPaths: file branch now normalizes path
 R0.4b: atomic-write.ts removed from utils — moved to io/atomic-write.ts
 ## [2026-05-15T17:44:40.295Z]
 Phase 2: reclassified from adapter to utility. Mapping changed from directory glob to explicit file list.
+## [2026-05-16T05:58:12.129Z]
+Phase 4.7 (no-direct-fs): removed hash.ts and paths.ts (moved to io/); refactored debug-log.ts to use injected AppendFn instead of importing appendFileSync directly

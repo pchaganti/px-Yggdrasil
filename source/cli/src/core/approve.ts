@@ -9,11 +9,11 @@ import {
   writeNodeDriftState,
   garbageCollectDriftState,
 } from '../io/drift-state-store.js';
-import { hashTrackedFiles } from '../utils/hash.js';
+import { hashTrackedFiles } from '../io/hash.js';
 import { collectTrackedFiles } from './context-files.js';
-import { normalizeMappingPaths } from '../utils/paths.js';
+import { normalizeMappingPaths } from '../io/paths.js';
 import { computeEffectiveAspects } from './effective-aspects.js';
-import { readFile, lstat } from 'node:fs/promises';
+import { readTextFile, lstatFile } from '../io/graph-fs.js';
 import { createHash } from 'node:crypto';
 import { debugWrite } from '../utils/debug-log.js';
 import path from 'node:path';
@@ -392,14 +392,14 @@ interface LogSnapshot {
 async function snapshotLog(yggRoot: string, nodePath: string): Promise<LogSnapshot> {
   const logPath = path.join(yggRoot, 'model', nodePath, 'log.md');
   try {
-    const st = await lstat(logPath);
+    const st = await lstatFile(logPath);
     if (st.isSymbolicLink()) {
       throw new Error(`log.md at .yggdrasil/model/${nodePath}/log.md is a symlink — refuse to approve`);
     }
     if (st.nlink > 1) {
       throw new Error(`log.md at .yggdrasil/model/${nodePath}/log.md has multiple hardlinks — refuse to approve`);
     }
-    const content = await readFile(logPath, 'utf-8');
+    const content = await readTextFile(logPath);
     return { content, existed: true };
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -503,7 +503,7 @@ export async function loadSourceFiles(
   const results: Array<{ path: string; content: string }> = [];
   for (const filePath of filePaths) {
     try {
-      const content = await readFile(path.join(projectRoot, filePath), 'utf-8');
+      const content = await readTextFile(path.join(projectRoot, filePath));
       results.push({ path: filePath, content });
     } catch (err) {
       debugWrite(`[approve] skipped unreadable file ${filePath}: ${(err as Error).message}`);

@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { loadGraph } from '../core/graph-loader.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
+import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { runCheck } from '../core/check.js';
 import type { CheckIssue, CheckResult } from '../core/check.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
@@ -16,7 +17,7 @@ export function registerCheckCommand(program: Command): void {
       try {
         const cwd = process.cwd();
         const graph = await loadGraph(cwd, { tolerateInvalidConfig: true });
-        initDebugLog(graph.rootPath, graph.config.debug ?? false);
+        initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
 
         // Get git-tracked files for unmapped-files check
         let gitFiles: string[] | null = null;
@@ -40,6 +41,7 @@ export function registerCheckCommand(program: Command): void {
         process.exit(hasErrors ? 1 : 0);
       } catch (error) {
         const msg = (error as Error).message;
+        debugWrite(`[check] error: ${msg}`);
         if (msg.includes('No .yggdrasil/ directory found') || msg.includes('does not exist')) {
           process.stderr.write(chalk.red(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`));
         } else {

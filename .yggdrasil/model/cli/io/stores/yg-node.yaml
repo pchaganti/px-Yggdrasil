@@ -8,8 +8,11 @@ relations:
     type: uses
 mapping:
   - source/cli/src/io/artifact-reader.ts
+  - source/cli/src/io/debug-log-writer.ts
   - source/cli/src/io/drift-state-store.ts
   - source/cli/src/io/find-index.ts
   - source/cli/src/io/graph-fs.ts
+  - source/cli/src/io/hash.ts
   - source/cli/src/io/log-store.ts
+  - source/cli/src/io/paths.ts
   - source/cli/src/io/repo-scanner.ts

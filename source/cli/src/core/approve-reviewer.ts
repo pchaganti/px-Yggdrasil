@@ -7,7 +7,7 @@ import { verifyAspects } from '../llm/aspect-verifier.js';
 import { resolveMaxTokens } from '../llm/api-utils.js';
 import { commitApproval, resolveAspects, loadSourceFiles } from './approve.js';
 import { collectTrackedFiles } from './context-files.js';
-import { hashTrackedFiles } from '../utils/hash.js';
+import { hashTrackedFiles } from '../io/hash.js';
 import path from 'node:path';
 
 export interface LlmApproveResult extends ApproveResult {
@@ -46,14 +46,13 @@ export async function runApproveWithReviewer(
     return { ...result };
   }
 
-  const projectRoot = path.dirname(graph.rootPath);
+  const projectRoot = path.dirname(graph.rootPath).replace(/\\/g, '/').replace(/\/+$/, '');
   const trackedFiles = collectTrackedFiles(node, graph);
   const { fileHashes } = await hashTrackedFiles(projectRoot, trackedFiles, undefined, []);
-  const yggPrefix = path.relative(projectRoot, graph.rootPath).split(/[\\/]/).join('/');
-  const sourceFilePaths = Object.keys(fileHashes).filter(f => {
-    const normalized = f.replace(/\\/g, '/').replace(/\/+$/, '');
-    return !normalized.startsWith(yggPrefix);
-  });
+  const yggPrefix = path.relative(projectRoot, graph.rootPath).replace(/\\/g, '/').replace(/\/+$/, '');
+  const sourceFilePaths = Object.keys(fileHashes)
+    .map(f => f.replace(/\\/g, '/').replace(/\/+$/, ''))
+    .filter(f => !f.startsWith(yggPrefix));
   const sourceFiles = await loadSourceFiles(sourceFilePaths, projectRoot);
 
   const nodeDescription = node.meta.description ?? '';

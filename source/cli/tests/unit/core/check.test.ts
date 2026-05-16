@@ -14,7 +14,7 @@ import {
 } from '../../../src/core/check.js';
 import type { CheckIssue } from '../../../src/core/check.js';
 import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
-import { hashTrackedFiles } from '../../../src/utils/hash.js';
+import { hashTrackedFiles } from '../../../src/io/hash.js';
 import { collectTrackedFiles } from '../../../src/core/context-files.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

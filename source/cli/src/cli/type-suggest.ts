@@ -7,7 +7,8 @@ import { classifyFile } from '../core/type-classifier.js';
 import { FileContentCache } from '../io/file-content-cache.js';
 import { renderTrace } from '../formatters/predicate-trace.js';
 import { loadRootGitignoreStack, isIgnoredByStack } from '../io/repo-scanner.js';
-import { projectRootFromGraph, resolveFileArg } from '../utils/paths.js';
+import { projectRootFromGraph, resolveFileArg } from '../io/paths.js';
+import { debugWrite } from '../utils/debug-log.js';
 
 /**
  * Core logic for `yg type-suggest --file <path>`.
@@ -110,6 +111,7 @@ export function registerTypeSuggestCommand(program: Command): void {
         await typeSuggestCommand(options.file, process.cwd());
       } catch (error) {
         const msg = (error as Error).message;
+        debugWrite(`[type-suggest] error: ${msg}`);
         if (msg.includes('No .yggdrasil/ directory found') || msg.includes('does not exist')) {
           process.stderr.write(
             chalk.red(`Error: No .yggdrasil/ directory found. Run 'yg init' first.\n`),

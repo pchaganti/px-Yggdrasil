@@ -1,5 +1,5 @@
 {
-  "hash": "c7e1451260133a20e88ed6ebf72fe2f4c1796c3fa6153ec3c97392f6dc660169",
+  "hash": "010f3ad72c101f55d8aba16c986fed8e77081d2867a6e6ee7f44562424a4b1da",
   "files": {
     "own-subset:cli/core/validator": "75d1d1d5b26df8b51ca62d9f24c5712dd6fa2d93d1c1ae81213d18c19a528c22",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -10,8 +10,6 @@
     ".yggdrasil/aspects/what-why-next/content.md": "bbe835c049672dd09076de1be3a2dd2ed70c38e31a327f98176f1a0d15fb0838",
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": "20f321091b4f489efbf167feea9d42d73f7cffb21ea2e86958e565b550da164b",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
-    ".yggdrasil/aspects/no-direct-fs/yg-aspect.yaml": "1a218639a559be63f83f7e3f6604c710b9eff09936c51f3cc08ba521b41fd599",
-    ".yggdrasil/aspects/no-direct-fs/check.mjs": "7419c97758e5b959eb745cf9a7752dfe4dde9505ef7e4add6325a43b5abf1038",
     ".yggdrasil/aspects/no-direct-console/yg-aspect.yaml": "a0054a1a26651b5b6e2c02d8557d4dcb87e85e2169e68f9fcf144e691a65ee6d",
     ".yggdrasil/aspects/no-direct-console/check.mjs": "7419c97758e5b959eb745cf9a7752dfe4dde9505ef7e4add6325a43b5abf1038",
     ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": "c51515d479377b0abc3d3d84a6c4d1bd43f81f3323966b2e0773282c2c445be7",
@@ -22,9 +20,11 @@
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
     ".yggdrasil/model/cli/model/validation/yg-node.yaml": "0a96c3bcb0c32f24e4978d1350be8f91e4284aa323734801e7abcc2ed014120f",
-    ".yggdrasil/model/cli/utils/yg-node.yaml": "dc04f86e1dab9c579eddb8242fd2ff6e0b89ba7e75f504f255c8a669fac10157",
-    "source/cli/src/core/validator.ts": "028ea0873d01f6658e3ef90b8df4187f7652503ed72714a487eaf3fc7ecf46eb",
-    "source/cli/src/core/effective-aspects.ts": "c10b0c3e927fcff8e00f3acb3ab50bb10dc919654045376fd36d37638a6b2da5"
+    "source/cli/src/core/effective-aspects.ts": "c10b0c3e927fcff8e00f3acb3ab50bb10dc919654045376fd36d37638a6b2da5",
+    ".yggdrasil/aspects/no-direct-fs/yg-aspect.yaml": "e743ba7636ca33791e03269153cb54f032442178800d60ec33c51ad536dcfcad",
+    ".yggdrasil/aspects/no-direct-fs/check.mjs": "cd876c851ae5b00d1fcca7af16bd4a3e69c0cda516b4c7c47aecd56518eeba8c",
+    ".yggdrasil/model/cli/utils/yg-node.yaml": "eff96ee912b1a89b17a6065990992660c87d1ddb3e668defc5b462e57a083466",
+    "source/cli/src/core/validator.ts": "77933490161fcfb2a3cc5e93799f641c339579d1f358c09cd3daf6bf5e604a3e"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -35,8 +35,8 @@
     ".yggdrasil/aspects/what-why-next/content.md": 1778855561245.8606,
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": 1775580563004.8235,
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
-    ".yggdrasil/aspects/no-direct-fs/yg-aspect.yaml": 1778864403467.7827,
-    ".yggdrasil/aspects/no-direct-fs/check.mjs": 1778864424633.1697,
+    ".yggdrasil/aspects/no-direct-fs/yg-aspect.yaml": 1778910639156.5027,
+    ".yggdrasil/aspects/no-direct-fs/check.mjs": 1778910630785.582,
     ".yggdrasil/aspects/no-direct-console/yg-aspect.yaml": 1778864405391.7302,
     ".yggdrasil/aspects/no-direct-console/check.mjs": 1778864425699.0137,
     ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": 1778876045985.2808,
@@ -47,12 +47,12 @@
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     ".yggdrasil/model/cli/model/validation/yg-node.yaml": 1776177846203.675,
-    ".yggdrasil/model/cli/utils/yg-node.yaml": 1778866829697.229,
-    "source/cli/src/core/validator.ts": 1778872988632.1772,
+    ".yggdrasil/model/cli/utils/yg-node.yaml": 1778910449057.5657,
+    "source/cli/src/core/validator.ts": 1778910210706.1401,
     "source/cli/src/core/effective-aspects.ts": 1776494731308.7373
   },
   "log": {
-    "last_entry_datetime": "2026-05-15T19:28:50.442Z",
-    "prefix_hash": "3c8131fa70c0d59057a1ced954eece66c5bf7c297a28a34e4eb97987c59616e5"
+    "last_entry_datetime": "2026-05-16T05:58:05.841Z",
+    "prefix_hash": "0417a3ccdc346135d83066fc42e3d84482d274be4f5f40a77a228061d74514f7"
   }
 }

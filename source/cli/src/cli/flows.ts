@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { loadGraph } from '../core/graph-loader.js';
 import { initDebugLog } from '../utils/debug-log.js';
+import { appendToDebugLog } from '../io/debug-log-writer.js';
 import type { Graph } from '../model/graph.js';
 
 export function formatFlowsOutput(graph: Graph): string {
@@ -31,7 +32,7 @@ export function registerFlowsCommand(program: Command): void {
     .action(async () => {
       try {
         const graph = await loadGraph(process.cwd());
-        initDebugLog(graph.rootPath, graph.config.debug ?? false);
+        initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
         process.stdout.write(formatFlowsOutput(graph));
       } catch (error) {
         const err = error as NodeJS.ErrnoException;

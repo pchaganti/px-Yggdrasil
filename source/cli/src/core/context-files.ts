@@ -2,7 +2,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import type { Graph, GraphNode } from '../model/graph.js';
 import type { DriftCategory, TrackedFileLayer } from '../model/drift.js';
-import { normalizeMappingPaths } from '../utils/paths.js';
+import { normalizeMappingPaths } from '../io/paths.js';
 import { collectAncestors } from './context-builder.js';
 import { computeEffectiveAspects } from './effective-aspects.js';
 

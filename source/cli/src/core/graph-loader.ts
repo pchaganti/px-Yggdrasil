@@ -18,7 +18,7 @@ import { parseSchema } from '../io/schema-parser.js';
 import { parseArchitecture } from '../io/architecture-parser.js';
 import { WhenPredicateInvalidError } from './parsing/file-when-parser.js';
 import type { ArchitectureLoadError } from '../model/graph.js';
-import { findYggRoot } from '../utils/paths.js';
+import { findYggRoot } from '../io/paths.js';
 import { detectVersion } from './migrator.js';
 
 const CLI_SUPPORTED_SCHEMA = '4.4.0';

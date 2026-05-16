@@ -10,7 +10,7 @@ import {
   perFileHashes,
   hashTrackedFiles,
   expandMappingPaths,
-} from '../../../src/utils/hash.js';
+} from '../../../src/io/hash.js';
 import type { TrackedFile } from '../../../src/core/context-files.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

@@ -1,13 +1,11 @@
 {
-  "hash": "717ee28966c3d1af2694152b99919a0d8a71052ee7520aecfcfe21d677ad4eaa",
+  "hash": "8c646b37143ee63b14f89f75b27aa58e7282010a9f79eb753ff7f672d4262e5a",
   "files": {
     "own-subset:cli/core/context": "f024c01db6a22a541747c0be08271eb81721e0870a5fae237bcf3068e1a3db3b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": "20f321091b4f489efbf167feea9d42d73f7cffb21ea2e86958e565b550da164b",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
-    ".yggdrasil/aspects/no-direct-fs/yg-aspect.yaml": "1a218639a559be63f83f7e3f6604c710b9eff09936c51f3cc08ba521b41fd599",
-    ".yggdrasil/aspects/no-direct-fs/check.mjs": "7419c97758e5b959eb745cf9a7752dfe4dde9505ef7e4add6325a43b5abf1038",
     ".yggdrasil/aspects/no-direct-console/yg-aspect.yaml": "a0054a1a26651b5b6e2c02d8557d4dcb87e85e2169e68f9fcf144e691a65ee6d",
     ".yggdrasil/aspects/no-direct-console/check.mjs": "7419c97758e5b959eb745cf9a7752dfe4dde9505ef7e4add6325a43b5abf1038",
     ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": "c51515d479377b0abc3d3d84a6c4d1bd43f81f3323966b2e0773282c2c445be7",
@@ -18,17 +16,19 @@
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
     ".yggdrasil/model/cli/model/context/yg-node.yaml": "64e105e412ef925827cde4f59346925000f405ec38cd36676ed4318a34590a33",
     ".yggdrasil/model/cli/model/drift/yg-node.yaml": "8818cf691e94ebf918022c7af9ff4f200a3d9cdf4a95a0e10f7e3c476e12320e",
-    ".yggdrasil/model/cli/utils/yg-node.yaml": "dc04f86e1dab9c579eddb8242fd2ff6e0b89ba7e75f504f255c8a669fac10157",
-    "source/cli/src/core/context-builder.ts": "870b62c147dd232feebde80a9f1effb74cb0f6c06a931df9d259f7269d359089",
-    "source/cli/src/core/context-files.ts": "f1cb689ff88cecc9dbcf7c68c04ecdfdd6d43a603e898902e0d9a368b349765f"
+    ".yggdrasil/aspects/no-direct-fs/yg-aspect.yaml": "e743ba7636ca33791e03269153cb54f032442178800d60ec33c51ad536dcfcad",
+    ".yggdrasil/aspects/no-direct-fs/check.mjs": "cd876c851ae5b00d1fcca7af16bd4a3e69c0cda516b4c7c47aecd56518eeba8c",
+    ".yggdrasil/model/cli/utils/yg-node.yaml": "eff96ee912b1a89b17a6065990992660c87d1ddb3e668defc5b462e57a083466",
+    "source/cli/src/core/context-builder.ts": "9bb94ed4dbb1553e47ddb7727dfcc848443b207146ba813f537dedfe2562e5a1",
+    "source/cli/src/core/context-files.ts": "25a53c8908b60069b8a5945f98f8240268ea8e64535ec11eee8a1dad15bdde8f"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/core/yg-node.yaml": 1776177846202.0774,
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": 1775580563004.8235,
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
-    ".yggdrasil/aspects/no-direct-fs/yg-aspect.yaml": 1778864403467.7827,
-    ".yggdrasil/aspects/no-direct-fs/check.mjs": 1778864424633.1697,
+    ".yggdrasil/aspects/no-direct-fs/yg-aspect.yaml": 1778910639156.5027,
+    ".yggdrasil/aspects/no-direct-fs/check.mjs": 1778910630785.582,
     ".yggdrasil/aspects/no-direct-console/yg-aspect.yaml": 1778864405391.7302,
     ".yggdrasil/aspects/no-direct-console/check.mjs": 1778864425699.0137,
     ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": 1778876045985.2808,
@@ -39,12 +39,12 @@
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     ".yggdrasil/model/cli/model/context/yg-node.yaml": 1776177846203.256,
     ".yggdrasil/model/cli/model/drift/yg-node.yaml": 1776177846203.4216,
-    ".yggdrasil/model/cli/utils/yg-node.yaml": 1778866829697.229,
-    "source/cli/src/core/context-builder.ts": 1778501876536.141,
-    "source/cli/src/core/context-files.ts": 1778905579532.6323
+    ".yggdrasil/model/cli/utils/yg-node.yaml": 1778910449057.5657,
+    "source/cli/src/core/context-builder.ts": 1778910229358.249,
+    "source/cli/src/core/context-files.ts": 1778910244559.3113
   },
   "log": {
-    "last_entry_datetime": "2026-05-16T04:34:06.578Z",
-    "prefix_hash": "3dbccc002b9ddd3965fdb305f801bd08d533ad387440c63a363da4d9d94b5e9b"
+    "last_entry_datetime": "2026-05-16T05:58:05.607Z",
+    "prefix_hash": "471f272411703f26f4158545c44f0d455f43a3f6cccb4333d241f2f967f58369"
   }
 }

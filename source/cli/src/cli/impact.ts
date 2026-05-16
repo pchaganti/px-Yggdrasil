@@ -3,10 +3,11 @@ import chalk from 'chalk';
 import { join } from 'node:path';
 import { loadGraph } from '../core/graph-loader.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
+import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { collectAncestors } from '../core/context-builder.js';
 import { computeEffectiveAspects } from '../core/effective-aspects.js';
 import { findOwner } from './owner.js';
-import { projectRootFromGraph, resolveFileArg } from '../utils/paths.js';
+import { projectRootFromGraph, resolveFileArg } from '../io/paths.js';
 import { FileContentCache } from '../io/file-content-cache.js';
 import { walkRepoFiles } from '../io/repo-scanner.js';
 import { evaluateFileWhen } from '../core/file-when-evaluator.js';
@@ -434,7 +435,7 @@ export function registerImpactCommand(program: Command): void {
           }
 
           const graph = await loadGraph(process.cwd());
-          initDebugLog(graph.rootPath, graph.config.debug ?? false);
+          initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
 
           // Resolve --file to --node
           if (options.file) {

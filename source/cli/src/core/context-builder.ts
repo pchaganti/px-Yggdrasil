@@ -1,4 +1,3 @@
-import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type {
   Graph,
@@ -13,7 +12,8 @@ import type {
 } from '../model/context.js';
 import type { NodeContextData } from '../formatters/context-node.js';
 import type { FileContextData } from '../formatters/context-file.js';
-import { normalizeMappingPaths } from '../utils/paths.js';
+import { normalizeMappingPaths } from '../io/paths.js';
+import { readTextFile } from '../io/graph-fs.js';
 import { computeEffectiveAspects, getAspectSource } from './effective-aspects.js';
 
 const STRUCTURAL_RELATION_TYPES = new Set(['uses', 'calls', 'extends', 'implements']);
@@ -67,7 +67,7 @@ export async function buildOwnLayer(
   } else {
     const nodeYamlPath = path.join(graphRootPath, 'model', node.path, 'yg-node.yaml');
     try {
-      const nodeYamlContent = await readFile(nodeYamlPath, 'utf-8');
+      const nodeYamlContent = await readTextFile(nodeYamlPath);
       parts.push(`### yg-node.yaml\n${nodeYamlContent.trim()}`);
     } catch {
       parts.push(`### yg-node.yaml\n(not found)`);

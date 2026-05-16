@@ -20,3 +20,5 @@ Move IssueMessage type from formatters/message-builder to model/validation — e
 Replace path.sep with split(/[\\/]/) to remove platform-specific separator — posix-paths-source aspect compliance.
 ## [2026-05-16T04:54:08.571Z]
 Simplify annotateUpstreamChange: remove layer === 'flows' condition (dead code after flow YAML removed from tracked files) while keeping normalized.includes('/flows/') for old drift state compatibility.
+## [2026-05-16T05:58:05.247Z]
+Phase 4.7 (no-direct-fs): route all fs calls through io/graph-fs.ts; update hash and paths imports from utils/ to io/ following module moves

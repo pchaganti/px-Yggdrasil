@@ -7,12 +7,12 @@ import type {
 } from '../model/drift.js';
 import type { ValidationIssue } from '../model/validation.js';
 import { readDriftState, readNodeDriftState, garbageCollectDriftState } from '../io/drift-state-store.js';
-import { hashTrackedFiles } from '../utils/hash.js';
+import { hashTrackedFiles } from '../io/hash.js';
 import { collectTrackedFiles } from './context-files.js';
-import { normalizeMappingPaths } from '../utils/paths.js';
+import { normalizeMappingPaths } from '../io/paths.js';
 import { validate } from './validator.js';
 import { computeEffectiveAspects } from './effective-aspects.js';
-import { access, readFile } from 'node:fs/promises';
+import { readTextFile, fileAccess } from '../io/graph-fs.js';
 import path from 'node:path';
 import { validateAppendOnly } from './log-integrity.js';
 import { validateFormat } from './log-format.js';
@@ -284,7 +284,7 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
     const logAbs = path.join(projectRoot, logRel);
     let logContent: string | null = null;
     try {
-      logContent = await readFile(logAbs, 'utf-8');
+      logContent = await readTextFile(logAbs);
     } catch { /* missing — keep null */ }
 
     const storedEntryForLog = await readNodeDriftState(graph.rootPath, nodePath);
@@ -619,7 +619,7 @@ function getChildMappingExclusions(graph: Graph, nodePath: string): string[] {
 async function allPathsMissing(projectRoot: string, mappingPaths: string[]): Promise<boolean> {
   for (const mp of mappingPaths) {
     try {
-      await access(path.join(projectRoot, mp));
+      await fileAccess(path.join(projectRoot, mp));
       return false;
     } catch { /* missing */ }
   }

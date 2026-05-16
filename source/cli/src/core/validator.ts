@@ -1,5 +1,3 @@
-import { readdir, stat as fsStat } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import path from 'node:path';
 import type { Graph } from '../model/graph.js';
 import type { ValidationResult, ValidationIssue } from '../model/validation.js';
@@ -10,8 +8,9 @@ import type {
   DescendantsClause,
   NodeClause,
 } from '../model/when.js';
-import { normalizeMappingPaths } from '../utils/paths.js';
-import { expandMappingPaths } from '../utils/hash.js';
+import { normalizeMappingPaths } from '../io/paths.js';
+import { expandMappingPaths } from '../io/hash.js';
+import { readSortedDir, statPath, fileAccess, fileExistsSync } from '../io/graph-fs.js';
 import { walkRepoFiles } from '../io/repo-scanner.js';
 import type { IssueMessage } from '../model/validation.js';
 import { computeEffectiveAspects } from './effective-aspects.js';
@@ -433,8 +432,8 @@ async function checkFileMappingGitignored(graph: Graph): Promise<ValidationIssue
     const mapping = node.meta.mapping ?? [];
     for (const relPath of mapping) {
       const absPath = path.join(projectRoot, relPath);
-      if (!existsSync(absPath)) continue;
-      const st = await fsStat(absPath);
+      let st;
+      try { st = await statPath(absPath); } catch { continue; }
       if (!st.isFile()) continue;
       if (tracked.has(relPath)) continue;
       issues.push({
@@ -958,14 +957,12 @@ function checkMappingOverlap(graph: Graph): ValidationIssue[] {
 async function checkMappingPathsExist(graph: Graph): Promise<ValidationIssue[]> {
   const issues: ValidationIssue[] = [];
   const projectRoot = path.dirname(graph.rootPath);
-  const { access } = await import('node:fs/promises');
-
   for (const [nodePath, node] of graph.nodes) {
     const mappingPaths = normalizeMappingPaths(node.meta.mapping);
     for (const mp of mappingPaths) {
       const absPath = path.join(projectRoot, mp);
       try {
-        await access(absPath);
+        await fileAccess(absPath);
       } catch {
         issues.push({
           severity: 'error',
@@ -1156,7 +1153,7 @@ async function checkDirectoriesHaveNodeYaml(graph: Graph): Promise<ValidationIss
   const modelDir = path.join(graph.rootPath, 'model');
 
   async function scanDir(dirPath: string, segments: string[]): Promise<void> {
-    const entries = (await readdir(dirPath, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
+    const entries = await readSortedDir(dirPath);
     const hasNodeYaml = entries.some((e) => e.isFile() && e.name === 'yg-node.yaml');
 
     const hasFiles = entries.some((e) => e.isFile());
@@ -1187,7 +1184,7 @@ async function checkDirectoriesHaveNodeYaml(graph: Graph): Promise<ValidationIss
   }
 
   try {
-    const rootEntries = (await readdir(modelDir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
+    const rootEntries = await readSortedDir(modelDir);
     for (const entry of rootEntries) {
       if (!entry.isDirectory()) continue;
       if (entry.name.startsWith('.')) continue;
@@ -1713,8 +1710,8 @@ function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
     if (reviewer !== 'ast' && reviewer !== 'llm') continue; // covered by enum check
 
     const aspectDir = path.join(projectRoot, '.yggdrasil', 'aspects', aspect.id);
-    const hasContentMd = existsSync(path.join(aspectDir, 'content.md'));
-    const hasCheckMjs = existsSync(path.join(aspectDir, 'check.mjs'));
+    const hasContentMd = fileExistsSync(path.join(aspectDir, 'content.md'));
+    const hasCheckMjs = fileExistsSync(path.join(aspectDir, 'check.mjs'));
 
     if (hasContentMd && hasCheckMjs) {
       issues.push({

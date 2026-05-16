@@ -3,16 +3,17 @@ import chalk from 'chalk';
 import path from 'node:path';
 import { loadGraph } from '../core/graph-loader.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
+import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { approveNode, resolveAspects, loadSourceFiles, commitApproval } from '../core/approve.js';
 import { runApproveWithReviewer, type LlmApproveResult } from '../core/approve-reviewer.js';
 export type { LlmApproveResult };
 import { collectTrackedFiles } from '../core/context-files.js';
-import { hashTrackedFiles } from '../utils/hash.js';
+import { hashTrackedFiles } from '../io/hash.js';
 import { classifyDrift } from '../core/check.js';
 import type { CheckIssue, CascadeCause } from '../core/check.js';
 import { createLlmProvider } from '../llm/index.js';
 import { loadSecrets, mergeLlmConfig } from '../io/secrets-parser.js';
-import { normalizeMappingPaths } from '../utils/paths.js';
+import { normalizeMappingPaths } from '../io/paths.js';
 import type { LlmProvider } from '../llm/types.js';
 import type { ApproveResult, AspectVerificationResult } from '../model/drift.js';
 import type { Graph } from '../model/graph.js';
@@ -361,7 +362,7 @@ export function registerApproveCommand(program: Command): void {
         }
 
         const graph = await loadGraph(process.cwd());
-        initDebugLog(graph.rootPath, graph.config.debug ?? false);
+        initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
         const yggPrefix = path.relative(path.dirname(graph.rootPath), graph.rootPath)
           .replace(/\\/g, '/').replace(/\/+$/, '');
 

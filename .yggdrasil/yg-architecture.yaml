@@ -112,6 +112,9 @@ node_types:
         - path: "source/cli/src/io/file-content-cache.ts"
         - path: "source/cli/src/io/graph-fs.ts"
         - path: "source/cli/src/io/atomic-write.ts"
+        - path: "source/cli/src/io/hash.ts"
+        - path: "source/cli/src/io/paths.ts"
+        - path: "source/cli/src/io/debug-log-writer.ts"
     aspects:
       - silent-missing-files
       - atomic-write-contract

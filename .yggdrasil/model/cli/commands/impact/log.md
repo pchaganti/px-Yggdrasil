@@ -12,3 +12,5 @@ Add debugWrite() to catch block — required by diagnostic-logging aspect to sur
 Fix: stdout (not stderr) for --file resolution success message; add debugWrite() already present in catch block.
 ## [2026-05-16T04:42:33.168Z]
 Revert file->node resolution to stderr — test suite explicitly expects this diagnostic output on stderr (not stdout). The previous change was incorrect.
+## [2026-05-16T05:57:55.222Z]
+Phase 4.7 (no-direct-fs): inject appendToDebugLog as third argument to initDebugLog; debug-log DI refactor decouples utils/debug-log from node:fs

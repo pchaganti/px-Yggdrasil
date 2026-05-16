@@ -8,3 +8,5 @@ R0.1 Phase 3: reads messageData via msg() helper to render issue output; buildIs
 Drop deprecated .message field: msg() helper simplified to buildIssueMessage(issue.messageData); architecture regex extraction updated to use messageData.what. R0.1 Phase 5.
 ## [2026-05-15T17:52:31.150Z]
 Fix diagnostic-logging violations: add debugWrite() to catch block that swallows git ls-files error.
+## [2026-05-16T05:57:54.937Z]
+Phase 4.7 (no-direct-fs): inject appendToDebugLog as third argument to initDebugLog; debug-log DI refactor decouples utils/debug-log from node:fs

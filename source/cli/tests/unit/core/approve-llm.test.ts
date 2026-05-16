@@ -8,7 +8,7 @@ import { runApproveWithReviewer } from '../../../src/core/approve-reviewer.js';
 import { runLlmVerification } from '../../../src/cli/approve.js';
 import type { LlmConfig } from '../../../src/cli/approve.js';
 import { writeNodeDriftState, readNodeDriftState } from '../../../src/io/drift-state-store.js';
-import { hashTrackedFiles } from '../../../src/utils/hash.js';
+import { hashTrackedFiles } from '../../../src/io/hash.js';
 import { collectTrackedFiles } from '../../../src/core/context-files.js';
 import type { LlmProvider } from '../../../src/llm/types.js';
 

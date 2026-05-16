@@ -8,6 +8,8 @@ export function check(ctx) {
   for (const file of ctx.files) {
     // atomic-write.ts itself is the implementation — exempt
     if (ast.inFile(file, '**/atomic-write.ts')) continue;
+    // debug-log-writer.ts uses append semantics, not atomic-write semantics — exempt
+    if (ast.inFile(file, '**/debug-log-writer.ts')) continue;
     // Only check persistence-adapter files (src/io/)
     if (!ast.inFile(file, '**/src/io/*.ts')) continue;
 

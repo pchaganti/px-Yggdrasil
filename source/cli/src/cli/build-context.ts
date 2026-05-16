@@ -2,13 +2,14 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { loadGraph } from '../core/graph-loader.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
+import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { collectAncestors, buildNodeContextData, buildFileContextData } from '../core/context-builder.js';
 import { formatNodeContext } from '../formatters/context-node.js';
 import { formatFileContext } from '../formatters/context-file.js';
 import { validate } from '../core/validator.js';
 import { findOwner } from './owner.js';
-import { normalizeMappingPaths, projectRootFromGraph, resolveFileArg } from '../utils/paths.js';
-import { expandMappingPaths } from '../utils/hash.js';
+import { normalizeMappingPaths, projectRootFromGraph, resolveFileArg } from '../io/paths.js';
+import { expandMappingPaths } from '../io/hash.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import type { Graph } from '../model/graph.js';
 
@@ -87,7 +88,7 @@ export function registerBuildCommand(program: Command): void {
         }
 
         const graph = await loadGraph(process.cwd());
-        initDebugLog(graph.rootPath, graph.config.debug ?? false);
+        initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
         let nodePath: string;
         let resolvedFilePath: string | undefined;
 

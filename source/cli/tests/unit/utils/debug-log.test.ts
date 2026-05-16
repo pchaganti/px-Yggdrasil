@@ -1,8 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, existsSync, readFileSync, rmSync } from 'node:fs';
+import { appendFileSync, mkdtempSync, existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { initDebugLog, debugWrite, _resetForTesting } from '../../../src/utils/debug-log.js';
+
+function appendFn(filePath: string, text: string): void {
+  appendFileSync(filePath, text, 'utf-8');
+}
 
 describe('debug-log', () => {
   let tmpDir: string;
@@ -22,12 +26,12 @@ describe('debug-log', () => {
   });
 
   it('initDebugLog with enabled=false creates no file', () => {
-    initDebugLog(tmpDir, false);
+    initDebugLog(tmpDir, false, appendFn);
     expect(existsSync(path.join(tmpDir, '.debug.log'))).toBe(false);
   });
 
   it('initDebugLog with enabled=true creates log with header', () => {
-    initDebugLog(tmpDir, true);
+    initDebugLog(tmpDir, true, appendFn);
     const logPath = path.join(tmpDir, '.debug.log');
     expect(existsSync(logPath)).toBe(true);
     const content = readFileSync(logPath, 'utf-8');
@@ -36,14 +40,14 @@ describe('debug-log', () => {
   });
 
   it('debugWrite after init appends to log', () => {
-    initDebugLog(tmpDir, true);
+    initDebugLog(tmpDir, true, appendFn);
     debugWrite('test message');
     const content = readFileSync(path.join(tmpDir, '.debug.log'), 'utf-8');
     expect(content).toContain('test message');
   });
 
   it('tee: stdout content appears in log', () => {
-    initDebugLog(tmpDir, true);
+    initDebugLog(tmpDir, true, appendFn);
     // After init, process.stdout.write is teed — write to it
     process.stdout.write('stdout-capture-test\n');
     const content = readFileSync(path.join(tmpDir, '.debug.log'), 'utf-8');
@@ -51,7 +55,7 @@ describe('debug-log', () => {
   });
 
   it('tee: first stderr preceded by [stderr] header', () => {
-    initDebugLog(tmpDir, true);
+    initDebugLog(tmpDir, true, appendFn);
     process.stderr.write('first-error\n');
     const content = readFileSync(path.join(tmpDir, '.debug.log'), 'utf-8');
     expect(content).toContain('[stderr]');
@@ -63,7 +67,7 @@ describe('debug-log', () => {
   });
 
   it('tee: [stderr] header appears only once', () => {
-    initDebugLog(tmpDir, true);
+    initDebugLog(tmpDir, true, appendFn);
     process.stderr.write('error-one\n');
     process.stderr.write('error-two\n');
     const content = readFileSync(path.join(tmpDir, '.debug.log'), 'utf-8');
@@ -72,7 +76,7 @@ describe('debug-log', () => {
   });
 
   it('initDebugLog called twice — second call is a no-op', () => {
-    initDebugLog(tmpDir, true);
+    initDebugLog(tmpDir, true, appendFn);
     const logPath = path.join(tmpDir, '.debug.log');
     const contentAfterFirst = readFileSync(logPath, 'utf-8');
 
@@ -80,7 +84,7 @@ describe('debug-log', () => {
     // a new log would be created there. Instead, nothing should change.
     const tmpDir2 = mkdtempSync(path.join(os.tmpdir(), 'yg-debug2-'));
     try {
-      initDebugLog(tmpDir2, true);
+      initDebugLog(tmpDir2, true, appendFn);
       // The second call must be a no-op: original log is unchanged (no second header written)
       const contentAfterSecond = readFileSync(logPath, 'utf-8');
       expect(contentAfterSecond).toBe(contentAfterFirst);
@@ -92,7 +96,7 @@ describe('debug-log', () => {
   });
 
   it('tee: Uint8Array chunk is converted to string and written to log', () => {
-    initDebugLog(tmpDir, true);
+    initDebugLog(tmpDir, true, appendFn);
     const chunk = Buffer.from('uint8-test\n', 'utf-8');
     process.stdout.write(chunk);
     const content = readFileSync(path.join(tmpDir, '.debug.log'), 'utf-8');
@@ -100,7 +104,7 @@ describe('debug-log', () => {
   });
 
   it('tee: Uint8Array chunk on stderr is converted and written with header', () => {
-    initDebugLog(tmpDir, true);
+    initDebugLog(tmpDir, true, appendFn);
     const chunk = Buffer.from('uint8-stderr\n', 'utf-8');
     process.stderr.write(chunk);
     const content = readFileSync(path.join(tmpDir, '.debug.log'), 'utf-8');
@@ -109,7 +113,7 @@ describe('debug-log', () => {
   });
 
   it('exit handler writes [exit N] for non-zero exit code', () => {
-    initDebugLog(tmpDir, true);
+    initDebugLog(tmpDir, true, appendFn);
     // Trigger the exit handler directly by emitting the exit event
     process.emit('exit', 1);
     const content = readFileSync(path.join(tmpDir, '.debug.log'), 'utf-8');
@@ -117,7 +121,7 @@ describe('debug-log', () => {
   });
 
   it('tee: Uint8Array chunk on stdout is converted and written', () => {
-    initDebugLog(tmpDir, true);
+    initDebugLog(tmpDir, true, appendFn);
     const chunk = Buffer.from('uint8-test\n', 'utf-8');
     process.stdout.write(chunk);
     const content = readFileSync(path.join(tmpDir, '.debug.log'), 'utf-8');
@@ -125,7 +129,7 @@ describe('debug-log', () => {
   });
 
   it('exit handler does NOT write [exit N] for code 0', () => {
-    initDebugLog(tmpDir, true);
+    initDebugLog(tmpDir, true, appendFn);
     process.emit('exit', 0);
     const content = readFileSync(path.join(tmpDir, '.debug.log'), 'utf-8');
     expect(content).not.toContain('[exit 0]');

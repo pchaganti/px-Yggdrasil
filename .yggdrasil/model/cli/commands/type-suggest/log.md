@@ -10,3 +10,5 @@ R0.4: file-content-cache import updated from core to io (no logic change)
 R0.4b: cascade from cli/io metadata update (atomic-write.ts added to mapping)
 ## [2026-05-15T12:41:10.616Z]
 R0.5: graph-loader.ts now routes all fs calls through io/graph-fs.ts (readSortedDir, readTextFile)
+## [2026-05-16T05:58:01.036Z]
+Phase 4.7 (no-direct-fs): update paths import from utils/ to io/ following move of paths module to persistence-adapter layer
