@@ -101,6 +101,7 @@ node_types:
       - parser-contract
       - silent-missing-files
       - posix-paths-source
+      - read-or-default-via-helper
     parents: [module]
     relations:
       calls: [utility]
@@ -127,6 +128,7 @@ node_types:
       - silent-missing-files
       - atomic-write-contract
       - posix-paths-source
+      - read-or-default-via-helper
     parents: [module]
     relations:
       calls: [persistence-adapter, utility]

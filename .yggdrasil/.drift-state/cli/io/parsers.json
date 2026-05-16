@@ -1,11 +1,12 @@
 {
-  "hash": "90f933427912e3d57866da4c3fd707f438b28f4790f4a4314db1808162de1679",
+  "hash": "e61281059db7420fe713761af0bb03c771a2d0cd72591675ad63e262183acfa5",
   "files": {
     "own-subset:cli/io/parsers": "49eba5656163800b5213d51e9c6969831d387f9252bafe1e854a9e84e7bebf9e",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
     ".yggdrasil/aspects/parser-contract/yg-aspect.yaml": "b6bc9827b59e1b75e987bb4e2186ed71365af2c7ab3d7aa19c32fdb6b1d1e937",
     ".yggdrasil/aspects/parser-contract/content.md": "26b223bc9e2e453bc3db006ced8c6d5ed7a544f17a9bfb394f76e6a80636e2d3",
+    ".yggdrasil/aspects/silent-missing-files/yg-aspect.yaml": "228fff9c714b45c29ff2135669f2c639b99c1525f3e40d6da1a5e108d6a32b95",
     ".yggdrasil/aspects/silent-missing-files/content.md": "fe5f8f88a4e6a49f20fba61836d04c3796f5c97c3a7c1c366582f16cd4ec93b7",
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "9a5d512752a6f1fea12e50a6ef249cbf0aae2cc2097597057e4dd429df65f7c9",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678",
@@ -18,7 +19,8 @@
     "source/cli/src/io/node-parser.ts": "02f92b0076d6be26f3bc895a63ca39fda63072a77d889fe27a8f28fe1b15eb72",
     "source/cli/src/io/schema-parser.ts": "a1563e6d7eaaf4c17f1e8b7f5e680dfdde78647bee243339a29eca9d702d9470",
     "source/cli/src/io/secrets-parser.ts": "f4204e25fadd97d410437d2bacba6a0056927edb3a13b8a58113e3cecbf51b7c",
-    ".yggdrasil/aspects/silent-missing-files/yg-aspect.yaml": "228fff9c714b45c29ff2135669f2c639b99c1525f3e40d6da1a5e108d6a32b95"
+    ".yggdrasil/aspects/read-or-default-via-helper/yg-aspect.yaml": "97972d1cbb4933206e65f3d49010740f8aa94821957fa1cd3bf70f1f738999aa",
+    ".yggdrasil/aspects/read-or-default-via-helper/check.mjs": "442ec09bdeac093fc5be3a71b6f7625724f11384e788c059a0919e0c87b95e40"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -29,6 +31,8 @@
     ".yggdrasil/aspects/silent-missing-files/content.md": 1776494731302.076,
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1778878288425.0745,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
+    ".yggdrasil/aspects/read-or-default-via-helper/yg-aspect.yaml": 1778952143820.5588,
+    ".yggdrasil/aspects/read-or-default-via-helper/check.mjs": 1778952207547.9854,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     "source/cli/src/io/architecture-parser.ts": 1778851225036.454,

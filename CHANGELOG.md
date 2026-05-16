@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extracted shared `parsePredicateBoolean` helper into `core/parsing/predicate-boolean.ts`. Both `when-parser` and `file-when-parser` now delegate the `all_of`/`any_of`/`not` parsing to it — eliminates ~50 LOC of identical logic. The helper accepts an optional error class so `file-when-parser` preserves its `WhenPredicateInvalidError` contract.
 - Added `io/read-or-default.ts` — small helper that wraps `readFile` with ENOENT-only handling (returns the supplied default on missing file, rethrows other errors). `log-store.readLogSafe` migrated to use it. Persistence-adapter type's `when` predicate extended to claim the new file.
 
+### Added
+
+- AST aspect `read-or-default-via-helper` — applied to `persistence-adapter` and `parser-adapter` node types. Forbids inline ENOENT-swallow around `readFile` in IO files; future code must use `readFileOrDefault`. Compound try blocks (e.g. `lstat` + `readFile`) and non-readFile fs operations are correctly skipped.
+
 ## [4.3.0] - 2026-05-16
 
 ### Added
