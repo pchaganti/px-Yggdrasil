@@ -6,7 +6,7 @@
 
 **Your agent will ignore CLAUDE.md. Yggdrasil makes sure it doesn't.**
 
-Architecture rules your agent can't ignore. You write them in plain Markdown; a reviewer verifies every change and feeds violations back into the agent's loop — before it moves on. Works with Claude Code, Cursor, Copilot, Codex, Cline, and more. The reviewer runs against your code, not your diffs. The feedback is specific, and the agent has to fix before moving on.
+Architecture rules your agent can't ignore. You write them in plain Markdown for a reviewer LLM to enforce, or as AST checks for deterministic verification. Every change gets verified before the agent moves on. Works with Claude Code, Cursor, Copilot, Codex, Cline, and more. The reviewer runs against your code, not your diffs. The feedback is specific. The agent has to fix before it can move on.
 
 [![CI](https://github.com/krzysztofdudek/Yggdrasil/actions/workflows/ci.yml/badge.svg)](https://github.com/krzysztofdudek/Yggdrasil/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@chrisdudek/yg.svg)](https://www.npmjs.com/package/@chrisdudek/yg)
@@ -33,9 +33,9 @@ A rules file is a suggestion. There are no consequences for ignoring it, and no 
 
 ## What Yggdrasil does
 
-You write rules in plain Markdown. "Every public endpoint must use rate limiting." "All command handlers must validate input with zod." "No direct database access from this layer." These are called **aspects**.
+You write rules two ways. Most are in plain Markdown for a reviewer LLM to interpret: "Every public endpoint must use rate limiting." "All command handlers must validate input with zod." "No direct database access from this layer." For rules that need deterministic checking (no ambiguity, no LLM cost), you write them as small AST scripts that walk the syntax tree directly. Either kind is called an **aspect**.
 
-Every time the agent writes code, it runs `yg approve`. A reviewer LLM reads the source files and checks them against every rule that applies. If something doesn't pass, the agent gets specific feedback, fixes it, and re-verifies. This is code review while the agent is working, not after.
+Every time the agent writes code, it runs `yg approve`. The reviewer applies every rule that touches the changed files. Markdown aspects go through the LLM. AST aspects run deterministically. If anything fails, the agent gets specific feedback, fixes it, and re-verifies. This is code review while the agent is working, not after.
 
 ```
 agent writes code
@@ -54,23 +54,19 @@ Rules are scoped. The agent sees only the 3-5 rules relevant to the file it's wo
 
 **Existing project:** map the areas you're actively working on. Everything else stays unmapped until you need it. Coverage grows as you work, not as a day-one setup cost.
 
-## Too heavy? Try AutoReview
-
-If you don't need a cross-file graph and just want per-file Markdown rules verified on every commit, [AutoReview](https://github.com/krzysztofdudek/AutoReview) is the lighter sibling. It ships as a Claude Code plugin, has zero npm deps, and runs against a local Ollama by default.
-
-|                      | Yggdrasil                       | AutoReview                    |
-| -------------------- | ------------------------------- | ----------------------------- |
-| Scope                | Cross-file, graph-aware         | Per-file only                 |
-| Setup                | Map your codebase               | Write a Markdown rule         |
-| CI                   | Hash-based incremental verify   | Pre-commit hook or `validate` |
-| Distribution         | npm package with CLI            | Claude Code plugin with CLI   |
-| When to reach for it | Rules that reason across files  | One rule on one file          |
-
-Both use the same reviewer loop and the same rule-authoring style. Start with AutoReview, graduate to Yggdrasil when rules need to span files.
-
 ## Rules can be anything enforceable
 
 Team conventions. Company standards. ISO compliance. Architecture boundaries. Error handling patterns. Logging formats. If you can describe it in plain language and a reviewer can check it, Yggdrasil enforces it.
+
+## Companion skills
+
+Yggdrasil enforces architecture at the codebase level. These three smaller skills cover adjacent concerns. Each is a single Markdown file installable as a Claude Code plugin or droppable into any agent that reads skills.
+
+**[Liaison](https://github.com/krzysztofdudek/LiaisonSkill).** For people who use AI agents but don't write code. Reads back intent in your words and waits for explicit yes before destructive operations.
+
+**[Be Precise](https://github.com/krzysztofdudek/BePreciseSkill).** When the agent moves from a plan into code, stops it from silently filling spec gaps.
+
+**[Researcher](https://github.com/krzysztofdudek/ResearcherSkill).** When something measurable needs to improve, points the agent at the metric. Experiments, hypotheses, kept and discarded.
 
 ## Getting started
 

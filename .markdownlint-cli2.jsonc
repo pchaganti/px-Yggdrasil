@@ -22,5 +22,6 @@
     "AGENTS.md",
     ".cursor/rules/**",
     "**/log.md",
+    ".lab*/**/*.md",
   ],
 }

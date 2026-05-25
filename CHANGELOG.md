@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `core/effective-aspects.ts` moved to `core/graph/aspects.ts`. Exports `computeEffectiveAspects` and `getAspectSource` through the same module path via the `core/graph/index.ts` barrel. Eight importers (engines `approve`, `validator`, `check`, `context-builder`, `context-files`; commands `aspects`, `impact`) plus test files updated to the new path. `cli/core/validator` node mapping drops `effective-aspects.ts`; `cli/core/graph` node mapping adds `aspects.ts`.
 - `core/context-files.ts` moved to `core/graph/files.ts`. Exports `collectTrackedFiles` and `TrackedFile` through the same barrel. Seven importers (engines `approve`, `approve-reviewer`, `check`; commands `approve`; `io/hash`) plus test files updated. `cli/core/context` node mapping drops `context-files.ts`; `cli/core/graph` claims it. The `core/graph/` directory now houses the complete graph-query surface; the AST aspect added in the next commit locks the location.
 - AST aspect `single-source-graph-queries` — applied to `engine` node type. Forbids redefinition of any of the seven reserved graph-query helpers (`collectAncestors`, `collectDescendants`, `collectParticipatingFlows`, `collectDependencyAncestors`, `computeEffectiveAspects`, `getAspectSource`, `collectTrackedFiles`) outside `source/cli/src/core/graph/`. Catches both `function` declarations and `const = arrow/function` forms. Closes out the four-task migration that established `core/graph/` as the canonical home for graph queries.
+- README: new "Companion skills" section between "Works on any codebase" and "Rules can be anything enforceable" — links to LiaisonSkill, BePreciseSkill, and ResearcherSkill. Three smaller skills addressing adjacent disciplines for AI coding agents (intent capture, spec discipline, autonomous experimentation), each installable as a Claude Code plugin or droppable into any markdown-skill agent.
+
+### Removed
+
+- README: "Too heavy? Try AutoReview" sibling-tool section and the Yggdrasil/AutoReview comparison table. AutoReview is being deprecated and cross-links are being cut across the family.
 
 ## [4.3.0] - 2026-05-16
 
