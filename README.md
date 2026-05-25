@@ -33,20 +33,26 @@ A rules file is a suggestion. There are no consequences for ignoring it, and no 
 
 ## What Yggdrasil does
 
-You write rules two ways. Most are in plain Markdown for a reviewer LLM to interpret: "Every public endpoint must use rate limiting." "All command handlers must validate input with zod." "No direct database access from this layer." For rules that need deterministic checking (no ambiguity, no LLM cost), you write them as small AST scripts that walk the syntax tree directly. Either kind is called an **aspect**.
+The architecture lives in a graph next to the code. Nodes group source files into components. **Aspects** are the rules attached to nodes ("Every public endpoint must use rate limiting", "All command handlers must validate input with zod", "No direct database access from this layer"). Flows mark business processes that span components. Ports carry an aspect across a component boundary so it reaches the other side.
 
-Every time the agent writes code, it runs `yg approve`. The reviewer applies every rule that touches the changed files. Markdown aspects go through the LLM. AST aspects run deterministically. If anything fails, the agent gets specific feedback, fixes it, and re-verifies. This is code review while the agent is working, not after.
+Most aspects are plain Markdown for a reviewer LLM to interpret. For rules that need deterministic checking (no ambiguity, no LLM cost), you write small AST scripts that walk the syntax tree directly.
+
+Before the agent edits a file, `yg context` returns the 3-5 aspects that touch it. The agent reads them and writes code that targets them. After editing, `yg approve` sends the code to the reviewer that checks every aspect. If anything fails, the agent gets specific feedback, fixes, and re-verifies. This is code review while the agent is working, not after.
 
 ```
-agent writes code
-  → yg approve sends code + rules to reviewer
+agent about to edit a file
+  → yg context: read the aspects that touch this file
+  → agent writes code that targets them
+  → yg approve: reviewer checks code against aspects
   → reviewer: "audit logging missing in charge()"
   → agent fixes, re-runs approve
-  → all rules satisfied
+  → baseline recorded
   → yg check in CI: PASS
 ```
 
-Rules are scoped. The agent sees only the 3-5 rules relevant to the file it's working on, not all 200. One rule can cover dozens of files. Change a rule, every file that should satisfy it gets flagged for re-verification.
+Aspects are scoped. The agent only sees the ones that touch the file it's working on, not all 200. One aspect can cover dozens of files. Change an aspect and every file that should satisfy it gets flagged for re-verification.
+
+Each component also has a `log.md` next to its aspects. The agent appends a note when it changes code and reads it before editing again. It carries the why between sessions. The reviewer doesn't see it. Next agent does.
 
 ## Works on any codebase
 
