@@ -8,6 +8,7 @@ mapping:
   - source/cli/tests/unit/ast/exports.test.ts
   - source/cli/tests/unit/ast/find-comments.test.ts
   - source/cli/tests/unit/ast/imports.test.ts
+  - source/cli/tests/unit/ast/index-exports.test.ts
   - source/cli/tests/unit/ast/name.test.ts
   - source/cli/tests/unit/ast/parser.test.ts
   - source/cli/tests/unit/ast/report.test.ts
