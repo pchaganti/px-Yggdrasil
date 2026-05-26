@@ -1,4 +1,4 @@
-import { ast } from '@chrisdudek/yg/ast';
+import { walk, report, inFile } from '@chrisdudek/yg/ast';
 
 // Approved error-emission helpers that wrap buildIssueMessage internally.
 const ALLOWED_HELPERS = new Set(['loadGraphOrAbort', 'abortOnUnexpectedError']);
@@ -11,21 +11,22 @@ const SURROUNDING_WINDOW = 400;
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
-    if (!ast.inFile(file, '**/src/cli/*.ts')) continue;
+    if (!inFile(file, { glob: '**/src/cli/*.ts' })) continue;
 
     const fileText = file.ast.rootNode.text;
 
-    for (const node of ast.within(file.ast.rootNode, 'call_expression', { crossFunctions: true })) {
+    walk(file.ast.rootNode, (node) => {
+      if (node.type !== 'call_expression') return;
       const fn = node.childForFieldName('function');
-      if (!fn) continue;
-      if (fn.text !== 'process.stderr.write') continue;
+      if (fn === null) return;
+      if (fn.text !== 'process.stderr.write') return;
 
       const args = node.childForFieldName('arguments');
-      if (!args) continue;
+      if (args === null) return;
       const argText = args.text;
 
       // Allowed: argument contains buildIssueMessage(...) directly.
-      if (argText.includes('buildIssueMessage(')) continue;
+      if (argText.includes('buildIssueMessage(')) return;
 
       // Allowed: not error-shaped at all (no chalk.red, no "Error" content,
       // no "ERROR" content). These are progress / info writes; skip.
@@ -33,7 +34,7 @@ export function check(ctx) {
         argText.includes('chalk.red') ||
         /\bError:\s/.test(argText) ||
         /\bERROR:\s/.test(argText);
-      if (!looksLikeError) continue;
+      if (!looksLikeError) return;
 
       // Allowed: surrounding code routes the message through buildIssueMessage
       // upstream (variable assignment within the same function) or uses one of
@@ -42,25 +43,20 @@ export function check(ctx) {
       const end = Math.min(fileText.length, node.endIndex + SURROUNDING_WINDOW);
       const surrounding = fileText.slice(start, end);
 
-      if (surrounding.includes('buildIssueMessage(')) continue;
+      if (surrounding.includes('buildIssueMessage(')) return;
 
-      let helperFound = false;
       for (const h of ALLOWED_HELPERS) {
-        if (surrounding.includes(`${h}(`)) {
-          helperFound = true;
-          break;
-        }
+        if (surrounding.includes(`${h}(`)) return;
       }
-      if (helperFound) continue;
 
       violations.push(
-        ast.report(
+        report(
           file,
           node,
-          "raw stderr error write — command errors must be constructed via buildIssueMessage or routed through loadGraphOrAbort / abortOnUnexpectedError",
+          'raw stderr error write — command errors must be constructed via buildIssueMessage or routed through loadGraphOrAbort / abortOnUnexpectedError',
         ),
       );
-    }
+    });
   }
   return violations;
 }

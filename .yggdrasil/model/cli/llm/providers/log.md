@@ -6,3 +6,5 @@ Phase 2: reclassified from adapter to llm-provider. Removed cli-base.ts (moved t
 Fix ollama.ts: replace raw fetch() and custom retry loop with apiFetch() from api-utils.ts — satisfies provider-retry-contract (retry responsibility belongs to apiFetch).
 ## [2026-05-26T08:03:04.147Z]
 Migrate all 4 providers (anthropic, google, openai, ollama) to errorSource: 'provider' on infrastructure failures, errorSource: 'codeViolation' on real violations. Matches new required AspectResponse shape.
+## [2026-05-26T10:44:29.781Z]
+Rewrote aspect provider-redaction against raw tree-sitter API. Verified behavior-identical via ast-test diff.
