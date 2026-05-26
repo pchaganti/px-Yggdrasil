@@ -18,6 +18,8 @@ export interface Violation {
   file: string;
   /** 1-based line number */
   line: number;
+  /** 0-based column number */
+  column: number;
   message: string;
 }
 
