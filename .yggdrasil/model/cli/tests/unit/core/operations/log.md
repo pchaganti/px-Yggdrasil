@@ -6,3 +6,5 @@ Why: Task 1.4 introduces FileContentCache; the unit tests need a home and the op
 How to apply: Mapping extended; description updated to mention file-content-cache.
 ## [2026-05-15T08:33:46.128Z]
 Add type-classifier.test.ts to operations test node: 10 tests covering classifyFile, satisfied-fraction algorithm (all_of average, any_of max, not invert, exempt, empty cases), and closest-3 limiting.
+## [2026-05-26T08:07:15.670Z]
+Update approve-llm.test.ts mocks: add required errorSource discriminator to all AspectResponse mock return values. providerError: true mock replaced with errorSource: 'provider'; satisfied mocks use errorSource: 'codeViolation'.

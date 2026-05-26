@@ -1,5 +1,5 @@
 {
-  "hash": "69a5d976f8330bff7f4850474380062781fa2341902ca8357747c9c14ed72a9c",
+  "hash": "79120eec98c26c17d60aab7e997f349859c42c6515d9ed36f260fdf977edaad9",
   "files": {
     "own-subset:cli/tests/unit/core/validator": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -8,10 +8,10 @@
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": "de00f518b04112cb692d73d15acfd232c3f1874b163d22d482f0b8e5a7163f48",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "c9db3b691b776caed9de57f4a2db93fd6dd368c1e5cff30e81cbf12a356c4fcf",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/unit/core/validator.test.ts": "57d82a66f64b8d248663234a8f6518d7c37c70256ee242bdc53ec9c5b1cceaa5",
     "source/cli/tests/unit/core/validator-aspect-files.test.ts": "f82fadbeda8f45b364b6a81344ba65bb337e75d33f1e8301cad43a9e4a06f33e",
     "source/cli/tests/unit/core/validator-reviewer.test.ts": "31b1ffaf800974f33f5ff75af488b2c02bca20dbeebd1f9bf5fdcfece25cca67",
-    "source/cli/tests/unit/core/aspect-verifier.test.ts": "a0787964edd1704a306aaed1a5e9394139969c6e79c09944f2a62f6283c46025",
-    "source/cli/tests/unit/core/validator.test.ts": "57d82a66f64b8d248663234a8f6518d7c37c70256ee242bdc53ec9c5b1cceaa5"
+    "source/cli/tests/unit/core/aspect-verifier.test.ts": "a9877007993f4c1cab4db07596720d9dd49ab4960f09920caea2c818b2511013"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -23,10 +23,10 @@
     "source/cli/tests/unit/core/validator.test.ts": 1778939777906.4082,
     "source/cli/tests/unit/core/validator-aspect-files.test.ts": 1778432133287.2354,
     "source/cli/tests/unit/core/validator-reviewer.test.ts": 1778854295265.214,
-    "source/cli/tests/unit/core/aspect-verifier.test.ts": 1776349006643.2893
+    "source/cli/tests/unit/core/aspect-verifier.test.ts": 1779782406066.8447
   },
   "log": {
-    "last_entry_datetime": "2026-05-16T13:59:47.325Z",
-    "prefix_hash": "8ac184503bde90b6216741e9bda88860c966984aac4d169ca8de0add9880f60e"
+    "last_entry_datetime": "2026-05-26T08:07:19.411Z",
+    "prefix_hash": "782b3b3722e2f0a2c06ab0266cd08d98538c32693b47120541f1b6f53f16a1f7"
   }
 }

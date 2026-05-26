@@ -12,3 +12,5 @@ Add filterAspectId to ApproveWithReviewerInput — when set, LLM aspects are fil
 Phase 4.7 (no-direct-fs): route all fs calls through io/graph-fs.ts; update hash and paths imports from utils/ to io/ following module moves
 ## [2026-05-16T19:44:32.124Z]
 Updated context-files import path to core/graph/files following the file move (collectTrackedFiles + TrackedFile). cli/core/context node drops context-files from its mapping; cli/core/graph node claims it.
+## [2026-05-26T08:07:11.366Z]
+Update approve-reviewer.ts to derive providerError from errorSource discriminator on AspectVerificationResult. Uses errorSource === 'provider' || 'astRuntime' to identify infrastructure errors (rather than the deprecated providerError boolean). Keeps backward-compatible providerError field on the violations array for downstream consumers until Task 3 migrates them.

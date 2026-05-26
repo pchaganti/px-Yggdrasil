@@ -4,17 +4,17 @@ import { parseAspectResponse } from '../../../src/llm/cli-base.js';
 describe('parseAspectResponse', () => {
   it('parses clean JSON', () => {
     const result = parseAspectResponse('{"satisfied": true, "reason": "ok"}');
-    expect(result).toEqual({ satisfied: true, reason: 'ok' });
+    expect(result).toEqual({ satisfied: true, reason: 'ok', errorSource: 'codeViolation' });
   });
 
   it('parses JSON in markdown fence', () => {
     const result = parseAspectResponse('```json\n{"satisfied": false, "reason": "fail"}\n```');
-    expect(result).toEqual({ satisfied: false, reason: 'fail' });
+    expect(result).toEqual({ satisfied: false, reason: 'fail', errorSource: 'codeViolation' });
   });
 
   it('extracts embedded JSON from text', () => {
     const result = parseAspectResponse('Here is my analysis: {"satisfied": true, "reason": "pass"} done.');
-    expect(result).toEqual({ satisfied: true, reason: 'pass' });
+    expect(result).toEqual({ satisfied: true, reason: 'pass', errorSource: 'codeViolation' });
   });
 
   it('returns undefined for empty string', () => {

@@ -72,7 +72,8 @@ export async function runApproveWithReviewer(
   const aspectViolations: Array<{ aspectId: string; reason: string; providerError?: boolean }> = [];
   for (const [aspectId, res] of Object.entries(llmResults)) {
     if (!res.satisfied) {
-      aspectViolations.push({ aspectId, reason: res.reason, providerError: res.providerError });
+      const isProviderError = res.errorSource === 'provider' || res.errorSource === 'astRuntime';
+      aspectViolations.push({ aspectId, reason: res.reason, providerError: isProviderError });
     }
   }
 

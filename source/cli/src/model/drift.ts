@@ -8,7 +8,10 @@ import type { IssueMessage } from './validation.js';
 export interface AspectVerificationResult {
   satisfied: boolean;
   reason: string;
+  /** @deprecated Use errorSource instead */
   providerError?: boolean;
+  /** Discriminator: codeViolation = real code issue; provider = infra/API error; astRuntime = AST check threw */
+  errorSource?: 'codeViolation' | 'provider' | 'astRuntime';
 }
 
 // ============================================================

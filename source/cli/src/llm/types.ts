@@ -10,8 +10,9 @@ export interface LlmProvider {
 }
 
 export interface AspectResponse {
+  aspectId?: string;
   satisfied: boolean;
   reason: string;
-  /** True when the result is due to a provider error, not a code issue */
-  providerError?: boolean;
+  /** Discriminator: codeViolation = real code issue; provider = infra/API error; astRuntime = AST check threw */
+  errorSource: 'codeViolation' | 'provider' | 'astRuntime';
 }

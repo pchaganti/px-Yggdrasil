@@ -92,7 +92,7 @@ async function recordBaseline(tmpDir: string) {
 
 function makeMockProvider(overrides: Partial<LlmProvider> = {}): LlmProvider {
   return {
-    verifyAspect: async () => ({ satisfied: true, reason: 'ok' }),
+    verifyAspect: async () => ({ satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }),
     isAvailable: async () => true,
     getContextWindowSize: async () => 8192,
     ...overrides,
@@ -126,7 +126,7 @@ describe('runApproveWithReviewer (core layer)', () => {
     const graph = await loadGraph(tmpDir);
     const coreResult = await approveNode(graph, 'svc/my-service');
     const provider = makeMockProvider({
-      async verifyAspect() { return { satisfied: false, reason: 'Date.now() found' }; },
+      async verifyAspect() { return { satisfied: false, reason: 'Date.now() found', errorSource: 'codeViolation' as const }; },
     });
     const result = await runApproveWithReviewer({ graph, nodePath: 'svc/my-service', result: coreResult, provider, maxTokens: undefined, consensus: undefined });
     expect(result.action).toBe('refused');
@@ -178,7 +178,7 @@ describe('runApproveWithReviewer (core layer)', () => {
     const graph = await loadGraph(tmpDir);
     const coreResult = await approveNode(graph, 'svc/my-service');
     const provider = makeMockProvider({
-      async verifyAspect() { return { satisfied: false, reason: 'network error', providerError: true }; },
+      async verifyAspect() { return { satisfied: false, reason: 'network error', errorSource: 'provider' as const }; },
     });
     const result = await runApproveWithReviewer({ graph, nodePath: 'svc/my-service', result: coreResult, provider, maxTokens: undefined, consensus: undefined });
     expect(result.action).toBe('refused');
@@ -221,7 +221,7 @@ describe('runApproveWithReviewer (core layer)', () => {
 
     let verifyCallCount = 0;
     const provider = makeMockProvider({
-      async verifyAspect() { verifyCallCount++; return { satisfied: true, reason: 'ok' }; },
+      async verifyAspect() { verifyCallCount++; return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }; },
     });
 
     const result = await runApproveWithReviewer({
@@ -246,7 +246,7 @@ describe('runApproveWithReviewer (core layer)', () => {
     const graph = await loadGraph(tmpDir);
     const coreResult = await approveNode(graph, 'svc/my-service');
     let verifyAspectCalled = false;
-    const provider = makeMockProvider({ async verifyAspect() { verifyAspectCalled = true; return { satisfied: true, reason: 'ok' }; } });
+    const provider = makeMockProvider({ async verifyAspect() { verifyAspectCalled = true; return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }; } });
     const result = await runApproveWithReviewer({ graph, nodePath: 'svc/my-service', result: coreResult, provider, maxTokens: undefined, consensus: undefined });
     expect(result.action).toBe('approved');
     expect(verifyAspectCalled).toBe(false);
@@ -273,7 +273,7 @@ describe('LLM verification (CLI layer)', () => {
     const graph = await loadGraph(tmpDir);
     const provider = makeMockProvider({
       async verifyAspect() {
-        return { satisfied: false, reason: 'Date.now() found — not side-effect free' };
+        return { satisfied: false, reason: 'Date.now() found — not side-effect free', errorSource: 'codeViolation' as const };
       },
     });
 
@@ -309,7 +309,7 @@ describe('LLM verification (CLI layer)', () => {
 
     let verifyCallCount = 0;
     const provider = makeMockProvider({
-      async verifyAspect() { verifyCallCount++; return { satisfied: true, reason: 'ok' }; },
+      async verifyAspect() { verifyCallCount++; return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }; },
     });
 
     const result = await runLlmVerification(

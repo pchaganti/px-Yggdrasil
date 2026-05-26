@@ -7,23 +7,32 @@ import { debugWrite } from '../utils/debug-log.js';
 
 const execFileAsync = promisify(execFile);
 
+function normalizeResponse(raw: unknown): AspectResponse {
+  const r = raw as Record<string, unknown>;
+  return {
+    satisfied: typeof r.satisfied === 'boolean' ? r.satisfied : false,
+    reason: typeof r.reason === 'string' ? r.reason : '',
+    errorSource: 'codeViolation',
+  };
+}
+
 export function parseAspectResponse(output: string): AspectResponse | undefined {
   const trimmed = output.trim();
   if (!trimmed) return undefined;
 
   // 1. Direct JSON
-  try { return JSON.parse(trimmed); } catch (err) { debugWrite(`[parseAspectResponse] direct JSON parse failed: ${(err as Error).message}`); }
+  try { return normalizeResponse(JSON.parse(trimmed)); } catch (err) { debugWrite(`[parseAspectResponse] direct JSON parse failed: ${(err as Error).message}`); }
 
   // 2. Markdown fence
   const fenceMatch = trimmed.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
   if (fenceMatch) {
-    try { return JSON.parse(fenceMatch[1].trim()); } catch (err) { debugWrite(`[parseAspectResponse] fence JSON parse failed: ${(err as Error).message}`); }
+    try { return normalizeResponse(JSON.parse(fenceMatch[1].trim())); } catch (err) { debugWrite(`[parseAspectResponse] fence JSON parse failed: ${(err as Error).message}`); }
   }
 
   // 3. Embedded JSON object
   const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
-    try { return JSON.parse(jsonMatch[0]); } catch (err) { debugWrite(`[parseAspectResponse] embedded JSON parse failed: ${(err as Error).message}`); }
+    try { return normalizeResponse(JSON.parse(jsonMatch[0])); } catch (err) { debugWrite(`[parseAspectResponse] embedded JSON parse failed: ${(err as Error).message}`); }
   }
 
   // 4. Natural language fallback — conservative
@@ -31,7 +40,7 @@ export function parseAspectResponse(output: string): AspectResponse | undefined 
   const hasSatisfied = lower.includes('satisfied') && !lower.includes('not satisfied');
   const hasExplicitYes = lower.includes('"satisfied": true') || lower.includes('"satisfied":true');
   const satisfied = hasExplicitYes || (hasSatisfied && !lower.includes('cannot') && !lower.includes('unable'));
-  return { satisfied, reason: trimmed.slice(0, 200) };
+  return { satisfied, reason: trimmed.slice(0, 200), errorSource: 'codeViolation' };
 }
 
 export abstract class CliAgentProvider implements LlmProvider {
@@ -62,7 +71,7 @@ export abstract class CliAgentProvider implements LlmProvider {
   }
 
   async verifyAspect(prompt: string): Promise<AspectResponse> {
-    const fallback: AspectResponse = { satisfied: false, reason: 'Reviewer unavailable', providerError: true };
+    const fallback: AspectResponse = { satisfied: false, reason: 'Reviewer unavailable', errorSource: 'provider' };
 
     return new Promise((resolve) => {
       const args = this.stdinMode ? this.buildArgs('') : this.buildArgs(prompt);
@@ -90,7 +99,7 @@ export abstract class CliAgentProvider implements LlmProvider {
           ? 'Prompt too large for CLI arg mode'
           : `spawn error — is '${this.binary}' installed and on PATH?`;
         debugWrite(`[${this.binary}] ${msg}`);
-        resolve({ satisfied: false, reason: msg });
+        resolve({ satisfied: false, reason: msg, errorSource: 'provider' });
       });
       child.on('close', (code) => {
         clearTimeout(timer);

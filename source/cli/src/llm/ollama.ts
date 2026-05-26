@@ -50,7 +50,7 @@ export class OllamaProvider implements LlmProvider {
   }
 
   async verifyAspect(prompt: string): Promise<AspectResponse> {
-    const fallback: AspectResponse = { satisfied: false, reason: 'LLM response could not be parsed', providerError: true };
+    const fallback: AspectResponse = { satisfied: false, reason: 'LLM response could not be parsed', errorSource: 'provider' };
 
     const body = {
       model: this.model,

@@ -19,7 +19,7 @@ export class OpenAIProvider implements LlmProvider {
   }
 
   async verifyAspect(prompt: string): Promise<AspectResponse> {
-    const fallback: AspectResponse = { satisfied: false, reason: 'OpenAI request failed', providerError: true };
+    const fallback: AspectResponse = { satisfied: false, reason: 'OpenAI request failed', errorSource: 'provider' };
     try {
       const res = await apiFetch(`${this.endpoint}/chat/completions`, {
         method: 'POST',

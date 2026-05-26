@@ -1,11 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import { verifyAspects, chunkSourceFiles, buildPrompt } from '../../../src/llm/aspect-verifier.js';
-import type { LlmProvider } from '../../../src/llm/types.js';
+import type { LlmProvider, AspectResponse } from '../../../src/llm/types.js';
 
 function mockProvider(responses: Array<{ satisfied: boolean; reason: string }>): LlmProvider {
   let callIndex = 0;
   return {
-    verifyAspect: vi.fn(async () => responses[callIndex++] ?? { satisfied: true, reason: 'ok' }),
+    verifyAspect: vi.fn(async (): Promise<AspectResponse> => {
+      const r = responses[callIndex++] ?? { satisfied: true, reason: 'ok' };
+      return { ...r, errorSource: 'codeViolation' };
+    }),
     isAvailable: vi.fn(async () => true),
     getContextWindowSize: vi.fn(async () => 8192),
   };
@@ -89,7 +92,7 @@ describe('verifyAspects', () => {
       nodeDescription: 'Test node',
       nodePath: 'test/node',
     });
-    expect(results['test']).toEqual({ satisfied: true, reason: expect.stringContaining('satisfied') });
+    expect(results['test']).toEqual({ satisfied: true, reason: expect.stringContaining('satisfied'), errorSource: 'codeViolation' });
   });
 
   it('returns not satisfied for failing aspect', async () => {
@@ -101,7 +104,7 @@ describe('verifyAspects', () => {
       nodeDescription: 'Test node',
       nodePath: 'test/node',
     });
-    expect(results['test']).toEqual({ satisfied: false, reason: 'Missing X' });
+    expect(results['test']).toEqual({ satisfied: false, reason: 'Missing X', errorSource: 'codeViolation' });
   });
 
   it('skips verification for empty source files', async () => {

@@ -101,9 +101,9 @@ async function verifyWithConsensus(
   const notSatisfied = votes.filter(v => !v.satisfied).length;
 
   if (satisfied > notSatisfied) {
-    return { satisfied: true, reason: votes.find(v => v.satisfied)!.reason };
+    return { satisfied: true, reason: votes.find(v => v.satisfied)!.reason, errorSource: 'codeViolation' };
   }
-  return { satisfied: false, reason: votes.find(v => !v.satisfied)!.reason };
+  return { satisfied: false, reason: votes.find(v => !v.satisfied)!.reason, errorSource: 'codeViolation' };
 }
 
 export async function verifyAspects(
@@ -122,7 +122,7 @@ export async function verifyAspects(
   for (const aspect of aspects) {
     let failed = false;
     let failReason = '';
-    let failProviderError = false;
+    let failErrorSource: AspectResponse['errorSource'] = 'codeViolation';
 
     for (const chunk of chunks) {
       if (chunk.length === 0) continue;
@@ -131,14 +131,14 @@ export async function verifyAspects(
       if (!result.satisfied) {
         failed = true;
         failReason = result.reason;
-        failProviderError = result.providerError ?? false;
+        failErrorSource = result.errorSource;
         break;
       }
     }
 
     results[aspect.id] = failed
-      ? { satisfied: false, reason: failReason, ...(failProviderError ? { providerError: true } : {}) }
-      : { satisfied: true, reason: `All rules satisfied across ${chunks.length} file group(s)` };
+      ? { satisfied: false, reason: failReason, errorSource: failErrorSource }
+      : { satisfied: true, reason: `All rules satisfied across ${chunks.length} file group(s)`, errorSource: 'codeViolation' };
   }
 
   return results;

@@ -19,7 +19,7 @@ export class AnthropicProvider implements LlmProvider {
   }
 
   async verifyAspect(prompt: string): Promise<AspectResponse> {
-    const fallback: AspectResponse = { satisfied: false, reason: 'Anthropic request failed', providerError: true };
+    const fallback: AspectResponse = { satisfied: false, reason: 'Anthropic request failed', errorSource: 'provider' };
     try {
       const res = await apiFetch(`${this.endpoint}/messages`, {
         method: 'POST',
