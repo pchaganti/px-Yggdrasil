@@ -103,7 +103,13 @@ async function verifyWithConsensus(
   if (satisfied > notSatisfied) {
     return { satisfied: true, reason: votes.find(v => v.satisfied)!.reason, errorSource: 'codeViolation' };
   }
-  return { satisfied: false, reason: votes.find(v => !v.satisfied)!.reason, errorSource: 'codeViolation' };
+  const losingVotes = votes.filter(v => !v.satisfied);
+  const allProvider = losingVotes.every(v => v.errorSource === 'provider');
+  return {
+    satisfied: false,
+    reason: losingVotes[0]!.reason,
+    errorSource: allProvider ? 'provider' : 'codeViolation',
+  };
 }
 
 export async function verifyAspects(
@@ -112,7 +118,7 @@ export async function verifyAspects(
   const { provider, aspects, sourceFiles, nodePath, nodeDescription, consensus = 1, maxTokens } = params;
 
   if (sourceFiles.length === 0) {
-    return Object.fromEntries(aspects.map(a => [a.id, { satisfied: true, reason: 'No source files' }]));
+    return Object.fromEntries(aspects.map(a => [a.id, { satisfied: true, reason: 'No source files', errorSource: 'codeViolation' as const }]));
   }
 
   const tokenBudget = maxTokens ?? 8192;

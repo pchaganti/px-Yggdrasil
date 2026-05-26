@@ -1,5 +1,5 @@
 {
-  "hash": "511b183ad67d5f7f79da509d93273ee1b0414bbcf203b3cd6005632ce8dbc812",
+  "hash": "8858e9947a80d6e1b452c363f89a75243f478c432217b157d1f3ddb12ee9c026",
   "files": {
     "own-subset:cli/llm/shared": "78c235f3cf8c38ab5f01ff2d70f00cda29b714ffa1adaf5dad7ac84c6a7a0146",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -16,7 +16,7 @@
     "source/cli/src/llm/reviewer-test.ts": "05c8a5b09320643bb76df54e8abe221e252686e08e8152be3a26e3b4089e001d",
     "source/cli/src/llm/model-fetcher.ts": "0c986bd9b6bf33393e48ec1bee70481d8db3dbd42b2eb4c69200798cf777afc3",
     "source/cli/src/llm/types.ts": "c75eb3fc19adce56108b0cb851e358664af4aa5bee6018561aeb9ee1408b29c6",
-    "source/cli/src/llm/aspect-verifier.ts": "61f0ba05c9e406d5f8d247a86b114184e4e4acb93c96e48eedbd96b661fffb23"
+    "source/cli/src/llm/aspect-verifier.ts": "caf648c50eaa9be10319c78630056f41b3bdafad5ae5aea50d710700f487d0e0"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -27,16 +27,16 @@
     ".yggdrasil/aspects/provider-retry-contract/content.md": 1778914752602.5513,
     ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": 1776177846197.8352,
     ".yggdrasil/aspects/what-why-next/content.md": 1778855561245.8606,
-    "source/cli/src/llm/types.ts": 1779782258236.2715,
+    "source/cli/src/llm/types.ts": 1779783048560.9834,
     "source/cli/src/llm/provider.ts": 1776177846233.5361,
     "source/cli/src/llm/index.ts": 1776177846232.9993,
     "source/cli/src/llm/api-utils.ts": 1778914649414.1978,
-    "source/cli/src/llm/aspect-verifier.ts": 1779782337190.6177,
+    "source/cli/src/llm/aspect-verifier.ts": 1779783850899.4575,
     "source/cli/src/llm/reviewer-test.ts": 1776177846233.7026,
     "source/cli/src/llm/model-fetcher.ts": 1776177846233.1375
   },
   "log": {
-    "last_entry_datetime": "2026-05-26T08:03:00.097Z",
-    "prefix_hash": "6086c5e3cf599d2a8612b9cd1904b0a957ccf3245fcd2232deb00fafdd850fe6"
+    "last_entry_datetime": "2026-05-26T08:24:43.055Z",
+    "prefix_hash": "b743fd41758b3e7a47e952474ff4e61913181b31c71c905481febb1edd9cbfcb"
   }
 }

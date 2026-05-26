@@ -6,3 +6,5 @@ Fix LLM reviewer prompt: add bracket form (yg-suppress-disable/enable) instructi
 Add optional timeoutMs parameter to apiFetch() — ollama health-check calls need 5s timeout vs the 60s default for LLM inference.
 ## [2026-05-26T08:03:00.097Z]
 Rename providerError boolean to required errorSource discriminator on AspectResponse. Three explicit values: codeViolation, provider, astRuntime. Forces exhaustive matching — adding a fourth tag later fails typecheck instead of silently slipping past filters. aspect-verifier and types both touched.
+## [2026-05-26T08:24:43.055Z]
+Fix two errorSource propagation bugs in aspect-verifier.ts: (1) verifyWithConsensus was hardcoding codeViolation on all failing votes; now propagates 'provider' when all losing votes carry errorSource: 'provider'. (2) early-return no-source-files path now includes errorSource: 'codeViolation' for consistency with Task 3 making the field required on AspectVerificationResult.
