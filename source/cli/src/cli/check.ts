@@ -70,7 +70,7 @@ export function formatOutput(result: CheckResult): string {
   const warnings = result.issues.filter(i => i.severity === 'warning');
 
   // Code category sets for grouping
-  const STRUCTURAL_CODES = new Set(['yaml-invalid', 'type-invalid', 'relation-broken', 'flow-node-broken', 'aspect-undefined', 'overlapping-mapping', 'file-duplicate-mapping', 'structural-cycle', 'config-invalid', 'duplicate-aspect-id', 'node-yaml-missing', 'implied-aspect-missing', 'aspect-implies-cycle', 'event-unpaired', 'schema-missing', 'type-without-when-with-mapping', 'type-when-mismatch', 'file-mapping-gitignored', 'enforce-strict-without-when', 'architecture-cycle', 'when-predicate-invalid', 'when-unknown-type', 'when-unknown-node', 'when-unknown-port', 'aspect-unexpected-rule-source', 'aspect-missing-rule-source', 'file-unreadable']);
+  const STRUCTURAL_CODES = new Set(['yaml-invalid', 'type-invalid', 'relation-broken', 'flow-node-broken', 'aspect-undefined', 'overlapping-mapping', 'file-duplicate-mapping', 'structural-cycle', 'config-invalid', 'duplicate-aspect-id', 'node-yaml-missing', 'implied-aspect-missing', 'aspect-implies-cycle', 'event-unpaired', 'schema-missing', 'type-without-when-with-mapping', 'type-when-mismatch', 'file-mapping-gitignored', 'enforce-strict-without-when', 'architecture-cycle', 'when-predicate-invalid', 'when-unknown-type', 'when-unknown-node', 'when-unknown-port', 'aspect-unexpected-rule-source', 'aspect-missing-rule-source', 'file-unreadable', 'aspect-ast-missing-language', 'aspect-language-not-array', 'aspect-empty-language-list', 'aspect-unknown-language']);
   const ARCHITECTURE_CODES = new Set(['relation-target-forbidden', 'parent-type-forbidden', 'type-undefined', 'port-missing-aspect', 'port-missing-consumes', 'port-undefined', 'consumes-without-ports']);
   const COVERAGE_CODES = new Set(['unmapped-files', 'mapping-path-missing']);
   const COMPLETENESS_CODES = new Set(['description-missing']);
@@ -112,8 +112,8 @@ export function formatOutput(result: CheckResult): string {
       const sortedCascade = [...cascade].sort((a, b) => {
         const causeA = a.cascadeCauses?.[0]?.description ?? '';
         const causeB = b.cascadeCauses?.[0]?.description ?? '';
-        if (causeA !== causeB) return causeA.localeCompare(causeB);
-        return (a.nodePath ?? '').localeCompare(b.nodePath ?? '');
+        if (causeA !== causeB) return causeA.localeCompare(causeB, 'en');
+        return (a.nodePath ?? '').localeCompare(b.nodePath ?? '', 'en');
       });
       for (const issue of sortedCascade) {
         lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — cascade drift`);
@@ -293,7 +293,7 @@ export function formatOutput(result: CheckResult): string {
 }
 
 function sortByNodePath(issues: CheckIssue[]): CheckIssue[] {
-  return [...issues].sort((a, b) => (a.nodePath ?? '').localeCompare(b.nodePath ?? ''));
+  return [...issues].sort((a, b) => (a.nodePath ?? '').localeCompare(b.nodePath ?? '', 'en'));
 }
 
 function msg(issue: CheckIssue): string {
