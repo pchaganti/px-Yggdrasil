@@ -30,3 +30,7 @@ Wrapped 'Approve refused.' fallback string and 'No reviewer configured' Error in
 AST aspect execution sets errorSource: 'codeViolation' in success path, errorSource: 'astRuntime' in catch. AST violations map includes errorSource from result. Aligns with new AspectVerificationResult and ApproveResult shapes; AST runtime exceptions now flow through 'not a code violation' filter alongside LLM provider failures.
 ## [2026-05-26T08:42:33.030Z]
 Changed loadLlmProvider to handle the 'No reviewer configured' case inline (process.stderr.write + process.exit) instead of throwing an Error that would be caught by the generic abortOnUnexpectedError handler. Constant-text command errors must be handled inline per cli-command-contract; routing known errors through abortOnUnexpectedError produces misleading 'Unexpected error' output.
+## [2026-05-26T10:18:20.285Z]
+Rewrote aspect command-exit-codes against raw tree-sitter API. Hash change forces re-approval. Verified behavior-identical via ast-test diff against pre-rewrite baseline.
+## [2026-05-26T10:27:54.432Z]
+Rewrote aspect command-contract-shape against raw tree-sitter API. Replaced ast.exports() helper and string-based ast.inFile() with walk() + raw node traversal and inFile({glob:...}) object form. Verified behavior-identical via ast-test diff.
