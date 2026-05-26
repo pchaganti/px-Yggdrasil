@@ -1,5 +1,5 @@
 {
-  "hash": "ffb65d35f64ac76eaa3a79d9ec91d9c7e817565bf5750e88a80cefe01a25bd68",
+  "hash": "568c460c456856f07823c008b9d789c8b7a6c005fa94ec4fd45018c54c0cd142",
   "files": {
     "own-subset:cli/ast/runtime": "81c446303e7f0f81e4442926d9268b200464da4ffadf167ab4d6c49a0da2a341",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -8,13 +8,14 @@
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "9a5d512752a6f1fea12e50a6ef249cbf0aae2cc2097597057e4dd429df65f7c9",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678",
+    ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": "3dc44ca9f217265beaf528bbfd13720e77985be4ec8fae0ce1f2c044968c8faf",
+    ".yggdrasil/aspects/what-why-next/content.md": "bbe835c049672dd09076de1be3a2dd2ed70c38e31a327f98176f1a0d15fb0838",
     "source/cli/src/ast/loader-hook-impl.ts": "7f184721c2121038768e06ea66b2661e99460e336151d2649e0fecdbe8459f37",
     "source/cli/src/ast/loader-hook.ts": "e34275e1bbf8e5197db94706a589266bc31d6dd0879b6e8428d3f7191155f72b",
     "source/cli/src/ast/parser.ts": "9451597848af970126af4eff49dfae7210dec2ea1a0aef51c0f445343557a508",
     "source/cli/src/ast/runner.ts": "341c48943cd28d43340073f987aeca6bc97444ff82819cd097060f1d590de46c",
     "source/cli/src/ast/suppress.ts": "66a5d612886d53b3bb4460b13054a491a41fac0c8c5d9379ca81039f3a394a0b",
-    ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": "3dc44ca9f217265beaf528bbfd13720e77985be4ec8fae0ce1f2c044968c8faf",
-    ".yggdrasil/aspects/what-why-next/content.md": "bbe835c049672dd09076de1be3a2dd2ed70c38e31a327f98176f1a0d15fb0838"
+    "source/cli/src/ast/find-comments.ts": "eefb9e502f00d22cd465959ee56ac044bcec653490dccc2b1f41fcb7db542d17"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -25,6 +26,7 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
     ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": 1776177846197.8352,
     ".yggdrasil/aspects/what-why-next/content.md": 1778855561245.8606,
+    "source/cli/src/ast/find-comments.ts": 1779788555265.2058,
     "source/cli/src/ast/loader-hook-impl.ts": 1778434435909.4355,
     "source/cli/src/ast/loader-hook.ts": 1778440677113.9885,
     "source/cli/src/ast/parser.ts": 1778432527384.6138,
@@ -32,7 +34,7 @@
     "source/cli/src/ast/suppress.ts": 1778433965625.0508
   },
   "log": {
-    "last_entry_datetime": "2026-05-15T19:28:49.972Z",
-    "prefix_hash": "46405cb7a142676050519a1648ee33f5b1f66c7dd02d603bd390a3254572855e"
+    "last_entry_datetime": "2026-05-26T09:43:17.807Z",
+    "prefix_hash": "63ebb5cc7750738602701337db209fdde39fadfede4006366ea7d9c451412856"
   }
 }
