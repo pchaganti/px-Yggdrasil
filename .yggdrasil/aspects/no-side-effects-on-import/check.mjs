@@ -1,4 +1,4 @@
-import { ast } from '@chrisdudek/yg/ast';
+import { report } from '@chrisdudek/yg/ast';
 
 export function check(ctx) {
   const violations = [];
@@ -9,7 +9,7 @@ export function check(ctx) {
       if (!expr) continue;
       if (expr.type === 'call_expression' || expr.type === 'await_expression') {
         violations.push(
-          ast.report(
+          report(
             file,
             expr,
             `top-level call at module scope — utility modules must not execute side effects on import`,
