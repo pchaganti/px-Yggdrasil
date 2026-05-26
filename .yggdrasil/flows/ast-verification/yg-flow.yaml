@@ -5,5 +5,3 @@ aspects:
   - what-why-next
 nodes:
   - cli/ast/runtime
-  - cli/ast/helpers-naming
-  - cli/ast/helpers-syntactic

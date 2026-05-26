@@ -1,8 +1,0 @@
-name: AST Helpers — Naming
-type: ast-adapter
-description: Naming and path AST helpers — casing, file-path extraction, JSX element names, identifier names.
-mapping:
-  - source/cli/src/ast/casing.ts
-  - source/cli/src/ast/file-path.ts
-  - source/cli/src/ast/jsx.ts
-  - source/cli/src/ast/name.ts

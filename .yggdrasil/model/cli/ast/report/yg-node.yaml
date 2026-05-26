@@ -2,6 +2,9 @@ name: AST Report
 type: ast-adapter
 description: AST report types and public API surface — types, report aggregator, and the @chrisdudek/yg/ast index barrel.
 mapping:
-  - source/cli/src/ast/types.ts
-  - source/cli/src/ast/report.ts
+  - source/cli/src/ast/file-path.ts
+  - source/cli/src/ast/find-comments.ts
   - source/cli/src/ast/index.ts
+  - source/cli/src/ast/report.ts
+  - source/cli/src/ast/types.ts
+  - source/cli/src/ast/walk.ts

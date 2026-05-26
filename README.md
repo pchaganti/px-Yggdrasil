@@ -68,7 +68,7 @@ Team conventions. Company standards. ISO compliance. Architecture boundaries. Er
 
 Yggdrasil enforces architecture at the codebase level. These three smaller skills cover adjacent concerns. Each is a single Markdown file installable as a Claude Code plugin or droppable into any agent that reads skills.
 
-**[Liaison](https://github.com/krzysztofdudek/LiaisonSkill).** For people who use AI agents but don't write code. Reads back intent in your words and waits for explicit yes before destructive operations.
+**[Liaison](https://github.com/krzysztofdudek/LiaisonSkill).** For people who don't write code but use AI agents anyway. Reads back intent in your words and waits for explicit yes before destructive operations.
 
 **[Be Precise](https://github.com/krzysztofdudek/BePreciseSkill).** When the agent moves from a plan into code, stops it from silently filling spec gaps.
 

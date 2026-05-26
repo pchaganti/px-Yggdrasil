@@ -1,5 +1,5 @@
 {
-  "hash": "dd3799a91e8b6d6782fc7f396a26a8470eed2bdecb048a6a12cc70c3d063ecd8",
+  "hash": "9e60fc6d11a840482e3c13f3cab9c32748f09842568b65c9537e18604cfe5743",
   "files": {
     "own-subset:cli/tests/unit/ast/syntax": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -8,10 +8,6 @@
     ".yggdrasil/model/cli/tests/unit/ast/yg-node.yaml": "560e64c59b6b3426fc7dd266ce6bd2b61d3b62d2ad275cc1ffefaf740cfa2063",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "c9db3b691b776caed9de57f4a2db93fd6dd368c1e5cff30e81cbf12a356c4fcf",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/ast/casing.test.ts": "af306c98bfe61b3965af0149ea6eeb6c8d7eec2e8718fcbe8edc98fb6ce01b99",
-    "source/cli/tests/unit/ast/decorators.test.ts": "41c3171ab63d0414de93f98d05f93b128dc4661ce45c2b4d3a61054115afbaff",
-    "source/cli/tests/unit/ast/jsx.test.ts": "610ad040e34d5417e27fbf44dd76be7512dff5b67bf7984115bd375a4384961d",
-    "source/cli/tests/unit/ast/modifiers.test.ts": "1cf939d62ea4ddfc89345c12846941767c65a5fc678ff7dc3fcc2d225cceb6dd",
     "source/cli/tests/unit/ast/file-path.test.ts": "b2a612c7bd0d8d6650be85f4c12e63a62ecb0a36a5c50f81f444c151335b1313"
   },
   "mtimes": {
@@ -21,11 +17,7 @@
     ".yggdrasil/model/cli/tests/unit/ast/yg-node.yaml": 1778923838526.995,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1778915335937.2456,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/ast/casing.test.ts": 1778433481533.3071,
-    "source/cli/tests/unit/ast/decorators.test.ts": 1778433426845.69,
-    "source/cli/tests/unit/ast/file-path.test.ts": 1779785827177.2356,
-    "source/cli/tests/unit/ast/jsx.test.ts": 1778433465604.182,
-    "source/cli/tests/unit/ast/modifiers.test.ts": 1778433449842.8843
+    "source/cli/tests/unit/ast/file-path.test.ts": 1779785827177.2356
   },
   "log": {
     "last_entry_datetime": "2026-05-26T08:57:15.608Z",

@@ -1,11 +1,7 @@
 name: AST Syntax Helper Tests
 type: test-suite
-description: Unit tests for syntax-form helpers — casing, decorators, file-path resolution, JSX detection, and access modifiers
+description: Unit tests for file-path resolution
 aspects: []
 relations: []
 mapping:
-  - source/cli/tests/unit/ast/casing.test.ts
-  - source/cli/tests/unit/ast/decorators.test.ts
   - source/cli/tests/unit/ast/file-path.test.ts
-  - source/cli/tests/unit/ast/jsx.test.ts
-  - source/cli/tests/unit/ast/modifiers.test.ts
