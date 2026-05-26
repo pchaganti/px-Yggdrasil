@@ -220,4 +220,21 @@ export function check(ctx) {
       runAstAspect({ aspectDir: dir, aspectId: 'test', files: [{ path: tmpFile }], projectRoot: '/' }),
     ).rejects.toMatchObject({ code: 'AST_SOURCE_PARSE_ERROR' });
   });
+
+  it('AST_CHECK_FILE_NOT_IN_CONTEXT when check.mjs returns violation for file outside ctx.files', async () => {
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-')); tmpDirs.push(dir);
+    // check.mjs returns a violation referencing a file that was NOT passed in ctx.files
+    writeFileSync(path.join(dir, 'check.mjs'), `
+export function check(ctx) {
+  return [{ file: '/some/other/file.ts', line: 1, column: 0, message: 'synthetic' }];
+}
+`);
+    const tmpFile = path.join(dir, 'x.ts');
+    writeFileSync(tmpFile, 'const x = 1;');
+    await expect(
+      runAstAspect({ aspectDir: dir, aspectId: 'test', files: [{ path: tmpFile }], projectRoot: '/' }),
+    ).rejects.toMatchObject({ code: 'AST_CHECK_FILE_NOT_IN_CONTEXT' });
+  });
 });

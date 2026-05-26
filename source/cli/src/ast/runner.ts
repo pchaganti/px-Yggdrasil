@@ -147,6 +147,18 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
     });
   }
 
+  // Enforce ctx.files boundary — check.mjs must not synthesize violations for files it was not given
+  const contextPaths = new Set(sourceFiles.map(f => f.path));
+  for (const v of raw as Violation[]) {
+    if (!contextPaths.has(v.file)) {
+      throw new AstRunnerError('AST_CHECK_FILE_NOT_IN_CONTEXT', {
+        what: `check.mjs returned a Violation referencing file '${v.file}' which is not in ctx.files (aspect '${params.aspectId}').`,
+        why: `Author cannot synthesize violations against files they were not given. Suppress markers cannot reach unknown files.`,
+        next: `Return only violations for files in ctx.files (the array passed to check).`,
+      });
+    }
+  }
+
   // Filter suppressed violations
   const filtered = (raw as Violation[]).filter(v => {
     const ranges = rangesPerFile.get(v.file);
