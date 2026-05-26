@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `@chrisdudek/yg/ast` API surface reduced to raw tree-sitter primitives: `{ walk, report, inFile, findComments, closest }`. `walk(node, visitor)` replaces `within(parent, type, opts)`; visitor returning `false` skips descent. `closest(node, types)` retained as minimal-API ancestor lookup.
+- `inFile` signature changed from string-with-heuristic to discriminated object `{ glob | regex | contains }`.
+- `report(file, node, message)` now includes `column` field (0-based from `node.startPosition.column`).
+- `AspectViolation.providerError: boolean` and `AspectResponse.providerError: boolean` refactored to required `errorSource: 'codeViolation' | 'provider' | 'astRuntime'`. AST runtime exceptions now flow through `errorSource: 'astRuntime'`.
+- All 14 AST aspects rewritten against raw tree-sitter API: `atomic-write-contract`, `command-contract-shape`, `command-error-via-buildissuemessage`, `command-exit-codes`, `migration-bumps-version`, `no-direct-console`, `no-direct-fs`, `no-nondeterminism-direct`, `no-side-effects-on-import`, `parser-yaml-guard`, `posix-paths-source`, `provider-redaction`, `read-or-default-via-helper`, `single-source-graph-queries`.
 - README "What Yggdrasil does" section reframed from "reviewer catches what the agent skipped" to "graph is the architecture spec, agent reads relevant aspects before editing, reviewer verifies after". Adds the pre-edit `yg context` step to the loop diagram, surfaces nodes/aspects/flows/ports vocabulary up front, and adds a paragraph on `log.md` as cross-session memory.
 - Deduplicated `collectAncestors` in `core/effective-aspects.ts` — removed the leaf-first duplicate; the file now imports the canonical root-first implementation from `core/context-builder.ts`. Removes a bug-in-waiting where future callers could silently reverse traversal order by importing the wrong helper.
 - Extracted shared `parsePredicateBoolean` helper into `core/parsing/predicate-boolean.ts`. Both `when-parser` and `file-when-parser` now delegate the `all_of`/`any_of`/`not` parsing to it — eliminates ~50 LOC of identical logic. The helper accepts an optional error class so `file-when-parser` preserves its `WhenPredicateInvalidError` contract.
@@ -16,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- AST aspect yaml: required field `language: [<id>, ...]` for `reviewer: ast`. Four new structural-check errors enforce the field shape: `aspect-ast-missing-language`, `aspect-language-not-array`, `aspect-empty-language-list`, `aspect-unknown-language`.
+- Language registry stub in `source/cli/src/core/graph/language-registry.ts` — phase 1 covers typescript/tsx/javascript; phase 3 expands to 35.
+- `findComments(target)` exported from `@chrisdudek/yg/ast` — returns comment nodes for a file or subtree, reads comment node types from language registry per `ctx.language`.
+- Runtime error `AST_CHECK_FILE_NOT_IN_CONTEXT` — aspect returns violation for a file not in ctx.files.
 - AST aspect `read-or-default-via-helper` — applied to `persistence-adapter` and `parser-adapter` node types. Forbids inline ENOENT-swallow around `readFile` in IO files; future code must use `readFileOrDefault`. Compound try blocks (e.g. `lstat` + `readFile`) and non-readFile fs operations are correctly skipped.
 - AST aspect `parser-yaml-guard` — applied to `parser-adapter`. Requires every YAML parser to include `Array.isArray(raw)` in the top-level shape guard. Fixes a latent bug where a YAML array document silently passed the existing `typeof raw === 'object'` check (since arrays are typeof `'object'`) and failed later at the first property access. `flow-parser`, `node-parser`, and `aspect-parser` had their guards extended; `schema-parser` and `architecture-parser` already conformed.
 - New helper `formatters/cli-preamble.ts` with `loadGraphOrAbort`. Twelve CLI commands (all except `init`, which bootstraps the graph) now delegate the "No .yggdrasil/ directory found" error to this single helper instead of inlining the string and ENOENT branch themselves. The helper emits a structured what/why/next message via `buildIssueMessage` and exits 1 on ENOENT-shaped loader failures; non-ENOENT errors continue to flow through the surrounding catch in each command. The `cli-command-contract` aspect's `content.md` was updated to reference the new helper as the canonical graph-loading entry point.
@@ -29,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- `@chrisdudek/yg/ast` helpers: `call`, `imports`, `exports`, `decoratorsOf`, `modifiersOf`, `jsxElements`, `casing`, `nameOf`, `within`. Replaced by direct tree-sitter API access via `walk(node, visitor)`. `closest` retained in minimal API.
+- Old `inFile(file, string)` signature. Replaced by discriminated object.
+- Graph nodes `cli/ast/helpers-syntactic` and `cli/ast/helpers-naming`.
 - README: "Too heavy? Try AutoReview" sibling-tool section and the Yggdrasil/AutoReview comparison table. AutoReview is being deprecated and cross-links are being cut across the family.
 
 ## [4.3.0] - 2026-05-16
