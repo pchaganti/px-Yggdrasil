@@ -58,6 +58,20 @@ function legacyUpdate(id: string) {
 // yg-suppress-enable(audit-logging/emit-before-mutate)
 \`\`\`
 
+\`\`\`python
+# yg-suppress-disable(legacy-pattern) brownfield, TICKET-789
+def legacy_handler(request):
+    return repo.update(request.id, request.data)
+# yg-suppress-enable(legacy-pattern)
+\`\`\`
+
+\`\`\`sql
+-- yg-suppress-disable(no-select-star) reporting query batch
+SELECT * FROM users;
+SELECT * FROM orders;
+-- yg-suppress-enable(no-select-star)
+\`\`\`
+
 The enable marker must have the same id as the disable marker.
 Mismatched enable/disable pairs are reported by \`yg check\`.
 
