@@ -1,4 +1,4 @@
-export const summary = 'How to write check.mjs for AST reviewer: 12 helpers, within boundary, suppression, testing';
+export const summary = 'How to write check.mjs for AST reviewer: runtime contract, tree-sitter API, multi-language dispatch, migration from removed helpers';
 
 export const content = `# Writing AST aspects
 
@@ -15,79 +15,126 @@ Use AST when the rule is structural:
 
 Use LLM for semantic rules that require reading intent.
 
-## check.mjs structure
+## Required: \`language:\` field in yg-aspect.yaml
 
-A complete AST check file follows this structure:
+Every AST aspect must declare the languages it handles:
+
+\`\`\`yaml
+id: my-rule
+reviewer: ast
+language: [typescript, tsx, javascript]
+\`\`\`
+
+The runner invokes \`check.mjs\` once per declared language, passing only the
+files for that language via \`ctx.language\` and \`ctx.files\`. Four validator
+errors enforce the shape:
+
+| Error code | Cause |
+|---|---|
+| \`aspect-ast-missing-language\` | \`language:\` field absent |
+| \`aspect-language-not-array\` | value is not a list |
+| \`aspect-empty-language-list\` | list is empty |
+| \`aspect-unknown-language\` | id not in language registry |
+
+## Runtime contract
 
 \`\`\`javascript
-import { ast } from '@chrisdudek/yg/ast';
-
+// check.mjs
 export function check(ctx) {
+  // ctx.language  — string id of the current language (e.g. 'typescript')
+  // ctx.files     — array of { path: string, ast: { rootNode } }
   const violations = [];
-  for (const file of ctx.files) {
-    // optional: filter by path
-    if (!ast.inFile(file, 'src/api/**')) continue;
-
-    // walk the AST for the pattern
-    for (const node of ast.within(file.ast.rootNode, 'call_expression', { crossFunctions: true })) {
-      const m = ast.call(node, { object: 'fs', method: /Sync$/ });
-      if (m) violations.push(ast.report(file, node, 'use async fs API'));
-    }
-  }
+  // ... inspect each file ...
   return violations;  // Violation[] — synchronous only
 }
 \`\`\`
 
-Return \`Violation[]\` — synchronous only. No \`async\`, no \`Promise\`.
-The function receives \`ctx.files\`: an array of \`{ path, ast }\` objects.
+Rules:
+- Named export \`check\`, synchronous. No \`async\`, no \`Promise\`.
+- Return an array of \`{ file, line, column, message }\` objects (use \`report()\`).
+- Do not write files, make network calls, or call \`process.exit\`.
+- Do not access \`ctx.files\` of a file not in \`ctx.files\` — runtime error
+  \`AST_CHECK_FILE_NOT_IN_CONTEXT\`.
 
-## The twelve helpers
+## Dispatch pattern for multiple languages
 
-Import all from \`@chrisdudek/yg/ast\` — zero install required.
-
-| Helper | Purpose |
-|--------|---------|
-| \`ast.report(file, node, msg)\` | Create Violation (line 1-based) |
-| \`ast.nameOf(node)\` | Identifier name from declarations |
-| \`ast.inFile(file, pattern)\` | Glob / regex / substring path filter |
-| \`ast.exports(rootNode)\` | All exported declarations |
-| \`ast.imports(rootNode)\` | All ES imports, require(), dynamic imports |
-| \`ast.call(node, target)\` | Match call_expression by name/object/method |
-| \`ast.closest(node, types)\` | Nearest ancestor of given types |
-| \`ast.within(parent, type, opts?)\` | Descendants of type |
-| \`ast.decoratorsOf(node)\` | Decorators on class or member |
-| \`ast.modifiersOf(node)\` | Set of modifiers (public, static, async, ...) |
-| \`ast.jsxElements(rootNode)\` | All JSX opening and self-closing elements |
-| \`ast.casing.pascal(name)\` | Naming checks: also camel, upperSnake, kebab |
-
-### ast.within boundary behavior (critical)
-
-By default, \`ast.within\` stops at function boundaries. Use
-\`crossFunctions: true\` when the rule is "X anywhere in the file":
+When behaviour differs per language, switch on \`ctx.language\`:
 
 \`\`\`javascript
-// File-level scan — crosses all function boundaries
-for (const node of ast.within(file.ast.rootNode, 'call_expression', { crossFunctions: true })) { ... }
+import { walk, report, inFile, closest } from '@chrisdudek/yg/ast';
 
-// Function-scoped scan — stops at nested functions (default)
-for (const node of ast.within(functionNode, 'await_expression')) { ... }
+export function check(ctx) {
+  switch (ctx.language) {
+    case 'typescript':
+    case 'tsx':
+      return checkTs(ctx);
+    case 'javascript':
+      return checkJs(ctx);
+    default:
+      // Always include a default — future registry expansions may pass
+      // an unexpected language id if the aspect yaml is updated before
+      // check.mjs is.
+      return [];
+  }
+}
 \`\`\`
 
-Using the wrong setting silently misses violations.
+## Minimal API — imports from \`@chrisdudek/yg/ast\`
 
-### ast.call matching
+| Export | Signature | Purpose |
+|---|---|---|
+| \`walk(node, visitor)\` | \`(node, (n) => boolean|void) => void\` | DFS traversal; visitor returning \`false\` skips descent into that subtree |
+| \`report(file, node, message)\` | \`(file, TreeNode, string) => Violation\` | Build a \`{ file, line, column, message }\` — \`line\` 1-based, \`column\` 0-based |
+| \`inFile(file, pattern)\` | \`(file, { glob } | { regex } | { contains }) => boolean\` | Path filter (discriminated object form) |
+| \`findComments(target)\` | \`(file | node) => TreeNode[]\` | Returns comment nodes; reads comment node types from language registry |
+| \`closest(node, types)\` | \`(TreeNode, string[]) => TreeNode | null\` | Nearest ancestor whose \`type\` is in \`types\` |
+
+## tree-sitter node API
+
+Each \`node\` object from the AST exposes:
+
+| Property / method | Type | Notes |
+|---|---|---|
+| \`node.type\` | \`string\` | Grammar node type (e.g. \`'call_expression'\`) |
+| \`node.text\` | \`string\` | Raw source text of the node |
+| \`node.namedChildren\` | \`TreeNode[]\` | Named (non-anonymous) children |
+| \`node.childForFieldName(name)\` | \`TreeNode | null\` | Child at a named grammar field |
+| \`node.startPosition\` | \`{ row: number, column: number }\` | Zero-based row and column |
+| \`node.parent\` | \`TreeNode | null\` | Parent node |
+
+### Reading node-types.json
+
+To learn the grammar's node types and field names, inspect the
+\`node-types.json\` shipped by the tree-sitter grammar package:
+
+\`\`\`
+node_modules/tree-sitter-typescript/typescript/node-types.json
+node_modules/tree-sitter-javascript/node-types.json
+\`\`\`
+
+Each entry lists its \`type\`, whether it is \`named\`, and the \`fields\`
+object whose keys are the field names usable with \`childForFieldName\`.
+
+## Example: forbid direct DB import in API layer
 
 \`\`\`javascript
-ast.call(node, 'foo')                              // bare: foo()
-ast.call(node, { object: 'db', method: 'query' }) // method: db.query()
-ast.call(node, { object: 'fs', method: /Sync$/ }) // regex on method name
+import { walk, report, inFile } from '@chrisdudek/yg/ast';
+
+export function check(ctx) {
+  const violations = [];
+  for (const file of ctx.files) {
+    if (!inFile(file, { glob: 'src/api/**' })) continue;
+    walk(file.ast.rootNode, node => {
+      if (node.type !== 'import_statement') return;
+      const source = node.childForFieldName('source');
+      if (source && /^\\"db\\//.test(source.text)) {
+        violations.push(report(file, node, 'API layer cannot import from db/ directly'));
+      }
+    });
+  }
+  return violations;
+}
 \`\`\`
-
-## Purity rule
-
-\`check.mjs\` must not write files, make network calls, or call
-\`process.exit\`. The runner does not enforce this — violating it produces
-non-deterministic results. The function must be pure and synchronous.
 
 ## Testing with yg ast-test
 
@@ -115,23 +162,24 @@ someCall();
 \`\`\`
 
 A specific \`enable(<id>)\` does NOT punch through \`disable(*)\`.
+Full delimiter table and multi-language bracket syntax: \`yg knowledge read suppress-syntax\`.
 
-## Example: forbid direct DB import in API layer
+## Migration table — removed helpers → raw tree-sitter
 
-\`\`\`javascript
-import { ast } from '@chrisdudek/yg/ast';
+The old \`ast.*\` namespace helpers were removed. Use direct tree-sitter API:
 
-export function check(ctx) {
-  const violations = [];
-  for (const file of ctx.files) {
-    if (!ast.inFile(file, 'src/api/**')) continue;
-    for (const imp of ast.imports(file.ast.rootNode)) {
-      if (/^db\\//.test(imp.source)) {
-        violations.push(ast.report(file, imp.node, 'API layer cannot import from db/ directly'));
-      }
-    }
-  }
-  return violations;
-}
-\`\`\`
+| Removed | Replacement |
+|---|---|
+| \`ast.call(node, { object: 'fs', method: 'readFileSync' })\` | \`walk(rootNode, n => n.type === 'call_expression')\` + \`n.childForFieldName('function')\` |
+| \`ast.imports(rootNode)\` | \`walk(rootNode, n => n.type === 'import_statement')\` |
+| \`ast.exports(rootNode)\` | \`walk(rootNode, n => n.type === 'export_statement')\` |
+| \`ast.decoratorsOf(node)\` | \`node.childForFieldName('decorators')?.namedChildren ?? []\` |
+| \`ast.modifiersOf(node)\` | inspect leading children for modifier keywords |
+| \`ast.jsxElements(rootNode)\` | \`walk(rootNode, n => n.type === 'jsx_element' \\|\\| n.type === 'jsx_self_closing_element')\` |
+| \`ast.casing.pascal(name)\` | \`/^[A-Z][a-zA-Z0-9]*$/.test(name)\` |
+| \`ast.nameOf(node)\` | \`node.childForFieldName('name')?.text\` |
+| \`ast.within(parent, type, opts)\` | \`walk(parent, n => { if (n.type === type) ...; if (!opts.crossFunctions && isFunction(n)) return false; })\` |
+| \`ast.closest(node, types)\` | \`closest(node, types)\` — RETAINED in minimal API |
+| \`ast.inFile(file, '<string>')\` | \`inFile(file, { glob \\| regex \\| contains })\` |
+| violation shape: \`{ file, line, message }\` | \`{ file, line, column, message }\` — NEW \`column\` field |
 `;

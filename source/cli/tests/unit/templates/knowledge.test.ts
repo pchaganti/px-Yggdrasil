@@ -53,10 +53,11 @@ describe('KNOWLEDGE_TOPICS', () => {
       '## False-positive mitigation',
     ],
     'writing-ast-aspects': [
-      '## check.mjs structure',
-      '## The twelve helpers',
-      '## Purity rule',
+      '## When to use AST',
+      '## Runtime contract',
+      '## Minimal API — imports from `@chrisdudek/yg/ast`',
       '## Testing with yg ast-test',
+      '## Migration table — removed helpers → raw tree-sitter',
     ],
     'conditional-aspects': [
       '## Aspect-level when grammar',
