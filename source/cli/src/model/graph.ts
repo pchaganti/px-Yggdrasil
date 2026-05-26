@@ -149,6 +149,8 @@ export interface AspectDef {
   description?: string;
   /** Reviewer type for this aspect: 'llm' (default) or 'ast' (deterministic) */
   reviewer?: 'ast' | 'llm';
+  /** Target languages for AST aspects (required). Optional for LLM aspects with registry-membership check. */
+  language?: string[];
   implies?: string[];
   /** Per-implies applicability filters for aspect ids listed in `implies` */
   impliesWhens?: Record<string, WhenPredicate>;

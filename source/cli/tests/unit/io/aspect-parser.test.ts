@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { writeFile, mkdir, rm, readdir } from 'node:fs/promises';
+import { writeFile, mkdir, rm, readdir, mkdtemp } from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { parseAspect } from '../../../src/io/aspect-parser.js';
 
@@ -279,5 +280,52 @@ describe('aspect-parser — when filter', () => {
       .rejects.toThrow(/aspect attachment must be a string or an object/);
 
     await rm(tmpDir, { recursive: true, force: true });
+  });
+});
+
+describe('language field on AspectDef', () => {
+  it('parses language as string array', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'aspect-lang-'));
+    try {
+      const aspectDir = path.join(dir, 'x');
+      await mkdir(aspectDir, { recursive: true });
+      await writeFile(path.join(aspectDir, 'yg-aspect.yaml'),
+        `name: Test\nid: x\nreviewer: ast\nlanguage: [typescript]\ndescription: test\n`);
+      await writeFile(path.join(aspectDir, 'check.mjs'), 'export function check() { return []; }');
+      const result = await parseAspect(aspectDir, path.join(aspectDir, 'yg-aspect.yaml'), 'x');
+      expect(result.language).toEqual(['typescript']);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('parses multi-language array', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'aspect-lang-'));
+    try {
+      const aspectDir = path.join(dir, 'x');
+      await mkdir(aspectDir, { recursive: true });
+      await writeFile(path.join(aspectDir, 'yg-aspect.yaml'),
+        `name: Test\nid: x\nreviewer: ast\nlanguage: [python, typescript]\ndescription: test\n`);
+      await writeFile(path.join(aspectDir, 'check.mjs'), 'export function check() { return []; }');
+      const result = await parseAspect(aspectDir, path.join(aspectDir, 'yg-aspect.yaml'), 'x');
+      expect(result.language).toEqual(['python', 'typescript']);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('LLM aspect without language is undefined', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'aspect-lang-'));
+    try {
+      const aspectDir = path.join(dir, 'x');
+      await mkdir(aspectDir, { recursive: true });
+      await writeFile(path.join(aspectDir, 'yg-aspect.yaml'),
+        `name: Test\nid: x\nreviewer: llm\ncontent_file: content.md\ndescription: test\n`);
+      await writeFile(path.join(aspectDir, 'content.md'), '# Test\n');
+      const result = await parseAspect(aspectDir, path.join(aspectDir, 'yg-aspect.yaml'), 'x');
+      expect(result.language).toBeUndefined();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

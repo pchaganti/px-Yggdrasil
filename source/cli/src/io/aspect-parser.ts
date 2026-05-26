@@ -66,6 +66,7 @@ export async function parseAspect(
     id: idTrimmed,
     description,
     ...(reviewer && { reviewer }),
+    ...(raw.language !== undefined && { language: raw.language as string[] }),
     implies,
     ...(impliesWhens && { impliesWhens }),
     ...(when && { when }),

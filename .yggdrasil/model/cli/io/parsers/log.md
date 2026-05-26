@@ -12,3 +12,5 @@ R0.8: add header comment to secrets-parser.ts clarifying its parser-adapter role
 Fix yaml-parser-contract violation: add Array.isArray() guard to schema-parser.ts type check.
 ## [2026-05-16T17:27:12.596Z]
 Added Array.isArray(raw) to top-level shape guards in flow-parser, node-parser, and aspect-parser. Reason: typeof [] === 'object' means a YAML array document silently passed the previous typeof-only check, then failed later at the first property access with a confusing error. The new condition rejects arrays at the same site as null/non-object. schema-parser and architecture-parser already had Array.isArray and are unchanged. Wording of each error message is preserved so existing tests are unaffected.
+## [2026-05-26T09:56:16.542Z]
+Parser reads optional language array field from yg-aspect.yaml. Permissive — validation (required-for-AST, registry membership) is core/validator.ts.
