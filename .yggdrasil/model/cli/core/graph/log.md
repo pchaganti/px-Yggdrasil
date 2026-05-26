@@ -6,3 +6,5 @@ Added aspects.ts (computeEffectiveAspects + getAspectSource). Previously in core
 Updated context-files import path to core/graph/files following the file move (collectTrackedFiles + TrackedFile). cli/core/context node drops context-files from its mapping; cli/core/graph node claims it.
 ## [2026-05-26T09:35:08.837Z]
 Add language-registry.ts as phase 1 stub. Three languages with extension mapping, comment types, override getter. Pure data + pure functions per engine aspect compliance. Layering pin: validator imports from this module (precedent via core/graph/aspects.js). Phase 3 expands to 35 tier 1 languages, populates grammar pins.
+## [2026-05-26T10:44:58.503Z]
+Rewrote aspect single-source-graph-queries against raw tree-sitter API. Verified behavior-identical via ast-test diff.
