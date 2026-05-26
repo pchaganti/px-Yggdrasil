@@ -1,20 +1,25 @@
-import { ast } from '@chrisdudek/yg/ast';
+import { walk, report } from '@chrisdudek/yg/ast';
 
 const FS_MODULES = new Set(['node:fs', 'node:fs/promises', 'fs', 'fs/promises']);
 
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
-    for (const imp of ast.imports(file.ast.rootNode)) {
-      if (!FS_MODULES.has(imp.source)) continue;
+    walk(file.ast.rootNode, (node) => {
+      if (node.type !== 'import_statement') return;
+      const sourceNode = node.childForFieldName('source');
+      if (!sourceNode) return;
+      // strip surrounding quotes
+      const source = sourceNode.text.slice(1, -1);
+      if (!FS_MODULES.has(source)) return;
       violations.push(
-        ast.report(
+        report(
           file,
-          imp.node,
-          `direct import from '${imp.source}' — route file-system calls through io/graph-fs.ts instead`,
+          node,
+          `direct import from '${source}' — route file-system calls through io/graph-fs.ts instead`,
         ),
       );
-    }
+    });
   }
   return violations;
 }

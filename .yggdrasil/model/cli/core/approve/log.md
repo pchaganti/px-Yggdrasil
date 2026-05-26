@@ -28,3 +28,5 @@ Normalize filePath before pushing to changedSource/changedUpstream and normalize
 Updated effective-aspects import path to core/graph/aspects following the file move.
 ## [2026-05-16T19:44:31.994Z]
 Updated context-files import path to core/graph/files following the file move (collectTrackedFiles + TrackedFile). cli/core/context node drops context-files from its mapping; cli/core/graph node claims it.
+## [2026-05-26T10:18:49.535Z]
+Rewrote aspect no-direct-fs against raw tree-sitter API. Hash change forces re-approval. Verified behavior-identical via ast-test diff against pre-rewrite baseline.
