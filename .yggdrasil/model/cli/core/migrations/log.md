@@ -12,3 +12,5 @@ Fix non-idempotent rm calls in to-4.0.0.ts: added force:true to rm() in processN
 Fix to-4.0.0.ts: remove inline version bump from cleanConfig, call updateConfigVersion() at end of migrateTo4() conditioned on writes having occurred (schema-bump-bookkeeping). Fix to-4.4.0.ts: wrap updateConfigVersion() in try/catch, push failure to warnings instead of throwing.
 ## [2026-05-16T13:40:04.206Z]
 Flatten 4.3.0+4.4.0 into single 4.3.0 release: merged to-4.4.0.ts (version-bump-only migration) into to-4.3.0.ts (adds log_required:false + when-predicate warning). Removed to-4.4.0.ts file and its MIGRATIONS entry. Updated index.ts description to reflect combined migration.
+## [2026-05-26T10:31:31.810Z]
+Rewrote aspect migration-bumps-version against raw tree-sitter API. Replaced ast.within() traversal with walk() + early return (false) on string and template_string nodes. Verified behavior-identical via ast-test diff.
