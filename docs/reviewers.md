@@ -106,18 +106,21 @@ The AST reviewer is deterministic. The runner parses each source file with tree-
 name: No Sync FS
 description: Forbid synchronous fs calls — use async equivalents
 reviewer: ast
+language: [typescript, tsx, javascript]
 ```
 
-The `reviewer: ast` field is all that's needed. Everything else (`implies`, `when`, `aspects` on nodes) works identically for both reviewer types.
+The `reviewer: ast` and `language:` fields are required. The runner invokes `check.mjs` once per declared language. Everything else (`implies`, `when`, `aspects` on nodes) works identically for both reviewer types.
 
 ### Writing `check.mjs`
 
 ```javascript
 // check.mjs — must export a named 'check' function (not default)
-import { ast } from '@chrisdudek/yg/ast';
+import { walk, report, inFile } from '@chrisdudek/yg/ast';
 
 export function check(ctx) {
   const violations = [];
+  // ctx.language — current language id (e.g. 'typescript')
+  // ctx.files    — source files for this language
   // ... examine ctx.files ...
   return violations;   // return Violation[], synchronous
 }
@@ -127,18 +130,20 @@ export function check(ctx) {
 
 ```typescript
 interface CheckContext {
+  language: string;   // e.g. 'typescript', 'javascript'
   files: SourceFile[];
 }
 
 interface SourceFile {
   path: string;       // relative to project root
   content: string;    // raw file content
-  ast: Tree;          // web-tree-sitter parse tree
+  ast: Tree;          // tree-sitter parse tree
 }
 
 interface Violation {
   file: string;       // relative to project root
   line: number;       // 1-based
+  column: number;     // 0-based
   message: string;
 }
 ```
@@ -147,19 +152,21 @@ interface Violation {
 
 ```javascript
 // .yggdrasil/aspects/async-fs/check.mjs
-import { ast } from '@chrisdudek/yg/ast';
+import { walk, report } from '@chrisdudek/yg/ast';
 
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
-    for (const node of ast.within(file.ast.rootNode, 'call_expression', { crossFunctions: true })) {
-      const m = ast.call(node, { object: 'fs', method: /Sync$/ });
-      if (m) {
-        violations.push(
-          ast.report(file, node, `fs.${m.property.text} is synchronous — use async equivalent`)
-        );
+    walk(file.ast.rootNode, node => {
+      if (node.type !== 'call_expression') return;
+      const fn = node.childForFieldName('function');
+      if (fn?.type !== 'member_expression') return;
+      const obj = fn.childForFieldName('object');
+      const prop = fn.childForFieldName('property');
+      if (obj?.text === 'fs' && /Sync$/.test(prop?.text ?? '')) {
+        violations.push(report(file, node, `fs.${prop.text} is synchronous — use async equivalent`));
       }
-    }
+    });
   }
   return violations;
 }
@@ -167,25 +174,31 @@ export function check(ctx) {
 
 This flags any call matching `fs.<anythingSync>()` anywhere in the files, across function boundaries.
 
-### Helper library
+### Minimal API
 
-The twelve helpers are imported from `@chrisdudek/yg/ast` — no installation required. If `yg` works on the machine, the import resolves at runtime.
+Five exports are available from `@chrisdudek/yg/ast` — no installation required. If `yg` works on the machine, the import resolves at runtime.
 
 ```javascript
-import { ast } from '@chrisdudek/yg/ast';
+import { walk, report, inFile, findComments, closest } from '@chrisdudek/yg/ast';
 
-ast.report(file, node, message)     // create a Violation from a tree-sitter node
-ast.nameOf(node)                     // extract identifier name from declarations
-ast.inFile(file, pattern)            // glob / regex / substring path filter
-ast.exports(rootNode)                // all exported declarations
-ast.imports(rootNode)                // all import statements and require() calls
-ast.call(node, target)               // match a call_expression (bare name or member)
-ast.closest(node, types)             // walk up to nearest ancestor of given types
-ast.within(parent, type, opts?)      // descendants of type, respecting function boundaries
-ast.decoratorsOf(node)               // all decorators on a class or member
-ast.modifiersOf(node)                // access/readonly/abstract/etc. modifiers
-ast.jsxElements(rootNode)            // all JSX opening and self-closing elements
-ast.casing.pascal(name)              // naming conventions: pascal, camel, upperSnake, kebab
+walk(node, visitor)           // DFS traversal; visitor returning false skips subtree
+report(file, node, message)   // create a Violation — line 1-based, column 0-based
+inFile(file, { glob })        // path filter: { glob }, { regex }, or { contains }
+inFile(file, { regex })
+inFile(file, { contains })
+findComments(target)          // comment nodes for a file or subtree
+closest(node, types)          // nearest ancestor whose type is in the array
+```
+
+Use direct tree-sitter node properties for everything else:
+
+```javascript
+node.type                        // grammar node type string
+node.text                        // raw source text
+node.namedChildren               // named children array
+node.childForFieldName('name')   // child at a named grammar field
+node.startPosition               // { row, column } — zero-based
+node.parent                      // parent node
 ```
 
 Full type signatures are in the CLI's `dist/ast.d.ts`. Locally installed users get editor completion automatically; global/npx users get runtime resolution.
@@ -219,20 +232,26 @@ for (const fnType of fnTypes) {
 }
 ```
 
-**With helpers** (~8 lines):
+**With minimal API** (~10 lines):
 
 ```javascript
-import { ast } from '@chrisdudek/yg/ast';
+import { walk, report } from '@chrisdudek/yg/ast';
 
-for (const fn of ast.within(file.ast.rootNode, 'function_declaration', { crossFunctions: true })) {
+walk(file.ast.rootNode, fn => {
+  if (fn.type !== 'function_declaration') return;
   const params = collectParamNames(fn);
-  for (const callNode of ast.within(fn, 'call_expression')) {
-    const m = ast.call(callNode, { method: /^(push|splice|pop|sort|reverse)$/ });
-    if (m && params.has(m.object?.text ?? '')) {
-      violations.push(ast.report(file, callNode, `Mutating parameter via .${m.property?.text}() is forbidden`));
+  walk(fn, callNode => {
+    if (callNode.type !== 'call_expression') return;
+    const fnNode = callNode.childForFieldName('function');
+    if (fnNode?.type !== 'member_expression') return;
+    const obj = fnNode.childForFieldName('object');
+    const prop = fnNode.childForFieldName('property');
+    if (obj?.type === 'identifier' && params.has(obj.text) &&
+        /^(push|splice|pop|sort|reverse)$/.test(prop?.text ?? '')) {
+      violations.push(report(file, callNode, `Mutating parameter via .${prop?.text}() is forbidden`));
     }
-  }
-}
+  });
+});
 ```
 
 ### Purity rule
