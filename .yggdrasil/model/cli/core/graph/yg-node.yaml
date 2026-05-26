@@ -10,4 +10,5 @@ mapping:
   - source/cli/src/core/graph/files.ts
   - source/cli/src/core/graph/flows.ts
   - source/cli/src/core/graph/index.ts
+  - source/cli/src/core/graph/language-registry.ts
   - source/cli/src/core/graph/traversal.ts

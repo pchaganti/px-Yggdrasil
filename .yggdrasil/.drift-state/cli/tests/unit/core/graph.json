@@ -1,0 +1,22 @@
+{
+  "hash": "34b756b3dcf1c8250146cfc30afa2b01b48f5e5a447dd8bf3d12de56db424772",
+  "files": {
+    "own-subset:cli/tests/unit/core/graph": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
+    ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": "de00f518b04112cb692d73d15acfd232c3f1874b163d22d482f0b8e5a7163f48",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "c9db3b691b776caed9de57f4a2db93fd6dd368c1e5cff30e81cbf12a356c4fcf",
+    ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/unit/core/language-registry.test.ts": "caf2eb3f0d3b273e6c3fb191aa3b318c9017b85a873930252016170f4f4700d8"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
+    ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": 1778866543616.299,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1778915335937.2456,
+    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
+    "source/cli/tests/unit/core/language-registry.test.ts": 1779788343453.248
+  }
+}

@@ -1,0 +1,7 @@
+name: Core Graph Unit Tests
+type: test-suite
+description: "Unit tests for core graph query helpers: language-registry and related graph utilities"
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/core/language-registry.test.ts
