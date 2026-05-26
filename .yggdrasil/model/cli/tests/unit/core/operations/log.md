@@ -8,3 +8,5 @@ How to apply: Mapping extended; description updated to mention file-content-cach
 Add type-classifier.test.ts to operations test node: 10 tests covering classifyFile, satisfied-fraction algorithm (all_of average, any_of max, not invert, exempt, empty cases), and closest-3 limiting.
 ## [2026-05-26T08:07:15.670Z]
 Update approve-llm.test.ts mocks: add required errorSource discriminator to all AspectResponse mock return values. providerError: true mock replaced with errorSource: 'provider'; satisfied mocks use errorSource: 'codeViolation'.
+## [2026-05-26T08:42:27.088Z]
+Updated approve-llm.test.ts to check for 'infrastructure failed' in refuseReasonData.what following the rename of the provider-failure refuse message from 'Reviewer provider failed' to 'Reviewer infrastructure failed'. Test intent unchanged: verifies that LLM provider errors cause approve to refuse with a non-code-issue message.

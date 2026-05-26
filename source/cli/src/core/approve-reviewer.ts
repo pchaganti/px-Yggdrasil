@@ -13,7 +13,7 @@ import path from 'node:path';
 export interface LlmApproveResult extends ApproveResult {
   aspectResults?: Record<string, AspectVerificationResult>;
   llmSkipped?: 'unavailable';
-  aspectViolations?: Array<{ aspectId: string; reason: string; providerError?: boolean }>;
+  aspectViolations?: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' }>;
 }
 
 export interface ApproveWithReviewerInput {
@@ -69,20 +69,20 @@ export async function runApproveWithReviewer(
     maxTokens: resolvedMaxTokens,
   });
 
-  const aspectViolations: Array<{ aspectId: string; reason: string; providerError?: boolean }> = [];
+  const aspectViolations: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' }> = [];
   for (const [aspectId, res] of Object.entries(llmResults)) {
     if (!res.satisfied) {
-      const isProviderError = res.errorSource === 'provider' || res.errorSource === 'astRuntime';
-      aspectViolations.push({ aspectId, reason: res.reason, providerError: isProviderError });
+      aspectViolations.push({ aspectId, reason: res.reason, errorSource: res.errorSource });
     }
   }
 
-  const providerErrors = aspectViolations.filter(v => v.providerError);
-  const codeViolations = aspectViolations.filter(v => !v.providerError);
+  const infrastructureErrors = aspectViolations.filter(v => v.errorSource !== 'codeViolation');
+  const codeViolations = aspectViolations.filter(v => v.errorSource === 'codeViolation');
+  const normalizedNodePath = nodePath.replace(/\\/g, '/').replace(/\/+$/, '');
 
-  if (providerErrors.length > 0 && codeViolations.length === 0) {
+  if (infrastructureErrors.length > 0 && codeViolations.length === 0) {
     const refuseMsg: IssueMessage = {
-      what: 'Reviewer provider failed — this is not a code issue.',
+      what: 'Reviewer infrastructure failed — this is not a code issue.',
       why: 'Provider connection or authentication error, not a code violation.',
       next: 'Check your API key and provider configuration.',
     };
@@ -99,7 +99,7 @@ export async function runApproveWithReviewer(
     const refuseMsg: IssueMessage = {
       what: 'Reviewer found aspect violations.',
       why: 'One or more aspects were not satisfied by the source code.',
-      next: `Fix the violations and re-run: yg approve --node ${nodePath}`,
+      next: `Fix the violations and re-run: yg approve --node ${normalizedNodePath}`,
     };
     return {
       ...result,

@@ -38,8 +38,8 @@ describe('formatResult — LLM results', () => {
       action: 'refused',
       refuseReasonData: { what: 'Reviewer verification found issues', why: 'Aspect check failed.', next: 'Fix violations and re-run.' },
       aspectResults: {
-        'deterministic': { satisfied: true, reason: 'ok' },
-        'pure-transforms': { satisfied: false, reason: 'fs.readFileSync on line 89' },
+        'deterministic': { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const },
+        'pure-transforms': { satisfied: false, reason: 'fs.readFileSync on line 89', errorSource: 'codeViolation' as const },
       },
     });
     const output = captureOutput(() => formatResult('cli/core/validator', result));
@@ -67,7 +67,7 @@ describe('formatBatchOutput', () => {
         result: makeApproveResult({
           action: 'approved',
           aspectResults: {
-            'deterministic': { satisfied: true, reason: 'ok' },
+            'deterministic': { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const },
           },
         }),
       },
@@ -77,7 +77,7 @@ describe('formatBatchOutput', () => {
           action: 'refused',
           refuseReasonData: { what: 'Reviewer verification found issues', why: 'Aspect check failed.', next: 'Fix violations and re-run.' },
           aspectResults: {
-            'posix-paths': { satisfied: false, reason: 'Missing normalization on line 42' },
+            'posix-paths': { satisfied: false, reason: 'Missing normalization on line 42', errorSource: 'codeViolation' as const },
           },
         }),
       },

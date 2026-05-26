@@ -1,5 +1,5 @@
 {
-  "hash": "dcbaea3f5db8ed6e9a9361947eee32f386ceb494264c7c90863f064c8793cbfb",
+  "hash": "9be213d4a1664b4127674f18587992689ee652c1ed855d2f75d5b6df8a85db4d",
   "files": {
     "own-subset:cli/tests/unit/core/operations": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -16,7 +16,7 @@
     "source/cli/tests/unit/core/impact.test.ts": "2ece0b755fbda573d1b79c02ffe32cb5b5c88e5ea95436598b00859d08298ba6",
     "source/cli/tests/unit/core/log-format.test.ts": "bb52340c7c6cbc08dad98efbb81aa8fe9f7888c2a81d9e684f9602a96d4b592f",
     "source/cli/tests/unit/core/log-integrity.test.ts": "aa2ee7eb50e2dc30ea0afafe1ce36ef48ad6cec59ec85a136cee3748c46e9b21",
-    "source/cli/tests/unit/core/approve-llm.test.ts": "fa7c79004ed943dd33a99039680fec2891b61a26d54f485c6956c3e01bdecd06"
+    "source/cli/tests/unit/core/approve-llm.test.ts": "ce5bb2a206afe8a8be1a5c283765d61b3ee8d7f1127ddb050d8c1e638d62f0cd"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -26,7 +26,7 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1778915335937.2456,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/core/approve.test.ts": 1778960620324.454,
-    "source/cli/tests/unit/core/approve-llm.test.ts": 1779782376392.2188,
+    "source/cli/tests/unit/core/approve-llm.test.ts": 1779784336399.7607,
     "source/cli/tests/unit/core/approve-log.test.ts": 1778854276923.1697,
     "source/cli/tests/unit/core/check.test.ts": 1778960620323.614,
     "source/cli/tests/unit/core/check-log.test.ts": 1778854223542.9958,
@@ -36,7 +36,7 @@
     "source/cli/tests/unit/core/log-integrity.test.ts": 1778573590477.678
   },
   "log": {
-    "last_entry_datetime": "2026-05-26T08:07:15.670Z",
-    "prefix_hash": "3a155244d728fe966561da2778eec29e39fc0f4d9d5de68bac257580c91d9e5d"
+    "last_entry_datetime": "2026-05-26T08:42:27.088Z",
+    "prefix_hash": "8fc72fdab75dee868146730981092c6f6861d87827d415b2c5c28977aae758f1"
   }
 }

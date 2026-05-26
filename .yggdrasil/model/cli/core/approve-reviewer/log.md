@@ -14,3 +14,7 @@ Phase 4.7 (no-direct-fs): route all fs calls through io/graph-fs.ts; update hash
 Updated context-files import path to core/graph/files following the file move (collectTrackedFiles + TrackedFile). cli/core/context node drops context-files from its mapping; cli/core/graph node claims it.
 ## [2026-05-26T08:07:11.366Z]
 Update approve-reviewer.ts to derive providerError from errorSource discriminator on AspectVerificationResult. Uses errorSource === 'provider' || 'astRuntime' to identify infrastructure errors (rather than the deprecated providerError boolean). Keeps backward-compatible providerError field on the violations array for downstream consumers until Task 3 migrates them.
+## [2026-05-26T08:33:17.135Z]
+Filter logic now distinguishes infrastructure failure (errorSource !== codeViolation) from code violations (errorSource === codeViolation). Refuse message references infrastructureErrors instead of providerErrors. Generalizes 'not a code violation' rule to AST runtime exceptions too.
+## [2026-05-26T08:42:37.333Z]
+Added normalizedNodePath to normalize nodePath before embedding in output strings. posix-paths-output aspect requires paths written to output or stored in return values to have backslashes replaced with forward slashes and trailing slashes stripped.

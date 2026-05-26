@@ -26,3 +26,7 @@ Migrated remaining ad-hoc stderr errors to buildIssueMessage (constant-text erro
 Updated context-files import path to core/graph/files following the file move (collectTrackedFiles + TrackedFile). cli/core/context node drops context-files from its mapping; cli/core/graph node claims it.
 ## [2026-05-16T20:03:20.779Z]
 Wrapped 'Approve refused.' fallback string and 'No reviewer configured' Error in buildIssueMessage. Both contained agent-facing remediation guidance and were flagged by the what-why-next reviewer.
+## [2026-05-26T08:33:21.273Z]
+AST aspect execution sets errorSource: 'codeViolation' in success path, errorSource: 'astRuntime' in catch. AST violations map includes errorSource from result. Aligns with new AspectVerificationResult and ApproveResult shapes; AST runtime exceptions now flow through 'not a code violation' filter alongside LLM provider failures.
+## [2026-05-26T08:42:33.030Z]
+Changed loadLlmProvider to handle the 'No reviewer configured' case inline (process.stderr.write + process.exit) instead of throwing an Error that would be caught by the generic abortOnUnexpectedError handler. Constant-text command errors must be handled inline per cli-command-contract; routing known errors through abortOnUnexpectedError produces misleading 'Unexpected error' output.

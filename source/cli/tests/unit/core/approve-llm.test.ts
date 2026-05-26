@@ -182,7 +182,7 @@ describe('runApproveWithReviewer (core layer)', () => {
     });
     const result = await runApproveWithReviewer({ graph, nodePath: 'svc/my-service', result: coreResult, provider, maxTokens: undefined, consensus: undefined });
     expect(result.action).toBe('refused');
-    expect(result.refuseReasonData?.what).toContain('provider failed');
+    expect(result.refuseReasonData?.what).toContain('infrastructure failed');
     await rm(tmpDir, { recursive: true, force: true });
   });
 

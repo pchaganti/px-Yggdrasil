@@ -88,6 +88,7 @@ export async function runLlmVerification(
         reason: violated
           ? astResult.violations.map(v => `${v.file}:${v.line}: ${v.message}`).join('\n')
           : 'all rules satisfied',
+        errorSource: 'codeViolation',
       };
     } catch (e: unknown) {
       debugWrite(`[approve] ast aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
@@ -95,13 +96,13 @@ export async function runLlmVerification(
       const rendered = e instanceof AstRunnerError
         ? buildIssueMessage(e.messageData)
         : (e as Error).message;
-      astResults[aspect.id] = { satisfied: false, reason: `[${code}] ${rendered}` };
+      astResults[aspect.id] = { satisfied: false, reason: `[${code}] ${rendered}`, errorSource: 'astRuntime' };
     }
   }
 
   const astViolations = Object.entries(astResults)
     .filter(([, r]) => !r.satisfied)
-    .map(([aspectId, r]) => ({ aspectId, reason: r.reason }));
+    .map(([aspectId, r]) => ({ aspectId, reason: r.reason, errorSource: r.errorSource }));
 
   if (astViolations.length > 0) {
     return {
@@ -287,13 +288,12 @@ async function loadLlmProvider(
 ): Promise<{ provider: LlmProvider | undefined; maxTokens: number | undefined; consensus: number | undefined }> {
   const llmConfig = graph.config.llm;
   if (!llmConfig) {
-    throw new Error(
-      buildIssueMessage({
-        what: 'No reviewer configured.',
-        why: 'yg approve requires an LLM reviewer to verify aspect satisfaction; the graph config has no reviewer section.',
-        next: "Add a 'reviewer:' section to yg-config.yaml, or run 'yg init' and select a reviewer.",
-      }),
-    );
+    process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
+      what: 'No reviewer configured.',
+      why: 'yg approve requires an LLM reviewer to verify aspect satisfaction; the graph config has no reviewer section.',
+      next: "Add a 'reviewer:' section to yg-config.yaml, or run 'yg init' and select a reviewer.",
+    })}\n`));
+    process.exit(1);
   }
 
   const secrets = await loadSecrets(graph.rootPath, llmConfig.provider);
