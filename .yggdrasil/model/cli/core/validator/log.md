@@ -40,3 +40,5 @@ Fix what-why-next violation: read messageData from nodeParseErrors and architect
 Removed duplicate collectAncestors in effective-aspects.ts; now imports the canonical root-first implementation from context-builder. Reason: the local version returned leaf-first (push) while the exported version returns root-first (unshift); two definitions with opposing orderings would silently reverse traversal if a future caller imported the wrong one. Order is irrelevant for the two existing call sites (both iterate ancestors as a set to test membership). Eliminated the bug-in-waiting.
 ## [2026-05-16T19:31:38.646Z]
 Removed effective-aspects.ts from mapping; the file moved to core/graph/aspects.ts under the cli/core/graph node. validator.ts import path updated accordingly.
+## [2026-05-26T10:00:43.918Z]
+Four new structural error codes for AST aspect language field: missing-required, scalar-not-array, empty-list, unknown-language. Imports LANGUAGES from core/graph/language-registry per existing core→core/graph precedent. LLM aspects retain optional language field with same registry membership check.

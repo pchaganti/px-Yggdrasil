@@ -1,6 +1,7 @@
 name: ParserYamlGuard
 description: "Parser files that invoke parseYaml() must include Array.isArray(raw) in the top-level shape guard. Without it, a YAML array document silently passes the typeof check (since typeof [] === 'object') and later property accesses fail with confusing errors. Empty-document tolerance is per-parser — only the array exclusion is enforced."
 reviewer: ast
+language: [typescript]
 when:
   node:
     type: parser-adapter

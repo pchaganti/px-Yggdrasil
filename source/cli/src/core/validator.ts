@@ -1,6 +1,7 @@
 import path from 'node:path';
 import type { Graph } from '../model/graph.js';
 import type { ValidationResult, ValidationIssue } from '../model/validation.js';
+import { LANGUAGES } from './graph/language-registry.js';
 import type {
   WhenPredicate,
   AtomicClause,
@@ -1212,6 +1213,75 @@ function checkMissingDescriptions(graph: Graph): ValidationIssue[] {
           next: `Add a description field to yg-aspect.yaml.`,
         }),
       });
+    }
+
+    if (aspect.reviewer === 'ast') {
+      if (aspect.language === undefined) {
+        issues.push({
+          severity: 'error',
+          code: 'aspect-ast-missing-language',
+          rule: 'aspect-language-shape',
+          ...issueMsg({
+            what: `AST aspect '${aspect.id}' is missing required 'language:' field.`,
+            why: `AST aspects must declare which languages they target so the runner knows which tree-sitter grammar to load.`,
+            next: `Add 'language: [<lang>, ...]' to aspects/${aspect.id}/yg-aspect.yaml. Known: ${Object.keys(LANGUAGES).sort().join(', ')}.`,
+          }),
+        });
+      } else if (!Array.isArray(aspect.language)) {
+        issues.push({
+          severity: 'error',
+          code: 'aspect-language-not-array',
+          rule: 'aspect-language-shape',
+          ...issueMsg({
+            what: `AST aspect '${aspect.id}' has 'language:' as a scalar; must be an array.`,
+            why: `Even single-language aspects use array syntax for consistency with multi-language aspects.`,
+            next: `Change 'language: ${String(aspect.language)}' to 'language: [${String(aspect.language)}]' in aspects/${aspect.id}/yg-aspect.yaml.`,
+          }),
+        });
+      } else if (aspect.language.length === 0) {
+        issues.push({
+          severity: 'error',
+          code: 'aspect-empty-language-list',
+          rule: 'aspect-language-shape',
+          ...issueMsg({
+            what: `AST aspect '${aspect.id}' has 'language: []' — an empty list.`,
+            why: `An AST aspect must target at least one language so the runner knows which grammar to use.`,
+            next: `Add at least one language id to aspects/${aspect.id}/yg-aspect.yaml. Known: ${Object.keys(LANGUAGES).sort().join(', ')}.`,
+          }),
+        });
+      } else {
+        for (const lang of aspect.language) {
+          if (!(lang in LANGUAGES)) {
+            issues.push({
+              severity: 'error',
+              code: 'aspect-unknown-language',
+              rule: 'aspect-language-shape',
+              ...issueMsg({
+                what: `AST aspect '${aspect.id}' references unknown language '${lang}'.`,
+                why: `Language must be registered in the language registry before it can be used.`,
+                next: `Known languages: ${Object.keys(LANGUAGES).sort().join(', ')}. Check aspects/${aspect.id}/yg-aspect.yaml.`,
+              }),
+            });
+          }
+        }
+      }
+    }
+
+    if (aspect.reviewer !== 'ast' && Array.isArray(aspect.language)) {
+      for (const lang of aspect.language) {
+        if (!(lang in LANGUAGES)) {
+          issues.push({
+            severity: 'error',
+            code: 'aspect-unknown-language',
+            rule: 'aspect-language-shape',
+            ...issueMsg({
+              what: `Aspect '${aspect.id}' references unknown language '${lang}'.`,
+              why: `Language must be registered in the language registry before it can be used.`,
+              next: `Known languages: ${Object.keys(LANGUAGES).sort().join(', ')}. Check aspects/${aspect.id}/yg-aspect.yaml.`,
+            }),
+          });
+        }
+      }
     }
   }
 

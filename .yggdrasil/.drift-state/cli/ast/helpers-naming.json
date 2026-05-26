@@ -1,26 +1,26 @@
 {
-  "hash": "a5f31862e8c5c079eb62fed0e40f9145157b9b325d93b36d2b730046a642aee6",
+  "hash": "8d207d77ce051577915ef090a4d524dc81a8743528bc06d87f6a66915b2364ad",
   "files": {
     "own-subset:cli/ast/helpers-naming": "81c446303e7f0f81e4442926d9268b200464da4ffadf167ab4d6c49a0da2a341",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/ast/yg-node.yaml": "5b06201b1c50bfd1ccb696b1f9f445d2b7aa4ca80e7c198bb219df2f8a60f8cb",
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": "7758b81e33dd9ac9b27788f1facd47a42a0d14134aca0786f7df12a218c69cd8",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
-    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "9a5d512752a6f1fea12e50a6ef249cbf0aae2cc2097597057e4dd429df65f7c9",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678",
     ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": "3dc44ca9f217265beaf528bbfd13720e77985be4ec8fae0ce1f2c044968c8faf",
     ".yggdrasil/aspects/what-why-next/content.md": "bbe835c049672dd09076de1be3a2dd2ed70c38e31a327f98176f1a0d15fb0838",
     "source/cli/src/ast/casing.ts": "5867b2167f6baabd38ed051406fa304fa66d1b6b2e73116d89dca4023f7862de",
+    "source/cli/src/ast/file-path.ts": "60f3f76473e9135fdd2ed773ae351688dda7fe9b635816427ab09c968a147eab",
     "source/cli/src/ast/jsx.ts": "d4a60304650fd64736b854f96e5bbdc6990a25651df7ab3e124c5e1a567b6c39",
     "source/cli/src/ast/name.ts": "52c030bc631e2472eddd187fd442de0f65c407e7699e5f3129463d535a405399",
-    "source/cli/src/ast/file-path.ts": "60f3f76473e9135fdd2ed773ae351688dda7fe9b635816427ab09c968a147eab"
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "677d65bb06d5a1aec35cdb79abaccfd7b25bad1cf33f9c1e90ab0f600b06e860"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/ast/yg-node.yaml": 1778872081128.6223,
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": 1778914969544.898,
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
-    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1778878288425.0745,
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1779789831566.9133,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
     ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": 1776177846197.8352,
     ".yggdrasil/aspects/what-why-next/content.md": 1778855561245.8606,

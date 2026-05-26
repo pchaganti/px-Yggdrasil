@@ -1,23 +1,23 @@
 {
-  "hash": "68e7e3b8d23a2b9ae9d638453943e3e83585720ba3d85de5990b53df7bd307ce",
+  "hash": "b38a64c67e4195d764e2bf881e2bc24f2f4044b74cfdcb06e5402cb93aabde76",
   "files": {
     "own-subset:cli/llm/subprocess-base": "58d4431f67f75bb5974ed7e8297871e037858fd029ed93aa54cca2a64422a507",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/llm/yg-node.yaml": "eb86d7c0b81642af0c1d40cba6a1f5a780293a2304635bd100bd64677a4c8838",
-    ".yggdrasil/aspects/provider-redaction/yg-aspect.yaml": "61babe1e9731586c08d3d9a6988e3a221b023c27f054f84fba9e48a893ba2533",
     ".yggdrasil/aspects/provider-redaction/check.mjs": "8369d4fa186c69b90cb2a13cd0cf1fa8822a982ac29269e22e1cc07002577c92",
-    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "9a5d512752a6f1fea12e50a6ef249cbf0aae2cc2097597057e4dd429df65f7c9",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "3053f25614dcd3803f5a24ef16383ae2e3fd5d7792d9ad40ac8cdd7c592c5678",
+    ".yggdrasil/aspects/provider-redaction/yg-aspect.yaml": "186722d894e9b032f63c6fd95d2d1c008c3ebf96c0a13562d1bc06a128b8a73b",
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "677d65bb06d5a1aec35cdb79abaccfd7b25bad1cf33f9c1e90ab0f600b06e860",
     "source/cli/src/llm/cli-base.ts": "6ed4ef36418f3bab09075700bf2d0691b3ae457222254e6ebc647353c9020991"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/llm/yg-node.yaml": 1778866396180.118,
-    ".yggdrasil/aspects/provider-redaction/yg-aspect.yaml": 1778915315840.176,
+    ".yggdrasil/aspects/provider-redaction/yg-aspect.yaml": 1779789832615.0388,
     ".yggdrasil/aspects/provider-redaction/check.mjs": 1778876579664.5938,
-    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1778878288425.0745,
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1779789831566.9133,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1778878299926.4268,
-    "source/cli/src/llm/cli-base.ts": 1779782304283.0764
+    "source/cli/src/llm/cli-base.ts": 1779783048558.182
   },
   "log": {
     "last_entry_datetime": "2026-05-26T08:03:07.256Z",
