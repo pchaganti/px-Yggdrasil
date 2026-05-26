@@ -16,3 +16,5 @@ Replaced inline 'No .yggdrasil/ directory found' error block with the shared loa
 Migrated remaining ad-hoc stderr errors to buildIssueMessage (constant-text errors wrapped inline) and routed generic catch-blocks through the new abortOnUnexpectedError helper from formatters/cli-preamble.ts. Reason: even after the loadGraphOrAbort centralization, command-specific errors and option-validation messages bypassed the what/why/next structure; this commit aligns them so the AST aspect added in the next commit can enforce the rule mechanically.
 ## [2026-05-26T10:11:36.720Z]
 Add 4 new aspect-language structural codes to STRUCTURAL_CODES (active CI-blocking set): aspect-ast-missing-language, aspect-language-not-array, aspect-empty-language-list, aspect-unknown-language. Behavioral verification confirms exit 1 fires from cli/check.ts set.
+## [2026-05-26T10:44:58.641Z]
+Rewrote aspect command-error-via-buildissuemessage against raw tree-sitter API. Verified behavior-identical via ast-test diff. No closest() import needed — uses raw parent walk.
