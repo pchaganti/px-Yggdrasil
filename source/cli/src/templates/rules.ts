@@ -36,6 +36,8 @@ The CLI (\`yg\`) reads and validates — it never modifies files. You create and
 
 **Aspects** — enforceable rules. \`aspects/<id>/yg-aspect.yaml\` + either \`content.md\` (LLM reviewer) or \`check.mjs\` (AST reviewer). An aspect can declare \`implies: [other-aspect]\` — implied aspects are included recursively (must be acyclic). Schema: \`schemas/yg-aspect.yaml\`.
 
+AST aspects (\`reviewer: ast\`) must declare \`language: [<lang>, ...]\` array — runner invokes \`check.mjs\` once per declared language. See \`yg knowledge read writing-ast-aspects\`.
+
 **Flows** — business processes. \`flows/<name>/yg-flow.yaml\` with name, description, nodes (participants), aspects. Flow-level aspects propagate to all participants. Descendants of a declared participant are automatically included — adding a parent node to a flow covers all its children. Deep dive: \`yg knowledge read flows\`.
 
 **Relations** — typed dependencies between nodes. Six types: \`calls\`, \`uses\`, \`extends\`, \`implements\` (structural) and \`emits\`, \`listens\` (event-based). Event relations must be paired. Architecture controls which relation types are allowed between which node types.
