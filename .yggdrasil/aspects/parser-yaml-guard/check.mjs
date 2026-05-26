@@ -1,4 +1,4 @@
-import { ast } from '@chrisdudek/yg/ast';
+import { report, inFile } from '@chrisdudek/yg/ast';
 
 // Every parser-adapter file that invokes parseYaml() (or yaml.parse) must
 // include Array.isArray(raw) in the immediately-following shape guard.
@@ -9,7 +9,7 @@ import { ast } from '@chrisdudek/yg/ast';
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
-    if (!ast.inFile(file, '**/src/io/*-parser.ts')) continue;
+    if (!inFile(file, { glob: '**/src/io/*-parser.ts' })) continue;
 
     const text = file.ast.rootNode.text;
     // Only parsers that actually call YAML parse need the guard.
@@ -21,7 +21,7 @@ export function check(ctx) {
     // distinctive and would not occur incidentally.
     if (!/\bArray\.isArray\s*\(\s*raw\s*\)/.test(text)) {
       violations.push(
-        ast.report(
+        report(
           file,
           file.ast.rootNode,
           "missing Array.isArray(raw) in top-level shape guard — parsers must reject YAML array documents to avoid typeof-bypass bugs (typeof [] === 'object')",

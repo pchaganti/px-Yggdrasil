@@ -14,3 +14,5 @@ Fix yaml-parser-contract violation: add Array.isArray() guard to schema-parser.t
 Added Array.isArray(raw) to top-level shape guards in flow-parser, node-parser, and aspect-parser. Reason: typeof [] === 'object' means a YAML array document silently passed the previous typeof-only check, then failed later at the first property access with a confusing error. The new condition rejects arrays at the same site as null/non-object. schema-parser and architecture-parser already had Array.isArray and are unchanged. Wording of each error message is preserved so existing tests are unaffected.
 ## [2026-05-26T09:56:16.542Z]
 Parser reads optional language array field from yg-aspect.yaml. Permissive — validation (required-for-AST, registry membership) is core/validator.ts.
+## [2026-05-26T10:28:57.515Z]
+Rewrote aspect parser-yaml-guard against raw tree-sitter API. Replaced string-based ast.inFile() with inFile({glob:...}) object form. No walk() needed — the check is pure text-regex on file content. Verified behavior-identical via ast-test diff.
