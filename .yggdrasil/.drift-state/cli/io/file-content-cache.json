@@ -1,18 +1,19 @@
 {
-  "hash": "5184482bd2ee8c162d96f196f9e199ad1c64210fbfe4177d822f0991c600744a",
+  "hash": "d9b4a13e8ab15fbe0a3838d69f0682393ec03ef5a1e64094ff61ec2ccb75aee0",
   "files": {
     "own-subset:cli/io/file-content-cache": "38d51de79f86ef238af99e5145d97306d515c0535820265b8533cc9639e38946",
+    "tier-identity:silent-missing-files": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
-    ".yggdrasil/aspects/silent-missing-files/content.md": "fe5f8f88a4e6a49f20fba61836d04c3796f5c97c3a7c1c366582f16cd4ec93b7",
-    "source/cli/src/io/file-content-cache.ts": "2ff027936d2b3139a594d10df85bb6805f977e506bf181ec81cf87b4eeec84a0",
     ".yggdrasil/aspects/silent-missing-files/yg-aspect.yaml": "991b315766fa9203f9454da67da991382718cb3e1fd771eb121b1f722d0e1e5d",
+    ".yggdrasil/aspects/silent-missing-files/content.md": "fe5f8f88a4e6a49f20fba61836d04c3796f5c97c3a7c1c366582f16cd4ec93b7",
     ".yggdrasil/aspects/atomic-write-contract/yg-aspect.yaml": "cdad31934343a408ca51d8fb12327af88f248af70dc7309546bb281ec0ea188c",
     ".yggdrasil/aspects/atomic-write-contract/check.mjs": "59507d3af2a0619d73908afb6ee0a16840b45f41e3430e2c9ed895ac58de77d9",
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "7a30b1005b8db9642b89f98a63ec71e36d486207e51f6ad3f744079c67fdb9e6",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
     ".yggdrasil/aspects/read-or-default-via-helper/yg-aspect.yaml": "7ca2bf040edcf3af3975417deaa46dab493dcc17bacef47b9d8e4a948f80be90",
-    ".yggdrasil/aspects/read-or-default-via-helper/check.mjs": "88d488f91ec022c08e6eb1a69425c8b067b1ba36abcbcb3de066d7dab7b7f642"
+    ".yggdrasil/aspects/read-or-default-via-helper/check.mjs": "88d488f91ec022c08e6eb1a69425c8b067b1ba36abcbcb3de066d7dab7b7f642",
+    "source/cli/src/io/file-content-cache.ts": "2ff027936d2b3139a594d10df85bb6805f977e506bf181ec81cf87b4eeec84a0"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,

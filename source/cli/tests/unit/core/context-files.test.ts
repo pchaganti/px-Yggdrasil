@@ -63,7 +63,7 @@ describe('collectTrackedFiles', () => {
 
     // Graph files should start with .yggdrasil/ or be synthetic hash entries
     for (const f of graphFiles) {
-      expect(f.path).toMatch(/^(\.yggdrasil\/|own-subset:|port-aspects:)/);
+      expect(f.path).toMatch(/^(\.yggdrasil\/|own-subset:|port-aspects:|tier-identity:)/);
     }
 
     expect(sourceFiles.length).toBeGreaterThan(0);
@@ -437,7 +437,7 @@ describe('collectTrackedFiles', () => {
     // requires-audit appears in both parent and child aspects,
     // but aspect files should only appear once
     const auditPaths = paths.filter((p) => p.includes('requires-audit'));
-    expect(auditPaths).toHaveLength(2); // yg-aspect.yaml + content.md
+    expect(auditPaths).toHaveLength(3); // yg-aspect.yaml + content.md + tier-identity: synthetic
     expect(new Set(paths).size).toBe(paths.length);
   });
 

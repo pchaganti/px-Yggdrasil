@@ -5,6 +5,8 @@ import type { DriftCategory, TrackedFileLayer } from '../../model/drift.js';
 import { normalizeMappingPaths } from '../../io/paths.js';
 import { collectAncestors } from './traversal.js';
 import { computeEffectiveAspects } from './aspects.js';
+import { selectTierForAspect } from '../tier-selection.js';
+import { canonicalTierJson } from '../tier-identity.js';
 
 export interface TrackedFile {
   path: string;           // relative to project root
@@ -86,6 +88,20 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph): TrackedFile[
     addFile(graphPath('aspects', aspect.id, 'yg-aspect.yaml'), 'graph', 'aspects');
     for (const art of aspect.artifacts) {
       addFile(graphPath('aspects', aspect.id, art.filename), 'graph', 'aspects');
+    }
+    // v5: tier-identity synthetic hash — drift when the resolved tier config changes
+    if (aspect.reviewer.type === 'llm') {
+      if (!graph.config.reviewer) {
+        addSyntheticHash(`tier-identity:${aspect.id}`, 'legacy-v4', 'graph', 'aspects');
+      } else {
+        const selResult = selectTierForAspect(aspect, graph.config.reviewer);
+        addSyntheticHash(
+          `tier-identity:${aspect.id}`,
+          selResult.ok ? canonicalTierJson(selResult.tier, selResult.tierName) : 'unresolved',
+          'graph',
+          'aspects',
+        );
+      }
     }
   }
 

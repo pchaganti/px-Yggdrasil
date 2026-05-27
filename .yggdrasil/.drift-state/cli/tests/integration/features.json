@@ -1,18 +1,19 @@
 {
-  "hash": "641861227d765a4a1766c5f651674f44d355435c04c6caf7e0a9b2fd90f448c5",
+  "hash": "4916aa543dc40995852c32cf044141508874666d82046e7aa3bae0e3144f865b",
   "files": {
     "own-subset:cli/tests/integration/features": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": "f6203e633f0cb0b6bc84c3337606df49a00920a414f6557fe2f3f91bfd034442",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/integration/find.test.ts": "fa71677264289a3cbb74f653ae22eb6bbda9c5dcddb85b1aa3c6e53995f08a8b",
     "source/cli/tests/integration/flow-support.test.ts": "0336f73740b9313c1f51a5566bd59147990af9dfd7b8f79097a354757f2b496c",
     "source/cli/tests/integration/loader-hook.test.ts": "47c93a9c12ce8fa601f14656b0b39ac5128a07b2c0ac8f332b373fe5dcccd011",
     "source/cli/tests/integration/log-workflow.test.ts": "b11bf35e70f19279596c490c8237857d464e25bddf2899d7d7a3627c6e24b7c6",
     "source/cli/tests/integration/migration-4.2-to-4.3.test.ts": "d67b09eb3a46b13456208df24ee16c0fdc3617fcefcf9b644974ae5eda7b1c16",
-    "source/cli/tests/integration/ollama-reviewer.external.test.ts": "2a07d56495326b845a9fb46e8dffdd7b28606651afd430bc70ef635dd56f9a4c",
-    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
-    "source/cli/tests/integration/find.test.ts": "fa71677264289a3cbb74f653ae22eb6bbda9c5dcddb85b1aa3c6e53995f08a8b"
+    "source/cli/tests/integration/ollama-reviewer.external.test.ts": "2a07d56495326b845a9fb46e8dffdd7b28606651afd430bc70ef635dd56f9a4c"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
