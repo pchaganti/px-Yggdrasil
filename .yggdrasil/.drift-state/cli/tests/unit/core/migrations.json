@@ -1,5 +1,5 @@
 {
-  "hash": "969d1f9ceb740c1c99dff04f9715cfeedecd1943ca806289adcb598d015bf40c",
+  "hash": "3dcb89681118a6997c1319002ad1b010bfacb3cc7450c24c1e0da1a0dbb7ef36",
   "files": {
     "own-subset:cli/tests/unit/core/migrations": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -11,7 +11,8 @@
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/core/migrator.test.ts": "61263c2ba1e28d3fdbc170663903f909f777dde69e99b9440115a014c85ae91b",
     "source/cli/tests/unit/migrations/to-4.0.0.test.ts": "eb11f61e028ad1479bf07ad2bb13ba8551fcff3e4c3044be3dcc49cc2d0f31b9",
-    "source/cli/tests/unit/migrations/to-4.3.0.test.ts": "4309e07b6485de60bac5c2c73380d2a3480bdcb179696f952e507a12ef922cd7"
+    "source/cli/tests/unit/migrations/to-4.3.0.test.ts": "4309e07b6485de60bac5c2c73380d2a3480bdcb179696f952e507a12ef922cd7",
+    "source/cli/tests/unit/migrations/to-5.0.0.test.ts": "6e88e748e5f641dfbe2479d97c69f29ce19380bdd2033f1005262805b4622348"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -22,10 +23,11 @@
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/core/migrator.test.ts": 1779876741719.5688,
     "source/cli/tests/unit/migrations/to-4.0.0.test.ts": 1778917051873.1067,
-    "source/cli/tests/unit/migrations/to-4.3.0.test.ts": 1778938777640.1946
+    "source/cli/tests/unit/migrations/to-4.3.0.test.ts": 1778938777640.1946,
+    "source/cli/tests/unit/migrations/to-5.0.0.test.ts": 1779883390888.761
   },
   "log": {
-    "last_entry_datetime": "2026-05-27T10:12:59.554Z",
-    "prefix_hash": "e4dde327ad13c7a1b07982328bc0dfa5da769585f87cd9f495fbedbba80bc1bf"
+    "last_entry_datetime": "2026-05-27T12:03:50.983Z",
+    "prefix_hash": "64bb04645b2da8cde5265d66f4e3b5b456ecf4e64d46e9fd2fbff1bd1ed9cf42"
   }
 }

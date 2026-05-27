@@ -14,3 +14,5 @@ Fix to-4.0.0.ts: remove inline version bump from cleanConfig, call updateConfigV
 Flatten 4.3.0+4.4.0 into single 4.3.0 release: merged to-4.4.0.ts (version-bump-only migration) into to-4.3.0.ts (adds log_required:false + when-predicate warning). Removed to-4.4.0.ts file and its MIGRATIONS entry. Updated index.ts description to reflect combined migration.
 ## [2026-05-26T10:31:31.810Z]
 Rewrote aspect migration-bumps-version against raw tree-sitter API. Replaced ast.within() traversal with walk() + early return (false) on string and template_string nodes. Verified behavior-identical via ast-test diff.
+## [2026-05-27T11:59:10.017Z]
+Added to-5.0.0.ts migration: transformConfigReviewer converts v4 reviewer format (provider keys + active selector directly under reviewer:) to v5 tiers structure; transformAspectReviewer converts reviewer: string shorthand to reviewer: { type: ... } mapping. Registered in migrations/index.ts as version 5.0.0 migration.
