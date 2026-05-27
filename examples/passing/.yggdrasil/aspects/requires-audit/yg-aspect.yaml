@@ -1,2 +1,4 @@
 name: Requires Audit
 description: "Every mutation must emit an audit event"
+reviewer:
+  type: llm

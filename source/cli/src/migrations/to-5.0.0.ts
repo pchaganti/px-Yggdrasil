@@ -2,7 +2,7 @@ import { readFile, writeFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { MigrationResult } from '../core/migrator.js';
-import { updateConfigVersion } from '../core/migrator.js';
+import { updateConfigVersion, detectVersion } from '../core/migrator.js';
 import { KNOWN_PROVIDERS } from '../io/config-parser.js';
 
 const PROVIDER_SET = new Set<string>(KNOWN_PROVIDERS);
@@ -136,8 +136,10 @@ export async function migrateTo50(yggRoot: string): Promise<MigrationResult> {
     // no aspects/ dir — nothing to do
   }
 
-  // 3. Bump version
-  if (actions.length > 0) {
+  // 3. Bump version if not already at 5.0.0 (ensures schema version always reflects
+  //    the highest migration run, even when no content transformations were needed)
+  const currentVersion = await detectVersion(yggRoot);
+  if (currentVersion !== '5.0.0') {
     try {
       await updateConfigVersion(yggRoot, '5.0.0');
       actions.push('Updated yg-config.yaml: version → 5.0.0');

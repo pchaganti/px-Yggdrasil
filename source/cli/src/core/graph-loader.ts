@@ -22,7 +22,7 @@ import type { IssueMessage } from '../model/validation.js';
 import { findYggRoot } from '../io/paths.js';
 import { detectVersion } from './migrator.js';
 
-const CLI_SUPPORTED_SCHEMA = '4.3.0';
+const CLI_SUPPORTED_SCHEMA = '5.0.0';
 
 function toModelPath(absolutePath: string, modelDir: string): string {
   return path.relative(modelDir, absolutePath).replace(/\\/g, '/').replace(/\/+$/, '');

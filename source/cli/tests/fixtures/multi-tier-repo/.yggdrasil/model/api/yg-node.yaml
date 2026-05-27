@@ -1,0 +1,8 @@
+name: api
+type: service
+description: "Public API layer"
+aspects:
+  - requires-logging
+  - no-sync-io
+mapping:
+  - src/api.ts

@@ -1,5 +1,5 @@
 {
-  "hash": "4916aa543dc40995852c32cf044141508874666d82046e7aa3bae0e3144f865b",
+  "hash": "df13787b09e52b4a424beb9db89af65f97d726fc77dbaefa8020df1ef060dabd",
   "files": {
     "own-subset:cli/tests/integration/features": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -12,8 +12,10 @@
     "source/cli/tests/integration/flow-support.test.ts": "0336f73740b9313c1f51a5566bd59147990af9dfd7b8f79097a354757f2b496c",
     "source/cli/tests/integration/loader-hook.test.ts": "47c93a9c12ce8fa601f14656b0b39ac5128a07b2c0ac8f332b373fe5dcccd011",
     "source/cli/tests/integration/log-workflow.test.ts": "b11bf35e70f19279596c490c8237857d464e25bddf2899d7d7a3627c6e24b7c6",
-    "source/cli/tests/integration/migration-4.2-to-4.3.test.ts": "d67b09eb3a46b13456208df24ee16c0fdc3617fcefcf9b644974ae5eda7b1c16",
-    "source/cli/tests/integration/ollama-reviewer.external.test.ts": "2a07d56495326b845a9fb46e8dffdd7b28606651afd430bc70ef635dd56f9a4c"
+    "source/cli/tests/integration/ollama-reviewer.external.test.ts": "2a07d56495326b845a9fb46e8dffdd7b28606651afd430bc70ef635dd56f9a4c",
+    "source/cli/tests/integration/migration-4.2-to-4.3.test.ts": "67db08b3bb139cbd29510ff429b47202b7034e6705be5b4ed629f73ef781f224",
+    "source/cli/tests/integration/migration-4.3-to-5.0.test.ts": "d831c7daf842deda557291c25471abb749ecfb7487336dfb5891ce268f7cc0cd",
+    "source/cli/tests/integration/multi-tier-approve.test.ts": "6a868b39cd24d2996bfde922fc6f8461186efb158fafb79eb9d8e5c642904dfe"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -25,11 +27,13 @@
     "source/cli/tests/integration/flow-support.test.ts": 1778959829851.0273,
     "source/cli/tests/integration/loader-hook.test.ts": 1778433712028.673,
     "source/cli/tests/integration/log-workflow.test.ts": 1778875948926.2815,
-    "source/cli/tests/integration/migration-4.2-to-4.3.test.ts": 1778938763240.6704,
+    "source/cli/tests/integration/migration-4.2-to-4.3.test.ts": 1779887788531.1216,
+    "source/cli/tests/integration/migration-4.3-to-5.0.test.ts": 1779887747201.0854,
+    "source/cli/tests/integration/multi-tier-approve.test.ts": 1779887738372.0464,
     "source/cli/tests/integration/ollama-reviewer.external.test.ts": 1776177846281.6396
   },
   "log": {
-    "last_entry_datetime": "2026-05-27T07:55:50.864Z",
-    "prefix_hash": "853c40585a05061b751771a942aa488b37bf6c9c98d9506268a31b97e79338bd"
+    "last_entry_datetime": "2026-05-27T13:17:00.265Z",
+    "prefix_hash": "2f5a4dce3e96f9e13316bda7491c1006964346fa71819933de20e27f74c42809"
   }
 }

@@ -30,11 +30,11 @@ describe('4.2.0 → 4.3.0 migration end-to-end', () => {
     rmSync(repo, { recursive: true, force: true });
   });
 
-  it('runs to-4.3.0, writes version, then validator emits type-without-when-with-mapping', async () => {
+  it('runs all migrations, writes final version, then validator emits type-without-when-with-mapping', async () => {
     const results = await runMigrations('4.2.0', MIGRATIONS, join(repo, '.yggdrasil'));
     expect(results.length).toBeGreaterThan(0);
     const config = readFileSync(join(repo, '.yggdrasil', 'yg-config.yaml'), 'utf-8');
-    expect(config).toMatch(/version: "4\.3\.0"/);
+    expect(config).toMatch(/version: "5\.0\.0"/);
 
     const graph = await loadGraph(repo);
     const result = await validate(graph);
@@ -42,8 +42,8 @@ describe('4.2.0 → 4.3.0 migration end-to-end', () => {
     expect(codes.has('type-without-when-with-mapping')).toBe(true);
   });
 
-  it('refuse-load triggers when config bumped above 4.3.0', async () => {
-    writeFileSync(join(repo, '.yggdrasil', 'yg-config.yaml'), 'version: "4.4.0"\n');
+  it('refuse-load triggers when config bumped above 5.0.0', async () => {
+    writeFileSync(join(repo, '.yggdrasil', 'yg-config.yaml'), 'version: "6.0.0"\n');
     await expect(loadGraph(repo)).rejects.toThrow(/upgrade CLI/i);
   });
 });

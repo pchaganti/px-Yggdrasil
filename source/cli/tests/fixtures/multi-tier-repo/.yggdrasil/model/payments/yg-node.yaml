@@ -1,0 +1,8 @@
+name: payments
+type: service
+description: "Payment processing"
+aspects:
+  - requires-logging
+  - requires-audit
+mapping:
+  - src/payments.ts

@@ -1,0 +1,6 @@
+node_types:
+  service:
+    description: "A backend service"
+    log_required: false
+    when:
+      path: "src/**/*.ts"

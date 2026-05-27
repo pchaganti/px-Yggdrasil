@@ -9,4 +9,6 @@ mapping:
   - source/cli/tests/integration/loader-hook.test.ts
   - source/cli/tests/integration/log-workflow.test.ts
   - source/cli/tests/integration/migration-4.2-to-4.3.test.ts
+  - source/cli/tests/integration/migration-4.3-to-5.0.test.ts
+  - source/cli/tests/integration/multi-tier-approve.test.ts
   - source/cli/tests/integration/ollama-reviewer.external.test.ts

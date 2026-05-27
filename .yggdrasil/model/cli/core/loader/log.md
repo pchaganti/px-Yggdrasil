@@ -24,3 +24,5 @@ Fix what-why-next aspect violation: nodeParseErrors now stores IssueMessage (wha
 Updated loadAspects and scanAspectsDirectory to collect parse errors from parseAspect into a structured parseErrors array. The function now returns {aspects, parseErrors} instead of just AspectDef[]. loadGraph wires the errors into Graph.aspectParseErrors so validators downstream can surface them. This is phase 7 of the v5 reviewer-tiers feature: aspect YAML malformation is now surfaced instead of silently swallowed.
 ## [2026-05-27T09:08:38.920Z]
 Updated graph-loader.ts to capture ConfigParseError from config-parser.ts as a structured error. The ConfigParseError now carries an IssueMessage and error code, enabling the validator to distinguish between legacy-format config errors and generic parse failures. This allows downstream validators to suppress dependent checks (e.g., aspect-tier-unknown) when the config is in the legacy v4 format.
+## [2026-05-27T12:59:41.327Z]
+Bumped CLI_SUPPORTED_SCHEMA from '4.3.0' to '5.0.0' so the CLI accepts v5-versioned yg-config.yaml files. Without this, loading the dogfood config after the version bump fails with 'newer than this CLI supports'.

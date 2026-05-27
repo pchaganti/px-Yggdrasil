@@ -2,3 +2,5 @@
 Rename migration-4.3-to-4.4.test.ts → migration-4.2-to-4.3.test.ts. Part of flattening 4.3.0+4.4.0 into single 4.3.0 release.
 ## [2026-05-27T07:55:50.864Z]
 Updated the richGraph() test fixture to use v5 reviewer format for the audit-logging aspect (reviewer: { type: llm }) instead of no reviewer field. Required because parseAspect now returns aspect-reviewer-missing for aspects without reviewer, which would prevent the aspect from loading into graph.aspects.
+## [2026-05-27T13:17:00.265Z]
+Added migration-4.3-to-5.0 and multi-tier-approve integration tests to graph coverage. Both tests verify v5 reviewer tiers behavior: migration test checks config/aspect YAML transformation from v4 to v5, multi-tier test checks LLM tier routing, AST bypass, drift-state baseline recording, and tier-change drift detection. Node mapping updated to satisfy type-strict-orphan enforcement.

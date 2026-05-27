@@ -22,14 +22,14 @@ describe('loadGraph version gate', () => {
     rmSync(tmpRoot, { recursive: true, force: true });
   });
 
-  it('refuses to load when version > "4.3.0"', async () => {
-    writeFileSync(join(tmpRoot, '.yggdrasil', 'yg-config.yaml'), 'version: "4.4.0"\n');
-    await expect(loadGraph(tmpRoot)).rejects.toThrow(/version "4\.4\.0"/);
+  it('refuses to load when version > "5.0.0"', async () => {
+    writeFileSync(join(tmpRoot, '.yggdrasil', 'yg-config.yaml'), 'version: "6.0.0"\n');
+    await expect(loadGraph(tmpRoot)).rejects.toThrow(/version "6\.0\.0"/);
     await expect(loadGraph(tmpRoot)).rejects.toThrow(/Upgrade CLI/i);
   });
 
-  it('loads when version === "4.3.0"', async () => {
-    writeFileSync(join(tmpRoot, '.yggdrasil', 'yg-config.yaml'), 'version: "4.3.0"\n');
+  it('loads when version === "5.0.0"', async () => {
+    writeFileSync(join(tmpRoot, '.yggdrasil', 'yg-config.yaml'), 'version: "5.0.0"\n');
     await expect(loadGraph(tmpRoot)).resolves.toBeDefined();
   });
 

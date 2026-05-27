@@ -1,0 +1,4 @@
+name: Requires Logging
+description: "Every public method must log on entry"
+reviewer:
+  type: llm
