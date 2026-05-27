@@ -71,16 +71,8 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
         severity: 'error',
         code: 'when-predicate-invalid',
         rule: 'when-predicate-invalid',
-        ...issueMsg({
-          what: archErr.message,
-          why: `The when: predicate in yg-architecture.yaml could not be parsed. Architecture cannot be loaded until this is fixed.`,
-          next: `Fix the when: predicate syntax in yg-architecture.yaml. See schemas/yg-architecture.yaml for the allowed shape.`,
-        }),
-        messageData: {
-          what: archErr.message,
-          why: `The when: predicate in yg-architecture.yaml could not be parsed. Architecture cannot be loaded until this is fixed.`,
-          next: `Fix the when: predicate syntax in yg-architecture.yaml. See schemas/yg-architecture.yaml for the allowed shape.`,
-        },
+        ...issueMsg(archErr.messageData),
+        messageData: archErr.messageData,
       });
     } else {
       const archInvalid = archErr as { code: 'architecture-invalid'; messageData: IssueMessage };

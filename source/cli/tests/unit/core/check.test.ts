@@ -22,7 +22,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** Default aspect for tests that need nodes to participate in drift detection */
 const TEST_ASPECT = {
   id: 'testing',
-  yaml: 'name: Testing\ndescription: test aspect\n',
+  yaml: 'name: Testing\ndescription: test aspect\nreviewer:\n  type: llm\n',
   files: { 'content.md': 'Test rule.\n' },
 };
 
@@ -198,7 +198,7 @@ describe('classifyDrift', () => {
       mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
       aspects: [{
         id: 'logging',
-        yaml: 'name: Logging\ndescription: test aspect\n',
+        yaml: 'name: Logging\ndescription: test aspect\nreviewer:\n  type: llm\n',
         files: { 'content.md': 'Log all mutations.\n' },
       }],
     });
@@ -222,7 +222,7 @@ describe('classifyDrift', () => {
       mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
       aspects: [{
         id: 'logging',
-        yaml: 'name: Logging\ndescription: test aspect\n',
+        yaml: 'name: Logging\ndescription: test aspect\nreviewer:\n  type: llm\n',
         files: { 'content.md': 'Log all mutations.\n' },
       }],
     });
@@ -365,7 +365,7 @@ describe('classifyDrift', () => {
       aspects: [
         {
           id: 'logging',
-          yaml: 'name: Logging\ndescription: test aspect\n',
+          yaml: 'name: Logging\ndescription: test aspect\nreviewer:\n  type: llm\n',
           files: { 'content.md': 'Log all mutations.\n' },
         },
         TEST_ASPECT,
@@ -447,7 +447,7 @@ describe('classifyDrift', () => {
       mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
       aspects: [{
         id: 'logging',
-        yaml: 'name: Logging\ndescription: test aspect\n',
+        yaml: 'name: Logging\ndescription: test aspect\nreviewer:\n  type: llm\n',
         files: { 'content.md': 'Log all mutations.\n' },
       }],
       parentNodes: [
@@ -700,7 +700,7 @@ describe('suggestedNext priority', () => {
       mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
       aspects: [{
         id: 'logging',
-        yaml: 'name: Logging\ndescription: test aspect\n',
+        yaml: 'name: Logging\ndescription: test aspect\nreviewer:\n  type: llm\n',
         files: { 'content.md': 'Log all mutations.\n' },
       }],
     });
@@ -910,7 +910,7 @@ describe('runCheck', () => {
       mappingFiles: { 'src/alpha/index.ts': 'export const a = 1;\n' },
       aspects: [{
         id: 'audit',
-        yaml: 'name: Audit\ndescription: audit\n',
+        yaml: 'name: Audit\ndescription: audit\nreviewer:\n  type: llm\n',
         files: { 'content.md': 'Log mutations.\n' },
       }],
     });
@@ -943,7 +943,7 @@ describe('runCheck', () => {
       mappingFiles: { 'src/alpha/index.ts': 'export const a = 1;\n' },
       aspects: [{
         id: 'audit',
-        yaml: 'name: Audit\ndescription: audit\n',
+        yaml: 'name: Audit\ndescription: audit\nreviewer:\n  type: llm\n',
         files: { 'content.md': 'Log mutations.\n' },
       }],
     });
@@ -1012,7 +1012,7 @@ describe('runCheck', () => {
       mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
       aspects: [{
         id: 'logging',
-        yaml: 'name: Logging\ndescription: test aspect\n',
+        yaml: 'name: Logging\ndescription: test aspect\nreviewer:\n  type: llm\n',
         files: { 'content.md': 'Log all mutations.\n' },
       }],
     });

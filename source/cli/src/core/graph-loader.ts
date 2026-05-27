@@ -71,7 +71,7 @@ export async function loadGraph(
     throw err;
   }
 
-  const aspects = await loadAspects(path.join(yggRoot, 'aspects'));
+  const aspectsLoad = await loadAspects(path.join(yggRoot, 'aspects'));
   const flows = await loadFlows(path.join(yggRoot, 'flows'));
   const schemas = await loadSchemas(path.join(yggRoot, 'schemas'));
 
@@ -81,8 +81,9 @@ export async function loadGraph(
     architectureError,
     configError,
     nodeParseErrors: nodeParseErrors.length > 0 ? nodeParseErrors : undefined,
+    aspectParseErrors: aspectsLoad.parseErrors.length > 0 ? aspectsLoad.parseErrors : undefined,
     nodes,
-    aspects,
+    aspects: aspectsLoad.aspects,
     flows,
     schemas,
     rootPath: yggRoot.replace(/\\/g, '/').replace(/\/+$/, ''),
@@ -104,9 +105,14 @@ async function loadArchitecture(
       return { architecture: emptyArch };
     }
     if (error instanceof WhenPredicateInvalidError) {
+      const whenMsg: IssueMessage = {
+        what: error.message,
+        why: 'The when: predicate in yg-architecture.yaml could not be parsed. Architecture cannot be loaded until this is fixed.',
+        next: 'Fix the when: predicate syntax in yg-architecture.yaml. See schemas/yg-architecture.yaml for the allowed shape.',
+      };
       return {
         architecture: emptyArch,
-        error: { code: 'when-predicate-invalid', message: error.message },
+        error: { code: 'when-predicate-invalid', messageData: whenMsg },
       };
     }
     const msg = (error as Error).message;
@@ -194,20 +200,24 @@ async function scanModelDirectory(
   }
 }
 
-async function loadAspects(aspectsDir: string): Promise<AspectDef[]> {
+async function loadAspects(
+  aspectsDir: string,
+): Promise<{ aspects: AspectDef[]; parseErrors: Array<{ aspectId: string; code: string; messageData: IssueMessage }> }> {
+  const aspects: AspectDef[] = [];
+  const parseErrors: Array<{ aspectId: string; code: string; messageData: IssueMessage }> = [];
   try {
-    const aspects: AspectDef[] = [];
-    await scanAspectsDirectory(aspectsDir, aspectsDir, aspects);
-    return aspects;
+    await scanAspectsDirectory(aspectsDir, aspectsDir, aspects, parseErrors);
   } catch {
-    return [];
+    // directory doesn't exist — return empty
   }
+  return { aspects, parseErrors };
 }
 
 async function scanAspectsDirectory(
   dirPath: string,
   aspectsRoot: string,
   aspects: AspectDef[],
+  parseErrors: Array<{ aspectId: string; code: string; messageData: IssueMessage }>,
 ): Promise<void> {
   const entries = await readSortedDir(dirPath);
   const hasAspectYaml = entries.some((e) => e.isFile() && e.name === 'yg-aspect.yaml');
@@ -215,14 +225,20 @@ async function scanAspectsDirectory(
   if (hasAspectYaml) {
     const id = path.relative(aspectsRoot, dirPath).replace(/\\/g, '/').replace(/\/+$/, '');
     const aspectYamlPath = path.join(dirPath, 'yg-aspect.yaml');
-    const aspect = await parseAspect(dirPath, aspectYamlPath, id);
-    aspects.push(aspect);
+    const result = await parseAspect(dirPath, aspectYamlPath, id);
+    if (result.ok) {
+      aspects.push(result.aspect);
+    } else {
+      for (const err of result.errors) {
+        parseErrors.push({ aspectId: result.aspectId, code: err.code, messageData: err.messageData });
+      }
+    }
   }
 
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     if (entry.name.startsWith('.')) continue;
-    await scanAspectsDirectory(path.join(dirPath, entry.name), aspectsRoot, aspects);
+    await scanAspectsDirectory(path.join(dirPath, entry.name), aspectsRoot, aspects, parseErrors);
   }
 }
 

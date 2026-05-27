@@ -51,7 +51,7 @@ async function setupProject(): Promise<{ root: string; aspectDir: string }> {
   await mkdir(aspectDir, { recursive: true });
   await writeFile(
     path.join(aspectDir, 'yg-aspect.yaml'),
-    `name: AsyncFS\ndescription: Use async fs APIs\nreviewer: ast\n`,
+    `name: AsyncFS\ndescription: Use async fs APIs\nreviewer:\n  type: ast\nlanguage: [typescript]\n`,
   );
   await writeFile(path.join(aspectDir, 'check.mjs'), SYNC_FS_CHECK_MJS);
 
@@ -149,7 +149,7 @@ describe('ast-test command logic', () => {
     );
     await writeFile(
       path.join(brokenAspectDir, 'yg-aspect.yaml'),
-      `name: Broken\nreviewer: ast\n`,
+      `name: Broken\nreviewer:\n  type: ast\nlanguage: [typescript]\n`,
     );
 
     const srcFile = path.join(root, 'x.ts');

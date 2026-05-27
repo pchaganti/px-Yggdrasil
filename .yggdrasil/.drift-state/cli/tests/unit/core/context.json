@@ -1,14 +1,14 @@
 {
-  "hash": "e3ff0f67707f6e33c9ba50d708c93d92ed956b8b894da13af98e699043bd604d",
+  "hash": "8c431d663fd79de33ad5cdfe3cd34855ab1d4bf97a2d5feae31848893eb3bb43",
   "files": {
     "own-subset:cli/tests/unit/core/context": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": "de00f518b04112cb692d73d15acfd232c3f1874b163d22d482f0b8e5a7163f48",
-    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "c9db3b691b776caed9de57f4a2db93fd6dd368c1e5cff30e81cbf12a356c4fcf",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/core/graph-loader.test.ts": "c196e23b991c2188c50100bf3f2dfec8765284da132d84e5beb3bd5d6f539b15",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     "source/cli/tests/unit/core/context-builder.test.ts": "dd0d03d43288ccb52333b0b5a9271504edd11251660accb5ee37a199047929bf",
     "source/cli/tests/unit/core/context-files.test.ts": "9037f978e2a35a0720559f006a64af3a48509a406f8126f6c326583d20729e04"
   },
@@ -17,10 +17,10 @@
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": 1778866543616.299,
-    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1778915335937.2456,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/context-builder.test.ts": 1779865855094.9138,
-    "source/cli/tests/unit/core/context-files.test.ts": 1779865870708.3735,
+    "source/cli/tests/unit/core/context-builder.test.ts": 1779867496240.3467,
+    "source/cli/tests/unit/core/context-files.test.ts": 1779867496240.6553,
     "source/cli/tests/unit/core/graph-loader.test.ts": 1778938731797.1887
   },
   "log": {

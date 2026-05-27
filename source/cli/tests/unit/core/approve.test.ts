@@ -15,7 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** Default aspect for tests that need to exercise the full approve flow */
 const TEST_ASPECT = {
   id: 'testing',
-  yaml: 'name: Testing\ndescription: test aspect\n',
+  yaml: 'name: Testing\ndescription: test aspect\nreviewer:\n  type: llm\n',
   files: { 'content.md': 'Test rule.\n' },
 };
 
@@ -118,7 +118,7 @@ describe('approveNode — proper nodes', () => {
       mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
       aspects: [{
         id: 'logging',
-        yaml: 'name: Logging\ndescription: test\n',
+        yaml: 'name: Logging\ndescription: test\nreviewer:\n  type: llm\n',
         files: { 'content.md': 'Log all mutations.\n' },
       }],
     });
@@ -258,7 +258,7 @@ describe('approveNode — deleted tracked files', () => {
       mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
       aspects: [{
         id: 'logging',
-        yaml: 'name: Logging\ndescription: test\n',
+        yaml: 'name: Logging\ndescription: test\nreviewer:\n  type: llm\n',
         files: { 'content.md': 'Log all mutations.\n' },
       }],
     });
@@ -343,7 +343,7 @@ describe('resolveAspects', () => {
       mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
       aspects: [{
         id: 'flow-aspect',
-        yaml: 'name: FlowAspect\ndescription: from flow\n',
+        yaml: 'name: FlowAspect\ndescription: from flow\nreviewer:\n  type: llm\n',
         files: { 'content.md': 'Flow aspect rules.\n' },
       }],
     });
@@ -400,7 +400,7 @@ describe('resolveAspects', () => {
       mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
       aspects: [{
         id: 'direct-aspect',
-        yaml: 'name: DirectAspect\ndescription: direct\n',
+        yaml: 'name: DirectAspect\ndescription: direct\nreviewer:\n  type: llm\n',
         files: { 'content.md': 'Direct rules.\n' },
       }],
     });

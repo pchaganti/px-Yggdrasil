@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `parseAspect` now returns `ParseAspectResult` (discriminated union `{ ok: true; aspect }` | `{ ok: false; aspectId; errors }`) instead of throwing on invalid reviewer shapes. Structured error codes: `aspect-reviewer-missing`, `aspect-reviewer-legacy-string`, `aspect-reviewer-not-mapping`, `aspect-reviewer-type-missing`, `aspect-reviewer-type-invalid`, `aspect-ast-tier-not-allowed`, `aspect-reviewer-unknown-key`, `aspect-reviewer-tier-invalid`. Legacy string form (`reviewer: llm`) is no longer silently accepted — it returns `aspect-reviewer-legacy-string`.
+- `graph-loader.ts`: `loadAspects` propagates `ParseAspectResult` failures into `Graph.aspectParseErrors` instead of silently dropping them. Aspects that fail to parse are excluded from `graph.aspects`.
 - New engine node `cli/core/reviewer-tiers` with three source files: `tier-identity.ts` (canonical JSON for LLM tier drift detection), `tier-selection.ts` (aspect-to-tier resolution supporting explicit and default tier), `format-version.ts` (v4/v5 config and aspect YAML shape detection predicates).
 - New test-suite node `cli/tests/unit/core/reviewer-tiers` with unit tests for tier-identity, tier-selection, and format-version.
 - AST aspect yaml: required field `language: [<id>, ...]` for `reviewer: ast`. Four new structural-check errors enforce the field shape: `aspect-ast-missing-language`, `aspect-language-not-array`, `aspect-empty-language-list`, `aspect-unknown-language`.

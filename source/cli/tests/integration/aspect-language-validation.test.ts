@@ -23,7 +23,7 @@ async function fixture(aspectYaml: string): Promise<{ projectRoot: string; clean
 
 describe('aspect language validation', () => {
   it('aspect-ast-missing-language', async () => {
-    const f = await fixture(`name: T\nid: t\nreviewer: ast\ndescription: x\n`);
+    const f = await fixture(`name: T\nid: t\nreviewer:\n  type: ast\ndescription: x\n`);
     try {
       const graph = await loadGraph(f.projectRoot);
       const result = await validate(graph);
@@ -34,7 +34,7 @@ describe('aspect language validation', () => {
   });
 
   it('aspect-language-not-array', async () => {
-    const f = await fixture(`name: T\nid: t\nreviewer: ast\nlanguage: typescript\ndescription: x\n`);
+    const f = await fixture(`name: T\nid: t\nreviewer:\n  type: ast\nlanguage: typescript\ndescription: x\n`);
     try {
       const graph = await loadGraph(f.projectRoot);
       const result = await validate(graph);
@@ -45,7 +45,7 @@ describe('aspect language validation', () => {
   });
 
   it('aspect-empty-language-list', async () => {
-    const f = await fixture(`name: T\nid: t\nreviewer: ast\nlanguage: []\ndescription: x\n`);
+    const f = await fixture(`name: T\nid: t\nreviewer:\n  type: ast\nlanguage: []\ndescription: x\n`);
     try {
       const graph = await loadGraph(f.projectRoot);
       const result = await validate(graph);
@@ -56,7 +56,7 @@ describe('aspect language validation', () => {
   });
 
   it('aspect-unknown-language', async () => {
-    const f = await fixture(`name: T\nid: t\nreviewer: ast\nlanguage: [martian]\ndescription: x\n`);
+    const f = await fixture(`name: T\nid: t\nreviewer:\n  type: ast\nlanguage: [martian]\ndescription: x\n`);
     try {
       const graph = await loadGraph(f.projectRoot);
       const result = await validate(graph);
@@ -67,7 +67,7 @@ describe('aspect language validation', () => {
   });
 
   it('valid language passes', async () => {
-    const f = await fixture(`name: T\nid: t\nreviewer: ast\nlanguage: [typescript]\ndescription: x\n`);
+    const f = await fixture(`name: T\nid: t\nreviewer:\n  type: ast\nlanguage: [typescript]\ndescription: x\n`);
     try {
       const graph = await loadGraph(f.projectRoot);
       const result = await validate(graph);
@@ -79,7 +79,7 @@ describe('aspect language validation', () => {
   });
 
   it('LLM aspect with unknown language fires aspect-unknown-language', async () => {
-    const f = await fixture(`name: T\nid: t\nreviewer: llm\ncontent_file: content.md\nlanguage: [martian]\ndescription: x\n`);
+    const f = await fixture(`name: T\nid: t\nreviewer:\n  type: llm\ncontent_file: content.md\nlanguage: [martian]\ndescription: x\n`);
     try {
       const ygDir = path.join(f.projectRoot, '.yggdrasil');
       await writeFile(path.join(ygDir, 'aspects', 't', 'content.md'), '# T\n');

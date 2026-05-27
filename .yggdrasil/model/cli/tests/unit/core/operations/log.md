@@ -12,3 +12,7 @@ Update approve-llm.test.ts mocks: add required errorSource discriminator to all 
 Updated approve-llm.test.ts to check for 'infrastructure failed' in refuseReasonData.what following the rename of the provider-failure refuse message from 'Reviewer provider failed' to 'Reviewer infrastructure failed'. Test intent unchanged: verifies that LLM provider errors cause approve to refuse with a non-code-issue message.
 ## [2026-05-27T07:22:46.309Z]
 Phase 6 type-bridge: effective-aspects.test.ts and impact.test.ts aspect literals updated to include reviewer: { type: 'llm' as const } as required by AspectDef.
+## [2026-05-27T07:55:57.165Z]
+Updated TEST_ASPECT and all inline aspect YAML strings to use v5 reviewer format (reviewer: { type: llm }) instead of no reviewer field. Required because parseAspect now returns aspect-reviewer-missing for aspects without reviewer, which would exclude them from graph.aspects and break drift/approve/check tests that depend on aspects being loaded.
+## [2026-05-27T08:37:06.302Z]
+Fixed non-deterministic order assertions in impact.test.ts that were flagged by the test-deterministic aspect reviewer. Three assertions that used toEqual on potentially unordered arrays now sort before comparing: collectReverseDependents result.direct (diamond-dependency test), and two collectIndirectDependents result.indirectPaths assertions. The toEqual-without-sort pattern was already inconsistent with the file (line 149 used explicit sort).

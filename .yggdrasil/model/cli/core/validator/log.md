@@ -44,3 +44,5 @@ Removed effective-aspects.ts from mapping; the file moved to core/graph/aspects.
 Four new structural error codes for AST aspect language field: missing-required, scalar-not-array, empty-list, unknown-language. Imports LANGUAGES from core/graph/language-registry per existing core→core/graph precedent. LLM aspects retain optional language field with same registry membership check.
 ## [2026-05-27T07:22:23.992Z]
 Phase 6 type-bridge: updated reviewer comparisons from string form (aspect.reviewer === 'ast') to object form (aspect.reviewer.type === 'ast'); updated checkAspectReviewerEnum to use aspect.reviewer.type; updated checkAspectRuleSources to derive reviewer from aspect.reviewer.type.
+## [2026-05-27T08:00:17.924Z]
+Updated the when-predicate-invalid branch to access archErr.messageData (IssueMessage) instead of archErr.message (string). This aligns with the ArchitectureLoadError type change: the when-predicate-invalid variant now uses messageData: IssueMessage instead of message: string, matching the architecture-invalid variant and satisfying the what-why-next aspect requirement that engine-returned diagnostics carry structured IssueMessage.

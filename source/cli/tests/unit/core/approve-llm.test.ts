@@ -15,7 +15,7 @@ import type { LlmProvider } from '../../../src/llm/types.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const ASPECT_YAML =
-  'name: Deterministic\ndescription: Pure transforms only\n';
+  'name: Deterministic\ndescription: Pure transforms only\nreviewer:\n  type: llm\n';
 
 async function createTmpProject(name: string, opts: {
   nodePath: string;
@@ -210,7 +210,7 @@ describe('runApproveWithReviewer (core layer)', () => {
       mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
       aspects: [
         { id: 'deterministic', yaml: ASPECT_YAML, files: { 'content.md': 'Deterministic rules.\n' } },
-        { id: 'stable', yaml: 'name: Stable\ndescription: Must be stable\n', files: { 'content.md': 'Stable rules.\n' } },
+        { id: 'stable', yaml: 'name: Stable\ndescription: Must be stable\nreviewer:\n  type: llm\n', files: { 'content.md': 'Stable rules.\n' } },
       ],
     });
     await recordBaseline(tmpDir);
@@ -294,7 +294,7 @@ describe('LLM verification (CLI layer)', () => {
       mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
       aspects: [
         { id: 'deterministic', yaml: ASPECT_YAML, files: { 'content.md': 'Deterministic rules.\n' } },
-        { id: 'stable', yaml: 'name: Stable\ndescription: Must be stable\n', files: { 'content.md': 'Stable rules.\n' } },
+        { id: 'stable', yaml: 'name: Stable\ndescription: Must be stable\nreviewer:\n  type: llm\n', files: { 'content.md': 'Stable rules.\n' } },
       ],
     });
     await recordBaseline(tmpDir);

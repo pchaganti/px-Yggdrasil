@@ -1,42 +1,42 @@
 {
-  "hash": "ab3aa7129f87d799d7d68bc8bd3a645a0f36229dd70d3476c377c91f60be47f0",
+  "hash": "3fa0c618fd69939ee10a8253039633a9166bd33e946fcee47b363a945ed8e744",
   "files": {
     "own-subset:cli/tests/unit/core/operations": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": "de00f518b04112cb692d73d15acfd232c3f1874b163d22d482f0b8e5a7163f48",
-    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "c9db3b691b776caed9de57f4a2db93fd6dd368c1e5cff30e81cbf12a356c4fcf",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/core/approve.test.ts": "b5fe834c7afa73d1d76207e018d2c558b7f4d1bbfad9d601d6c55929e3ea7a38",
     "source/cli/tests/unit/core/approve-log.test.ts": "b1c6dd8521f259c6dd4457225043345d63718b05a283d7a6ca63dc3fd04b49d5",
-    "source/cli/tests/unit/core/check.test.ts": "3e42421606ab7c7f433fd13468c491098e364b3afe8633f9fbc2153a0f026f06",
     "source/cli/tests/unit/core/check-log.test.ts": "3024110025bf28d0f4912cc73cf513fa08d6f9db757ba573e40b25df1842f50e",
+    "source/cli/tests/unit/core/effective-aspects.test.ts": "e8cdb09dd9778ad5e4fe8dd0e605cd727b3e82fe38ca08ef28e0b4e24304a3fc",
     "source/cli/tests/unit/core/log-format.test.ts": "bb52340c7c6cbc08dad98efbb81aa8fe9f7888c2a81d9e684f9602a96d4b592f",
     "source/cli/tests/unit/core/log-integrity.test.ts": "aa2ee7eb50e2dc30ea0afafe1ce36ef48ad6cec59ec85a136cee3748c46e9b21",
-    "source/cli/tests/unit/core/approve-llm.test.ts": "ce5bb2a206afe8a8be1a5c283765d61b3ee8d7f1127ddb050d8c1e638d62f0cd",
-    "source/cli/tests/unit/core/effective-aspects.test.ts": "e8cdb09dd9778ad5e4fe8dd0e605cd727b3e82fe38ca08ef28e0b4e24304a3fc",
-    "source/cli/tests/unit/core/impact.test.ts": "83f4bac762b91dfe2302630431cd59e582c5197eb645e5ef87891f7da7c7d9e3"
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
+    "source/cli/tests/unit/core/approve.test.ts": "1b4cd941844c589d5bbc52aad50b6f669cd9536cb1ca356db359523728bdec5a",
+    "source/cli/tests/unit/core/approve-llm.test.ts": "8a500a7eb597d5930c331eafedba2440e9edbc36d103b17a2395492e3883490d",
+    "source/cli/tests/unit/core/check.test.ts": "801e398d259cc4f5dc3c9d3b897b69f23d6e1d71e06fe9103963016e46cef367",
+    "source/cli/tests/unit/core/impact.test.ts": "5c85599d24e1045ca67a74a098a47e6ac5a1397212a255793d81fd009187832b"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": 1778866543616.299,
-    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1778915335937.2456,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/approve.test.ts": 1778960620324.454,
-    "source/cli/tests/unit/core/approve-llm.test.ts": 1779794513953.5867,
+    "source/cli/tests/unit/core/approve.test.ts": 1779869468775.35,
+    "source/cli/tests/unit/core/approve-llm.test.ts": 1779869468775.1086,
     "source/cli/tests/unit/core/approve-log.test.ts": 1778854276923.1697,
-    "source/cli/tests/unit/core/check.test.ts": 1778960620323.614,
+    "source/cli/tests/unit/core/check.test.ts": 1779869468775.6562,
     "source/cli/tests/unit/core/check-log.test.ts": 1778854223542.9958,
-    "source/cli/tests/unit/core/effective-aspects.test.ts": 1779865820498.3809,
-    "source/cli/tests/unit/core/impact.test.ts": 1779865820497.9216,
+    "source/cli/tests/unit/core/effective-aspects.test.ts": 1779867496240.9702,
+    "source/cli/tests/unit/core/impact.test.ts": 1779871014583.7874,
     "source/cli/tests/unit/core/log-format.test.ts": 1778573444835.2947,
     "source/cli/tests/unit/core/log-integrity.test.ts": 1778573590477.678
   },
   "log": {
-    "last_entry_datetime": "2026-05-27T07:22:46.309Z",
-    "prefix_hash": "3eb6c454398a2a61acb218eb178d0bcc73ebdd5c6f44e0c4d16cb9a2b09c9a5a"
+    "last_entry_datetime": "2026-05-27T08:37:06.302Z",
+    "prefix_hash": "d6fc25789616d24cca180d25ed9ded918acc56d3db8e15d12e178cc6574079bb"
   }
 }

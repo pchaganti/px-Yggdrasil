@@ -221,7 +221,7 @@ export interface SchemaDef {
  */
 export type ArchitectureLoadError =
   | { code: 'architecture-invalid'; messageData: IssueMessage }
-  | { code: 'when-predicate-invalid'; message: string };
+  | { code: 'when-predicate-invalid'; messageData: IssueMessage };
 
 export interface Graph {
   config: YggConfig;

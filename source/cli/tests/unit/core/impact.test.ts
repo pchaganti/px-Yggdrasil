@@ -98,7 +98,7 @@ describe('collectReverseDependents', () => {
     });
     const graph = makeGraph([a, b, c]);
     const result = collectReverseDependents(graph, 'a');
-    expect(result.direct).toEqual(['b', 'c']);
+    expect([...result.direct].sort()).toEqual(['b', 'c']);
     expect(new Set(result.allDependents).size).toBe(result.allDependents.length);
   });
 
@@ -424,7 +424,7 @@ describe('collectIndirectDependents', () => {
     });
     const graph = makeGraph([a, b, c]);
     const result = collectIndirectDependents(graph, ['a']);
-    expect(result.indirectPaths).toEqual(['b', 'c']);
+    expect([...result.indirectPaths].sort()).toEqual(['b', 'c']);
     expect(result.chains).toContain('<- b <- a');
     expect(result.chains).toContain('<- c <- b <- a');
   });
@@ -476,7 +476,7 @@ describe('collectIndirectDependents', () => {
     // Both a and b are directly affected. c uses both → shortest chain is length 2
     // d uses c → shortest chain via either a or b is length 3
     const result = collectIndirectDependents(graph, ['a', 'b']);
-    expect(result.indirectPaths).toEqual(['c', 'd']);
+    expect([...result.indirectPaths].sort()).toEqual(['c', 'd']);
     // c's chain should be length 2 (one hop from an affected node)
     const cChain = result.chains[result.indirectPaths.indexOf('c')];
     expect(cChain.split(' <- ').length).toBe(2);

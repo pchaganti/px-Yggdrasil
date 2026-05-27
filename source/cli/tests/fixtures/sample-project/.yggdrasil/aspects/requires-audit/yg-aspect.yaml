@@ -1,4 +1,6 @@
 name: Audit Logging
 description: x
+reviewer:
+  type: llm
 implies:
   - requires-logging

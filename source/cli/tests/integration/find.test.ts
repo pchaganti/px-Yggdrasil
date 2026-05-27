@@ -27,7 +27,7 @@ async function richGraph(): Promise<string> {
     path.join(ygg, 'model', 'billing', 'cancel', 'log.md'),
     '## [2026-05-11T10:00:00.000Z]\nChanged to end-of-period.\n',
   );
-  await writeFile(path.join(ygg, 'aspects', 'audit-logging', 'yg-aspect.yaml'), 'name: Audit\ndescription: emit audit events for sensitive changes\n');
+  await writeFile(path.join(ygg, 'aspects', 'audit-logging', 'yg-aspect.yaml'), 'name: Audit\ndescription: emit audit events for sensitive changes\nreviewer:\n  type: llm\n');
   await writeFile(path.join(ygg, 'aspects', 'audit-logging', 'content.md'), 'rule.\n');
   return root;
 }

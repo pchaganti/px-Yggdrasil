@@ -33,7 +33,7 @@ async function setupGraph(opts: { logContent?: string; aspectContent?: string })
   }
   await writeFile(
     path.join(yggRoot, 'aspects', 'cancel-end-of-period', 'yg-aspect.yaml'),
-    'name: End of period\ndescription: End-of-period cancellation policy\n',
+    'name: End of period\ndescription: End-of-period cancellation policy\nreviewer:\n  type: llm\n',
   );
   if (opts.aspectContent !== undefined) {
     await writeFile(path.join(yggRoot, 'aspects', 'cancel-end-of-period', 'content.md'), opts.aspectContent);
@@ -95,7 +95,7 @@ describe('buildIndex', () => {
     // Add an AST aspect (reviewer: ast, no content.md)
     const astAspectDir = path.join(projectRoot, '.yggdrasil', 'aspects', 'ast-only');
     await mkdir(astAspectDir, { recursive: true });
-    await writeFile(path.join(astAspectDir, 'yg-aspect.yaml'), 'name: ASTOnly\ndescription: ast check\nreviewer: ast\n');
+    await writeFile(path.join(astAspectDir, 'yg-aspect.yaml'), 'name: ASTOnly\ndescription: ast check\nreviewer:\n  type: ast\nlanguage: [typescript]\n');
     const graph = await loadGraph(projectRoot);
     const docs = await buildIndex(graph);
     const asp = docs.find((d) => d.kind === 'aspect' && d.id === 'aspect:ast-only');
@@ -112,7 +112,7 @@ describe('buildIndex', () => {
     await writeFile(path.join(yggRoot, 'yg-config.yaml'), 'version: "4.3.0"\n');
     await writeFile(path.join(yggRoot, 'yg-architecture.yaml'), 'node_types:\n  command:\n    description: cmd\n');
     await writeFile(path.join(yggRoot, 'model', 'nodesc', 'yg-node.yaml'), 'name: nodesc\ntype: command\n');
-    await writeFile(path.join(yggRoot, 'aspects', 'nodesc-asp', 'yg-aspect.yaml'), 'name: nodesc-asp\n');
+    await writeFile(path.join(yggRoot, 'aspects', 'nodesc-asp', 'yg-aspect.yaml'), 'name: nodesc-asp\nreviewer:\n  type: llm\n');
     const graph = await loadGraph(root);
     const docs = await buildIndex(graph);
     const node = docs.find((d) => d.kind === 'node' && d.id === 'node:nodesc');

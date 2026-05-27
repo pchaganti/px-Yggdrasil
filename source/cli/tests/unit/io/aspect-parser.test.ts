@@ -1,9 +1,9 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { writeFile, mkdir, rm, readdir, mkdtemp } from 'node:fs/promises';
+import { writeFile, mkdtemp, rm, readdir, mkdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
-import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { parseAspect } from '../../../src/io/aspect-parser.js';
+import { parseAspect, type ParseAspectResult } from '../../../src/io/aspect-parser.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = path.join(__dirname, '../../fixtures');
@@ -22,41 +22,73 @@ const FIXTURE_DIR = path.join(
   '../../fixtures/sample-project/.yggdrasil/aspects/requires-audit',
 );
 
+// Helper: assert result is ok and return aspect
+function assertOk(r: ParseAspectResult) {
+  expect(r.ok).toBe(true);
+  if (!r.ok) throw new Error('Expected ok result');
+  return r.aspect;
+}
+
+// Helper: assert result is not ok and return errors
+function assertFail(r: ParseAspectResult) {
+  expect(r.ok).toBe(false);
+  if (r.ok) throw new Error('Expected error result');
+  return r.errors;
+}
+
+async function setupAspectDir(yaml: string, contentMd?: string): Promise<string> {
+  const dir = await mkdtemp(path.join(tmpdir(), 'yg-test-'));
+  await writeFile(path.join(dir, 'yg-aspect.yaml'), yaml);
+  if (contentMd) await writeFile(path.join(dir, 'content.md'), contentMd);
+  return dir;
+}
+
+const tempDirs: string[] = [];
+afterEach(async () => {
+  for (const d of tempDirs.splice(0)) await rm(d, { recursive: true, force: true });
+});
+
+function newDir(yaml: string, md?: string) {
+  const p = setupAspectDir(yaml, md);
+  p.then(d => tempDirs.push(d));
+  return p;
+}
+
 describe('aspect-parser', () => {
   it('parses valid yg-aspect.yaml correctly', async () => {
-    const aspect = await parseAspect(
+    const r = await parseAspect(
       path.join(FIXTURE_DIR),
       path.join(FIXTURE_DIR, 'yg-aspect.yaml'),
       'requires-audit',
     );
-
+    const aspect = assertOk(r);
     expect(aspect.name).toBe('Audit Logging');
     expect(aspect.id).toBe('requires-audit');
     expect(aspect.artifacts).toBeDefined();
   });
 
-  it('throws on empty YAML file', async () => {
+  it('returns error on empty YAML file', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-empty');
     await mkdir(tmpDir, { recursive: true });
     const badPath = path.join(tmpDir, 'yg-aspect.yaml');
     await writeFile(badPath, '', 'utf-8');
 
-    await expect(parseAspect(tmpDir, badPath, 'empty-aspect')).rejects.toThrow(
-      'empty or not a valid YAML mapping',
-    );
+    const r = await parseAspect(tmpDir, badPath, 'empty-aspect');
+    const errors = assertFail(r);
+    expect(errors.some(e => e.code === 'yaml-invalid')).toBe(true);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('throws when name is missing', async () => {
+  it('returns error when name is missing', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect');
     await mkdir(tmpDir, { recursive: true });
     const badPath = path.join(tmpDir, 'yg-aspect.yaml');
     await writeFile(badPath, `implies: []\n`, 'utf-8');
 
-    await expect(parseAspect(tmpDir, badPath, 'some-aspect')).rejects.toThrow(
-      "missing or empty 'name'",
-    );
+    const r = await parseAspect(tmpDir, badPath, 'some-aspect');
+    const errors = assertFail(r);
+    expect(errors.some(e => e.code === 'aspect-name-missing')).toBe(true);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -65,9 +97,10 @@ describe('aspect-parser', () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-tag');
     await mkdir(tmpDir, { recursive: true });
     const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
-    await writeFile(aspectPath, `name: My Aspect\n`, 'utf-8');
+    await writeFile(aspectPath, `name: My Aspect\nreviewer:\n  type: llm\n`, 'utf-8');
 
-    const aspect = await parseAspect(tmpDir, aspectPath, 'my-directory-name');
+    const r = await parseAspect(tmpDir, aspectPath, 'my-directory-name');
+    const aspect = assertOk(r);
     expect(aspect.id).toBe('my-directory-name');
     expect(aspect.name).toBe('My Aspect');
 
@@ -80,44 +113,42 @@ describe('aspect-parser', () => {
     const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
     await writeFile(
       aspectPath,
-      `name: HIPAA
-implies:
-  - requires-audit
-  - requires-encryption
-`,
+      `name: HIPAA\nreviewer:\n  type: llm\nimplies:\n  - requires-audit\n  - requires-encryption\n`,
       'utf-8',
     );
-    const aspect = await parseAspect(tmpDir, aspectPath, 'requires-hipaa');
+    const r = await parseAspect(tmpDir, aspectPath, 'requires-hipaa');
+    const aspect = assertOk(r);
     expect(aspect.id).toBe('requires-hipaa');
     expect(aspect.implies).toEqual(['requires-audit', 'requires-encryption']);
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('throws when id is empty', async () => {
+  it('returns error when id is empty', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-empty-id');
     await mkdir(tmpDir, { recursive: true });
     const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
     await writeFile(aspectPath, `name: Test\n`, 'utf-8');
 
-    await expect(parseAspect(tmpDir, aspectPath, '')).rejects.toThrow(
-      'aspect id must be non-empty',
-    );
-    await expect(parseAspect(tmpDir, aspectPath, '   ')).rejects.toThrow(
-      'aspect id must be non-empty',
-    );
+    const r1 = await parseAspect(tmpDir, aspectPath, '');
+    expect(r1.ok).toBe(false);
+    if (!r1.ok) expect(r1.errors.some(e => e.code === 'aspect-invalid-id')).toBe(true);
+
+    const r2 = await parseAspect(tmpDir, aspectPath, '   ');
+    expect(r2.ok).toBe(false);
+    if (!r2.ok) expect(r2.errors.some(e => e.code === 'aspect-invalid-id')).toBe(true);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('throws when implies is not an array', async () => {
+  it('returns error when implies is not an array', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-bad-implies');
     await mkdir(tmpDir, { recursive: true });
     const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
-    await writeFile(aspectPath, `name: Test\nimplies: "not-an-array"\n`, 'utf-8');
+    await writeFile(aspectPath, `name: Test\nreviewer:\n  type: llm\nimplies: "not-an-array"\n`, 'utf-8');
 
-    await expect(parseAspect(tmpDir, aspectPath, 'bad-implies')).rejects.toThrow(
-      "'implies' must be an array",
-    );
+    const r = await parseAspect(tmpDir, aspectPath, 'bad-implies');
+    const errors = assertFail(r);
+    expect(errors.some(e => e.code === 'aspect-implies-not-array')).toBe(true);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -126,9 +157,10 @@ implies:
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect');
     await mkdir(tmpDir, { recursive: true });
     const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
-    await writeFile(aspectPath, `name: Minimal Aspect\n`, 'utf-8');
+    await writeFile(aspectPath, `name: Minimal Aspect\nreviewer:\n  type: llm\n`, 'utf-8');
 
-    const aspect = await parseAspect(tmpDir, aspectPath, 'minimal-aspect');
+    const r = await parseAspect(tmpDir, aspectPath, 'minimal-aspect');
+    const aspect = assertOk(r);
     expect(aspect.name).toBe('Minimal Aspect');
     expect(aspect.id).toBe('minimal-aspect');
     expect(aspect.artifacts).toEqual([]);
@@ -140,25 +172,26 @@ implies:
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-stability');
     await mkdir(tmpDir, { recursive: true });
     const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
-    await writeFile(aspectPath, `name: Stable Aspect\nstability: protocol\n`, 'utf-8');
+    await writeFile(aspectPath, `name: Stable Aspect\nreviewer:\n  type: llm\nstability: protocol\n`, 'utf-8');
 
-    const aspect = await parseAspect(tmpDir, aspectPath, 'stable');
-    // unknown field should not throw
+    const r = await parseAspect(tmpDir, aspectPath, 'stable');
+    const aspect = assertOk(r);
+    // unknown field should not cause an error
     expect(aspect.name).toBe('Stable Aspect');
     expect((aspect as unknown as Record<string, unknown>).stability).toBeUndefined();
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('throws when reviewer is invalid value', async () => {
+  it('returns error when reviewer is invalid string value', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-bad-reviewer');
     await mkdir(tmpDir, { recursive: true });
     const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
     await writeFile(aspectPath, `name: Test\nreviewer: invalid\n`, 'utf-8');
 
-    await expect(parseAspect(tmpDir, aspectPath, 'test')).rejects.toThrow(
-      "'reviewer' must be 'ast' or 'llm'",
-    );
+    const r = await parseAspect(tmpDir, aspectPath, 'test');
+    const errors = assertFail(r);
+    expect(errors.some(e => e.code === 'aspect-reviewer-legacy-string')).toBe(true);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -169,7 +202,8 @@ implies:
     const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
     await writeFile(aspectPath, `name: Test\nreviewer:\n  type: ast\nlanguage: [typescript]\n`, 'utf-8');
 
-    const aspect = await parseAspect(tmpDir, aspectPath, 'test');
+    const r = await parseAspect(tmpDir, aspectPath, 'test');
+    const aspect = assertOk(r);
     expect(aspect.reviewer.type).toBe('ast');
     expect(aspect.reviewer.tier).toBeUndefined();
 
@@ -182,21 +216,23 @@ implies:
     const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
     await writeFile(aspectPath, `name: Test\nreviewer:\n  type: llm\n  tier: expensive\n`, 'utf-8');
 
-    const aspect = await parseAspect(tmpDir, aspectPath, 'test');
+    const r = await parseAspect(tmpDir, aspectPath, 'test');
+    const aspect = assertOk(r);
     expect(aspect.reviewer.type).toBe('llm');
     expect(aspect.reviewer.tier).toBe('expensive');
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('defaults to llm when reviewer is an array (invalid shape)', async () => {
+  it('returns error when reviewer is an array (invalid shape)', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-reviewer-arr');
     await mkdir(tmpDir, { recursive: true });
     const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
     await writeFile(aspectPath, `name: Test\nreviewer: [llm, ast]\n`, 'utf-8');
 
-    const aspect = await parseAspect(tmpDir, aspectPath, 'test');
-    expect(aspect.reviewer.type).toBe('llm');
+    const r = await parseAspect(tmpDir, aspectPath, 'test');
+    const errors = assertFail(r);
+    expect(errors.some(e => e.code === 'aspect-reviewer-not-mapping')).toBe(true);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -207,15 +243,12 @@ implies:
     const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
     await writeFile(
       aspectPath,
-      `name: Logging
-anchors:
-  - id: audit-entry
-    claim: "All mutations record an audit entry"
-`,
+      `name: Logging\nreviewer:\n  type: llm\nanchors:\n  - id: audit-entry\n    claim: "All mutations record an audit entry"\n`,
       'utf-8',
     );
 
-    const aspect = await parseAspect(tmpDir, aspectPath, 'logging');
+    const r = await parseAspect(tmpDir, aspectPath, 'logging');
+    const aspect = assertOk(r);
     expect(aspect.name).toBe('Logging');
     expect((aspect as unknown as Record<string, unknown>).anchors).toBeUndefined();
 
@@ -228,15 +261,12 @@ anchors:
     const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
     await writeFile(
       aspectPath,
-      `name: Full Aspect
-description: A fully specified aspect
-implies:
-  - other-aspect
-`,
+      `name: Full Aspect\nreviewer:\n  type: llm\ndescription: A fully specified aspect\nimplies:\n  - other-aspect\n`,
       'utf-8',
     );
 
-    const aspect = await parseAspect(tmpDir, aspectPath, 'full-aspect');
+    const r = await parseAspect(tmpDir, aspectPath, 'full-aspect');
+    const aspect = assertOk(r);
     expect(aspect.name).toBe('Full Aspect');
     expect(aspect.description).toBe('A fully specified aspect');
     expect(aspect.implies).toEqual(['other-aspect']);
@@ -252,14 +282,17 @@ describe('aspect-parser — when filter', () => {
     const aspectYaml = path.join(tmpDir, 'yg-aspect.yaml');
     await writeFile(aspectYaml, [
       'name: ExampleAspect',
+      'reviewer:',
+      '  type: llm',
       'when:',
       '  relations:',
       '    calls:',
       '      target_type: service-client',
     ].join('\n'), 'utf-8');
 
-    const result = await parseAspect(tmpDir, aspectYaml, 'example');
-    expect(result.when).toEqual({
+    const r = await parseAspect(tmpDir, aspectYaml, 'example');
+    const aspect = assertOk(r);
+    expect(aspect.when).toEqual({
       relations: { calls: { target_type: 'service-client' } },
     });
 
@@ -272,6 +305,8 @@ describe('aspect-parser — when filter', () => {
     const aspectYaml = path.join(tmpDir, 'yg-aspect.yaml');
     await writeFile(aspectYaml, [
       'name: ExampleAspect',
+      'reviewer:',
+      '  type: llm',
       'implies:',
       '  - simple-aspect',
       '  - id: conditional-aspect',
@@ -279,9 +314,10 @@ describe('aspect-parser — when filter', () => {
       '      node: { has_port: charge }',
     ].join('\n'), 'utf-8');
 
-    const result = await parseAspect(tmpDir, aspectYaml, 'example');
-    expect(result.implies).toEqual(['simple-aspect', 'conditional-aspect']);
-    expect(result.impliesWhens).toEqual({
+    const r = await parseAspect(tmpDir, aspectYaml, 'example');
+    const aspect = assertOk(r);
+    expect(aspect.implies).toEqual(['simple-aspect', 'conditional-aspect']);
+    expect(aspect.impliesWhens).toEqual({
       'conditional-aspect': { node: { has_port: 'charge' } },
     });
 
@@ -294,6 +330,8 @@ describe('aspect-parser — when filter', () => {
     const aspectYaml = path.join(tmpDir, 'yg-aspect.yaml');
     await writeFile(aspectYaml, [
       'name: ExampleAspect',
+      'reviewer:',
+      '  type: llm',
       'when:',
       '  mostly_of: []',
     ].join('\n'), 'utf-8');
@@ -310,6 +348,8 @@ describe('aspect-parser — when filter', () => {
     const aspectYaml = path.join(tmpDir, 'yg-aspect.yaml');
     await writeFile(aspectYaml, [
       'name: ExampleAspect',
+      'reviewer:',
+      '  type: llm',
       'implies:',
       '  - 42',
     ].join('\n'), 'utf-8');
@@ -323,47 +363,147 @@ describe('aspect-parser — when filter', () => {
 
 describe('language field on AspectDef', () => {
   it('parses language as string array', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'aspect-lang-'));
+    const dir = await mkdtemp(path.join(tmpdir(), 'aspect-lang-'));
     try {
       const aspectDir = path.join(dir, 'x');
       await mkdir(aspectDir, { recursive: true });
       await writeFile(path.join(aspectDir, 'yg-aspect.yaml'),
-        `name: Test\nid: x\nreviewer: ast\nlanguage: [typescript]\ndescription: test\n`);
+        `name: Test\nid: x\nreviewer:\n  type: ast\nlanguage: [typescript]\ndescription: test\n`);
       await writeFile(path.join(aspectDir, 'check.mjs'), 'export function check() { return []; }');
-      const result = await parseAspect(aspectDir, path.join(aspectDir, 'yg-aspect.yaml'), 'x');
-      expect(result.language).toEqual(['typescript']);
+      const r = await parseAspect(aspectDir, path.join(aspectDir, 'yg-aspect.yaml'), 'x');
+      const aspect = assertOk(r);
+      expect(aspect.language).toEqual(['typescript']);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   });
 
   it('parses multi-language array', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'aspect-lang-'));
+    const dir = await mkdtemp(path.join(tmpdir(), 'aspect-lang-'));
     try {
       const aspectDir = path.join(dir, 'x');
       await mkdir(aspectDir, { recursive: true });
       await writeFile(path.join(aspectDir, 'yg-aspect.yaml'),
-        `name: Test\nid: x\nreviewer: ast\nlanguage: [python, typescript]\ndescription: test\n`);
+        `name: Test\nid: x\nreviewer:\n  type: ast\nlanguage: [python, typescript]\ndescription: test\n`);
       await writeFile(path.join(aspectDir, 'check.mjs'), 'export function check() { return []; }');
-      const result = await parseAspect(aspectDir, path.join(aspectDir, 'yg-aspect.yaml'), 'x');
-      expect(result.language).toEqual(['python', 'typescript']);
+      const r = await parseAspect(aspectDir, path.join(aspectDir, 'yg-aspect.yaml'), 'x');
+      const aspect = assertOk(r);
+      expect(aspect.language).toEqual(['python', 'typescript']);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   });
 
   it('LLM aspect without language is undefined', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'aspect-lang-'));
+    const dir = await mkdtemp(path.join(tmpdir(), 'aspect-lang-'));
     try {
       const aspectDir = path.join(dir, 'x');
       await mkdir(aspectDir, { recursive: true });
       await writeFile(path.join(aspectDir, 'yg-aspect.yaml'),
-        `name: Test\nid: x\nreviewer: llm\ncontent_file: content.md\ndescription: test\n`);
+        `name: Test\nid: x\nreviewer:\n  type: llm\ncontent_file: content.md\ndescription: test\n`);
       await writeFile(path.join(aspectDir, 'content.md'), '# Test\n');
-      const result = await parseAspect(aspectDir, path.join(aspectDir, 'yg-aspect.yaml'), 'x');
-      expect(result.language).toBeUndefined();
+      const r = await parseAspect(aspectDir, path.join(aspectDir, 'yg-aspect.yaml'), 'x');
+      const aspect = assertOk(r);
+      expect(aspect.language).toBeUndefined();
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('parseAspect v5 happy paths', () => {
+  it('parses AST aspect with reviewer: { type: ast }', async () => {
+    const dir = await newDir(`name: NoSyncFs\ndescription: x\nreviewer:\n  type: ast\nlanguage: [typescript]\n`);
+    const r = await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'no-sync-fs');
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.aspect.reviewer.type).toBe('ast');
+      expect(r.aspect.reviewer.tier).toBeUndefined();
+    }
+  });
+
+  it('parses LLM aspect with no tier', async () => {
+    const dir = await newDir(`name: Foo\ndescription: x\nreviewer:\n  type: llm\n`, '# Foo\nrule.');
+    const r = await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'foo');
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.aspect.reviewer).toEqual({ type: 'llm' });
+  });
+
+  it('parses LLM aspect with tier', async () => {
+    const dir = await newDir(`name: Bar\ndescription: x\nreviewer:\n  type: llm\n  tier: deep\n`, '# Bar\nrule.');
+    const r = await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'bar');
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.aspect.reviewer).toEqual({ type: 'llm', tier: 'deep' });
+  });
+});
+
+describe('parseAspect v5 error paths', () => {
+  it('errors on legacy string reviewer: llm', async () => {
+    const dir = await newDir(`name: Foo\ndescription: x\nreviewer: llm\n`);
+    const r = await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'foo');
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors.some(e => e.code === 'aspect-reviewer-legacy-string')).toBe(true);
+      expect(r.errors[0].messageData.next).toMatch(/yg init --upgrade/);
+    }
+  });
+
+  it('errors on missing reviewer block', async () => {
+    const dir = await newDir(`name: Foo\ndescription: x\n`);
+    const r = await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'foo');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.some(e => e.code === 'aspect-reviewer-missing')).toBe(true);
+  });
+
+  it('errors on reviewer: null', async () => {
+    const dir = await newDir(`name: Foo\ndescription: x\nreviewer:\n`);
+    const r = await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'foo');
+    expect(r.ok).toBe(false);
+  });
+
+  it('errors on missing type', async () => {
+    const dir = await newDir(`name: Foo\ndescription: x\nreviewer:\n  tier: deep\n`);
+    const r = await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'foo');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.some(e => e.code === 'aspect-reviewer-type-missing')).toBe(true);
+  });
+
+  it('errors on invalid type value', async () => {
+    const dir = await newDir(`name: Foo\ndescription: x\nreviewer:\n  type: foo\n`);
+    const r = await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'foo');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.some(e => e.code === 'aspect-reviewer-type-invalid')).toBe(true);
+  });
+
+  it('errors on AST + tier', async () => {
+    const dir = await newDir(`name: Foo\ndescription: x\nreviewer:\n  type: ast\n  tier: deep\nlanguage: [typescript]\n`);
+    const r = await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'foo');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.some(e => e.code === 'aspect-ast-tier-not-allowed')).toBe(true);
+  });
+
+  it('errors on unknown reviewer key', async () => {
+    const dir = await newDir(`name: Foo\ndescription: x\nreviewer:\n  type: llm\n  model: opus\n`);
+    const r = await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'foo');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.some(e => e.code === 'aspect-reviewer-unknown-key')).toBe(true);
+  });
+
+  it('emits both type-missing and unknown-key when mapping has unknown key but no type', async () => {
+    const dir = await newDir(`name: Foo\ndescription: x\nreviewer:\n  model: opus\n`);
+    const r = await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'foo');
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      const codes = r.errors.map(e => e.code);
+      expect(codes).toContain('aspect-reviewer-type-missing');
+      expect(codes).toContain('aspect-reviewer-unknown-key');
+    }
+  });
+
+  it('errors on empty mapping', async () => {
+    const dir = await newDir(`name: Foo\ndescription: x\nreviewer: {}\n`);
+    const r = await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'foo');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.some(e => e.code === 'aspect-reviewer-type-missing')).toBe(true);
   });
 });

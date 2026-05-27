@@ -1,18 +1,18 @@
 {
-  "hash": "cbb6477834ccc893084d0f5d26ac7b56fcf83ee730d969b93e2bed851190c5ac",
+  "hash": "f21e42006e6db813b4c4bb58dae83e22a320ebde9f716a362a411d816a7002c6",
   "files": {
     "own-subset:cli/tests/unit/support/templates": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
     ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": "e00d9fa0fe37a252b92888b2e217811de7fa6df420f60cdbc3e692833a16be4d",
-    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "c9db3b691b776caed9de57f4a2db93fd6dd368c1e5cff30e81cbf12a356c4fcf",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/templates/commands.test.ts": "6a4f3e2ade8ad6f4067eebc2d74eb8368617dfe0f17f5a8bacb0332b36c89473",
     "source/cli/tests/unit/templates/default-config.test.ts": "e4c9e9ef5a74acfcd05ddf4b8c58bd10266b74b91b4d9c40bcc1fc56c637be87",
     "source/cli/tests/unit/templates/platform.test.ts": "dc837d48e5e11e3983fc14a7c6a831b3941df91906da0447566c67d9756220ab",
     "source/cli/tests/unit/templates/rules-sections.test.ts": "dafc4474e9a9e2bd94b7e6d45632ab057a2ae7cea80847b43279c08c7861dc17",
     "source/cli/tests/unit/templates/rules.test.ts": "b768fae3b015c0eb3e56898661b63eefba31e6d9cedb6bb0a465ee4fb3730aae",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     "source/cli/tests/unit/templates/knowledge.test.ts": "c0b88254b7571fdb86b6a3ee9e59088dc1aacf60cdeebcf614e5c2928e589ec7"
   },
   "mtimes": {
@@ -20,11 +20,11 @@
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
     ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": 1778866544645.0125,
-    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1778915335937.2456,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/templates/commands.test.ts": 1771702372076.214,
     "source/cli/tests/unit/templates/default-config.test.ts": 1778938739902.8794,
-    "source/cli/tests/unit/templates/knowledge.test.ts": 1779793253957.7844,
+    "source/cli/tests/unit/templates/knowledge.test.ts": 1779794513954.5422,
     "source/cli/tests/unit/templates/platform.test.ts": 1776179066148.0842,
     "source/cli/tests/unit/templates/rules-sections.test.ts": 1778842997642.2437,
     "source/cli/tests/unit/templates/rules.test.ts": 1776349121518.1729

@@ -1,3 +1,4 @@
 name: MigrationIdempotent
 description: "Migration code must be safe to run twice without corrupting state — all write operations are idempotent and the migration checks the current version before acting."
-reviewer: llm
+reviewer:
+  type: llm

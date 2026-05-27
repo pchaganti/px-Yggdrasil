@@ -177,6 +177,8 @@ describe('context pipeline integration', () => {
       await writeFile(path.join(yggDir, 'aspects', 'code-style', 'yg-aspect.yaml'), [
         'name: Code Style',
         'description: Consistent code style',
+        'reviewer:',
+        '  type: llm',
       ].join('\n'), 'utf-8');
       await writeFile(path.join(yggDir, 'aspects', 'code-style', 'content.md'), [
         '# Code Style',

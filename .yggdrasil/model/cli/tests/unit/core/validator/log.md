@@ -4,3 +4,5 @@ Update test fixtures to match updated Graph model types: nodeParseErrors entries
 Update aspect-verifier.test.ts: add errorSource: 'codeViolation' to mock provider responses and toEqual assertions. Required field change means all mock AspectResponse objects and assertions must include errorSource.
 ## [2026-05-27T07:22:46.460Z]
 Phase 6 type-bridge: validator.test.ts, validator-aspect-files.test.ts, and validator-reviewer.test.ts updated — createAspect/makeAspect helpers now always include reviewer field with default { type: 'llm' }; string shorthand 'ast'/'llm' accepted via bridge; inline aspect literals updated to include reviewer.
+## [2026-05-27T07:55:57.284Z]
+Updated inline aspect fixture to include v5 reviewer field (reviewer: { type: llm }). Required because parseAspect now rejects aspects without reviewer.

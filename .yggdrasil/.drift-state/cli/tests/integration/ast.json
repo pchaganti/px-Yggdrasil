@@ -1,28 +1,28 @@
 {
-  "hash": "493400e04c5238cb6781a54f01b8cacffd821e4cacd51393154aad85a48a2030",
+  "hash": "d285e7d7a74adf3414025ceaef3c46205cb807ea7ba292ee05adbe63c87beb95",
   "files": {
     "own-subset:cli/tests/integration/ast": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": "f6203e633f0cb0b6bc84c3337606df49a00920a414f6557fe2f3f91bfd034442",
-    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "c9db3b691b776caed9de57f4a2db93fd6dd368c1e5cff30e81cbf12a356c4fcf",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/integration/ast-runner.test.ts": "97d0b14fee9cc2a77c8232e3c40e3e4fe094901eaea4b3063d08b109b9bca018",
-    "source/cli/tests/integration/ast-test-cli.test.ts": "d111ed04c410414270b9679c4196165c95e5abd714ee829eab7a70e4d019800e",
-    "source/cli/tests/integration/impact-ast.test.ts": "40943395a5e3d7f2af36e84038e3fb7bacab328c73e9f592c5dc8dd074fa8d75"
+    "source/cli/tests/integration/impact-ast.test.ts": "40943395a5e3d7f2af36e84038e3fb7bacab328c73e9f592c5dc8dd074fa8d75",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
+    "source/cli/tests/integration/ast-test-cli.test.ts": "bf6b1c47eb30e9508bd7946407a2926d859c2a5f9349fcaec0d5c8931b846433"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": 1778923836291.2395,
-    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1778915335937.2456,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/integration/ast-runner.test.ts": 1779794513952.4905,
-    "source/cli/tests/integration/ast-test-cli.test.ts": 1779866377615.6165,
-    "source/cli/tests/integration/impact-ast.test.ts": 1779866278006.6177
+    "source/cli/tests/integration/ast-test-cli.test.ts": 1779869468774.4106,
+    "source/cli/tests/integration/impact-ast.test.ts": 1779867496239.68
   },
   "log": {
-    "last_entry_datetime": "2026-05-27T07:22:38.541Z",
-    "prefix_hash": "edb5409cfc3fd95f46f9b8172cbfa9372af833d5b3a1ffa07fa297cf54d19311"
+    "last_entry_datetime": "2026-05-27T07:55:50.735Z",
+    "prefix_hash": "edbfa83a3fcb52bd687c2c290701c69c37a145cac66eb586bf6a44b152f27897"
   }
 }

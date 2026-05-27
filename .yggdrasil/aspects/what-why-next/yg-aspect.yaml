@@ -1,2 +1,4 @@
 name: WhatWhyNext
 description: Agent-visible diagnostic messages must use the what/why/next structure via buildIssueMessage
+reviewer:
+  type: llm

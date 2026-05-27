@@ -1,5 +1,7 @@
 name: CLI Command Contract
 description: "Output, error handling, and exit code conventions for all CLI command handlers"
+reviewer:
+  type: llm
 implies:
   - command-exit-codes
   - diagnostic-logging

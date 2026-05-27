@@ -20,3 +20,5 @@ Phase 4.7 (no-direct-fs): route all fs calls through io/graph-fs.ts; update hash
 Version gate: CLI_SUPPORTED_SCHEMA updated 4.4.0 → 4.3.0 — versions above 4.3.0 now trigger upgrade instruction. Part of flattening 4.3.0+4.4.0 into single 4.3.0 release.
 ## [2026-05-16T13:49:38.797Z]
 Fix what-why-next aspect violation: nodeParseErrors now stores IssueMessage (what/why/next) instead of raw message string; architectureError raw-string case now returns structured { code, messageData } object. ArchitectureLoadError type updated to remove bare string option. Graph model and validator.ts updated to match.
+## [2026-05-27T07:55:35.923Z]
+Updated loadAspects and scanAspectsDirectory to collect parse errors from parseAspect into a structured parseErrors array. The function now returns {aspects, parseErrors} instead of just AspectDef[]. loadGraph wires the errors into Graph.aspectParseErrors so validators downstream can surface them. This is phase 7 of the v5 reviewer-tiers feature: aspect YAML malformation is now surfaced instead of silently swallowed.

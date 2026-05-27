@@ -1,3 +1,4 @@
 name: ProviderRetryContract
 description: "LLM provider implementations delegate HTTP calls to apiFetch() which handles 429 retry; verifyAspect() catches errors and returns a graceful fallback instead of throwing."
-reviewer: llm
+reviewer:
+  type: llm

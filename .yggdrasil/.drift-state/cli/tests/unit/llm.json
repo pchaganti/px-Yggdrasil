@@ -1,11 +1,10 @@
 {
-  "hash": "7b77ae15e347055a4d27f354a02e48cbf4470c81b5323f06a241ef97141e5d6c",
+  "hash": "e6c11a820268089f64cef76a9d3157326adfe67ee008edb5ec372f173fc88264",
   "files": {
     "own-subset:cli/tests/unit/llm": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
-    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "c9db3b691b776caed9de57f4a2db93fd6dd368c1e5cff30e81cbf12a356c4fcf",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/llm/anthropic.test.ts": "60c9dfb7d8b395c5d3172400b9f8771fac7461a3fd5f33bee97fc4884d2017dd",
     "source/cli/tests/unit/llm/api-utils.test.ts": "1606a4d0e79bdd547199ba1508c553eb971ecf7caa82c23da601eea8e0ffea55",
@@ -16,6 +15,7 @@
     "source/cli/tests/unit/llm/openai.test.ts": "20ebba5d4ed8dd200230558249d1a8951b41b71d63ef7ed7872430a2f6a8103e",
     "source/cli/tests/unit/llm/provider.test.ts": "ff86be1fd6d9f07f2c553ea1aec1af6f236b2926e0e6edb0dd65160c21b56704",
     "source/cli/tests/unit/llm/reviewer-test.test.ts": "bc4368a17cf4ef187183f1b087b04585bf61a157b5d5f9f72dbdba304a50188a",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     "source/cli/tests/unit/llm/cli-base.test.ts": "b8c39e522b0ff38cdeed92445746283833a6c1ed98313ac07abea2db766c6b3f",
     "source/cli/tests/unit/llm/error-source.test.ts": "ff1362e850b1b3f36db6ad113fe65ea1823dee1a93ea30ae92483512bf6f7ee2"
   },
@@ -23,19 +23,19 @@
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
-    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1778915335937.2456,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/llm/anthropic.test.ts": 1776177846290.0945,
     "source/cli/tests/unit/llm/api-utils.test.ts": 1776177846290.3054,
     "source/cli/tests/unit/llm/claude-code.test.ts": 1776177846290.4834,
-    "source/cli/tests/unit/llm/cli-base.test.ts": 1779782511883.996,
+    "source/cli/tests/unit/llm/cli-base.test.ts": 1779794513954.12,
     "source/cli/tests/unit/llm/cli-providers.test.ts": 1776177846290.8035,
     "source/cli/tests/unit/llm/google.test.ts": 1776177846290.9426,
     "source/cli/tests/unit/llm/model-fetcher.test.ts": 1776177846291.0698,
     "source/cli/tests/unit/llm/openai.test.ts": 1776177846291.208,
     "source/cli/tests/unit/llm/provider.test.ts": 1776177846291.3774,
     "source/cli/tests/unit/llm/reviewer-test.test.ts": 1776177846291.508,
-    "source/cli/tests/unit/llm/error-source.test.ts": 1779782478875.6873
+    "source/cli/tests/unit/llm/error-source.test.ts": 1779794513954.2378
   },
   "log": {
     "last_entry_datetime": "2026-05-26T08:07:23.902Z",

@@ -650,7 +650,7 @@ describe('validator', () => {
     // Create an aspect so the node has effective aspects (nodes without aspects skip wide-node check)
     const aspDir = path.join(yggRoot, 'aspects', 'testing');
     await mkdir(aspDir, { recursive: true });
-    await writeFile(path.join(aspDir, 'yg-aspect.yaml'), 'name: Testing\ndescription: test\n');
+    await writeFile(path.join(aspDir, 'yg-aspect.yaml'), 'name: Testing\ndescription: test\nreviewer:\n  type: llm\n');
     await writeFile(path.join(aspDir, 'content.md'), 'Test rule.\n');
     await writeFile(
       path.join(modelDir, 'yg-node.yaml'),
@@ -1303,7 +1303,7 @@ describe('validator — pipeline short-circuit', () => {
 
   it('returns when-predicate-invalid for structured architectureError', async () => {
     const graph = createGraph({
-      architectureError: { code: 'when-predicate-invalid', message: 'unknown key: foo' },
+      architectureError: { code: 'when-predicate-invalid', messageData: { what: 'unknown key: foo', why: 'The when: predicate in yg-architecture.yaml could not be parsed.', next: 'Fix the when: predicate syntax.' } },
     });
     const result = await validate(graph);
     expect(result.nodesScanned).toBe(0);

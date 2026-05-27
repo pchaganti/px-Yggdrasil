@@ -1,6 +1,7 @@
 name: NoNondeterminismDirect
 description: "Engine files must not call Date.now(), Math.random(), or access process.env directly — all non-deterministic inputs must be injected by the CLI layer as explicit parameters."
-reviewer: ast
+reviewer:
+  type: ast
 language: [typescript]
 when:
   node:
