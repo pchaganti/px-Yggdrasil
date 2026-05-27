@@ -1,5 +1,5 @@
 {
-  "hash": "5add2504ff336d4db2501307f92ea5098645f80c61ee782bbc317041e79610d2",
+  "hash": "5c61039a546a2f6304a2ef37e221506d5a9f49452485e13ffe6e7be17eef25f8",
   "files": {
     "own-subset:cli/tests/unit/support/io": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -9,11 +9,11 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/io/artifact-reader.test.ts": "8400835d1c5442c12a2eb8139ec18010fef0c46bda3ab5e7ae0f9ba6417f84c7",
+    "source/cli/tests/unit/io/config-parser.test.ts": "eabd6f6b132cc45de9fcad827bdfb84054448a30e8e5e4e62014a277a50d5251",
     "source/cli/tests/unit/io/drift-state-store.test.ts": "2a17b835327a709d04c2c7d7ffead78367de14f3991d7c61961423690cab1c9a",
     "source/cli/tests/unit/io/find-index.test.ts": "2c239e2cfdb247e4c57602c3e88ab91964e306116caf55d38e97600d6a3b94b6",
     "source/cli/tests/unit/io/schema-parser.test.ts": "d90bb165eb711119bc9e4752453beb90953f4365b72ed728917db03142253ef3",
-    "source/cli/tests/unit/io/secrets-parser.test.ts": "7b4fca659437ea78d6f02624f6d4db837fd7f7585e9d3136ffe7b86f58134daf",
-    "source/cli/tests/unit/io/config-parser.test.ts": "eabd6f6b132cc45de9fcad827bdfb84054448a30e8e5e4e62014a277a50d5251"
+    "source/cli/tests/unit/io/secrets-parser.test.ts": "3a961411c40d2a0b7809d90fc21792e87b780322e0a3de1112a6acc8dec4ce2d"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -27,10 +27,10 @@
     "source/cli/tests/unit/io/drift-state-store.test.ts": 1778918658054.3496,
     "source/cli/tests/unit/io/find-index.test.ts": 1779869468776.5195,
     "source/cli/tests/unit/io/schema-parser.test.ts": 1778918877105.082,
-    "source/cli/tests/unit/io/secrets-parser.test.ts": 1778918869119.8013
+    "source/cli/tests/unit/io/secrets-parser.test.ts": 1779876397663.6604
   },
   "log": {
-    "last_entry_datetime": "2026-05-27T09:23:39.958Z",
-    "prefix_hash": "4bcc6e254137d149f5b5c493b4ca7bbe8e600df3a2fb44aecff190540536fc03"
+    "last_entry_datetime": "2026-05-27T10:13:11.950Z",
+    "prefix_hash": "a075c0310f78267dbcc790733f0e65a2c1a04ff1dc5feb4cc4085c4bacda389e"
   }
 }

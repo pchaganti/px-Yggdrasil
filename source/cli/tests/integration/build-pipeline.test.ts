@@ -164,6 +164,13 @@ describe('context pipeline integration', () => {
       await writeFile(path.join(yggDir, 'yg-config.yaml'), [
         'quality:',
         '  max_mapping_source_files: 7',
+        'reviewer:',
+        '  tiers:',
+        '    default-tier:',
+        '      provider: claude-code',
+        '      consensus: 1',
+        '      config:',
+        '        model: haiku',
       ].join('\n'), 'utf-8');
 
       await writeFile(path.join(yggDir, 'yg-architecture.yaml'), [

@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { runMigrations, detectVersion, updateConfigVersion } from '../../../src/core/migrator.js';
 import type { Migration, MigrationResult } from '../../../src/core/migrator.js';
+import { runVersionUpgrade } from '../../../src/core/migrator-runner.js';
 import { mkdtemp, writeFile, readFile, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -92,5 +93,34 @@ describe('updateConfigVersion', () => {
     const content = await readFile(configPath, 'utf-8');
     expect(content).toContain('version: "4.0.0"');
     expect(content).toContain('quality:');
+  });
+});
+
+describe('runVersionUpgrade', () => {
+  it('does not bump version when a migration returns bumpVersion: false', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'yg-mig-')); dirsToCleanup.push(dir);
+    const configPath = path.join(dir, 'yg-config.yaml');
+    await writeFile(configPath, 'version: "4.0.0"\nquality:\n  max_direct_relations: 10\n');
+
+    const migrations: Migration[] = [
+      {
+        to: '5.0.0',
+        description: 'skipped bump',
+        run: async () => ({ actions: ['did something'], warnings: [], bumpVersion: false }),
+      },
+    ];
+
+    const result = await runVersionUpgrade({
+      yggRoot: dir,
+      fromVersion: '4.0.0',
+      toVersion: '5.0.0',
+      migrations,
+    });
+
+    expect(result.migrationActions).toContain('did something');
+    // Version must NOT have been bumped (bumpVersion: false)
+    const content = await readFile(configPath, 'utf-8');
+    expect(content).toContain('version: "4.0.0"');
+    expect(content).not.toContain('5.0.0');
   });
 });

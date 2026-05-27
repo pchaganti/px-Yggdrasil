@@ -1,6 +1,7 @@
 import path from 'node:path';
 import type { Graph } from '../model/graph.js';
 import type { ValidationResult, ValidationIssue } from '../model/validation.js';
+import { inspectSecretsForValidation } from '../io/secrets-parser.js';
 import { LANGUAGES } from './graph/language-registry.js';
 import type {
   WhenPredicate,
@@ -61,6 +62,16 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
     });
   }
 
+  for (const { code, messageData } of graph.aspectParseErrors ?? []) {
+    issues.push({
+      severity: 'error',
+      code,
+      rule: code,
+      ...issueMsg(messageData),
+      messageData,
+    });
+  }
+
   // Stage 1: architecture file failed to parse — cannot proceed.
   if (graph.architectureError) {
     const archErr = graph.architectureError;
@@ -95,6 +106,8 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
     issues.push(...checkImpliesNoCycles(graph));
     issues.push(...checkHighFanOut(graph));
     issues.push(...checkMissingDescriptions(graph));
+    issues.push(...checkReviewerPresence(graph));
+    issues.push(...checkAspectTierReferences(graph));
   }
 
   // Stage 3: architecture-level checks — fatal errors short-circuit per-node + global stages.
@@ -139,6 +152,7 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
 
   // Stage 5: global checks.
   issues.push(...checkFileDuplicateMapping(graph));
+  issues.push(...(await checkSecretsCredentialsOnly(graph)));
   const strictOutcome = await checkStrictBackwardCoverage(graph, cache);
   issues.push(...strictOutcome.issues);
   allUnreadable.push(...strictOutcome.unreadable);
@@ -1842,6 +1856,62 @@ function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
     }
   }
 
+  return issues;
+}
+
+// --- config-reviewer-missing: reviewer section must exist in yg-config.yaml ---
+
+function checkReviewerPresence(graph: Graph): ValidationIssue[] {
+  if (graph.configError) return [];
+  if (graph.config.reviewer) return [];
+  const msgData: IssueMessage = {
+    what: 'yg-config.yaml has no reviewer: section.',
+    why: 'Every v5 project must declare at least one reviewer tier — even AST-only projects need the section for future LLM aspects.',
+    next: 'Add `reviewer: { tiers: { default-tier: { provider: ..., consensus: 1, config: { model: ... } } } }` to .yggdrasil/yg-config.yaml.',
+  };
+  return [{ code: 'config-reviewer-missing', severity: 'error', rule: 'config-reviewer-missing', ...issueMsg(msgData), messageData: msgData }];
+}
+
+// --- aspect-tier-unknown: aspect.reviewer.tier must reference a configured tier ---
+
+function checkAspectTierReferences(graph: Graph): ValidationIssue[] {
+  if (graph.configError) return [];
+  const issues: ValidationIssue[] = [];
+  for (const aspect of graph.aspects) {
+    if (aspect.reviewer.type !== 'llm') continue;
+    const tier = (aspect.reviewer as { type: 'llm'; tier?: string }).tier;
+    if (!tier) continue;
+    const tiers = graph.config.reviewer?.tiers ?? {};
+    if (!tiers[tier]) {
+      const tierNames = Object.keys(tiers);
+      const msgData: IssueMessage = {
+        what: `Aspect '${aspect.id}' references tier '${tier}' that does not exist in yg-config.yaml.`,
+        why: 'Every tier reference must match a configured tier name under reviewer.tiers.',
+        next: tierNames.length > 0
+          ? `Use one of: ${tierNames.join(', ')}, or remove 'tier:' to use the default tier.`
+          : `Add tier '${tier}' under reviewer.tiers in .yggdrasil/yg-config.yaml, or remove 'tier:' from the aspect.`,
+      };
+      issues.push({ code: 'aspect-tier-unknown', severity: 'error', rule: 'aspect-tier-unknown', ...issueMsg(msgData), messageData: msgData });
+    }
+  }
+  return issues;
+}
+
+// --- secrets-non-credential-field: yg-secrets.yaml must only contain api_key ---
+
+async function checkSecretsCredentialsOnly(graph: Graph): Promise<ValidationIssue[]> {
+  const foreign = await inspectSecretsForValidation(graph.rootPath);
+  const issues: ValidationIssue[] = [];
+  for (const { provider, foreignKeys } of foreign) {
+    for (const key of foreignKeys) {
+      const msgData: IssueMessage = {
+        what: `yg-secrets.yaml has '${key}' under reviewer.${provider}.`,
+        why: 'The v5 secrets file accepts only api_key; non-credential fields belong in yg-config.yaml tiers.',
+        next: `Move '${key}' into reviewer.tiers.<name> in .yggdrasil/yg-config.yaml and remove it from yg-secrets.yaml.`,
+      };
+      issues.push({ code: 'secrets-non-credential-field', severity: 'error', rule: 'secrets-non-credential-field', ...issueMsg(msgData), messageData: msgData });
+    }
+  }
   return issues;
 }
 

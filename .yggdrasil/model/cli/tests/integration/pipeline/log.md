@@ -4,3 +4,5 @@ Add integration test coverage for aspect language validation: tests for missing-
 Updated all fixture YAML strings to use v5 reviewer format (reviewer: { type: ast } or reviewer: { type: llm }) instead of legacy string forms. This is required because parseAspect no longer silently accepts string reviewer values; they now produce structured errors and the aspects are excluded from graph.aspects.
 ## [2026-05-27T08:14:57.558Z]
 Added reviewer: { type: llm } to the inline aspect fixture in the context-pipeline integration test. Required because parseAspect now returns aspect-reviewer-missing for aspects without reviewer, causing the built CLI to return exit 1 when the aspect is referenced in a node's aspects list but isn't loaded into graph.aspects.
+## [2026-05-27T09:47:43.184Z]
+Updated gitignore-count integration test fixture: added v5 reviewer config (reviewer.tiers.default-tier with claude-code provider) to yg-config.yaml so config-reviewer-missing validation error does not block the context command. The test fixture previously omitted reviewer config, which was valid in v4 but is now required in v5.

@@ -60,43 +60,49 @@ export async function loadSecrets(rootPath: string, providerName?: string): Prom
 
 function extractSecretFields(raw: Record<string, unknown>, providerName: string): Partial<LlmConfig> | undefined {
   const ctx = (field: string) => `yg-secrets.yaml at reviewer.${providerName}.${field}`;
-  const partial: Partial<LlmConfig> = {};
-
   if (raw.api_key !== undefined) {
     if (typeof raw.api_key !== 'string') throw new Error(`${ctx('api_key')}: must be a string`);
-    partial.api_key = raw.api_key;
-  }
-  if (raw.provider !== undefined) {
-    if (typeof raw.provider !== 'string') throw new Error(`${ctx('provider')}: must be a string`);
-    partial.provider = raw.provider as LlmConfig['provider'];
-  }
-  if (raw.model !== undefined) {
-    if (typeof raw.model !== 'string') throw new Error(`${ctx('model')}: must be a string`);
-    partial.model = raw.model;
-  }
-  if (raw.endpoint !== undefined) {
-    if (typeof raw.endpoint !== 'string') throw new Error(`${ctx('endpoint')}: must be a string`);
-    partial.endpoint = raw.endpoint;
-  }
-  if (raw.temperature !== undefined) {
-    if (typeof raw.temperature !== 'number') throw new Error(`${ctx('temperature')}: must be a number`);
-    partial.temperature = raw.temperature;
-  }
-  if (raw.consensus !== undefined) {
-    if (typeof raw.consensus !== 'number') throw new Error(`${ctx('consensus')}: must be a number`);
-    partial.consensus = raw.consensus;
-  }
-  if (raw.max_tokens !== undefined) {
-    if (typeof raw.max_tokens !== 'number' && raw.max_tokens !== 'auto') {
-      throw new Error(`${ctx('max_tokens')}: must be a number or 'auto'`);
+    if (raw.api_key.trim() !== '') {
+      return { api_key: raw.api_key };
     }
-    partial.max_tokens = raw.max_tokens as LlmConfig['max_tokens'];
   }
-
-  return Object.keys(partial).length > 0 ? partial : undefined;
+  return undefined;
 }
 
 /** Merge base LLM config with secrets overrides */
 export function mergeLlmConfig(base: LlmConfig, secrets: Partial<LlmConfig>): LlmConfig {
   return { ...base, ...secrets };
+}
+
+/**
+ * Inspect yg-secrets.yaml for non-credential fields (any key other than api_key).
+ * Used by the validator to emit `secrets-non-credential-field` errors.
+ * Returns empty array when file does not exist or has no violations.
+ */
+export async function inspectSecretsForValidation(
+  rootPath: string,
+): Promise<Array<{ provider: string; foreignKeys: string[] }>> {
+  const secretsPath = join(rootPath, 'yg-secrets.yaml');
+  let content: string;
+  try {
+    content = await readFile(secretsPath, 'utf-8');
+  } catch {
+    return [];
+  }
+  const raw = parseYaml(content) as Record<string, unknown>;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return [];
+  if (!raw.reviewer || typeof raw.reviewer !== 'object' || Array.isArray(raw.reviewer)) return [];
+
+  const reviewerRaw = raw.reviewer as Record<string, unknown>;
+  const results: Array<{ provider: string; foreignKeys: string[] }> = [];
+
+  for (const [provider, section] of Object.entries(reviewerRaw)) {
+    if (!section || typeof section !== 'object' || Array.isArray(section)) continue;
+    const sectionObj = section as Record<string, unknown>;
+    const foreignKeys = Object.keys(sectionObj).filter((k) => k !== 'api_key');
+    if (foreignKeys.length > 0) {
+      results.push({ provider, foreignKeys });
+    }
+  }
+  return results;
 }

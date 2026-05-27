@@ -6,3 +6,7 @@ Update aspect-verifier.test.ts: add errorSource: 'codeViolation' to mock provide
 Phase 6 type-bridge: validator.test.ts, validator-aspect-files.test.ts, and validator-reviewer.test.ts updated — createAspect/makeAspect helpers now always include reviewer field with default { type: 'llm' }; string shorthand 'ast'/'llm' accepted via bridge; inline aspect literals updated to include reviewer.
 ## [2026-05-27T07:55:57.284Z]
 Updated inline aspect fixture to include v5 reviewer field (reviewer: { type: llm }). Required because parseAspect now rejects aspects without reviewer.
+## [2026-05-27T09:36:01.009Z]
+Added Phase 9 validator tests: aspectParseErrors emission, config-reviewer-missing check (with and without configError), aspect-tier-unknown check (valid tier, missing tier, ast-type suppression, configError suppression).
+## [2026-05-27T10:13:06.600Z]
+Phase 9: rewrote validator-reviewer.test.ts to add tests for Tasks 36, 36b, 37, 37b, 38 — covering aspectParseErrors emission, config-reviewer-missing check, aspect-tier-unknown check, and secrets-non-credential-field check. Also added tests for missing rule-source combinations (LLM+only check.mjs, AST+only content.md) in validator-aspect-files.test.ts to cover previously uncovered branches.

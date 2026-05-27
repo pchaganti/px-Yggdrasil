@@ -138,4 +138,30 @@ describe('validator — aspect rule-source mutual exclusion', () => {
 
     expect(codes).not.toContain('aspect-missing-rule-source');
   });
+
+  it('reports aspect-missing-rule-source AND aspect-unexpected-rule-source when reviewer is llm and only check.mjs exists', async () => {
+    const rootPath = await createTempYggdrasil();
+    await createAspectDir(rootPath, 'llm-wrong-file', ['check.mjs']);
+    const aspect = makeAspect('llm-wrong-file', 'llm');
+    const graph = makeGraph(rootPath, { aspects: [aspect] });
+
+    const result = await validate(graph);
+    const codes = result.issues.map((i) => i.code);
+
+    expect(codes).toContain('aspect-missing-rule-source');
+    expect(codes).toContain('aspect-unexpected-rule-source');
+  });
+
+  it('reports aspect-missing-rule-source AND aspect-unexpected-rule-source when reviewer is ast and only content.md exists', async () => {
+    const rootPath = await createTempYggdrasil();
+    await createAspectDir(rootPath, 'ast-wrong-file', ['content.md']);
+    const aspect = makeAspect('ast-wrong-file', 'ast');
+    const graph = makeGraph(rootPath, { aspects: [aspect] });
+
+    const result = await validate(graph);
+    const codes = result.issues.map((i) => i.code);
+
+    expect(codes).toContain('aspect-missing-rule-source');
+    expect(codes).toContain('aspect-unexpected-rule-source');
+  });
 });

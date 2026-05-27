@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { writeFile, mkdir, rm, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadSecrets, mergeLlmConfig } from '../../../src/io/secrets-parser.js';
+import { loadSecrets, mergeLlmConfig, inspectSecretsForValidation } from '../../../src/io/secrets-parser.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = path.join(__dirname, '../../fixtures');
@@ -11,7 +11,7 @@ afterEach(async () => {
   const entries = await readdir(FIXTURES_DIR).catch(() => []);
   await Promise.all(
     entries
-      .filter((e) => e.startsWith('tmp-secrets'))
+      .filter((e) => e.startsWith('tmp-secrets') || e.startsWith('tmp-inspect'))
       .map((e) => rm(path.join(FIXTURES_DIR, e), { recursive: true, force: true })),
   );
 });
@@ -111,7 +111,7 @@ reviewer: {}
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('loads provider fields from reviewer secrets', async () => {
+  it('returns undefined when provider section has only non-api_key fields (v5: only api_key accepted)', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-secrets-provider');
     const yggDir = path.join(tmpDir, '.yggdrasil');
     await mkdir(yggDir, { recursive: true });
@@ -128,15 +128,14 @@ reviewer:
       'utf-8',
     );
 
+    // v5: only api_key is extracted from secrets; other fields belong in yg-config.yaml
     const secrets = await loadSecrets(yggDir, 'ollama');
-    expect(secrets?.model).toBe('qwen3');
-    expect(secrets?.consensus).toBe(3);
-    expect(secrets?.max_tokens).toBe(4096);
+    expect(secrets).toBeUndefined();
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('loads multiple fields from reviewer secrets', async () => {
+  it('extracts only api_key when other fields present (v5: non-credential fields ignored)', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-secrets-multiple');
     const yggDir = path.join(tmpDir, '.yggdrasil');
     await mkdir(yggDir, { recursive: true });
@@ -153,10 +152,11 @@ reviewer:
       'utf-8',
     );
 
+    // v5: only api_key is extracted; endpoint/temperature are non-credential fields
     const secrets = await loadSecrets(yggDir, 'ollama');
     expect(secrets?.api_key).toBe('sk-test-456');
-    expect(secrets?.endpoint).toBe('https://api.example.com');
-    expect(secrets?.temperature).toBe(0.5);
+    expect((secrets as Record<string, unknown> | undefined)?.endpoint).toBeUndefined();
+    expect((secrets as Record<string, unknown> | undefined)?.temperature).toBeUndefined();
 
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -237,7 +237,7 @@ reviewer:
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('extracts provider field from secrets when present', async () => {
+  it('returns undefined when provider section has only non-api_key credential fields (v5: provider/model belong in yg-config.yaml)', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-secrets-provider-field');
     const yggDir = path.join(tmpDir, '.yggdrasil');
     await mkdir(yggDir, { recursive: true });
@@ -253,9 +253,9 @@ reviewer:
       'utf-8',
     );
 
+    // v5: provider/model are non-credential fields — belong in yg-config.yaml, not secrets
     const secrets = await loadSecrets(yggDir, 'ollama');
-    expect(secrets?.provider).toBe('claude-code');
-    expect(secrets?.model).toBe('haiku');
+    expect(secrets).toBeUndefined();
 
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -312,7 +312,7 @@ reviewer:
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('throws when temperature is not a number', async () => {
+  it('ignores temperature field (v5: temperature belongs in yg-config.yaml, not validated in secrets)', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-secrets-bad-temp');
     const yggDir = path.join(tmpDir, '.yggdrasil');
     await mkdir(yggDir, { recursive: true });
@@ -322,12 +322,14 @@ reviewer:
       'utf-8',
     );
 
-    await expect(loadSecrets(yggDir, 'ollama')).rejects.toThrow(/reviewer\.ollama\.temperature: must be a number/);
+    // v5: temperature is a non-credential field — ignored silently, returns undefined
+    const secrets = await loadSecrets(yggDir, 'ollama');
+    expect(secrets).toBeUndefined();
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('throws when max_tokens is neither a number nor "auto"', async () => {
+  it('ignores max_tokens field (v5: max_tokens belongs in yg-config.yaml, not validated in secrets)', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-secrets-bad-max-tokens');
     const yggDir = path.join(tmpDir, '.yggdrasil');
     await mkdir(yggDir, { recursive: true });
@@ -337,8 +339,65 @@ reviewer:
       'utf-8',
     );
 
-    await expect(loadSecrets(yggDir, 'ollama')).rejects.toThrow(/reviewer\.ollama\.max_tokens: must be a number or 'auto'/);
+    // v5: max_tokens is a non-credential field — ignored silently, returns undefined
+    const secrets = await loadSecrets(yggDir, 'ollama');
+    expect(secrets).toBeUndefined();
 
     await rm(tmpDir, { recursive: true, force: true });
+  });
+});
+
+describe('inspectSecretsForValidation', () => {
+  it('returns empty array when secrets file does not exist', async () => {
+    const result = await inspectSecretsForValidation('/nonexistent/path/that/does/not/exist');
+    expect(result).toEqual([]);
+  });
+
+  it('returns foreign keys for provider sections with non-api_key fields', async () => {
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-inspect-foreign-keys');
+    await mkdir(tmpDir, { recursive: true });
+    await writeFile(
+      path.join(tmpDir, 'yg-secrets.yaml'),
+      `
+reviewer:
+  ollama:
+    api_key: sk-123
+    model: llama3
+    temperature: 0.5
+  claude:
+    endpoint: https://api.example.com
+`,
+      'utf-8',
+    );
+
+    const result = await inspectSecretsForValidation(tmpDir);
+    expect(result).toHaveLength(2);
+
+    const ollamaEntry = result.find((r) => r.provider === 'ollama');
+    expect(ollamaEntry?.foreignKeys).toContain('model');
+    expect(ollamaEntry?.foreignKeys).toContain('temperature');
+    expect(ollamaEntry?.foreignKeys).not.toContain('api_key');
+
+    const claudeEntry = result.find((r) => r.provider === 'claude');
+    expect(claudeEntry?.foreignKeys).toContain('endpoint');
+  });
+
+  it('returns empty array when all providers have only api_key', async () => {
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-inspect-api-key-only');
+    await mkdir(tmpDir, { recursive: true });
+    await writeFile(
+      path.join(tmpDir, 'yg-secrets.yaml'),
+      `
+reviewer:
+  ollama:
+    api_key: sk-123
+  claude:
+    api_key: sk-456
+`,
+      'utf-8',
+    );
+
+    const result = await inspectSecretsForValidation(tmpDir);
+    expect(result).toEqual([]);
   });
 });
