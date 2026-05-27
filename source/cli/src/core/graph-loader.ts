@@ -10,7 +10,7 @@ import type {
   YggConfig,
   ArchitectureDef,
 } from '../model/graph.js';
-import { parseConfig } from '../io/config-parser.js';
+import { parseConfig, ConfigParseError } from '../io/config-parser.js';
 import { parseNodeYaml } from '../io/node-parser.js';
 import { parseAspect } from '../io/aspect-parser.js';
 import { parseFlow } from '../io/flow-parser.js';
@@ -45,14 +45,22 @@ export async function loadGraph(
   }
 
   let configError: string | undefined;
+  let configErrorCode: string | undefined;
+  let configErrorMessage: IssueMessage | undefined;
   let config = FALLBACK_CONFIG;
   try {
     config = await parseConfig(path.join(yggRoot, 'yg-config.yaml'));
   } catch (error) {
-    if (!options.tolerateInvalidConfig) {
+    if (error instanceof ConfigParseError) {
+      // Structured config error — always capture (never rethrow), propagate structured message
+      configErrorMessage = error.messageData;
+      configErrorCode = error.code;
+      configError = error.messageData.what;
+    } else if (!options.tolerateInvalidConfig) {
       throw error;
+    } else {
+      configError = (error as Error).message;
     }
-    configError = (error as Error).message;
   }
 
   const { architecture, error: architectureError } = await loadArchitecture(yggRoot);
@@ -80,6 +88,8 @@ export async function loadGraph(
     architecture,
     architectureError,
     configError,
+    configErrorCode,
+    configErrorMessage,
     nodeParseErrors: nodeParseErrors.length > 0 ? nodeParseErrors : undefined,
     aspectParseErrors: aspectsLoad.parseErrors.length > 0 ? aspectsLoad.parseErrors : undefined,
     nodes,

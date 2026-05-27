@@ -230,6 +230,8 @@ export interface Graph {
   architectureError?: ArchitectureLoadError;
   /** Present when yg-config.yaml could not be parsed and loader used fallback config */
   configError?: string;
+  /** Structured form of configError — present when the config parse failure has what/why/next fields */
+  configErrorMessage?: IssueMessage;
   /** Parse errors for yg-node.yaml files; reported as yaml-invalid */
   nodeParseErrors?: Array<{ nodePath: string; messageData: IssueMessage }>;
   /** Parse errors for yg-aspect.yaml files. Each carries the structured

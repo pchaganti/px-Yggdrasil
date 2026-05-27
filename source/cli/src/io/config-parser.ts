@@ -7,6 +7,13 @@ import type {
   LlmConfig,
   ReviewerConfig,
 } from '../model/graph.js';
+import type { IssueMessage } from '../model/validation.js';
+
+export class ConfigParseError extends Error {
+  constructor(public messageData: IssueMessage, public code: string) {
+    super(messageData.what);
+  }
+}
 
 const DEFAULT_QUALITY: QualityConfig = {
   max_direct_relations: 10,
@@ -17,15 +24,35 @@ export const KNOWN_PROVIDERS = [
   'claude-code', 'codex', 'gemini-cli',
 ] as const;
 
-const CLI_PROVIDERS = new Set(['claude-code', 'codex', 'gemini-cli']);
+// ---- inline format-detection predicates (avoid circular import with format-version.ts) ----
+
+function _isV5ConfigFormat(raw: Record<string, unknown>): boolean {
+  const reviewer = raw.reviewer as Record<string, unknown> | undefined;
+  if (!reviewer || typeof reviewer !== 'object' || Array.isArray(reviewer)) return false;
+  // v5 shape: has `tiers` key, OR has `default` key (both are v5-exclusive keys)
+  return 'tiers' in reviewer || 'default' in reviewer;
+}
+
+function _isV4ConfigFormat(raw: Record<string, unknown>): boolean {
+  const reviewer = raw.reviewer as Record<string, unknown> | undefined;
+  if (!reviewer || typeof reviewer !== 'object' || Array.isArray(reviewer)) return false;
+  if (_isV5ConfigFormat(raw)) return false;
+  return 'active' in reviewer || KNOWN_PROVIDERS.some(p => p in reviewer);
+}
+
+function _isMixedConfigFormat(raw: Record<string, unknown>): boolean {
+  const reviewer = raw.reviewer as Record<string, unknown> | undefined;
+  if (!reviewer || typeof reviewer !== 'object') return false;
+  const hasV5 = 'tiers' in reviewer;
+  const hasV4 = 'active' in reviewer || KNOWN_PROVIDERS.some(p => p in reviewer);
+  return hasV5 && hasV4;
+}
 
 const PROVIDER_DEFAULTS: Record<string, Partial<LlmConfig>> = {
   'claude-code': { model: 'haiku' },
   'codex': { model: 'o4-mini' },
   'gemini-cli': { model: 'gemini-2.5-flash' },
 };
-
-const GENERAL_KEYS = new Set(['active', 'consensus']);
 
 export async function parseConfig(filePath: string): Promise<YggConfig> {
   const filename = path.basename(filePath);
@@ -57,10 +84,30 @@ export async function parseConfig(filePath: string): Promise<YggConfig> {
     : DEFAULT_QUALITY;
 
   // Parse reviewer: section
-  let llm: LlmConfig | undefined;
+  let reviewer: ReviewerConfig | undefined;
 
   if (raw.reviewer !== undefined) {
-    llm = parseReviewerSection(raw.reviewer as Record<string, unknown>, KNOWN_PROVIDERS, GENERAL_KEYS, filename);
+    if (_isMixedConfigFormat(raw)) {
+      throw new ConfigParseError({
+        what: `${filename} has both v4 and v5 reviewer shapes`,
+        why: 'v5 config must contain only reviewer.default and reviewer.tiers; legacy keys must be removed',
+        next: 'remove the legacy keys (reviewer.active, reviewer.<provider-name>) — their content should already be inside reviewer.tiers',
+      }, 'config-reviewer-mixed-format');
+    } else if (_isV5ConfigFormat(raw)) {
+      reviewer = parseReviewerV5(raw.reviewer as Record<string, unknown>, filename);
+    } else if (_isV4ConfigFormat(raw)) {
+      throw new ConfigParseError({
+        what: `${filename} uses the pre-v5 reviewer format`,
+        why: 'v5 expects reviewer.tiers instead of provider sections directly under reviewer:',
+        next: 'run `yg init --upgrade` to migrate',
+      }, 'config-reviewer-legacy-format');
+    } else {
+      throw new ConfigParseError({
+        what: `${filename} has unrecognized reviewer: shape`,
+        why: 'reviewer: must be a v5 mapping with tiers:',
+        next: 'see schemas/yg-config.yaml for the v5 shape',
+      }, 'config-invalid');
+    }
   }
 
   let parallel: number | undefined;
@@ -76,104 +123,180 @@ export async function parseConfig(filePath: string): Promise<YggConfig> {
 
   const debug = raw.debug === true ? true : undefined;
 
-  const reviewerBridge: ReviewerConfig | undefined = llm ? {
-    tiers: { [llm.provider]: llm },
-  } : undefined;
-
   return {
     version,
     quality,
-    reviewer: reviewerBridge,
+    reviewer,
     parallel,
     debug,
   };
 }
 
-function parseReviewerSection(
-  reviewerRaw: Record<string, unknown>,
-  knownProviders: readonly string[],
-  generalKeys: Set<string>,
-  filename: string,
-): LlmConfig | undefined {
-  // Separate general keys from provider keys
-  const generalConfig: Record<string, unknown> = {};
-  const providerEntries: Array<{ name: string; config: Record<string, unknown> }> = [];
-
-  for (const [key, value] of Object.entries(reviewerRaw)) {
-    if (generalKeys.has(key)) {
-      generalConfig[key] = value;
-    } else if (knownProviders.includes(key)) {
-      if (value && typeof value === 'object') {
-        providerEntries.push({ name: key, config: value as Record<string, unknown> });
-      }
-    } else {
-      throw new Error(
-        `${filename}: unknown key '${key}' under reviewer:. Known general keys: ${[...generalKeys].join(', ')}. Known providers: ${knownProviders.join(', ')}.`,
-      );
+function parseReviewerV5(raw: Record<string, unknown>, filename: string): ReviewerConfig {
+  const allowedTopKeys = new Set(['default', 'tiers']);
+  for (const k of Object.keys(raw)) {
+    if (!allowedTopKeys.has(k)) {
+      throw new ConfigParseError({
+        what: `${filename}: unknown key '${k}' under reviewer:`,
+        why: 'v5 reviewer section accepts only `default` and `tiers`',
+        next: "move provider-specific settings into a tier's config: section",
+      }, 'config-reviewer-unknown-key');
     }
   }
 
-  // Provider discovery
-  if (providerEntries.length === 0) return undefined;
+  const tiersRaw = raw.tiers;
+  if (!tiersRaw || typeof tiersRaw !== 'object' || Array.isArray(tiersRaw)) {
+    throw new ConfigParseError({
+      what: `${filename}: reviewer.tiers is missing or not a mapping`,
+      why: 'tiers are the only way to declare reviewer configurations in v5',
+      next: 'add `reviewer.tiers: { default-tier: { provider: ..., consensus: 1, config: { model: ... } } }`',
+    }, 'config-tiers-missing');
+  }
 
-  let selectedProvider: { name: string; config: Record<string, unknown> };
-
-  if (generalConfig.active !== undefined) {
-    const activeName = String(generalConfig.active);
-    const found = providerEntries.find(p => p.name === activeName);
-    if (!found) {
-      throw new Error(
-        `${filename}: reviewer.active is '${activeName}' but '${activeName}' is not configured under reviewer:.`,
-      );
+  const tiers: Record<string, LlmConfig> = {};
+  const tierNameRegex = /^[a-zA-Z][a-zA-Z0-9_-]{0,62}$/;
+  for (const [tierName, tierRawAny] of Object.entries(tiersRaw as Record<string, unknown>)) {
+    if (tierName === 'default') {
+      throw new ConfigParseError({
+        what: `${filename}: tier name 'default' is reserved`,
+        why: 'a tier named "default" is visually identical to reviewer.default pointing to itself',
+        next: 'rename the tier (referenced by aspects via reviewer.tier:)',
+      }, 'config-tier-name-reserved');
     }
-    selectedProvider = found;
-  } else if (providerEntries.length === 1) {
-    selectedProvider = providerEntries[0];
-  } else {
-    throw new Error(
-      `${filename}: multiple providers configured under reviewer: (${providerEntries.map(p => p.name).join(', ')}). Set reviewer.active to select one.`,
-    );
+    if (!tierNameRegex.test(tierName)) {
+      throw new ConfigParseError({
+        what: `${filename}: tier name '${tierName}' is invalid`,
+        why: 'tier names must start with a letter and contain only letters, digits, underscore, or hyphen (max 63 chars)',
+        next: `rename the tier (regex: ${tierNameRegex.source})`,
+      }, 'config-tier-name-invalid');
+    }
+    tiers[tierName] = parseTier(tierName, tierRawAny, filename);
   }
 
-  // Extract general params
-  const consensus = (generalConfig.consensus as number) ?? 1;
-  if (!Number.isInteger(consensus) || consensus < 1 || consensus % 2 === 0) {
-    throw new Error(`${filename}: reviewer.consensus must be a positive odd integer >= 1, got ${consensus}`);
+  if (Object.keys(tiers).length === 0) {
+    throw new ConfigParseError({
+      what: `${filename}: reviewer.tiers is empty`,
+      why: 'at least one tier must be defined',
+      next: 'add at least one tier entry',
+    }, 'config-tiers-empty');
   }
 
-  // Normalize provider-specific config to flat LlmConfig
-  return normalizeProviderConfig(selectedProvider.name, selectedProvider.config, { consensus }, filename);
+  let defaultName: string | undefined;
+  if ('default' in raw) {
+    if (typeof raw.default !== 'string') {
+      throw new ConfigParseError({
+        what: `${filename}: reviewer.default must be a string`,
+        why: 'default references a tier by name',
+        next: `set reviewer.default to one of: ${Object.keys(tiers).join(', ')}`,
+      }, 'config-default-tier-unknown');
+    }
+    if (!tiers[raw.default]) {
+      throw new ConfigParseError({
+        what: `${filename}: reviewer.default is '${raw.default}' but no tier '${raw.default}' is configured`,
+        why: 'reference must match a tier name',
+        next: `use one of: ${Object.keys(tiers).join(', ')}`,
+      }, 'config-default-tier-unknown');
+    }
+    defaultName = raw.default;
+  } else if (Object.keys(tiers).length > 1) {
+    throw new ConfigParseError({
+      what: `${filename}: reviewer.default is required when multiple tiers are configured`,
+      why: 'with multiple tiers, the default must be chosen explicitly',
+      next: `set reviewer.default to one of: ${Object.keys(tiers).join(', ')}`,
+    }, 'config-default-tier-missing');
+  }
+
+  return { default: defaultName, tiers };
 }
 
-function normalizeProviderConfig(
-  providerName: string,
-  pc: Record<string, unknown>,
-  generalConfig: { consensus: number },
-  filename: string,
-): LlmConfig {
-  const defaults = PROVIDER_DEFAULTS[providerName] ?? {};
+function parseTier(name: string, raw: unknown, filename: string): LlmConfig {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new ConfigParseError({
+      what: `${filename}: tier '${name}' is not a mapping`,
+      why: 'each tier is a mapping with provider, consensus, config',
+      next: 'replace with `{ provider: ..., consensus: 1, config: { model: ... } }`',
+    }, 'config-tier-invalid');
+  }
+  const t = raw as Record<string, unknown>;
 
-  const model = (pc.model as string) ?? (defaults.model as string | undefined);
+  if (!t.provider) {
+    throw new ConfigParseError({
+      what: `${filename}: tier '${name}' is missing provider:`,
+      why: 'each tier must declare which provider implements it',
+      next: `add 'provider: <one-of-known>' (see KNOWN_PROVIDERS)`,
+    }, 'config-tier-provider-missing');
+  }
+  if (typeof t.provider !== 'string' || !(KNOWN_PROVIDERS as readonly string[]).includes(t.provider)) {
+    throw new ConfigParseError({
+      what: `${filename}: tier '${name}' declares unknown provider '${String(t.provider)}'`,
+      why: 'provider must be one the CLI knows how to invoke',
+      next: `use one of: ${KNOWN_PROVIDERS.join(', ')}`,
+    }, 'config-tier-provider-unknown');
+  }
+
+  if (!('consensus' in t)) {
+    throw new ConfigParseError({
+      what: `${filename}: tier '${name}' is missing consensus:`,
+      why: 'consensus is the number of independent reviewer votes per aspect; v5 requires it explicitly per tier',
+      next: 'add `consensus: 1` (single call) or an odd number >= 3 for majority vote',
+    }, 'config-tier-consensus-invalid');
+  }
+  const consensusRaw = t.consensus;
+  if (!Number.isInteger(consensusRaw) || (consensusRaw as number) < 1 || (consensusRaw as number) % 2 === 0) {
+    throw new ConfigParseError({
+      what: `${filename}: tier '${name}' has invalid consensus '${consensusRaw}'`,
+      why: 'consensus must be a positive odd integer; even values cannot break ties; < 1 is nonsensical',
+      next: 'use 1 (single call) or an odd number >= 3 for majority vote',
+    }, 'config-tier-consensus-invalid');
+  }
+
+  if (!('config' in t)) {
+    throw new ConfigParseError({
+      what: `${filename}: tier '${name}' is missing config:`,
+      why: 'provider-specific settings live in config:',
+      next: 'add `config: { model: <model-name> }`',
+    }, 'config-tier-config-missing');
+  }
+  const cfg = t.config;
+  if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) {
+    throw new ConfigParseError({
+      what: `${filename}: tier '${name}' has config: that is not a YAML mapping`,
+      why: 'provider settings are key-value pairs',
+      next: 'replace with `config: { model: <name>, ... }`',
+    }, 'config-tier-config-not-mapping');
+  }
+  const c = cfg as Record<string, unknown>;
+  const defaults = PROVIDER_DEFAULTS[t.provider as string] ?? {};
+  const model = (c.model as string | undefined) ?? (defaults.model as string | undefined);
   if (!model || typeof model !== 'string') {
-    throw new Error(`${filename}: reviewer.${providerName}.model must be a non-empty string`);
+    throw new ConfigParseError({
+      what: `${filename}: tier '${name}' config.model is missing or not a string`,
+      why: 'every tier requires a model id',
+      next: 'add `model: <model-name>` under config:',
+    }, 'config-tier-config-missing');
   }
 
-  const maxTokens = pc.max_tokens ?? 'auto';
-  if (maxTokens !== 'auto' && (typeof maxTokens !== 'number' || maxTokens < 1)) {
-    throw new Error(`${filename}: reviewer.${providerName}.max_tokens must be 'auto' or positive number`);
+  // Unknown-key check AFTER structural checks
+  const allowed = new Set(['provider', 'consensus', 'config']);
+  for (const k of Object.keys(t)) {
+    if (!allowed.has(k)) {
+      throw new ConfigParseError({
+        what: `${filename}: tier '${name}' has unknown key '${k}'`,
+        why: 'tier accepts only `provider`, `consensus`, `config`',
+        next: "move to config: if it's a provider setting, or remove",
+      }, 'config-tier-unknown-key');
+    }
   }
 
-  const timeout = CLI_PROVIDERS.has(providerName) && typeof pc.timeout === 'number'
-    ? pc.timeout : undefined;
-
+  const maxTokens = (c.max_tokens ?? 'auto') as number | 'auto';
   return {
-    provider: providerName as LlmConfig['provider'],
+    provider: t.provider as LlmConfig['provider'],
     model,
-    endpoint: typeof pc.endpoint === 'string' ? pc.endpoint : undefined,
-    temperature: typeof pc.temperature === 'number' ? pc.temperature : 0,
-    consensus: generalConfig.consensus,
-    max_tokens: maxTokens as LlmConfig['max_tokens'],
-    context_length_field: typeof pc.context_length_field === 'string' ? pc.context_length_field : undefined,
-    timeout,
+    endpoint: typeof c.endpoint === 'string' ? c.endpoint : undefined,
+    temperature: typeof c.temperature === 'number' ? c.temperature : 0,
+    consensus: consensusRaw as number,
+    max_tokens: maxTokens,
+    context_length_field: typeof c.context_length_field === 'string' ? c.context_length_field : undefined,
+    timeout: typeof c.timeout === 'number' ? c.timeout : undefined,
   };
 }

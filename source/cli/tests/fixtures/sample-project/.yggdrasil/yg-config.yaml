@@ -2,6 +2,10 @@ quality:
   max_direct_relations: 10
 
 reviewer:
-  ollama:
-    model: test
-    endpoint: http://localhost:11434
+  tiers:
+    standard:
+      provider: ollama
+      consensus: 1
+      config:
+        model: test
+        endpoint: http://localhost:11434

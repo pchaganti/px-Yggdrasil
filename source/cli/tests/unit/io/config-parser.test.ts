@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { writeFile, mkdir, rm, readdir } from 'node:fs/promises';
+import { describe, it, expect, afterEach } from 'vitest';
+import { writeFile, mkdir, rm, readdir, mkdtemp } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseConfig } from '../../../src/io/config-parser.js';
+import { tmpdir } from 'node:os';
+import { parseConfig, ConfigParseError } from '../../../src/io/config-parser.js';
 import type { YggConfig, LlmConfig } from '../../../src/model/graph.js';
 
 /** Bridge: extract the first (and typically only) tier from the new ReviewerConfig structure */
@@ -20,7 +21,7 @@ afterEach(async () => {
   const entries = await readdir(FIXTURES_DIR).catch(() => []);
   await Promise.all(
     entries
-      .filter((e) => e.startsWith('tmp-config') || e.startsWith('tmp-no-llm') || e.startsWith('tmp-reviewer'))
+      .filter((e) => e.startsWith('tmp-config') || e.startsWith('tmp-no-llm') || e.startsWith('tmp-reviewer') || e.startsWith('tmp-v5'))
       .map((e) => rm(path.join(FIXTURES_DIR, e), { recursive: true, force: true })),
   );
 });
@@ -231,8 +232,8 @@ version: "4.0.0"
       await rm(tmpDir, { recursive: true, force: true });
     });
 
-  describe('config-parser reviewer section', () => {
-    it('parses reviewer: with single ollama provider (implicit active)', async () => {
+  describe('config-parser reviewer section (v4 → legacy errors)', () => {
+    it('rejects v4 format with single ollama provider (legacy format)', async () => {
       const tmpDir = path.join(__dirname, '../../fixtures/tmp-reviewer-ollama');
       await mkdir(tmpDir, { recursive: true });
       await writeFile(
@@ -251,21 +252,14 @@ reviewer:
         'utf-8',
       );
 
-      const config = await parseConfig(path.join(tmpDir, 'yg-config.yaml'));
-      expect(getLlm(config)).toEqual({
-        provider: 'ollama',
-        model: 'qwen3',
-        endpoint: 'http://localhost:11434',
-        temperature: 0.1,
-        consensus: 3,
-        max_tokens: 'auto',
-        context_length_field: 'qwen35.context_length',
+      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toMatchObject({
+        code: 'config-reviewer-legacy-format',
       });
 
       await rm(tmpDir, { recursive: true, force: true });
     });
 
-    it('parses reviewer: with single claude-code provider (implicit active)', async () => {
+    it('rejects v4 format with single claude-code provider (legacy format)', async () => {
       const tmpDir = path.join(__dirname, '../../fixtures/tmp-reviewer-claude');
       await mkdir(tmpDir, { recursive: true });
       await writeFile(
@@ -279,20 +273,14 @@ reviewer:
         'utf-8',
       );
 
-      const config = await parseConfig(path.join(tmpDir, 'yg-config.yaml'));
-      expect(getLlm(config)).toEqual({
-        provider: 'claude-code',
-        model: 'haiku',
-        endpoint: undefined,
-        temperature: 0,
-        consensus: 1,
-        max_tokens: 'auto',
+      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toMatchObject({
+        code: 'config-reviewer-legacy-format',
       });
 
       await rm(tmpDir, { recursive: true, force: true });
     });
 
-    it('parses reviewer: with explicit active selector', async () => {
+    it('rejects v4 format with explicit active selector (legacy format)', async () => {
       const tmpDir = path.join(__dirname, '../../fixtures/tmp-reviewer-active');
       await mkdir(tmpDir, { recursive: true });
       await writeFile(
@@ -311,14 +299,14 @@ reviewer:
         'utf-8',
       );
 
-      const config = await parseConfig(path.join(tmpDir, 'yg-config.yaml'));
-      expect(getLlm(config)!.provider).toBe('claude-code');
-      expect(getLlm(config)!.model).toBe('haiku');
+      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toMatchObject({
+        code: 'config-reviewer-legacy-format',
+      });
 
       await rm(tmpDir, { recursive: true, force: true });
     });
 
-    it('returns undefined llm when reviewer: has no providers', async () => {
+    it('throws ConfigParseError when reviewer: has no providers (unrecognized shape)', async () => {
       const tmpDir = path.join(__dirname, '../../fixtures/tmp-reviewer-empty');
       await mkdir(tmpDir, { recursive: true });
       await writeFile(
@@ -331,13 +319,12 @@ reviewer:
         'utf-8',
       );
 
-      const config = await parseConfig(path.join(tmpDir, 'yg-config.yaml'));
-      expect(getLlm(config)).toBeUndefined();
+      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toThrow(ConfigParseError);
 
       await rm(tmpDir, { recursive: true, force: true });
     });
 
-    it('throws when two providers and no active selector', async () => {
+    it('rejects v4 format with two providers (legacy format)', async () => {
       const tmpDir = path.join(__dirname, '../../fixtures/tmp-reviewer-two-no-active');
       await mkdir(tmpDir, { recursive: true });
       await writeFile(
@@ -353,14 +340,14 @@ reviewer:
         'utf-8',
       );
 
-      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toThrow(
-        /reviewer\.active/,
-      );
+      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toMatchObject({
+        code: 'config-reviewer-legacy-format',
+      });
 
       await rm(tmpDir, { recursive: true, force: true });
     });
 
-    it('throws when active points to unconfigured provider', async () => {
+    it('rejects v4 format with active pointing to unconfigured provider (legacy format)', async () => {
       const tmpDir = path.join(__dirname, '../../fixtures/tmp-reviewer-bad-active');
       await mkdir(tmpDir, { recursive: true });
       await writeFile(
@@ -375,14 +362,14 @@ reviewer:
         'utf-8',
       );
 
-      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toThrow(
-        /claude-code.*not configured/,
-      );
+      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toMatchObject({
+        code: 'config-reviewer-legacy-format',
+      });
 
       await rm(tmpDir, { recursive: true, force: true });
     });
 
-    it('throws on unknown key under reviewer:', async () => {
+    it('throws ConfigParseError on unknown key under reviewer: (unrecognized shape)', async () => {
       const tmpDir = path.join(__dirname, '../../fixtures/tmp-reviewer-unknown-key');
       await mkdir(tmpDir, { recursive: true });
       await writeFile(
@@ -396,14 +383,12 @@ reviewer:
         'utf-8',
       );
 
-      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toThrow(
-        /unknown key 'foo' under reviewer/,
-      );
+      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toThrow(ConfigParseError);
 
       await rm(tmpDir, { recursive: true, force: true });
     });
 
-    it('throws when reviewer.consensus is an even number', async () => {
+    it('rejects v4 format when consensus is even (legacy format)', async () => {
       const tmpDir = path.join(__dirname, '../../fixtures/tmp-reviewer-bad-consensus');
       await mkdir(tmpDir, { recursive: true });
       await writeFile(
@@ -418,14 +403,14 @@ reviewer:
         'utf-8',
       );
 
-      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toThrow(
-        /consensus must be a positive odd integer/,
-      );
+      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toMatchObject({
+        code: 'config-reviewer-legacy-format',
+      });
 
       await rm(tmpDir, { recursive: true, force: true });
     });
 
-    it('throws when reviewer.ollama.model is empty', async () => {
+    it('rejects v4 format with empty model (legacy format)', async () => {
       const tmpDir = path.join(__dirname, '../../fixtures/tmp-reviewer-no-model');
       await mkdir(tmpDir, { recursive: true });
       await writeFile(
@@ -439,14 +424,14 @@ reviewer:
         'utf-8',
       );
 
-      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toThrow(
-        /reviewer.ollama.model must be a non-empty string/,
-      );
+      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toMatchObject({
+        code: 'config-reviewer-legacy-format',
+      });
 
       await rm(tmpDir, { recursive: true, force: true });
     });
 
-    it('throws when reviewer.ollama.max_tokens is invalid (zero)', async () => {
+    it('rejects v4 format with invalid max_tokens (legacy format)', async () => {
       const tmpDir = path.join(__dirname, '../../fixtures/tmp-reviewer-bad-max-tokens');
       await mkdir(tmpDir, { recursive: true });
       await writeFile(
@@ -461,14 +446,14 @@ reviewer:
         'utf-8',
       );
 
-      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toThrow(
-        /reviewer.ollama.max_tokens must be 'auto' or positive number/,
-      );
+      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toMatchObject({
+        code: 'config-reviewer-legacy-format',
+      });
 
       await rm(tmpDir, { recursive: true, force: true });
     });
 
-    it('parses openai provider config', async () => {
+    it('rejects v4 format with openai provider (legacy format)', async () => {
       const tmpDir = path.join(__dirname, '../../fixtures/tmp-reviewer-openai');
       await mkdir(tmpDir, { recursive: true });
       await writeFile(
@@ -482,13 +467,14 @@ reviewer:
         'utf-8',
       );
 
-      const config = await parseConfig(path.join(tmpDir, 'yg-config.yaml'));
-      expect(getLlm(config)?.provider).toBe('openai');
+      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toMatchObject({
+        code: 'config-reviewer-legacy-format',
+      });
 
       await rm(tmpDir, { recursive: true, force: true });
     });
 
-    it('parses CLI provider with timeout', async () => {
+    it('rejects v4 format with CLI provider and timeout (legacy format)', async () => {
       const tmpDir = path.join(__dirname, '../../fixtures/tmp-reviewer-codex-timeout');
       await mkdir(tmpDir, { recursive: true });
       await writeFile(
@@ -503,13 +489,14 @@ reviewer:
         'utf-8',
       );
 
-      const config = await parseConfig(path.join(tmpDir, 'yg-config.yaml'));
-      expect(getLlm(config)?.timeout).toBe(180000);
+      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toMatchObject({
+        code: 'config-reviewer-legacy-format',
+      });
 
       await rm(tmpDir, { recursive: true, force: true });
     });
 
-    it('ignores timeout for API providers', async () => {
+    it('rejects v4 format with openai + timeout (legacy format)', async () => {
       const tmpDir = path.join(__dirname, '../../fixtures/tmp-reviewer-openai-timeout');
       await mkdir(tmpDir, { recursive: true });
       await writeFile(
@@ -524,13 +511,14 @@ reviewer:
         'utf-8',
       );
 
-      const config = await parseConfig(path.join(tmpDir, 'yg-config.yaml'));
-      expect(getLlm(config)?.timeout).toBeUndefined();
+      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toMatchObject({
+        code: 'config-reviewer-legacy-format',
+      });
 
       await rm(tmpDir, { recursive: true, force: true });
     });
 
-    it('uses default model for claude-code when not specified', async () => {
+    it('rejects v4 format with claude-code and no model (legacy format)', async () => {
       const tmpDir = path.join(__dirname, '../../fixtures/tmp-reviewer-claude-default-model');
       await mkdir(tmpDir, { recursive: true });
       await writeFile(
@@ -543,13 +531,14 @@ reviewer:
         'utf-8',
       );
 
-      const config = await parseConfig(path.join(tmpDir, 'yg-config.yaml'));
-      expect(getLlm(config)?.model).toBe('haiku');
+      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toMatchObject({
+        code: 'config-reviewer-legacy-format',
+      });
 
       await rm(tmpDir, { recursive: true, force: true });
     });
 
-    it('rejects unknown provider key', async () => {
+    it('throws ConfigParseError on unknown provider key under reviewer: (unrecognized shape)', async () => {
       const tmpDir = path.join(__dirname, '../../fixtures/tmp-reviewer-unknown-provider');
       await mkdir(tmpDir, { recursive: true });
       await writeFile(
@@ -563,11 +552,260 @@ reviewer:
         'utf-8',
       );
 
-      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toThrow(
-        /unknown key 'unknown-provider' under reviewer/,
-      );
+      await expect(parseConfig(path.join(tmpDir, 'yg-config.yaml'))).rejects.toThrow(ConfigParseError);
 
       await rm(tmpDir, { recursive: true, force: true });
+    });
+  });
+
+  describe('parseConfig v5 happy paths', () => {
+    it('minimal v5 config with one tier', async () => {
+      const tmpDir = path.join(FIXTURES_DIR, 'tmp-v5-minimal');
+      await mkdir(tmpDir, { recursive: true });
+      const configPath = path.join(tmpDir, 'yg-config.yaml');
+      await writeFile(configPath, `
+version: "5.0.0"
+reviewer:
+  tiers:
+    standard:
+      provider: claude-code
+      consensus: 1
+      config:
+        model: sonnet
+`, 'utf-8');
+
+      const cfg = await parseConfig(configPath);
+      expect(cfg.reviewer?.tiers.standard).toBeDefined();
+      expect(cfg.reviewer?.tiers.standard.provider).toBe('claude-code');
+      expect(cfg.reviewer?.tiers.standard.model).toBe('sonnet');
+    });
+
+    it('v5 with default and multiple tiers', async () => {
+      const tmpDir = path.join(FIXTURES_DIR, 'tmp-v5-multi-tiers');
+      await mkdir(tmpDir, { recursive: true });
+      const configPath = path.join(tmpDir, 'yg-config.yaml');
+      await writeFile(configPath, `
+version: "5.0.0"
+reviewer:
+  default: deep
+  tiers:
+    standard:
+      provider: claude-code
+      consensus: 1
+      config: { model: sonnet }
+    deep:
+      provider: claude-code
+      consensus: 3
+      config: { model: opus }
+`, 'utf-8');
+
+      const cfg = await parseConfig(configPath);
+      expect(cfg.reviewer?.default).toBe('deep');
+      expect(cfg.reviewer?.tiers.standard).toBeDefined();
+      expect(cfg.reviewer?.tiers.deep).toBeDefined();
+      expect(cfg.reviewer?.tiers.standard.consensus).toBe(1);
+      expect(cfg.reviewer?.tiers.deep.consensus).toBe(3);
+    });
+
+    it('v5 single tier with temperature + max_tokens', async () => {
+      const tmpDir = path.join(FIXTURES_DIR, 'tmp-v5-ollama-tier');
+      await mkdir(tmpDir, { recursive: true });
+      const configPath = path.join(tmpDir, 'yg-config.yaml');
+      await writeFile(configPath, `
+version: "5.0.0"
+reviewer:
+  tiers:
+    main:
+      provider: ollama
+      consensus: 1
+      config:
+        model: qwen3
+        temperature: 0.2
+        max_tokens: 4096
+`, 'utf-8');
+
+      const cfg = await parseConfig(configPath);
+      expect(cfg.reviewer?.tiers.main.temperature).toBe(0.2);
+      expect(cfg.reviewer?.tiers.main.max_tokens).toBe(4096);
+    });
+
+    it('v5 model defaults — claude-code without explicit model in config', async () => {
+      const tmpDir = path.join(FIXTURES_DIR, 'tmp-v5-provider-defaults');
+      await mkdir(tmpDir, { recursive: true });
+      const configPath = path.join(tmpDir, 'yg-config.yaml');
+      await writeFile(configPath, `
+version: "5.0.0"
+reviewer:
+  tiers:
+    cheap:
+      provider: claude-code
+      consensus: 1
+      config: {}
+`, 'utf-8');
+
+      const cfg = await parseConfig(configPath);
+      expect(cfg.reviewer?.tiers.cheap.model).toBe('haiku');
+    });
+  });
+
+  describe('parseConfig v5 error codes', () => {
+    async function parseWithYaml(yaml: string): Promise<YggConfig> {
+      const dir = await mkdtemp(path.join(tmpdir(), 'yg-v5err-'));
+      await writeFile(path.join(dir, 'yg-config.yaml'), yaml, 'utf-8');
+      try {
+        return await parseConfig(path.join(dir, 'yg-config.yaml'));
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    }
+
+    it('config-reviewer-legacy-format on v4 format with active: key', async () => {
+      await expect(parseWithYaml('reviewer:\n  active: ollama\n  ollama:\n    model: q\n'))
+        .rejects.toMatchObject({ code: 'config-reviewer-legacy-format' });
+    });
+
+    it('config-reviewer-legacy-format on v4 format with provider key directly', async () => {
+      await expect(parseWithYaml('reviewer:\n  ollama:\n    model: qwen3\n'))
+        .rejects.toMatchObject({ code: 'config-reviewer-legacy-format' });
+    });
+
+    it('config-reviewer-mixed-format on v5+v4 keys together', async () => {
+      await expect(parseWithYaml('reviewer:\n  tiers:\n    main:\n      provider: claude-code\n      consensus: 1\n      config: { model: haiku }\n  active: claude-code\n'))
+        .rejects.toMatchObject({ code: 'config-reviewer-mixed-format' });
+    });
+
+    it('config-tiers-missing when reviewer has no tiers key', async () => {
+      await expect(parseWithYaml('reviewer:\n  default: foo\n'))
+        .rejects.toMatchObject({ code: 'config-tiers-missing' });
+    });
+
+    it('config-tiers-empty when tiers is empty mapping', async () => {
+      await expect(parseWithYaml('reviewer:\n  tiers: {}\n'))
+        .rejects.toMatchObject({ code: 'config-tiers-empty' });
+    });
+
+    it('config-default-tier-missing on more than one tier without default', async () => {
+      await expect(parseWithYaml(`reviewer:
+  tiers:
+    a:
+      provider: claude-code
+      consensus: 1
+      config: { model: haiku }
+    b:
+      provider: claude-code
+      consensus: 1
+      config: { model: opus }
+`)).rejects.toMatchObject({ code: 'config-default-tier-missing' });
+    });
+
+    it('config-default-tier-unknown when default refs missing tier', async () => {
+      await expect(parseWithYaml(`reviewer:
+  default: missing
+  tiers:
+    main:
+      provider: claude-code
+      consensus: 1
+      config: { model: haiku }
+`)).rejects.toMatchObject({ code: 'config-default-tier-unknown' });
+    });
+
+    it('config-tier-provider-missing when tier has no provider', async () => {
+      await expect(parseWithYaml(`reviewer:
+  tiers:
+    main:
+      consensus: 1
+      config: { model: haiku }
+`)).rejects.toMatchObject({ code: 'config-tier-provider-missing' });
+    });
+
+    it('config-tier-provider-unknown for unrecognized provider', async () => {
+      await expect(parseWithYaml(`reviewer:
+  tiers:
+    main:
+      provider: gpt-5-turbo
+      consensus: 1
+      config: { model: latest }
+`)).rejects.toMatchObject({ code: 'config-tier-provider-unknown' });
+    });
+
+    it('config-tier-config-missing when tier has no config block', async () => {
+      await expect(parseWithYaml(`reviewer:
+  tiers:
+    main:
+      provider: claude-code
+      consensus: 1
+`)).rejects.toMatchObject({ code: 'config-tier-config-missing' });
+    });
+
+    it('config-tier-config-not-mapping when config is not a mapping', async () => {
+      await expect(parseWithYaml(`reviewer:
+  tiers:
+    main:
+      provider: claude-code
+      consensus: 1
+      config: "scalar"
+`)).rejects.toMatchObject({ code: 'config-tier-config-not-mapping' });
+    });
+
+    it('config-tier-consensus-invalid on missing consensus', async () => {
+      await expect(parseWithYaml(`reviewer:
+  tiers:
+    main:
+      provider: claude-code
+      config: { model: haiku }
+`)).rejects.toMatchObject({ code: 'config-tier-consensus-invalid' });
+    });
+
+    it('config-tier-consensus-invalid on even consensus', async () => {
+      await expect(parseWithYaml(`reviewer:
+  tiers:
+    main:
+      provider: claude-code
+      consensus: 2
+      config: { model: haiku }
+`)).rejects.toMatchObject({ code: 'config-tier-consensus-invalid' });
+    });
+
+    it('config-tier-name-invalid on bad tier name', async () => {
+      await expect(parseWithYaml(`reviewer:
+  tiers:
+    123foo:
+      provider: claude-code
+      consensus: 1
+      config: { model: haiku }
+`)).rejects.toMatchObject({ code: 'config-tier-name-invalid' });
+    });
+
+    it('config-tier-name-reserved on tier name "default"', async () => {
+      await expect(parseWithYaml(`reviewer:
+  tiers:
+    default:
+      provider: claude-code
+      consensus: 1
+      config: { model: haiku }
+`)).rejects.toMatchObject({ code: 'config-tier-name-reserved' });
+    });
+
+    it('config-reviewer-unknown-key for extra reviewer-level key', async () => {
+      await expect(parseWithYaml(`reviewer:
+  foo: bar
+  tiers:
+    main:
+      provider: claude-code
+      consensus: 1
+      config: { model: haiku }
+`)).rejects.toMatchObject({ code: 'config-reviewer-unknown-key' });
+    });
+
+    it('config-tier-unknown-key for extra tier key', async () => {
+      await expect(parseWithYaml(`reviewer:
+  tiers:
+    main:
+      provider: claude-code
+      consensus: 1
+      config: { model: haiku }
+      extra: oops
+`)).rejects.toMatchObject({ code: 'config-tier-unknown-key' });
     });
   });
 

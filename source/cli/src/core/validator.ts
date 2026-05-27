@@ -35,20 +35,18 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   const issues: ValidationIssue[] = [];
 
   if (graph.configError) {
+    const msgData: IssueMessage = graph.configErrorMessage ?? {
+      what: 'yg-config.yaml failed to parse.',
+      why: graph.configError,
+      next: 'Fix the syntax error in .yggdrasil/yg-config.yaml.',
+    };
+    const errorCode = graph.configErrorCode ?? 'config-invalid';
     issues.push({
       severity: 'error',
-      code: 'config-invalid',
+      code: errorCode,
       rule: 'invalid-config',
-      ...issueMsg({
-        what: 'yg-config.yaml failed to parse.',
-        why: graph.configError,
-        next: 'Fix the syntax error in .yggdrasil/yg-config.yaml.',
-      }),
-      messageData: {
-        what: 'yg-config.yaml failed to parse.',
-        why: graph.configError,
-        next: 'Fix the syntax error in .yggdrasil/yg-config.yaml.',
-      },
+      ...issueMsg(msgData),
+      messageData: msgData,
     });
   }
 

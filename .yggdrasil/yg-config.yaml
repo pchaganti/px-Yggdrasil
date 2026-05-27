@@ -7,6 +7,9 @@ parallel: 10
 debug: false
 
 reviewer:
-  consensus: 1
-  claude-code:
-    model: sonnet
+  tiers:
+    standard:
+      provider: claude-code
+      consensus: 1
+      config:
+        model: sonnet
