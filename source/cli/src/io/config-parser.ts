@@ -288,7 +288,14 @@ function parseTier(name: string, raw: unknown, filename: string): LlmConfig {
     }
   }
 
-  const maxTokens = (c.max_tokens ?? 'auto') as number | 'auto';
+  const maxTokens = c.max_tokens ?? 'auto';
+  if (maxTokens !== 'auto' && (typeof maxTokens !== 'number' || (maxTokens as number) < 1)) {
+    throw new ConfigParseError({
+      what: `${filename}: tier '${name}' config.max_tokens must be 'auto' or a positive number`,
+      why: 'max_tokens controls the LLM response budget; invalid values cause runtime errors',
+      next: "set to 'auto' or a positive integer (e.g. 4096)",
+    }, 'config-tier-config-invalid');
+  }
   return {
     provider: t.provider as LlmConfig['provider'],
     model,

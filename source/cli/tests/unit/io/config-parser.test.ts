@@ -807,6 +807,30 @@ reviewer:
       extra: oops
 `)).rejects.toMatchObject({ code: 'config-tier-unknown-key' });
     });
+
+    it('config-tier-config-invalid when max_tokens is zero', async () => {
+      await expect(parseWithYaml(`reviewer:
+  tiers:
+    main:
+      provider: claude-code
+      consensus: 1
+      config:
+        model: haiku
+        max_tokens: 0
+`)).rejects.toMatchObject({ code: 'config-tier-config-invalid' });
+    });
+
+    it('config-tier-config-invalid when max_tokens is a string', async () => {
+      await expect(parseWithYaml(`reviewer:
+  tiers:
+    main:
+      provider: claude-code
+      consensus: 1
+      config:
+        model: haiku
+        max_tokens: "4096"
+`)).rejects.toMatchObject({ code: 'config-tier-config-invalid' });
+    });
   });
 
 });
