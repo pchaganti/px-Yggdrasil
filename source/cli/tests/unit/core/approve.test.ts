@@ -4,8 +4,6 @@ import { fileURLToPath } from 'node:url';
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import { approveNode } from '../../../src/core/approve.js';
-import { runLlmVerification } from '../../../src/cli/approve.js';
-import type { LlmConfig } from '../../../src/cli/approve.js';
 import { writeNodeDriftState, readNodeDriftState } from '../../../src/io/drift-state-store.js';
 import { hashTrackedFiles } from '../../../src/io/hash.js';
 import { collectTrackedFiles } from '../../../src/core/graph/files.js';

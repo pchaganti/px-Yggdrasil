@@ -10,3 +10,5 @@ Added two config-parser tests verifying max_tokens validation: zero value and st
 Updated secrets-parser tests for v5 narrowing: non-api_key fields (model, temperature, max_tokens, provider, endpoint, consensus) are no longer extracted by loadSecrets and no longer cause validation errors at the loadSecrets layer. Added inspectSecretsForValidation tests covering clean file, foreign-key detection, and missing file.
 ## [2026-05-27T10:13:11.950Z]
 Phase 9 Task 37b: updated secrets-parser.test.ts to reflect narrowed extractSecretFields — now only api_key is extracted from yg-secrets.yaml; other fields (model, temperature, consensus, max_tokens, provider, endpoint) are silently ignored. Added inspectSecretsForValidation import and describe block with 3 tests. Updated afterEach cleanup to also remove tmp-inspect-* dirs.
+## [2026-05-27T11:39:50.479Z]
+Added read-or-default.test.ts to cover the debugContext branch in readFileOrDefault — needed to reach 90% branch coverage threshold required by repo-check.sh.

@@ -1,5 +1,5 @@
 {
-  "hash": "da3f4249b6082b3287388f00b0754211869baccd2dbae5843b8f74401e434cb8",
+  "hash": "7e3d000c538c7c550ee6a10d5ba37a819d4c2ffe4ab0bad702fe82a3c253a107",
   "files": {
     "own-subset:cli/tests/unit/support/io": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -14,7 +14,8 @@
     "source/cli/tests/unit/io/drift-state-store.test.ts": "2a17b835327a709d04c2c7d7ffead78367de14f3991d7c61961423690cab1c9a",
     "source/cli/tests/unit/io/find-index.test.ts": "2c239e2cfdb247e4c57602c3e88ab91964e306116caf55d38e97600d6a3b94b6",
     "source/cli/tests/unit/io/schema-parser.test.ts": "d90bb165eb711119bc9e4752453beb90953f4365b72ed728917db03142253ef3",
-    "source/cli/tests/unit/io/secrets-parser.test.ts": "3a961411c40d2a0b7809d90fc21792e87b780322e0a3de1112a6acc8dec4ce2d"
+    "source/cli/tests/unit/io/secrets-parser.test.ts": "3a961411c40d2a0b7809d90fc21792e87b780322e0a3de1112a6acc8dec4ce2d",
+    "source/cli/tests/unit/io/read-or-default.test.ts": "47ad2f845e3fb2524db10049dfc1babc8db4d036875e99ddc004a2c91e953ad6"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -28,10 +29,11 @@
     "source/cli/tests/unit/io/drift-state-store.test.ts": 1778918658054.3496,
     "source/cli/tests/unit/io/find-index.test.ts": 1779869468776.5195,
     "source/cli/tests/unit/io/schema-parser.test.ts": 1778918877105.082,
-    "source/cli/tests/unit/io/secrets-parser.test.ts": 1779876397663.6604
+    "source/cli/tests/unit/io/secrets-parser.test.ts": 1779876397663.6604,
+    "source/cli/tests/unit/io/read-or-default.test.ts": 1779882138239.9805
   },
   "log": {
-    "last_entry_datetime": "2026-05-27T10:13:11.950Z",
-    "prefix_hash": "a075c0310f78267dbcc790733f0e65a2c1a04ff1dc5feb4cc4085c4bacda389e"
+    "last_entry_datetime": "2026-05-27T11:39:50.479Z",
+    "prefix_hash": "b60d8f8a2cec281dddab4d7548b1416a9955ee5a8c5886904c3a99fcfc7748b5"
   }
 }

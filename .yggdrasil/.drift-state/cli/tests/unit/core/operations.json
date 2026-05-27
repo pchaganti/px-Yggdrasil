@@ -1,5 +1,5 @@
 {
-  "hash": "6cbedb54b284678562ad453ed3cc0f22e4452646d71057d568730400e2e2bb85",
+  "hash": "894d824b4744b618db8936277f97485f0d02d14610942c78f455ec4a6a4fb16d",
   "files": {
     "own-subset:cli/tests/unit/core/operations": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -9,15 +9,15 @@
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": "de00f518b04112cb692d73d15acfd232c3f1874b163d22d482f0b8e5a7163f48",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/core/approve.test.ts": "1b4cd941844c589d5bbc52aad50b6f669cd9536cb1ca356db359523728bdec5a",
-    "source/cli/tests/unit/core/approve-llm.test.ts": "8a500a7eb597d5930c331eafedba2440e9edbc36d103b17a2395492e3883490d",
+    "source/cli/tests/unit/core/approve.test.ts": "80222ea912ed8504f3614dfe6fa4c34ca805a6c3bfc7511d2d203576cd263c9b",
     "source/cli/tests/unit/core/approve-log.test.ts": "b1c6dd8521f259c6dd4457225043345d63718b05a283d7a6ca63dc3fd04b49d5",
     "source/cli/tests/unit/core/check.test.ts": "801e398d259cc4f5dc3c9d3b897b69f23d6e1d71e06fe9103963016e46cef367",
     "source/cli/tests/unit/core/check-log.test.ts": "3024110025bf28d0f4912cc73cf513fa08d6f9db757ba573e40b25df1842f50e",
     "source/cli/tests/unit/core/effective-aspects.test.ts": "e8cdb09dd9778ad5e4fe8dd0e605cd727b3e82fe38ca08ef28e0b4e24304a3fc",
     "source/cli/tests/unit/core/impact.test.ts": "5c85599d24e1045ca67a74a098a47e6ac5a1397212a255793d81fd009187832b",
     "source/cli/tests/unit/core/log-format.test.ts": "bb52340c7c6cbc08dad98efbb81aa8fe9f7888c2a81d9e684f9602a96d4b592f",
-    "source/cli/tests/unit/core/log-integrity.test.ts": "aa2ee7eb50e2dc30ea0afafe1ce36ef48ad6cec59ec85a136cee3748c46e9b21"
+    "source/cli/tests/unit/core/log-integrity.test.ts": "aa2ee7eb50e2dc30ea0afafe1ce36ef48ad6cec59ec85a136cee3748c46e9b21",
+    "source/cli/tests/unit/core/approve-llm.test.ts": "ea56da878f3faad7449b9441fbaadc345ecaad32870952c17fdaf31941980bb0"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -26,8 +26,8 @@
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": 1778866543616.299,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/approve.test.ts": 1779869468775.35,
-    "source/cli/tests/unit/core/approve-llm.test.ts": 1779869468775.1086,
+    "source/cli/tests/unit/core/approve.test.ts": 1779879052938.3843,
+    "source/cli/tests/unit/core/approve-llm.test.ts": 1779881665199.8782,
     "source/cli/tests/unit/core/approve-log.test.ts": 1778854276923.1697,
     "source/cli/tests/unit/core/check.test.ts": 1779869468775.6562,
     "source/cli/tests/unit/core/check-log.test.ts": 1778854223542.9958,
@@ -37,7 +37,7 @@
     "source/cli/tests/unit/core/log-integrity.test.ts": 1778573590477.678
   },
   "log": {
-    "last_entry_datetime": "2026-05-27T08:37:06.302Z",
-    "prefix_hash": "d6fc25789616d24cca180d25ed9ded918acc56d3db8e15d12e178cc6574079bb"
+    "last_entry_datetime": "2026-05-27T11:39:50.631Z",
+    "prefix_hash": "6abce3d619e057c4aa0af5929c9c552436a0002cd6e447ab8a4425dce35158b1"
   }
 }

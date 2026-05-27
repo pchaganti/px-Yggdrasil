@@ -4,126 +4,35 @@ import path from 'node:path';
 import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
-import { approveNode, resolveAspects, loadSourceFiles, commitApproval } from '../core/approve.js';
+import { approveNode, resolveAspects, loadSourceFiles } from '../core/approve.js';
 import { runApproveWithReviewer, type LlmApproveResult } from '../core/approve-reviewer.js';
 export type { LlmApproveResult };
 import { collectTrackedFiles } from '../core/graph/files.js';
 import { hashTrackedFiles } from '../io/hash.js';
 import { classifyDrift } from '../core/check.js';
 import type { CheckIssue, CascadeCause } from '../core/check.js';
-import { createLlmProvider } from '../llm/index.js';
-import { loadSecrets, mergeLlmConfig } from '../io/secrets-parser.js';
+import { validate } from '../core/validator.js';
 import { normalizeMappingPaths } from '../io/paths.js';
-import type { LlmProvider } from '../llm/types.js';
-import type { ApproveResult, AspectVerificationResult } from '../model/drift.js';
-import type { Graph } from '../model/graph.js';
-import { runAstAspect, AstRunnerError } from '../ast/runner.js';
+import type { ApproveResult } from '../model/drift.js';
+import type { Graph, LlmConfig } from '../model/graph.js';
+import { runAstAspect } from '../ast/runner.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 
-/** LLM configuration resolved from graph config */
-export interface LlmConfig {
-  provider: LlmProvider | undefined;
-  maxTokens: number | undefined;
-  consensus: number | undefined;
-}
-
-/**
- * Run aspect verification on an approved node result, returning an extended result.
- * Handles AST aspects in CLI layer; delegates LLM aspects to core/approve-reviewer.
- * If any aspect refuses, the result action is set to 'refused'.
- */
 export async function runLlmVerification(
   graph: Graph,
   nodePath: string,
   result: ApproveResult,
-  llmConfig: LlmConfig,
+  secretsByProvider: Map<string, Partial<LlmConfig> | null>,
   filterAspectId?: string,
 ): Promise<LlmApproveResult> {
-  const { provider } = llmConfig;
-  const node = graph.nodes.get(nodePath);
-
-  if (!provider) {
-    await commitApproval(graph.rootPath, result);
-    return { ...result, llmSkipped: 'unavailable' };
-  }
-
-  if (result.action === 'refused' || !node) {
-    return result;
-  }
-
-  // When filterAspectId is set and no source files changed, only evaluate that aspect.
-  // Source drift requires full re-verification regardless of what triggered the batch.
-  const shouldFilter = filterAspectId !== undefined && !result.changedSource?.length;
-  const allAspects = resolveAspects(node, graph);
-  const aspects = shouldFilter ? allAspects.filter(a => a.id === filterAspectId) : allAspects;
-  const astAspects = aspects.filter(a => a.reviewer?.type === 'ast');
-
-  if (astAspects.length === 0) {
-    return runApproveWithReviewer({ graph, nodePath, result, provider, maxTokens: llmConfig.maxTokens, consensus: llmConfig.consensus, filterAspectId: shouldFilter ? filterAspectId : undefined });
-  }
-
-  // Compute source file paths for AST verification
-  const projectRoot = path.dirname(graph.rootPath);
-  const yggPrefix = path.relative(projectRoot, graph.rootPath).split(/[\\/]/).join('/');
-  const trackedFiles = collectTrackedFiles(node, graph);
-  const { fileHashes } = await hashTrackedFiles(projectRoot, trackedFiles, undefined, []);
-  const sourceFilePaths = Object.keys(fileHashes).filter(f => {
-    const normalized = f.replace(/\\/g, '/').replace(/\/+$/, '');
-    return !normalized.startsWith(yggPrefix);
+  return runApproveWithReviewer({
+    graph,
+    nodePath,
+    result,
+    rootPath: graph.rootPath,
+    filterAspectId,
+    secretsByProvider,
   });
-
-  // Run AST aspects
-  const astResults: Record<string, AspectVerificationResult> = {};
-  for (const aspect of astAspects) {
-    try {
-      const astResult = await runAstAspect({
-        aspectDir: path.join('.yggdrasil/aspects', aspect.id),
-        aspectId: aspect.id,
-        files: sourceFilePaths.map(f => ({ path: f })),
-        projectRoot,
-      });
-      const violated = astResult.violations.length > 0;
-      astResults[aspect.id] = {
-        satisfied: !violated,
-        reason: violated
-          ? astResult.violations.map(v => `${v.file}:${v.line}: ${v.message}`).join('\n')
-          : 'all rules satisfied',
-        errorSource: 'codeViolation',
-      };
-    } catch (e: unknown) {
-      debugWrite(`[approve] ast aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
-      const code: string = (e as { code?: string }).code ?? 'AST_RUNNER_UNKNOWN';
-      const rendered = e instanceof AstRunnerError
-        ? buildIssueMessage(e.messageData)
-        : (e as Error).message;
-      astResults[aspect.id] = { satisfied: false, reason: `[${code}] ${rendered}`, errorSource: 'astRuntime' };
-    }
-  }
-
-  const astViolations = Object.entries(astResults)
-    .filter(([, r]) => !r.satisfied)
-    .map(([aspectId, r]) => ({ aspectId, reason: r.reason, errorSource: r.errorSource }));
-
-  if (astViolations.length > 0) {
-    return {
-      ...result,
-      action: 'refused',
-      refuseReasonData: {
-        what: 'Reviewer found aspect violations.',
-        why: 'One or more aspects were not satisfied by the source code.',
-        next: `Fix the violations and re-run: yg approve --node ${nodePath}`,
-      },
-      aspectResults: astResults,
-      aspectViolations: astViolations,
-    };
-  }
-
-  // AST passed — delegate LLM verification to core
-  const llmResult = await runApproveWithReviewer({ graph, nodePath, result, provider, maxTokens: llmConfig.maxTokens, consensus: llmConfig.consensus, filterAspectId: shouldFilter ? filterAspectId : undefined });
-  return {
-    ...llmResult,
-    aspectResults: { ...astResults, ...(llmResult.aspectResults ?? {}) },
-  };
 }
 
 // ── Output formatting ────────────────────────────────────────
@@ -281,35 +190,48 @@ export function formatBatchOutput(results: BatchResult[]): void {
   process.stdout.write(`\n${approved} approved, ${failed} failed.\n`);
 }
 
-// ── Reviewer provider loading ────────────────────────────────
+// ── Gating codes — approve must not invoke LLM when these are present ──
 
-async function loadLlmProvider(
-  graph: { rootPath: string; config: import('../model/graph.js').YggConfig },
-): Promise<{ provider: LlmProvider | undefined; maxTokens: number | undefined; consensus: number | undefined }> {
-  const reviewerCfg = graph.config.reviewer;
-  const llmConfig = reviewerCfg ? Object.values(reviewerCfg.tiers)[0] : undefined;
-  if (!llmConfig) {
-    process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
-      what: 'No reviewer configured.',
-      why: 'yg approve requires an LLM reviewer to verify aspect satisfaction; the graph config has no reviewer section.',
-      next: "Add a 'reviewer:' section to yg-config.yaml, or run 'yg init' and select a reviewer.",
-    })}\n`));
+const APPROVE_GATING_CODES = new Set([
+  'config-reviewer-legacy-format',
+  'config-reviewer-mixed-format',
+  'config-reviewer-missing',
+  'config-tiers-missing',
+  'config-tiers-empty',
+  'config-default-tier-missing',
+  'config-default-tier-unknown',
+  'config-tier-provider-missing',
+  'config-tier-provider-unknown',
+  'config-tier-config-missing',
+  'config-tier-config-not-mapping',
+  'config-tier-consensus-invalid',
+  'config-tier-name-invalid',
+  'config-tier-name-reserved',
+  'config-reviewer-unknown-key',
+  'config-tier-unknown-key',
+  'aspect-reviewer-legacy-string',
+  'aspect-reviewer-missing',
+  'aspect-reviewer-not-mapping',
+  'aspect-reviewer-type-missing',
+  'aspect-reviewer-type-invalid',
+  'aspect-reviewer-unknown-key',
+  'aspect-ast-tier-not-allowed',
+  'aspect-tier-unknown',
+  'secrets-non-credential-field',
+]);
+
+async function abortOnGatingErrors(graph: Graph): Promise<void> {
+  const validationResult = await validate(graph);
+  const gating = validationResult.issues.filter(i => i.code !== undefined && APPROVE_GATING_CODES.has(i.code));
+  if (gating.length > 0) {
+    const issueDetails = gating.map(i => buildIssueMessage(i.messageData)).join('\n\n');
+    process.stderr.write(chalk.red(buildIssueMessage({
+      what: 'yg approve aborted — configuration errors block tier resolution.',
+      why: issueDetails,
+      next: 'Fix the errors above, then re-run: yg approve',
+    }) + '\n\n'));
     process.exit(1);
   }
-
-  const secrets = await loadSecrets(graph.rootPath, llmConfig.provider);
-  const mergedConfig = secrets ? mergeLlmConfig(llmConfig, secrets) : llmConfig;
-  const provider = createLlmProvider(mergedConfig);
-
-  if (!(await provider.isAvailable())) {
-    return { provider: undefined, maxTokens: undefined, consensus: undefined };
-  }
-
-  const maxTokens = mergedConfig.max_tokens === 'auto'
-    ? (await provider.getContextWindowSize() ?? 8192)
-    : (mergedConfig.max_tokens as number);
-
-  return { provider, maxTokens, consensus: mergedConfig.consensus };
 }
 
 // ── Batch approve orchestrator ───────────────────────────────
@@ -328,7 +250,7 @@ async function runBatchApprove(
     return true;
   }
 
-  const { provider, maxTokens, consensus } = await loadLlmProvider(graph);
+  await abortOnGatingErrors(graph);
 
   const parallel = graph.config.parallel ?? 1;
   const sorted = matchedNodes.sort();
@@ -339,10 +261,10 @@ async function runBatchApprove(
     process.stdout.write(`Approving ${sorted.length} nodes cascaded from ${entityLabel}...\n`);
   }
 
-  const llmCfg: LlmConfig = { provider, maxTokens, consensus };
+  const secretsByProvider = new Map<string, Partial<LlmConfig> | null>();
   const results = await runBatch(sorted, parallel, async (nodePath) => {
     const result = await approveNode(graph, nodePath);
-    return runLlmVerification(graph, nodePath, result, llmCfg, filterAspectId);
+    return runLlmVerification(graph, nodePath, result, secretsByProvider, filterAspectId);
   });
 
   formatBatchOutput(results);
@@ -452,7 +374,11 @@ export function registerApproveCommand(program: Command): void {
                 }
               } catch (e: unknown) {
                 debugWrite(`[approve] dry-run ast aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
-                process.stdout.write(chalk.red(`  Error: ${(e as Error).message}\n`));
+                process.stderr.write(chalk.red(buildIssueMessage({
+                  what: `AST aspect '${aspect.id}' runner failed.`,
+                  why: (e as Error).message,
+                  next: 'Verify the aspect check.mjs is valid and that AST runner dependencies are installed.',
+                }) + '\n'));
               }
             }
 
@@ -502,18 +428,18 @@ export function registerApproveCommand(program: Command): void {
 
         // --node: multi-node batch or single node
         if (options.node && options.node.length > 1) {
+          await abortOnGatingErrors(graph);
           const parallel = graph.config.parallel ?? 1;
           const nodePaths = options.node.map(n => n.trim().replace(/\/$/, ''));
-          const { provider, maxTokens, consensus } = await loadLlmProvider(graph);
           if (parallel > 1) {
             process.stdout.write(`Approving ${nodePaths.length} nodes (parallel: ${parallel})...\n\n`);
           } else {
             process.stdout.write(`Approving ${nodePaths.length} nodes...\n`);
           }
-          const llmCfg: LlmConfig = { provider, maxTokens, consensus };
+          const secretsByProvider = new Map<string, Partial<LlmConfig> | null>();
           const batchResults = await runBatch(nodePaths, parallel, async (nodePath) => {
             const result = await approveNode(graph, nodePath);
-            return runLlmVerification(graph, nodePath, result, llmCfg);
+            return runLlmVerification(graph, nodePath, result, secretsByProvider);
           });
           formatBatchOutput(batchResults);
           const anyFailed = batchResults.some(r => r.result.action === 'refused');
@@ -547,13 +473,11 @@ export function registerApproveCommand(program: Command): void {
         }
 
         // Has mapping — single node approve
-        const { provider, maxTokens, consensus } = await loadLlmProvider(graph);
-        if (provider) {
-          process.stdout.write(chalk.yellow(`Verifying aspects with reviewer — this may take a while. Do not interrupt.\n`));
-        }
+        await abortOnGatingErrors(graph);
+        process.stdout.write(chalk.yellow(`Verifying aspects with reviewer — this may take a while. Do not interrupt.\n`));
         const coreResult = await approveNode(graph, nodePath);
-        const llmCfg: LlmConfig = { provider, maxTokens, consensus };
-        const result = await runLlmVerification(graph, nodePath, coreResult, llmCfg);
+        const secretsByProvider = new Map<string, Partial<LlmConfig> | null>();
+        const result = await runLlmVerification(graph, nodePath, coreResult, secretsByProvider);
         formatResult(nodePath, result);
         if (result.action === 'refused') {
           process.exit(1);
