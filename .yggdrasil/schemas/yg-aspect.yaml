@@ -14,12 +14,14 @@ name: CrossCuttingRequirementName  # required — display name
 description: "Short description"   # required — shown in yg aspects output and context packages.
                                    # Validator emits description-missing if absent.
 
-# reviewer: llm | ast        # optional — which reviewer verifies this aspect.
-                              # 'llm' (default): aspect ships content.md; LLM reads and judges.
-                              # 'ast': aspect ships check.mjs; AST runner executes and collects violations.
-                              #   With reviewer: ast, content.md must NOT exist.
-                              #   With reviewer: llm or omitted, check.mjs must NOT exist.
-                              # See docs/ast-aspects.md for the full reviewer reference.
+reviewer:                          # required — reviewer specification
+  type: llm                        # required — 'llm' or 'ast'
+                                   # 'llm': aspect ships content.md; LLM reads and judges
+                                   # 'ast': aspect ships check.mjs; deterministic structural check
+  # tier: deep                     # optional — name of a tier from yg-config.yaml's reviewer.tiers
+                                   # Valid only when type: llm.
+                                   # When omitted, reviewer.default from config is used.
+                                   # AST aspects cannot have tier (validator emits aspect-ast-tier-not-allowed).
 
 # implies:                         # optional — other aspects included automatically when this
 #                                  # aspect is effective on a node. Two forms:

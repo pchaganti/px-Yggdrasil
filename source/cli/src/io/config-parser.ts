@@ -11,7 +11,7 @@ const DEFAULT_QUALITY: QualityConfig = {
   max_direct_relations: 10,
 };
 
-const KNOWN_PROVIDERS = [
+export const KNOWN_PROVIDERS = [
   'ollama', 'openai', 'anthropic', 'google', 'openai-compatible',
   'claude-code', 'codex', 'gemini-cli',
 ] as const;
