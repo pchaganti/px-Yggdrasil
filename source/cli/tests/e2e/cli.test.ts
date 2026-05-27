@@ -1012,4 +1012,56 @@ describe.skipIf(!distExists)('CLI E2E', () => {
     expect(stdout + stderr).toContain('Usage: yg knowledge');
   });
 
+  // --- v5 reviewer tiers ---
+
+  it('yg check rejects v4 reviewer config with legacy-format error', () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-v4config-'));
+    try {
+      cpSync(FIXTURE, tmpDir, { recursive: true });
+      writeFileSync(
+        path.join(tmpDir, '.yggdrasil', 'yg-config.yaml'),
+        'version: "4.3.0"\nreviewer:\n  ollama:\n    model: qwen3\n    endpoint: http://localhost:11434\n',
+        'utf-8',
+      );
+      const { status, stdout } = run(['check'], tmpDir);
+      expect(status).toBe(1);
+      expect(stdout).toContain('pre-v5');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('yg init --upgrade migrates v4 reviewer config to v5 tiers', () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-migrate-v5-'));
+    const yggDir = path.join(tmpDir, '.yggdrasil');
+    mkdirSync(path.join(yggDir, 'schemas'), { recursive: true });
+    writeFileSync(
+      path.join(yggDir, 'yg-config.yaml'),
+      'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: qwen3\n    endpoint: http://localhost:11434\n',
+      'utf-8',
+    );
+    try {
+      const { status } = run(['init', '--upgrade', '--platform', 'generic'], tmpDir);
+      expect(status).toBe(0);
+      const config = readFileSync(path.join(yggDir, 'yg-config.yaml'), 'utf-8');
+      expect(config).toContain('tiers:');
+      expect(config).toContain('provider: ollama');
+      expect(config).toContain('consensus: 1');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('yg approve --dry-run with v5 tiers config shows tier info', () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-dryrun-v5-'));
+    try {
+      cpSync(FIXTURE, tmpDir, { recursive: true });
+      const { stdout, status } = run(['approve', '--node', 'orders/order-service', '--dry-run'], tmpDir);
+      expect(status).toBe(0);
+      expect(stdout).toContain('Dry run');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
 });

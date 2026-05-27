@@ -5,6 +5,7 @@ title: Configuration
 Config file: `.yggdrasil/yg-config.yaml`
 
 `yg init` creates this file and configures the reviewer interactively.
+`yg init --upgrade` applies migrations when moving to a newer version.
 
 ---
 
@@ -12,184 +13,117 @@ Config file: `.yggdrasil/yg-config.yaml`
 
 ### Required
 
-- **reviewer** — Reviewer provider config (see [Reviewer config](#reviewer-config) below).
-  Configured during `yg init`.
+- **version** — Schema version set by the CLI. Run `yg init --upgrade` to migrate.
 
 ### Optional
 
-- **version** — CLI version that last wrote this config. Set automatically by `yg init`.
-- **quality** — Quality thresholds
-- **parallel** — Concurrency limit for batch approve (positive integer, default: 1). Higher
-  values run multiple `approveNode()` calls concurrently during `--aspect`/`--flow`/multi-node
-  approve.
+- **reviewer** — LLM reviewer configuration. Configured during `yg init`; see [Reviewer tiers](#reviewer-tiers) below.
+- **quality** — Quality thresholds (see [Quality config](#quality-config) below).
+- **debug** — Set `true` to append all CLI output to `.yggdrasil/.debug.log`.
 
 Node types are defined in the separate **architecture file** (`.yggdrasil/yg-architecture.yaml`),
 not in `yg-config.yaml`.
 
 ---
 
-## What you can customize
-
-- **Node types** — Defined in `yg-architecture.yaml` (not `yg-config.yaml`). The vocabulary of
-  parts your repo uses (e.g. `module`, `service`, `library`), with optional `aspects`, `parents`,
-  and `relations` constraints.
-- **Quality thresholds** — When to warn about structural issues
-- **Parallel** — Concurrency for batch approve operations
-- **Reviewer** — Semantic verification provider and settings
-
-Nodes contain only `yg-node.yaml` — no `.md` artifact files. Enforceable rules are
-defined as aspects.
-
----
-
-## Quality config
-
-| Field                  | Default | Description                               |
-|------------------------|---------|-------------------------------------------|
-| `max_direct_relations` | 10      | Max relations before high fan-out warning |
-
----
-
-## Example
+## Full annotated example
 
 ```yaml
+version: "5.0.0"
+
+reviewer:
+  tiers:
+    standard:                       # Tier name — referenced by aspect reviewer.tier
+      provider: ollama              # LLM provider
+      consensus: 1                  # Votes per aspect (odd integer >= 1)
+      config:
+        model: qwen3
+        endpoint: http://localhost:11434
+        temperature: 0
+        max_tokens: auto
+
 quality:
   max_direct_relations: 10
+  max_mapping_source_files: 10
 
-parallel: 1
-debug: true                        # optional — append all CLI output to .yggdrasil/.debug.log
-
-reviewer:
-  anthropic:
-    model: claude-sonnet-4-6
-```
-
-Node types go in `yg-architecture.yaml`:
-
-```yaml
-node_types:
-  module:
-    description: "Business logic unit with clear domain responsibility"
-  service:
-    description: "Component providing functionality to other nodes"
-    aspects: [requires-audit]
-    relations:
-      calls: [service, library]
-      uses: [library]
-  library:
-    description: "Shared utility code with no domain knowledge"
-  infrastructure:
-    description: "Guards, middleware, interceptors"
-  data:
-    description: "Database layer, persistence, and data access"
+debug: false
 ```
 
 ---
 
-## Reviewer config
+## Reviewer tiers
 
-The reviewer verifies aspects against source code during `yg approve`.
-Configured during `yg init` or manually in the `reviewer:` section of `yg-config.yaml`.
+v5 uses **named tiers**. Each tier is an independent LLM configuration.
+Aspects target a tier via `reviewer.tier: <name>` in `yg-aspect.yaml`.
+If no `tier:` is declared on an aspect, the first tier in the config is used.
 
-General keys (`active`, `consensus`) sit at the `reviewer:` level.
-Provider-specific keys sit under the provider name.
+### reviewer.tiers.\<name\>
 
-```yaml
-reviewer:
-  active: anthropic               # required when multiple providers listed
-  consensus: 1                    # positive odd integer >= 1
-```
-
-### API providers
-
-API providers make HTTP calls to an LLM endpoint. They accept `model`, `endpoint`,
-`temperature`, and `api_key`.
-
-#### Anthropic
+Tier name can be any string except the reserved word `default`. Convention: `standard` for
+the primary tier. Add a second tier (e.g. `fast`) for aspects that tolerate a cheaper model.
 
 ```yaml
 reviewer:
-  anthropic:
-    model: claude-sonnet-4-6
-    temperature: 0
+  tiers:
+    standard:
+      provider: anthropic
+      consensus: 3
+      config:
+        model: claude-opus-4-7
+        temperature: 0
+    fast:
+      provider: ollama
+      consensus: 1
+      config:
+        model: qwen3
+        endpoint: http://localhost:11434
 ```
 
-#### OpenAI
+An aspect targeting the `fast` tier:
 
 ```yaml
 reviewer:
-  openai:
-    model: gpt-4o
-    temperature: 0
+  type: llm
+  tier: fast
 ```
 
-#### Google
+### Fields per tier
+
+| Field | Required | Description |
+| --- | --- | --- |
+| `provider` | yes | One of the supported providers (see below) |
+| `consensus` | yes | Positive odd integer. `1` = single call. `3` = majority vote. |
+| `config.model` | yes | Provider-specific model identifier |
+| `config.temperature` | no | Sampling temperature. Defaults to `0`. |
+| `config.endpoint` | required for `ollama`, `openai-compatible` | API endpoint URL |
+| `config.max_tokens` | no | Response budget. `auto` queries the provider. |
+| `config.timeout` | no | Per-call timeout in seconds |
+| `config.context_length_field` | no | Ollama: model info field override for context length |
+
+### Supported providers
+
+| Provider | Type | Notes |
+| --- | --- | --- |
+| `ollama` | local | No API cost; requires local install |
+| `anthropic` | API | Requires `ANTHROPIC_API_KEY` or `yg-secrets.yaml` |
+| `openai` | API | Requires `OPENAI_API_KEY` |
+| `google` | API | Requires `GOOGLE_API_KEY` |
+| `openai-compatible` | API | Any OpenAI-compatible endpoint |
+| `claude-code` | CLI | Delegates to the installed `claude` CLI |
+| `codex` | CLI | Delegates to the installed `codex` CLI |
+| `gemini-cli` | CLI | Delegates to the installed `gemini` CLI |
+
+CLI providers (claude-code, codex, gemini-cli) require no API key — they delegate to the
+installed CLI tool.
+
+---
+
+## API keys and secrets
+
+Credentials go in `.yggdrasil/yg-secrets.yaml` (gitignored by default):
 
 ```yaml
-reviewer:
-  google:
-    model: gemini-2.5-flash
-    temperature: 0
-```
-
-#### OpenAI-compatible
-
-Any endpoint that implements the OpenAI API.
-
-```yaml
-reviewer:
-  openai-compatible:
-    model: your-model
-    endpoint: https://your-endpoint.com/v1
-    temperature: 0
-```
-
-#### Ollama (local)
-
-```yaml
-reviewer:
-  ollama:
-    model: qwen3:8b
-    endpoint: http://localhost:11434    # default
-    temperature: 0
-    max_tokens: auto                   # auto = query model for context window size
-    context_length_field: ""           # ollama model_info key override
-```
-
-### CLI agent providers
-
-CLI providers delegate verification to an agent CLI installed on your machine.
-They accept `model` and `timeout` (in milliseconds).
-
-#### Claude Code
-
-```yaml
-reviewer:
-  claude-code:
-    model: sonnet                      # haiku, sonnet, or opus
-```
-
-#### Codex
-
-```yaml
-reviewer:
-  codex:
-    model: o4-mini
-```
-
-#### Gemini CLI
-
-```yaml
-reviewer:
-  gemini-cli:
-    model: gemini-2.5-flash
-```
-
-### API keys and secrets
-
-Credentials go in `.yggdrasil/yg-secrets.yaml` (gitignored, not committed):
-
-```yaml
+# .yggdrasil/yg-secrets.yaml — gitignored, never commit
 reviewer:
   anthropic:
     api_key: sk-ant-...
@@ -200,10 +134,38 @@ reviewer:
 ```
 
 API providers also check environment variables: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
-`GOOGLE_API_KEY`. If the env var is set, you don't need `yg-secrets.yaml`.
+`GOOGLE_API_KEY`. If the env var is set, `yg-secrets.yaml` is not required.
+
+`yg-config.yaml` itself must never contain credentials. Commit it to the repository.
+
+---
+
+## Quality config
+
+```yaml
+quality:
+  max_direct_relations: 10        # Max out-edges per node (wide-node warning)
+  max_mapping_source_files: 10    # Max files per node mapping (wide-node warning)
+```
+
+Both thresholds fire warnings (not errors) when exceeded. Violations appear in `yg check`
+output as `wide-node` warnings. Split large nodes into children to stay under the thresholds.
+
+---
+
+## Upgrading
+
+```bash
+yg init --upgrade
+```
+
+Reads the existing `yg-config.yaml`, applies migrations, and writes the updated version.
+Migrations include the v4 → v5 reviewer format change (flat provider keys → `reviewer.tiers`).
+Run from the repository root only. Review the diff before committing.
 
 ---
 
 ## Notes
 
 - `yg-node.yaml` is a reserved filename in model directories.
+- Node types are defined in `yg-architecture.yaml`, not `yg-config.yaml`.

@@ -2,8 +2,8 @@
 
 Aspects are verified by reviewers. Yggdrasil ships two reviewer types — both operate on the same aspect-node-flow graph; the `reviewer` field in `yg-aspect.yaml` selects which one runs.
 
-- **LLM reviewer** (`reviewer: llm`, the default): ships a `content.md` rule file. An LLM reads the rule and the node's source code, then accepts or rejects.
-- **AST reviewer** (`reviewer: ast`): ships a `check.mjs` module. A deterministic runner parses the source files with tree-sitter and executes your `check` function against the AST.
+- **LLM reviewer** (`reviewer: { type: llm }`): ships a `content.md` rule file. An LLM reads the rule and the node's source code, then accepts or rejects.
+- **AST reviewer** (`reviewer: { type: ast }`): ships a `check.mjs` module. A deterministic runner parses the source files with tree-sitter and executes your `check` function against the AST.
 
 `content.md` and `check.mjs` are mutually exclusive — exactly one must be present per aspect. `yg check` enforces this.
 
@@ -33,7 +33,7 @@ The LLM reviewer is a separate LLM call from the coding agent — one LLM verify
 ```
 .yggdrasil/aspects/
   requires-audit/
-    yg-aspect.yaml       ← reviewer: llm (default, can be omitted)
+    yg-aspect.yaml       ← reviewer: { type: llm }
     content.md           ← the rule, in plain Markdown
 ```
 
@@ -42,7 +42,8 @@ The LLM reviewer is a separate LLM call from the coding agent — one LLM verify
 ```yaml
 name: Audit Logging
 description: "Every mutation must emit an audit event"
-# reviewer: llm           # default — can be omitted
+reviewer:
+  type: llm
 ```
 
 ### Writing `content.md`
@@ -83,7 +84,17 @@ A typical approve for a node with 3 aspects and 5 source files makes 3 LLM calls
 
 ### Consensus
 
-Set `consensus: 3` (or any odd number) in `yg-config.yaml` to run multiple review passes and take the majority vote. Higher confidence, proportionally higher cost. Useful for high-stakes aspects or noisy borderline rules.
+Set `consensus: 3` (or any odd number) on a tier in `yg-config.yaml` to run multiple review passes and take the majority vote. Higher confidence, proportionally higher cost. Useful for high-stakes aspects or noisy borderline rules.
+
+```yaml
+reviewer:
+  tiers:
+    thorough:
+      provider: anthropic
+      consensus: 3          # majority vote — 2 of 3 must agree
+      config:
+        model: claude-opus-4-7
+```
 
 ---
 
@@ -96,7 +107,7 @@ The AST reviewer is deterministic. The runner parses each source file with tree-
 ```
 .yggdrasil/aspects/
   async-fs/
-    yg-aspect.yaml       ← reviewer: ast
+    yg-aspect.yaml       ← reviewer: { type: ast }
     check.mjs            ← your check function
 ```
 
@@ -105,11 +116,12 @@ The AST reviewer is deterministic. The runner parses each source file with tree-
 ```yaml
 name: No Sync FS
 description: Forbid synchronous fs calls — use async equivalents
-reviewer: ast
+reviewer:
+  type: ast
 language: [typescript, tsx, javascript]
 ```
 
-The `reviewer: ast` and `language:` fields are required. The runner invokes `check.mjs` once per declared language. Everything else (`implies`, `when`, `aspects` on nodes) works identically for both reviewer types.
+The `reviewer.type: ast` and `language:` fields are required. The runner invokes `check.mjs` once per declared language. Everything else (`implies`, `when`, `aspects` on nodes) works identically for both reviewer types.
 
 ### Writing `check.mjs`
 

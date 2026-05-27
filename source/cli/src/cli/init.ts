@@ -311,21 +311,24 @@ async function writeReviewerConfig(
     debugWrite(`[init] writeReviewerConfig: ${configPath} not found, starting fresh`);
   }
 
-  // Build reviewer section with visible defaults
-  const providerConfig: Record<string, unknown> = { model: config.model };
+  // Build v5 reviewer section
+  const tierConfig: Record<string, unknown> = { model: config.model };
   if (config.endpoint) {
-    providerConfig.endpoint = config.endpoint;
+    tierConfig.endpoint = config.endpoint;
   }
   if (API_PROVIDERS.includes(config.provider)) {
-    providerConfig.temperature = 0;
+    tierConfig.temperature = 0;
   }
 
-  const reviewer: Record<string, unknown> = {
-    consensus: 1,
-    [config.provider]: providerConfig,
+  raw.reviewer = {
+    tiers: {
+      standard: {
+        provider: config.provider,
+        consensus: 1,
+        config: tierConfig,
+      },
+    },
   };
-
-  raw.reviewer = reviewer;
 
   await writeFile(configPath, yamlStringify(raw), 'utf-8');
 }

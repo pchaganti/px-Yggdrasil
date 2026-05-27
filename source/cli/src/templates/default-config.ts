@@ -1,12 +1,12 @@
-export const DEFAULT_CONFIG = `version: "4.3.0"
+export const DEFAULT_CONFIG = `version: "5.0.0"
 
 # Quality thresholds
 quality:
   max_direct_relations: 10
   max_mapping_source_files: 10
 
-# Reviewer configuration (see schemas/yg-config.yaml + yg knowledge read configuration)
-parallel: 1
+# Reviewer configuration added by: yg init
+# (see schemas/yg-config.yaml + yg knowledge read configuration)
 
 debug: false
 `;
