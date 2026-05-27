@@ -517,10 +517,10 @@ export async function loadSourceFiles(
 export function resolveAspects(
   node: GraphNode,
   graph: Graph,
-): Array<{ id: string; description: string; content: string; reviewer?: 'ast' | 'llm' }> {
+): Array<{ id: string; description: string; content: string; reviewer?: import('../model/graph.js').AspectReviewerSpec }> {
   const allAspectIds = computeEffectiveAspects(node, graph);
 
-  const result: Array<{ id: string; description: string; content: string; reviewer?: 'ast' | 'llm' }> = [];
+  const result: Array<{ id: string; description: string; content: string; reviewer?: import('../model/graph.js').AspectReviewerSpec }> = [];
   for (const aspectId of allAspectIds) {
     const aspectDef = graph.aspects.find(a => a.id === aspectId);
     if (!aspectDef) continue;

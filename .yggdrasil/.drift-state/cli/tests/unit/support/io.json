@@ -1,5 +1,5 @@
 {
-  "hash": "5ae4e278e30472d5d7198f0bcbb41b75eae85bae804c734be4b07a0329fdc5a2",
+  "hash": "eecd5a560b76d4f8d460c3b2a1dc2302b033db8db772c1703b874308773e1701",
   "files": {
     "own-subset:cli/tests/unit/support/io": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -9,11 +9,11 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "c9db3b691b776caed9de57f4a2db93fd6dd368c1e5cff30e81cbf12a356c4fcf",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/io/artifact-reader.test.ts": "8400835d1c5442c12a2eb8139ec18010fef0c46bda3ab5e7ae0f9ba6417f84c7",
-    "source/cli/tests/unit/io/config-parser.test.ts": "fc0b290e097b524d2a6f1a82c7bbe77ac6fd4c1986b0a2541fa0d21ff2367e49",
     "source/cli/tests/unit/io/drift-state-store.test.ts": "2a17b835327a709d04c2c7d7ffead78367de14f3991d7c61961423690cab1c9a",
     "source/cli/tests/unit/io/find-index.test.ts": "fcc5b3ec5ee658d55d61da2cfbe72b5e4d469110e6e81fdc153bda01a9d79111",
     "source/cli/tests/unit/io/schema-parser.test.ts": "d90bb165eb711119bc9e4752453beb90953f4365b72ed728917db03142253ef3",
-    "source/cli/tests/unit/io/secrets-parser.test.ts": "7b4fca659437ea78d6f02624f6d4db837fd7f7585e9d3136ffe7b86f58134daf"
+    "source/cli/tests/unit/io/secrets-parser.test.ts": "7b4fca659437ea78d6f02624f6d4db837fd7f7585e9d3136ffe7b86f58134daf",
+    "source/cli/tests/unit/io/config-parser.test.ts": "60f00d1f6cd601b047f24860421b6b5d3e20435a0ff87abf20b5ea7f7fcc91f7"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -23,10 +23,14 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1778915335937.2456,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/io/artifact-reader.test.ts": 1778918895769.132,
-    "source/cli/tests/unit/io/config-parser.test.ts": 1778919011870.879,
+    "source/cli/tests/unit/io/config-parser.test.ts": 1779866317852.23,
     "source/cli/tests/unit/io/drift-state-store.test.ts": 1778918658054.3496,
     "source/cli/tests/unit/io/find-index.test.ts": 1778580971699.2944,
     "source/cli/tests/unit/io/schema-parser.test.ts": 1778918877105.082,
     "source/cli/tests/unit/io/secrets-parser.test.ts": 1778918869119.8013
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-27T07:22:46.610Z",
+    "prefix_hash": "e50899ba1aaa5c158b2df63ce956f6bfc34e1d78a3b1c2094ddc3b315d17e009"
   }
 }

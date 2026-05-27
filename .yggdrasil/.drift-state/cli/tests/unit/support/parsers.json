@@ -1,5 +1,5 @@
 {
-  "hash": "6c690af64a7a2ac1da0d482bde807d760e092a195fea68b4bf73172a9007174d",
+  "hash": "d727ac1a3df80f0a5c6002c97b09d6173763ee59ce217727245f3f80a1f24d85",
   "files": {
     "own-subset:cli/tests/unit/support/parsers": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
@@ -14,7 +14,7 @@
     "source/cli/tests/unit/io/log-parser.test.ts": "72cbfd947e54141c3352f179b84e6a96ce5f4ecbef59490cc02438560c21d8df",
     "source/cli/tests/unit/io/node-parser.test.ts": "8b43620723c53acc9b752552fca803e2280802a8c2a3743737181aac07ed60b3",
     "source/cli/tests/unit/io/when-parser.test.ts": "46211247127c155656c1d67bd28a2b78b7a8ab845923498701e04fd3cd2f2389",
-    "source/cli/tests/unit/io/aspect-parser.test.ts": "e2ac20f88f1de67e43ced7e1380c448be81f536b75d1392f4e48beb8f40ecf1b"
+    "source/cli/tests/unit/io/aspect-parser.test.ts": "370d5d35d2ba9b33c8cb406fb0b09e1607247315ac6aa6b66fa50d6cc4eb2dbb"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -24,7 +24,7 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1778915335937.2456,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/io/architecture-parser.test.ts": 1778917592468.0361,
-    "source/cli/tests/unit/io/aspect-parser.test.ts": 1779789345670.1355,
+    "source/cli/tests/unit/io/aspect-parser.test.ts": 1779867587018.3489,
     "source/cli/tests/unit/io/file-when-parser.test.ts": 1778851229833.6035,
     "source/cli/tests/unit/io/flow-parser.test.ts": 1778918778052.933,
     "source/cli/tests/unit/io/log-parser.test.ts": 1778851229832.0247,
@@ -32,7 +32,7 @@
     "source/cli/tests/unit/io/when-parser.test.ts": 1778851229835.2869
   },
   "log": {
-    "last_entry_datetime": "2026-05-26T09:57:44.112Z",
-    "prefix_hash": "7476289a80cee43a70ed2847e6923655cfd16470d04efb7b2df7f09d27a5b511"
+    "last_entry_datetime": "2026-05-27T07:40:44.345Z",
+    "prefix_hash": "c94b6fdff961278b438cb1a803ab46cfe8de766abf5e6ed46d015ad3c621a7eb"
   }
 }

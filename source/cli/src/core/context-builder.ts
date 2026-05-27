@@ -28,6 +28,11 @@ export { collectAncestors, collectDependencyAncestors, type DependencyAncestorIn
 const STRUCTURAL_RELATION_TYPES = new Set(['uses', 'calls', 'extends', 'implements']);
 const EVENT_RELATION_TYPES = new Set(['emits', 'listens']);
 
+/** Normalize a path for output: replace backslashes with forward slashes and strip trailing slashes. */
+function normPath(p: string): string {
+  return p.replace(/\\/g, '/').replace(/\/+$/, '');
+}
+
 
 // --- Layer builders (exported for testing) ---
 
@@ -52,7 +57,7 @@ export function buildHierarchyLayer(
     effectiveIds.size > 0 ? { aspects: [...effectiveIds].join(',') } : undefined;
   return {
     type: 'hierarchy',
-    label: `Module Context (${ancestor.path})`,
+    label: `Module Context (${normPath(ancestor.path)})`,
     content,
     attrs,
   };
@@ -104,14 +109,14 @@ export function buildStructuralRelationLayer(
   }
 
   const attrs: Record<string, string> = {
-    target: target.path,
+    target: normPath(target.path),
     type: relation.type,
   };
   if (relation.consumes?.length) attrs.consumes = relation.consumes.join(', ');
 
   return {
     type: 'relational',
-    label: `Dependency: ${target.meta.name} (${relation.type}) — ${target.path}`,
+    label: `Dependency: ${target.meta.name} (${relation.type}) — ${normPath(target.path)}`,
     content: content.trim(),
     attrs,
   };
@@ -121,13 +126,13 @@ export function buildEventRelationLayer(target: GraphNode, relation: Relation): 
   const eventName = relation.event_name ?? target.meta.name;
   const isEmit = relation.type === 'emits';
   let content = isEmit
-    ? `Target: ${target.path}\nYou publish ${eventName}.`
-    : `Source: ${target.path}\nYou listen for ${eventName}.`;
+    ? `Target: ${normPath(target.path)}\nYou publish ${eventName}.`
+    : `Source: ${normPath(target.path)}\nYou listen for ${eventName}.`;
   if (relation.consumes?.length) {
     content += `\nConsumes: ${relation.consumes.join(', ')}`;
   }
   const attrs: Record<string, string> = {
-    target: target.path,
+    target: normPath(target.path),
     type: relation.type,
     'event-name': eventName,
   };
@@ -165,6 +170,7 @@ function countDependents(graph: Graph, nodePath: string): { count: number; paths
 }
 
 export function buildNodeContextData(graph: Graph, nodePath: string): NodeContextData {
+  const normalizedNodePath = nodePath.replace(/\\/g, '/').replace(/\/+$/, '');
   const node = graph.nodes.get(nodePath);
   if (!node) throw new Error(`Node not found: ${nodePath}`);
 
@@ -181,7 +187,7 @@ export function buildNodeContextData(graph: Graph, nodePath: string): NodeContex
       name: aspectDef?.name ?? aspectId,
       description: aspectDef?.description ?? '',
       source,
-      verifiedAgainst: aspectDef?.reviewer === 'ast'
+      verifiedAgainst: aspectDef?.reviewer?.type === 'ast'
         ? `.yggdrasil/aspects/${aspectId}/check.mjs`
         : `.yggdrasil/aspects/${aspectId}/content.md`,
       implies: aspectDef?.implies,
@@ -189,10 +195,10 @@ export function buildNodeContextData(graph: Graph, nodePath: string): NodeContex
   });
 
   const flows = participatingFlows.map(f => ({
-    id: f.path,
+    id: normPath(f.path),
     name: f.name,
     description: f.description ?? '',
-    readPath: `flows/${f.path}/yg-flow.yaml`,
+    readPath: `flows/${normPath(f.path)}/yg-flow.yaml`,
   }));
 
   const ancestorPaths = new Set(ancestors.map(a => a.path));
@@ -201,10 +207,10 @@ export function buildNodeContextData(graph: Graph, nodePath: string): NodeContex
     .map(r => {
       const target = graph.nodes.get(r.target);
       return {
-        path: r.target,
+        path: normPath(r.target),
         relation: r.type,
         description: target?.meta.description,
-        readPath: `model/${r.target}/yg-node.yaml`,
+        readPath: `model/${normPath(r.target)}/yg-node.yaml`,
         consumes: r.consumes,
       };
     });
@@ -216,7 +222,7 @@ export function buildNodeContextData(graph: Graph, nodePath: string): NodeContex
   const sourceFiles = normalizeMappingPaths(node.meta.mapping);
 
   return {
-    path: nodePath,
+    path: normalizedNodePath,
     name: node.meta.name,
     type: node.meta.type,
     description: node.meta.description,
@@ -225,10 +231,10 @@ export function buildNodeContextData(graph: Graph, nodePath: string): NodeContex
     flows,
     dependencies,
     dependentCount,
-    dependentPaths: dependentCount <= 5 ? dependentPaths : undefined,
-    parentPath: parent?.path,
+    dependentPaths: dependentCount <= 5 ? dependentPaths?.map(p => normPath(p)) : undefined,
+    parentPath: parent ? normPath(parent.path) : undefined,
     parentType: parent?.meta.type,
-    parentReadPath: parent ? `model/${parent.path}/yg-node.yaml` : undefined,
+    parentReadPath: parent ? `model/${normPath(parent.path)}/yg-node.yaml` : undefined,
   };
 }
 
@@ -237,6 +243,7 @@ export function buildFileContextData(graph: Graph, filePath: string, ownerPath: 
   if (!node) throw new Error(`Node not found: ${ownerPath}`);
 
   const normalizedFilePath = filePath.replace(/\\/g, '/').replace(/\/+$/, '');
+  const normalizedOwnerPath = ownerPath.replace(/\\/g, '/').replace(/\/+$/, '');
   const ancestors = collectAncestors(node);
 
   const effectiveAspectIds = computeEffectiveAspects(node, graph);
@@ -246,7 +253,7 @@ export function buildFileContextData(graph: Graph, filePath: string, ownerPath: 
     return {
       aspectId,
       aspectDescription: aspectDef?.description ?? aspectDef?.name ?? aspectId,
-      verifiedAgainst: aspectDef?.reviewer === 'ast'
+      verifiedAgainst: aspectDef?.reviewer?.type === 'ast'
         ? `.yggdrasil/aspects/${aspectId}/check.mjs`
         : `.yggdrasil/aspects/${aspectId}/content.md`,
     };
@@ -256,7 +263,7 @@ export function buildFileContextData(graph: Graph, filePath: string, ownerPath: 
   const dependencies = (node.meta.relations ?? [])
     .filter(r => !ancestorPathsSet.has(r.target) && STRUCTURAL_RELATION_TYPES.has(r.type))
     .map(r => ({
-      path: r.target,
+      path: normPath(r.target),
       consumed: r.consumes ?? [],
     }));
 
@@ -264,7 +271,7 @@ export function buildFileContextData(graph: Graph, filePath: string, ownerPath: 
 
   return {
     filePath: normalizedFilePath,
-    ownerPath,
+    ownerPath: normalizedOwnerPath,
     ownerType: node.meta.type,
     aspects,
     dependencies,

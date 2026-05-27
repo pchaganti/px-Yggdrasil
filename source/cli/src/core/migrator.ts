@@ -12,6 +12,8 @@ export interface Migration {
 export interface MigrationResult {
   actions: string[];
   warnings: string[];
+  /** When false, the runner skips updateConfigVersion. Defaults to true. */
+  bumpVersion?: boolean;
 }
 
 /**

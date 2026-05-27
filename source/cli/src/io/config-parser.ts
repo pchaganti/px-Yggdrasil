@@ -5,6 +5,7 @@ import type {
   YggConfig,
   QualityConfig,
   LlmConfig,
+  ReviewerConfig,
 } from '../model/graph.js';
 
 const DEFAULT_QUALITY: QualityConfig = {
@@ -75,10 +76,14 @@ export async function parseConfig(filePath: string): Promise<YggConfig> {
 
   const debug = raw.debug === true ? true : undefined;
 
+  const reviewerBridge: ReviewerConfig | undefined = llm ? {
+    tiers: { [llm.provider]: llm },
+  } : undefined;
+
   return {
     version,
     quality,
-    llm,
+    reviewer: reviewerBridge,
     parallel,
     debug,
   };

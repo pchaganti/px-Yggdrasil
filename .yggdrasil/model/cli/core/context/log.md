@@ -14,3 +14,7 @@ Removed trailing slash from buildHierarchyLayer 'Module Context (path/)' label. 
 Updated effective-aspects import path to core/graph/aspects following the file move.
 ## [2026-05-16T19:44:31.850Z]
 Updated context-files import path to core/graph/files following the file move (collectTrackedFiles + TrackedFile). cli/core/context node drops context-files from its mapping; cli/core/graph node claims it.
+## [2026-05-27T07:22:17.127Z]
+Phase 6 type-bridge: updated reviewer comparison from aspectDef?.reviewer === 'ast' to aspectDef?.reviewer?.type === 'ast' in both buildNodeContextData and buildFileContextData to match AspectReviewerSpec object shape.
+## [2026-05-27T07:26:19.732Z]
+posix-paths-output fix: buildNodeContextData now normalizes the caller-supplied nodePath before returning it as path in NodeContextData; buildFileContextData now normalizes ownerPath before returning it in FileContextData. Both fixes apply replace(backslash, slash) + trailing-slash strip, matching the existing normalization applied to filePath in that same function.

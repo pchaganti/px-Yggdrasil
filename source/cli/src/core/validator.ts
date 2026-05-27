@@ -1215,7 +1215,7 @@ function checkMissingDescriptions(graph: Graph): ValidationIssue[] {
       });
     }
 
-    if (aspect.reviewer === 'ast') {
+    if (aspect.reviewer.type === 'ast') {
       if (aspect.language === undefined) {
         issues.push({
           severity: 'error',
@@ -1267,7 +1267,7 @@ function checkMissingDescriptions(graph: Graph): ValidationIssue[] {
       }
     }
 
-    if (aspect.reviewer !== 'ast' && Array.isArray(aspect.language)) {
+    if (aspect.reviewer.type !== 'ast' && Array.isArray(aspect.language)) {
       for (const lang of aspect.language) {
         if (!(lang in LANGUAGES)) {
           issues.push({
@@ -1753,7 +1753,7 @@ function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
   const projectRoot = path.dirname(graph.rootPath);
 
   for (const aspect of graph.aspects) {
-    const reviewer = aspect.reviewer ?? 'llm';
+    const reviewer = aspect.reviewer.type;
     if (reviewer !== 'ast' && reviewer !== 'llm') continue; // covered by enum check
 
     const aspectDir = path.join(projectRoot, '.yggdrasil', 'aspects', aspect.id);
@@ -1860,14 +1860,13 @@ function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
 function checkAspectReviewerEnum(graph: Graph): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   for (const aspect of graph.aspects) {
-    const reviewer = aspect.reviewer;
-    if (reviewer === undefined || reviewer === 'llm' || reviewer === 'ast') continue;
+    if (aspect.reviewer.type === 'llm' || aspect.reviewer.type === 'ast') continue;
     issues.push({
       severity: 'error',
       code: 'aspect-invalid-reviewer',
       rule: 'reviewer-enum',
       ...issueMsg({
-        what: `Aspect '${aspect.id}' has invalid reviewer value '${reviewer}'.`,
+        what: `Aspect '${aspect.id}' has invalid reviewer value '${String((aspect as { reviewer: unknown }).reviewer)}'.`,
         why: `The reviewer field must be 'ast' or 'llm' (default 'llm').`,
         next: `Set 'reviewer: ast' or 'reviewer: llm' in .yggdrasil/aspects/${aspect.id}/yg-aspect.yaml.`,
       }),

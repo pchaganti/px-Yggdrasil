@@ -33,7 +33,7 @@ function createGraph(overrides: Partial<Graph> = {}): Graph {
     config: {},
     architecture: { node_types: {} },
     nodes: new Map(),
-    aspects: [{ name: 'Valid', id: 'valid-tag', artifacts: [] }],
+    aspects: [{ name: 'Valid', id: 'valid-tag', reviewer: { type: 'llm' as const }, artifacts: [] }],
     flows: [],
     schemas: [],
     rootPath: path.join(FIXTURE_PROJECT, '.yggdrasil'),
@@ -157,8 +157,8 @@ describe('validator', () => {
   it('duplicate-aspect-binding returns error when id bound to multiple aspects', async () => {
     const graph = createGraph({
       aspects: [
-        { name: 'Aspect One', id: 'audit', artifacts: [] },
-        { name: 'Aspect Two', id: 'audit', artifacts: [] },
+        { name: 'Aspect One', id: 'audit', reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'Aspect Two', id: 'audit', reviewer: { type: 'llm' as const }, artifacts: [] },
       ],
     });
     graph.nodes.set('a', createNode('a'));
@@ -534,8 +534,8 @@ describe('validator', () => {
   it('aspect-id-uniqueness returns error when id bound to multiple aspects', async () => {
     const graph = createGraph({
       aspects: [
-        { name: 'Aspect1', id: 'dup-tag', artifacts: [] },
-        { name: 'Aspect2', id: 'dup-tag', artifacts: [] },
+        { name: 'Aspect1', id: 'dup-tag', reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'Aspect2', id: 'dup-tag', reviewer: { type: 'llm' as const }, artifacts: [] },
       ],
     });
     graph.nodes.set('a', createNode('a'));
@@ -550,7 +550,7 @@ describe('validator', () => {
   it('implied-aspect-missing returns error when implied id has no aspect', async () => {
     const graph = createGraph({
       aspects: [
-        { name: 'HIPAA', id: 'requires-hipaa', implies: ['requires-audit'], artifacts: [] },
+        { name: 'HIPAA', id: 'requires-hipaa', implies: ['requires-audit'], reviewer: { type: 'llm' as const }, artifacts: [] },
       ],
     });
     graph.nodes.set('a', createNode('a'));
@@ -566,8 +566,8 @@ describe('validator', () => {
   it('aspect-implies-cycle returns error when implies form cycle', async () => {
     const graph = createGraph({
       aspects: [
-        { name: 'A', id: 'tag-a', implies: ['tag-b'], artifacts: [] },
-        { name: 'B', id: 'tag-b', implies: ['tag-a'], artifacts: [] },
+        { name: 'A', id: 'tag-a', implies: ['tag-b'], reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'B', id: 'tag-b', implies: ['tag-a'], reviewer: { type: 'llm' as const }, artifacts: [] },
       ],
     });
     graph.nodes.set('a', createNode('a'));
@@ -693,7 +693,7 @@ describe('validator', () => {
 
     it('missing-description emitted for an aspect without description', async () => {
       const graph = createGraph({
-        aspects: [{ name: 'NoDesc', id: 'no-desc-aspect', artifacts: [] }],
+        aspects: [{ name: 'NoDesc', id: 'no-desc-aspect', reviewer: { type: 'llm' as const }, artifacts: [] }],
       });
       graph.nodes.set('a', createNode('a'));
 
@@ -847,7 +847,7 @@ describe('validator', () => {
 
     it('integration-aspect-missing not fired when consumer uses a port whose required aspect exists', async () => {
       const graph = createGraph({
-        aspects: [{ name: 'Audit', id: 'audit-logging', artifacts: [] }],
+        aspects: [{ name: 'Audit', id: 'audit-logging', reviewer: { type: 'llm' as const }, artifacts: [] }],
       });
       graph.nodes.set('target', createNode('target', {
         ports: { 'api': { description: 'API port', aspects: ['audit-logging'] } },
@@ -895,7 +895,7 @@ describe('validator', () => {
   describe('missing-consumes', () => {
     it('fires when relation target has ports but consumer has no consumes', async () => {
       const graph = createGraph({
-        aspects: [{ name: 'Audit', id: 'valid-tag', artifacts: [] }],
+        aspects: [{ name: 'Audit', id: 'valid-tag', reviewer: { type: 'llm' as const }, artifacts: [] }],
       });
       graph.nodes.set('provider', createNode('provider', {
         ports: { charge: { description: 'Pay', aspects: ['valid-tag'] } },
@@ -935,7 +935,7 @@ describe('validator', () => {
 
     it('does not fire when consumer has consumes field', async () => {
       const graph = createGraph({
-        aspects: [{ name: 'Audit', id: 'valid-tag', artifacts: [] }],
+        aspects: [{ name: 'Audit', id: 'valid-tag', reviewer: { type: 'llm' as const }, artifacts: [] }],
       });
       graph.nodes.set('provider', createNode('provider', {
         ports: { charge: { description: 'Pay', aspects: ['valid-tag'] } },
@@ -950,7 +950,7 @@ describe('validator', () => {
 
     it('does not fire for emits/listens relations even when target has ports', async () => {
       const graph = createGraph({
-        aspects: [{ name: 'Audit', id: 'valid-tag', artifacts: [] }],
+        aspects: [{ name: 'Audit', id: 'valid-tag', reviewer: { type: 'llm' as const }, artifacts: [] }],
       });
       graph.nodes.set('provider', createNode('provider', {
         ports: { charge: { description: 'Pay', aspects: ['valid-tag'] } },
@@ -970,7 +970,7 @@ describe('validator', () => {
   describe('unknown-port', () => {
     it('fires when consumes references non-existent port', async () => {
       const graph = createGraph({
-        aspects: [{ name: 'Audit', id: 'valid-tag', artifacts: [] }],
+        aspects: [{ name: 'Audit', id: 'valid-tag', reviewer: { type: 'llm' as const }, artifacts: [] }],
       });
       graph.nodes.set('provider', createNode('provider', {
         ports: { charge: { description: 'Pay', aspects: ['valid-tag'] } },
@@ -987,7 +987,7 @@ describe('validator', () => {
 
     it('does not fire when consumes references a valid port', async () => {
       const graph = createGraph({
-        aspects: [{ name: 'Audit', id: 'valid-tag', artifacts: [] }],
+        aspects: [{ name: 'Audit', id: 'valid-tag', reviewer: { type: 'llm' as const }, artifacts: [] }],
       });
       graph.nodes.set('provider', createNode('provider', {
         ports: { charge: { description: 'Pay', aspects: ['valid-tag'] } },
@@ -1018,7 +1018,7 @@ describe('validator', () => {
 
     it('does not fire when relation has consumes and target has ports', async () => {
       const graph = createGraph({
-        aspects: [{ name: 'Audit', id: 'valid-tag', artifacts: [] }],
+        aspects: [{ name: 'Audit', id: 'valid-tag', reviewer: { type: 'llm' as const }, artifacts: [] }],
       });
       // Provider HAS ports
       graph.nodes.set('provider', createNode('provider', {
@@ -1037,8 +1037,8 @@ describe('validator', () => {
     it('fires when aspect is not used by any node, architecture, or flow', async () => {
       const graph = createGraph({
         aspects: [
-          { name: 'Valid', id: 'valid-tag', description: 'Referenced', artifacts: [] },
-          { name: 'Orphan', id: 'orphan-aspect', description: 'Never used', artifacts: [] },
+          { name: 'Valid', id: 'valid-tag', description: 'Referenced', reviewer: { type: 'llm' as const }, artifacts: [] },
+          { name: 'Orphan', id: 'orphan-aspect', description: 'Never used', reviewer: { type: 'llm' as const }, artifacts: [] },
         ],
       });
       graph.nodes.set('a', createNode('a', { aspects: ['valid-tag'] }));
@@ -1054,7 +1054,7 @@ describe('validator', () => {
 
     it('does not fire when aspect is referenced by a node', async () => {
       const graph = createGraph({
-        aspects: [{ name: 'Used', id: 'valid-tag', description: 'Used', artifacts: [] }],
+        aspects: [{ name: 'Used', id: 'valid-tag', description: 'Used', reviewer: { type: 'llm' as const }, artifacts: [] }],
       });
       graph.nodes.set('a', createNode('a', { aspects: ['valid-tag'] }));
 
@@ -1064,7 +1064,7 @@ describe('validator', () => {
 
     it('does not fire when aspect is referenced by a port', async () => {
       const graph = createGraph({
-        aspects: [{ name: 'Used', id: 'valid-tag', description: 'Used', artifacts: [] }],
+        aspects: [{ name: 'Used', id: 'valid-tag', description: 'Used', reviewer: { type: 'llm' as const }, artifacts: [] }],
       });
       graph.nodes.set('a', createNode('a', {
         ports: { api: { description: 'API', aspects: ['valid-tag'] } },
@@ -1076,7 +1076,7 @@ describe('validator', () => {
 
     it('does not fire when aspect is referenced by a flow', async () => {
       const graph = createGraph({
-        aspects: [{ name: 'Used', id: 'valid-tag', description: 'Used', artifacts: [] }],
+        aspects: [{ name: 'Used', id: 'valid-tag', description: 'Used', reviewer: { type: 'llm' as const }, artifacts: [] }],
       });
       graph.nodes.set('a', createNode('a'));
       graph.flows.push({
@@ -1093,8 +1093,8 @@ describe('validator', () => {
     it('does not fire for implied aspects when the implying aspect is referenced', async () => {
       const graph = createGraph({
         aspects: [
-          { name: 'HIPAA', id: 'hipaa', description: 'Used', implies: ['audit'], artifacts: [] },
-          { name: 'Audit', id: 'audit', description: 'Implied', artifacts: [] },
+          { name: 'HIPAA', id: 'hipaa', description: 'Used', implies: ['audit'], reviewer: { type: 'llm' as const }, artifacts: [] },
+          { name: 'Audit', id: 'audit', description: 'Implied', reviewer: { type: 'llm' as const }, artifacts: [] },
         ],
       });
       graph.nodes.set('a', createNode('a', { aspects: ['hipaa'] }));
@@ -1109,7 +1109,7 @@ describe('validator', () => {
       const graph = createGraph({
         architecture: { node_types: { command: { description: 'cmd' } } },
         aspects: [{
-          name: 'X', id: 'x', artifacts: [],
+          name: 'X', id: 'x', reviewer: { type: 'llm' as const }, artifacts: [],
           when: { relations: { calls: { target_type: 'srvc-client' } } },
         }],
       });
@@ -1125,7 +1125,7 @@ describe('validator', () => {
         nodes: new Map([['svc', node]]),
         architecture: { node_types: { command: { description: 'cmd' } } },
         aspects: [{
-          name: 'X', id: 'x', artifacts: [],
+          name: 'X', id: 'x', reviewer: { type: 'llm' as const }, artifacts: [],
           when: { relations: { calls: { target: 'ghost/node' } } },
         }],
       });
@@ -1146,7 +1146,7 @@ describe('validator', () => {
           node_types: { command: { description: 'cmd' }, service: { description: 'svc' } },
         },
         aspects: [{
-          name: 'X', id: 'x', artifacts: [],
+          name: 'X', id: 'x', reviewer: { type: 'llm' as const }, artifacts: [],
           when: { relations: { calls: { target: 'pay', consumes_port: 'refund' } } },
         }],
       });
@@ -1165,7 +1165,7 @@ describe('validator', () => {
           },
         },
         aspects: [{
-          name: 'X', id: 'x', artifacts: [],
+          name: 'X', id: 'x', reviewer: { type: 'llm' as const }, artifacts: [],
           when: { relations: { calls: { target_type: 'service-client' } } },
         }],
       });
@@ -1176,7 +1176,7 @@ describe('validator', () => {
     it('validates when predicate inside flow aspectWhens', async () => {
       const graph = createGraph({
         architecture: { node_types: { command: { description: 'cmd' } } },
-        aspects: [{ name: 'X', id: 'x', artifacts: [] }],
+        aspects: [{ name: 'X', id: 'x', reviewer: { type: 'llm' as const }, artifacts: [] }],
         flows: [{
           path: 'checkout',
           name: 'Checkout',
@@ -1285,7 +1285,7 @@ describe('validator — pipeline short-circuit', () => {
           a: { description: 'A', parents: ['nonexistent_type'] },
         },
       },
-      aspects: [{ name: 'broken-aspect', id: 'broken-aspect', artifacts: [] }],
+      aspects: [{ name: 'broken-aspect', id: 'broken-aspect', reviewer: { type: 'llm' as const }, artifacts: [] }],
     });
     const result = await validate(graph);
     const codes = new Set(result.issues.map((i) => i.code));

@@ -3,6 +3,14 @@ import { writeFile, mkdir, rm, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseConfig } from '../../../src/io/config-parser.js';
+import type { YggConfig, LlmConfig } from '../../../src/model/graph.js';
+
+/** Bridge: extract the first (and typically only) tier from the new ReviewerConfig structure */
+function getLlm(config: YggConfig): LlmConfig | undefined {
+  if (!config.reviewer) return undefined;
+  const tiers = Object.values(config.reviewer.tiers);
+  return tiers.length > 0 ? tiers[0] : undefined;
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_DIR = path.join(__dirname, '../../fixtures/sample-project/.yggdrasil');
@@ -218,7 +226,7 @@ version: "4.0.0"
       );
 
       const config = await parseConfig(configPath);
-      expect(config.llm).toBeUndefined();
+      expect(getLlm(config)).toBeUndefined();
 
       await rm(tmpDir, { recursive: true, force: true });
     });
@@ -244,7 +252,7 @@ reviewer:
       );
 
       const config = await parseConfig(path.join(tmpDir, 'yg-config.yaml'));
-      expect(config.llm).toEqual({
+      expect(getLlm(config)).toEqual({
         provider: 'ollama',
         model: 'qwen3',
         endpoint: 'http://localhost:11434',
@@ -272,7 +280,7 @@ reviewer:
       );
 
       const config = await parseConfig(path.join(tmpDir, 'yg-config.yaml'));
-      expect(config.llm).toEqual({
+      expect(getLlm(config)).toEqual({
         provider: 'claude-code',
         model: 'haiku',
         endpoint: undefined,
@@ -304,8 +312,8 @@ reviewer:
       );
 
       const config = await parseConfig(path.join(tmpDir, 'yg-config.yaml'));
-      expect(config.llm!.provider).toBe('claude-code');
-      expect(config.llm!.model).toBe('haiku');
+      expect(getLlm(config)!.provider).toBe('claude-code');
+      expect(getLlm(config)!.model).toBe('haiku');
 
       await rm(tmpDir, { recursive: true, force: true });
     });
@@ -324,7 +332,7 @@ reviewer:
       );
 
       const config = await parseConfig(path.join(tmpDir, 'yg-config.yaml'));
-      expect(config.llm).toBeUndefined();
+      expect(getLlm(config)).toBeUndefined();
 
       await rm(tmpDir, { recursive: true, force: true });
     });
@@ -475,7 +483,7 @@ reviewer:
       );
 
       const config = await parseConfig(path.join(tmpDir, 'yg-config.yaml'));
-      expect(config.llm?.provider).toBe('openai');
+      expect(getLlm(config)?.provider).toBe('openai');
 
       await rm(tmpDir, { recursive: true, force: true });
     });
@@ -496,7 +504,7 @@ reviewer:
       );
 
       const config = await parseConfig(path.join(tmpDir, 'yg-config.yaml'));
-      expect(config.llm?.timeout).toBe(180000);
+      expect(getLlm(config)?.timeout).toBe(180000);
 
       await rm(tmpDir, { recursive: true, force: true });
     });
@@ -517,7 +525,7 @@ reviewer:
       );
 
       const config = await parseConfig(path.join(tmpDir, 'yg-config.yaml'));
-      expect(config.llm?.timeout).toBeUndefined();
+      expect(getLlm(config)?.timeout).toBeUndefined();
 
       await rm(tmpDir, { recursive: true, force: true });
     });
@@ -536,7 +544,7 @@ reviewer:
       );
 
       const config = await parseConfig(path.join(tmpDir, 'yg-config.yaml'));
-      expect(config.llm?.model).toBe('haiku');
+      expect(getLlm(config)?.model).toBe('haiku');
 
       await rm(tmpDir, { recursive: true, force: true });
     });

@@ -163,6 +163,44 @@ implies:
     await rm(tmpDir, { recursive: true, force: true });
   });
 
+  it('parses object-form reviewer { type: ast }', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-reviewer-obj-ast');
+    await mkdir(tmpDir, { recursive: true });
+    const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
+    await writeFile(aspectPath, `name: Test\nreviewer:\n  type: ast\nlanguage: [typescript]\n`, 'utf-8');
+
+    const aspect = await parseAspect(tmpDir, aspectPath, 'test');
+    expect(aspect.reviewer.type).toBe('ast');
+    expect(aspect.reviewer.tier).toBeUndefined();
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('parses object-form reviewer { type: llm, tier: expensive }', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-reviewer-obj-tier');
+    await mkdir(tmpDir, { recursive: true });
+    const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
+    await writeFile(aspectPath, `name: Test\nreviewer:\n  type: llm\n  tier: expensive\n`, 'utf-8');
+
+    const aspect = await parseAspect(tmpDir, aspectPath, 'test');
+    expect(aspect.reviewer.type).toBe('llm');
+    expect(aspect.reviewer.tier).toBe('expensive');
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('defaults to llm when reviewer is an array (invalid shape)', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-reviewer-arr');
+    await mkdir(tmpDir, { recursive: true });
+    const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
+    await writeFile(aspectPath, `name: Test\nreviewer: [llm, ast]\n`, 'utf-8');
+
+    const aspect = await parseAspect(tmpDir, aspectPath, 'test');
+    expect(aspect.reviewer.type).toBe('llm');
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
   it('silently ignores unknown anchors field', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-anchors');
     await mkdir(tmpDir, { recursive: true });

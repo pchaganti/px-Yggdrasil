@@ -423,7 +423,7 @@ describe('collectTrackedFiles', () => {
         {
           name: 'Audit',
           id: 'requires-audit',
-          artifacts: [{ filename: 'content.md', content: 'Audit rules' }],
+          reviewer: { type: 'llm' as const }, artifacts: [{ filename: 'content.md', content: 'Audit rules' }],
         },
       ],
       flows: [],
@@ -600,7 +600,7 @@ describe('Task 33 — drift hash uses check.mjs for AST aspects', () => {
         {
           id: 'async-fs',
           name: 'AsyncFS',
-          reviewer: 'ast',
+          reviewer: { type: 'ast' as const },
           artifacts: [{ filename: 'check.mjs', content: 'export function check(ctx) { return []; }' }],
         },
       ],
@@ -636,7 +636,7 @@ describe('Task 33 — drift hash uses check.mjs for AST aspects', () => {
         {
           id: 'my-rule',
           name: 'MyRule',
-          artifacts: [{ filename: 'content.md', content: '# Rule\nMust log.' }],
+          reviewer: { type: 'llm' as const }, artifacts: [{ filename: 'content.md', content: '# Rule\nMust log.' }],
         },
       ],
       flows: [],

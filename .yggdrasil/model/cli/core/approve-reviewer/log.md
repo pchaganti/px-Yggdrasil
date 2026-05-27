@@ -18,3 +18,5 @@ Update approve-reviewer.ts to derive providerError from errorSource discriminato
 Filter logic now distinguishes infrastructure failure (errorSource !== codeViolation) from code violations (errorSource === codeViolation). Refuse message references infrastructureErrors instead of providerErrors. Generalizes 'not a code violation' rule to AST runtime exceptions too.
 ## [2026-05-26T08:42:37.333Z]
 Added normalizedNodePath to normalize nodePath before embedding in output strings. posix-paths-output aspect requires paths written to output or stored in return values to have backslashes replaced with forward slashes and trailing slashes stripped.
+## [2026-05-27T07:22:17.005Z]
+Phase 6 type-bridge: updated graph.config.llm reference to graph.config.reviewer.tiers bridge pattern; updated reviewer comparison from a.reviewer !== 'ast' to a.reviewer?.type !== 'ast' to match AspectReviewerSpec object shape.

@@ -43,7 +43,7 @@ describe('context-builder', () => {
       const layer = buildAspectLayer({
         name: 'Audit',
         id: 'requires-audit',
-        artifacts: [{ filename: 'content.md', content: 'Log all mutations' }],
+        reviewer: { type: 'llm' as const }, artifacts: [{ filename: 'content.md', content: 'Log all mutations' }],
       });
       expect(layer.type).toBe('aspects');
       expect(layer.label).toContain('Audit');
@@ -54,7 +54,7 @@ describe('context-builder', () => {
       const layer = buildAspectLayer({
         name: 'PubSub Events',
         id: 'pubsub-events',
-        artifacts: [],
+        reviewer: { type: 'llm' as const }, artifacts: [],
       });
       expect(layer.content).not.toContain('Stability tier');
     });
@@ -63,7 +63,7 @@ describe('context-builder', () => {
       const layer = buildAspectLayer({
         name: 'PubSub Events',
         id: 'pubsub-events',
-        artifacts: [],
+        reviewer: { type: 'llm' as const }, artifacts: [],
       });
       expect(layer.content).not.toContain('Exception for this node');
     });
@@ -329,12 +329,12 @@ describe('buildNodeContextData', () => {
       name: 'Parent Aspect',
       id: 'parent-aspect',
       implies: ['child-aspect'],
-      artifacts: [],
+      reviewer: { type: 'llm' as const }, artifacts: [],
     };
     const childAspect: AspectDef = {
       name: 'Child Aspect',
       id: 'child-aspect',
-      artifacts: [],
+      reviewer: { type: 'llm' as const }, artifacts: [],
     };
     // Node declares only 'parent-aspect'; 'child-aspect' arrives via implies
     const node: GraphNode = {
@@ -411,7 +411,7 @@ describe('buildFileContextData', () => {
       config: {},
       architecture: { node_types: {} },
       nodes: new Map([['svc', node]]),
-      aspects: [{ name: 'NameOnlyAspect', id: 'name-only-aspect', artifacts: [] }],
+      aspects: [{ name: 'NameOnlyAspect', id: 'name-only-aspect', reviewer: { type: 'llm' as const }, artifacts: [] }],
       flows: [],
       schemas: [],
       rootPath: '/tmp',
@@ -559,8 +559,8 @@ describe('collectDependencyAncestors', () => {
         ['root/parent/target', target],
       ]),
       aspects: [
-        { name: 'Audit', id: 'audit', artifacts: [] },
-        { name: 'Logging', id: 'logging', artifacts: [] },
+        { name: 'Audit', id: 'audit', reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'Logging', id: 'logging', reviewer: { type: 'llm' as const }, artifacts: [] },
       ],
       flows: [],
       schemas: [],
@@ -603,12 +603,12 @@ describe('verifiedAgainst path (Task 31)', () => {
   const llmAspect: AspectDef = {
     name: 'LLM Aspect',
     id: 'llm-aspect',
-    artifacts: [{ filename: 'content.md', content: 'rule text' }],
+    reviewer: { type: 'llm' as const }, artifacts: [{ filename: 'content.md', content: 'rule text' }],
   };
   const astAspect: AspectDef = {
     name: 'AST Aspect',
     id: 'ast-aspect',
-    reviewer: 'ast',
+    reviewer: { type: 'ast' as const },
     artifacts: [{ filename: 'check.mjs', content: 'export function check(ctx) { return []; }' }],
   };
   const svcNode: GraphNode = {

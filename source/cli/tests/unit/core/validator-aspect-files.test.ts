@@ -33,13 +33,17 @@ async function createAspectDir(
   }
 }
 
-function makeAspect(id: string, reviewer?: AspectDef['reviewer']): AspectDef {
+function makeAspect(id: string, reviewer?: AspectDef['reviewer'] | 'llm' | 'ast'): AspectDef {
+  const reviewerSpec: AspectDef['reviewer'] =
+    reviewer === undefined ? { type: 'llm' } :
+    typeof reviewer === 'string' ? { type: reviewer as 'llm' | 'ast' } :
+    reviewer;
   return {
     name: id,
     id,
     description: `Test aspect ${id}`,
     artifacts: [],
-    ...(reviewer !== undefined ? { reviewer } : {}),
+    reviewer: reviewerSpec,
   };
 }
 

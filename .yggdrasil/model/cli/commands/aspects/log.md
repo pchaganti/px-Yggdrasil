@@ -6,3 +6,5 @@ Replaced inline 'No .yggdrasil/ directory found' error block with the shared loa
 Migrated remaining ad-hoc stderr errors to buildIssueMessage (constant-text errors wrapped inline) and routed generic catch-blocks through the new abortOnUnexpectedError helper from formatters/cli-preamble.ts. Reason: even after the loadGraphOrAbort centralization, command-specific errors and option-validation messages bypassed the what/why/next structure; this commit aligns them so the AST aspect added in the next commit can enforce the rule mechanically.
 ## [2026-05-16T19:31:39.148Z]
 Updated effective-aspects import path to core/graph/aspects.
+## [2026-05-27T07:22:10.452Z]
+Phase 6 type-bridge: updated reviewer display from aspect.reviewer ?? 'llm' to aspect.reviewer?.type ?? 'llm' to match the new AspectReviewerSpec object shape replacing the former string union.

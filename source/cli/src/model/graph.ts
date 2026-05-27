@@ -14,13 +14,27 @@ export type {
 export type { FileWhenPredicate } from './file-when.js';
 
 // ============================================================
+// ReviewerConfig — v5 reviewer.tiers structure
+// ============================================================
+
+export interface ReviewerConfig {
+  /** Tier name used when an aspect doesn't declare one explicitly */
+  default?: string;
+  /** At least one entry required; key is the tier name */
+  tiers: Record<string, LlmConfig>;
+}
+
+// ============================================================
 // Config
 // ============================================================
 
 export interface YggConfig {
   version?: string;
   quality?: QualityConfig;
-  llm?: LlmConfig;
+  /** v5 reviewer configuration — tiers + default. Optional in the type
+   *  to preserve FALLBACK_CONFIG ergonomics; validator emits
+   *  `config-reviewer-missing` when absent on a real project. */
+  reviewer?: ReviewerConfig;
   parallel?: number;
   debug?: boolean;
 }
@@ -140,6 +154,16 @@ export interface Artifact {
 }
 
 // ============================================================
+// AspectReviewerSpec — per-aspect reviewer choice + tier
+// ============================================================
+
+export interface AspectReviewerSpec {
+  type: 'llm' | 'ast';
+  /** Tier reference into ReviewerConfig.tiers; valid only when type === 'llm' */
+  tier?: string;
+}
+
+// ============================================================
 // Aspect
 // ============================================================
 
@@ -147,8 +171,8 @@ export interface AspectDef {
   name: string;
   id: string;
   description?: string;
-  /** Reviewer type for this aspect: 'llm' (default) or 'ast' (deterministic) */
-  reviewer?: 'ast' | 'llm';
+  /** Reviewer specification — type and optional tier reference */
+  reviewer: AspectReviewerSpec;
   /** Target languages for AST aspects (required). Optional for LLM aspects with registry-membership check. */
   language?: string[];
   implies?: string[];
@@ -208,6 +232,19 @@ export interface Graph {
   configError?: string;
   /** Parse errors for yg-node.yaml files; reported as yaml-invalid */
   nodeParseErrors?: Array<{ nodePath: string; messageData: IssueMessage }>;
+  /** Parse errors for yg-aspect.yaml files. Each carries the structured
+   *  validator code (e.g. 'aspect-reviewer-legacy-string') for the
+   *  validator to emit downstream. */
+  aspectParseErrors?: Array<{
+    aspectId: string;
+    code: string;
+    messageData: IssueMessage;
+  }>;
+
+  /** Structured error code carried alongside `configError`. Used by
+   *  validator to suppress dependent checks (e.g., when config is in
+   *  legacy format, skip aspect-tier-unknown). */
+  configErrorCode?: string;
   /** All nodes indexed by their path (e.g. "orders/order-service") */
   nodes: Map<string, GraphNode>;
   aspects: AspectDef[];

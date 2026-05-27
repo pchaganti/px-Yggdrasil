@@ -33,10 +33,10 @@ export function registerAstTestCommand(program: Command): void {
           return;
         }
 
-        if (aspect.reviewer !== 'ast') {
+        if (aspect.reviewer.type !== 'ast') {
           process.stderr.write(
             buildIssueMessage({
-              what: `Aspect '${opts.aspect}' has reviewer '${aspect.reviewer ?? 'llm'}', not 'ast'.`,
+              what: `Aspect '${opts.aspect}' has reviewer '${aspect.reviewer.type}', not 'ast'.`,
               why: `yg ast-test only runs AST aspects (those with check.mjs).`,
               next: `Pick an aspect with 'reviewer: ast' in yg-aspect.yaml, or run yg approve for LLM aspects.`,
             }) + '\n',

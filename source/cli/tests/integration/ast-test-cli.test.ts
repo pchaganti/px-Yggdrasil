@@ -108,9 +108,9 @@ describe('ast-test command logic', () => {
     cleanupPaths.push(root);
 
     const graph = await loadGraph(root);
-    const llmAspect = graph.aspects.find((a) => a.reviewer !== 'ast');
+    const llmAspect = graph.aspects.find((a) => a.reviewer.type !== 'ast');
     expect(llmAspect).toBeDefined();
-    expect(llmAspect!.reviewer).not.toBe('ast');
+    expect(llmAspect!.reviewer.type).not.toBe('ast');
   });
 
   it('aspect not found yields undefined from graph.aspects.find', async () => {
@@ -202,6 +202,6 @@ describe('ast-test command logic', () => {
     const graph = await loadGraph(root);
     const astAspect = graph.aspects.find((a) => a.id === 'async-fs');
     expect(astAspect).toBeDefined();
-    expect(astAspect!.reviewer).toBe('ast');
+    expect(astAspect!.reviewer.type).toBe('ast');
   });
 });

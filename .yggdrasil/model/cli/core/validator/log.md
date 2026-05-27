@@ -42,3 +42,5 @@ Removed duplicate collectAncestors in effective-aspects.ts; now imports the cano
 Removed effective-aspects.ts from mapping; the file moved to core/graph/aspects.ts under the cli/core/graph node. validator.ts import path updated accordingly.
 ## [2026-05-26T10:00:43.918Z]
 Four new structural error codes for AST aspect language field: missing-required, scalar-not-array, empty-list, unknown-language. Imports LANGUAGES from core/graph/language-registry per existing core→core/graph precedent. LLM aspects retain optional language field with same registry membership check.
+## [2026-05-27T07:22:23.992Z]
+Phase 6 type-bridge: updated reviewer comparisons from string form (aspect.reviewer === 'ast') to object form (aspect.reviewer.type === 'ast'); updated checkAspectReviewerEnum to use aspect.reviewer.type; updated checkAspectRuleSources to derive reviewer from aspect.reviewer.type.

@@ -184,7 +184,7 @@ describe('collectEffectiveAspectIds', () => {
       meta: { name: 'a', type: 'service', aspects: ['tag-a'] },
     });
     const graph = makeGraph([node]);
-    graph.aspects = [{ name: 'A', id: 'tag-a', artifacts: [] }];
+    graph.aspects = [{ name: 'A', id: 'tag-a', reviewer: { type: 'llm' as const }, artifacts: [] }];
     const result = computeEffectiveAspects(graph.nodes.get('a')!, graph);
     expect([...result]).toEqual(['tag-a']);
   });
@@ -196,7 +196,7 @@ describe('collectEffectiveAspectIds', () => {
     const child = makeNode('mod/svc', { parent });
     parent.children = [child];
     const graph = makeGraph([parent, child]);
-    graph.aspects = [{ name: 'P', id: 'tag-parent', artifacts: [] }];
+    graph.aspects = [{ name: 'P', id: 'tag-parent', reviewer: { type: 'llm' as const }, artifacts: [] }];
     const result = computeEffectiveAspects(graph.nodes.get('mod/svc')!, graph);
     expect([...result]).toContain('tag-parent');
   });
@@ -204,7 +204,7 @@ describe('collectEffectiveAspectIds', () => {
   it('collects flow aspects', () => {
     const node = makeNode('a');
     const graph = makeGraph([node]);
-    graph.aspects = [{ name: 'Saga', id: 'requires-saga', artifacts: [] }];
+    graph.aspects = [{ name: 'Saga', id: 'requires-saga', reviewer: { type: 'llm' as const }, artifacts: [] }];
     graph.flows = [{
       name: 'F', path: 'f', nodes: ['a'],
       aspects: ['requires-saga'],
@@ -219,8 +219,8 @@ describe('collectEffectiveAspectIds', () => {
     });
     const graph = makeGraph([node]);
     graph.aspects = [
-      { name: 'A', id: 'tag-a', implies: ['tag-b'], artifacts: [] },
-      { name: 'B', id: 'tag-b', artifacts: [] },
+      { name: 'A', id: 'tag-a', implies: ['tag-b'], reviewer: { type: 'llm' as const }, artifacts: [] },
+      { name: 'B', id: 'tag-b', reviewer: { type: 'llm' as const }, artifacts: [] },
     ];
     const result = computeEffectiveAspects(graph.nodes.get('a')!, graph);
     expect([...result]).toContain('tag-a');
@@ -232,7 +232,7 @@ describe('collectEffectiveAspectIds', () => {
     const child = makeNode('mod/svc', { parent });
     parent.children = [child];
     const graph = makeGraph([parent, child]);
-    graph.aspects = [{ name: 'Saga', id: 'requires-saga', artifacts: [] }];
+    graph.aspects = [{ name: 'Saga', id: 'requires-saga', reviewer: { type: 'llm' as const }, artifacts: [] }];
     graph.flows = [{
       name: 'F', path: 'f', nodes: ['mod'],
       aspects: ['requires-saga'],
@@ -247,9 +247,9 @@ describe('collectEffectiveAspectIds', () => {
     });
     const graph = makeGraph([node]);
     graph.aspects = [
-      { name: 'HIPAA', id: 'hipaa', implies: ['audit'], artifacts: [] },
-      { name: 'Audit', id: 'audit', implies: ['logging'], artifacts: [] },
-      { name: 'Logging', id: 'logging', artifacts: [] },
+      { name: 'HIPAA', id: 'hipaa', implies: ['audit'], reviewer: { type: 'llm' as const }, artifacts: [] },
+      { name: 'Audit', id: 'audit', implies: ['logging'], reviewer: { type: 'llm' as const }, artifacts: [] },
+      { name: 'Logging', id: 'logging', reviewer: { type: 'llm' as const }, artifacts: [] },
     ];
     const result = computeEffectiveAspects(graph.nodes.get('a')!, graph);
     expect([...result]).toContain('hipaa');
@@ -268,10 +268,10 @@ describe('collectEffectiveAspectIds', () => {
     parent.children = [child];
     const graph = makeGraph([parent, child]);
     graph.aspects = [
-      { name: 'Own', id: 'own-aspect', implies: ['implied-aspect'], artifacts: [] },
-      { name: 'Parent', id: 'parent-aspect', artifacts: [] },
-      { name: 'Flow', id: 'flow-aspect', artifacts: [] },
-      { name: 'Implied', id: 'implied-aspect', artifacts: [] },
+      { name: 'Own', id: 'own-aspect', implies: ['implied-aspect'], reviewer: { type: 'llm' as const }, artifacts: [] },
+      { name: 'Parent', id: 'parent-aspect', reviewer: { type: 'llm' as const }, artifacts: [] },
+      { name: 'Flow', id: 'flow-aspect', reviewer: { type: 'llm' as const }, artifacts: [] },
+      { name: 'Implied', id: 'implied-aspect', reviewer: { type: 'llm' as const }, artifacts: [] },
     ];
     graph.flows = [{
       name: 'F', path: 'f', nodes: ['mod/svc'],
@@ -302,7 +302,7 @@ describe('collectEffectiveAspectIds', () => {
     });
     parent.children = [child];
     const graph = makeGraph([parent, child]);
-    graph.aspects = [{ name: 'Shared', id: 'shared', artifacts: [] }];
+    graph.aspects = [{ name: 'Shared', id: 'shared', reviewer: { type: 'llm' as const }, artifacts: [] }];
     graph.flows = [{
       name: 'F', path: 'f', nodes: ['mod/svc'],
       aspects: ['shared'],
@@ -324,7 +324,7 @@ describe('co-aspect nodes detection', () => {
       meta: { name: 'svc-c', type: 'service' },
     });
     const graph = makeGraph([a, b, c]);
-    graph.aspects = [{ name: 'Audit', id: 'audit', artifacts: [] }];
+    graph.aspects = [{ name: 'Audit', id: 'audit', reviewer: { type: 'llm' as const }, artifacts: [] }];
 
     const targetEffective = computeEffectiveAspects(graph.nodes.get('svc-a')!, graph);
     const coAspectNodes: Array<{ path: string; shared: string[] }> = [];
@@ -350,8 +350,8 @@ describe('co-aspect nodes detection', () => {
     });
     const graph = makeGraph([a, b]);
     graph.aspects = [
-      { name: 'HIPAA', id: 'hipaa', implies: ['audit'], artifacts: [] },
-      { name: 'Audit', id: 'audit', artifacts: [] },
+      { name: 'HIPAA', id: 'hipaa', implies: ['audit'], reviewer: { type: 'llm' as const }, artifacts: [] },
+      { name: 'Audit', id: 'audit', reviewer: { type: 'llm' as const }, artifacts: [] },
     ];
 
     const targetEffective = computeEffectiveAspects(graph.nodes.get('svc-a')!, graph);
@@ -368,7 +368,7 @@ describe('co-aspect nodes detection', () => {
     });
     const b = makeNode('svc-b');
     const graph = makeGraph([a, b]);
-    graph.aspects = [{ name: 'Logging', id: 'logging', artifacts: [] }];
+    graph.aspects = [{ name: 'Logging', id: 'logging', reviewer: { type: 'llm' as const }, artifacts: [] }];
     graph.flows = [{
       name: 'F', path: 'f', nodes: ['svc-b'],
       aspects: ['logging'],

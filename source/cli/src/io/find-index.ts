@@ -65,7 +65,7 @@ export async function buildIndex(graph: Graph): Promise<IndexedDocument[]> {
   for (const aspect of graph.aspects) {
     const displayPath = `aspects/${aspect.id}`;
     let body = '';
-    if (aspect.reviewer !== 'ast') {
+    if (aspect.reviewer.type !== 'ast') {
       // only content.md (exact filename), not any *.md artifact
       const contentFiles = aspect.artifacts.filter((a) => a.filename === 'content.md');
       body = contentFiles.map((a) => a.content).join('\n\n');

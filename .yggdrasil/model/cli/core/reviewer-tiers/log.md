@@ -1,0 +1,2 @@
+## [2026-05-27T07:21:58.593Z]
+New node: tier-identity.ts computes canonical JSON for drift detection of LLM tier config (excluding api_key which rotates independently); tier-selection.ts resolves aspect-to-tier mapping supporting explicit tier references and default-tier fallback; format-version.ts detects v4 vs v5 config/aspect YAML shapes. These three files implement the core v5 reviewer-tiers domain logic introduced to support named tiers in ReviewerConfig.

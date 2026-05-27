@@ -16,7 +16,10 @@ export interface UpgradeResult {
 export async function runVersionUpgrade(options: RunUpgradeOptions): Promise<UpgradeResult> {
   const { yggRoot, fromVersion, toVersion, migrations } = options;
   const migrationResults = await runMigrations(fromVersion, migrations, yggRoot);
-  await updateConfigVersion(yggRoot, toVersion);
+  const allBump = migrationResults.every(r => r.bumpVersion !== false);
+  if (allBump) {
+    await updateConfigVersion(yggRoot, toVersion);
+  }
   const migrationActions: string[] = [];
   const migrationWarnings: string[] = [];
   for (const r of migrationResults) {

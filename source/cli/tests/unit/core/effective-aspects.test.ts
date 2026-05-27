@@ -128,8 +128,8 @@ describe('computeEffectiveAspects', () => {
     const graph = makeGraph({
       nodes: new Map([['payments', target], ['orders', consumer]]),
       aspects: [
-        { name: 'CT', id: 'correlation-tracking', artifacts: [] },
-        { name: 'IK', id: 'idempotency', artifacts: [] },
+        { name: 'CT', id: 'correlation-tracking', reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'IK', id: 'idempotency', reviewer: { type: 'llm' as const }, artifacts: [] },
       ],
     });
     const result = computeEffectiveAspects(consumer, graph);
@@ -142,9 +142,9 @@ describe('computeEffectiveAspects', () => {
     const graph = makeGraph({
       nodes: new Map([['svc', node]]),
       aspects: [
-        { name: 'A', id: 'a', implies: ['b'], artifacts: [] },
-        { name: 'B', id: 'b', implies: ['c'], artifacts: [] },
-        { name: 'C', id: 'c', artifacts: [] },
+        { name: 'A', id: 'a', implies: ['b'], reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'B', id: 'b', implies: ['c'], reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'C', id: 'c', reviewer: { type: 'llm' as const }, artifacts: [] },
       ],
     });
     const result = computeEffectiveAspects(node, graph);
@@ -156,9 +156,9 @@ describe('computeEffectiveAspects', () => {
     const graph = makeGraph({
       nodes: new Map([['svc', node]]),
       aspects: [
-        { name: 'A', id: 'a', implies: ['b'], artifacts: [] },
-        { name: 'B', id: 'b', implies: ['c'], artifacts: [] },
-        { name: 'C', id: 'c', implies: ['a'], artifacts: [] },
+        { name: 'A', id: 'a', implies: ['b'], reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'B', id: 'b', implies: ['c'], reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'C', id: 'c', implies: ['a'], reviewer: { type: 'llm' as const }, artifacts: [] },
       ],
     });
     expect(() => computeEffectiveAspects(node, graph)).toThrow('Aspect implies cycle detected');
@@ -193,13 +193,13 @@ describe('computeEffectiveAspects', () => {
       },
       flows: [{ path: 'checkout', name: 'Checkout', nodes: ['mod/svc'], aspects: ['flow-aspect'] }],
       aspects: [
-        { name: 'Own', id: 'own-aspect', implies: ['implied-aspect'], artifacts: [] },
-        { name: 'Parent', id: 'parent-aspect', artifacts: [] },
-        { name: 'Arch', id: 'arch-aspect', artifacts: [] },
-        { name: 'ModArch', id: 'mod-arch-aspect', artifacts: [] },
-        { name: 'Flow', id: 'flow-aspect', artifacts: [] },
-        { name: 'Port', id: 'port-aspect', artifacts: [] },
-        { name: 'Implied', id: 'implied-aspect', artifacts: [] },
+        { name: 'Own', id: 'own-aspect', implies: ['implied-aspect'], reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'Parent', id: 'parent-aspect', reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'Arch', id: 'arch-aspect', reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'ModArch', id: 'mod-arch-aspect', reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'Flow', id: 'flow-aspect', reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'Port', id: 'port-aspect', reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'Implied', id: 'implied-aspect', reviewer: { type: 'llm' as const }, artifacts: [] },
       ],
     });
     const result = computeEffectiveAspects(node, graph);
@@ -228,7 +228,7 @@ describe('computeEffectiveAspects', () => {
     const graph = makeGraph({
       nodes: new Map([['mod', parent], ['mod/svc', node]]),
       flows: [{ path: 'f', name: 'F', nodes: ['mod/svc'], aspects: ['shared'] }],
-      aspects: [{ name: 'Shared', id: 'shared', artifacts: [] }],
+      aspects: [{ name: 'Shared', id: 'shared', reviewer: { type: 'llm' as const }, artifacts: [] }],
     });
     const result = computeEffectiveAspects(node, graph);
     expect([...result]).toEqual(['shared']);
@@ -239,10 +239,10 @@ describe('computeEffectiveAspects', () => {
     const graph = makeGraph({
       nodes: new Map([['svc', node]]),
       aspects: [
-        { name: 'Top', id: 'top', implies: ['left', 'right'], artifacts: [] },
-        { name: 'Left', id: 'left', implies: ['bottom'], artifacts: [] },
-        { name: 'Right', id: 'right', implies: ['bottom'], artifacts: [] },
-        { name: 'Bottom', id: 'bottom', artifacts: [] },
+        { name: 'Top', id: 'top', implies: ['left', 'right'], reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'Left', id: 'left', implies: ['bottom'], reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'Right', id: 'right', implies: ['bottom'], reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'Bottom', id: 'bottom', reviewer: { type: 'llm' as const }, artifacts: [] },
       ],
     });
     const result = computeEffectiveAspects(node, graph);
@@ -276,7 +276,7 @@ describe('computeEffectiveAspects', () => {
     });
     const graph = makeGraph({
       nodes: new Map([['payments', target], ['orders', consumer]]),
-      aspects: [{ name: 'CT', id: 'ct', artifacts: [] }],
+      aspects: [{ name: 'CT', id: 'ct', reviewer: { type: 'llm' as const }, artifacts: [] }],
     });
     const result = computeEffectiveAspects(consumer, graph);
     expect(result).toEqual(new Set(['ct']));
@@ -321,8 +321,8 @@ describe('computeEffectiveAspects', () => {
     const graph = makeGraph({
       nodes: new Map([['payments', target], ['orders', consumer]]),
       aspects: [
-        { name: 'CT', id: 'ct', artifacts: [] },
-        { name: 'IK', id: 'idempotency', artifacts: [] },
+        { name: 'CT', id: 'ct', reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'IK', id: 'idempotency', reviewer: { type: 'llm' as const }, artifacts: [] },
       ],
     });
     const result = computeEffectiveAspects(consumer, graph);
@@ -334,7 +334,7 @@ describe('computeEffectiveAspects', () => {
     const node = makeNode('svc', { meta: { name: 'svc', type: 'service', aspects: ['own'] } });
     const graph = makeGraph({
       nodes: new Map([['svc', node]]),
-      aspects: [{ name: 'Own', id: 'own', artifacts: [] }],
+      aspects: [{ name: 'Own', id: 'own', reviewer: { type: 'llm' as const }, artifacts: [] }],
     });
     // Remove architecture
     (graph as any).architecture = undefined;
@@ -421,8 +421,8 @@ describe('getAspectSource', () => {
     const node = makeNode('svc', { meta: { name: 'svc', type: 'service' } });
     const graph = makeGraph({
       aspects: [
-        { name: 'Parent', id: 'parent-aspect', implies: ['child-aspect'], artifacts: [] },
-        { name: 'Child', id: 'child-aspect', artifacts: [] },
+        { name: 'Parent', id: 'parent-aspect', implies: ['child-aspect'], reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'Child', id: 'child-aspect', reviewer: { type: 'llm' as const }, artifacts: [] },
       ],
     });
     expect(getAspectSource('child-aspect', node, graph)).toBe("implied by 'parent-aspect'");
@@ -449,7 +449,7 @@ describe('computeEffectiveAspects — when filter', () => {
     const node = makeNode('svc', { meta: { name: 'svc', type: 'service', aspects: ['external-api'] } });
     const graph = makeGraph({
       nodes: new Map([['svc', node]]),
-      aspects: [{ name: 'EA', id: 'external-api', artifacts: [], when: { node: { type: 'command' } } }],
+      aspects: [{ name: 'EA', id: 'external-api', reviewer: { type: 'llm' as const }, artifacts: [], when: { node: { type: 'command' } } }],
     });
     const result = computeEffectiveAspects(node, graph);
     expect(result.has('external-api')).toBe(false);
@@ -472,7 +472,7 @@ describe('computeEffectiveAspects — when filter', () => {
           },
         },
       },
-      aspects: [{ name: 'EA', id: 'external-api', artifacts: [] }],
+      aspects: [{ name: 'EA', id: 'external-api', reviewer: { type: 'llm' as const }, artifacts: [] }],
     });
     expect(computeEffectiveAspects(nodeA, graph).has('external-api')).toBe(true);
     expect(computeEffectiveAspects(nodeB, graph).has('external-api')).toBe(false);
@@ -493,7 +493,7 @@ describe('computeEffectiveAspects — when filter', () => {
         },
       },
       aspects: [{
-        name: 'EA', id: 'external-api', artifacts: [],
+        name: 'EA', id: 'external-api', reviewer: { type: 'llm' as const }, artifacts: [],
         when: { relations: { calls: { target_type: 'service-client' } } },
       }],
     });
@@ -515,7 +515,7 @@ describe('computeEffectiveAspects — when filter', () => {
           },
         },
       },
-      aspects: [{ name: 'X', id: 'x', artifacts: [] }],
+      aspects: [{ name: 'X', id: 'x', reviewer: { type: 'llm' as const }, artifacts: [] }],
     });
     expect(computeEffectiveAspects(node, graph).has('x')).toBe(true);
   });
@@ -525,8 +525,8 @@ describe('computeEffectiveAspects — when filter', () => {
     const graph = makeGraph({
       nodes: new Map([['a', node]]),
       aspects: [
-        { name: 'A', id: 'a', implies: ['b'], impliesWhens: { b: { node: { type: 'handler' } } }, artifacts: [] },
-        { name: 'B', id: 'b', artifacts: [] },
+        { name: 'A', id: 'a', implies: ['b'], impliesWhens: { b: { node: { type: 'handler' } } }, reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'B', id: 'b', reviewer: { type: 'llm' as const }, artifacts: [] },
       ],
     });
     const result = computeEffectiveAspects(node, graph);
@@ -543,8 +543,8 @@ describe('computeEffectiveAspects — when filter', () => {
     const graph = makeGraph({
       nodes: new Map([['a', node]]),
       aspects: [
-        { name: 'A', id: 'a', implies: ['b'], when: { node: { type: 'command' } }, artifacts: [] },
-        { name: 'B', id: 'b', artifacts: [] },
+        { name: 'A', id: 'a', implies: ['b'], when: { node: { type: 'command' } }, reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'B', id: 'b', reviewer: { type: 'llm' as const }, artifacts: [] },
       ],
     });
     const result = computeEffectiveAspects(node, graph);
@@ -559,8 +559,8 @@ describe('computeEffectiveAspects — when filter', () => {
       aspects: [
         { name: 'A', id: 'a', implies: ['b'],
           impliesWhens: { b: { node: { type: 'command' } } },
-          artifacts: [] },
-        { name: 'B', id: 'b', artifacts: [] },
+          reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'B', id: 'b', reviewer: { type: 'llm' as const }, artifacts: [] },
       ],
     });
     const result = computeEffectiveAspects(node, graph);

@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { parse as parseYaml } from 'yaml';
-import type { AspectDef } from '../model/graph.js';
+import type { AspectDef, AspectReviewerSpec } from '../model/graph.js';
 import type { WhenPredicate } from '../model/when.js';
 import { readArtifacts } from './artifact-reader.js';
 import { parseWhen, parseAspectAttachment } from '../core/parsing/when-parser.js';
@@ -27,12 +27,20 @@ export async function parseAspect(
 
   const description = typeof raw.description === 'string' ? raw.description.trim() : undefined;
 
-  let reviewer: 'ast' | 'llm' | undefined;
-  if (raw.reviewer !== undefined) {
+  let reviewerSpec: AspectReviewerSpec;
+  if (raw.reviewer === undefined || raw.reviewer === null) {
+    reviewerSpec = { type: 'llm' };
+  } else if (typeof raw.reviewer === 'string') {
     if (raw.reviewer !== 'ast' && raw.reviewer !== 'llm') {
-      throw new Error(`yg-aspect.yaml at ${aspectYamlPath}: 'reviewer' must be 'ast' or 'llm', got '${String(raw.reviewer)}'`);
+      throw new Error(`yg-aspect.yaml at ${aspectYamlPath}: 'reviewer' must be 'ast' or 'llm', got '${raw.reviewer}'`);
     }
-    reviewer = raw.reviewer;
+    reviewerSpec = { type: raw.reviewer };
+  } else if (typeof raw.reviewer === 'object' && !Array.isArray(raw.reviewer)) {
+    const obj = raw.reviewer as Record<string, unknown>;
+    const t = obj.type === 'ast' ? 'ast' : 'llm';
+    reviewerSpec = { type: t, ...(obj.tier && typeof obj.tier === 'string' ? { tier: obj.tier } : {}) };
+  } else {
+    reviewerSpec = { type: 'llm' };
   }
 
   const artifacts = await readArtifacts(aspectDir, ['yg-aspect.yaml']);
@@ -65,7 +73,7 @@ export async function parseAspect(
     name: (raw.name as string).trim(),
     id: idTrimmed,
     description,
-    ...(reviewer && { reviewer }),
+    reviewer: reviewerSpec,
     ...(raw.language !== undefined && { language: raw.language as string[] }),
     implies,
     ...(impliesWhens && { impliesWhens }),

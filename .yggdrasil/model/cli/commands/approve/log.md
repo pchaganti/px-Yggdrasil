@@ -34,3 +34,5 @@ Changed loadLlmProvider to handle the 'No reviewer configured' case inline (proc
 Rewrote aspect command-exit-codes against raw tree-sitter API. Hash change forces re-approval. Verified behavior-identical via ast-test diff against pre-rewrite baseline.
 ## [2026-05-26T10:27:54.432Z]
 Rewrote aspect command-contract-shape against raw tree-sitter API. Replaced ast.exports() helper and string-based ast.inFile() with walk() + raw node traversal and inFile({glob:...}) object form. Verified behavior-identical via ast-test diff.
+## [2026-05-27T07:22:10.321Z]
+Phase 6 type-bridge: updated loadLlmProvider to read from graph.config.reviewer.tiers (v5 ReviewerConfig) instead of graph.config.llm (removed field); updated AST aspect filter comparisons from reviewer === 'ast' to reviewer?.type === 'ast' to match AspectReviewerSpec object shape.

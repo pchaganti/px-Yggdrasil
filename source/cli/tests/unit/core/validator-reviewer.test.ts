@@ -9,13 +9,17 @@ const msgOf = (i: { messageData: Parameters<typeof buildIssueMessage>[0] }) => b
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_PROJECT = path.join(__dirname, '../../fixtures/sample-project');
 
-function createAspect(id: string, reviewer?: AspectDef['reviewer']): AspectDef {
+function createAspect(id: string, reviewer?: AspectDef['reviewer'] | 'llm' | 'ast'): AspectDef {
+  const reviewerSpec: AspectDef['reviewer'] =
+    reviewer === undefined ? { type: 'llm' } :
+    typeof reviewer === 'string' ? { type: reviewer as 'llm' | 'ast' } :
+    reviewer;
   return {
     name: id,
     id,
     description: `Test aspect ${id}`,
     artifacts: [],
-    ...(reviewer !== undefined ? { reviewer } : {}),
+    reviewer: reviewerSpec,
   };
 }
 

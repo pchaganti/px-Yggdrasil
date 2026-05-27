@@ -56,7 +56,7 @@ export async function runLlmVerification(
   const shouldFilter = filterAspectId !== undefined && !result.changedSource?.length;
   const allAspects = resolveAspects(node, graph);
   const aspects = shouldFilter ? allAspects.filter(a => a.id === filterAspectId) : allAspects;
-  const astAspects = aspects.filter(a => a.reviewer === 'ast');
+  const astAspects = aspects.filter(a => a.reviewer?.type === 'ast');
 
   if (astAspects.length === 0) {
     return runApproveWithReviewer({ graph, nodePath, result, provider, maxTokens: llmConfig.maxTokens, consensus: llmConfig.consensus, filterAspectId: shouldFilter ? filterAspectId : undefined });
@@ -284,9 +284,10 @@ export function formatBatchOutput(results: BatchResult[]): void {
 // ── Reviewer provider loading ────────────────────────────────
 
 async function loadLlmProvider(
-  graph: { rootPath: string; config: { llm?: import('../model/graph.js').LlmConfig } },
+  graph: { rootPath: string; config: import('../model/graph.js').YggConfig },
 ): Promise<{ provider: LlmProvider | undefined; maxTokens: number | undefined; consensus: number | undefined }> {
-  const llmConfig = graph.config.llm;
+  const reviewerCfg = graph.config.reviewer;
+  const llmConfig = reviewerCfg ? Object.values(reviewerCfg.tiers)[0] : undefined;
   if (!llmConfig) {
     process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
       what: 'No reviewer configured.',
@@ -424,8 +425,8 @@ export function registerApproveCommand(program: Command): void {
             process.stdout.write(`Aspects (${aspects.length}): ${aspects.map(a => a.id).join(', ') || 'none'}\n`);
             process.stdout.write(`Source files (${sourceFiles.length}): ${sourceFiles.map(f => f.path).join(', ') || 'none'}\n\n`);
 
-            const astAspects = aspects.filter(a => a.reviewer === 'ast');
-            const llmAspects = aspects.filter(a => a.reviewer !== 'ast');
+            const astAspects = aspects.filter(a => a.reviewer?.type === 'ast');
+            const llmAspects = aspects.filter(a => a.reviewer?.type !== 'ast');
 
             // AST aspects — run check and print violations
             for (const aspect of astAspects) {

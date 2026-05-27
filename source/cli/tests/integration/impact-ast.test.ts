@@ -30,8 +30,8 @@ describe('yg impact --aspect cascade scope (regression)', () => {
         ['svc-b', nodeB],
       ]),
       aspects: [
-        { id: 'llm-aspect', name: 'LLM Aspect', artifacts: [{ filename: 'content.md', content: '# rule' }] },
-        { id: 'ast-aspect', name: 'AST Aspect', reviewer: 'ast', artifacts: [{ filename: 'check.mjs', content: 'export function check(ctx){return[];}' }] },
+        { id: 'llm-aspect', name: 'LLM Aspect', reviewer: { type: 'llm' as const }, artifacts: [{ filename: 'content.md', content: '# rule' }] },
+        { id: 'ast-aspect', name: 'AST Aspect', reviewer: { type: 'ast' as const }, artifacts: [{ filename: 'check.mjs', content: 'export function check(ctx){return[];}' }] },
       ],
       flows: [],
       schemas: [],
@@ -78,8 +78,8 @@ describe('yg impact --aspect cascade scope (regression)', () => {
         ['orders/service', child],
       ]),
       aspects: [
-        { id: 'llm-parent', name: 'LLM Parent', artifacts: [{ filename: 'content.md', content: '' }] },
-        { id: 'ast-parent', name: 'AST Parent', reviewer: 'ast', artifacts: [{ filename: 'check.mjs', content: 'export function check(ctx){return[];}' }] },
+        { id: 'llm-parent', name: 'LLM Parent', reviewer: { type: 'llm' as const }, artifacts: [{ filename: 'content.md', content: '' }] },
+        { id: 'ast-parent', name: 'AST Parent', reviewer: { type: 'ast' as const }, artifacts: [{ filename: 'check.mjs', content: 'export function check(ctx){return[];}' }] },
       ],
       flows: [],
       schemas: [],

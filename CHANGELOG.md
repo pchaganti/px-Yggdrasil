@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `AspectDef.reviewer` changed from optional `'ast' | 'llm' | undefined` to required `AspectReviewerSpec` (`{ type: 'llm' | 'ast'; tier?: string }`). All comparison sites updated from string equality to `.type` property access.
+- `YggConfig.llm: LlmConfig | undefined` renamed to `YggConfig.reviewer: ReviewerConfig | undefined`. `ReviewerConfig` holds `{ tiers: Record<string, LlmConfig>; default?: string }` for named-tier support. `config-parser.ts` wraps the parsed `LlmConfig` in a bridge `tiers` map for v5 compatibility.
+- `context-builder.ts`: all graph-derived paths written to output structures (`buildHierarchyLayer`, `buildStructuralRelationLayer`, `buildEventRelationLayer`, `buildNodeContextData`, `buildFileContextData`) now apply POSIX normalization via a shared `normPath` helper. Previously only caller-supplied `nodePath`, `filePath`, and `ownerPath` were normalized at the input boundary.
 - `@chrisdudek/yg/ast` API surface reduced to raw tree-sitter primitives: `{ walk, report, inFile, findComments, closest }`. `walk(node, visitor)` replaces `within(parent, type, opts)`; visitor returning `false` skips descent. `closest(node, types)` retained as minimal-API ancestor lookup.
 - `inFile` signature changed from string-with-heuristic to discriminated object `{ glob | regex | contains }`.
 - `report(file, node, message)` now includes `column` field (0-based from `node.startPosition.column`).
@@ -21,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- New engine node `cli/core/reviewer-tiers` with three source files: `tier-identity.ts` (canonical JSON for LLM tier drift detection), `tier-selection.ts` (aspect-to-tier resolution supporting explicit and default tier), `format-version.ts` (v4/v5 config and aspect YAML shape detection predicates).
+- New test-suite node `cli/tests/unit/core/reviewer-tiers` with unit tests for tier-identity, tier-selection, and format-version.
 - AST aspect yaml: required field `language: [<id>, ...]` for `reviewer: ast`. Four new structural-check errors enforce the field shape: `aspect-ast-missing-language`, `aspect-language-not-array`, `aspect-empty-language-list`, `aspect-unknown-language`.
 - Language registry stub in `source/cli/src/core/graph/language-registry.ts` — phase 1 covers typescript/tsx/javascript; phase 3 expands to 35.
 - `findComments(target)` exported from `@chrisdudek/yg/ast` — returns comment nodes for a file or subtree, reads comment node types from language registry per `ctx.language`.

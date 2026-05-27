@@ -10,3 +10,5 @@ Add type-classifier.test.ts to operations test node: 10 tests covering classifyF
 Update approve-llm.test.ts mocks: add required errorSource discriminator to all AspectResponse mock return values. providerError: true mock replaced with errorSource: 'provider'; satisfied mocks use errorSource: 'codeViolation'.
 ## [2026-05-26T08:42:27.088Z]
 Updated approve-llm.test.ts to check for 'infrastructure failed' in refuseReasonData.what following the rename of the provider-failure refuse message from 'Reviewer provider failed' to 'Reviewer infrastructure failed'. Test intent unchanged: verifies that LLM provider errors cause approve to refuse with a non-code-issue message.
+## [2026-05-27T07:22:46.309Z]
+Phase 6 type-bridge: effective-aspects.test.ts and impact.test.ts aspect literals updated to include reviewer: { type: 'llm' as const } as required by AspectDef.

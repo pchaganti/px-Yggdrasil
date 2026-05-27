@@ -36,7 +36,7 @@ export async function runApproveWithReviewer(
   const node = graph.nodes.get(nodePath);
   if (!node) return result;
 
-  const allLlmAspects = resolveAspects(node, graph).filter(a => a.reviewer !== 'ast');
+  const allLlmAspects = resolveAspects(node, graph).filter(a => a.reviewer?.type !== 'ast');
   const llmAspects = filterAspectId
     ? allLlmAspects.filter(a => a.id === filterAspectId)
     : allLlmAspects;
@@ -56,7 +56,9 @@ export async function runApproveWithReviewer(
   const sourceFiles = await loadSourceFiles(sourceFilePaths, projectRoot);
 
   const nodeDescription = node.meta.description ?? '';
-  const llmCfg = graph.config.llm ?? { provider: 'ollama' as const, model: '', temperature: 0, consensus: 1, max_tokens: 'auto' as const };
+  const reviewerCfg = graph.config.reviewer;
+  const firstTier = reviewerCfg ? Object.values(reviewerCfg.tiers)[0] : undefined;
+  const llmCfg = firstTier ?? { provider: 'ollama' as const, model: '', temperature: 0, consensus: 1, max_tokens: 'auto' as const };
   const resolvedMaxTokens = maxTokens ?? await resolveMaxTokens(llmCfg, provider);
 
   const llmResults = await verifyAspects({

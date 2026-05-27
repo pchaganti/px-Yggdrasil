@@ -2,13 +2,19 @@ import { describe, it, expect } from 'vitest';
 import type { Graph, AspectDef, GraphNode } from '../../../src/model/graph.js';
 import { computeAspectUsage, formatAspectsOutput } from '../../../src/cli/aspects.js';
 
-function makeAspect(id: string, overrides: Partial<AspectDef> = {}): AspectDef {
+function makeAspect(id: string, overrides: Partial<Omit<AspectDef, 'reviewer'>> & { reviewer?: string | AspectDef['reviewer'] } = {}): AspectDef {
+  const { reviewer: rev, ...rest } = overrides;
+  const reviewerSpec: AspectDef['reviewer'] =
+    rev === undefined ? { type: 'llm' } :
+    typeof rev === 'string' ? { type: rev as 'llm' | 'ast' } :
+    rev;
   return {
     id,
     name: id.charAt(0).toUpperCase() + id.slice(1),
     description: `Description of ${id}`,
+    reviewer: reviewerSpec,
     artifacts: [],
-    ...overrides,
+    ...rest,
   };
 }
 

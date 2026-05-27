@@ -16,3 +16,5 @@ Added Array.isArray(raw) to top-level shape guards in flow-parser, node-parser, 
 Parser reads optional language array field from yg-aspect.yaml. Permissive — validation (required-for-AST, registry membership) is core/validator.ts.
 ## [2026-05-26T10:28:57.515Z]
 Rewrote aspect parser-yaml-guard against raw tree-sitter API. Replaced string-based ast.inFile() with inFile({glob:...}) object form. No walk() needed — the check is pure text-regex on file content. Verified behavior-identical via ast-test diff.
+## [2026-05-27T07:22:31.453Z]
+Phase 6 type-bridge: aspect-parser.ts now returns AspectReviewerSpec object (required) instead of optional string; config-parser.ts now returns YggConfig.reviewer (ReviewerConfig) instead of YggConfig.llm (LlmConfig), wrapping the parsed LlmConfig in a tiers bridge for v5 compatibility.
