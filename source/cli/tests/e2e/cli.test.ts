@@ -335,9 +335,10 @@ describe.skipIf(!distExists)('CLI E2E', () => {
   });
 
   it('yg impact --file resolves owner and shows impact', () => {
-    const { stdout, status, stderr } = run(['impact', '--file', 'src/orders/order.service.ts']);
+    const { stdout, status } = run(['impact', '--file', 'src/orders/order.service.ts']);
     expect(status).toBe(0);
-    expect(stderr).toContain('orders/order-service');
+    // file->node resolution flows through stdout (informational)
+    expect(stdout).toContain('src/orders/order.service.ts -> orders/order-service');
     expect(stdout).toContain('Impact of changes in orders/order-service');
   });
 

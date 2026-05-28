@@ -1,5 +1,5 @@
 {
-  "hash": "194574f79da26ce18626481e09218ab957177ff71e94a343ab1ce265fed7b716",
+  "hash": "88c916d60bce37a544132e5171018b1142298dbba8bde7952d652f55e755588a",
   "files": {
     "own-subset:cli/tests/unit/cli/graph": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -9,12 +9,12 @@
     ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": "6e62b47935c2d36ecfefe4a9dd75287fc122ba0e13999e0747798d385c2c832d",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/unit/cli/aspects.test.ts": "c928cf480c8d86d40c352f6f34c6157739782ff6b709e98a93dc5b10cfb77b50",
+    "source/cli/tests/unit/cli/find.test.ts": "da1f4f5a97bc8abc3b79a9ea92bdb19c1714bbffac3d98416c63c2d1b841a6b6",
     "source/cli/tests/unit/cli/flows.test.ts": "f07998042c0ff21c41daf5a2ce24e66e466db75bd5b1371bf10b5f5916a1c458",
     "source/cli/tests/unit/cli/owner.test.ts": "76367ecbdad35bb4b142c55d298947f6129a914c5e05483451ca7526ef77783a",
     "source/cli/tests/unit/cli/which.test.ts": "cfe344cd2efe6b216ace3977df6b2fea05424d31b78202c585f0c0a57469b375",
-    "source/cli/tests/unit/cli/aspects.test.ts": "c928cf480c8d86d40c352f6f34c6157739782ff6b709e98a93dc5b10cfb77b50",
-    "source/cli/tests/unit/cli/find.test.ts": "da1f4f5a97bc8abc3b79a9ea92bdb19c1714bbffac3d98416c63c2d1b841a6b6",
-    "source/cli/tests/unit/cli/impact.test.ts": "9b8cd8a0f9a4a5321a67cc496fb756c8c3ef7c9ba4b0f656d6f5d679cfc3ace4"
+    "source/cli/tests/unit/cli/impact.test.ts": "86715fb7b27ae4e8d9e13c5def5f3b37dfa2657786da4cc3b6d7de075ea602e8"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -26,13 +26,13 @@
     "source/cli/tests/unit/cli/aspects.test.ts": 1779976651369.3562,
     "source/cli/tests/unit/cli/find.test.ts": 1779976743323.5903,
     "source/cli/tests/unit/cli/flows.test.ts": 1778570886982.5657,
-    "source/cli/tests/unit/cli/impact.test.ts": 1779976779838.6086,
+    "source/cli/tests/unit/cli/impact.test.ts": 1779997425891.8906,
     "source/cli/tests/unit/cli/owner.test.ts": 1778916613313.5156,
     "source/cli/tests/unit/cli/which.test.ts": 1778570899439.4749
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T14:02:06.781Z",
-    "prefix_hash": "529734541f65718e36dd9710765dbcc0ecc058c3561c5aaacecc912bbb0f3de2"
+    "last_entry_datetime": "2026-05-28T19:44:24.810Z",
+    "prefix_hash": "dcce792ae1f78b470ba2a64a17c71e04d01d53fb6f7dd565b63933bc6a9cb281"
   },
   "aspectVerdicts": {
     "test-deterministic": {

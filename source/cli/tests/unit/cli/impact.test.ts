@@ -189,6 +189,60 @@ describe('impact command', () => {
       });
     });
 
+    it('annotates affected nodes with refused baselines (rendering-flip risk)', async () => {
+      // Per design §12.1: yg impact --aspect should call out nodes whose
+      // stored baseline contains a `refused` verdict for the aspect — their
+      // rendering severity will flip if the user changes the aspect's status.
+      await withFixtureCopy(async (cwd) => {
+        const { writeFile, mkdir } = await import('node:fs/promises');
+        const driftDir = path.join(cwd, '.yggdrasil', '.drift-state', 'orders');
+        await mkdir(driftDir, { recursive: true });
+        await writeFile(
+          path.join(driftDir, 'order-service.json'),
+          JSON.stringify({
+            hash: 'fake-hash',
+            files: {},
+            aspectVerdicts: {
+              'requires-audit': { verdict: 'refused', reason: 'mock', errorSource: 'codeViolation' },
+            },
+          }),
+          'utf-8',
+        );
+        const result = spawnSync(
+          'node',
+          [BIN_PATH, 'impact', '--aspect', 'requires-audit'],
+          { cwd, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain('refused baseline');
+        expect(result.stdout).toContain('rendering severity will flip');
+      });
+    });
+
+    it('does NOT annotate nodes whose baseline is approved', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const { writeFile, mkdir } = await import('node:fs/promises');
+        const driftDir = path.join(cwd, '.yggdrasil', '.drift-state', 'orders');
+        await mkdir(driftDir, { recursive: true });
+        await writeFile(
+          path.join(driftDir, 'order-service.json'),
+          JSON.stringify({
+            hash: 'fake-hash',
+            files: {},
+            aspectVerdicts: { 'requires-audit': { verdict: 'approved' } },
+          }),
+          'utf-8',
+        );
+        const result = spawnSync(
+          'node',
+          [BIN_PATH, 'impact', '--aspect', 'requires-audit'],
+          { cwd, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(0);
+        expect(result.stdout).not.toContain('refused baseline');
+      });
+    });
+
     it('shows implied-by relationship for requires-logging', async () => {
       await withFixtureCopy(async (cwd) => {
         const result = spawnSync(
@@ -265,9 +319,9 @@ describe('impact command', () => {
           { cwd, encoding: 'utf-8' },
         );
         expect(result.status).toBe(0);
-        // stderr shows file->node resolution
-        expect(result.stderr).toContain('orders/order-service');
-        // stdout shows the impact output
+        // stdout shows file->node resolution (informational, not error)
+        // plus the impact output itself
+        expect(result.stdout).toContain('src/orders/order.service.ts -> orders/order-service');
         expect(result.stdout).toContain('Impact of changes in orders/order-service');
         expect(result.stdout).toContain('checkout/controller');
       });

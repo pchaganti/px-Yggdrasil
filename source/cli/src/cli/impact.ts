@@ -8,6 +8,7 @@ import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { collectAncestors } from '../core/context-builder.js';
 import { computeEffectiveAspects, computeEffectiveAspectStatuses } from '../core/graph/aspects.js';
 import { collectTrackedFiles } from '../core/graph/files.js';
+import { readNodeDriftState } from '../io/drift-state-store.js';
 import { findOwner } from './owner.js';
 import { projectRootFromGraph, resolveFileArg } from '../io/paths.js';
 import { FileContentCache } from '../io/file-content-cache.js';
@@ -186,15 +187,21 @@ async function handleAspectImpact(
     process.exit(1);
   }
 
-  const affected: Array<{ path: string; source: string; status: string }> = [];
+  const affected: Array<{ path: string; source: string; status: string; refusedBaseline: boolean }> = [];
   for (const [nodePath, node] of graph.nodes) {
     const effective = computeEffectiveAspects(node, graph);
     if (effective.has(aspectId)) {
       const statuses = computeEffectiveAspectStatuses(node, graph);
       const status = statuses.get(aspectId) ?? aspect.status ?? 'enforced';
+      // Per design §12.1: when this aspect's status flips (advisory ↔ enforced),
+      // nodes with a stored `refused` verdict for it will flip rendering
+      // severity on the next `yg check`. Surface that proactively so users see
+      // which baselines are sensitive before they touch the status.
+      const baseline = await readNodeDriftState(graph.rootPath, nodePath);
+      const refusedBaseline = baseline?.aspectVerdicts?.[aspectId]?.verdict === 'refused';
       const ownAspectIds = new Set(node.meta.aspects ?? []);
       if (ownAspectIds.has(aspectId)) {
-        affected.push({ path: nodePath, source: 'own', status });
+        affected.push({ path: nodePath, source: 'own', status, refusedBaseline });
       } else {
         let fromHierarchy = false;
         let anc = node.parent;
@@ -206,7 +213,7 @@ async function handleAspectImpact(
           anc = anc.parent;
         }
         if (fromHierarchy) {
-          affected.push({ path: nodePath, source: `hierarchy from ${anc!.path}`, status });
+          affected.push({ path: nodePath, source: `hierarchy from ${anc!.path}`, status, refusedBaseline });
         } else {
           const ancestorPaths = new Set([nodePath, ...collectAncestors(node).map((a) => a.path)]);
           const flow = graph.flows.find(
@@ -214,7 +221,7 @@ async function handleAspectImpact(
               (f.aspects ?? []).includes(aspectId) &&
               f.nodes.some((n) => ancestorPaths.has(n)),
           );
-          affected.push({ path: nodePath, source: flow ? `flow: ${flow.name}` : 'implied', status });
+          affected.push({ path: nodePath, source: flow ? `flow: ${flow.name}` : 'implied', status, refusedBaseline });
         }
       }
     }
@@ -241,8 +248,11 @@ async function handleAspectImpact(
   if (affected.length === 0) {
     process.stdout.write('  (none)\n');
   } else {
-    for (const { path: p, source, status } of affected) {
+    for (const { path: p, source, status, refusedBaseline } of affected) {
       process.stdout.write(`  ${p} (${source}) [${status}]\n`);
+      if (refusedBaseline) {
+        process.stdout.write(`    ⚠ refused baseline — rendering severity will flip on next yg check if status changes\n`);
+      }
     }
   }
   if (chains.length > 0) {
@@ -519,7 +529,7 @@ export function registerImpactCommand(program: Command): void {
             }
 
             // Structural owner found — continue to regular node impact
-            process.stderr.write(`${ownerResult.file} -> ${ownerResult.nodePath}\n`);
+            process.stdout.write(`${ownerResult.file} -> ${ownerResult.nodePath}\n`);
             options.node = ownerResult.nodePath;
           }
 

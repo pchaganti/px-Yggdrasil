@@ -10,3 +10,5 @@ Fixed e2e assertion for v4 config rejection test: changed expected substring fro
 Updated the legacy-config e2e test to match the reworded migration-hint message and to also assert that the next-step text points at yg init upgrade.
 ## [2026-05-28T05:09:55.143Z]
 E2E coverage updated for the runner-driven incremental bump contract. The version-bumped-after-upgrade assertion now reads the highest registered migration target instead of the CLI package version, since the runner advances the on-disk version to each migration target and never forces a CLI-version override.
+## [2026-05-28T19:46:23.565Z]
+Updated e2e impact --file assertion: file->nodePath resolution line now arrives on stdout (was stderr) following cli/commands/impact stdout-routing fix. Test now asserts the full 'src/orders/order.service.ts -> orders/order-service' text appears on stdout.
