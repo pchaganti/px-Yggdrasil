@@ -1,0 +1,9 @@
+name: LLM Verifier Unit Tests
+type: test-suite
+description: "Unit tests for the LLM aspect verifier surface — provider selection, XML escaping, and reference-file packaging."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/llm/provider.test.ts
+  - source/cli/tests/unit/llm/xml-escape.test.ts
+  - source/cli/tests/unit/llm/aspect-verifier-references.test.ts

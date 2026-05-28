@@ -1,0 +1,12 @@
+name: LLM Provider Adapter Unit Tests
+type: test-suite
+description: "Unit tests for concrete LLM provider adapters — Anthropic, Google, OpenAI, Claude Code subprocess, and shared CLI provider base."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/llm/anthropic.test.ts
+  - source/cli/tests/unit/llm/claude-code.test.ts
+  - source/cli/tests/unit/llm/cli-base.test.ts
+  - source/cli/tests/unit/llm/cli-providers.test.ts
+  - source/cli/tests/unit/llm/google.test.ts
+  - source/cli/tests/unit/llm/openai.test.ts
