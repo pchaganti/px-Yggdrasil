@@ -74,3 +74,125 @@ reviewer: { type: llm }
     expect(result.aspect.references).toBeUndefined();
   });
 });
+
+describe('parseAspect — references parser-phase validation', () => {
+  it('aspect-references-on-ast: references on AST aspect → error', async () => {
+    const dir = makeAspectDir(`name: T
+reviewer: { type: ast }
+language: [typescript]
+references:
+  - x.md
+`);
+    const result = await parseAspect(dir, join(dir, 'yg-aspect.yaml'), 't');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors[0].code).toBe('aspect-references-on-ast');
+  });
+
+  it('aspect-reference-blank-path: empty string path → error', async () => {
+    const dir = makeAspectDir(`name: T
+reviewer: { type: llm }
+references:
+  - ""
+`);
+    const result = await parseAspect(dir, join(dir, 'yg-aspect.yaml'), 't');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors[0].code).toBe('aspect-reference-blank-path');
+  });
+
+  it('aspect-reference-blank-path: whitespace-only path → error', async () => {
+    const dir = makeAspectDir(`name: T
+reviewer: { type: llm }
+references:
+  - "   "
+`);
+    const result = await parseAspect(dir, join(dir, 'yg-aspect.yaml'), 't');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors[0].code).toBe('aspect-reference-blank-path');
+  });
+
+  it('aspect-reference-escape: leading slash → error', async () => {
+    const dir = makeAspectDir(`name: T
+reviewer: { type: llm }
+references:
+  - /etc/passwd
+`);
+    const result = await parseAspect(dir, join(dir, 'yg-aspect.yaml'), 't');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors[0].code).toBe('aspect-reference-escape');
+  });
+
+  it('aspect-reference-escape: Windows drive letter → error', async () => {
+    const dir = makeAspectDir(`name: T
+reviewer: { type: llm }
+references:
+  - "C:\\\\Windows\\\\system32"
+`);
+    const result = await parseAspect(dir, join(dir, 'yg-aspect.yaml'), 't');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors[0].code).toBe('aspect-reference-escape');
+  });
+
+  it('aspect-reference-escape: tilde → error', async () => {
+    const dir = makeAspectDir(`name: T
+reviewer: { type: llm }
+references:
+  - ~/secret
+`);
+    const result = await parseAspect(dir, join(dir, 'yg-aspect.yaml'), 't');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors[0].code).toBe('aspect-reference-escape');
+  });
+
+  it('aspect-reference-escape: ..-escape above repo root → error', async () => {
+    const dir = makeAspectDir(`name: T
+reviewer: { type: llm }
+references:
+  - "../../etc/passwd"
+`);
+    const result = await parseAspect(dir, join(dir, 'yg-aspect.yaml'), 't');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors[0].code).toBe('aspect-reference-escape');
+  });
+
+  it('inner ..-segments that do NOT escape are allowed', async () => {
+    const dir = makeAspectDir(`name: T
+reviewer: { type: llm }
+references:
+  - "docs/sub/../error-codes.md"
+`);
+    const result = await parseAspect(dir, join(dir, 'yg-aspect.yaml'), 't');
+    expect(result.ok).toBe(true);
+  });
+
+  it('aspect-reference-duplicate: same normalized path twice → error', async () => {
+    const dir = makeAspectDir(`name: T
+reviewer: { type: llm }
+references:
+  - docs/x.md
+  - docs/x.md
+`);
+    const result = await parseAspect(dir, join(dir, 'yg-aspect.yaml'), 't');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors[0].code).toBe('aspect-reference-duplicate');
+  });
+
+  it('aspect-references-empty-array: empty list → parser accepts (warning is validator-phase)', async () => {
+    const dir = makeAspectDir(`name: T
+reviewer: { type: llm }
+references: []
+`);
+    const result = await parseAspect(dir, join(dir, 'yg-aspect.yaml'), 't');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.aspect.references).toEqual([]);
+    // warning is surfaced by validator phase (Task 6); parser accepts.
+  });
+});
