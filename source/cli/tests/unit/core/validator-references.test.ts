@@ -2,8 +2,9 @@ import { describe, it, expect, afterEach } from 'vitest';
 import path from 'node:path';
 import os from 'node:os';
 import { mkdtemp, mkdir, writeFile, rm, symlink } from 'node:fs/promises';
+import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { validate } from '../../../src/core/validator.js';
-import type { Graph, AspectDef } from '../../../src/model/graph.js';
+import type { Graph, AspectDef, LlmConfig, ReviewerConfig } from '../../../src/model/graph.js';
 
 const tempDirs: string[] = [];
 
@@ -99,5 +100,128 @@ describe('validator — aspect-reference-broken', () => {
     const result = await validate(graph);
     const broken = result.issues.find((i) => i.code === 'aspect-reference-broken');
     expect(broken).toBeUndefined();
+  });
+});
+
+describe('validator — reference size limits', () => {
+  const repos: string[] = [];
+  afterEach(() => {
+    while (repos.length > 0) rmSync(repos.pop()!, { recursive: true, force: true });
+  });
+
+  function makeSizeTierConfig(overrides: Partial<NonNullable<LlmConfig['references']>> = {}): ReviewerConfig {
+    const refs = { max_bytes_per_file: 100, max_total_bytes_per_aspect: 200, ...overrides };
+    return {
+      default: 'standard',
+      tiers: {
+        standard: {
+          provider: 'ollama',
+          model: 'm',
+          endpoint: 'http://x',
+          temperature: 0,
+          consensus: 1,
+          max_tokens: 'auto',
+          references: refs,
+        },
+      },
+    };
+  }
+
+  it('flags reference exceeding per-file limit', async () => {
+    const projectRoot = mkdtemp.constructor === Function
+      ? await mkdtemp(path.join(os.tmpdir(), 'yg-refs-size-'))
+      : os.tmpdir();
+    // Use sync for simplicity since repos array cleanup is sync
+    const tmpRoot = path.join(os.tmpdir(), `yg-refs-size-${Date.now()}`);
+    mkdirSync(tmpRoot, { recursive: true });
+    repos.push(tmpRoot);
+    const yggRoot = path.join(tmpRoot, '.yggdrasil');
+    mkdirSync(path.join(yggRoot, 'aspects', 'a'), { recursive: true });
+    writeFileSync(path.join(yggRoot, 'aspects', 'a', 'content.md'), '# A\n', 'utf-8');
+    mkdirSync(path.join(tmpRoot, 'docs'), { recursive: true });
+    writeFileSync(path.join(tmpRoot, 'docs', 'big.md'), 'x'.repeat(200), 'utf-8');
+    const graph = makeGraph(yggRoot, {
+      config: { reviewer: makeSizeTierConfig({ max_bytes_per_file: 100 }) },
+      aspects: [makeAspect([{ path: 'docs/big.md' }])],
+    });
+    const result = await validate(graph);
+    const too = result.issues.find(i => i.code === 'aspect-reference-too-large');
+    expect(too).toBeDefined();
+  });
+
+  it('flags total references exceeding per-aspect limit', async () => {
+    const tmpRoot = path.join(os.tmpdir(), `yg-refs-total-${Date.now()}`);
+    mkdirSync(tmpRoot, { recursive: true });
+    repos.push(tmpRoot);
+    const yggRoot = path.join(tmpRoot, '.yggdrasil');
+    mkdirSync(path.join(yggRoot, 'aspects', 'a'), { recursive: true });
+    writeFileSync(path.join(yggRoot, 'aspects', 'a', 'content.md'), '# A\n', 'utf-8');
+    mkdirSync(path.join(tmpRoot, 'docs'), { recursive: true });
+    writeFileSync(path.join(tmpRoot, 'docs', 'a.md'), 'x'.repeat(150), 'utf-8');
+    writeFileSync(path.join(tmpRoot, 'docs', 'b.md'), 'x'.repeat(150), 'utf-8');
+    const graph = makeGraph(yggRoot, {
+      config: { reviewer: makeSizeTierConfig({ max_bytes_per_file: 1000, max_total_bytes_per_aspect: 200 }) },
+      aspects: [makeAspect([{ path: 'docs/a.md' }, { path: 'docs/b.md' }])],
+    });
+    const result = await validate(graph);
+    const tot = result.issues.find(i => i.code === 'aspect-references-total-too-large');
+    expect(tot).toBeDefined();
+  });
+
+  it('uses defaults (64 KiB / 256 KiB) when tier omits references config', async () => {
+    const tmpRoot = path.join(os.tmpdir(), `yg-refs-defaults-${Date.now()}`);
+    mkdirSync(tmpRoot, { recursive: true });
+    repos.push(tmpRoot);
+    const yggRoot = path.join(tmpRoot, '.yggdrasil');
+    mkdirSync(path.join(yggRoot, 'aspects', 'a'), { recursive: true });
+    writeFileSync(path.join(yggRoot, 'aspects', 'a', 'content.md'), '# A\n', 'utf-8');
+    mkdirSync(path.join(tmpRoot, 'docs'), { recursive: true });
+    writeFileSync(path.join(tmpRoot, 'docs', 'small.md'), 'x'.repeat(1024), 'utf-8');
+    // Config with no references field
+    const reviewerConfig: ReviewerConfig = {
+      default: 'standard',
+      tiers: {
+        standard: {
+          provider: 'ollama',
+          model: 'm',
+          endpoint: 'http://x',
+          temperature: 0,
+          consensus: 1,
+          max_tokens: 'auto',
+          // no references field → defaults apply
+        },
+      },
+    };
+    const graph = makeGraph(yggRoot, {
+      config: { reviewer: reviewerConfig },
+      aspects: [makeAspect([{ path: 'docs/small.md' }])],
+    });
+    const result = await validate(graph);
+    expect(result.issues.find(i => i.code === 'aspect-reference-too-large')).toBeUndefined();
+    expect(result.issues.find(i => i.code === 'aspect-references-total-too-large')).toBeUndefined();
+  });
+
+  it('aspect-references-empty-array: warning when references: [] declared explicitly', async () => {
+    const tmpRoot = path.join(os.tmpdir(), `yg-refs-empty-${Date.now()}`);
+    mkdirSync(tmpRoot, { recursive: true });
+    repos.push(tmpRoot);
+    const yggRoot = path.join(tmpRoot, '.yggdrasil');
+    mkdirSync(path.join(yggRoot, 'aspects', 'a'), { recursive: true });
+    writeFileSync(path.join(yggRoot, 'aspects', 'a', 'content.md'), '# A\n', 'utf-8');
+    const aspectWithEmptyRefs: AspectDef = {
+      name: 'A',
+      id: 'a',
+      description: 'test',
+      reviewer: { type: 'llm' },
+      artifacts: [],
+      references: [], // explicitly empty
+    };
+    const graph = makeGraph(yggRoot, {
+      aspects: [aspectWithEmptyRefs],
+    });
+    const result = await validate(graph);
+    const warn = result.issues.find(i => i.code === 'aspect-references-empty-array');
+    expect(warn).toBeDefined();
+    expect(warn?.severity).toBe('warning');
   });
 });

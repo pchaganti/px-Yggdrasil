@@ -19,6 +19,7 @@ import { computeEffectiveAspects } from './graph/aspects.js';
 import { FileContentCache } from '../io/file-content-cache.js';
 import { evaluateFileWhen } from './file-when-evaluator.js';
 import { renderTrace } from '../formatters/predicate-trace.js';
+import { selectTierForAspect } from './tier-selection.js';
 
 function issueMsg(data: IssueMessage): { messageData: IssueMessage } {
   return { messageData: data };
@@ -1897,31 +1898,50 @@ function checkAspectTierReferences(graph: Graph): ValidationIssue[] {
   return issues;
 }
 
-// --- aspect-reference-broken: reference file must exist as a regular file ---
+// --- aspect-reference-broken / aspect-reference-too-large / aspect-references-total-too-large ---
+
+const DEFAULT_MAX_PER_FILE = 65536;   // 64 KiB
+const DEFAULT_MAX_TOTAL = 262144;     // 256 KiB
 
 async function checkAspectReferences(graph: Graph): Promise<ValidationIssue[]> {
   const projectRoot = path.dirname(graph.rootPath);
   const issues: ValidationIssue[] = [];
   for (const aspect of graph.aspects) {
     if (aspect.reviewer.type !== 'llm') continue;
-    for (const ref of aspect.references ?? []) {
+    if (!aspect.references) continue;
+    if (aspect.references.length === 0) {
+      const msgData: IssueMessage = {
+        what: `Aspect '${aspect.id}' declares 'references: []' (empty list).`,
+        why: `empty list has no effect; this is likely a mid-edit state.`,
+        next: `either populate the list, or remove the 'references:' line entirely.`,
+      };
+      issues.push({
+        severity: 'warning',
+        code: 'aspect-references-empty-array',
+        rule: 'aspect-references-empty-array',
+        ...issueMsg(msgData),
+        messageData: msgData,
+      });
+      continue;
+    }
+
+    // Resolve tier caps; defaults used when tier selection fails or tier omits the field.
+    let maxPerFile = DEFAULT_MAX_PER_FILE;
+    let maxTotal = DEFAULT_MAX_TOTAL;
+    if (graph.config.reviewer) {
+      const sel = selectTierForAspect(aspect, graph.config.reviewer);
+      if (sel.ok) {
+        maxPerFile = sel.tier.references?.max_bytes_per_file ?? DEFAULT_MAX_PER_FILE;
+        maxTotal = sel.tier.references?.max_total_bytes_per_aspect ?? DEFAULT_MAX_TOTAL;
+      }
+    }
+
+    let totalBytes = 0;
+    for (const ref of aspect.references) {
       const absPath = path.join(projectRoot, ref.path);
+      let stats: Awaited<ReturnType<typeof statPath>>;
       try {
-        const stats = await statPath(absPath);
-        if (!stats.isFile()) {
-          const msgData: IssueMessage = {
-            what: `Aspect '${aspect.id}' references '${ref.path}' but the path resolves to a directory.`,
-            why: `reference files must be regular files; directories cannot be loaded into the reviewer prompt.`,
-            next: `point references entry to a specific file or remove the entry in .yggdrasil/aspects/${aspect.id}/yg-aspect.yaml.`,
-          };
-          issues.push({
-            severity: 'error',
-            code: 'aspect-reference-broken',
-            rule: 'aspect-reference-broken',
-            ...issueMsg(msgData),
-            messageData: msgData,
-          });
-        }
+        stats = await statPath(absPath);
       } catch {
         const msgData: IssueMessage = {
           what: `Aspect '${aspect.id}' references '${ref.path}' but the file does not exist.`,
@@ -1935,7 +1955,53 @@ async function checkAspectReferences(graph: Graph): Promise<ValidationIssue[]> {
           ...issueMsg(msgData),
           messageData: msgData,
         });
+        continue;
       }
+      if (!stats.isFile()) {
+        const msgData: IssueMessage = {
+          what: `Aspect '${aspect.id}' references '${ref.path}' but the path resolves to a directory.`,
+          why: `reference files must be regular files; directories cannot be loaded into the reviewer prompt.`,
+          next: `point references entry to a specific file or remove the entry in .yggdrasil/aspects/${aspect.id}/yg-aspect.yaml.`,
+        };
+        issues.push({
+          severity: 'error',
+          code: 'aspect-reference-broken',
+          rule: 'aspect-reference-broken',
+          ...issueMsg(msgData),
+          messageData: msgData,
+        });
+        continue;
+      }
+      const size = stats.size;
+      if (size > maxPerFile) {
+        const msgData: IssueMessage = {
+          what: `Aspect '${aspect.id}' reference '${ref.path}' is ${size} bytes, exceeding the per-file limit of ${maxPerFile} bytes for the resolved tier.`,
+          why: `oversized references inflate prompt cost on every approve call across every node where this aspect is effective.`,
+          next: `split the reference into smaller files, raise references.max_bytes_per_file on the aspect's tier in .yggdrasil/yg-config.yaml, or move the aspect to a higher-context tier.`,
+        };
+        issues.push({
+          severity: 'error',
+          code: 'aspect-reference-too-large',
+          rule: 'aspect-reference-too-large',
+          ...issueMsg(msgData),
+          messageData: msgData,
+        });
+      }
+      totalBytes += size;
+    }
+    if (totalBytes > maxTotal) {
+      const msgData: IssueMessage = {
+        what: `Aspect '${aspect.id}' total reference size is ${totalBytes} bytes, exceeding the per-aspect limit of ${maxTotal} bytes for the resolved tier.`,
+        why: `sum of reference bytes per aspect bounds the prompt cost across all nodes where this aspect is effective.`,
+        next: `reduce reference sizes, drop low-value references, or raise references.max_total_bytes_per_aspect on the aspect's tier in .yggdrasil/yg-config.yaml.`,
+      };
+      issues.push({
+        severity: 'error',
+        code: 'aspect-references-total-too-large',
+        rule: 'aspect-references-total-too-large',
+        ...issueMsg(msgData),
+        messageData: msgData,
+      });
     }
   }
   return issues;
