@@ -382,9 +382,26 @@ export function registerApproveCommand(program: Command): void {
               }
             }
 
-            // LLM aspects — show prompt for first
+            // LLM aspects — show prompt for first (with references loaded for parity with real run)
             if (llmAspects.length > 0 && sourceFiles.length > 0) {
-              const prompt = buildPrompt(llmAspects[0], node.meta.description ?? '', nodePath, sourceFiles);
+              const firstAspect = llmAspects[0];
+              const { loadAndIsolateReferences } = await import('../core/approve-reviewer.js');
+              const { readTextFile } = await import('../io/graph-fs.js');
+              const refsCache = new Map<string, string>();
+              const loaded = await loadAndIsolateReferences({
+                aspectId: firstAspect.id,
+                references: firstAspect.references,
+                projectRoot,
+                cache: refsCache,
+                readTextFile,
+              });
+              const references = loaded.ok ? loaded.references : [];
+              if (!loaded.ok) {
+                process.stdout.write(chalk.yellow(
+                  `(warning: reference load failed at dry-run time: ${loaded.reason})\n`,
+                ));
+              }
+              const prompt = buildPrompt(firstAspect, node.meta.description ?? '', nodePath, sourceFiles, references);
               process.stdout.write(chalk.bold('--- Prompt for first LLM aspect ---\n'));
               process.stdout.write(prompt + '\n');
             }

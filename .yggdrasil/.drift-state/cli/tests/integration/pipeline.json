@@ -1,5 +1,5 @@
 {
-  "hash": "46f0f59c519d232e3600c0d9dfa4b7938115f40e098d1dff09eb0fd371438d67",
+  "hash": "7d542642ef4c0e0db79364065a7be15714677a6c7421e694756257b595202a74",
   "files": {
     "own-subset:cli/tests/integration/pipeline": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -10,10 +10,11 @@
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/integration/approve-pipeline.test.ts": "0ad034b8cb710f87f7a77e9132dbaac2415e92b7225f78e7abc47dc676007f98",
     "source/cli/tests/integration/aspect-language-validation.test.ts": "d4ebe10afc7f73ee40b4ef0f96903cdcf14878ba21752425ff71efad78c16d85",
+    "source/cli/tests/integration/build-pipeline.test.ts": "b4c1d4f267c20c028de327df8768516bd163ceffd44ec8795924144c3d7f66d5",
     "source/cli/tests/integration/check-pipeline.test.ts": "ca3009a773fdbc0e9418764012b7ee24138f0c806af2222ec4797ecaaee6dab8",
     "source/cli/tests/integration/validation-pipeline.test.ts": "1cfc150458fe5fdc3db62caf4fae35c1d7d8768c4b20f396c9396b990d026122",
     "source/cli/tests/setup.ts": "1a5c111c22e5faf263043c7844a0c844e50428cc7225cf47eac7ca23d15b220d",
-    "source/cli/tests/integration/build-pipeline.test.ts": "b4c1d4f267c20c028de327df8768516bd163ceffd44ec8795924144c3d7f66d5"
+    "source/cli/tests/integration/approve-dry-run-references.test.ts": "a6f58f3648253c5a1c148daa16664434a1dafef1c8c9439572c8b82240656607"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -21,6 +22,7 @@
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": 1778923836291.2395,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
+    "source/cli/tests/integration/approve-dry-run-references.test.ts": 1779958175868.0723,
     "source/cli/tests/integration/approve-pipeline.test.ts": 1778854337753.3848,
     "source/cli/tests/integration/aspect-language-validation.test.ts": 1779869468774.1572,
     "source/cli/tests/integration/build-pipeline.test.ts": 1779876504964.4133,
@@ -29,7 +31,7 @@
     "source/cli/tests/setup.ts": 1778838384333.1035
   },
   "log": {
-    "last_entry_datetime": "2026-05-27T09:47:43.184Z",
-    "prefix_hash": "b0fac1a3e46f2038bf5e26a18ea55479bcfb73bbf2bfc3490c32a59c5ccaed9d"
+    "last_entry_datetime": "2026-05-28T08:51:20.914Z",
+    "prefix_hash": "72461db337decb19b78edec2a629fb9ba5ec6961f597fb23a367ba158db76063"
   }
 }

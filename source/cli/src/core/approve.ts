@@ -517,17 +517,17 @@ export async function loadSourceFiles(
 export function resolveAspects(
   node: GraphNode,
   graph: Graph,
-): Array<{ id: string; description: string; content: string; reviewer?: import('../model/graph.js').AspectReviewerSpec }> {
+): Array<{ id: string; description: string; content: string; reviewer?: import('../model/graph.js').AspectReviewerSpec; references?: Array<{ path: string; description?: string }> }> {
   const allAspectIds = computeEffectiveAspects(node, graph);
 
-  const result: Array<{ id: string; description: string; content: string; reviewer?: import('../model/graph.js').AspectReviewerSpec }> = [];
+  const result: Array<{ id: string; description: string; content: string; reviewer?: import('../model/graph.js').AspectReviewerSpec; references?: Array<{ path: string; description?: string }> }> = [];
   for (const aspectId of allAspectIds) {
     const aspectDef = graph.aspects.find(a => a.id === aspectId);
     if (!aspectDef) continue;
     const contentFiles = aspectDef.artifacts.filter(a => a.filename.endsWith('.md'));
     if (contentFiles.length === 0) continue;
     const content = contentFiles.map(a => a.content).join('\n\n');
-    result.push({ id: aspectId, description: aspectDef.description ?? aspectDef.name, content, reviewer: aspectDef.reviewer });
+    result.push({ id: aspectId, description: aspectDef.description ?? aspectDef.name, content, reviewer: aspectDef.reviewer, references: aspectDef.references });
   }
   return result;
 }

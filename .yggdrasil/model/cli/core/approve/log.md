@@ -32,3 +32,5 @@ Updated context-files import path to core/graph/files following the file move (c
 Rewrote aspect no-direct-fs against raw tree-sitter API. Hash change forces re-approval. Verified behavior-identical via ast-test diff against pre-rewrite baseline.
 ## [2026-05-27T07:22:16.880Z]
 Phase 6 type-bridge: updated resolveAspects return type from reviewer?: 'ast'|'llm' to reviewer?: AspectReviewerSpec to match the new required object-form reviewer field on AspectDef.
+## [2026-05-28T08:51:16.315Z]
+Extended resolveAspects to include the references field from AspectDef in its return type. Previously the function returned { id, description, content, reviewer } for each aspect but omitted references (the array of supporting file paths). Adding references to the return value makes it available to callers such as the dry-run path in approve.ts, which needs the paths in order to load reference file content for prompt preview. The omission was a gap introduced when references were added to AspectDef — this change closes it.
