@@ -204,11 +204,16 @@ export interface AspectDef {
   implies?: string[];
   /** Per-implies applicability filters for aspect ids listed in `implies` */
   impliesWhens?: Record<string, WhenPredicate>;
+  /** Per-implies status propagation modifier for aspect ids listed in `implies`.
+   *  Absent key → 'strictest' (default). */
+  impliesStatusInherit?: Record<string, StatusInherit>;
   /** Global applicability filter for this aspect, applied on every channel */
   when?: WhenPredicate;
   artifacts: Artifact[];
   /** Supporting files for the LLM reviewer (lookup tables, catalogues, contracts). Permitted only when reviewer.type === 'llm'. */
   references?: Array<{ path: string; description?: string }>;
+  /** Aspect-level default status. Absent → 'enforced'. Attach sites may override per the bump rule (see design §5). */
+  status?: AspectStatus;
 }
 
 // ============================================================
