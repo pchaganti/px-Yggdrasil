@@ -23,7 +23,7 @@ describe('formatFileContext', () => {
     expect(output).toContain('source/cli/src/core/validator.ts');
     expect(output).toContain('Owner: cli/core/validator (library)');
     expect(output).toContain('Must satisfy:');
-    expect(output).toContain('deterministic — Same inputs produce identical outputs');
+    expect(output).toContain('deterministic [enforced] — Same inputs produce identical outputs');
     expect(output).toContain('read: .yggdrasil/aspects/deterministic/content.md');
     expect(output).toContain('Source: required aspect for type \'library\'');
     expect(output).toContain('Dependencies consumed:');
@@ -144,5 +144,129 @@ describe('formatFileContext', () => {
     });
 
     expect(output).not.toContain('Dependencies consumed:');
+  });
+
+  it('renders [enforced] tag and read lines for enforced aspect with references', () => {
+    const output = formatFileContext({
+      filePath: 'source/cli/src/core/validator.ts',
+      ownerPath: 'cli/core/validator',
+      ownerType: 'library',
+      aspects: [{
+        aspectId: 'deterministic',
+        aspectDescription: 'Same inputs produce identical outputs',
+        verifiedAgainst: '.yggdrasil/aspects/deterministic/content.md',
+        status: 'enforced',
+        references: [
+          { path: '.yggdrasil/aspects/deterministic/refs/table.md', description: 'lookup table' },
+        ],
+      }],
+      dependencies: [],
+      dependentCount: 0,
+    });
+
+    expect(output).toContain('deterministic [enforced] — Same inputs produce identical outputs');
+    expect(output).toContain('read: .yggdrasil/aspects/deterministic/content.md');
+    expect(output).toContain('read: .yggdrasil/aspects/deterministic/refs/table.md — lookup table');
+    expect(output).not.toContain('(reviewer skipped');
+  });
+
+  it('renders [draft] tag with skip line and omits read lines for draft aspect', () => {
+    const output = formatFileContext({
+      filePath: 'source/cli/src/core/validator.ts',
+      ownerPath: 'cli/core/validator',
+      ownerType: 'library',
+      aspects: [{
+        aspectId: 'experimental-rule',
+        aspectDescription: 'Not yet enforced',
+        verifiedAgainst: '.yggdrasil/aspects/experimental-rule/content.md',
+        status: 'draft',
+        references: [
+          { path: '.yggdrasil/aspects/experimental-rule/refs/notes.md' },
+        ],
+      }],
+      dependencies: [],
+      dependentCount: 0,
+    });
+
+    expect(output).toContain('experimental-rule [draft] — Not yet enforced');
+    expect(output).toContain('(reviewer skipped; aspect is draft)');
+    expect(output).not.toContain('read: .yggdrasil/aspects/experimental-rule/content.md');
+    expect(output).not.toContain('read: .yggdrasil/aspects/experimental-rule/refs/notes.md');
+  });
+
+  it('preserves declaration order when mixing statuses', () => {
+    const output = formatFileContext({
+      filePath: 'source/cli/src/core/validator.ts',
+      ownerPath: 'cli/core/validator',
+      ownerType: 'library',
+      aspects: [
+        {
+          aspectId: 'aspect-enforced',
+          aspectDescription: 'Enforced first',
+          verifiedAgainst: '.yggdrasil/aspects/aspect-enforced/content.md',
+          status: 'enforced',
+        },
+        {
+          aspectId: 'aspect-draft',
+          aspectDescription: 'Draft second',
+          verifiedAgainst: '.yggdrasil/aspects/aspect-draft/content.md',
+          status: 'draft',
+        },
+        {
+          aspectId: 'aspect-advisory',
+          aspectDescription: 'Advisory third',
+          verifiedAgainst: '.yggdrasil/aspects/aspect-advisory/content.md',
+          status: 'advisory',
+        },
+      ],
+      dependencies: [],
+      dependentCount: 0,
+    });
+
+    const enforcedIdx = output.indexOf('aspect-enforced [enforced]');
+    const draftIdx = output.indexOf('aspect-draft [draft]');
+    const advisoryIdx = output.indexOf('aspect-advisory [advisory]');
+    expect(enforcedIdx).toBeGreaterThan(-1);
+    expect(draftIdx).toBeGreaterThan(enforcedIdx);
+    expect(advisoryIdx).toBeGreaterThan(draftIdx);
+  });
+
+  it('renders Source line for draft aspect when source is set', () => {
+    const output = formatFileContext({
+      filePath: 'source/cli/src/core/validator.ts',
+      ownerPath: 'cli/core/validator',
+      ownerType: 'library',
+      aspects: [{
+        aspectId: 'experimental-rule',
+        aspectDescription: 'Not yet enforced',
+        verifiedAgainst: '.yggdrasil/aspects/experimental-rule/content.md',
+        status: 'draft',
+        source: 'required aspect for type \'library\'',
+      }],
+      dependencies: [],
+      dependentCount: 0,
+    });
+
+    expect(output).toContain('experimental-rule [draft] — Not yet enforced');
+    expect(output).toContain('(reviewer skipped; aspect is draft)');
+    expect(output).toContain('Source: required aspect for type \'library\'');
+    expect(output).not.toContain('read: .yggdrasil/aspects/experimental-rule/content.md');
+  });
+
+  it('defaults to [enforced] when status is undefined', () => {
+    const output = formatFileContext({
+      filePath: 'source/cli/src/core/validator.ts',
+      ownerPath: 'cli/core/validator',
+      ownerType: 'library',
+      aspects: [{
+        aspectId: 'deterministic',
+        aspectDescription: 'Same inputs produce identical outputs',
+        verifiedAgainst: '.yggdrasil/aspects/deterministic/content.md',
+      }],
+      dependencies: [],
+      dependentCount: 0,
+    });
+
+    expect(output).toContain('deterministic [enforced]');
   });
 });

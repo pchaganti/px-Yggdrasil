@@ -92,8 +92,8 @@ aspects:
     });
 
     // Find the index positions of aspect A and B headers
-    const idxA = out.indexOf('a — aspect A');
-    const idxB = out.indexOf('b — aspect B');
+    const idxA = out.indexOf('a [enforced] — aspect A');
+    const idxB = out.indexOf('b [enforced] — aspect B');
     expect(idxA).toBeGreaterThan(-1);
     expect(idxB).toBeGreaterThan(-1);
 

@@ -57,7 +57,16 @@ export function formatFileContext(data: FileContextData): string {
     lines.push('Must satisfy:');
     lines.push('');
     for (const aspect of data.aspects) {
-      lines.push(`  ${aspect.aspectId} — ${aspect.aspectDescription}`);
+      const status = aspect.status ?? 'enforced';
+      lines.push(`  ${aspect.aspectId} [${status}] — ${aspect.aspectDescription}`);
+      if (status === 'draft') {
+        lines.push('    (reviewer skipped; aspect is draft)');
+        if (aspect.source) {
+          lines.push(`    Source: ${posixPath(aspect.source)}`);
+        }
+        lines.push('');
+        continue;
+      }
       lines.push(`    read: ${posixPath(aspect.verifiedAgainst)}`);
       if (aspect.references) {
         for (const ref of aspect.references) {

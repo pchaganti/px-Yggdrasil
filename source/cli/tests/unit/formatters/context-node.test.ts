@@ -49,7 +49,7 @@ describe('formatNodeContext', () => {
     expect(output).toContain('  source/cli/src/core/validator.ts');
     // Aspects with claims
     expect(output).toContain('Must satisfy (1 aspect):');
-    expect(output).toContain('deterministic — Same inputs produce identical outputs');
+    expect(output).toContain('deterministic [enforced] — Same inputs produce identical outputs');
     expect(output).toContain('Source: architecture (type: library)');
     expect(output).toContain('read: .yggdrasil/aspects/deterministic/content.md');
     expect(output).toContain('Implies: posix-paths');
@@ -222,6 +222,139 @@ describe('formatNodeContext', () => {
     }));
     // Should say "2 aspects" (plural)
     expect(output).toContain('Must satisfy (2 aspects):');
+  });
+
+  it('renders [enforced] tag and read lines for enforced aspect with references', () => {
+    const output = formatNodeContext(makeNodeData({
+      aspects: [{
+        id: 'deterministic',
+        name: 'Determinism',
+        description: 'Same inputs produce identical outputs',
+        source: 'architecture (type: library)',
+        verifiedAgainst: '.yggdrasil/aspects/deterministic/content.md',
+        status: 'enforced',
+        references: [
+          { path: '.yggdrasil/aspects/deterministic/refs/table.md', description: 'lookup table' },
+        ],
+      }],
+    }));
+
+    expect(output).toContain('deterministic [enforced] — Same inputs produce identical outputs');
+    expect(output).toContain('read: .yggdrasil/aspects/deterministic/content.md');
+    expect(output).toContain('read: .yggdrasil/aspects/deterministic/refs/table.md — lookup table');
+    expect(output).not.toContain('(reviewer skipped');
+  });
+
+  it('renders [draft] tag with skip line and omits read lines for draft aspect', () => {
+    const output = formatNodeContext(makeNodeData({
+      aspects: [{
+        id: 'experimental-rule',
+        name: 'Experimental',
+        description: 'Not yet enforced',
+        source: 'own declaration',
+        verifiedAgainst: '.yggdrasil/aspects/experimental-rule/content.md',
+        status: 'draft',
+        references: [
+          { path: '.yggdrasil/aspects/experimental-rule/refs/notes.md' },
+        ],
+      }],
+    }));
+
+    expect(output).toContain('experimental-rule [draft] — Not yet enforced');
+    expect(output).toContain('(reviewer skipped; aspect is draft)');
+    expect(output).not.toContain('read: .yggdrasil/aspects/experimental-rule/content.md');
+    expect(output).not.toContain('read: .yggdrasil/aspects/experimental-rule/refs/notes.md');
+  });
+
+  it('preserves declaration order when mixing statuses', () => {
+    const output = formatNodeContext(makeNodeData({
+      aspects: [
+        {
+          id: 'aspect-enforced',
+          name: 'Enforced',
+          description: 'Enforced first',
+          source: 'own declaration',
+          verifiedAgainst: '.yggdrasil/aspects/aspect-enforced/content.md',
+          status: 'enforced',
+        },
+        {
+          id: 'aspect-draft',
+          name: 'Draft',
+          description: 'Draft second',
+          source: 'own declaration',
+          verifiedAgainst: '.yggdrasil/aspects/aspect-draft/content.md',
+          status: 'draft',
+        },
+        {
+          id: 'aspect-advisory',
+          name: 'Advisory',
+          description: 'Advisory third',
+          source: 'own declaration',
+          verifiedAgainst: '.yggdrasil/aspects/aspect-advisory/content.md',
+          status: 'advisory',
+        },
+      ],
+    }));
+
+    const enforcedIdx = output.indexOf('aspect-enforced [enforced]');
+    const draftIdx = output.indexOf('aspect-draft [draft]');
+    const advisoryIdx = output.indexOf('aspect-advisory [advisory]');
+    expect(enforcedIdx).toBeGreaterThan(-1);
+    expect(draftIdx).toBeGreaterThan(enforcedIdx);
+    expect(advisoryIdx).toBeGreaterThan(draftIdx);
+  });
+
+  it('renders Implies line for draft aspect when implies are set', () => {
+    const output = formatNodeContext(makeNodeData({
+      aspects: [{
+        id: 'experimental-rule',
+        name: 'Experimental',
+        description: 'Not yet enforced',
+        source: 'own declaration',
+        verifiedAgainst: '.yggdrasil/aspects/experimental-rule/content.md',
+        status: 'draft',
+        implies: ['posix-paths'],
+      }],
+    }));
+
+    expect(output).toContain('experimental-rule [draft] — Not yet enforced');
+    expect(output).toContain('(reviewer skipped; aspect is draft)');
+    expect(output).toContain('Implies: posix-paths');
+    expect(output).not.toContain('read: .yggdrasil/aspects/experimental-rule/content.md');
+  });
+
+  it('renders reference without description for enforced aspect', () => {
+    const output = formatNodeContext(makeNodeData({
+      aspects: [{
+        id: 'deterministic',
+        name: 'Determinism',
+        description: 'Same inputs produce identical outputs',
+        source: 'architecture (type: library)',
+        verifiedAgainst: '.yggdrasil/aspects/deterministic/content.md',
+        status: 'enforced',
+        references: [
+          { path: '.yggdrasil/aspects/deterministic/refs/table.md' },
+        ],
+      }],
+    }));
+
+    expect(output).toContain('read: .yggdrasil/aspects/deterministic/refs/table.md');
+    // No em-dash trailing description
+    expect(output).not.toContain('refs/table.md —');
+  });
+
+  it('defaults to [enforced] when status is undefined', () => {
+    const output = formatNodeContext(makeNodeData({
+      aspects: [{
+        id: 'deterministic',
+        name: 'Determinism',
+        description: 'Same inputs produce identical outputs',
+        source: 'architecture (type: library)',
+        verifiedAgainst: '.yggdrasil/aspects/deterministic/content.md',
+      }],
+    }));
+
+    expect(output).toContain('deterministic [enforced]');
   });
 
   it('uses plural form for 2+ flows (line 76 plural branch)', () => {

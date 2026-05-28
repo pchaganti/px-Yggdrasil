@@ -68,8 +68,17 @@ export function formatNodeContext(data: NodeContextData): string {
     lines.push(`Must satisfy (${data.aspects.length} aspect${data.aspects.length === 1 ? '' : 's'}):`);
     lines.push('');
     for (const aspect of data.aspects) {
-      lines.push(`  ${aspect.id} — ${aspect.description}`);
+      const status = aspect.status ?? 'enforced';
+      lines.push(`  ${aspect.id} [${status}] — ${aspect.description}`);
       lines.push(`    Source: ${posixPath(aspect.source)}`);
+      if (status === 'draft') {
+        lines.push('    (reviewer skipped; aspect is draft)');
+        if (aspect.implies && aspect.implies.length > 0) {
+          lines.push(`    Implies: ${aspect.implies.join(', ')}`);
+        }
+        lines.push('');
+        continue;
+      }
       lines.push(`    read: ${posixPath(aspect.verifiedAgainst)}`);
       if (aspect.references) {
         for (const ref of aspect.references) {
