@@ -14,7 +14,10 @@ mapping:
   - source/cli/tests/integration/aspect-references-impact.test.ts
   - source/cli/tests/integration/aspect-references-validation.test.ts
   - source/cli/tests/integration/aspect-references-when-implies.test.ts
+  - source/cli/tests/integration/aspect-status-downgrade-blocks.test.ts
   - source/cli/tests/integration/aspect-status-hash-stability.test.ts
+  - source/cli/tests/integration/aspect-status-implies.test.ts
+  - source/cli/tests/integration/aspect-status-lifecycle.test.ts
   - source/cli/tests/integration/build-pipeline.test.ts
   - source/cli/tests/integration/check-pipeline.test.ts
   - source/cli/tests/integration/validation-pipeline.test.ts

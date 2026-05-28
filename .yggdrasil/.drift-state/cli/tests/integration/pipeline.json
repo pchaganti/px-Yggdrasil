@@ -1,5 +1,5 @@
 {
-  "hash": "d74fafa717c663b6faab148ef7ad1bf01ade41bba764869ecdd3795e6d5de60c",
+  "hash": "e18c10e41f8c4cabb7070f78a8f2a1cb986bc84f9404d730fa6abda68661581e",
   "files": {
     "own-subset:cli/tests/integration/pipeline": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -18,11 +18,14 @@
     "source/cli/tests/integration/aspect-references-impact.test.ts": "5cafa4e50ad453d976a3c5ae56f43370d7fbce6ef2f9d68bc4dd13e57bfef8e5",
     "source/cli/tests/integration/aspect-references-validation.test.ts": "b9f779c9b76922f85b44c6773d6b849cffd6a2d5cf7bf9c81a35678cb8185557",
     "source/cli/tests/integration/aspect-references-when-implies.test.ts": "406b88eebffb860b7d56cb229a7c5e3889526633ea7aed2fb64128f543b7d5d3",
+    "source/cli/tests/integration/aspect-status-hash-stability.test.ts": "315f34f572e8259ed59859460013e1e35c804d4358d641b6d16147283661b2a9",
+    "source/cli/tests/integration/aspect-status-implies.test.ts": "42cc98ccb3835ac473e2b7fcbc387652d5ecd1649989708fff45615e67dec0c3",
+    "source/cli/tests/integration/aspect-status-lifecycle.test.ts": "88f45d81963d667ae4c720b7bbcc232d7de2eede943a887e60f48db93ea6e86d",
     "source/cli/tests/integration/build-pipeline.test.ts": "b4c1d4f267c20c028de327df8768516bd163ceffd44ec8795924144c3d7f66d5",
     "source/cli/tests/integration/check-pipeline.test.ts": "ca3009a773fdbc0e9418764012b7ee24138f0c806af2222ec4797ecaaee6dab8",
     "source/cli/tests/integration/validation-pipeline.test.ts": "1cfc150458fe5fdc3db62caf4fae35c1d7d8768c4b20f396c9396b990d026122",
     "source/cli/tests/setup.ts": "1a5c111c22e5faf263043c7844a0c844e50428cc7225cf47eac7ca23d15b220d",
-    "source/cli/tests/integration/aspect-status-hash-stability.test.ts": "315f34f572e8259ed59859460013e1e35c804d4358d641b6d16147283661b2a9"
+    "source/cli/tests/integration/aspect-status-downgrade-blocks.test.ts": "ef89cf4a5fca3d268b00acfff44ed0b6f76bd822cedea5c5dc2b2e8c4c22cd68"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -40,7 +43,10 @@
     "source/cli/tests/integration/aspect-references-impact.test.ts": 1779962628466.4946,
     "source/cli/tests/integration/aspect-references-validation.test.ts": 1779960828818.569,
     "source/cli/tests/integration/aspect-references-when-implies.test.ts": 1779977480958.8684,
+    "source/cli/tests/integration/aspect-status-downgrade-blocks.test.ts": 1779984838873.664,
     "source/cli/tests/integration/aspect-status-hash-stability.test.ts": 1779983820401.9539,
+    "source/cli/tests/integration/aspect-status-implies.test.ts": 1779984438896.915,
+    "source/cli/tests/integration/aspect-status-lifecycle.test.ts": 1779984625118.0383,
     "source/cli/tests/integration/build-pipeline.test.ts": 1779876504964.4133,
     "source/cli/tests/integration/check-pipeline.test.ts": 1776177846281.1602,
     "source/cli/tests/integration/validation-pipeline.test.ts": 1778854351492.1548,
