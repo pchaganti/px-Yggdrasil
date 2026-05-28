@@ -148,6 +148,7 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   issues.push(...checkOrphanedAspects(graph));
   issues.push(...checkWhenReferences(graph));
   issues.push(...checkAspectRuleSources(graph));
+  issues.push(...(await checkAspectReferences(graph)));
 
   // Stage 5: global checks.
   issues.push(...checkFileDuplicateMapping(graph));
@@ -1891,6 +1892,50 @@ function checkAspectTierReferences(graph: Graph): ValidationIssue[] {
           : `Add tier '${tier}' under reviewer.tiers in .yggdrasil/yg-config.yaml, or remove 'tier:' from the aspect.`,
       };
       issues.push({ code: 'aspect-tier-unknown', severity: 'error', rule: 'aspect-tier-unknown', ...issueMsg(msgData), messageData: msgData });
+    }
+  }
+  return issues;
+}
+
+// --- aspect-reference-broken: reference file must exist as a regular file ---
+
+async function checkAspectReferences(graph: Graph): Promise<ValidationIssue[]> {
+  const projectRoot = path.dirname(graph.rootPath);
+  const issues: ValidationIssue[] = [];
+  for (const aspect of graph.aspects) {
+    if (aspect.reviewer.type !== 'llm') continue;
+    for (const ref of aspect.references ?? []) {
+      const absPath = path.join(projectRoot, ref.path);
+      try {
+        const stats = await statPath(absPath);
+        if (!stats.isFile()) {
+          const msgData: IssueMessage = {
+            what: `Aspect '${aspect.id}' references '${ref.path}' but the path resolves to a directory.`,
+            why: `reference files must be regular files; directories cannot be loaded into the reviewer prompt.`,
+            next: `point references entry to a specific file or remove the entry in .yggdrasil/aspects/${aspect.id}/yg-aspect.yaml.`,
+          };
+          issues.push({
+            severity: 'error',
+            code: 'aspect-reference-broken',
+            rule: 'aspect-reference-broken',
+            ...issueMsg(msgData),
+            messageData: msgData,
+          });
+        }
+      } catch {
+        const msgData: IssueMessage = {
+          what: `Aspect '${aspect.id}' references '${ref.path}' but the file does not exist.`,
+          why: `reviewer cannot load missing reference files; approve would fail at runtime.`,
+          next: `create the file, fix the path, or remove the reference entry in .yggdrasil/aspects/${aspect.id}/yg-aspect.yaml.`,
+        };
+        issues.push({
+          severity: 'error',
+          code: 'aspect-reference-broken',
+          rule: 'aspect-reference-broken',
+          ...issueMsg(msgData),
+          messageData: msgData,
+        });
+      }
     }
   }
   return issues;
