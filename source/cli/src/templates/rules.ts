@@ -324,6 +324,15 @@ The log carries WHY a change was made — the motivation that does not
 decay when code or planning artifacts evolve. WHAT changed is already
 in the diff and aspect content; do not duplicate it.
 
+**Past entries are not a template.** Older entries in this log may have
+been written before these rules existed, or under conventions that have
+been retired. If \`yg log read\` shows entries that reference plans, tasks,
+phase numbers (e.g., "R0.3", "Phase 4.7"), section markers (e.g.,
+"Spec §9", "design §12.1"), or file paths in their bodies, those entries
+violate the self-containment rule above. Do NOT mirror their pattern
+when you write yours. Take the WHY from the diff and the conversation;
+ignore the prior entries' surface style.
+
 After a git merge: if both branches added log entries to the same node,
 run \`yg log merge-resolve --node <path>\` from the merge commit. The tool
 validates byte-exact ancestor portion and union of new entries — it cannot
