@@ -65,3 +65,27 @@ reviewer:                          # required — which reviewer verifies this a
                                    #     any_of:
                                    #       - relations: { calls: { target_type: service-client } }
                                    #       - descendants: { relations: { calls: { target_type: service-client } } }
+
+# references:                      # optional — supporting files for the LLM reviewer.
+                                   #   Permitted only when reviewer.type: llm.
+                                   #   Each entry is a string (shorthand) OR an object { path, description? }.
+                                   #
+                                   # Example:
+                                   #   references:
+                                   #     - docs/error-codes.md                    # shorthand
+                                   #     - path: source/cli/src/errors/codes.ts
+                                   #       description: "Catalogue of valid error codes; reviewer rejects unknown codes."
+                                   #
+                                   # Constraints (validated by `yg check`):
+                                   #   - Path is repo-root-relative.
+                                   #   - No '..' that escapes the repo root; no leading '/'; no Windows drive letter; no '~'.
+                                   #   - File must exist at check time and resolve (after symlink follow) to a regular file.
+                                   #   - No duplicates within one aspect.
+                                   #   - Permitted on AST aspects: NO.
+                                   #
+                                   # Drift semantics: changes to referenced files cascade to all nodes where this
+                                   # aspect is effective — same as changes to content.md. Run `yg impact --file <ref>`
+                                   # before editing a widely-referenced file.
+                                   #
+                                   # Size limits: per-tier caps via reviewer.tiers.<tier>.references.* in yg-config.yaml.
+                                   # Defaults: 64 KiB per file, 256 KiB total per aspect.
