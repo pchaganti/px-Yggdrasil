@@ -8,6 +8,7 @@ import {
   isLegacyAspectReviewer,
 } from '../core/format-version.js';
 import { inspectSecretsForValidation } from '../io/secrets-parser.js';
+import { addAspectStatusDefaults } from './aspect-status-defaults.js';
 
 const PROVIDER_SET = new Set<string>(KNOWN_PROVIDERS);
 const AST_STRING = 'ast';
@@ -359,6 +360,7 @@ export async function migrateTo50(yggRoot: string): Promise<MigrationResult> {
     await migrateAllAspects(yggRoot, actions, warnings);
   }
   await migrateSecretsFile(yggRoot, actions, warnings);
+  await addAspectStatusDefaults(yggRoot, warnings);
 
   const bumpVersion = warnings.length === 0;
   if (bumpVersion) {

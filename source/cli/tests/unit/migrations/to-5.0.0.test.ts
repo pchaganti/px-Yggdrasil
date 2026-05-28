@@ -18,6 +18,9 @@ async function setupYgg(opts: {
   config?: string;
   aspects?: Record<string, string>;
   secrets?: string;
+  nodes?: Record<string, string>;
+  architecture?: string;
+  flows?: Record<string, string>;
 }): Promise<string> {
   const root = await mkdtemp(path.join(tmpdir(), 'yg-mig50-'));
   dirs.push(root);
@@ -37,6 +40,27 @@ async function setupYgg(opts: {
   }
   if (opts.secrets !== undefined) {
     await writeFile(path.join(ygg, 'yg-secrets.yaml'), opts.secrets);
+  }
+  if (opts.nodes) {
+    const modelDir = path.join(ygg, 'model');
+    await mkdir(modelDir, { recursive: true });
+    for (const [nodePath, yaml] of Object.entries(opts.nodes)) {
+      const dir = path.join(modelDir, nodePath);
+      await mkdir(dir, { recursive: true });
+      await writeFile(path.join(dir, 'yg-node.yaml'), yaml);
+    }
+  }
+  if (opts.architecture !== undefined) {
+    await writeFile(path.join(ygg, 'yg-architecture.yaml'), opts.architecture);
+  }
+  if (opts.flows) {
+    const flowsDir = path.join(ygg, 'flows');
+    await mkdir(flowsDir, { recursive: true });
+    for (const [name, yaml] of Object.entries(opts.flows)) {
+      const dir = path.join(flowsDir, name);
+      await mkdir(dir, { recursive: true });
+      await writeFile(path.join(dir, 'yg-flow.yaml'), yaml);
+    }
   }
   return ygg;
 }
@@ -191,6 +215,19 @@ describe('transformAspectReviewer', () => {
     expect(result.value?.name).toBe('Test');
     expect(result.value?.description).toBe('desc');
   });
+
+  it('WARNS and leaves file unchanged when reviewer is an array', () => {
+    const result = transformAspectReviewer({ name: 'X', reviewer: ['llm'] });
+    expect(result.value).toBeUndefined();
+    expect(result.changed).toBe(false);
+    expect(result.warnings[0]).toMatch(/unexpected value/);
+  });
+
+  it('WARNS and leaves file unchanged when reviewer is a number', () => {
+    const result = transformAspectReviewer({ name: 'X', reviewer: 42 as unknown as string });
+    expect(result.value).toBeUndefined();
+    expect(result.warnings[0]).toMatch(/unexpected value/);
+  });
 });
 
 // ── migrateTo50 integration tests ───────────────────────────
@@ -323,6 +360,20 @@ describe('migrateTo50', () => {
     expect(result.warnings.some(w => w.includes('not found'))).toBe(true);
   });
 
+  it('warns when yg-config.yaml is unparseable YAML', async () => {
+    const ygg = await setupYgg({ config: ': not: [valid yaml\n' });
+    const result = await migrateTo50(ygg);
+    expect(result.bumpVersion).toBe(false);
+    expect(result.warnings.some(w => w.includes('parse error'))).toBe(true);
+  });
+
+  it('warns when yg-config.yaml top-level is not a mapping (scalar)', async () => {
+    const ygg = await setupYgg({ config: '42\n' });
+    const result = await migrateTo50(ygg);
+    expect(result.bumpVersion).toBe(false);
+    expect(result.warnings.some(w => w.includes('not a YAML mapping'))).toBe(true);
+  });
+
   it('warns and leaves aspect untouched when YAML is invalid', async () => {
     const ygg = await setupYgg({
       config: 'version: "4.3.0"\n',
@@ -348,5 +399,341 @@ describe('migrateTo50', () => {
     const result = await migrateTo50(ygg);
     expect(result.actions.filter(a => a.includes('tier-based shape'))).toHaveLength(0);
     expect(result.bumpVersion).toBe(true);
+  });
+
+  // ── addAspectStatusDefaults pass ───────────────────────────
+
+  it('aspect-status pass: absent status field → no rewrite, no warning, bumpVersion stays true', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        'a': 'name: A\nreviewer:\n  type: llm\nimplies:\n  - b\n',
+        'b': 'name: B\nreviewer:\n  type: llm\n',
+      },
+    });
+    const aspectABefore = await readFile(path.join(ygg, 'aspects/a/yg-aspect.yaml'), 'utf-8');
+    const aspectBBefore = await readFile(path.join(ygg, 'aspects/b/yg-aspect.yaml'), 'utf-8');
+
+    const result = await migrateTo50(ygg);
+
+    // No status-related warning, both aspects default to 'enforced' on both sides.
+    expect(result.warnings.filter(w => w.includes('aspect-status-migration'))).toEqual([]);
+    expect(result.bumpVersion).toBe(true);
+    // Files unchanged in content (no rewrites from this pass).
+    expect(await readFile(path.join(ygg, 'aspects/a/yg-aspect.yaml'), 'utf-8')).toBe(aspectABefore);
+    expect(await readFile(path.join(ygg, 'aspects/b/yg-aspect.yaml'), 'utf-8')).toBe(aspectBBefore);
+  });
+
+  it('aspect-status pass: implies escalation (A enforced bare-implies B advisory) → emits escalation warning, bumpVersion false', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        'a-strict': 'name: A\nreviewer:\n  type: llm\nimplies:\n  - b-soft\n',
+        'b-soft': 'name: B\nreviewer:\n  type: llm\nstatus: advisory\n',
+      },
+      nodes: {
+        'orders': 'name: orders\ntype: module\naspects:\n  - a-strict\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.bumpVersion).toBe(false);
+    const escalation = result.warnings.find(w => w.includes('aspect-status-migration-escalation'));
+    expect(escalation).toBeDefined();
+    expect(escalation).toMatch(/a-strict/);
+    expect(escalation).toMatch(/b-soft/);
+    expect(escalation).toMatch(/advisory/);
+    expect(escalation).toMatch(/1 node aspect/); // 1 direct attach
+  });
+
+  it('aspect-status pass: status_inherit: own-default on the escalation edge → NO escalation warning', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        'a-strict': 'name: A\nreviewer:\n  type: llm\nimplies:\n  - id: b-soft\n    status_inherit: own-default\n',
+        'b-soft': 'name: B\nreviewer:\n  type: llm\nstatus: advisory\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.warnings.filter(w => w.includes('aspect-status-migration-escalation'))).toEqual([]);
+    expect(result.bumpVersion).toBe(true);
+  });
+
+  it('aspect-status pass: architecture node-type attach with downgraded status → emits downgrade warning', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        'a': 'name: A\nreviewer:\n  type: llm\n', // default enforced
+      },
+      architecture: 'node_types:\n  command:\n    description: A command type.\n    aspects:\n      - id: a\n        status: advisory\n',
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.bumpVersion).toBe(false);
+    const downgrade = result.warnings.find(w => w.includes('aspect-status-migration-downgrade'));
+    expect(downgrade).toBeDefined();
+    expect(downgrade).toMatch(/yg-architecture\.yaml/);
+    expect(downgrade).toMatch(/node_type: command/);
+  });
+
+  it('aspect-status pass: flow attach with downgraded status → emits downgrade warning', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        'a': 'name: A\nreviewer:\n  type: llm\n', // default enforced
+      },
+      flows: {
+        'checkout': 'name: checkout\nnodes: []\naspects:\n  - id: a\n    status: advisory\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.bumpVersion).toBe(false);
+    const downgrade = result.warnings.find(w => w.includes('aspect-status-migration-downgrade'));
+    expect(downgrade).toBeDefined();
+    expect(downgrade).toMatch(/flows\/checkout\/yg-flow\.yaml/);
+  });
+
+  it('aspect-status pass: port attach contributes to channels and does not raise spurious warnings', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        'a': 'name: A\nreviewer:\n  type: llm\nstatus: advisory\n',
+      },
+      nodes: {
+        'payments': 'name: payments\ntype: module\nports:\n  charge:\n    aspects:\n      - id: a\n        status: advisory\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    // Aspect a default is advisory; site declared advisory → not below anchor → no warning.
+    expect(result.warnings.filter(w => w.includes('aspect-status-migration'))).toEqual([]);
+    expect(result.bumpVersion).toBe(true);
+  });
+
+  it('aspect-status pass: implied aspect with draft default (not advisory) also triggers escalation', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        'a-strict': 'name: A\nreviewer:\n  type: llm\nimplies:\n  - b-draft\n',
+        'b-draft': 'name: B\nreviewer:\n  type: llm\nstatus: draft\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.bumpVersion).toBe(false);
+    const escalation = result.warnings.find(w => w.includes('aspect-status-migration-escalation'));
+    expect(escalation).toBeDefined();
+    expect(escalation).toMatch(/draft/);
+  });
+
+  it('aspect-status pass: implier with advisory default does NOT trigger escalation (only enforced impliers do)', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        'a': 'name: A\nreviewer:\n  type: llm\nstatus: advisory\nimplies:\n  - b\n',
+        'b': 'name: B\nreviewer:\n  type: llm\nstatus: advisory\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.warnings.filter(w => w.includes('aspect-status-migration-escalation'))).toEqual([]);
+    expect(result.bumpVersion).toBe(true);
+  });
+
+  it('aspect-status pass: skips when no aspects directory exists', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.warnings.filter(w => w.includes('aspect-status-migration'))).toEqual([]);
+  });
+
+  it('aspect-status pass: tolerates broken node YAML (skips that node, no crash)', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        'a': 'name: A\nreviewer:\n  type: llm\n',
+      },
+      nodes: {
+        'bad': ': not: [valid\n',
+        'good': 'name: good\ntype: module\naspects:\n  - a\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    // Broken node parsed-warning is not produced by this pass; bad YAML is silently skipped.
+    expect(result.warnings.filter(w => w.includes('aspect-status-migration'))).toEqual([]);
+  });
+
+  it('aspect-status pass: tolerates broken flow YAML (skips that flow, no crash)', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        'a': 'name: A\nreviewer:\n  type: llm\n',
+      },
+      flows: {
+        'broken': ': not: [valid\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.warnings.filter(w => w.includes('aspect-status-migration'))).toEqual([]);
+  });
+
+  it('aspect-status pass: explicit status equal to anchor → NO downgrade warning', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        'a': 'name: A\nreviewer:\n  type: llm\n', // default enforced
+      },
+      nodes: {
+        'orders': 'name: orders\ntype: module\naspects:\n  - id: a\n    status: enforced\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.warnings.filter(w => w.includes('aspect-status-migration'))).toEqual([]);
+    expect(result.bumpVersion).toBe(true);
+  });
+
+  it('aspect-status pass: multiple sites for the same aspect — anchor includes the higher OTHER channel', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        // Aspect default draft (so aspectDefault alone is not the anchor).
+        'a': 'name: A\nreviewer:\n  type: llm\nstatus: draft\n',
+      },
+      nodes: {
+        // Node 1 declares enforced (raises anchor for node 2's site).
+        'high': 'name: high\ntype: module\naspects:\n  - id: a\n    status: enforced\n',
+        // Node 2 declares draft — strictly below the enforced anchor from node 1.
+        'low': 'name: low\ntype: module\naspects:\n  - id: a\n    status: draft\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.bumpVersion).toBe(false);
+    // The 'low' site is below the cross-channel anchor 'enforced' from 'high'.
+    expect(result.warnings.some(w => w.includes('aspect-status-migration-downgrade') && w.includes('low'))).toBe(true);
+  });
+
+  it('aspect-status pass: ignores aspects with invalid YAML (treats as missing aspect)', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        'bad': ': not: [valid yaml\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    // The aspect parser pass already produces a parse-error warning; status pass adds nothing.
+    expect(result.warnings.filter(w => w.includes('aspect-status-migration'))).toEqual([]);
+  });
+
+  it('aspect-status pass: ignores empty-string and null aspect attachment entries', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        'a': 'name: A\nreviewer:\n  type: llm\n',
+      },
+      nodes: {
+        'orders': 'name: orders\ntype: module\naspects:\n  - ""\n  - null\n  - a\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.warnings.filter(w => w.includes('aspect-status-migration'))).toEqual([]);
+  });
+
+  it('aspect-status pass: ignores object aspect attachment without id', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        'a': 'name: A\nreviewer:\n  type: llm\n',
+      },
+      nodes: {
+        'orders': 'name: orders\ntype: module\naspects:\n  - status: advisory\n  - a\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.warnings.filter(w => w.includes('aspect-status-migration'))).toEqual([]);
+  });
+
+  it('aspect-status pass: ignores port objects with non-array aspects', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        'a': 'name: A\nreviewer:\n  type: llm\n',
+      },
+      nodes: {
+        'payments': 'name: payments\ntype: module\nports:\n  charge:\n    description: x\n  refund: not-an-object\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.warnings.filter(w => w.includes('aspect-status-migration'))).toEqual([]);
+  });
+
+  it('aspect-status pass: ignores non-mapping aspect YAML (top-level array)', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        'arr': '- not\n- a mapping\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.warnings.filter(w => w.includes('aspect-status-migration'))).toEqual([]);
+  });
+
+  it('aspect-status pass: implies entry with empty string is ignored', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        'a': 'name: A\nreviewer:\n  type: llm\nimplies:\n  - ""\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.warnings.filter(w => w.includes('aspect-status-migration'))).toEqual([]);
+  });
+
+  it('aspect-status pass: ignores non-string/non-object aspect attachment entries (e.g. numbers)', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        'a': 'name: A\nreviewer:\n  type: llm\n',
+      },
+      // Use a malformed entry in implies (a number) — should be silently ignored by the status pass.
+      // (Aspect parser will warn separately during full validation.)
+      nodes: {
+        'orders': 'name: orders\ntype: module\naspects:\n  - 42\n  - a\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.warnings.filter(w => w.includes('aspect-status-migration'))).toEqual([]);
+  });
+
+  it('aspect-status pass: draft anchor (no enforced cascade) — advisory site does NOT trigger downgrade', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        // Aspect default draft; one site declares advisory — that's a raise, not a downgrade.
+        'a': 'name: A\nreviewer:\n  type: llm\nstatus: draft\n',
+      },
+      nodes: {
+        'orders': 'name: orders\ntype: module\naspects:\n  - id: a\n    status: advisory\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.warnings.filter(w => w.includes('aspect-status-migration-downgrade'))).toEqual([]);
+  });
+
+  it('aspect-status pass: explicit downgrade (node attaches enforced-default aspect with status: advisory) → emits downgrade warning, bumpVersion false', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      aspects: {
+        // Aspect a — default 'enforced' (status unset).
+        'a': 'name: A\nreviewer:\n  type: llm\n',
+      },
+      nodes: {
+        // Node explicitly sets status: advisory on aspect a — strictly below the aspect-default anchor (enforced).
+        'orders': 'name: orders\ntype: module\naspects:\n  - id: a\n    status: advisory\n',
+      },
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.bumpVersion).toBe(false);
+    const downgrade = result.warnings.find(w => w.includes('aspect-status-migration-downgrade'));
+    expect(downgrade).toBeDefined();
+    expect(downgrade).toMatch(/orders/);
+    expect(downgrade).toMatch(/aspect 'a'/);
+    expect(downgrade).toMatch(/advisory/);
+    expect(downgrade).toMatch(/enforced/);
   });
 });

@@ -11,3 +11,4 @@ mapping:
   - source/cli/src/migrations/to-4.3.0.ts
   - source/cli/src/migrations/index.ts
   - source/cli/src/migrations/to-5.0.0.ts
+  - source/cli/src/migrations/aspect-status-defaults.ts
