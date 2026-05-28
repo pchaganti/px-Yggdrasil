@@ -19,7 +19,7 @@ The CLI (`yg`) reads and validates — it never modifies files. You create and e
 
 **Nodes** — components. `model/<path>/yg-node.yaml`. Nodes nest by directory — children inherit parent aspects. Schema: `schemas/yg-node.yaml`.
 
-**Aspects** — enforceable rules. `aspects/<id>/yg-aspect.yaml` + either `content.md` (LLM reviewer) or `check.mjs` (AST reviewer). The `yg-aspect.yaml` requires a `reviewer:` mapping: `reviewer.type` is `llm` or `ast`. LLM aspects may also set `reviewer.tier:` to pick a named tier from `yg-config.yaml` (otherwise the configured default tier is used). An aspect can declare `implies: [other-aspect]` — implied aspects are included recursively (must be acyclic). LLM aspects may declare `references:` — supporting files (lookup tables, catalogues) included in the reviewer prompt and exposed to the agent under `read:`. Schema: `schemas/yg-aspect.yaml`.
+**Aspects** — enforceable rules. `aspects/<id>/yg-aspect.yaml` + either `content.md` (LLM reviewer) or `check.mjs` (AST reviewer). The `yg-aspect.yaml` requires a `reviewer:` mapping: `reviewer.type` is `llm` or `ast`. LLM aspects may also set `reviewer.tier:` to pick a named tier from `yg-config.yaml` (otherwise the configured default tier is used). An aspect can declare `implies: [other-aspect]` — implied aspects are included recursively (must be acyclic). LLM aspects may declare `references:` — supporting files (lookup tables, catalogues) included in the reviewer prompt and exposed to the agent under `read:`. Schema: `schemas/yg-aspect.yaml`. Aspects also carry a `status:` field (default `enforced`) — three levels `draft / advisory / enforced` control whether the reviewer runs and whether violations block.
 
 AST aspects (`reviewer.type: ast`) must declare `language: [<lang>, ...]` array — runner invokes `check.mjs` once per declared language. AST aspects must NOT set `reviewer.tier:` — tiers apply only to LLM aspects. See `yg knowledge read writing-ast-aspects`.
 
@@ -63,6 +63,8 @@ Consequences of this cascade:
 
 A `when` predicate on an aspect (or on a per-attach-site reference) filters applicability per channel — deterministic, zero LLM cost. Grammar deep dive: `yg knowledge read conditional-aspects`.
 
+Each object-form attach entry on channels 1–6 may carry an explicit `status:` value; channel 7 (implies) carries `status_inherit:` instead. Effective status = max() across cascading channels; downgrade attempts are validator errors.
+
 ### Reviewer
 
 The reviewer is an LLM invoked by `yg approve`. It receives: the aspect's content.md, any declared reference files, and all source files of the node. It checks every rule from content.md against the code.
@@ -73,6 +75,8 @@ The reviewer is an LLM invoked by `yg approve`. It receives: the aspect's conten
 Three approve modes: `--node <path>` (one or more nodes), `--aspect <id>` (batch all nodes affected by this aspect change), `--flow <name>` (batch all nodes in this flow). Batch at most 3-5 nodes per invocation when using multiple `--node` flags — the reviewer loses accuracy with too many. Use `--dry-run` to preview the reviewer prompt without making an LLM call.
 
 In a batch invocation each node runs the full approve algorithm independently — one node's failure does NOT abort the others. Details (algorithm phases, partial-failure recovery, scenario cost table): `yg knowledge read drift-and-cascade`.
+
+Reviewer skips draft aspects entirely. Advisory aspect refusals render as warnings (do not block `yg check`); enforced aspect refusals render as errors (block `yg check`). Verdicts are recorded in baseline regardless of status.
 
 ### Drift and Cascade
 
@@ -86,6 +90,8 @@ Cascade is the cost multiplier. Before changing a widely-used aspect, run `yg im
 If you modify code without reading the aspect content files (`yg context --file` → follow the `read:` paths), you will likely write code that violates rules you didn't know about. The reviewer will reject it. You will have to read the aspects anyway, then rewrite. Double cost.
 
 Do not interrupt `yg approve` — it processes each aspect across all source files. Interrupting leaves drift state unrecorded. Always read the full raw output — no `| grep`, `| head`, `| tail`. The reviewer already ran; the output is the return on that cost.
+
+Status change from `draft` to `advisory` or `enforced` causes drift (no baseline exists yet) — the agent must run `yg approve --node <path>` to create one. Status change between `advisory` and `enforced` is NOT drift but does flip how the verdict renders, possibly turning a passing check red overnight if a refused baseline existed.
 
 ### CLI Commands — essentials
 
@@ -113,9 +119,11 @@ When code doesn't match an aspect, three options:
 
 | Option | When | Cost |
 |---|---|---|
-| **Change code** — conform to aspect | Aspect is correct, code violates it | Proportional to files needing fixes |
-| **Change aspect** — conform to code | Aspect is too narrow or wrong, code is correct | `yg impact --aspect` → re-approve ALL nodes with this aspect |
-| **Suppress** — `yg-suppress` waiver | Known tech debt, refactor not now | Zero approve cost, consciously accepted risk |
+| Change code | Aspect correct, code violates | Files needing fixes |
+| Change aspect | Aspect wrong or too narrow, code correct | Re-approve all affected |
+| Demote to advisory | Aspect correct, but blocking CI now is too disruptive — collect signal first | Re-approve once; warnings stay visible until addressed |
+| Mark draft | Aspect content is WIP / not ready for any judgment | Zero; aspect is dormant |
+| Suppress | Single-file known debt, surrounding code is correct | Zero; documented waiver |
 
 This is a cost/impact trade-off. Assess, propose the option to the user, let them decide. Never choose silently — especially for options 2 and 3.
 
@@ -225,6 +233,8 @@ When responding to user:
 When reviewer rejects:
 - Read its technical message (it's for you, not the user)
 - Translate to user-facing explanation if surfaced to user
+
+Status terms `draft / advisory / enforced` are English graph syntax. Translate user phrases ('na razie sugestią' → `advisory`, 'jeszcze nie gotowe' → `draft`, 'krytyczne' → `enforced`) before editing graph YAML.
 
 ### Per-node artifacts: what they are for
 
@@ -373,7 +383,7 @@ context.
 
 ### When to Create Graph Elements
 
-**Aspect** — when the same pattern appears in 3+ files AND the reviewer can verify it against source code. Both conditions. "Every handler logs audit trail" — pattern + verifiable = aspect. "Code should be readable" — not verifiable, not an aspect. Read `schemas/yg-aspect.yaml` before creating. For reviewer choice (LLM vs AST), aspect format, cost model: `yg knowledge read aspects-overview`. To write the rules: `yg knowledge read writing-llm-aspects` (or `writing-ast-aspects`). Content `.md` files state WHAT must be satisfied and WHY — use the user's words, never invent rationale. Things that do NOT become aspects: knowledge already visible in source code (imports, config), non-enforceable knowledge (business strategy, personas, pricing), and conventions the reviewer cannot check against code.
+**Aspect** — when the same pattern appears in 3+ files AND the reviewer can verify it against source code. Both conditions. "Every handler logs audit trail" — pattern + verifiable = aspect. "Code should be readable" — not verifiable, not an aspect. Read `schemas/yg-aspect.yaml` before creating. For reviewer choice (LLM vs AST), aspect format, cost model: `yg knowledge read aspects-overview`. To write the rules: `yg knowledge read writing-llm-aspects` (or `writing-ast-aspects`). Content `.md` files state WHAT must be satisfied and WHY — use the user's words, never invent rationale. Things that do NOT become aspects: knowledge already visible in source code (imports, config), non-enforceable knowledge (business strategy, personas, pricing), and conventions the reviewer cannot check against code. Choose initial status: `draft` if content.md is still being authored or the rule is unclear (no enforcement, no cost); `advisory` if content.md is complete but you want to gather signal across the repo without blocking CI; `enforced` if the rule is vetted on a small set and you want repo-wide enforcement immediately.
 
 **Flow** — when you see a sequence of steps toward a business goal. Not code call sequences — real-world processes. "User places an order" = flow. "Handler calls service" = relation between nodes. Read `schemas/yg-flow.yaml` and `yg knowledge read flows` before creating.
 
@@ -432,6 +442,8 @@ When proposing a suppress (the only path to a written suppress):
 3. Ask the user to provide or approve the reason text.
 4. Only then write the marker with the user-supplied reason.
 
+Before writing a suppress: confirm the aspect's effective status is `advisory` or `enforced`. Suppressing a `draft` aspect is a no-op (reviewer never runs there). `draft` is a graph-level WIP marker for the entire aspect; `yg-suppress` is a file-level waiver for known code-side debt — never use `draft` to silence a single file's violation.
+
 ### Escape Hatch
 
 If the user explicitly requests a code-only change without graph updates: comply, but warn that this creates drift. `yg check` will catch it — and CI will block until it's resolved. Do not run `yg approve` — leave the drift visible.
@@ -480,6 +492,7 @@ When you need to do X, run/read Y:
 | Flows — definition, participation, propagation | `yg knowledge read flows` |
 | Use CLI commands deeply | `yg knowledge read cli-reference` |
 | Browse all available knowledge topics | `yg knowledge list` |
+| Aspect status (draft/advisory/enforced) | `yg knowledge read aspect-status` |
 
 ### Operational Notes
 
