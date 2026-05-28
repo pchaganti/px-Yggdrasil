@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { parse as parseYaml } from 'yaml';
-import type { NodeMeta, PortDef, Relation, RelationType } from '../model/graph.js';
+import type { AspectStatus, NodeMeta, PortDef, Relation, RelationType } from '../model/graph.js';
 import { parseAspectAttachment } from '../core/parsing/when-parser.js';
 import type { WhenPredicate } from '../model/when.js';
 
@@ -44,6 +44,7 @@ export async function parseNodeYaml(filePath: string): Promise<NodeMeta> {
     description,
     aspects: aspectsResult.aspects,
     ...(aspectsResult.aspectWhens && { aspectWhens: aspectsResult.aspectWhens }),
+    ...(aspectsResult.aspectStatus && { aspectStatus: aspectsResult.aspectStatus }),
     relations: relations.length > 0 ? relations : undefined,
     mapping,
     ports,
@@ -53,7 +54,11 @@ export async function parseNodeYaml(filePath: string): Promise<NodeMeta> {
 function parseAspects(
   raw: unknown,
   filePath: string,
-): { aspects?: string[]; aspectWhens?: Record<string, WhenPredicate> } {
+): {
+  aspects?: string[];
+  aspectWhens?: Record<string, WhenPredicate>;
+  aspectStatus?: Record<string, AspectStatus>;
+} {
   if (raw === undefined || raw === null) return {};
   if (!Array.isArray(raw)) {
     throw new Error(`yg-node.yaml at ${filePath}: 'aspects' must be an array`);
@@ -62,6 +67,7 @@ function parseAspects(
 
   const aspects: string[] = [];
   let aspectWhens: Record<string, WhenPredicate> | undefined;
+  let aspectStatus: Record<string, AspectStatus> | undefined;
   const seen = new Set<string>();
 
   for (let i = 0; i < raw.length; i++) {
@@ -77,9 +83,12 @@ function parseAspects(
     if (parsed.when) {
       (aspectWhens ??= {})[parsed.id] = parsed.when;
     }
+    if (parsed.status) {
+      (aspectStatus ??= {})[parsed.id] = parsed.status;
+    }
   }
 
-  return { aspects: aspects.length > 0 ? aspects : undefined, aspectWhens };
+  return { aspects: aspects.length > 0 ? aspects : undefined, aspectWhens, aspectStatus };
 }
 
 function parseRelations(raw: unknown, filePath: string): Relation[] {
@@ -191,6 +200,7 @@ function parsePorts(rawPorts: unknown, filePath: string): Record<string, PortDef
 
     const portAspects: string[] = [];
     let portAspectWhens: Record<string, WhenPredicate> | undefined;
+    let portAspectStatus: Record<string, AspectStatus> | undefined;
     const seenPortAspects = new Set<string>();
     for (let i = 0; i < (obj.aspects as unknown[]).length; i++) {
       const parsed = parseAspectAttachment(
@@ -205,11 +215,15 @@ function parsePorts(rawPorts: unknown, filePath: string): Record<string, PortDef
       if (parsed.when) {
         (portAspectWhens ??= {})[parsed.id] = parsed.when;
       }
+      if (parsed.status) {
+        (portAspectStatus ??= {})[parsed.id] = parsed.status;
+      }
     }
     ports[name] = {
       description: obj.description.trim(),
       aspects: portAspects,
       ...(portAspectWhens && { aspectWhens: portAspectWhens }),
+      ...(portAspectStatus && { aspectStatus: portAspectStatus }),
     };
   }
 

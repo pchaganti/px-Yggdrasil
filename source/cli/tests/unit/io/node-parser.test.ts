@@ -771,4 +771,75 @@ ports:
       await rm(tmpDir, { recursive: true, force: true });
     });
   });
+
+  describe('node-parser: aspect status', () => {
+    const TMP_STATUS = path.join(__dirname, '../../fixtures/tmp-node-status');
+
+    async function writeNodeFixture(yaml: string): Promise<string> {
+      await mkdir(TMP_STATUS, { recursive: true });
+      const p = path.join(TMP_STATUS, 'yg-node.yaml');
+      await writeFile(p, yaml, 'utf-8');
+      return p;
+    }
+
+    afterEach(async () => {
+      await rm(TMP_STATUS, { recursive: true, force: true });
+    });
+
+    it('bare string aspect → no status override', async () => {
+      const p = await writeNodeFixture(`
+name: Ex
+type: service
+aspects:
+  - input-validation
+`);
+      const meta = await parseNodeYaml(p);
+      expect(meta.aspects).toEqual(['input-validation']);
+      expect(meta.aspectStatus).toBeUndefined();
+    });
+
+    it('object form with status', async () => {
+      const p = await writeNodeFixture(`
+name: Ex
+type: service
+aspects:
+  - id: input-validation
+    status: advisory
+`);
+      const meta = await parseNodeYaml(p);
+      expect(meta.aspects).toEqual(['input-validation']);
+      expect(meta.aspectStatus?.['input-validation']).toBe('advisory');
+    });
+
+    it('mixed: bare + object form', async () => {
+      const p = await writeNodeFixture(`
+name: Ex
+type: service
+aspects:
+  - a
+  - id: b
+    status: draft
+`);
+      const meta = await parseNodeYaml(p);
+      expect(meta.aspects).toEqual(['a', 'b']);
+      expect(meta.aspectStatus?.['a']).toBeUndefined();
+      expect(meta.aspectStatus?.['b']).toBe('draft');
+    });
+
+    it('status on port aspect', async () => {
+      const p = await writeNodeFixture(`
+name: Ex
+type: service
+ports:
+  charge:
+    description: Charges a card
+    aspects:
+      - id: correlation
+        status: enforced
+`);
+      const meta = await parseNodeYaml(p);
+      expect(meta.ports?.['charge'].aspects).toEqual(['correlation']);
+      expect(meta.ports?.['charge'].aspectStatus?.['correlation']).toBe('enforced');
+    });
+  });
 });
