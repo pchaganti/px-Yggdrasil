@@ -21,6 +21,7 @@ export interface NodeContextAspect {
   source: string;
   verifiedAgainst: string;
   implies?: string[];
+  references?: Array<{ path: string; description?: string }>;
 }
 
 export interface NodeContextFlow {

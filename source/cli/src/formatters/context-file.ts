@@ -13,6 +13,7 @@ export interface FileContextAspect {
   aspectDescription: string;
   verifiedAgainst: string;
   source?: string; // for implied aspects
+  references?: Array<{ path: string; description?: string }>;
 }
 
 export interface FileContextDep {

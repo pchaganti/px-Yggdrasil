@@ -12,3 +12,5 @@ Add posixPath() helper to context-file.ts and context-node.ts; normalize all fil
 Added loadGraphOrAbort helper (cli-preamble.ts) to centralize the 'No .yggdrasil/ directory' error previously duplicated across 12 commands. The helper exits with a structured what/why/next message on ENOENT-shaped loader failures and rethrows other errors.
 ## [2026-05-16T18:22:21.557Z]
 Added abortOnUnexpectedError helper to cli-preamble.ts. Generic catch-block errors across all commands now route through this single emit point, producing a uniform 'Unexpected error while <context>: <msg>' wrapped in buildIssueMessage.
+## [2026-05-28T08:15:42.398Z]
+Added optional references field (Array<{path, description?}>) to both NodeContextAspect and FileContextAspect interfaces. This field carries per-aspect reference paths through the data shape so the formatter can render additional 'read:' lines for each reference. The field is populated only for LLM aspects; AST aspects always produce undefined.

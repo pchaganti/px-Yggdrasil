@@ -1,5 +1,5 @@
 {
-  "hash": "b71bc3e8c5321cee312bb20cc4073c14a3a2ef3ea3c1ad9347970329064d70a7",
+  "hash": "28f5284b0b627ab80cf06e49371985f485a41c18965a7305b7b0ea1693745421",
   "files": {
     "own-subset:cli/formatters": "15ceb1b16c4614dc0a81954fcf485bf53e3db603b33388864d56a989412db3a3",
     "tier-identity:what-why-next": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -17,10 +17,10 @@
     ".yggdrasil/model/cli/model/context/yg-node.yaml": "64e105e412ef925827cde4f59346925000f405ec38cd36676ed4318a34590a33",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
     "source/cli/src/formatters/cli-preamble.ts": "b4bde83c3ef1d0e1ca99dc0c670d701899175b6f4d4dc7b497b662fc48778ea7",
-    "source/cli/src/formatters/context-file.ts": "840a51e74660deb739f30fb73fe2d7fd70225c0df43287c92a6c9f13b17ca95c",
-    "source/cli/src/formatters/context-node.ts": "81c43d372c46dea586f8c1febad01d1c8e584001b498c10d7479fe23abf7e55a",
     "source/cli/src/formatters/message-builder.ts": "eb9f5e94c04b9d372cb8299a84ee5f85daa463620ed195ee01e736e13ab9f518",
-    "source/cli/src/formatters/predicate-trace.ts": "8f484e857c19c2a976ad78b1230ae7689aef23259e58af702d3d7f9e5d50a216"
+    "source/cli/src/formatters/predicate-trace.ts": "8f484e857c19c2a976ad78b1230ae7689aef23259e58af702d3d7f9e5d50a216",
+    "source/cli/src/formatters/context-file.ts": "2ccdc93c41471e30e5e6656694a74ace3717dfed7ec704a83213ef39d95c6ae0",
+    "source/cli/src/formatters/context-node.ts": "fb922616ea95ae385a866e5c09637b6df2ec9e271b354ba6b777c0bca60ddb6e"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -35,13 +35,13 @@
     ".yggdrasil/model/cli/model/context/yg-node.yaml": 1776177846203.256,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     "source/cli/src/formatters/cli-preamble.ts": 1778954493811.726,
-    "source/cli/src/formatters/context-file.ts": 1778920940819.536,
-    "source/cli/src/formatters/context-node.ts": 1778920977107.716,
+    "source/cli/src/formatters/context-file.ts": 1779956107420.1865,
+    "source/cli/src/formatters/context-node.ts": 1779956103133.3323,
     "source/cli/src/formatters/message-builder.ts": 1778872978779.9426,
     "source/cli/src/formatters/predicate-trace.ts": 1778651000120.3818
   },
   "log": {
-    "last_entry_datetime": "2026-05-16T18:22:21.557Z",
-    "prefix_hash": "e6e62af8ef5feec539323ab542c0d7c449bfac2780e1d4aa1774f0c64df6b69e"
+    "last_entry_datetime": "2026-05-28T08:15:42.398Z",
+    "prefix_hash": "13636eac98190ebe7ca5da3501e124eb1883d27658bdd83e26a1e8748db1f6f1"
   }
 }

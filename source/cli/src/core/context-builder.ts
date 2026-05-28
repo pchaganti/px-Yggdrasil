@@ -182,6 +182,9 @@ export function buildNodeContextData(graph: Graph, nodePath: string): NodeContex
   const aspects = Array.from(effectiveAspectIds).map(aspectId => {
     const aspectDef = graph.aspects.find(a => a.id === aspectId);
     const source = getAspectSource(aspectId, node, graph);
+    const refs = aspectDef?.reviewer?.type === 'llm' && aspectDef.references && aspectDef.references.length > 0
+      ? aspectDef.references.map(r => ({ path: r.path, description: r.description }))
+      : undefined;
     return {
       id: aspectId,
       name: aspectDef?.name ?? aspectId,
@@ -191,6 +194,7 @@ export function buildNodeContextData(graph: Graph, nodePath: string): NodeContex
         ? `.yggdrasil/aspects/${aspectId}/check.mjs`
         : `.yggdrasil/aspects/${aspectId}/content.md`,
       implies: aspectDef?.implies,
+      ...(refs && { references: refs }),
     };
   });
 
@@ -250,12 +254,16 @@ export function buildFileContextData(graph: Graph, filePath: string, ownerPath: 
 
   const aspects = Array.from(effectiveAspectIds).map(aspectId => {
     const aspectDef = graph.aspects.find(a => a.id === aspectId);
+    const refs = aspectDef?.reviewer?.type === 'llm' && aspectDef.references && aspectDef.references.length > 0
+      ? aspectDef.references.map(r => ({ path: r.path, description: r.description }))
+      : undefined;
     return {
       aspectId,
       aspectDescription: aspectDef?.description ?? aspectDef?.name ?? aspectId,
       verifiedAgainst: aspectDef?.reviewer?.type === 'ast'
         ? `.yggdrasil/aspects/${aspectId}/check.mjs`
         : `.yggdrasil/aspects/${aspectId}/content.md`,
+      ...(refs && { references: refs }),
     };
   });
 
