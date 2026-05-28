@@ -4,9 +4,15 @@ description: End-to-end smoke tests for the core CLI pipelines — approve, buil
 aspects: []
 relations: []
 mapping:
+  - source/cli/tests/integration/approve-batch-with-missing-reference.test.ts
   - source/cli/tests/integration/approve-dry-run-references.test.ts
   - source/cli/tests/integration/approve-pipeline.test.ts
+  - source/cli/tests/integration/approve-with-references.test.ts
   - source/cli/tests/integration/aspect-language-validation.test.ts
+  - source/cli/tests/integration/aspect-references-context.test.ts
+  - source/cli/tests/integration/aspect-references-drift.test.ts
+  - source/cli/tests/integration/aspect-references-validation.test.ts
+  - source/cli/tests/integration/aspect-references-when-implies.test.ts
   - source/cli/tests/integration/build-pipeline.test.ts
   - source/cli/tests/integration/check-pipeline.test.ts
   - source/cli/tests/integration/validation-pipeline.test.ts
