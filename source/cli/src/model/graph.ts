@@ -48,6 +48,8 @@ export interface ArchitectureNodeType {
   aspects?: string[];
   /** Per-aspect applicability filters for aspects listed in `aspects` */
   aspectWhens?: Record<string, WhenPredicate>;
+  /** Per-aspect explicit status override for aspects listed in `aspects` (channel 3) */
+  aspectStatus?: Record<string, AspectStatus>;
   parents?: string[];
   relations?: Partial<Record<RelationType, string[]>>;
   /**
@@ -89,6 +91,8 @@ export interface PortDef {
   aspects: string[];
   /** Per-aspect applicability filters for aspects listed in `aspects` */
   aspectWhens?: Record<string, WhenPredicate>;
+  /** Per-aspect explicit status override for aspects listed in `aspects` (channel 6) */
+  aspectStatus?: Record<string, AspectStatus>;
 }
 
 export type ReviewerProvider =
@@ -126,6 +130,8 @@ export interface NodeMeta {
   aspects?: string[];
   /** Per-aspect applicability filters for aspects listed in `aspects` */
   aspectWhens?: Record<string, WhenPredicate>;
+  /** Per-aspect explicit status override for aspects listed in `aspects` (channel 1) */
+  aspectStatus?: Record<string, AspectStatus>;
   ports?: Record<string, PortDef>;
   relations?: Relation[];
   /** Flat list of file/directory paths relative to repo root */
@@ -230,6 +236,8 @@ export interface FlowDef {
   aspects?: string[];
   /** Per-aspect applicability filters for aspects listed in `aspects` */
   aspectWhens?: Record<string, WhenPredicate>;
+  /** Per-aspect explicit status override for aspects listed in `aspects` (channel 5) */
+  aspectStatus?: Record<string, AspectStatus>;
 }
 
 // ============================================================
