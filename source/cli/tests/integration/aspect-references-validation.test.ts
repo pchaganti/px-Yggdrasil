@@ -117,6 +117,42 @@ references:
     expect(out).toContain('aspect-references-on-ast');
   });
 
+  it('parser-phase aspect-reference-escape surfaces in yg check output', () => {
+    const repo = makeBaseRepo();
+    repos.push(repo);
+    const ygg = join(repo, '.yggdrasil');
+    // Absolute path — escape attempt
+    writeFileSync(join(ygg, 'aspects', 'a', 'yg-aspect.yaml'), `name: A
+description: t
+reviewer: { type: llm }
+references:
+  - /etc/passwd
+`, 'utf-8');
+
+    const { code, out } = ygCheck(repo);
+    expect(code).toBe(1);
+    expect(out).toContain('aspect-reference-escape');
+  });
+
+  it('parser-phase aspect-reference-duplicate surfaces in yg check output', () => {
+    const repo = makeBaseRepo();
+    repos.push(repo);
+    const ygg = join(repo, '.yggdrasil');
+    writeFileSync(join(repo, 'docs', 'codes.md'), 'content\n', 'utf-8');
+    // Two identical paths — duplicate
+    writeFileSync(join(ygg, 'aspects', 'a', 'yg-aspect.yaml'), `name: A
+description: t
+reviewer: { type: llm }
+references:
+  - docs/codes.md
+  - docs/codes.md
+`, 'utf-8');
+
+    const { code, out } = ygCheck(repo);
+    expect(code).toBe(1);
+    expect(out).toContain('aspect-reference-duplicate');
+  });
+
   it('happy path — existing reference file produces no reference-related errors', () => {
     const repo = makeBaseRepo();
     repos.push(repo);
