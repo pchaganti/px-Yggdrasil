@@ -1,6 +1,6 @@
 name: Core Validator Tests
 type: test-suite
-description: Unit tests for the validator pipeline and aspect-level verification — validator, validator-aspect-files, validator-reviewer, and aspect-verifier
+description: Unit tests for the validator pipeline and aspect-level verification — validator, validator-aspect-files, validator-reviewer, aspect-verifier, validator-references, and validator-aspect-status
 aspects: []
 relations: []
 mapping:
@@ -9,3 +9,4 @@ mapping:
   - source/cli/tests/unit/core/validator-reviewer.test.ts
   - source/cli/tests/unit/core/aspect-verifier.test.ts
   - source/cli/tests/unit/core/validator-references.test.ts
+  - source/cli/tests/unit/core/validator-aspect-status.test.ts

@@ -1,5 +1,5 @@
 {
-  "hash": "bd055ea3671968ba7997aff7078841ebe101b19c94de520304617abff738695d",
+  "hash": "5949d144ad52b3c82f5b7216000b7dee4daae5638c49da3b43fc89df871e9443",
   "files": {
     "own-subset:cli/formatters": "15ceb1b16c4614dc0a81954fcf485bf53e3db603b33388864d56a989412db3a3",
     "tier-identity:what-why-next": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -22,7 +22,7 @@
     "source/cli/src/formatters/message-builder.ts": "eb9f5e94c04b9d372cb8299a84ee5f85daa463620ed195ee01e736e13ab9f518",
     "source/cli/src/formatters/predicate-trace.ts": "8f484e857c19c2a976ad78b1230ae7689aef23259e58af702d3d7f9e5d50a216",
     "source/cli/src/formatters/truncate.ts": "e8162777e6034f34e3dd5b9e13921ad7365f22b9a508d62950c8a110d4fba599",
-    "source/cli/src/formatters/aspect-status-messages.ts": "999e80e44b417806c283a65089f5bc72885638fb09495f1c8652b04df5d2fb59"
+    "source/cli/src/formatters/aspect-status-messages.ts": "d0cee5b4668b5b78a04c34ea3460f68e0360e7ae0b9d2a030af73e4a061f648d"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -36,7 +36,7 @@
     ".yggdrasil/aspects/posix-paths-output/content.md": 1778912983383.063,
     ".yggdrasil/model/cli/model/context/yg-node.yaml": 1776177846203.256,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    "source/cli/src/formatters/aspect-status-messages.ts": 1779967236796.2705,
+    "source/cli/src/formatters/aspect-status-messages.ts": 1779970681136.216,
     "source/cli/src/formatters/cli-preamble.ts": 1778954493811.726,
     "source/cli/src/formatters/context-file.ts": 1779956349114.7988,
     "source/cli/src/formatters/context-node.ts": 1779956358152.8213,
@@ -45,7 +45,7 @@
     "source/cli/src/formatters/truncate.ts": 1779956339718.3044
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T11:23:19.110Z",
-    "prefix_hash": "414d020ddb8669718c4e07a04569420795fb0e3aa72ac20155c269151d3f974a"
+    "last_entry_datetime": "2026-05-28T12:19:41.996Z",
+    "prefix_hash": "e1717f7d36a804da687a052068b3fa643948a91b1a55e011e3c2c51ee92f02a2"
   }
 }

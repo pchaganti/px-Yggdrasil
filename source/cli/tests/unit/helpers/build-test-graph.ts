@@ -1,7 +1,22 @@
+import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import type {
   Graph, GraphNode, AspectDef, FlowDef, YggConfig, ArchitectureDef,
   ArchitectureNodeType, AspectStatus, StatusInherit,
 } from '../../../src/model/graph.js';
+
+// Tracks tmpdirs created by buildTestGraph so test suites can clean up via
+// cleanupTestGraphs() in afterEach/afterAll. mkdtempSync without cleanup is a
+// test-determinism violation; tests that omit rootPath MUST call this.
+const createdTmpRoots: string[] = [];
+
+export function cleanupTestGraphs(): void {
+  while (createdTmpRoots.length > 0) {
+    const dir = createdTmpRoots.pop()!;
+    try { rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
+  }
+}
 
 export interface TestAspectInput {
   id: string;
@@ -80,12 +95,24 @@ export function buildTestGraph(input: {
   }
   const architecture: ArchitectureDef = { node_types };
 
+  // Default to an isolated tmpdir so validator FS scans stay bounded.
+  // path.dirname(rootPath) becomes the project root walkRepoFiles iterates.
+  // Created tmpdirs are tracked for cleanup via cleanupTestGraphs().
+  let rootPath = input.rootPath;
+  if (!rootPath) {
+    const projectRoot = mkdtempSync(path.join(tmpdir(), 'yg-test-graph-'));
+    createdTmpRoots.push(projectRoot);
+    rootPath = path.join(projectRoot, '.yggdrasil');
+    try { mkdirSync(rootPath); } catch { /* ignore */ }
+  }
+
   return {
     config: input.config ?? EMPTY_CONFIG,
     architecture,
     nodes: nodeByPath,
     flows,
     aspects,
-    rootPath: input.rootPath ?? '/tmp/test-graph',
+    schemas: [],
+    rootPath,
   } as unknown as Graph;
 }

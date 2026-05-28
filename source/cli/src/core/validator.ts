@@ -1,5 +1,6 @@
 import path from 'node:path';
-import type { Graph } from '../model/graph.js';
+import type { Graph, GraphNode, AspectStatus } from '../model/graph.js';
+import { STATUS_ORDER } from '../model/graph.js';
 import type { ValidationResult, ValidationIssue } from '../model/validation.js';
 import { inspectSecretsForValidation } from '../io/secrets-parser.js';
 import { LANGUAGES } from './graph/language-registry.js';
@@ -15,11 +16,12 @@ import { expandMappingPaths } from '../io/hash.js';
 import { readSortedDir, statPath, fileAccess, fileExistsSync } from '../io/graph-fs.js';
 import { walkRepoFiles } from '../io/repo-scanner.js';
 import type { IssueMessage } from '../model/validation.js';
-import { computeEffectiveAspects } from './graph/aspects.js';
+import { computeEffectiveAspects, computeEffectiveAspectStatuses, getAspectStatusSources, type AttachSource } from './graph/aspects.js';
 import { FileContentCache } from '../io/file-content-cache.js';
 import { evaluateFileWhen } from './file-when-evaluator.js';
 import { renderTrace } from '../formatters/predicate-trace.js';
 import { selectTierForAspect } from './tier-selection.js';
+import { aspectStatusDowngradeMessage } from '../formatters/aspect-status-messages.js';
 
 function issueMsg(data: IssueMessage): { messageData: IssueMessage } {
   return { messageData: data };
@@ -150,6 +152,7 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   issues.push(...checkWhenReferences(graph));
   issues.push(...checkAspectRuleSources(graph));
   issues.push(...(await checkAspectReferences(graph)));
+  issues.push(...checkAspectStatusDowngrade(graph));
 
   // Stage 5: global checks.
   issues.push(...checkFileDuplicateMapping(graph));
@@ -2010,6 +2013,84 @@ async function checkAspectReferences(graph: Graph): Promise<ValidationIssue[]> {
         ...issueMsg(msgData),
         messageData: msgData,
       });
+    }
+  }
+  return issues;
+}
+
+// --- aspect-status-downgrade: explicit attach-site status must not lower the cascading anchor ---
+
+function sourceIsExplicit(source: AttachSource, node: GraphNode, aspectId: string, graph: Graph): boolean {
+  switch (source.channel) {
+    case 1: return aspectId in (node.meta.aspectStatus ?? {});
+    case 2: {
+      const ancestorPath = source.origin.replace(/^ancestor:/, '');
+      const ancestor = graph.nodes.get(ancestorPath);
+      return aspectId in (ancestor?.meta.aspectStatus ?? {});
+    }
+    case 3: return aspectId in (graph.architecture?.node_types[node.meta.type]?.aspectStatus ?? {});
+    case 4: {
+      const m = source.origin.match(/^ancestor-type:[^@]+@(.+)$/);
+      const ancestorPath = m?.[1];
+      if (!ancestorPath) return false;
+      const ancestor = graph.nodes.get(ancestorPath);
+      const typeDef = ancestor && graph.architecture?.node_types[ancestor.meta.type];
+      return aspectId in (typeDef?.aspectStatus ?? {});
+    }
+    case 5: {
+      const flowPath = source.origin.replace(/^flow:/, '');
+      const flow = graph.flows.find(f => f.path === flowPath);
+      return aspectId in (flow?.aspectStatus ?? {});
+    }
+    case 6: {
+      const m = source.origin.match(/^port:([^@]+)@(.+)$/);
+      if (!m) return false;
+      const [, portName, targetPath] = m;
+      const target = graph.nodes.get(targetPath);
+      const port = target?.meta.ports?.[portName];
+      return aspectId in (port?.aspectStatus ?? {});
+    }
+  }
+}
+
+function checkAspectStatusDowngrade(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  for (const node of graph.nodes.values()) {
+    const statuses = computeEffectiveAspectStatuses(node, graph);
+    for (const [aspectId] of statuses) {
+      const sources = getAspectStatusSources(node, aspectId, graph);
+      const aspectDef = graph.aspects.find(a => a.id === aspectId);
+      const aspectDefault: AspectStatus = aspectDef?.status ?? 'enforced';
+
+      for (const source of sources) {
+        if (!sourceIsExplicit(source, node, aspectId, graph)) continue;
+
+        const otherDeclared = sources.filter(s => s !== source).map(s => s.declared);
+        const anchor: AspectStatus = otherDeclared.length === 0
+          ? aspectDefault
+          : otherDeclared.reduce<AspectStatus>(
+              (acc, cur) => (STATUS_ORDER[cur] > STATUS_ORDER[acc] ? cur : acc),
+              'draft',
+            );
+
+        if (STATUS_ORDER[source.declared] < STATUS_ORDER[anchor]) {
+          const msgData = aspectStatusDowngradeMessage({
+            nodePath: node.path,
+            aspectId,
+            declared: source.declared,
+            anchor,
+            origin: source.origin === `own:${node.path}` ? 'aspect-default and other channels' : source.origin,
+          });
+          issues.push({
+            code: 'aspect-status-downgrade',
+            severity: 'error',
+            rule: 'aspect-status-downgrade',
+            ...issueMsg(msgData),
+            messageData: msgData,
+            nodePath: node.path,
+          });
+        }
+      }
     }
   }
   return issues;
