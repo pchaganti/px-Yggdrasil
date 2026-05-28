@@ -1,5 +1,5 @@
 {
-  "hash": "b58fd1faf8609e10f280febb35589baab9eecc88b2d104c0f36208642d99f0d4",
+  "hash": "8366be90b004d7b6596e8d909c9555ce14abbe90c349b711968323a6d835846e",
   "files": {
     "own-subset:cli/tests/unit/support/parsers": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -10,6 +10,7 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/io/architecture-parser.test.ts": "912466fe0664f80617d97063aef671c3272274ff2216b4de995de79fb3bbaff5",
+    "source/cli/tests/unit/io/architecture-parser-status.test.ts": "b11962b385f705888a571c5f996fc483437a5fc3330b41dec7130b899f73fd12",
     "source/cli/tests/unit/io/aspect-parser.test.ts": "72dc9d6547bbb2dcaa9eef8aab73304bd597ada626d3d713b3daffa478abb3da",
     "source/cli/tests/unit/io/aspect-parser-references.test.ts": "0e3e2357878d82eb0e9c04c1bebcd1388ce4b8e6308cdd748133b7876e8aefd2",
     "source/cli/tests/unit/io/aspect-status-parsing.test.ts": "2b56ad14df0cf91f113738059013cc3396fecbd09c29ee4cf45bb8583424d070",
@@ -18,7 +19,7 @@
     "source/cli/tests/unit/io/log-parser.test.ts": "72cbfd947e54141c3352f179b84e6a96ce5f4ecbef59490cc02438560c21d8df",
     "source/cli/tests/unit/io/node-parser.test.ts": "1abc21707a9fb548476b165dacc4884f28eb6aec9f1ca2bdf7635f5256f2f3ee",
     "source/cli/tests/unit/io/when-parser.test.ts": "46211247127c155656c1d67bd28a2b78b7a8ab845923498701e04fd3cd2f2389",
-    "source/cli/tests/unit/io/architecture-parser-status.test.ts": "b11962b385f705888a571c5f996fc483437a5fc3330b41dec7130b899f73fd12"
+    "source/cli/tests/unit/io/flow-parser-status.test.ts": "e1341695af7453a82863040008823b76a863407c9ab1859a9e54e6817e25f5a4"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -34,12 +35,13 @@
     "source/cli/tests/unit/io/aspect-status-parsing.test.ts": 1779967328650.9912,
     "source/cli/tests/unit/io/file-when-parser.test.ts": 1778851229833.6035,
     "source/cli/tests/unit/io/flow-parser.test.ts": 1778918778052.933,
+    "source/cli/tests/unit/io/flow-parser-status.test.ts": 1779968478334.18,
     "source/cli/tests/unit/io/log-parser.test.ts": 1778851229832.0247,
     "source/cli/tests/unit/io/node-parser.test.ts": 1779967752327.9346,
     "source/cli/tests/unit/io/when-parser.test.ts": 1778851229835.2869
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T11:37:03.638Z",
-    "prefix_hash": "a69156313cb341c5c0c80ac4b1bdfc9a7bdbce4ef0f58ccc41d3811c4125e53b"
+    "last_entry_datetime": "2026-05-28T11:44:49.807Z",
+    "prefix_hash": "98514b195674b8b68184af61333a8c1d949c1261ec05b63e852c9b51d9e55a39"
   }
 }
