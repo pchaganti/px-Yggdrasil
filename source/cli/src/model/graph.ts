@@ -171,6 +171,25 @@ export interface AspectReviewerSpec {
 }
 
 // ============================================================
+// AspectStatus — three-level enforcement
+// ============================================================
+
+export type AspectStatus = 'draft' | 'advisory' | 'enforced';
+
+export const STATUS_ORDER: Readonly<Record<AspectStatus, number>> = {
+  draft: 0,
+  advisory: 1,
+  enforced: 2,
+};
+
+export const ASPECT_STATUS_VALUES: readonly AspectStatus[] = ['draft', 'advisory', 'enforced'];
+
+/** Propagation modifier on implies edges. */
+export type StatusInherit = 'strictest' | 'own-default';
+
+export const STATUS_INHERIT_VALUES: readonly StatusInherit[] = ['strictest', 'own-default'];
+
+// ============================================================
 // Aspect
 // ============================================================
 
