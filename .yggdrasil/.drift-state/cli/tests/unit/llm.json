@@ -1,5 +1,5 @@
 {
-  "hash": "c1e20ebbf72ace71b6b0851fea62a77509d819b93356cff27a9fd92abb9554da",
+  "hash": "54e30ca2070e108a5e0e41fdcf3d348ea9910edbbc7d4e7680bff39973bca012",
   "files": {
     "own-subset:cli/tests/unit/llm": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -8,19 +8,19 @@
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/llm/anthropic.test.ts": "60c9dfb7d8b395c5d3172400b9f8771fac7461a3fd5f33bee97fc4884d2017dd",
-    "source/cli/tests/unit/llm/api-utils.test.ts": "1606a4d0e79bdd547199ba1508c553eb971ecf7caa82c23da601eea8e0ffea55",
     "source/cli/tests/unit/llm/claude-code.test.ts": "6dfb0b542d0bbb0079d64a3777a456172fd715e2f534304fd7e7ab653f9f9f46",
     "source/cli/tests/unit/llm/cli-base.test.ts": "b8c39e522b0ff38cdeed92445746283833a6c1ed98313ac07abea2db766c6b3f",
     "source/cli/tests/unit/llm/cli-providers.test.ts": "a57dd1c8dea3c3de2da6824f2e6d51ff93b788da6cf0987a259a95cc2c251529",
-    "source/cli/tests/unit/llm/google.test.ts": "6bfc143216f2a6d85098f4b62757f7b853abf8ffa7e5152f88005a7d8a41ffd6",
     "source/cli/tests/unit/llm/model-fetcher.test.ts": "384f3fb605ccf985c985001566bfaef3301ee751415a09645e327ddd77fe567c",
-    "source/cli/tests/unit/llm/openai.test.ts": "20ebba5d4ed8dd200230558249d1a8951b41b71d63ef7ed7872430a2f6a8103e",
     "source/cli/tests/unit/llm/provider.test.ts": "ff86be1fd6d9f07f2c553ea1aec1af6f236b2926e0e6edb0dd65160c21b56704",
     "source/cli/tests/unit/llm/reviewer-test.test.ts": "623728381ef7dd8c90ac996648d645f40922638c344194fc3dde66a17cf04380",
     "source/cli/tests/unit/llm/error-source.test.ts": "ff1362e850b1b3f36db6ad113fe65ea1823dee1a93ea30ae92483512bf6f7ee2",
-    "source/cli/tests/unit/llm/xml-escape.test.ts": "10543b2fd5aebe29975c459ce5f16673bdd67178e276394123864adae2419a59",
-    "source/cli/tests/unit/llm/aspect-verifier-references.test.ts": "ff68ba77f0532a51abdef4bca8831afb23db8b20ab803bad80de7d871992dfbc"
+    "source/cli/tests/unit/llm/aspect-verifier-references.test.ts": "ff68ba77f0532a51abdef4bca8831afb23db8b20ab803bad80de7d871992dfbc",
+    "source/cli/tests/unit/llm/anthropic.test.ts": "f1f00a7d0cf181975e1b4b3776e2a581572108dc20c420755c73c870638be1a1",
+    "source/cli/tests/unit/llm/api-utils.test.ts": "fe6d0edff596b810ed09bac712c30aa20c8cfe5fc3a7ab45c08b3f3252d38788",
+    "source/cli/tests/unit/llm/google.test.ts": "fa3fec511fbc66a1d2bdceeb425abae0bbf197b5aa1057b5a19df793daece00c",
+    "source/cli/tests/unit/llm/openai.test.ts": "054a154dc0ec6a93d602d736e03a51b50260bcd70bcf25d56ac397c9464d6467",
+    "source/cli/tests/unit/llm/xml-escape.test.ts": "d0bfb0142c4b5cafc82f11a1436d72940ce70a335ad68d3e75e79c621872e7ae"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -28,22 +28,22 @@
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/llm/anthropic.test.ts": 1776177846290.0945,
-    "source/cli/tests/unit/llm/api-utils.test.ts": 1776177846290.3054,
+    "source/cli/tests/unit/llm/anthropic.test.ts": 1779963738022.3489,
+    "source/cli/tests/unit/llm/api-utils.test.ts": 1779963520997.236,
     "source/cli/tests/unit/llm/claude-code.test.ts": 1776177846290.4834,
     "source/cli/tests/unit/llm/cli-base.test.ts": 1779794513954.12,
     "source/cli/tests/unit/llm/cli-providers.test.ts": 1776177846290.8035,
-    "source/cli/tests/unit/llm/google.test.ts": 1776177846290.9426,
+    "source/cli/tests/unit/llm/google.test.ts": 1779963762261.494,
     "source/cli/tests/unit/llm/model-fetcher.test.ts": 1779956895719.0083,
-    "source/cli/tests/unit/llm/openai.test.ts": 1776177846291.208,
+    "source/cli/tests/unit/llm/openai.test.ts": 1779963744066.013,
     "source/cli/tests/unit/llm/provider.test.ts": 1776177846291.3774,
     "source/cli/tests/unit/llm/reviewer-test.test.ts": 1779956899708.9058,
     "source/cli/tests/unit/llm/error-source.test.ts": 1779794513954.2378,
-    "source/cli/tests/unit/llm/xml-escape.test.ts": 1779956691842.9502,
+    "source/cli/tests/unit/llm/xml-escape.test.ts": 1779962414128.6423,
     "source/cli/tests/unit/llm/aspect-verifier-references.test.ts": 1779957168349.2122
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T08:35:55.675Z",
-    "prefix_hash": "bbe8c6b8e1b29542f217dc24e9c0408edb2289b73c065970be801c5568f1c805"
+    "last_entry_datetime": "2026-05-28T10:18:49.162Z",
+    "prefix_hash": "3ff97a916c765765f486d621de9ca3c8a40960cae3c87cd80fce166f0b9d9afb"
   }
 }

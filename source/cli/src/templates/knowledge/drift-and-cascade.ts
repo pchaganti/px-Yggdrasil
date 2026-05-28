@@ -35,11 +35,22 @@ Upstream drift is also called cascade because a single upstream change
 can cascade to many nodes:
 
 \`\`\`
-aspect "audit-logging" content.md changes
-  → 20 nodes have this aspect effective
-  → all 20 nodes enter upstream drift state
-  → 20 separate LLM calls required to re-approve
+[content drift]    aspect "audit-logging" content.md changes
+                     → 20 nodes have this aspect effective
+                     → all 20 nodes enter upstream drift state
+                     → 20 separate LLM calls required to re-approve
+
+[reference drift]  aspect "error-codes" reference file docs/codes.md changes
+                     → 5 nodes have this aspect effective
+                     → all 5 nodes enter upstream drift state (cause: docs/codes.md)
+                     → 5 separate LLM calls required to re-approve
 \`\`\`
+
+In \`yg check\` output each drifted node shows the upstream cause: the
+specific file that changed (whether it is content.md, check.mjs, or a
+declared reference file). Use this to distinguish a rule change from a
+reference-data update before deciding whether to batch or re-approve
+individually.
 
 ## Cascade scope
 

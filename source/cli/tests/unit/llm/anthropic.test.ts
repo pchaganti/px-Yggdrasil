@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { AnthropicProvider } from '../../../src/llm/anthropic.js';
 import type { LlmConfig } from '../../../src/model/graph.js';
 
@@ -8,6 +8,9 @@ const baseCfg: LlmConfig = {
 };
 
 describe('AnthropicProvider', () => {
+  beforeEach(() => { delete process.env.ANTHROPIC_API_KEY; });
+  afterEach(() => { delete process.env.ANTHROPIC_API_KEY; });
+
   it('constructs with config', () => {
     expect(new AnthropicProvider({ ...baseCfg, api_key: 'sk-ant-test' })).toBeDefined();
   });

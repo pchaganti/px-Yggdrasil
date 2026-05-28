@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { GoogleProvider } from '../../../src/llm/google.js';
 import type { LlmConfig } from '../../../src/model/graph.js';
 
@@ -8,6 +8,9 @@ const baseCfg: LlmConfig = {
 };
 
 describe('GoogleProvider', () => {
+  beforeEach(() => { delete process.env.GOOGLE_API_KEY; });
+  afterEach(() => { delete process.env.GOOGLE_API_KEY; });
+
   it('constructs with config', () => {
     expect(new GoogleProvider({ ...baseCfg, api_key: 'goog-test' })).toBeDefined();
   });

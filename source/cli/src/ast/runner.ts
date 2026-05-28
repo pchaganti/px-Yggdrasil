@@ -5,14 +5,17 @@ import { ensureLoaderRegistered } from './loader-hook.js';
 import { parseFile } from './parser.js';
 import type { IssueMessage } from '../model/validation.js';
 import { collectSuppressions, isLineSuppressed, SuppressMarkerError } from './suppress.js';
-import type { Node } from 'web-tree-sitter';
+import type { Node, Tree } from 'web-tree-sitter';
 import type { CheckContext, Violation } from './types.js';
+
+export type ParseCache = Map<string, { content: string; ast: Tree }>;
 
 export interface RunAstAspectParams {
   aspectDir: string;
   aspectId: string;
   files: Array<{ path: string }>;
   projectRoot: string;
+  parseCache?: ParseCache;
 }
 
 export interface RunAstAspectResult {
@@ -82,6 +85,11 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
 
   const sourceFiles = [];
   for (const f of params.files) {
+    const cached = params.parseCache?.get(f.path);
+    if (cached !== undefined) {
+      sourceFiles.push({ path: f.path, content: cached.content, ast: cached.ast });
+      continue;
+    }
     const content = await readFile(path.resolve(params.projectRoot, f.path), 'utf-8');
     let ast;
     try {
@@ -109,6 +117,7 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
         next: `Fix the syntax error in ${f.path}.`,
       });
     }
+    params.parseCache?.set(f.path, { content, ast });
     sourceFiles.push({ path: f.path, content, ast });
   }
 

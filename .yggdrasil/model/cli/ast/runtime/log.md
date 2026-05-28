@@ -8,3 +8,5 @@ Add find-comments.ts reading comment node types from language registry per ctx.l
 Add AST_CHECK_FILE_NOT_IN_CONTEXT runtime guard. check.mjs cannot synthesize violations for files outside ctx.files (protects suppress mechanism — markers cannot reach unknown files). Throws via existing AstRunnerError; cli/approve.ts catch (added in Task 3) flows it through errorSource: 'astRuntime'.
 ## [2026-05-26T10:52:26.554Z]
 Remove find-comments.ts from mapping — this file was reassigned to cli/ast/report as part of the public API consolidation. The runtime node now only contains: loader hook, parser, check runner, and suppress marker extractor.
+## [2026-05-28T10:07:11.726Z]
+Added optional ParseCache parameter to RunAstAspectParams and runAstAspect. When provided, the cache is checked before reading and parsing each file — if the file is already in the cache, the cached content and AST are reused directly. After parsing, the result is stored in the cache. This avoids redundant file reads and re-parses when the same source files are visited by multiple AST aspects in a single dry-run or approve invocation. The ParseCache type is exported for use by CLI-layer callers.

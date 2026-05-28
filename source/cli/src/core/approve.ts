@@ -525,7 +525,8 @@ export function resolveAspects(
     const aspectDef = graph.aspects.find(a => a.id === aspectId);
     if (!aspectDef) continue;
     const contentFiles = aspectDef.artifacts.filter(a => a.filename.endsWith('.md'));
-    if (contentFiles.length === 0) continue;
+    const isAst = aspectDef.reviewer?.type === 'ast';
+    if (!isAst && contentFiles.length === 0) continue;
     const content = contentFiles.map(a => a.content).join('\n\n');
     result.push({ id: aspectId, description: aspectDef.description ?? aspectDef.name, content, reviewer: aspectDef.reviewer, references: aspectDef.references });
   }

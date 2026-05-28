@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { resolveApiKey, resolveMaxTokens, apiFetch } from '../../../src/llm/api-utils.js';
 import type { LlmConfig } from '../../../src/model/graph.js';
 import type { LlmProvider } from '../../../src/llm/types.js';
@@ -9,6 +9,7 @@ const baseCfg: LlmConfig = {
 };
 
 describe('resolveApiKey', () => {
+  beforeEach(() => { delete process.env.OPENAI_API_KEY; });
   afterEach(() => { delete process.env.OPENAI_API_KEY; });
 
   it('returns api_key from config when present', () => {

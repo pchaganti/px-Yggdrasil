@@ -176,6 +176,14 @@ aspect is reviewed independently — A's prompt does NOT contain B's
 references, even when A implies B. If A's content.md says "see catalogue
 in B", declare the same reference on A or move it onto A directly.
 
+### Composition with when
+
+If an aspect has a \`when\` predicate that filters it out on a particular node,
+its references are also filtered out on that node — references attach to the
+aspect's effective presence, not its declaration. A \`when\`-filtered aspect
+contributes neither aspect content nor references to the reviewer prompt on
+filtered nodes.
+
 ### Drift cost
 
 Editing a referenced file cascades to every node where the referring

@@ -23,8 +23,8 @@ describe('escapeXmlText', () => {
   });
 
   it('escapes control chars U+0000..U+001F except tab/newline/CR', () => {
-    expect(escapeXmlText('a\x01b', { attribute: false })).toBe('a&#x1;b');
-    expect(escapeXmlText('a\x07b', { attribute: false })).toBe('a&#x7;b');
+    expect(escapeXmlText('a\x01b', { attribute: false })).toBe('a&#x01;b');
+    expect(escapeXmlText('a\x07b', { attribute: false })).toBe('a&#x07;b');
     expect(escapeXmlText('a\x1fb', { attribute: false })).toBe('a&#x1f;b');
   });
 

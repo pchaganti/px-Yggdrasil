@@ -25,6 +25,9 @@ reviewer:
         temperature: 0            # Sampling temperature (0 = deterministic)
         endpoint: http://localhost:11434   # Required for ollama and openai-compatible
         max_tokens: auto          # Response budget: 'auto' or positive integer
+      # references:                         # optional caps on aspect reference files
+      #   max_bytes_per_file: 65536         # default: 64 KiB per reference file
+      #   max_total_bytes_per_aspect: 262144  # default: 256 KiB total per aspect
 
 quality:
   max_direct_relations: 10        # Max out-edges per node before wide-node warning

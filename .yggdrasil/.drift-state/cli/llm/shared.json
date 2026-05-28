@@ -1,5 +1,5 @@
 {
-  "hash": "ad1e6b2a85fc83be742dadefbca332e7404983f39b1a17943546cdc7ff68c887",
+  "hash": "340260a7bc614d806c65dfce892d0bc9cca3d827c54ff8b26f09a343a19ec0e9",
   "files": {
     "own-subset:cli/llm/shared": "78c235f3cf8c38ab5f01ff2d70f00cda29b714ffa1adaf5dad7ac84c6a7a0146",
     "tier-identity:diagnostic-logging": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -17,10 +17,10 @@
     "source/cli/src/llm/provider.ts": "9639bef6c74ad697525f3b68b144c2a8864f03f5fd9715fe193eaab3809bb139",
     "source/cli/src/llm/index.ts": "2d506311c3ae23d8855f043cd95c1b243b942920b75c70e5efc43eb13cc67a09",
     "source/cli/src/llm/api-utils.ts": "fda9f82a4e77ed9e58b3e5d6b23f01556d1dbdf3b44ee89264a1c761b0946d80",
+    "source/cli/src/llm/aspect-verifier.ts": "754696ba5fec6b28ca1d4d0b7499255ec03b548ee90832463ca313c8b0e7e2ec",
     "source/cli/src/llm/reviewer-test.ts": "05c8a5b09320643bb76df54e8abe221e252686e08e8152be3a26e3b4089e001d",
     "source/cli/src/llm/model-fetcher.ts": "0c986bd9b6bf33393e48ec1bee70481d8db3dbd42b2eb4c69200798cf777afc3",
-    "source/cli/src/llm/xml-escape.ts": "1b0bed2d48363f2f4bec8627b35edfbb574e1d63f80fc3ad4b20f8faf98ff87b",
-    "source/cli/src/llm/aspect-verifier.ts": "754696ba5fec6b28ca1d4d0b7499255ec03b548ee90832463ca313c8b0e7e2ec"
+    "source/cli/src/llm/xml-escape.ts": "fe137a7ad8acd1fae2d2ddc068881ac0eb2340a54fe24a5c149a7fa0c2800657"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -38,10 +38,10 @@
     "source/cli/src/llm/aspect-verifier.ts": 1779957307562.658,
     "source/cli/src/llm/reviewer-test.ts": 1776177846233.7026,
     "source/cli/src/llm/model-fetcher.ts": 1776177846233.1375,
-    "source/cli/src/llm/xml-escape.ts": 1779956701024.9624
+    "source/cli/src/llm/xml-escape.ts": 1779962407193.0742
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T08:35:50.463Z",
-    "prefix_hash": "3e27014e429b5494935e69cee8ea1197c00b3f7e89304b71ce9c1fbc5a347dc9"
+    "last_entry_datetime": "2026-05-28T10:05:41.526Z",
+    "prefix_hash": "ff1252e70cb84b4fdb59bfddffd830a774ef14f380ed1f355012ee05db6cb1e5"
   }
 }

@@ -221,6 +221,33 @@ export function check(ctx) {
     ).rejects.toMatchObject({ code: 'AST_SOURCE_PARSE_ERROR' });
   });
 
+  it('parseCache: same file across two aspect calls is parsed only once', async () => {
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-')); tmpDirs.push(dir);
+    writeFileSync(path.join(dir, 'check.mjs'), `
+export function check(ctx) {
+  return [];
+}
+`);
+    const tmpFile = path.join(dir, 'x.ts');
+    writeFileSync(tmpFile, 'const valid = 1;');
+
+    const cache = new Map();
+    await runAstAspect({ aspectDir: dir, aspectId: 'a1', files: [{ path: tmpFile }], projectRoot: '/', parseCache: cache });
+    expect(cache.size).toBe(1);
+
+    // Modify the file to syntactically invalid content between calls.
+    // If the cache is consulted on the second run, the call still succeeds because
+    // the cached AST is reused. If the cache is ignored, the runner reads the file
+    // again and surfaces AST_SOURCE_PARSE_ERROR.
+    writeFileSync(tmpFile, 'const = = broken @@');
+    await expect(
+      runAstAspect({ aspectDir: dir, aspectId: 'a2', files: [{ path: tmpFile }], projectRoot: '/', parseCache: cache }),
+    ).resolves.toMatchObject({ violations: [] });
+    expect(cache.size).toBe(1);
+  });
+
   it('AST_CHECK_FILE_NOT_IN_CONTEXT when check.mjs returns violation for file outside ctx.files', async () => {
     const { mkdtempSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
