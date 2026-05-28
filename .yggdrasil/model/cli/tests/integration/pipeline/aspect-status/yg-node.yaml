@@ -1,0 +1,10 @@
+name: Aspect Status Integration Tests
+type: test-suite
+description: "End-to-end smoke tests for aspect status lifecycle — downgrade blocks, hash stability, implies propagation, and lifecycle transitions."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/integration/aspect-status-downgrade-blocks.test.ts
+  - source/cli/tests/integration/aspect-status-hash-stability.test.ts
+  - source/cli/tests/integration/aspect-status-implies.test.ts
+  - source/cli/tests/integration/aspect-status-lifecycle.test.ts

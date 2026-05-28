@@ -1,0 +1,34 @@
+{
+  "hash": "a50e1e5f62cabe804c9826c27b68e8a1ba32e9898f613074b011b23839e68aca",
+  "files": {
+    "own-subset:cli/tests/integration/pipeline/build-check": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
+    ".yggdrasil/model/cli/tests/integration/yg-node.yaml": "f6203e633f0cb0b6bc84c3337606df49a00920a414f6557fe2f3f91bfd034442",
+    ".yggdrasil/model/cli/tests/integration/pipeline/yg-node.yaml": "9c95586349f19434f8d14b7854eb7f61828fbb251166776f22febf14185193b7",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
+    ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/integration/build-pipeline.test.ts": "b4c1d4f267c20c028de327df8768516bd163ceffd44ec8795924144c3d7f66d5",
+    "source/cli/tests/integration/check-pipeline.test.ts": "ca3009a773fdbc0e9418764012b7ee24138f0c806af2222ec4797ecaaee6dab8",
+    "source/cli/tests/integration/validation-pipeline.test.ts": "1cfc150458fe5fdc3db62caf4fae35c1d7d8768c4b20f396c9396b990d026122",
+    "source/cli/tests/setup.ts": "1a5c111c22e5faf263043c7844a0c844e50428cc7225cf47eac7ca23d15b220d"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
+    ".yggdrasil/model/cli/tests/integration/yg-node.yaml": 1778923836291.2395,
+    ".yggdrasil/model/cli/tests/integration/pipeline/yg-node.yaml": 1779996040953.1306,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
+    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
+    "source/cli/tests/integration/build-pipeline.test.ts": 1779876504964.4133,
+    "source/cli/tests/integration/check-pipeline.test.ts": 1776177846281.1602,
+    "source/cli/tests/integration/validation-pipeline.test.ts": 1778854351492.1548,
+    "source/cli/tests/setup.ts": 1778838384333.1035
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "hash": "edeecc6207c46a03863ce950a4b66fa474f1208a0bff923a13170170e18871f0",
+  "files": {
+    "own-subset:cli/tests/integration/pipeline/aspect-references": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
+    ".yggdrasil/model/cli/tests/integration/yg-node.yaml": "f6203e633f0cb0b6bc84c3337606df49a00920a414f6557fe2f3f91bfd034442",
+    ".yggdrasil/model/cli/tests/integration/pipeline/yg-node.yaml": "9c95586349f19434f8d14b7854eb7f61828fbb251166776f22febf14185193b7",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
+    ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/integration/aspect-language-validation.test.ts": "d4ebe10afc7f73ee40b4ef0f96903cdcf14878ba21752425ff71efad78c16d85",
+    "source/cli/tests/integration/aspect-references-context.test.ts": "6791d1583496b80d329634400984b2b0612924c6528211fc3696b7ebd389b47c",
+    "source/cli/tests/integration/aspect-references-drift.test.ts": "3b472ec5a3b004f334455d15f12f57f7b9e30769c9953c074c41c03c6f20a027",
+    "source/cli/tests/integration/aspect-references-impact.test.ts": "5cafa4e50ad453d976a3c5ae56f43370d7fbce6ef2f9d68bc4dd13e57bfef8e5",
+    "source/cli/tests/integration/aspect-references-validation.test.ts": "b9f779c9b76922f85b44c6773d6b849cffd6a2d5cf7bf9c81a35678cb8185557",
+    "source/cli/tests/integration/aspect-references-when-implies.test.ts": "406b88eebffb860b7d56cb229a7c5e3889526633ea7aed2fb64128f543b7d5d3"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
+    ".yggdrasil/model/cli/tests/integration/yg-node.yaml": 1778923836291.2395,
+    ".yggdrasil/model/cli/tests/integration/pipeline/yg-node.yaml": 1779996040953.1306,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
+    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
+    "source/cli/tests/integration/aspect-language-validation.test.ts": 1779869468774.1572,
+    "source/cli/tests/integration/aspect-references-context.test.ts": 1779959296035.736,
+    "source/cli/tests/integration/aspect-references-drift.test.ts": 1779959274724.9878,
+    "source/cli/tests/integration/aspect-references-impact.test.ts": 1779962628466.4946,
+    "source/cli/tests/integration/aspect-references-validation.test.ts": 1779960828818.569,
+    "source/cli/tests/integration/aspect-references-when-implies.test.ts": 1779977480958.8684
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
+  }
+}
