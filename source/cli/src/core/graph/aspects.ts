@@ -1,4 +1,4 @@
-import type { Graph, GraphNode, AspectStatus } from '../../model/graph.js';
+import type { Graph, GraphNode, AspectStatus, AspectDef, StatusInherit } from '../../model/graph.js';
 import { STATUS_ORDER } from '../../model/graph.js';
 import type { WhenPredicate } from '../../model/when.js';
 import { evaluateWhen } from '../when-evaluator.js';
@@ -303,6 +303,48 @@ export function computeEffectiveAspectStatuses(node: GraphNode, graph: Graph): M
         if (!port?.aspects) continue;
         for (const id of port.aspects) {
           contribute(id, port.aspectStatus?.[id], port.aspectWhens?.[id]);
+        }
+      }
+    }
+  }
+
+  // Phase 2 — implies fix-point. Monotone (max only) → terminates in
+  // O(aspects × max-depth). Draft aspects do not propagate.
+  const idToAspect = new Map<string, AspectDef>();
+  for (const a of graph.aspects) idToAspect.set(a.id, a as AspectDef);
+
+  let changed = true;
+  let iterations = 0;
+  const maxIterations = graph.aspects.length + 1;
+  while (changed) {
+    if (++iterations > maxIterations) {
+      throw new Error(`implies fix-point did not converge after ${maxIterations} iterations (cycle suspected)`);
+    }
+    changed = false;
+    const currentIds = [...result.keys()];
+    for (const implierId of currentIds) {
+      const implierStatus = result.get(implierId)!;
+      if (implierStatus === 'draft') continue;
+      const implierDef = idToAspect.get(implierId);
+      if (!implierDef?.implies) continue;
+      for (const impliedId of implierDef.implies) {
+        const impliedDef = idToAspect.get(impliedId);
+        const globalWhen = impliedDef?.when;
+        if (globalWhen && !evaluateWhen(globalWhen, node, graph)) continue;
+        const perEdgeWhen = implierDef.impliesWhens?.[impliedId];
+        if (perEdgeWhen && !evaluateWhen(perEdgeWhen, node, graph)) continue;
+
+        const inheritMode: StatusInherit = implierDef.impliesStatusInherit?.[impliedId] ?? 'strictest';
+        const impliedDefault: AspectStatus = impliedDef?.status ?? 'enforced';
+        const declared: AspectStatus = inheritMode === 'own-default'
+          ? impliedDefault
+          : (STATUS_ORDER[implierStatus] >= STATUS_ORDER[impliedDefault] ? implierStatus : impliedDefault);
+
+        const prior = result.get(impliedId);
+        const next = maxStatus(prior, declared);
+        if (prior === undefined || STATUS_ORDER[next] > STATUS_ORDER[prior]) {
+          result.set(impliedId, next);
+          changed = true;
         }
       }
     }

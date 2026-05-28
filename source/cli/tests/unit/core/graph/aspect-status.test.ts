@@ -324,6 +324,75 @@ describe('getAspectStatusSources', () => {
   });
 });
 
+describe('computeEffectiveAspectStatuses — implies phase-2', () => {
+  it('A enforced implies B (advisory default, strictest) → B enforced', () => {
+    const a = makeAspect('a', 'enforced', { implies: ['b'] });
+    const b = makeAspect('b', 'advisory');
+    const node = makeNode('n', 'service', ['a']);
+    const result = computeEffectiveAspectStatuses(node, makeGraph([a, b], [node]));
+    expect(result.get('a')).toBe('enforced');
+    expect(result.get('b')).toBe('enforced');
+  });
+
+  it('A enforced implies B (own-default) → B keeps advisory default', () => {
+    const a = makeAspect('a', 'enforced', { implies: ['b'], impliesStatusInherit: { b: 'own-default' } });
+    const b = makeAspect('b', 'advisory');
+    const node = makeNode('n', 'service', ['a']);
+    const result = computeEffectiveAspectStatuses(node, makeGraph([a, b], [node]));
+    expect(result.get('b')).toBe('advisory');
+  });
+
+  it('A draft does NOT propagate implies to B', () => {
+    const a = makeAspect('a', 'draft', { implies: ['b'] });
+    const b = makeAspect('b', 'advisory');
+    const node = makeNode('n', 'service', ['a']);
+    const result = computeEffectiveAspectStatuses(node, makeGraph([a, b], [node]));
+    expect(result.get('a')).toBe('draft');
+    expect(result.has('b')).toBe(false);
+  });
+
+  it('A draft does not propagate, but B arrives via another channel independently', () => {
+    const a = makeAspect('a', 'draft', { implies: ['b'] });
+    const b = makeAspect('b', 'advisory');
+    const node = makeNode('n', 'service', ['a', 'b']);
+    const result = computeEffectiveAspectStatuses(node, makeGraph([a, b], [node]));
+    expect(result.get('b')).toBe('advisory');
+  });
+
+  it('three-level chain: A enforced → B advisory-default → C draft-default, strictest', () => {
+    const a = makeAspect('a', 'enforced', { implies: ['b'] });
+    const b = makeAspect('b', 'advisory', { implies: ['c'] });
+    const c = makeAspect('c', 'draft');
+    const node = makeNode('n', 'service', ['a']);
+    const result = computeEffectiveAspectStatuses(node, makeGraph([a, b, c], [node]));
+    expect(result.get('a')).toBe('enforced');
+    expect(result.get('b')).toBe('enforced');
+    expect(result.get('c')).toBe('enforced');
+  });
+
+  it('three-level chain mixed own-default at A->B', () => {
+    const a = makeAspect('a', 'enforced', { implies: ['b'], impliesStatusInherit: { b: 'own-default' } });
+    const b = makeAspect('b', 'advisory', { implies: ['c'] });
+    const c = makeAspect('c', 'draft');
+    const node = makeNode('n', 'service', ['a']);
+    const result = computeEffectiveAspectStatuses(node, makeGraph([a, b, c], [node]));
+    expect(result.get('a')).toBe('enforced');
+    expect(result.get('b')).toBe('advisory');
+    expect(result.get('c')).toBe('advisory');
+  });
+
+  it('three-level chain all own-default', () => {
+    const a = makeAspect('a', 'enforced', { implies: ['b'], impliesStatusInherit: { b: 'own-default' } });
+    const b = makeAspect('b', 'advisory', { implies: ['c'], impliesStatusInherit: { c: 'own-default' } });
+    const c = makeAspect('c', 'draft');
+    const node = makeNode('n', 'service', ['a']);
+    const result = computeEffectiveAspectStatuses(node, makeGraph([a, b, c], [node]));
+    expect(result.get('a')).toBe('enforced');
+    expect(result.get('b')).toBe('advisory');
+    expect(result.get('c')).toBe('draft');
+  });
+});
+
 describe('hasNonDraftEffectiveAspects', () => {
   it('returns false when all aspects effective draft', () => {
     const node = makeNode('n', 'service', ['a']);
