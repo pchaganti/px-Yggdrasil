@@ -178,4 +178,22 @@ describe('formatAspectsOutput', () => {
     const output = formatAspectsOutput(graph);
     expect(output).toMatch(/Reviewer:\s*llm/);
   });
+
+  it('shows [enforced] tag when aspect has no explicit status', () => {
+    const aspects = [makeAspect('default-status')];
+    const graph = makeGraph(aspects);
+    const output = formatAspectsOutput(graph);
+    expect(output).toContain('default-status [enforced]');
+  });
+
+  it('shows declared status tag from aspect definition', () => {
+    const aspects = [
+      makeAspect('draft-aspect', { status: 'draft' }),
+      makeAspect('advisory-aspect', { status: 'advisory' }),
+    ];
+    const graph = makeGraph(aspects);
+    const output = formatAspectsOutput(graph);
+    expect(output).toContain('advisory-aspect [advisory]');
+    expect(output).toContain('draft-aspect [draft]');
+  });
 });

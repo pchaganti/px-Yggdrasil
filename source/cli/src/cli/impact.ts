@@ -6,7 +6,7 @@ import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-prea
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { collectAncestors } from '../core/context-builder.js';
-import { computeEffectiveAspects } from '../core/graph/aspects.js';
+import { computeEffectiveAspects, computeEffectiveAspectStatuses } from '../core/graph/aspects.js';
 import { collectTrackedFiles } from '../core/graph/files.js';
 import { findOwner } from './owner.js';
 import { projectRootFromGraph, resolveFileArg } from '../io/paths.js';
@@ -186,13 +186,15 @@ async function handleAspectImpact(
     process.exit(1);
   }
 
-  const affected: Array<{ path: string; source: string }> = [];
+  const affected: Array<{ path: string; source: string; status: string }> = [];
   for (const [nodePath, node] of graph.nodes) {
     const effective = computeEffectiveAspects(node, graph);
     if (effective.has(aspectId)) {
+      const statuses = computeEffectiveAspectStatuses(node, graph);
+      const status = statuses.get(aspectId) ?? aspect.status ?? 'enforced';
       const ownAspectIds = new Set(node.meta.aspects ?? []);
       if (ownAspectIds.has(aspectId)) {
-        affected.push({ path: nodePath, source: 'own' });
+        affected.push({ path: nodePath, source: 'own', status });
       } else {
         let fromHierarchy = false;
         let anc = node.parent;
@@ -204,7 +206,7 @@ async function handleAspectImpact(
           anc = anc.parent;
         }
         if (fromHierarchy) {
-          affected.push({ path: nodePath, source: `hierarchy from ${anc!.path}` });
+          affected.push({ path: nodePath, source: `hierarchy from ${anc!.path}`, status });
         } else {
           const ancestorPaths = new Set([nodePath, ...collectAncestors(node).map((a) => a.path)]);
           const flow = graph.flows.find(
@@ -212,7 +214,7 @@ async function handleAspectImpact(
               (f.aspects ?? []).includes(aspectId) &&
               f.nodes.some((n) => ancestorPaths.has(n)),
           );
-          affected.push({ path: nodePath, source: flow ? `flow: ${flow.name}` : 'implied' });
+          affected.push({ path: nodePath, source: flow ? `flow: ${flow.name}` : 'implied', status });
         }
       }
     }
@@ -239,8 +241,8 @@ async function handleAspectImpact(
   if (affected.length === 0) {
     process.stdout.write('  (none)\n');
   } else {
-    for (const { path: p, source } of affected) {
-      process.stdout.write(`  ${p} (${source})\n`);
+    for (const { path: p, source, status } of affected) {
+      process.stdout.write(`  ${p} (${source}) [${status}]\n`);
     }
   }
   if (chains.length > 0) {
@@ -593,11 +595,14 @@ export function registerImpactCommand(program: Command): void {
             }
           }
 
-          const targetEffective = computeEffectiveAspects(graph.nodes.get(nodePath)!, graph);
+          const targetNodeForAspects = graph.nodes.get(nodePath)!;
+          const targetEffective = computeEffectiveAspects(targetNodeForAspects, graph);
+          const targetStatuses = computeEffectiveAspectStatuses(targetNodeForAspects, graph);
           const aspectsInScope: string[] = [];
           for (const aspect of graph.aspects) {
             if (targetEffective.has(aspect.id)) {
-              aspectsInScope.push(aspect.name);
+              const status = targetStatuses.get(aspect.id) ?? aspect.status ?? 'enforced';
+              aspectsInScope.push(`${aspect.name} [${status}]`);
             }
           }
 
@@ -673,8 +678,16 @@ export function registerImpactCommand(program: Command): void {
           if (targetEffective.size > 0) {
             for (const [p] of graph.nodes) {
               if (p === nodePath) continue;
-              const nodeEffective = computeEffectiveAspects(graph.nodes.get(p)!, graph);
-              const shared = [...targetEffective].filter((id) => nodeEffective.has(id));
+              const otherNode = graph.nodes.get(p)!;
+              const nodeEffective = computeEffectiveAspects(otherNode, graph);
+              const otherStatuses = computeEffectiveAspectStatuses(otherNode, graph);
+              const shared = [...targetEffective]
+                .filter((id) => nodeEffective.has(id))
+                .map((id) => {
+                  const aspectDef = graph.aspects.find(a => a.id === id);
+                  const status = otherStatuses.get(id) ?? aspectDef?.status ?? 'enforced';
+                  return `${id} [${status}]`;
+                });
               if (shared.length > 0) {
                 coAspectNodes.push({ path: p, shared });
               }

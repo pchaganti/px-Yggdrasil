@@ -10,7 +10,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-async function setupGraph(): Promise<string> {
+async function setupGraph(opts: { aspectStatus?: 'draft' | 'advisory' | 'enforced' } = {}): Promise<string> {
   const root = await mkdtemp(path.join(tmpdir(), 'yg-find-cli-'));
   dirs.push(root);
   const yggRoot = path.join(root, '.yggdrasil');
@@ -26,9 +26,14 @@ async function setupGraph(): Promise<string> {
     path.join(yggRoot, 'model', 'billing', 'cancel', 'yg-node.yaml'),
     'name: cancel\ntype: command\ndescription: Subscription cancellation workflow\n',
   );
+  const statusLine = opts.aspectStatus ? `status: ${opts.aspectStatus}\n` : '';
   await writeFile(
     path.join(yggRoot, 'aspects', 'end-of-period', 'yg-aspect.yaml'),
-    'name: End of period\ndescription: cancellation policy\n',
+    `name: End of period\ndescription: cancellation policy\nreviewer:\n  type: llm\n${statusLine}`,
+  );
+  await writeFile(
+    path.join(yggRoot, 'aspects', 'end-of-period', 'content.md'),
+    '# End of period\nCancellation takes effect at end of billing period.\n',
   );
   return root;
 }
@@ -82,5 +87,25 @@ describe('findCommand', () => {
     const root = await setupGraph();
     const exit = await findCommand('', root);
     expect(exit).toBe(1);
+  });
+
+  it('renders status line for aspect-kind results (default enforced)', async () => {
+    const root = await setupGraph();
+    const out: string[] = [];
+    vi.spyOn(process.stdout, 'write').mockImplementation((s: unknown) => { out.push(String(s)); return true; });
+    const exit = await findCommand('period', root);
+    expect(exit).toBe(0);
+    const printed = out.join('');
+    expect(printed).toMatch(/Kind:\s*aspect[\s\S]*status:\s*enforced/);
+  });
+
+  it('renders declared aspect status (draft) for aspect-kind results', async () => {
+    const root = await setupGraph({ aspectStatus: 'draft' });
+    const out: string[] = [];
+    vi.spyOn(process.stdout, 'write').mockImplementation((s: unknown) => { out.push(String(s)); return true; });
+    const exit = await findCommand('period', root);
+    expect(exit).toBe(0);
+    const printed = out.join('');
+    expect(printed).toMatch(/Kind:\s*aspect[\s\S]*status:\s*draft/);
   });
 });

@@ -50,6 +50,9 @@ export async function findCommand(query: string, projectRoot: string): Promise<n
       process.stdout.write(`${i + 1}. ${docPath.padEnd(40)} score: ${score}\n`);
       process.stdout.write(`   Kind: ${doc.kind}\n`);
       if (doc.type) process.stdout.write(`   Type: ${doc.type}\n`);
+      if (doc.kind === 'aspect') {
+        process.stdout.write(`   status: ${doc.status ?? 'enforced'}\n`);
+      }
       process.stdout.write(`   Description: "${doc.description}"\n`);
       if (matched) process.stdout.write(`   Matched: ${matched}\n`);
       process.stdout.write('\n');

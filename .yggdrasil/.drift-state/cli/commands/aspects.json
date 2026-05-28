@@ -1,5 +1,5 @@
 {
-  "hash": "8469e983b7e70852adb0d1910c05acb6a1c8c01ac2ab1781eb9c390103f8f20d",
+  "hash": "7dd2b1f641a12c1209c9b88c1b65e9b8b22450ef7a362b49fc14a49ef4a7b6fc",
   "files": {
     "own-subset:cli/commands/aspects": "c1264506d434b0854217c1dd836e887fde93beab9c6d440d84d1cdb8d789931c",
     "tier-identity:cli-command-contract": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -24,10 +24,10 @@
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
     ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": "5bfc4a07961653ab402950fc1ddf55450c35762e9fde4ab2b0fb9185ab091581",
     ".yggdrasil/aspects/what-why-next/content.md": "bbe835c049672dd09076de1be3a2dd2ed70c38e31a327f98176f1a0d15fb0838",
+    ".yggdrasil/model/cli/core/loader/yg-node.yaml": "6efbbf493727f08d46a4a3f16acce62b942bc8950a81e15896713a018961b46d",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
     ".yggdrasil/model/cli/core/context/yg-node.yaml": "86433bef2f4269797748a5fdf7a013b26671ab34fe7d35ceac2124818b5e1138",
-    "source/cli/src/cli/aspects.ts": "3430e4af24e82539a55b436c887dc057672c6d699025ef91ba1ee71cfee14dac",
-    ".yggdrasil/model/cli/core/loader/yg-node.yaml": "6efbbf493727f08d46a4a3f16acce62b942bc8950a81e15896713a018961b46d"
+    "source/cli/src/cli/aspects.ts": "21ab89a6828b09e5b1a0e596553f69bc29e9fcc34c51582168264210f67324e1"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -51,10 +51,36 @@
     ".yggdrasil/model/cli/core/loader/yg-node.yaml": 1779954121835.5833,
     ".yggdrasil/model/cli/core/yg-node.yaml": 1776177846202.0774,
     ".yggdrasil/model/cli/core/context/yg-node.yaml": 1778960658963.9556,
-    "source/cli/src/cli/aspects.ts": 1779889655631.3835
+    "source/cli/src/cli/aspects.ts": 1779976566543.763
   },
   "log": {
-    "last_entry_datetime": "2026-05-27T13:54:31.635Z",
-    "prefix_hash": "43571d9bcf3a05a5f92a4969e247514bd63f7b25fbaa2b3fad946dd07fa416e6"
+    "last_entry_datetime": "2026-05-28T14:01:29.171Z",
+    "prefix_hash": "0f0b6b93b5cba5a03724af02f4e9f22db3a3caa69e87e812c003feea4236a4db"
+  },
+  "aspectVerdicts": {
+    "cli-command-contract": {
+      "verdict": "approved"
+    },
+    "diagnostic-logging": {
+      "verdict": "approved"
+    },
+    "command-contract-shape": {
+      "verdict": "approved"
+    },
+    "posix-paths-source": {
+      "verdict": "approved"
+    },
+    "command-error-via-buildissuemessage": {
+      "verdict": "approved"
+    },
+    "deterministic": {
+      "verdict": "approved"
+    },
+    "what-why-next": {
+      "verdict": "approved"
+    },
+    "command-exit-codes": {
+      "verdict": "approved"
+    }
   }
 }

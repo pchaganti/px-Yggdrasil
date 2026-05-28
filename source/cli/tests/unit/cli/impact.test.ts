@@ -84,6 +84,19 @@ describe('impact command', () => {
       });
     });
 
+    it('annotates effective status per aspect on Aspects line', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync(
+          'node',
+          [BIN_PATH, 'impact', '--node', 'orders/order-service'],
+          { cwd, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(0);
+        // Aspects: <name> [enforced], ...
+        expect(result.stdout).toMatch(/Aspects:.*\[enforced\]/);
+      });
+    });
+
     it('returns exit 1 for non-existent node', async () => {
       await withFixtureCopy(async (cwd) => {
         const result = spawnSync(
@@ -160,6 +173,19 @@ describe('impact command', () => {
         );
         expect(result.status).toBe(1);
         expect(result.stderr).toContain('Aspect not found');
+      });
+    });
+
+    it('shows [status] tag per affected (node, aspect) pair', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync(
+          'node',
+          [BIN_PATH, 'impact', '--aspect', 'requires-audit'],
+          { cwd, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(0);
+        // Each affected node line includes [<status>]; default is [enforced]
+        expect(result.stdout).toMatch(/orders\/order-service \([^)]+\) \[enforced\]/);
       });
     });
 

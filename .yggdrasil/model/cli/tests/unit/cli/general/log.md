@@ -2,3 +2,5 @@
 Init-upgrade unit test signature updated to match the runner-driven contract; the toVersion argument is no longer threaded through the wrapper.
 ## [2026-05-28T13:14:00.071Z]
 Updated makeCheckResult helper to include the new advisoryWarnings and draftSkipped fields on CheckResult so test fixtures construct valid CheckResult objects after the type extension in cli/core/check.
+## [2026-05-28T14:02:00.645Z]
+Add tests covering status field population on aspect entries returned by buildNodeContextData and buildFileContextData. Tests load the sample-project fixture, build context data, and assert every aspect entry has a status of draft / advisory / enforced so downstream formatters can render it without a fallback dance.

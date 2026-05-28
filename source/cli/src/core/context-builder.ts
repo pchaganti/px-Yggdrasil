@@ -13,7 +13,7 @@ import type { NodeContextData } from '../formatters/context-node.js';
 import type { FileContextData } from '../formatters/context-file.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import { readTextFile } from '../io/graph-fs.js';
-import { computeEffectiveAspects, getAspectSource } from './graph/aspects.js';
+import { computeEffectiveAspects, computeEffectiveAspectStatuses, getAspectSource } from './graph/aspects.js';
 import {
   collectAncestors,
   collectParticipatingFlows,
@@ -178,6 +178,7 @@ export function buildNodeContextData(graph: Graph, nodePath: string): NodeContex
   const participatingFlows = collectParticipatingFlows(graph, node);
 
   const effectiveAspectIds = computeEffectiveAspects(node, graph);
+  const effectiveStatuses = computeEffectiveAspectStatuses(node, graph);
 
   const aspects = Array.from(effectiveAspectIds).map(aspectId => {
     const aspectDef = graph.aspects.find(a => a.id === aspectId);
@@ -185,6 +186,7 @@ export function buildNodeContextData(graph: Graph, nodePath: string): NodeContex
     const refs = aspectDef?.reviewer?.type === 'llm' && aspectDef.references && aspectDef.references.length > 0
       ? aspectDef.references.map(r => ({ path: r.path, description: r.description }))
       : undefined;
+    const status = effectiveStatuses.get(aspectId) ?? aspectDef?.status ?? 'enforced';
     return {
       id: aspectId,
       name: aspectDef?.name ?? aspectId,
@@ -194,6 +196,7 @@ export function buildNodeContextData(graph: Graph, nodePath: string): NodeContex
         ? `.yggdrasil/aspects/${aspectId}/check.mjs`
         : `.yggdrasil/aspects/${aspectId}/content.md`,
       implies: aspectDef?.implies,
+      status,
       ...(refs && { references: refs }),
     };
   });
@@ -251,18 +254,21 @@ export function buildFileContextData(graph: Graph, filePath: string, ownerPath: 
   const ancestors = collectAncestors(node);
 
   const effectiveAspectIds = computeEffectiveAspects(node, graph);
+  const effectiveStatuses = computeEffectiveAspectStatuses(node, graph);
 
   const aspects = Array.from(effectiveAspectIds).map(aspectId => {
     const aspectDef = graph.aspects.find(a => a.id === aspectId);
     const refs = aspectDef?.reviewer?.type === 'llm' && aspectDef.references && aspectDef.references.length > 0
       ? aspectDef.references.map(r => ({ path: r.path, description: r.description }))
       : undefined;
+    const status = effectiveStatuses.get(aspectId) ?? aspectDef?.status ?? 'enforced';
     return {
       aspectId,
       aspectDescription: aspectDef?.description ?? aspectDef?.name ?? aspectId,
       verifiedAgainst: aspectDef?.reviewer?.type === 'ast'
         ? `.yggdrasil/aspects/${aspectId}/check.mjs`
         : `.yggdrasil/aspects/${aspectId}/content.md`,
+      status,
       ...(refs && { references: refs }),
     };
   });

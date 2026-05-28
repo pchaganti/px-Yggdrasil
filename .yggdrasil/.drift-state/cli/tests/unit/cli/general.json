@@ -1,5 +1,5 @@
 {
-  "hash": "60ea11e5a214abf02229c46ce9df7b5101174e275c43cc063f7495ec34fc405a",
+  "hash": "b64218d850d1903018eb927770b9674e933e36b6c99c0c3fc559011eddac5cbb",
   "files": {
     "own-subset:cli/tests/unit/cli/general": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -9,11 +9,11 @@
     ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": "6e62b47935c2d36ecfefe4a9dd75287fc122ba0e13999e0747798d385c2c832d",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/cli/build-command.test.ts": "bd569709160f53f5adc190c998b6eb5326b4820594b87c339d4e656984fa9ddb",
+    "source/cli/tests/unit/cli/check.test.ts": "6ea405e330f9df97ad0c0938a9b3327ca09dbd2f83781b6c2ecc4624d0f18c0b",
     "source/cli/tests/unit/cli/init-upgrade.test.ts": "a2249b1ca9da266a5bcf8d3daf48aef94581cb585520c717f9a10bf579d431f4",
     "source/cli/tests/unit/cli/knowledge.test.ts": "26d8e2375f56a146b2106eb996acdc9dbcb3f73cdc9f4a2824d0e8be5e953894",
     "source/cli/tests/unit/cli/type-suggest.test.ts": "bb015a4b5b68666fc449a285692fee36f9c3238d58d755691644ce403ff46398",
-    "source/cli/tests/unit/cli/check.test.ts": "6ea405e330f9df97ad0c0938a9b3327ca09dbd2f83781b6c2ecc4624d0f18c0b"
+    "source/cli/tests/unit/cli/build-command.test.ts": "3f63d67c19787eab8108a8cf36dad9a94f730dd545a0e0e0107acca6ffa88a36"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -22,15 +22,15 @@
     ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": 1778923837494.2686,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/cli/build-command.test.ts": 1778916203008.6572,
+    "source/cli/tests/unit/cli/build-command.test.ts": 1779976823855.0754,
     "source/cli/tests/unit/cli/check.test.ts": 1779973930048.0142,
     "source/cli/tests/unit/cli/init-upgrade.test.ts": 1779944747217.86,
     "source/cli/tests/unit/cli/knowledge.test.ts": 1778955687690.9875,
     "source/cli/tests/unit/cli/type-suggest.test.ts": 1778834244672.9507
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T13:14:00.071Z",
-    "prefix_hash": "0bd6b20f3fe54cb096fe0dc985d02827dab0adfa59522fce136b0ffb12bdca65"
+    "last_entry_datetime": "2026-05-28T14:02:00.645Z",
+    "prefix_hash": "197aed9714609ae62e96837ec7869fc0d3f364b2ebdd35a09830f7f1206aeaac"
   },
   "aspectVerdicts": {
     "test-deterministic": {

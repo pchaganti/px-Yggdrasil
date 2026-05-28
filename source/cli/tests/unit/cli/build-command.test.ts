@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { mkdtemp, cp, access, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { loadGraph } from '../../../src/core/graph-loader.js';
+import { buildNodeContextData, buildFileContextData } from '../../../src/core/context-builder.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../../..');
@@ -115,6 +117,28 @@ describe('context command (unit-like CLI contract)', () => {
 
       expect(result.status).not.toBe(0);
       expect(result.stderr).toMatch(/unknown option|--full/);
+    });
+  });
+
+  it('populates status field on aspect entries (NodeContextData)', async () => {
+    await withFixtureCopy(async (cwd) => {
+      const graph = await loadGraph(cwd);
+      const data = buildNodeContextData(graph, 'orders/order-service');
+      expect(data.aspects.length).toBeGreaterThan(0);
+      for (const aspect of data.aspects) {
+        expect(['draft', 'advisory', 'enforced']).toContain(aspect.status);
+      }
+    });
+  });
+
+  it('populates status field on aspect entries (FileContextData)', async () => {
+    await withFixtureCopy(async (cwd) => {
+      const graph = await loadGraph(cwd);
+      const data = buildFileContextData(graph, 'src/orders/service.ts', 'orders/order-service');
+      expect(data.aspects.length).toBeGreaterThan(0);
+      for (const aspect of data.aspects) {
+        expect(['draft', 'advisory', 'enforced']).toContain(aspect.status);
+      }
     });
   });
 

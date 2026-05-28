@@ -1,7 +1,7 @@
 import { readFile, lstat } from 'node:fs/promises';
 import path from 'node:path';
 import MiniSearch from 'minisearch';
-import type { Graph } from '../model/graph.js';
+import type { AspectStatus, Graph } from '../model/graph.js';
 import { debugWrite } from '../utils/debug-log.js';
 
 const MAX_BODY_BYTES = 1_048_576; // 1 MiB
@@ -14,6 +14,8 @@ export interface IndexedDocument {
   name: string;
   description: string;
   body: string;
+  /** Aspect-default status — populated only for `kind: 'aspect'` documents */
+  status?: AspectStatus;
 }
 
 export async function buildIndex(graph: Graph): Promise<IndexedDocument[]> {
@@ -77,6 +79,7 @@ export async function buildIndex(graph: Graph): Promise<IndexedDocument[]> {
       name: aspect.name,
       description: aspect.description ?? '',
       body,
+      status: aspect.status ?? 'enforced',
     });
   }
 
@@ -86,7 +89,7 @@ export async function buildIndex(graph: Graph): Promise<IndexedDocument[]> {
 export function createMiniSearch(): MiniSearch<IndexedDocument> {
   return new MiniSearch<IndexedDocument>({
     fields: ['name', 'description', 'body'],
-    storeFields: ['id', 'kind', 'path', 'type', 'name', 'description'],
+    storeFields: ['id', 'kind', 'path', 'type', 'name', 'description', 'status'],
     searchOptions: {
       boost: { description: 3, name: 2, body: 1 },
       fuzzy: 0.2,

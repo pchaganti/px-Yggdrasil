@@ -10,3 +10,5 @@ Updated effective-aspects import path to core/graph/aspects.
 Phase 6 type-bridge: updated reviewer display from aspect.reviewer ?? 'llm' to aspect.reviewer?.type ?? 'llm' to match the new AspectReviewerSpec object shape replacing the former string union.
 ## [2026-05-27T13:54:31.635Z]
 Display the resolved reviewer tier (or "(default)") alongside the type so authors see which named tier the aspect will use at approve time.
+## [2026-05-28T14:01:29.171Z]
+Surface effective aspect status in yg aspects output. Each aspect row now renders [<status>] (defaulting to enforced when unset) right after the id, so adopters can see at a glance whether an aspect is draft, advisory, or enforced before running approve. Aspect-default status is graph-wide — per-node effective status appears in yg context / yg impact instead.

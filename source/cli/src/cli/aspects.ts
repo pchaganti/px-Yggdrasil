@@ -57,7 +57,8 @@ export function formatAspectsOutput(graph: Graph): string {
   for (const aspect of graph.aspects.sort((a, b) => a.id.localeCompare(b.id))) {
     const u = usage.get(aspect.id) ?? { architecture: 0, own: 0, implied: 0, flow: 0, total: 0 };
     const displayName = aspect.description ?? aspect.name;
-    lines.push(`${aspect.id} — ${displayName}`);
+    const status = aspect.status ?? 'enforced';
+    lines.push(`${aspect.id} [${status}] — ${displayName}`);
     const reviewerType = aspect.reviewer.type;
     if (reviewerType === 'llm') {
       const tier = aspect.reviewer.tier ?? '(default)';
