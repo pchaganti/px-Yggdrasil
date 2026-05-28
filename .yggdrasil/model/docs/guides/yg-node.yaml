@@ -1,6 +1,6 @@
 name: Adopter Guides
 type: doc-page
-description: "Task-oriented adopter documentation: getting started, CLI reference, configuration, platforms, conditional aspects, site index, and dogfood showcase"
+description: "Task-oriented adopter documentation: getting started, CLI reference, configuration, platforms, conditional aspects, aspect status, site index, and dogfood showcase"
 aspects: []
 relations: []
 mapping:
@@ -11,5 +11,6 @@ mapping:
   - docs/platforms.md
   - docs/index.md
   - docs/conditional-aspects.md
+  - docs/aspect-status.md
   - docs/reviewers.md
   - docs/showcase.md

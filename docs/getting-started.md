@@ -115,6 +115,14 @@ ERROR: Reviewer found aspect violations.
 
 The agent fixes the code and re-runs approve until all aspects pass.
 
+**Tip — start new aspects at `status: advisory`.** A brand-new aspect on
+an existing codebase often surfaces violations across many files.
+Authoring the aspect with `status: advisory` runs the reviewer and lists
+refusals as warnings — without blocking CI. Once the rule has been
+exercised across the repo and the warnings are clean (or knowingly
+accepted), promote to `status: enforced`. See
+[Aspect Status](/aspect-status) for the full lifecycle.
+
 ## 4) Existing codebase (brownfield)
 
 `yg check` requires 100% file coverage. Every git-tracked source file must

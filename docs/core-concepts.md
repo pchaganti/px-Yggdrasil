@@ -199,6 +199,27 @@ every node where the aspect is effective is re-approved. Run
 `yg impact --file <ref>` before editing a widely-referenced file.
 Size limits are configured per reviewer tier in `yg-config.yaml`.
 
+### Aspect status
+
+Each aspect carries a status — `draft`, `advisory`, or `enforced` — that
+controls whether the reviewer runs and how violations surface:
+
+| Status      | Reviewer runs? | Refused renders as |
+|-------------|----------------|--------------------|
+| `draft`     | no             | n/a (skipped)      |
+| `advisory`  | yes            | warning            |
+| `enforced`  | yes            | error (blocks CI)  |
+
+Status defaults to `enforced`. Set `status: advisory` on a new rule to
+gather signal across the repo without blocking CI; promote to `enforced`
+once you trust it. Status can be set on the aspect itself or overridden
+on any attach site (node, type, flow, port). The effective status on a
+node is the strictest declared across all channels — bumping up is fine,
+silent downgrades are rejected.
+
+See [Aspect Status](/aspect-status) for the full lifecycle, `status_inherit`
+on implies edges, drift semantics, and migration from 4.x.
+
 ### How aspects reach nodes
 
 Aspects propagate through seven channels:

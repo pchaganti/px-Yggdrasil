@@ -108,6 +108,14 @@ Later, a developer adds `calls: payments/service` to `follow-ups/crud`.
   node's own relations and its hierarchical descendants in `model/`.
 - **Not a replacement for splitting an aspect.** If two aspects have
   meaningfully different rules, they should be separate aspects.
+- **Not the same as `status`.** `when` decides whether an aspect *applies*
+  to a node — `when=false` makes the aspect invisible (no reviewer, no
+  cost, no display). `status` decides what happens *when it applies* —
+  `draft` keeps the aspect dormant but still listed in context; `advisory`
+  runs the reviewer but surfaces refusals as warnings; `enforced` blocks
+  CI. Use `when` for applicability (this rule only applies to nodes that
+  call an external service); use `status` for rule maturity. See
+  [Aspect Status](/aspect-status).
 
 ## Visibility
 

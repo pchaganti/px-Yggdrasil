@@ -21,4 +21,6 @@ features:
     details: An LLM reviewer checks source code against aspect rules at approve time. If it doesn't pass, the agent fixes it.
   - title: Cascading re-review
     details: Change a rule and every file that should satisfy it gets flagged for re-approval automatically.
+  - title: Draft, advisory, enforced
+    details: Stage every rule through three enforcement levels — author silently, observe as warnings, then block CI. No flag-day rollouts.
 ---

@@ -28,6 +28,8 @@ If you can write a regex or an AST traversal to verify the rule, use AST. If a h
 
 The LLM reviewer is a separate LLM call from the coding agent — one LLM verifying the work of another. `yg approve` sends each aspect's `content.md` plus the relevant source files to the reviewer. The LLM reviewer also receives any reference files declared on the aspect, presented as authoritative context (not under review). The reviewer responds with SATISFIED or NOT SATISFIED per aspect. One LLM call per aspect per node.
 
+**Effective-draft aspects are skipped before dispatch.** When an aspect's effective status on a node is `draft`, `yg approve` prints a skip line and never sends the rule to the reviewer — zero cost, zero verdict. Aspects with effective status `advisory` or `enforced` go through the reviewer normally; the level only changes how a refused verdict surfaces in `yg check` (warning vs. error). See [Aspect Status](/aspect-status) for the lifecycle.
+
 ### Directory structure
 
 ```

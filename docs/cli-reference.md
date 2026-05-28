@@ -71,6 +71,20 @@ result (PASS/FAIL with category counts), and suggested next command.
 
 Exit code 0 if fully clean, 1 if any errors found.
 
+#### Aspect-status issue codes
+
+The validator emits the following codes related to aspect status (see
+[Aspect Status](/aspect-status) for semantics):
+
+| Code | Severity | Meaning |
+|------|----------|---------|
+| `aspect-status-invalid` | error | Declared `status:` is not one of `draft`, `advisory`, `enforced` |
+| `aspect-status-downgrade` | error | An attach site declares a status lower than the cascade would yield (bump up OK, downgrade is an error) |
+| `implies-status-inherit-invalid` | error | `status_inherit:` is not `strictest` or `own-default` |
+| `aspect-newly-active` | error | Aspect transitioned from `draft` to `advisory`/`enforced`; baseline missing |
+| `aspect-violation-enforced` | error | Enforced aspect reviewer refused — blocks `yg check` |
+| `aspect-violation-advisory` | warning | Advisory aspect reviewer refused — surfaces as warning, does not block |
+
 ### `yg approve`
 
 Records the current file state as the new baseline after review.
@@ -91,6 +105,11 @@ Exactly one of `--node`, `--aspect`, or `--flow` is required.
 - `--flow <name>` — Batch approve all nodes with cascade drift from this flow.
 - `--dry-run` — Show what would be sent to the reviewer (aspects, source files, prompt)
   without making the LLM call. Only works with `--node`.
+
+Aspects with effective status `draft` on a node are skipped before reviewer dispatch.
+`yg approve` prints a `[draft] node 'X': aspect 'Y' skipped (status: draft)` line for each
+and proceeds with the remaining aspects. No baseline verdict is recorded for draft aspects.
+See [Aspect Status](/aspect-status).
 
 ### `yg log`
 

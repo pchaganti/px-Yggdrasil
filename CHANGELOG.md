@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `yg init` now writes v5 `reviewer.tiers` shape when configuring a new reviewer. Default config version set to `5.0.0`.
 - Knowledge topic `configuration` updated with v5 `reviewer.tiers` reference, multi-tier example, and secrets format.
 - Docs `configuration.md` and `reviewers.md` updated for v5: tiers reference, correct `yg-aspect.yaml` `reviewer:` object syntax, and consensus-per-tier examples.
+- Docs: new `aspect-status.md` deep-reference for adopters — three-level lifecycle (`draft`/`advisory`/`enforced`), declaration sites across channels, max() rule, implies propagation with `status_inherit` (`strictest` default vs `own-default`), drift mechanics, migration from 4.x. Wired into VitePress sidebar. `core-concepts.md` gains an "Aspect status" subsection under Aspects. `reviewers.md` notes that effective-draft aspects are skipped before reviewer dispatch. `cli-reference.md` adds the aspect-status issue codes (`aspect-status-invalid`, `aspect-status-downgrade`, `implies-status-inherit-invalid`, `aspect-newly-active`, `aspect-violation-enforced`, `aspect-violation-advisory`) and a `yg approve` draft-skip note. `conditional-aspects.md` gains a `when` vs. `status` callout. `getting-started.md` recommends starting new aspects at `status: advisory`. `index.md` gains a four-feature highlight on the three-level lifecycle. `showcase.md` adds a `status:` feature section with strictest-vs-own-default examples.
 
 ### Changed
 

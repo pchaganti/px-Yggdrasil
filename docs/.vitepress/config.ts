@@ -19,6 +19,8 @@ export default defineConfig({
       { text: "CLI Reference", link: "/cli-reference" },
       { text: "Configuration", link: "/configuration" },
       { text: "Reviewers", link: "/reviewers" },
+      { text: "Aspect Status", link: "/aspect-status" },
+      { text: "Conditional Aspects", link: "/conditional-aspects" },
       { text: "Dogfood Showcase", link: "/showcase" },
     ],
   },

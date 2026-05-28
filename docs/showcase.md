@@ -106,6 +106,50 @@ Before writing a single YAML file, we spent the equivalent of several days restr
 
 ---
 
+### `status:` — three-level aspect lifecycle
+
+**Used as:** New aspects are introduced at `status: advisory` so the reviewer
+runs across the whole graph and surfaces refusals as warnings — without
+blocking CI. Once the warnings stabilize and we have confidence the rule
+fires only on real issues, the aspect is promoted to `status: enforced`.
+Aspects still being authored (rule text incomplete, edge cases unclear)
+sit at `status: draft` — the reviewer never runs and no baseline verdict
+is recorded.
+
+```yaml
+# .yggdrasil/aspects/audit-logging/yg-aspect.yaml
+name: Audit Logging
+description: "Every mutation emits an audit event"
+status: advisory             # gathering signal; refusals are warnings
+reviewer:
+  type: llm
+```
+
+```yaml
+# .yggdrasil/aspects/diagnostic-logging/yg-aspect.yaml
+status: enforced             # vetted; refusals block CI
+
+implies:
+  - id: correlation-tracking
+    status_inherit: own-default   # keep companion at its own default
+```
+
+**Earn-rate: high.** Status removes the all-or-nothing rollout problem
+that plagued 4.x: an aspect either blocked CI on day one or had to be
+suppressed everywhere until the codebase caught up. Advisory aspects
+gave us measurement before enforcement; draft kept work-in-progress
+rules out of the reviewer entirely.
+
+**Recommendation:** Author every new aspect at `status: advisory` for
+at least one development cycle. Promote to `enforced` only after the
+warning surface is clean or knowingly accepted. Use `draft` while
+iterating on the rule text — zero cost, zero noise. The `strictest`
+default on `status_inherit` propagates enforcement across implies
+bundles; use `own-default` only when an implied aspect should not
+inherit its implier's level.
+
+---
+
 ### `when:` on aspect definitions
 
 **Used as:** Six aspects carry `when:` filters that limit which nodes the aspect checks: `silent-missing-files` fires only on `parser-adapter`, `persistence-adapter`, and `engine` nodes; `atomic-write-contract` fires only on `persistence-adapter`; `test-deterministic` fires only on `test-suite` nodes.
