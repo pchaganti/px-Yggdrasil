@@ -1,7 +1,8 @@
-import type { Graph } from '../model/graph.js';
+import type { Graph, GraphNode } from '../model/graph.js';
 import type {
   DriftCategory,
   DriftFileChange,
+  DriftNodeState,
   NodeLifecycleState,
   TrackedFileLayer,
 } from '../model/drift.js';
@@ -11,11 +12,16 @@ import { hashTrackedFiles } from '../io/hash.js';
 import { collectTrackedFiles } from './graph/files.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import { validate } from './validator.js';
-import { computeEffectiveAspects } from './graph/aspects.js';
+import { computeEffectiveAspectStatuses, hasNonDraftEffectiveAspects } from './graph/aspects.js';
 import { readTextFile, fileAccess } from '../io/graph-fs.js';
 import path from 'node:path';
 import { validateAppendOnly } from './log-integrity.js';
 import { validateFormat } from './log-format.js';
+import {
+  aspectNewlyActiveMessage,
+  aspectViolationEnforcedMessage,
+  aspectViolationAdvisoryMessage,
+} from '../formatters/aspect-status-messages.js';
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -54,6 +60,10 @@ export interface CheckResult {
   issues: CheckIssue[];
   /** Suggested next command based on highest-priority error */
   suggestedNext: string | null;
+  /** Count of aspect-violation-advisory warnings (subset of issues). Surfaced as a footer tally. */
+  advisoryWarnings: number;
+  /** Count of (node, aspect) pairs where the aspect resolves to effective status 'draft'. */
+  draftSkipped: number;
 }
 
 // ── Drift classification ───────────────────────────────────
@@ -70,9 +80,11 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
     const mappingPaths = normalizeMappingPaths(node.meta.mapping);
     if (mappingPaths.length === 0) continue;
 
-    // Nodes without effective aspects auto-approve — skip drift detection
-    const effectiveAspects = computeEffectiveAspects(node, graph);
-    if (effectiveAspects.size === 0) continue;
+    // Nodes whose every effective aspect is draft auto-approve — skip drift
+    // detection. Draft aspects are dormant: no baseline, no drift, no per-aspect
+    // emission. If a non-draft aspect exists, fall through to the per-aspect
+    // emission loop below so aspect-newly-active / aspect-violation-* fire.
+    if (!hasNonDraftEffectiveAspects(node, graph)) continue;
 
     const storedEntry = await readNodeDriftState(graph.rootPath, nodePath);
 
@@ -121,6 +133,11 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
       });
       continue;
     }
+
+    // Per-aspect emission (aspect-newly-active / aspect-violation-*) runs
+    // independent of file-hash drift. A refused advisory baseline must keep
+    // emitting its warning every `yg check` even when no file changed.
+    emitPerAspectIssues(node, graph, storedEntry, issues);
 
     // Collect tracked files WITH layer info
     const trackedFiles = collectTrackedFiles(node, graph);
@@ -481,16 +498,16 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
   // 4. Orphaned drift state — detect BEFORE cleanup so orphans are still visible
   const orphanedPaths = await detectOrphanedDriftState(graph);
 
-  // 4b. Drift state cleanup: remove entries for nodes with zero effective aspects.
-  // Runs after orphan detection so orphaned entries are already captured above.
-  // Symmetric with the runGC behavior in `yg approve`. Silent — no issue emitted.
+  // 4b. Drift state cleanup: remove entries for nodes whose every effective
+  // aspect resolves to draft. Runs after orphan detection so orphaned entries
+  // are already captured above. Symmetric with the runGC behavior in
+  // `yg approve`. Silent — no issue emitted.
   await garbageCollectDriftState(
     graph.rootPath,
     new Set(graph.nodes.keys()),
     (nodePath) => {
-      const node = graph.nodes.get(nodePath);
-      if (!node) return false;
-      return computeEffectiveAspects(node, graph).size > 0;
+      const n = graph.nodes.get(nodePath);
+      return n ? hasNonDraftEffectiveAspects(n, graph) : false;
     },
   );
   const yggRelative = path.relative(path.dirname(graph.rootPath), graph.rootPath).replace(/\\/g, '/').replace(/\/+$/, '');
@@ -525,6 +542,8 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
   }
 
   const suggestedNext = computeSuggestedNext(allIssues, graph);
+  const advisoryWarnings = allIssues.filter(i => i.code === 'aspect-violation-advisory').length;
+  const draftSkipped = countDraftAspectsAcrossGraph(graph);
 
   return {
     projectName: path.basename(path.dirname(graph.rootPath)),
@@ -536,10 +555,94 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
     totalFiles,
     issues: allIssues,
     suggestedNext,
+    advisoryWarnings,
+    draftSkipped,
   };
 }
 
 // ── Internal helpers ───────────────────────────────────────
+
+/**
+ * Emit per-aspect findings for one node based on the effective-status map and
+ * the persisted aspectVerdicts in the baseline:
+ *
+ *  - non-draft status + no verdict + non-legacy baseline → aspect-newly-active (error)
+ *  - refused verdict + enforced status                   → aspect-violation-enforced (error)
+ *  - refused verdict + advisory status                   → aspect-violation-advisory (warning)
+ *
+ * Legacy baselines (written before aspectVerdicts existed) are treated as
+ * "every effective aspect implicitly approved" so an upgrade does not flood
+ * the user with aspect-newly-active findings.
+ */
+function emitPerAspectIssues(
+  node: GraphNode,
+  graph: Graph,
+  baseline: DriftNodeState,
+  issues: CheckIssue[],
+): void {
+  const statuses = computeEffectiveAspectStatuses(node, graph);
+  // A pre-status DriftNodeState has `hash` but no `aspectVerdicts` field.
+  // Treat that as "all aspects approved at last hash match" rather than firing
+  // aspect-newly-active for every effective aspect on first 5.x check.
+  const isLegacyBaseline = baseline.aspectVerdicts === undefined;
+  const storedVerdicts = baseline.aspectVerdicts ?? {};
+  for (const [aspectId, status] of statuses) {
+    if (status === 'draft') continue;
+    const verdict = storedVerdicts[aspectId];
+    if (!verdict) {
+      if (isLegacyBaseline) continue;
+      const md = aspectNewlyActiveMessage({
+        aspectId,
+        nodePath: node.path,
+        status: status as 'advisory' | 'enforced',
+      });
+      issues.push({
+        severity: 'error',
+        code: 'aspect-newly-active',
+        rule: 'aspect-newly-active',
+        messageData: md,
+        nodePath: node.path,
+      });
+      continue;
+    }
+    if (verdict.verdict === 'refused') {
+      const reason = verdict.reason ?? '(no reason)';
+      if (status === 'enforced') {
+        const md = aspectViolationEnforcedMessage({ aspectId, nodePath: node.path, reason });
+        issues.push({
+          severity: 'error',
+          code: 'aspect-violation-enforced',
+          rule: 'aspect-violation-enforced',
+          messageData: md,
+          nodePath: node.path,
+        });
+      } else {
+        const md = aspectViolationAdvisoryMessage({ aspectId, nodePath: node.path, reason });
+        issues.push({
+          severity: 'warning',
+          code: 'aspect-violation-advisory',
+          rule: 'aspect-violation-advisory',
+          messageData: md,
+          nodePath: node.path,
+        });
+      }
+    }
+  }
+}
+
+/**
+ * Count distinct (node, aspect) pairs where the aspect resolves to effective
+ * status 'draft'. Surfaced as a footer tally in `yg check` so the agent sees
+ * how many dormant rules sit in the graph.
+ */
+function countDraftAspectsAcrossGraph(graph: Graph): number {
+  let n = 0;
+  for (const [, node] of graph.nodes) {
+    const statuses = computeEffectiveAspectStatuses(node, graph);
+    for (const s of statuses.values()) if (s === 'draft') n++;
+  }
+  return n;
+}
 
 function categorizeFile(filePath: string, rootPath: string, projectRoot: string): DriftCategory {
   const yggPrefix = path.relative(projectRoot, rootPath).replace(/\\/g, '/').replace(/\/+$/, '');
@@ -686,8 +789,20 @@ function groupCascadeByCause(cascadeErrors: CheckIssue[], graph?: Graph): Map<st
  */
 function computeSuggestedNext(issues: CheckIssue[], graph?: Graph): string | null {
   const errors = issues.filter(i => i.severity === 'error');
-  /* v8 ignore next -- tested by clean-check test, but v8 sometimes marks it uncovered */
-  if (errors.length === 0) return null;
+  const ASPECT_STATUS_CODES = new Set([
+    'aspect-newly-active',
+    'aspect-violation-enforced',
+    'aspect-violation-advisory',
+  ]);
+  if (errors.length === 0) {
+    // No errors -- surface an advisory warning's `next` so the agent has a
+    // suggested action when only advisory violations remain.
+    const firstAspectWarning = issues.find(i =>
+      i.severity === 'warning' && ASPECT_STATUS_CODES.has(i.code),
+    );
+    /* v8 ignore next -- tested by clean-check test, but v8 sometimes marks it uncovered */
+    return firstAspectWarning?.messageData.next ?? null;
+  }
 
   // Smaller subset used only at line 684 for an internal filter (not CI blocking).
   // CI blocking uses cli/check.ts STRUCTURAL_CODES. Aligning these two sets is
@@ -771,6 +886,19 @@ function computeSuggestedNext(issues: CheckIssue[], graph?: Graph): string | nul
     const first = completenessErrors[0];
     return `Fix ${first.code} for ${first.nodePath}\n  1 of ${completenessErrors.length} completeness error${completenessErrors.length === 1 ? '' : 's'} — post-modify workflow`;
   }
+
+  // Aspect-status emissions (aspect-newly-active, aspect-violation-enforced,
+  // aspect-violation-advisory) carry their own `next` directly inside
+  // messageData. Prefer an error's `next` over a warning's so an enforced
+  // violation outranks a co-emitted advisory warning.
+  const firstAspectError = issues.find(i =>
+    i.severity === 'error' && ASPECT_STATUS_CODES.has(i.code),
+  );
+  if (firstAspectError) return firstAspectError.messageData.next;
+  const firstAspectWarning = issues.find(i =>
+    i.severity === 'warning' && ASPECT_STATUS_CODES.has(i.code),
+  );
+  if (firstAspectWarning) return firstAspectWarning.messageData.next;
 
   return null;
 }

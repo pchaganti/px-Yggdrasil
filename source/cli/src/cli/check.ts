@@ -282,6 +282,18 @@ export function formatOutput(result: CheckResult): string {
     lines.push(chalk.red(`Result: FAIL`) + ` (${cats.join(', ')} — ${errorCount} error${errorCount === 1 ? '' : 's'}, ${warningCount} warning${warningCount === 1 ? '' : 's'})`);
   }
 
+  // Aspect-status tallies (advisory + draft) — appended after the result line.
+  // Shown when either tally is non-zero so a clean run stays compact.
+  if (result.advisoryWarnings > 0 || result.draftSkipped > 0) {
+    lines.push('');
+    if (result.advisoryWarnings > 0) {
+      lines.push(`  ${result.advisoryWarnings} advisory aspect warning${result.advisoryWarnings === 1 ? '' : 's'}`);
+    }
+    if (result.draftSkipped > 0) {
+      lines.push(`  ${result.draftSkipped} draft aspect${result.draftSkipped === 1 ? '' : 's'} (skipped)`);
+    }
+  }
+
   // Suggested next command
   if (result.suggestedNext) {
     lines.push('');

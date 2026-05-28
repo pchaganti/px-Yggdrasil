@@ -13,6 +13,8 @@ function makeCheckResult(overrides: Partial<CheckResult> = {}): CheckResult {
     totalFiles: 0,
     issues: [],
     suggestedNext: null,
+    advisoryWarnings: 0,
+    draftSkipped: 0,
     ...overrides,
   };
 }

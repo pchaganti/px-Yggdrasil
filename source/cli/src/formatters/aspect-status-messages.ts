@@ -73,3 +73,57 @@ export function approveAspectDraftScenarioBMessage(params: {
     next: `To activate ${params.aspectId} on ${params.nodePath}, remove the draft override on ${params.origin}, or raise its effective status via another channel.`,
   };
 }
+
+/**
+ * A non-draft effective aspect has no baseline verdict for this node. Emitted
+ * by `yg check` when an aspect was flipped from draft -> advisory/enforced, when
+ * a new attach activates a previously inactive aspect, or when a fresh aspect
+ * is authored. Always renders as error so the agent re-approves before the
+ * cycle continues -- advisory status only changes how a recorded verdict
+ * renders, not whether an initial verdict is required.
+ */
+export function aspectNewlyActiveMessage(params: {
+  aspectId: string;
+  nodePath: string;
+  status: 'advisory' | 'enforced';
+}): IssueMessage {
+  return {
+    what: `Aspect '${params.aspectId}' is effective on node '${params.nodePath}' with status '${params.status}', but no reviewer baseline exists yet.`,
+    why: `The reviewer has not judged this node against this aspect. A status flip from 'draft' to '${params.status}', a new attach, or a freshly authored aspect produces this state. Advisory status does not skip this step — every active aspect needs an initial verdict before yg check can render its result. Status only affects how the verdict renders later.`,
+    next: `yg log add --node ${params.nodePath} --reason "..." && yg approve --node ${params.nodePath}`,
+  };
+}
+
+/**
+ * Baseline records the reviewer refused this aspect on this node AND the
+ * aspect's effective status here is 'enforced'. Renders as error and blocks
+ * `yg check`.
+ */
+export function aspectViolationEnforcedMessage(params: {
+  aspectId: string;
+  nodePath: string;
+  reason: string;
+}): IssueMessage {
+  return {
+    what: `Node '${params.nodePath}' fails enforced aspect '${params.aspectId}'. Reviewer reason: ${params.reason}.`,
+    why: 'Enforced aspects block yg check. Fix the violation or change the rule.',
+    next: `Read .yggdrasil/aspects/${params.aspectId}/content.md, fix the code, then yg approve --node ${params.nodePath}. Alternatives: change the aspect content, demote the aspect to advisory (see knowledge), or apply yg-suppress with a documented reason (user must approve).`,
+  };
+}
+
+/**
+ * Baseline records the reviewer refused this aspect on this node AND the
+ * aspect's effective status here is 'advisory'. Renders as warning -- the
+ * violation is recorded but does not block `yg check`.
+ */
+export function aspectViolationAdvisoryMessage(params: {
+  aspectId: string;
+  nodePath: string;
+  reason: string;
+}): IssueMessage {
+  return {
+    what: `Node '${params.nodePath}' fails advisory aspect '${params.aspectId}'. Reviewer reason: ${params.reason}.`,
+    why: 'Advisory aspects render as warning — they do not block yg check, but the violation is recorded.',
+    next: 'Optional: address the violation (see aspect-violation-enforced options) or accept the warning as known state.',
+  };
+}
