@@ -43,7 +43,9 @@ node_types:
                                              # node of this type (channel 3). Two forms per entry:
       - <aspect-id>                          #   bare string — unconditional
       - id: <aspect-id>                      #   object form — with per-site applicability filter
-        when: <aspect-predicate>             #   see graph-schemas/yg-aspect.yaml for grammar
+        status: enforced                     #   optional — explicit status override (channel 3).
+                                             #   Must satisfy bump rule (bump up OK, downgrade is validator error).
+        when: <aspect-predicate>             #   optional — see graph-schemas/yg-aspect.yaml for grammar
                                              # These also cascade to children (channel 4).
 
     parents: [<type-id>, ...]                # optional — allowed parent node types in the hierarchy.

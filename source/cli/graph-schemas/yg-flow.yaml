@@ -20,4 +20,6 @@ nodes:                        # required, non-empty — participant nodes (alias
 aspects:                      # optional — aspects propagate to all flow participants (channel 5)
   - simple-aspect             #   bare string
   - id: conditional-aspect    #   object form with per-site applicability filter
-    when: <predicate>         #   see graph-schemas/yg-aspect.yaml for grammar
+    status: enforced          #   optional — explicit status override (channel 5).
+                              #   Must satisfy bump rule (bump up OK, downgrade is validator error).
+    when: <predicate>         #   optional — see graph-schemas/yg-aspect.yaml for grammar

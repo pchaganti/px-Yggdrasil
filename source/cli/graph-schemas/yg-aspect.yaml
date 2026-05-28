@@ -26,11 +26,37 @@ reviewer:                          # required — which reviewer verifies this a
 # language: [typescript, tsx]      # required when reviewer.type is 'ast' — list of languages check.mjs handles.
                                    # The runner invokes check.mjs once per declared language.
 
+status: enforced                   # optional — aspect-level default. enum: draft | advisory | enforced.
+                                   # Absent → 'enforced'.
+                                   # draft     = reviewer skipped, no baseline, no drift.
+                                   # advisory  = reviewer runs; refused → warning (no block).
+                                   # enforced  = reviewer runs; refused → error (blocks check).
+
 # implies:                         # optional — other aspects included automatically when this
 #                                  # aspect is effective on a node. Two forms:
 #   - simple-aspect-id             # bare string — implied unconditionally (when outer aspect passes)
 #   - id: conditional-aspect-id    # object form — imply only when `when` passes on the node
 #     when: <predicate>            # see `when` section below for grammar
+#     status_inherit: strictest    # optional — propagation modifier for this implies edge.
+                                   # enum: strictest | own-default.
+                                   # Absent → 'strictest' (implied aspect promotes to
+                                   # the implier's effective status if higher than the
+                                   # implied aspect's own default).
+                                   # 'own-default' anchors the implied aspect to its
+                                   # own aspect-level default (decouples from implier).
+                                   #
+                                   # ASYMMETRY NOTE: attach-site entries on channels
+                                   # 1–6 (node, ancestor, architecture type, ancestor
+                                   # type, flow, port) carry an explicit `status:`
+                                   # VALUE. Channel 7 (implies) carries a propagation
+                                   # MODIFIER (`status_inherit:`) instead. Implies is
+                                   # not a direct attach — the implied aspect's status
+                                   # is structurally derived from the implier's
+                                   # effective status on the node. The modifier
+                                   # selects how to derive; a value-overriding
+                                   # `status:` on an implies edge would couple the
+                                   # edge to a literal that becomes stale if the
+                                   # implied aspect's own default changes.
                                    # Chains expand recursively. Cycles are forbidden — CLI detects.
 
 # when: <predicate>                # optional — applicability filter. If the predicate evaluates

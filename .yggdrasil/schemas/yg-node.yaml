@@ -13,7 +13,9 @@ aspects:                      # optional — aspect identifiers applied directly
                               # Two forms per entry:
   - simple-aspect             #   bare string — always effective once attached (channel 1)
   - id: conditional-aspect    #   object form — attach with per-site applicability filter
-    when: <predicate>         #   see graph-schemas/yg-aspect.yaml for grammar
+    status: enforced          #   optional — explicit status override (channel 1).
+                              #   Must satisfy bump rule (bump up OK, downgrade is validator error).
+    when: <predicate>         #   optional — see graph-schemas/yg-aspect.yaml for grammar
                               # Aspects cascade to all child nodes.
 
 ports:                        # optional — named entry points with required aspects
@@ -22,7 +24,9 @@ ports:                        # optional — named entry points with required as
     aspects:                  # required — aspects consumers must satisfy (channel 6)
       - simple-aspect         #   bare string form
       - id: conditional-aspect
-        when: <predicate>     #   object form with per-attach applicability filter
+        status: enforced      #   optional — explicit status override (channel 6).
+                              #   Must satisfy bump rule (bump up OK, downgrade is validator error).
+        when: <predicate>     #   optional — object form with per-attach applicability filter
 
 relations:                    # optional — outgoing dependencies to other nodes
   - target: other/module-path # required — node path relative to model/
