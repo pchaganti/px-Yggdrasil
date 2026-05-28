@@ -143,5 +143,11 @@ aspects:
     // B and C should be satisfied (spy returns satisfied: true)
     expect(result.aspectResults?.['b']?.satisfied).toBe(true);
     expect(result.aspectResults?.['c']?.satisfied).toBe(true);
+
+    // The user-facing refuseReasonData must use the distinct reference-failure message,
+    // not the generic provider/infrastructure error message.
+    expect(result.refuseReasonData?.what).toContain('Reference file load failed');
+    expect(result.refuseReasonData?.what).toContain('a');
+    expect(result.refuseReasonData?.what).not.toContain('provider connection');
   });
 });

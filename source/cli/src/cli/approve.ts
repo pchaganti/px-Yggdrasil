@@ -351,10 +351,12 @@ export function registerApproveCommand(program: Command): void {
             const llmAspects = aspects.filter(a => a.reviewer?.type !== 'ast');
 
             // AST aspects — run check and print violations
+            const realFilePaths = sourceFiles.map(f => f.path);
+            const astParseCache = new Map();
             for (const aspect of astAspects) {
               process.stdout.write(chalk.bold(`\n--- AST aspect: ${aspect.id} ---\n\n`));
               process.stdout.write(`Files:\n`);
-              for (const f of sourceFilePaths) {
+              for (const f of realFilePaths) {
                 process.stdout.write(`  ${f}\n`);
               }
               process.stdout.write('\n');
@@ -362,8 +364,9 @@ export function registerApproveCommand(program: Command): void {
                 const astResult = await runAstAspect({
                   aspectDir: path.join('.yggdrasil/aspects', aspect.id),
                   aspectId: aspect.id,
-                  files: sourceFilePaths.map(f => ({ path: f })),
+                  files: realFilePaths.map(f => ({ path: f })),
                   projectRoot,
+                  parseCache: astParseCache,
                 });
                 if (astResult.violations.length === 0) {
                   process.stdout.write('  no violations\n');
@@ -382,28 +385,29 @@ export function registerApproveCommand(program: Command): void {
               }
             }
 
-            // LLM aspects — show prompt for first (with references loaded for parity with real run)
+            // LLM aspects — show prompt for each (with references loaded for parity with real run)
             if (llmAspects.length > 0 && sourceFiles.length > 0) {
-              const firstAspect = llmAspects[0];
               const { loadAndIsolateReferences } = await import('../core/approve-reviewer.js');
               const { readTextFile } = await import('../io/graph-fs.js');
               const refsCache = new Map<string, string>();
-              const loaded = await loadAndIsolateReferences({
-                aspectId: firstAspect.id,
-                references: firstAspect.references,
-                projectRoot,
-                cache: refsCache,
-                readTextFile,
-              });
-              const references = loaded.ok ? loaded.references : [];
-              if (!loaded.ok) {
-                process.stdout.write(chalk.yellow(
-                  `(warning: reference load failed at dry-run time: ${loaded.reason})\n`,
-                ));
+              for (const aspect of llmAspects) {
+                const loaded = await loadAndIsolateReferences({
+                  aspectId: aspect.id,
+                  references: aspect.references,
+                  projectRoot,
+                  cache: refsCache,
+                  readTextFile,
+                });
+                const references = loaded.ok ? loaded.references : [];
+                if (!loaded.ok) {
+                  process.stdout.write(chalk.yellow(
+                    `(warning: reference load failed for ${aspect.id} at dry-run time: ${loaded.reason})\n`,
+                  ));
+                }
+                const prompt = buildPrompt(aspect, node.meta.description ?? '', nodePath, sourceFiles, references);
+                process.stdout.write(chalk.bold(`\n--- Prompt for LLM aspect: ${aspect.id} ---\n`));
+                process.stdout.write(prompt + '\n');
               }
-              const prompt = buildPrompt(firstAspect, node.meta.description ?? '', nodePath, sourceFiles, references);
-              process.stdout.write(chalk.bold('--- Prompt for first LLM aspect ---\n'));
-              process.stdout.write(prompt + '\n');
             }
           }
           process.exit(0);

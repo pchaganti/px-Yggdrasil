@@ -178,6 +178,7 @@ export async function runApproveWithReviewer(
   }
 
   // AST aspects first (no LLM call)
+  const astParseCache = new Map();
   for (const entry of plan.resolved) {
     if (entry.kind !== 'ast') continue;
     const aspect = entry.aspect;
@@ -187,6 +188,7 @@ export async function runApproveWithReviewer(
         aspectId: aspect.id,
         files: sourceFiles.map(f => ({ path: f.path })),
         projectRoot,
+        parseCache: astParseCache,
       });
       const violated = astResult.violations.length > 0;
       const reason = violated
@@ -329,13 +331,29 @@ export async function runApproveWithReviewer(
   const codeViolations = aspectViolations.filter(v => v.errorSource === 'codeViolation');
   const normalizedNodePath = nodePath.replace(/\\/g, '/').replace(/\/+$/, '');
 
+  // Check for reference-load failures first — distinct message, takes precedence over generic infra error
+  const referenceFailures = aspectViolations.filter(v => v.reason.startsWith('LLM_REFERENCE_UNREADABLE'));
+  if (referenceFailures.length > 0 && codeViolations.length === 0) {
+    return {
+      ...result,
+      action: 'refused',
+      refuseReasonData: {
+        what: `Reference file load failed for ${referenceFailures.length} aspect(s): ${referenceFailures.map(f => f.aspectId).join(', ')}.`,
+        why: 'one or more aspects declare references that could not be read at approve time. Earlier failures are listed above with the file path and syscall reason.',
+        next: `restore the missing reference file(s), fix the path in the aspect yg-aspect.yaml, or remove the reference. Then re-run: yg approve --node ${normalizedNodePath}`,
+      },
+      aspectResults: allAspectResults,
+      aspectViolations,
+    };
+  }
+
   if (infrastructureErrors.length > 0 && codeViolations.length === 0) {
     return {
       ...result,
       action: 'refused',
       refuseReasonData: {
         what: 'Reviewer infrastructure failed — this is not a code issue.',
-        why: 'Provider connection or authentication error, not a code violation.',
+        why: 'provider connection or authentication error, not a code violation.',
         next: 'Check your API key and provider configuration.',
       },
       aspectResults: allAspectResults,
