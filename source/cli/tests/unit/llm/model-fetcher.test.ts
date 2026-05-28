@@ -32,7 +32,7 @@ describe('fetchOpenAIModels', () => {
   });
 
   it('returns error for unreachable endpoint', async () => {
-    const result = await fetchOpenAIModels('test-key', 'http://localhost:1');
+    const result = await fetchOpenAIModels('test-key', 'http://localhost:99999');
     expect(result.ok).toBe(false);
     expect(result.models).toEqual([]);
     expect(result.error).toBeDefined();
@@ -50,7 +50,7 @@ describe('fetchGoogleModels', () => {
 
 describe('fetchOllamaModels', () => {
   it('returns error for unreachable endpoint', async () => {
-    const result = await fetchOllamaModels('http://localhost:1');
+    const result = await fetchOllamaModels('http://localhost:99999');
     expect(result.ok).toBe(false);
     expect(result.models).toEqual([]);
     expect(result.error).toBeDefined();

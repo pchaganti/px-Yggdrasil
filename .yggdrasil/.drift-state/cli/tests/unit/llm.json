@@ -1,5 +1,5 @@
 {
-  "hash": "4c489391614a04cf90d5e94e059a0f8072f303ea8d5b55058ed0446c836752ea",
+  "hash": "478bbb9348283184b30649b3cd176de304afc35abb8e4233444af64ffc1c45af",
   "files": {
     "own-subset:cli/tests/unit/llm": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -14,11 +14,12 @@
     "source/cli/tests/unit/llm/cli-base.test.ts": "b8c39e522b0ff38cdeed92445746283833a6c1ed98313ac07abea2db766c6b3f",
     "source/cli/tests/unit/llm/cli-providers.test.ts": "a57dd1c8dea3c3de2da6824f2e6d51ff93b788da6cf0987a259a95cc2c251529",
     "source/cli/tests/unit/llm/google.test.ts": "6bfc143216f2a6d85098f4b62757f7b853abf8ffa7e5152f88005a7d8a41ffd6",
-    "source/cli/tests/unit/llm/model-fetcher.test.ts": "c70207f3ba9c768631573da5f92d562b4dd8d5d1d8492d79fdf7ecb350a14bda",
     "source/cli/tests/unit/llm/openai.test.ts": "20ebba5d4ed8dd200230558249d1a8951b41b71d63ef7ed7872430a2f6a8103e",
     "source/cli/tests/unit/llm/provider.test.ts": "ff86be1fd6d9f07f2c553ea1aec1af6f236b2926e0e6edb0dd65160c21b56704",
-    "source/cli/tests/unit/llm/reviewer-test.test.ts": "bc4368a17cf4ef187183f1b087b04585bf61a157b5d5f9f72dbdba304a50188a",
-    "source/cli/tests/unit/llm/error-source.test.ts": "ff1362e850b1b3f36db6ad113fe65ea1823dee1a93ea30ae92483512bf6f7ee2"
+    "source/cli/tests/unit/llm/error-source.test.ts": "ff1362e850b1b3f36db6ad113fe65ea1823dee1a93ea30ae92483512bf6f7ee2",
+    "source/cli/tests/unit/llm/model-fetcher.test.ts": "384f3fb605ccf985c985001566bfaef3301ee751415a09645e327ddd77fe567c",
+    "source/cli/tests/unit/llm/reviewer-test.test.ts": "623728381ef7dd8c90ac996648d645f40922638c344194fc3dde66a17cf04380",
+    "source/cli/tests/unit/llm/xml-escape.test.ts": "10543b2fd5aebe29975c459ce5f16673bdd67178e276394123864adae2419a59"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -32,14 +33,15 @@
     "source/cli/tests/unit/llm/cli-base.test.ts": 1779794513954.12,
     "source/cli/tests/unit/llm/cli-providers.test.ts": 1776177846290.8035,
     "source/cli/tests/unit/llm/google.test.ts": 1776177846290.9426,
-    "source/cli/tests/unit/llm/model-fetcher.test.ts": 1776177846291.0698,
+    "source/cli/tests/unit/llm/model-fetcher.test.ts": 1779956895719.0083,
     "source/cli/tests/unit/llm/openai.test.ts": 1776177846291.208,
     "source/cli/tests/unit/llm/provider.test.ts": 1776177846291.3774,
-    "source/cli/tests/unit/llm/reviewer-test.test.ts": 1776177846291.508,
-    "source/cli/tests/unit/llm/error-source.test.ts": 1779794513954.2378
+    "source/cli/tests/unit/llm/reviewer-test.test.ts": 1779956899708.9058,
+    "source/cli/tests/unit/llm/error-source.test.ts": 1779794513954.2378,
+    "source/cli/tests/unit/llm/xml-escape.test.ts": 1779956691842.9502
   },
   "log": {
-    "last_entry_datetime": "2026-05-26T08:07:23.902Z",
-    "prefix_hash": "e5217689fc45c380619c2aee55e72f77c4e3967beabccb603edec56e8a3b15d2"
+    "last_entry_datetime": "2026-05-28T08:28:31.444Z",
+    "prefix_hash": "32d32db05860fcbf4ce2ca67c926bf0fcadd8274c1ac155c6c317306a1304c3e"
   }
 }

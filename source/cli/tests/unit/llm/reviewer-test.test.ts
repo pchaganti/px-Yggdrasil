@@ -3,25 +3,25 @@ import { testApiProvider, testCliProvider } from '../../../src/llm/reviewer-test
 
 describe('testApiProvider', () => {
   it('returns error for unreachable Anthropic endpoint', async () => {
-    const result = await testApiProvider('anthropic', 'test-key', 'test-model', 'http://localhost:1');
+    const result = await testApiProvider('anthropic', 'test-key', 'test-model', 'http://localhost:99999');
     expect(result.ok).toBe(false);
     expect(result.error).toBeDefined();
   });
 
   it('returns error for unreachable OpenAI endpoint', async () => {
-    const result = await testApiProvider('openai', 'test-key', 'test-model', 'http://localhost:1');
+    const result = await testApiProvider('openai', 'test-key', 'test-model', 'http://localhost:99999');
     expect(result.ok).toBe(false);
     expect(result.error).toBeDefined();
   });
 
   it('returns error for unreachable openai-compatible endpoint', async () => {
-    const result = await testApiProvider('openai-compatible', 'test-key', 'test-model', 'http://localhost:1');
+    const result = await testApiProvider('openai-compatible', 'test-key', 'test-model', 'http://localhost:99999');
     expect(result.ok).toBe(false);
     expect(result.error).toBeDefined();
   });
 
   it('returns error for unreachable Ollama endpoint', async () => {
-    const result = await testApiProvider('ollama', '', 'test-model', 'http://localhost:1');
+    const result = await testApiProvider('ollama', '', 'test-model', 'http://localhost:99999');
     expect(result.ok).toBe(false);
     expect(result.error).toBeDefined();
   });

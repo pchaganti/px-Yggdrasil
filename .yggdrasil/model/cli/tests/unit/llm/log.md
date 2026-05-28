@@ -1,2 +1,6 @@
 ## [2026-05-26T08:07:23.902Z]
 Update cli-base.test.ts assertions to include errorSource: 'codeViolation' in toEqual checks (parseAspectResponse now normalizes all returned objects to include errorSource). Add error-source.test.ts: behavioral tests for AspectResponse errorSource filter semantics.
+## [2026-05-28T08:25:39.294Z]
+Added unit tests for escapeXmlText helper covering: entity escaping order (& before < >), attribute vs body mode (" handling), preservation of tab/LF/CR, escaping of other control characters (U+0000..U+001F), and a round-trip integration case with a realistic aspect description string. All 7 tests pass.
+## [2026-05-28T08:28:31.444Z]
+Fixed determinism violation: replaced http://localhost:1 with http://localhost:99999 as the unreachable-endpoint stand-in in model-fetcher and reviewer-test tests. Port 1 (TCP multiplex) is a valid OS-level port that could be bound in some environments, making the test environment-dependent. Port 99999 exceeds the maximum valid port number (65535) and is always invalid regardless of machine state, making it a deterministic unreachable-endpoint signal consistent with how other test files in this suite handle the same pattern.
