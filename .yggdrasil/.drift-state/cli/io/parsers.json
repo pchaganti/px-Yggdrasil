@@ -1,5 +1,5 @@
 {
-  "hash": "e4eea6159fea96678df49b7d46951939e4cde1b06de9c9cc3f97ad1e578c715e",
+  "hash": "3e7670b66c9b1e84ad28a9e81507cb0193a9e7c9a749ccf8197a3f1fc8cab5ca",
   "files": {
     "own-subset:cli/io/parsers": "49eba5656163800b5213d51e9c6969831d387f9252bafe1e854a9e84e7bebf9e",
     "tier-identity:parser-contract": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -24,7 +24,7 @@
     "source/cli/src/io/node-parser.ts": "d0a96fe70b38aed28972020c95c8fa9c218b11d95f6139feccad25a2f32aaec0",
     "source/cli/src/io/schema-parser.ts": "a1563e6d7eaaf4c17f1e8b7f5e680dfdde78647bee243339a29eca9d702d9470",
     "source/cli/src/io/secrets-parser.ts": "4489bff3216f21ee3912f357e08bfda01ea921efeec93c937aa0f822c872b859",
-    "source/cli/src/io/aspect-parser.ts": "c302ccb21f034d433954db2c9b851cb0126eefdb5b49df0c533cd9e4736fd3e5"
+    "source/cli/src/io/aspect-parser.ts": "dfa902177c4a8c808b2d52630dfcbe1ab4fb1958e5b17b67f3ac92cb08caeec5"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -42,7 +42,7 @@
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     "source/cli/src/io/architecture-parser.ts": 1778851225036.454,
-    "source/cli/src/io/aspect-parser.ts": 1779951221473.0364,
+    "source/cli/src/io/aspect-parser.ts": 1779951895255.0955,
     "source/cli/src/io/config-parser.ts": 1779948015015.0596,
     "source/cli/src/io/flow-parser.ts": 1778952340799.223,
     "source/cli/src/io/node-parser.ts": 1778952351543.8853,
@@ -50,7 +50,7 @@
     "source/cli/src/io/secrets-parser.ts": 1779876097323.327
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T06:54:02.932Z",
-    "prefix_hash": "286bdd4ae19eb0f72cf6583daf8c889666667862e169899946ad726521f90039"
+    "last_entry_datetime": "2026-05-28T07:05:20.439Z",
+    "prefix_hash": "37f42209106cd013687ba25b3ed69aa0d8e956cd9e93c096dc77f236dfa28aae"
   }
 }

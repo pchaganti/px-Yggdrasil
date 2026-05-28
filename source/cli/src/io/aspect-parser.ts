@@ -10,6 +10,23 @@ export type ParseAspectResult =
   | { ok: true; aspect: AspectDef }
   | { ok: false; aspectId: string; errors: Array<{ code: string; messageData: IssueMessage }> };
 
+/** Pure helper: returns true if path p would escape the repository root. */
+function escapesRepo(p: string): boolean {
+  if (p.startsWith('/')) return true;
+  if (/^[A-Za-z]:/.test(p)) return true;
+  if (p.startsWith('~')) return true;
+  let depth = 0;
+  for (const segment of p.split('/')) {
+    if (segment === '..') {
+      depth--;
+      if (depth < 0) return true;
+    } else if (segment !== '' && segment !== '.') {
+      depth++;
+    }
+  }
+  return false;
+}
+
 export async function parseAspect(
   aspectDir: string,
   aspectYamlPath: string,
@@ -135,8 +152,8 @@ export async function parseAspect(
           code: 'aspect-references-on-ast',
           messageData: {
             what: `Aspect '${idTrimmed}' declares 'references:' but reviewer.type is 'ast'.`,
-            why: 'Reference files are passed to the LLM reviewer in the prompt. AST aspects run a local check.mjs and ignore them.',
-            next: `Remove 'references:' from .yggdrasil/aspects/${idTrimmed}/yg-aspect.yaml, or change reviewer.type to 'llm'.`,
+            why: 'reference files are passed to the LLM reviewer in the prompt. AST aspects run a local check.mjs and ignore them.',
+            next: `remove 'references:' from .yggdrasil/aspects/${idTrimmed}/yg-aspect.yaml, or change reviewer.type to 'llm'.`,
           },
         }],
       };
@@ -215,21 +232,6 @@ export async function parseAspect(
         };
       }
       // aspect-reference-escape
-      const escapesRepo = (p: string): boolean => {
-        if (p.startsWith('/')) return true;
-        if (/^[A-Za-z]:/.test(p)) return true;
-        if (p.startsWith('~')) return true;
-        let depth = 0;
-        for (const segment of p.split('/')) {
-          if (segment === '..') {
-            depth--;
-            if (depth < 0) return true;
-          } else if (segment !== '' && segment !== '.') {
-            depth++;
-          }
-        }
-        return false;
-      };
       if (escapesRepo(normalized)) {
         return {
           ok: false,
@@ -238,8 +240,8 @@ export async function parseAspect(
             code: 'aspect-reference-escape',
             messageData: {
               what: `Aspect '${idTrimmed}' reference '${rawPath}' escapes the repository root.`,
-              why: 'References must be repo-relative so they are reproducible across clones and CI.',
-              next: `Use a path relative to the repository root, e.g. 'docs/error-codes.md'.`,
+              why: 'references must be repo-relative so they are reproducible across clones and CI.',
+              next: `use a path relative to the repository root, e.g. 'docs/error-codes.md'.`,
             },
           }],
         };
@@ -253,8 +255,8 @@ export async function parseAspect(
             code: 'aspect-reference-duplicate',
             messageData: {
               what: `Aspect '${idTrimmed}' lists '${normalized}' more than once under 'references:'.`,
-              why: 'Duplicate references inflate the prompt and indicate a copy-paste error.',
-              next: `Remove the duplicate entry from .yggdrasil/aspects/${idTrimmed}/yg-aspect.yaml.`,
+              why: 'duplicate references inflate the prompt and indicate a copy-paste error.',
+              next: `remove the duplicate entry from .yggdrasil/aspects/${idTrimmed}/yg-aspect.yaml.`,
             },
           }],
         };
