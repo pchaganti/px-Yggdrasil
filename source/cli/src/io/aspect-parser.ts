@@ -1,12 +1,12 @@
 import { readFile } from 'node:fs/promises';
 import { parse as parseYaml } from 'yaml';
-import type { AspectDef, AspectReviewerSpec, AspectStatus } from '../model/graph.js';
+import type { AspectDef, AspectReviewerSpec, AspectStatus, StatusInherit } from '../model/graph.js';
 import { ASPECT_STATUS_VALUES } from '../model/graph.js';
 import type { IssueMessage } from '../model/validation.js';
 import type { WhenPredicate } from '../model/when.js';
 import { readArtifacts } from './artifact-reader.js';
 import { parseWhen, parseAspectAttachment } from '../core/parsing/when-parser.js';
-import { aspectStatusInvalidMessage } from '../formatters/aspect-status-messages.js';
+import { aspectStatusInvalidMessage, impliesStatusInheritInvalidMessage } from '../formatters/aspect-status-messages.js';
 
 export type ParseAspectResult =
   | { ok: true; aspect: AspectDef }
@@ -117,6 +117,7 @@ export async function parseAspect(
 
   let implies: string[] | undefined;
   let impliesWhens: Record<string, WhenPredicate> | undefined;
+  let impliesStatusInherit: Record<string, StatusInherit> | undefined;
   if (raw.implies !== undefined) {
     if (!Array.isArray(raw.implies)) {
       return {
@@ -134,13 +135,41 @@ export async function parseAspect(
     }
     implies = [];
     for (let i = 0; i < raw.implies.length; i++) {
-      const parsed = parseAspectAttachment(
-        raw.implies[i],
-        `yg-aspect.yaml at ${aspectYamlPath}: implies[${i}]`,
-      );
+      let parsed;
+      try {
+        parsed = parseAspectAttachment(
+          raw.implies[i],
+          `yg-aspect.yaml at ${aspectYamlPath}: implies[${i}]`,
+          'implies-edge',
+        );
+      } catch (err) {
+        const msg = (err as Error).message;
+        if (msg.includes('status_inherit must be one of')) {
+          // Reachable only after parseAspectAttachment validated `id`; status_inherit
+          // is checked last, so the entry is guaranteed to be an object with a string id.
+          const entry = raw.implies[i] as { id: string; status_inherit?: unknown };
+          return {
+            ok: false,
+            aspectId: idTrimmed,
+            errors: [{
+              code: 'implies-status-inherit-invalid',
+              messageData: impliesStatusInheritInvalidMessage({
+                implierId: idTrimmed,
+                impliedId: entry.id,
+                value: String(entry.status_inherit),
+                aspectDir,
+              }),
+            }],
+          };
+        }
+        throw err;
+      }
       implies.push(parsed.id);
       if (parsed.when) {
         (impliesWhens ??= {})[parsed.id] = parsed.when;
+      }
+      if (parsed.statusInherit) {
+        (impliesStatusInherit ??= {})[parsed.id] = parsed.statusInherit;
       }
     }
   }
@@ -300,6 +329,7 @@ export async function parseAspect(
       ...(raw.language !== undefined && { language: raw.language as string[] }),
       implies,
       ...(impliesWhens && { impliesWhens }),
+      ...(impliesStatusInherit && { impliesStatusInherit }),
       ...(when && { when }),
       artifacts,
       ...(references && { references }),

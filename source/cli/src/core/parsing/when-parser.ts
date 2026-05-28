@@ -7,7 +7,8 @@ import type {
   DescendantsClause,
   NodeClause,
 } from '../../model/when.js';
-import type { RelationType } from '../../model/graph.js';
+import type { RelationType, AspectStatus, StatusInherit } from '../../model/graph.js';
+import { ASPECT_STATUS_VALUES, STATUS_INHERIT_VALUES } from '../../model/graph.js';
 import { BOOLEAN_KEYS, parsePredicateBoolean } from './predicate-boolean.js';
 
 const RELATION_TYPES = new Set<string>([
@@ -201,16 +202,30 @@ function parseNodeClause(raw: unknown, ctx: string): NodeClause {
 }
 
 /**
+ * Mode for `parseAspectAttachment`:
+ * - `'attach-site'` — channels 1–6 (node/architecture/flow/port). Accepts
+ *   optional `status:` overriding the aspect-default per the bump rule.
+ * - `'implies-edge'` — channel 7 (aspect → aspect). Accepts optional
+ *   `status_inherit:` modifier ('strictest' default, 'own-default' opt-out).
+ */
+export type AspectAttachmentMode = 'attach-site' | 'implies-edge';
+
+/**
  * Parse an aspect attachment list entry. Accepts either:
  * - a bare string (the aspect id; no `when`)
- * - an object `{ id: string, when?: <predicate> }`
+ * - an object `{ id: string, when?: <predicate>, status?: <AspectStatus> }`
+ *   in `'attach-site'` mode, or
+ *   `{ id: string, when?: <predicate>, status_inherit?: <StatusInherit> }`
+ *   in `'implies-edge'` mode.
  *
- * Returns the aspect id and, if present, the parsed predicate.
+ * Returns the aspect id and, if present, the parsed predicate and mode-specific
+ * status field.
  */
 export function parseAspectAttachment(
   raw: unknown,
   ctx: string,
-): { id: string; when?: WhenPredicate } {
+  mode: AspectAttachmentMode = 'attach-site',
+): { id: string; when?: WhenPredicate; status?: AspectStatus; statusInherit?: StatusInherit } {
   if (typeof raw === 'string') {
     const id = raw.trim();
     if (id === '') {
@@ -223,15 +238,32 @@ export function parseAspectAttachment(
     if (typeof obj.id !== 'string' || obj.id.trim() === '') {
       throw new Error(`${ctx}: object form requires 'id' as a non-empty string`);
     }
-    const result: { id: string; when?: WhenPredicate } = { id: obj.id.trim() };
-    const allowed = new Set(['id', 'when']);
+    const result: { id: string; when?: WhenPredicate; status?: AspectStatus; statusInherit?: StatusInherit } = { id: obj.id.trim() };
+
+    // Allowed keys depend on mode — channels 1–6 carry `status:`, channel 7 carries `status_inherit:`.
+    const allowed = mode === 'implies-edge'
+      ? new Set(['id', 'when', 'status_inherit'])
+      : new Set(['id', 'when', 'status']);
     for (const k of Object.keys(obj)) {
       if (!allowed.has(k)) {
-        throw new Error(`${ctx}: unknown field '${k}' in aspect attachment (allowed: id, when)`);
+        const list = mode === 'implies-edge' ? 'id, when, status_inherit' : 'id, when, status';
+        throw new Error(`${ctx}: unknown field '${k}' in aspect attachment (allowed: ${list})`);
       }
     }
     if ('when' in obj) {
       result.when = parseWhen(obj.when, `${ctx}/when`);
+    }
+    if (mode === 'attach-site' && 'status' in obj) {
+      if (typeof obj.status !== 'string' || !ASPECT_STATUS_VALUES.includes(obj.status as AspectStatus)) {
+        throw new Error(`${ctx}: status must be one of: draft, advisory, enforced (got '${String(obj.status)}')`);
+      }
+      result.status = obj.status as AspectStatus;
+    }
+    if (mode === 'implies-edge' && 'status_inherit' in obj) {
+      if (typeof obj.status_inherit !== 'string' || !STATUS_INHERIT_VALUES.includes(obj.status_inherit as StatusInherit)) {
+        throw new Error(`${ctx}: status_inherit must be one of: strictest, own-default (got '${String(obj.status_inherit)}')`);
+      }
+      result.statusInherit = obj.status_inherit as StatusInherit;
     }
     return result;
   }

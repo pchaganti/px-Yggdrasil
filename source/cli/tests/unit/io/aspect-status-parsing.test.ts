@@ -82,3 +82,86 @@ status: unstable
     }
   });
 });
+
+describe('aspect-parser: implies status_inherit', () => {
+  it('bare string implies → no status_inherit entry', async () => {
+    const { aspectDir, yamlPath } = await writeAspectFixture(`
+name: Example
+description: x
+reviewer: { type: llm }
+implies:
+  - some-other
+`);
+    const r = await parseAspect(aspectDir, yamlPath, 'example');
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.aspect.implies).toEqual(['some-other']);
+      expect(r.aspect.impliesStatusInherit?.['some-other']).toBeUndefined();
+    }
+  });
+
+  it('object form with status_inherit: strictest', async () => {
+    const { aspectDir, yamlPath } = await writeAspectFixture(`
+name: Example
+description: x
+reviewer: { type: llm }
+implies:
+  - id: companion
+    status_inherit: strictest
+`);
+    const r = await parseAspect(aspectDir, yamlPath, 'example');
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.aspect.implies).toEqual(['companion']);
+      expect(r.aspect.impliesStatusInherit?.['companion']).toBe('strictest');
+    }
+  });
+
+  it('object form with status_inherit: own-default', async () => {
+    const { aspectDir, yamlPath } = await writeAspectFixture(`
+name: Example
+description: x
+reviewer: { type: llm }
+implies:
+  - id: companion
+    status_inherit: own-default
+`);
+    const r = await parseAspect(aspectDir, yamlPath, 'example');
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.aspect.impliesStatusInherit?.['companion']).toBe('own-default');
+    }
+  });
+
+  it('rejects invalid status_inherit value', async () => {
+    const { aspectDir, yamlPath } = await writeAspectFixture(`
+name: Example
+description: x
+reviewer: { type: llm }
+implies:
+  - id: companion
+    status_inherit: lax
+`);
+    const r = await parseAspect(aspectDir, yamlPath, 'example');
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors.map(e => e.code)).toContain('implies-status-inherit-invalid');
+    }
+  });
+
+  it('re-throws unrelated errors from implies parsing (unknown field)', async () => {
+    // An object entry under implies with an unknown key (not 'status_inherit')
+    // should not be remapped to 'implies-status-inherit-invalid'; the underlying
+    // parser error must propagate.
+    const { aspectDir, yamlPath } = await writeAspectFixture(`
+name: Example
+description: x
+reviewer: { type: llm }
+implies:
+  - id: companion
+    bogus: x
+`);
+    await expect(parseAspect(aspectDir, yamlPath, 'example')).rejects.toThrow(/unknown field 'bogus'/);
+  });
+
+});

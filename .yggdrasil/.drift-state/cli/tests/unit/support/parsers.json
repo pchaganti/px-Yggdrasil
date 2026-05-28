@@ -1,5 +1,5 @@
 {
-  "hash": "5dd6dba937627bf5e273f22f14b8a2cd8d5e98f392ff4b5830c715673b1ff364",
+  "hash": "a5d96e658f5a771e216e9ecca44414748abd8933d613b75e10ce6a8b17b54d58",
   "files": {
     "own-subset:cli/tests/unit/support/parsers": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -17,7 +17,7 @@
     "source/cli/tests/unit/io/log-parser.test.ts": "72cbfd947e54141c3352f179b84e6a96ce5f4ecbef59490cc02438560c21d8df",
     "source/cli/tests/unit/io/node-parser.test.ts": "8b43620723c53acc9b752552fca803e2280802a8c2a3743737181aac07ed60b3",
     "source/cli/tests/unit/io/when-parser.test.ts": "46211247127c155656c1d67bd28a2b78b7a8ab845923498701e04fd3cd2f2389",
-    "source/cli/tests/unit/io/aspect-status-parsing.test.ts": "d0afe71c0e61a8407dc87e35e7b3e3e95091c9c7c8d8e82bf2769d5554874596"
+    "source/cli/tests/unit/io/aspect-status-parsing.test.ts": "2b56ad14df0cf91f113738059013cc3396fecbd09c29ee4cf45bb8583424d070"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -29,7 +29,7 @@
     "source/cli/tests/unit/io/architecture-parser.test.ts": 1778917592468.0361,
     "source/cli/tests/unit/io/aspect-parser.test.ts": 1779869468776.2842,
     "source/cli/tests/unit/io/aspect-parser-references.test.ts": 1779951183386.4688,
-    "source/cli/tests/unit/io/aspect-status-parsing.test.ts": 1779966512117.7742,
+    "source/cli/tests/unit/io/aspect-status-parsing.test.ts": 1779967328650.9912,
     "source/cli/tests/unit/io/file-when-parser.test.ts": 1778851229833.6035,
     "source/cli/tests/unit/io/flow-parser.test.ts": 1778918778052.933,
     "source/cli/tests/unit/io/log-parser.test.ts": 1778851229832.0247,
@@ -37,7 +37,7 @@
     "source/cli/tests/unit/io/when-parser.test.ts": 1778851229835.2869
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T11:11:09.122Z",
-    "prefix_hash": "3dd486b719726b075be1b4141ac63edf8a3dcfd85565c61ef469ee50364e4746"
+    "last_entry_datetime": "2026-05-28T11:23:30.539Z",
+    "prefix_hash": "aa4bdef4e430febf5db7dd16611b95ca9065d89f8c43c14451652633ed4627b2"
   }
 }

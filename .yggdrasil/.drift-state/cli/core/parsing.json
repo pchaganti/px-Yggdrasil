@@ -1,5 +1,5 @@
 {
-  "hash": "7c3c219e3432ea403d90627fbf0593787c710704b03314b43f31faf9e0e5b1c1",
+  "hash": "be4af26804296daa2b9227be473a3633917b948ca3ae488ec011110112bc4c97",
   "files": {
     "own-subset:cli/core/parsing": "41d78e2a463c3295d65bc0c806d31ff2dfbfc01e5dc2e00c053acb7848221c10",
     "tier-identity:diagnostic-logging": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -25,8 +25,8 @@
     ".yggdrasil/model/cli/model/file-when/yg-node.yaml": "f9ecd1d6196e240a49928bcbf2d7fcc5b210985df3157b7291b0aea2fef69a3e",
     "source/cli/src/core/parsing/log-parser.ts": "29aa2620d7f0223666b23b78f914dfc204ff5102be3a42d6546ba055f42e5523",
     "source/cli/src/core/parsing/file-when-parser.ts": "00a7ff15ed9fb6f5daaa691452ba99cd550190a5fb08c2bfc9b7cf164f42af23",
-    "source/cli/src/core/parsing/when-parser.ts": "6147d5b166f7df4abe7a5ab537d7b6e309ca1a8a6217ad347d6ccfd5361b9e34",
-    "source/cli/src/core/parsing/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b"
+    "source/cli/src/core/parsing/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b",
+    "source/cli/src/core/parsing/when-parser.ts": "94d2a817a156081bf49ce7a8e21118fb301482b0b4fe5806afd1eca791beadd4"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -50,11 +50,11 @@
     ".yggdrasil/model/cli/model/file-when/yg-node.yaml": 1778650103730.5442,
     "source/cli/src/core/parsing/log-parser.ts": 1778572714037.1997,
     "source/cli/src/core/parsing/file-when-parser.ts": 1778951319182.845,
-    "source/cli/src/core/parsing/when-parser.ts": 1778951293914.5557,
+    "source/cli/src/core/parsing/when-parser.ts": 1779967236795.9546,
     "source/cli/src/core/parsing/predicate-boolean.ts": 1778951247012.7993
   },
   "log": {
-    "last_entry_datetime": "2026-05-16T17:09:32.931Z",
-    "prefix_hash": "40e6a7adf571fa406818385574c71a5855c835bc238a44b7a2585e594f8d21a5"
+    "last_entry_datetime": "2026-05-28T11:23:13.986Z",
+    "prefix_hash": "6e61f80ed1a53dc7cfdb7156164f60efd2987aa962d6b6b67a978bd6afb1574a"
   }
 }
