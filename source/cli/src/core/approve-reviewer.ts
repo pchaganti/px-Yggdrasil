@@ -13,6 +13,7 @@ import { selectTierForAspect } from './tier-selection.js';
 import { loadSecrets, mergeLlmConfig } from '../io/secrets-parser.js';
 import { runAstAspect, AstRunnerError } from '../ast/runner.js';
 import { debugWrite } from '../utils/debug-log.js';
+import { readTextFile } from '../io/graph-fs.js';
 import path from 'node:path';
 
 export interface LlmApproveResult extends ApproveResult {
@@ -50,6 +51,49 @@ export function resolveExecutionPlan(
   }
 
   return { resolved, errors };
+}
+
+// ── reference loader ────────────────────────────────────────
+
+export interface LoadReferencesParams {
+  aspectId: string;
+  references: Array<{ path: string; description?: string }> | undefined;
+  projectRoot: string;
+  cache: Map<string, string>;
+  readTextFile: (absPath: string) => Promise<string>;
+}
+
+export type LoadReferencesResult =
+  | { ok: true; references: Array<{ path: string; description?: string; content: string }> }
+  | { ok: false; reason: string };
+
+function stripBom(s: string): string {
+  return s.charCodeAt(0) === 0xFEFF ? s.slice(1) : s;
+}
+
+export async function loadAndIsolateReferences(params: LoadReferencesParams): Promise<LoadReferencesResult> {
+  const refs = params.references ?? [];
+  if (refs.length === 0) return { ok: true, references: [] };
+  const out: Array<{ path: string; description?: string; content: string }> = [];
+  for (const ref of refs) {
+    const absPath = path.join(params.projectRoot, ref.path);
+    try {
+      let content = params.cache.get(absPath);
+      if (content === undefined) {
+        content = stripBom(await params.readTextFile(absPath));
+        params.cache.set(absPath, content);
+      }
+      out.push({ path: ref.path, description: ref.description, content });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      debugWrite(`[approve] reference load failed for aspect ${params.aspectId} path ${ref.path}: ${msg}`);
+      return {
+        ok: false,
+        reason: `LLM_REFERENCE_UNREADABLE: ${ref.path} — ${msg}`,
+      };
+    }
+  }
+  return { ok: true, references: out };
 }
 
 // ── per-tier batching ────────────────────────────────────────
@@ -108,6 +152,7 @@ export async function runApproveWithReviewer(
   const nodeDescription = node.meta.description ?? '';
   const aspectViolations: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' }> = [];
   const allAspectResults: Record<string, AspectVerificationResult> = {};
+  const referencesCache = new Map<string, string>();
 
   // Resolve execution plan
   const plan: ExecutionPlan = graph.config.reviewer
@@ -232,13 +277,39 @@ export async function runApproveWithReviewer(
       ? await resolveMaxTokens(merged, provider)
       : (merged.max_tokens as number);
 
-    const llmResults = await verifyAspects({
-      provider,
-      aspects: entries.map(e => ({
+    // Load references per-aspect with failure isolation
+    const aspectsForTier: Array<{
+      id: string;
+      description: string;
+      content: string;
+      references?: Array<{ path: string; description?: string; content: string }>;
+    }> = [];
+    for (const e of entries) {
+      const loaded = await loadAndIsolateReferences({
+        aspectId: e.aspect.id,
+        references: e.aspect.references,
+        projectRoot,
+        cache: referencesCache,
+        readTextFile,
+      });
+      if (!loaded.ok) {
+        allAspectResults[e.aspect.id] = { satisfied: false, reason: loaded.reason, errorSource: 'provider' };
+        aspectViolations.push({ aspectId: e.aspect.id, reason: loaded.reason, errorSource: 'provider' });
+        continue;
+      }
+      aspectsForTier.push({
         id: e.aspect.id,
         description: e.aspect.description ?? e.aspect.name,
         content: aspectContent(e.aspect),
-      })),
+        references: loaded.references.length > 0 ? loaded.references : undefined,
+      });
+    }
+
+    if (aspectsForTier.length === 0) continue;
+
+    const llmResults = await verifyAspects({
+      provider,
+      aspects: aspectsForTier,
       sourceFiles,
       nodePath,
       nodeDescription,

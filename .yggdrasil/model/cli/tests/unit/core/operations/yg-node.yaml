@@ -7,6 +7,7 @@ mapping:
   - source/cli/tests/unit/core/approve.test.ts
   - source/cli/tests/unit/core/approve-llm.test.ts
   - source/cli/tests/unit/core/approve-log.test.ts
+  - source/cli/tests/unit/core/approve-reviewer-references.test.ts
   - source/cli/tests/unit/core/check.test.ts
   - source/cli/tests/unit/core/check-log.test.ts
   - source/cli/tests/unit/core/effective-aspects.test.ts
