@@ -149,6 +149,30 @@ describe('integration — aspect-status implies chain (3 levels: A → B → C)'
     expect(statuses.get('c')).toBe('advisory');
   });
 
+  it('all own-default on both A→B and B→C edges: each implied keeps own default', async () => {
+    const repo = buildRepo(
+      [
+        // A implies B with own-default → B keeps its own (advisory).
+        { id: 'a', status: 'enforced', implies: [{ id: 'b', status_inherit: 'own-default' }] },
+        // B implies C with own-default → C keeps its own (draft).
+        { id: 'b', status: 'advisory', implies: [{ id: 'c', status_inherit: 'own-default' }] },
+        { id: 'c', status: 'draft' },
+      ],
+      ['a'],
+    );
+    repos.push(repo);
+
+    const graph = await loadGraph(repo);
+    const svc = graph.nodes.get('svc')!;
+    const statuses = computeEffectiveAspectStatuses(svc, graph);
+
+    expect(statuses.get('a')).toBe('enforced');
+    expect(statuses.get('b')).toBe('advisory');
+    // C is effective at its own default (draft). Even though B propagates,
+    // own-default isolates C from B's effective status.
+    expect(statuses.get('c')).toBe('draft');
+  });
+
   it('A at draft: implies do not propagate; B and C absent when not attached elsewhere', async () => {
     const repo = buildRepo(
       [

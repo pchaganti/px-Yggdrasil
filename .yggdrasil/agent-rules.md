@@ -93,6 +93,8 @@ Do not interrupt `yg approve` — it processes each aspect across all source fil
 
 Status change from `draft` to `advisory` or `enforced` causes drift (no baseline exists yet) — the agent must run `yg approve --node <path>` to create one. Status change between `advisory` and `enforced` is NOT drift but does flip how the verdict renders, possibly turning a passing check red overnight if a refused baseline existed.
 
+When `yg check` emits both errors AND warnings, `suggestedNext` points at the first error. Fix errors before warnings — an advisory violation never blocks CI, an enforced violation always does.
+
 ### CLI Commands — essentials
 
 | Command | Purpose |
