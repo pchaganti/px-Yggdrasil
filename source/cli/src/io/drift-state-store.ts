@@ -88,6 +88,40 @@ export async function writeNodeDriftState(
 }
 
 /**
+ * Remove specified aspect IDs from the per-node drift baseline's aspectVerdicts.
+ *
+ * Used after a successful approve to evict stale verdicts for aspects that
+ * have transitioned to `draft` status — draft aspects are dormant (no reviewer
+ * call, no baseline maintenance), so any leftover verdict from a prior approve
+ * must be cleared to keep the baseline consistent with what the reviewer
+ * actually evaluated.
+ *
+ * No-op when the node has no stored state, no aspectVerdicts field, or when
+ * none of the requested IDs are present. If removal empties the aspectVerdicts
+ * map, the field is dropped entirely (matches initial-write shape).
+ */
+export async function clearDraftAspectsFromDriftState(
+  yggRoot: string,
+  nodePath: string,
+  aspectIdsToClear: Set<string>,
+): Promise<void> {
+  const state = await readNodeDriftState(yggRoot, nodePath);
+  if (!state?.aspectVerdicts) return;
+  let mutated = false;
+  for (const id of aspectIdsToClear) {
+    if (id in state.aspectVerdicts) {
+      delete state.aspectVerdicts[id];
+      mutated = true;
+    }
+  }
+  if (!mutated) return;
+  if (Object.keys(state.aspectVerdicts).length === 0) {
+    delete state.aspectVerdicts;
+  }
+  await writeNodeDriftState(yggRoot, nodePath, state);
+}
+
+/**
  * Garbage-collect drift state: remove .json files for node paths NOT in validNodePaths,
  * or for which shouldKeep returns false.
  * Cleans up empty parent directories after removal.

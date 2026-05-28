@@ -7,6 +7,7 @@ mapping:
   - source/cli/tests/unit/io/artifact-reader.test.ts
   - source/cli/tests/unit/io/config-parser.test.ts
   - source/cli/tests/unit/io/drift-state-store.test.ts
+  - source/cli/tests/unit/io/drift-state-store-status.test.ts
   - source/cli/tests/unit/io/find-index.test.ts
   - source/cli/tests/unit/io/schema-parser.test.ts
   - source/cli/tests/unit/io/secrets-parser.test.ts

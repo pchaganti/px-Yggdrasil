@@ -14,7 +14,40 @@ import { loadSecrets, mergeLlmConfig } from '../io/secrets-parser.js';
 import { runAstAspect, AstRunnerError } from '../ast/runner.js';
 import { debugWrite } from '../utils/debug-log.js';
 import { readTextFile } from '../io/graph-fs.js';
+import { clearDraftAspectsFromDriftState } from '../io/drift-state-store.js';
 import path from 'node:path';
+
+/**
+ * Commit approval and evict any stale baseline entries for effective-draft
+ * aspects on this node. Called after every commitApproval site in this file.
+ *
+ * Why eviction is needed: draft aspects are dormant (skipped before reviewer
+ * dispatch — see Task 13), so if a prior approve recorded a verdict for an
+ * aspect that has since transitioned to `draft`, that verdict would linger in
+ * the baseline despite no reviewer ever evaluating it again. The cleanup
+ * removes those orphaned verdicts so the persisted state reflects only
+ * aspects the reviewer actually saw.
+ *
+ * Note: in the all-draft case the approve path short-circuits earlier
+ * (filtered.length === 0) — this helper still runs there and is a safe no-op
+ * when there are no prior verdicts to clear.
+ */
+async function commitApprovalAndCleanDrafts(
+  rootPath: string,
+  result: ApproveResult,
+  node: GraphNode,
+  graph: Graph,
+): Promise<void> {
+  await commitApproval(rootPath, result);
+  const statuses = computeEffectiveAspectStatuses(node, graph);
+  const draftIds = new Set<string>();
+  for (const [id, status] of statuses) {
+    if (status === 'draft') draftIds.add(id);
+  }
+  if (draftIds.size > 0) {
+    await clearDraftAspectsFromDriftState(rootPath, node.path, draftIds);
+  }
+}
 
 export interface LlmApproveResult extends ApproveResult {
   aspectResults?: Record<string, AspectVerificationResult>;
@@ -207,7 +240,7 @@ export async function runApproveWithReviewer(
   if (filtered.length === 0) {
     const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
     applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
-    await commitApproval(rootPath, result);
+    await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
     return { ...result, skippedDraftAspects };
   }
 
@@ -216,7 +249,7 @@ export async function runApproveWithReviewer(
   if (!graph.config.reviewer && hasLlmAspects) {
     const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
     applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
-    await commitApproval(rootPath, result);
+    await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
     return { ...result, llmSkipped: 'unavailable', skippedDraftAspects };
   }
 
@@ -245,7 +278,7 @@ export async function runApproveWithReviewer(
     const why = plan.errors.map(e => [e.what, e.why].filter(Boolean).join('\n')).join('\n\n');
     const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
     applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
-    await commitApproval(rootPath, result);
+    await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
     return {
       ...result,
       action: 'refused',
@@ -296,7 +329,7 @@ export async function runApproveWithReviewer(
     const normalizedNodePath = nodePath.replace(/\\/g, '/').replace(/\/+$/, '');
     const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
     applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
-    await commitApproval(rootPath, result);
+    await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
     return {
       ...result,
       action: 'refused',
@@ -318,7 +351,7 @@ export async function runApproveWithReviewer(
   if (llmEntries.length === 0) {
     const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
     applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
-    await commitApproval(rootPath, result);
+    await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
     return { ...result, aspectResults: allAspectResults, skippedDraftAspects };
   }
 
@@ -361,7 +394,7 @@ export async function runApproveWithReviewer(
     if (!(await provider.isAvailable())) {
       const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
       applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
-      await commitApproval(rootPath, result);
+      await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
       return { ...result, llmSkipped: 'unavailable', aspectResults: allAspectResults, skippedDraftAspects };
     }
 
@@ -426,7 +459,7 @@ export async function runApproveWithReviewer(
   if (referenceFailures.length > 0 && codeViolations.length === 0) {
     const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
     applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
-    await commitApproval(rootPath, result);
+    await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
     return {
       ...result,
       action: 'refused',
@@ -444,7 +477,7 @@ export async function runApproveWithReviewer(
   if (infrastructureErrors.length > 0 && codeViolations.length === 0) {
     const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
     applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
-    await commitApproval(rootPath, result);
+    await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
     return {
       ...result,
       action: 'refused',
@@ -462,7 +495,7 @@ export async function runApproveWithReviewer(
   if (aspectViolations.length > 0) {
     const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
     applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
-    await commitApproval(rootPath, result);
+    await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
     return {
       ...result,
       action: 'refused',
@@ -479,6 +512,6 @@ export async function runApproveWithReviewer(
 
   const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
   applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
-  await commitApproval(rootPath, result);
+  await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
   return { ...result, aspectResults: allAspectResults, skippedDraftAspects };
 }

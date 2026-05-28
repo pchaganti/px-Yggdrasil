@@ -1,5 +1,5 @@
 {
-  "hash": "b83ad20695c82712da48a7d4c18fc949a3da44c1965459562a1dfb1bbbc9e058",
+  "hash": "d0a8f6bad5d680df1ac01f8e17fb1257dc380559b078ca8d060adf5baa7e41f2",
   "files": {
     "own-subset:cli/tests/unit/support/io": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -16,7 +16,8 @@
     "source/cli/tests/unit/io/schema-parser.test.ts": "d90bb165eb711119bc9e4752453beb90953f4365b72ed728917db03142253ef3",
     "source/cli/tests/unit/io/secrets-parser.test.ts": "3a961411c40d2a0b7809d90fc21792e87b780322e0a3de1112a6acc8dec4ce2d",
     "source/cli/tests/unit/io/read-or-default.test.ts": "47ad2f845e3fb2524db10049dfc1babc8db4d036875e99ddc004a2c91e953ad6",
-    "source/cli/tests/unit/io/config-parser-references.test.ts": "8889934061970205eddd2f7ff6f7b38e20870090539427e0e6f1fe0861414423"
+    "source/cli/tests/unit/io/config-parser-references.test.ts": "8889934061970205eddd2f7ff6f7b38e20870090539427e0e6f1fe0861414423",
+    "source/cli/tests/unit/io/drift-state-store-status.test.ts": "f961dd0539df4db27361fbd3c39cceba644c294d7d7fc90efb278d33babf60de"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -28,14 +29,20 @@
     "source/cli/tests/unit/io/artifact-reader.test.ts": 1778918895769.132,
     "source/cli/tests/unit/io/config-parser.test.ts": 1779873783159.5225,
     "source/cli/tests/unit/io/drift-state-store.test.ts": 1778918658054.3496,
+    "source/cli/tests/unit/io/drift-state-store-status.test.ts": 1779974998796.8467,
     "source/cli/tests/unit/io/find-index.test.ts": 1779869468776.5195,
     "source/cli/tests/unit/io/schema-parser.test.ts": 1778918877105.082,
     "source/cli/tests/unit/io/secrets-parser.test.ts": 1779876397663.6604,
     "source/cli/tests/unit/io/read-or-default.test.ts": 1779882138239.9805,
-    "source/cli/tests/unit/io/config-parser-references.test.ts": 1779953142263.885
+    "source/cli/tests/unit/io/config-parser-references.test.ts": 1779954901900.481
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T07:11:41.123Z",
-    "prefix_hash": "7dc129448eb2b0d4765d7f9ab384bd924e234f38e571e3c4c8c1ca257361cdb7"
+    "last_entry_datetime": "2026-05-28T13:28:27.614Z",
+    "prefix_hash": "8fa19d99637fe127f26d703debb772e38a03e8f67db94afd6c3400bd98ec0461"
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   }
 }
