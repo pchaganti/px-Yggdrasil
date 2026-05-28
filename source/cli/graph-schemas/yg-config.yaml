@@ -28,6 +28,9 @@ reviewer:                         # required — aspect verification during yg a
         temperature: 0            #       reduces variability — keep at 0
         max_tokens: auto          #       auto = query provider, or explicit positive integer
         context_length_field: ""  #       ollama: model_info key for context window size
+      # references:                # optional — limits on aspect reference files for aspects resolving to this tier
+      #   max_bytes_per_file: 65536          # positive integer; default 65536 (64 KiB)
+      #   max_total_bytes_per_aspect: 262144 # positive integer; default 262144 (256 KiB)
     # Add more tiers as needed (e.g. a `deep` tier with a higher-capability model for critical aspects).
     # An aspect references a non-default tier via:
     #
