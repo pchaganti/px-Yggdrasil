@@ -1,0 +1,34 @@
+{
+  "hash": "61e1d2a0a42e4e7f2a357369c2fc38b3f9c54a8ad834fbec82154dc754457f78",
+  "files": {
+    "own-subset:cli/tests/unit/support/parsers/predicate-log": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
+    ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": "e00d9fa0fe37a252b92888b2e217811de7fa6df420f60cdbc3e692833a16be4d",
+    ".yggdrasil/model/cli/tests/unit/support/parsers/yg-node.yaml": "8a19892532b2ce4db09ef8d61e63c0b6e82bf4638e4efe3f558469c162c603ac",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
+    ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/unit/io/file-when-parser.test.ts": "97783e8495cc46933dfb585564794cd42d18860061857eee099b356a611de86b",
+    "source/cli/tests/unit/io/when-parser.test.ts": "46211247127c155656c1d67bd28a2b78b7a8ab845923498701e04fd3cd2f2389",
+    "source/cli/tests/unit/io/log-parser.test.ts": "72cbfd947e54141c3352f179b84e6a96ce5f4ecbef59490cc02438560c21d8df"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
+    ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": 1778866544645.0125,
+    ".yggdrasil/model/cli/tests/unit/support/parsers/yg-node.yaml": 1779996158801.8574,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
+    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
+    "source/cli/tests/unit/io/file-when-parser.test.ts": 1778851229833.6035,
+    "source/cli/tests/unit/io/when-parser.test.ts": 1778851229835.2869,
+    "source/cli/tests/unit/io/log-parser.test.ts": 1778851229832.0247
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
+  }
+}

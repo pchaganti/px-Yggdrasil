@@ -1,17 +1,5 @@
 name: Graph Parser Tests
-type: test-suite
-description: Unit tests for all graph-file parsers — architecture, aspect, when-file, flow, log, node, and when-expression parsers
+type: module
+description: "Parent node for graph-file parser unit tests — children group by parser family: aspect, structural (architecture/flow/node), and predicate/log parsers."
 aspects: []
 relations: []
-mapping:
-  - source/cli/tests/unit/io/architecture-parser.test.ts
-  - source/cli/tests/unit/io/architecture-parser-status.test.ts
-  - source/cli/tests/unit/io/aspect-parser.test.ts
-  - source/cli/tests/unit/io/aspect-parser-references.test.ts
-  - source/cli/tests/unit/io/aspect-status-parsing.test.ts
-  - source/cli/tests/unit/io/file-when-parser.test.ts
-  - source/cli/tests/unit/io/flow-parser.test.ts
-  - source/cli/tests/unit/io/flow-parser-status.test.ts
-  - source/cli/tests/unit/io/log-parser.test.ts
-  - source/cli/tests/unit/io/node-parser.test.ts
-  - source/cli/tests/unit/io/when-parser.test.ts
