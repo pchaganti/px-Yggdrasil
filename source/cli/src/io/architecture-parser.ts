@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { parse as parseYaml } from 'yaml';
-import type { ArchitectureDef, ArchitectureNodeType, RelationType } from '../model/graph.js';
+import type { ArchitectureDef, ArchitectureNodeType, AspectStatus, RelationType } from '../model/graph.js';
 import type { FileWhenPredicate } from '../model/file-when.js';
 import { parseAspectAttachment } from '../core/parsing/when-parser.js';
 import { parseFileWhen } from '../core/parsing/file-when-parser.js';
@@ -43,6 +43,7 @@ export async function parseArchitecture(filePath: string): Promise<ArchitectureD
 
     let aspects: string[] | undefined;
     let aspectWhens: Record<string, WhenPredicate> | undefined;
+    let aspectStatus: Record<string, AspectStatus> | undefined;
     if (Array.isArray(entry.aspects)) {
       aspects = [];
       for (let i = 0; i < (entry.aspects as unknown[]).length; i++) {
@@ -53,6 +54,9 @@ export async function parseArchitecture(filePath: string): Promise<ArchitectureD
         aspects.push(parsed.id);
         if (parsed.when) {
           (aspectWhens ??= {})[parsed.id] = parsed.when;
+        }
+        if (parsed.status) {
+          (aspectStatus ??= {})[parsed.id] = parsed.status;
         }
       }
       if (aspects.length === 0) aspects = undefined;
@@ -93,6 +97,7 @@ export async function parseArchitecture(filePath: string): Promise<ArchitectureD
       description: entry.description as string,
       aspects,
       ...(aspectWhens && { aspectWhens }),
+      ...(aspectStatus && { aspectStatus }),
       parents: parents && parents.length > 0 ? parents : undefined,
       relations: relations,
       ...(logRequired !== undefined && { log_required: logRequired }),

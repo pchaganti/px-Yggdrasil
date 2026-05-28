@@ -5,6 +5,7 @@ aspects: []
 relations: []
 mapping:
   - source/cli/tests/unit/io/architecture-parser.test.ts
+  - source/cli/tests/unit/io/architecture-parser-status.test.ts
   - source/cli/tests/unit/io/aspect-parser.test.ts
   - source/cli/tests/unit/io/aspect-parser-references.test.ts
   - source/cli/tests/unit/io/aspect-status-parsing.test.ts

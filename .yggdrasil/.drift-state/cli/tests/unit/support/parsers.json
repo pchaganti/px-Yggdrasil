@@ -1,5 +1,5 @@
 {
-  "hash": "949e4e1efaab467ee6ac6e5e1e7fb8e0946da78c08bb4213c42be70610374c64",
+  "hash": "b58fd1faf8609e10f280febb35589baab9eecc88b2d104c0f36208642d99f0d4",
   "files": {
     "own-subset:cli/tests/unit/support/parsers": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -16,8 +16,9 @@
     "source/cli/tests/unit/io/file-when-parser.test.ts": "97783e8495cc46933dfb585564794cd42d18860061857eee099b356a611de86b",
     "source/cli/tests/unit/io/flow-parser.test.ts": "22cd03e5b59de13106d6e9b9b37032c4ea8c711bc26eedda74fc7cd42232c451",
     "source/cli/tests/unit/io/log-parser.test.ts": "72cbfd947e54141c3352f179b84e6a96ce5f4ecbef59490cc02438560c21d8df",
+    "source/cli/tests/unit/io/node-parser.test.ts": "1abc21707a9fb548476b165dacc4884f28eb6aec9f1ca2bdf7635f5256f2f3ee",
     "source/cli/tests/unit/io/when-parser.test.ts": "46211247127c155656c1d67bd28a2b78b7a8ab845923498701e04fd3cd2f2389",
-    "source/cli/tests/unit/io/node-parser.test.ts": "1abc21707a9fb548476b165dacc4884f28eb6aec9f1ca2bdf7635f5256f2f3ee"
+    "source/cli/tests/unit/io/architecture-parser-status.test.ts": "b11962b385f705888a571c5f996fc483437a5fc3330b41dec7130b899f73fd12"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -27,6 +28,7 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/io/architecture-parser.test.ts": 1778917592468.0361,
+    "source/cli/tests/unit/io/architecture-parser-status.test.ts": 1779968128494.7646,
     "source/cli/tests/unit/io/aspect-parser.test.ts": 1779869468776.2842,
     "source/cli/tests/unit/io/aspect-parser-references.test.ts": 1779951183386.4688,
     "source/cli/tests/unit/io/aspect-status-parsing.test.ts": 1779967328650.9912,
@@ -37,7 +39,7 @@
     "source/cli/tests/unit/io/when-parser.test.ts": 1778851229835.2869
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T11:30:34.623Z",
-    "prefix_hash": "ed3cf99efaa73ac3db5494575bbe1ee918b00cb3f4ede7f9765f6da038828132"
+    "last_entry_datetime": "2026-05-28T11:37:03.638Z",
+    "prefix_hash": "a69156313cb341c5c0c80ac4b1bdfc9a7bdbce4ef0f58ccc41d3811c4125e53b"
   }
 }
