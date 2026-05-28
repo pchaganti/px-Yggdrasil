@@ -75,6 +75,19 @@ export function approveAspectDraftScenarioBMessage(params: {
 }
 
 /**
+ * `yg approve --node Y` where every effective aspect on Y resolves to 'draft'.
+ * Reviewer is skipped entirely on this node — no baseline written, no drift
+ * tracked. Friendly message points the agent at how to activate an aspect.
+ */
+export function approveNodeAllDraftMessage(params: { nodePath: string }): IssueMessage {
+  return {
+    what: `Every effective aspect on node '${params.nodePath}' has status 'draft'. Reviewer skipped.`,
+    why: 'Draft aspects are dormant; no baseline written, no drift tracked.',
+    next: `Promote at least one effective aspect to 'advisory' or 'enforced' to enable approve on this node.`,
+  };
+}
+
+/**
  * A non-draft effective aspect has no baseline verdict for this node. Emitted
  * by `yg check` when an aspect was flipped from draft -> advisory/enforced, when
  * a new attach activates a previously inactive aspect, or when a fresh aspect

@@ -18,10 +18,11 @@ import type { Graph, LlmConfig } from '../model/graph.js';
 import { readNodeDriftState } from '../io/drift-state-store.js';
 import { runAstAspect } from '../ast/runner.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
-import { computeEffectiveAspectStatuses, getAspectStatusSources } from '../core/graph/aspects.js';
+import { computeEffectiveAspectStatuses, getAspectStatusSources, hasNonDraftEffectiveAspects } from '../core/graph/aspects.js';
 import {
   approveAspectDraftScenarioAMessage,
   approveAspectDraftScenarioBMessage,
+  approveNodeAllDraftMessage,
 } from '../formatters/aspect-status-messages.js';
 
 export async function runLlmVerification(
@@ -213,6 +214,121 @@ export function formatBatchOutput(results: BatchResult[], scenarioBSkips: string
   }
 }
 
+// ── Dry-run per-node helper ───────────────────────────────────
+
+/**
+ * Dry-run preview for a single node. Prints what the reviewer WOULD see
+ * without invoking it. Each LLM aspect prompt is tagged with the aspect's
+ * effective status on this node — `[draft]` aspects also get a clarifying
+ * annotation since real approve would skip them.
+ */
+export async function runDryRunForNode(params: {
+  graph: Graph;
+  nodePath: string;
+  yggPrefix: string;
+}): Promise<void> {
+  const { graph, nodePath, yggPrefix } = params;
+  const node = graph.nodes.get(nodePath);
+  if (!node) {
+    process.stderr.write(
+      chalk.red(
+        `Error: ${buildIssueMessage({
+          what: `Node '${nodePath}' not found.`,
+          why: 'The path does not match any node in the loaded graph.',
+          next: "Run 'yg tree' to list all nodes; verify the path and re-run.",
+        })}\n`,
+      ),
+    );
+    return;
+  }
+
+  const { buildPrompt } = await import('../llm/aspect-verifier.js');
+  const aspects = resolveAspects(node, graph);
+  const statuses = computeEffectiveAspectStatuses(node, graph);
+  const projectRoot = path.dirname(graph.rootPath);
+  const trackedFiles = collectTrackedFiles(node, graph);
+  const { fileHashes } = await hashTrackedFiles(projectRoot, trackedFiles, undefined, []);
+  const sourceFilePaths = Object.keys(fileHashes).filter(f => {
+    const normalized = f.replace(/\\/g, '/').replace(/\/+$/, '');
+    return !normalized.startsWith(yggPrefix);
+  });
+  const sourceFiles = await loadSourceFiles(sourceFilePaths, projectRoot);
+  process.stdout.write(chalk.bold(`\n--- Dry run: ${nodePath} ---\n\n`));
+  process.stdout.write(`Aspects (${aspects.length}): ${aspects.map(a => a.id).join(', ') || 'none'}\n`);
+  process.stdout.write(`Source files (${sourceFiles.length}): ${sourceFiles.map(f => f.path).join(', ') || 'none'}\n\n`);
+
+  const astAspects = aspects.filter(a => a.reviewer?.type === 'ast');
+  const llmAspects = aspects.filter(a => a.reviewer?.type !== 'ast');
+
+  // AST aspects — run check and print violations
+  const realFilePaths = sourceFiles.map(f => f.path);
+  const astParseCache = new Map();
+  for (const aspect of astAspects) {
+    const status = statuses.get(aspect.id) ?? 'enforced';
+    process.stdout.write(chalk.bold(`\n--- AST aspect: ${aspect.id} [${status}] ---\n\n`));
+    if (status === 'draft') {
+      process.stdout.write(chalk.dim('(real approve would skip — preview only)\n\n'));
+    }
+    process.stdout.write(`Files:\n`);
+    for (const f of realFilePaths) {
+      process.stdout.write(`  ${f}\n`);
+    }
+    process.stdout.write('\n');
+    try {
+      const astResult = await runAstAspect({
+        aspectDir: path.join('.yggdrasil/aspects', aspect.id),
+        aspectId: aspect.id,
+        files: realFilePaths.map(f => ({ path: f })),
+        projectRoot,
+        parseCache: astParseCache,
+      });
+      if (astResult.violations.length === 0) {
+        process.stdout.write('  no violations\n');
+      } else {
+        for (const v of astResult.violations) {
+          process.stdout.write(`  ${v.file}:${v.line}: ${v.message}\n`);
+        }
+      }
+    } catch (e: unknown) {
+      debugWrite(`[approve] dry-run ast aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
+      process.stderr.write(chalk.red(buildIssueMessage({
+        what: `AST aspect '${aspect.id}' runner failed.`,
+        why: (e as Error).message,
+        next: 'Verify the aspect check.mjs is valid and that AST runner dependencies are installed.',
+      }) + '\n'));
+    }
+  }
+
+  // LLM aspects — show prompt for each (with references loaded for parity with real run)
+  if (llmAspects.length > 0 && sourceFiles.length > 0) {
+    const { loadAndIsolateReferences } = await import('../core/approve-reviewer.js');
+    const { readTextFile } = await import('../io/graph-fs.js');
+    const refsCache = new Map<string, string>();
+    for (const aspect of llmAspects) {
+      const status = statuses.get(aspect.id) ?? 'enforced';
+      const loaded = await loadAndIsolateReferences({
+        aspectId: aspect.id,
+        references: aspect.references,
+        projectRoot,
+        cache: refsCache,
+        readTextFile,
+      });
+      const references = loaded.ok ? loaded.references : [];
+      if (!loaded.ok) {
+        process.stdout.write(chalk.yellow(
+          `(warning: reference load failed for ${aspect.id} at dry-run time: ${loaded.reason})\n`,
+        ));
+      }
+      const prompt = buildPrompt(aspect, node.meta.description ?? '', nodePath, sourceFiles, references);
+      process.stdout.write(chalk.bold(`\n--- Prompt for LLM aspect: ${aspect.id} [${status}] ---\n`));
+      if (status === 'draft') {
+        process.stdout.write(chalk.dim('(real approve would skip — preview only)\n'));
+      }
+      process.stdout.write(prompt + '\n');
+    }
+  }
+}
+
 // ── Gating codes — approve must not invoke LLM when these are present ──
 
 const APPROVE_GATING_CODES = new Set([
@@ -370,97 +486,9 @@ export function registerApproveCommand(program: Command): void {
 
         // --dry-run: show what would be sent to the reviewer
         if (options.dryRun && options.node) {
-          const { buildPrompt } = await import('../llm/aspect-verifier.js');
           for (const rawPath of options.node) {
             const nodePath = rawPath.trim().replace(/\/$/, '');
-            const node = graph.nodes.get(nodePath);
-            if (!node) {
-              process.stderr.write(
-                chalk.red(
-                  `Error: ${buildIssueMessage({
-                    what: `Node '${nodePath}' not found.`,
-                    why: 'The path does not match any node in the loaded graph.',
-                    next: "Run 'yg tree' to list all nodes; verify the path and re-run.",
-                  })}\n`,
-                ),
-              );
-              continue;
-            }
-            const aspects = resolveAspects(node, graph);
-            const projectRoot = path.dirname(graph.rootPath);
-            const trackedFiles = collectTrackedFiles(node, graph);
-            const { fileHashes } = await hashTrackedFiles(projectRoot, trackedFiles, undefined, []);
-            const sourceFilePaths = Object.keys(fileHashes).filter(f => {
-              const normalized = f.replace(/\\/g, '/').replace(/\/+$/, '');
-              return !normalized.startsWith(yggPrefix);
-            });
-            const sourceFiles = await loadSourceFiles(sourceFilePaths, projectRoot);
-            process.stdout.write(chalk.bold(`\n--- Dry run: ${nodePath} ---\n\n`));
-            process.stdout.write(`Aspects (${aspects.length}): ${aspects.map(a => a.id).join(', ') || 'none'}\n`);
-            process.stdout.write(`Source files (${sourceFiles.length}): ${sourceFiles.map(f => f.path).join(', ') || 'none'}\n\n`);
-
-            const astAspects = aspects.filter(a => a.reviewer?.type === 'ast');
-            const llmAspects = aspects.filter(a => a.reviewer?.type !== 'ast');
-
-            // AST aspects — run check and print violations
-            const realFilePaths = sourceFiles.map(f => f.path);
-            const astParseCache = new Map();
-            for (const aspect of astAspects) {
-              process.stdout.write(chalk.bold(`\n--- AST aspect: ${aspect.id} ---\n\n`));
-              process.stdout.write(`Files:\n`);
-              for (const f of realFilePaths) {
-                process.stdout.write(`  ${f}\n`);
-              }
-              process.stdout.write('\n');
-              try {
-                const astResult = await runAstAspect({
-                  aspectDir: path.join('.yggdrasil/aspects', aspect.id),
-                  aspectId: aspect.id,
-                  files: realFilePaths.map(f => ({ path: f })),
-                  projectRoot,
-                  parseCache: astParseCache,
-                });
-                if (astResult.violations.length === 0) {
-                  process.stdout.write('  no violations\n');
-                } else {
-                  for (const v of astResult.violations) {
-                    process.stdout.write(`  ${v.file}:${v.line}: ${v.message}\n`);
-                  }
-                }
-              } catch (e: unknown) {
-                debugWrite(`[approve] dry-run ast aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
-                process.stderr.write(chalk.red(buildIssueMessage({
-                  what: `AST aspect '${aspect.id}' runner failed.`,
-                  why: (e as Error).message,
-                  next: 'Verify the aspect check.mjs is valid and that AST runner dependencies are installed.',
-                }) + '\n'));
-              }
-            }
-
-            // LLM aspects — show prompt for each (with references loaded for parity with real run)
-            if (llmAspects.length > 0 && sourceFiles.length > 0) {
-              const { loadAndIsolateReferences } = await import('../core/approve-reviewer.js');
-              const { readTextFile } = await import('../io/graph-fs.js');
-              const refsCache = new Map<string, string>();
-              for (const aspect of llmAspects) {
-                const loaded = await loadAndIsolateReferences({
-                  aspectId: aspect.id,
-                  references: aspect.references,
-                  projectRoot,
-                  cache: refsCache,
-                  readTextFile,
-                });
-                const references = loaded.ok ? loaded.references : [];
-                if (!loaded.ok) {
-                  process.stdout.write(chalk.yellow(
-                    `(warning: reference load failed for ${aspect.id} at dry-run time: ${loaded.reason})\n`,
-                  ));
-                }
-                const prompt = buildPrompt(aspect, node.meta.description ?? '', nodePath, sourceFiles, references);
-                process.stdout.write(chalk.bold(`\n--- Prompt for LLM aspect: ${aspect.id} ---\n`));
-                process.stdout.write(prompt + '\n');
-              }
-            }
+            await runDryRunForNode({ graph, nodePath, yggPrefix });
           }
           process.exit(0);
         }
@@ -554,6 +582,16 @@ export function registerApproveCommand(program: Command): void {
 
         // Has mapping — single node approve
         await abortOnGatingErrors(graph);
+
+        // All-draft short-circuit: every effective aspect on this node is
+        // draft → reviewer skipped, no baseline written, no drift tracked.
+        // approveNode already auto-approves; emit a clearer user-facing
+        // message instead of a generic "Approved" line.
+        if (!hasNonDraftEffectiveAspects(node, graph)) {
+          process.stdout.write(buildIssueMessage(approveNodeAllDraftMessage({ nodePath })) + '\n');
+          process.exit(0);
+        }
+
         process.stdout.write(chalk.yellow(`Verifying aspects with reviewer — this may take a while. Do not interrupt.\n`));
         const coreResult = await approveNode(graph, nodePath);
         const secretsByProvider = new Map<string, Partial<LlmConfig> | null>();

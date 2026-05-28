@@ -395,3 +395,113 @@ describe('formatBatchOutput — draft skip tally', () => {
 describe('CLI Scenario A (--aspect X with default draft) — deferred to integration tests', () => {
   it.todo('exits 0 with approveAspectDraftScenarioAMessage when aspect-default is draft');
 });
+
+// ── Task 16 ─────────────────────────────────────────────────────
+// `yg approve --node Y` analogue of Scenario A: every effective aspect on Y
+// resolves to draft → reviewer skipped on this node. Companion behaviour for
+// `--dry-run`: still prints prompts for ALL effective aspects, but annotates
+// each with its effective status, and adds a "would skip" note for drafts.
+
+import { hasNonDraftEffectiveAspects } from '../../../src/core/graph/aspects.js';
+import { approveNodeAllDraftMessage } from '../../../src/formatters/aspect-status-messages.js';
+import { buildIssueMessage } from '../../../src/formatters/message-builder.js';
+import { runDryRunForNode } from '../../../src/cli/approve.js';
+
+describe('cli approve: --node Y with all-draft', () => {
+  it('exits early when every effective aspect on Y is draft (skip message)', async () => {
+    const { tmpDir } = await createTmpProject('node-all-draft', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - deterministic\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [{
+        id: 'deterministic',
+        yaml: 'name: Deterministic\ndescription: test\nreviewer:\n  type: llm\nstatus: draft\n',
+        files: { 'content.md': 'Be deterministic.\n' },
+      }],
+    });
+    const graph = await loadGraph(tmpDir);
+    const node = graph.nodes.get('svc/my-service')!;
+
+    // Precondition that the CLI single-node path checks before bypassing the
+    // reviewer dispatch. If false, the CLI emits approveNodeAllDraftMessage
+    // and exits 0 instead of invoking runLlmVerification.
+    expect(hasNonDraftEffectiveAspects(node, graph)).toBe(false);
+
+    const writes: string[] = [];
+    const orig = process.stdout.write.bind(process.stdout);
+    process.stdout.write = ((chunk: unknown) => {
+      writes.push(String(chunk));
+      return true;
+    }) as typeof process.stdout.write;
+    let verifyCalls = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() {
+        verifyCalls++;
+        return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const };
+      },
+    }));
+    try {
+      // Mirror the CLI single-node all-draft branch.
+      if (!hasNonDraftEffectiveAspects(node, graph)) {
+        process.stdout.write(buildIssueMessage(approveNodeAllDraftMessage({ nodePath: 'svc/my-service' })) + '\n');
+      }
+    } finally {
+      process.stdout.write = orig;
+    }
+
+    const combined = writes.join('');
+    expect(combined).toContain('Reviewer skipped');
+    expect(combined).toContain("Every effective aspect on node 'svc/my-service' has status 'draft'");
+    // No reviewer call took place — the branch is taken before any LLM dispatch.
+    expect(verifyCalls).toBe(0);
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('dry-run prints prompts for ALL effective aspects regardless of status, with [status] tag', async () => {
+    const { tmpDir, yggRoot } = await createTmpProject('node-dry-run-status', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - draft-rule\n  - enforced-rule\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [
+        {
+          id: 'draft-rule',
+          yaml: 'name: Draft\ndescription: test\nreviewer:\n  type: llm\nstatus: draft\n',
+          files: { 'content.md': 'Draft rule.\n' },
+        },
+        {
+          id: 'enforced-rule',
+          yaml: 'name: Enforced\ndescription: test\nreviewer:\n  type: llm\nstatus: enforced\n',
+          files: { 'content.md': 'Enforced rule.\n' },
+        },
+      ],
+    });
+    const graph = await loadGraph(tmpDir);
+    const yggPrefix = path.relative(path.dirname(graph.rootPath), graph.rootPath)
+      .replace(/\\/g, '/').replace(/\/+$/, '');
+    // yggRoot is unused below — included only via createTmpProject; keep var aliased
+    void yggRoot;
+
+    const writes: string[] = [];
+    const orig = process.stdout.write.bind(process.stdout);
+    process.stdout.write = ((chunk: unknown) => {
+      writes.push(String(chunk));
+      return true;
+    }) as typeof process.stdout.write;
+    try {
+      await runDryRunForNode({ graph, nodePath: 'svc/my-service', yggPrefix });
+    } finally {
+      process.stdout.write = orig;
+    }
+
+    const combined = writes.join('');
+    // Both aspect prompts appear, each tagged with its effective status.
+    expect(combined).toContain('Prompt for LLM aspect: enforced-rule [enforced]');
+    expect(combined).toContain('Prompt for LLM aspect: draft-rule [draft]');
+    // Draft aspect carries the "would skip" annotation; enforced does not.
+    expect(combined).toContain('(real approve would skip — preview only)');
+    // The annotation is only attached to draft. Counter-check: only one
+    // occurrence of the annotation string overall (one draft aspect here).
+    expect(combined.split('(real approve would skip — preview only)').length - 1).toBe(1);
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+});

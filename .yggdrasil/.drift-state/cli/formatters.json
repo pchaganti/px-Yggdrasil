@@ -1,5 +1,5 @@
 {
-  "hash": "fb5efb36971ea113bd4b577fd7a6a03db2a9deb23d4fea3fbf7400c531ca0a62",
+  "hash": "efb9616432240bf4b091b9709c37e42d423bc5adeb911ff1b7b87a118822514d",
   "files": {
     "own-subset:cli/formatters": "15ceb1b16c4614dc0a81954fcf485bf53e3db603b33388864d56a989412db3a3",
     "tier-identity:what-why-next": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -22,7 +22,7 @@
     "source/cli/src/formatters/message-builder.ts": "eb9f5e94c04b9d372cb8299a84ee5f85daa463620ed195ee01e736e13ab9f518",
     "source/cli/src/formatters/predicate-trace.ts": "8f484e857c19c2a976ad78b1230ae7689aef23259e58af702d3d7f9e5d50a216",
     "source/cli/src/formatters/truncate.ts": "e8162777e6034f34e3dd5b9e13921ad7365f22b9a508d62950c8a110d4fba599",
-    "source/cli/src/formatters/aspect-status-messages.ts": "b3072e51dff6a525382a1df43d6722150a364bca30a9091adf714bc799940a51"
+    "source/cli/src/formatters/aspect-status-messages.ts": "1892a1ff750c299c74e04853ac45cd12eeaa3361d3a8b9a762e19b6352a35345"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -36,7 +36,7 @@
     ".yggdrasil/aspects/posix-paths-output/content.md": 1778912983383.063,
     ".yggdrasil/model/cli/model/context/yg-node.yaml": 1776177846203.256,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    "source/cli/src/formatters/aspect-status-messages.ts": 1779973769239.315,
+    "source/cli/src/formatters/aspect-status-messages.ts": 1779975855006.1108,
     "source/cli/src/formatters/cli-preamble.ts": 1778954493811.726,
     "source/cli/src/formatters/context-file.ts": 1779956349114.7988,
     "source/cli/src/formatters/context-node.ts": 1779956358152.8213,
@@ -45,8 +45,8 @@
     "source/cli/src/formatters/truncate.ts": 1779956339718.3044
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T13:13:58.037Z",
-    "prefix_hash": "c215907509010951277da72686394b3eb996c68eaa326b390ab81c71c5825015"
+    "last_entry_datetime": "2026-05-28T13:46:59.815Z",
+    "prefix_hash": "a5b15f58346a7c7c89150e3228991b22b9f6de6336f6918a8f30aa127c3792f4"
   },
   "aspectVerdicts": {
     "what-why-next": {
