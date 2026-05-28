@@ -181,6 +181,24 @@ Implied aspects must exist in the graph. Cycles are forbidden — `yg check` det
 Use implies when one rule logically requires another to be satisfied first. For example,
 audit logging only makes sense if diagnostic logging is also active.
 
+### Reference files
+
+LLM aspects may declare supporting files via `references:` in
+`yg-aspect.yaml`. The reviewer reads them as authoritative context;
+the agent sees them under `read:` in `yg context`.
+
+```yaml
+references:
+  - docs/error-codes.md
+  - path: source/lib/codes.ts
+    description: "Source of truth for error code constants."
+```
+
+Changes to referenced files cascade like changes to `content.md` —
+every node where the aspect is effective is re-approved. Run
+`yg impact --file <ref>` before editing a widely-referenced file.
+Size limits are configured per reviewer tier in `yg-config.yaml`.
+
 ### How aspects reach nodes
 
 Aspects propagate through seven channels:

@@ -26,7 +26,7 @@ If you can write a regex or an AST traversal to verify the rule, use AST. If a h
 
 ## LLM reviewer
 
-The LLM reviewer is a separate LLM call from the coding agent — one LLM verifying the work of another. `yg approve` sends each aspect's `content.md` plus the relevant source files to the reviewer. The reviewer responds with SATISFIED or NOT SATISFIED per aspect. One LLM call per aspect per node.
+The LLM reviewer is a separate LLM call from the coding agent — one LLM verifying the work of another. `yg approve` sends each aspect's `content.md` plus the relevant source files to the reviewer. The LLM reviewer also receives any reference files declared on the aspect, presented as authoritative context (not under review). The reviewer responds with SATISFIED or NOT SATISFIED per aspect. One LLM call per aspect per node.
 
 ### Directory structure
 
