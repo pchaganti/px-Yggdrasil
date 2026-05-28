@@ -19,7 +19,7 @@ The CLI (`yg`) reads and validates — it never modifies files. You create and e
 
 **Nodes** — components. `model/<path>/yg-node.yaml`. Nodes nest by directory — children inherit parent aspects. Schema: `schemas/yg-node.yaml`.
 
-**Aspects** — enforceable rules. `aspects/<id>/yg-aspect.yaml` + either `content.md` (LLM reviewer) or `check.mjs` (AST reviewer). The `yg-aspect.yaml` requires a `reviewer:` mapping: `reviewer.type` is `llm` or `ast`. LLM aspects may also set `reviewer.tier:` to pick a named tier from `yg-config.yaml` (otherwise the configured default tier is used). An aspect can declare `implies: [other-aspect]` — implied aspects are included recursively (must be acyclic). Schema: `schemas/yg-aspect.yaml`.
+**Aspects** — enforceable rules. `aspects/<id>/yg-aspect.yaml` + either `content.md` (LLM reviewer) or `check.mjs` (AST reviewer). The `yg-aspect.yaml` requires a `reviewer:` mapping: `reviewer.type` is `llm` or `ast`. LLM aspects may also set `reviewer.tier:` to pick a named tier from `yg-config.yaml` (otherwise the configured default tier is used). An aspect can declare `implies: [other-aspect]` — implied aspects are included recursively (must be acyclic). LLM aspects may declare `references:` — supporting files (lookup tables, catalogues) included in the reviewer prompt and exposed to the agent under `read:`. Schema: `schemas/yg-aspect.yaml`.
 
 AST aspects (`reviewer.type: ast`) must declare `language: [<lang>, ...]` array — runner invokes `check.mjs` once per declared language. AST aspects must NOT set `reviewer.tier:` — tiers apply only to LLM aspects. See `yg knowledge read writing-ast-aspects`.
 
@@ -65,7 +65,7 @@ A `when` predicate on an aspect (or on a per-attach-site reference) filters appl
 
 ### Reviewer
 
-The reviewer is an LLM invoked by `yg approve`. It receives: the aspect's content.md + all source files of the node. It checks every rule from content.md against the code.
+The reviewer is an LLM invoked by `yg approve`. It receives: the aspect's content.md, any declared reference files, and all source files of the node. It checks every rule from content.md against the code.
 
 - **Approved** → baseline recorded, drift cleared.
 - **Refused** → violation report with what and where. Fix the code, re-run approve.

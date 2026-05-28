@@ -18,3 +18,5 @@ Add SYSTEM-section paragraph describing language: field requirement on AST aspec
 Updated DEFAULT_CONFIG version from 4.3.0 to 5.0.0 — new projects initialized with yg init will receive v5 config schema by default, compatible with the v5 reviewer tiers format.
 ## [2026-05-27T13:54:52.349Z]
 Rules content now teaches the current reviewer shape (mapping with type and optional tier) instead of the legacy scalar; AST aspects are described as reviewer.type ast and explicitly may not declare a tier. Adopters running init upgrade now receive guidance that matches the validator they are upgrading into.
+## [2026-05-28T09:17:21.417Z]
+Added references field to LLM aspects in rules.ts: updated Aspects definition and Reviewer description to mention declared reference files (lookup tables, catalogues) that are included in the reviewer prompt and exposed to the agent under read:. This documents the new references feature for agents working in any repository that adopts Yggdrasil.
