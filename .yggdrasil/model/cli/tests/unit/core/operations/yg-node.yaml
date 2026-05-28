@@ -1,19 +1,5 @@
-name: Operations Core Unit Tests
-type: test-suite
-description: "Unit tests for approve and check orchestration including log integration — approve, approve-llm, approve-log, approve-aspect-status, approve-aspect-verdicts, check, check-aspect-status, check-log, effective-aspects, impact, log-format, log-integrity"
+name: Core Operations Unit Tests
+type: module
+description: "Parent node for core operations unit tests — children group by orchestrator: approve flows, check flows, and supporting helpers (effective aspects, impact, log format/integrity)."
 aspects: []
 relations: []
-mapping:
-  - source/cli/tests/unit/core/approve.test.ts
-  - source/cli/tests/unit/core/approve-llm.test.ts
-  - source/cli/tests/unit/core/approve-log.test.ts
-  - source/cli/tests/unit/core/approve-reviewer-references.test.ts
-  - source/cli/tests/unit/core/approve-aspect-status.test.ts
-  - source/cli/tests/unit/core/approve-aspect-verdicts.test.ts
-  - source/cli/tests/unit/core/check.test.ts
-  - source/cli/tests/unit/core/check-aspect-status.test.ts
-  - source/cli/tests/unit/core/check-log.test.ts
-  - source/cli/tests/unit/core/effective-aspects.test.ts
-  - source/cli/tests/unit/core/impact.test.ts
-  - source/cli/tests/unit/core/log-format.test.ts
-  - source/cli/tests/unit/core/log-integrity.test.ts

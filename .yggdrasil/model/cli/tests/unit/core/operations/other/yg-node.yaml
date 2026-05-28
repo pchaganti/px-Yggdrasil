@@ -1,0 +1,10 @@
+name: Core Operations Support Unit Tests
+type: test-suite
+description: "Unit tests for supporting core operations — effective-aspect resolution, impact computation, and log format / integrity helpers."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/core/effective-aspects.test.ts
+  - source/cli/tests/unit/core/impact.test.ts
+  - source/cli/tests/unit/core/log-format.test.ts
+  - source/cli/tests/unit/core/log-integrity.test.ts
