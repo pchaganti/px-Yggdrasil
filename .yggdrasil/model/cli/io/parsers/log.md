@@ -28,3 +28,7 @@ Rewrote config-parser.ts to support the v5 reviewer.tiers structure. The v4 pars
 Added max_tokens validation in parseTier: must be 'auto' or a positive number. This restores validation that existed in the v4 normalizeProviderConfig function but was omitted when rewriting to v5 parseTier.
 ## [2026-05-27T09:35:57.533Z]
 Narrowed extractSecretFields to api_key only: v5 secrets file accepts only credentials, all non-credential fields (model, temperature, consensus, max_tokens, endpoint, provider) belong in yg-config.yaml reviewer tiers. Added inspectSecretsForValidation for the validator to detect and report non-credential fields as secrets-non-credential-field errors.
+## [2026-05-27T13:54:50.205Z]
+Replaced raw Error throws in the config parser with ConfigParseError so empty YAML and invalid parallel values surface through the structured-error channel instead of escaping the loader. Inline format-detection predicates removed; both parsers now import from the shared detector. The aspect parser rewords its messages to describe the current required shape without naming a specific schema version. Provider list import path updated to the leaf module to break the prior circular-import workaround.
+## [2026-05-28T06:03:27.775Z]
+KNOWN_PROVIDERS now imported from utils and re-exported from this module unchanged. The constant moved because io was not a natural home for a pure constant; utils covers it via the existing architecture entry.

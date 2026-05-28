@@ -311,7 +311,7 @@ async function writeReviewerConfig(
     debugWrite(`[init] writeReviewerConfig: ${configPath} not found, starting fresh`);
   }
 
-  // Build v5 reviewer section
+  // Build reviewer section with a single-tier default.
   const tierConfig: Record<string, unknown> = { model: config.model };
   if (config.endpoint) {
     tierConfig.endpoint = config.endpoint;
@@ -465,12 +465,10 @@ export interface VersionUpgradeResult {
 export async function runVersionUpgrade(
   projectRoot: string,
   yggRoot: string,
-  fromVersion: string,
-  toVersion: string,
   platform: Platform,
 ): Promise<VersionUpgradeResult> {
   const { migrationActions, migrationWarnings } = await coreRunVersionUpgrade({
-    yggRoot, fromVersion, toVersion, migrations: MIGRATIONS,
+    yggRoot, migrations: MIGRATIONS,
   });
 
   await refreshSchemas(yggRoot);
@@ -483,7 +481,8 @@ export async function runVersionUpgrade(
     await writeFile(architecturePath, DEFAULT_ARCHITECTURE, 'utf-8');
   }
 
-  const rulesPath = await installRulesForPlatform(projectRoot, platform);
+  const rawRulesPath = await installRulesForPlatform(projectRoot, platform);
+  const rulesPath = rawRulesPath.replace(/\\/g, '/').replace(/\/+$/, '');
 
   return { rulesPath, migrationActions, migrationWarnings };
 }
@@ -517,7 +516,7 @@ async function existingInit(projectRoot: string): Promise<void> {
 
     const s = p.spinner();
     s.start('Running migrations and installing rules...');
-    const result = await runVersionUpgrade(projectRoot, yggRoot, currentVersion, cliVersion, platform);
+    const result = await runVersionUpgrade(projectRoot, yggRoot, platform);
     s.stop('Upgrade complete.');
 
     for (const action of result.migrationActions) {
@@ -527,12 +526,13 @@ async function existingInit(projectRoot: string): Promise<void> {
       p.log.warning(warning);
     }
 
+    const landedVersion = (await detectVersion(yggRoot)) ?? currentVersion;
     p.log.step('Next steps:');
     p.log.info('1. Run yg check to verify graph integrity');
     p.log.info('2. Run yg approve on all nodes to establish baselines');
     p.outro(
       chalk.green(
-        `Migrated from ${currentVersion} to ${cliVersion}. Rules installed: ${path.relative(projectRoot, result.rulesPath).replace(/\\/g, '/').replace(/\/+$/, '')}`,
+        `Migrated from ${currentVersion} to ${landedVersion}. Rules installed: ${path.relative(projectRoot, result.rulesPath).replace(/\\/g, '/').replace(/\/+$/, '')}`,
       ),
     );
     return;
@@ -551,8 +551,7 @@ async function existingInit(projectRoot: string): Promise<void> {
   switch (action) {
     case 'upgrade': {
       const platform = await promptPlatform();
-      const fromVersion = currentVersion ?? cliVersion;
-      const result = await runVersionUpgrade(projectRoot, yggRoot, fromVersion, cliVersion, platform);
+      const result = await runVersionUpgrade(projectRoot, yggRoot, platform);
       p.outro(chalk.green(`Rules and schemas refreshed: ${path.relative(projectRoot, result.rulesPath).replace(/\\/g, '/').replace(/\/+$/, '')}`));
       break;
     }
@@ -631,9 +630,8 @@ export function registerInitCommand(program: Command): void {
             process.exit(1);
           }
 
-          const toVersion = await getCliVersion();
-          const fromVersion = await detectVersion(yggRoot);
-          if (fromVersion === null) {
+          const currentVersion = await detectVersion(yggRoot);
+          if (currentVersion === null) {
             process.stderr.write(chalk.red(buildIssueMessage({
               what: 'No graph version detected.',
               why: ".yggdrasil/yg-config.yaml is missing a 'version:' field, so --upgrade cannot determine which migrations to run.",
@@ -644,8 +642,6 @@ export function registerInitCommand(program: Command): void {
           const result = await runVersionUpgrade(
             projectRoot,
             yggRoot,
-            fromVersion,
-            toVersion,
             options.platform as Platform,
           );
           process.stdout.write(

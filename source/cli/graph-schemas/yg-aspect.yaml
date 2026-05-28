@@ -1,6 +1,7 @@
 # yg-aspect.yaml — Schema for cross-cutting aspects
 # Each aspect is a directory under .yggdrasil/aspects/ containing this file
-# plus any number of .md content files.
+# plus any number of .md content files (for LLM aspects) or a check.mjs
+# (for AST aspects).
 #
 # Aspect identifier = relative path from aspects/ to the directory
 # (e.g. observability/logging). Aspects can be organized in nested
@@ -14,12 +15,16 @@ name: CrossCuttingRequirementName  # required — display name
 description: "Short description"   # required — shown in yg aspects output and context packages.
                                    # Validator emits description-missing if absent.
 
-# reviewer: llm | ast        # optional — which reviewer verifies this aspect.
-                              # 'llm' (default): aspect ships content.md; LLM reads and judges.
-                              # 'ast': aspect ships check.mjs; AST runner executes and collects violations.
-                              #   With reviewer: ast, content.md must NOT exist.
-                              #   With reviewer: llm or omitted, check.mjs must NOT exist.
-                              # See docs/ast-aspects.md for the full reviewer reference.
+reviewer:                          # required — which reviewer verifies this aspect
+  type: llm                        #   required: 'llm' or 'ast'
+                                   #     llm — aspect ships content.md; an LLM reads it and judges the code.
+                                   #     ast — aspect ships check.mjs; the AST runner executes it locally.
+  # tier: deep                     #   optional, only when type: llm.
+                                   #     If omitted, the aspect uses reviewer.default from yg-config.yaml.
+                                   #     If present, must reference a key under reviewer.tiers in the config.
+
+# language: [typescript, tsx]      # required when reviewer.type is 'ast' — list of languages check.mjs handles.
+                                   # The runner invokes check.mjs once per declared language.
 
 # implies:                         # optional — other aspects included automatically when this
 #                                  # aspect is effective on a node. Two forms:

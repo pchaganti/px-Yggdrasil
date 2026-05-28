@@ -14,11 +14,13 @@ Config file: `.yggdrasil/yg-config.yaml`
 ### Required
 
 - **version** — Schema version set by the CLI. Run `yg init --upgrade` to migrate.
+- **reviewer** — Reviewer configuration; must contain `tiers` with at least one entry. Configured during `yg init`; see [Reviewer tiers](#reviewer-tiers) below.
 
 ### Optional
 
-- **reviewer** — LLM reviewer configuration. Configured during `yg init`; see [Reviewer tiers](#reviewer-tiers) below.
+- **reviewer.default** — Tier name aspects fall back to when they don't declare one. Required when `reviewer.tiers` has more than one entry; optional with exactly one tier.
 - **quality** — Quality thresholds (see [Quality config](#quality-config) below).
+- **parallel** — Concurrent aspect verifications across nodes (positive integer).
 - **debug** — Set `true` to append all CLI output to `.yggdrasil/.debug.log`.
 
 Node types are defined in the separate **architecture file** (`.yggdrasil/yg-architecture.yaml`),
@@ -32,6 +34,7 @@ not in `yg-config.yaml`.
 version: "5.0.0"
 
 reviewer:
+  default: standard                 # Required when more than one tier; optional with one
   tiers:
     standard:                       # Tier name — referenced by aspect reviewer.tier
       provider: ollama              # LLM provider
@@ -46,6 +49,7 @@ quality:
   max_direct_relations: 10
   max_mapping_source_files: 10
 
+parallel: 10
 debug: false
 ```
 
@@ -53,17 +57,31 @@ debug: false
 
 ## Reviewer tiers
 
-v5 uses **named tiers**. Each tier is an independent LLM configuration.
-Aspects target a tier via `reviewer.tier: <name>` in `yg-aspect.yaml`.
-If no `tier:` is declared on an aspect, the first tier in the config is used.
+Reviewer configuration uses **named tiers**. Each tier is an independent LLM
+configuration. Aspects target a tier via `reviewer.tier: <name>` in
+`yg-aspect.yaml`. If no `tier:` is declared on an aspect, the aspect uses
+`reviewer.default` from the config.
+
+### reviewer.default
+
+The tier name aspects fall back to when they don't declare `reviewer.tier:`.
+
+- **Required** when `reviewer.tiers` has more than one entry — the validator
+  emits `config-default-tier-missing` otherwise.
+- **Optional** when `reviewer.tiers` has exactly one entry; the single tier is
+  the implicit default.
+- Must reference a key under `reviewer.tiers`.
 
 ### reviewer.tiers.\<name\>
 
-Tier name can be any string except the reserved word `default`. Convention: `standard` for
-the primary tier. Add a second tier (e.g. `fast`) for aspects that tolerate a cheaper model.
+Tier name regex: `^[a-zA-Z][a-zA-Z0-9_-]{0,62}$`. The literal name `default` is
+**reserved** (it would clash with `reviewer.default` visually). Convention:
+`standard` for the primary tier. Add a second tier (e.g. `fast`) for aspects
+that tolerate a cheaper model.
 
 ```yaml
 reviewer:
+  default: fast
   tiers:
     standard:
       provider: anthropic
@@ -79,12 +97,19 @@ reviewer:
         endpoint: http://localhost:11434
 ```
 
-An aspect targeting the `fast` tier:
+An aspect targeting the `standard` tier (overriding the default):
 
 ```yaml
 reviewer:
   type: llm
-  tier: fast
+  tier: standard
+```
+
+An aspect with no explicit tier uses `reviewer.default` (`fast` in the above example):
+
+```yaml
+reviewer:
+  type: llm
 ```
 
 ### Fields per tier
@@ -159,9 +184,10 @@ output as `wide-node` warnings. Split large nodes into children to stay under th
 yg init --upgrade
 ```
 
-Reads the existing `yg-config.yaml`, applies migrations, and writes the updated version.
-Migrations include the v4 → v5 reviewer format change (flat provider keys → `reviewer.tiers`).
-Run from the repository root only. Review the diff before committing.
+Reads the existing `yg-config.yaml`, applies registered migrations, and writes the updated
+version. The legacy single-section reviewer format (flat provider keys + `reviewer.active`) is
+migrated to `reviewer.tiers` automatically. Run from the repository root only. Review the diff
+before committing.
 
 ---
 

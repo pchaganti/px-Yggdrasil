@@ -1,5 +1,5 @@
 {
-  "hash": "d1a23224ff82d0085aa367f471f5e1359167583a2b84b90bd6fb9867329adccd",
+  "hash": "c58722b3d217045ab4b1a5b4ef081ee01406c5f0a346ad39157289cfdc312ef6",
   "files": {
     "own-subset:cli/core/validator": "f04e9afa70b43415b41953af5fc9ae0bb90117a0ccc5c26dcfa35f7789fe053a",
     "tier-identity:posix-paths-output": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -30,8 +30,8 @@
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
     ".yggdrasil/model/cli/model/validation/yg-node.yaml": "0a96c3bcb0c32f24e4978d1350be8f91e4284aa323734801e7abcc2ed014120f",
-    ".yggdrasil/model/cli/utils/yg-node.yaml": "cf275fbf896e28c60a3545bd48e0108dd3f6e91e82bfb769d856bf47cc70135f",
-    "source/cli/src/core/validator.ts": "ee7b953ef221b2a25167973827af0328a5be7c6d5591fd68b65b5690dc992c94"
+    "source/cli/src/core/validator.ts": "426d23b88fce69ff8acd9b246e8c37f6c6d90226aceb59ff4b0a2d9997c738ed",
+    ".yggdrasil/model/cli/utils/yg-node.yaml": "6a3e44281874c38d262e7d0b690149337bfcdf405889db473b220660a3e34133"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -58,11 +58,11 @@
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     ".yggdrasil/model/cli/model/validation/yg-node.yaml": 1776177846203.675,
-    ".yggdrasil/model/cli/utils/yg-node.yaml": 1778912998933.0781,
-    "source/cli/src/core/validator.ts": 1779876294102.4966
+    ".yggdrasil/model/cli/utils/yg-node.yaml": 1779948160744.7122,
+    "source/cli/src/core/validator.ts": 1779888994916.7537
   },
   "log": {
-    "last_entry_datetime": "2026-05-27T10:12:55.169Z",
-    "prefix_hash": "304a14bab96c8d99b1c292eb0848569540784dd11d37dca79bd77f8c9542c5c4"
+    "last_entry_datetime": "2026-05-27T13:54:46.807Z",
+    "prefix_hash": "841474543d2b7c7445322d8ca64540e6ebe703076f5f6902d4450cabfad1ad97"
   }
 }

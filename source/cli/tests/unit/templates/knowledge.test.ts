@@ -68,7 +68,7 @@ describe('KNOWLEDGE_TOPICS', () => {
     'drift-and-cascade': ['## Source drift', '## Upstream drift', '## Cascade scope', '## Cost'],
     configuration: [
       '## yg-config.yaml reference',
-      '## Provider configs',
+      '## Reviewer tiers',
       '## Secrets',
       '## Quality thresholds',
     ],

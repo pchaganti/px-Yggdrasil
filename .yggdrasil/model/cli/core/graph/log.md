@@ -10,3 +10,5 @@ Add language-registry.ts as phase 1 stub. Three languages with extension mapping
 Rewrote aspect single-source-graph-queries against raw tree-sitter API. Verified behavior-identical via ast-test diff.
 ## [2026-05-27T10:20:09.808Z]
 Added tier-identity synthetic hash entries in collectTrackedFiles: for each LLM aspect effective on a node, a tier-identity:<aspectId> entry is folded into the drift hash. Changing the resolved tier config (model, provider, consensus, temperature) now triggers source drift for all affected nodes, ensuring re-approval after tier configuration changes.
+## [2026-05-27T13:54:36.655Z]
+Renamed the synthetic drift-hash entry used when an LLM aspect has no resolved reviewer configuration from a schema-versioned marker to a behaviour-named one. The marker semantics remain identical (the synthetic hash is consumed only by collectTrackedFiles); the rename removes a stray schema-version label from runtime code so only the migration module knows about historic schemas.

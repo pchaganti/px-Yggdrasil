@@ -12,3 +12,7 @@ Wrapped --upgrade requires --platform error in buildIssueMessage. All option-val
 Wrapped '.yggdrasil exists but is not a directory' error in buildIssueMessage. All raw error writes in init.ts now route through buildIssueMessage or abortOnUnexpectedError.
 ## [2026-05-27T12:26:25.442Z]
 Updated writeReviewerConfig to emit v5 tiers format: reviewer.tiers.standard with provider, consensus, and config block instead of v4 flat provider keys. The v5 format aligns with the config parser which rejects v4-format configs at load time.
+## [2026-05-27T13:54:33.050Z]
+Comment cleanup — removed version-numbered phrasing so the comment describes what the code does rather than which schema iteration introduced it.
+## [2026-05-28T05:09:49.559Z]
+Init upgrade command no longer threads fromVersion or toVersion through to the runner. The runner reads the current project version from yg-config.yaml itself, runs every applicable migration incrementally, and reports the landed version. The wrapper simply forwards the migration list, refreshes schemas, and installs rules.

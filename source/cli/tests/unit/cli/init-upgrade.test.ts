@@ -32,8 +32,6 @@ describe('runVersionUpgrade', () => {
     const result = await runVersionUpgrade(
       projectRoot,
       yggRoot,
-      '4.0.0',
-      '4.2.0',
       'claude-code',
     );
 
@@ -46,9 +44,10 @@ describe('runVersionUpgrade', () => {
     const claudeMd = await readFile(path.join(projectRoot, 'CLAUDE.md'), 'utf-8');
     expect(claudeMd).toContain('agent-rules.md');
 
-    // Version bumped in config
+    // Version advanced by each registered incremental migration; the
+    // 4.0.0→4.3.0 migration is the next applicable step from 4.0.0.
     const cfg = await readFile(path.join(yggRoot, 'yg-config.yaml'), 'utf-8');
-    expect(cfg).toContain('4.2.0');
+    expect(cfg).toMatch(/version:\s*["'](4\.3\.0|5\.0\.0)["']/);
 
     // Schemas directory is populated after refresh
     const schemaFiles = await (await import('node:fs/promises')).readdir(
@@ -68,8 +67,6 @@ describe('runVersionUpgrade', () => {
     const result = await runVersionUpgrade(
       projectRoot,
       yggRoot,
-      '4.0.0',
-      '4.2.0',
       'cursor',
     );
 

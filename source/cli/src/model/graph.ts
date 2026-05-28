@@ -14,7 +14,7 @@ export type {
 export type { FileWhenPredicate } from './file-when.js';
 
 // ============================================================
-// ReviewerConfig — v5 reviewer.tiers structure
+// ReviewerConfig — named tier configurations
 // ============================================================
 
 export interface ReviewerConfig {
@@ -31,7 +31,7 @@ export interface ReviewerConfig {
 export interface YggConfig {
   version?: string;
   quality?: QualityConfig;
-  /** v5 reviewer configuration — tiers + default. Optional in the type
+  /** Reviewer configuration — tiers + default. Optional in the type
    *  to preserve FALLBACK_CONFIG ergonomics; validator emits
    *  `config-reviewer-missing` when absent on a real project. */
   reviewer?: ReviewerConfig;

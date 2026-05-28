@@ -140,7 +140,7 @@ function parseReviewer(
         code: 'aspect-reviewer-missing',
         messageData: {
           what: `aspect '${aspectId}' has no reviewer: block (field absent or null)`,
-          why: 'every aspect must declare its reviewer explicitly (v5 has no implicit default)',
+          why: 'every aspect must declare its reviewer explicitly (no implicit default)',
           next: 'add `reviewer:\\n  type: llm` or `reviewer:\\n  type: ast`',
         },
       }],
@@ -153,7 +153,7 @@ function parseReviewer(
         code: 'aspect-reviewer-legacy-string',
         messageData: {
           what: `aspect '${aspectId}' has reviewer: as a string ('${raw}')`,
-          why: 'v5 requires reviewer: to be a mapping with type:',
+          why: 'reviewer: must be a mapping with a type: key',
           next: 'run `yg init --upgrade` to migrate, or manually replace with `reviewer:\\n  type: <X>`',
         },
       }],

@@ -40,7 +40,7 @@ Two reviewer types are available. Each has a distinct sweet spot.
 
 ### When to use LLM
 
-Choose LLM (\`reviewer: llm\`, default) when:
+Choose LLM (\`reviewer: { type: llm }\`) when:
 - The rule requires judgment ("no business logic in controllers")
 - The rule involves semantics ("correlation ID must propagate across calls")
 - The rule needs to understand intent rather than syntax
@@ -49,16 +49,22 @@ Choose LLM (\`reviewer: llm\`, default) when:
 LLM reviewers understand context, read prose rules, and can assess whether
 code satisfies a nuanced requirement. They are slower and cost per call.
 
+LLM aspects may also declare \`reviewer.tier: <name>\` to opt into a
+specific reviewer tier configured in \`yg-config.yaml\` (a higher-capability
+model for critical aspects, for example). If \`tier:\` is omitted, the
+aspect uses \`reviewer.default\` from the config.
+
 ### When to use AST
 
-Choose AST (\`reviewer: ast\`) when:
+Choose AST (\`reviewer: { type: ast }\`) when:
 - The rule is structural ("never import from \`db/\` in \`ui/\`")
 - The rule is naming-based ("exported classes must be PascalCase")
 - You need zero false-positive tolerance and determinism
 - The rule is "X must never appear" — forbidden API calls, banned imports
 
 AST aspects run synchronously with no LLM call; they are free to run
-and produce exact, deterministic results.
+and produce exact, deterministic results. AST aspects do NOT use reviewer
+tiers — \`reviewer.tier:\` is rejected on \`reviewer.type: ast\` aspects.
 
 ### Decision tree
 

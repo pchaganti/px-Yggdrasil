@@ -1,5 +1,5 @@
 {
-  "hash": "136af9f008e4149efa94a2518aa4aa5238f0e9753b9e3321613c36062da1d211",
+  "hash": "a1fe905047b1cbf3791effe8817e7e4a1e746069aa2e156d083d32d382ed3846",
   "files": {
     "own-subset:cli/io/parsers": "49eba5656163800b5213d51e9c6969831d387f9252bafe1e854a9e84e7bebf9e",
     "tier-identity:parser-contract": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -19,12 +19,12 @@
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
     "source/cli/src/io/architecture-parser.ts": "b5c8f11d0d4faeca93f25a6b1e634accd902c58f80505dbb01654c5ec45d5b56",
-    "source/cli/src/io/aspect-parser.ts": "2aac57dc408c8ae0fba1a5fa452fd0c2f82d51722294dafa1ab13b089fecc7be",
-    "source/cli/src/io/config-parser.ts": "4e9bc6111cecaf0a650b6af246f6d743f131aa088c84bc75f6455504cb3372ef",
+    "source/cli/src/io/aspect-parser.ts": "900f256ef4ca954dabb257df2bbd12414235847e8036cba6ef3a99cec13e7987",
     "source/cli/src/io/flow-parser.ts": "e61329a555b82f9dcbf514bb7843c09caf2050a8406f35dcf6b12210ffa13d30",
     "source/cli/src/io/node-parser.ts": "d0a96fe70b38aed28972020c95c8fa9c218b11d95f6139feccad25a2f32aaec0",
     "source/cli/src/io/schema-parser.ts": "a1563e6d7eaaf4c17f1e8b7f5e680dfdde78647bee243339a29eca9d702d9470",
-    "source/cli/src/io/secrets-parser.ts": "4489bff3216f21ee3912f357e08bfda01ea921efeec93c937aa0f822c872b859"
+    "source/cli/src/io/secrets-parser.ts": "4489bff3216f21ee3912f357e08bfda01ea921efeec93c937aa0f822c872b859",
+    "source/cli/src/io/config-parser.ts": "7fbc6be2cdf78f1d8e4e074535f39a85d1d2f2892f94ae8df244297bba9b2ee6"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -42,15 +42,15 @@
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     "source/cli/src/io/architecture-parser.ts": 1778851225036.454,
-    "source/cli/src/io/aspect-parser.ts": 1779871494201.7969,
-    "source/cli/src/io/config-parser.ts": 1779873772537.8813,
+    "source/cli/src/io/aspect-parser.ts": 1779888930839.717,
+    "source/cli/src/io/config-parser.ts": 1779948015015.0596,
     "source/cli/src/io/flow-parser.ts": 1778952340799.223,
     "source/cli/src/io/node-parser.ts": 1778952351543.8853,
     "source/cli/src/io/schema-parser.ts": 1778867887343.4338,
     "source/cli/src/io/secrets-parser.ts": 1779876097323.327
   },
   "log": {
-    "last_entry_datetime": "2026-05-27T09:35:57.533Z",
-    "prefix_hash": "8e62413c3121b6878cf789e022c4fbb619239201b841e665289414d6a8dace2e"
+    "last_entry_datetime": "2026-05-28T06:03:27.775Z",
+    "prefix_hash": "d21ae5de49df0395e82167ecc1f1d85848fe42a84f1317f38e6feb48807b91d3"
   }
 }

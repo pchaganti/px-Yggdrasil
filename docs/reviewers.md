@@ -20,7 +20,7 @@ Aspects are verified by reviewers. Yggdrasil ships two reviewer types — both o
 
 If you can write a regex or an AST traversal to verify the rule, use AST. If a human reviewer would need to read surrounding context to decide, use LLM.
 
-LLM is the default — reach for AST only when the rule is provably fully structural.
+`reviewer.type` is **required** on every aspect — there is no implicit default. LLM aspects may also declare `reviewer.tier:` to opt into a specific tier from `yg-config.yaml` — see [Reviewer tiers](./configuration.md#reviewer-tiers) for tier configuration.
 
 ---
 

@@ -3,7 +3,11 @@ import path from 'node:path';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { parse as parseYaml } from 'yaml';
-import { migrateTo50, transformConfigReviewer, transformAspectReviewer } from '../../../src/migrations/to-5.0.0.js';
+import {
+  migrateTo50,
+  transformConfigReviewer,
+  transformAspectReviewer,
+} from '../../../src/migrations/to-5.0.0.js';
 
 const dirs: string[] = [];
 afterEach(async () => {
@@ -13,6 +17,7 @@ afterEach(async () => {
 async function setupYgg(opts: {
   config?: string;
   aspects?: Record<string, string>;
+  secrets?: string;
 }): Promise<string> {
   const root = await mkdtemp(path.join(tmpdir(), 'yg-mig50-'));
   dirs.push(root);
@@ -30,35 +35,38 @@ async function setupYgg(opts: {
       await writeFile(path.join(dir, 'yg-aspect.yaml'), yaml);
     }
   }
+  if (opts.secrets !== undefined) {
+    await writeFile(path.join(ygg, 'yg-secrets.yaml'), opts.secrets);
+  }
   return ygg;
 }
 
 // ── transformConfigReviewer unit tests ──────────────────────
 
 describe('transformConfigReviewer', () => {
-  it('returns undefined when already v5 (has tiers)', () => {
+  it('returns undefined when already on tiers shape', () => {
     const result = transformConfigReviewer({ tiers: {} });
-    expect(result).toBeUndefined();
-  });
-
-  it('returns undefined when already v5 (has default key)', () => {
-    const result = transformConfigReviewer({ default: {} });
-    expect(result).toBeUndefined();
+    expect(result.value).toBeUndefined();
+    expect(result.changed).toBe(false);
+    expect(result.warnings).toEqual([]);
   });
 
   it('returns undefined when no provider keys and no active', () => {
     const result = transformConfigReviewer({ someUnknown: 'val' });
-    expect(result).toBeUndefined();
+    expect(result.value).toBeUndefined();
+    expect(result.changed).toBe(false);
   });
 
-  it('transforms single provider (no active key)', () => {
+  it('transforms single provider (no active key) into tier named after the provider', () => {
     const result = transformConfigReviewer({
       consensus: 1,
       ollama: { model: 'qwen3', temperature: 0.1 },
     });
-    expect(result).toEqual({
+    expect(result.changed).toBe(true);
+    expect(result.warnings).toEqual([]);
+    expect(result.value).toEqual({
       tiers: {
-        standard: {
+        ollama: {
           provider: 'ollama',
           consensus: 1,
           config: { model: 'qwen3', temperature: 0.1 },
@@ -67,98 +75,141 @@ describe('transformConfigReviewer', () => {
     });
   });
 
-  it('transforms with explicit active key', () => {
+  it('transforms with explicit active key into matching tier name + default', () => {
     const result = transformConfigReviewer({
       active: 'claude-code',
       consensus: 3,
       ollama: { model: 'qwen3' },
       'claude-code': { model: 'haiku' },
     });
-    expect(result?.tiers).toHaveProperty('standard');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((result?.tiers as any).standard.provider).toBe('claude-code');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((result?.tiers as any).standard.consensus).toBe(3);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((result?.tiers as any).standard.config).toEqual({ model: 'haiku' });
+    expect(result.changed).toBe(true);
+    const tiers = (result.value as { tiers: Record<string, unknown> }).tiers;
+    expect(Object.keys(tiers).sort()).toEqual(['claude-code', 'ollama']);
+    expect((tiers['claude-code'] as { provider: string }).provider).toBe('claude-code');
+    expect((tiers.ollama as { provider: string }).provider).toBe('ollama');
+    expect((tiers['claude-code'] as { consensus: number }).consensus).toBe(3);
+    expect((tiers['claude-code'] as { config: unknown }).config).toEqual({ model: 'haiku' });
+    expect((result.value as { default: string }).default).toBe('claude-code');
+    expect(result.actions.some(a => a.includes('consensus 3'))).toBe(true);
   });
 
-  it('defaults consensus to 1 when missing', () => {
+  it('omits default key when single provider', () => {
+    const result = transformConfigReviewer({ ollama: { model: 'q' } });
+    expect(result.changed).toBe(true);
+    expect((result.value as Record<string, unknown>).default).toBeUndefined();
+  });
+
+  it('defaults global consensus to 1 when missing', () => {
     const result = transformConfigReviewer({ ollama: { model: 'x' } });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((result?.tiers as any).standard.consensus).toBe(1);
+    expect((result.value as { tiers: Record<string, { consensus: number }> }).tiers.ollama.consensus).toBe(1);
+    expect(result.actions).toEqual([]);
   });
 
   it('handles provider with no config block', () => {
     const result = transformConfigReviewer({ 'claude-code': {} });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((result?.tiers as any).standard.config).toEqual({});
+    expect((result.value as { tiers: Record<string, { config: unknown }> }).tiers['claude-code'].config).toEqual({});
   });
 
-  it('picks first provider when multiple present with no active key', () => {
+  it('STOPS when multiple providers present without active', () => {
     const result = transformConfigReviewer({
       consensus: 1,
       anthropic: { model: 'claude-3-haiku-20240307' },
       ollama: { model: 'qwen3' },
     });
-    expect(result).not.toBeUndefined();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tier = (result?.tiers as any).standard;
-    expect(['anthropic', 'ollama']).toContain(tier.provider);
+    expect(result.value).toBeUndefined();
+    expect(result.changed).toBe(false);
+    expect(result.warnings.length).toBe(1);
+    expect(result.warnings[0]).toMatch(/multiple providers/);
+    expect(result.warnings[0]).toMatch(/reviewer\.active/);
+  });
+
+  it('STOPS when active references unknown provider', () => {
+    const result = transformConfigReviewer({
+      active: 'openai',
+      ollama: { model: 'q' },
+    });
+    expect(result.value).toBeUndefined();
+    expect(result.warnings[0]).toMatch(/no matching provider section/);
+  });
+
+  it('STOPS when active is not a string', () => {
+    const result = transformConfigReviewer({
+      active: 42 as unknown as string,
+      ollama: { model: 'q' },
+    });
+    expect(result.value).toBeUndefined();
+    expect(result.warnings[0]).toMatch(/reviewer\.active is not a string/);
   });
 });
 
 // ── transformAspectReviewer unit tests ──────────────────────
 
 describe('transformAspectReviewer', () => {
-  it('returns undefined when reviewer is already object form', () => {
+  it('returns undefined when reviewer already mapping with type', () => {
     const result = transformAspectReviewer({ name: 'X', reviewer: { type: 'llm' } });
-    expect(result).toBeUndefined();
+    expect(result.value).toBeUndefined();
+    expect(result.changed).toBe(false);
   });
 
-  it('returns undefined when reviewer is absent', () => {
+  it('treats absent reviewer as { type: llm }', () => {
     const result = transformAspectReviewer({ name: 'X' });
-    expect(result).toBeUndefined();
+    expect(result.value).toEqual({ name: 'X', reviewer: { type: 'llm' } });
+    expect(result.changed).toBe(true);
+  });
+
+  it('treats null reviewer as { type: llm }', () => {
+    const result = transformAspectReviewer({ name: 'X', reviewer: null });
+    expect(result.value).toEqual({ name: 'X', reviewer: { type: 'llm' } });
+    expect(result.changed).toBe(true);
   });
 
   it('maps "llm" string to { type: llm }', () => {
     const result = transformAspectReviewer({ name: 'X', reviewer: 'llm' });
-    expect(result?.reviewer).toEqual({ type: 'llm' });
+    expect(result.value?.reviewer).toEqual({ type: 'llm' });
   });
 
   it('maps "ast" string to { type: ast }', () => {
     const result = transformAspectReviewer({ name: 'X', reviewer: 'ast' });
-    expect(result?.reviewer).toEqual({ type: 'ast' });
+    expect(result.value?.reviewer).toEqual({ type: 'ast' });
   });
 
-  it('maps provider name string to { type: llm }', () => {
+  it('WARNS and leaves file unchanged for unknown string', () => {
     const result = transformAspectReviewer({ name: 'X', reviewer: 'claude-code' });
-    expect(result?.reviewer).toEqual({ type: 'llm' });
+    expect(result.value).toBeUndefined();
+    expect(result.changed).toBe(false);
+    expect(result.warnings[0]).toMatch(/unrecognized reviewer value/);
   });
 
-  it('preserves other fields', () => {
+  it('WARNS and leaves file unchanged when reviewer mapping has no type', () => {
+    const result = transformAspectReviewer({ name: 'X', reviewer: { tier: 'deep' } });
+    expect(result.value).toBeUndefined();
+    expect(result.warnings[0]).toMatch(/no `type:` key/);
+  });
+
+  it('preserves other fields when transforming', () => {
     const result = transformAspectReviewer({ name: 'Test', description: 'desc', reviewer: 'llm' });
-    expect(result?.name).toBe('Test');
-    expect(result?.description).toBe('desc');
+    expect(result.value?.name).toBe('Test');
+    expect(result.value?.description).toBe('desc');
   });
 });
 
 // ── migrateTo50 integration tests ───────────────────────────
 
 describe('migrateTo50', () => {
-  it('migrates v4 config single-provider to v5 tiers', async () => {
+  it('migrates legacy single-provider config to tier named after provider', async () => {
     const ygg = await setupYgg({
       config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: qwen3\n    temperature: 0.0\n',
     });
     const result = await migrateTo50(ygg);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updated = parseYaml(await readFile(path.join(ygg, 'yg-config.yaml'), 'utf-8')) as any;
-    expect(updated.reviewer.tiers.standard.provider).toBe('ollama');
-    expect(updated.reviewer.tiers.standard.consensus).toBe(1);
-    expect(updated.reviewer.tiers.standard.config.model).toBe('qwen3');
-    expect(updated.version).toBe('5.0.0');
-    expect(result.actions.some(a => a.includes('tiers'))).toBe(true);
-    expect(result.actions.some(a => a.includes('5.0.0'))).toBe(true);
+    const updated = parseYaml(await readFile(path.join(ygg, 'yg-config.yaml'), 'utf-8')) as {
+      reviewer: { tiers: Record<string, { provider: string; consensus: number; config: { model: string } }> };
+    };
+    expect(Object.keys(updated.reviewer.tiers)).toEqual(['ollama']);
+    expect(updated.reviewer.tiers.ollama.provider).toBe('ollama');
+    expect(updated.reviewer.tiers.ollama.consensus).toBe(1);
+    expect(updated.reviewer.tiers.ollama.config.model).toBe('qwen3');
+    expect(result.bumpVersion).toBe(true);
+    expect(result.warnings).toEqual([]);
   });
 
   it('migrates aspects with string reviewer', async () => {
@@ -170,19 +221,27 @@ describe('migrateTo50', () => {
       },
     });
     await migrateTo50(ygg);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const llm = parseYaml(await readFile(path.join(ygg, 'aspects/my-rule/yg-aspect.yaml'), 'utf-8')) as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ast = parseYaml(await readFile(path.join(ygg, 'aspects/ast-rule/yg-aspect.yaml'), 'utf-8')) as any;
+    const llm = parseYaml(await readFile(path.join(ygg, 'aspects/my-rule/yg-aspect.yaml'), 'utf-8')) as { reviewer: { type: string } };
+    const ast = parseYaml(await readFile(path.join(ygg, 'aspects/ast-rule/yg-aspect.yaml'), 'utf-8')) as { reviewer: { type: string } };
     expect(llm.reviewer).toEqual({ type: 'llm' });
     expect(ast.reviewer).toEqual({ type: 'ast' });
   });
 
-  it('skips aspects already in object form (idempotent)', async () => {
+  it('migrates aspect with absent reviewer to { type: llm }', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\n',
+      aspects: { 'no-reviewer': 'name: No Reviewer\ndescription: x\n' },
+    });
+    await migrateTo50(ygg);
+    const updated = parseYaml(await readFile(path.join(ygg, 'aspects/no-reviewer/yg-aspect.yaml'), 'utf-8')) as { reviewer: { type: string } };
+    expect(updated.reviewer).toEqual({ type: 'llm' });
+  });
+
+  it('skips aspects already in mapping form (idempotent)', async () => {
     const ygg = await setupYgg({
       config: 'version: "4.3.0"\n',
       aspects: {
-        'already-v5': 'name: V5 Rule\nreviewer:\n  type: llm\n',
+        'already-mapping': 'name: Mapping Rule\nreviewer:\n  type: llm\n',
       },
     });
     const result = await migrateTo50(ygg);
@@ -195,64 +254,99 @@ describe('migrateTo50', () => {
     });
     await migrateTo50(ygg);
     const result2 = await migrateTo50(ygg);
-    // Second run: reviewer already v5 → no config action
-    expect(result2.actions.filter(a => a.includes('tiers'))).toHaveLength(0);
+    expect(result2.actions.filter(a => a.includes('tier-based shape'))).toHaveLength(0);
   });
 
-  it('warns when no yg-config.yaml', async () => {
+  it('STOPS migration when multiple providers without active — config rewritten, version not bumped, aspects not touched', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  ollama:\n    model: qwen3\n  anthropic:\n    model: claude-3\n',
+      aspects: { 'r1': 'name: R\nreviewer: llm\n' },
+    });
+    const before = await readFile(path.join(ygg, 'yg-config.yaml'), 'utf-8');
+    const aspectBefore = await readFile(path.join(ygg, 'aspects/r1/yg-aspect.yaml'), 'utf-8');
+
+    const result = await migrateTo50(ygg);
+    expect(result.bumpVersion).toBe(false);
+    expect(result.warnings.some(w => w.includes('multiple providers'))).toBe(true);
+
+    // Config not rewritten
+    expect(await readFile(path.join(ygg, 'yg-config.yaml'), 'utf-8')).toBe(before);
+    // Aspect not touched
+    expect(await readFile(path.join(ygg, 'aspects/r1/yg-aspect.yaml'), 'utf-8')).toBe(aspectBefore);
+  });
+
+  it('does NOT bump version when an aspect has an unrecognized reviewer string', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\n',
+      aspects: { 'bad': 'name: Bad\nreviewer: claude-code\n' },
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.bumpVersion).toBe(false);
+    expect(result.warnings.some(w => w.includes('unrecognized reviewer value'))).toBe(true);
+  });
+
+  it('does NOT bump version when an aspect reviewer mapping lacks type', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\n',
+      aspects: { 'no-type': 'name: No Type\nreviewer:\n  tier: deep\n' },
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.bumpVersion).toBe(false);
+    expect(result.warnings.some(w => w.includes('no `type:` key'))).toBe(true);
+  });
+
+  it('flags secrets file with non-credential fields and withholds version bump', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      secrets: 'reviewer:\n  anthropic:\n    api_key: sk-1\n    model: shouldnt-be-here\n',
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.bumpVersion).toBe(false);
+    expect(result.warnings.some(w => w.includes('yg-secrets.yaml'))).toBe(true);
+    expect(result.warnings.some(w => w.includes('non-credential fields'))).toBe(true);
+  });
+
+  it('passes silently for secrets file with api_key only', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: q\n',
+      secrets: 'reviewer:\n  anthropic:\n    api_key: sk-1\n',
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.bumpVersion).toBe(true);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('warns when no yg-config.yaml — version is not bumped', async () => {
     const ygg = await setupYgg({});
     const result = await migrateTo50(ygg);
+    expect(result.bumpVersion).toBe(false);
     expect(result.warnings.some(w => w.includes('not found'))).toBe(true);
   });
 
-  it('warns for multiple providers and picks first', async () => {
+  it('warns and leaves aspect untouched when YAML is invalid', async () => {
     const ygg = await setupYgg({
-      config: 'version: "4.3.0"\nreviewer:\n  active: ollama\n  consensus: 1\n  ollama:\n    model: qwen3\n  anthropic:\n    model: claude-3-haiku-20240307\n',
+      config: 'version: "4.3.0"\n',
+      aspects: { 'bad-yaml': ': invalid: [unclosed\n' },
     });
     const result = await migrateTo50(ygg);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updated = parseYaml(await readFile(path.join(ygg, 'yg-config.yaml'), 'utf-8')) as any;
-    expect(updated.reviewer.tiers.standard.provider).toBe('ollama');
-    expect(result.warnings.some(w => w.includes('multiple providers') || w.includes('5.0.0'))).toBe(true);
+    expect(result.warnings.some(w => w.includes('parse error'))).toBe(true);
+    expect(result.bumpVersion).toBe(false);
   });
 
   it('skips aspect dir that has no yg-aspect.yaml (non-file entry)', async () => {
     const ygg = await setupYgg({ config: 'version: "4.3.0"\n' });
-    // Create a subdirectory under aspects/ with no yg-aspect.yaml
     const emptyAspectDir = path.join(ygg, 'aspects', 'empty-dir');
     await mkdir(emptyAspectDir, { recursive: true });
     const result = await migrateTo50(ygg);
-    // No aspect actions — the missing file is silently skipped
     expect(result.actions.filter(a => a.includes('yg-aspect.yaml'))).toHaveLength(0);
   });
 
-  it('warns and skips aspect with invalid YAML', async () => {
-    const ygg = await setupYgg({
-      config: 'version: "4.3.0"\n',
-      aspects: {
-        'bad-yaml': ': invalid: [unclosed\n',
-      },
-    });
-    const result = await migrateTo50(ygg);
-    expect(result.warnings.some(w => w.includes('parse error'))).toBe(true);
-  });
-
-  it('warns when updateConfigVersion fails (no config but aspect migrated)', async () => {
-    // Only aspects dir, no yg-config.yaml — updateConfigVersion will throw
-    const ygg = await setupYgg({
-      aspects: { 'my-rule': 'name: My Rule\nreviewer: llm\n' },
-    });
-    const result = await migrateTo50(ygg);
-    // Aspect was migrated (action recorded), then version bump fails → warning
-    expect(result.actions.some(a => a.includes('yg-aspect.yaml'))).toBe(true);
-    expect(result.warnings.some(w => w.includes('not updated') || w.includes('not found'))).toBe(true);
-  });
-
-  it('skips config migration when reviewer is already v5', async () => {
+  it('skips config migration when reviewer is already tier-shaped', async () => {
     const ygg = await setupYgg({
       config: 'version: "5.0.0"\nreviewer:\n  tiers:\n    standard:\n      provider: ollama\n      consensus: 1\n      config:\n        model: qwen3\n',
     });
     const result = await migrateTo50(ygg);
-    expect(result.actions.filter(a => a.includes('tiers'))).toHaveLength(0);
+    expect(result.actions.filter(a => a.includes('tier-based shape'))).toHaveLength(0);
+    expect(result.bumpVersion).toBe(true);
   });
 });

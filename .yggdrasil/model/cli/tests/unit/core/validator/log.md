@@ -10,3 +10,5 @@ Updated inline aspect fixture to include v5 reviewer field (reviewer: { type: ll
 Added Phase 9 validator tests: aspectParseErrors emission, config-reviewer-missing check (with and without configError), aspect-tier-unknown check (valid tier, missing tier, ast-type suppression, configError suppression).
 ## [2026-05-27T10:13:06.600Z]
 Phase 9: rewrote validator-reviewer.test.ts to add tests for Tasks 36, 36b, 37, 37b, 38 — covering aspectParseErrors emission, config-reviewer-missing check, aspect-tier-unknown check, and secrets-non-credential-field check. Also added tests for missing rule-source combinations (LLM+only check.mjs, AST+only content.md) in validator-aspect-files.test.ts to cover previously uncovered branches.
+## [2026-05-27T13:55:05.624Z]
+Removed the test block that exercised the deleted reviewer-enum validator function. Reviewer shape is rejected at the parser layer; the validator no longer has structural responsibility for it.

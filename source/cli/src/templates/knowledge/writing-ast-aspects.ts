@@ -2,8 +2,10 @@ export const summary = 'How to write check.mjs for AST reviewer: runtime contrac
 
 export const content = `# Writing AST aspects
 
-AST aspects use \`reviewer: ast\` and ship a \`check.mjs\` file. The check
-function is deterministic, synchronous, and costs zero LLM calls.
+AST aspects declare \`reviewer: { type: ast }\` and ship a \`check.mjs\` file.
+The check function is deterministic, synchronous, and costs zero LLM calls.
+AST aspects do not use reviewer tiers — \`reviewer.tier:\` is rejected
+together with \`type: ast\`.
 
 ## When to use AST
 
@@ -21,7 +23,8 @@ Every AST aspect must declare the languages it handles:
 
 \`\`\`yaml
 id: my-rule
-reviewer: ast
+reviewer:
+  type: ast
 language: [typescript, tsx, javascript]
 \`\`\`
 

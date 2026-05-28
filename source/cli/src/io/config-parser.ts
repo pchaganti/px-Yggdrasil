@@ -8,6 +8,13 @@ import type {
   ReviewerConfig,
 } from '../model/graph.js';
 import type { IssueMessage } from '../model/validation.js';
+import { KNOWN_PROVIDERS } from '../utils/known-providers.js';
+import {
+  isLegacyConfigFormat,
+  isMixedConfigFormat,
+} from '../core/format-version.js';
+
+export { KNOWN_PROVIDERS };
 
 export class ConfigParseError extends Error {
   constructor(public messageData: IssueMessage, public code: string) {
@@ -18,35 +25,6 @@ export class ConfigParseError extends Error {
 const DEFAULT_QUALITY: QualityConfig = {
   max_direct_relations: 10,
 };
-
-export const KNOWN_PROVIDERS = [
-  'ollama', 'openai', 'anthropic', 'google', 'openai-compatible',
-  'claude-code', 'codex', 'gemini-cli',
-] as const;
-
-// ---- inline format-detection predicates (avoid circular import with format-version.ts) ----
-
-function _isV5ConfigFormat(raw: Record<string, unknown>): boolean {
-  const reviewer = raw.reviewer as Record<string, unknown> | undefined;
-  if (!reviewer || typeof reviewer !== 'object' || Array.isArray(reviewer)) return false;
-  // v5 shape: has `tiers` key, OR has `default` key (both are v5-exclusive keys)
-  return 'tiers' in reviewer || 'default' in reviewer;
-}
-
-function _isV4ConfigFormat(raw: Record<string, unknown>): boolean {
-  const reviewer = raw.reviewer as Record<string, unknown> | undefined;
-  if (!reviewer || typeof reviewer !== 'object' || Array.isArray(reviewer)) return false;
-  if (_isV5ConfigFormat(raw)) return false;
-  return 'active' in reviewer || KNOWN_PROVIDERS.some(p => p in reviewer);
-}
-
-function _isMixedConfigFormat(raw: Record<string, unknown>): boolean {
-  const reviewer = raw.reviewer as Record<string, unknown> | undefined;
-  if (!reviewer || typeof reviewer !== 'object') return false;
-  const hasV5 = 'tiers' in reviewer;
-  const hasV4 = 'active' in reviewer || KNOWN_PROVIDERS.some(p => p in reviewer);
-  return hasV5 && hasV4;
-}
 
 const PROVIDER_DEFAULTS: Record<string, Partial<LlmConfig>> = {
   'claude-code': { model: 'haiku' },
@@ -60,14 +38,22 @@ export async function parseConfig(filePath: string): Promise<YggConfig> {
   const raw = parseYaml(content) as Record<string, unknown>;
 
   if (!raw || typeof raw !== 'object') {
-    throw new Error(`${filename}: file is empty or not a valid YAML mapping`);
+    throw new ConfigParseError({
+      what: `${filename} is empty or not a valid YAML mapping`,
+      why: 'the top-level structure must be a YAML mapping with keys like reviewer, quality, parallel',
+      next: 'restore the file from version control, or regenerate it via `yg init`',
+    }, 'config-invalid');
   }
 
   const version = typeof raw.version === 'string' ? raw.version.trim() : undefined;
 
   const qualityRaw = raw.quality;
   if (qualityRaw !== undefined && (typeof qualityRaw !== 'object' || Array.isArray(qualityRaw))) {
-    throw new Error(`${filename}: quality must be a mapping`);
+    throw new ConfigParseError({
+      what: `${filename}: quality must be a mapping`,
+      why: 'quality holds named thresholds (max_direct_relations, max_mapping_source_files)',
+      next: 'replace with `quality: { max_direct_relations: 10, max_mapping_source_files: 10 }`',
+    }, 'config-invalid');
   }
   const qualityMap = qualityRaw as Record<string, unknown> | undefined;
   const quality: QualityConfig = qualityMap
@@ -83,29 +69,33 @@ export async function parseConfig(filePath: string): Promise<YggConfig> {
       }
     : DEFAULT_QUALITY;
 
-  // Parse reviewer: section
   let reviewer: ReviewerConfig | undefined;
 
   if (raw.reviewer !== undefined) {
-    if (_isMixedConfigFormat(raw)) {
+    if (isMixedConfigFormat(raw)) {
       throw new ConfigParseError({
-        what: `${filename} has both v4 and v5 reviewer shapes`,
-        why: 'v5 config must contain only reviewer.default and reviewer.tiers; legacy keys must be removed',
+        what: `${filename} has both the legacy and the current reviewer shape`,
+        why: 'the reviewer section must contain only `default` and `tiers`; the legacy keys must be removed',
         next: 'remove the legacy keys (reviewer.active, reviewer.<provider-name>) — their content should already be inside reviewer.tiers',
       }, 'config-reviewer-mixed-format');
-    } else if (_isV5ConfigFormat(raw)) {
-      reviewer = parseReviewerV5(raw.reviewer as Record<string, unknown>, filename);
-    } else if (_isV4ConfigFormat(raw)) {
+    } else if (isLegacyConfigFormat(raw)) {
       throw new ConfigParseError({
-        what: `${filename} uses the pre-v5 reviewer format`,
-        why: 'v5 expects reviewer.tiers instead of provider sections directly under reviewer:',
+        what: `${filename} uses the legacy reviewer format`,
+        why: 'the reviewer section now uses named tiers under `reviewer.tiers`, not provider keys directly under `reviewer:`',
         next: 'run `yg init --upgrade` to migrate',
       }, 'config-reviewer-legacy-format');
+    } else if (
+      raw.reviewer && typeof raw.reviewer === 'object' && !Array.isArray(raw.reviewer)
+    ) {
+      // `tiers:` OR `default:` present (or empty mapping) — treat as current-shape
+      // intent and let parseReviewer emit `config-tiers-missing` / `config-tiers-empty`
+      // when the structural requirement is unmet.
+      reviewer = parseReviewer(raw.reviewer as Record<string, unknown>, filename);
     } else {
       throw new ConfigParseError({
         what: `${filename} has unrecognized reviewer: shape`,
-        why: 'reviewer: must be a v5 mapping with tiers:',
-        next: 'see schemas/yg-config.yaml for the v5 shape',
+        why: 'reviewer: must be a mapping with a `tiers:` block',
+        next: 'see schemas/yg-config.yaml for the expected shape',
       }, 'config-invalid');
     }
   }
@@ -113,10 +103,18 @@ export async function parseConfig(filePath: string): Promise<YggConfig> {
   let parallel: number | undefined;
   if (raw.parallel !== undefined) {
     if (typeof raw.parallel !== 'number') {
-      throw new Error(`${filename}: parallel must be a number, got ${typeof raw.parallel}`);
+      throw new ConfigParseError({
+        what: `${filename}: parallel must be a number, got ${typeof raw.parallel}`,
+        why: 'parallel controls the concurrent-aspect-verification cap',
+        next: 'set `parallel: <positive integer>` (e.g. parallel: 10) or remove the key',
+      }, 'config-invalid');
     }
     if (!Number.isInteger(raw.parallel) || raw.parallel < 1) {
-      throw new Error(`${filename}: parallel must be a positive integer >= 1, got ${raw.parallel}`);
+      throw new ConfigParseError({
+        what: `${filename}: parallel must be a positive integer >= 1, got ${raw.parallel}`,
+        why: 'parallel controls the concurrent-aspect-verification cap; values < 1 cannot make progress',
+        next: 'set `parallel: <positive integer>` (e.g. parallel: 10) or remove the key',
+      }, 'config-invalid');
     }
     parallel = raw.parallel;
   }
@@ -132,13 +130,13 @@ export async function parseConfig(filePath: string): Promise<YggConfig> {
   };
 }
 
-function parseReviewerV5(raw: Record<string, unknown>, filename: string): ReviewerConfig {
+function parseReviewer(raw: Record<string, unknown>, filename: string): ReviewerConfig {
   const allowedTopKeys = new Set(['default', 'tiers']);
   for (const k of Object.keys(raw)) {
     if (!allowedTopKeys.has(k)) {
       throw new ConfigParseError({
         what: `${filename}: unknown key '${k}' under reviewer:`,
-        why: 'v5 reviewer section accepts only `default` and `tiers`',
+        why: 'the reviewer section accepts only `default` and `tiers`',
         next: "move provider-specific settings into a tier's config: section",
       }, 'config-reviewer-unknown-key');
     }
@@ -148,7 +146,7 @@ function parseReviewerV5(raw: Record<string, unknown>, filename: string): Review
   if (!tiersRaw || typeof tiersRaw !== 'object' || Array.isArray(tiersRaw)) {
     throw new ConfigParseError({
       what: `${filename}: reviewer.tiers is missing or not a mapping`,
-      why: 'tiers are the only way to declare reviewer configurations in v5',
+      why: 'tiers are the only way to declare reviewer configurations',
       next: 'add `reviewer.tiers: { default-tier: { provider: ..., consensus: 1, config: { model: ... } } }`',
     }, 'config-tiers-missing');
   }
@@ -237,7 +235,7 @@ function parseTier(name: string, raw: unknown, filename: string): LlmConfig {
   if (!('consensus' in t)) {
     throw new ConfigParseError({
       what: `${filename}: tier '${name}' is missing consensus:`,
-      why: 'consensus is the number of independent reviewer votes per aspect; v5 requires it explicitly per tier',
+      why: 'consensus is the number of independent reviewer votes per aspect; each tier declares its own',
       next: 'add `consensus: 1` (single call) or an odd number >= 3 for majority vote',
     }, 'config-tier-consensus-invalid');
   }

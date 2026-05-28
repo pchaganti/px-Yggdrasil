@@ -8,3 +8,5 @@ Migrated remaining ad-hoc stderr errors to buildIssueMessage (constant-text erro
 Updated effective-aspects import path to core/graph/aspects.
 ## [2026-05-27T07:22:10.452Z]
 Phase 6 type-bridge: updated reviewer display from aspect.reviewer ?? 'llm' to aspect.reviewer?.type ?? 'llm' to match the new AspectReviewerSpec object shape replacing the former string union.
+## [2026-05-27T13:54:31.635Z]
+Display the resolved reviewer tier (or "(default)") alongside the type so authors see which named tier the aspect will use at approve time.

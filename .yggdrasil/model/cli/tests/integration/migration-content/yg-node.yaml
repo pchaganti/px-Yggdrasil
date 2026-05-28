@@ -1,0 +1,9 @@
+name: Migration Content Transformation Tests
+type: test-suite
+description: Per-version content tests — each fixture mirrors a realistic prior-version graph (pulled from git tags v3.0.0 and v4.2.0 and the legacy v4.3 reviewer protocol) and asserts the post-migration shape per design. One file per registered migration target.
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/integration/migration-content-to-4.0.test.ts
+  - source/cli/tests/integration/migration-content-to-4.3.test.ts
+  - source/cli/tests/integration/migration-content-to-5.0.test.ts

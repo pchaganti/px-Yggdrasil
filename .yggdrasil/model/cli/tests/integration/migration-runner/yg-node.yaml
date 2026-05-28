@@ -1,0 +1,9 @@
+name: Migration Runner Tests
+type: test-suite
+description: Integration tests for the migration runner contract — incremental version bumping, chain semantics, stop-on-warnings, semver ordering. Covers runVersionUpgrade plus chain-mode end-to-end with the registered MIGRATIONS list.
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/integration/migration-framework.test.ts
+  - source/cli/tests/integration/migration-4.2-to-4.3.test.ts
+  - source/cli/tests/integration/migration-4.3-to-5.0.test.ts

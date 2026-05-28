@@ -495,7 +495,7 @@ describe.skipIf(!distExists)('CLI E2E', () => {
     }
   });
 
-  it('init --upgrade bumps config version to CLI version', () => {
+  it('init --upgrade advances config version to the latest registered migration target', async () => {
     const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-upgrade-version-'));
     const yggDir = path.join(tmpDir, '.yggdrasil');
     mkdirSync(path.join(yggDir, 'schemas'), { recursive: true });
@@ -504,19 +504,21 @@ describe.skipIf(!distExists)('CLI E2E', () => {
     try {
       const { status } = run(['init', '--upgrade', '--platform', 'generic'], tmpDir);
       expect(status).toBe(0);
+      // The on-disk version reflects each migration's `to` in order; the
+      // final landed value equals the highest registered migration target,
+      // not the CLI package.json version.
+      const { MIGRATIONS } = await import('../../src/migrations/index.js');
+      const latestTarget = [...MIGRATIONS].map(m => m.to).sort().pop()!;
       const config = readFileSync(path.join(yggDir, 'yg-config.yaml'), 'utf-8');
-      expect(config).toContain(`version: "${PKG_VERSION}"`);
+      expect(config).toContain(`version: "${latestTarget}"`);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
   it('getCliVersion reads version from package.json', async () => {
-    // Indirectly verified: init --upgrade uses getCliVersion to write config version.
-    // If getCliVersion returned wrong value, the test above would fail.
-    // Direct import test:
-    const initModule = await import('../../src/cli/init.js');
-    // getCliVersion is not exported, but the upgrade test above proves it works.
+    // PKG_VERSION reflects the CLI package version (independent from the
+    // graph schema version, which the migration framework manages).
     expect(PKG_VERSION).toMatch(/^\d+\.\d+\.\d+/);
   });
 
@@ -1014,8 +1016,8 @@ describe.skipIf(!distExists)('CLI E2E', () => {
 
   // --- v5 reviewer tiers ---
 
-  it('yg check rejects v4 reviewer config with legacy-format error', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-v4config-'));
+  it('yg check rejects legacy reviewer config with a migration hint', () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-legacy-config-'));
     try {
       cpSync(FIXTURE, tmpDir, { recursive: true });
       writeFileSync(
@@ -1025,7 +1027,8 @@ describe.skipIf(!distExists)('CLI E2E', () => {
       );
       const { status, stdout } = run(['check'], tmpDir);
       expect(status).toBe(1);
-      expect(stdout).toContain('pre-v5');
+      expect(stdout).toContain('legacy reviewer format');
+      expect(stdout).toContain('yg init --upgrade');
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }

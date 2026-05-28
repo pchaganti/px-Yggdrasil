@@ -5,13 +5,14 @@ import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { migrateTo50 } from '../../src/migrations/to-5.0.0.js';
 import { runMigrations } from '../../src/core/migrator.js';
+import { runVersionUpgrade } from '../../src/core/migrator-runner.js';
 import { MIGRATIONS } from '../../src/migrations/index.js';
 import { loadGraph } from '../../src/core/graph-loader.js';
 import { validate } from '../../src/core/validator.js';
 
 // ── Helpers ──────────────────────────────────────────────────
 
-function makeV4Repo(root: string, opts: {
+function makeLegacyRepo(root: string, opts: {
   config?: string;
   aspects?: Record<string, string>;
 } = {}) {
@@ -62,8 +63,8 @@ describe('migration 4.3 → 5.0', () => {
     rmSync(repo, { recursive: true, force: true });
   });
 
-  it('migrates v4.3 single-provider config to v5 tiers', async () => {
-    makeV4Repo(repo, {
+  it('migrates single-provider legacy config to tier named after the provider', async () => {
+    makeLegacyRepo(repo, {
       aspects: {
         'requires-logging': 'name: Logging\ndescription: Log on entry\nreviewer: llm\n',
         'no-sync-io': 'name: NoSyncIO\ndescription: No sync calls\nreviewer: ast\n',
@@ -71,20 +72,18 @@ describe('migration 4.3 → 5.0', () => {
     });
 
     const result = await migrateTo50(join(repo, '.yggdrasil'));
-
+    expect(result.bumpVersion).toBe(true);
     expect(result.actions.length).toBeGreaterThan(0);
 
-    // Config: v5 tiers structure
     const cfg = parseYaml(readFileSync(join(repo, '.yggdrasil', 'yg-config.yaml'), 'utf-8')) as Record<string, unknown>;
-    expect(cfg.version).toBe('5.0.0');
     const reviewer = cfg.reviewer as Record<string, unknown>;
-    expect(reviewer.tiers).toBeDefined();
     const tiers = reviewer.tiers as Record<string, unknown>;
-    expect(Object.keys(tiers)).toHaveLength(1);
-    const standard = tiers.standard as Record<string, unknown>;
-    expect(standard.provider).toBe('ollama');
+    expect(Object.keys(tiers)).toEqual(['ollama']);
+    const ollama = tiers.ollama as Record<string, unknown>;
+    expect(ollama.provider).toBe('ollama');
+    // Default omitted for single-tier configs
+    expect(reviewer.default).toBeUndefined();
 
-    // Aspects: reviewer string → object
     const logging = parseYaml(
       readFileSync(join(repo, '.yggdrasil', 'aspects', 'requires-logging', 'yg-aspect.yaml'), 'utf-8'),
     ) as Record<string, unknown>;
@@ -96,83 +95,97 @@ describe('migration 4.3 → 5.0', () => {
     expect((syncio.reviewer as Record<string, unknown>).type).toBe('ast');
   });
 
-  it('warns and migrates to first provider when multiple providers without active key', async () => {
-    makeV4Repo(repo, {
+  it('preserves multiple providers as named tiers when active is set', async () => {
+    makeLegacyRepo(repo, {
       config: [
         'version: "4.3.0"',
         'reviewer:',
+        '  active: anthropic',
+        '  consensus: 1',
         '  ollama:',
         '    model: qwen3',
         '    endpoint: http://localhost:11434',
         '  anthropic:',
         '    model: claude-3',
+        '    temperature: 0',
       ].join('\n') + '\n',
     });
 
     const result = await migrateTo50(join(repo, '.yggdrasil'));
+    expect(result.bumpVersion).toBe(true);
 
-    expect(result.warnings.some(w => w.includes('multiple providers'))).toBe(true);
-    expect(result.actions.length).toBeGreaterThan(0);
-
-    const cfg = parseYaml(
-      readFileSync(join(repo, '.yggdrasil', 'yg-config.yaml'), 'utf-8'),
-    ) as Record<string, unknown>;
-    expect(cfg.version).toBe('5.0.0');
+    const cfg = parseYaml(readFileSync(join(repo, '.yggdrasil', 'yg-config.yaml'), 'utf-8')) as Record<string, unknown>;
     const reviewer = cfg.reviewer as Record<string, unknown>;
-    expect((reviewer.tiers as Record<string, unknown>).standard).toBeDefined();
+    expect(reviewer.default).toBe('anthropic');
+    const tiers = reviewer.tiers as Record<string, Record<string, unknown>>;
+    expect(Object.keys(tiers).sort()).toEqual(['anthropic', 'ollama']);
+    expect(tiers.anthropic.provider).toBe('anthropic');
+    expect(tiers.ollama.provider).toBe('ollama');
+    expect((tiers.ollama.config as Record<string, unknown>).endpoint).toBe('http://localhost:11434');
   });
 
-  it('is idempotent — second run on already-v5 repo produces no actions', async () => {
-    makeV4Repo(repo);
+  it('STOPS when multiple providers without active — no rewrite, no version bump', async () => {
+    makeLegacyRepo(repo, {
+      config: [
+        'version: "4.3.0"',
+        'reviewer:',
+        '  ollama:',
+        '    model: qwen3',
+        '  anthropic:',
+        '    model: claude-3',
+      ].join('\n') + '\n',
+      aspects: { 'one': 'name: One\nreviewer: llm\n' },
+    });
 
-    // First migration
+    const before = readFileSync(join(repo, '.yggdrasil', 'yg-config.yaml'), 'utf-8');
+    const aspectBefore = readFileSync(join(repo, '.yggdrasil', 'aspects', 'one', 'yg-aspect.yaml'), 'utf-8');
+
+    const result = await migrateTo50(join(repo, '.yggdrasil'));
+    expect(result.bumpVersion).toBe(false);
+    expect(result.warnings.some(w => w.includes('multiple providers'))).toBe(true);
+
+    expect(readFileSync(join(repo, '.yggdrasil', 'yg-config.yaml'), 'utf-8')).toBe(before);
+    expect(readFileSync(join(repo, '.yggdrasil', 'aspects', 'one', 'yg-aspect.yaml'), 'utf-8')).toBe(aspectBefore);
+  });
+
+  it('is idempotent — second run on already-migrated repo produces no further actions', async () => {
+    makeLegacyRepo(repo);
     const first = await migrateTo50(join(repo, '.yggdrasil'));
     expect(first.actions.length).toBeGreaterThan(0);
 
-    // Second migration — already v5
     const second = await migrateTo50(join(repo, '.yggdrasil'));
-    expect(second.actions.filter(a => !a.includes('version'))).toHaveLength(0);
+    expect(second.actions.filter(a => a.includes('tier-based shape'))).toHaveLength(0);
+    expect(second.bumpVersion).toBe(true);
   });
 
   it("transforms reviewer: 'ast' string to type: ast", async () => {
-    makeV4Repo(repo, {
-      aspects: {
-        'check-ast': 'name: CheckAST\ndescription: AST check\nreviewer: ast\n',
-      },
+    makeLegacyRepo(repo, {
+      aspects: { 'check-ast': 'name: CheckAST\ndescription: AST check\nreviewer: ast\n' },
     });
 
     await migrateTo50(join(repo, '.yggdrasil'));
-
     const aspect = parseYaml(
       readFileSync(join(repo, '.yggdrasil', 'aspects', 'check-ast', 'yg-aspect.yaml'), 'utf-8'),
     ) as Record<string, unknown>;
-    const r = aspect.reviewer as Record<string, unknown>;
-    expect(r.type).toBe('ast');
+    expect((aspect.reviewer as Record<string, unknown>).type).toBe('ast');
   });
 
-  it("transforms reviewer: 'llm' and reviewer: provider-name strings to type: llm", async () => {
-    makeV4Repo(repo, {
+  it("WARNS for reviewer: 'claude-code' (unrecognized) — file unchanged", async () => {
+    makeLegacyRepo(repo, {
       aspects: {
-        'check-llm': 'name: CheckLLM\ndescription: LLM check\nreviewer: llm\n',
         'check-named': 'name: CheckNamed\ndescription: Named check\nreviewer: claude-code\n',
       },
     });
+    const before = readFileSync(join(repo, '.yggdrasil', 'aspects', 'check-named', 'yg-aspect.yaml'), 'utf-8');
 
-    await migrateTo50(join(repo, '.yggdrasil'));
-
-    const llm = parseYaml(
-      readFileSync(join(repo, '.yggdrasil', 'aspects', 'check-llm', 'yg-aspect.yaml'), 'utf-8'),
-    ) as Record<string, unknown>;
-    expect((llm.reviewer as Record<string, unknown>).type).toBe('llm');
-
-    const named = parseYaml(
-      readFileSync(join(repo, '.yggdrasil', 'aspects', 'check-named', 'yg-aspect.yaml'), 'utf-8'),
-    ) as Record<string, unknown>;
-    expect((named.reviewer as Record<string, unknown>).type).toBe('llm');
+    const result = await migrateTo50(join(repo, '.yggdrasil'));
+    expect(result.bumpVersion).toBe(false);
+    expect(result.warnings.some(w => w.includes('unrecognized reviewer value'))).toBe(true);
+    expect(readFileSync(join(repo, '.yggdrasil', 'aspects', 'check-named', 'yg-aspect.yaml'), 'utf-8')).toBe(before);
   });
 
   it('migrated repo loads without config errors and passes validation', async () => {
-    makeV4Repo(repo, {
+    makeLegacyRepo(repo, {
       aspects: {
         'requires-logging': 'name: Logging\ndescription: Log on entry\nreviewer: llm\n',
       },
@@ -190,19 +203,49 @@ describe('migration 4.3 → 5.0', () => {
 
     const validation = await validate(graph);
     const errors = validation.issues.filter(i => i.severity === 'error');
-    // No structural errors (only unapproved drift which is expected)
     const FIXTURE_CODES = new Set(['unapproved', 'source-drift', 'upstream-drift', 'type-without-when-with-mapping', 'schema-missing']);
     const nonDrift = errors.filter(i => !FIXTURE_CODES.has(i.code ?? ''));
     expect(nonDrift).toHaveLength(0);
   });
 
-  it('runMigrations via migrator-runner bumps version to 5.0.0', async () => {
-    makeV4Repo(repo);
+  it('runVersionUpgrade advances version exactly one step to 5.0.0 on success', async () => {
+    makeLegacyRepo(repo);
 
+    const { migrationActions, migrationWarnings } = await runVersionUpgrade({
+      yggRoot: join(repo, '.yggdrasil'),
+      migrations: MIGRATIONS,
+    });
+
+    expect(migrationWarnings).toEqual([]);
+    expect(migrationActions.length).toBeGreaterThan(0);
+    const cfg = readFileSync(join(repo, '.yggdrasil', 'yg-config.yaml'), 'utf-8');
+    expect(cfg).toMatch(/version:\s*["']5\.0\.0["']/);
+  });
+
+  it('runVersionUpgrade does NOT bump version when warnings present', async () => {
+    makeLegacyRepo(repo, {
+      config: [
+        'version: "4.3.0"',
+        'reviewer:',
+        '  ollama:',
+        '    model: qwen3',
+        '  anthropic:',
+        '    model: claude-3',
+      ].join('\n') + '\n',
+    });
+
+    const before = readFileSync(join(repo, '.yggdrasil', 'yg-config.yaml'), 'utf-8');
+    const { migrationWarnings } = await runVersionUpgrade({
+      yggRoot: join(repo, '.yggdrasil'),
+      migrations: MIGRATIONS,
+    });
+    expect(migrationWarnings.length).toBeGreaterThan(0);
+    expect(readFileSync(join(repo, '.yggdrasil', 'yg-config.yaml'), 'utf-8')).toBe(before);
+  });
+
+  it('runMigrations applies the registered migration', async () => {
+    makeLegacyRepo(repo);
     const results = await runMigrations('4.3.0', MIGRATIONS, join(repo, '.yggdrasil'));
     expect(results.length).toBeGreaterThan(0);
-
-    const cfg = readFileSync(join(repo, '.yggdrasil', 'yg-config.yaml'), 'utf-8');
-    expect(cfg).toMatch(/version: "5\.0\.0"/);
   });
 });

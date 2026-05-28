@@ -2,7 +2,7 @@
 # Located at .yggdrasil/yg-config.yaml — one per project.
 # Edit this after running yg init to describe your project.
 
-version: "4.0.0"                  # managed by CLI — do not edit manually. Tracks the CLI version
+version: "5.0.0"                  # managed by CLI — do not edit manually. Tracks the CLI version
                                   # that last initialized or upgraded this config.
 
 quality:                          # optional — quality thresholds
@@ -15,13 +15,25 @@ debug: false                      # optional — when true, appends all command 
                                   # Default: false (off). Log is append-only; rotate or delete manually.
 
 reviewer:                         # required — aspect verification during yg approve
-  active: ollama                  #   required when multiple providers configured
-  consensus: 1                    #   positive odd integer >= 1 (3+ for majority vote)
-  ollama:                         #   provider-specific config
-    model: "qwen3.5:9b"          #     model ID
-    endpoint: "http://localhost:11434"  #   custom endpoint
-    temperature: 0                #     reduces variability — keep at 0
-    max_tokens: auto              #     auto = query provider, or explicit number
-    context_length_field: ""      #     ollama model_info key for context window size
-  claude-code:                    #   alternative provider — uses claude CLI subprocess
-    model: haiku                  #     haiku, sonnet, or opus
+  default: standard               # required when more than one tier is configured; optional with exactly one tier.
+                                  #   Must reference one of the keys under reviewer.tiers.
+  tiers:                          # required — named tier configurations, minimum one entry.
+    standard:                     #   tier name — referenced from aspects via reviewer.tier:
+      provider: ollama            #     provider id (one of: ollama, openai, anthropic, google,
+                                  #                       openai-compatible, claude-code, codex, gemini-cli)
+      consensus: 1                #     positive odd integer >= 1 (3+ for majority vote). Per-tier.
+      config:                     #     provider-specific settings — same fields the provider accepts.
+        model: "qwen3.5:9b"       #       model id
+        endpoint: "http://localhost:11434"   # custom endpoint (required for ollama, openai-compatible)
+        temperature: 0            #       reduces variability — keep at 0
+        max_tokens: auto          #       auto = query provider, or explicit positive integer
+        context_length_field: ""  #       ollama: model_info key for context window size
+    # Add more tiers as needed (e.g. a `deep` tier with a higher-capability model for critical aspects).
+    # An aspect references a non-default tier via:
+    #
+    #   reviewer:
+    #     type: llm
+    #     tier: deep
+    #
+    # Tier names match ^[a-zA-Z][a-zA-Z0-9_-]{0,62}$ and `default` is reserved.
+    # API keys live in yg-secrets.yaml (api_key only) — never in this file.

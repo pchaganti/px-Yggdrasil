@@ -1,62 +1,62 @@
 import { describe, it, expect } from 'vitest';
 import {
-  isV5ConfigFormat,
-  isV4ConfigFormat,
-  isV4AspectReviewerString,
+  isCurrentConfigFormat,
+  isLegacyConfigFormat,
+  isLegacyAspectReviewer,
   isMixedConfigFormat,
 } from '../../../src/core/format-version.js';
 
-describe('isV5ConfigFormat', () => {
+describe('isCurrentConfigFormat', () => {
   it('returns true for reviewer with tiers', () => {
-    expect(isV5ConfigFormat({ reviewer: { tiers: {} } })).toBe(true);
+    expect(isCurrentConfigFormat({ reviewer: { tiers: {} } })).toBe(true);
   });
 
-  it('returns false for reviewer with active (v4)', () => {
-    expect(isV5ConfigFormat({ reviewer: { active: 'ollama' } })).toBe(false);
+  it('returns false for reviewer with active (legacy)', () => {
+    expect(isCurrentConfigFormat({ reviewer: { active: 'ollama' } })).toBe(false);
   });
 
   it('returns false when reviewer absent', () => {
-    expect(isV5ConfigFormat({ version: '5.0.0' })).toBe(false);
+    expect(isCurrentConfigFormat({ version: '5.0.0' })).toBe(false);
   });
 
   it('returns false when reviewer is string', () => {
-    expect(isV5ConfigFormat({ reviewer: 'foo' })).toBe(false);
+    expect(isCurrentConfigFormat({ reviewer: 'foo' })).toBe(false);
   });
 });
 
-describe('isV4ConfigFormat', () => {
+describe('isLegacyConfigFormat', () => {
   it('returns true for reviewer with active', () => {
-    expect(isV4ConfigFormat({ reviewer: { active: 'X' } })).toBe(true);
+    expect(isLegacyConfigFormat({ reviewer: { active: 'X' } })).toBe(true);
   });
 
   it('returns true for reviewer with provider key', () => {
-    expect(isV4ConfigFormat({ reviewer: { ollama: { model: 'q' } } })).toBe(true);
+    expect(isLegacyConfigFormat({ reviewer: { ollama: { model: 'q' } } })).toBe(true);
   });
 
-  it('returns false for v5 config', () => {
-    expect(isV4ConfigFormat({ reviewer: { tiers: {} } })).toBe(false);
+  it('returns false when tiers is present', () => {
+    expect(isLegacyConfigFormat({ reviewer: { tiers: {} } })).toBe(false);
   });
 
   it('returns false when reviewer absent', () => {
-    expect(isV4ConfigFormat({})).toBe(false);
+    expect(isLegacyConfigFormat({})).toBe(false);
   });
 });
 
-describe('isV4AspectReviewerString', () => {
+describe('isLegacyAspectReviewer', () => {
   it('returns true for reviewer: "llm"', () => {
-    expect(isV4AspectReviewerString({ reviewer: 'llm' })).toBe(true);
+    expect(isLegacyAspectReviewer({ reviewer: 'llm' })).toBe(true);
   });
 
   it('returns true for reviewer: "ast"', () => {
-    expect(isV4AspectReviewerString({ reviewer: 'ast' })).toBe(true);
+    expect(isLegacyAspectReviewer({ reviewer: 'ast' })).toBe(true);
   });
 
-  it('returns false for v5 object', () => {
-    expect(isV4AspectReviewerString({ reviewer: { type: 'llm' } })).toBe(false);
+  it('returns false for mapping reviewer', () => {
+    expect(isLegacyAspectReviewer({ reviewer: { type: 'llm' } })).toBe(false);
   });
 
   it('returns false when reviewer absent', () => {
-    expect(isV4AspectReviewerString({ name: 'foo' })).toBe(false);
+    expect(isLegacyAspectReviewer({ name: 'foo' })).toBe(false);
   });
 });
 
@@ -65,7 +65,15 @@ describe('isMixedConfigFormat', () => {
     expect(isMixedConfigFormat({ reviewer: { tiers: {}, active: 'X' } })).toBe(true);
   });
 
-  it('returns false for pure v5', () => {
+  it('returns false when only tiers', () => {
     expect(isMixedConfigFormat({ reviewer: { tiers: {} } })).toBe(false);
+  });
+
+  it('returns false when only active', () => {
+    expect(isMixedConfigFormat({ reviewer: { active: 'X' } })).toBe(false);
+  });
+
+  it('returns true when both tiers and provider key', () => {
+    expect(isMixedConfigFormat({ reviewer: { tiers: {}, ollama: { model: 'q' } } })).toBe(true);
   });
 });

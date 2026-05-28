@@ -2,10 +2,12 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { runMigrations } from '../../src/core/migrator.js';
+import { runVersionUpgrade } from '../../src/core/migrator-runner.js';
 import { MIGRATIONS } from '../../src/migrations/index.js';
 import { loadGraph } from '../../src/core/graph-loader.js';
 import { validate } from '../../src/core/validator.js';
+
+const MIGRATION_TO_4_3 = MIGRATIONS.filter((m) => m.to === '4.3.0');
 
 describe('4.2.0 → 4.3.0 migration end-to-end', () => {
   let repo: string;
@@ -30,11 +32,16 @@ describe('4.2.0 → 4.3.0 migration end-to-end', () => {
     rmSync(repo, { recursive: true, force: true });
   });
 
-  it('runs all migrations, writes final version, then validator emits type-without-when-with-mapping', async () => {
-    const results = await runMigrations('4.2.0', MIGRATIONS, join(repo, '.yggdrasil'));
-    expect(results.length).toBeGreaterThan(0);
+  it('advances the version exactly one step to 4.3.0 and the validator emits type-without-when-with-mapping', async () => {
+    expect(MIGRATION_TO_4_3).toHaveLength(1);
+    const upgrade = await runVersionUpgrade({
+      yggRoot: join(repo, '.yggdrasil'),
+      migrations: MIGRATION_TO_4_3,
+    });
+    expect(upgrade.migrationActions.length).toBeGreaterThan(0);
     const config = readFileSync(join(repo, '.yggdrasil', 'yg-config.yaml'), 'utf-8');
-    expect(config).toMatch(/version: "5\.0\.0"/);
+    expect(config).toMatch(/version:\s*["']4\.3\.0["']/);
+    expect(config).not.toMatch(/version:\s*["']5\.0\.0["']/);
 
     const graph = await loadGraph(repo);
     const result = await validate(graph);

@@ -58,7 +58,13 @@ export function formatAspectsOutput(graph: Graph): string {
     const u = usage.get(aspect.id) ?? { architecture: 0, own: 0, implied: 0, flow: 0, total: 0 };
     const displayName = aspect.description ?? aspect.name;
     lines.push(`${aspect.id} — ${displayName}`);
-    lines.push(`  Reviewer: ${aspect.reviewer?.type ?? 'llm'}`);
+    const reviewerType = aspect.reviewer.type;
+    if (reviewerType === 'llm') {
+      const tier = aspect.reviewer.tier ?? '(default)';
+      lines.push(`  Reviewer: llm — tier: ${tier}`);
+    } else {
+      lines.push(`  Reviewer: ${reviewerType}`);
+    }
 
     if (u.total === 0) {
       lines.push(chalk.yellow(`  Used by: 0 nodes — orphaned`));

@@ -241,7 +241,7 @@ yg ast-test --aspect <id> --node <node-path>
 yg ast-test --aspect <id> --files <path> [<path2> ...]
 ```
 
-- `--aspect <id>` — Required. The aspect must have `reviewer: ast` in its `yg-aspect.yaml`.
+- `--aspect <id>` — Required. The aspect must have `reviewer.type: ast` in its `yg-aspect.yaml`.
   Exits 1 with an error if the aspect uses the LLM reviewer.
 - `--node <path>` — Run against all files mapped to this node.
 - `--files <paths...>` — Run against an explicit file list. Useful for ad-hoc testing

@@ -147,7 +147,6 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   issues.push(...checkPortConsumes(graph));
   issues.push(...checkOrphanedAspects(graph));
   issues.push(...checkWhenReferences(graph));
-  issues.push(...checkAspectReviewerEnum(graph));
   issues.push(...checkAspectRuleSources(graph));
 
   // Stage 5: global checks.
@@ -1866,7 +1865,7 @@ function checkReviewerPresence(graph: Graph): ValidationIssue[] {
   if (graph.config.reviewer) return [];
   const msgData: IssueMessage = {
     what: 'yg-config.yaml has no reviewer: section.',
-    why: 'Every v5 project must declare at least one reviewer tier — even AST-only projects need the section for future LLM aspects.',
+    why: 'Every project must declare at least one reviewer tier — even AST-only projects need the section for future LLM aspects.',
     next: 'Add `reviewer: { tiers: { default-tier: { provider: ..., consensus: 1, config: { model: ... } } } }` to .yggdrasil/yg-config.yaml.',
   };
   return [{ code: 'config-reviewer-missing', severity: 'error', rule: 'config-reviewer-missing', ...issueMsg(msgData), messageData: msgData }];
@@ -1879,7 +1878,7 @@ function checkAspectTierReferences(graph: Graph): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   for (const aspect of graph.aspects) {
     if (aspect.reviewer.type !== 'llm') continue;
-    const tier = (aspect.reviewer as { type: 'llm'; tier?: string }).tier;
+    const tier = aspect.reviewer.tier;
     if (!tier) continue;
     const tiers = graph.config.reviewer?.tiers ?? {};
     if (!tiers[tier]) {
@@ -1906,7 +1905,7 @@ async function checkSecretsCredentialsOnly(graph: Graph): Promise<ValidationIssu
     for (const key of foreignKeys) {
       const msgData: IssueMessage = {
         what: `yg-secrets.yaml has '${key}' under reviewer.${provider}.`,
-        why: 'The v5 secrets file accepts only api_key; non-credential fields belong in yg-config.yaml tiers.',
+        why: 'The secrets file accepts only api_key; non-credential fields belong in yg-config.yaml tiers.',
         next: `Move '${key}' into reviewer.tiers.<name> in .yggdrasil/yg-config.yaml and remove it from yg-secrets.yaml.`,
       };
       issues.push({ code: 'secrets-non-credential-field', severity: 'error', rule: 'secrets-non-credential-field', ...issueMsg(msgData), messageData: msgData });
@@ -1915,22 +1914,3 @@ async function checkSecretsCredentialsOnly(graph: Graph): Promise<ValidationIssu
   return issues;
 }
 
-// --- aspect-invalid-reviewer: reviewer field must be 'ast' or 'llm' ---
-
-function checkAspectReviewerEnum(graph: Graph): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
-  for (const aspect of graph.aspects) {
-    if (aspect.reviewer.type === 'llm' || aspect.reviewer.type === 'ast') continue;
-    issues.push({
-      severity: 'error',
-      code: 'aspect-invalid-reviewer',
-      rule: 'reviewer-enum',
-      ...issueMsg({
-        what: `Aspect '${aspect.id}' has invalid reviewer value '${String((aspect as { reviewer: unknown }).reviewer)}'.`,
-        why: `The reviewer field must be 'ast' or 'llm' (default 'llm').`,
-        next: `Set 'reviewer: ast' or 'reviewer: llm' in .yggdrasil/aspects/${aspect.id}/yg-aspect.yaml.`,
-      }),
-    });
-  }
-  return issues;
-}

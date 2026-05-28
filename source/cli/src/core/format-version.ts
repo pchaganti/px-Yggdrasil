@@ -1,30 +1,34 @@
 /**
- * Format-version detection for v4 vs v5 yg-config.yaml and yg-aspect.yaml.
+ * Format-version detection for the legacy reviewer shape (pre-tier).
  * Pure predicates over raw parsed YAML objects. No I/O.
+ *
+ * Migration is the only place that should consume these — runtime code
+ * operates on the current format. The parser uses them to emit a
+ * structured migration-hint error when it sees the legacy shape.
  */
 
-import { KNOWN_PROVIDERS } from '../io/config-parser.js';
+import { KNOWN_PROVIDERS } from '../utils/known-providers.js';
 
-export function isV5ConfigFormat(raw: Record<string, unknown>): boolean {
+export function isCurrentConfigFormat(raw: Record<string, unknown>): boolean {
   const reviewer = raw.reviewer as Record<string, unknown> | undefined;
   return !!reviewer && typeof reviewer === 'object' && !Array.isArray(reviewer) && 'tiers' in reviewer;
 }
 
-export function isV4ConfigFormat(raw: Record<string, unknown>): boolean {
+export function isLegacyConfigFormat(raw: Record<string, unknown>): boolean {
   const reviewer = raw.reviewer as Record<string, unknown> | undefined;
   if (!reviewer || typeof reviewer !== 'object' || Array.isArray(reviewer)) return false;
-  if (isV5ConfigFormat(raw)) return false;   // mutually exclusive — v5 wins
+  if (isCurrentConfigFormat(raw)) return false;
   return 'active' in reviewer || KNOWN_PROVIDERS.some(p => p in reviewer);
 }
 
-export function isV4AspectReviewerString(raw: Record<string, unknown>): boolean {
+export function isLegacyAspectReviewer(raw: Record<string, unknown>): boolean {
   return typeof raw.reviewer === 'string';
 }
 
 export function isMixedConfigFormat(raw: Record<string, unknown>): boolean {
   const reviewer = raw.reviewer as Record<string, unknown> | undefined;
   if (!reviewer || typeof reviewer !== 'object') return false;
-  const hasV5 = 'tiers' in reviewer;
-  const hasV4 = 'active' in reviewer || KNOWN_PROVIDERS.some(p => p in reviewer);
-  return hasV5 && hasV4;
+  const hasCurrent = 'tiers' in reviewer;
+  const hasLegacy = 'active' in reviewer || KNOWN_PROVIDERS.some(p => p in reviewer);
+  return hasCurrent && hasLegacy;
 }

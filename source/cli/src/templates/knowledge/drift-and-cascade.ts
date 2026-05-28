@@ -64,6 +64,25 @@ Every drifted node = one LLM call during approve.
 Use \`yg impact\` before every graph change to see the call count.
 An aspect touching 20 nodes that each have 3 effective aspects = 60 calls.
 
+### Tier identity is part of the per-node drift hash
+
+Each LLM aspect contributes a \`tier-identity:<aspectId>\` synthetic entry
+into the per-node canonical hash. Anything that changes the resolved tier
+triggers re-approve on every node using that aspect:
+
+- Editing \`reviewer.tier:\` on the aspect (or removing it to fall back to default).
+- Editing \`reviewer.default\` in \`yg-config.yaml\` (cascades to every aspect that
+  doesn't pin a tier).
+- Editing the referenced tier's \`provider\`, \`consensus\`, or any field of
+  its \`config:\` block (api_key is excluded — secret rotation does NOT drift).
+- Renaming a tier (the tier name is part of the identity, even if the
+  config is byte-equivalent).
+
+Re-approve cost depends on the tier the aspect uses. A change on an aspect
+pinned to a high-consensus tier multiplies cost by that consensus value
+per affected node. Run \`yg impact --aspect <id>\` to see affected nodes
+before swapping the tier on a widely-used aspect.
+
 ## Approve workflow
 
 1. Edit source files

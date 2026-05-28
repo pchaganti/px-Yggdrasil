@@ -34,9 +34,9 @@ The CLI (\`yg\`) reads and validates — it never modifies files. You create and
 
 **Nodes** — components. \`model/<path>/yg-node.yaml\`. Nodes nest by directory — children inherit parent aspects. Schema: \`schemas/yg-node.yaml\`.
 
-**Aspects** — enforceable rules. \`aspects/<id>/yg-aspect.yaml\` + either \`content.md\` (LLM reviewer) or \`check.mjs\` (AST reviewer). An aspect can declare \`implies: [other-aspect]\` — implied aspects are included recursively (must be acyclic). Schema: \`schemas/yg-aspect.yaml\`.
+**Aspects** — enforceable rules. \`aspects/<id>/yg-aspect.yaml\` + either \`content.md\` (LLM reviewer) or \`check.mjs\` (AST reviewer). The \`yg-aspect.yaml\` requires a \`reviewer:\` mapping: \`reviewer.type\` is \`llm\` or \`ast\`. LLM aspects may also set \`reviewer.tier:\` to pick a named tier from \`yg-config.yaml\` (otherwise the configured default tier is used). An aspect can declare \`implies: [other-aspect]\` — implied aspects are included recursively (must be acyclic). Schema: \`schemas/yg-aspect.yaml\`.
 
-AST aspects (\`reviewer: ast\`) must declare \`language: [<lang>, ...]\` array — runner invokes \`check.mjs\` once per declared language. See \`yg knowledge read writing-ast-aspects\`.
+AST aspects (\`reviewer.type: ast\`) must declare \`language: [<lang>, ...]\` array — runner invokes \`check.mjs\` once per declared language. AST aspects must NOT set \`reviewer.tier:\` — tiers apply only to LLM aspects. See \`yg knowledge read writing-ast-aspects\`.
 
 **Flows** — business processes. \`flows/<name>/yg-flow.yaml\` with name, description, nodes (participants), aspects. Flow-level aspects propagate to all participants. Descendants of a declared participant are automatically included — adding a parent node to a flow covers all its children. Deep dive: \`yg knowledge read flows\`.
 
@@ -141,7 +141,7 @@ const DECISIONS = `## DECISIONS
 
 **Start of conversation:** \`yg check\`. If errors — fix before any other work. \`yg check\` failures block commits and CI. Nothing passes until check is clean.
 
-**Before touching a source file:** \`yg context --file <path>\`. Read the files listed under \`read:\` — these are the rules the reviewer will check your code against. For LLM aspects, \`read:\` points to \`content.md\`. For AST aspects (\`reviewer: ast\`), \`read:\` points to \`check.mjs\` — read it to know what structural rules will be enforced. For blast radius: \`yg impact --file <path>\`.
+**Before touching a source file:** \`yg context --file <path>\`. Read the files listed under \`read:\` — these are the rules the reviewer will check your code against. For LLM aspects, \`read:\` points to \`content.md\`. For AST aspects (\`reviewer.type: ast\`), \`read:\` points to \`check.mjs\` — read it to know what structural rules will be enforced. For blast radius: \`yg impact --file <path>\`.
 
 **After modifying code:** \`yg check\` → fix errors → \`yg log add\` (per affected node) → \`yg approve --node <path>\`. Approve is part of the change — the change is not done until approve passes. Do not defer approval.
 

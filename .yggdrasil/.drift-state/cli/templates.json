@@ -1,5 +1,5 @@
 {
-  "hash": "377df51853571d2bd4a6c94ebeeb94c825170193f8a6acd8df946dd201418543",
+  "hash": "ea14af97eedcaf718194313bce2416ccc99eac37aaa9c66f0aeb52860155a9a7",
   "files": {
     "own-subset:cli/templates": "f68bcd5143fd11da71f121095f5b7b88f309ccecd0a1190a8d557b7eeeda9f51",
     "tier-identity:what-why-next": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -11,9 +11,9 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
     ".yggdrasil/aspects/posix-paths-output/yg-aspect.yaml": "c416daed4d0f68afd287205e0abe40409c6643ec4507ebe0399f4e9fb2ffedc9",
     ".yggdrasil/aspects/posix-paths-output/content.md": "2659859dc13a8efe32e098b0c220d24c9ecddff26b42a4f22e3135d8b750bc13",
+    "source/cli/src/templates/default-config.ts": "9501fa45c16da35796f91b7fc57e0f6a99f5764f78eed6ba631e1125304bde54",
     "source/cli/src/templates/platform.ts": "d96addc8b4fc854500c14acda1846fef398a39d1c1df4668de3cc4c5425d2f7e",
-    "source/cli/src/templates/rules.ts": "7637b7ec8f99fc0001efcbd241e3fae05d92a87de18d6e292fb42fae060361ed",
-    "source/cli/src/templates/default-config.ts": "9501fa45c16da35796f91b7fc57e0f6a99f5764f78eed6ba631e1125304bde54"
+    "source/cli/src/templates/rules.ts": "d4d2953510b408620c73a0193f77368cd9b901f7574fe06e0dd284a3a51a154e"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -25,10 +25,10 @@
     ".yggdrasil/aspects/posix-paths-output/content.md": 1778912983383.063,
     "source/cli/src/templates/default-config.ts": 1779884715080.4534,
     "source/cli/src/templates/platform.ts": 1778920718473.7297,
-    "source/cli/src/templates/rules.ts": 1779794513951.8325
+    "source/cli/src/templates/rules.ts": 1779889374634.0205
   },
   "log": {
-    "last_entry_datetime": "2026-05-27T12:26:25.571Z",
-    "prefix_hash": "2f3df9b1de7df7a3c64e09f829614b19db5c3668e4c5abeb9d9667eeddfa0ca7"
+    "last_entry_datetime": "2026-05-27T13:54:52.349Z",
+    "prefix_hash": "67b6694c57bab4d7adf1a3b81a19658aaea6ffb88ddac2e609a454834bc70783"
   }
 }

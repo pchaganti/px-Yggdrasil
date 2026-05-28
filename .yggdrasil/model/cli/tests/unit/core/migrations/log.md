@@ -6,3 +6,7 @@ Phase 9: added runVersionUpgrade test in migrator.test.ts to cover the bumpVersi
 Added to-5.0.0.test.ts: 20 tests covering transformConfigReviewer and transformAspectReviewer pure functions, plus migrateTo50 integration tests for config migration, aspect migration, idempotency, and missing-file handling.
 ## [2026-05-27T12:03:50.983Z]
 Added 4 more tests covering edge-case branches in to-5.0.0.ts: aspect dir with no yg-aspect.yaml, invalid YAML in aspect file, updateConfigVersion failure when no config exists, and multiple providers without active key.
+## [2026-05-27T13:55:02.636Z]
+Migration unit tests rewritten to assert the corrected per-provider tier preservation, the new bumpVersion-on-warnings gate, and the unknown-string and missing-type warning paths. Earlier tests that locked in the wrong collapsed-to-standard behaviour were replaced.
+## [2026-05-28T05:10:01.877Z]
+Migrator unit test no longer passes a toVersion to runVersionUpgrade. The runner reads the current version from the seeded config, runs the mock migration, and verifies that no bump occurs when bumpVersion is false.

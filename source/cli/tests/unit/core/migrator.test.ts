@@ -112,8 +112,6 @@ describe('runVersionUpgrade', () => {
 
     const result = await runVersionUpgrade({
       yggRoot: dir,
-      fromVersion: '4.0.0',
-      toVersion: '5.0.0',
       migrations,
     });
 

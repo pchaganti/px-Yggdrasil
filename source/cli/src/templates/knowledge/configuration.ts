@@ -13,32 +13,57 @@ Full annotated example:
 version: "5.0.0"
 
 reviewer:
+  default: standard               # Tier name used when an aspect doesn't declare one.
+                                  # REQUIRED when more than one tier is configured.
+                                  # OPTIONAL with exactly one tier.
   tiers:
-    standard:                       # Tier name — referenced by aspect reviewer.tier
-      provider: ollama              # LLM provider (ollama, anthropic, openai, claude-code, ...)
-      consensus: 1                  # Votes per aspect (1 = single call; odd >= 3 = majority vote)
+    standard:                     # Tier name — referenced by aspect reviewer.tier
+      provider: ollama            # LLM provider (ollama, anthropic, openai, claude-code, ...)
+      consensus: 1                # Votes per aspect (1 = single call; odd >= 3 = majority vote)
       config:
-        model: qwen3                # Model identifier for this provider
-        temperature: 0              # Sampling temperature (0 = deterministic)
+        model: qwen3              # Model identifier for this provider
+        temperature: 0            # Sampling temperature (0 = deterministic)
         endpoint: http://localhost:11434   # Required for ollama and openai-compatible
-        max_tokens: auto            # Response budget: 'auto' or positive integer
+        max_tokens: auto          # Response budget: 'auto' or positive integer
 
 quality:
-  max_direct_relations: 10          # Max out-edges per node before wide-node warning
-  max_mapping_source_files: 10      # Max source files per node before wide-node warning
+  max_direct_relations: 10        # Max out-edges per node before wide-node warning
+  max_mapping_source_files: 10    # Max source files per node before wide-node warning
+
+parallel: 10                      # Concurrent aspect verifications across nodes
 \`\`\`
 
-## Provider configs
+## Reviewer tiers
 
-v5 introduces named tiers. Each tier is an independent LLM configuration.
-Aspects declare which tier they use via \`reviewer.tier: <name>\`. If no
-\`tier:\` is set, the aspect uses the first tier defined in the config.
+A reviewer tier is a named LLM configuration. Aspects declare which tier
+they want via \`reviewer.tier: <name>\`. The same tier set is used across
+the entire repository, shared by every aspect.
+
+Two motivating shapes:
+
+- Single-tier projects (cheapest setup): one tier; no \`reviewer.default\` needed.
+- Multi-tier projects: cheap tier for routine checks, premium tier for
+  critical aspects. \`reviewer.default\` selects the cheap one; critical
+  aspects opt into the premium with \`reviewer.tier: deep\`.
+
+### reviewer.default
+
+The tier name aspects fall back to when they do not declare \`reviewer.tier:\`.
+
+- REQUIRED when \`reviewer.tiers\` has more than one entry.
+- OPTIONAL when \`reviewer.tiers\` has exactly one entry (the single tier is
+  implicitly the default).
+- Must reference a key in \`reviewer.tiers\`.
+
+If you forget \`reviewer.default\` with more than one tier, \`yg check\`
+emits \`config-default-tier-missing\`.
 
 ### reviewer.tiers.<name>
 
-Tier name can be any string except the reserved word \`default\`. Convention:
-use \`standard\` for the primary tier. Add a second tier (e.g. \`fast\`) for
-aspects that can tolerate a cheaper model.
+Tier name regex: \`^[a-zA-Z][a-zA-Z0-9_-]{0,62}$\`.
+The literal name \`default\` is reserved (it would clash with
+\`reviewer.default\` visually). Convention: \`standard\` for the primary
+tier, \`deep\` (or \`thorough\`) for an opt-in higher-capability tier.
 
 ### reviewer.tiers.<name>.provider
 
@@ -50,10 +75,15 @@ they delegate to the installed CLI tool.
 
 ### reviewer.tiers.<name>.consensus
 
-Number of independent reviewer calls per aspect. Must be a positive odd integer.
+Number of independent reviewer calls per aspect — declared per tier. Must
+be a positive odd integer.
 
-- \`1\` — single call, cheapest
-- \`3\` — majority vote (2 of 3 must agree), more reliable
+- \`1\` — single call, cheapest.
+- \`3\` — majority vote (2 of 3 must agree), more reliable.
+
+Consensus multiplies wall-clock per aspect (calls run sequentially inside
+the slot held by the global \`parallel\` limit). The trade-off is per tier,
+not global.
 
 ### reviewer.tiers.<name>.config
 
@@ -68,10 +98,13 @@ Provider-specific options passed to the LLM client:
 | \`context_length_field\` | string | Ollama: field name in model info for context length. |
 | \`timeout\` | number | Per-call timeout in seconds. |
 
+API keys do NOT live here — they belong in \`yg-secrets.yaml\` (api_key only).
+
 ## Multi-tier example
 
 \`\`\`yaml
 reviewer:
+  default: fast
   tiers:
     fast:
       provider: ollama
@@ -95,7 +128,7 @@ reviewer:
   tier: thorough
 \`\`\`
 
-Aspect using the default (first) tier — no \`tier:\` needed:
+Aspect using the default tier — no \`tier:\` needed:
 
 \`\`\`yaml
 reviewer:
@@ -114,6 +147,10 @@ reviewer:
     api_key: sk-ant-...
 \`\`\`
 
+The secrets file accepts only \`api_key\` per provider. Any other field
+triggers \`secrets-non-credential-field\` from \`yg check\` — non-credential
+overrides belong in the tier's \`config:\` block instead.
+
 \`yg-config.yaml\` itself must never contain credentials. Commit it to the
 repository — it is safe to share.
 
@@ -129,13 +166,21 @@ Both fire warnings (not errors) when exceeded. Violations appear in \`yg check\`
 output as \`wide-node\` warnings. Split large nodes into children to stay under
 the thresholds.
 
+## Parallel vs consensus
+
+\`parallel\` (top-level) controls how many aspect verifications run concurrently
+across nodes. Each verification runs its tier's \`consensus\` calls sequentially
+in a single slot. Cross-tier traffic shares one queue: an expensive tier
+saturating the queue starves a cheap tier. Tune \`parallel\` conservatively when
+mixing tier costs.
+
 ## Upgrading
 
 \`\`\`bash
-node <path-to-yg> init --upgrade
+yg init --upgrade
 \`\`\`
 
-Reads the existing \`yg-config.yaml\`, applies migrations (including v4 → v5
-reviewer format), and writes the updated version. Run from the repository root
-only. Review the diff before committing.
+Reads the existing \`yg-config.yaml\`, applies registered migrations, and
+writes the updated version. Run from the repository root only. Review the
+diff before committing.
 `;

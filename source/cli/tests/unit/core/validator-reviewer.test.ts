@@ -47,51 +47,6 @@ function createGraph(overrides: Partial<Graph> = {}): Graph {
   };
 }
 
-describe('validator — reviewer enum check', () => {
-  it('reports aspect-invalid-reviewer for an invalid reviewer value', async () => {
-    const aspect = createAspect('my-aspect');
-    // Simulate an invalid value that bypassed the parser (e.g., via code path)
-    (aspect as any).reviewer = 'foo';
-    const graph = createGraph({ aspects: [aspect] });
-
-    const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.code === 'aspect-invalid-reviewer');
-
-    expect(issues).toHaveLength(1);
-    expect(issues[0].severity).toBe('error');
-    expect(issues[0].code).toBe('aspect-invalid-reviewer');
-    expect(msgOf(issues[0])).toContain("my-aspect");
-    expect(msgOf(issues[0])).toContain("foo");
-  });
-
-  it('does not report aspect-invalid-reviewer for reviewer: llm', async () => {
-    const graph = createGraph({ aspects: [createAspect('llm-aspect', 'llm')] });
-
-    const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.code === 'aspect-invalid-reviewer');
-
-    expect(issues).toHaveLength(0);
-  });
-
-  it('does not report aspect-invalid-reviewer for reviewer: ast', async () => {
-    const graph = createGraph({ aspects: [createAspect('ast-aspect', 'ast')] });
-
-    const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.code === 'aspect-invalid-reviewer');
-
-    expect(issues).toHaveLength(0);
-  });
-
-  it('does not report aspect-invalid-reviewer when reviewer is undefined', async () => {
-    const graph = createGraph({ aspects: [createAspect('no-reviewer-aspect')] });
-
-    const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.code === 'aspect-invalid-reviewer');
-
-    expect(issues).toHaveLength(0);
-  });
-});
-
 describe('aspect parse errors (Task 36)', () => {
   it('emits aspectParseErrors as structured validator codes', async () => {
     const graph = createGraph({

@@ -2,7 +2,7 @@ export const summary = 'How to write content.md for LLM reviewer: rule structure
 
 export const content = `# Writing LLM aspects
 
-LLM aspects use \`reviewer: llm\` (the default) and ship a \`content.md\`
+LLM aspects declare \`reviewer: { type: llm }\` and ship a \`content.md\`
 describing the rules in prose. The reviewer receives \`content.md\` + all
 source files of the node and returns approved or refused.
 
@@ -95,6 +95,39 @@ When a reviewer refuses code you believe is correct:
 2. If the code is correct and the rule is wrong, update the rule text
 3. If the rule is right and the code needs changing, fix the code
 4. Use \`yg-suppress\` only for intentional, documented exceptions with user approval
+
+## Choosing a reviewer tier
+
+LLM aspects may opt into a specific reviewer tier from \`yg-config.yaml\`:
+
+\`\`\`yaml
+# .yggdrasil/aspects/test-quality/yg-aspect.yaml
+name: TestQuality
+description: Tests verify correct behavior, not just coverage.
+reviewer:
+  type: llm
+  tier: deep        # one of the keys under reviewer.tiers in yg-config.yaml
+\`\`\`
+
+When \`tier:\` is omitted, the aspect uses \`reviewer.default\` from the
+config (or the single configured tier if there is only one).
+
+Use a higher-capability tier (e.g., \`deep\`) when:
+
+- The aspect interprets nuanced semantics (test quality, security-sensitive
+  rules, regulatory contracts).
+- A false approval is much more costly than the higher per-call price.
+- The rules are ambiguous enough that a cheaper model gives flaky judgments.
+
+Use the cheaper default tier when:
+
+- The aspect checks a narrow, well-defined contract (logging, naming).
+- Cost per re-approve matters more than precision at the margin.
+
+Tier identity is part of the per-node drift hash: changing \`reviewer.tier:\`
+on an aspect (or editing the referenced tier's config) triggers re-approve
+on every node that uses the aspect. Run \`yg impact --aspect <id>\` before
+swapping a tier.
 
 ## When to prefer AST over LLM
 
