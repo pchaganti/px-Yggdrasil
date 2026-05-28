@@ -1,14 +1,3 @@
 name: IO Parsers
-type: parser-adapter
-description: YAML parsers for graph definition files (nodes, aspects, config, flows, schemas, secrets, architecture). In-memory parsers (log-parser, file-when-parser, when-parser) are in cli/core/parsing.
-relations:
-  - target: cli/model/graph
-    type: uses
-mapping:
-  - source/cli/src/io/architecture-parser.ts
-  - source/cli/src/io/aspect-parser.ts
-  - source/cli/src/io/config-parser.ts
-  - source/cli/src/io/flow-parser.ts
-  - source/cli/src/io/node-parser.ts
-  - source/cli/src/io/schema-parser.ts
-  - source/cli/src/io/secrets-parser.ts
+type: module
+description: Filesystem parser adapters for graph definition files. Split into two sub-nodes — graph-shape parsers (architecture, aspect, node, flow) and configuration parsers (config, schema, secrets) — so the reviewer sees fewer than 5 files per call. In-memory parsers (log-parser, file-when-parser, when-parser) are in cli/core/parsing.

@@ -122,7 +122,7 @@ export function registerBuildCommand(program: Command): void {
           }
           process.stderr.write(`${displayFile} -> ${result.nodePath}\n`);
           nodePath = result.nodePath;
-          resolvedFilePath = result.file;
+          resolvedFilePath = result.file.replace(/\\/g, '/').replace(/\/+$/, '');
         } else {
           nodePath = options.node!.trim().replace(/\\/g, '/').replace(/\/+$/, '');
         }

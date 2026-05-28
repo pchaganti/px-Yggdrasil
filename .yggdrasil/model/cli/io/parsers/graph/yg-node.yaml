@@ -1,0 +1,11 @@
+name: Graph Parsers
+type: parser-adapter
+description: Parsers for graph-shape YAML — architecture, aspects, nodes, flows. Each parser reads one file from disk and returns a typed model object. Split out from cli/io/parsers so the reviewer sees a focused set of files (4) rather than the original 7.
+relations:
+  - target: cli/model/graph
+    type: uses
+mapping:
+  - source/cli/src/io/architecture-parser.ts
+  - source/cli/src/io/aspect-parser.ts
+  - source/cli/src/io/node-parser.ts
+  - source/cli/src/io/flow-parser.ts

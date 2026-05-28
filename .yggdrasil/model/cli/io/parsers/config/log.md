@@ -1,0 +1,2 @@
+## [2026-05-28T07:42:15.441Z]
+Initial split from cli/io/parsers. This sub-node owns parsers for project configuration — yg-config (reviewer tiers, providers), yg-secrets (api keys), and schema files. The split bounds the reviewer's working set: 3 files here, 4 in cli/io/parsers/graph, instead of all 7 in one node. Reviewer hallucination on silent-missing-files at the larger context size was the trigger.
