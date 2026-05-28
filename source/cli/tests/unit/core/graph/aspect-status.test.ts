@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeEffectiveAspectStatuses } from '../../../../src/core/graph/aspects.js';
+import { computeEffectiveAspectStatuses, getAspectStatusSources, hasNonDraftEffectiveAspects } from '../../../../src/core/graph/aspects.js';
 import type { Graph, GraphNode, AspectDef, ArchitectureDef, FlowDef } from '../../../../src/model/graph.js';
 import type { WhenPredicate } from '../../../../src/model/when.js';
 
@@ -185,5 +185,159 @@ describe('computeEffectiveAspectStatuses — channels 1–6', () => {
     const node = makeNode('n', 'service');
     const result = computeEffectiveAspectStatuses(node, makeGraph([], [node]));
     expect(result.size).toBe(0);
+  });
+});
+
+describe('getAspectStatusSources', () => {
+  it('returns one AttachSource per channel that declares the aspect', () => {
+    const aspect = makeAspect('a', 'advisory');
+    const parent = makeNode('p', 'module', ['a'], { a: 'enforced' });
+    const child = makeNode('p/c', 'service', ['a']);
+    child.parent = parent;
+    parent.children = [child];
+    const sources = getAspectStatusSources(child, 'a', makeGraph([aspect], [parent, child]));
+    const channels = sources.map(s => s.channel).sort();
+    expect(channels).toEqual([1, 2]);
+    const ch2 = sources.find(s => s.channel === 2);
+    expect(ch2?.declared).toBe('enforced');
+  });
+
+  it('emits architecture-type sources (channels 3 and 4) with declared status', () => {
+    const aspect = makeAspect('a', 'advisory');
+    const parent = makeNode('p', 'module');
+    const child = makeNode('p/c', 'service');
+    child.parent = parent;
+    parent.children = [child];
+    const architecture: ArchitectureDef = {
+      node_types: {
+        module: { description: 'mod', aspects: ['a'], aspectStatus: { a: 'enforced' } },
+        service: { description: 'svc', aspects: ['a'] },
+      },
+    };
+    const graph = makeGraph([aspect], [parent, child]);
+    (graph as unknown as { architecture: ArchitectureDef }).architecture = architecture;
+    const sources = getAspectStatusSources(child, 'a', graph);
+    const channels = sources.map(s => s.channel).sort();
+    expect(channels).toEqual([3, 4]);
+    const ch3 = sources.find(s => s.channel === 3);
+    expect(ch3?.declared).toBe('advisory'); // aspect default
+    expect(ch3?.origin).toBe('type:service');
+    const ch4 = sources.find(s => s.channel === 4);
+    expect(ch4?.declared).toBe('enforced');
+    expect(ch4?.origin).toBe('ancestor-type:module@p');
+  });
+
+  it('emits flow source (channel 5) when ancestor participates', () => {
+    const aspect = makeAspect('a', 'draft');
+    const parent = makeNode('p', 'module');
+    const child = makeNode('p/c', 'service');
+    child.parent = parent;
+    parent.children = [child];
+    const flow: FlowDef = { path: 'f1', name: 'f1', nodes: ['p'], aspects: ['a'], aspectStatus: { a: 'enforced' } } as FlowDef;
+    const flowOther: FlowDef = { path: 'f2', name: 'f2', nodes: ['other'], aspects: ['a'] } as FlowDef;
+    const flowNoAspect: FlowDef = { path: 'f3', name: 'f3', nodes: ['p/c'], aspects: ['unrelated'] } as FlowDef;
+    const graph = makeGraph([aspect], [parent, child]);
+    (graph as unknown as { flows: FlowDef[] }).flows = [flow, flowOther, flowNoAspect];
+    const sources = getAspectStatusSources(child, 'a', graph);
+    expect(sources).toHaveLength(1);
+    expect(sources[0].channel).toBe(5);
+    expect(sources[0].origin).toBe('flow:f1');
+    expect(sources[0].declared).toBe('enforced');
+  });
+
+  it('emits port source (channel 6) when relation consumes port', () => {
+    const aspect = makeAspect('a', 'advisory');
+    const target: GraphNode = {
+      path: 'svc',
+      meta: {
+        name: 'svc', type: 'service',
+        ports: { p: { description: '', aspects: ['a'], aspectStatus: { a: 'enforced' } } },
+      },
+      children: [], parent: null,
+    } as GraphNode;
+    const consumer: GraphNode = {
+      path: 'c',
+      meta: {
+        name: 'c', type: 'service',
+        relations: [{ target: 'svc', type: 'calls', consumes: ['p'] }],
+      },
+      children: [], parent: null,
+    } as GraphNode;
+    const sources = getAspectStatusSources(consumer, 'a', makeGraph([aspect], [target, consumer]));
+    expect(sources).toHaveLength(1);
+    expect(sources[0].channel).toBe(6);
+    expect(sources[0].origin).toBe('port:p@svc');
+    expect(sources[0].declared).toBe('enforced');
+  });
+
+  it('does not emit port source when relation has no consumes or port lacks aspect', () => {
+    const aspect = makeAspect('a', 'advisory');
+    const target: GraphNode = {
+      path: 'svc',
+      meta: {
+        name: 'svc', type: 'service',
+        ports: { p: { description: '', aspects: ['other'] } },
+      },
+      children: [], parent: null,
+    } as GraphNode;
+    const consumer: GraphNode = {
+      path: 'c',
+      meta: {
+        name: 'c', type: 'service',
+        relations: [
+          { target: 'svc', type: 'calls' },
+          { target: 'svc', type: 'calls', consumes: ['p'] },
+          { target: 'missing', type: 'calls', consumes: ['p'] },
+        ],
+      },
+      children: [], parent: null,
+    } as GraphNode;
+    const sources = getAspectStatusSources(consumer, 'a', makeGraph([aspect], [target, consumer]));
+    expect(sources).toEqual([]);
+  });
+
+  it('returns empty array when aspect not declared on any channel', () => {
+    const node = makeNode('n', 'service');
+    expect(getAspectStatusSources(node, 'absent', makeGraph([makeAspect('absent', 'enforced')], [node]))).toEqual([]);
+  });
+
+  it('global when=false on aspect suppresses all channels', () => {
+    const falseWhen: WhenPredicate = { all_of: [{ node: { type: 'nonexistent' } }] } as WhenPredicate;
+    const aspect: AspectDef = { ...makeAspect('a', 'enforced'), when: falseWhen } as AspectDef;
+    const node = makeNode('n', 'service', ['a']);
+    expect(getAspectStatusSources(node, 'a', makeGraph([aspect], [node]))).toEqual([]);
+  });
+
+  it('attach-site when=false on own channel suppresses that source', () => {
+    const falseWhen: WhenPredicate = { all_of: [{ node: { type: 'nonexistent' } }] } as WhenPredicate;
+    const aspect = makeAspect('a', 'enforced');
+    const node = makeNode('n', 'service', ['a']);
+    node.meta.aspectWhens = { a: falseWhen };
+    expect(getAspectStatusSources(node, 'a', makeGraph([aspect], [node]))).toEqual([]);
+  });
+
+  it('aspect with no def falls back to enforced default', () => {
+    const node = makeNode('n', 'service', ['orphan']);
+    const sources = getAspectStatusSources(node, 'orphan', makeGraph([], [node]));
+    expect(sources).toHaveLength(1);
+    expect(sources[0].declared).toBe('enforced');
+  });
+});
+
+describe('hasNonDraftEffectiveAspects', () => {
+  it('returns false when all aspects effective draft', () => {
+    const node = makeNode('n', 'service', ['a']);
+    expect(hasNonDraftEffectiveAspects(node, makeGraph([makeAspect('a', 'draft')], [node]))).toBe(false);
+  });
+
+  it('returns true when any aspect non-draft', () => {
+    const node = makeNode('n', 'service', ['a', 'b']);
+    const graph = makeGraph([makeAspect('a', 'draft'), makeAspect('b', 'advisory')], [node]);
+    expect(hasNonDraftEffectiveAspects(node, graph)).toBe(true);
+  });
+
+  it('returns false when node has no effective aspects at all', () => {
+    const node = makeNode('n', 'service', []);
+    expect(hasNonDraftEffectiveAspects(node, makeGraph([], [node]))).toBe(false);
   });
 });

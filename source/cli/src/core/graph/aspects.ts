@@ -310,3 +310,95 @@ export function computeEffectiveAspectStatuses(node: GraphNode, graph: Graph): M
 
   return result;
 }
+
+/**
+ * Channels 1-6 only. Channel 7 (implies) is structural propagation, not a
+ * direct attach declaration, so it never produces an AttachSource entry.
+ */
+export interface AttachSource {
+  channel: 1 | 2 | 3 | 4 | 5 | 6;
+  origin: string;
+  declared: AspectStatus;
+}
+
+/**
+ * Return per-channel provenance for an aspect's status on a node. Used by
+ * validator (downgrade detection) and display paths (yg context, yg impact).
+ */
+export function getAspectStatusSources(node: GraphNode, aspectId: string, graph: Graph): AttachSource[] {
+  const sources: AttachSource[] = [];
+  const ancestors = collectAncestors(node);
+  const aspectDef = graph.aspects.find(a => a.id === aspectId);
+  const defaultStatus = aspectDef?.status ?? 'enforced';
+
+  const tryAdd = (
+    channel: 1 | 2 | 3 | 4 | 5 | 6,
+    origin: string,
+    declared: AspectStatus | undefined,
+    attachWhen: WhenPredicate | undefined,
+  ): void => {
+    const globalWhen = aspectDef?.when;
+    if (globalWhen && !evaluateWhen(globalWhen, node, graph)) return;
+    if (attachWhen && !evaluateWhen(attachWhen, node, graph)) return;
+    sources.push({ channel, origin, declared: declared ?? defaultStatus });
+  };
+
+  // 1. Own
+  if (node.meta.aspects?.includes(aspectId)) {
+    tryAdd(1, `own:${node.path}`, node.meta.aspectStatus?.[aspectId], node.meta.aspectWhens?.[aspectId]);
+  }
+  // 2. Ancestor nodes
+  for (const ancestor of ancestors) {
+    if (ancestor.meta.aspects?.includes(aspectId)) {
+      tryAdd(2, `ancestor:${ancestor.path}`, ancestor.meta.aspectStatus?.[aspectId], ancestor.meta.aspectWhens?.[aspectId]);
+    }
+  }
+  // 3. Own arch type
+  if (graph.architecture) {
+    const typeDef = graph.architecture.node_types[node.meta.type];
+    if (typeDef?.aspects?.includes(aspectId)) {
+      tryAdd(3, `type:${node.meta.type}`, typeDef?.aspectStatus?.[aspectId], typeDef?.aspectWhens?.[aspectId]);
+    }
+  }
+  // 4. Ancestor arch type
+  if (graph.architecture) {
+    for (const ancestor of ancestors) {
+      const typeDef = graph.architecture.node_types[ancestor.meta.type];
+      if (typeDef?.aspects?.includes(aspectId)) {
+        tryAdd(4, `ancestor-type:${ancestor.meta.type}@${ancestor.path}`, typeDef?.aspectStatus?.[aspectId], typeDef?.aspectWhens?.[aspectId]);
+      }
+    }
+  }
+  // 5. Flows
+  const allPaths = new Set<string>([node.path, ...ancestors.map(a => a.path)]);
+  for (const flow of graph.flows) {
+    if (!flow.aspects?.includes(aspectId)) continue;
+    if (!flow.nodes.some(n => allPaths.has(n))) continue;
+    tryAdd(5, `flow:${flow.path}`, flow.aspectStatus?.[aspectId], flow.aspectWhens?.[aspectId]);
+  }
+  // 6. Ports
+  if (node.meta.relations) {
+    for (const relation of node.meta.relations) {
+      const targetNode = graph.nodes.get(relation.target);
+      if (!targetNode?.meta.ports || !relation.consumes) continue;
+      for (const portName of relation.consumes) {
+        const port = targetNode.meta.ports[portName];
+        if (!port?.aspects?.includes(aspectId)) continue;
+        tryAdd(6, `port:${portName}@${relation.target}`, port.aspectStatus?.[aspectId], port.aspectWhens?.[aspectId]);
+      }
+    }
+  }
+
+  return sources;
+}
+
+/**
+ * Single source of truth for "this node has reviewer work to do".
+ */
+export function hasNonDraftEffectiveAspects(node: GraphNode, graph: Graph): boolean {
+  const statuses = computeEffectiveAspectStatuses(node, graph);
+  for (const s of statuses.values()) {
+    if (s !== 'draft') return true;
+  }
+  return false;
+}
