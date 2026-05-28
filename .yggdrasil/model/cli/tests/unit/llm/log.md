@@ -10,3 +10,5 @@ Added aspect-verifier-references.test.ts with 7 tests covering the new reference
 Updated xml-escape test assertions for padded hex: &#x1; → &#x01;, &#x7; → &#x07;; &#x1f; is unchanged (already two digits). Tests now match the padStart(2, '0') behavior.
 ## [2026-05-28T10:18:49.162Z]
 Fixed non-deterministic env-var dependency in resolveApiKey test suite: added beforeEach to delete process.env.OPENAI_API_KEY before each test, ensuring 'returns undefined when no key available' is not affected by ambient environment or by test ordering (beforeEach + afterEach sandwich removes any setup/teardown asymmetry). Updated xml-escape test assertions for padded hex encoding.
+## [2026-05-28T10:37:57.993Z]
+Updated aspect-verifier references test to assert ABSENCE of the suppress-related notices (MUST be ignored, NOT subject to review, Supporting files follow) following the design decision to remove the defensive yg-suppress notice from prompts.

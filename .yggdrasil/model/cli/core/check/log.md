@@ -16,3 +16,5 @@ Updated effective-aspects import path to core/graph/aspects following the file m
 Updated context-files import path to core/graph/files following the file move (collectTrackedFiles + TrackedFile). cli/core/context node drops context-files from its mapping; cli/core/graph node claims it.
 ## [2026-05-26T10:11:38.382Z]
 Add comment explaining smaller STRUCTURAL_CODES set is internal-filter only, not CI blocking. The two sets have diverged historically; aligning them is tracked as dogfood cleanup, not in this change.
+## [2026-05-28T10:37:57.697Z]
+Drift cascade formatter now distinguishes reference-file changes from aspect-content changes. In describeCascadeCause, when a tracked file in the 'aspects' layer does not match the .yggdrasil/aspects/<id>/ path prefix, the file is a reference declared in some aspect's references: list. The formatter scans graph.aspects to find the declaring aspect(s) and emits 'reference file X (declared by aspect Y) changed' instead of the previous generic 'tracked file changed' fallback. This makes upstream-drift causes self-explanatory in yg check output for the new reference cascade source.

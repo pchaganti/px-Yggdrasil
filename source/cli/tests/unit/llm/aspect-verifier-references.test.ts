@@ -44,11 +44,19 @@ describe('buildPrompt — references block', () => {
     expect(out).toContain('a &amp; b &lt;c&gt; d');
   });
 
-  it('includes yg-suppress notice in <task> prose', () => {
+  it('does NOT include a yg-suppress notice about references', () => {
+    // Design decision: references are context, not code under review. The reviewer
+    // operates on <source-files> only; suppress markers inside reference content
+    // are nonsensical by construction and need no explicit warning. The standard
+    // <task> yg-suppress instructions about source files remain, but there must
+    // be no reference-specific notice anywhere in the prompt.
     const out = buildPrompt(aspect, 'desc', node, [], [
       { path: 'd.md', content: 'x' },
     ]);
-    expect(out).toMatch(/yg-suppress.*MUST be ignored.*<references>/s);
+    // No mention pairing suppression with references (defensive notice was removed).
+    expect(out).not.toMatch(/MUST be ignored/i);
+    expect(out).not.toMatch(/NOT subject to review/i);
+    expect(out).not.toMatch(/Supporting files follow/i);
   });
 
   it('<references> block positioned after <aspect>, before <source-files>', () => {

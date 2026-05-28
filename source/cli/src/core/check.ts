@@ -558,10 +558,23 @@ function describeCascadeCause(filePath: string, layer: TrackedFileLayer, graph: 
 
   if (layer === 'aspects') {
     const match = normalized.match(new RegExp(`${escPrefix}/aspects/([^/]+(?:/[^/]+)*)/`));
-    const aspectId = match ? match[1] : 'unknown';
-    const filename = normalized.split('/').pop() ?? '';
-    const label = filename === 'yg-aspect.yaml' ? '' : filename.replace('.md', '') + ' ';
-    return `aspect '${aspectId}' ${label}changed\n       (${normalized})`;
+    if (match) {
+      const aspectId = match[1];
+      const filename = normalized.split('/').pop() ?? '';
+      const label = filename === 'yg-aspect.yaml' ? '' : filename.replace('.md', '') + ' ';
+      return `aspect '${aspectId}' ${label}changed\n       (${normalized})`;
+    }
+    // Path is not under .yggdrasil/aspects/ but is tracked under the 'aspects' layer —
+    // this is a reference file declared in some aspect's `references:` list.
+    const declaringAspects = graph.aspects
+      .filter(a => a.reviewer.type === 'llm' && a.references?.some(r => r.path === normalized))
+      .map(a => a.id);
+    const declaredBy = declaringAspects.length === 0
+      ? 'unknown aspect'
+      : declaringAspects.length === 1
+        ? `aspect '${declaringAspects[0]}'`
+        : `aspects ${declaringAspects.map(id => `'${id}'`).join(', ')}`;
+    return `reference file '${normalized}' (declared by ${declaredBy}) changed\n       (${normalized})`;
   }
 
   if (layer === 'hierarchy') {
