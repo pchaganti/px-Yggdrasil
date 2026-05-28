@@ -183,4 +183,22 @@ yg init --upgrade
 Reads the existing \`yg-config.yaml\`, applies registered migrations, and
 writes the updated version. Run from the repository root only. Review the
 diff before committing.
+
+### Tier reference limits
+
+Each tier may set caps on aspect reference files:
+
+\`\`\`yaml
+reviewer:
+  tiers:
+    standard:
+      references:
+        max_bytes_per_file: 65536           # default
+        max_total_bytes_per_aspect: 262144  # default
+\`\`\`
+
+Limits are validated at \`yg check\` time, before any approve runs. Oversized
+references are rejected with \`aspect-reference-too-large\` or
+\`aspect-references-total-too-large\` and the message points at the
+specific tier and limit.
 `;

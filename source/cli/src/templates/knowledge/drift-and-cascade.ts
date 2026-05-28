@@ -24,6 +24,13 @@ The reviewer must re-verify the node against the updated context.
 Fix: \`yg approve --aspect <id>\` (batch) or \`yg approve --node <path>\`
 for each affected node individually.
 
+Causes of upstream drift:
+- An aspect's \`content.md\` or \`check.mjs\` is modified.
+- A reference file declared in an aspect's \`references:\` is modified — same cascade as content.md change.
+- A parent node's aspects change.
+- A flow the node participates in changes.
+- A dependency the node consumes changes.
+
 Upstream drift is also called cascade because a single upstream change
 can cascade to many nodes:
 

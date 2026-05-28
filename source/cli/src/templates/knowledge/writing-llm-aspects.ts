@@ -134,4 +134,67 @@ swapping a tier.
 If the rule is expressible as "this identifier must / must not appear" or
 "imports from X are forbidden in Y" — use an AST aspect instead. AST is
 deterministic, produces no false positives, and costs nothing per call.
+
+## Reference files
+
+An LLM aspect may declare \`references:\` in yg-aspect.yaml — supporting
+files (lookup tables, catalogues, contracts) loaded into the reviewer
+prompt alongside content.md. References answer questions like "what's the
+exact list of valid error codes?" without requiring content.md to embed
+data that lives elsewhere.
+
+### When to use references
+
+Use when the rule depends on data that:
+- Lives outside the aspect (catalogue, enum, ID list).
+- Changes independently of the rule itself.
+- Would otherwise force the author to either duplicate it into content.md
+  or describe it abstractly and hope the reviewer infers correctly.
+
+Do NOT use references for:
+- The rule statement itself — that's content.md.
+- Source code under review — that comes from the node's mapping.
+- Ambient project context — that belongs in rules / knowledge files.
+
+### Format
+
+\`\`\`yaml
+references:
+  - docs/error-codes.md                            # shorthand string
+  - path: source/cli/src/errors/codes.ts           # explicit form with description
+    description: "Source of truth for error code constants."
+\`\`\`
+
+Two equivalent entry forms. Description (when present) helps both the
+agent and the reviewer understand the reference's role without opening
+the file.
+
+### Composition with implies
+
+References attach to the aspect's effective presence on a node. Each
+aspect is reviewed independently — A's prompt does NOT contain B's
+references, even when A implies B. If A's content.md says "see catalogue
+in B", declare the same reference on A or move it onto A directly.
+
+### Drift cost
+
+Editing a referenced file cascades to every node where the referring
+aspect is effective. Run \`yg impact --file <ref>\` before editing a
+widely-referenced file.
+
+### Size limits
+
+Each reviewer tier in yg-config.yaml may declare:
+
+\`\`\`yaml
+reviewer:
+  tiers:
+    standard:
+      references:
+        max_bytes_per_file: 65536
+        max_total_bytes_per_aspect: 262144
+\`\`\`
+
+Defaults (when omitted): 64 KiB per file, 256 KiB total per aspect.
+Oversized references are rejected by \`yg check\`.
 `;

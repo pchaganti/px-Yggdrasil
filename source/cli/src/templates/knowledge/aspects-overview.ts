@@ -8,7 +8,7 @@ checks every source file of a node against every effective aspect.
 ## What an aspect is
 
 An aspect pairs a description (\`content.md\` for LLM, \`check.mjs\` for AST)
-with metadata (\`yg-aspect.yaml\`). When you run \`yg approve --node <path>\`,
+with metadata (\`yg-aspect.yaml\`), and optionally reference files (LLM aspects only) for supporting context. When you run \`yg approve --node <path>\`,
 the reviewer receives the aspect description and all source files of the
 node, then returns approved or refused with a violation report.
 
@@ -93,6 +93,8 @@ calls when you run \`yg approve --aspect <id>\`.
 
 Use \`yg impact --aspect <id>\` before creating or modifying a widely-used
 aspect to assess the re-approval cost.
+
+Aspect references add to drift cascade — modifying a referenced file re-approves every node where the referring aspect is effective.
 
 For full scenario-by-scenario cost breakdown (edit one file, add implies,
 change content.md, add aspect to parent, add node to flow) and batch
