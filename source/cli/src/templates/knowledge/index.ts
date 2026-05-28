@@ -10,6 +10,7 @@ import * as cliReference from './cli-reference.js';
 import * as logManagement from './log-management.js';
 import * as portsAndRelations from './ports-and-relations.js';
 import * as flows from './flows.js';
+import * as aspectStatus from './aspect-status.js';
 
 export type KnowledgeTopic = {
   summary: string;
@@ -24,6 +25,10 @@ export const KNOWLEDGE_TOPICS: Record<string, KnowledgeTopic> = {
   'aspects-overview': {
     summary: aspectsOverview.summary,
     content: aspectsOverview.content,
+  },
+  'aspect-status': {
+    summary: aspectStatus.summary,
+    content: aspectStatus.content,
   },
   'writing-llm-aspects': {
     summary: writingLlmAspects.summary,

@@ -2,13 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { KNOWLEDGE_TOPICS } from '../../../src/templates/knowledge/index.js';
 
 describe('KNOWLEDGE_TOPICS', () => {
-  it('exports exactly 12 topics', () => {
-    expect(Object.keys(KNOWLEDGE_TOPICS).length).toBe(12);
+  it('exports exactly 13 topics', () => {
+    expect(Object.keys(KNOWLEDGE_TOPICS).length).toBe(13);
   });
 
   it('has expected topic names', () => {
     const names = Object.keys(KNOWLEDGE_TOPICS).sort();
     expect(names).toEqual([
+      'aspect-status',
       'aspects-overview',
       'cli-reference',
       'conditional-aspects',
@@ -98,6 +99,13 @@ describe('KNOWLEDGE_TOPICS', () => {
       '## Descendant inclusion',
       '## Flow-level aspect propagation',
       '## When to create a flow',
+    ],
+    'aspect-status': [
+      '## Declaration sites',
+      '## Effective status rule',
+      '## Implies propagation',
+      '## Drift mechanics',
+      '## When to use which status',
     ],
   };
 

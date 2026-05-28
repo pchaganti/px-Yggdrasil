@@ -2,6 +2,7 @@ name: Knowledge Docs
 type: knowledge-doc
 description: In-process knowledge documents served by yg knowledge read — deep-reference content for agents.
 mapping:
+  - source/cli/src/templates/knowledge/aspect-status.ts
   - source/cli/src/templates/knowledge/aspects-overview.ts
   - source/cli/src/templates/knowledge/cli-reference.ts
   - source/cli/src/templates/knowledge/conditional-aspects.ts

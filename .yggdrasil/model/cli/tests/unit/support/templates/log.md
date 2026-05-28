@@ -4,3 +4,5 @@ Update knowledge.test.ts required headings for writing-ast-aspects topic: old he
 Updated default-config test to expect version 5.0.0 (matching the DEFAULT_CONFIG change) and updated the knowledge configuration test heading from 'Reviewer tiers' to 'Provider configs' to match the renamed section.
 ## [2026-05-27T13:55:07.298Z]
 Required-heading list updated for the configuration knowledge topic now that the section formerly titled Provider configs has been renamed to Reviewer tiers.
+## [2026-05-28T15:30:17.295Z]
+Update knowledge topic tests for new aspect-status topic: increment expected count to 13, add aspect-status to sorted names list, add required heading assertions
