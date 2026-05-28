@@ -1,5 +1,5 @@
 {
-  "hash": "478bbb9348283184b30649b3cd176de304afc35abb8e4233444af64ffc1c45af",
+  "hash": "c1e20ebbf72ace71b6b0851fea62a77509d819b93356cff27a9fd92abb9554da",
   "files": {
     "own-subset:cli/tests/unit/llm": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -14,12 +14,13 @@
     "source/cli/tests/unit/llm/cli-base.test.ts": "b8c39e522b0ff38cdeed92445746283833a6c1ed98313ac07abea2db766c6b3f",
     "source/cli/tests/unit/llm/cli-providers.test.ts": "a57dd1c8dea3c3de2da6824f2e6d51ff93b788da6cf0987a259a95cc2c251529",
     "source/cli/tests/unit/llm/google.test.ts": "6bfc143216f2a6d85098f4b62757f7b853abf8ffa7e5152f88005a7d8a41ffd6",
+    "source/cli/tests/unit/llm/model-fetcher.test.ts": "384f3fb605ccf985c985001566bfaef3301ee751415a09645e327ddd77fe567c",
     "source/cli/tests/unit/llm/openai.test.ts": "20ebba5d4ed8dd200230558249d1a8951b41b71d63ef7ed7872430a2f6a8103e",
     "source/cli/tests/unit/llm/provider.test.ts": "ff86be1fd6d9f07f2c553ea1aec1af6f236b2926e0e6edb0dd65160c21b56704",
-    "source/cli/tests/unit/llm/error-source.test.ts": "ff1362e850b1b3f36db6ad113fe65ea1823dee1a93ea30ae92483512bf6f7ee2",
-    "source/cli/tests/unit/llm/model-fetcher.test.ts": "384f3fb605ccf985c985001566bfaef3301ee751415a09645e327ddd77fe567c",
     "source/cli/tests/unit/llm/reviewer-test.test.ts": "623728381ef7dd8c90ac996648d645f40922638c344194fc3dde66a17cf04380",
-    "source/cli/tests/unit/llm/xml-escape.test.ts": "10543b2fd5aebe29975c459ce5f16673bdd67178e276394123864adae2419a59"
+    "source/cli/tests/unit/llm/error-source.test.ts": "ff1362e850b1b3f36db6ad113fe65ea1823dee1a93ea30ae92483512bf6f7ee2",
+    "source/cli/tests/unit/llm/xml-escape.test.ts": "10543b2fd5aebe29975c459ce5f16673bdd67178e276394123864adae2419a59",
+    "source/cli/tests/unit/llm/aspect-verifier-references.test.ts": "ff68ba77f0532a51abdef4bca8831afb23db8b20ab803bad80de7d871992dfbc"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -38,10 +39,11 @@
     "source/cli/tests/unit/llm/provider.test.ts": 1776177846291.3774,
     "source/cli/tests/unit/llm/reviewer-test.test.ts": 1779956899708.9058,
     "source/cli/tests/unit/llm/error-source.test.ts": 1779794513954.2378,
-    "source/cli/tests/unit/llm/xml-escape.test.ts": 1779956691842.9502
+    "source/cli/tests/unit/llm/xml-escape.test.ts": 1779956691842.9502,
+    "source/cli/tests/unit/llm/aspect-verifier-references.test.ts": 1779957168349.2122
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T08:28:31.444Z",
-    "prefix_hash": "32d32db05860fcbf4ce2ca67c926bf0fcadd8274c1ac155c6c317306a1304c3e"
+    "last_entry_datetime": "2026-05-28T08:35:55.675Z",
+    "prefix_hash": "bbe8c6b8e1b29542f217dc24e9c0408edb2289b73c065970be801c5568f1c805"
   }
 }

@@ -16,3 +16,4 @@ mapping:
   - source/cli/tests/unit/llm/reviewer-test.test.ts
   - source/cli/tests/unit/llm/error-source.test.ts
   - source/cli/tests/unit/llm/xml-escape.test.ts
+  - source/cli/tests/unit/llm/aspect-verifier-references.test.ts
