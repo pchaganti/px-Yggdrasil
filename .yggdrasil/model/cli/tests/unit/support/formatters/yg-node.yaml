@@ -5,5 +5,6 @@ mapping:
   - source/cli/tests/unit/formatters/cli-preamble.test.ts
   - source/cli/tests/unit/formatters/context-file.test.ts
   - source/cli/tests/unit/formatters/context-node.test.ts
+  - source/cli/tests/unit/formatters/context-references.test.ts
   - source/cli/tests/unit/formatters/message-builder.test.ts
   - source/cli/tests/unit/formatters/predicate-trace.test.ts

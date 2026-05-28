@@ -14,3 +14,5 @@ Added loadGraphOrAbort helper (cli-preamble.ts) to centralize the 'No .yggdrasil
 Added abortOnUnexpectedError helper to cli-preamble.ts. Generic catch-block errors across all commands now route through this single emit point, producing a uniform 'Unexpected error while <context>: <msg>' wrapped in buildIssueMessage.
 ## [2026-05-28T08:15:42.398Z]
 Added optional references field (Array<{path, description?}>) to both NodeContextAspect and FileContextAspect interfaces. This field carries per-aspect reference paths through the data shape so the formatter can render additional 'read:' lines for each reference. The field is populated only for LLM aspects; AST aspects always produce undefined.
+## [2026-05-28T08:20:02.034Z]
+Added truncate.ts (shared helper, MAX_DESC=80) and updated context-file.ts and context-node.ts to render aspect references as additional read: lines after the primary verifiedAgainst path. References with descriptions are truncated at word boundaries to keep context output concise. This supports the aspect-references feature (Task 9) so agents can see all files they need to read for each aspect in one context call.

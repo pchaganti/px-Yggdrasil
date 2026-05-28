@@ -40,6 +40,8 @@ export interface NodeContextDep {
   portAspects?: Array<{ aspectId: string; verifiedAgainst: string }>;
 }
 
+import { truncateDescription } from './truncate.js';
+
 function posixPath(p: string): string {
   return p.replace(/\\/g, '/').replace(/\/+$/, '');
 }
@@ -67,6 +69,15 @@ export function formatNodeContext(data: NodeContextData): string {
       lines.push(`  ${aspect.id} — ${aspect.description}`);
       lines.push(`    Source: ${posixPath(aspect.source)}`);
       lines.push(`    read: ${posixPath(aspect.verifiedAgainst)}`);
+      if (aspect.references) {
+        for (const ref of aspect.references) {
+          if (ref.description && ref.description.length > 0) {
+            lines.push(`    read: ${posixPath(ref.path)} — ${truncateDescription(ref.description)}`);
+          } else {
+            lines.push(`    read: ${posixPath(ref.path)}`);
+          }
+        }
+      }
       if (aspect.implies && aspect.implies.length > 0) {
         lines.push(`    Implies: ${aspect.implies.join(', ')}`);
       }

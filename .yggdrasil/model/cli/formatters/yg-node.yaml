@@ -10,3 +10,4 @@ mapping:
   - source/cli/src/formatters/context-node.ts
   - source/cli/src/formatters/message-builder.ts
   - source/cli/src/formatters/predicate-trace.ts
+  - source/cli/src/formatters/truncate.ts

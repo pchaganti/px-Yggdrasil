@@ -1,3 +1,5 @@
+import { truncateDescription } from './truncate.js';
+
 export interface FileContextData {
   filePath: string;
   ownerPath?: string;
@@ -55,6 +57,15 @@ export function formatFileContext(data: FileContextData): string {
     for (const aspect of data.aspects) {
       lines.push(`  ${aspect.aspectId} — ${aspect.aspectDescription}`);
       lines.push(`    read: ${posixPath(aspect.verifiedAgainst)}`);
+      if (aspect.references) {
+        for (const ref of aspect.references) {
+          if (ref.description && ref.description.length > 0) {
+            lines.push(`    read: ${posixPath(ref.path)} — ${truncateDescription(ref.description)}`);
+          } else {
+            lines.push(`    read: ${posixPath(ref.path)}`);
+          }
+        }
+      }
       if (aspect.source) {
         lines.push(`    Source: ${posixPath(aspect.source)}`);
       }
