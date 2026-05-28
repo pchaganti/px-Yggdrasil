@@ -70,6 +70,7 @@ describe('formatBatchOutput', () => {
             'deterministic': { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const },
           },
         }),
+        skippedDraftAspects: [],
       },
       {
         nodePath: 'cli/core/validator',
@@ -80,6 +81,7 @@ describe('formatBatchOutput', () => {
             'posix-paths': { satisfied: false, reason: 'Missing normalization on line 42', errorSource: 'codeViolation' as const },
           },
         }),
+        skippedDraftAspects: [],
       },
     ];
     const output = captureOutput(() => formatBatchOutput(results));

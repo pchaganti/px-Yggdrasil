@@ -43,3 +43,33 @@ export function aspectStatusDowngradeMessage(params: {
     next: `Either remove the explicit status on this attach site (let the cascade win), or raise the cascading source if you actually want to weaken the rule everywhere. See: yg knowledge read aspect-status.`,
   };
 }
+
+/**
+ * Scenario A: `yg approve --aspect X` where X's aspect-default status is 'draft'.
+ * No node could ever raise a draft-default aspect to non-draft via cascade
+ * (draft is the floor of the lattice), so the entire batch is a no-op.
+ */
+export function approveAspectDraftScenarioAMessage(params: { aspectId: string }): IssueMessage {
+  return {
+    what: `Aspect '${params.aspectId}' has default status 'draft' — reviewer skipped on every node.`,
+    why: 'Draft aspects are dormant; no baseline written, no drift tracked.',
+    next: `Promote to 'advisory' or 'enforced' in .yggdrasil/aspects/${params.aspectId}/yg-aspect.yaml to activate.`,
+  };
+}
+
+/**
+ * Scenario B: `yg approve --aspect X` where X is non-draft by aspect-default but
+ * resolves to effective 'draft' on a specific node (every cascading channel
+ * overrides it down). Other nodes where X remains non-draft are still verified.
+ */
+export function approveAspectDraftScenarioBMessage(params: {
+  aspectId: string;
+  nodePath: string;
+  origin: string;
+}): IssueMessage {
+  return {
+    what: `Aspect '${params.aspectId}' resolves to effective status 'draft' on node '${params.nodePath}' (overridden by ${params.origin}). Reviewer skipped on this node.`,
+    why: `Other nodes where ${params.aspectId} is non-draft are unaffected.`,
+    next: `To activate ${params.aspectId} on ${params.nodePath}, remove the draft override on ${params.origin}, or raise its effective status via another channel.`,
+  };
+}

@@ -17,6 +17,11 @@ import type { ApproveResult } from '../model/drift.js';
 import type { Graph, LlmConfig } from '../model/graph.js';
 import { runAstAspect } from '../ast/runner.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
+import { computeEffectiveAspectStatuses, getAspectStatusSources } from '../core/graph/aspects.js';
+import {
+  approveAspectDraftScenarioAMessage,
+  approveAspectDraftScenarioBMessage,
+} from '../formatters/aspect-status-messages.js';
 
 export async function runLlmVerification(
   graph: Graph,
@@ -127,6 +132,8 @@ function formatRefused(nodePath: string, result: LlmApproveResult): void {
 export interface BatchResult {
   nodePath: string;
   result: LlmApproveResult;
+  /** Convenience mirror of result.skippedDraftAspects for footer tally. */
+  skippedDraftAspects: string[];
 }
 
 /**
@@ -145,7 +152,12 @@ export async function runBatch(
       const item = queue.shift(); // atomic in JS single-threaded event loop
       if (!item) break;
       const [i, nodePath] = item;
-      results[i] = { nodePath, result: await approveOne(nodePath) };
+      const result = await approveOne(nodePath);
+      results[i] = {
+        nodePath,
+        result,
+        skippedDraftAspects: result.skippedDraftAspects ?? [],
+      };
     }
   });
   await Promise.all(workers);
@@ -173,7 +185,7 @@ export function filterCascadeNodes(
   return matched;
 }
 
-export function formatBatchOutput(results: BatchResult[]): void {
+export function formatBatchOutput(results: BatchResult[], scenarioBSkips: string[] = []): void {
   let approved = 0;
   let failed = 0;
 
@@ -187,7 +199,13 @@ export function formatBatchOutput(results: BatchResult[]): void {
     else approved++;
   }
 
-  process.stdout.write(`\n${approved} approved, ${failed} failed.\n`);
+  const skippedDraftCount = results.reduce((n, b) => n + b.skippedDraftAspects.length, 0)
+    + scenarioBSkips.length;
+  if (skippedDraftCount > 0) {
+    process.stdout.write(`\n${approved} approved, ${failed} failed, ${skippedDraftCount} skipped (draft).\n`);
+  } else {
+    process.stdout.write(`\n${approved} approved, ${failed} failed.\n`);
+  }
 }
 
 // ── Gating codes — approve must not invoke LLM when these are present ──
@@ -262,12 +280,41 @@ async function runBatchApprove(
   }
 
   const secretsByProvider = new Map<string, Partial<LlmConfig> | null>();
+  // Scenario B tally — per-node skip when the filtered aspect resolves to draft
+  // on this node (every cascading channel overrides it down).
+  const scenarioBSkips: string[] = [];
+
   const results = await runBatch(sorted, parallel, async (nodePath) => {
+    // Scenario B: if --aspect X was passed and X resolves to draft on this
+    // specific node, emit a friendly per-node message and skip the reviewer
+    // without touching baseline. Other nodes continue normally.
+    if (filterAspectId) {
+      const node = graph.nodes.get(nodePath);
+      if (node) {
+        const statuses = computeEffectiveAspectStatuses(node, graph);
+        if (statuses.get(filterAspectId) === 'draft') {
+          const sources = getAspectStatusSources(node, filterAspectId, graph);
+          const draftSource = sources.find(s => s.declared === 'draft');
+          const origin = draftSource?.origin ?? 'attach-site override';
+          process.stdout.write(buildIssueMessage(approveAspectDraftScenarioBMessage({
+            aspectId: filterAspectId,
+            nodePath,
+            origin,
+          })) + '\n');
+          scenarioBSkips.push(`${filterAspectId}@${nodePath}`);
+          return {
+            action: 'no-change' as const,
+            currentHash: '',
+            skippedDraftAspects: [filterAspectId],
+          };
+        }
+      }
+    }
     const result = await approveNode(graph, nodePath);
     return runLlmVerification(graph, nodePath, result, secretsByProvider, filterAspectId);
   });
 
-  formatBatchOutput(results);
+  formatBatchOutput(results, scenarioBSkips);
   return results.every(r => r.result.action !== 'refused');
 }
 
@@ -416,14 +463,21 @@ export function registerApproveCommand(program: Command): void {
         // --aspect: batch approve all nodes with cascade drift from this aspect
         if (options.aspect) {
           const aspectId = options.aspect.trim();
-          const aspectExists = graph.aspects.some(a => a.id === aspectId);
-          if (!aspectExists) {
+          const aspectDef = graph.aspects.find(a => a.id === aspectId);
+          if (!aspectDef) {
             process.stderr.write(chalk.red(buildIssueMessage({
               what: `Aspect '${aspectId}' does not exist.`,
               why: 'The aspect id must match a directory name under .yggdrasil/aspects/.',
               next: 'Run: yg aspects — to list all defined aspects.',
             }) + '\n'));
             process.exit(1);
+          }
+          // Scenario A: aspect-default status is 'draft'. No node could raise
+          // it via cascade (draft is the lattice floor for unset overrides),
+          // so the entire batch is a no-op. Exit 0 with a friendly message.
+          if (aspectDef.status === 'draft') {
+            process.stdout.write(buildIssueMessage(approveAspectDraftScenarioAMessage({ aspectId })) + '\n');
+            process.exit(0);
           }
           const causePrefix = `${yggPrefix}/aspects/${aspectId}/`;
           const allPassed = await runBatchApprove(graph, `aspect '${aspectId}'`, causePrefix, aspectId);

@@ -1,5 +1,5 @@
 {
-  "hash": "7d94f3222c46a2ea3066cf85b45c96c424d88ad59b3a51c10f1ee60293e53c39",
+  "hash": "e8bad36f75c52f22641576e73330b8000da85abb919bb5b70f8051b85ce05d22",
   "files": {
     "own-subset:cli/tests/unit/cli/approve": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -9,10 +9,10 @@
     ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": "6e62b47935c2d36ecfefe4a9dd75287fc122ba0e13999e0747798d385c2c832d",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/cli/approve.test.ts": "35f1077519a484e02ccf26cbdc12946c64929daeb8ae1441491124ef2a1cb279",
     "source/cli/tests/unit/cli/approve-batch.test.ts": "c59619ad846ed53db20f63cf8c5f1e55d720963e056cff106a758331e4f514a3",
     "source/cli/tests/unit/cli/approve-batch-integration.test.ts": "6498d29cac4d13780df2deba6bbde5fd51a73e9f795f6ea51f42cc169ccd27dd",
-    "source/cli/tests/unit/cli/run-batch.test.ts": "15dcfa3052af8f7adef71fbc1ce9865f6640d745ca0300a56d519aa921c32887"
+    "source/cli/tests/unit/cli/run-batch.test.ts": "15dcfa3052af8f7adef71fbc1ce9865f6640d745ca0300a56d519aa921c32887",
+    "source/cli/tests/unit/cli/approve.test.ts": "f5268e9527527461c644c4a26f6c04e32ef9356243faf000db76cbeb0acb143f"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -21,13 +21,13 @@
     ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": 1778923837494.2686,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/cli/approve.test.ts": 1779794513953.414,
+    "source/cli/tests/unit/cli/approve.test.ts": 1779972344704.5925,
     "source/cli/tests/unit/cli/approve-batch.test.ts": 1778854589347.4822,
     "source/cli/tests/unit/cli/approve-batch-integration.test.ts": 1779869468774.8708,
     "source/cli/tests/unit/cli/run-batch.test.ts": 1778917038514.553
   },
   "log": {
-    "last_entry_datetime": "2026-05-27T07:55:57.026Z",
-    "prefix_hash": "3e73652689879e21713f120bdf93fea327fe1328e7808a2783c7451ee24f9de1"
+    "last_entry_datetime": "2026-05-28T12:46:23.419Z",
+    "prefix_hash": "0e1fc7a355f16759ec8ba85dbb9a2c40d6080d737659386b0e4288a53ed11930"
   }
 }

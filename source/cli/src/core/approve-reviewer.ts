@@ -6,7 +6,7 @@ import { verifyAspects } from '../llm/aspect-verifier.js';
 import { resolveMaxTokens } from '../llm/api-utils.js';
 import { createLlmProvider } from '../llm/index.js';
 import { commitApproval, loadSourceFiles } from './approve.js';
-import { computeEffectiveAspects } from './graph/aspects.js';
+import { computeEffectiveAspects, computeEffectiveAspectStatuses } from './graph/aspects.js';
 import { collectTrackedFiles } from './graph/files.js';
 import { hashTrackedFiles } from '../io/hash.js';
 import { selectTierForAspect } from './tier-selection.js';
@@ -20,6 +20,8 @@ export interface LlmApproveResult extends ApproveResult {
   aspectResults?: Record<string, AspectVerificationResult>;
   llmSkipped?: 'unavailable';
   aspectViolations?: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' }>;
+  /** Effective-draft aspects skipped before reviewer dispatch. Empty when none. */
+  skippedDraftAspects?: string[];
 }
 
 // ── resolveExecutionPlan ─────────────────────────────────────
@@ -123,20 +125,32 @@ export async function runApproveWithReviewer(
   const allAspects: AspectDef[] = [...allAspectIds]
     .map((id: string) => graph.aspects.find((a: AspectDef) => a.id === id))
     .filter((a): a is AspectDef => a !== undefined);
+
+  // Filter out effective-draft aspects before reviewer dispatch.
+  // Draft aspects are dormant: no baseline, no drift, no reviewer call.
+  const statuses = computeEffectiveAspectStatuses(node, graph);
+  const nonDraft = allAspects.filter(a => statuses.get(a.id) !== 'draft');
+  const skippedDraftAspects: string[] = allAspects
+    .filter(a => statuses.get(a.id) === 'draft')
+    .map(a => a.id);
+  for (const id of skippedDraftAspects) {
+    process.stdout.write(`[draft] node '${node.path}': aspect '${id}' skipped (status: draft)\n`);
+  }
+
   const filtered = filterAspectId
-    ? allAspects.filter(a => a.id === filterAspectId)
-    : allAspects;
+    ? nonDraft.filter(a => a.id === filterAspectId)
+    : nonDraft;
 
   if (filtered.length === 0) {
     await commitApproval(rootPath, result);
-    return { ...result };
+    return { ...result, skippedDraftAspects };
   }
 
   // No reviewer configured — LLM aspects cannot run; skip and commit
   const hasLlmAspects = filtered.some(a => a.reviewer.type !== 'ast');
   if (!graph.config.reviewer && hasLlmAspects) {
     await commitApproval(rootPath, result);
-    return { ...result, llmSkipped: 'unavailable' };
+    return { ...result, llmSkipped: 'unavailable', skippedDraftAspects };
   }
 
   // Load source files
@@ -174,6 +188,7 @@ export async function runApproveWithReviewer(
         next: `Fix the tier configuration in yg-config.yaml and re-run: yg approve --node ${normalizedNodePath}`,
       },
       aspectViolations: [],
+      skippedDraftAspects,
     };
   }
 
@@ -222,6 +237,7 @@ export async function runApproveWithReviewer(
       },
       aspectResults: allAspectResults,
       aspectViolations,
+      skippedDraftAspects,
     };
   }
 
@@ -231,7 +247,7 @@ export async function runApproveWithReviewer(
 
   if (llmEntries.length === 0) {
     await commitApproval(rootPath, result);
-    return { ...result, aspectResults: allAspectResults };
+    return { ...result, aspectResults: allAspectResults, skippedDraftAspects };
   }
 
   const aspectsByTier = new Map<string, LlmEntry[]>();
@@ -272,7 +288,7 @@ export async function runApproveWithReviewer(
 
     if (!(await provider.isAvailable())) {
       await commitApproval(rootPath, result);
-      return { ...result, llmSkipped: 'unavailable', aspectResults: allAspectResults };
+      return { ...result, llmSkipped: 'unavailable', aspectResults: allAspectResults, skippedDraftAspects };
     }
 
     const maxTokens = merged.max_tokens === 'auto'
@@ -344,6 +360,7 @@ export async function runApproveWithReviewer(
       },
       aspectResults: allAspectResults,
       aspectViolations,
+      skippedDraftAspects,
     };
   }
 
@@ -358,6 +375,7 @@ export async function runApproveWithReviewer(
       },
       aspectResults: allAspectResults,
       aspectViolations,
+      skippedDraftAspects,
     };
   }
 
@@ -372,9 +390,10 @@ export async function runApproveWithReviewer(
       },
       aspectResults: allAspectResults,
       aspectViolations,
+      skippedDraftAspects,
     };
   }
 
   await commitApproval(rootPath, result);
-  return { ...result, aspectResults: allAspectResults };
+  return { ...result, aspectResults: allAspectResults, skippedDraftAspects };
 }

@@ -1,5 +1,5 @@
 {
-  "hash": "1eebc87dc8c062e3893188524dfe8609845b3b63f6d7e59073fcb6fa01ce8a00",
+  "hash": "0681b1ae5e665a94227e3f3ef91ab05eee52d5c7aa19232a41de707a3fdb94b4",
   "files": {
     "own-subset:cli/tests/unit/core/operations": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -12,13 +12,14 @@
     "source/cli/tests/unit/core/approve.test.ts": "80222ea912ed8504f3614dfe6fa4c34ca805a6c3bfc7511d2d203576cd263c9b",
     "source/cli/tests/unit/core/approve-llm.test.ts": "ea56da878f3faad7449b9441fbaadc345ecaad32870952c17fdaf31941980bb0",
     "source/cli/tests/unit/core/approve-log.test.ts": "b1c6dd8521f259c6dd4457225043345d63718b05a283d7a6ca63dc3fd04b49d5",
+    "source/cli/tests/unit/core/approve-reviewer-references.test.ts": "dabdc0fd293c842acc049b73cf1f774436c4146ce99282a860a94a88d62ca9b5",
     "source/cli/tests/unit/core/check.test.ts": "801e398d259cc4f5dc3c9d3b897b69f23d6e1d71e06fe9103963016e46cef367",
     "source/cli/tests/unit/core/check-log.test.ts": "3024110025bf28d0f4912cc73cf513fa08d6f9db757ba573e40b25df1842f50e",
     "source/cli/tests/unit/core/effective-aspects.test.ts": "e8cdb09dd9778ad5e4fe8dd0e605cd727b3e82fe38ca08ef28e0b4e24304a3fc",
     "source/cli/tests/unit/core/impact.test.ts": "5c85599d24e1045ca67a74a098a47e6ac5a1397212a255793d81fd009187832b",
     "source/cli/tests/unit/core/log-format.test.ts": "bb52340c7c6cbc08dad98efbb81aa8fe9f7888c2a81d9e684f9602a96d4b592f",
     "source/cli/tests/unit/core/log-integrity.test.ts": "aa2ee7eb50e2dc30ea0afafe1ce36ef48ad6cec59ec85a136cee3748c46e9b21",
-    "source/cli/tests/unit/core/approve-reviewer-references.test.ts": "dabdc0fd293c842acc049b73cf1f774436c4146ce99282a860a94a88d62ca9b5"
+    "source/cli/tests/unit/core/approve-aspect-status.test.ts": "8a3cbbd3a041cbad2c1a50175e2a3b272f365247ba13a0a8b2dd25ffe2e56eed"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -31,6 +32,7 @@
     "source/cli/tests/unit/core/approve-llm.test.ts": 1779881665199.8782,
     "source/cli/tests/unit/core/approve-log.test.ts": 1778854276923.1697,
     "source/cli/tests/unit/core/approve-reviewer-references.test.ts": 1779957604783.6033,
+    "source/cli/tests/unit/core/approve-aspect-status.test.ts": 1779971695523.2727,
     "source/cli/tests/unit/core/check.test.ts": 1779869468775.6562,
     "source/cli/tests/unit/core/check-log.test.ts": 1778854223542.9958,
     "source/cli/tests/unit/core/effective-aspects.test.ts": 1779867496240.9702,

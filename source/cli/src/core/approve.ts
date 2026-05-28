@@ -12,7 +12,7 @@ import {
 import { hashTrackedFiles } from '../io/hash.js';
 import { collectTrackedFiles } from './graph/files.js';
 import { normalizeMappingPaths } from '../io/paths.js';
-import { computeEffectiveAspects } from './graph/aspects.js';
+import { computeEffectiveAspects, hasNonDraftEffectiveAspects } from './graph/aspects.js';
 import { readTextFile, lstatFile } from '../io/graph-fs.js';
 import { createHash } from 'node:crypto';
 import { debugWrite } from '../utils/debug-log.js';
@@ -144,9 +144,8 @@ export async function approveNode(
     return { action, currentHash: '', previousHash: storedEntry?.hash, gcPaths, pendingDriftState };
   }
 
-  // ── Effective aspects — auto-approve aspect-free nodes ──
-  const effectiveAspects = computeEffectiveAspects(node, graph);
-  if (effectiveAspects.size === 0) {
+  // ── Effective aspects — auto-approve nodes with no non-draft aspects ──
+  if (!hasNonDraftEffectiveAspects(node, graph)) {
     const gcPaths = await runGC(graph);
     if (!logSnapshot.existed) {
       return { action: 'approved', currentHash: '', gcPaths };
@@ -474,7 +473,7 @@ function getChildMappingExclusions(graph: Graph, nodePath: string): string[] {
 }
 /* v8 ignore stop */
 
-/** GC orphaned drift state — remove entries for nodes not in graph or with zero effective aspects */
+/** GC orphaned drift state — remove entries for nodes not in graph or with no non-draft effective aspects */
 async function runGC(graph: Graph): Promise<string[]> {
   const validPaths = new Set(graph.nodes.keys());
   return garbageCollectDriftState(
@@ -483,8 +482,7 @@ async function runGC(graph: Graph): Promise<string[]> {
     (nodePath) => {
       const node = graph.nodes.get(nodePath);
       if (!node) return false;
-      const effective = computeEffectiveAspects(node, graph);
-      return effective.size > 0;
+      return hasNonDraftEffectiveAspects(node, graph);
     },
   );
 }
