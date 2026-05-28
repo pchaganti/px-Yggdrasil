@@ -188,9 +188,7 @@ export interface AspectDef {
   /** Global applicability filter for this aspect, applied on every channel */
   when?: WhenPredicate;
   artifacts: Artifact[];
-  /** Supporting files for the LLM reviewer (lookup tables, catalogues, contracts).
-   *  Permitted only when reviewer.type === 'llm'.
-   *  Normalized: shorthand strings are parsed to { path, description: undefined }. */
+  /** Supporting files for the LLM reviewer (lookup tables, catalogues, contracts). Permitted only when reviewer.type === 'llm'. */
   references?: Array<{ path: string; description?: string }>;
 }
 
