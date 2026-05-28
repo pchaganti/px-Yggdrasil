@@ -263,11 +263,11 @@ node_types:
     parents: [module]
 
   test-suite:
-    description: "Test suite — integration and unit tests guarding system invariants. Centralized under source/cli/tests/ (plural)."
+    description: "Test suite — integration and unit tests guarding system invariants. Centralized under source/cli/tests/ (plural). Includes test files (.ts) and generated artifacts such as snapshot files."
     enforce: strict
     when:
       all_of:
-        - path: "source/cli/tests/**/*.ts"
+        - path: "source/cli/tests/**"
         - not:
             path: "source/cli/tests/fixtures/**"
     aspects:
