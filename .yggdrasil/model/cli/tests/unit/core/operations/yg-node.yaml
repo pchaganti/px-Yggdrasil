@@ -1,6 +1,6 @@
 name: Operations Core Unit Tests
 type: test-suite
-description: "Unit tests for approve and check orchestration including log integration — approve, approve-llm, approve-log, approve-aspect-status, check, check-log, effective-aspects, impact, log-format, log-integrity"
+description: "Unit tests for approve and check orchestration including log integration — approve, approve-llm, approve-log, approve-aspect-status, approve-aspect-verdicts, check, check-log, effective-aspects, impact, log-format, log-integrity"
 aspects: []
 relations: []
 mapping:
@@ -9,6 +9,7 @@ mapping:
   - source/cli/tests/unit/core/approve-log.test.ts
   - source/cli/tests/unit/core/approve-reviewer-references.test.ts
   - source/cli/tests/unit/core/approve-aspect-status.test.ts
+  - source/cli/tests/unit/core/approve-aspect-verdicts.test.ts
   - source/cli/tests/unit/core/check.test.ts
   - source/cli/tests/unit/core/check-log.test.ts
   - source/cli/tests/unit/core/effective-aspects.test.ts

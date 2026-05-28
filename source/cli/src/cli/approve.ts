@@ -15,6 +15,7 @@ import { validate } from '../core/validator.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import type { ApproveResult } from '../model/drift.js';
 import type { Graph, LlmConfig } from '../model/graph.js';
+import { readNodeDriftState } from '../io/drift-state-store.js';
 import { runAstAspect } from '../ast/runner.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { computeEffectiveAspectStatuses, getAspectStatusSources } from '../core/graph/aspects.js';
@@ -30,6 +31,9 @@ export async function runLlmVerification(
   secretsByProvider: Map<string, Partial<LlmConfig> | null>,
   filterAspectId?: string,
 ): Promise<LlmApproveResult> {
+  // Read prior baseline to thread its per-aspect verdicts through. Used by the
+  // reviewer to preserve untouched aspects' verdicts in filter-aspect runs.
+  const storedEntry = await readNodeDriftState(graph.rootPath, nodePath);
   return runApproveWithReviewer({
     graph,
     nodePath,
@@ -37,6 +41,7 @@ export async function runLlmVerification(
     rootPath: graph.rootPath,
     filterAspectId,
     secretsByProvider,
+    storedEntry,
   });
 }
 

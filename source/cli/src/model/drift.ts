@@ -12,6 +12,21 @@ export interface AspectVerificationResult {
   errorSource: 'codeViolation' | 'provider' | 'astRuntime';
 }
 
+/**
+ * Per-aspect verdict recorded in the drift baseline.
+ *
+ * Captured at approve time and persisted EVEN when the overall node action
+ * is 'refused'. This lets `yg check` render per-aspect refused state without
+ * losing the baseline hash needed for drift tracking.
+ */
+export interface AspectVerdict {
+  verdict: 'approved' | 'refused';
+  /** Present when verdict is 'refused' — mirrors AspectVerificationResult.reason */
+  reason?: string;
+  /** Present when verdict is 'refused' — mirrors AspectVerificationResult.errorSource */
+  errorSource?: 'codeViolation' | 'provider' | 'astRuntime';
+}
+
 // ============================================================
 // Drift
 // ============================================================
@@ -44,6 +59,17 @@ export interface DriftNodeState {
     /** sha256 hex of bytes [0..offsetEnd of boundary entry) */
     prefix_hash: string;
   };
+  /**
+   * Per-aspect verdicts at last approve time.
+   *
+   * Recorded for every non-draft effective aspect that the reviewer evaluated.
+   * Persisted on BOTH approved and refused branches so `yg check` can render
+   * per-aspect refused state without re-running the reviewer.
+   *
+   * Optional for backward compatibility with baselines written before this
+   * field existed.
+   */
+  aspectVerdicts?: Record<string, AspectVerdict>;
 }
 
 /** Upstream change with type annotation for CLI messages */

@@ -22,3 +22,5 @@ Updated unit tests for approve orchestration to match the new v5 reviewer API: r
 Extended approve-llm.test.ts with tests for resolveExecutionPlan, per-tier batching paths (AST pass, AST fail, AST runtime error, provider unavailable, plan errors) to cover new code paths added during v5 reviewer-tiers implementation.
 ## [2026-05-28T08:42:07.738Z]
 Added approve-reviewer-references.test.ts with 5 unit tests covering the loadAndIsolateReferences helper: success path with content retrieval, cross-call cache deduplication, UTF-8 BOM stripping, failure isolation when a reference file cannot be read (returns LLM_REFERENCE_UNREADABLE reason, does not throw), and the empty-references fast path.
+## [2026-05-28T12:57:24.517Z]
+Add approve-aspect-verdicts.test.ts to mapping. Covers persistence round-trip of the new aspectVerdicts field on DriftNodeState — writes per-aspect verdicts and reads them back, confirming both approved and refused entries (with reason and errorSource) survive JSON serialization.

@@ -1,6 +1,6 @@
 // yg-suppress(deterministic) approve-reviewer must invoke the configured LLM provider for verification; non-determinism is intentional and inherent to this engine's purpose
-import type { Graph, AspectDef, LlmConfig, ReviewerConfig } from '../model/graph.js';
-import type { ApproveResult, AspectVerificationResult } from '../model/drift.js';
+import type { Graph, GraphNode, AspectDef, LlmConfig, ReviewerConfig } from '../model/graph.js';
+import type { ApproveResult, AspectVerdict, AspectVerificationResult, DriftNodeState } from '../model/drift.js';
 import type { IssueMessage } from '../model/validation.js';
 import { verifyAspects } from '../llm/aspect-verifier.js';
 import { resolveMaxTokens } from '../llm/api-utils.js';
@@ -98,6 +98,58 @@ export async function loadAndIsolateReferences(params: LoadReferencesParams): Pr
   return { ok: true, references: out };
 }
 
+// ── per-aspect verdict helpers ──────────────────────────────
+
+/**
+ * Build per-aspect verdicts from reviewer results.
+ *
+ * Captures the verdict for every non-draft effective aspect that the reviewer
+ * evaluated. Draft aspects are skipped — they were never dispatched. Aspects
+ * absent from allAspectResults (e.g. when no reviewer ran) are also skipped.
+ */
+function buildAspectVerdicts(
+  node: GraphNode,
+  graph: Graph,
+  allAspectResults: Record<string, AspectVerificationResult>,
+): Record<string, AspectVerdict> {
+  const statuses = computeEffectiveAspectStatuses(node, graph);
+  const verdicts: Record<string, AspectVerdict> = {};
+  for (const [aspectId, status] of statuses) {
+    if (status === 'draft') continue;
+    const res = allAspectResults[aspectId];
+    if (res?.satisfied === false) {
+      verdicts[aspectId] = { verdict: 'refused', reason: res.reason, errorSource: res.errorSource };
+    } else if (res?.satisfied === true) {
+      verdicts[aspectId] = { verdict: 'approved' };
+    }
+  }
+  return verdicts;
+}
+
+/**
+ * Merge new verdicts into result.pendingDriftState.
+ *
+ * When filterAspectId is set (per-aspect approve), only the targeted aspect's
+ * verdict is updated — other aspects' prior verdicts are preserved from the
+ * stored baseline. When unset (full-node approve), the new verdicts fully
+ * replace the prior set.
+ *
+ * No-op when result.pendingDriftState is undefined (some early-return paths
+ * never set it; baseline simply isn't written, matching prior behavior).
+ */
+function applyAspectVerdictsToResult(
+  result: ApproveResult,
+  verdicts: Record<string, AspectVerdict>,
+  priorVerdicts: Record<string, AspectVerdict> | undefined,
+  filterAspectId: string | undefined,
+): void {
+  if (!result.pendingDriftState) return;
+  const merged: Record<string, AspectVerdict> = filterAspectId
+    ? { ...(priorVerdicts ?? {}), ...verdicts }
+    : verdicts;
+  result.pendingDriftState.state.aspectVerdicts = merged;
+}
+
 // ── per-tier batching ────────────────────────────────────────
 
 export interface ApproveWithReviewerInput {
@@ -109,12 +161,18 @@ export interface ApproveWithReviewerInput {
   filterAspectId?: string;
   /** Session-scope secrets cache. Declared above the per-node loop by caller so distinct providers share one entry. */
   secretsByProvider: Map<string, Partial<LlmConfig> | null>;
+  /**
+   * Prior drift baseline (if any) — used to preserve per-aspect verdicts when
+   * running a filtered approve (filterAspectId set). Optional; absent on first
+   * approve.
+   */
+  storedEntry?: DriftNodeState;
 }
 
 export async function runApproveWithReviewer(
   input: ApproveWithReviewerInput,
 ): Promise<LlmApproveResult> {
-  const { graph, nodePath, result, rootPath, filterAspectId, secretsByProvider } = input;
+  const { graph, nodePath, result, rootPath, filterAspectId, secretsByProvider, storedEntry } = input;
 
   if (result.action === 'refused') return result;
 
@@ -141,7 +199,14 @@ export async function runApproveWithReviewer(
     ? nonDraft.filter(a => a.id === filterAspectId)
     : nonDraft;
 
+  // Hoisted: needed by buildAspectVerdicts in early-return paths below.
+  const aspectViolations: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' }> = [];
+  const allAspectResults: Record<string, AspectVerificationResult> = {};
+  const referencesCache = new Map<string, string>();
+
   if (filtered.length === 0) {
+    const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
+    applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
     await commitApproval(rootPath, result);
     return { ...result, skippedDraftAspects };
   }
@@ -149,6 +214,8 @@ export async function runApproveWithReviewer(
   // No reviewer configured — LLM aspects cannot run; skip and commit
   const hasLlmAspects = filtered.some(a => a.reviewer.type !== 'ast');
   if (!graph.config.reviewer && hasLlmAspects) {
+    const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
+    applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
     await commitApproval(rootPath, result);
     return { ...result, llmSkipped: 'unavailable', skippedDraftAspects };
   }
@@ -164,9 +231,6 @@ export async function runApproveWithReviewer(
   const sourceFiles = await loadSourceFiles(sourceFilePaths, projectRoot);
 
   const nodeDescription = node.meta.description ?? '';
-  const aspectViolations: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' }> = [];
-  const allAspectResults: Record<string, AspectVerificationResult> = {};
-  const referencesCache = new Map<string, string>();
 
   // Resolve execution plan
   const plan: ExecutionPlan = graph.config.reviewer
@@ -179,6 +243,9 @@ export async function runApproveWithReviewer(
   if (plan.errors.length > 0) {
     const normalizedNodePath = nodePath.replace(/\\/g, '/').replace(/\/+$/, '');
     const why = plan.errors.map(e => [e.what, e.why].filter(Boolean).join('\n')).join('\n\n');
+    const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
+    applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
+    await commitApproval(rootPath, result);
     return {
       ...result,
       action: 'refused',
@@ -227,6 +294,9 @@ export async function runApproveWithReviewer(
 
   if (aspectViolations.length > 0) {
     const normalizedNodePath = nodePath.replace(/\\/g, '/').replace(/\/+$/, '');
+    const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
+    applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
+    await commitApproval(rootPath, result);
     return {
       ...result,
       action: 'refused',
@@ -246,6 +316,8 @@ export async function runApproveWithReviewer(
   const llmEntries = plan.resolved.filter((e): e is LlmEntry => e.kind === 'llm');
 
   if (llmEntries.length === 0) {
+    const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
+    applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
     await commitApproval(rootPath, result);
     return { ...result, aspectResults: allAspectResults, skippedDraftAspects };
   }
@@ -287,6 +359,8 @@ export async function runApproveWithReviewer(
     const provider = createLlmProvider(merged);
 
     if (!(await provider.isAvailable())) {
+      const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
+      applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
       await commitApproval(rootPath, result);
       return { ...result, llmSkipped: 'unavailable', aspectResults: allAspectResults, skippedDraftAspects };
     }
@@ -350,6 +424,9 @@ export async function runApproveWithReviewer(
   // Check for reference-load failures first — distinct message, takes precedence over generic infra error
   const referenceFailures = aspectViolations.filter(v => v.reason.startsWith('LLM_REFERENCE_UNREADABLE'));
   if (referenceFailures.length > 0 && codeViolations.length === 0) {
+    const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
+    applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
+    await commitApproval(rootPath, result);
     return {
       ...result,
       action: 'refused',
@@ -365,6 +442,9 @@ export async function runApproveWithReviewer(
   }
 
   if (infrastructureErrors.length > 0 && codeViolations.length === 0) {
+    const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
+    applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
+    await commitApproval(rootPath, result);
     return {
       ...result,
       action: 'refused',
@@ -380,6 +460,9 @@ export async function runApproveWithReviewer(
   }
 
   if (aspectViolations.length > 0) {
+    const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
+    applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
+    await commitApproval(rootPath, result);
     return {
       ...result,
       action: 'refused',
@@ -394,6 +477,8 @@ export async function runApproveWithReviewer(
     };
   }
 
+  const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
+  applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId);
   await commitApproval(rootPath, result);
   return { ...result, aspectResults: allAspectResults, skippedDraftAspects };
 }
