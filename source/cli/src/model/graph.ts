@@ -110,6 +110,13 @@ export interface LlmConfig {
   context_length_field?: string;
   /** CLI providers: subprocess timeout in ms. Default: 120_000. */
   timeout?: number;
+  /** Optional caps on reference files for aspects resolving to this tier. */
+  references?: {
+    /** Max bytes per single reference file. Default 65536 (64 KiB). */
+    max_bytes_per_file?: number;
+    /** Max sum of reference bytes per aspect. Default 262144 (256 KiB). */
+    max_total_bytes_per_aspect?: number;
+  };
 }
 
 export interface NodeMeta {
@@ -181,6 +188,10 @@ export interface AspectDef {
   /** Global applicability filter for this aspect, applied on every channel */
   when?: WhenPredicate;
   artifacts: Artifact[];
+  /** Supporting files for the LLM reviewer (lookup tables, catalogues, contracts).
+   *  Permitted only when reviewer.type === 'llm'.
+   *  Normalized: shorthand strings are parsed to { path, description: undefined }. */
+  references?: Array<{ path: string; description?: string }>;
 }
 
 // ============================================================
