@@ -275,12 +275,12 @@ function parseTier(name: string, raw: unknown, filename: string): LlmConfig {
   }
 
   // Unknown-key check AFTER structural checks
-  const allowed = new Set(['provider', 'consensus', 'config']);
+  const allowed = new Set(['provider', 'consensus', 'config', 'references']);
   for (const k of Object.keys(t)) {
     if (!allowed.has(k)) {
       throw new ConfigParseError({
         what: `${filename}: tier '${name}' has unknown key '${k}'`,
-        why: 'tier accepts only `provider`, `consensus`, `config`',
+        why: 'tier accepts only `provider`, `consensus`, `config`, `references`',
         next: "move to config: if it's a provider setting, or remove",
       }, 'config-tier-unknown-key');
     }
@@ -294,6 +294,57 @@ function parseTier(name: string, raw: unknown, filename: string): LlmConfig {
       next: "set to 'auto' or a positive integer (e.g. 4096)",
     }, 'config-tier-config-invalid');
   }
+
+  // references: optional sub-mapping with per-tier source-file size limits
+  let references: { max_bytes_per_file?: number; max_total_bytes_per_aspect?: number } | undefined;
+  if (t.references !== undefined) {
+    if (t.references === null || typeof t.references !== 'object' || Array.isArray(t.references)) {
+      throw new ConfigParseError({
+        what: `${filename}: tier '${name}' has 'references' that is not a YAML mapping`,
+        why: 'references accepts an object with max_bytes_per_file and/or max_total_bytes_per_aspect',
+        next: `replace with 'references: { max_bytes_per_file: 65536 }' or remove the field`,
+      }, 'tier-references-not-mapping');
+    } else {
+      const refsObj = t.references as Record<string, unknown>;
+      const allowedRefKeys = new Set(['max_bytes_per_file', 'max_total_bytes_per_aspect']);
+      for (const k of Object.keys(refsObj)) {
+        if (!allowedRefKeys.has(k)) {
+          throw new ConfigParseError({
+            what: `${filename}: tier '${name}' has unknown key 'references.${k}'`,
+            why: 'references accepts only max_bytes_per_file and max_total_bytes_per_aspect',
+            next: `remove 'references.${k}' from yg-config.yaml`,
+          }, 'tier-references-unknown-key');
+        }
+      }
+      const refs: { max_bytes_per_file?: number; max_total_bytes_per_aspect?: number } = {};
+      if (refsObj.max_bytes_per_file !== undefined) {
+        const v = refsObj.max_bytes_per_file;
+        if (typeof v !== 'number' || !Number.isInteger(v) || v <= 0) {
+          throw new ConfigParseError({
+            what: `${filename}: tier '${name}' has invalid references.max_bytes_per_file: ${JSON.stringify(v)}`,
+            why: 'must be a positive integer (bytes)',
+            next: `set 'references.max_bytes_per_file' to a positive integer like 65536`,
+          }, 'tier-references-max-bytes-per-file-invalid');
+        } else {
+          refs.max_bytes_per_file = v;
+        }
+      }
+      if (refsObj.max_total_bytes_per_aspect !== undefined) {
+        const v = refsObj.max_total_bytes_per_aspect;
+        if (typeof v !== 'number' || !Number.isInteger(v) || v <= 0) {
+          throw new ConfigParseError({
+            what: `${filename}: tier '${name}' has invalid references.max_total_bytes_per_aspect: ${JSON.stringify(v)}`,
+            why: 'must be a positive integer (bytes)',
+            next: `set 'references.max_total_bytes_per_aspect' to a positive integer like 262144`,
+          }, 'tier-references-max-total-bytes-invalid');
+        } else {
+          refs.max_total_bytes_per_aspect = v;
+        }
+      }
+      if (Object.keys(refs).length > 0) references = refs;
+    }
+  }
+
   return {
     provider: t.provider as LlmConfig['provider'],
     model,
@@ -303,5 +354,6 @@ function parseTier(name: string, raw: unknown, filename: string): LlmConfig {
     max_tokens: maxTokens,
     context_length_field: typeof c.context_length_field === 'string' ? c.context_length_field : undefined,
     timeout: typeof c.timeout === 'number' ? c.timeout : undefined,
+    ...(references !== undefined ? { references } : {}),
   };
 }
