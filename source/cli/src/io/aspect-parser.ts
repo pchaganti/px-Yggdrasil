@@ -109,6 +109,82 @@ export async function parseAspect(
     when = parseWhen(raw.when, `yg-aspect.yaml at ${aspectYamlPath}: when`);
   }
 
+  // references: optional, normalized to Array<{ path, description? }>
+  let references: Array<{ path: string; description?: string }> | undefined;
+  if (raw.references !== undefined) {
+    if (!Array.isArray(raw.references)) {
+      return {
+        ok: false,
+        aspectId: idTrimmed,
+        errors: [{
+          code: 'aspect-reference-invalid-form',
+          messageData: {
+            what: `yg-aspect.yaml at ${aspectYamlPath}: 'references' must be an array`,
+            why: 'references is a list of file paths or { path, description } objects',
+            next: 'change references: to a YAML sequence',
+          },
+        }],
+      };
+    }
+    references = [];
+    for (let i = 0; i < raw.references.length; i++) {
+      const entry = raw.references[i];
+      let path: string;
+      let description: string | undefined;
+      if (typeof entry === 'string') {
+        path = entry;
+      } else if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+        const obj = entry as Record<string, unknown>;
+        if (typeof obj.path !== 'string') {
+          return {
+            ok: false,
+            aspectId: idTrimmed,
+            errors: [{
+              code: 'aspect-reference-invalid-form',
+              messageData: {
+                what: `yg-aspect.yaml at ${aspectYamlPath}: references[${i}] object missing string 'path' field`,
+                why: 'each reference entry must be a string OR an object { path: string, description?: string }',
+                next: `set references[${i}].path to a string path`,
+              },
+            }],
+          };
+        }
+        path = obj.path;
+        if (obj.description !== undefined) {
+          if (typeof obj.description !== 'string') {
+            return {
+              ok: false,
+              aspectId: idTrimmed,
+              errors: [{
+                code: 'aspect-reference-invalid-form',
+                messageData: {
+                  what: `yg-aspect.yaml at ${aspectYamlPath}: references[${i}].description must be a string when present`,
+                  why: 'description is optional but must be a string',
+                  next: `remove the description or set it to a string at references[${i}]`,
+                },
+              }],
+            };
+          }
+          description = obj.description;
+        }
+      } else {
+        return {
+          ok: false,
+          aspectId: idTrimmed,
+          errors: [{
+            code: 'aspect-reference-invalid-form',
+            messageData: {
+              what: `yg-aspect.yaml at ${aspectYamlPath}: references[${i}] is neither a string nor an object`,
+              why: 'each reference entry must be a string OR an object { path: string, description?: string }',
+              next: `replace references[${i}] with a string path or { path: ..., description: ... }`,
+            },
+          }],
+        };
+      }
+      references.push({ path, description });
+    }
+  }
+
   return {
     ok: true,
     aspect: {
@@ -121,6 +197,7 @@ export async function parseAspect(
       ...(impliesWhens && { impliesWhens }),
       ...(when && { when }),
       artifacts,
+      ...(references && { references }),
     },
   };
 }

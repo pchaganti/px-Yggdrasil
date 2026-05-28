@@ -6,6 +6,7 @@ relations: []
 mapping:
   - source/cli/tests/unit/io/architecture-parser.test.ts
   - source/cli/tests/unit/io/aspect-parser.test.ts
+  - source/cli/tests/unit/io/aspect-parser-references.test.ts
   - source/cli/tests/unit/io/file-when-parser.test.ts
   - source/cli/tests/unit/io/flow-parser.test.ts
   - source/cli/tests/unit/io/log-parser.test.ts
