@@ -185,4 +185,13 @@ The old \`ast.*\` namespace helpers were removed. Use direct tree-sitter API:
 | \`ast.closest(node, types)\` | \`closest(node, types)\` — RETAINED in minimal API |
 | \`ast.inFile(file, '<string>')\` | \`inFile(file, { glob \\| regex \\| contains })\` |
 | violation shape: \`{ file, line, message }\` | \`{ file, line, column, message }\` — NEW \`column\` field |
+
+## Aspect status
+
+AST aspects also declare \`status: draft | advisory | enforced\` (default
+\`enforced\`). Draft AST aspects cost zero — the \`check.mjs\` function is
+never invoked. Advisory and enforced both run the check synchronously (no
+LLM cost) but differ in how violations render. An aspect in draft status
+is useful for development and review purposes without blocking CI. See:
+\`yg knowledge read aspect-status\`.
 `;

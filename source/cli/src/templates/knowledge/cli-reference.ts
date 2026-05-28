@@ -156,4 +156,20 @@ yg init --upgrade --platform claude-code   # regenerate for specific platform
 \`\`\`
 
 Run from repository root only. Never from a subdirectory.
+
+## Validator issue codes — aspect status
+
+The validator (\`yg check\`) emits the following issue codes related to aspect
+status:
+
+| Code | Severity | Meaning |
+|------|----------|---------|
+| \`aspect-status-invalid\` | error | Declared status is not one of \`draft|advisory|enforced\` |
+| \`aspect-status-downgrade\` | error | Declared status is lower than cascade would yield (bump up OK, downgrade is error) |
+| \`implies-status-inherit-invalid\` | error | \`status_inherit:\` value not one of \`strictest|own-default\` |
+| \`aspect-newly-active\` | error | Aspect transitioned from draft to advisory/enforced; baseline missing |
+| \`aspect-violation-enforced\` | error | Enforced aspect reviewer refused |
+| \`aspect-violation-advisory\` | warning | Advisory aspect reviewer refused |
+
+For detailed semantics of status and its mechanics: \`yg knowledge read aspect-status\`.
 `;

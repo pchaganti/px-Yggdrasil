@@ -102,4 +102,12 @@ predicate satisfaction fraction, or edge-case messages for files inside
 
 Run this whenever you add or modify a type's \`when\` predicate and want
 to verify that existing files are classified as expected.
+
+## Aspect status in architecture default aspects
+
+Architecture-level default aspects (channel 3) may declare \`status:\` to
+control the enforcement level. When a node_type in \`yg-architecture.yaml\`
+declares a default aspect with status, that status applies to every node of
+that type unless explicitly overridden at the node or channel level.
+See: \`yg knowledge read aspect-status\`.
 `;

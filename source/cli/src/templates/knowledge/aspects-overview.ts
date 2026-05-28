@@ -99,4 +99,20 @@ Aspect references add to drift cascade — modifying a referenced file re-approv
 For full scenario-by-scenario cost breakdown (edit one file, add implies,
 change content.md, add aspect to parent, add node to flow) and batch
 approve strategies: \`yg knowledge read drift-and-cascade\`.
+
+## Aspect status
+
+Aspects declare \`status: draft | advisory | enforced\` (default \`enforced\`).
+Status controls whether the reviewer runs and how \`yg check\` renders violations.
+
+| Status   | LLM cost per node | Renders as |
+|----------|-------------------|------------|
+| draft    | 0                 | n/a (skipped)            |
+| advisory | full              | warning                  |
+| enforced | full              | error (blocks yg check)  |
+
+Status changes rendering, not per-call cost. Advisory and enforced both
+invoke the reviewer at the same cost.
+
+Deep reference: \`yg knowledge read aspect-status\`.
 `;

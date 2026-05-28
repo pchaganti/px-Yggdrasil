@@ -89,4 +89,11 @@ yg approve --flow <name>          # batch-approve all participants
 When you rename or split a node, update any flow's \`nodes:\` list that
 references the old name. \`yg check\` catches broken references, but fixing
 proactively avoids a noisy check output and a confused next agent.
+
+## Aspect status on flow aspects
+
+Flow aspects (channel 5) may declare \`status:\` to control enforcement level
+across all participants. A flow aspect in draft or advisory status applies to
+every participating node without forcing CI to block. See:
+\`yg knowledge read aspect-status\`.
 `;

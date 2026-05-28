@@ -139,4 +139,12 @@ Use the returned summary, not the full log.
 \`yg log add\` does NOT trigger drift or run the reviewer. You can append
 context entries between code changes freely. Only source-file changes in
 the mapping require entries paired with \`yg approve\`.
+
+## Log requirement and aspect status
+
+Every source edit in a node's mapping requires a log entry before \`yg approve\`
+(for nodes whose type has \`log_required: true\`, the default). However, when
+a node's EVERY effective aspect is in draft status, a log entry is not
+required — draft aspects are dormant and will not be reviewed. See:
+\`yg knowledge read aspect-status\`.
 `;

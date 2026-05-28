@@ -138,4 +138,20 @@ results and exits 1 if ANY node failed. On partial failure: fix the
 per-node errors and re-run the batch with only the failed nodes.
 
 Do not interrupt \`yg approve\` mid-run — it leaves drift state unrecorded.
+
+## Status and drift
+
+Status is NOT part of the canonical drift hash. The hash is stable across
+\`advisory ↔ enforced\` flips. Tier-identity entries are included for every
+LLM aspect regardless of status (preserving hash stability when an aspect
+is flipped to/from draft).
+
+Transitions:
+- \`draft → advisory/enforced\` → drift emitted as \`aspect-newly-active\`
+  (missing baseline). Run \`yg approve --node <path>\`.
+- \`advisory ↔ enforced\` → not drift, but rendering severity may flip.
+- \`active → draft\` → not drift. Stale baseline entries cleared lazily
+  on next \`yg approve\` of the node.
+
+See: \`yg knowledge read aspect-status\`.
 `;

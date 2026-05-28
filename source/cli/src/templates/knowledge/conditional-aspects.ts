@@ -112,4 +112,13 @@ Prefer \`when\` over splitting types (fewer types, same precision).
 Prefer \`when\` over leaving applicability decisions inside \`content.md\`
 prose (\`when\` is enforced by the graph engine — prose rules can be
 overlooked by the reviewer).
+
+## When vs status
+
+Note: applicability (\`when\` predicate) is distinct from enforcement level
+(\`status: draft | advisory | enforced\`). A \`when\` filter determines
+WHETHER an aspect reaches a node. Status determines what happens AFTER the
+aspect reaches the node (whether reviewer runs and how violations are rendered).
+Both can be declared on the same aspect simultaneously. See:
+\`yg knowledge read aspect-status\`.
 `;

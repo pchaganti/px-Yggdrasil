@@ -205,4 +205,13 @@ reviewer:
 
 Defaults (when omitted): 64 KiB per file, 256 KiB total per aspect.
 Oversized references are rejected by \`yg check\`.
+
+## Aspect status
+
+LLM aspects declare \`status: draft | advisory | enforced\` (default
+\`enforced\`) in \`yg-aspect.yaml\`. Status controls whether the reviewer is
+invoked and how violations are rendered. Draft aspects cost zero LLM calls
+(reviewer is skipped). Advisory and enforced both invoke the reviewer at
+full cost but differ in how \`yg check\` renders refused verdicts. See:
+\`yg knowledge read aspect-status\`.
 `;
