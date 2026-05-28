@@ -11,6 +11,7 @@ mapping:
   - source/cli/tests/integration/aspect-language-validation.test.ts
   - source/cli/tests/integration/aspect-references-context.test.ts
   - source/cli/tests/integration/aspect-references-drift.test.ts
+  - source/cli/tests/integration/aspect-references-impact.test.ts
   - source/cli/tests/integration/aspect-references-validation.test.ts
   - source/cli/tests/integration/aspect-references-when-implies.test.ts
   - source/cli/tests/integration/build-pipeline.test.ts

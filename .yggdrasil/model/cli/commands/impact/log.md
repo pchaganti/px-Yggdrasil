@@ -24,3 +24,5 @@ Migrated remaining ad-hoc stderr errors to buildIssueMessage (constant-text erro
 Wrapped three option-validation errors (--node/--file mutex, missing target, multiple targets) in buildIssueMessage. Matches the cli-command-contract requirement that constant-text remediation errors use the structured what/why/next form.
 ## [2026-05-16T19:31:39.274Z]
 Updated effective-aspects import path to core/graph/aspects.
+## [2026-05-28T10:05:15.685Z]
+Extended handleFileImpact to scan all graph nodes for cascade-via-reference when the queried file appears in a node's collectTrackedFiles result with category 'graph' and layer 'aspects'. When the structural owner exists, both sections are shown. When no owner exists but reference-cascade nodes do, the reference section is shown and the command exits 0 instead of failing. When both sets are empty, the existing no-coverage error is emitted. This enables agents to assess the full blast radius of a file that functions as an aspect reference — the same file could cascade drift to multiple nodes even if it has no mapping owner.

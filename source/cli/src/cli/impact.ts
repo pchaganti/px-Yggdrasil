@@ -7,6 +7,7 @@ import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { collectAncestors } from '../core/context-builder.js';
 import { computeEffectiveAspects } from '../core/graph/aspects.js';
+import { collectTrackedFiles } from '../core/graph/files.js';
 import { findOwner } from './owner.js';
 import { projectRootFromGraph, resolveFileArg } from '../io/paths.js';
 import { FileContentCache } from '../io/file-content-cache.js';
@@ -470,21 +471,54 @@ export function registerImpactCommand(program: Command): void {
           const graph = await loadGraphOrAbort(process.cwd());
           initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
 
-          // Resolve --file to --node
+          // Resolve --file to --node (structural owner) + cascade-via-reference scan
           if (options.file) {
             const repoRoot = projectRootFromGraph(graph.rootPath);
             const repoRelative = resolveFileArg(repoRoot, options.file);
-            const result = findOwner(graph, repoRoot, repoRelative);
-            if (!result.nodePath) {
+            const ownerResult = findOwner(graph, repoRoot, repoRelative);
+
+            // Scan all nodes to find those whose aspect references include this file
+            const refCascadeNodes: string[] = [];
+            for (const [nodePath, node] of graph.nodes) {
+              // Skip the structural owner — it's handled separately
+              if (ownerResult.nodePath && nodePath === ownerResult.nodePath) continue;
+              const tracked = collectTrackedFiles(node, graph);
+              const hasRef = tracked.some(
+                t => t.category === 'graph' && t.layer === 'aspects' && t.path === repoRelative,
+              );
+              if (hasRef) refCascadeNodes.push(nodePath);
+            }
+            refCascadeNodes.sort();
+
+            if (!ownerResult.nodePath && refCascadeNodes.length === 0) {
               process.stderr.write(chalk.red(buildIssueMessage({
-                what: `${result.file.replace(/\\/g, '/').replace(/\/+$/, '')} -> no graph coverage`,
-                why: 'File is not mapped to any node in the graph.',
+                what: `${repoRelative} -> no graph coverage`,
+                why: 'file is not mapped to any node and is not referenced by any aspect in the graph.',
                 next: 'Add the file to an existing node mapping, or create a new node.',
               }) + '\n'));
               process.exit(1);
             }
-            process.stderr.write(`${result.file} -> ${result.nodePath}\n`);
-            options.node = result.nodePath;
+
+            // Show cascade-via-reference section if any
+            if (refCascadeNodes.length > 0) {
+              process.stdout.write(`\nNodes whose aspects reference ${repoRelative} [reference]:\n`);
+              for (const np of refCascadeNodes) {
+                process.stdout.write(`  ${np} [reference]\n`);
+              }
+              process.stdout.write(
+                `\nBlast radius via references: ${refCascadeNodes.length} node(s) — ` +
+                `editing this file cascades drift to each.\n`,
+              );
+            }
+
+            if (!ownerResult.nodePath) {
+              // Only cascade nodes found — no structural owner to follow
+              process.exit(0);
+            }
+
+            // Structural owner found — continue to regular node impact
+            process.stderr.write(`${ownerResult.file} -> ${ownerResult.nodePath}\n`);
+            options.node = ownerResult.nodePath;
           }
 
           if (options.aspect) {
