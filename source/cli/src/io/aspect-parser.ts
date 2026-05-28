@@ -1,10 +1,12 @@
 import { readFile } from 'node:fs/promises';
 import { parse as parseYaml } from 'yaml';
-import type { AspectDef, AspectReviewerSpec } from '../model/graph.js';
+import type { AspectDef, AspectReviewerSpec, AspectStatus } from '../model/graph.js';
+import { ASPECT_STATUS_VALUES } from '../model/graph.js';
 import type { IssueMessage } from '../model/validation.js';
 import type { WhenPredicate } from '../model/when.js';
 import { readArtifacts } from './artifact-reader.js';
 import { parseWhen, parseAspectAttachment } from '../core/parsing/when-parser.js';
+import { aspectStatusInvalidMessage } from '../formatters/aspect-status-messages.js';
 
 export type ParseAspectResult =
   | { ok: true; aspect: AspectDef }
@@ -90,6 +92,28 @@ export async function parseAspect(
   const reviewer: AspectReviewerSpec = reviewerResult.value;
 
   const artifacts = await readArtifacts(aspectDir, ['yg-aspect.yaml']);
+
+  let status: AspectStatus | undefined;
+  if (raw.status !== undefined) {
+    if (
+      typeof raw.status !== 'string' ||
+      !ASPECT_STATUS_VALUES.includes(raw.status as AspectStatus)
+    ) {
+      return {
+        ok: false,
+        aspectId: idTrimmed,
+        errors: [{
+          code: 'aspect-status-invalid',
+          messageData: aspectStatusInvalidMessage({
+            aspectId: idTrimmed,
+            value: String(raw.status),
+            aspectDir,
+          }),
+        }],
+      };
+    }
+    status = raw.status as AspectStatus;
+  }
 
   let implies: string[] | undefined;
   let impliesWhens: Record<string, WhenPredicate> | undefined;
@@ -279,6 +303,7 @@ export async function parseAspect(
       ...(when && { when }),
       artifacts,
       ...(references && { references }),
+      ...(status !== undefined && { status }),
     },
   };
 }

@@ -1,5 +1,5 @@
 {
-  "hash": "88c69a9ecd02bac45e77e1ebeb5c5cc37acab93d8d3aec1242def5c05234db57",
+  "hash": "dd255fa9abe60d93cb9423834769888e3408435dda0417ffa853879ff03b082c",
   "files": {
     "own-subset:cli/io/parsers/graph": "49eba5656163800b5213d51e9c6969831d387f9252bafe1e854a9e84e7bebf9e",
     "tier-identity:parser-contract": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -20,9 +20,9 @@
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
     "source/cli/src/io/architecture-parser.ts": "b5c8f11d0d4faeca93f25a6b1e634accd902c58f80505dbb01654c5ec45d5b56",
-    "source/cli/src/io/aspect-parser.ts": "dfa902177c4a8c808b2d52630dfcbe1ab4fb1958e5b17b67f3ac92cb08caeec5",
     "source/cli/src/io/node-parser.ts": "d0a96fe70b38aed28972020c95c8fa9c218b11d95f6139feccad25a2f32aaec0",
-    "source/cli/src/io/flow-parser.ts": "e61329a555b82f9dcbf514bb7843c09caf2050a8406f35dcf6b12210ffa13d30"
+    "source/cli/src/io/flow-parser.ts": "e61329a555b82f9dcbf514bb7843c09caf2050a8406f35dcf6b12210ffa13d30",
+    "source/cli/src/io/aspect-parser.ts": "82871437954780599725c885806993eed37867b33bc09e414bbd4c8b15b613d8"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -41,12 +41,12 @@
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     "source/cli/src/io/architecture-parser.ts": 1778851225036.454,
-    "source/cli/src/io/aspect-parser.ts": 1779951895255.0955,
+    "source/cli/src/io/aspect-parser.ts": 1779966544871.8113,
     "source/cli/src/io/node-parser.ts": 1778952351543.8853,
     "source/cli/src/io/flow-parser.ts": 1778952340799.223
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T07:42:10.369Z",
-    "prefix_hash": "06326d0fb9aa33704ca8fa39c5d519c1673dd300c5c239a7d2b522766195b92c"
+    "last_entry_datetime": "2026-05-28T11:10:58.412Z",
+    "prefix_hash": "b5ea63e4dffaea0e554138a2e3ada587f2fb8ac4cc048cb96eb1c82b5f671baf"
   }
 }
