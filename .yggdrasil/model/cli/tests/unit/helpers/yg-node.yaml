@@ -1,0 +1,7 @@
+name: Test Helpers
+type: test-suite
+description: "Shared test-fixture builders used across unit test suites (e.g. buildTestGraph for graph resolver tests)"
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/helpers/build-test-graph.ts

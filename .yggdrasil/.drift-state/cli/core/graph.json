@@ -1,5 +1,5 @@
 {
-  "hash": "855984cd3539751fb9fd7d247468da09f0fcf721e339a276bb2f5a7c34616dbf",
+  "hash": "c1345a5ef6f8172dd0a1e6cae1175a13344f875530b6d33432041ff362b404df",
   "files": {
     "own-subset:cli/core/graph": "017d50656501e8b443151a1fb73d7403f5b0a9279ac7e31e3d3029b12ad7399f",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -19,13 +19,13 @@
     ".yggdrasil/aspects/single-source-graph-queries/check.mjs": "8364b0c42413e7b467a22b493543f882d77cc3b65616af93127c07c76c212361",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
-    "source/cli/src/core/graph/aspects.ts": "5ff836d86c80ca5419248a1c99d5adfd383b81a3a237d77b8f10e21155b5166d",
     "source/cli/src/core/graph/dependencies.ts": "ef894f905b8a3b48edae8ca053c1a93f1d85b6e6ab8ad852e3d8fb8021334966",
+    "source/cli/src/core/graph/files.ts": "d126089544bb44804310429240bbbf0d395315444f454afea73cf8337c123119",
     "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
     "source/cli/src/core/graph/index.ts": "563e36848000ab08dd5ab49b769455be58ce21ced356fbc59a3639b4704e0208",
     "source/cli/src/core/graph/language-registry.ts": "f054610584e5e0e5a68de94eec30385103ae938df58ec2087ff5c1e8ddea906c",
     "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b",
-    "source/cli/src/core/graph/files.ts": "d126089544bb44804310429240bbbf0d395315444f454afea73cf8337c123119"
+    "source/cli/src/core/graph/aspects.ts": "bca77e0997ebbf7e92be99cef119615deffde7e12df06ab4899385e1c24c0b64"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -44,7 +44,7 @@
     ".yggdrasil/aspects/single-source-graph-queries/check.mjs": 1779794513935.7961,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    "source/cli/src/core/graph/aspects.ts": 1778959804511.0735,
+    "source/cli/src/core/graph/aspects.ts": 1779969080309.8809,
     "source/cli/src/core/graph/dependencies.ts": 1778959819575.0183,
     "source/cli/src/core/graph/files.ts": 1779955922525.441,
     "source/cli/src/core/graph/flows.ts": 1778958982525.8142,
@@ -53,7 +53,7 @@
     "source/cli/src/core/graph/traversal.ts": 1778958972950.3818
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T08:12:43.196Z",
-    "prefix_hash": "e35cf2a491ee89282efc8ffb4ba1501d3b9c33896e8b673cf87b0178c6e2033a"
+    "last_entry_datetime": "2026-05-28T11:52:27.600Z",
+    "prefix_hash": "d82ede4a08159cdbb8205d30f00f93eae564fef7f318b2e90e70616889643875"
   }
 }

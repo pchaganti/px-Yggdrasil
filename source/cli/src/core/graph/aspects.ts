@@ -1,4 +1,5 @@
-import type { Graph, GraphNode } from '../../model/graph.js';
+import type { Graph, GraphNode, AspectStatus } from '../../model/graph.js';
+import { STATUS_ORDER } from '../../model/graph.js';
 import type { WhenPredicate } from '../../model/when.js';
 import { evaluateWhen } from '../when-evaluator.js';
 import { collectAncestors } from './traversal.js';
@@ -213,3 +214,99 @@ export function getAspectSource(aspectId: string, node: GraphNode, graph: Graph)
   return 'unknown source';
 }
 
+// ============================================================
+// computeEffectiveAspectStatuses — phase-1 (channels 1–6)
+// ============================================================
+
+function maxStatus(a: AspectStatus | undefined, b: AspectStatus): AspectStatus {
+  if (a === undefined) return b;
+  return STATUS_ORDER[a] >= STATUS_ORDER[b] ? a : b;
+}
+
+function aspectDefaultStatus(graph: Graph, aspectId: string): AspectStatus {
+  const def = graph.aspects.find(a => a.id === aspectId);
+  return def?.status ?? 'enforced';
+}
+
+/**
+ * Compute effective status per aspect for a node. Phase-1: channels 1–6 only.
+ * Phase-2 (implies) added by Task 11.
+ *
+ * Returns a Map keyed by aspect id; only contains entries reachable via at
+ * least one channel after `when` filtering.
+ *
+ * @see computeEffectiveAspects for the parallel id-only set
+ */
+export function computeEffectiveAspectStatuses(node: GraphNode, graph: Graph): Map<string, AspectStatus> {
+  const result = new Map<string, AspectStatus>();
+  const ancestors = collectAncestors(node);
+
+  const contribute = (
+    aspectId: string,
+    declared: AspectStatus | undefined,
+    attachWhen: WhenPredicate | undefined,
+  ): void => {
+    const aspectDef = graph.aspects.find(a => a.id === aspectId);
+    const globalWhen = aspectDef?.when;
+    if (globalWhen && !evaluateWhen(globalWhen, node, graph)) return;
+    if (attachWhen && !evaluateWhen(attachWhen, node, graph)) return;
+    const effective = declared ?? aspectDefaultStatus(graph, aspectId);
+    result.set(aspectId, maxStatus(result.get(aspectId), effective));
+  };
+
+  // 1. Own aspects
+  for (const id of node.meta.aspects ?? []) {
+    contribute(id, node.meta.aspectStatus?.[id], node.meta.aspectWhens?.[id]);
+  }
+
+  // 2. Ancestor node aspects
+  for (const ancestor of ancestors) {
+    for (const id of ancestor.meta.aspects ?? []) {
+      contribute(id, ancestor.meta.aspectStatus?.[id], ancestor.meta.aspectWhens?.[id]);
+    }
+  }
+
+  // 3. Own architecture type aspects
+  if (graph.architecture) {
+    const typeDef = graph.architecture.node_types[node.meta.type];
+    for (const id of typeDef?.aspects ?? []) {
+      contribute(id, typeDef?.aspectStatus?.[id], typeDef?.aspectWhens?.[id]);
+    }
+  }
+
+  // 4. Ancestor architecture type aspects
+  if (graph.architecture) {
+    for (const ancestor of ancestors) {
+      const typeDef = graph.architecture.node_types[ancestor.meta.type];
+      for (const id of typeDef?.aspects ?? []) {
+        contribute(id, typeDef?.aspectStatus?.[id], typeDef?.aspectWhens?.[id]);
+      }
+    }
+  }
+
+  // 5. Flow aspects
+  const allPaths = new Set<string>([node.path, ...ancestors.map(a => a.path)]);
+  for (const flow of graph.flows) {
+    if (!flow.nodes.some(n => allPaths.has(n))) continue;
+    for (const id of flow.aspects ?? []) {
+      contribute(id, flow.aspectStatus?.[id], flow.aspectWhens?.[id]);
+    }
+  }
+
+  // 6. Port consumption aspects
+  if (node.meta.relations) {
+    for (const relation of node.meta.relations) {
+      const targetNode = graph.nodes.get(relation.target);
+      if (!targetNode?.meta.ports || !relation.consumes) continue;
+      for (const portName of relation.consumes) {
+        const port = targetNode.meta.ports[portName];
+        if (!port?.aspects) continue;
+        for (const id of port.aspects) {
+          contribute(id, port.aspectStatus?.[id], port.aspectWhens?.[id]);
+        }
+      }
+    }
+  }
+
+  return result;
+}
