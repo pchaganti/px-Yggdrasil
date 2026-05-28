@@ -1,5 +1,5 @@
 {
-  "hash": "80650fcd5b44b30160f48c4c908bb4679fb1056dff3ed11be9c12476054a086a",
+  "hash": "d0c3a608f5edbe4765bc108ce95e44c71be3d6fff17c03e36a08165ae4b75f84",
   "files": {
     "own-subset:cli/tests/unit/core/validator": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -13,7 +13,7 @@
     "source/cli/tests/unit/core/validator-aspect-files.test.ts": "c6c22a7cd2cf93df3d6542f08f18f73b34622a78754486a963073bf9dfceaba9",
     "source/cli/tests/unit/core/validator-reviewer.test.ts": "3af3ee14b3da0c31e1885e2883701ca269de92770e3f0fa935dbe8f6a6b31837",
     "source/cli/tests/unit/core/aspect-verifier.test.ts": "a9877007993f4c1cab4db07596720d9dd49ab4960f09920caea2c818b2511013",
-    "source/cli/tests/unit/core/validator-references.test.ts": "2f3ff28a1154f7573d0cea59c2093466a2c067223b9a064901e3fcd67e3c53b6"
+    "source/cli/tests/unit/core/validator-references.test.ts": "e0175cb1c2bf596e8210f79b148b896cfcd350936eb0277f16cf5936cee49950"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -26,10 +26,10 @@
     "source/cli/tests/unit/core/validator-aspect-files.test.ts": 1779876686791.4502,
     "source/cli/tests/unit/core/validator-reviewer.test.ts": 1779888989427.235,
     "source/cli/tests/unit/core/aspect-verifier.test.ts": 1779794513953.74,
-    "source/cli/tests/unit/core/validator-references.test.ts": 1779955524465.2427
+    "source/cli/tests/unit/core/validator-references.test.ts": 1779963491838.8076
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T08:06:31.692Z",
-    "prefix_hash": "3c2159f63fdd9b4e2756f41e22ee9ee65d3111b8c344b7440b54fd45ebd937f1"
+    "last_entry_datetime": "2026-05-28T10:05:58.187Z",
+    "prefix_hash": "771b8808934b937e14822a6d9685093f9228896ef15c9376390a891e9f1e09fb"
   }
 }

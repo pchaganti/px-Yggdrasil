@@ -1903,6 +1903,11 @@ function checkAspectTierReferences(graph: Graph): ValidationIssue[] {
 const DEFAULT_MAX_PER_FILE = 65536;   // 64 KiB
 const DEFAULT_MAX_TOTAL = 262144;     // 256 KiB
 
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} bytes`;
+  return `${Math.round(n / 1024)} KiB`;
+}
+
 async function checkAspectReferences(graph: Graph): Promise<ValidationIssue[]> {
   const projectRoot = path.dirname(graph.rootPath);
   const issues: ValidationIssue[] = [];
@@ -1928,13 +1933,16 @@ async function checkAspectReferences(graph: Graph): Promise<ValidationIssue[]> {
     // Resolve tier caps; defaults used when tier selection fails or tier omits the field.
     let maxPerFile = DEFAULT_MAX_PER_FILE;
     let maxTotal = DEFAULT_MAX_TOTAL;
+    let tierName: string | undefined;
     if (graph.config.reviewer) {
       const sel = selectTierForAspect(aspect, graph.config.reviewer);
       if (sel.ok) {
+        tierName = sel.tierName;
         maxPerFile = sel.tier.references?.max_bytes_per_file ?? DEFAULT_MAX_PER_FILE;
         maxTotal = sel.tier.references?.max_total_bytes_per_aspect ?? DEFAULT_MAX_TOTAL;
       }
     }
+    const tierLabel = tierName != null ? `for tier '${tierName}'` : 'for the resolved tier';
 
     let totalBytes = 0;
     for (const ref of aspect.references) {
@@ -1975,7 +1983,7 @@ async function checkAspectReferences(graph: Graph): Promise<ValidationIssue[]> {
       const size = stats.size;
       if (size > maxPerFile) {
         const msgData: IssueMessage = {
-          what: `Aspect '${aspect.id}' reference '${ref.path}' is ${size} bytes, exceeding the per-file limit of ${maxPerFile} bytes for the resolved tier.`,
+          what: `Aspect '${aspect.id}' reference '${ref.path}' is ${formatBytes(size)}, exceeding the per-file limit of ${formatBytes(maxPerFile)} ${tierLabel}.`,
           why: `oversized references inflate prompt cost on every approve call across every node where this aspect is effective.`,
           next: `split the reference into smaller files, raise references.max_bytes_per_file on the aspect's tier in .yggdrasil/yg-config.yaml, or move the aspect to a higher-context tier.`,
         };
@@ -1991,7 +1999,7 @@ async function checkAspectReferences(graph: Graph): Promise<ValidationIssue[]> {
     }
     if (totalBytes > maxTotal) {
       const msgData: IssueMessage = {
-        what: `Aspect '${aspect.id}' total reference size is ${totalBytes} bytes, exceeding the per-aspect limit of ${maxTotal} bytes for the resolved tier.`,
+        what: `Aspect '${aspect.id}' total reference size is ${formatBytes(totalBytes)}, exceeding the per-aspect limit of ${formatBytes(maxTotal)} ${tierLabel}.`,
         why: `sum of reference bytes per aspect bounds the prompt cost across all nodes where this aspect is effective.`,
         next: `reduce reference sizes, drop low-value references, or raise references.max_total_bytes_per_aspect on the aspect's tier in .yggdrasil/yg-config.yaml.`,
       };

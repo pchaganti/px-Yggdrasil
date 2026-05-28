@@ -97,6 +97,35 @@ describe('collectTrackedFiles — references', () => {
     expect(tracked.find(t => t.category === 'graph' && t.layer === 'aspects' && t.path.startsWith('docs/'))).toBeUndefined();
   });
 
+  it('two aspects with different declared paths produce two tracked entries (symlink-alias dedup contract)', () => {
+    // Spec: dedup is by declared string path, not realpath.
+    // Two distinct declared paths (even if they resolve to the same file on disk via a symlink)
+    // produce two separate TrackedFile entries — drift fires independently for each declared path.
+    const aspects: AspectDef[] = [
+      {
+        id: 'a', name: 'A', reviewer: { type: 'llm' },
+        artifacts: [{ filename: 'content.md', content: '' }, { filename: 'yg-aspect.yaml', content: '' }],
+        references: [{ path: 'docs/a.md' }],  // canonical path
+      },
+      {
+        id: 'b', name: 'B', reviewer: { type: 'llm' },
+        artifacts: [{ filename: 'content.md', content: '' }, { filename: 'yg-aspect.yaml', content: '' }],
+        references: [{ path: 'docs/b.md' }],  // different declared path (could be a symlink to a.md)
+      },
+    ];
+    const { graph, node } = makeMinimalGraph({ nodePath: 'svc', nodeAspects: ['a', 'b'], aspects });
+    const tracked = collectTrackedFiles(node, graph);
+    const aEntry = tracked.find(t => t.path === 'docs/a.md');
+    const bEntry = tracked.find(t => t.path === 'docs/b.md');
+    // Both declared paths appear as separate entries — dedup is by declared string, not realpath
+    expect(aEntry).toBeDefined();
+    expect(bEntry).toBeDefined();
+    expect(aEntry?.category).toBe('graph');
+    expect(aEntry?.layer).toBe('aspects');
+    expect(bEntry?.category).toBe('graph');
+    expect(bEntry?.layer).toBe('aspects');
+  });
+
   it('cross-node: file in nodeY mapping, referenced by aspect on nodeX → classified separately per node', () => {
     const aspect: AspectDef = {
       id: 'a', name: 'A', reviewer: { type: 'llm' },

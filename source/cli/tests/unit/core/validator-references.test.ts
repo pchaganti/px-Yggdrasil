@@ -128,10 +128,6 @@ describe('validator — reference size limits', () => {
   }
 
   it('flags reference exceeding per-file limit', async () => {
-    const projectRoot = mkdtemp.constructor === Function
-      ? await mkdtemp(path.join(os.tmpdir(), 'yg-refs-size-'))
-      : os.tmpdir();
-    // Use sync for simplicity since repos array cleanup is sync
     const tmpRoot = path.join(os.tmpdir(), `yg-refs-size-${Date.now()}`);
     mkdirSync(tmpRoot, { recursive: true });
     repos.push(tmpRoot);
@@ -147,6 +143,9 @@ describe('validator — reference size limits', () => {
     const result = await validate(graph);
     const too = result.issues.find(i => i.code === 'aspect-reference-too-large');
     expect(too).toBeDefined();
+    // Message should include tier name and KiB/bytes formatting
+    expect(too?.messageData.what).toContain("'standard'");
+    expect(too?.messageData.what).toMatch(/\d+ bytes|\d+ KiB/);
   });
 
   it('flags total references exceeding per-aspect limit', async () => {
@@ -166,6 +165,9 @@ describe('validator — reference size limits', () => {
     const result = await validate(graph);
     const tot = result.issues.find(i => i.code === 'aspect-references-total-too-large');
     expect(tot).toBeDefined();
+    // Message should include tier name and KiB/bytes formatting
+    expect(tot?.messageData.what).toContain("'standard'");
+    expect(tot?.messageData.what).toMatch(/\d+ bytes|\d+ KiB/);
   });
 
   it('uses defaults (64 KiB / 256 KiB) when tier omits references config', async () => {
