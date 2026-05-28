@@ -5,3 +5,4 @@ aspects: []
 relations: []
 mapping:
   - source/cli/tests/unit/core/language-registry.test.ts
+  - source/cli/tests/unit/core/graph/files-references.test.ts

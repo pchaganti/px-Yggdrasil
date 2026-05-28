@@ -82,6 +82,10 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph): TrackedFile[
   // 3. ASPECTS — use computeEffectiveAspects for ALL aspects from all 7 channels
   const allAspectIds = computeEffectiveAspects(node, graph);
 
+  // Compute mapping paths set once — used both for SOURCE step and reference-skip guard
+  const mappingPathsList = normalizeMappingPaths(node.meta.mapping);
+  const mappingPathsSet = new Set(mappingPathsList);
+
   for (const aspectId of allAspectIds) {
     const aspect = graph.aspects.find(a => a.id === aspectId);
     if (!aspect) continue;
@@ -101,6 +105,11 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph): TrackedFile[
           'graph',
           'aspects',
         );
+      }
+      // references — LLM only; skip paths in this node's mapping (SOURCE step claims them)
+      for (const ref of aspect.references ?? []) {
+        if (mappingPathsSet.has(ref.path)) continue;
+        addFile(ref.path, 'graph', 'aspects');
       }
     }
   }
@@ -151,8 +160,7 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph): TrackedFile[
   }
 
   // 5. SOURCE — files from mapping.paths
-  const mappingPaths = normalizeMappingPaths(node.meta.mapping);
-  for (const p of mappingPaths) {
+  for (const p of mappingPathsList) {
     addFile(p, 'source', 'source');
   }
 
