@@ -1,5 +1,5 @@
 /**
- * Task 14 — `yg check` renders by aspect status.
+ * `yg check` renders findings by aspect status.
  *
  * Verifies that classifyDrift / runCheck emit:
  *   • aspect-newly-active (error) — non-draft effective aspect without baseline verdict

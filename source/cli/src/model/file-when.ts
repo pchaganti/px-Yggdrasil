@@ -28,7 +28,7 @@ export type FileBooleanClause =
  * PredicateTrace — execution trace of a FileWhenPredicate evaluation.
  *
  * Returned by evaluator alongside boolean result for rendering predicate
- * evaluation trees in error messages (see spec §7).
+ * evaluation trees in error messages.
  */
 export type PredicateTrace =
   | { kind: 'atom-path'; pattern: string; result: boolean; detail?: string }
@@ -44,8 +44,8 @@ export type EvaluationResult = {
   /**
    * Set to true when at least one file referenced by the predicate could not
    * be read (permissions, broken symlink, etc.). The validator uses this to
-   * emit `file-unreadable` instead of `type-when-mismatch`. Per spec §7 L694,
-   * unreadable files are excluded from further validation.
+   * emit `file-unreadable` instead of `type-when-mismatch`. Unreadable files
+   * are excluded from further validation.
    */
   unreadable?: boolean;
   /** OS error string (e.g. "EACCES (permission denied)") — present when `unreadable`. */

@@ -1,5 +1,5 @@
 {
-  "hash": "88c916d60bce37a544132e5171018b1142298dbba8bde7952d652f55e755588a",
+  "hash": "e09817748b345b67a54ad93995308fbae990d766938bb5af1798d2d422babd8d",
   "files": {
     "own-subset:cli/tests/unit/cli/graph": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -14,7 +14,7 @@
     "source/cli/tests/unit/cli/flows.test.ts": "f07998042c0ff21c41daf5a2ce24e66e466db75bd5b1371bf10b5f5916a1c458",
     "source/cli/tests/unit/cli/owner.test.ts": "76367ecbdad35bb4b142c55d298947f6129a914c5e05483451ca7526ef77783a",
     "source/cli/tests/unit/cli/which.test.ts": "cfe344cd2efe6b216ace3977df6b2fea05424d31b78202c585f0c0a57469b375",
-    "source/cli/tests/unit/cli/impact.test.ts": "86715fb7b27ae4e8d9e13c5def5f3b37dfa2657786da4cc3b6d7de075ea602e8"
+    "source/cli/tests/unit/cli/impact.test.ts": "12e58430798318ae40d3163a136591a09367dcee1dfd83e6c1f6d6c867a48258"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -26,13 +26,13 @@
     "source/cli/tests/unit/cli/aspects.test.ts": 1779976651369.3562,
     "source/cli/tests/unit/cli/find.test.ts": 1779976743323.5903,
     "source/cli/tests/unit/cli/flows.test.ts": 1778570886982.5657,
-    "source/cli/tests/unit/cli/impact.test.ts": 1779997425891.8906,
+    "source/cli/tests/unit/cli/impact.test.ts": 1779997815601.5642,
     "source/cli/tests/unit/cli/owner.test.ts": 1778916613313.5156,
     "source/cli/tests/unit/cli/which.test.ts": 1778570899439.4749
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T19:44:24.810Z",
-    "prefix_hash": "dcce792ae1f78b470ba2a64a17c71e04d01d53fb6f7dd565b63933bc6a9cb281"
+    "last_entry_datetime": "2026-05-28T19:52:53.944Z",
+    "prefix_hash": "1865b948ee223fccf38858dc7b83f615acd79cd94b523fcd0cf740ca4b50cebc"
   },
   "aspectVerdicts": {
     "test-deterministic": {

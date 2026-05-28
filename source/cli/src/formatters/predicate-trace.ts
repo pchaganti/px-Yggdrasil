@@ -2,7 +2,7 @@ import type { PredicateTrace } from '../model/file-when.js';
 
 /**
  * Render a predicate evaluation trace as an indented ✓/✗ tree.
- * Used in error messages (spec §7) to show which clauses passed/failed.
+ * Used in error messages to show which clauses passed/failed.
  */
 export function renderTrace(trace: PredicateTrace, indent = ''): string {
   const lines: string[] = [];

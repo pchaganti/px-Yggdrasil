@@ -218,7 +218,7 @@ export interface AspectDef {
   artifacts: Artifact[];
   /** Supporting files for the LLM reviewer (lookup tables, catalogues, contracts). Permitted only when reviewer.type === 'llm'. */
   references?: Array<{ path: string; description?: string }>;
-  /** Aspect-level default status. Absent → 'enforced'. Attach sites may override per the bump rule (see design §5). */
+  /** Aspect-level default status. Absent → 'enforced'. Attach sites may override per the bump rule: bump up OK, downgrade is a validator error. */
   status?: AspectStatus;
 }
 

@@ -6,3 +6,5 @@ Why: Plan Task 1.5. Architecture-level node_type when needs a deterministic per-
 How to apply: recursive evaluator over all_of/any_of/not/atomic. Implicit all_of for path+content combo. Auto-exempt .yggdrasil/ paths. Head-limited regex via safeRegexTest (256KB cap) to defend against catastrophic backtracking. any_of suppresses unreadable when any sibling passes (matches spec §7 L694 intent). Plan Task 1.5.
 ## [2026-05-15T12:28:18.211Z]
 R0.4: file-content-cache import path updated from ./file-content-cache to ../io/file-content-cache
+## [2026-05-28T19:52:53.661Z]
+Strip dangling design/plan section references from JSDoc and test descriptions. The design doc lives in .plans/ which is gitignored and will be deleted; references like 'spec §7', 'design §12.1', 'Task 14' become stale pointers to non-existent files. Replaced with self-contained prose. No behavior change.

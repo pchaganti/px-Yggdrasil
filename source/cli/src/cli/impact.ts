@@ -193,10 +193,10 @@ async function handleAspectImpact(
     if (effective.has(aspectId)) {
       const statuses = computeEffectiveAspectStatuses(node, graph);
       const status = statuses.get(aspectId) ?? aspect.status ?? 'enforced';
-      // Per design §12.1: when this aspect's status flips (advisory ↔ enforced),
-      // nodes with a stored `refused` verdict for it will flip rendering
-      // severity on the next `yg check`. Surface that proactively so users see
-      // which baselines are sensitive before they touch the status.
+      // Rendering-flip risk: when this aspect's status flips (advisory ↔
+      // enforced), nodes with a stored `refused` verdict for it will flip
+      // rendering severity on the next `yg check`. Surface that proactively so
+      // users see which baselines are sensitive before they touch the status.
       const baseline = await readNodeDriftState(graph.rootPath, nodePath);
       const refusedBaseline = baseline?.aspectVerdicts?.[aspectId]?.verdict === 'refused';
       const ownAspectIds = new Set(node.meta.aspects ?? []);
@@ -227,7 +227,7 @@ async function handleAspectImpact(
     }
   }
 
-  affected.sort((a, b) => a.path.localeCompare(b.path));
+  affected.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 
   const { indirectPaths, chains } = collectIndirectDependents(
     graph,
@@ -634,7 +634,7 @@ export function registerImpactCommand(program: Command): void {
 
           if (eventDependents.length > 0) {
             process.stdout.write('\nEvent-connected:\n');
-            for (const { path: p, type, eventName } of eventDependents.sort((a, b) => a.path.localeCompare(b.path))) {
+            for (const { path: p, type, eventName } of eventDependents.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))) {
               process.stdout.write(`  ${p} (${type}: ${eventName})\n`);
             }
           }
@@ -706,7 +706,7 @@ export function registerImpactCommand(program: Command): void {
           if (coAspectNodes.length > 0) {
             process.stdout.write('Nodes sharing aspects:\n');
             for (const { path: p, shared } of coAspectNodes.sort((a, b) =>
-              a.path.localeCompare(b.path),
+              a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
             )) {
               process.stdout.write(`  ${p} (${shared.join(', ')})\n`);
             }

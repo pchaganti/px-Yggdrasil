@@ -190,9 +190,9 @@ describe('impact command', () => {
     });
 
     it('annotates affected nodes with refused baselines (rendering-flip risk)', async () => {
-      // Per design §12.1: yg impact --aspect should call out nodes whose
-      // stored baseline contains a `refused` verdict for the aspect — their
-      // rendering severity will flip if the user changes the aspect's status.
+      // yg impact --aspect calls out nodes whose stored baseline contains a
+      // `refused` verdict for the aspect — their rendering severity will flip
+      // if the user changes the aspect's status.
       await withFixtureCopy(async (cwd) => {
         const { writeFile, mkdir } = await import('node:fs/promises');
         const driftDir = path.join(cwd, '.yggdrasil', '.drift-state', 'orders');

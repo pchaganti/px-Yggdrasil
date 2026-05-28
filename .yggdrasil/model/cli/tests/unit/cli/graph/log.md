@@ -6,3 +6,5 @@ Add tests covering visible aspect status in graph-oriented CLI commands. yg aspe
 Tests for the new yg impact rendering-flip annotation: one case seeds a refused aspectVerdict in drift state and asserts the annotation appears; one case seeds an approved verdict and asserts no annotation.
 ## [2026-05-28T19:44:24.810Z]
 Updated impact.test.ts assertion: file->nodePath message now flows through stdout (was stderr). Assertion checks stdout for full 'src/orders/order.service.ts -> orders/order-service' text instead of partial path on stderr. Matches the cli/commands/impact stdout-routing fix in the same review cycle.
+## [2026-05-28T19:52:53.944Z]
+Strip dangling design/plan section references from JSDoc and test descriptions. The design doc lives in .plans/ which is gitignored and will be deleted; references like 'spec §7', 'design §12.1', 'Task 14' become stale pointers to non-existent files. Replaced with self-contained prose. No behavior change.

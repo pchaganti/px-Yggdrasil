@@ -37,7 +37,7 @@ export type EvalContext = {
 /**
  * Evaluate a FileWhenPredicate against a file. Returns boolean result plus
  * trace structure suitable for rendering predicate evaluation trees in
- * error messages (spec §7).
+ * error messages.
  *
  * Auto-exempts paths under `.yggdrasil/` (returns vacuously true).
  */

@@ -128,14 +128,14 @@ describe('evaluateFileWhen', () => {
     expect(result.result).toBe(false);
   });
 
-  it('content: ".*" trivial regex is accepted (spec §2 L199)', async () => {
+  it('content: ".*" trivial regex is accepted', async () => {
     writeFileSync(join(tmpDir, 'src.ts'), 'anything');
     const pred: FileWhenPredicate = { content: '.*' };
     const result = await evaluateFileWhen(pred, ctx('src.ts'));
     expect(result.result).toBe(true);
   });
 
-  it('rejects head-limited content gracefully (spec §12 L1518)', async () => {
+  it('rejects head-limited content gracefully', async () => {
     writeFileSync(join(tmpDir, 'src.ts'), 'a'.repeat(300 * 1024));
     const pred: FileWhenPredicate = { content: 'a' };
     const result = await evaluateFileWhen(pred, ctx('src.ts'));

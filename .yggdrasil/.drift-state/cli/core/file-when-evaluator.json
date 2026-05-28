@@ -1,5 +1,5 @@
 {
-  "hash": "9307c01e345e651f406a3f4f497c6f39ac75c5f8982fc39673f8d7047fc360cf",
+  "hash": "a0aa89a235dd25faebaee9b8ad7a5f8613abbf96db9d8d382e0cea181bd245c2",
   "files": {
     "own-subset:cli/core/file-when-evaluator": "39c8c1aa89e2616820ac870294a6b7c631bef392f1d63268f314c33682b303a2",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -21,7 +21,7 @@
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
     ".yggdrasil/model/cli/io/file-content-cache/yg-node.yaml": "2cdef4ba1992bd79e1e5ee3162bb75c14682a1b2c565b1ba6579f29e9ebc5841",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
-    "source/cli/src/core/file-when-evaluator.ts": "fa095aac09f2113fa9ed33c6edf48b26b67a87a4029ccd7eb6aac887aef0fdbe"
+    "source/cli/src/core/file-when-evaluator.ts": "3e70364e9556ad417144365fa7d928be07696f5a40e3d9c22ec1760f0053de00"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -42,10 +42,30 @@
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     ".yggdrasil/model/cli/io/file-content-cache/yg-node.yaml": 1778872197089.163,
     ".yggdrasil/model/cli/io/yg-node.yaml": 1778865790703.1045,
-    "source/cli/src/core/file-when-evaluator.ts": 1778848078683.4534
+    "source/cli/src/core/file-when-evaluator.ts": 1779997851969.0608
   },
   "log": {
-    "last_entry_datetime": "2026-05-15T12:28:18.211Z",
-    "prefix_hash": "424d724076724d89aff9b80a2a49b668aa2fb3004853744239aa8cb09db2c436"
+    "last_entry_datetime": "2026-05-28T19:52:53.661Z",
+    "prefix_hash": "d960af16d68b8e68558b8e0afcf6aed1424bcd7cd8edccd3bea43b15d6975692"
+  },
+  "aspectVerdicts": {
+    "deterministic": {
+      "verdict": "approved"
+    },
+    "no-direct-fs": {
+      "verdict": "approved"
+    },
+    "no-direct-console": {
+      "verdict": "approved"
+    },
+    "no-nondeterminism-direct": {
+      "verdict": "approved"
+    },
+    "posix-paths-source": {
+      "verdict": "approved"
+    },
+    "single-source-graph-queries": {
+      "verdict": "approved"
+    }
   }
 }
