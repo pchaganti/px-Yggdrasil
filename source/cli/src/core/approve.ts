@@ -277,18 +277,6 @@ export async function approveNode(
     classifyChangedFile(storedPath);
   }
 
-  function annotateUpstreamChange(
-    filePath: string,
-    layer: TrackedFileLayer | undefined,
-  ): string {
-    const normalized = filePath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
-    if (layer === 'aspects' || normalized.includes('/aspects/')) return 'aspect content';
-    if (normalized.includes('/flows/')) return 'flow description';
-    if (layer === 'hierarchy') return 'parent metadata';
-    if (layer === 'relational') return 'dependency metadata';
-    return 'upstream content';
-  }
-
   function classifyChangedFile(filePath: string): void {
     const layer = resolveLayer(filePath);
     const isGraph = filePath.trim().replace(/\\/g, '/').replace(/\/+$/, '').startsWith(yggPrefix);
@@ -472,6 +460,16 @@ function getChildMappingExclusions(graph: Graph, nodePath: string): string[] {
   return exclusions;
 }
 /* v8 ignore stop */
+
+/** Annotate an upstream changed file with a human-readable category label. */
+function annotateUpstreamChange(filePath: string, layer: TrackedFileLayer | undefined): string {
+  const normalized = filePath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+  if (layer === 'aspects' || normalized.includes('/aspects/')) return 'aspect content';
+  if (normalized.includes('/flows/')) return 'flow description';
+  if (layer === 'hierarchy') return 'parent metadata';
+  if (layer === 'relational') return 'dependency metadata';
+  return 'upstream content';
+}
 
 /** GC orphaned drift state — remove entries for nodes not in graph or with no non-draft effective aspects */
 async function runGC(graph: Graph): Promise<string[]> {
