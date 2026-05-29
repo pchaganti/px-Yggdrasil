@@ -1,0 +1,34 @@
+{
+  "hash": "d9c04239ec812cfef14baa5c5269031bbdb8c8e3bc766cafa22805415e1d2fe0",
+  "files": {
+    "own-subset:cli/tests/unit/cli/inspect": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
+    ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": "d51c269d4b45bd597645a6c918e820c67762877ac22d64f861c53421b67a4fbd",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
+    ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/unit/cli/knowledge.test.ts": "26d8e2375f56a146b2106eb996acdc9dbcb3f73cdc9f4a2824d0e8be5e953894",
+    "source/cli/tests/unit/cli/structure-test.test.ts": "8768f0968d971eb754c9be112fc1e1e75c9c7b9751ea812fc84dd474169edd66",
+    "source/cli/tests/unit/cli/tree.test.ts": "3f9cc63d9d6f248d16c80a6d13634897a71c805decc5eb1cef339f202d77a462",
+    "source/cli/tests/unit/cli/type-suggest.test.ts": "bb015a4b5b68666fc449a285692fee36f9c3238d58d755691644ce403ff46398"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
+    ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": 1780048240858.293,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
+    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
+    "source/cli/tests/unit/cli/knowledge.test.ts": 1778955687690.9875,
+    "source/cli/tests/unit/cli/structure-test.test.ts": 1780047239310.3284,
+    "source/cli/tests/unit/cli/tree.test.ts": 1780047244232.665,
+    "source/cli/tests/unit/cli/type-suggest.test.ts": 1778834244672.9507
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
+  }
+}

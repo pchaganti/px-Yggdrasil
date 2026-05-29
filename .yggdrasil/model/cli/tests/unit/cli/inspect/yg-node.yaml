@@ -1,0 +1,10 @@
+name: CLI Inspection Command Tests
+type: test-suite
+description: Unit tests for inspection CLI commands — knowledge, structure-test, tree, and type-suggest.
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/cli/knowledge.test.ts
+  - source/cli/tests/unit/cli/structure-test.test.ts
+  - source/cli/tests/unit/cli/tree.test.ts
+  - source/cli/tests/unit/cli/type-suggest.test.ts
