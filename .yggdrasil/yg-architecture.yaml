@@ -153,6 +153,22 @@ node_types:
       calls: [utility, llm-shared]
       uses: [types]
 
+  structure-adapter:
+    description: "Structure adapter — structure aspect runtime, ctx surface, allowed-reads guard."
+    enforce: strict
+    when:
+      all_of:
+        - path: "source/cli/src/structure/*.ts"
+        - not:
+            path: "**/*.test.ts"
+    aspects:
+      - deterministic
+      - posix-paths-source
+    parents: [module]
+    relations:
+      calls: [utility, ast-adapter]
+      uses: [types]
+
   llm-provider:
     description: "LLM provider — vendor-specific adapter implementing the provider interface. One file per vendor."
     enforce: strict

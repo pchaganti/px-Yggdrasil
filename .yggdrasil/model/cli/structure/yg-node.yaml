@@ -1,0 +1,5 @@
+name: Structure
+type: structure-adapter
+description: "Public entry point for the structure-aspect runtime (placeholder; real exports come in later tasks)."
+mapping:
+  - source/cli/src/structure/index.ts
