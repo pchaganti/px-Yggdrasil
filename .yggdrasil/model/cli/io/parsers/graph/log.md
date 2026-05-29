@@ -14,3 +14,5 @@ flow-parser now parses the per-attachment 'status:' field declared on flow aspec
 Extend AspectReviewerSpec.type to accept 'structure' for structure-based aspects. Updated parser whitelist and type cast to recognize this new reviewer type.
 ## [2026-05-29T05:22:19.319Z]
 Tighten parser error messaging to enumerate all three reviewer.type values consistently — the why-line already mentioned the full set, the next-line guidance only mentioned two. Avoids agent confusion when receiving the diagnostic.
+## [2026-05-29T05:30:01.307Z]
+Add cross-field guard aspect-references-on-structure: rejects references: on structure-type aspects. Structure aspects call check.mjs locally; references are only usable by LLM reviewers. Mirrors existing aspect-references-on-ast check at the same insertion site.

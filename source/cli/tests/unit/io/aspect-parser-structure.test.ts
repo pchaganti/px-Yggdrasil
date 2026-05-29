@@ -26,4 +26,21 @@ describe('aspect-parser — structure reviewer.type', () => {
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.aspect.reviewer.type).toBe('structure');
   });
+
+  it('rejects structure aspect with references — aspect-references-on-structure', async () => {
+    writeFileSync(yamlPath, [
+      'name: T',
+      'description: x',
+      'reviewer:',
+      '  type: structure',
+      'references:',
+      '  - docs/foo.md',
+      ''
+    ].join('\n'));
+    const r = await parseAspect(aspectDir, yamlPath, 'test');
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors[0].code).toBe('aspect-references-on-structure');
+    }
+  });
 });

@@ -196,6 +196,21 @@ export async function parseAspect(
         }],
       };
     }
+    // aspect-references-on-structure: cross-field check
+    if (reviewer.type === 'structure') {
+      return {
+        ok: false,
+        aspectId: idTrimmed,
+        errors: [{
+          code: 'aspect-references-on-structure',
+          messageData: {
+            what: `Aspect '${idTrimmed}' declares 'references:' but reviewer.type is 'structure'.`,
+            why: 'reference files are passed to the LLM reviewer in the prompt. Structure aspects run a local check.mjs and ignore them.',
+            next: `remove 'references:' from .yggdrasil/aspects/${idTrimmed}/yg-aspect.yaml, or embed lookup tables in check.mjs directly, or change reviewer.type to 'llm'.`,
+          },
+        }],
+      };
+    }
     // aspect-references-on-ast: cross-field check
     if (reviewer.type === 'ast') {
       return {
