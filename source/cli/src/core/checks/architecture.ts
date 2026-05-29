@@ -1,0 +1,438 @@
+import path from 'node:path';
+import type { Graph } from '../../model/graph.js';
+import type { ValidationIssue } from '../../model/validation.js';
+import { FileContentCache } from '../../io/file-content-cache.js';
+import { evaluateFileWhen } from '../file-when-evaluator.js';
+import { renderTrace } from '../../formatters/predicate-trace.js';
+import { issueMsg } from './shared.js';
+
+export function checkTypeUnknownParent(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const knownTypes = new Set(Object.keys(graph.architecture.node_types));
+  for (const [typeName, typeConfig] of Object.entries(graph.architecture.node_types)) {
+    for (const parent of typeConfig.parents ?? []) {
+      if (!knownTypes.has(parent)) {
+        issues.push({
+          severity: 'error',
+          code: 'type-unknown-parent',
+          rule: 'type-unknown-parent',
+          ...issueMsg({
+            what: `Architecture type '${typeName}' declares parent '${parent}' which is not defined in node_types.`,
+            why: `Parent types must be defined in yg-architecture.yaml — referencing an undefined type makes the architecture semantically invalid.`,
+            next: `Add '${parent}' to node_types or remove it from '${typeName}.parents'.`,
+          }),
+          messageData: {
+            what: `Architecture type '${typeName}' declares parent '${parent}' which is not defined in node_types.`,
+            why: `Parent types must be defined in yg-architecture.yaml — referencing an undefined type makes the architecture semantically invalid.`,
+            next: `Add '${parent}' to node_types or remove it from '${typeName}.parents'.`,
+          },
+        });
+      }
+    }
+  }
+  return issues;
+}
+
+export function checkArchitectureParentCycles(graph: Graph): ValidationIssue[] {
+  const types = graph.architecture.node_types;
+  const typeIds = Object.keys(types);
+
+  // Skip if any parent reference is unknown — checkTypeUnknownParent handles that
+  const knownTypes = new Set(typeIds);
+  for (const def of Object.values(types)) {
+    if (def.parents?.some((p) => !knownTypes.has(p))) return [];
+  }
+
+  // Pass 1: DFS three-color — collect back-edges (cycle-forming edges)
+  const WHITE = 0, GRAY = 1, BLACK = 2;
+  const color = new Map<string, number>(typeIds.map((id) => [id, WHITE]));
+  const backEdges = new Set<string>();
+  const recordedCycles: string[][] = [];
+
+  function dfs(typeId: string, path: string[]): void {
+    if (color.get(typeId) === GRAY) {
+      const cycleStart = path.indexOf(typeId);
+      if (cycleStart !== -1) recordedCycles.push([...path.slice(cycleStart), typeId]);
+      const from = path[path.length - 1];
+      if (from !== undefined) backEdges.add(`${from}->${typeId}`);
+      return;
+    }
+    if (color.get(typeId) === BLACK) return;
+    color.set(typeId, GRAY);
+    path.push(typeId);
+    for (const parent of types[typeId]?.parents ?? []) dfs(parent, path);
+    path.pop();
+    color.set(typeId, BLACK);
+  }
+  for (const id of typeIds) { if (color.get(id) === WHITE) dfs(id, []); }
+
+  // Pass 2: BFS per type excluding back-edges — check if rootable type reachable
+  function isRootable(id: string): boolean {
+    const parents = types[id]?.parents;
+    return !parents || parents.length === 0;
+  }
+  function canReachRootable(typeId: string): boolean {
+    if (isRootable(typeId)) return true;
+    const visited = new Set<string>([typeId]);
+    const queue: string[] = [typeId];
+    while (queue.length) {
+      const cur = queue.shift()!;
+      for (const parent of types[cur]?.parents ?? []) {
+        if (backEdges.has(`${cur}->${parent}`)) continue;
+        if (isRootable(parent)) return true;
+        if (!visited.has(parent)) { visited.add(parent); queue.push(parent); }
+      }
+    }
+    return false;
+  }
+
+  const trapped = typeIds.filter((id) => !canReachRootable(id));
+  if (trapped.length === 0) return [];
+
+  const cycleStr = recordedCycles.length > 0
+    ? recordedCycles[0].join(' → ')
+    : trapped.join(' ↔ ');
+  return [{
+    severity: 'error',
+    code: 'architecture-cycle',
+    rule: 'architecture-cycle',
+    ...issueMsg({
+      what: `Cycle in parents: declarations:\n  ${cycleStr}\nTrapped types: ${trapped.join(', ')}`,
+      why: `Every type in the cycle can only reach other cycle members — no rootable type is reachable. Nodes of these types can never be instantiated.`,
+      next: `Break the cycle: add a rootable parent (one with no parents:), remove one parents: declaration, or add a third type as alternative parent.`,
+    }),
+  }];
+}
+export function checkEnforceStrictWithoutWhen(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  for (const [typeId, def] of Object.entries(graph.architecture.node_types)) {
+    if (def.enforce === 'strict' && def.when === undefined) {
+      issues.push({
+        severity: 'error',
+        code: 'enforce-strict-without-when',
+        rule: 'enforce-strict-without-when',
+        ...issueMsg({
+          what: `Type '${typeId}' has enforce: strict but no when predicate.`,
+          why: `enforce: strict requires when — it tells the validator which files must belong to a node of this type. Without when, there's no condition to evaluate.`,
+          next: `Either add a when predicate to type '${typeId}', or remove enforce: strict. See schemas/yg-architecture.yaml.`,
+        }),
+        messageData: {
+          what: `Type '${typeId}' has enforce: strict but no when predicate.`,
+          why: `enforce: strict requires when — it tells the validator which files must belong to a node of this type. Without when, there's no condition to evaluate.`,
+          next: `Either add a when predicate to type '${typeId}', or remove enforce: strict. See schemas/yg-architecture.yaml.`,
+        },
+      });
+    }
+  }
+  return issues;
+}
+export function checkTypeWithoutWhenWithMapping(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  for (const [nodePath, node] of graph.nodes) {
+    const typeDef = graph.architecture.node_types[node.meta.type];
+    if (typeDef === undefined) continue;
+    if (typeDef.when !== undefined) continue;
+    const mapping = node.meta.mapping ?? [];
+    if (mapping.length === 0) continue;
+
+    const preview = mapping.slice(0, 3).map((m) => `  - ${m}`).join('\n');
+    const ellipsis = mapping.length > 3 ? `\n  ... (${mapping.length - 3} more)` : '';
+    issues.push({
+      severity: 'error',
+      code: 'type-without-when-with-mapping',
+      rule: 'type-without-when-with-mapping',
+      nodePath,
+      ...issueMsg({
+        what: `Node '${nodePath}' has type '${node.meta.type}' (no \`when\` — organizational type) but mapping is not empty:\n  mapping:\n${preview}${ellipsis}`,
+        why: `Types without \`when\` are organizational (parent-only). Nodes of such types cannot have mapped files.`,
+        next: `Add a \`when\` predicate to type '${node.meta.type}' in yg-architecture.yaml, move the file(s) to a node whose type has \`when\`, or empty this node's mapping.`,
+      }),
+      messageData: {
+        what: `Node '${nodePath}' has type '${node.meta.type}' (no \`when\` — organizational type) but mapping is not empty:\n  mapping:\n${preview}${ellipsis}`,
+        why: `Types without \`when\` are organizational (parent-only). Nodes of such types cannot have mapped files.`,
+        next: `Add a \`when\` predicate to type '${node.meta.type}' in yg-architecture.yaml, move the file(s) to a node whose type has \`when\`, or empty this node's mapping.`,
+      },
+    });
+  }
+  return issues;
+}
+export async function checkTypeWhenMismatch(
+  graph: Graph,
+  cache: FileContentCache,
+): Promise<{ issues: ValidationIssue[]; unreadable: ValidationIssue[] }> {
+  const issues: ValidationIssue[] = [];
+  const unreadable: ValidationIssue[] = [];
+  const projectRoot = path.dirname(graph.rootPath);
+
+  for (const [nodePath, node] of graph.nodes) {
+    const typeDef = graph.architecture.node_types[node.meta.type];
+    if (typeDef === undefined || typeDef.when === undefined) continue;
+    const mapping = node.meta.mapping ?? [];
+    for (const relPath of mapping) {
+      const absPath = path.join(projectRoot, relPath);
+      const result = await evaluateFileWhen(typeDef.when, {
+        absPath,
+        repoRelPath: relPath,
+        projectRoot,
+        cache,
+      });
+
+      if (result.unreadable) {
+        unreadable.push({
+          severity: 'error',
+          code: 'file-unreadable',
+          rule: 'file-unreadable',
+          ...issueMsg({
+            what: `Validator could not read '${relPath}' for when evaluation.\nOS error: ${result.unreadableReason ?? 'unknown'}`,
+            why: `Type classification requires reading file content for content: predicates. Files that cannot be opened cannot be classified.`,
+            next: `Fix file permissions, or remove the file from the node's mapping if it's not actually source code.`,
+          }),
+        });
+        continue;
+      }
+
+      if (!result.result) {
+        issues.push({
+          severity: 'error',
+          code: 'type-when-mismatch',
+          rule: 'type-when-mismatch',
+          nodePath,
+          ...issueMsg({
+            what: `File '${relPath}' is in mapping of node '${nodePath}' (type: ${node.meta.type}) but does not satisfy '${node.meta.type}'.when:\n${renderTrace(result.trace, '  ')}`,
+            why: `When a node is declared as type '${node.meta.type}', every file in its mapping must satisfy the type's when predicate. This ensures type-default aspects apply to relevant code only.`,
+            next: `Options:\n  1. Move file to a node of a different type that fits\n     (run: yg type-suggest --file ${relPath})\n  2. Refactor the file so it satisfies ${node.meta.type}.when\n  3. Broaden '${node.meta.type}'.when in yg-architecture.yaml`,
+          }),
+        });
+      }
+    }
+  }
+  return { issues, unreadable };
+}
+
+export function checkArchitectureConstraints(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  // invalid-relation-target and invalid-parent-type require architecture to be defined and loaded
+  // Only validate if architecture has node_types entries
+  if (!graph.architecture || Object.keys(graph.architecture.node_types).length === 0) {
+    return issues;
+  }
+
+  // type-undefined: node uses a type not defined in architecture
+  issues.push(...checkNodeTypesExist(graph));
+
+  // invalid-relation-target (sync, no I/O)
+  issues.push(...checkArchitectureRelations(graph));
+
+  // invalid-parent-type (sync, no I/O)
+  issues.push(...checkArchitectureParents(graph));
+
+  return issues;
+}
+
+export function checkNodeTypesExist(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const allowedTypes = new Set(Object.keys(graph.architecture!.node_types));
+
+  for (const [nodePath, node] of graph.nodes) {
+    if (!allowedTypes.has(node.meta.type)) {
+      issues.push({
+        severity: 'error',
+        code: 'type-undefined',
+        rule: 'unknown-node-type',
+        ...issueMsg({
+          what: `Node type '${node.meta.type}' is not defined in yg-architecture.yaml.`,
+          why: `Allowed types: ${[...allowedTypes].join(', ')}.`,
+          next: `Add '${node.meta.type}' to yg-architecture.yaml or change the node type.`,
+        }),
+        nodePath,
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * integration-aspect-missing
+ * When a node consumes a port, that port's required aspects must be defined in aspects/.
+ */
+export function checkPortAspectsDefined(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const definedAspects = new Set(graph.aspects.map((a) => a.id));
+
+  for (const [nodePath, node] of graph.nodes) {
+    for (const rel of node.meta.relations ?? []) {
+      const target = graph.nodes.get(rel.target);
+      if (!target?.meta.ports) continue;
+
+      for (const portName of rel.consumes ?? []) {
+        const port = target.meta.ports[portName];
+        if (!port) continue; // unknown-port catches this
+        for (const aspectId of port.aspects) {
+          if (!definedAspects.has(aspectId)) {
+            issues.push({
+              severity: 'error',
+              code: 'port-missing-aspect',
+              rule: 'integration-aspect-missing',
+              nodePath,
+              ...issueMsg({
+                what: `Relation: ${rel.type} -> ${rel.target}, port '${portName}'`,
+                why: `Port requires aspect '${aspectId}' but it is not defined in aspects/ — port contracts are broken.`,
+                next: `Create aspects/${aspectId}/ with yg-aspect.yaml and content.md.`,
+              }),
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * invalid-relation-target
+ * Relation target type must be in architecture's allowed list for the relation type.
+ */
+export function checkArchitectureRelations(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  for (const [nodePath, node] of graph.nodes) {
+    const typeConfig = graph.architecture.node_types[node.meta.type];
+    if (!typeConfig?.relations || !node.meta.relations || node.meta.relations.length === 0) {
+      continue;
+    }
+
+    for (const rel of node.meta.relations) {
+      const allowedTypes = typeConfig.relations[rel.type];
+      if (!allowedTypes) continue; // Unconstrained relation type
+
+      const target = graph.nodes.get(rel.target);
+      if (!target) continue; // relation-target-missing catches this
+
+      if (!allowedTypes.includes(target.meta.type)) {
+        issues.push({
+          severity: 'error',
+          code: 'relation-target-forbidden',
+          rule: 'invalid-relation-target',
+          nodePath,
+          ...issueMsg({
+            what: `Relation: ${rel.type} -> ${rel.target} (type: ${target.meta.type})`,
+            why: `Architecture does not allow type '${node.meta.type}' to '${rel.type}' type '${target.meta.type}'. Allowed targets for '${rel.type}': [${allowedTypes.join(', ')}]`,
+            next: `Either change the relation type, change the target node's type, or update yg-architecture.yaml to allow this relation.`,
+          }),
+        });
+      }
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * invalid-parent-type
+ * Parent type must be in architecture's allowed list for this node type.
+ */
+export function checkArchitectureParents(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  for (const [nodePath, node] of graph.nodes) {
+    const typeConfig = graph.architecture.node_types[node.meta.type];
+    if (!typeConfig?.parents || !node.parent) {
+      continue;
+    }
+
+    if (!typeConfig.parents.includes(node.parent.meta.type)) {
+      issues.push({
+        severity: 'error',
+        code: 'parent-type-forbidden',
+        rule: 'invalid-parent-type',
+        nodePath,
+        ...issueMsg({
+          what: `Parent: ${node.parent.path} (type: ${node.parent.meta.type})`,
+          why: `Architecture does not allow type '${node.meta.type}' under parent type '${node.parent.meta.type}'. Allowed parents: [${typeConfig.parents.join(', ')}]`,
+          next: `Either move this node under an allowed parent type, change this node's type, or update yg-architecture.yaml to allow this parent.`,
+        }),
+      });
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * missing-consumes
+ * When a relation target has non-empty ports, the consumer must declare which port(s) it consumes.
+ *
+ * unknown-port
+ * When a consumer's consumes list references a port name that does not exist on the target.
+ */
+export function checkPortConsumes(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  for (const [nodePath, node] of graph.nodes) {
+    for (const rel of node.meta.relations ?? []) {
+      // Skip event relations — they don't consume ports
+      if (rel.type === 'emits' || rel.type === 'listens') continue;
+
+      const target = graph.nodes.get(rel.target);
+      const hasPorts = target?.meta.ports && Object.keys(target.meta.ports).length > 0;
+
+      // consumes-without-ports: consumes on a relation to a target without ports
+      if (!hasPorts && rel.consumes && rel.consumes.length > 0) {
+        issues.push({
+          severity: 'error',
+          code: 'consumes-without-ports',
+          rule: 'consumes-without-ports',
+          nodePath,
+          ...issueMsg({
+            what: `Relation: ${rel.type} -> ${rel.target} declares consumes: [${rel.consumes.join(', ')}]`,
+            why: `Target has no ports. consumes is only meaningful when the target declares ports with required aspects.`,
+            next: `Remove consumes from this relation in yg-node.yaml.`,
+          }),
+        });
+        continue;
+      }
+
+      if (!hasPorts) continue;
+      const ports = target!.meta.ports!;
+
+      // missing-consumes: target has ports but consumer has no consumes
+      if (!rel.consumes || rel.consumes.length === 0) {
+        const portNames = Object.keys(ports);
+        issues.push({
+          severity: 'error',
+          code: 'port-missing-consumes',
+          rule: 'missing-consumes',
+          nodePath,
+          ...issueMsg({
+            what: `Relation: ${rel.type} -> ${rel.target}`,
+            why: `Target has ports: [${portNames.join(', ')}] — port-required aspects won't be verified without a consumes declaration.`,
+            next: `Add consumes: [<port-names>] to this relation in yg-node.yaml.`,
+          }),
+        });
+        continue;
+      }
+
+      // unknown-port: consumes references non-existent port
+      for (const portName of rel.consumes) {
+        if (!(portName in ports)) {
+          const available = Object.keys(ports);
+          issues.push({
+            severity: 'error',
+            code: 'port-undefined',
+            rule: 'unknown-port',
+            nodePath,
+            ...issueMsg({
+              what: `Relation: ${rel.type} -> ${rel.target}, port '${portName}' not found.`,
+              why: `Port contract cannot be enforced for an undefined port. Available ports: [${available.join(', ')}]`,
+              next: `Fix the port name in consumes, or add the port definition to the target node.`,
+            }),
+          });
+        }
+      }
+    }
+  }
+
+  return issues;
+}

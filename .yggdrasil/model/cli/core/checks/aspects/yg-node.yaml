@@ -1,0 +1,10 @@
+name: Aspect Checks
+type: engine
+description: "Validation checks for aspect definitions and contracts — dangling refs, id uniqueness, implied-aspect existence and acyclicity, orphaned aspects, when-predicate references, rule-source exclusivity, reviewer presence, tier references, reference files, and status-downgrade detection."
+aspects:
+  - posix-paths-output
+  - what-why-next
+relations: []
+mapping:
+  - source/cli/src/core/checks/aspects.ts
+  - source/cli/src/core/checks/aspect-contracts.ts

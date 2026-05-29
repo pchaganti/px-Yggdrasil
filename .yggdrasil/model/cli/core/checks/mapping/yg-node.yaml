@@ -1,0 +1,9 @@
+name: Mapping & Coverage Checks
+type: engine
+description: "Validation checks for source-file mapping and coverage — gitignored mappings, duplicate mappings, strict backward coverage, mapping ownership overlap, mapping paths existing on disk, oversized/wide nodes, and directories missing yg-node.yaml."
+aspects:
+  - posix-paths-output
+  - what-why-next
+relations: []
+mapping:
+  - source/cli/src/core/checks/mapping.ts

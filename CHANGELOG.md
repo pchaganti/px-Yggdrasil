@@ -51,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Internal: `core/validator.ts` (the 2121-line / ~83k-char validation god-file) split into a thin `validate()` orchestrator plus domain-grouped check modules under `core/checks/` (`architecture.ts`, `aspects.ts`, `aspect-contracts.ts`, `mapping.ts`, `relations.ts`, and a shared `shared.ts` holding `issueMsg`). Verbatim function moves — no change to which checks run, their order, their messages, or their verdicts. Reduces the largest engine file so the reviewer can inspect it without context-window truncation.
 - `command` node type gains permission to depend on the new `test-suite` organizational type. Required for the new `sibling-test-file` aspect's cross-node lookup.
 - New `structure-adapter` node type added (mirrors `ast-adapter`) covering `source/cli/src/structure/*.ts`.
 - New `test-suite` organizational node type added — labels the test directory tree explicitly so commands can declare `uses: <test-suite>` without granting them dependency on every internal module.

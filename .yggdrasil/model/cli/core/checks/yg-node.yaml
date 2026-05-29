@@ -1,0 +1,5 @@
+name: Validation Checks
+type: module
+description: "Graph validation check functions extracted from the validator orchestrator — grouped by domain (architecture, aspects, mapping/coverage, relations). The validate() orchestrator in core/validator.ts composes these."
+aspects: []
+relations: []
