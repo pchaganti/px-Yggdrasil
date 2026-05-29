@@ -1,16 +1,10 @@
-name: Adopter Guides
+name: Adopter Guides — Fundamentals
 type: doc-page
-description: "Task-oriented adopter documentation: getting started, CLI reference, configuration, platforms, conditional aspects, aspect status, site index, and dogfood showcase"
+description: "Task-oriented adopter documentation: getting started, core concepts, CLI reference, and site index."
 aspects: []
 relations: []
 mapping:
   - docs/getting-started.md
   - docs/core-concepts.md
   - docs/cli-reference.md
-  - docs/configuration.md
-  - docs/platforms.md
   - docs/index.md
-  - docs/conditional-aspects.md
-  - docs/aspect-status.md
-  - docs/reviewers.md
-  - docs/showcase.md

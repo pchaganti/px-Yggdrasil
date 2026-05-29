@@ -1,0 +1,8 @@
+name: Adopter Guides — Reviewers & Showcase
+type: doc-page
+description: "Task-oriented adopter documentation: the reviewers reference and the dogfood showcase."
+aspects: []
+relations: []
+mapping:
+  - docs/reviewers.md
+  - docs/showcase.md

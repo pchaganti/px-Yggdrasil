@@ -1,0 +1,8 @@
+name: Knowledge Docs — Aspect Authoring
+type: knowledge-doc
+description: In-process knowledge documents served by yg knowledge read — how to author aspects (writing LLM/AST/structure aspects, conditional when-predicates).
+mapping:
+  - source/cli/src/templates/knowledge/conditional-aspects.ts
+  - source/cli/src/templates/knowledge/writing-ast-aspects.ts
+  - source/cli/src/templates/knowledge/writing-llm-aspects.ts
+  - source/cli/src/templates/knowledge/writing-structure-aspects.ts
