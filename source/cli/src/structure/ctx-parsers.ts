@@ -1,0 +1,73 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { parse as parseYaml } from 'yaml';
+import { parse as parseTomlSmol } from 'smol-toml';
+import { parseFile as parseAstFile } from '../ast/parser.js';
+import type { ParseCache } from '../ast/parse-cache.js';
+import type { File } from './types.js';
+
+export interface CtxParsersParams {
+  projectRoot: string;
+  touchedFiles: string[];
+  astCache: ParseCache;
+}
+
+export interface CtxParsers {
+  parseAst(file: File | string, language: string): unknown;
+  parseYaml(file: File | string): unknown;
+  parseJson(file: File | string): unknown;
+  parseToml(file: File | string): unknown;
+}
+
+export function createCtxParsers(params: CtxParsersParams): CtxParsers {
+  const { projectRoot, touchedFiles, astCache } = params;
+
+  function asFile(input: File | string): File {
+    if (typeof input !== 'string') {
+      touchedFiles.push(input.path);
+      return input;
+    }
+    const abs = path.resolve(projectRoot, input);
+    const content = fs.readFileSync(abs, 'utf8');
+    touchedFiles.push(input);
+    return { path: input, content };
+  }
+
+  return {
+    parseAst(file, language) {
+      void language;
+      const f = asFile(file);
+      const cached = astCache.get(f.path);
+      if (cached && cached.content === f.content) return cached.ast;
+      throw new Error(
+        `structure-aspect-parseast-not-prewarmed: ${f.path}. ` +
+        `The dispatcher did not prewarm this file. ` +
+        `Either (i) add a declared relation to the node owning this file, or ` +
+        `(ii) use ctx.parseYaml/Json/Toml if AST is not required.`,
+      );
+    },
+    parseYaml(file) { return parseYaml(asFile(file).content); },
+    parseJson(file) { return JSON.parse(asFile(file).content); },
+    parseToml(file) { return parseTomlSmol(asFile(file).content); },
+  };
+}
+
+// Helper used by dispatcher (Task 17) to prewarmup astCache for a given aspect run.
+export async function prewarmupAstCache(params: {
+  astCache: ParseCache;
+  projectRoot: string;
+  files: File[];
+}): Promise<void> {
+  const { astCache, files } = params;
+  for (const f of files) {
+    if (!isAstLanguageExtension(f.path)) continue;
+    const existing = astCache.get(f.path);
+    if (existing && existing.content === f.content) continue;
+    const tree = await parseAstFile(f.path, f.content);
+    astCache.set(f.path, { content: f.content, ast: tree });
+  }
+}
+
+function isAstLanguageExtension(p: string): boolean {
+  return /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(p);
+}
