@@ -1,0 +1,2 @@
+## [2026-05-29T07:39:24.247Z]
+Added approve-reviewer-structure.test.ts to the mapping — this test file covers the resolveExecutionPlan structure branch (kind:'structure' entries, no tier resolution for structure aspects, mixed ast/structure/llm plan). Added the file to this node rather than creating a new node because the test subject is approve-reviewer orchestration, which is the same domain as the other test files in this suite.

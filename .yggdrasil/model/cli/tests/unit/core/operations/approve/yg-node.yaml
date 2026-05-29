@@ -11,3 +11,4 @@ mapping:
   - source/cli/tests/unit/core/approve-aspect-status.test.ts
   - source/cli/tests/unit/core/approve-aspect-verdicts.test.ts
   - source/cli/tests/unit/core/approve-annotate.test.ts
+  - source/cli/tests/unit/core/approve-reviewer-structure.test.ts

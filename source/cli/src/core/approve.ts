@@ -357,7 +357,13 @@ export async function approveNode(
           log: logBaseline,
         },
       }
-    : undefined;
+    : {
+        // no-change, no log update — populate from baseline so structure dispatch
+        // can run and update structureTouchedFiles without violating the
+        // pendingDriftState-exists contract.
+        nodePath,
+        state: structuredClone(storedEntry),
+      };
 
   return {
     action,

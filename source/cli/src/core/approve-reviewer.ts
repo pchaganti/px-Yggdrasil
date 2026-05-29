@@ -12,9 +12,11 @@ import { hashTrackedFiles } from '../io/hash.js';
 import { selectTierForAspect } from './tier-selection.js';
 import { loadSecrets, mergeLlmConfig } from '../io/secrets-parser.js';
 import { runAstAspect, AstRunnerError } from '../ast/runner.js';
+import { runStructureAspect, StructureRunnerError } from '../structure/runner.js';
 import { debugWrite } from '../utils/debug-log.js';
 import { readTextFile } from '../io/graph-fs.js';
 import { clearDraftAspectsFromDriftState } from '../io/drift-state-store.js';
+import { hashFile } from '../io/hash.js';
 import path from 'node:path';
 
 /**
@@ -61,7 +63,8 @@ export interface LlmApproveResult extends ApproveResult {
 
 export type ResolvedAspectExecution =
   | { kind: 'ast'; aspect: AspectDef }
-  | { kind: 'llm'; aspect: AspectDef; tier: LlmConfig; tierName: string };
+  | { kind: 'llm'; aspect: AspectDef; tier: LlmConfig; tierName: string }
+  | { kind: 'structure'; aspect: AspectDef };
 
 export interface ExecutionPlan {
   resolved: ResolvedAspectExecution[];
@@ -78,6 +81,10 @@ export function resolveExecutionPlan(
   for (const aspect of aspects) {
     if (aspect.reviewer.type === 'ast') {
       resolved.push({ kind: 'ast', aspect });
+      continue;
+    }
+    if (aspect.reviewer.type === 'structure') {
+      resolved.push({ kind: 'structure', aspect });
       continue;
     }
     const r = selectTierForAspect(aspect, reviewer);
@@ -274,7 +281,7 @@ export async function runApproveWithReviewer(
   }
 
   // No reviewer configured — LLM aspects cannot run; skip and commit
-  const hasLlmAspects = filtered.some(a => a.reviewer.type !== 'ast');
+  const hasLlmAspects = filtered.some(a => a.reviewer.type === 'llm');
   if (!graph.config.reviewer && hasLlmAspects) {
     const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
     applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
@@ -298,7 +305,11 @@ export async function runApproveWithReviewer(
   const plan: ExecutionPlan = graph.config.reviewer
     ? resolveExecutionPlan(filtered, graph.config.reviewer)
     : {
-        resolved: filtered.filter(a => a.reviewer.type === 'ast').map(a => ({ kind: 'ast' as const, aspect: a })),
+        resolved: filtered
+          .filter(a => a.reviewer.type === 'ast' || a.reviewer.type === 'structure')
+          .map(a => a.reviewer.type === 'structure'
+            ? { kind: 'structure' as const, aspect: a }
+            : { kind: 'ast' as const, aspect: a }),
         errors: [],
       };
 
@@ -348,6 +359,79 @@ export async function runApproveWithReviewer(
       const rendered = e instanceof AstRunnerError
         ? `${e.messageData.what} — ${e.messageData.why}`
         : (e as Error).message;
+      const reason = `[${code}] ${rendered}`;
+      allAspectResults[aspect.id] = { satisfied: false, reason, errorSource: 'astRuntime' };
+      aspectViolations.push({ aspectId: aspect.id, reason, errorSource: 'astRuntime' });
+    }
+  }
+
+  // STRUCTURE aspects (no LLM call; graph-shape + fs verification)
+  for (const entry of plan.resolved) {
+    if (entry.kind !== 'structure') continue;
+    const aspect = entry.aspect;
+    const aspectDirAbs = path.join(projectRoot, '.yggdrasil/aspects', aspect.id);
+    try {
+      const structResult = await runStructureAspect({
+        aspectDir: aspectDirAbs,
+        aspectId: aspect.id,
+        nodePath: node.path,
+        graph,
+        projectRoot,
+        parseCache: astParseCache,
+      });
+      if (structResult.succeeded === false) {
+        const reason = structResult.violations.map(v => v.message).join('\n') || 'structure runtime error';
+        allAspectResults[aspect.id] = { satisfied: false, reason, errorSource: 'astRuntime' };
+        aspectViolations.push({ aspectId: aspect.id, reason, errorSource: 'astRuntime' });
+        continue;
+      }
+
+      // Persist touched files into the pending drift state.
+      const sourceFileHashes: Record<string, string> = {};
+      for (const p of new Set(structResult.touchedFiles)) {
+        let hash = result.pendingDriftState?.state.files[p];
+        /* v8 ignore next 9 -- hash is always set for own-mapping files; branch fires only when
+         * ctx.fs/ctx.graph reads a related-node file not in pendingDriftState.state.files */
+        if (!hash) {
+          const abs = path.resolve(projectRoot, p);
+          try {
+            hash = await hashFile(abs);
+          } catch {
+            continue;
+          }
+          if (result.pendingDriftState) {
+            result.pendingDriftState.state.files[p] = hash;
+          }
+        }
+        sourceFileHashes[p] = hash;
+      }
+      /* v8 ignore next 5 -- unreachable: approve.ts no-change branch now always populates
+       * pendingDriftState; approved/initial branches always set it; refused is an early-return */
+      if (!result.pendingDriftState) {
+        throw new Error(
+          `internal: structure dispatch ran without pendingDriftState for node ${node.path}; ` +
+          `caller must guarantee pendingDriftState is populated before reviewer dispatch.`,
+        );
+      }
+      const stf = result.pendingDriftState.state.structureTouchedFiles ?? {};
+      stf[aspect.id] = sourceFileHashes;
+      result.pendingDriftState.state.structureTouchedFiles = stf;
+
+      const violated = structResult.violations.length > 0;
+      const reason = violated
+        ? structResult.violations.map(v => {
+            const loc = v.file ? `${v.file}:${v.line ?? '?'}: ` : '';
+            return `${loc}${v.message}`;
+          }).join('\n')
+        : 'all rules satisfied';
+      allAspectResults[aspect.id] = { satisfied: !violated, reason, errorSource: 'codeViolation' };
+      if (violated) {
+        aspectViolations.push({ aspectId: aspect.id, reason, errorSource: 'codeViolation' });
+      }
+    } catch (e: unknown) {
+      debugWrite(`[approve] structure aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
+      const code: string = (e as { code?: string }).code ?? 'STRUCTURE_RUNNER_UNKNOWN';
+      const rendered = e instanceof StructureRunnerError ? e.message : (e as Error).message;
       const reason = `[${code}] ${rendered}`;
       allAspectResults[aspect.id] = { satisfied: false, reason, errorSource: 'astRuntime' };
       aspectViolations.push({ aspectId: aspect.id, reason, errorSource: 'astRuntime' });

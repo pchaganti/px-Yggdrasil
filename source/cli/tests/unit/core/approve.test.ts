@@ -329,6 +329,25 @@ describe('approveNode — GC and recording', () => {
     expect(state!.hash).toBeDefined();
     await rm(tmpDir, { recursive: true, force: true });
   });
+
+  it('no-change branch populates pendingDriftState from baseline so structure dispatch can run', async () => {
+    const { tmpDir } = await createTmpProject('no-change-pending', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - testing\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
+      aspects: [TEST_ASPECT],
+    });
+    await recordBaseline(tmpDir);
+    const graph = await loadGraph(tmpDir);
+    const result = await approveNode(graph, 'svc/my-service');
+    // Nothing changed — no-change branch
+    expect(result.action).toBe('no-change');
+    // pendingDriftState must be populated from baseline so structure dispatch can run
+    expect(result.pendingDriftState).toBeDefined();
+    expect(result.pendingDriftState!.state.files).toBeDefined();
+    expect(result.pendingDriftState!.state.hash).toBeDefined();
+    await rm(tmpDir, { recursive: true, force: true });
+  });
 });
 
 
