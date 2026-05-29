@@ -1,14 +1,20 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { writeFile, mkdir, rm } from 'node:fs/promises';
+import { writeFile, mkdir, rm, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { parseAspect } from '../../../src/io/aspect-parser.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TMP_ROOT = path.join(__dirname, '../../fixtures/tmp-aspect-status');
+// Each fixture gets its own mkdtemp directory under the OS temp dir. A previous
+// version shared a single fixtures/tmp-aspect-status/ directory across all tests
+// in this file; under vitest's parallel pool one test's afterEach cleanup could
+// unlink fixtures another test (or another file) was mid-read on, causing
+// intermittent ENOENT failures. Per-test temp dirs remove the shared state.
+const createdDirs: string[] = [];
 
 async function writeAspectFixture(yaml: string): Promise<{ aspectDir: string; yamlPath: string }> {
-  const aspectDir = path.join(TMP_ROOT, 'example');
+  const base = await mkdtemp(path.join(tmpdir(), 'yg-aspect-status-'));
+  createdDirs.push(base);
+  const aspectDir = path.join(base, 'example');
   await mkdir(aspectDir, { recursive: true });
   const yamlPath = path.join(aspectDir, 'yg-aspect.yaml');
   await writeFile(yamlPath, yaml, 'utf-8');
@@ -17,7 +23,7 @@ async function writeAspectFixture(yaml: string): Promise<{ aspectDir: string; ya
 }
 
 afterEach(async () => {
-  await rm(TMP_ROOT, { recursive: true, force: true });
+  await Promise.all(createdDirs.splice(0).map((d) => rm(d, { recursive: true, force: true })));
 });
 
 describe('aspect-parser: status field', () => {
