@@ -1,5 +1,5 @@
 {
-  "hash": "52ed6a2f4c42cd8df1022e4ff7673e1804d0e91a7406ac83f6c659320f0f360a",
+  "hash": "4940399d7191b03deef283b97911bda6ca1b8e439b6fc9ab7c476074b898abc9",
   "files": {
     "own-subset:cli/tests/unit/core/operations/approve": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -14,10 +14,10 @@
     "source/cli/tests/unit/core/approve-llm.test.ts": "ea56da878f3faad7449b9441fbaadc345ecaad32870952c17fdaf31941980bb0",
     "source/cli/tests/unit/core/approve-log.test.ts": "b1c6dd8521f259c6dd4457225043345d63718b05a283d7a6ca63dc3fd04b49d5",
     "source/cli/tests/unit/core/approve-reviewer-references.test.ts": "dabdc0fd293c842acc049b73cf1f774436c4146ce99282a860a94a88d62ca9b5",
-    "source/cli/tests/unit/core/approve-aspect-status.test.ts": "1cdb54512cf5497163ce04b7ecc09d2ae508ea326cfd32bd36a541677dd1b952",
     "source/cli/tests/unit/core/approve-aspect-verdicts.test.ts": "68a277088b3bc60a580b0669b2d5f3d60b907fbef335e5e92682549a40691e95",
     "source/cli/tests/unit/core/approve-annotate.test.ts": "561a9ebf0108fb3567eb1cf48dbd4b0536069ccf27707f6efc023c80d7efbda3",
-    "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": "5d178403b7f36cd56f1f440bacd2fbf17cc6a4a9b8f639a800bef7744f35a1ce"
+    "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": "5d178403b7f36cd56f1f440bacd2fbf17cc6a4a9b8f639a800bef7744f35a1ce",
+    "source/cli/tests/unit/core/approve-aspect-status.test.ts": "3d1246b5766003571f48dc3083ead9025d1e3d3b380297512c0113af3827717a"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -31,7 +31,7 @@
     "source/cli/tests/unit/core/approve-llm.test.ts": 1779881665199.8782,
     "source/cli/tests/unit/core/approve-log.test.ts": 1778854276923.1697,
     "source/cli/tests/unit/core/approve-reviewer-references.test.ts": 1779957604783.6033,
-    "source/cli/tests/unit/core/approve-aspect-status.test.ts": 1779975970257.0332,
+    "source/cli/tests/unit/core/approve-aspect-status.test.ts": 1780058894867.4016,
     "source/cli/tests/unit/core/approve-aspect-verdicts.test.ts": 1779994887100.6692,
     "source/cli/tests/unit/core/approve-annotate.test.ts": 1780039619124.888,
     "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": 1780042365349.789

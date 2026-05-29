@@ -17,6 +17,7 @@ import type { ApproveResult } from '../model/drift.js';
 import type { Graph, LlmConfig } from '../model/graph.js';
 import { readNodeDriftState } from '../io/drift-state-store.js';
 import { runAstAspect } from '../ast/runner.js';
+import { runStructureAspect } from '../structure/runner.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { computeEffectiveAspectStatuses, getAspectStatusSources, hasNonDraftEffectiveAspects } from '../core/graph/aspects.js';
 import {
@@ -258,7 +259,8 @@ export async function runDryRunForNode(params: {
   process.stdout.write(`Source files (${sourceFiles.length}): ${sourceFiles.map(f => f.path).join(', ') || 'none'}\n\n`);
 
   const astAspects = aspects.filter(a => a.reviewer?.type === 'ast');
-  const llmAspects = aspects.filter(a => a.reviewer?.type !== 'ast');
+  const structureAspects = aspects.filter(a => a.reviewer?.type === 'structure');
+  const llmAspects = aspects.filter(a => a.reviewer?.type === 'llm');
 
   // AST aspects — run check and print violations
   const realFilePaths = sourceFiles.map(f => f.path);
@@ -295,6 +297,42 @@ export async function runDryRunForNode(params: {
         what: `AST aspect '${aspect.id}' runner failed.`,
         why: (e as Error).message,
         next: 'Verify the aspect check.mjs is valid and that AST runner dependencies are installed.',
+      }) + '\n'));
+    }
+  }
+
+  // STRUCTURE aspects — run the real structure check and print violations.
+  // Routed exactly like real approve (runStructureAspect, no LLM), so the
+  // preview cannot diverge from the verdict approve would actually produce.
+  for (const aspect of structureAspects) {
+    const status = statuses.get(aspect.id) ?? 'enforced';
+    process.stdout.write(chalk.bold(`\n--- Structure aspect: ${aspect.id} [${status}] ---\n\n`));
+    if (status === 'draft') {
+      process.stdout.write(chalk.dim('(real approve would skip — preview only)\n\n'));
+    }
+    try {
+      const structResult = await runStructureAspect({
+        aspectDir: path.join('.yggdrasil/aspects', aspect.id),
+        aspectId: aspect.id,
+        nodePath,
+        graph,
+        projectRoot,
+        parseCache: astParseCache,
+      });
+      if (structResult.violations.length === 0) {
+        process.stdout.write('  no violations\n');
+      } else {
+        for (const v of structResult.violations) {
+          const loc = v.file ? `${v.file}:${v.line ?? '?'}: ` : '';
+          process.stdout.write(`  ${loc}${v.message}\n`);
+        }
+      }
+    } catch (e: unknown) {
+      debugWrite(`[approve] dry-run structure aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
+      process.stderr.write(chalk.red(buildIssueMessage({
+        what: `Structure aspect '${aspect.id}' runner failed.`,
+        why: (e as Error).message,
+        next: 'Verify the aspect check.mjs is valid and that the node declares relations for any graph or filesystem reads it performs.',
       }) + '\n'));
     }
   }

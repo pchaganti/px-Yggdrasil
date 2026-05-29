@@ -171,4 +171,54 @@ aspects:
     expect(out).toContain('docs/codes.md');
     expect(out).toContain('CODE_1');
   });
+
+  it('routes a structure aspect to the structure preview, never the LLM prompt path', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'yg-dryrun-structure-'));
+    repos.push(repo);
+    const ygg = join(repo, '.yggdrasil');
+    mkdirSync(join(ygg, 'aspects', 'shape'), { recursive: true });
+    mkdirSync(join(ygg, 'model', 'svc'), { recursive: true });
+    mkdirSync(join(repo, 'src'), { recursive: true });
+    writeFileSync(join(repo, 'src', 'svc.ts'), 'export const ok = 1;\n', 'utf-8');
+    writeFileSync(join(ygg, 'yg-config.yaml'), `
+version: "5.0.0"
+reviewer:
+  default: standard
+  tiers:
+    standard:
+      provider: ollama
+      consensus: 1
+      config: { model: m, endpoint: http://x }
+`, 'utf-8');
+    writeFileSync(join(ygg, 'yg-architecture.yaml'), `
+node_types:
+  - id: module
+    description: m
+    allowed_parents: []
+`, 'utf-8');
+    writeFileSync(join(ygg, 'aspects', 'shape', 'yg-aspect.yaml'), `name: Shape
+description: a structure-reviewer aspect
+reviewer:
+  type: structure
+`, 'utf-8');
+    writeFileSync(join(ygg, 'aspects', 'shape', 'check.mjs'), `export function check(ctx) {
+  return [];
+}
+`, 'utf-8');
+    writeFileSync(join(ygg, 'model', 'svc', 'yg-node.yaml'), `name: svc
+type: module
+mapping:
+  - src/svc.ts
+aspects:
+  - shape
+`, 'utf-8');
+    writeFileSync(join(ygg, 'model', 'svc', 'log.md'), '# log\n', 'utf-8');
+
+    const out = execFileSync('node', [CLI, 'approve', '--dry-run', '--node', 'svc'], {
+      cwd: repo, encoding: 'utf-8',
+    });
+    expect(out).toContain('Structure aspect: shape');
+    expect(out).toContain('no violations');
+    expect(out).not.toContain('Prompt for LLM aspect: shape');
+  });
 });

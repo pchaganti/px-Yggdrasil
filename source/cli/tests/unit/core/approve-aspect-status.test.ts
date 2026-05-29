@@ -504,4 +504,47 @@ describe('cli approve: --node Y with all-draft', () => {
     expect(combined.split('(real approve would skip — preview only)').length - 1).toBe(1);
     await rm(tmpDir, { recursive: true, force: true });
   });
+
+  it('dry-run does NOT assemble a structure aspect into an LLM prompt (routes to structure preview)', async () => {
+    const { tmpDir } = await createTmpProject('node-dry-run-structure', {
+      nodePath: 'svc/my-service',
+      nodeYaml:
+        'name: MyService\ntype: service\ndescription: test\n' +
+        'aspects:\n  - no-llm-structure\n  - enforced-rule\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [
+        {
+          id: 'no-llm-structure',
+          yaml: 'name: NoLlmStructure\ndescription: test\nreviewer:\n  type: structure\nstatus: enforced\n',
+          files: { 'check.mjs': 'export function check(ctx) {\n  return [];\n}\n' },
+        },
+        {
+          id: 'enforced-rule',
+          yaml: 'name: Enforced\ndescription: test\nreviewer:\n  type: llm\nstatus: enforced\n',
+          files: { 'content.md': 'Enforced rule.\n' },
+        },
+      ],
+    });
+    const graph = await loadGraph(tmpDir);
+    const yggPrefix = path.relative(path.dirname(graph.rootPath), graph.rootPath)
+      .replace(/\\/g, '/').replace(/\/+$/, '');
+
+    const writes: string[] = [];
+    const orig = process.stdout.write.bind(process.stdout);
+    process.stdout.write = ((chunk: unknown) => {
+      writes.push(String(chunk));
+      return true;
+    }) as typeof process.stdout.write;
+    try {
+      await runDryRunForNode({ graph, nodePath: 'svc/my-service', yggPrefix });
+    } finally {
+      process.stdout.write = orig;
+    }
+
+    const combined = writes.join('');
+    expect(combined).toContain('Prompt for LLM aspect: enforced-rule [enforced]');
+    expect(combined).not.toContain('Prompt for LLM aspect: no-llm-structure');
+    expect(combined).toContain('Structure aspect: no-llm-structure [enforced]');
+    await rm(tmpDir, { recursive: true, force: true });
+  });
 });
