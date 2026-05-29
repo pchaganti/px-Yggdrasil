@@ -54,7 +54,7 @@ node_types:
     parents: [module]
     relations:
       calls: [engine, parser-adapter, persistence-adapter, llm-shared, llm-subprocess-base, formatter, utility, ast-adapter, structure-adapter, template]
-      uses: [types]
+      uses: [types, test-suite]
 
   engine:
     description: "Core domain logic — algorithms, validation, assembly, drift detection. No I/O, no console output, no LLM calls."
@@ -289,7 +289,7 @@ node_types:
     aspects:
       - test-deterministic
     log_required: false
-    parents: [module]
+    parents: [module, test-suite]
 
   doc-page:
     description: "Documentation page — user-facing markdown under docs/ for Yggdrasil adopters."
