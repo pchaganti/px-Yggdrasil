@@ -1,5 +1,5 @@
 {
-  "hash": "d6380a404b4f2569556d8a50bdca88897d0e920327ee70251cc300ddde01dca1",
+  "hash": "44570f6dfa860ca025d49f843290935b2d35e525a8e01f96d5f1998d0d434806",
   "files": {
     "own-subset:cli/tests/unit/core/operations/approve": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -15,10 +15,10 @@
     "source/cli/tests/unit/core/approve-log.test.ts": "02574172052e6f58213b40cd0462bb54bdf7645203e3d41f2f12fc5f02c04da4",
     "source/cli/tests/unit/core/approve-reviewer-references.test.ts": "dabdc0fd293c842acc049b73cf1f774436c4146ce99282a860a94a88d62ca9b5",
     "source/cli/tests/unit/core/approve-aspect-status.test.ts": "fd6d0ef3578aeb0b351e6cf6bc90f52fa59ed97f28fbcc3649c8316270b431b4",
-    "source/cli/tests/unit/core/approve-aspect-verdicts.test.ts": "b18071f21da8039459ee9a66d1988dba0ec30cc823088a827576a27edcb9b9eb",
     "source/cli/tests/unit/core/approve-annotate.test.ts": "561a9ebf0108fb3567eb1cf48dbd4b0536069ccf27707f6efc023c80d7efbda3",
+    "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": "9928028de3090bdf6a3eafc79a5a547301228aed1aeddafd464db180ba518e7d",
     "source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts": "680358c5f234ba69c571bedba8161f02b15e702df9fd4a3dad23340197e14280",
-    "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": "9928028de3090bdf6a3eafc79a5a547301228aed1aeddafd464db180ba518e7d"
+    "source/cli/tests/unit/core/approve-aspect-verdicts.test.ts": "b736260518c31a978cfb2a53ee25ae238d6ea51922e5d9d03316c6a9b97e3092"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -33,14 +33,14 @@
     "source/cli/tests/unit/core/approve-log.test.ts": 1780068415720.9775,
     "source/cli/tests/unit/core/approve-reviewer-references.test.ts": 1779957604783.6033,
     "source/cli/tests/unit/core/approve-aspect-status.test.ts": 1780068680029.7,
-    "source/cli/tests/unit/core/approve-aspect-verdicts.test.ts": 1780072716462.0159,
+    "source/cli/tests/unit/core/approve-aspect-verdicts.test.ts": 1780089469089.7917,
     "source/cli/tests/unit/core/approve-annotate.test.ts": 1780039619124.888,
     "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": 1780074076586.8472,
     "source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts": 1780071914517.0925
   },
   "log": {
-    "last_entry_datetime": "2026-05-29T16:39:31.731Z",
-    "prefix_hash": "757efcd756fc8ba3e99ef4c42bcff35795f3a880b4e54f7cc17f62eb2b7d9069"
+    "last_entry_datetime": "2026-05-29T21:19:15.497Z",
+    "prefix_hash": "07337bf0318ebe44a30076a4060c4cbab19fddbe92a919ad9a82f671b19bfeb0"
   },
   "aspectVerdicts": {
     "test-deterministic": {
