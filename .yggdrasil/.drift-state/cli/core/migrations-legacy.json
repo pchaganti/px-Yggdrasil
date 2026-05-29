@@ -1,7 +1,7 @@
 {
-  "hash": "44256fee02dadb9e38f0b05e3fcbef6523f5d44a08d36d95dfbab388d7a0b8c0",
+  "hash": "68fcd65841f45461ecef30278e16bf56e5d972fe9d3eb1d8758a9147fce7a7c1",
   "files": {
-    "own-subset:cli/core/migrations": "07bc7823ac9953fb68a52fea8196741be8e01c254d90b34870384af0a3ed7a9c",
+    "own-subset:cli/core/migrations-legacy": "07bc7823ac9953fb68a52fea8196741be8e01c254d90b34870384af0a3ed7a9c",
     "tier-identity:posix-paths-output": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     "tier-identity:migration-idempotent": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     "tier-identity:schema-bump-bookkeeping": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -19,9 +19,8 @@
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "7a30b1005b8db9642b89f98a63ec71e36d486207e51f6ad3f744079c67fdb9e6",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
     ".yggdrasil/model/cli/core/migrator/yg-node.yaml": "b641bb974fa2139fb5fc5670f8889e91ea2f2f23600149b1a8eca98f1b953946",
-    "source/cli/src/migrations/index.ts": "744b8454e96da6ab1e64a079409eb90f1b5393b7cd7c534caa449e0c2d2c4b90",
-    "source/cli/src/migrations/to-5.0.0.ts": "982439ec1d0acd87d0ec432a7cec1602148e37309d16818a465cc35a21cd3e6a",
-    "source/cli/src/migrations/aspect-status-defaults.ts": "5195b94e401f8cb34e297c610c9bfd3305f512311dbe56716a2d3976d2b41330"
+    "source/cli/src/migrations/to-4.0.0.ts": "cf6b81f7b08f62e2015841f2b3a54628a5d7c44ecd953ed28cad67ffeb5943e6",
+    "source/cli/src/migrations/to-4.3.0.ts": "2943de828be04b5570116ea23511134e45a363ae81145abfefc8ded1bd647cbb"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -38,13 +37,12 @@
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1779869611285.0671,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1779794513934.5745,
     ".yggdrasil/model/cli/core/migrator/yg-node.yaml": 1778912998928.313,
-    "source/cli/src/migrations/index.ts": 1779883052859.5269,
-    "source/cli/src/migrations/to-5.0.0.ts": 1780078865892.5132,
-    "source/cli/src/migrations/aspect-status-defaults.ts": 1779981566248.1829
+    "source/cli/src/migrations/to-4.0.0.ts": 1778915756837.5725,
+    "source/cli/src/migrations/to-4.3.0.ts": 1778938666443.6206
   },
   "log": {
-    "last_entry_datetime": "2026-05-29T22:37:52.575Z",
-    "prefix_hash": "b6ce1f5984fe455b91f30399a940759c1de18ea700caf31e53696da2bdd33105"
+    "last_entry_datetime": "2026-05-29T22:37:52.715Z",
+    "prefix_hash": "279cdbcfbca60c87c1c00d7ddbbc50acef2dc5c3650c12a65b7fc18884a9effb"
   },
   "aspectVerdicts": {
     "posix-paths-output": {

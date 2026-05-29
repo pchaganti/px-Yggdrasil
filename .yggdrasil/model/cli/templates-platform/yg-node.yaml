@@ -1,0 +1,7 @@
+name: Config & Platform Templates
+type: template
+description: Default yg-config.yaml template and platform-specific installer logic used by yg init. The agent rules content is in the templates (Rules Template) sibling node.
+relations: []
+mapping:
+  - source/cli/src/templates/default-config.ts
+  - source/cli/src/templates/platform.ts

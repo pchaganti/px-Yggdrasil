@@ -1,8 +1,6 @@
-name: Templates
+name: Rules Template
 type: template
-description: Default config and platform-specific agent rules used by yg init. Knowledge docs are in the knowledge/ sub-node.
+description: The agent-facing rules content emitted by yg init (rules.ts). Config and platform-installer templates are in the templates-platform sibling node.
 relations: []
 mapping:
-  - source/cli/src/templates/default-config.ts
-  - source/cli/src/templates/platform.ts
   - source/cli/src/templates/rules.ts
