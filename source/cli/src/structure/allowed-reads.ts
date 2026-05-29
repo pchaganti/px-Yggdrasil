@@ -14,12 +14,11 @@ import { normalizeMappingPath } from './expand-mapping-sync.js';
  * normalizeMappingPaths convention in io/paths.ts). Membership tests against
  * the returned set use isPathInMapping for prefix semantics.
  *
- * Child wins rule: when the parent's own mapping explicitly lists a file F,
- * any sibling file in the same directory that is exclusively mapped by a
- * direct child node is carved out — the child owns it. This applies to the
- * parent's own mapping entries (step 1) and descendant step (step 4).
- * When the parent maps only directory entries (no explicit files within those
- * directories), descendant mappings are included without carve-out.
+ * Child wins rule: when the parent's own mapping lists an entry in the same
+ * directory as a direct child's entry, the child's entry takes precedence and
+ * is excluded from the parent's allowed reads. This applies to step 1 (exact
+ * matches) and step 4 (sibling carve-out for direct children). Grandchildren
+ * and deeper descendants are never carved out.
  */
 export function collectAllowedReadsForAspect(nodePath: string, graph: Graph): Set<string> {
   const allowed = new Set<string>();
@@ -43,34 +42,7 @@ export function collectAllowedReadsForAspect(nodePath: string, graph: Graph): Se
     }
   }
 
-  // Compute "sibling carve-out" set: child paths that are siblings of explicit
-  // file entries in the parent's own mapping. When the parent explicitly lists
-  // a file under a directory it maps, it signals selective enumeration — child
-  // entries in the same directory take precedence (child wins).
-  const ownFileDirs = new Set<string>();
-  for (const raw of node.meta.mapping ?? []) {
-    const p = normalizeMappingPath(raw);
-    if (!p) continue;
-    const lastSegment = p.substring(p.lastIndexOf('/') + 1);
-    if (lastSegment.includes('.')) {
-      // Looks like a file path — record its parent directory.
-      const dir = p.substring(0, p.lastIndexOf('/'));
-      if (dir) ownFileDirs.add(dir);
-    }
-  }
-  // Child mapping entries that are siblings of parent's explicit files → excluded.
-  const siblingCarveOut = new Set<string>();
-  for (const cp of childPaths) {
-    const lastSlash = cp.lastIndexOf('/');
-    if (lastSlash > 0) {
-      const dir = cp.substring(0, lastSlash);
-      if (ownFileDirs.has(dir)) {
-        siblingCarveOut.add(cp);
-      }
-    }
-  }
-
-  // 1. Own mapping minus child carve-out (literal exact match on childPaths).
+  // 1. Own mapping minus child mapping (child wins).
   for (const raw of node.meta.mapping ?? []) {
     const p = normalizeMappingPath(raw);
     if (p && !childPaths.has(p)) allowed.add(p);
@@ -96,8 +68,32 @@ export function collectAllowedReadsForAspect(nodePath: string, graph: Graph): Se
     cursor = cursor.parent;
   }
 
-  // 4. Descendants — add all descendant node mappings; skip entries that are
-  // siblings of the parent's own explicit files (siblingCarveOut).
+  // Determine which child paths should be carved out: those that share a
+  // directory with the parent's own mappings (sibling carve-out for "child wins").
+  const parentDirs = new Set<string>();
+  for (const raw of node.meta.mapping ?? []) {
+    const p = normalizeMappingPath(raw);
+    if (p) {
+      const lastSlash = p.lastIndexOf('/');
+      if (lastSlash > 0) {
+        parentDirs.add(p.substring(0, lastSlash));
+      }
+    }
+  }
+  const siblingCarveOut = new Set<string>();
+  for (const cp of childPaths) {
+    const lastSlash = cp.lastIndexOf('/');
+    if (lastSlash > 0) {
+      const cpDir = cp.substring(0, lastSlash);
+      if (parentDirs.has(cpDir)) {
+        siblingCarveOut.add(cp);
+      }
+    }
+  }
+
+  // 4. Descendants — child wins: skip direct-child entries that share a
+  // directory with parent's own mappings (sibling carve-out). Grandchildren
+  // and deeper are never carved out.
   const stack: GraphNode[] = [...node.children];
   while (stack.length > 0) {
     const n = stack.pop()!;
