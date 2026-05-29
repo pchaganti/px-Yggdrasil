@@ -1,0 +1,7 @@
+name: Structure Tests
+type: test-suite
+description: "Unit tests for the structure-aspect runtime and sync mapping helpers."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/structure/expand-mapping-sync.test.ts
