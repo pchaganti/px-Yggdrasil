@@ -5,5 +5,7 @@ aspects: []
 relations:
   - target: cli/templates
     type: calls
+  - target: cli/tests/unit/cli
+    type: uses
 mapping:
   - source/cli/src/cli/init.ts

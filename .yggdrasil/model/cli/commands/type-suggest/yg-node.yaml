@@ -12,5 +12,7 @@ relations:
     type: calls
   - target: cli/io/stores
     type: calls
+  - target: cli/tests/unit/cli
+    type: uses
 mapping:
   - source/cli/src/cli/type-suggest.ts

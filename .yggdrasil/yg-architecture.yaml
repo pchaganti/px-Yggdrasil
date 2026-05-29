@@ -51,6 +51,7 @@ node_types:
       - command-contract-shape
       - posix-paths-source
       - command-error-via-buildissuemessage
+      - sibling-test-file
     parents: [module]
     relations:
       calls: [engine, parser-adapter, persistence-adapter, llm-shared, llm-subprocess-base, formatter, utility, ast-adapter, structure-adapter, template]
