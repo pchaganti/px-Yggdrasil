@@ -398,7 +398,7 @@ function parseReviewer(
       messageData: {
         what: `aspect '${aspectId}' has reviewer: mapping without type:`,
         why: 'type: distinguishes LLM and AST aspects',
-        next: 'add `type: llm` or `type: ast` under reviewer:',
+        next: 'add `type: llm`, `type: ast`, or `type: structure` under reviewer:',
       },
     });
   } else if (obj.type !== 'llm' && obj.type !== 'ast' && obj.type !== 'structure') {
@@ -407,7 +407,7 @@ function parseReviewer(
       messageData: {
         what: `aspect '${aspectId}' has invalid reviewer.type: '${String(obj.type)}'`,
         why: 'only "llm", "ast" and "structure" are valid',
-        next: 'change to type: llm or type: ast',
+        next: 'change to type: llm, type: ast, or type: structure',
       },
     });
   } else {
