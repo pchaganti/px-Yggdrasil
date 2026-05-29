@@ -40,3 +40,5 @@ Fixed resolveAspects to include AST aspects in the returned list even when they 
 Wire aspect-status resolver into approve flow. The auto-approve short-circuit and the GC predicate now use hasNonDraftEffectiveAspects() instead of computeEffectiveAspects().size > 0. Nodes whose every effective aspect resolves to draft no longer require a baseline or log entry, and their stale baselines are GC-eligible — draft is dormant by design.
 ## [2026-05-29T07:23:17.995Z]
 Lifted annotateUpstreamChange from a closure inside approveNode to a module-scope private function. The function has no closure dependencies (it only uses its own parameters), making it safe to lift. The behavior is identical to the closure; this is a pure refactor that enables the function to be unit-tested in isolation and exported in a subsequent step.
+## [2026-05-29T07:27:41.535Z]
+Exported annotateUpstreamChange so it can be directly imported and tested in isolation. Added 'structure-touched' branch that returns 'structure aspect tracked file' — this is the user-visible annotation shown in yg check output when a file tracked by a structure aspect is the source of upstream drift.

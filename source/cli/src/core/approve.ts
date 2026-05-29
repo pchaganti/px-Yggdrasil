@@ -462,8 +462,9 @@ function getChildMappingExclusions(graph: Graph, nodePath: string): string[] {
 /* v8 ignore stop */
 
 /** Annotate an upstream changed file with a human-readable category label. */
-function annotateUpstreamChange(filePath: string, layer: TrackedFileLayer | undefined): string {
+export function annotateUpstreamChange(filePath: string, layer: TrackedFileLayer | undefined): string {
   const normalized = filePath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+  if (layer === 'structure-touched') return 'structure aspect tracked file';
   if (layer === 'aspects' || normalized.includes('/aspects/')) return 'aspect content';
   if (normalized.includes('/flows/')) return 'flow description';
   if (layer === 'hierarchy') return 'parent metadata';
