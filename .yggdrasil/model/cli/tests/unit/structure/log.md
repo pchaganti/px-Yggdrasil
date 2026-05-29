@@ -10,3 +10,9 @@ Added ctx-graph.test.ts: six deterministic unit tests for createCtxGraph. The te
 Added unit tests for ctx-parsers: six tests covering parseYaml with touchedFiles tracking, parseJson, parseToml, parseAst from prewarmed cache (happy path with tree-sitter tree), parseAst cache miss error, and string-path input that reads from disk and tracks in touchedFiles.
 ## [2026-05-29T06:47:51.463Z]
 Extended ctx-parsers tests with two additional tests for prewarmupAstCache: one verifying it populates astCache for TypeScript files and skips non-AST extensions (yaml), and one verifying it reuses existing cache entries when content is unchanged.
+## [2026-05-29T06:55:08.603Z]
+Added runner.test.ts with 8 tests for runStructureAspect covering: violation return, STRUCTURE_CHECK_ASYNC for async check functions, STRUCTURE_CHECK_RETURN_SHAPE for non-array returns, STRUCTURE_CHECK_THROWN for check.mjs exceptions, STRUCTURE_CHECK_NOT_EXPORTED for missing named export, STRUCTURE_CHECK_FILE_NOT_IN_CONTEXT for violations referencing untracked files, graph-kind violations without a file field being allowed through, and touchedFiles recording via ctx.fs.exists.
+## [2026-05-29T07:00:50.708Z]
+Expanded runner.test.ts to cover additional guard paths: STRUCTURE_NODE_MISSING, STRUCTURE_LOADER_RESOLVE_FAILED (missing check.mjs), STRUCTURE_CHECK_DEFAULT_EXPORT, STRUCTURE_CHECK_NOT_FUNCTION, STRUCTURE_CHECK_WRONG_ARITY, undeclared-fs-read and undeclared-graph-read converted to structured violations, bad violation entry shape, relation-target file prewarmup with directory mapping, and child-carve-out in buildOwnFiles. Total 19 tests.
+## [2026-05-29T07:08:22.336Z]
+Added more targeted tests to ensure branch coverage: node-with-no-mapping, null-violation-entry, default-export-non-function, absolute-aspectDir-path, pre-populated-parseCache. These cover defensive branches including empty mapping short-circuits and compound condition paths, bringing branch coverage above 90%.

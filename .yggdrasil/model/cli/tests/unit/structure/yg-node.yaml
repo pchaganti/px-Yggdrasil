@@ -10,3 +10,4 @@ mapping:
   - source/cli/tests/unit/structure/ctx-fs.test.ts
   - source/cli/tests/unit/structure/ctx-graph.test.ts
   - source/cli/tests/unit/structure/ctx-parsers.test.ts
+  - source/cli/tests/unit/structure/runner.test.ts
