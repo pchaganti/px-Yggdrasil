@@ -401,12 +401,12 @@ function parseReviewer(
         next: 'add `type: llm` or `type: ast` under reviewer:',
       },
     });
-  } else if (obj.type !== 'llm' && obj.type !== 'ast') {
+  } else if (obj.type !== 'llm' && obj.type !== 'ast' && obj.type !== 'structure') {
     errors.push({
       code: 'aspect-reviewer-type-invalid',
       messageData: {
         what: `aspect '${aspectId}' has invalid reviewer.type: '${String(obj.type)}'`,
-        why: 'only "llm" and "ast" are valid',
+        why: 'only "llm", "ast" and "structure" are valid',
         next: 'change to type: llm or type: ast',
       },
     });
@@ -434,7 +434,7 @@ function parseReviewer(
   // Step 4: cross-field — only when type is valid
   if (!typeValid) return { ok: false, errors }; // unreachable but type-safe
 
-  const type = obj.type as 'llm' | 'ast';
+  const type = obj.type as 'llm' | 'ast' | 'structure';
   if (obj.tier !== undefined) {
     if (typeof obj.tier !== 'string' || obj.tier.trim() === '') {
       return {

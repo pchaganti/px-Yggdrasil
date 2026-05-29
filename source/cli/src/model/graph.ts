@@ -171,7 +171,7 @@ export interface Artifact {
 // ============================================================
 
 export interface AspectReviewerSpec {
-  type: 'llm' | 'ast';
+  type: 'llm' | 'ast' | 'structure';
   /** Tier reference into ReviewerConfig.tiers; valid only when type === 'llm' */
   tier?: string;
 }
