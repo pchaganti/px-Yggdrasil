@@ -47,6 +47,11 @@ async function createTmpProject(name: string, opts: {
   await writeFile(path.join(yggRoot, 'schemas', 'yg-flow.yaml'), 'type: flow\n');
   await writeFile(path.join(yggRoot, 'yg-config.yaml'), opts.configYaml ?? V5_REVIEWER_CONFIG);
   await writeFile(path.join(nodeDir, 'yg-node.yaml'), opts.nodeYaml);
+  // A log entry exists so the mandatory log gate (log_required + source change)
+  // is satisfied. recordBaseline does not capture a log baseline, so this entry
+  // counts as "fresh" for any subsequent source change — these tests exercise the
+  // reviewer, not the log gate.
+  await writeFile(path.join(nodeDir, 'log.md'), '## [2026-05-11T10:00:00.000Z]\nInitial setup.\n');
 
   // Create parent nodes for nested paths (e.g. 'svc/my-service' needs 'svc' parent)
   const parts = opts.nodePath.split('/');
@@ -288,7 +293,9 @@ describe('runApproveWithReviewer (core layer)', () => {
       rootPath: graph.rootPath,
       secretsByProvider: new Map(),
     });
-    expect(result.action).toBe('approved');
+    // No baseline yet, so first approve commits as 'initial'; the key invariant
+    // is that no LLM aspects exist → the reviewer is never constructed.
+    expect(result.action).toBe('initial');
     expect(mockCreateLlmProvider).not.toHaveBeenCalled();
     await rm(tmpDir, { recursive: true, force: true });
   });

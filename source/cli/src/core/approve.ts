@@ -117,9 +117,18 @@ export async function approveNode(
     }
   }
 
+  const logRequired = logRequiredFor(node, graph);
+
   // ── Logical node (no mapping) — log-only path ───────────
   if (mappingPaths.length === 0) {
+    // Honor the node type's log_required flag: only a log_required type's
+    // mapping-less node demands a log.md entry. When log_required is false a
+    // mapping-less node has nothing to track — it is a clean no-op.
     if (!logSnapshot.existed) {
+      if (!logRequired) {
+        const gcPaths = await runGC(graph);
+        return { action: storedEntry ? 'no-change' : 'initial', currentHash: '', previousHash: storedEntry?.hash, gcPaths };
+      }
       const noLogMd: IssueMessage = {
         what: `Node '${nodePath}' has no mapping and no log.md — nothing to approve`,
         why: 'Nodes without source mapping participate in the log system only. A log.md entry is required.',
@@ -144,8 +153,18 @@ export async function approveNode(
     return { action, currentHash: '', previousHash: storedEntry?.hash, gcPaths, pendingDriftState };
   }
 
-  // ── Effective aspects — auto-approve nodes with no non-draft aspects ──
+  const projectRoot = path.dirname(graph.rootPath);
+
+  // ── Effective aspects — skip the REVIEWER for nodes with no non-draft ──
+  // aspects. The reviewer is dormant, but the mandatory log gate is NOT: it
+  // depends only on the node type's log_required flag and whether source files
+  // changed since the last approve — never on aspect status. So this branch
+  // still enforces the log requirement before short-circuiting the reviewer.
   if (!hasNonDraftEffectiveAspects(node, graph)) {
+    const sourceChangedDraft = await sourceFilesChanged(node, graph, projectRoot, storedEntry);
+    if (logRequired && sourceChangedDraft.length > 0 && !hasFreshLogEntry(logSnapshot.content, storedEntry?.log)) {
+      return mandatoryLogRefusal(node, nodePath, sourceChangedDraft);
+    }
     const gcPaths = await runGC(graph);
     if (!logSnapshot.existed) {
       return { action: 'approved', currentHash: '', gcPaths };
@@ -162,30 +181,17 @@ export async function approveNode(
     return { action, currentHash: '', previousHash: storedEntry?.hash, gcPaths, pendingDriftState };
   }
 
-  const projectRoot = path.dirname(graph.rootPath);
-
   // ── First approve (no baseline) ──────────────────────────
   if (!storedEntry) {
     const trackedFiles = collectTrackedFiles(node, graph);
 
-    // Mandatory entry check: first approve with source files requires a log entry
-    const nodeTypeFirst = node.meta.type;
-    const archTypeFirst = graph.architecture.node_types[nodeTypeFirst];
-    const logRequiredFirst = archTypeFirst?.log_required ?? true;
+    // Mandatory entry check: first approve with source files requires a log
+    // entry. With no baseline, "fresh entry" reduces to "any entry exists".
     const sourcePathsFirst = trackedFiles
       .filter((tf) => tf.layer === 'source')
       .map((tf) => tf.path.trim().replace(/\\/g, '/').replace(/\/+$/, ''));
-    if (sourcePathsFirst.length > 0 && logRequiredFirst && parseLog(logSnapshot.content).length === 0) {
-      const noLogFirstMd: IssueMessage = {
-        what: `No log entry found — mandatory entry required when source files are added:\n${sourcePathsFirst.map((p) => '  ' + p).join('\n')}`,
-        why: `Node type '${nodeTypeFirst}' has log_required: true — every source change requires a justification entry.`,
-        next: `yg log add --node ${nodePath} --reason '<justification>'`,
-      };
-      return {
-        action: 'refused',
-        currentHash: '',
-        refuseReasonData: noLogFirstMd,
-      };
+    if (sourcePathsFirst.length > 0 && logRequired && !hasFreshLogEntry(logSnapshot.content, undefined)) {
+      return mandatoryLogRefusal(node, nodePath, sourcePathsFirst);
     }
 
     const excludePrefixes = getChildMappingExclusions(graph, nodePath);
@@ -304,24 +310,12 @@ export async function approveNode(
   const upstreamChanged = changedUpstream.length > 0;
 
   // ── Mandatory entry check (source drift + log_required) ──
-  const nodeType = node.meta.type;
-  const archType = graph.architecture.node_types[nodeType];
-  const logRequired = archType?.log_required ?? true;
-
-  if (sourceChanged && logRequired && storedEntry?.log) {
-    const newestEntry = parseLog(logSnapshot.content).at(-1);
-    if (!newestEntry || newestEntry.datetime === storedEntry.log.last_entry_datetime) {
-      const noLogChangedMd: IssueMessage = {
-        what: `No log entry found — mandatory entry required when source files change:\n${changedSource.map((f) => '  ' + f).join('\n')}`,
-        why: `Node type '${nodeType}' has log_required: true — every source change requires a justification entry.`,
-        next: `yg log add --node ${nodePath} --reason '<justification>'`,
-      };
-      return {
-        action: 'refused',
-        currentHash: '',
-        refuseReasonData: noLogChangedMd,
-      };
-    }
+  // Gated only on log_required + a source change + the absence of a fresh log
+  // entry. NOT gated on storedEntry?.log: a node first approved without a log
+  // baseline (storedEntry.log undefined) must still be re-blocked when its
+  // source later changes — "fresh" then means "any entry exists".
+  if (sourceChanged && logRequired && !hasFreshLogEntry(logSnapshot.content, storedEntry.log)) {
+    return mandatoryLogRefusal(node, nodePath, changedSource);
   }
 
   // ── Binary decision ─────────────────────────────────────
@@ -374,6 +368,90 @@ export async function approveNode(
     gcPaths,
     pendingDriftState: pending,
   };
+}
+
+// ── Log requirement helpers ────────────────────────────────
+
+/**
+ * The node type's log_required flag (default true). Determines whether a fresh
+ * log entry is mandatory when source files change. Independent of aspect status.
+ */
+function logRequiredFor(node: GraphNode, graph: Graph): boolean {
+  const archType = graph.architecture.node_types[node.meta.type];
+  return archType?.log_required ?? true;
+}
+
+/**
+ * True when the log contains an entry NEWER than the last baselined one — i.e.
+ * a fresh entry written for the current approve cycle. With no prior log
+ * baseline (storedLog undefined), any entry counts as fresh.
+ */
+function hasFreshLogEntry(
+  logContent: string,
+  storedLog: { last_entry_datetime: string } | undefined,
+): boolean {
+  const newest = parseLog(logContent).at(-1);
+  if (!newest) return false;
+  if (!storedLog) return true;
+  return newest.datetime !== storedLog.last_entry_datetime;
+}
+
+/** Build the refusal for a missing mandatory log entry on a source change. */
+function mandatoryLogRefusal(
+  node: GraphNode,
+  nodePath: string,
+  changedSource: string[],
+): ApproveResult {
+  const refuseReasonData: IssueMessage = {
+    what: `No log entry found — mandatory entry required when source files change:\n${changedSource.map((f) => '  ' + f).join('\n')}`,
+    why: `Node type '${node.meta.type}' has log_required: true — every source change requires a justification entry.`,
+    next: `yg log add --node ${nodePath} --reason '<justification>'`,
+  };
+  return { action: 'refused', currentHash: '', refuseReasonData };
+}
+
+/**
+ * Detect whether any source-layer file changed versus the stored baseline.
+ * Used by the all-draft branch (where the reviewer is skipped but the log gate
+ * still applies). With no baseline, the presence of any source file counts as
+ * a change (mirrors the first-approve trigger).
+ */
+async function sourceFilesChanged(
+  node: GraphNode,
+  graph: Graph,
+  projectRoot: string,
+  storedEntry: { files: Record<string, string>; mtimes?: Record<string, number> } | undefined,
+): Promise<string[]> {
+  const trackedFiles = collectTrackedFiles(node, graph);
+  const sourceTracked = trackedFiles.filter((tf) => tf.layer === 'source');
+  if (sourceTracked.length === 0) return [];
+
+  const excludePrefixes = getChildMappingExclusions(graph, node.path);
+  const { fileHashes } = await hashTrackedFiles(
+    projectRoot,
+    sourceTracked,
+    storedEntry ? { hashes: storedEntry.files, mtimes: storedEntry.mtimes ?? {} } : undefined,
+    excludePrefixes,
+  );
+
+  // No baseline → first approve: any present source file is a "change".
+  if (!storedEntry) return Object.keys(fileHashes);
+
+  const changed: string[] = [];
+  for (const [filePath, hash] of Object.entries(fileHashes)) {
+    if (storedEntry.files[filePath] !== hash) changed.push(filePath);
+  }
+  for (const storedPath of Object.keys(storedEntry.files)) {
+    // Only consider source-layer stored paths we are tracking now; a deleted
+    // tracked source file also counts as a change.
+    if (!(storedPath in fileHashes) && sourceTracked.some((tf) => {
+      const key = tf.path.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+      return storedPath === key || storedPath.startsWith(key + '/');
+    })) {
+      changed.push(storedPath);
+    }
+  }
+  return changed;
 }
 
 // ── Log helpers ────────────────────────────────────────────

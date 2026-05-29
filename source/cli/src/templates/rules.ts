@@ -279,9 +279,13 @@ enforcement remains aspect-based.
 
 ### Log management — workflow
 
-Every change to source files in a node's mapping requires a log entry
-BEFORE running approve (for nodes whose type has \`log_required: true\`,
-the default).
+A fresh log entry is required BEFORE running approve whenever BOTH hold:
+the node type has \`log_required: true\` (the default) AND the node's source
+files changed since the last approve. The entry must be newer than the one
+captured at the last approve — one fresh entry per approve cycle. This
+requirement is INDEPENDENT of aspect status: it never depends on whether a
+node's aspects are draft, advisory, or enforced. A cascade-only re-approve
+(no source change) needs no new entry.
 
   1. Edit source files
   2. \`yg log add --node <path> --reason "<justification>"\`

@@ -72,6 +72,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** the per-node canonical drift hash now includes a `tier-identity:<aspectId>` synthetic entry per LLM aspect. After running the v5 migration on a previously approved repository, every previously-approved node enters drift on the first `yg check`. Re-approve once per node, or use batch `yg approve --aspect <id>` to fold the bulk re-approve into the upgrade PR.
 - `DEFAULT_CONFIG` template version bumped to `5.0.0`.
 
+### Fixed
+
+- `yg approve` mandatory log-entry requirement is now decoupled from aspect status. A fresh log entry is required if and only if the node type has `log_required: true` (the default) AND the node's source files changed since the last approve (with the entry newer than the one captured at the last approve). Three couplings were removed: (a) a node whose every effective aspect is `draft` no longer skips the log requirement — the all-draft path skips only the reviewer, not the log gate; (b) a node with no `mapping:` now honors `log_required` — a `log_required: false` type's mapping-less node is a clean no-op instead of unconditionally demanding a `log.md`; (c) a node first approved without a log baseline is re-blocked when its source later changes (the mandatory check no longer requires a prior `storedEntry.log`; that guard is retained only on the append-only integrity check, which correctly applies only when a prior log baseline exists). The "Log requirement and aspect status" block was removed from the log-management knowledge doc, and `rules.ts` / drift-and-cascade wording now states the log-required + source-change model explicitly and its independence from aspect status.
+
 ### Removed
 
 - `@chrisdudek/yg/ast` helpers: `call`, `imports`, `exports`, `decoratorsOf`, `modifiersOf`, `jsxElements`, `casing`, `nameOf`, `within`. Replaced by direct tree-sitter API access via `walk(node, visitor)`. `closest` retained in minimal API.

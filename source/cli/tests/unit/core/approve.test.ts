@@ -121,6 +121,13 @@ describe('approveNode — proper nodes', () => {
       }],
     });
     await recordBaseline(tmpDir);
+    // A fresh log entry accompanies the source change — the mandatory log gate
+    // requires it whenever source changes on a log_required type, independent
+    // of aspect status.
+    await writeFile(
+      path.join(yggRoot, 'model', 'svc', 'my-service', 'log.md'),
+      '## [2026-05-11T10:00:00.000Z]\nChange rationale.\n',
+    );
     // Change source + aspect
     await writeFile(path.join(tmpDir, 'src/svc/index.ts'), 'export default 99;\n');
     await writeFile(path.join(yggRoot, 'aspects/logging/content.md'), 'Updated rules.\n');
@@ -132,13 +139,19 @@ describe('approveNode — proper nodes', () => {
 
   // Source changed → ACCEPTS
   it('accepts when source changed', async () => {
-    const { tmpDir } = await createTmpProject('both-changed', {
+    const { tmpDir, yggRoot } = await createTmpProject('both-changed', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - testing\nmapping:\n  - src/svc/\n',
       mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
       aspects: [TEST_ASPECT],
     });
     await recordBaseline(tmpDir);
+    // A fresh log entry accompanies the source change (mandatory on a
+    // log_required type when source changes).
+    await writeFile(
+      path.join(yggRoot, 'model', 'svc', 'my-service', 'log.md'),
+      '## [2026-05-11T10:00:00.000Z]\nChange rationale.\n',
+    );
     // Change source
     await writeFile(path.join(tmpDir, 'src/svc/index.ts'), 'export default 99;\n');
     const graph = await loadGraph(tmpDir);
@@ -212,7 +225,10 @@ describe('approveNode — proper nodes', () => {
 });
 
 describe('approveNode — no-aspects auto-approve', () => {
-  it('auto-approves node with no effective aspects and no log.md (skip hashing)', async () => {
+  it('refuses a no-effective-aspects node with source files and log_required when no log entry exists', async () => {
+    // The reviewer is dormant (no aspects) but the mandatory log gate still
+    // applies: a log_required type with source files demands a log entry,
+    // independent of aspect status.
     const { tmpDir } = await createTmpProject('no-aspects', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\nmapping:\n  - src/svc/\n',
@@ -220,7 +236,25 @@ describe('approveNode — no-aspects auto-approve', () => {
     });
     const graph = await loadGraph(tmpDir);
     const result = await approveNode(graph, 'svc/my-service');
-    expect(result.action).toBe('approved');
+    expect(result.action).toBe('refused');
+    expect(result.refuseReasonData?.what ?? '').toMatch(/no log entry|mandatory/i);
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('auto-approves a no-effective-aspects node once a log entry exists (skip hashing)', async () => {
+    const { tmpDir, yggRoot } = await createTmpProject('no-aspects-log', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
+    });
+    await writeFile(
+      path.join(yggRoot, 'model', 'svc', 'my-service', 'log.md'),
+      '## [2026-05-11T10:00:00.000Z]\nInitial setup.\n',
+    );
+    const graph = await loadGraph(tmpDir);
+    const result = await approveNode(graph, 'svc/my-service');
+    // Reviewer is skipped (no aspects) — empty hash signals no source hashing.
+    expect(result.action).toBe('initial');
     expect(result.currentHash).toBe('');
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -437,6 +471,13 @@ describe('approveNode — zero effective aspects drift cleanup', () => {
       mappingFiles: { 'src/svc.ts': 'export {};\n' },
     });
 
+    // A stale baseline (mismatched hash) plus a stale log boundary makes the
+    // source look changed; a fresh log entry satisfies the mandatory gate so
+    // the zero-effective-aspects cleanup path is reached and GC runs.
+    await writeFile(
+      path.join(yggRoot, 'model', 'svc', 'my-service', 'log.md'),
+      '## [2026-05-11T10:00:00.000Z]\nInitial.\n',
+    );
     await writeNodeDriftState(yggRoot, 'svc/my-service', {
       hash: 'stale-hash',
       files: { 'src/svc.ts': 'stale-hash' },

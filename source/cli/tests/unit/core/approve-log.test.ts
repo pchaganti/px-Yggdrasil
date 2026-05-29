@@ -267,6 +267,40 @@ describe('approveNode — log integration', () => {
     expect(refuseMsg(result)).toMatch(/Pre-baseline/i);
   });
 
+  it('re-blocks a source change on a node first approved WITHOUT a log baseline (closed baseline hole)', async () => {
+    // A baseline exists (files map populated) but carries NO log baseline — e.g.
+    // the node was first approved while log_required was off, or before any entry
+    // existed. When source later changes under a log_required type, the mandatory
+    // entry gate must still fire. The fix drops the `storedEntry?.log` condition
+    // from the mandatory check so this hole is closed.
+    const { projectRoot, nodePath, sourcePath } = await setup({
+      // No initialLogContent → no log.md, no entries.
+      initialSourceHash: 'h-old',
+      // initialBaseline omitted → drift state written with files map but log: undefined.
+    });
+    await writeFile(sourcePath, 'export const x = 2;\n');
+    const graph = await loadGraph(projectRoot);
+    const result = await approveNode(graph, nodePath);
+    expect(result.action).toBe('refused');
+    expect(refuseMsg(result)).toMatch(/no log entry|mandatory/i);
+  });
+
+  it('re-blocks a source change when a baseline (no log) exists and only a stale entry is present', async () => {
+    // Baseline without a log boundary, but a log.md entry exists. Because there is
+    // no recorded last_entry_datetime, "fresh" means "any entry" — and an entry IS
+    // present, so the gate is satisfied and the change is approved.
+    const log = '## [2026-05-11T10:00:00.000Z]\nfirst.\n';
+    const { projectRoot, nodePath, sourcePath } = await setup({
+      initialLogContent: log,
+      initialSourceHash: 'h-old',
+      // initialBaseline omitted → log: undefined in drift state.
+    });
+    await writeFile(sourcePath, 'export const x = 2;\n');
+    const graph = await loadGraph(projectRoot);
+    const result = await approveNode(graph, nodePath);
+    expect(result.action).toBe('approved');
+  });
+
   it('commitApproval persists log baseline alongside files map', async () => {
     const log = '## [2026-05-11T10:00:00.000Z]\nfirst.\n';
     const { projectRoot, nodePath } = await setup({
@@ -285,6 +319,7 @@ describe('approveNode — log integration', () => {
 describe('approveNode — logical node (no mapping)', () => {
   async function setupLogical(opts: {
     logContent?: string;
+    logRequired?: boolean;
   }): Promise<{ projectRoot: string; nodePath: string }> {
     const root = await mkdtemp(path.join(tmpdir(), 'yg-logical-'));
     dirs.push(root);
@@ -293,7 +328,10 @@ describe('approveNode — logical node (no mapping)', () => {
     await mkdir(nodeDir, { recursive: true });
     await mkdir(path.join(yggRoot, '.drift-state'), { recursive: true });
     await writeFile(path.join(yggRoot, 'yg-config.yaml'), 'version: "4.2.0"\n');
-    await writeFile(path.join(yggRoot, 'yg-architecture.yaml'), 'node_types:\n  module:\n    description: m\n');
+    const archModule = opts.logRequired === undefined
+      ? '    description: m\n'
+      : `    description: m\n    log_required: ${opts.logRequired}\n`;
+    await writeFile(path.join(yggRoot, 'yg-architecture.yaml'), `node_types:\n  module:\n${archModule}`);
     await writeFile(path.join(nodeDir, 'yg-node.yaml'), 'name: mod\ntype: module\ndescription: x\n');
     if (opts.logContent !== undefined) {
       await writeFile(path.join(nodeDir, 'log.md'), opts.logContent);
@@ -310,11 +348,22 @@ describe('approveNode — logical node (no mapping)', () => {
     expect(result.pendingDriftState?.state.log?.last_entry_datetime).toBe('2026-05-11T10:00:00.000Z');
   });
 
-  it('rejects no-mapping node without log.md (nothing to approve)', async () => {
+  it('rejects no-mapping node without log.md when log_required is true (default)', async () => {
     const { projectRoot, nodePath } = await setupLogical({});
     const graph = await loadGraph(projectRoot);
     const result = await approveNode(graph, nodePath);
     expect(result.action).toBe('refused');
     expect(refuseMsg(result)).toMatch(/no mapping|no log/i);
+  });
+
+  it('does NOT demand a log on a no-mapping node whose type has log_required: false', async () => {
+    // Bug (b): the no-mapping path previously refused unconditionally when no
+    // log.md existed. It must honor the node type's log_required flag — when
+    // false, a mapping-less node with no log is a clean no-op (nothing to track).
+    const { projectRoot, nodePath } = await setupLogical({ logRequired: false });
+    const graph = await loadGraph(projectRoot);
+    const result = await approveNode(graph, nodePath);
+    expect(result.action).not.toBe('refused');
+    expect(result.refuseReasonData).toBeUndefined();
   });
 });

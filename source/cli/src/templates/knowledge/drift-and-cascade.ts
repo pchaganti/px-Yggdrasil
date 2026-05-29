@@ -109,6 +109,13 @@ before swapping the tier on a widely-used aspect.
 
 The change is not done until approve passes. Do not defer approval.
 
+Step 2 is mandatory exactly when the node type has \`log_required: true\`
+(the default) AND the node's source files changed since the last approve;
+the entry must be newer than the one captured at the last approve. This
+gate depends ONLY on the type flag plus a source change — never on aspect
+status (draft / advisory / enforced). A cascade-only re-approve (no source
+change) needs no new entry.
+
 If the reviewer refuses, iterate on the code. You do not need a new log
 entry for each retry — one entry covers all retries within a single approve
 cycle until approve succeeds.

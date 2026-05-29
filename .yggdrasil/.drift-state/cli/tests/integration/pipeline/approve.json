@@ -1,5 +1,5 @@
 {
-  "hash": "532d1c53dd6aab6f754ba5015c5258984abead6fd8e1b50fd3eed0f22cbf222b",
+  "hash": "cc4be98dde90d6d98407200a4aef91812f53fc6779769cee288515af83c0f025",
   "files": {
     "own-subset:cli/tests/integration/pipeline/approve": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -10,9 +10,9 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/integration/approve-batch-with-missing-reference.test.ts": "10f89b2bdd5492b2cc5cc4975f5103865ecc9ff3cdbd1351c3537bb76d3dc578",
-    "source/cli/tests/integration/approve-pipeline.test.ts": "0ad034b8cb710f87f7a77e9132dbaac2415e92b7225f78e7abc47dc676007f98",
     "source/cli/tests/integration/approve-dry-run-references.test.ts": "e18aaee1a7377b9af5fd2bc398255dc000789dee4b18300490e4d20b9f67449b",
-    "source/cli/tests/integration/approve-with-references.test.ts": "02a3c84e70ba5fb5aa39ced38b7ccf4a157f61f3c36476f9c79c4bc4cb26f916"
+    "source/cli/tests/integration/approve-with-references.test.ts": "02a3c84e70ba5fb5aa39ced38b7ccf4a157f61f3c36476f9c79c4bc4cb26f916",
+    "source/cli/tests/integration/approve-pipeline.test.ts": "953ce1f37d658edd7c29e8a7de53703745979ed1b08557667682d90326a8ba4f"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -23,7 +23,7 @@
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/integration/approve-batch-with-missing-reference.test.ts": 1779962471949.9426,
     "source/cli/tests/integration/approve-dry-run-references.test.ts": 1780058972691.791,
-    "source/cli/tests/integration/approve-pipeline.test.ts": 1778854337753.3848,
+    "source/cli/tests/integration/approve-pipeline.test.ts": 1780068799857.1973,
     "source/cli/tests/integration/approve-with-references.test.ts": 1780058289467.0676
   },
   "aspectVerdicts": {

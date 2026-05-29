@@ -150,15 +150,17 @@ describe('approve-pipeline', () => {
     expect(noChange.action).toBe('no-change');
   });
 
-  it('refuses approve on node with no mapping and no log.md', async () => {
+  it('does NOT demand a log on a no-mapping node whose type has log_required: false', async () => {
     const root = await setupProject();
     cleanupPaths.push(root);
 
     const graph = await loadGraph(root);
-    // 'orders' parent module has no mapping.paths and no log.md
+    // 'orders' parent module has no mapping.paths and no log.md. Its type
+    // declares log_required: false, so the no-mapping path must honor the flag
+    // and treat it as a clean no-op rather than demanding a log entry.
     const result = await approveNode(graph, 'orders');
-    expect(result.action).toBe('refused');
-    expect(refuseMsg(result)).toMatch(/no mapping|no log/i);
+    expect(result.action).not.toBe('refused');
+    expect(refuseMsg(result)).toBe('');
   });
 
   it('approve on nonexistent node throws', async () => {

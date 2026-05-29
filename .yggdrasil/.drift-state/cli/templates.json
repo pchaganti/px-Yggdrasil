@@ -1,19 +1,19 @@
 {
-  "hash": "1496e5b922f3cf9d745df52aaf6ab73bcc0dd364c735bcf360a5031857d54133",
+  "hash": "146d89b49e9bc38eccc2ffb76dc52080d3b8d5474d8cdbf44f0236b14430cfd1",
   "files": {
     "own-subset:cli/templates": "f68bcd5143fd11da71f121095f5b7b88f309ccecd0a1190a8d557b7eeeda9f51",
     "tier-identity:what-why-next": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     "tier-identity:posix-paths-output": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": "5bfc4a07961653ab402950fc1ddf55450c35762e9fde4ab2b0fb9185ab091581",
+    ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "7a30b1005b8db9642b89f98a63ec71e36d486207e51f6ad3f744079c67fdb9e6",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
     ".yggdrasil/aspects/posix-paths-output/yg-aspect.yaml": "c416daed4d0f68afd287205e0abe40409c6643ec4507ebe0399f4e9fb2ffedc9",
     ".yggdrasil/aspects/posix-paths-output/content.md": "2659859dc13a8efe32e098b0c220d24c9ecddff26b42a4f22e3135d8b750bc13",
     "source/cli/src/templates/default-config.ts": "9501fa45c16da35796f91b7fc57e0f6a99f5764f78eed6ba631e1125304bde54",
     "source/cli/src/templates/platform.ts": "d96addc8b4fc854500c14acda1846fef398a39d1c1df4668de3cc4c5425d2f7e",
-    ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
-    "source/cli/src/templates/rules.ts": "c0172ee55e01c2c4f44f1ce1e3f5f8a35be1676a775fd4b5ef8b84e84478238c"
+    "source/cli/src/templates/rules.ts": "3ed6fc7e84552e01cfab263f15a476b5db310ad52ac717c4159fe30a6714bfd1"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -25,11 +25,11 @@
     ".yggdrasil/aspects/posix-paths-output/content.md": 1778912983383.063,
     "source/cli/src/templates/default-config.ts": 1779884715080.4534,
     "source/cli/src/templates/platform.ts": 1778920718473.7297,
-    "source/cli/src/templates/rules.ts": 1780066916074.312
+    "source/cli/src/templates/rules.ts": 1780068860929.2766
   },
   "log": {
-    "last_entry_datetime": "2026-05-29T15:03:36.189Z",
-    "prefix_hash": "5353fd2fbc83343b74178269ae7859a2570e6b25f0c760d49acc97d8f0c95a81"
+    "last_entry_datetime": "2026-05-29T15:36:21.985Z",
+    "prefix_hash": "6aca73bafa989d929c3932a8ab5412d710737ce1d67a98479964947ffa18af16"
   },
   "aspectVerdicts": {
     "what-why-next": {

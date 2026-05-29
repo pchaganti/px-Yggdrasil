@@ -107,6 +107,11 @@ async function createStructureProject(name: string, opts: {
     opts.configYaml ?? 'version: "4.0.0"\n',
   );
   await writeFile(path.join(nodeDir, 'yg-node.yaml'), opts.nodeYaml);
+  // A log entry exists so the mandatory log gate (log_required + source change)
+  // is satisfied — these tests exercise structure-aspect dispatch, not the log
+  // gate. recordBaseline does not capture a log baseline, so this entry counts
+  // as "fresh" for any subsequent source change.
+  await writeFile(path.join(nodeDir, 'log.md'), '## [2026-05-11T10:00:00.000Z]\nInitial setup.\n');
 
   if (opts.parentNodes) {
     for (const pn of opts.parentNodes) {

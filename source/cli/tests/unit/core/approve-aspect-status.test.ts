@@ -14,7 +14,7 @@ import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import { approveNode } from '../../../src/core/approve.js';
 import { runApproveWithReviewer } from '../../../src/core/approve-reviewer.js';
-import { writeNodeDriftState, readNodeDriftState } from '../../../src/io/drift-state-store.js';
+import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
 import { hashTrackedFiles } from '../../../src/io/hash.js';
 import { collectTrackedFiles } from '../../../src/core/graph/files.js';
 import { formatBatchOutput, type BatchResult } from '../../../src/cli/approve.js';
@@ -119,11 +119,15 @@ beforeEach(() => {
 });
 
 // ── Case 1 ──────────────────────────────────────────────────────
-// Node with only draft aspects → reviewer NOT invoked, no baseline
-// written for source-only changes, no log entry required.
+// Node with only draft aspects → reviewer NOT invoked, but the mandatory
+// log requirement still applies: it depends ONLY on the node type's
+// log_required flag plus a source change since the last approve, never on
+// aspect status. A draft-only node with source files, log_required, and no
+// fresh log entry must therefore REFUSE — the all-draft short-circuit skips
+// the reviewer, not the log gate.
 
-describe('approveNode — all-draft node short-circuits', () => {
-  it('auto-approves first approve with only draft aspects (no log required)', async () => {
+describe('approveNode — all-draft node short-circuits the reviewer (not the log gate)', () => {
+  it('refuses first approve when source files present, log_required, and no log entry — even though every aspect is draft', async () => {
     const { tmpDir } = await createTmpProject('all-draft-first', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - deterministic\nmapping:\n  - src/svc/\n',
@@ -136,16 +140,16 @@ describe('approveNode — all-draft node short-circuits', () => {
     });
     const graph = await loadGraph(tmpDir);
     const result = await approveNode(graph, 'svc/my-service');
-    // All-draft node behaves like a no-aspect node: auto-approved with empty hash.
-    expect(result.action).toBe('approved');
-    expect(result.currentHash).toBe('');
+    // Log requirement is independent of aspect status — the draft-only node
+    // still owns source files under a log_required type, so a fresh entry is
+    // mandatory before any approve.
+    expect(result.action).toBe('refused');
+    expect(result.refuseReasonData?.what ?? '').toMatch(/no log entry|mandatory/i);
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('does NOT require a log entry when only draft aspects are effective and source changes', async () => {
-    // This is case 6 — paired with case 1 because both rely on the same
-    // short-circuit branch (no mandatory entry check for all-draft nodes).
-    const { tmpDir } = await createTmpProject('all-draft-no-log', {
+  it('auto-approves (reviewer skipped) once a log entry exists and source files are present', async () => {
+    const { tmpDir, yggRoot } = await createTmpProject('all-draft-with-log', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - deterministic\nmapping:\n  - src/svc/\n',
       mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
@@ -155,10 +159,49 @@ describe('approveNode — all-draft node short-circuits', () => {
         files: { 'content.md': 'Be deterministic.\n' },
       }],
     });
+    await writeFile(
+      path.join(yggRoot, 'model', 'svc', 'my-service', 'log.md'),
+      '## [2026-05-11T10:00:00.000Z]\nInitial setup.\n',
+    );
     const graph = await loadGraph(tmpDir);
     const result = await approveNode(graph, 'svc/my-service');
-    expect(result.action).toBe('approved');
+    // All-draft node behaves like a no-aspect node for the reviewer: auto-approved
+    // with empty hash (no reviewer dispatch) — but the log baseline is recorded.
+    expect(result.action).toBe('initial');
+    expect(result.currentHash).toBe('');
     expect(result.refuseReasonData).toBeUndefined();
+    expect(result.pendingDriftState?.state.log?.last_entry_datetime).toBe('2026-05-11T10:00:00.000Z');
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('refuses on a SOURCE change when only draft aspects are effective and no fresh log entry exists', async () => {
+    // Previously case 6: the all-draft short-circuit exempted the node from the
+    // log gate. Under the decoupled model the gate fires regardless of status.
+    const { tmpDir, yggRoot } = await createTmpProject('all-draft-source-change', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - deterministic\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [{
+        id: 'deterministic',
+        yaml: 'name: Deterministic\ndescription: test\nreviewer:\n  type: llm\nstatus: draft\n',
+        files: { 'content.md': 'Be deterministic.\n' },
+      }],
+    });
+    // A prior baseline exists carrying a log entry; then source changes with no
+    // newer log entry appended.
+    await writeFile(
+      path.join(yggRoot, 'model', 'svc', 'my-service', 'log.md'),
+      '## [2026-05-11T10:00:00.000Z]\nInitial setup.\n',
+    );
+    const initialGraph = await loadGraph(tmpDir);
+    const initial = await approveNode(initialGraph, 'svc/my-service');
+    await writeNodeDriftState(initialGraph.rootPath, 'svc/my-service', initial.pendingDriftState!.state);
+
+    await writeFile(path.join(tmpDir, 'src/svc/index.ts'), 'const x = 2;\n');
+    const graph = await loadGraph(tmpDir);
+    const result = await approveNode(graph, 'svc/my-service');
+    expect(result.action).toBe('refused');
+    expect(result.refuseReasonData?.what ?? '').toMatch(/no log entry|mandatory/i);
     await rm(tmpDir, { recursive: true, force: true });
   });
 });
@@ -168,7 +211,7 @@ describe('approveNode — all-draft node short-circuits', () => {
 
 describe('runApproveWithReviewer — mixed enforced+draft', () => {
   it('skips draft aspects and verifies only non-draft ones', async () => {
-    const { tmpDir } = await createTmpProject('mixed', {
+    const { tmpDir, yggRoot } = await createTmpProject('mixed', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - draft-rule\n  - enforced-rule\nmapping:\n  - src/svc/\n',
       mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
@@ -187,6 +230,12 @@ describe('runApproveWithReviewer — mixed enforced+draft', () => {
     });
     await recordBaseline(tmpDir);
     await writeFile(path.join(tmpDir, 'src/svc/index.ts'), 'const x = 2;\n');
+    // Source changed on a log_required type → a fresh log entry is required
+    // before the reviewer runs (gate is independent of aspect status).
+    await writeFile(
+      path.join(yggRoot, 'model', 'svc', 'my-service', 'log.md'),
+      '## [2026-05-11T10:00:00.000Z]\nTweak.\n',
+    );
 
     const graph = await loadGraph(tmpDir);
     const coreResult = await approveNode(graph, 'svc/my-service');
@@ -218,7 +267,7 @@ describe('runApproveWithReviewer — mixed enforced+draft', () => {
   });
 
   it('emits a "[draft]" trace line per skipped aspect', async () => {
-    const { tmpDir } = await createTmpProject('mixed-trace', {
+    const { tmpDir, yggRoot } = await createTmpProject('mixed-trace', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - draft-rule\n  - enforced-rule\nmapping:\n  - src/svc/\n',
       mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
@@ -237,6 +286,11 @@ describe('runApproveWithReviewer — mixed enforced+draft', () => {
     });
     await recordBaseline(tmpDir);
     await writeFile(path.join(tmpDir, 'src/svc/index.ts'), 'const x = 2;\n');
+    // Fresh log entry required for the source change (gate is independent of status).
+    await writeFile(
+      path.join(yggRoot, 'model', 'svc', 'my-service', 'log.md'),
+      '## [2026-05-11T10:00:00.000Z]\nTweak.\n',
+    );
 
     const graph = await loadGraph(tmpDir);
     const coreResult = await approveNode(graph, 'svc/my-service');
@@ -271,8 +325,8 @@ describe('runApproveWithReviewer — mixed enforced+draft', () => {
 // on the node → reviewer skipped on this node.
 
 describe('runApproveWithReviewer — Scenario B (per-node effective draft)', () => {
-  it('skips reviewer when own override drops aspect to draft on this node', async () => {
-    const { tmpDir } = await createTmpProject('scenario-b', {
+  it('skips reviewer when own override drops aspect to draft on this node (log entry satisfies the gate)', async () => {
+    const { tmpDir, yggRoot } = await createTmpProject('scenario-b', {
       nodePath: 'svc/my-service',
       nodeYaml: [
         'name: MyService',
@@ -292,8 +346,19 @@ describe('runApproveWithReviewer — Scenario B (per-node effective draft)', () 
         files: { 'content.md': 'Be deterministic.\n' },
       }],
     });
+    // A prior log baseline exists; recordBaseline captures the source hashes too.
+    await writeFile(
+      path.join(yggRoot, 'model', 'svc', 'my-service', 'log.md'),
+      '## [2026-05-11T10:00:00.000Z]\nInitial setup.\n',
+    );
     await recordBaseline(tmpDir);
     await writeFile(path.join(tmpDir, 'src/svc/index.ts'), 'const x = 2;\n');
+    // A fresh log entry accompanies the source change, satisfying the
+    // log gate (which is independent of aspect status).
+    await writeFile(
+      path.join(yggRoot, 'model', 'svc', 'my-service', 'log.md'),
+      '## [2026-05-11T10:00:00.000Z]\nInitial setup.\n## [2026-05-11T11:00:00.000Z]\nTweak.\n',
+    );
 
     const graph = await loadGraph(tmpDir);
     const coreResult = await approveNode(graph, 'svc/my-service');
@@ -314,14 +379,11 @@ describe('runApproveWithReviewer — Scenario B (per-node effective draft)', () 
     });
 
     expect(result.action).toBe('approved');
-    expect(verifyCalls).toBe(0);
     // When every effective aspect resolves to draft, the node enters the
     // all-draft short-circuit in approveNode and never reaches the reviewer
-    // filter. The reviewer skip message is still informative via the
-    // approveNode action (no baseline written, no log required).
-    // Drift state is GC'd because the node has no non-draft effective aspects.
-    const stored = await readNodeDriftState(graph.rootPath, 'svc/my-service');
-    expect(stored).toBeUndefined();
+    // filter — but the log gate still applied and was satisfied by the fresh
+    // entry. Reviewer is skipped.
+    expect(verifyCalls).toBe(0);
     await rm(tmpDir, { recursive: true, force: true });
   });
 });

@@ -140,11 +140,19 @@ Use the returned summary, not the full log.
 context entries between code changes freely. Only source-file changes in
 the mapping require entries paired with \`yg approve\`.
 
-## Log requirement and aspect status
+## When a log entry is required
 
-Every source edit in a node's mapping requires a log entry before \`yg approve\`
-(for nodes whose type has \`log_required: true\`, the default). However, when
-a node's EVERY effective aspect is in draft status, a log entry is not
-required — draft aspects are dormant and will not be reviewed. See:
-\`yg knowledge read aspect-status\`.
+A fresh log entry is required at \`yg approve\` whenever BOTH hold:
+
+- the node type has \`log_required: true\` (the default), AND
+- the node's source files changed since the last approve (or this is the
+  first approve and the node owns source files).
+
+"Fresh" means newer than the entry captured at the last approve — one new
+entry per approve cycle. This requirement depends ONLY on the type flag and
+the source change. It is INDEPENDENT of aspect status: a node whose every
+effective aspect is in draft still needs a log entry when its source
+changes (the reviewer is skipped for draft aspects, but the log gate is
+not). A node with no source change (cascade-only re-approve) needs no new
+entry.
 `;
