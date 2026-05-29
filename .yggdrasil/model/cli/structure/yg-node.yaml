@@ -5,3 +5,4 @@ mapping:
   - source/cli/src/structure/index.ts
   - source/cli/src/structure/expand-mapping-sync.ts
   - source/cli/src/structure/allowed-reads.ts
+  - source/cli/src/structure/types.ts
