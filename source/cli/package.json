@@ -58,6 +58,10 @@
     "./ast": {
       "import": "./dist/ast.js",
       "types": "./dist/ast.d.ts"
+    },
+    "./structure": {
+      "import": "./dist/structure.js",
+      "types": "./dist/structure.d.ts"
     }
   },
   "publishConfig": {
