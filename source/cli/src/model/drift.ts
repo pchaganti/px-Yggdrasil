@@ -23,7 +23,14 @@ export interface AspectVerdict {
   verdict: 'approved' | 'refused';
   /** Present when verdict is 'refused' — mirrors AspectVerificationResult.reason */
   reason?: string;
-  /** Present when verdict is 'refused' — mirrors AspectVerificationResult.errorSource */
+  /**
+   * Source of an aspect's refusal.
+   *  - 'codeViolation' — source code did not satisfy the aspect's content (LLM judgement)
+   *    or violated a structural rule (AST/structure runner).
+   *  - 'provider'      — LLM provider call itself failed.
+   *  - 'astRuntime'    — runtime crash inside an AST OR STRUCTURE runner check.mjs.
+   *    Despite the historical name, this tag is generic "non-LLM runner crash".
+   */
   errorSource?: 'codeViolation' | 'provider' | 'astRuntime';
 }
 
@@ -35,7 +42,7 @@ export interface AspectVerdict {
 export type DriftCategory = 'source' | 'graph';
 
 /** Which layer of the context package brought this file into tracking */
-export type TrackedFileLayer = 'hierarchy' | 'aspects' | 'relational' | 'flows' | 'source';
+export type TrackedFileLayer = 'hierarchy' | 'aspects' | 'relational' | 'flows' | 'source' | 'structure-touched';
 
 /** Per-file drift detail */
 export interface DriftFileChange {
@@ -70,6 +77,14 @@ export interface DriftNodeState {
    * field existed.
    */
   aspectVerdicts?: Record<string, AspectVerdict>;
+  /**
+   * Per-structure-aspect touched files captured at the last enforced/advisory
+   * approve (D8.3). Optional for backward compat:
+   *   - missing = pre-feature baseline → cold start
+   *   - preserved across draft toggle (clearDraftAspectsFromDriftState does NOT clear it)
+   * Schema: { [aspectId]: { [repoRelPosixPath]: sha256Hex } }
+   */
+  structureTouchedFiles?: Record<string, Record<string, string>>;
 }
 
 /** Upstream change with type annotation for CLI messages */
