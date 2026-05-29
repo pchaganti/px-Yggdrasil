@@ -495,6 +495,7 @@ When you need to do X, run/read Y:
 | Choose LLM vs AST reviewer | `yg knowledge read aspects-overview` |
 | Write an LLM aspect | `yg knowledge read writing-llm-aspects` |
 | Write an AST aspect | `yg knowledge read writing-ast-aspects` |
+| Write a structure aspect | `yg knowledge read writing-structure-aspects` |
 | Use `when` on an aspect | `yg knowledge read conditional-aspects` |
 | Write `yg-suppress` in code | `yg knowledge read suppress-syntax` |
 | Understand drift, batch approve, costs | `yg knowledge read drift-and-cascade` |

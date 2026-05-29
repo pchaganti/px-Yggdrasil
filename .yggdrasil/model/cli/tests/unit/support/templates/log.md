@@ -6,3 +6,5 @@ Updated default-config test to expect version 5.0.0 (matching the DEFAULT_CONFIG
 Required-heading list updated for the configuration knowledge topic now that the section formerly titled Provider configs has been renamed to Reviewer tiers.
 ## [2026-05-28T15:30:17.295Z]
 Update knowledge topic tests for new aspect-status topic: increment expected count to 13, add aspect-status to sorted names list, add required heading assertions
+## [2026-05-29T08:36:51.010Z]
+Updated knowledge topic count assertion from 13 to 14 and added writing-structure-aspects to the expected topic names list and required headings table to match the new knowledge topic introduced alongside this test change.

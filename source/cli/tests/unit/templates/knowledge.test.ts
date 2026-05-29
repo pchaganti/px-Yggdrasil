@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { KNOWLEDGE_TOPICS } from '../../../src/templates/knowledge/index.js';
 
 describe('KNOWLEDGE_TOPICS', () => {
-  it('exports exactly 13 topics', () => {
-    expect(Object.keys(KNOWLEDGE_TOPICS).length).toBe(13);
+  it('exports exactly 14 topics', () => {
+    expect(Object.keys(KNOWLEDGE_TOPICS).length).toBe(14);
   });
 
   it('has expected topic names', () => {
@@ -22,6 +22,7 @@ describe('KNOWLEDGE_TOPICS', () => {
       'working-with-architecture',
       'writing-ast-aspects',
       'writing-llm-aspects',
+      'writing-structure-aspects',
     ]);
   });
 
@@ -106,6 +107,15 @@ describe('KNOWLEDGE_TOPICS', () => {
       '## Implies propagation',
       '## Drift mechanics',
       '## When to use which status',
+    ],
+    'writing-structure-aspects': [
+      '## What is a structure aspect',
+      '## Reviewer type decision tree',
+      '## The ctx surface',
+      '## parseAst is synchronous',
+      '## Allowed reads set (D9=A)',
+      '## Adoption workflow',
+      '## Cookbook',
     ],
   };
 

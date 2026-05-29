@@ -16,3 +16,4 @@ mapping:
   - source/cli/src/templates/knowledge/working-with-architecture.ts
   - source/cli/src/templates/knowledge/writing-ast-aspects.ts
   - source/cli/src/templates/knowledge/writing-llm-aspects.ts
+  - source/cli/src/templates/knowledge/writing-structure-aspects.ts
