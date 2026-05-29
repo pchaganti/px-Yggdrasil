@@ -179,6 +179,22 @@ export async function parseAspect(
     when = parseWhen(raw.when, `yg-aspect.yaml at ${aspectYamlPath}: when`);
   }
 
+  // aspect-language-on-structure: cross-field check (top-level, NOT inside references guard)
+  if (reviewer.type === 'structure' && raw.language !== undefined) {
+    return {
+      ok: false,
+      aspectId: idTrimmed,
+      errors: [{
+        code: 'aspect-language-on-structure',
+        messageData: {
+          what: `Aspect '${idTrimmed}' declares 'language:' but reviewer.type is 'structure'.`,
+          why: 'Structure aspects are language-agnostic — they call ctx.parseAst(file, lang) on demand, not a fixed language list.',
+          next: `remove 'language:' from .yggdrasil/aspects/${idTrimmed}/yg-aspect.yaml.`,
+        },
+      }],
+    };
+  }
+
   // references: optional, normalized to Array<{ path, description? }>
   let references: Array<{ path: string; description?: string }> | undefined;
   if (raw.references !== undefined) {

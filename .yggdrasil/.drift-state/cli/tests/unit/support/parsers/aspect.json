@@ -1,5 +1,5 @@
 {
-  "hash": "6755478f1b97ec595254e1a81bd249c1dae06e6798cb3dce7c0447f2f9bb749a",
+  "hash": "8b243bb9e1ccf4a87a5cd635ea5f523d38a2c6212cf274e65e81d2ba058a5f26",
   "files": {
     "own-subset:cli/tests/unit/support/parsers/aspect": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -13,7 +13,7 @@
     "source/cli/tests/unit/io/aspect-parser.test.ts": "72dc9d6547bbb2dcaa9eef8aab73304bd597ada626d3d713b3daffa478abb3da",
     "source/cli/tests/unit/io/aspect-parser-references.test.ts": "0e3e2357878d82eb0e9c04c1bebcd1388ce4b8e6308cdd748133b7876e8aefd2",
     "source/cli/tests/unit/io/aspect-status-parsing.test.ts": "2b56ad14df0cf91f113738059013cc3396fecbd09c29ee4cf45bb8583424d070",
-    "source/cli/tests/unit/io/aspect-parser-structure.test.ts": "be5584c75bc9e1bff282893b193dafddb07020353e8a8cca9e8186ff360c6ea7"
+    "source/cli/tests/unit/io/aspect-parser-structure.test.ts": "e18012684a33b0e15dd90c3acb7cdec46bf8f6a56a5e7854eceb61ae0dd292b3"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -26,11 +26,11 @@
     "source/cli/tests/unit/io/aspect-parser.test.ts": 1779869468776.2842,
     "source/cli/tests/unit/io/aspect-parser-references.test.ts": 1779951183386.4688,
     "source/cli/tests/unit/io/aspect-status-parsing.test.ts": 1779967328650.9912,
-    "source/cli/tests/unit/io/aspect-parser-structure.test.ts": 1780032911692.3103
+    "source/cli/tests/unit/io/aspect-parser-structure.test.ts": 1780033116771.1558
   },
   "log": {
-    "last_entry_datetime": "2026-05-29T05:35:22.177Z",
-    "prefix_hash": "b007ba4b039e380617c72961a96f7fbaf44ac89855fed8d0dce547b9be02f075"
+    "last_entry_datetime": "2026-05-29T05:38:48.071Z",
+    "prefix_hash": "ddc34bde4d4547acfeea75483840cf8f971f17e85b1c60bdecf9df0cfa378726"
   },
   "aspectVerdicts": {
     "test-deterministic": {

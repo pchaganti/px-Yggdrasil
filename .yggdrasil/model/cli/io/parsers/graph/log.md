@@ -18,3 +18,5 @@ Tighten parser error messaging to enumerate all three reviewer.type values consi
 Add cross-field guard aspect-references-on-structure: rejects references: on structure-type aspects. Structure aspects call check.mjs locally; references are only usable by LLM reviewers. Mirrors existing aspect-references-on-ast check at the same insertion site.
 ## [2026-05-29T05:35:19.984Z]
 Add cross-field guard aspect-structure-tier-not-allowed: rejects tier: on structure-type aspects. Structure aspects run locally without an LLM and cannot use reviewer tiers, which configure LLM provider selection. Mirrors existing aspect-ast-tier-not-allowed check at the same insertion site in parseReviewer().
+## [2026-05-29T05:38:45.936Z]
+Add cross-field guard aspect-language-on-structure: rejects language: on structure-type aspects. Structure aspects are language-agnostic and call ctx.parseAst(file, lang) on demand; they do not declare a fixed language list. Placed before the references block to ensure capture of language-only configs.

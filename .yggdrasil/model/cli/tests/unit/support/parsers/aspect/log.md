@@ -4,3 +4,5 @@ Add test for structure reviewer type. New test verifies that parseAspect accepts
 Add test for aspect-references-on-structure error: structure aspects with references should be rejected. Tests placement above the aspect-references-on-ast check to establish more-specific-first ordering.
 ## [2026-05-29T05:35:22.177Z]
 Add test for aspect-structure-tier-not-allowed error: structure aspects with tier should be rejected. Tests placement before the aspect-ast-tier-not-allowed check to establish more-specific-first ordering.
+## [2026-05-29T05:38:48.071Z]
+Add tests for aspect-language-on-structure error: structure aspects with language should be rejected. Two near-duplicate tests ensure coverage of both the happy path and the specific placement-lock that detects language even when references is absent.
