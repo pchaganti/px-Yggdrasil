@@ -16,3 +16,5 @@ Extend AspectReviewerSpec.type to accept 'structure' for structure-based aspects
 Tighten parser error messaging to enumerate all three reviewer.type values consistently — the why-line already mentioned the full set, the next-line guidance only mentioned two. Avoids agent confusion when receiving the diagnostic.
 ## [2026-05-29T05:30:01.307Z]
 Add cross-field guard aspect-references-on-structure: rejects references: on structure-type aspects. Structure aspects call check.mjs locally; references are only usable by LLM reviewers. Mirrors existing aspect-references-on-ast check at the same insertion site.
+## [2026-05-29T05:35:19.984Z]
+Add cross-field guard aspect-structure-tier-not-allowed: rejects tier: on structure-type aspects. Structure aspects run locally without an LLM and cannot use reviewer tiers, which configure LLM provider selection. Mirrors existing aspect-ast-tier-not-allowed check at the same insertion site in parseReviewer().

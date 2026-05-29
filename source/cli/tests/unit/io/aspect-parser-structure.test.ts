@@ -43,4 +43,20 @@ describe('aspect-parser — structure reviewer.type', () => {
       expect(r.errors[0].code).toBe('aspect-references-on-structure');
     }
   });
+
+  it('rejects structure aspect with reviewer.tier — aspect-structure-tier-not-allowed', async () => {
+    writeFileSync(yamlPath, [
+      'name: T',
+      'description: x',
+      'reviewer:',
+      '  type: structure',
+      '  tier: deep',
+      ''
+    ].join('\n'));
+    const r = await parseAspect(aspectDir, yamlPath, 'test');
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors[0].code).toBe('aspect-structure-tier-not-allowed');
+    }
+  });
 });

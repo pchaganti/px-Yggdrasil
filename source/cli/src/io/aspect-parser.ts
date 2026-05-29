@@ -464,6 +464,19 @@ function parseReviewer(
         }],
       };
     }
+    if (type === 'structure') {
+      return {
+        ok: false,
+        errors: [{
+          code: 'aspect-structure-tier-not-allowed',
+          messageData: {
+            what: `aspect '${aspectId}' has reviewer.type: structure together with reviewer.tier: '${obj.tier}'`,
+            why: 'Structure aspects run locally without an LLM; tiers do not apply',
+            next: 'remove tier: from the aspect',
+          },
+        }],
+      };
+    }
     if (type === 'ast') {
       return {
         ok: false,
