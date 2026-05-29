@@ -4,3 +4,4 @@ description: "Public entry point for the structure-aspect runtime (placeholder; 
 mapping:
   - source/cli/src/structure/index.ts
   - source/cli/src/structure/expand-mapping-sync.ts
+  - source/cli/src/structure/allowed-reads.ts

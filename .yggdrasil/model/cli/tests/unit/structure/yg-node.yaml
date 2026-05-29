@@ -5,3 +5,5 @@ aspects: []
 relations: []
 mapping:
   - source/cli/tests/unit/structure/expand-mapping-sync.test.ts
+  - source/cli/tests/unit/structure/allowed-reads.test.ts
+  - source/cli/tests/unit/structure/allowed-reads-conformance.test.ts
