@@ -4,6 +4,7 @@ description: AST runtime — loader hook for .cjs interop, parser setup, check r
 mapping:
   - source/cli/src/ast/loader-hook-impl.ts
   - source/cli/src/ast/loader-hook.ts
+  - source/cli/src/ast/parse-cache.ts
   - source/cli/src/ast/parser.ts
   - source/cli/src/ast/runner.ts
   - source/cli/src/ast/suppress.ts

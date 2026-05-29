@@ -10,3 +10,5 @@ Add AST_CHECK_FILE_NOT_IN_CONTEXT runtime guard. check.mjs cannot synthesize vio
 Remove find-comments.ts from mapping — this file was reassigned to cli/ast/report as part of the public API consolidation. The runtime node now only contains: loader hook, parser, check runner, and suppress marker extractor.
 ## [2026-05-28T10:07:11.726Z]
 Added optional ParseCache parameter to RunAstAspectParams and runAstAspect. When provided, the cache is checked before reading and parsing each file — if the file is already in the cache, the cached content and AST are reused directly. After parsing, the result is stored in the cache. This avoids redundant file reads and re-parses when the same source files are visited by multiple AST aspects in a single dry-run or approve invocation. The ParseCache type is exported for use by CLI-layer callers.
+## [2026-05-29T06:40:35.395Z]
+Extract the ParseCache type alias from the AST runner into a small neutral module so the upcoming structure runner can share the same per-invocation cache shape. Runner re-exports the type for callers that import it from the AST entry.

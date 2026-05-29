@@ -5,10 +5,11 @@ import { ensureLoaderRegistered } from './loader-hook.js';
 import { parseFile } from './parser.js';
 import type { IssueMessage } from '../model/validation.js';
 import { collectSuppressions, isLineSuppressed, SuppressMarkerError } from './suppress.js';
-import type { Node, Tree } from 'web-tree-sitter';
+import type { Node } from 'web-tree-sitter';
 import type { CheckContext, Violation } from './types.js';
+import type { ParseCache } from './parse-cache.js';
 
-export type ParseCache = Map<string, { content: string; ast: Tree }>;
+export { type ParseCache } from './parse-cache.js';
 
 export interface RunAstAspectParams {
   aspectDir: string;

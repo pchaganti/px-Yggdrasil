@@ -1,5 +1,5 @@
 {
-  "hash": "cf854a9e6b6081ce6d7c60c00b0f6732ccd6edced317d882c1c8f30b5ce99dd7",
+  "hash": "d533d5d536d447b584d44f66fdd3b331c6072a28e315e8788546a0e6037c2846",
   "files": {
     "own-subset:cli/ast/runtime": "81c446303e7f0f81e4442926d9268b200464da4ffadf167ab4d6c49a0da2a341",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -16,7 +16,8 @@
     "source/cli/src/ast/loader-hook.ts": "e34275e1bbf8e5197db94706a589266bc31d6dd0879b6e8428d3f7191155f72b",
     "source/cli/src/ast/parser.ts": "9451597848af970126af4eff49dfae7210dec2ea1a0aef51c0f445343557a508",
     "source/cli/src/ast/suppress.ts": "66a5d612886d53b3bb4460b13054a491a41fac0c8c5d9379ca81039f3a394a0b",
-    "source/cli/src/ast/runner.ts": "a8494be6223f257a3652b103a85b33e9b91d0fe97040fd2c77a74483feee0717"
+    "source/cli/src/ast/parse-cache.ts": "52800ae952c7ca15cebce230de462d7e88f710e049b2e80872a0868bd6fd2b0e",
+    "source/cli/src/ast/runner.ts": "6d3c17823587560770ed58a1a96c245c623188a3ab22612e0ee0f9ced945d9ba"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -29,12 +30,24 @@
     ".yggdrasil/aspects/what-why-next/content.md": 1778855561245.8606,
     "source/cli/src/ast/loader-hook-impl.ts": 1778434435909.4355,
     "source/cli/src/ast/loader-hook.ts": 1778440677113.9885,
+    "source/cli/src/ast/parse-cache.ts": 1780036707610.353,
     "source/cli/src/ast/parser.ts": 1778432527384.6138,
-    "source/cli/src/ast/runner.ts": 1779962285428.2793,
+    "source/cli/src/ast/runner.ts": 1780036811047.3447,
     "source/cli/src/ast/suppress.ts": 1778433965625.0508
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T10:07:11.726Z",
-    "prefix_hash": "c31b43edf9c350df1389a14163d160c8267f31f579fca4a9111fb2104a98a77d"
+    "last_entry_datetime": "2026-05-29T06:40:35.395Z",
+    "prefix_hash": "05b52b491388bdc40b50f4ed2ae9d48359fb6d1685bf4c5bbd93ba0d384ed76f"
+  },
+  "aspectVerdicts": {
+    "deterministic": {
+      "verdict": "approved"
+    },
+    "posix-paths-source": {
+      "verdict": "approved"
+    },
+    "what-why-next": {
+      "verdict": "approved"
+    }
   }
 }
