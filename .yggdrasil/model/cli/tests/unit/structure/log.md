@@ -2,3 +2,5 @@
 Added test suite for expand-mapping-sync module. Tests cover path normalization (backslash/forward-slash handling, trailing-slash stripping) and membership testing logic (exact match, directory descendant detection, empty entry handling).
 ## [2026-05-29T06:06:45.187Z]
 Added unit tests for collectAllowedReadsForAspect covering: own-mapping-minus-child carve-out (child wins when parent has sibling file entries), relation target mapping inclusion, port owner inclusion via relation targets, ancestor mapping inclusion, descendant mapping inclusion, missing-node empty-set, and transitive relation-target descendants. Added conformance test verifying that every source file tracked by collectTrackedFiles for a node is reachable within that node's collectAllowedReadsForAspect result set, confirming both functions draw from the same graph data structures (the single-source-graph-queries guarantee).
+## [2026-05-29T06:21:14.601Z]
+Test suite for ctx.fs facade. Covers allowed-set enforcement, touched-file tracking, and error handling for unmapped paths. Nine tests: exists/read/list operations validated for both success and rejection cases.
