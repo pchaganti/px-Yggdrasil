@@ -36,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `core/context-files.ts` moved to `core/graph/files.ts`. Exports `collectTrackedFiles` and `TrackedFile` through the same barrel. Seven importers (engines `approve`, `approve-reviewer`, `check`; commands `approve`; `io/hash`) plus test files updated. `cli/core/context` node mapping drops `context-files.ts`; `cli/core/graph` claims it. The `core/graph/` directory now houses the complete graph-query surface; the AST aspect added in the next commit locks the location.
 - AST aspect `single-source-graph-queries` — applied to `engine` node type. Forbids redefinition of any of the seven reserved graph-query helpers (`collectAncestors`, `collectDescendants`, `collectParticipatingFlows`, `collectDependencyAncestors`, `computeEffectiveAspects`, `getAspectSource`, `collectTrackedFiles`) outside `source/cli/src/core/graph/`. Catches both `function` declarations and `const = arrow/function` forms. Closes out the four-task migration that established `core/graph/` as the canonical home for graph queries.
 - README: new "Companion skills" section between "Works on any codebase" and "Rules can be anything enforceable" — links to LiaisonSkill, BePreciseSkill, and ResearcherSkill. Three smaller skills addressing adjacent disciplines for AI coding agents (intent capture, spec discipline, autonomous experimentation), each installable as a Claude Code plugin or droppable into any markdown-skill agent.
+- Structure aspect (`reviewer.type: structure`) — third reviewer type alongside `llm` and `ast`. Enables programmable structural rules via `check.mjs` with a graph-aware `ctx` (own files, fs, graph, parsers). Integrates with aspect-status v5, drift cascade, suppress, and 7-channel propagation. Constrained graph/fs reads (D9=A) — graph stays source-of-truth for dependencies. Trust model (D1=C) — main-thread execution, no sandbox.
+- `yg knowledge read writing-structure-aspects` topic.
+- First dogfood structure aspect `sibling-test-file` — every CLI command source has a sibling unit test under `cli/tests/unit/cli/`.
 - **Reviewer tiers** — `yg-config.yaml` now uses `reviewer.tiers.<name>` (named tier blocks). Each tier declares `provider`, `consensus`, and `config`. Aspects target a tier via `reviewer: { type: llm, tier: <name> }`; aspects without `tier:` use `reviewer.default` (required when more than one tier is configured; optional with exactly one tier). Supported providers: `ollama`, `anthropic`, `openai`, `google`, `openai-compatible`, `claude-code`, `codex`, `gemini-cli`.
 - `resolveExecutionPlan` in `approve-reviewer.ts` — groups effective aspects into `{ kind: 'ast' }` or `{ kind: 'llm', tier, tierName }` entries using `selectTierForAspect`. Tier resolution errors produce structured `IssueMessage` failures that abort `yg approve` before any LLM call.
 - `runApproveWithReviewer` now executes AST aspects first (no LLM call), grouped and run locally. LLM aspects follow, batched per tier name — one provider instance and one `verifyAspects` call per tier. Infrastructure errors (provider/auth) are distinguished from code violations in the refusal reason.
@@ -48,6 +51,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `command` node type gains permission to depend on the new `test-suite` organizational type. Required for the new `sibling-test-file` aspect's cross-node lookup.
+- New `structure-adapter` node type added (mirrors `ast-adapter`) covering `source/cli/src/structure/*.ts`.
+- New `test-suite` organizational node type added — labels the test directory tree explicitly so commands can declare `uses: <test-suite>` without granting them dependency on every internal module.
 - `yg check` output redesigned for agent-friendly terseness: the verbose multi-line header (with per-type node breakdown) is replaced by a single-line verdict + metrics header (`yg check: PASS/FAIL  N nodes · X/Y files · M aspects · K flows · D draft`). Cascade-drift errors with a shared upstream cause are grouped into one block with a `cascade (N)` label and a `→ {node list}` line instead of repeating 8-line what/why/next per affected node. The `Result: PASS/FAIL (0 errors, 0 warnings)` footer is eliminated — verdict is in the header. The `N draft aspects (skipped)` footer tally is absorbed into the header as `· D draft`. The `Next:` line is now a single actionable command (first line of `suggestedNext`, without annotation). `draftSkipped` now counts UNIQUE draft aspect IDs (not node×aspect pairs). `advisoryWarnings` footer tally removed.
 - `AspectDef.reviewer` changed from optional `'ast' | 'llm' | undefined` to required `AspectReviewerSpec` (`{ type: 'llm' | 'ast'; tier?: string }`). All comparison sites updated from string equality to `.type` property access.
 - `YggConfig.llm: LlmConfig | undefined` renamed to `YggConfig.reviewer: ReviewerConfig | undefined`. `ReviewerConfig` holds `{ tiers: Record<string, LlmConfig>; default?: string }` for named-tier support. `config-parser.ts` wraps the parsed `LlmConfig` in a bridge `tiers` map for v5 compatibility.
@@ -72,6 +78,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Old `inFile(file, string)` signature. Replaced by discriminated object.
 - Graph nodes `cli/ast/helpers-syntactic` and `cli/ast/helpers-naming`.
 - README: "Too heavy? Try AutoReview" sibling-tool section and the Yggdrasil/AutoReview comparison table. AutoReview is being deprecated and cross-links are being cut across the family.
+
+### Deferred
+
+- Per-invocation result cache for diamond-converging structure aspects — defer until repo-scale dogfood demonstrates redundancy.
+
+### Known limitations
+
+- Two structure aspects on the same node with contradictory rules (e.g. "file X must exist" vs "file X must not exist") are not detected automatically — both refuse forever and the user must read both `check.mjs` files to diagnose. v6.1 will surface a `potential aspect conflict on <file>` meta-warning.
 
 ## [4.3.0] - 2026-05-16
 
