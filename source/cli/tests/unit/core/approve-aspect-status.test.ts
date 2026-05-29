@@ -547,4 +547,54 @@ describe('cli approve: --node Y with all-draft', () => {
     expect(combined).toContain('Structure aspect: no-llm-structure [enforced]');
     await rm(tmpDir, { recursive: true, force: true });
   });
+
+  it('dry-run renders structure violations — with-file and without-file branches', async () => {
+    const { tmpDir } = await createTmpProject('node-dry-run-structure-violations', {
+      nodePath: 'svc/my-service',
+      nodeYaml:
+        'name: MyService\ntype: service\ndescription: test\n' +
+        'aspects:\n  - struct-violations\nmapping:\n  - src/svc/index.ts\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [
+        {
+          id: 'struct-violations',
+          yaml: 'name: StructViolations\ndescription: test\nreviewer:\n  type: structure\nstatus: enforced\n',
+          files: {
+            'check.mjs':
+              'export function check(ctx) {\n' +
+              "  return [\n" +
+              "    { message: 'bad shape here', file: 'src/svc/index.ts', line: 3 },\n" +
+              "    { message: 'global rule broken' },\n" +
+              '  ];\n' +
+              '}\n',
+          },
+        },
+      ],
+    });
+    const graph = await loadGraph(tmpDir);
+    const yggPrefix = path.relative(path.dirname(graph.rootPath), graph.rootPath)
+      .replace(/\\/g, '/').replace(/\/+$/, '');
+
+    const writes: string[] = [];
+    const orig = process.stdout.write.bind(process.stdout);
+    process.stdout.write = ((chunk: unknown) => {
+      writes.push(String(chunk));
+      return true;
+    }) as typeof process.stdout.write;
+    try {
+      await runDryRunForNode({ graph, nodePath: 'svc/my-service', yggPrefix });
+    } finally {
+      process.stdout.write = orig;
+    }
+
+    const combined = writes.join('');
+    expect(combined).toContain('Structure aspect: struct-violations [enforced]');
+    // with-file branch: "<file>:<line>: <message>"
+    expect(combined).toContain('src/svc/index.ts:3: bad shape here');
+    // without-file branch: bare message, no leading location prefix
+    expect(combined).toContain('global rule broken');
+    // never routed through the LLM prompt assembler
+    expect(combined).not.toContain('Prompt for LLM aspect: struct-violations');
+    await rm(tmpDir, { recursive: true, force: true });
+  });
 });
