@@ -73,6 +73,7 @@ export function formatResult(nodePath: string, result: LlmApproveResult): void {
   }
 
   formatLlmResults(result);
+  formatAdvisoryViolations(nodePath, result);
 
   // Report GC'd orphaned drift state
   if (result.gcPaths && result.gcPaths.length > 0) {
@@ -92,14 +93,20 @@ function formatLlmResults(result: LlmApproveResult): void {
   }
 
   if (result.aspectResults) {
+    // Advisory-only code violations are NOT rendered as red "NOT SATISFIED"
+    // here — they are surfaced as an informational line by
+    // formatAdvisoryViolations. Excluding them keeps this block reserved for
+    // blocking (enforced / infra) failures on a refused node.
+    const advisoryIds = new Set((result.advisoryViolations ?? []).map(v => v.aspectId));
     const entries = Object.entries(result.aspectResults);
-    const unsatisfied = entries.filter(([, r]) => !r.satisfied);
+    const unsatisfied = entries.filter(([id, r]) => !r.satisfied && !advisoryIds.has(id));
     if (unsatisfied.length === 0) {
-      // All satisfied — summary already printed by formatResult
+      // All satisfied (or only advisory) — summary already printed by formatResult
       return;
     }
     process.stdout.write('\nAspect verification:\n');
     for (const [aspectId, aspectResult] of entries) {
+      if (advisoryIds.has(aspectId)) continue;
       if (aspectResult.satisfied) {
         process.stdout.write(chalk.green(`  ${aspectId} — SATISFIED\n`));
       } else {
@@ -109,6 +116,24 @@ function formatLlmResults(result: LlmApproveResult): void {
     }
   }
 
+}
+
+/**
+ * Print advisory-only code violations as an informational line. These do NOT
+ * refuse the node (the action is approved/initial/no-change) and do NOT affect
+ * the exit code — advisory aspects warn but do not block. `yg check` continues
+ * to render them as non-blocking warnings from the recorded baseline verdict.
+ */
+function formatAdvisoryViolations(nodePath: string, result: LlmApproveResult): void {
+  const advisory = result.advisoryViolations ?? [];
+  if (advisory.length === 0) return;
+  process.stdout.write(chalk.cyan(
+    `\nInfo: ${advisory.length} advisory aspect violation(s) on ${nodePath} — recorded, not blocking:\n`,
+  ));
+  for (const v of advisory) {
+    process.stdout.write(chalk.cyan(`  ${v.aspectId} — ADVISORY (not blocking)\n`));
+    process.stdout.write(chalk.dim(`    ${v.reason}\n`));
+  }
 }
 
 function formatRefused(nodePath: string, result: LlmApproveResult): void {

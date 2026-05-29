@@ -59,6 +59,46 @@ describe('formatResult — LLM results', () => {
 
 });
 
+describe('formatResult — advisory-only violations', () => {
+  it('prints an informational (non-refusal) line for advisory violations on a passed node', () => {
+    const result = makeApproveResult({
+      action: 'approved',
+      aspectResults: {
+        'advisory-rule': { satisfied: false, reason: 'advisory issue on line 9', errorSource: 'codeViolation' as const },
+      },
+      advisoryViolations: [{ aspectId: 'advisory-rule', reason: 'advisory issue on line 9' }],
+    });
+    const output = captureOutput(() => formatResult('svc/thing', result));
+    // Approved summary still printed.
+    expect(output).toContain('Approved: svc/thing');
+    // Informational advisory line — NOT the red refusal, NOT "NOT SATISFIED".
+    expect(output).toContain('advisory aspect violation');
+    expect(output).toContain('advisory-rule — ADVISORY (not blocking)');
+    expect(output).toContain('advisory issue on line 9');
+    expect(output).not.toContain('NOT SATISFIED');
+    expect(output).not.toContain('Reviewer found aspect violations');
+  });
+
+  it('counts an advisory-only node as approved (not failed) in batch output', () => {
+    const results = [
+      {
+        nodePath: 'svc/a',
+        result: makeApproveResult({
+          action: 'approved',
+          aspectResults: {
+            'advisory-rule': { satisfied: false, reason: 'advisory issue', errorSource: 'codeViolation' as const },
+          },
+          advisoryViolations: [{ aspectId: 'advisory-rule', reason: 'advisory issue' }],
+        }),
+        skippedDraftAspects: [],
+      },
+    ];
+    const output = captureOutput(() => formatBatchOutput(results));
+    expect(output).toContain('1 approved, 0 failed.');
+    expect(output).toContain('ADVISORY (not blocking)');
+  });
+});
+
 describe('formatBatchOutput', () => {
   it('outputs full formatResult for each node, not one-line summaries', () => {
     const results = [

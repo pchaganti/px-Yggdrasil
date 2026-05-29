@@ -11,6 +11,13 @@ violations. Three levels:
 | \`advisory\`| yes               | warning                    | no                   |
 | \`enforced\`| yes               | error                      | yes                  |
 
+A code violation of an \`advisory\` aspect does NOT fail \`yg approve\`: the
+baseline and per-aspect verdict are still recorded and the CLI exits 0 with an
+informational line (the verdict surfaces later as a non-blocking \`yg check\`
+warning). Only a code violation of an \`enforced\` aspect refuses (exit 1); a mix
+of advisory + enforced refuses on the enforced one. Reviewer infrastructure
+failures always block regardless of status.
+
 ## Declaration sites
 
 \`\`\`yaml

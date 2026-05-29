@@ -70,7 +70,7 @@ Each object-form attach entry on channels 1–6 may carry an explicit `status:` 
 The reviewer is an LLM invoked by `yg approve`. It receives: the aspect's content.md, any declared reference files, and all source files of the node. It checks every rule from content.md against the code.
 
 - **Approved** → baseline recorded, drift cleared.
-- **Refused** → violation report with what and where. Fix the code, re-run approve.
+- **Refused** → violation report with what and where. Fix the code, re-run approve. Only an ENFORCED code violation refuses (`yg approve` exits 1). A code violation of an ADVISORY aspect does NOT fail approve — it exits 0 with an informational line, the baseline and verdict are still recorded, and `yg check` later renders it as a non-blocking warning.
 
 Three approve modes: `--node <path>` (one or more nodes), `--aspect <id>` (batch all nodes affected by this aspect change), `--flow <name>` (batch all nodes in this flow). Batch at most 3-5 nodes per invocation when using multiple `--node` flags — the reviewer loses accuracy with too many. Use `--dry-run` to preview the reviewer prompt without making an LLM call.
 

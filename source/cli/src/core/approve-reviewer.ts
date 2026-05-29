@@ -1,5 +1,5 @@
 // yg-suppress(deterministic) approve-reviewer must invoke the configured LLM provider for verification; non-determinism is intentional and inherent to this engine's purpose
-import type { Graph, GraphNode, AspectDef, LlmConfig, ReviewerConfig } from '../model/graph.js';
+import type { Graph, GraphNode, AspectDef, LlmConfig, ReviewerConfig, AspectStatus } from '../model/graph.js';
 import type { ApproveResult, AspectVerdict, AspectVerificationResult, DriftNodeState } from '../model/drift.js';
 import type { IssueMessage } from '../model/validation.js';
 import { verifyAspects } from '../llm/aspect-verifier.js';
@@ -57,6 +57,43 @@ export interface LlmApproveResult extends ApproveResult {
   aspectViolations?: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' }>;
   /** Effective-draft aspects skipped before reviewer dispatch. Empty when none. */
   skippedDraftAspects?: string[];
+  /**
+   * Code violations of aspects whose effective status is `advisory`, surfaced
+   * when ALL code violations on the node are advisory (zero enforced). In that
+   * case the node is NOT refused — the baseline and per-aspect verdicts are
+   * still recorded — but the CLI prints these as an informational line and
+   * treats the node as passed for exit-code purposes. This matches advisory's
+   * "warns, does not block" semantics. Absent/empty when there are no
+   * advisory-only code violations.
+   */
+  advisoryViolations?: Array<{ aspectId: string; reason: string }>;
+}
+
+/**
+ * Partition code violations (errorSource === 'codeViolation') by the violated
+ * aspect's effective status on this node. Anything not present in the status
+ * map defaults to `enforced` — the safe default that blocks. Infrastructure
+ * errors (provider / astRuntime) are NOT code violations and are excluded by
+ * the caller before this is used; they refuse via their own branches.
+ */
+function partitionCodeViolationsByStatus(
+  codeViolations: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' }>,
+  statuses: Map<string, AspectStatus>,
+): {
+  enforced: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' }>;
+  advisory: Array<{ aspectId: string; reason: string }>;
+} {
+  const enforced: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' }> = [];
+  const advisory: Array<{ aspectId: string; reason: string }> = [];
+  for (const v of codeViolations) {
+    const status = statuses.get(v.aspectId) ?? 'enforced';
+    if (status === 'advisory') {
+      advisory.push({ aspectId: v.aspectId, reason: v.reason });
+    } else {
+      enforced.push(v);
+    }
+  }
+  return { enforced, advisory };
 }
 
 // ── resolveExecutionPlan ─────────────────────────────────────
@@ -386,9 +423,15 @@ export async function runApproveWithReviewer(
         continue;
       }
 
-      // Persist touched files into the pending drift state.
+      // Persist touched files into the pending drift state. Normalize each
+      // path to forward-slash separators before using it as a drift-state key,
+      // matching every other path written at this output boundary (projectRoot,
+      // yggPrefix, sourceFilePaths, normalizedNodePath). runStructureAspect may
+      // return backslash-separated paths on Windows; storing them verbatim
+      // would violate the posix-paths-output contract for drift-state files.
       const sourceFileHashes: Record<string, string> = {};
-      for (const p of new Set(structResult.touchedFiles)) {
+      for (const raw of new Set(structResult.touchedFiles)) {
+        const p = raw.replace(/\\/g, '/').replace(/\/+$/, '');
         let hash = result.pendingDriftState?.state.files[p];
         /* v8 ignore next 9 -- hash is always set for own-mapping files; branch fires only when
          * ctx.fs/ctx.graph reads a related-node file not in pendingDriftState.state.files */
@@ -461,23 +504,34 @@ export async function runApproveWithReviewer(
     result.pendingDriftState.state.structureTouchedFiles = stf;
   }
 
+  // AST/structure short-circuit refusal. Refuse early (skipping LLM dispatch)
+  // ONLY when something here MUST block: an infrastructure crash (astRuntime)
+  // or a code violation of an ENFORCED aspect. If every violation so far is a
+  // code violation of an advisory-only aspect, do NOT short-circuit — let the
+  // LLM aspects run and let the final status-aware decision below surface the
+  // advisory violations without refusing.
   if (aspectViolations.length > 0) {
-    const normalizedNodePath = nodePath.replace(/\\/g, '/').replace(/\/+$/, '');
-    const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
-    applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
-    await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
-    return {
-      ...result,
-      action: 'refused',
-      refuseReasonData: {
-        what: 'Reviewer found aspect violations.',
-        why: 'One or more aspects were not satisfied by the source code.',
-        next: `Fix the violations and re-run: yg approve --node ${normalizedNodePath}`,
-      },
-      aspectResults: allAspectResults,
-      aspectViolations,
-      skippedDraftAspects,
-    };
+    const astInfraErrors = aspectViolations.filter(v => v.errorSource !== 'codeViolation');
+    const astCodeViolations = aspectViolations.filter(v => v.errorSource === 'codeViolation');
+    const { enforced: enforcedAstCode } = partitionCodeViolationsByStatus(astCodeViolations, statuses);
+    if (astInfraErrors.length > 0 || enforcedAstCode.length > 0) {
+      const normalizedNodePath = nodePath.replace(/\\/g, '/').replace(/\/+$/, '');
+      const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
+      applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
+      await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
+      return {
+        ...result,
+        action: 'refused',
+        refuseReasonData: {
+          what: 'Reviewer found aspect violations.',
+          why: 'One or more aspects were not satisfied by the source code.',
+          next: `Fix the violations and re-run: yg approve --node ${normalizedNodePath}`,
+        },
+        aspectResults: allAspectResults,
+        aspectViolations,
+        skippedDraftAspects,
+      };
+    }
   }
 
   // LLM aspects grouped by tier
@@ -488,7 +542,17 @@ export async function runApproveWithReviewer(
     const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
     applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
     await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
-    return { ...result, aspectResults: allAspectResults, skippedDraftAspects };
+    // No LLM aspects ran. Any violations reaching here are advisory-only code
+    // violations from AST/structure (enforced/infra short-circuited above) —
+    // surface them so the CLI prints the informational line without refusing.
+    const { advisory: advisoryCodeViolations } =
+      partitionCodeViolationsByStatus(aspectViolations.filter(v => v.errorSource === 'codeViolation'), statuses);
+    return {
+      ...result,
+      aspectResults: allAspectResults,
+      advisoryViolations: advisoryCodeViolations.length > 0 ? advisoryCodeViolations : undefined,
+      skippedDraftAspects,
+    };
   }
 
   const aspectsByTier = new Map<string, LlmEntry[]>();
@@ -531,7 +595,17 @@ export async function runApproveWithReviewer(
       const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
       applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
       await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
-      return { ...result, llmSkipped: 'unavailable', aspectResults: allAspectResults, skippedDraftAspects };
+      // LLM provider unreachable; any violations here are advisory-only code
+      // violations from AST/structure (enforced/infra short-circuited above).
+      const { advisory: advisoryCodeViolations } =
+        partitionCodeViolationsByStatus(aspectViolations.filter(v => v.errorSource === 'codeViolation'), statuses);
+      return {
+        ...result,
+        llmSkipped: 'unavailable',
+        aspectResults: allAspectResults,
+        advisoryViolations: advisoryCodeViolations.length > 0 ? advisoryCodeViolations : undefined,
+        skippedDraftAspects,
+      };
     }
 
     const maxTokens = merged.max_tokens === 'auto'
@@ -628,20 +702,47 @@ export async function runApproveWithReviewer(
     };
   }
 
+  // Final code-violations decision — status-aware.
+  //
+  // Reaching here means there is ≥1 code violation (the infra-only and
+  // reference-only branches above already returned for the codeViolations === 0
+  // cases). Partition the code violations by effective aspect status:
+  //   - ≥1 ENFORCED code violation, OR any remaining infrastructure error →
+  //     refuse (exit 1), as before. Infra failures always block.
+  //   - ALL code violations are ADVISORY (zero enforced, zero infra) → do NOT
+  //     refuse. The baseline and per-aspect verdicts are recorded just like an
+  //     approved node; the advisory violations are surfaced on the result so
+  //     the CLI can print an informational line and `yg check` still renders
+  //     them as non-blocking warnings. This matches advisory's "warns, does
+  //     not block" semantics.
   if (aspectViolations.length > 0) {
+    const { enforced: enforcedCodeViolations, advisory: advisoryCodeViolations } =
+      partitionCodeViolationsByStatus(codeViolations, statuses);
+
     const verdicts = buildAspectVerdicts(node, graph, allAspectResults);
     applyAspectVerdictsToResult(result, verdicts, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
     await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
+
+    if (infrastructureErrors.length > 0 || enforcedCodeViolations.length > 0) {
+      return {
+        ...result,
+        action: 'refused',
+        refuseReasonData: {
+          what: 'Reviewer found aspect violations.',
+          why: 'One or more aspects were not satisfied by the source code.',
+          next: `Fix the violations and re-run: yg approve --node ${normalizedNodePath}`,
+        },
+        aspectResults: allAspectResults,
+        aspectViolations,
+        skippedDraftAspects,
+      };
+    }
+
+    // Advisory-only code violations: preserve the approved-family action.
     return {
       ...result,
-      action: 'refused',
-      refuseReasonData: {
-        what: 'Reviewer found aspect violations.',
-        why: 'One or more aspects were not satisfied by the source code.',
-        next: `Fix the violations and re-run: yg approve --node ${normalizedNodePath}`,
-      },
       aspectResults: allAspectResults,
-      aspectViolations,
+      advisoryViolations: advisoryCodeViolations,
       skippedDraftAspects,
     };
   }

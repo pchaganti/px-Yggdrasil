@@ -301,6 +301,168 @@ describe('runApproveWithReviewer (core layer)', () => {
   });
 });
 
+// ── Advisory-status code violations — do NOT refuse ──────────
+//
+// A code violation of an aspect whose effective status is `advisory` must not
+// refuse the node. The baseline is still recorded and the violation is surfaced
+// via result.advisoryViolations so the CLI can print an informational line.
+// Only enforced code violations (or a mix) refuse. Draft is already skipped.
+
+describe('runApproveWithReviewer — advisory-status code violations', () => {
+  it('does NOT refuse when the only violated aspect is advisory (surfaces advisoryViolations)', async () => {
+    const { tmpDir } = await createTmpProject('advisory-only', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - advisory-rule\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [{
+        id: 'advisory-rule',
+        yaml: 'name: Advisory\ndescription: test\nreviewer:\n  type: llm\nstatus: advisory\n',
+        files: { 'content.md': 'Some advisory rule.\n' },
+      }],
+    });
+    await recordBaseline(tmpDir);
+    await writeFile(path.join(tmpDir, 'src/svc/index.ts'), 'const x = Date.now();\n');
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { return { satisfied: false, reason: 'advisory violation found', errorSource: 'codeViolation' as const }; },
+    }));
+
+    const result = await runApproveWithReviewer({
+      graph,
+      nodePath: 'svc/my-service',
+      result: coreResult,
+      rootPath: graph.rootPath,
+      secretsByProvider: new Map(),
+    });
+
+    // NOT refused — advisory violations warn but do not block.
+    expect(result.action).not.toBe('refused');
+    expect(result.advisoryViolations).toBeDefined();
+    expect(result.advisoryViolations!.map(v => v.aspectId)).toEqual(['advisory-rule']);
+    expect(result.advisoryViolations![0].reason).toContain('advisory violation found');
+    // Baseline recorded with the refused per-aspect verdict.
+    const stored = await readNodeDriftState(graph.rootPath, 'svc/my-service');
+    expect(stored?.aspectVerdicts?.['advisory-rule']?.verdict).toBe('refused');
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('still refuses when an enforced aspect is violated (regression guard)', async () => {
+    const { tmpDir } = await createTmpProject('enforced-violation', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - enforced-rule\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [{
+        id: 'enforced-rule',
+        yaml: 'name: Enforced\ndescription: test\nreviewer:\n  type: llm\nstatus: enforced\n',
+        files: { 'content.md': 'Some enforced rule.\n' },
+      }],
+    });
+    await recordBaseline(tmpDir);
+    await writeFile(path.join(tmpDir, 'src/svc/index.ts'), 'const x = Date.now();\n');
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { return { satisfied: false, reason: 'enforced violation found', errorSource: 'codeViolation' as const }; },
+    }));
+
+    const result = await runApproveWithReviewer({
+      graph,
+      nodePath: 'svc/my-service',
+      result: coreResult,
+      rootPath: graph.rootPath,
+      secretsByProvider: new Map(),
+    });
+
+    expect(result.action).toBe('refused');
+    expect(result.advisoryViolations ?? []).toEqual([]);
+    expect(result.aspectViolations!.map(v => v.aspectId)).toContain('enforced-rule');
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('refuses on a mix of one advisory + one enforced violation', async () => {
+    const { tmpDir } = await createTmpProject('mixed-adv-enf', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - advisory-rule\n  - enforced-rule\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [
+        {
+          id: 'advisory-rule',
+          yaml: 'name: Advisory\ndescription: test\nreviewer:\n  type: llm\nstatus: advisory\n',
+          files: { 'content.md': 'Advisory rule.\n' },
+        },
+        {
+          id: 'enforced-rule',
+          yaml: 'name: Enforced\ndescription: test\nreviewer:\n  type: llm\nstatus: enforced\n',
+          files: { 'content.md': 'Enforced rule.\n' },
+        },
+      ],
+    });
+    await recordBaseline(tmpDir);
+    await writeFile(path.join(tmpDir, 'src/svc/index.ts'), 'const x = Date.now();\n');
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { return { satisfied: false, reason: 'violation', errorSource: 'codeViolation' as const }; },
+    }));
+
+    const result = await runApproveWithReviewer({
+      graph,
+      nodePath: 'svc/my-service',
+      result: coreResult,
+      rootPath: graph.rootPath,
+      secretsByProvider: new Map(),
+    });
+
+    // Any enforced violation in the mix → refuse.
+    expect(result.action).toBe('refused');
+    expect(result.aspectViolations!.map(v => v.aspectId)).toContain('enforced-rule');
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('does NOT refuse when an advisory AST aspect is violated (short-circuit is status-aware)', async () => {
+    const ADV_AST_YAML = 'name: NoConsole\ndescription: No console\nreviewer:\n  type: ast\nlanguage:\n  - typescript\nstatus: advisory\n';
+    const { tmpDir } = await createTmpProject('advisory-ast', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - adv-ast\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [{
+        id: 'adv-ast',
+        yaml: ADV_AST_YAML,
+        files: {
+          'check.mjs': `export function check(ctx) {
+  if (ctx.files.length === 0) return [];
+  return [{ file: ctx.files[0].path, line: 1, message: 'always fails' }];
+}`,
+        },
+      }],
+    });
+    await recordBaseline(tmpDir);
+    await writeFile(path.join(tmpDir, 'src/svc/index.ts'), 'const x = 2;\n');
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+
+    const result = await runApproveWithReviewer({
+      graph,
+      nodePath: 'svc/my-service',
+      result: coreResult,
+      rootPath: graph.rootPath,
+      secretsByProvider: new Map(),
+    });
+
+    // Advisory AST violation must not refuse — and the LLM provider is never
+    // constructed because there are no LLM aspects.
+    expect(result.action).not.toBe('refused');
+    expect(result.advisoryViolations!.map(v => v.aspectId)).toEqual(['adv-ast']);
+    expect(mockCreateLlmProvider).not.toHaveBeenCalled();
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+});
+
 describe('LLM verification (CLI layer)', () => {
   it('runs LLM aspect verification and refuses when aspect not satisfied', async () => {
     const { tmpDir } = await createTmpProject('llm-refuse', {
@@ -330,6 +492,34 @@ describe('LLM verification (CLI layer)', () => {
     expect(result.aspectViolations!.length).toBeGreaterThan(0);
     expect(result.aspectViolations![0].reason).toContain('Date.now()');
     expect(result.aspectResults?.['deterministic']?.satisfied).toBe(false);
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('returns a non-refused result with advisoryViolations when only an advisory aspect is violated (exit 0 path)', async () => {
+    const { tmpDir } = await createTmpProject('llm-advisory', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - advisory-rule\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [{
+        id: 'advisory-rule',
+        yaml: 'name: Advisory\ndescription: test\nreviewer:\n  type: llm\nstatus: advisory\n',
+        files: { 'content.md': 'Some advisory rule.\n' },
+      }],
+    });
+    await recordBaseline(tmpDir);
+    await writeFile(path.join(tmpDir, 'src/svc/index.ts'), 'const x = Date.now();\n');
+
+    const graph = await loadGraph(tmpDir);
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { return { satisfied: false, reason: 'advisory issue', errorSource: 'codeViolation' as const }; },
+    }));
+
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    const result = await runLlmVerification(graph, 'svc/my-service', coreResult, new Map());
+    // The CLI single-node path only exits 1 when action === 'refused'; this
+    // result is approved-family, so the CLI exits 0.
+    expect(result.action).not.toBe('refused');
+    expect(result.advisoryViolations?.map(v => v.aspectId)).toEqual(['advisory-rule']);
     await rm(tmpDir, { recursive: true, force: true });
   });
 
