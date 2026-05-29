@@ -179,4 +179,110 @@ describe('buildAspectVerdicts', () => {
     const node = graph.nodes.get('n')!;
     expect(buildAspectVerdicts(node, graph, {})).toEqual({});
   });
+
+  it('infra error (errorSource: provider) — aspect is skipped, no refused verdict recorded', () => {
+    // A provider failure is not a code violation. buildAspectVerdicts must skip
+    // this aspect so that a transient infra failure cannot become a durable
+    // CI-blocking refused verdict.
+    const graph = buildTestGraph({
+      aspects: [
+        { id: 'A', status: 'enforced' },
+        { id: 'B', status: 'enforced' },
+      ],
+      nodes: [{ path: 'n', type: 'service', aspects: ['A', 'B'] }],
+    });
+    const node = graph.nodes.get('n')!;
+    const results: Record<string, AspectVerificationResult> = {
+      A: { satisfied: true, reason: 'ok', errorSource: 'codeViolation' },
+      B: { satisfied: false, reason: 'provider timeout', errorSource: 'provider' },
+    };
+    const verdicts = buildAspectVerdicts(node, graph, results);
+    // B had a provider-error infra failure — must NOT appear as refused
+    expect(verdicts['B']).toBeUndefined();
+    // A's verdict is unaffected
+    expect(verdicts['A']).toEqual({ verdict: 'approved' });
+  });
+
+  it('infra error (errorSource: astRuntime) — aspect is skipped, no refused verdict recorded', () => {
+    // A runner crash is not a code violation. buildAspectVerdicts must skip
+    // it so the prior baseline verdict (if any) is carried forward.
+    const graph = buildTestGraph({
+      aspects: [
+        { id: 'A', status: 'enforced' },
+        { id: 'B', status: 'enforced' },
+      ],
+      nodes: [{ path: 'n', type: 'service', aspects: ['A', 'B'] }],
+    });
+    const node = graph.nodes.get('n')!;
+    const results: Record<string, AspectVerificationResult> = {
+      A: { satisfied: false, reason: 'real violation', errorSource: 'codeViolation' },
+      B: { satisfied: false, reason: 'runner crash', errorSource: 'astRuntime' },
+    };
+    const verdicts = buildAspectVerdicts(node, graph, results);
+    // B had a runner-crash infra failure — must NOT appear as refused
+    expect(verdicts['B']).toBeUndefined();
+    // A is a genuine code violation — must still appear as refused
+    expect(verdicts['A']).toEqual({ verdict: 'refused', reason: 'real violation', errorSource: 'codeViolation' });
+  });
+
+  it('codeViolation errorSource — still recorded as refused (only infra errors are skipped)', () => {
+    const graph = buildTestGraph({
+      aspects: [{ id: 'A', status: 'enforced' }],
+      nodes: [{ path: 'n', type: 'service', aspects: ['A'] }],
+    });
+    const node = graph.nodes.get('n')!;
+    const results: Record<string, AspectVerificationResult> = {
+      A: { satisfied: false, reason: 'missing header', errorSource: 'codeViolation' },
+    };
+    const verdicts = buildAspectVerdicts(node, graph, results);
+    expect(verdicts['A']).toEqual({ verdict: 'refused', reason: 'missing header', errorSource: 'codeViolation' });
+  });
+});
+
+describe('buildAspectVerdicts — infra error carry-forward via applyAspectVerdictsToResult', () => {
+  it('full-node approve: prior approved verdict survives an infra-error re-run (filtered approve)', () => {
+    // In a filtered approve (filterAspectId set), applyAspectVerdictsToResult
+    // merges: prior verdicts for untouched aspects are preserved. If the targeted
+    // aspect had an infra error, buildAspectVerdicts skips it, so the merged
+    // result keeps the prior verdict for that aspect.
+    const graph = buildTestGraph({
+      aspects: [
+        { id: 'A', status: 'enforced' },
+        { id: 'B', status: 'enforced' },
+      ],
+      nodes: [{ path: 'n', type: 'service', aspects: ['A', 'B'] }],
+    });
+    const node = graph.nodes.get('n')!;
+
+    // Simulate infra error on B (provider failure)
+    const results: Record<string, AspectVerificationResult> = {
+      A: { satisfied: true, reason: 'ok', errorSource: 'codeViolation' },
+      B: { satisfied: false, reason: 'provider timeout', errorSource: 'provider' },
+    };
+    const verdicts = buildAspectVerdicts(node, graph, results);
+
+    // Prior baseline: B was approved
+    const prior: Record<string, AspectVerdict> = {
+      A: { verdict: 'approved' },
+      B: { verdict: 'approved' },
+    };
+
+    const result: ApproveResult = {
+      action: 'approved',
+      currentHash: 'h',
+      pendingDriftState: {
+        nodePath: 'n',
+        state: { hash: 'h', files: {} },
+      },
+    } as ApproveResult;
+
+    // Filtered approve targeting aspect B
+    applyAspectVerdictsToResult(result, verdicts, prior, 'B', false);
+
+    // B's prior 'approved' verdict must survive the infra-error re-run:
+    // buildAspectVerdicts did not include B in verdicts (skipped), so
+    // the filtered-approve merge keeps the prior entry for B.
+    expect(result.pendingDriftState!.state.aspectVerdicts!['B']).toEqual({ verdict: 'approved' });
+    expect(result.pendingDriftState!.state.aspectVerdicts!['A']).toEqual({ verdict: 'approved' });
+  });
 });

@@ -195,6 +195,12 @@ export function buildAspectVerdicts(
     if (status === 'draft') continue;
     const res = allAspectResults[aspectId];
     if (res?.satisfied === false) {
+      // Infra error (provider/runner failure, unreadable reference) — NOT a code
+      // violation. Do not persist a 'refused' verdict; skip so the prior baseline
+      // verdict (if any) is carried forward by applyAspectVerdictsToResult, exactly
+      // as reviewerAborted preserves prior state. Otherwise a transient infra failure
+      // becomes a durable CI-blocking refused verdict.
+      if (res.errorSource !== 'codeViolation') continue;
       verdicts[aspectId] = { verdict: 'refused', reason: res.reason, errorSource: res.errorSource };
     } else if (res?.satisfied === true) {
       verdicts[aspectId] = { verdict: 'approved' };
