@@ -1,5 +1,5 @@
 {
-  "hash": "909835c42519c294e0327e1bf2eb42c517334bbbcfe8333809a65037ca70b434",
+  "hash": "a28db673253dae1efe1229cbbc60bb92cb77d56bc6e5f6f96fdf5a07db6e1870",
   "files": {
     "own-subset:cli/structure": "204bb5c981df191b1ce7c90b917c430e5813e7219cb7a2f740e2c87bcc605709",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -10,7 +10,10 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
     "source/cli/src/structure/index.ts": "5ca19d6ddee7f955299508a60c8fabd7e6c270fda400008a90c6c41928036fa3",
     "source/cli/src/structure/expand-mapping-sync.ts": "3d908c3ccecd52c2d552a143480441e07376f9f1c83fd3a0088d7a9ac2da4935",
-    "source/cli/src/structure/allowed-reads.ts": "9e260eba9a5a0b82044cac90b0213d0b34104cfa70ef397bc8ff3b8c952c21df"
+    "source/cli/src/structure/allowed-reads.ts": "9e260eba9a5a0b82044cac90b0213d0b34104cfa70ef397bc8ff3b8c952c21df",
+    "source/cli/src/structure/types.ts": "39eadb834bb931d24e3102bbec7d8b1004d1f2847bc7c7569f19af3fa3de673f",
+    "source/cli/src/structure/ctx-fs.ts": "5aa16116b08fb7e6946d5f406d3206c6fe8e0a683cd036b69ea295fde5421325",
+    "source/cli/src/structure/ctx-graph.ts": "548d74f4fb356dd5d38bb5fed505d63ffec145e7b216e9e8740a0077a844e009"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -20,11 +23,14 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1779794513934.5745,
     "source/cli/src/structure/index.ts": 1780030462522.402,
     "source/cli/src/structure/expand-mapping-sync.ts": 1780031224857.681,
-    "source/cli/src/structure/allowed-reads.ts": 1780035247445.1643
+    "source/cli/src/structure/allowed-reads.ts": 1780035247445.1643,
+    "source/cli/src/structure/types.ts": 1780035422054.3289,
+    "source/cli/src/structure/ctx-fs.ts": 1780035647560.4785,
+    "source/cli/src/structure/ctx-graph.ts": 1780035958821.0063
   },
   "log": {
-    "last_entry_datetime": "2026-05-29T06:14:23.637Z",
-    "prefix_hash": "8e11c2be421bcca6b0b234b8371625120153c88e21d8eb30464a9e8d4808f1d9"
+    "last_entry_datetime": "2026-05-29T06:27:03.177Z",
+    "prefix_hash": "df71469b2fa4f76b983728bae1931f146a95224fced7f7f14baed09baf067299"
   },
   "aspectVerdicts": {
     "deterministic": {

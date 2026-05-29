@@ -7,3 +7,4 @@ mapping:
   - source/cli/src/structure/allowed-reads.ts
   - source/cli/src/structure/types.ts
   - source/cli/src/structure/ctx-fs.ts
+  - source/cli/src/structure/ctx-graph.ts
