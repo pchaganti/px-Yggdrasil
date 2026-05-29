@@ -67,4 +67,33 @@ describe('ctx.fs', () => {
     const fs = createCtxFs({ allowedSet, projectRoot: root, touchedFiles: touched });
     expect(() => fs.list('src/forbidden')).toThrow(UndeclaredFsReadError);
   });
+
+  // Path-traversal escape: an allowed-DIRECTORY prefix followed by enough
+  // `..` segments resolves outside the repository. The prefix passes the
+  // allow-set's descendant check, but normalize() does not collapse `..` and
+  // there is no post-resolve containment re-check — so the read escapes the
+  // repo and returns arbitrary files (e.g. /etc/passwd) to untrusted
+  // check.mjs. A bare directory mapping ('src/lib') is a realistic allow-set
+  // entry; the traversal path starts with 'src/lib/' so isAllowed accepts it.
+  const dirAllowedSet = new Set(['src/lib']);
+
+  it('read() throws when traversal escapes the repo via an allowed directory prefix', () => {
+    const fs = createCtxFs({ allowedSet: dirAllowedSet, projectRoot: root, touchedFiles: touched });
+    expect(() => fs.read('src/lib/../../../../../../../../etc/passwd')).toThrow(UndeclaredFsReadError);
+  });
+
+  it('exists() throws when traversal escapes the repo via an allowed directory prefix', () => {
+    const fs = createCtxFs({ allowedSet: dirAllowedSet, projectRoot: root, touchedFiles: touched });
+    expect(() => fs.exists('src/lib/../../../../../../../../etc/passwd')).toThrow(UndeclaredFsReadError);
+  });
+
+  it('read() throws for an absolute path outside the repo', () => {
+    const fs = createCtxFs({ allowedSet, projectRoot: root, touchedFiles: touched });
+    expect(() => fs.read('/etc/passwd')).toThrow(UndeclaredFsReadError);
+  });
+
+  it('exists() throws for an absolute path outside the repo', () => {
+    const fs = createCtxFs({ allowedSet, projectRoot: root, touchedFiles: touched });
+    expect(() => fs.exists('/etc/passwd')).toThrow(UndeclaredFsReadError);
+  });
 });

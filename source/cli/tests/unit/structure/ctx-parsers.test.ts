@@ -3,26 +3,30 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createCtxParsers, prewarmupAstCache } from '../../../src/structure/ctx-parsers.js';
+import { UndeclaredFsReadError } from '../../../src/structure/ctx-fs.js';
 
 describe('ctx parsers', () => {
   let root: string;
   let touched: string[];
+  // Allow-set for string-path reads. cfg.json is the one legit string read in
+  // these tests; File-object inputs bypass the allow-set entirely.
+  const allowedSet = new Set(['cfg.json']);
   beforeEach(() => { root = mkdtempSync(path.join(tmpdir(), 'yg-ctx-parsers-')); touched = []; });
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
   it('parseYaml on File entry', () => {
-    const p = createCtxParsers({ projectRoot: root, touchedFiles: touched, astCache: new Map() });
+    const p = createCtxParsers({ allowedSet, projectRoot: root, touchedFiles: touched, astCache: new Map() });
     expect(p.parseYaml({ path: 'x.yaml', content: 'foo: bar' })).toEqual({ foo: 'bar' });
     expect(touched).toContain('x.yaml');
   });
 
   it('parseJson on File entry', () => {
-    const p = createCtxParsers({ projectRoot: root, touchedFiles: touched, astCache: new Map() });
+    const p = createCtxParsers({ allowedSet, projectRoot: root, touchedFiles: touched, astCache: new Map() });
     expect(p.parseJson({ path: 'x.json', content: '{"a":1}' })).toEqual({ a: 1 });
   });
 
   it('parseToml on File entry', () => {
-    const p = createCtxParsers({ projectRoot: root, touchedFiles: touched, astCache: new Map() });
+    const p = createCtxParsers({ allowedSet, projectRoot: root, touchedFiles: touched, astCache: new Map() });
     expect(p.parseToml({ path: 'x.toml', content: 'name = "yg"' })).toEqual({ name: 'yg' });
   });
 
@@ -32,22 +36,52 @@ describe('ctx parsers', () => {
     const tree = await parseFile('x.ts', 'const x = 1;');
     astCache.set('x.ts', { content: 'const x = 1;', ast: tree });
 
-    const p = createCtxParsers({ projectRoot: root, touchedFiles: touched, astCache });
+    const p = createCtxParsers({ allowedSet, projectRoot: root, touchedFiles: touched, astCache });
     const got = p.parseAst({ path: 'x.ts', content: 'const x = 1;' }, 'typescript');
     expect((got as any).rootNode).toBeDefined();
   });
 
   it('parseAst throws structure-aspect-parseast-not-prewarmed on cache miss', () => {
-    const p = createCtxParsers({ projectRoot: root, touchedFiles: touched, astCache: new Map() });
+    const p = createCtxParsers({ allowedSet, projectRoot: root, touchedFiles: touched, astCache: new Map() });
     expect(() => p.parseAst({ path: 'unknown.ts', content: 'x' }, 'typescript'))
       .toThrow(/structure-aspect-parseast-not-prewarmed/);
   });
 
-  it('parser accepts path string and reads + tracks', () => {
+  it('parser accepts allowed path string and reads + tracks', () => {
     writeFileSync(path.join(root, 'cfg.json'), '{"k":2}');
-    const p = createCtxParsers({ projectRoot: root, touchedFiles: touched, astCache: new Map() });
+    const p = createCtxParsers({ allowedSet, projectRoot: root, touchedFiles: touched, astCache: new Map() });
     expect(p.parseJson('cfg.json')).toEqual({ k: 2 });
     expect(touched).toContain('cfg.json');
+  });
+
+  // Sandbox holes: a string path must be routed through the same allow-set
+  // guard ctx.fs uses. Absolute paths and parent-directory traversal that
+  // escapes the repo must be rejected — they let untrusted check.mjs read
+  // arbitrary files (e.g. /etc/passwd) outside the declared read set.
+  it('parseJson rejects absolute path outside allow-set', () => {
+    const p = createCtxParsers({ allowedSet, projectRoot: root, touchedFiles: touched, astCache: new Map() });
+    expect(() => p.parseJson('/etc/passwd')).toThrow(UndeclaredFsReadError);
+  });
+
+  it('parseYaml rejects absolute path outside allow-set', () => {
+    const p = createCtxParsers({ allowedSet, projectRoot: root, touchedFiles: touched, astCache: new Map() });
+    expect(() => p.parseYaml('/etc/passwd')).toThrow(UndeclaredFsReadError);
+  });
+
+  it('parseToml rejects absolute path outside allow-set', () => {
+    const p = createCtxParsers({ allowedSet, projectRoot: root, touchedFiles: touched, astCache: new Map() });
+    expect(() => p.parseToml('/etc/passwd')).toThrow(UndeclaredFsReadError);
+  });
+
+  it('parseJson rejects parent-directory traversal that escapes the repo', () => {
+    const p = createCtxParsers({ allowedSet, projectRoot: root, touchedFiles: touched, astCache: new Map() });
+    expect(() => p.parseJson('cfg.json/../../../../etc/passwd')).toThrow(UndeclaredFsReadError);
+  });
+
+  it('parseJson rejects a path not in the allow-set even if it resolves inside the repo', () => {
+    writeFileSync(path.join(root, 'secret.json'), '{"s":1}');
+    const p = createCtxParsers({ allowedSet, projectRoot: root, touchedFiles: touched, astCache: new Map() });
+    expect(() => p.parseJson('secret.json')).toThrow(UndeclaredFsReadError);
   });
 });
 

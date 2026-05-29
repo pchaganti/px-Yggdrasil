@@ -157,7 +157,7 @@ export async function runStructureAspect(
   const allowedSet = collectAllowedReadsForAspect(nodePath, graph);
   const ctxFs = createCtxFs({ allowedSet, projectRoot, touchedFiles });
   const ctxGraph = createCtxGraph({ currentNodePath: nodePath, graph, projectRoot, touchedFiles });
-  const parsers = createCtxParsers({ projectRoot, touchedFiles, astCache });
+  const parsers = createCtxParsers({ allowedSet, projectRoot, touchedFiles, astCache });
 
   const ownFiles = buildOwnFiles(node, projectRoot, touchedFiles);
   const ctx: Ctx = {

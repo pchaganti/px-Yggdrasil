@@ -37,12 +37,28 @@ function isAllowed(p: string, set: Set<string>): boolean {
   return false;
 }
 
+/**
+ * Resolve a check.mjs-supplied read path to a safe, allow-set-checked repo-relative path.
+ * Rejects absolute paths and any `..` traversal that escapes the repo, then enforces the
+ * allow-set. Throws UndeclaredFsReadError on any violation. Shared by ctx.fs and ctx.parsers
+ * so the two sandbox surfaces cannot diverge.
+ */
+export function resolveAllowedReadPath(raw: string, allowedSet: Set<string>, projectRoot: string): string {
+  const abs = path.resolve(projectRoot, normalize(raw));
+  const rel = path.relative(projectRoot, abs).replace(/\\/g, '/');
+  // rel === '' (the repo root itself), starts with '..' (escapes repo), or is absolute → reject
+  if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) {
+    throw new UndeclaredFsReadError(normalize(raw));
+  }
+  if (!isAllowed(rel, allowedSet)) throw new UndeclaredFsReadError(rel);
+  return rel;
+}
+
 export function createCtxFs(params: CtxFsParams): CtxFs {
   const { allowedSet, projectRoot, touchedFiles } = params;
 
   function assertAllowed(raw: string): string {
-    const p = normalize(raw);
-    if (!isAllowed(p, allowedSet)) throw new UndeclaredFsReadError(p);
+    const p = resolveAllowedReadPath(raw, allowedSet, projectRoot);
     touchedFiles.push(p);
     return p;
   }

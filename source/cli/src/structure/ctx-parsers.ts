@@ -4,9 +4,11 @@ import { parse as parseYaml } from 'yaml';
 import { parse as parseTomlSmol } from 'smol-toml';
 import { parseFile as parseAstFile } from '../ast/parser.js';
 import type { ParseCache } from '../ast/parse-cache.js';
+import { resolveAllowedReadPath } from './ctx-fs.js';
 import type { File } from './types.js';
 
 export interface CtxParsersParams {
+  allowedSet: Set<string>;
   projectRoot: string;
   touchedFiles: string[];
   astCache: ParseCache;
@@ -20,17 +22,18 @@ export interface CtxParsers {
 }
 
 export function createCtxParsers(params: CtxParsersParams): CtxParsers {
-  const { projectRoot, touchedFiles, astCache } = params;
+  const { allowedSet, projectRoot, touchedFiles, astCache } = params;
 
   function asFile(input: File | string): File {
     if (typeof input !== 'string') {
       touchedFiles.push(input.path);
       return input;
     }
-    const abs = path.resolve(projectRoot, input);
+    const p = resolveAllowedReadPath(input, allowedSet, projectRoot);
+    const abs = path.resolve(projectRoot, p);
     const content = fs.readFileSync(abs, 'utf8');
-    touchedFiles.push(input);
-    return { path: input, content };
+    touchedFiles.push(p);
+    return { path: p, content };
   }
 
   return {

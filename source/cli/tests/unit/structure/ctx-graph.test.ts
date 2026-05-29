@@ -114,6 +114,35 @@ describe('ctx.graph', () => {
     expect(rels[0]?.target).toBe('B');
   });
 
+  it('relationsFrom() throws for a node outside the allowed scope', () => {
+    // relationsFrom must enforce the same allow-set check node()/children() do.
+    // Otherwise untrusted check.mjs can read relation metadata of arbitrary
+    // out-of-scope nodes by passing a hand-built {id} object.
+    const g = buildTestGraphForStructure({
+      nodes: [
+        { path: 'A', type: 'm', mapping: ['src/a.ts'] },
+        { path: 'C', type: 'm', mapping: ['src/c.ts'], relations: [{ type: 'uses', target: 'A' }] },
+      ],
+    });
+    const ctxGraph = createCtxGraph({ currentNodePath: 'A', graph: g, projectRoot, touchedFiles: [] });
+    // 'C' is not reachable from 'A' (no relation, not ancestor/descendant).
+    expect(() => ctxGraph.relationsFrom({ id: 'C' } as any)).toThrow(UndeclaredGraphReadError);
+  });
+
+  it('relationsFrom() returns relations for an allowed node passed as a bare {id}', () => {
+    const g = buildTestGraphForStructure({
+      nodes: [
+        { path: 'A', type: 'm', mapping: ['src/a.ts'], relations: [{ type: 'uses', target: 'B' }] },
+        { path: 'B', type: 'm', mapping: ['src/b.ts'] },
+      ],
+    });
+    const ctxGraph = createCtxGraph({ currentNodePath: 'A', graph: g, projectRoot, touchedFiles: [] });
+    // 'A' is the current node (always allowed) — relations come back.
+    const rels = ctxGraph.relationsFrom({ id: 'A' } as any);
+    expect(rels).toHaveLength(1);
+    expect(rels[0]?.target).toBe('B');
+  });
+
   it('relationsTo() returns relations pointing at a given node', () => {
     const g = buildTestGraphForStructure({
       nodes: [

@@ -106,6 +106,7 @@ export function createCtxGraph(params: CtxGraphParams): CtxGraph {
       return out;
     },
     relationsFrom(node) {
+      assertAllowed(node.id);
       const m = graph.nodes.get(node.id);
       return (m?.meta.relations ?? []) as Relation[];
     },
