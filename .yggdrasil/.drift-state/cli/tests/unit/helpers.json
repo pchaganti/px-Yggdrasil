@@ -1,5 +1,5 @@
 {
-  "hash": "5bc1d981dab766a12055bed1dc3d37cf0025a20f36060dd1ae54972a3e4764ca",
+  "hash": "4d17c4e43589121d342a9c1e1c338af4e627476b962d0ffb7d410b93e4a7b0cb",
   "files": {
     "own-subset:cli/tests/unit/helpers": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -9,8 +9,8 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/helpers/build-test-graph.ts": "74b5bd676d165419f545a258e6c1f8697b33e57d79c531ab486b70696ee66363",
-    "source/cli/tests/unit/helpers/build-test-graph-structure.ts": "20317e96f12a281df3ac57a425a1bccb17ca4b0a9c3dd204184124098aaf47c5",
-    "source/cli/tests/unit/helpers/build-test-graph-structure.test.ts": "121c0d08806a68f53aa4cad47cfd3fa2962041fae275697319195714e1cdb896"
+    "source/cli/tests/unit/helpers/build-test-graph-structure.test.ts": "121c0d08806a68f53aa4cad47cfd3fa2962041fae275697319195714e1cdb896",
+    "source/cli/tests/unit/helpers/build-test-graph-structure.ts": "ddcd62da1c8dd23c667850770ae1f0b7673bdea3175eaf8e36d90c4d6051e22a"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -19,12 +19,12 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/helpers/build-test-graph.ts": 1779970993475.7493,
-    "source/cli/tests/unit/helpers/build-test-graph-structure.ts": 1780029966421.5254,
+    "source/cli/tests/unit/helpers/build-test-graph-structure.ts": 1780030262743.7183,
     "source/cli/tests/unit/helpers/build-test-graph-structure.test.ts": 1780029974723.867
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T12:19:48.059Z",
-    "prefix_hash": "f43e13459f79ba600f03edf3d0f90cc9b0ece6a7ec1ab452d05ec157f99a4a4b"
+    "last_entry_datetime": "2026-05-29T04:51:27.989Z",
+    "prefix_hash": "b3e80d8c26f33ae976a52dec0166d65de8d1d7bce923c72ef07bfde0e5ef43c8"
   },
   "aspectVerdicts": {
     "test-deterministic": {

@@ -1,4 +1,4 @@
-import type { Graph, GraphNode, NodeMeta, Relation, PortDef, RelationType } from '../../../src/model/graph.js';
+import type { Graph, NodeMeta, Relation, PortDef, RelationType } from '../../../src/model/graph.js';
 import { buildTestGraph, type TestNodeInput, type TestAspectInput, type TestTypeInput } from './build-test-graph.js';
 
 /**
