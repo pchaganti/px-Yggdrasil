@@ -5,3 +5,5 @@ aspects: []
 relations: []
 mapping:
   - source/cli/tests/unit/helpers/build-test-graph.ts
+  - source/cli/tests/unit/helpers/build-test-graph-structure.ts
+  - source/cli/tests/unit/helpers/build-test-graph-structure.test.ts
