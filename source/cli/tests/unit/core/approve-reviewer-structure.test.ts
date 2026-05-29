@@ -525,4 +525,90 @@ describe('D8.3 — structureTouchedFiles carry-forward for draft-skipped structu
 
     await rm(tmpDir, { recursive: true, force: true });
   });
+
+  it('filtered approve carries forward a non-targeted enforced structure aspect\'s structureTouchedFiles', async () => {
+    // Two ENFORCED structure aspects on one node: shape-a + shape-b. A filtered
+    // approve (`yg approve --aspect shape-a`) runs only shape-a's runner. shape-b
+    // is enforced (not draft) but filter-excluded this run. Its prior
+    // structureTouchedFiles entry must be carried forward — otherwise its touched
+    // files silently drop out of the node's drift identity and impact blast-radius.
+    const { tmpDir, yggRoot } = await createStructureProject('filter-carry', {
+      nodePath: 'svc/my-service',
+      nodeYaml: [
+        'name: MyService',
+        'type: service',
+        'description: test',
+        'aspects:',
+        '  - shape-a',
+        '  - shape-b',
+        'mapping:',
+        '  - src/svc.ts',
+      ].join('\n') + '\n',
+      mappingFiles: { 'src/svc.ts': 'export const x = 1;\n' },
+      aspects: [
+        {
+          id: 'shape-a',
+          yaml: 'name: ShapeA\ndescription: test\nreviewer:\n  type: structure\nstatus: enforced\n',
+          files: { 'check.mjs': 'export function check(_ctx) { return []; }\n' },
+        },
+        {
+          id: 'shape-b',
+          yaml: 'name: ShapeB\ndescription: test\nreviewer:\n  type: structure\nstatus: enforced\n',
+          files: { 'check.mjs': 'export function check(_ctx) { return []; }\n' },
+        },
+      ],
+    });
+
+    // Record baseline, then seed structureTouchedFiles for BOTH enforced aspects.
+    await recordBaseline(tmpDir);
+    const graph0 = await loadGraph(tmpDir);
+    for (const [nodePath, node] of graph0.nodes) {
+      if (!node.meta.mapping) continue;
+      const trackedFiles = collectTrackedFiles(node, graph0);
+      const projectRoot = path.dirname(graph0.rootPath);
+      const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
+        projectRoot, trackedFiles, undefined, [],
+      );
+      await writeNodeDriftState(graph0.rootPath, nodePath, {
+        hash: canonicalHash,
+        files: fileHashes,
+        mtimes: fileMtimes,
+        structureTouchedFiles: {
+          'shape-a': { 'src/svc.ts': 'aaa111' },
+          'shape-b': { 'src/other.ts': 'bbb222' },
+        },
+      });
+    }
+
+    const { readNodeDriftState } = await import('../../../src/io/drift-state-store.js');
+    const seededBaseline = await readNodeDriftState(yggRoot, 'svc/my-service');
+    expect(seededBaseline?.structureTouchedFiles?.['shape-b']).toMatchObject({ 'src/other.ts': 'bbb222' });
+
+    // Modify source so approve runs (approved, not no-change).
+    await writeFile(path.join(tmpDir, 'src/svc.ts'), 'export const x = 2;\n');
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    expect(coreResult.action).toBe('approved');
+
+    // Filtered approve — only shape-a is freshly evaluated this run.
+    const result = await runApproveWithReviewer({
+      graph,
+      nodePath: 'svc/my-service',
+      result: coreResult,
+      rootPath: graph.rootPath,
+      secretsByProvider: new Map(),
+      storedEntry: seededBaseline,
+      filterAspectId: 'shape-a',
+    });
+
+    const stf = result.pendingDriftState?.state.structureTouchedFiles;
+    expect(stf).toBeDefined();
+    // shape-a ran this run — its entry is present (freshly evaluated).
+    expect(stf!['shape-a']).toBeDefined();
+    // shape-b was filter-excluded (enforced, not draft) — its prior entry must survive.
+    expect(stf!['shape-b']).toMatchObject({ 'src/other.ts': 'bbb222' });
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
 });

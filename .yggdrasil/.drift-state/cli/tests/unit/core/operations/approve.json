@@ -1,5 +1,5 @@
 {
-  "hash": "c06804b0047e4bff1b8399e0fa271ed8f30a15893a3728d94ec8d14d83dbdb86",
+  "hash": "d6380a404b4f2569556d8a50bdca88897d0e920327ee70251cc300ddde01dca1",
   "files": {
     "own-subset:cli/tests/unit/core/operations/approve": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -15,10 +15,10 @@
     "source/cli/tests/unit/core/approve-log.test.ts": "02574172052e6f58213b40cd0462bb54bdf7645203e3d41f2f12fc5f02c04da4",
     "source/cli/tests/unit/core/approve-reviewer-references.test.ts": "dabdc0fd293c842acc049b73cf1f774436c4146ce99282a860a94a88d62ca9b5",
     "source/cli/tests/unit/core/approve-aspect-status.test.ts": "fd6d0ef3578aeb0b351e6cf6bc90f52fa59ed97f28fbcc3649c8316270b431b4",
+    "source/cli/tests/unit/core/approve-aspect-verdicts.test.ts": "b18071f21da8039459ee9a66d1988dba0ec30cc823088a827576a27edcb9b9eb",
     "source/cli/tests/unit/core/approve-annotate.test.ts": "561a9ebf0108fb3567eb1cf48dbd4b0536069ccf27707f6efc023c80d7efbda3",
-    "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": "044fc6b5b30607b9e22f7adcaae14b980b391c0ef282826602fd321cc124a2c6",
     "source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts": "680358c5f234ba69c571bedba8161f02b15e702df9fd4a3dad23340197e14280",
-    "source/cli/tests/unit/core/approve-aspect-verdicts.test.ts": "b18071f21da8039459ee9a66d1988dba0ec30cc823088a827576a27edcb9b9eb"
+    "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": "9928028de3090bdf6a3eafc79a5a547301228aed1aeddafd464db180ba518e7d"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -35,7 +35,7 @@
     "source/cli/tests/unit/core/approve-aspect-status.test.ts": 1780068680029.7,
     "source/cli/tests/unit/core/approve-aspect-verdicts.test.ts": 1780072716462.0159,
     "source/cli/tests/unit/core/approve-annotate.test.ts": 1780039619124.888,
-    "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": 1780068751014.5574,
+    "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": 1780074076586.8472,
     "source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts": 1780071914517.0925
   },
   "log": {

@@ -139,8 +139,11 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
     // emitting its warning every `yg check` even when no file changed.
     emitPerAspectIssues(node, graph, storedEntry, issues);
 
-    // Collect tracked files WITH layer info
-    const trackedFiles = collectTrackedFiles(node, graph);
+    // Collect tracked files WITH layer info. Pass the stored baseline so the
+    // structure-touched layer (cross-node files read by a structure aspect,
+    // recorded in structureTouchedFiles) participates in drift identity —
+    // editing such a file must drift this dependent node.
+    const trackedFiles = collectTrackedFiles(node, graph, storedEntry);
 
     // Compute child mapping exclusions (child-wins model)
     const excludePrefixes = getChildMappingExclusions(graph, nodePath);

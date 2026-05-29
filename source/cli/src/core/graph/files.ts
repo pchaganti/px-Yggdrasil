@@ -133,9 +133,20 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
 
   // structure-touched: inject entries from baseline's structureTouchedFiles so drift
   // fires when the set (or content) of files touched by a structure aspect changes.
+  //
+  // A touched path that is in this node's OWN mapping is skipped here: the SOURCE
+  // step (below) already tracks it under the 'source' layer, which check.ts
+  // classifies as source-drift. Adding it here first would label it
+  // 'structure-touched' (addFile dedups by path, first-writer-wins) and misreport
+  // an own-file edit as an upstream cascade. Cross-node touched paths (owned by a
+  // related node, not in this mapping) ARE added here as 'structure-touched' — that
+  // is the whole point: they otherwise have no tracking entry. The synthetic
+  // per-aspect hash still summarizes the FULL set (own + cross) so a change to the
+  // set membership drifts regardless of which paths are own vs cross.
   if (baseline?.structureTouchedFiles) {
     for (const [aspectId, pathMap] of Object.entries(baseline.structureTouchedFiles)) {
       for (const p of Object.keys(pathMap)) {
+        if (mappingPathsSet.has(p)) continue;
         addFile(p, 'source', 'structure-touched');
       }
       const sorted = Object.keys(pathMap).sort();

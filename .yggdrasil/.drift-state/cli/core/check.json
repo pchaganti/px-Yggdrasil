@@ -1,5 +1,5 @@
 {
-  "hash": "aff8889a912ab065cd6fe767d053b8170ebfdb465e8c0b8f4530c6cee011ee22",
+  "hash": "c23021455d0666aab7bf68f916c56e20c7b372f85ea606e6bd90f99ce6d906d1",
   "files": {
     "own-subset:cli/core/check": "93cb99183b0720c8426edb8b0f7c98ef5bfe89ac00a4971eb326f3db25cb71bd",
     "tier-identity:posix-paths-output": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -29,7 +29,7 @@
     ".yggdrasil/model/cli/model/drift/yg-node.yaml": "8818cf691e94ebf918022c7af9ff4f200a3d9cdf4a95a0e10f7e3c476e12320e",
     ".yggdrasil/model/cli/model/validation/yg-node.yaml": "0a96c3bcb0c32f24e4978d1350be8f91e4284aa323734801e7abcc2ed014120f",
     ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
-    "source/cli/src/core/check.ts": "5ccfdfb8791542a6455383d1f3c20cc89a783481e15a4c7b3e9ba5f6d02e37ec"
+    "source/cli/src/core/check.ts": "0698d4ed156443fe9a954ae706599914705095ab98924e49215688217a504b74"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -37,7 +37,7 @@
     ".yggdrasil/aspects/posix-paths-output/yg-aspect.yaml": 1779869611275.605,
     ".yggdrasil/aspects/posix-paths-output/content.md": 1778912983383.063,
     ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": 1779869611377.3955,
-    ".yggdrasil/aspects/what-why-next/content.md": 1780049565396.277,
+    ".yggdrasil/aspects/what-why-next/content.md": 1780050256245.0933,
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": 1779869611186.3752,
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
     ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": 1779869611242.354,
@@ -56,11 +56,11 @@
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     ".yggdrasil/model/cli/model/drift/yg-node.yaml": 1776177846203.4216,
     ".yggdrasil/model/cli/model/validation/yg-node.yaml": 1776177846203.675,
-    "source/cli/src/core/check.ts": 1780049371698.6365
+    "source/cli/src/core/check.ts": 1780074198030.7334
   },
   "log": {
-    "last_entry_datetime": "2026-05-29T10:07:14.007Z",
-    "prefix_hash": "646bde55d3c94111594d2dbbfb9f2efe61ca67420b4bbb14bcafddf3d701e69d"
+    "last_entry_datetime": "2026-05-29T17:08:10.071Z",
+    "prefix_hash": "c3f9f86baf7224fcb4262a201fb5dc49849e84ddc714da388c06d29fce7ee427"
   },
   "aspectVerdicts": {
     "posix-paths-output": {

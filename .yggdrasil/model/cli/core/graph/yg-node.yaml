@@ -1,6 +1,6 @@
 name: Core Graph Queries
 type: engine
-description: Pure graph queries — traversal (ancestors, descendants), flow membership, and dependency views. Helpers take a Graph and/or GraphNode and return derived data with no side effects. Canonical home for new graph-query helpers.
+description: Pure graph queries — traversal (ancestors, descendants), flow membership, dependency views, and blast-radius/reverse-dependency algorithms. Helpers take a Graph and/or GraphNode and return derived data with no side effects. Canonical home for new graph-query helpers.
 relations:
   - target: cli/model/graph
     type: uses
@@ -9,6 +9,7 @@ mapping:
   - source/cli/src/core/graph/dependencies.ts
   - source/cli/src/core/graph/files.ts
   - source/cli/src/core/graph/flows.ts
+  - source/cli/src/core/graph/impact-graph.ts
   - source/cli/src/core/graph/index.ts
   - source/cli/src/core/graph/language-registry.ts
   - source/cli/src/core/graph/traversal.ts

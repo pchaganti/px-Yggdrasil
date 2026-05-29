@@ -223,7 +223,9 @@ export async function approveNode(
   }
 
   // ── Existing baseline — compute changes ───────────────
-  const trackedFiles = collectTrackedFiles(node, graph);
+  // Pass the stored baseline so the structure-touched layer (cross-node files
+  // read by a structure aspect) participates in drift detection here too.
+  const trackedFiles = collectTrackedFiles(node, graph, storedEntry);
   const excludePrefixes = getChildMappingExclusions(graph, nodePath);
   const storedFileData = storedEntry.files
     ? { hashes: storedEntry.files, mtimes: storedEntry.mtimes ?? {} }
@@ -523,7 +525,7 @@ function classifyViolationZone(
 
 /* v8 ignore start -- tested in check.ts */
 /** Compute child mapping exclusions (child-wins model) */
-function getChildMappingExclusions(graph: Graph, nodePath: string): string[] {
+export function getChildMappingExclusions(graph: Graph, nodePath: string): string[] {
   const node = graph.nodes.get(nodePath);
   if (!node) return [];
   const parentMappings = normalizeMappingPaths(node.meta.mapping);

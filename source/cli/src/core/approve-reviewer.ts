@@ -5,7 +5,7 @@ import type { IssueMessage } from '../model/validation.js';
 import { verifyAspects } from '../llm/aspect-verifier.js';
 import { resolveMaxTokens } from '../llm/api-utils.js';
 import { createLlmProvider } from '../llm/index.js';
-import { commitApproval, loadSourceFiles } from './approve.js';
+import { commitApproval, loadSourceFiles, getChildMappingExclusions } from './approve.js';
 import { computeEffectiveAspects, computeEffectiveAspectStatuses } from './graph/aspects.js';
 import { collectTrackedFiles } from './graph/files.js';
 import { hashTrackedFiles } from '../io/hash.js';
@@ -439,17 +439,19 @@ export async function runApproveWithReviewer(
       for (const raw of new Set(structResult.touchedFiles)) {
         const p = raw.replace(/\\/g, '/').replace(/\/+$/, '');
         let hash = result.pendingDriftState?.state.files[p];
-        /* v8 ignore next 9 -- hash is always set for own-mapping files; branch fires only when
-         * ctx.fs/ctx.graph reads a related-node file not in pendingDriftState.state.files */
+        // A touched path absent from state.files is a CROSS-NODE read — a file
+        // owned by a related node, reached via ctx.fs/ctx.graph. Hash it from
+        // disk, but DO NOT inject it into state.files: state.files is the
+        // canonical own source/graph map, and check.ts's deleted-file detector
+        // walks it — a cross-node path there would be reported as a phantom
+        // "(deleted)". Such paths live ONLY in structureTouchedFiles and
+        // re-enter the canonical hash via the structure-touched recompute below.
         if (!hash) {
           const abs = path.resolve(projectRoot, p);
           try {
             hash = await hashFile(abs);
           } catch {
             continue;
-          }
-          if (result.pendingDriftState) {
-            result.pendingDriftState.state.files[p] = hash;
           }
         }
         sourceFileHashes[p] = hash;
@@ -487,27 +489,56 @@ export async function runApproveWithReviewer(
     }
   }
 
-  // D8.3 — preserve structureTouchedFiles for draft-skipped structure aspects.
-  // A structure aspect toggled to draft retains its prior entry so that a later
-  // enforced→draft→enforced cycle does not cascade drift on the unrelated files.
+  // D8.3 — preserve structureTouchedFiles for structure aspects that were NOT
+  // freshly evaluated this run. Two cases collapse into one pass:
+  //   - draft-skipped: a structure aspect toggled to draft retains its prior
+  //     entry so a later enforced→draft→enforced cycle does not cascade drift.
+  //   - filter-excluded: a filtered approve (`yg approve --aspect X`) runs only
+  //     X's runner; a neighbor enforced/advisory structure aspect's prior entry
+  //     must be carried forward, otherwise its touched files silently drop out
+  //     of the node's drift identity and impact blast-radius.
+  // An aspect was "freshly evaluated" iff it survived the draft + filter passes
+  // (i.e. it is in `filtered`); only those produce a new entry this run.
   if (storedEntry?.structureTouchedFiles && result.pendingDriftState) {
     const stf = result.pendingDriftState.state.structureTouchedFiles ?? {};
     const aspectById = new Map<string, AspectDef>();
     for (const a of allAspects) aspectById.set(a.id, a);
+    const freshlyEvaluated = new Set(filtered.map(a => a.id));
     let preserved = 0;
-    for (const id of skippedDraftAspects) {
+    for (const [id, prior] of Object.entries(storedEntry.structureTouchedFiles)) {
+      if (freshlyEvaluated.has(id)) continue; // a fresh entry was produced this run
+      if (id in stf) continue;                // already carried (defensive)
       const aspect = aspectById.get(id);
       if (aspect?.reviewer.type !== 'structure') continue;
-      const prior = storedEntry.structureTouchedFiles[id];
-      if (prior) {
-        stf[id] = prior;
-        preserved += 1;
-      }
+      stf[id] = prior;
+      preserved += 1;
     }
     if (preserved > 0) {
-      debugWrite(`[d8.3] preserved structureTouchedFiles for ${preserved} draft aspect(s) on node ${node.path}`);
+      debugWrite(`[d8.3] preserved structureTouchedFiles for ${preserved} non-evaluated structure aspect(s) on node ${node.path}`);
     }
     result.pendingDriftState.state.structureTouchedFiles = stf;
+  }
+
+  // Recompute the canonical drift hash to fold in the structure-touched layer.
+  // approveNode computed state.hash BEFORE the structure runner ran, so on a
+  // NEW baseline (action initial/approved) the cross-node files just recorded
+  // in structureTouchedFiles are not yet part of the node's drift identity.
+  // Re-collect WITH the now-populated baseline so collectTrackedFiles emits the
+  // structure-touched entries, re-hash, and adopt only the canonical hash —
+  // state.files stays the canonical own source/graph map (cross-node paths must
+  // NOT enter it; see the touched-files loop above). Skip on no-change/refused:
+  // those do not write a fresh baseline.
+  if (
+    result.pendingDriftState &&
+    (result.action === 'initial' || result.action === 'approved') &&
+    result.pendingDriftState.state.structureTouchedFiles &&
+    Object.keys(result.pendingDriftState.state.structureTouchedFiles).length > 0
+  ) {
+    const recomputeTracked = collectTrackedFiles(node, graph, result.pendingDriftState.state);
+    const recomputeExclusions = getChildMappingExclusions(graph, node.path);
+    const { canonicalHash } = await hashTrackedFiles(projectRoot, recomputeTracked, undefined, recomputeExclusions);
+    result.pendingDriftState.state.hash = canonicalHash;
+    result.currentHash = canonicalHash;
   }
 
   // AST/structure short-circuit refusal. Refuse early (skipping LLM dispatch)

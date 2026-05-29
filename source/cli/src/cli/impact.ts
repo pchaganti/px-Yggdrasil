@@ -9,96 +9,18 @@ import { collectAncestors } from '../core/context-builder.js';
 import { computeEffectiveAspects, computeEffectiveAspectStatuses } from '../core/graph/aspects.js';
 import { collectTrackedFiles } from '../core/graph/files.js';
 import { readNodeDriftState } from '../io/drift-state-store.js';
+import {
+  collectReverseDependents,
+  buildTransitiveChains,
+  collectIndirectDependents,
+  collectStructureCascade,
+} from '../core/graph/impact-graph.js';
 import { findOwner } from './owner.js';
 import { projectRootFromGraph, resolveFileArg } from '../io/paths.js';
 import { FileContentCache } from '../io/file-content-cache.js';
 import { walkRepoFiles } from '../io/repo-scanner.js';
 import { evaluateFileWhen } from '../core/file-when-evaluator.js';
 import type { Graph } from '../model/graph.js';
-
-const STRUCTURAL_TYPES = new Set(['uses', 'calls', 'extends', 'implements']);
-
-export function collectReverseDependents(
-  graph: Graph,
-  targetNode: string,
-): {
-  direct: string[];
-  allDependents: string[];
-  reverse: Map<string, Set<string>>;
-  relationFrom: Map<string, { type: string; consumes?: string[] }>;
-} {
-  const reverse = new Map<string, Set<string>>();
-  const relationFrom = new Map<string, { type: string; consumes?: string[] }>();
-  for (const [nodePath, node] of graph.nodes) {
-    for (const rel of node.meta.relations ?? []) {
-      if (!STRUCTURAL_TYPES.has(rel.type)) continue;
-      const deps = reverse.get(rel.target) ?? new Set<string>();
-      deps.add(nodePath);
-      reverse.set(rel.target, deps);
-      relationFrom.set(`${nodePath}->${rel.target}`, {
-        type: rel.type,
-        consumes: rel.consumes,
-      });
-    }
-  }
-
-  const direct = [...(reverse.get(targetNode) ?? [])].sort();
-  const seen = new Set<string>(direct);
-  const queue = [...direct];
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    for (const next of reverse.get(current) ?? []) {
-      if (seen.has(next)) continue;
-      seen.add(next);
-      queue.push(next);
-    }
-  }
-
-  return {
-    direct,
-    allDependents: [...seen].sort(),
-    reverse,
-    relationFrom,
-  };
-}
-
-export function buildTransitiveChains(
-  targetNode: string,
-  direct: string[],
-  allDependents: string[],
-  reverse: Map<string, Set<string>>,
-): string[] {
-  const directSet = new Set(direct);
-  const transitiveOnly = allDependents.filter((t) => !directSet.has(t));
-  if (transitiveOnly.length === 0) return [];
-
-  const parent = new Map<string, string>();
-  const queue: string[] = [targetNode];
-  const visited = new Set<string>([targetNode]);
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    for (const next of reverse.get(current) ?? []) {
-      if (visited.has(next)) continue;
-      visited.add(next);
-      parent.set(next, current);
-      queue.push(next);
-    }
-  }
-
-  const chains: string[] = [];
-  for (const node of transitiveOnly) {
-    const path: string[] = [];
-    let current: string | undefined = node;
-    while (current) {
-      path.unshift(current);
-      current = parent.get(current);
-    }
-    if (path.length >= 3) {
-      chains.push(path.slice(1).map((p) => `<- ${p}`).join(' '));
-    }
-  }
-  return chains.sort();
-}
 
 export function collectDescendants(graph: Graph, nodePath: string): string[] {
   const node = graph.nodes.get(nodePath);
@@ -111,66 +33,6 @@ export function collectDescendants(graph: Graph, nodePath: string): string[] {
     stack.push(...child.children);
   }
   return result.sort();
-}
-
-export function collectIndirectDependents(
-  graph: Graph,
-  directlyAffected: string[],
-): { indirectPaths: string[]; chains: string[] } {
-  const directSet = new Set(directlyAffected);
-
-  // Build reverse adjacency map once (structural + event relations)
-  const reverse = new Map<string, Set<string>>();
-  for (const [nodePath, node] of graph.nodes) {
-    for (const rel of node.meta.relations ?? []) {
-      if (!STRUCTURAL_TYPES.has(rel.type) && rel.type !== 'emits' && rel.type !== 'listens') continue;
-      const deps = reverse.get(rel.target) ?? new Set<string>();
-      deps.add(nodePath);
-      reverse.set(rel.target, deps);
-    }
-  }
-
-  // For each affected node, BFS to find reverse dependents and build chains
-  const bestChain = new Map<string, { chain: string; depth: number }>();
-
-  for (const affected of directlyAffected) {
-    const parent = new Map<string, string>();
-    const queue = [affected];
-    const visited = new Set([affected]);
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      for (const next of reverse.get(current) ?? []) {
-        if (visited.has(next)) continue;
-        visited.add(next);
-        parent.set(next, current);
-        queue.push(next);
-      }
-    }
-
-    for (const [node] of parent) {
-      if (directSet.has(node)) continue;
-
-      // Trace path from node back to affected
-      const path: string[] = [node];
-      let current = node;
-      while (parent.has(current)) {
-        current = parent.get(current)!;
-        path.push(current);
-      }
-
-      const chain = path.map((p) => `<- ${p}`).join(' ');
-      const depth = path.length;
-
-      const existing = bestChain.get(node);
-      if (!existing || depth < existing.depth) {
-        bestChain.set(node, { chain, depth });
-      }
-    }
-  }
-
-  const indirectPaths = [...bestChain.keys()].sort();
-  const chains = indirectPaths.map((p) => bestChain.get(p)!.chain);
-  return { indirectPaths, chains };
 }
 
 async function handleAspectImpact(
@@ -502,10 +364,14 @@ export function registerImpactCommand(program: Command): void {
             }
             refCascadeNodes.sort();
 
-            if (!ownerResult.nodePath && refCascadeNodes.length === 0) {
+            // Structure-aspect cascade: nodes whose effective structure aspect
+            // reads this file CROSS-NODE. See collectStructureCascade.
+            const structureCascade = await collectStructureCascade(graph, repoRelative, ownerResult.nodePath);
+
+            if (!ownerResult.nodePath && refCascadeNodes.length === 0 && structureCascade.length === 0) {
               process.stderr.write(chalk.red(buildIssueMessage({
                 what: `${repoRelative} -> no graph coverage`,
-                why: 'file is not mapped to any node and is not referenced by any aspect in the graph.',
+                why: 'file is not mapped to any node, is not referenced by any aspect, and is not read by any structure aspect in the graph.',
                 next: 'Add the file to an existing node mapping, or create a new node.',
               }) + '\n'));
               process.exit(1);
@@ -519,6 +385,19 @@ export function registerImpactCommand(program: Command): void {
               }
               process.stdout.write(
                 `\nBlast radius via references: ${refCascadeNodes.length} node(s) — ` +
+                `editing this file cascades drift to each.\n`,
+              );
+            }
+
+            // Show structure-cascade section if any
+            if (structureCascade.length > 0) {
+              process.stdout.write(`\nNodes whose structure aspects read ${repoRelative} [structure]:\n`);
+              for (const { nodePath, mode } of structureCascade) {
+                const suffix = mode === 'potential' ? ' [structure, potential]' : ' [structure]';
+                process.stdout.write(`  ${nodePath}${suffix}\n`);
+              }
+              process.stdout.write(
+                `\nBlast radius via structure aspects: ${structureCascade.length} node(s) — ` +
                 `editing this file cascades drift to each.\n`,
               );
             }
