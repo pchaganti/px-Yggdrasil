@@ -1,5 +1,5 @@
 {
-  "hash": "683bf06dee960b828cc93866d6b78400665ea0d746ac8642ddd16e1c486d655c",
+  "hash": "2855f7adaaacee663c0ffd302a358f0fa9eb3b7311d34a6745b284a9c8b8f116",
   "files": {
     "own-subset:cli/core/graph": "017d50656501e8b443151a1fb73d7403f5b0a9279ac7e31e3d3029b12ad7399f",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -19,13 +19,13 @@
     ".yggdrasil/aspects/single-source-graph-queries/check.mjs": "8364b0c42413e7b467a22b493543f882d77cc3b65616af93127c07c76c212361",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
+    "source/cli/src/core/graph/aspects.ts": "01e7fc46ac84476ec8db60e06ee208f3e7ec634a2f8d86fe810e801251c25a59",
     "source/cli/src/core/graph/dependencies.ts": "ef894f905b8a3b48edae8ca053c1a93f1d85b6e6ab8ad852e3d8fb8021334966",
-    "source/cli/src/core/graph/files.ts": "d126089544bb44804310429240bbbf0d395315444f454afea73cf8337c123119",
     "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
     "source/cli/src/core/graph/index.ts": "563e36848000ab08dd5ab49b769455be58ce21ced356fbc59a3639b4704e0208",
     "source/cli/src/core/graph/language-registry.ts": "f054610584e5e0e5a68de94eec30385103ae938df58ec2087ff5c1e8ddea906c",
     "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b",
-    "source/cli/src/core/graph/aspects.ts": "01e7fc46ac84476ec8db60e06ee208f3e7ec634a2f8d86fe810e801251c25a59"
+    "source/cli/src/core/graph/files.ts": "8d915a4e5158c6e29a4c167425d5a81d48afc6b04dcf8521f5b5ae25da654ea6"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -46,14 +46,34 @@
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     "source/cli/src/core/graph/aspects.ts": 1779970153221.4282,
     "source/cli/src/core/graph/dependencies.ts": 1778959819575.0183,
-    "source/cli/src/core/graph/files.ts": 1779955922525.441,
+    "source/cli/src/core/graph/files.ts": 1780039031622.4695,
     "source/cli/src/core/graph/flows.ts": 1778958982525.8142,
     "source/cli/src/core/graph/index.ts": 1779794513949.0657,
     "source/cli/src/core/graph/language-registry.ts": 1779794513949.1516,
     "source/cli/src/core/graph/traversal.ts": 1778958972950.3818
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T12:09:59.351Z",
-    "prefix_hash": "3f6964ec2e707ac4fe24523f5e36855b32cd51f9466f445ab882e690e81a4fe5"
+    "last_entry_datetime": "2026-05-29T07:17:58.084Z",
+    "prefix_hash": "cd689478c6847252884e9e9b8d986c6b40293d1753185070374180bc4ba10031"
+  },
+  "aspectVerdicts": {
+    "deterministic": {
+      "verdict": "approved"
+    },
+    "no-direct-fs": {
+      "verdict": "approved"
+    },
+    "no-direct-console": {
+      "verdict": "approved"
+    },
+    "no-nondeterminism-direct": {
+      "verdict": "approved"
+    },
+    "posix-paths-source": {
+      "verdict": "approved"
+    },
+    "single-source-graph-queries": {
+      "verdict": "approved"
+    }
   }
 }

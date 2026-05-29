@@ -1,5 +1,5 @@
 {
-  "hash": "d0a8f6bad5d680df1ac01f8e17fb1257dc380559b078ca8d060adf5baa7e41f2",
+  "hash": "f7f3584665b107dc48ca6ac9754a6360dba45f4f01ae1d3c22f2d09376808601",
   "files": {
     "own-subset:cli/tests/unit/support/io": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -12,12 +12,13 @@
     "source/cli/tests/unit/io/artifact-reader.test.ts": "8400835d1c5442c12a2eb8139ec18010fef0c46bda3ab5e7ae0f9ba6417f84c7",
     "source/cli/tests/unit/io/config-parser.test.ts": "eabd6f6b132cc45de9fcad827bdfb84054448a30e8e5e4e62014a277a50d5251",
     "source/cli/tests/unit/io/drift-state-store.test.ts": "2a17b835327a709d04c2c7d7ffead78367de14f3991d7c61961423690cab1c9a",
+    "source/cli/tests/unit/io/drift-state-store-status.test.ts": "f961dd0539df4db27361fbd3c39cceba644c294d7d7fc90efb278d33babf60de",
     "source/cli/tests/unit/io/find-index.test.ts": "2c239e2cfdb247e4c57602c3e88ab91964e306116caf55d38e97600d6a3b94b6",
     "source/cli/tests/unit/io/schema-parser.test.ts": "d90bb165eb711119bc9e4752453beb90953f4365b72ed728917db03142253ef3",
     "source/cli/tests/unit/io/secrets-parser.test.ts": "3a961411c40d2a0b7809d90fc21792e87b780322e0a3de1112a6acc8dec4ce2d",
     "source/cli/tests/unit/io/read-or-default.test.ts": "47ad2f845e3fb2524db10049dfc1babc8db4d036875e99ddc004a2c91e953ad6",
     "source/cli/tests/unit/io/config-parser-references.test.ts": "8889934061970205eddd2f7ff6f7b38e20870090539427e0e6f1fe0861414423",
-    "source/cli/tests/unit/io/drift-state-store-status.test.ts": "f961dd0539df4db27361fbd3c39cceba644c294d7d7fc90efb278d33babf60de"
+    "source/cli/tests/unit/io/drift-state-store-structure.test.ts": "5ccf8ce123d5a13d029c0e4921127e3605ff2df56f86062557226648485b3bd8"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -34,7 +35,8 @@
     "source/cli/tests/unit/io/schema-parser.test.ts": 1778918877105.082,
     "source/cli/tests/unit/io/secrets-parser.test.ts": 1779876397663.6604,
     "source/cli/tests/unit/io/read-or-default.test.ts": 1779882138239.9805,
-    "source/cli/tests/unit/io/config-parser-references.test.ts": 1779954901900.481
+    "source/cli/tests/unit/io/config-parser-references.test.ts": 1779954901900.481,
+    "source/cli/tests/unit/io/drift-state-store-structure.test.ts": 1780039166651.6616
   },
   "log": {
     "last_entry_datetime": "2026-05-28T13:28:27.614Z",

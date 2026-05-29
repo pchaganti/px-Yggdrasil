@@ -1,5 +1,5 @@
 {
-  "hash": "51964c0ad9746c03f70fb6904635fedb759559f270c9a12b8603d0a752b9b077",
+  "hash": "9bbafa57e7bbb19e1e6c8d40edfd12fea7577b4d0b1cad665ede0739323cedc6",
   "files": {
     "own-subset:cli/tests/unit/core/graph": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -11,7 +11,8 @@
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/core/language-registry.test.ts": "caf2eb3f0d3b273e6c3fb191aa3b318c9017b85a873930252016170f4f4700d8",
     "source/cli/tests/unit/core/graph/files-references.test.ts": "5c62da4a5cde845852a47d068227a9b8bbdd1997ded7fe4cf001ef7cb3817efa",
-    "source/cli/tests/unit/core/graph/aspect-status.test.ts": "2ff5fe66184e89aa001acaf1aed517fc053c0a1ee623ba869892b036138a3107"
+    "source/cli/tests/unit/core/graph/aspect-status.test.ts": "2ff5fe66184e89aa001acaf1aed517fc053c0a1ee623ba869892b036138a3107",
+    "source/cli/tests/unit/core/files-structure.test.ts": "e8b4d16be835162850aab2326db0feeacb9ff40e5abf58945f60a9edddab0361"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -22,10 +23,16 @@
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/core/language-registry.test.ts": 1779794513953.8416,
     "source/cli/tests/unit/core/graph/files-references.test.ts": 1779962458332.2903,
-    "source/cli/tests/unit/core/graph/aspect-status.test.ts": 1779970129017.1917
+    "source/cli/tests/unit/core/graph/aspect-status.test.ts": 1779970129017.1917,
+    "source/cli/tests/unit/core/files-structure.test.ts": 1780038980497.4595
   },
   "log": {
     "last_entry_datetime": "2026-05-28T12:10:03.435Z",
     "prefix_hash": "38d28ac36dddb56213dc9e5cd172dbc525b1b4fcd917bb29d25a6e34dcbcc2eb"
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   }
 }

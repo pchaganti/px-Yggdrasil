@@ -1,20 +1,41 @@
 export function check(ctx) {
   const violations = [];
-  for (const file of ctx.files) {
-    // Command files live at source/cli/src/cli/<name>.ts
-    // Expected sibling test: source/cli/tests/unit/cli/<name>.test.ts
-    const testPath = file.path
-      .replace('source/cli/src/cli/', 'source/cli/tests/unit/cli/')
-      .replace(/\.ts$/, '.test.ts');
-    if (ctx.fs.exists(testPath) !== 'file') {
-      violations.push({
-        message: `Missing sibling test file: ${testPath}. Every command must have a unit test.`,
-        file: file.path,
-        line: 1,
-        column: 1,
-        kind: 'missing-test-sibling',
-      });
-    }
+  const commandFile = ctx.node.files[0];
+  if (!commandFile) return violations;
+
+  const basename = commandFile.path.split('/').pop();
+  const stem = basename.replace(/\.ts$/, '');
+  const expectedTestSuffix = `/${stem}.test.ts`;
+
+  let testSuite;
+  try {
+    testSuite = ctx.graph.node('cli/tests/unit/cli');
+  } catch (err) {
+    violations.push({
+      file: commandFile.path,
+      message: `Command node cannot reach 'cli/tests/unit/cli'. Add 'relations: [{ type: uses, target: cli/tests/unit/cli }]' to this node's yg-node.yaml.`,
+      kind: 'missing-relation',
+    });
+    return violations;
+  }
+  if (!testSuite) return violations;
+
+  const allTests = collectTestFiles(testSuite, ctx);
+  const hasSibling = allTests.some(f => f.path.endsWith(expectedTestSuffix));
+  if (!hasSibling) {
+    violations.push({
+      file: commandFile.path,
+      message: `Missing sibling test '${stem}.test.ts' under cli/tests/unit/cli/. Every command must have a unit test.`,
+      kind: 'missing-test-sibling',
+    });
   }
   return violations;
+}
+
+function collectTestFiles(node, ctx) {
+  const out = [...node.files];
+  for (const child of ctx.graph.children(node)) {
+    out.push(...collectTestFiles(child, ctx));
+  }
+  return out;
 }

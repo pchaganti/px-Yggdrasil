@@ -16,18 +16,14 @@ description: "Short description"   # required — shown in yg aspects output and
                                    # Validator emits description-missing if absent.
 
 reviewer:                          # required — which reviewer verifies this aspect
-  type: llm                        #   required: 'llm', 'ast' or 'structure'
-                                   #     llm       — aspect ships content.md; an LLM reads it and judges the code.
-                                   #     ast       — aspect ships check.mjs; the AST runner executes it locally per language.
-                                   #     structure — aspect ships check.mjs; the structure runner executes it with
-                                   #                 graph-aware ctx (files, fs, graph, parsers). Language-agnostic.
+  type: llm                        #   required: 'llm' or 'ast'
+                                   #     llm — aspect ships content.md; an LLM reads it and judges the code.
+                                   #     ast — aspect ships check.mjs; the AST runner executes it locally.
   # tier: deep                     #   optional, only when type: llm.
                                    #     If omitted, the aspect uses reviewer.default from yg-config.yaml.
                                    #     If present, must reference a key under reviewer.tiers in the config.
-                                   #     Forbidden when type is 'ast' or 'structure'.
 
 # language: [typescript, tsx]      # required when reviewer.type is 'ast' — list of languages check.mjs handles.
-                                   # Forbidden when reviewer.type is 'llm' or 'structure'.
                                    # The runner invokes check.mjs once per declared language.
 
 status: enforced                   # optional — aspect-level default. enum: draft | advisory | enforced.
@@ -97,7 +93,7 @@ status: enforced                   # optional — aspect-level default. enum: dr
                                    #       - descendants: { relations: { calls: { target_type: service-client } } }
 
 # references:                      # optional — supporting files for the LLM reviewer.
-                                   #   Permitted on LLM aspects ONLY (forbidden on ast and structure).
+                                   #   Permitted only when reviewer.type: llm.
                                    #   Each entry is a string (shorthand) OR an object { path, description? }.
                                    #
                                    # Example:
@@ -111,6 +107,7 @@ status: enforced                   # optional — aspect-level default. enum: dr
                                    #   - No '..' that escapes the repo root; no leading '/'; no Windows drive letter; no '~'.
                                    #   - File must exist at check time and resolve (after symlink follow) to a regular file.
                                    #   - No duplicates within one aspect.
+                                   #   - Permitted on AST aspects: NO.
                                    #
                                    # Drift semantics: changes to referenced files cascade to all nodes where this
                                    # aspect is effective — same as changes to content.md. Run `yg impact --file <ref>`
