@@ -438,6 +438,29 @@ export async function runApproveWithReviewer(
     }
   }
 
+  // D8.3 — preserve structureTouchedFiles for draft-skipped structure aspects.
+  // A structure aspect toggled to draft retains its prior entry so that a later
+  // enforced→draft→enforced cycle does not cascade drift on the unrelated files.
+  if (storedEntry?.structureTouchedFiles && result.pendingDriftState) {
+    const stf = result.pendingDriftState.state.structureTouchedFiles ?? {};
+    const aspectById = new Map<string, AspectDef>();
+    for (const a of allAspects) aspectById.set(a.id, a);
+    let preserved = 0;
+    for (const id of skippedDraftAspects) {
+      const aspect = aspectById.get(id);
+      if (aspect?.reviewer.type !== 'structure') continue;
+      const prior = storedEntry.structureTouchedFiles[id];
+      if (prior) {
+        stf[id] = prior;
+        preserved += 1;
+      }
+    }
+    if (preserved > 0) {
+      debugWrite(`[d8.3] preserved structureTouchedFiles for ${preserved} draft aspect(s) on node ${node.path}`);
+    }
+    result.pendingDriftState.state.structureTouchedFiles = stf;
+  }
+
   if (aspectViolations.length > 0) {
     const normalizedNodePath = nodePath.replace(/\\/g, '/').replace(/\/+$/, '');
     const verdicts = buildAspectVerdicts(node, graph, allAspectResults);

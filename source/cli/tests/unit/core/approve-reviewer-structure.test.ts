@@ -365,3 +365,159 @@ describe('runApproveWithReviewer — structure dispatch', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 });
+
+describe('D8.3 — structureTouchedFiles carry-forward for draft-skipped structure aspects', () => {
+  it('preserves baseline structureTouchedFiles for draft-skipped structure aspects (D8.3)', async () => {
+    // Aspect A = enforced structure aspect, Aspect B = draft structure aspect.
+    // Seed a baseline where both A and B have structureTouchedFiles entries.
+    // Run approve — B is skipped (draft), but its entry must be preserved verbatim.
+    const { tmpDir, yggRoot } = await createStructureProject('d83-carry', {
+      nodePath: 'svc/my-service',
+      nodeYaml: [
+        'name: MyService',
+        'type: service',
+        'description: test',
+        'aspects:',
+        '  - shape-a',
+        '  - shape-b',
+        'mapping:',
+        '  - src/svc.ts',
+      ].join('\n') + '\n',
+      mappingFiles: { 'src/svc.ts': 'export const x = 1;\n' },
+      aspects: [
+        {
+          id: 'shape-a',
+          yaml: 'name: ShapeA\ndescription: test\nreviewer:\n  type: structure\nstatus: enforced\n',
+          files: { 'check.mjs': 'export function check(_ctx) { return []; }\n' },
+        },
+        {
+          id: 'shape-b',
+          yaml: 'name: ShapeB\ndescription: test\nreviewer:\n  type: structure\nstatus: draft\n',
+          files: { 'check.mjs': 'export function check(_ctx) { return []; }\n' },
+        },
+      ],
+    });
+
+    // Record baseline — with seeded structureTouchedFiles for BOTH aspects (A and B).
+    await recordBaseline(tmpDir);
+    const graph0 = await loadGraph(tmpDir);
+    for (const [nodePath, node] of graph0.nodes) {
+      if (!node.meta.mapping) continue;
+      const trackedFiles = collectTrackedFiles(node, graph0);
+      const projectRoot = path.dirname(graph0.rootPath);
+      const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
+        projectRoot, trackedFiles, undefined, [],
+      );
+      await writeNodeDriftState(graph0.rootPath, nodePath, {
+        hash: canonicalHash,
+        files: fileHashes,
+        mtimes: fileMtimes,
+        // Seed structureTouchedFiles for both aspects — simulating a prior enforce-both approve
+        structureTouchedFiles: {
+          'shape-a': { 'src/svc.ts': 'aaa111' },
+          'shape-b': { 'src/svc.ts': 'bbb222' },
+        },
+      });
+    }
+
+    // Read the baseline BEFORE modifying source (this is the entry with shape-b stf)
+    const { readNodeDriftState } = await import('../../../src/io/drift-state-store.js');
+    const seededBaseline = await readNodeDriftState(yggRoot, 'svc/my-service');
+    expect(seededBaseline?.structureTouchedFiles?.['shape-b']).toMatchObject({ 'src/svc.ts': 'bbb222' });
+
+    // Modify source so approve runs (approved, not no-change)
+    await writeFile(path.join(tmpDir, 'src/svc.ts'), 'export const x = 2;\n');
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    expect(coreResult.action).toBe('approved');
+
+    const result = await runApproveWithReviewer({
+      graph,
+      nodePath: 'svc/my-service',
+      result: coreResult,
+      rootPath: graph.rootPath,
+      secretsByProvider: new Map(),
+      storedEntry: seededBaseline,
+    });
+
+    // shape-b was skipped (draft) — its prior structureTouchedFiles entry must be preserved
+    const stf = result.pendingDriftState?.state.structureTouchedFiles;
+    expect(stf).toBeDefined();
+    // shape-a ran and may update its entry
+    expect(stf!['shape-a']).toBeDefined();
+    // shape-b was draft-skipped — must carry forward the prior entry
+    expect(stf!['shape-b']).toMatchObject({ 'src/svc.ts': 'bbb222' });
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('D8.3 skip branch — non-structure draft aspects do not affect structureTouchedFiles', async () => {
+    // Draft aspect C is LLM type (not structure). The D8.3 loop must skip it without crashing.
+    // No prior structureTouchedFiles for llm-draft since it is not structure type.
+    const { tmpDir } = await createStructureProject('d83-llm-draft', {
+      nodePath: 'svc/my-service',
+      nodeYaml: [
+        'name: MyService',
+        'type: service',
+        'description: test',
+        'aspects:',
+        '  - shape-a',
+        '  - llm-draft',
+        'mapping:',
+        '  - src/svc.ts',
+      ].join('\n') + '\n',
+      mappingFiles: { 'src/svc.ts': 'export const x = 1;\n' },
+      configYaml: 'version: "4.0.0"\n',
+      aspects: [
+        {
+          id: 'shape-a',
+          yaml: 'name: ShapeA\ndescription: test\nreviewer:\n  type: structure\nstatus: enforced\n',
+          files: { 'check.mjs': 'export function check(_ctx) { return []; }\n' },
+        },
+        {
+          id: 'llm-draft',
+          // LLM aspect marked draft — skipped, but not structure type → D8.3 should hit continue
+          yaml: 'name: LlmDraft\ndescription: test\nreviewer:\n  type: llm\nstatus: draft\n',
+          files: { 'content.md': 'Some rule.\n' },
+        },
+      ],
+    });
+
+    await recordBaseline(tmpDir);
+    // Seed baseline with structureTouchedFiles (only for shape-a, llm-draft has none)
+    const { readNodeDriftState: rds, writeNodeDriftState: wds } = await import('../../../src/io/drift-state-store.js');
+    const priorState = await rds(path.join(tmpDir, '.yggdrasil'), 'svc/my-service');
+    if (priorState) {
+      await wds(path.join(tmpDir, '.yggdrasil'), 'svc/my-service', {
+        ...priorState,
+        structureTouchedFiles: { 'shape-a': { 'src/svc.ts': 'aaa111' } },
+      });
+    }
+
+    await writeFile(path.join(tmpDir, 'src/svc.ts'), 'export const x = 2;\n');
+    const storedEntry2 = await rds(path.join(tmpDir, '.yggdrasil'), 'svc/my-service');
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+
+    const result = await runApproveWithReviewer({
+      graph,
+      nodePath: 'svc/my-service',
+      result: coreResult,
+      rootPath: graph.rootPath,
+      secretsByProvider: new Map(),
+      storedEntry: storedEntry2,
+    });
+
+    expect(result.action).toBe('approved');
+    // shape-a ran (structure, enforced) — stf updated
+    // llm-draft was skipped — D8.3 loop hit continue (type !== 'structure'), no crash
+    const stf = result.pendingDriftState?.state.structureTouchedFiles;
+    expect(stf?.['shape-a']).toBeDefined();
+    // llm-draft has no structureTouchedFiles entry (it is not structure type)
+    expect(stf?.['llm-draft']).toBeUndefined();
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+});
