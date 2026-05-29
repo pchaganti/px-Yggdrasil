@@ -353,7 +353,7 @@ function parseTier(name: string, raw: unknown, filename: string): LlmConfig {
     consensus: consensusRaw as number,
     max_tokens: maxTokens,
     context_length_field: typeof c.context_length_field === 'string' ? c.context_length_field : undefined,
-    timeout: typeof c.timeout === 'number' ? c.timeout : undefined,
+    timeout: typeof c.timeout === 'number' ? c.timeout * 1000 : undefined,
     ...(references !== undefined ? { references } : {}),
   };
 }

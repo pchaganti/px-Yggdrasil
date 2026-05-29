@@ -77,7 +77,10 @@ export function mergeLlmConfig(base: LlmConfig, secrets: Partial<LlmConfig>): Ll
 /**
  * Inspect yg-secrets.yaml for non-credential fields (any key other than api_key).
  * Used by the validator to emit `secrets-non-credential-field` errors.
- * Returns empty array when file does not exist or has no violations.
+ * Returns empty array when file does not exist or is empty.
+ * Throws (with file path + field name) when structure exists but types are wrong:
+ *   - top-level is present but not a YAML mapping
+ *   - `reviewer` is present but not a mapping
  */
 export async function inspectSecretsForValidation(
   rootPath: string,
@@ -90,8 +93,14 @@ export async function inspectSecretsForValidation(
     return [];
   }
   const raw = parseYaml(content) as Record<string, unknown>;
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return [];
-  if (!raw.reviewer || typeof raw.reviewer !== 'object' || Array.isArray(raw.reviewer)) return [];
+  if (raw === null || raw === undefined) return [];
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error(`yg-secrets.yaml: top level must be a YAML mapping`);
+  }
+  if (raw.reviewer === undefined) return [];
+  if (typeof raw.reviewer !== 'object' || raw.reviewer === null || Array.isArray(raw.reviewer)) {
+    throw new Error(`yg-secrets.yaml: 'reviewer' must be a YAML mapping`);
+  }
 
   const reviewerRaw = raw.reviewer as Record<string, unknown>;
   const results: Array<{ provider: string; foreignKeys: string[] }> = [];

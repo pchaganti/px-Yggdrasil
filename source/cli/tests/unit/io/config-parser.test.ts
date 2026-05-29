@@ -833,4 +833,41 @@ reviewer:
     });
   });
 
+  describe('timeout seconds→ms conversion', () => {
+    async function parseWithYaml(yaml: string): Promise<YggConfig> {
+      const dir = await mkdtemp(path.join(tmpdir(), 'yg-timeout-'));
+      await writeFile(path.join(dir, 'yg-config.yaml'), yaml, 'utf-8');
+      try {
+        return await parseConfig(path.join(dir, 'yg-config.yaml'));
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    }
+
+    it('timeout: 5 in config yields 5000 ms internally', async () => {
+      const cfg = await parseWithYaml(`reviewer:
+  tiers:
+    main:
+      provider: claude-code
+      consensus: 1
+      config:
+        model: haiku
+        timeout: 5
+`);
+      expect(cfg.reviewer?.tiers.main.timeout).toBe(5000);
+    });
+
+    it('timeout absent yields undefined (cli-base applies 120000 ms default)', async () => {
+      const cfg = await parseWithYaml(`reviewer:
+  tiers:
+    main:
+      provider: claude-code
+      consensus: 1
+      config:
+        model: haiku
+`);
+      expect(cfg.reviewer?.tiers.main.timeout).toBeUndefined();
+    });
+  });
+
 });

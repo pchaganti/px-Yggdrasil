@@ -1,5 +1,5 @@
 {
-  "hash": "86d9b5a5bcfe97534521f6d3fff6817387d7ff2b25e40df03b570ebb32a9cae0",
+  "hash": "8576bdcb39574ac6b2121e562ad2d8dcb53cfb671b6bce89783ffd547c6d7c03",
   "files": {
     "own-subset:cli/io/parsers/config": "49eba5656163800b5213d51e9c6969831d387f9252bafe1e854a9e84e7bebf9e",
     "tier-identity:parser-contract": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -19,9 +19,9 @@
     ".yggdrasil/aspects/parser-yaml-guard/check.mjs": "db6b20210a4ad5dcd7d3633220b42af810cccc1a6df7f1122c2b09592ac23a81",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
-    "source/cli/src/io/secrets-parser.ts": "4489bff3216f21ee3912f357e08bfda01ea921efeec93c937aa0f822c872b859",
+    "source/cli/src/io/config-parser.ts": "a7980f02dd94d733aab98da980510d1f044b0dbd81fb7aa37db00ed54aa87087",
     "source/cli/src/io/schema-parser.ts": "a1563e6d7eaaf4c17f1e8b7f5e680dfdde78647bee243339a29eca9d702d9470",
-    "source/cli/src/io/config-parser.ts": "2de52c345d578281baa98d3b060e8e69c588b4852926563e4c55c29a3715cf2e"
+    "source/cli/src/io/secrets-parser.ts": "2e3b4fd24443e2c1bf7c7148dd47f871108c38f491b69fa8e5a75fd06755b397"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -39,12 +39,29 @@
     ".yggdrasil/aspects/parser-yaml-guard/check.mjs": 1779794513934.1914,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    "source/cli/src/io/config-parser.ts": 1779954901900.1055,
-    "source/cli/src/io/secrets-parser.ts": 1779876097323.327,
+    "source/cli/src/io/config-parser.ts": 1780070142757.462,
+    "source/cli/src/io/secrets-parser.ts": 1780070396954.3076,
     "source/cli/src/io/schema-parser.ts": 1778867887343.4338
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T07:55:21.872Z",
-    "prefix_hash": "7e5b44b30d164f68a54f5d4b52d94b23e62a5c9bc7416efd8f7694336e1dcfa6"
+    "last_entry_datetime": "2026-05-29T16:00:24.311Z",
+    "prefix_hash": "9550f63c419c5a027325c3c45ddfc3e4b9c6993d5f112ea75fd13c87754aa67b"
+  },
+  "aspectVerdicts": {
+    "parser-contract": {
+      "verdict": "approved"
+    },
+    "silent-missing-files": {
+      "verdict": "approved"
+    },
+    "posix-paths-source": {
+      "verdict": "approved"
+    },
+    "read-or-default-via-helper": {
+      "verdict": "approved"
+    },
+    "parser-yaml-guard": {
+      "verdict": "approved"
+    }
   }
 }
