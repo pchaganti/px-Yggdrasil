@@ -4,3 +4,5 @@ New node: tier-identity.ts computes canonical JSON for drift detection of LLM ti
 Format-version detector consolidated. The shared module is now the single source of truth: predicates renamed from version-numbered names to behaviour-named ones (isCurrent / isLegacy). Provider list extracted to a leaf module so detector and parser can both import without a cycle. Predicate semantics unchanged.
 ## [2026-05-28T06:03:27.632Z]
 Import path of KNOWN_PROVIDERS updated to follow the move to utils. The format-version detector still imports the same constant; behaviour unchanged.
+## [2026-05-29T07:18:00.437Z]
+Exported the module-private canonicalJson helper from tier-identity.ts so it can be used by core/graph/files.ts to produce stable canonical JSON for structure-aspect identity hashes. The function itself is unchanged; only its visibility changed from module-private to module-exported.

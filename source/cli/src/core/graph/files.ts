@@ -1,12 +1,12 @@
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import type { Graph, GraphNode } from '../../model/graph.js';
-import type { DriftCategory, TrackedFileLayer } from '../../model/drift.js';
+import type { DriftCategory, DriftNodeState, TrackedFileLayer } from '../../model/drift.js';
 import { normalizeMappingPaths } from '../../io/paths.js';
 import { collectAncestors } from './traversal.js';
 import { computeEffectiveAspects } from './aspects.js';
 import { selectTierForAspect } from '../tier-selection.js';
-import { canonicalTierJson } from '../tier-identity.js';
+import { canonicalTierJson, canonicalJson } from '../tier-identity.js';
 
 export interface TrackedFile {
   path: string;           // relative to project root
@@ -24,8 +24,13 @@ const STRUCTURAL_RELATION_TYPES = new Set(['uses', 'calls', 'extends', 'implemen
  * bidirectional drift detection.
  *
  * Synchronous — no I/O needed; all data comes from the loaded Graph.
+ *
+ * @param baseline Optional stored drift state for the node. When provided,
+ *   structureTouchedFiles entries are included as 'structure-touched' layer
+ *   entries so drift fires when the set of files touched by a structure aspect
+ *   changes between runs.
  */
-export function collectTrackedFiles(node: GraphNode, graph: Graph): TrackedFile[] {
+export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: DriftNodeState): TrackedFile[] {
   const seen = new Set<string>();
   const result: TrackedFile[] = [];
 
@@ -111,6 +116,35 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph): TrackedFile[
         if (mappingPathsSet.has(ref.path)) continue;
         addFile(ref.path, 'graph', 'aspects');
       }
+    }
+
+    // structure-identity synthetic hash — mirrors tier-identity for structure aspects.
+    // Includes language array so a language change triggers drift.
+    // Excludes status so a draft toggle does NOT invalidate the baseline.
+    if (aspect.reviewer.type === 'structure') {
+      addSyntheticHash(
+        `structure-identity:${aspect.id}`,
+        canonicalJson({ kind: 'structure', language: aspect.language ?? null }),
+        'graph',
+        'aspects',
+      );
+    }
+  }
+
+  // structure-touched: inject entries from baseline's structureTouchedFiles so drift
+  // fires when the set (or content) of files touched by a structure aspect changes.
+  if (baseline?.structureTouchedFiles) {
+    for (const [aspectId, pathMap] of Object.entries(baseline.structureTouchedFiles)) {
+      for (const p of Object.keys(pathMap)) {
+        addFile(p, 'source', 'structure-touched');
+      }
+      const sorted = Object.keys(pathMap).sort();
+      addSyntheticHash(
+        `structure-touched:${aspectId}`,
+        sorted.join('\n'),
+        'graph',
+        'aspects',
+      );
     }
   }
 
