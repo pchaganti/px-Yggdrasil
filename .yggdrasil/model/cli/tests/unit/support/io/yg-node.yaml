@@ -13,3 +13,4 @@ mapping:
   - source/cli/tests/unit/io/secrets-parser.test.ts
   - source/cli/tests/unit/io/read-or-default.test.ts
   - source/cli/tests/unit/io/config-parser-references.test.ts
+  - source/cli/tests/unit/io/drift-state-store-structure.test.ts

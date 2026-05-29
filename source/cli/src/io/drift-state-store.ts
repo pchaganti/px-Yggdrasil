@@ -99,6 +99,10 @@ export async function writeNodeDriftState(
  * No-op when the node has no stored state, no aspectVerdicts field, or when
  * none of the requested IDs are present. If removal empties the aspectVerdicts
  * map, the field is dropped entirely (matches initial-write shape).
+ *
+ * Per design D8.3 for structure aspects, `structureTouchedFiles` is NOT
+ * cleared here — it is preserved across draft toggle so the next non-draft
+ * approve can compare against the previous baseline.
  */
 export async function clearDraftAspectsFromDriftState(
   yggRoot: string,
