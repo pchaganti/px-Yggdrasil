@@ -22,4 +22,4 @@ aspects:                      # optional — aspects propagate to all flow parti
   - id: conditional-aspect    #   object form with per-site applicability filter
     status: enforced          #   optional — explicit status override (channel 5).
                               #   Must satisfy bump rule (bump up OK, downgrade is validator error).
-    when: <predicate>         #   optional — see graph-schemas/yg-aspect.yaml for grammar
+    when: <predicate>         #   optional — see schemas/yg-aspect.yaml for grammar

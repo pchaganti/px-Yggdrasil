@@ -41,8 +41,10 @@ def handle_order(request):
 name: GeneratedNode
 \`\`\`
 
-The aspect id is the aspect's \`id\` field from \`yg-aspect.yaml\`.
-Use \`yg aspects\` to list ids. A reason must follow — it is permanent.
+The token inside the parentheses is the aspect's PATH — its directory under
+\`.yggdrasil/aspects/\` (e.g. \`security/input-validation\`), not an \`id:\`
+field (there is none in \`yg-aspect.yaml\`). Use \`yg aspects\` to list aspect
+paths. A reason must follow — it is permanent.
 
 ## Bracket
 
@@ -72,8 +74,11 @@ SELECT * FROM orders;
 -- yg-suppress-enable(no-select-star)
 \`\`\`
 
-The enable marker must have the same id as the disable marker.
-Mismatched enable/disable pairs are reported by \`yg check\`.
+The enable marker must repeat the same aspect path as the disable marker —
+only a matching enable closes the range. An enable with no open disable is
+ignored, and a disable with no matching enable suppresses through to the end
+of the file. The matcher does not raise an error for an unmatched marker, so
+keep pairs explicit and review the resulting range yourself.
 
 ## Wildcard
 
@@ -107,6 +112,9 @@ The reviewer honors suppress unconditionally. A suppressed line or range
 does not generate a violation, even if the code clearly violates the aspect.
 The suppression is an explicit human decision recorded in the code.
 
-\`yg check\` validates that suppress markers are well-formed (matching ids,
-valid aspect references). It does not validate that the reason is sufficient.
+A suppress marker (single or disable form) must carry a reason — an empty
+reason is rejected with a clear error. Beyond that, the token is matched as a
+plain string against the aspect path being checked: there is NO validation
+that the path names an existing aspect, so a typo simply suppresses nothing
+(the marker is inert). Nothing validates that the reason is sufficient.
 `;

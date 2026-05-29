@@ -22,11 +22,17 @@ Use LLM for semantic rules that require reading intent.
 Every AST aspect must declare the languages it handles:
 
 \`\`\`yaml
-id: my-rule
+# .yggdrasil/aspects/my-rule/yg-aspect.yaml
+name: MyRule
+description: What this structural rule enforces.
 reviewer:
   type: ast
 language: [typescript, tsx, javascript]
 \`\`\`
+
+The aspect's identity is its directory path under \`aspects/\` (here
+\`my-rule\`) — there is no \`id:\` field; \`name:\` and \`description:\` are
+required.
 
 The runner invokes \`check.mjs\` once per declared language, passing only the
 files for that language via \`ctx.language\` and \`ctx.files\`. Four validator

@@ -40,7 +40,7 @@ when:
     has_mapping: true | false
 ```
 
-Full grammar reference: `graph-schemas/yg-aspect.yaml`.
+Full grammar reference: `schemas/yg-aspect.yaml`.
 
 ## Where to declare `when`
 

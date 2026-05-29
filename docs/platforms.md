@@ -26,4 +26,4 @@ Notes:
 - "No" — `yg init` creates a dedicated Yggdrasil file.
 - "Minimal" — one line is added to an existing file.
 - "Append section" — a clearly delimited section is added; no existing content is modified.
-- Codex, Amp, and OpenCode all write to `AGENTS.md` using different formats. Do not initialize more than one of these platforms simultaneously.
+- Codex, Amp, and OpenCode all write to the same `AGENTS.md` file. Codex and OpenCode append an identical delimited section (OpenCode reuses the Codex installer); Amp instead adds a single `@...` reference line. Because they share one file, do not initialize more than one of these platforms simultaneously.

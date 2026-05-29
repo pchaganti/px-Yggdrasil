@@ -46,22 +46,27 @@ aspects." In \`yg-node.yaml\`:
 \`\`\`yaml
 name: PaymentsService
 type: service
-ports:
-  - name: charge
+ports:                                  # map keyed by port name (NOT a list)
+  charge:
     description: Capture a payment from the user
     aspects: [correlation-tracking, idempotency-key]
 \`\`\`
 
-A consumer references the port via the relation's \`consumes\`:
+A consumer references the port via the relation's \`consumes\`. In
+\`yg-node.yaml\`, \`relations:\` is a flat list and each entry carries its own
+\`type:\`:
 
 \`\`\`yaml
 name: OrdersHandler
 type: command
-relations:
-  calls:
-    - target: payments/service
-      consumes: [charge]
+relations:                             # flat list; type is a field on each entry
+  - target: payments/service
+    type: calls
+    consumes: [charge]
 \`\`\`
+
+(The map-keyed-by-relation-type shape — \`relations: { calls: [...] }\` — is the
+\`yg-architecture.yaml\` allowed-relations shape, not the node shape.)
 
 The consumed port's aspects become effective on the consumer through
 channel 6. The consumer must now satisfy \`correlation-tracking\` and

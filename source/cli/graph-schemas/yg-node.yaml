@@ -15,7 +15,7 @@ aspects:                      # optional — aspect identifiers applied directly
   - id: conditional-aspect    #   object form — attach with per-site applicability filter
     status: enforced          #   optional — explicit status override (channel 1).
                               #   Must satisfy bump rule (bump up OK, downgrade is validator error).
-    when: <predicate>         #   optional — see graph-schemas/yg-aspect.yaml for grammar
+    when: <predicate>         #   optional — see schemas/yg-aspect.yaml for grammar
                               # Aspects cascade to all child nodes.
 
 ports:                        # optional — named entry points with required aspects

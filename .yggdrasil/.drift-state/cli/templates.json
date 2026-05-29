@@ -1,5 +1,5 @@
 {
-  "hash": "7519329be1364add050a37b5fe75420efd75fc79fdfff4c763ec68a21b4b63f5",
+  "hash": "1496e5b922f3cf9d745df52aaf6ab73bcc0dd364c735bcf360a5031857d54133",
   "files": {
     "own-subset:cli/templates": "f68bcd5143fd11da71f121095f5b7b88f309ccecd0a1190a8d557b7eeeda9f51",
     "tier-identity:what-why-next": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -12,24 +12,24 @@
     ".yggdrasil/aspects/posix-paths-output/content.md": "2659859dc13a8efe32e098b0c220d24c9ecddff26b42a4f22e3135d8b750bc13",
     "source/cli/src/templates/default-config.ts": "9501fa45c16da35796f91b7fc57e0f6a99f5764f78eed6ba631e1125304bde54",
     "source/cli/src/templates/platform.ts": "d96addc8b4fc854500c14acda1846fef398a39d1c1df4668de3cc4c5425d2f7e",
-    "source/cli/src/templates/rules.ts": "b68ad4b89f5eea243f9a5d5c300a4dc26faaab8b82422699b43c0f9da84017bc",
-    ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994"
+    ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
+    "source/cli/src/templates/rules.ts": "c0172ee55e01c2c4f44f1ce1e3f5f8a35be1676a775fd4b5ef8b84e84478238c"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": 1779869611377.3955,
-    ".yggdrasil/aspects/what-why-next/content.md": 1780049565396.277,
+    ".yggdrasil/aspects/what-why-next/content.md": 1780050256245.0933,
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1779869611285.0671,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1779794513934.5745,
     ".yggdrasil/aspects/posix-paths-output/yg-aspect.yaml": 1779869611275.605,
     ".yggdrasil/aspects/posix-paths-output/content.md": 1778912983383.063,
     "source/cli/src/templates/default-config.ts": 1779884715080.4534,
     "source/cli/src/templates/platform.ts": 1778920718473.7297,
-    "source/cli/src/templates/rules.ts": 1780043592637.3403
+    "source/cli/src/templates/rules.ts": 1780066916074.312
   },
   "log": {
-    "last_entry_datetime": "2026-05-29T08:33:49.605Z",
-    "prefix_hash": "2dfefdf0d9d7ca1ff5ffe39ece45447897f282cdccdb65698b886ff6d99fbbab"
+    "last_entry_datetime": "2026-05-29T15:03:36.189Z",
+    "prefix_hash": "5353fd2fbc83343b74178269ae7859a2570e6b25f0c760d49acc97d8f0c95a81"
   },
   "aspectVerdicts": {
     "what-why-next": {

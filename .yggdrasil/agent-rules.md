@@ -117,7 +117,7 @@ Full command reference (`yg aspects`, `yg flows`, `yg owner`, `yg ast-test`, `yg
 
 Every graph change has blast radius. `yg impact` shows how many nodes are affected. Each affected node is a separate reviewer call (LLM request) during approve. An aspect touching 20 nodes = 20 LLM calls = real cost.
 
-When code doesn't match an aspect, three options:
+When code doesn't match an aspect, five options:
 
 | Option | When | Cost |
 |---|---|---|

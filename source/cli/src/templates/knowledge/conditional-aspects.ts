@@ -1,124 +1,195 @@
-export const summary = 'when predicate on aspects: global vs per-attach-site, relation/type/mapping filters, combining AND';
+export const summary = 'when predicate on aspects vs file classification: two grammars, boolean combinators (all_of/any_of/not), node/relations/descendants atoms, combining via AND';
 
 export const content = `# Conditional aspects (when predicate)
 
-The \`when\` predicate on an aspect filters applicability. Every propagation
-channel passes through \`when\` before the aspect becomes effective on a node.
-If \`when\` is false, the aspect is silently skipped on that node.
+The \`when\` predicate filters applicability. Every propagation channel passes
+through \`when\` before an aspect becomes effective on a node. If \`when\` is
+false, the aspect is silently skipped on that node — no reviewer call, no cost.
+
+## Two distinct \`when\` grammars
+
+There are TWO predicate grammars. They share only the boolean combinators
+(\`all_of\`, \`any_of\`, \`not\`); their atomic clauses are completely different.
+Do not mix atoms across them.
+
+1. **Aspect-when** — filters whether an aspect applies to a node. Used by
+   EVERY aspect attach site: the aspect's own \`yg-aspect.yaml\` \`when:\`,
+   \`yg-node.yaml\` aspects and ports, \`yg-architecture.yaml\`
+   \`node_types.*.aspects[].when\`, \`yg-flow.yaml\` aspects, and \`implies\`
+   edges. Atoms inspect the NODE: its type, ports, mapping, and relations.
+
+2. **File-when** — classifies which source FILES belong to a node type. Used
+   ONLY in \`yg-architecture.yaml\` \`node_types.*.when\`. Atoms inspect a single
+   file: its path and content. (Deep dive: \`yg knowledge read working-with-architecture\`.)
+
+This document is about aspect-when unless a section is explicitly labelled
+file-when.
 
 ## Why use when
 
 Without \`when\`, attaching an aspect to a type or parent node applies it to
-every node of that type or every child. That is often too broad.
+every node of that type or every descendant. That is often too broad.
 
-Examples where \`when\` helps:
-- \`external-api-error-mapping\` attached to type \`command\` but only
-  applicable when the command calls a service-client
-- \`pii-encryption\` on all repositories, but only when they store a
-  user-profile field
-- \`idempotency-key\` required only for commands that emit events
-- \`database-migration-review\` only for nodes with mappings under \`db/migrations/\`
+Examples where aspect-when helps:
+- \`external-api-error-mapping\` attached to a command type, but only when the
+  command actually calls a service client.
+- \`pii-encryption\` on all repository nodes, but only when the node has a
+  mapping (skip organizational parents that own no files).
+- \`correlation-tracking\` only on nodes that consume a specific port.
 
 ## Aspect-level when grammar
 
-The \`when\` predicate supports the following atoms:
+\`\`\`yaml
+when:
+  all_of: [<clause>, ...]    # AND — every clause must pass
+  any_of: [<clause>, ...]    # OR — at least one clause passes
+  not: <clause>              # negation of a single clause
+  # Or top-level atomic clauses (multiple atoms at the top level imply all_of):
+  node:
+    type: <type-id>          # node is exactly this type
+    has_port: <port-name>    # node declares this named port
+    has_mapping: true|false  # node owns at least one mapped file (or owns none)
+  relations:
+    <relation-type>:         # calls | uses | extends | implements | emits | listens
+      target_type: <type-id> # at least one relation of this type targets a node of this type
+      target: <node-path>    # ...or targets exactly this node path (relative to model/)
+      consumes_port: <port>  # ...or consumes this port on the relation
+  descendants:               # same checks, but satisfied by ANY hierarchical descendant
+    type: <type-id>
+    has_port: <port-name>
+    relations: { <relation-type>: { target_type: <type-id> } }
+\`\`\`
 
-### relations filter
+Rules the parser enforces:
+- A bare relation-type match (e.g. \`relations: { emits: {} }\` is NOT valid —
+  you must give at least one of \`target_type\`, \`target\`, \`consumes_port\`).
+  A relation clause that names a type and a match means "at least one relation
+  of that type satisfies the match" — there is no count operator.
+- A \`node\`, \`relations\`, or \`descendants\` clause must carry at least one
+  inner field; an empty clause is rejected.
+- You cannot mix a boolean operator with atomic clauses at the same level, and
+  you may use at most one boolean operator per level. Nest to combine.
+
+### A node calls a service client
 
 \`\`\`yaml
 when:
   relations:
     calls:
-      target_type: service-client   # node calls at least one service-client
-    emits:
-      count_gte: 1                  # node emits at least one event
+      target_type: service-client
 \`\`\`
 
-### has_mapping filter
+### A node OR any of its descendants calls a service client
+
+OR is expressed with \`any_of\` — NOT by creating separate attach sites:
 
 \`\`\`yaml
 when:
-  has_mapping:
-    path: "src/handlers/**"         # node has at least one mapped file under this glob
+  any_of:
+    - relations:    { calls: { target_type: service-client } }
+    - descendants:  { relations: { calls: { target_type: service-client } } }
 \`\`\`
 
-### node_type filter
+### A command that owns files but is not a generated stub
 
 \`\`\`yaml
 when:
-  node_type: command                # node is of this type
+  all_of:
+    - node: { type: command, has_mapping: true }
+    - not:
+        node: { has_port: generated }
 \`\`\`
 
-### AND combination
+### A consumer of a specific port
 
-Filters at the same level combine with AND. For OR semantics, create
-separate attach sites with different \`when\` predicates.
-
-## Applicability examples
-
-**Attach to all repositories, apply only when mapping includes user files:**
 \`\`\`yaml
-aspects:
-  - id: pii-encryption
-    when:
-      has_mapping:
-        path: "src/profiles/**"
-\`\`\`
-
-**Apply only to commands that emit events:**
-\`\`\`yaml
-# aspects/idempotency-key/yg-aspect.yaml
 when:
   relations:
-    emits:
-      count_gte: 1
+    calls:
+      consumes_port: charge
 \`\`\`
 
-**Architecture default — apply only to a specific node type:**
+## Applicability examples by attach site
+
+**Architecture default applied only to a node type that calls payments:**
 \`\`\`yaml
-# In yg-architecture.yaml aspects for type 'command':
+# yg-architecture.yaml, node_types.command.aspects
 aspects:
   - id: audit-logging
     when:
       relations:
         calls:
-          target_type: payment-service
+          target: payments/service
 \`\`\`
+
+**Aspect-global when (precondition wherever attached):**
+\`\`\`yaml
+# aspects/idempotency-key/yg-aspect.yaml
+when:
+  relations:
+    emits:
+      target_type: event-bus
+\`\`\`
+
+**Per-attach-site when on a node:**
+\`\`\`yaml
+# yg-node.yaml aspects
+aspects:
+  - id: pii-encryption
+    when:
+      node: { has_mapping: true }
+\`\`\`
+
+## File-when grammar (architecture file classification only)
+
+In \`yg-architecture.yaml\`, \`node_types.*.when\` decides which files a type
+owns. Its ONLY atoms are \`path\` and \`content\` — the node/relations/descendants
+atoms above are NOT available here.
+
+\`\`\`yaml
+node_types:
+  command:
+    when:
+      all_of:
+        - path: "src/handlers/**"      # minimatch glob on repo-relative POSIX path
+        - content: "export class"      # JavaScript regex tested against file content
+\`\`\`
+
+Boolean combinators (\`all_of\`, \`any_of\`, \`not\`) work the same way. A bare
+\`path\` plus \`content\` at the top level implies all_of of both atoms.
 
 ## Propagation through channels
 
-Global \`when\` (on the aspect definition) and per-attach-site \`when\`
-(on the aspect reference) combine via AND for each channel path.
+Aspect-global \`when\` (on the aspect definition) and per-attach-site \`when\`
+(on the channel's list entry) combine via AND for each channel path.
 
-The aspect is effective on a node if ANY channel's path passes BOTH
-its global and attach-site filter.
+The aspect is effective on a node if ANY channel's path passes BOTH its
+global and its attach-site filter. Channels deliver independently: if an
+aspect is directly attached to a node with no \`when\` (channel 1) AND also
+delivered via an ancestor with a \`when\` (channel 2), it is effective from
+channel 1 regardless of whether channel 2's filter passes.
 
-Multiple channels deliver independently. Example: if an aspect is both
-directly attached to a node (channel 1, no when) AND delivered via
-ancestor (channel 2, with when), the aspect is effective on the node
-from channel 1 regardless of whether channel 2's when passes.
-
-\`yg context --node <path>\` shows effective aspects with their channel
-source. An aspect that is silently skipped due to \`when\` does not appear
-in the effective list — this is correct behavior.
+\`yg context --node <path>\` shows effective aspects with their channel source.
+An aspect silently skipped because \`when\` was false does not appear in the
+effective list — that is correct behavior.
 
 ## Cost
 
-\`when\` evaluation is deterministic — no LLM call. It runs at \`yg check\`
-time and is essentially free. Use \`when\` freely to narrow applicability.
-It is cheaper than letting the reviewer decide by reading code.
+\`when\` evaluation is deterministic — no LLM call. It runs at \`yg check\` time
+and is essentially free. Use it freely to narrow applicability; it is cheaper
+than letting the reviewer decide by reading code.
 
-Prefer \`when\` over splitting types (fewer types, same precision).
-Prefer \`when\` over leaving applicability decisions inside \`content.md\`
-prose (\`when\` is enforced by the graph engine — prose rules can be
-overlooked by the reviewer).
+Prefer \`when\` over splitting types (fewer types, same precision). Prefer
+\`when\` over leaving applicability decisions inside \`content.md\` prose
+(\`when\` is enforced by the graph engine — prose rules can be overlooked by
+the reviewer).
 
 ## When vs status
 
-Note: applicability (\`when\` predicate) is distinct from enforcement level
-(\`status: draft | advisory | enforced\`). A \`when\` filter determines
-WHETHER an aspect reaches a node. Status determines what happens AFTER the
-aspect reaches the node (whether reviewer runs and how violations are rendered).
+Applicability (\`when\` predicate) is distinct from enforcement level
+(\`status: draft | advisory | enforced\`). A \`when\` filter determines WHETHER
+an aspect reaches a node. Status determines what happens AFTER the aspect
+reaches the node (whether the reviewer runs and how violations are rendered).
 Both can be declared on the same aspect simultaneously. See:
 \`yg knowledge read aspect-status\`.
 `;
