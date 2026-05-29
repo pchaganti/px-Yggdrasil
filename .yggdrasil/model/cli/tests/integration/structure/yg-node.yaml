@@ -1,0 +1,7 @@
+name: Integration Structure Tests
+type: test-suite
+description: Integration tests for the structure-aspect CLI command (yg structure-test) — verifies end-to-end behavior including violations, graph-level output, and --check-determinism flag.
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/integration/structure-test-cli.test.ts

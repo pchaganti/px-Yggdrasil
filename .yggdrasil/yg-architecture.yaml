@@ -53,7 +53,7 @@ node_types:
       - command-error-via-buildissuemessage
     parents: [module]
     relations:
-      calls: [engine, parser-adapter, persistence-adapter, llm-shared, llm-subprocess-base, formatter, utility, ast-adapter, template]
+      calls: [engine, parser-adapter, persistence-adapter, llm-shared, llm-subprocess-base, formatter, utility, ast-adapter, structure-adapter, template]
       uses: [types]
 
   engine:

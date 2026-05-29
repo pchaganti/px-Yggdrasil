@@ -1,0 +1,11 @@
+name: StructureTestCommand
+type: command
+description: Runs a structure aspect check against a graph node via yg structure-test, without recording a baseline. Supports --check-determinism to detect non-stable check.mjs outputs.
+aspects: []
+relations:
+  - target: cli/structure
+    type: calls
+  - target: cli/core/loader
+    type: calls
+mapping:
+  - source/cli/src/cli/structure-test.ts
