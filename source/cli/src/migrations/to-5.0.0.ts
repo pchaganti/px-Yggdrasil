@@ -78,8 +78,25 @@ export function transformConfigReviewer(
     activeProvider = providerKeys[0];
   }
 
+  const rawConsensus = reviewer.consensus;
   const globalConsensus =
-    typeof reviewer.consensus === 'number' ? reviewer.consensus : 1;
+    typeof rawConsensus === 'number' ? rawConsensus : 1;
+
+  if (
+    typeof rawConsensus === 'number' &&
+    (rawConsensus < 1 || !Number.isInteger(rawConsensus) || rawConsensus % 2 === 0)
+  ) {
+    const detail =
+      rawConsensus % 2 === 0 && Number.isInteger(rawConsensus) && rawConsensus >= 1
+        ? `${rawConsensus} is even`
+        : `${rawConsensus} is not a positive odd integer`;
+    warnings.push(
+      `yg-config.yaml: global reviewer.consensus ${detail} — ` +
+        'v5 requires a positive odd per-tier consensus (3+ for majority vote). ' +
+        'Set an odd value (1, 3, 5, …) and re-run `yg init --upgrade`.',
+    );
+    return { value: undefined, warnings, actions, changed: false };
+  }
 
   const tiers: Record<string, Record<string, unknown>> = {};
   for (const provider of providerKeys) {

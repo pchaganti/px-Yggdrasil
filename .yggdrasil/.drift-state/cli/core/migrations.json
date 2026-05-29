@@ -1,5 +1,5 @@
 {
-  "hash": "d7c281385bd1955ef2409e6f7e89674e748eca5e48b281769b9933ffd9fb6aec",
+  "hash": "69302931d88098bdcf5106eb64c297d4f6c99efc749ca9ea0e6b872ea6cc073a",
   "files": {
     "own-subset:cli/core/migrations": "07bc7823ac9953fb68a52fea8196741be8e01c254d90b34870384af0a3ed7a9c",
     "tier-identity:posix-paths-output": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -22,7 +22,7 @@
     "source/cli/src/migrations/to-4.0.0.ts": "cf6b81f7b08f62e2015841f2b3a54628a5d7c44ecd953ed28cad67ffeb5943e6",
     "source/cli/src/migrations/to-4.3.0.ts": "2943de828be04b5570116ea23511134e45a363ae81145abfefc8ded1bd647cbb",
     "source/cli/src/migrations/index.ts": "744b8454e96da6ab1e64a079409eb90f1b5393b7cd7c534caa449e0c2d2c4b90",
-    "source/cli/src/migrations/to-5.0.0.ts": "a0acf42247d388e8b428cc4b04a11588e2b1131406caff818c5a8c734c1c22aa",
+    "source/cli/src/migrations/to-5.0.0.ts": "982439ec1d0acd87d0ec432a7cec1602148e37309d16818a465cc35a21cd3e6a",
     "source/cli/src/migrations/aspect-status-defaults.ts": "5195b94e401f8cb34e297c610c9bfd3305f512311dbe56716a2d3976d2b41330"
   },
   "mtimes": {
@@ -43,12 +43,12 @@
     "source/cli/src/migrations/to-4.0.0.ts": 1778915756837.5725,
     "source/cli/src/migrations/to-4.3.0.ts": 1778938666443.6206,
     "source/cli/src/migrations/index.ts": 1779883052859.5269,
-    "source/cli/src/migrations/to-5.0.0.ts": 1779980879711.048,
+    "source/cli/src/migrations/to-5.0.0.ts": 1780078865892.5132,
     "source/cli/src/migrations/aspect-status-defaults.ts": 1779981566248.1829
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T15:19:33.765Z",
-    "prefix_hash": "3aeba267a896ac47b31866e98045d5cd7f04fb9b4f4e5b70988f9feaa4605201"
+    "last_entry_datetime": "2026-05-29T18:22:43.091Z",
+    "prefix_hash": "3f1cdea4100a5d655c3f490a5619adba87b3a8d29b57ee2432535a71077b1389"
   },
   "aspectVerdicts": {
     "posix-paths-output": {

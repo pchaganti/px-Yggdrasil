@@ -6,3 +6,5 @@ Format-version detector consolidated. The shared module is now the single source
 Import path of KNOWN_PROVIDERS updated to follow the move to utils. The format-version detector still imports the same constant; behaviour unchanged.
 ## [2026-05-29T07:18:00.437Z]
 Exported the module-private canonicalJson helper from tier-identity.ts so it can be used by core/graph/files.ts to produce stable canonical JSON for structure-aspect identity hashes. The function itself is unchanged; only its visibility changed from module-private to module-exported.
+## [2026-05-29T20:38:46.685Z]
+The per-call reviewer timeout is now excluded from the synthetic tier-identity drift hash, alongside the already-excluded api_key. Timeout is an operational knob — how long to wait for the reviewer subprocess — that does not change the reviewer's judgment, so it must not invalidate existing verdict baselines. Including it meant that tuning the timeout changed the tier-identity of every node carrying an LLM aspect, cascading drift across the whole graph and forcing a full re-approval just to adjust a wait duration. Excluding it lets the timeout be tuned freely without any drift.

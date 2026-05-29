@@ -164,6 +164,89 @@ describe('transformConfigReviewer', () => {
     expect(result.value).toBeUndefined();
     expect(result.warnings[0]).toMatch(/reviewer\.active is not a string/);
   });
+
+  it('STOPS when global consensus is even (2) — withholds migration and version bump', () => {
+    const result = transformConfigReviewer({
+      consensus: 2,
+      ollama: { model: 'qwen3' },
+    });
+    expect(result.value).toBeUndefined();
+    expect(result.changed).toBe(false);
+    expect(result.warnings.length).toBe(1);
+    expect(result.warnings[0]).toMatch(/reviewer\.consensus/);
+    expect(result.warnings[0]).toMatch(/2/);
+    expect(result.warnings[0]).toMatch(/even/);
+    expect(result.warnings[0]).toMatch(/odd/);
+    expect(result.warnings[0]).toMatch(/yg init --upgrade/);
+  });
+
+  it('STOPS when global consensus is even (4) — withholds migration and version bump', () => {
+    const result = transformConfigReviewer({
+      consensus: 4,
+      ollama: { model: 'qwen3' },
+    });
+    expect(result.value).toBeUndefined();
+    expect(result.changed).toBe(false);
+    expect(result.warnings.length).toBe(1);
+    expect(result.warnings[0]).toMatch(/4/);
+  });
+
+  it('STOPS when global consensus is less than 1 (zero) — withholds migration', () => {
+    const result = transformConfigReviewer({
+      consensus: 0,
+      ollama: { model: 'qwen3' },
+    });
+    expect(result.value).toBeUndefined();
+    expect(result.changed).toBe(false);
+    expect(result.warnings.length).toBe(1);
+  });
+
+  it('STOPS when global consensus is a non-integer (1.5) — withholds migration', () => {
+    const result = transformConfigReviewer({
+      consensus: 1.5,
+      ollama: { model: 'qwen3' },
+    });
+    expect(result.value).toBeUndefined();
+    expect(result.changed).toBe(false);
+    expect(result.warnings.length).toBe(1);
+  });
+
+  it('migrates normally when global consensus is odd (3)', () => {
+    const result = transformConfigReviewer({
+      consensus: 3,
+      ollama: { model: 'qwen3' },
+    });
+    expect(result.changed).toBe(true);
+    expect(result.warnings).toEqual([]);
+    expect(result.value).toEqual({
+      tiers: {
+        ollama: {
+          provider: 'ollama',
+          consensus: 3,
+          config: { model: 'qwen3' },
+        },
+      },
+    });
+  });
+
+  it('migrates normally when global consensus is 1 (odd baseline)', () => {
+    const result = transformConfigReviewer({
+      consensus: 1,
+      ollama: { model: 'qwen3' },
+    });
+    expect(result.changed).toBe(true);
+    expect(result.warnings).toEqual([]);
+    expect((result.value as { tiers: Record<string, { consensus: number }> }).tiers.ollama.consensus).toBe(1);
+  });
+
+  it('migrates normally when global consensus is absent (defaults to 1)', () => {
+    const result = transformConfigReviewer({
+      ollama: { model: 'qwen3' },
+    });
+    expect(result.changed).toBe(true);
+    expect(result.warnings).toEqual([]);
+    expect((result.value as { tiers: Record<string, { consensus: number }> }).tiers.ollama.consensus).toBe(1);
+  });
 });
 
 // ── transformAspectReviewer unit tests ──────────────────────
@@ -292,6 +375,46 @@ describe('migrateTo50', () => {
     await migrateTo50(ygg);
     const result2 = await migrateTo50(ygg);
     expect(result2.actions.filter(a => a.includes('tier-based shape'))).toHaveLength(0);
+  });
+
+  it('STOPS when global reviewer.consensus is even — config NOT written, version NOT bumped, aspects NOT touched', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 2\n  ollama:\n    model: qwen3\n',
+      aspects: { 'r1': 'name: R\nreviewer: llm\n' },
+    });
+    const before = await readFile(path.join(ygg, 'yg-config.yaml'), 'utf-8');
+    const aspectBefore = await readFile(path.join(ygg, 'aspects/r1/yg-aspect.yaml'), 'utf-8');
+
+    const result = await migrateTo50(ygg);
+    expect(result.bumpVersion).toBe(false);
+    expect(result.warnings.some(w => w.includes('reviewer.consensus') && w.includes('even'))).toBe(true);
+
+    // Config must NOT be rewritten
+    expect(await readFile(path.join(ygg, 'yg-config.yaml'), 'utf-8')).toBe(before);
+    // Aspect must NOT be touched
+    expect(await readFile(path.join(ygg, 'aspects/r1/yg-aspect.yaml'), 'utf-8')).toBe(aspectBefore);
+  });
+
+  it('STOPS when global reviewer.consensus is 4 (even) — bumpVersion false', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 4\n  ollama:\n    model: qwen3\n',
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.bumpVersion).toBe(false);
+    expect(result.warnings.some(w => w.includes('4') && w.includes('odd'))).toBe(true);
+  });
+
+  it('migrates normally when global reviewer.consensus is 3 (odd) — no consensus warning', async () => {
+    const ygg = await setupYgg({
+      config: 'version: "4.3.0"\nreviewer:\n  consensus: 3\n  ollama:\n    model: qwen3\n',
+    });
+    const result = await migrateTo50(ygg);
+    expect(result.bumpVersion).toBe(true);
+    expect(result.warnings).toEqual([]);
+    const updated = parseYaml(await readFile(path.join(ygg, 'yg-config.yaml'), 'utf-8')) as {
+      reviewer: { tiers: Record<string, { consensus: number }> };
+    };
+    expect(updated.reviewer.tiers.ollama.consensus).toBe(3);
   });
 
   it('STOPS migration when multiple providers without active — config rewritten, version not bumped, aspects not touched', async () => {

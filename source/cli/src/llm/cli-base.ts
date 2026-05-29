@@ -49,7 +49,12 @@ export abstract class CliAgentProvider implements LlmProvider {
 
   constructor(config: { model: string; timeout?: number }) {
     this.model = config.model;
-    this.timeout = config.timeout ?? 120_000;
+    // Default 300s (was 120s). A large node's per-aspect prompt (many source
+    // files + references) can take ~100-300s through a CLI provider; 120s was
+    // tight enough that big-node reviews intermittently timed out as a spurious
+    // "Reviewer unavailable". Keeping nodes small (node-size error) is the real
+    // fix; this default just stops the boundary flakiness. Tunable via config.timeout.
+    this.timeout = config.timeout ?? 300_000;
   }
 
   abstract get binary(): string;
@@ -83,15 +88,21 @@ export abstract class CliAgentProvider implements LlmProvider {
       });
 
       let stdout = '';
+      let stderr = '';
       let killed = false;
 
       const timer = setTimeout(() => {
         killed = true;
-        debugWrite(`[${this.binary}] timeout after ${this.timeout}ms`);
+        debugWrite(`[${this.binary}] timeout after ${this.timeout}ms; stderr tail: ${stderr.slice(-500)}`);
         child.kill('SIGTERM');
       }, this.timeout);
 
       child.stdout.on('data', (data: Buffer) => { stdout += data.toString(); });
+      // Drain stderr too. With stdio stderr piped but unread, a child that writes
+      // more than the ~64KB pipe buffer blocks on its stderr write and never exits —
+      // a deadlock that presents as a spurious timeout / "Reviewer unavailable" on
+      // large prompts. Reading it keeps the pipe flowing and preserves diagnostics.
+      child.stderr.on('data', (data: Buffer) => { stderr += data.toString(); });
       child.on('error', (err) => {
         clearTimeout(timer);
         const isE2BIG = (err as NodeJS.ErrnoException).code === 'E2BIG';

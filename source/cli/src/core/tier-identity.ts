@@ -2,14 +2,18 @@ import type { LlmConfig } from '../model/graph.js';
 
 /**
  * Stable canonical JSON for tier identity. Sorts keys recursively,
- * omits undefined, omits api_key (rotated independently).
+ * omits undefined, omits api_key (rotated independently) and timeout
+ * (an operational knob — how long to wait for the subprocess — that does
+ * not change the reviewer's judgment, so it must not invalidate baselines;
+ * including it made tuning the timeout cascade drift across every node).
  *
  * Used by core/graph/files.ts to compute the synthetic
  * `tier-identity:<aspectId>` content for drift detection.
  */
 export function canonicalTierJson(tier: LlmConfig, tierName: string): string {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { api_key: _api_key, ...rest } = tier;
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+  const { api_key: _api_key, timeout: _timeout, ...rest } = tier;
+  /* eslint-enable @typescript-eslint/no-unused-vars */
   return canonicalJson({ tierName, ...rest });
 }
 
