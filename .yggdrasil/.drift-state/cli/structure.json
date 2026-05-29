@@ -1,5 +1,5 @@
 {
-  "hash": "16563809e50da457d44edeef6e897977d3e1328435138a21266dfd83fa918fc1",
+  "hash": "29f0f72f670fb4d195bcbf96c17456998b35df90b5b424f71d504a07195d556b",
   "files": {
     "own-subset:cli/structure": "204bb5c981df191b1ce7c90b917c430e5813e7219cb7a2f740e2c87bcc605709",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -8,14 +8,14 @@
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "7a30b1005b8db9642b89f98a63ec71e36d486207e51f6ad3f744079c67fdb9e6",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
+    "source/cli/src/structure/index.ts": "a3d83b2e300b9a92baf8a5667e330f3a7ee8ff284453c7534d95292013762c84",
     "source/cli/src/structure/expand-mapping-sync.ts": "3d908c3ccecd52c2d552a143480441e07376f9f1c83fd3a0088d7a9ac2da4935",
     "source/cli/src/structure/allowed-reads.ts": "9e260eba9a5a0b82044cac90b0213d0b34104cfa70ef397bc8ff3b8c952c21df",
     "source/cli/src/structure/types.ts": "39eadb834bb931d24e3102bbec7d8b1004d1f2847bc7c7569f19af3fa3de673f",
-    "source/cli/src/structure/index.ts": "a3d83b2e300b9a92baf8a5667e330f3a7ee8ff284453c7534d95292013762c84",
     "source/cli/src/structure/ctx-fs.ts": "2152f6cfaaf718631aae2c864041a1455d7659604aaa774bf9a39b165f990e44",
     "source/cli/src/structure/ctx-graph.ts": "c9ee5f0615d54f9d730b016d9177bbd03a05573fa0b5dbe90d5e4860de880d98",
-    "source/cli/src/structure/ctx-parsers.ts": "cd95bbc831e8394e7d26b66a98f44600151b0dcd0dc30ff0c975cf0e048e7e90",
-    "source/cli/src/structure/runner.ts": "0e2f6ba7fed18abef822e606a80c680d3815a9acad6bb74b13fcfe0b74c79f83"
+    "source/cli/src/structure/ctx-parsers.ts": "1e275e547e4f5712e6b30656c86115d03312cd9d3d3019a49ec62cc221032bfb",
+    "source/cli/src/structure/runner.ts": "a3ed650b5210367fcae5e8e958edac4ed05240978939870ea1dd7aaa52b44292"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -29,12 +29,12 @@
     "source/cli/src/structure/types.ts": 1780035422054.3289,
     "source/cli/src/structure/ctx-fs.ts": 1780063685599.9734,
     "source/cli/src/structure/ctx-graph.ts": 1780063726725.511,
-    "source/cli/src/structure/ctx-parsers.ts": 1780063716465.4246,
-    "source/cli/src/structure/runner.ts": 1780063721199.5823
+    "source/cli/src/structure/ctx-parsers.ts": 1780078393479.0217,
+    "source/cli/src/structure/runner.ts": 1780078407624.1338
   },
   "log": {
-    "last_entry_datetime": "2026-05-29T14:09:41.987Z",
-    "prefix_hash": "4b777574cf1c1998f8b25bdc81dc5132f2187d5c04de91bd7ea91849dcb80f56"
+    "last_entry_datetime": "2026-05-29T18:15:39.894Z",
+    "prefix_hash": "a1fdcf7c744b0e3d7065a5ffdb13826e554cf655184633ae803fcc6b17f3c668"
   },
   "aspectVerdicts": {
     "deterministic": {

@@ -21,6 +21,18 @@ export interface CtxParsers {
   parseToml(file: File | string): unknown;
 }
 
+export class ParseAstNotPrewarmedError extends Error {
+  constructor(public readonly filePath: string) {
+    super(
+      `structure-aspect-parseast-not-prewarmed: ${filePath}. ` +
+      `The dispatcher did not prewarm this file. ` +
+      `Either (i) add a declared relation to the node owning this file, or ` +
+      `(ii) use ctx.parseYaml/Json/Toml if AST is not required.`,
+    );
+    this.name = 'ParseAstNotPrewarmedError';
+  }
+}
+
 export function createCtxParsers(params: CtxParsersParams): CtxParsers {
   const { allowedSet, projectRoot, touchedFiles, astCache } = params;
 
@@ -42,12 +54,7 @@ export function createCtxParsers(params: CtxParsersParams): CtxParsers {
       const f = asFile(file);
       const cached = astCache.get(f.path);
       if (cached && cached.content === f.content) return cached.ast;
-      throw new Error(
-        `structure-aspect-parseast-not-prewarmed: ${f.path}. ` +
-        `The dispatcher did not prewarm this file. ` +
-        `Either (i) add a declared relation to the node owning this file, or ` +
-        `(ii) use ctx.parseYaml/Json/Toml if AST is not required.`,
-      );
+      throw new ParseAstNotPrewarmedError(f.path);
     },
     parseYaml(file) { return parseYaml(asFile(file).content); },
     parseJson(file) { return JSON.parse(asFile(file).content); },

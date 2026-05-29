@@ -322,6 +322,27 @@ describe('runStructureAspect', () => {
     expect(r.violations).toHaveLength(0);
   });
 
+  it('parseAst on non-prewarmed file → structured violation (succeeded: false)', async () => {
+    // The file 'src/a.ts' is in the node mapping but a file NOT prewarmed by
+    // the dispatcher (src/not-prewarmed.ts) should yield a typed violation,
+    // NOT a hard StructureRunnerError / STRUCTURE_CHECK_THROWN crash.
+    await writeAspect('a20', `export function check(ctx) {
+      ctx.parseAst({ path: 'src/not-prewarmed.ts', content: 'const x = 1;' }, 'typescript');
+      return [];
+    }`);
+    const g = buildTestGraphForStructure({
+      nodes: [{ path: 'N', type: 'module', mapping: ['src/a.ts'] }],
+    });
+    const r = await runStructureAspect({
+      aspectDir: path.join('.yggdrasil/aspects/a20'),
+      aspectId: 'a20', nodePath: 'N', graph: g, projectRoot,
+    });
+    // Must NOT throw — runner converts to a typed violation
+    expect(r.succeeded).toBe(false);
+    expect(r.violations).toHaveLength(1);
+    expect(r.violations[0].kind).toBe('structure-aspect-parseast-not-prewarmed');
+  });
+
   it('node with children — child mapping carved out of own files', async () => {
     // Add a child mapping so buildOwnFiles exercises the child carve-out path
     mkdirSync(path.join(projectRoot, 'src/sub'), { recursive: true });

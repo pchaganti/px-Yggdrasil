@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { ensureLoaderRegistered } from '../ast/loader-hook.js';
 import { createCtxFs, UndeclaredFsReadError } from './ctx-fs.js';
 import { createCtxGraph, UndeclaredGraphReadError } from './ctx-graph.js';
-import { createCtxParsers, prewarmupAstCache } from './ctx-parsers.js';
+import { createCtxParsers, prewarmupAstCache, ParseAstNotPrewarmedError } from './ctx-parsers.js';
 import { collectAllowedReadsForAspect } from './allowed-reads.js';
 import { normalizeMappingPath } from './expand-mapping-sync.js';
 import type { Graph, GraphNode as ModelNode } from '../model/graph.js';
@@ -213,6 +213,17 @@ export async function runStructureAspect(
           message: `Aspect tried to read undeclared graph node '${err.nodePath}'. Add a relation in yg-node.yaml.`,
           kind: 'structure-aspect-undeclared-graph-read',
           file: `.yggdrasil/aspects/${aspectId}/check.mjs`,
+        }],
+        touchedFiles: [],
+        succeeded: false,
+      };
+    }
+    if (err instanceof ParseAstNotPrewarmedError) {
+      return {
+        violations: [{
+          message: `Aspect called ctx.parseAst on '${err.filePath}', which was not pre-warmed by the dispatcher. Add a declared relation to the node owning this file, or use ctx.parseYaml/Json/Toml if AST is not required.`,
+          kind: 'structure-aspect-parseast-not-prewarmed',
+          file: `.yggdrasil/model/${nodePath}/yg-node.yaml`,
         }],
         touchedFiles: [],
         succeeded: false,
