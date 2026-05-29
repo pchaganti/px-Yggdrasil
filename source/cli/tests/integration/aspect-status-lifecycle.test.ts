@@ -200,10 +200,11 @@ describe('integration — aspect status lifecycle (draft → advisory → enforc
     const { code, out } = ygCheck(repo);
     // Advisory refused → warning, not error → exit 0.
     expect(code).toBe(0);
-    expect(out).toContain('aspect-violation-advisory');
-    // Result line classifies as warning, not error.
-    expect(out).toContain('Result: PASS');
-    expect(out).toContain('1 advisory aspect warning');
+    // New format: advisory label in warning block, not code string in header.
+    expect(out).toContain('advisory');
+    // New format: verdict line starts with 'yg check: PASS (N warnings)'.
+    expect(out).toContain('yg check: PASS');
+    expect(out).toContain('Warnings (1)');
 
     // In-process check: verify exact issue codes.
     const result = await runCheckInProcess(repo);

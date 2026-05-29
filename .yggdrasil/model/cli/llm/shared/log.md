@@ -16,3 +16,7 @@ Extended buildPrompt to accept an optional references array (5th parameter, defa
 Padded control-character hex escape sequences to minimum two digits: code.toString(16).padStart(2, '0'). Previously U+0001 was emitted as &#x1; — now &#x01;. This matches standard XML numeric character reference conventions for single-digit hex values below 0x10. Characters at 0x10 and above (e.g. U+001F = &#x1f;) are unaffected — they already produce two hex digits.
 ## [2026-05-28T10:37:57.849Z]
 Removed the defensive yg-suppress notice that previously appeared as an XML comment above the <references> block. References are pure context for the LLM reviewer — the reviewer's instructions already restrict it to verifying <source-files>, so suppression markers inside reference content have no effect by construction. The notice added prompt overhead with no behavioral benefit.
+## [2026-05-29T10:09:44.452Z]
+Re-approving after drift state was wiped during concurrent development session. No source changes — this approval records the baseline verdicts for newly-active aspects.
+## [2026-05-29T10:10:06.733Z]
+Re-approving all aspects because the what-why-next aspect content was updated (clarified that structured messageData field access in CLI renderers satisfies the rule, not just direct buildIssueMessage calls). The aspect content change triggered a cascade drift requiring full re-approval to establish verdicts for all active aspects.

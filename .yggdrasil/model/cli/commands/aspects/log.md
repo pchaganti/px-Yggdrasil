@@ -12,3 +12,5 @@ Phase 6 type-bridge: updated reviewer display from aspect.reviewer ?? 'llm' to a
 Display the resolved reviewer tier (or "(default)") alongside the type so authors see which named tier the aspect will use at approve time.
 ## [2026-05-28T14:01:29.171Z]
 Surface effective aspect status in yg aspects output. Each aspect row now renders [<status>] (defaulting to enforced when unset) right after the id, so adopters can see at a glance whether an aspect is draft, advisory, or enforced before running approve. Aspect-default status is graph-wide — per-node effective status appears in yg context / yg impact instead.
+## [2026-05-29T10:05:50.865Z]
+Test suite for this command was updated to reflect the redesigned yg check output format. The old format had section headers (Structural:, Cascade summary:), per-node cascade repetition, and a Result: footer. The new format uses a single-line verdict header, grouped cascade blocks, and Why:/Fix: labelled output. Tests that asserted the old format strings were updated to the equivalent new format assertions.

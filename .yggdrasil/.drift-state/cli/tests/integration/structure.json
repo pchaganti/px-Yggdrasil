@@ -1,5 +1,5 @@
 {
-  "hash": "2442172aee64f88c61367a0a30636a373d1c46c15d7e9701c3b471d8a914704b",
+  "hash": "0228b03ac17ec69700988a83dbdd7ea5d3449f0dca0d6b1b2d7d9bcb53850c33",
   "files": {
     "own-subset:cli/tests/integration/structure": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -8,7 +8,12 @@
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": "f6203e633f0cb0b6bc84c3337606df49a00920a414f6557fe2f3f91bfd034442",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/integration/structure-test-cli.test.ts": "853a396e43575d7655ca4c4256652e5c992c668f48115b70746a4f958c5464c8"
+    "source/cli/tests/integration/structure-test-cli.test.ts": "853a396e43575d7655ca4c4256652e5c992c668f48115b70746a4f958c5464c8",
+    "source/cli/tests/integration/structure-lifecycle.test.ts": "89e364f50cc1630f37483682789edaf193a6a8891534eb88ead1768ce89289e7",
+    "source/cli/tests/integration/structure-aspect-status.test.ts": "bb4298e6652ab3c807e7c15ff32a5dd3231c711fafc938cb4d4021278a23757f",
+    "source/cli/tests/integration/structure-implies.test.ts": "19a1ad45c7b28dbbe39ffcf9b3db25ab190bb0391564941a1eba2ec83e1ddeaf",
+    "source/cli/tests/integration/structure-cold-start.test.ts": "c780f00ef87c31986055e9dd325c80d79f4fd098c5963ff8bf63e42db43301b8",
+    "source/cli/tests/integration/structure-concurrent-approve.test.ts": "7853a9c50a310003fecd16ae33ea83594eed4d2039b1936be762de940721736e"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -16,7 +21,16 @@
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": 1778923836291.2395,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/integration/structure-test-cli.test.ts": 1780043047881.7568
+    "source/cli/tests/integration/structure-test-cli.test.ts": 1780043047881.7568,
+    "source/cli/tests/integration/structure-lifecycle.test.ts": 1780048969455.608,
+    "source/cli/tests/integration/structure-aspect-status.test.ts": 1780049055608.9536,
+    "source/cli/tests/integration/structure-implies.test.ts": 1780049279199.0322,
+    "source/cli/tests/integration/structure-cold-start.test.ts": 1780049478468.9333,
+    "source/cli/tests/integration/structure-concurrent-approve.test.ts": 1780050356245.7988
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-29T10:25:55.592Z",
+    "prefix_hash": "0c0c15b34bd20ceb02cd28128214f7ebe5caeeb9eab909c1a904f306011649fa"
   },
   "aspectVerdicts": {
     "test-deterministic": {

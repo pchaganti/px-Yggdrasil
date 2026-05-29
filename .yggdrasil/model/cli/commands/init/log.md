@@ -16,3 +16,5 @@ Updated writeReviewerConfig to emit v5 tiers format: reviewer.tiers.standard wit
 Comment cleanup — removed version-numbered phrasing so the comment describes what the code does rather than which schema iteration introduced it.
 ## [2026-05-28T05:09:49.559Z]
 Init upgrade command no longer threads fromVersion or toVersion through to the runner. The runner reads the current project version from yg-config.yaml itself, runs every applicable migration incrementally, and reports the landed version. The wrapper simply forwards the migration list, refreshes schemas, and installs rules.
+## [2026-05-29T10:05:51.315Z]
+Test suite for this command was updated to reflect the redesigned yg check output format. The old format had section headers (Structural:, Cascade summary:), per-node cascade repetition, and a Result: footer. The new format uses a single-line verdict header, grouped cascade blocks, and Why:/Fix: labelled output. Tests that asserted the old format strings were updated to the equivalent new format assertions.

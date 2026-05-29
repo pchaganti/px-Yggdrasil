@@ -8,6 +8,7 @@ mapping:
   - source/cli/tests/unit/cli/build-command.test.ts
   - source/cli/tests/unit/cli/build-context.test.ts
   - source/cli/tests/unit/cli/check.test.ts
+  - source/cli/tests/unit/cli/check-render.test.ts
   - source/cli/tests/unit/cli/init.test.ts
   - source/cli/tests/unit/cli/init-upgrade.test.ts
   - source/cli/tests/unit/cli/knowledge.test.ts

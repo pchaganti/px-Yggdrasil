@@ -129,7 +129,9 @@ aspects:
     expect(code).toBe(1);
     expect(out).toContain('svc');
     // Drift is reported (either upstream-drift cascade or source-drift)
-    const hasDrift = out.includes('upstream-drift') || out.includes('source-drift') || out.includes('unapproved') || out.includes('Cascade') || out.includes('Drift');
+    // New format uses labels 'cascade (N)' and 'drift' (lowercase)
+    const hasDrift = out.includes('upstream-drift') || out.includes('source-drift') || out.includes('unapproved')
+      || out.toLowerCase().includes('cascade') || out.toLowerCase().includes('drift');
     expect(hasDrift).toBe(true);
   });
 });

@@ -90,7 +90,9 @@ describe('formatOutput', () => {
     const output = formatOutput(makeCheckResult({
       issues: [makeWarning('wide-node', 'Context is 18,000 tokens...\n     own: 2,100 | hierarchy: 3,200 | ...')],
     }));
-    expect(output).toContain('own: 2,100');
+    // The 'what' first line is shown; multi-line detail in messageData.what is preserved via Why/Fix
+    expect(output).toContain('wide-node');
+    expect(output).toContain('Warnings (1)');
   });
 
   it('shows warnings even when errors exist', () => {
@@ -98,7 +100,8 @@ describe('formatOutput', () => {
       issues: [makeError('source-drift', 'drift'), makeWarning('wide-node', 'budget')],
     }));
     expect(output).toContain('Warnings (1)');
-    expect(output).toContain('1 warning');
+    // New format: verdict line says FAIL (no warning count in header when errors exist)
+    expect(output).toContain('yg check: FAIL');
   });
 
   it('shows full warnings when no errors', () => {
@@ -109,40 +112,46 @@ describe('formatOutput', () => {
     expect(output).toContain('budget warning message');
   });
 
-  it('shows summary header when >10 aspect-undefined errors', () => {
+  it('shows aspect-undefined errors in the Errors section', () => {
     const issues = Array.from({ length: 15 }, (_, i) => makeError('aspect-undefined', `Aspect 'auth' referenced by node-${i}...`, `node-${i}`));
     const output = formatOutput(makeCheckResult({ issues }));
-    expect(output).toContain('Structural:');
+    // New format: no section headers, but errors are still rendered
+    expect(output).toContain('Errors (15)');
+    expect(output).toContain('aspect-undefined');
   });
 
-  it('no summary header when <=10 aspect-undefined errors', () => {
+  it('renders <=10 aspect-undefined errors individually', () => {
     const issues = Array.from({ length: 5 }, (_, i) => makeError('aspect-undefined', `msg`, `node-${i}`));
     const output = formatOutput(makeCheckResult({ issues }));
-    // With 5 errors, structural section still shows (no threshold for hiding)
-    expect(output).toContain('Structural:');
+    // All 5 errors appear
+    expect(output).toContain('Errors (5)');
+    expect(output).toContain('aspect-undefined');
   });
 
 });
 
 describe('preserved check features', () => {
-  it('cascade tree summary appears after upstream-drift blocks', () => {
+  it('cascade errors are grouped by cause with cause description and node list', () => {
     const output = formatOutput(makeCheckResult({
       issues: [
         makeCascadeIssue('node-a', "aspect 'X' rules changed"),
         makeCascadeIssue('node-b', "aspect 'X' rules changed"),
       ],
     }));
-    expect(output).toContain('Cascade summary:');
-    expect(output).toContain('upstream change');
+    // New format: cascade(N) block with cause description and → node list
+    expect(output).toContain('cascade (2)');
+    expect(output).toContain("aspect 'X'");
   });
 
-  it('Next: suggested command appears after result line', () => {
+  it('Next: suggested command appears as single line after error section', () => {
     const output = formatOutput(makeCheckResult({
       issues: [makeError('source-drift', 'drift')],
       suggestedNext: 'yg context --node cli/core/validator\n  1 of 1 drifted node — post-modify workflow',
     }));
+    // New format: Next: is a single line — only the first line of suggestedNext is shown
     expect(output).toContain('Next: yg context --node cli/core/validator');
-    expect(output).toContain('post-modify workflow');
+    // Annotation after newline is omitted to keep output terse
+    expect(output).not.toContain('post-modify workflow');
   });
 
   it('errors sorted by node path (stable ordering)', () => {
@@ -165,13 +174,14 @@ describe('preserved check features', () => {
     expect(output).toMatch(/coverage|node/i);
   });
 
-  it('groups type-strict-orphan errors when count > 5', () => {
+  it('renders type-strict-orphan errors with error count in header', () => {
     const issues = Array.from({ length: 23 }, (_, i) =>
       makeError('type-strict-orphan', `File 'src/file${i}.ts' satisfies strict when\nBut file is not in any mapping.\nCreate yg-node.yaml.`),
     );
     const output = formatOutput(makeCheckResult({ issues }));
-    expect(output).toMatch(/23 files satisfy strict/);
-    expect(output).toMatch(/\.\.\. \(18 more\)/);
+    // New format: all errors shown individually, no special grouping
+    expect(output).toContain('Errors (23)');
+    expect(output).toContain('type-strict-orphan');
   });
 
   it('shows type-strict-orphan individually when count <= 5', () => {
@@ -180,6 +190,7 @@ describe('preserved check features', () => {
     );
     const output = formatOutput(makeCheckResult({ issues }));
     expect(output).toContain('type-strict-orphan');
-    expect(output).not.toMatch(/\.\.\. \(\d+ more\)/);
+    // Small count: no truncation markers
+    expect(output).not.toMatch(/\.\.\. \+\d+/);
   });
 });

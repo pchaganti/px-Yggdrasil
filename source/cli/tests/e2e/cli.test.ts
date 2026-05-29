@@ -86,10 +86,11 @@ describe.skipIf(!distExists)('CLI E2E', () => {
     expect(stdout).toContain('users');
   });
 
-  it('yg check exits with code 0 or 1 and shows Result:', () => {
+  it('yg check exits with code 0 or 1 and shows yg check: verdict', () => {
     const { status, stdout } = run(['check']);
     expect([0, 1]).toContain(status);
-    expect(stdout).toContain('Result:');
+    // New format: verdict is in header line, not a separate "Result:" line
+    expect(stdout).toMatch(/yg check: (PASS|FAIL)/);
   });
 
   it('yg context', () => {

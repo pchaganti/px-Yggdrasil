@@ -1,0 +1,4 @@
+## [2026-05-29T10:07:14.755Z]
+yg-node.yaml updated to add mappings for five new lifecycle integration test files: structure-lifecycle, structure-aspect-status, structure-implies, structure-cold-start, and structure-concurrent-approve. These tests verify the structure aspect end-to-end approve/drift/re-approve cycle, status transition semantics (draft/advisory/enforced), cross-type implies cascade, cold-start impact analysis, and parseCache sharing.
+## [2026-05-29T10:25:55.592Z]
+Added 5 new integration test files for structure aspect runtime to the node mapping: structure-lifecycle.test.ts, structure-aspect-status.test.ts, structure-implies.test.ts, structure-cold-start.test.ts, structure-concurrent-approve.test.ts. These were untracked files that satisfied the test-suite type enforcement but had no graph coverage.

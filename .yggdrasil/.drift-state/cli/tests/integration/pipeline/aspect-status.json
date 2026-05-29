@@ -1,5 +1,5 @@
 {
-  "hash": "e1845abc5ef0e8c95504a198cc704ed9b88d9d32a0fe7016bd1a1cf3963a13b9",
+  "hash": "d44cd0f0fabf04c607e4edea21e4169310f4dc36e85ff187db1eab59b661038b",
   "files": {
     "own-subset:cli/tests/integration/pipeline/aspect-status": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -12,7 +12,7 @@
     "source/cli/tests/integration/aspect-status-downgrade-blocks.test.ts": "ef89cf4a5fca3d268b00acfff44ed0b6f76bd822cedea5c5dc2b2e8c4c22cd68",
     "source/cli/tests/integration/aspect-status-hash-stability.test.ts": "315f34f572e8259ed59859460013e1e35c804d4358d641b6d16147283661b2a9",
     "source/cli/tests/integration/aspect-status-implies.test.ts": "6643f3141ea7a142b89b63f51938e74d3ffa533da2c359eb8d0597d4071f52c3",
-    "source/cli/tests/integration/aspect-status-lifecycle.test.ts": "88f45d81963d667ae4c720b7bbcc232d7de2eede943a887e60f48db93ea6e86d"
+    "source/cli/tests/integration/aspect-status-lifecycle.test.ts": "644e7745b09a53bd1c1f9ab1dd53b657a8ea82078a0c0d3290bba3d1b683665b"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -24,7 +24,11 @@
     "source/cli/tests/integration/aspect-status-downgrade-blocks.test.ts": 1779984838873.664,
     "source/cli/tests/integration/aspect-status-hash-stability.test.ts": 1779983820401.9539,
     "source/cli/tests/integration/aspect-status-implies.test.ts": 1779994967401.2273,
-    "source/cli/tests/integration/aspect-status-lifecycle.test.ts": 1779984625118.0383
+    "source/cli/tests/integration/aspect-status-lifecycle.test.ts": 1780049371699.8196
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-29T10:07:14.456Z",
+    "prefix_hash": "f71b43713e92c724beea282868e11f149872945619cc951e8ebb604417db10ae"
   },
   "aspectVerdicts": {
     "test-deterministic": {

@@ -26,3 +26,7 @@ Updated loadAspects and scanAspectsDirectory to collect parse errors from parseA
 Updated graph-loader.ts to capture ConfigParseError from config-parser.ts as a structured error. The ConfigParseError now carries an IssueMessage and error code, enabling the validator to distinguish between legacy-format config errors and generic parse failures. This allows downstream validators to suppress dependent checks (e.g., aspect-tier-unknown) when the config is in the legacy v4 format.
 ## [2026-05-27T12:59:41.327Z]
 Bumped CLI_SUPPORTED_SCHEMA from '4.3.0' to '5.0.0' so the CLI accepts v5-versioned yg-config.yaml files. Without this, loading the dogfood config after the version bump fails with 'newer than this CLI supports'.
+## [2026-05-29T10:09:44.015Z]
+Re-approving after drift state was wiped during concurrent development session. No source changes — this approval records the baseline verdicts for newly-active aspects (silent-missing-files, deterministic, no-direct-fs, no-direct-console, no-nondeterminism-direct, posix-paths-source, posix-paths-output) that were approved previously but lost when drift state was restored from git HEAD.
+## [2026-05-29T10:10:06.257Z]
+Re-approving all aspects because the what-why-next aspect content was updated (clarified that structured messageData field access in CLI renderers satisfies the rule, not just direct buildIssueMessage calls). The aspect content change triggered a cascade drift requiring full re-approval to establish verdicts for all active aspects.

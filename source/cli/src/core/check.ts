@@ -631,15 +631,16 @@ function emitPerAspectIssues(
 }
 
 /**
- * Count distinct (node, aspect) pairs where the aspect resolves to effective
- * status 'draft'. Surfaced as a footer tally in `yg check` so the agent sees
- * how many dormant rules sit in the graph.
+ * Count UNIQUE aspect IDs whose aspect-level default status is 'draft'.
+ * (Not the count of node×aspect pairs — aspects that are draft on some nodes
+ * and non-draft on others are still counted once here.)
+ * Surfaced as a header tally in `yg check` so the agent sees how many
+ * dormant rules sit in the graph.
  */
 function countDraftAspectsAcrossGraph(graph: Graph): number {
   let n = 0;
-  for (const [, node] of graph.nodes) {
-    const statuses = computeEffectiveAspectStatuses(node, graph);
-    for (const s of statuses.values()) if (s === 'draft') n++;
+  for (const aspect of graph.aspects) {
+    if ((aspect.status ?? 'enforced') === 'draft') n++;
   }
   return n;
 }

@@ -12,3 +12,9 @@ Updated the legacy-config e2e test to match the reworded migration-hint message 
 E2E coverage updated for the runner-driven incremental bump contract. The version-bumped-after-upgrade assertion now reads the highest registered migration target instead of the CLI package version, since the runner advances the on-disk version to each migration target and never forces a CLI-version override.
 ## [2026-05-28T19:46:23.565Z]
 Updated e2e impact --file assertion: file->nodePath resolution line now arrives on stdout (was stderr) following cli/commands/impact stdout-routing fix. Test now asserts the full 'src/orders/order.service.ts -> orders/order-service' text appears on stdout.
+## [2026-05-29T09:56:03.588Z]
+E2E test for yg check updated to match the new verdict header format. The assertion now uses /yg check: (PASS|FAIL)/ instead of 'Result:' prefix.
+## [2026-05-29T09:56:58.775Z]
+Updated E2E test for yg check: replaced assertion on old 'Result:' footer string with assertion on new 'yg check: (PASS|FAIL)' header format.
+## [2026-05-29T10:07:14.145Z]
+E2E check test assertion updated to match the new grouped yg check output format. The verdict header now uses 'yg check: PASS/FAIL' instead of 'Result: PASS/FAIL'.

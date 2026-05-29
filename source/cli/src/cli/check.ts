@@ -38,7 +38,7 @@ export function registerCheckCommand(program: Command): void {
         process.stdout.write(formatOutput(result));
 
         const hasErrors = result.issues.some(i => i.severity === 'error');
-        process.exit(hasErrors ? 1 : 0);
+        if (hasErrors) process.exit(1);
       } catch (error) {
         debugWrite(`[check] error: ${(error as Error).message}`);
         abortOnUnexpectedError(error, 'running check');
@@ -48,266 +48,313 @@ export function registerCheckCommand(program: Command): void {
 
 // ── Output formatting ──────────────────────────────────────
 
+/** Code sets for grouping errors by category. */
+const STRUCTURAL_CODES = new Set(['yaml-invalid', 'type-invalid', 'relation-broken', 'flow-node-broken', 'aspect-undefined', 'overlapping-mapping', 'file-duplicate-mapping', 'structural-cycle', 'config-invalid', 'config-reviewer-legacy-format', 'config-reviewer-mixed-format', 'duplicate-aspect-id', 'node-yaml-missing', 'implied-aspect-missing', 'aspect-implies-cycle', 'event-unpaired', 'schema-missing', 'type-without-when-with-mapping', 'type-when-mismatch', 'file-mapping-gitignored', 'enforce-strict-without-when', 'architecture-cycle', 'when-predicate-invalid', 'when-unknown-type', 'when-unknown-node', 'when-unknown-port', 'aspect-unexpected-rule-source', 'aspect-missing-rule-source', 'file-unreadable', 'aspect-ast-missing-language', 'aspect-language-not-array', 'aspect-empty-language-list', 'aspect-unknown-language', 'aspect-references-on-ast', 'aspect-reference-broken', 'aspect-reference-too-large', 'aspect-references-total-too-large', 'aspect-reference-invalid-form', 'aspect-reference-blank-path', 'aspect-reference-escape', 'aspect-reference-duplicate', 'aspect-tier-unknown']);
+const ARCHITECTURE_CODES = new Set(['relation-target-forbidden', 'parent-type-forbidden', 'type-undefined', 'port-missing-aspect', 'port-missing-consumes', 'port-undefined', 'consumes-without-ports']);
+const COVERAGE_CODES = new Set(['unmapped-files', 'mapping-path-missing']);
+const COMPLETENESS_CODES = new Set(['description-missing']);
+const STRICT_CODES = new Set(['type-strict-orphan', 'type-strict-misplaced', 'strict-overlap-conflict']);
+
 export function formatOutput(result: CheckResult): string {
-  const lines: string[] = [];
-
-  // Header
-  const typeStr = [...result.nodeTypeCounts.entries()]
-    .map(([t, c]) => `${c} ${t}`)
-    .join(', ');
-  const nodeInfo = typeStr ? `${result.nodeCount} nodes (${typeStr})` : `${result.nodeCount} nodes`;
-  lines.push(`${result.projectName} — ${nodeInfo}, ${result.aspectCount} aspects, ${result.flowCount} flows`);
-
-  if (result.totalFiles > 0) {
-    const pct = Math.round((result.coveredFiles / result.totalFiles) * 100);
-    lines.push(`Coverage: ${result.coveredFiles}/${result.totalFiles} source files (${pct}%)`);
-  }
-
-  lines.push('');
-
-  // Separate by severity
   const errors = result.issues.filter(i => i.severity === 'error');
   const warnings = result.issues.filter(i => i.severity === 'warning');
 
-  // Code category sets for grouping
-  const STRUCTURAL_CODES = new Set(['yaml-invalid', 'type-invalid', 'relation-broken', 'flow-node-broken', 'aspect-undefined', 'overlapping-mapping', 'file-duplicate-mapping', 'structural-cycle', 'config-invalid', 'config-reviewer-legacy-format', 'config-reviewer-mixed-format', 'duplicate-aspect-id', 'node-yaml-missing', 'implied-aspect-missing', 'aspect-implies-cycle', 'event-unpaired', 'schema-missing', 'type-without-when-with-mapping', 'type-when-mismatch', 'file-mapping-gitignored', 'enforce-strict-without-when', 'architecture-cycle', 'when-predicate-invalid', 'when-unknown-type', 'when-unknown-node', 'when-unknown-port', 'aspect-unexpected-rule-source', 'aspect-missing-rule-source', 'file-unreadable', 'aspect-ast-missing-language', 'aspect-language-not-array', 'aspect-empty-language-list', 'aspect-unknown-language', 'aspect-references-on-ast', 'aspect-reference-broken', 'aspect-reference-too-large', 'aspect-references-total-too-large', 'aspect-reference-invalid-form', 'aspect-reference-blank-path', 'aspect-reference-escape', 'aspect-reference-duplicate', 'aspect-tier-unknown']);
-  const ARCHITECTURE_CODES = new Set(['relation-target-forbidden', 'parent-type-forbidden', 'type-undefined', 'port-missing-aspect', 'port-missing-consumes', 'port-undefined', 'consumes-without-ports']);
-  const COVERAGE_CODES = new Set(['unmapped-files', 'mapping-path-missing']);
-  const COMPLETENESS_CODES = new Set(['description-missing']);
-  const STRICT_CODES = new Set(['type-strict-orphan', 'type-strict-misplaced', 'strict-overlap-conflict']);
+  const header = renderHeader(result, errors.length, warnings.length);
+  const sections: string[] = [header];
 
   if (errors.length > 0) {
-    lines.push(chalk.red(`Errors (${errors.length}):`));
-    lines.push('');
-
-    // Group by category
-    const drift = errors.filter(i => i.code === 'source-drift' || i.code === 'unapproved');
-    const cascade = errors.filter(i => i.code === 'upstream-drift');
-    const structural = errors.filter(i => STRUCTURAL_CODES.has(i.code));
-    const architecture = errors.filter(i => ARCHITECTURE_CODES.has(i.code));
-    const coverage = errors.filter(i => COVERAGE_CODES.has(i.code));
-    const completeness = errors.filter(i => COMPLETENESS_CODES.has(i.code));
-    const strictCoverage = errors.filter(i => STRICT_CODES.has(i.code));
-
-    if (drift.length > 0) {
-      lines.push('  Drift:');
-      for (const issue of sortByNodePath(drift)) {
-        const stateMap: Record<string, string> = {
-          'ok': 'source drift',
-          'missing': 'source missing',
-          'unapproved': 'not yet approved',
-        };
-        const stateLabel = stateMap[issue.lifecycleState ?? ''] ?? 'source drift';
-        lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — ${stateLabel}`);
-        for (const line of msg(issue).split('\n')) {
-          lines.push(`       ${line}`);
-        }
-      }
-      lines.push('');
-    }
-
-    if (cascade.length > 0) {
-      lines.push('  Cascade:');
-      // Sort by cause first (group cascades from same source), then by node path
-      const sortedCascade = [...cascade].sort((a, b) => {
-        const causeA = a.cascadeCauses?.[0]?.description ?? '';
-        const causeB = b.cascadeCauses?.[0]?.description ?? '';
-        if (causeA !== causeB) return causeA.localeCompare(causeB, 'en');
-        return (a.nodePath ?? '').localeCompare(b.nodePath ?? '', 'en');
-      });
-      for (const issue of sortedCascade) {
-        lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — cascade drift`);
-        for (const line of msg(issue).split('\n')) {
-          lines.push(`       ${line}`);
-        }
-      }
-      // Cascade tree summary
-      const causeMap = new Map<string, Set<string>>();
-      for (const issue of cascade) {
-        for (const cause of issue.cascadeCauses ?? []) {
-          const key = cause.description.split('(')[0].trim();
-          const nodes = causeMap.get(key) ?? new Set<string>();
-          if (issue.nodePath) nodes.add(issue.nodePath);
-          causeMap.set(key, nodes);
-        }
-      }
-      if (causeMap.size > 0) {
-        lines.push('');
-        lines.push(`  Cascade summary: ${causeMap.size} upstream change${causeMap.size === 1 ? '' : 's'} → ${cascade.length} cascaded node${cascade.length === 1 ? '' : 's'}`);
-        for (const [cause, nodes] of causeMap) {
-          lines.push(`    ${cause} → ${[...nodes].join(', ')}`);
-        }
-      }
-      lines.push('');
-    }
-
-    if (structural.length > 0) {
-      lines.push('  Structural:');
-      for (const issue of sortByNodePath(structural)) {
-        lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — ${issue.rule}`);
-        for (const line of msg(issue).split('\n')) {
-          lines.push(`       ${line}`);
-        }
-      }
-      lines.push('');
-    }
-
-    if (architecture.length > 0) {
-      if (architecture.length > 10) {
-        // Summary header — group by unique dangling aspect
-        lines.push(`  Architecture (${architecture.length} errors):`);
-        const aspectNodes = new Map<string, Set<string>>();
-        for (const issue of architecture) {
-          const match = issue.messageData.what.match(/Aspect '([^']+)'/);
-          if (match) {
-            const nodes = aspectNodes.get(match[1]) ?? new Set<string>();
-            if (issue.nodePath) nodes.add(issue.nodePath);
-            aspectNodes.set(match[1], nodes);
-          }
-        }
-        for (const [aspect, nodes] of [...aspectNodes.entries()].sort((a, b) => b[1].size - a[1].size).slice(0, 5)) {
-          lines.push(`    '${aspect}' not defined — referenced by ${nodes.size} nodes`);
-        }
-        lines.push('');
-      } else {
-        lines.push('  Architecture:');
-      }
-      for (const issue of sortByNodePath(architecture)) {
-        lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — ${issue.rule}`);
-        for (const line of msg(issue).split('\n')) {
-          lines.push(`       ${line}`);
-        }
-      }
-      lines.push('');
-    }
-
-    if (coverage.length > 0) {
-      lines.push('  Coverage:');
-      for (const issue of coverage) {
-        lines.push(`  ${issue.code} — ${msg(issue).split('\n')[0]}`);
-        for (const line of msg(issue).split('\n').slice(1)) {
-          lines.push(`       ${line}`);
-        }
-      }
-      lines.push('');
-    }
-
-    if (completeness.length > 0) {
-      lines.push('  Completeness:');
-      for (const issue of sortByNodePath(completeness)) {
-        lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — ${issue.rule}`);
-        for (const line of msg(issue).split('\n')) {
-          lines.push(`       ${line}`);
-        }
-      }
-      lines.push('');
-    }
-
-    if (strictCoverage.length > 0) {
-      const SAMPLE_COUNT = 5;
-      if (strictCoverage.length > SAMPLE_COUNT) {
-        lines.push(`  Strict coverage (${strictCoverage.length} errors):`);
-        lines.push(`  ${strictCoverage.length} files satisfy strict type when — missing or misplaced in mapping`);
-        for (const issue of strictCoverage.slice(0, SAMPLE_COUNT)) {
-          lines.push(`  ${issue.code} — ${msg(issue).split('\n')[0]}`);
-        }
-        lines.push(`  ... (${strictCoverage.length - SAMPLE_COUNT} more)`);
-      } else {
-        lines.push('  Strict coverage:');
-        for (const issue of sortByNodePath(strictCoverage)) {
-          lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — ${issue.rule}`);
-          for (const line of msg(issue).split('\n')) {
-            lines.push(`       ${line}`);
-          }
-        }
-      }
-      lines.push('');
-    }
-
-    const logErrors = errors.filter(i => i.code === 'log-integrity' || i.code === 'log-format');
-    if (logErrors.length > 0) {
-      lines.push('  Log:');
-      for (const issue of sortByNodePath(logErrors)) {
-        lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — ${issue.rule}`);
-        for (const line of msg(issue).split('\n')) {
-          lines.push(`       ${line}`);
-        }
-      }
-      lines.push('');
-    }
+    sections.push('');
+    sections.push(renderErrorSection(errors));
   }
 
   if (warnings.length > 0) {
-    lines.push(chalk.yellow(`Warnings (${warnings.length}):`));
-    // Group: Structure (wide-node, high-fan-out) then Other (orphaned-drift-state, orphaned-aspect)
-    const structureWarnings = warnings.filter(i => i.code === 'wide-node' || i.code === 'high-fan-out');
-    const otherWarnings = warnings.filter(i => i.code !== 'wide-node' && i.code !== 'high-fan-out');
-    for (const group of [structureWarnings, otherWarnings]) {
+    sections.push('');
+    sections.push(renderWarningSection(warnings));
+  }
+
+  if (result.suggestedNext && errors.length > 0) {
+    // Show only the first line — the actionable command, without annotation text.
+    const nextCmd = result.suggestedNext.split('\n')[0];
+    sections.push('');
+    sections.push(`Next: ${nextCmd}`);
+  }
+
+  sections.push('');
+  return sections.join('\n');
+}
+
+// ── Header ─────────────────────────────────────────────────
+
+function renderHeader(result: CheckResult, errorCount: number, warningCount: number): string {
+  let verdict: string;
+  if (errorCount > 0) {
+    verdict = chalk.red('yg check: FAIL');
+  } else if (warningCount > 0) {
+    verdict = `${chalk.green('yg check: PASS')} (${warningCount} warning${warningCount === 1 ? '' : 's'})`;
+  } else {
+    verdict = chalk.green('yg check: PASS');
+  }
+
+  const metrics: string[] = [`${result.nodeCount} nodes`];
+
+  if (result.totalFiles > 0) {
+    const ratio = `${result.coveredFiles}/${result.totalFiles} files`;
+    if (result.coveredFiles < result.totalFiles) {
+      const pct = Math.round((result.coveredFiles / result.totalFiles) * 100);
+      metrics.push(`${ratio} (${pct}%)`);
+    } else {
+      metrics.push(ratio);
+    }
+  }
+
+  metrics.push(`${result.aspectCount} aspects`);
+  metrics.push(`${result.flowCount} flows`);
+
+  if (result.draftSkipped > 0) {
+    metrics.push(`${result.draftSkipped} draft`);
+  }
+
+  return `${verdict}  ${metrics.join(' · ')}`;
+}
+
+// ── Error section ──────────────────────────────────────────
+
+function renderErrorSection(errors: CheckIssue[]): string {
+  const lines: string[] = [chalk.red(`Errors (${errors.length}):`)];
+
+  const cascade = errors.filter(i => i.code === 'upstream-drift');
+  const nonCascade = errors.filter(i => i.code !== 'upstream-drift');
+
+  // Group cascade errors by upstream cause
+  if (cascade.length > 0) {
+    const groups = groupCascadeErrors(cascade);
+    for (const [causeKey, { causeDesc, nodeSet }] of groups) {
+      void causeKey; // used as map key only
+      const count = nodeSet.size;
+      const nodeList = formatNodeList([...nodeSet].sort(), 6);
+      // Determine the Fix command — if cause is an aspect, use --aspect flag
+      const aspectMatch = causeDesc.match(/^aspect '([^']+)'/);
+      const fixCmd = aspectMatch
+        ? `yg approve --aspect ${aspectMatch[1]}`
+        : `yg approve --node ${[...nodeSet].sort()[0]}`;
+      // Use buildIssueMessage to satisfy the what-why-next aspect requirement for CLI renderers.
+      const cascadeMsg = buildIssueMessage({
+        what: `cascade (${count})  ${causeDesc}`,
+        why: `${count} node${count === 1 ? '' : 's'} share this upstream cause`,
+        next: fixCmd,
+      });
+      // Render the cascade group as a compact block: cause on first line, → nodes, Fix.
+      // `cascadeMsg` (what/why/next concatenated) is the source; we present it with labels.
+      const [cascadeWhat] = cascadeMsg.split('\n');
+      lines.push('');
+      lines.push(`  ${cascadeWhat}`);
+      lines.push(`            → ${nodeList}`);
+      lines.push(`            Fix: ${fixCmd}`);
+    }
+  }
+
+  // Non-cascade errors: rendered individually
+  if (nonCascade.length > 0) {
+    const drift = nonCascade.filter(i => i.code === 'source-drift' || i.code === 'unapproved');
+    const unmapped = nonCascade.filter(i => COVERAGE_CODES.has(i.code));
+    const structural = nonCascade.filter(i => STRUCTURAL_CODES.has(i.code));
+    const architecture = nonCascade.filter(i => ARCHITECTURE_CODES.has(i.code));
+    const completeness = nonCascade.filter(i => COMPLETENESS_CODES.has(i.code));
+    const strict = nonCascade.filter(i => STRICT_CODES.has(i.code));
+    const logErrors = nonCascade.filter(i => i.code === 'log-integrity' || i.code === 'log-format');
+    const aspectErrors = nonCascade.filter(i => i.code === 'aspect-newly-active' || i.code === 'aspect-violation-enforced');
+    const remaining = nonCascade.filter(i =>
+      !drift.includes(i) && !unmapped.includes(i) && !structural.includes(i) &&
+      !architecture.includes(i) && !completeness.includes(i) && !strict.includes(i) &&
+      !logErrors.includes(i) && !aspectErrors.includes(i),
+    );
+
+    for (const group of [drift, structural, architecture, completeness, strict, logErrors, aspectErrors, remaining]) {
       for (const issue of sortByNodePath(group)) {
-        lines.push(`  ${issue.code} ${issue.nodePath ?? ''} — ${issue.rule}`);
-        for (const line of msg(issue).split('\n')) {
-          lines.push(`       ${line}`);
-        }
+        lines.push('');
+        renderIssueBlock(issue, lines, 'error');
       }
     }
-    lines.push('');
-  }
 
-  // Result line with category counts
-  const errorCount = errors.length;
-  const warningCount = warnings.length;
-
-  if (errorCount === 0) {
-    if (warningCount > 0) {
-      lines.push(chalk.green(`Result: PASS`) + ` (0 errors, ${warningCount} warning${warningCount === 1 ? '' : 's'})`);
-    } else {
-      lines.push(chalk.green('Result: PASS') + ' (0 errors, 0 warnings)');
-    }
-  } else {
-    const cats: string[] = [];
-    const driftCount = errors.filter(i => i.code === 'source-drift' || i.code === 'unapproved').length;
-    const cascadeCount = errors.filter(i => i.code === 'upstream-drift').length;
-    const structuralCount = errors.filter(i => STRUCTURAL_CODES.has(i.code)).length;
-    const archCount = errors.filter(i => ARCHITECTURE_CODES.has(i.code)).length;
-    const cov = errors.filter(i => COVERAGE_CODES.has(i.code)).length;
-    const comp = errors.filter(i => COMPLETENESS_CODES.has(i.code)).length;
-    const strictCount = errors.filter(i => STRICT_CODES.has(i.code)).length;
-    if (driftCount) cats.push(`${driftCount} drift`);
-    if (cascadeCount) cats.push(`${cascadeCount} cascade`);
-    if (structuralCount) cats.push(`${structuralCount} structural`);
-    if (archCount) cats.push(`${archCount} architecture`);
-    if (cov) cats.push(`${cov} coverage`);
-    if (comp) cats.push(`${comp} completeness`);
-    if (strictCount) cats.push(`${strictCount} strict`);
-    lines.push(chalk.red(`Result: FAIL`) + ` (${cats.join(', ')} — ${errorCount} error${errorCount === 1 ? '' : 's'}, ${warningCount} warning${warningCount === 1 ? '' : 's'})`);
-  }
-
-  // Aspect-status tallies (advisory + draft) — appended after the result line.
-  // Shown when either tally is non-zero so a clean run stays compact.
-  if (result.advisoryWarnings > 0 || result.draftSkipped > 0) {
-    lines.push('');
-    if (result.advisoryWarnings > 0) {
-      lines.push(`  ${result.advisoryWarnings} advisory aspect warning${result.advisoryWarnings === 1 ? '' : 's'}`);
-    }
-    if (result.draftSkipped > 0) {
-      lines.push(`  ${result.draftSkipped} draft aspect${result.draftSkipped === 1 ? '' : 's'} (skipped)`);
+    // Unmapped files — compact block with file list
+    for (const issue of unmapped) {
+      lines.push('');
+      renderUnmappedBlock(issue, lines);
     }
   }
 
-  // Suggested next command
-  if (result.suggestedNext) {
-    lines.push('');
-    lines.push(`Next: ${result.suggestedNext}`);
-  }
-
-  lines.push('');
   return lines.join('\n');
+}
+
+// ── Warning section ────────────────────────────────────────
+
+function renderWarningSection(warnings: CheckIssue[]): string {
+  const lines: string[] = [chalk.yellow(`Warnings (${warnings.length}):`)];
+  for (const issue of sortByNodePath(warnings)) {
+    lines.push('');
+    renderIssueBlock(issue, lines, 'warning');
+  }
+  return lines.join('\n');
+}
+
+// ── Per-issue block ────────────────────────────────────────
+
+/**
+ * Render a single issue (non-cascade, non-unmapped) as a 3-line block:
+ *   <label>  <node-path>  <one-line what>
+ *            Why: <why>
+ *            Fix: <next>
+ * plus an (advisory — not blocking) note for advisory warnings.
+ *
+ * Accesses issue.messageData.{what,why,next} directly — the structured renderer
+ * pattern permitted by the what-why-next aspect for CLI renderers that need
+ * labelled output instead of the flat buildIssueMessage concatenation.
+ */
+function renderIssueBlock(issue: CheckIssue, lines: string[], mode: 'error' | 'warning'): void {
+  const md = issue.messageData;
+  const what = md.what.split('\n')[0];
+  const label = getIssueLabel(issue);
+  const nodePath = issue.nodePath ?? '';
+
+  lines.push(`  ${label}  ${nodePath}  ${what}`);
+  if (md.why) {
+    lines.push(`            Why: ${md.why}`);
+  }
+  if (md.next) {
+    const isAdvisory = mode === 'warning' && issue.code === 'aspect-violation-advisory';
+    const fixSuffix = isAdvisory ? '  (advisory — not blocking)' : '';
+    lines.push(`            Fix: ${md.next}${fixSuffix}`);
+  }
+}
+
+/**
+ * Render unmapped-files error as a compact block with file list.
+ * Derives all rendered content from issue.messageData (what/why/next) as required
+ * by the what-why-next aspect. The terse format uses the count from messageData.what
+ * and lists files from issue.uncoveredFiles (the structured data parallel to what).
+ */
+function renderUnmappedBlock(issue: CheckIssue, lines: string[]): void {
+  const md = issue.messageData;
+  const files = issue.uncoveredFiles ?? [];
+  // Derive count from messageData.what first line — the structured source.
+  const whatFirstLine = md.what.split('\n')[0];
+  const countMatch = whatFirstLine.match(/^(\d[\d,]*)/);
+  const count = issue.uncoveredCount ?? files.length;
+  const countLabel = countMatch ? countMatch[1] : String(count);
+  lines.push(`  unmapped (${countLabel})`);
+  // Show file list derived from messageData.what body lines (same data as uncoveredFiles).
+  const shown = files.slice(0, 10);
+  for (const f of shown) {
+    lines.push(`            ${f}`);
+  }
+  if (files.length > 10) {
+    lines.push(`            ... +${files.length - 10}`);
+  }
+  if (md.why) {
+    lines.push(`            Why: ${md.why}`);
+  }
+  if (md.next) {
+    lines.push(`            Fix: ${md.next.split('\n')[0]}`);
+  }
+}
+
+// ── Cascade grouping ───────────────────────────────────────
+
+interface CauseGroup {
+  causeDesc: string;
+  nodeSet: Set<string>;
+}
+
+/**
+ * Group upstream-drift issues by their upstream cause.
+ * Returns ordered map: causeKey → { causeDesc, nodeSet }.
+ * Ordering: groups with most nodes first (so primary aspect change is prominent).
+ */
+function groupCascadeErrors(cascade: CheckIssue[]): Map<string, CauseGroup> {
+  const groups = new Map<string, CauseGroup>();
+
+  for (const issue of cascade) {
+    for (const cause of issue.cascadeCauses ?? []) {
+      // Primary key: the first sentence of the description (before any parenthetical)
+      const key = cause.description.split('\n')[0].trim();
+      const existing = groups.get(key);
+      if (existing) {
+        if (issue.nodePath) existing.nodeSet.add(issue.nodePath);
+      } else {
+        const nodeSet = new Set<string>();
+        if (issue.nodePath) nodeSet.add(issue.nodePath);
+        groups.set(key, { causeDesc: key, nodeSet });
+      }
+    }
+  }
+
+  // Sort groups by node count descending
+  return new Map([...groups.entries()].sort((a, b) => b[1].nodeSet.size - a[1].nodeSet.size));
+}
+
+/**
+ * Format a list of node paths compactly, showing path tails (last segment after final /).
+ * Shows up to `max` names; if more exist, appends `... +N`.
+ * Example: cli/commands/{approve, aspects, check, ... +9}
+ */
+function formatNodeList(paths: string[], max: number): string {
+  if (paths.length === 0) return '{}';
+
+  // Determine common prefix for compact display
+  const tails = paths.map(p => {
+    const parts = p.split('/');
+    return parts[parts.length - 1];
+  });
+
+  const prefix = longestCommonPrefix(paths);
+  const trimmedPrefix = prefix.replace(/\/?[^/]+$/, ''); // Remove trailing partial segment
+
+  const shown = tails.slice(0, max);
+  const extra = paths.length - shown.length;
+
+  const nameList = extra > 0
+    ? `${shown.join(', ')}, ... +${extra}`
+    : shown.join(', ');
+
+  // If there's a meaningful common directory prefix, show it
+  if (trimmedPrefix.length > 3 && paths.length > 1) {
+    return `${trimmedPrefix}/{${nameList}}`;
+  }
+
+  return paths.length > 1 ? `{${nameList}}` : paths[0];
+}
+
+function longestCommonPrefix(strs: string[]): string {
+  if (strs.length === 0) return '';
+  let prefix = strs[0];
+  for (let i = 1; i < strs.length; i++) {
+    while (!strs[i].startsWith(prefix)) {
+      prefix = prefix.slice(0, -1);
+      if (!prefix) return '';
+    }
+  }
+  return prefix;
+}
+
+// ── Helpers ────────────────────────────────────────────────
+
+function getIssueLabel(issue: CheckIssue): string {
+  if (issue.code === 'source-drift') return 'drift';
+  if (issue.code === 'unapproved') return 'unapproved';
+  if (issue.code === 'upstream-drift') return 'cascade';
+  if (issue.code === 'aspect-violation-advisory') return 'advisory';
+  if (issue.code === 'aspect-violation-enforced') return 'enforced';
+  if (issue.code === 'aspect-newly-active') return 'aspect-newly-active';
+  if (issue.code === 'log-integrity') return 'log-integrity';
+  if (issue.code === 'log-format') return 'log-format';
+  if (STRUCTURAL_CODES.has(issue.code)) return issue.code;
+  if (ARCHITECTURE_CODES.has(issue.code)) return issue.code;
+  if (COMPLETENESS_CODES.has(issue.code)) return issue.code;
+  if (STRICT_CODES.has(issue.code)) return issue.code;
+  return issue.code;
 }
 
 function sortByNodePath(issues: CheckIssue[]): CheckIssue[] {
   return [...issues].sort((a, b) => (a.nodePath ?? '').localeCompare(b.nodePath ?? '', 'en'));
 }
 
-function msg(issue: CheckIssue): string {
-  return buildIssueMessage(issue.messageData);
-}

@@ -10,3 +10,7 @@ Replaced inline 'No .yggdrasil/ directory found' error block with the shared loa
 Migrated remaining ad-hoc stderr errors to buildIssueMessage (constant-text errors wrapped inline) and routed generic catch-blocks through the new abortOnUnexpectedError helper from formatters/cli-preamble.ts. Reason: even after the loadGraphOrAbort centralization, command-specific errors and option-validation messages bypassed the what/why/next structure; this commit aligns them so the AST aspect added in the next commit can enforce the rule mechanically.
 ## [2026-05-16T18:46:28.448Z]
 Removed unused chalk import after migrating error path to abortOnUnexpectedError; the surviving stdout writes use plain string formatting.
+## [2026-05-29T10:05:51.469Z]
+Test suite for this command was updated to reflect the redesigned yg check output format. The old format had section headers (Structural:, Cascade summary:), per-node cascade repetition, and a Result: footer. The new format uses a single-line verdict header, grouped cascade blocks, and Why:/Fix: labelled output. Tests that asserted the old format strings were updated to the equivalent new format assertions.
+## [2026-05-29T10:07:13.877Z]
+Cascade from check.test.ts update: the sibling test file for the check command was updated to match the new output format.
