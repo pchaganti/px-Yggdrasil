@@ -57,6 +57,11 @@ function buildOwnFiles(node: ModelNode, projectRoot: string, touchedFiles: strin
     const abs = path.resolve(projectRoot, p);
     try {
       const stat = fs.statSync(abs);
+      // Materializes ONLY explicit-file mapping entries; DIRECTORY mappings
+      // yield no own-files, so a deterministic aspect on a directory-only-mapped
+      // node sees an empty ctx.files — map explicit files, or a future phase may
+      // add directory expansion via enumerateMappedFilesSync/walkDirSync (already
+      // used for AST prewarming).
       if (stat.isFile()) {
         const content = fs.readFileSync(abs, 'utf8');
         result.push({ path: p, content });
