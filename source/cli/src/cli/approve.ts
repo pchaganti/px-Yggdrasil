@@ -7,7 +7,7 @@ import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { approveNode, resolveAspects, loadSourceFiles } from '../core/approve.js';
 import { runApproveWithReviewer, type LlmApproveResult } from '../core/approve-reviewer.js';
 export type { LlmApproveResult };
-import { collectTrackedFiles, tierIdentityKey, structureIdentityKey, structureTouchedKey, yggPrefixOf } from '../core/graph/files.js';
+import { collectTrackedFiles, tierIdentityKey, structureTouchedKey, yggPrefixOf } from '../core/graph/files.js';
 import { collectParticipatingFlows } from '../core/graph/flows.js';
 import { hashTrackedFiles } from '../io/hash.js';
 import { classifyDrift } from '../core/check.js';
@@ -259,8 +259,9 @@ export function filterFlowCascadeNodes(
  * an aspect's declared reference files are tracked at their own repo path, and
  * the per-aspect drift identities are synthetic keys (see collectTrackedFiles).
  * A plain `aspects/<id>/` prefix filter misses all of those, so a node that
- * drifted only because the aspect's reference file (or tier/structure identity)
- * changed would be silently skipped. Match the prefix OR any of those.
+ * drifted only because the aspect's reference file (or the tier-identity / the
+ * structure-touched set) changed would be silently skipped. Match the prefix OR
+ * any of those.
  */
 /**
  * Single source of truth for the drift-cause paths attributable to one aspect:
@@ -281,7 +282,6 @@ function aspectDependencyKeys(
     prefix: `${yggPrefix}/aspects/${aspectId}/`,
     keys: new Set<string>([
       tierIdentityKey(aspectId),
-      structureIdentityKey(aspectId),
       structureTouchedKey(aspectId),
       ...(aspect?.references ?? []).map(r => r.path.replace(/\\/g, '/')),
     ]),

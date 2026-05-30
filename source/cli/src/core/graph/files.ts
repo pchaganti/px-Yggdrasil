@@ -6,7 +6,7 @@ import { normalizeMappingPaths } from '../../io/paths.js';
 import { collectAncestors } from './traversal.js';
 import { computeEffectiveAspects } from './aspects.js';
 import { selectTierForAspect } from '../tier-selection.js';
-import { canonicalTierJson, canonicalJson } from '../tier-identity.js';
+import { canonicalTierJson } from '../tier-identity.js';
 
 export interface TrackedFile {
   path: string;           // relative to project root
@@ -152,23 +152,12 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
       }
     }
 
-    // structure-identity synthetic hash — mirrors tier-identity for structure aspects.
-    // The `language: null` literal is a deliberate hash-stability placeholder: the
-    // aspect-level `language:` field was removed in D2 (language is derived per file
-    // by extension), but structure aspects were always language-agnostic so this
-    // value was always null. Emitting the literal `null` keeps the produced hash
-    // byte-identical to the pre-removal baseline and avoids a needless cascade across
-    // every structure-aspect node. Do NOT collapse to `{ kind: 'structure' }` — that
-    // would change the hash and drift every structure-aspect node.
-    // Excludes status so a draft toggle does NOT invalidate the baseline.
-    if (aspect.reviewer.type === 'structure') {
-      addSyntheticHash(
-        structureIdentityKey(aspect.id),
-        canonicalJson({ kind: 'structure', language: null }),
-        'graph',
-        'aspects',
-      );
-    }
+    // Deterministic (structure) aspects carry NO synthetic identity hash. Their
+    // identity is fully file-tracked — the yg-aspect.yaml file hash (above), the
+    // check.mjs artifact (above), the node's own mapping files, and the per-aspectId
+    // structureTouchedFiles set hash (below). The former structure-identity key was a
+    // CONSTANT (canonicalJson({ kind:'structure', language:null })) that added no drift
+    // signal beyond the yg-aspect.yaml file hash, so it was removed.
   }
 
   // structure-touched: inject entries from baseline's structureTouchedFiles so drift
