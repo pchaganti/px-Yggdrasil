@@ -403,6 +403,51 @@ export function check(ctx) {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
+  it('structure aspect with a fileless (global) violation — reason has no location prefix', async () => {
+    // Sibling to the file:line case above. A violation that omits `file`
+    // (a node-global rule) exercises the FALSE branches of both the path
+    // normalization (`v.file ? ... : v.file`) and the loc assembly
+    // (`file ? '<file>:<line>: ' : ''`) at the persisted-reason output
+    // boundary — the reason must be the bare message with no leading prefix.
+    const { tmpDir } = await createStructureProject('struct-violated-nofile', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - global-check\nmapping:\n  - src/svc.ts\n',
+      mappingFiles: { 'src/svc.ts': 'export const x = 1;\n' },
+      aspects: [{
+        id: 'global-check',
+        yaml: 'name: GlobalCheck\ndescription: test\nreviewer:\n  type: deterministic\n',
+        files: {
+          // Returns a violation with NO file/line — a node-global finding.
+          'check.mjs': `export function check(_ctx) {
+  return [{ message: 'global rule broken' }];
+}\n`,
+        },
+      }],
+    });
+
+    await recordBaseline(tmpDir);
+    await writeFile(path.join(tmpDir, 'src/svc.ts'), 'export const x = 2;\n');
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    const result = await runApproveWithReviewer({
+      graph,
+      nodePath: 'svc/my-service',
+      result: coreResult,
+      rootPath: graph.rootPath,
+      secretsByProvider: new Map(),
+    });
+
+    expect(result.action).toBe('refused');
+    const v = result.aspectViolations?.find(v => v.aspectId === 'global-check');
+    expect(v).toBeDefined();
+    // No file → bare message, no "<file>:<line>: " prefix.
+    expect(v!.reason).toBe('global rule broken');
+    expect(v!.reason).not.toMatch(/:\d+: /);
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
   it('structure aspect that throws StructureRunnerError — classified as astRuntime', async () => {
     const { tmpDir } = await createStructureProject('struct-throw', {
       nodePath: 'svc/my-service',

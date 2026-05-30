@@ -659,4 +659,56 @@ describe('cli approve: --node Y with all-draft', () => {
     expect(combined).not.toContain('Prompt for LLM aspect: struct-violations');
     await rm(tmpDir, { recursive: true, force: true });
   });
+
+  // Regression: dry-run for a node that does not exist must report failure so
+  // the CLI loop can exit non-zero. Previously this path returned without
+  // signalling, so `yg approve --dry-run --node missing` exited 0 even though
+  // nothing was previewed. runDryRunForNode now returns false (node missing)
+  // / true (node found) and the loop maps that to the exit code.
+  it('returns false for a missing node (and true for a valid node)', async () => {
+    const { tmpDir } = await createTmpProject('node-dry-run-not-found', {
+      nodePath: 'svc/my-service',
+      nodeYaml:
+        'name: MyService\ntype: service\ndescription: test\n' +
+        'aspects:\n  - enforced-rule\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [
+        {
+          id: 'enforced-rule',
+          yaml: 'name: Enforced\ndescription: test\nreviewer:\n  type: llm\nstatus: enforced\n',
+          files: { 'content.md': 'Enforced rule.\n' },
+        },
+      ],
+    });
+    const graph = await loadGraph(tmpDir);
+    const yggPrefix = path.relative(path.dirname(graph.rootPath), graph.rootPath)
+      .replace(/\\/g, '/').replace(/\/+$/, '');
+
+    // Silence the expected "Node not found" error written to stderr, and the
+    // prompt preview written to stdout for the valid-node call.
+    const stderrWrites: string[] = [];
+    const origErr = process.stderr.write.bind(process.stderr);
+    const origOut = process.stdout.write.bind(process.stdout);
+    process.stderr.write = ((chunk: unknown) => {
+      stderrWrites.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+    process.stdout.write = (() => true) as typeof process.stdout.write;
+    let missingResult: boolean;
+    let foundResult: boolean;
+    try {
+      missingResult = await runDryRunForNode({ graph, nodePath: 'no/such/node', yggPrefix });
+      foundResult = await runDryRunForNode({ graph, nodePath: 'svc/my-service', yggPrefix });
+    } finally {
+      process.stderr.write = origErr;
+      process.stdout.write = origOut;
+    }
+
+    // Missing node → false (CLI loop will exit 1); valid node → true.
+    expect(missingResult).toBe(false);
+    expect(foundResult).toBe(true);
+    // The not-found path still surfaces a diagnostic on stderr.
+    expect(stderrWrites.join('')).toContain("Node 'no/such/node' not found");
+    await rm(tmpDir, { recursive: true, force: true });
+  });
 });
