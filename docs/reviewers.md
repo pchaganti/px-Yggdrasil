@@ -124,7 +124,7 @@ reviewer:
 language: [typescript, tsx, javascript]
 ```
 
-The `reviewer.type: ast` and `language:` fields are required. The runner invokes `check.mjs` once per declared language. Everything else (`implies`, `when`, `aspects` on nodes) works identically for both reviewer types.
+The `reviewer.type: ast` and `language:` fields are required. The runner invokes `check.mjs` once per declared language. Everything else (`implies`, `when`, `aspects` on nodes) works identically across all reviewer types.
 
 ### Writing `check.mjs`
 
@@ -294,7 +294,7 @@ src/utils/config.ts
 
 ## Suppression — shared across reviewer types
 
-Source code comments can carry a `yg-suppress` marker to waive a specific aspect. Both reviewer types honor the same syntax; they differ only in how scope is interpreted.
+Source code comments can carry a `yg-suppress` marker to waive a specific aspect. All reviewer types honor the same syntax; they differ only in how scope is interpreted.
 
 **Format:** `yg-suppress(<aspect-path>) <reason>`
 
@@ -343,10 +343,11 @@ Agents may propose adding a suppress marker but must **never** write one without
 
 ## Drift and baseline — shared
 
-The drift model is identical for both reviewer types:
+The drift model is similar across all three reviewer types:
 
 - **LLM aspect:** baseline records the hash of `content.md`. Change → cascade re-approve.
 - **AST aspect:** baseline records the hash of `check.mjs`. Change → cascade re-approve.
+- **Structure aspect:** baseline records the hash of `check.mjs` plus the files it touched (including cross-node files read through declared relations). A change to the check, or to any touched file, → cascade re-approve.
 
 `yg check` compares file hashes — no LLM calls, runs instantly. Source drift on mapped files and upstream drift on aspect content both trigger re-approval through the same mechanism.
 

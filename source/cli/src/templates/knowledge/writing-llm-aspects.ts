@@ -65,7 +65,7 @@ the others.
 
 ## Cost considerations
 
-Every effective aspect on a node = one LLM call during \`yg approve\`.
+Every effective LLM aspect on a node = one LLM call during \`yg approve\` (AST and structure aspects are free).
 
 Before creating a new LLM aspect:
 1. Check if an existing aspect covers the rule (\`yg aspects\`)

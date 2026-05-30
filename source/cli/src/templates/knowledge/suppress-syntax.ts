@@ -82,7 +82,7 @@ keep pairs explicit and review the resulting range yourself.
 
 ## Wildcard
 
-\`*\` as the id suppresses ALL aspects (LLM and AST) in the range.
+\`*\` as the id suppresses ALL aspects (LLM, AST, and structure) in the range.
 
 \`\`\`typescript
 // yg-suppress-disable(*) generated code, do not edit manually

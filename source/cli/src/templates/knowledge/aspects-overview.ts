@@ -1,14 +1,14 @@
-export const summary = 'What aspects are, when to create, LLM vs AST reviewer choice, cost model';
+export const summary = 'What aspects are, when to create, LLM/AST/structure reviewer choice, cost model';
 
 export const content = `# Aspects overview
 
-Aspects are enforceable rules attached to nodes. A reviewer (LLM or AST)
-checks every source file of a node against every effective aspect.
+Aspects are enforceable rules attached to nodes. A reviewer (LLM, AST, or
+structure) checks every source file of a node against every effective aspect.
 
 ## What an aspect is
 
-An aspect pairs a description (\`content.md\` for LLM, \`check.mjs\` for AST)
-with metadata (\`yg-aspect.yaml\`), and optionally reference files (LLM aspects only) for supporting context. When you run \`yg approve --node <path>\`,
+An aspect pairs a description (\`content.md\` for LLM, \`check.mjs\` for AST or
+structure) with metadata (\`yg-aspect.yaml\`), and optionally reference files (LLM aspects only) for supporting context. When you run \`yg approve --node <path>\`,
 the reviewer receives the aspect description and all source files of the
 node, then returns approved or refused with a violation report.
 
@@ -36,7 +36,10 @@ duplicated here.
 
 ## LLM vs AST
 
-Two reviewer types are available. Each has a distinct sweet spot.
+Three reviewer types exist. This section contrasts the two most common, LLM and
+AST; the structure reviewer — a sandboxed \`check.mjs\` for cross-node graph-shape
+rules — is covered in \`yg knowledge read writing-structure-aspects\`. LLM and AST
+each have a distinct sweet spot.
 
 ### When to use LLM
 
@@ -87,9 +90,11 @@ If it misses violations that require reading intent, switch to LLM.
 
 ## Cost model
 
-Every effective aspect on a node = one reviewer call during \`yg approve\`.
-A node with 5 aspects = 5 reviewer calls. An aspect touching 20 nodes = 20
-calls when you run \`yg approve --aspect <id>\`.
+Every effective non-draft LLM aspect on a node = one reviewer call during
+\`yg approve\` (multiplied by the tier's consensus count). AST and structure
+aspects run locally at zero LLM cost. A node with 5 LLM aspects = at least 5
+reviewer calls. An LLM aspect touching 20 nodes = at least 20 calls when you
+run \`yg approve --aspect <id>\`.
 
 Use \`yg impact --aspect <id>\` before creating or modifying a widely-used
 aspect to assess the re-approval cost.

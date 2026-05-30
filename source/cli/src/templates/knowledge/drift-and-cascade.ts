@@ -69,11 +69,14 @@ When cascade scope is high:
 
 ## Cost
 
-Every drifted node = one LLM call during approve.
+A drifted node makes one LLM call per effective non-draft LLM aspect during
+approve (× the tier's consensus count). AST and structure aspects re-verify
+locally at zero LLM cost, so a node whose aspects are all AST/structure
+re-approves with no LLM call.
 
-| Scenario | Calls |
+| Scenario | LLM calls |
 |----------|-------|
-| Edit one file, approve node | 1 per effective aspect |
+| Edit one file, approve node | 1 per effective LLM aspect (AST/structure: 0) |
 | Add \`implies\` to an aspect | affected nodes × 1 |
 | Change aspect \`content.md\` | affected nodes × 1 |
 | Add aspect to parent node | all descendants × 1 |

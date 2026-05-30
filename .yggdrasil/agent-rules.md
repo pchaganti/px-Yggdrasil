@@ -398,7 +398,7 @@ context.
 
 ### When to Create Graph Elements
 
-**Aspect** — when the same pattern appears in 3+ files AND the reviewer can verify it against source code. Both conditions. "Every handler logs audit trail" — pattern + verifiable = aspect. "Code should be readable" — not verifiable, not an aspect. Read `schemas/yg-aspect.yaml` before creating. For reviewer choice (LLM vs AST), aspect format, cost model: `yg knowledge read aspects-overview`. To write the rules: `yg knowledge read writing-llm-aspects` (or `writing-ast-aspects`). Content `.md` files state WHAT must be satisfied and WHY — use the user's words, never invent rationale. Things that do NOT become aspects: knowledge already visible in source code (imports, config), non-enforceable knowledge (business strategy, personas, pricing), and conventions the reviewer cannot check against code. Choose initial status: `draft` if content.md is still being authored or the rule is unclear (no enforcement, no cost); `advisory` if content.md is complete but you want to gather signal across the repo without blocking CI; `enforced` if the rule is vetted on a small set and you want repo-wide enforcement immediately.
+**Aspect** — when the same pattern appears in 3+ files AND the reviewer can verify it against source code. Both conditions. "Every handler logs audit trail" — pattern + verifiable = aspect. "Code should be readable" — not verifiable, not an aspect. Read `schemas/yg-aspect.yaml` before creating. For reviewer choice (LLM, AST, or structure), aspect format, cost model: `yg knowledge read aspects-overview`. To write the rules: `yg knowledge read writing-llm-aspects` (or `writing-ast-aspects`, `writing-structure-aspects`). Content `.md` files state WHAT must be satisfied and WHY — use the user's words, never invent rationale. Things that do NOT become aspects: knowledge already visible in source code (imports, config), non-enforceable knowledge (business strategy, personas, pricing), and conventions the reviewer cannot check against code. Choose initial status: `draft` if content.md is still being authored or the rule is unclear (no enforcement, no cost); `advisory` if content.md is complete but you want to gather signal across the repo without blocking CI; `enforced` if the rule is vetted on a small set and you want repo-wide enforcement immediately.
 
 **Flow** — when you see a sequence of steps toward a business goal. Not code call sequences — real-world processes. "User places an order" = flow. "Handler calls service" = relation between nodes. Read `schemas/yg-flow.yaml` and `yg knowledge read flows` before creating.
 
@@ -496,7 +496,7 @@ When you need to do X, run/read Y:
 | Edit `yg-aspect.yaml` | `schemas/yg-aspect.yaml` + `yg knowledge read aspects-overview` |
 | Edit `yg-config.yaml` | `schemas/yg-config.yaml` + `yg knowledge read configuration` |
 | Pick the right type for new file | `yg knowledge read working-with-architecture` |
-| Choose LLM vs AST reviewer | `yg knowledge read aspects-overview` |
+| Choose LLM/AST/structure reviewer | `yg knowledge read aspects-overview` |
 | Write an LLM aspect | `yg knowledge read writing-llm-aspects` |
 | Write an AST aspect | `yg knowledge read writing-ast-aspects` |
 | Write a structure aspect | `yg knowledge read writing-structure-aspects` |
