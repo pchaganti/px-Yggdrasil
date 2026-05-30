@@ -466,7 +466,7 @@ async function snapshotLog(yggRoot: string, nodePath: string): Promise<LogSnapsh
     return { content, existed: true };
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-      debugWrite(`[approve] log.md not found at ${logPath} — treating as absent`);
+      debugWrite(`[approve] log.md not found at ${logPath.replace(/\\/g, '/').replace(/\/+$/, '')} — treating as absent`);
       return { content: '', existed: false };
     }
     /* v8 ignore next */
@@ -575,14 +575,16 @@ export async function loadSourceFiles(
 ): Promise<Array<{ path: string; content: string }>> {
   const results: Array<{ path: string; content: string }> = [];
   for (const filePath of filePaths) {
+    // Normalize at the output boundary: this is a public function and the path
+    // is emitted both into the returned source list (e.g. the dry-run reviewer
+    // prompt) and the debug log. Not every caller normalizes its inputs, so
+    // guarantee POSIX form here, in BOTH the success and the skipped branch.
+    const posixPath = filePath.replace(/\\/g, '/').replace(/\/+$/, '');
     try {
       const content = await readTextFile(path.join(projectRoot, filePath));
-      // Normalize at the output boundary: this is a public function and the
-      // returned path is emitted (e.g. into the dry-run reviewer prompt). Not
-      // every caller normalizes its inputs, so guarantee POSIX form here.
-      results.push({ path: filePath.replace(/\\/g, '/').replace(/\/+$/, ''), content });
+      results.push({ path: posixPath, content });
     } catch (err) {
-      debugWrite(`[approve] skipped unreadable file ${filePath}: ${(err as Error).message}`);
+      debugWrite(`[approve] skipped unreadable file ${posixPath}: ${(err as Error).message}`);
     }
   }
   return results;
