@@ -7,7 +7,7 @@ import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { approveNode, resolveAspects, loadSourceFiles } from '../core/approve.js';
 import { runApproveWithReviewer, type LlmApproveResult } from '../core/approve-reviewer.js';
 export type { LlmApproveResult };
-import { collectTrackedFiles } from '../core/graph/files.js';
+import { collectTrackedFiles, tierIdentityKey, structureIdentityKey, structureTouchedKey } from '../core/graph/files.js';
 import { collectParticipatingFlows } from '../core/graph/flows.js';
 import { hashTrackedFiles } from '../io/hash.js';
 import { classifyDrift } from '../core/check.js';
@@ -253,26 +253,45 @@ export function filterFlowCascadeNodes(
  * drifted only because the aspect's reference file (or tier/structure identity)
  * changed would be silently skipped. Match the prefix OR any of those.
  */
+/**
+ * Single source of truth for the drift-cause paths attributable to one aspect:
+ * its `aspects/<id>/` prefix plus the synthetic identity keys and reference-file
+ * paths that `collectTrackedFiles` emits for it. The synthetic keys come from the
+ * key-builders in core/graph/files.js (the producers), so this stays in lockstep
+ * with how the keys are written into baselines. Both cascade-attribution helpers
+ * below (filterAspectCascadeNodes, selectDriftedAspects) match a cause path with
+ * `file.startsWith(prefix) || keys.has(file)`.
+ */
+function aspectDependencyKeys(
+  aspectId: string,
+  yggPrefix: string,
+  graph: Graph,
+): { prefix: string; keys: Set<string> } {
+  const aspect = graph.aspects.find(a => a.id === aspectId);
+  return {
+    prefix: `${yggPrefix}/aspects/${aspectId}/`,
+    keys: new Set<string>([
+      tierIdentityKey(aspectId),
+      structureIdentityKey(aspectId),
+      structureTouchedKey(aspectId),
+      ...(aspect?.references ?? []).map(r => r.path.replace(/\\/g, '/')),
+    ]),
+  };
+}
+
 export function filterAspectCascadeNodes(
   issues: CheckIssue[],
   graph: Graph,
   aspectId: string,
   yggPrefix: string,
 ): string[] {
-  const prefix = `${yggPrefix}/aspects/${aspectId}/`;
-  const aspect = graph.aspects.find(a => a.id === aspectId);
-  const extra = new Set<string>([
-    `tier-identity:${aspectId}`,
-    `structure-identity:${aspectId}`,
-    `structure-touched:${aspectId}`,
-    ...(aspect?.references ?? []).map(r => r.path.replace(/\\/g, '/')),
-  ]);
+  const { prefix, keys } = aspectDependencyKeys(aspectId, yggPrefix, graph);
   const matched: string[] = [];
   for (const issue of issues) {
     if (issue.code !== 'upstream-drift' || !issue.nodePath || !issue.cascadeCauses) continue;
     const hit = issue.cascadeCauses.some((c: CascadeCause) => {
       const f = c.file.replace(/\\/g, '/');
-      return f.startsWith(prefix) || extra.has(f);
+      return f.startsWith(prefix) || keys.has(f);
     });
     if (hit) matched.push(issue.nodePath);
   }
@@ -302,26 +321,13 @@ export function selectDriftedAspects(
   const effective = computeEffectiveAspects(node, graph);
   const statuses = computeEffectiveAspectStatuses(node, graph);
 
-  const depsOf = (id: string): { prefix: string; keys: Set<string> } => {
-    const aspect = graph.aspects.find(a => a.id === id);
-    return {
-      prefix: `${yggPrefix}/aspects/${id}/`,
-      keys: new Set<string>([
-        `tier-identity:${id}`,
-        `structure-identity:${id}`,
-        `structure-touched:${id}`,
-        ...(aspect?.references ?? []).map(r => r.path.replace(/\\/g, '/')),
-      ]),
-    };
-  };
-
   const subset = new Set<string>();
   for (const change of result.changedUpstream ?? []) {
     const file = change.filePath.replace(/\\/g, '/');
     const owners: string[] = [];
     for (const id of effective) {
       if (statuses.get(id) === 'draft') continue;
-      const { prefix, keys } = depsOf(id);
+      const { prefix, keys } = aspectDependencyKeys(id, yggPrefix, graph);
       if (file.startsWith(prefix) || keys.has(file)) owners.push(id);
     }
     if (owners.length === 0) return undefined; // un-attributable upstream → node-global

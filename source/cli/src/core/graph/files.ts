@@ -17,6 +17,16 @@ export interface TrackedFile {
 
 const STRUCTURAL_RELATION_TYPES = new Set(['uses', 'calls', 'extends', 'implements']);
 
+// Synthetic-key builders — the SINGLE source of truth for the per-aspect drift
+// identity keys. These are produced here (in collectTrackedFiles via
+// addSyntheticHash) and consumed by the cascade-attribution helpers in
+// cli/approve.ts (filterAspectCascadeNodes, selectDriftedAspects). The produced
+// STRINGS are part of every recorded baseline's drift hashes — changing them
+// would invalidate all baselines and trigger a mass cascade. Keep byte-identical.
+export const tierIdentityKey = (aspectId: string): string => `tier-identity:${aspectId}`;
+export const structureIdentityKey = (aspectId: string): string => `structure-identity:${aspectId}`;
+export const structureTouchedKey = (aspectId: string): string => `structure-touched:${aspectId}`;
+
 /**
  * Collect all files tracked by a node's context package.
  * Mirrors the traversal of build-context but returns file paths
@@ -109,11 +119,11 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
     // tier-identity synthetic hash — drift when the resolved tier config changes
     if (aspect.reviewer.type === 'llm') {
       if (!graph.config.reviewer) {
-        addSyntheticHash(`tier-identity:${aspect.id}`, 'reviewer-config-missing', 'graph', 'aspects');
+        addSyntheticHash(tierIdentityKey(aspect.id), 'reviewer-config-missing', 'graph', 'aspects');
       } else {
         const selResult = selectTierForAspect(aspect, graph.config.reviewer);
         addSyntheticHash(
-          `tier-identity:${aspect.id}`,
+          tierIdentityKey(aspect.id),
           selResult.ok ? canonicalTierJson(selResult.tier, selResult.tierName) : 'unresolved',
           'graph',
           'aspects',
@@ -139,7 +149,7 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
     // Excludes status so a draft toggle does NOT invalidate the baseline.
     if (aspect.reviewer.type === 'structure') {
       addSyntheticHash(
-        `structure-identity:${aspect.id}`,
+        structureIdentityKey(aspect.id),
         canonicalJson({ kind: 'structure', language: null }),
         'graph',
         'aspects',
@@ -167,7 +177,7 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
       }
       const sorted = Object.keys(pathMap).sort();
       addSyntheticHash(
-        `structure-touched:${aspectId}`,
+        structureTouchedKey(aspectId),
         sorted.join('\n'),
         'graph',
         'aspects',
