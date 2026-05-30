@@ -271,19 +271,28 @@ export function filterFlowCascadeNodes(
  * with how the keys are written into baselines. Both cascade-attribution helpers
  * below (filterAspectCascadeNodes, selectDriftedAspects) match a cause path with
  * `file.startsWith(prefix) || keys.has(file)`.
+ *
+ * When given the node's `structureTouchedFiles` (the baseline's per-aspect map of
+ * actual cross-node paths a graph-aware deterministic aspect read), the keys also
+ * include those raw paths for this aspect. A change to one of them then resolves to
+ * the owning deterministic aspect instead of being un-attributable and forcing a
+ * node-global re-run. Omit the argument to keep the synthetic-key-only behavior.
  */
 function aspectDependencyKeys(
   aspectId: string,
   yggPrefix: string,
   graph: Graph,
+  structureTouchedFiles?: Record<string, Record<string, string>>,
 ): { prefix: string; keys: Set<string> } {
   const aspect = graph.aspects.find(a => a.id === aspectId);
+  const touched = structureTouchedFiles?.[aspectId];
   return {
     prefix: `${yggPrefix}/aspects/${aspectId}/`,
     keys: new Set<string>([
       tierIdentityKey(aspectId),
       structureTouchedKey(aspectId),
       ...(aspect?.references ?? []).map(r => r.path.replace(/\\/g, '/')),
+      ...(touched ? Object.keys(touched).map(p => p.replace(/\\/g, '/')) : []),
     ]),
   };
 }
@@ -336,7 +345,7 @@ export function selectDriftedAspects(
     const owners: string[] = [];
     for (const id of effective) {
       if (statuses.get(id) === 'draft') continue;
-      const { prefix, keys } = aspectDependencyKeys(id, yggPrefix, graph);
+      const { prefix, keys } = aspectDependencyKeys(id, yggPrefix, graph, storedEntry.structureTouchedFiles);
       if (file.startsWith(prefix) || keys.has(file)) owners.push(id);
     }
     if (owners.length === 0) return undefined; // un-attributable upstream → node-global

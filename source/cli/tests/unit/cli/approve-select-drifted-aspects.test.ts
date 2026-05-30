@@ -120,12 +120,33 @@ describe('selectDriftedAspects', () => {
     expect(selectDriftedAspects(graph, NODE_PATH, result, STORED, '.yggdrasil')).toBeUndefined();
   });
 
+  // Negative control: the path is NOT in any aspect's structureTouchedFiles
+  // (STORED has none) → un-attributable → undefined. Must keep passing after the fix.
   it('returns undefined for a bare cross-node source path in changedUpstream (structure-touched)', () => {
     const { graph } = makeGraph(['det', 'llmA', 'llmB'], aspects);
     const result = approveResult({
       changedUpstream: upstream('source/cli/src/other/foo.ts'),
     });
     expect(selectDriftedAspects(graph, NODE_PATH, result, STORED, '.yggdrasil')).toBeUndefined();
+  });
+
+  // Case A: a cross-node file present in the baseline's structureTouchedFiles[det]
+  // changed. Attributable to the deterministic aspect 'det' → returns Set(['det']),
+  // NOT undefined, NOT the llm aspects (which carry forward).
+  it('attributes a structure-touched cross-node path to its deterministic aspect (det)', () => {
+    const { graph } = makeGraph(['det', 'llmA', 'llmB'], aspects);
+    const storedWithTouched: DriftNodeState = {
+      ...STORED,
+      structureTouchedFiles: {
+        det: { 'source/cli/src/other/reader.ts': 'deadbeef' },
+      },
+    };
+    const result = approveResult({
+      changedUpstream: upstream('source/cli/src/other/reader.ts'),
+    });
+    expect(selectDriftedAspects(graph, NODE_PATH, result, storedWithTouched, '.yggdrasil')).toEqual(
+      new Set(['det']),
+    );
   });
 
   it('returns undefined when storedEntry is undefined', () => {
