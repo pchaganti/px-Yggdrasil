@@ -1,5 +1,5 @@
 {
-  "hash": "c1140f7c7b54ed611eb2adffe7cfe6e9ff99e1e0ce6a1344f06be586f1820a24",
+  "hash": "1bb12b556cb67ec498d902a0c21c3368386ce35a3bb53554867528fec8908d90",
   "files": {
     "own-subset:cli/ast/runtime": "81c446303e7f0f81e4442926d9268b200464da4ffadf167ab4d6c49a0da2a341",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -11,13 +11,13 @@
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "7a30b1005b8db9642b89f98a63ec71e36d486207e51f6ad3f744079c67fdb9e6",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
     ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": "5bfc4a07961653ab402950fc1ddf55450c35762e9fde4ab2b0fb9185ab091581",
+    ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
     "source/cli/src/ast/loader-hook-impl.ts": "7f184721c2121038768e06ea66b2661e99460e336151d2649e0fecdbe8459f37",
     "source/cli/src/ast/loader-hook.ts": "e34275e1bbf8e5197db94706a589266bc31d6dd0879b6e8428d3f7191155f72b",
     "source/cli/src/ast/parse-cache.ts": "52800ae952c7ca15cebce230de462d7e88f710e049b2e80872a0868bd6fd2b0e",
-    "source/cli/src/ast/parser.ts": "9451597848af970126af4eff49dfae7210dec2ea1a0aef51c0f445343557a508",
+    "source/cli/src/ast/runner.ts": "4e885ab6b0a68fc27759d576e13b7d632ed263feb1dc00e7a96366325eb646a5",
     "source/cli/src/ast/suppress.ts": "66a5d612886d53b3bb4460b13054a491a41fac0c8c5d9379ca81039f3a394a0b",
-    ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
-    "source/cli/src/ast/runner.ts": "4e885ab6b0a68fc27759d576e13b7d632ed263feb1dc00e7a96366325eb646a5"
+    "source/cli/src/ast/parser.ts": "83c13e5e85b7e7079638ce9e8a668de8848df587d772abc4df17d76c4792c97e"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -31,13 +31,13 @@
     "source/cli/src/ast/loader-hook-impl.ts": 1778434435909.4355,
     "source/cli/src/ast/loader-hook.ts": 1778440677113.9885,
     "source/cli/src/ast/parse-cache.ts": 1780036707610.353,
-    "source/cli/src/ast/parser.ts": 1778432527384.6138,
+    "source/cli/src/ast/parser.ts": 1780148884750.7463,
     "source/cli/src/ast/runner.ts": 1780124996326.9353,
     "source/cli/src/ast/suppress.ts": 1778433965625.0508
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T07:12:18.331Z",
-    "prefix_hash": "936dda03a5ca3174fec54272dd5aae0c53bd8cba2289902ae059d5494c457aa0"
+    "last_entry_datetime": "2026-05-30T14:09:01.061Z",
+    "prefix_hash": "522cfafd88840d6dcdc7b81306dc727475dc02225d8ddc906ec366f04794ed17"
   },
   "aspectVerdicts": {
     "deterministic": {

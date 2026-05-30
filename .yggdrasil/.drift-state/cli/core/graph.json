@@ -1,5 +1,5 @@
 {
-  "hash": "fdfdeb482c18230e6d8755ba83676bdc4c05427945579dce9db416bfb49c5199",
+  "hash": "cc3efbc27d3da0d59a08a2c0ff7495d16fbc06eb971af470c243762a17c807f7",
   "files": {
     "own-subset:cli/core/graph": "017d50656501e8b443151a1fb73d7403f5b0a9279ac7e31e3d3029b12ad7399f",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -24,9 +24,9 @@
     "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
     "source/cli/src/core/graph/impact-graph.ts": "77bf8e3073cd5f9c95c6fe9e2b97fdafe16fb594b6db943fd4def11a56e17de3",
     "source/cli/src/core/graph/index.ts": "563e36848000ab08dd5ab49b769455be58ce21ced356fbc59a3639b4704e0208",
-    "source/cli/src/core/graph/language-registry.ts": "2e58a0a00eec2eae5ac15da4f072bb55a213d8e21ca5fe24864391c62d829761",
     "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b",
-    "source/cli/src/core/graph/files.ts": "83887718e263d9bf47bc402d60b546f0f0bca4e86a9c1d7552f8e42242f7dbc6"
+    "source/cli/src/core/graph/files.ts": "01201c4b40b356307e20b2adaae58586223109acdd7106454ab904b6b6f0a8e1",
+    "source/cli/src/core/graph/language-registry.ts": "6d55d3deaf925eb2680b11eb13df52aa57a0a60d41f1add0890044c812a3603b"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -47,16 +47,16 @@
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     "source/cli/src/core/graph/aspects.ts": 1780118781089.206,
     "source/cli/src/core/graph/dependencies.ts": 1778959819575.0183,
-    "source/cli/src/core/graph/files.ts": 1780122128818.5095,
+    "source/cli/src/core/graph/files.ts": 1780149293197.69,
     "source/cli/src/core/graph/flows.ts": 1778958982525.8142,
     "source/cli/src/core/graph/impact-graph.ts": 1780077332253.6726,
     "source/cli/src/core/graph/index.ts": 1779794513949.0657,
-    "source/cli/src/core/graph/language-registry.ts": 1780116963369.5334,
+    "source/cli/src/core/graph/language-registry.ts": 1780149149192.4832,
     "source/cli/src/core/graph/traversal.ts": 1778958972950.3818
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T06:29:11.817Z",
-    "prefix_hash": "c4ebee519408bf2d2f695fb85665f49a54752b67010d0f3a016caa014d0176ae"
+    "last_entry_datetime": "2026-05-30T14:09:01.566Z",
+    "prefix_hash": "0500f28ed4c1e572f58e2f860d2a03b5bcb9c2452a2902908e3348fd201de48f"
   },
   "aspectVerdicts": {
     "deterministic": {

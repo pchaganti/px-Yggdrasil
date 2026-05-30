@@ -46,3 +46,9 @@ Fixed cascade rendering to call buildIssueMessage for the cascade group output, 
 Added Why: line to renderUnmappedBlock to properly derive all three messageData fields (what/why/next) per the what-why-next aspect requirement.
 ## [2026-05-29T10:22:36.637Z]
 Fixed process.exit(0) to implicit exit by removing the explicit process.exit(0) call (using if (hasErrors) process.exit(1) instead of process.exit(hasErrors ? 1 : 0)). The cli-command-contract aspect requires implicit exit when no errors occur.
+## [2026-05-30T14:09:01.223Z]
+The per-aspect language declaration was removed from the system. An aspect that ships a parsed-tree check used to carry a `language:` list naming the languages it targeted, and the system validated that list with four dedicated checks. Nothing in the runtime ever read it: the engine already determines each source file's language from its file extension through one shared registry, then loads the matching grammar. The declaration was therefore inert metadata that could silently disagree with what the engine actually parsed — an authoritative-looking field that governed nothing.
+
+This change deletes the field, the validators that policed its shape, and the documentation and tests that described it, and promotes the extension-to-grammar registry to the single authority for matching a file to its parser. The motivation is to remove a confusing mismatch between what an aspect claimed about languages and what the engine did, and to collapse the duplicated extension-knowledge that had drifted into more than one place.
+
+The language a parsed-tree check sees for a given file is now derived solely from that file's extension; an unrecognized extension yields no parsed tree rather than a per-aspect error. The drift identity of a graph-aware structural check is deliberately held stable across this change so existing approvals are not invalidated by metadata that never affected behavior.
