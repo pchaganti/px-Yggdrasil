@@ -14,13 +14,13 @@ import { classifyDrift } from '../core/check.js';
 import type { CheckIssue, CascadeCause } from '../core/check.js';
 import { validate } from '../core/validator.js';
 import { normalizeMappingPaths } from '../io/paths.js';
-import type { ApproveResult } from '../model/drift.js';
+import type { ApproveResult, DriftNodeState } from '../model/drift.js';
 import type { Graph, LlmConfig } from '../model/graph.js';
 import { readNodeDriftState } from '../io/drift-state-store.js';
 import { runAstAspect } from '../ast/runner.js';
 import { runStructureAspect } from '../structure/runner.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
-import { computeEffectiveAspectStatuses, getAspectStatusSources, hasNonDraftEffectiveAspects } from '../core/graph/aspects.js';
+import { computeEffectiveAspects, computeEffectiveAspectStatuses, getAspectStatusSources, hasNonDraftEffectiveAspects } from '../core/graph/aspects.js';
 import {
   approveAspectDraftScenarioAMessage,
   approveAspectDraftScenarioBMessage,
@@ -277,6 +277,64 @@ export function filterAspectCascadeNodes(
     if (hit) matched.push(issue.nodePath);
   }
   return matched;
+}
+
+/**
+ * Option 1: choose which effective non-draft aspects must be re-verified on an
+ * approve where filterAspectId is undefined (--node, --flow cascade, parent-redirect).
+ * Returns the subset of aspect ids to re-run, or `undefined` to re-run ALL
+ * (node-global drift, or back-compat baseline without per-aspect verdicts).
+ * Conservative: any source change, or any upstream change not attributable to a
+ * specific aspect, forces a full re-run.
+ */
+export function selectDriftedAspects(
+  graph: Graph,
+  nodePath: string,
+  result: ApproveResult,
+  storedEntry: DriftNodeState | undefined,
+  yggPrefix: string,
+): Set<string> | undefined {
+  if (!storedEntry?.aspectVerdicts) return undefined;
+  if (result.changedSource && result.changedSource.length > 0) return undefined;
+
+  const node = graph.nodes.get(nodePath);
+  if (!node) return undefined;
+  const effective = computeEffectiveAspects(node, graph);
+  const statuses = computeEffectiveAspectStatuses(node, graph);
+
+  const depsOf = (id: string): { prefix: string; keys: Set<string> } => {
+    const aspect = graph.aspects.find(a => a.id === id);
+    return {
+      prefix: `${yggPrefix}/aspects/${id}/`,
+      keys: new Set<string>([
+        `tier-identity:${id}`,
+        `structure-identity:${id}`,
+        `structure-touched:${id}`,
+        ...(aspect?.references ?? []).map(r => r.path.replace(/\\/g, '/')),
+      ]),
+    };
+  };
+
+  const subset = new Set<string>();
+  for (const change of result.changedUpstream ?? []) {
+    const file = change.filePath.replace(/\\/g, '/');
+    const owners: string[] = [];
+    for (const id of effective) {
+      if (statuses.get(id) === 'draft') continue;
+      const { prefix, keys } = depsOf(id);
+      if (file.startsWith(prefix) || keys.has(file)) owners.push(id);
+    }
+    if (owners.length === 0) return undefined; // un-attributable upstream → node-global
+    for (const id of owners) subset.add(id);
+  }
+
+  // Always re-run newly-attached aspects (effective + non-draft, no prior verdict
+  // to carry forward — carry-forward only restores when a prior exists).
+  for (const id of effective) {
+    if (statuses.get(id) === 'draft') continue;
+    if (!storedEntry.aspectVerdicts[id]) subset.add(id);
+  }
+  return subset;
 }
 
 export function formatBatchOutput(results: BatchResult[], scenarioBSkips: string[] = []): void {
