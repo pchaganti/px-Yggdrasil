@@ -74,13 +74,13 @@ carries the rest forward. A SOURCE change is node-global — every effective
 non-draft aspect re-runs (each LLM aspect = one LLM call × the tier's consensus
 count × the number of prompt chunks). An aspect-only cascade — a change to one
 aspect's content / metadata / reference file — re-runs just that one aspect; the
-node's other aspects keep their prior verdict (no LLM call). AST and structure
+node's other aspects keep their prior verdict (no LLM call). Deterministic
 aspects re-verify locally at zero LLM cost, so a node whose aspects are all
-AST/structure re-approves with no LLM call.
+deterministic re-approves with no LLM call.
 
 | Scenario | LLM calls |
 |----------|-------|
-| Edit one file, approve node | 1 per effective LLM aspect (AST/structure: 0) |
+| Edit one file, approve node | 1 per effective LLM aspect (deterministic: 0) |
 | Add \`implies\` to an aspect | affected nodes × 1 |
 | Change aspect \`content.md\` | affected nodes × 1 |
 | Add aspect to parent node | all descendants × 1 |
@@ -107,6 +107,14 @@ Re-approve cost depends on the tier the aspect uses. A change on an aspect
 pinned to a high-consensus tier multiplies cost by that consensus value
 per affected node. Run \`yg impact --aspect <id>\` to see affected nodes
 before swapping the tier on a widely-used aspect.
+
+### Deterministic-touched is part of the per-node drift hash
+
+Each deterministic aspect contributes a \`deterministic-touched:<aspectId>\`
+synthetic entry recording the set of files its \`check.mjs\` actually read at
+approve time. Changing that set — adding or removing a touched file, or editing
+a cross-node file the check reads — triggers re-approve on every node using that
+aspect, at zero LLM cost.
 
 ## Approve workflow
 

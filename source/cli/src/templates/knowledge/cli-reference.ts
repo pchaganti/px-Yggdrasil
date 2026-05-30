@@ -1,4 +1,4 @@
-export const summary = 'Full yg command reference: check, context, approve, impact, tree, aspects, flows, find, log, knowledge';
+export const summary = 'Full yg command reference: check, context, approve, impact, tree, aspects, flows, find, log, owner, deterministic-test, type-suggest, init, knowledge';
 
 export const content = `# CLI reference
 

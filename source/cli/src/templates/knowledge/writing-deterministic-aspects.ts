@@ -384,7 +384,9 @@ export function check(ctx) {
   const expected = \`/\${stem}.test.ts\`;
 
   // Reach the test-suite node via the declared relation. ctx.graph.node throws
-  // if this node has no relation reaching it — surface that as an actionable fix.
+  // if the target is outside the allowed read boundary (reachable only via
+  // ancestors, own descendants, or a declared relation) — surface that as an
+  // actionable fix.
   let testSuite;
   try {
     testSuite = ctx.graph.node('tests/unit');

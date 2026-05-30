@@ -67,14 +67,14 @@ the others.
 
 Each effective NON-DRAFT LLM aspect on a node = at least one reviewer call
 during \`yg approve\`, multiplied by the tier's consensus count AND by the
-number of prompt chunks. AST and structure aspects run locally and cost ZERO
+number of prompt chunks. Deterministic aspects run locally and cost ZERO
 LLM calls. Draft aspects are skipped (zero cost, no verdict).
 
 Before creating a new LLM aspect:
 1. Check if an existing aspect covers the rule (\`yg aspects\`)
 2. Run \`yg impact --aspect <id>\` on similar existing aspects to understand
    the scale of review calls this will generate
-3. Consider whether an AST aspect would serve the same purpose for free
+3. Consider whether a deterministic aspect would serve the same purpose for free
 
 When an aspect touches many nodes, an approve cycle is expensive.
 Prefer narrow, precise aspects over broad catch-all ones.
@@ -132,10 +132,10 @@ on an aspect (or editing the referenced tier's config) triggers re-approve
 on every node that uses the aspect. Run \`yg impact --aspect <id>\` before
 swapping a tier.
 
-## When to prefer AST over LLM
+## When to prefer a deterministic aspect over LLM
 
 If the rule is expressible as "this identifier must / must not appear" or
-"imports from X are forbidden in Y" — use an AST aspect instead. AST is
+"imports from X are forbidden in Y" — use a deterministic aspect instead. It is
 deterministic, produces no false positives, and costs nothing per call.
 
 ## Reference files

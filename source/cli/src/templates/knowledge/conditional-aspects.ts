@@ -19,7 +19,9 @@ the other.
    \`yg-aspect.yaml\` \`when:\`, \`yg-node.yaml\` aspects and ports,
    \`yg-architecture.yaml\` \`node_types.*.aspects[].when\`, \`yg-flow.yaml\`
    aspects, and \`implies\` edges. Its atoms are \`node\`, \`relations\`, and
-   \`descendants\` — they inspect the node's type, ports, mapping, and relations.
+   \`descendants\`: \`node\` inspects the node's type, ports (\`has_port\`), and
+   mapping (\`has_mapping\`); \`relations\` and \`descendants\` inspect relation
+   types and descendant type/ports.
 
 2. **File-when** — architecture file classification: decides which source
    FILES belong to a node type. Used ONLY in \`yg-architecture.yaml\`

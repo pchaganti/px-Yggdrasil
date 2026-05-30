@@ -52,6 +52,10 @@ ports:                                  # map keyed by port name (NOT a list)
     aspects: [correlation-tracking, idempotency-key]
 \`\`\`
 
+Every aspect id listed in a port's \`aspects\` must be defined under
+\`aspects/\`; a missing one emits a blocking error (code
+\`port-missing-aspect\`).
+
 A consumer references the port via the relation's \`consumes\`. In
 \`yg-node.yaml\`, \`relations:\` is a flat list and each entry carries its own
 \`type:\`:
@@ -112,6 +116,10 @@ The inverse is also an error. If a relation declares \`consumes\` naming a
 target that declares NO ports, \`yg check\` emits a blocking error (code
 \`consumes-without-ports\`). Resolve it by removing the \`consumes\` from the
 relation, or by adding the named port(s) to the target node.
+
+A target that DOES have ports but whose \`consumes\` names a port that does not
+exist on that target emits a blocking error (code \`port-undefined\`). Fix the
+port name in \`consumes\`, or add the missing port to the target node.
 
 ## When to use ports
 
