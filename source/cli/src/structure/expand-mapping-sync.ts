@@ -8,13 +8,14 @@
  * mapped dirs happens later, inside the runner, via expandMappingPaths.
  */
 
-/**
- * Normalize a mapping path: trim, convert backslashes to forward slashes,
- * remove trailing slashes.
- */
-export function normalizeMappingPath(p: string): string {
-  return p.trim().replace(/\\/g, '/').replace(/\/+$/, '');
-}
+// Canonical implementation lives in utils/mapping-path so the structure
+// fs-gate (ctx-fs) and the file-in-context check (runner) normalize a path
+// identically. Imported for local use by isPathInMapping below and re-exported
+// to keep existing structure-module callers importing from a single sibling
+// path. (A bare `export { x } from` re-export would not create the local
+// binding isPathInMapping needs.)
+import { normalizeMappingPath } from '../utils/mapping-path.js';
+export { normalizeMappingPath };
 
 /**
  * Test whether a candidate file path is covered by a mapping (set of

@@ -35,6 +35,12 @@ describe('ctx.fs', () => {
     expect(() => fs.exists('src/forbidden.ts')).toThrow(UndeclaredFsReadError);
   });
 
+  it('exists() resolves a ./-prefixed allowed path (shared normalizer strips ./)', () => {
+    const fs = createCtxFs({ allowedSet, projectRoot: root, touchedFiles: touched });
+    expect(fs.exists('./src/foo.ts')).toBe('file');
+    expect(touched).toContain('src/foo.ts');
+  });
+
   it('exists() registers touched (negative dependency, even when missing)', () => {
     const fs = createCtxFs({ allowedSet, projectRoot: root, touchedFiles: touched });
     fs.exists('src/foo.ts');

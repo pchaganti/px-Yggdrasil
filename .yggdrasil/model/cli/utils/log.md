@@ -16,3 +16,5 @@ Phase 2: reclassified from adapter to utility. Mapping changed from directory gl
 Phase 4.7 (no-direct-fs): removed hash.ts and paths.ts (moved to io/); refactored debug-log.ts to use injected AppendFn instead of importing appendFileSync directly
 ## [2026-05-28T06:03:27.920Z]
 Added known-providers — a small constant module listing the LLM provider ids the CLI knows how to invoke. Consumed by io parsers, the format-version detector, and the migration runner. Single source of truth; previously lived in io but io has no concept for pure constants while utils does.
+## [2026-05-30T07:12:18.020Z]
+Introduced two shared helpers consumed by the AST and structure aspect runtimes: one canonical mapping-path normalizer and one check-module export-shape validator. Centralizing them removes the prior duplication where each runtime normalized paths slightly differently and each hand-wrote its own export-shape guard ladder with divergent wording; a single definition guarantees the two runtimes accept and reject the same inputs with the same guidance.

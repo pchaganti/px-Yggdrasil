@@ -1,5 +1,5 @@
 {
-  "hash": "6e76bcfa6bbe1153aa6cec513b6511b58fd75507ac458cb9d8228b9211c0259a",
+  "hash": "4ca358a65833381c31e611f997f1120aa80d544886f838da15a08c1c3ac0d764",
   "files": {
     "own-subset:cli/utils": "047452c0e9d0c021ebe08b3cefa811217b797ebf91b324240b9687d94c9187dd",
     "tier-identity:posix-paths-output": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -15,8 +15,10 @@
     "source/cli/src/utils/debug-log.ts": "65e031b16df330abe391b2d1787e676f9163adf5c3570a9da8a4cec5dd54a819",
     "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
     "source/cli/src/utils/git.ts": "66fc5759c3e5064385e123606f7df9b9a3c7d8afa3926dbcc03d4d6fc39da20f",
+    "source/cli/src/utils/known-providers.ts": "35b652475e4a9e70286c1192238f14585e5d6b880b9c3296eae0aefae6917919",
     "source/cli/src/utils/node-path-validator.ts": "9a137cde2f6a303214265afc7b629aacf28c1f6f5cd1a4a5211b40aeba6d70e8",
-    "source/cli/src/utils/known-providers.ts": "35b652475e4a9e70286c1192238f14585e5d6b880b9c3296eae0aefae6917919"
+    "source/cli/src/utils/mapping-path.ts": "d99b092234c896e400b79659eb9885d8075f8608c6a04d7b0c441fe5a7d96d6f",
+    "source/cli/src/utils/validate-check-module.ts": "b4fd46d469dc6ad17afa9d709fa625d381b8b9134592c8de88efdbdd88a53fb1"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -32,10 +34,26 @@
     "source/cli/src/utils/git-introspect.ts": 1778573699364.3071,
     "source/cli/src/utils/git.ts": 1776177846235.8984,
     "source/cli/src/utils/known-providers.ts": 1779888780071.5884,
-    "source/cli/src/utils/node-path-validator.ts": 1778572609333.0933
+    "source/cli/src/utils/mapping-path.ts": 1780124580708.66,
+    "source/cli/src/utils/node-path-validator.ts": 1778572609333.0933,
+    "source/cli/src/utils/validate-check-module.ts": 1780124593571.388
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T06:03:27.920Z",
-    "prefix_hash": "827c803587819a00025997e98b92aae997cc8a0757ac4caa793498c7129114e3"
+    "last_entry_datetime": "2026-05-30T07:12:18.020Z",
+    "prefix_hash": "49ff3a868b7e289a01c80d733a09d9dca25627ca1d5a0be30f9c044f2b44bdd8"
+  },
+  "aspectVerdicts": {
+    "posix-paths-output": {
+      "verdict": "approved"
+    },
+    "no-side-effects-on-import": {
+      "verdict": "approved"
+    },
+    "no-direct-fs": {
+      "verdict": "approved"
+    },
+    "posix-paths-source": {
+      "verdict": "approved"
+    }
   }
 }

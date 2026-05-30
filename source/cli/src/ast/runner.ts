@@ -5,6 +5,7 @@ import { ensureLoaderRegistered } from './loader-hook.js';
 import { parseFile } from './parser.js';
 import type { IssueMessage } from '../model/validation.js';
 import { collectSuppressions, isLineSuppressed, SuppressMarkerError } from './suppress.js';
+import { validateCheckModuleExport } from '../utils/validate-check-module.js';
 import type { Node } from 'web-tree-sitter';
 import type { CheckContext, Violation } from './types.js';
 import type { ParseCache } from './parse-cache.js';
@@ -54,35 +55,17 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
     throw e;
   }
 
-  if (mod.check === undefined) {
-    const defaultExport = mod.default;
-    if (typeof defaultExport === 'function' && defaultExport.name === 'check') {
-      throw new AstRunnerError('AST_CHECK_DEFAULT_EXPORT', {
-        what: `check.mjs exports 'check' as default, but a NAMED export is required.`,
-        why: `The runner imports the named export. A default export is invisible to it.`,
-        next: `Change 'export default function check(...)' to 'export function check(...)'`,
-      });
-    }
-    throw new AstRunnerError('AST_CHECK_NOT_EXPORTED', {
-      what: `check.mjs does not export a function named 'check' (aspect '${params.aspectId}').`,
-      why: `The runner expects 'export function check(ctx) { ... }'.`,
-      next: `Add a named export 'check' in check.mjs.`,
-    });
+  const exportCheck = validateCheckModuleExport(mod, {
+    codePrefix: 'AST',
+    runnerLabel: `aspect '${params.aspectId}'`,
+  });
+  if (!exportCheck.ok) {
+    throw new AstRunnerError(exportCheck.code, exportCheck.message);
   }
-  if (typeof mod.check !== 'function') {
-    throw new AstRunnerError('AST_CHECK_NOT_FUNCTION', {
-      what: `'check' is exported but is not a function (got ${typeof mod.check}).`,
-      why: `The runner calls check(ctx).`,
-      next: `Re-export check as a function.`,
-    });
-  }
-  if (mod.check.length !== 1) {
-    throw new AstRunnerError('AST_CHECK_WRONG_ARITY', {
-      what: `'check' must accept exactly 1 parameter (ctx); declared arity is ${mod.check.length}.`,
-      why: `The runner invokes check(ctx).`,
-      next: `Change the signature to function check(ctx).`,
-    });
-  }
+  // The shared validator guarantees mod.check is a single-arg function; capture
+  // a typed reference for the invocation below (the removed inline guards
+  // previously provided this narrowing).
+  const checkFn = mod.check as (...args: unknown[]) => unknown;
 
   const sourceFiles = [];
   for (const f of params.files) {
@@ -132,7 +115,7 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
   const ctx: CheckContext = { files: sourceFiles };
   let raw: unknown;
   try {
-    raw = mod.check(ctx);
+    raw = checkFn(ctx);
   } catch (e: unknown) {
     throw new AstRunnerError('AST_CHECK_THROWN', {
       what: `check.mjs threw an exception while running (aspect '${params.aspectId}').`,

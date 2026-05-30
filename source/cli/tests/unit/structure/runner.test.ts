@@ -48,6 +48,31 @@ describe('runStructureAspect', () => {
     })).rejects.toThrow(/STRUCTURE_CHECK_ASYNC/);
   });
 
+  it('thrown StructureRunnerError carries structured messageData (what/why/next)', async () => {
+    await writeAspect('amsgdata', `export async function check(ctx) { return []; }`);
+    const g = buildTestGraphForStructure({
+      nodes: [{ path: 'N', type: 'module', mapping: ['src/a.ts'] }],
+    });
+    let caught: unknown;
+    try {
+      await runStructureAspect({
+        aspectDir: path.join('.yggdrasil/aspects/amsgdata'),
+        aspectId: 'amsgdata', nodePath: 'N', graph: g, projectRoot,
+      });
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(StructureRunnerError);
+    const err = caught as StructureRunnerError;
+    expect(err.code).toBe('STRUCTURE_CHECK_ASYNC');
+    expect(typeof err.messageData.what).toBe('string');
+    expect(typeof err.messageData.why).toBe('string');
+    expect(typeof err.messageData.next).toBe('string');
+    expect(err.messageData.what.length).toBeGreaterThan(0);
+    // code is still present in .message so existing toThrow(/STRUCTURE_.../) assertions hold
+    expect(err.message).toMatch(/STRUCTURE_CHECK_ASYNC/);
+  });
+
   it('non-array return throws STRUCTURE_CHECK_RETURN_SHAPE', async () => {
     await writeAspect('a3', `export function check(ctx) { return 'oops'; }`);
     const g = buildTestGraphForStructure({

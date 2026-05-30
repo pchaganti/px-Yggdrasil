@@ -1,5 +1,5 @@
 {
-  "hash": "21aae17c0c13cdb9e6fe2c23b68b9b0277f74f23739c93d2312866a73789d50d",
+  "hash": "c1140f7c7b54ed611eb2adffe7cfe6e9ff99e1e0ce6a1344f06be586f1820a24",
   "files": {
     "own-subset:cli/ast/runtime": "81c446303e7f0f81e4442926d9268b200464da4ffadf167ab4d6c49a0da2a341",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -15,9 +15,9 @@
     "source/cli/src/ast/loader-hook.ts": "e34275e1bbf8e5197db94706a589266bc31d6dd0879b6e8428d3f7191155f72b",
     "source/cli/src/ast/parse-cache.ts": "52800ae952c7ca15cebce230de462d7e88f710e049b2e80872a0868bd6fd2b0e",
     "source/cli/src/ast/parser.ts": "9451597848af970126af4eff49dfae7210dec2ea1a0aef51c0f445343557a508",
-    "source/cli/src/ast/runner.ts": "6d3c17823587560770ed58a1a96c245c623188a3ab22612e0ee0f9ced945d9ba",
     "source/cli/src/ast/suppress.ts": "66a5d612886d53b3bb4460b13054a491a41fac0c8c5d9379ca81039f3a394a0b",
-    ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994"
+    ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
+    "source/cli/src/ast/runner.ts": "4e885ab6b0a68fc27759d576e13b7d632ed263feb1dc00e7a96366325eb646a5"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -27,17 +27,17 @@
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1779869611285.0671,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1779794513934.5745,
     ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": 1779869611377.3955,
-    ".yggdrasil/aspects/what-why-next/content.md": 1780049565396.277,
+    ".yggdrasil/aspects/what-why-next/content.md": 1780050256245.0933,
     "source/cli/src/ast/loader-hook-impl.ts": 1778434435909.4355,
     "source/cli/src/ast/loader-hook.ts": 1778440677113.9885,
     "source/cli/src/ast/parse-cache.ts": 1780036707610.353,
     "source/cli/src/ast/parser.ts": 1778432527384.6138,
-    "source/cli/src/ast/runner.ts": 1780036811047.3447,
+    "source/cli/src/ast/runner.ts": 1780124996326.9353,
     "source/cli/src/ast/suppress.ts": 1778433965625.0508
   },
   "log": {
-    "last_entry_datetime": "2026-05-29T06:40:35.395Z",
-    "prefix_hash": "05b52b491388bdc40b50f4ed2ae9d48359fb6d1685bf4c5bbd93ba0d384ed76f"
+    "last_entry_datetime": "2026-05-30T07:12:18.331Z",
+    "prefix_hash": "936dda03a5ca3174fec54272dd5aae0c53bd8cba2289902ae059d5494c457aa0"
   },
   "aspectVerdicts": {
     "deterministic": {

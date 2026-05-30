@@ -70,6 +70,13 @@ describe('paths', () => {
     it('returns empty for empty array', () => {
       expect(normalizeMappingPaths([])).toEqual([]);
     });
+
+    it('strips a leading ./ from each entry', () => {
+      expect(normalizeMappingPaths(['./src/a.ts', 'src/b.ts'])).toEqual([
+        'src/a.ts',
+        'src/b.ts',
+      ]);
+    });
   });
 
   describe('toGraphPath', () => {

@@ -156,7 +156,9 @@ async function dispatchStructureAspects(
     } catch (e: unknown) {
       debugWrite(`[approve] structure aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
       const code: string = (e as { code?: string }).code ?? 'STRUCTURE_RUNNER_UNKNOWN';
-      const rendered = e instanceof StructureRunnerError ? e.message : (e as Error).message;
+      const rendered = e instanceof StructureRunnerError
+        ? `${e.messageData.what} — ${e.messageData.why}`
+        : (e as Error).message;
       const reason = `[${code}] ${rendered}`;
       results[aspect.id] = { satisfied: false, reason, errorSource: 'astRuntime' };
       violations.push({ aspectId: aspect.id, reason, errorSource: 'astRuntime' });

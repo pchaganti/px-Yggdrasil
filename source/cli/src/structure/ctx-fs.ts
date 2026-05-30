@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { FsEntry } from './types.js';
+import { normalizeMappingPath } from '../utils/mapping-path.js';
 
 export interface CtxFsParams {
   allowedSet: Set<string>;
@@ -22,10 +23,6 @@ export class UndeclaredFsReadError extends Error {
   }
 }
 
-function normalize(p: string): string {
-  return p.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '');
-}
-
 function isAllowed(p: string, set: Set<string>): boolean {
   if (p === '') return false;
   if (set.has(p)) return true;
@@ -44,11 +41,11 @@ function isAllowed(p: string, set: Set<string>): boolean {
  * so the two sandbox surfaces cannot diverge.
  */
 export function resolveAllowedReadPath(raw: string, allowedSet: Set<string>, projectRoot: string): string {
-  const abs = path.resolve(projectRoot, normalize(raw));
+  const abs = path.resolve(projectRoot, normalizeMappingPath(raw));
   const rel = path.relative(projectRoot, abs).replace(/\\/g, '/');
   // rel === '' (the repo root itself), starts with '..' (escapes repo), or is absolute → reject
   if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) {
-    throw new UndeclaredFsReadError(normalize(raw));
+    throw new UndeclaredFsReadError(normalizeMappingPath(raw));
   }
   if (!isAllowed(rel, allowedSet)) throw new UndeclaredFsReadError(rel);
   return rel;

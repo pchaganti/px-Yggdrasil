@@ -8,6 +8,9 @@ describe('normalizeMappingPath', () => {
   it('returns empty string for empty input', () => {
     expect(normalizeMappingPath('')).toBe('');
   });
+  it('strips a leading ./ so it matches the fs-gate normalizer', () => {
+    expect(normalizeMappingPath('./src/a.ts')).toBe('src/a.ts');
+  });
 });
 
 describe('isPathInMapping', () => {

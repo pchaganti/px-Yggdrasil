@@ -1,6 +1,6 @@
 name: Utils
 type: utility
-description: Shared helper functions — debug logging, git introspection, path validation, and the constant list of known LLM provider ids consumed by parsers and migrations.
+description: Shared helper functions — debug logging, git introspection, path validation, mapping-path normalization, check.mjs export-shape validation, and the constant list of known LLM provider ids consumed by parsers and migrations.
 aspects:
   - posix-paths-output
 relations: []
@@ -9,4 +9,6 @@ mapping:
   - source/cli/src/utils/git-introspect.ts
   - source/cli/src/utils/git.ts
   - source/cli/src/utils/known-providers.ts
+  - source/cli/src/utils/mapping-path.ts
   - source/cli/src/utils/node-path-validator.ts
+  - source/cli/src/utils/validate-check-module.ts

@@ -7,9 +7,11 @@ import { createCtxGraph, UndeclaredGraphReadError } from './ctx-graph.js';
 import { createCtxParsers, prewarmupAstCache, ParseAstNotPrewarmedError } from './ctx-parsers.js';
 import { collectAllowedReadsForAspect } from './allowed-reads.js';
 import { normalizeMappingPath } from './expand-mapping-sync.js';
+import { validateCheckModuleExport } from '../utils/validate-check-module.js';
 import type { Graph, GraphNode as ModelNode } from '../model/graph.js';
 import type { Ctx, Violation, File, Port } from './types.js';
 import type { ParseCache } from '../ast/parse-cache.js';
+import type { IssueMessage } from '../model/validation.js';
 
 export interface RunStructureAspectParams {
   aspectDir: string;
@@ -27,8 +29,13 @@ export interface RunStructureAspectResult {
 }
 
 export class StructureRunnerError extends Error {
-  constructor(public readonly code: string, message: string) {
-    super(`${code}: ${message}`);
+  public readonly messageData: IssueMessage;
+  constructor(public readonly code: string, data: IssueMessage) {
+    // Keep the code token in .message so author-facing assertions and logs
+    // that key off the code continue to find it; carry the full what/why/next
+    // in messageData for the structured renderer (parity with AstRunnerError).
+    super(`${code}: ${data.what}\n${data.why}\n${data.next}`);
+    this.messageData = data;
     this.name = 'StructureRunnerError';
   }
 }
@@ -109,10 +116,11 @@ export async function runStructureAspect(
 
   const node = graph.nodes.get(nodePath);
   if (!node) {
-    throw new StructureRunnerError(
-      'STRUCTURE_NODE_MISSING',
-      `Node '${nodePath}' not in graph.`,
-    );
+    throw new StructureRunnerError('STRUCTURE_NODE_MISSING', {
+      what: `Node '${nodePath}' not in graph.`,
+      why: `The runner resolves the node by path to load its mapped files and aspects.`,
+      next: `Pass an existing node path, or add the node to the graph.`,
+    });
   }
 
   const aspectDirAbs = path.isAbsolute(aspectDir) ? aspectDir : path.resolve(projectRoot, aspectDir);
@@ -122,37 +130,21 @@ export async function runStructureAspect(
   try {
     mod = await import(pathToFileURL(checkPath).href) as Record<string, unknown>;
   } catch (err) {
-    throw new StructureRunnerError(
-      'STRUCTURE_LOADER_RESOLVE_FAILED',
-      `Failed to load check.mjs at ${checkPath}: ${(err as Error).message}`,
-    );
+    throw new StructureRunnerError('STRUCTURE_LOADER_RESOLVE_FAILED', {
+      what: `Failed to load check.mjs at ${checkPath}: ${(err as Error).message}`,
+      why: `The runner dynamically imports the aspect's check.mjs before invoking it.`,
+      next: `Ensure check.mjs exists at the aspect directory and has no unresolved imports.`,
+    });
   }
 
-  if (mod.default !== undefined && typeof mod.default === 'function' && (mod.default as { name?: string }).name === 'check') {
-    throw new StructureRunnerError(
-      'STRUCTURE_CHECK_DEFAULT_EXPORT',
-      `check.mjs uses default export. Use 'export function check(ctx)' (named export).`,
-    );
-  }
-  if (!('check' in mod)) {
-    throw new StructureRunnerError(
-      'STRUCTURE_CHECK_NOT_EXPORTED',
-      `check.mjs must export a named function 'check'.`,
-    );
-  }
-  if (typeof mod.check !== 'function') {
-    throw new StructureRunnerError(
-      'STRUCTURE_CHECK_NOT_FUNCTION',
-      `'check' export must be a function, got ${typeof mod.check}.`,
-    );
+  const exportCheck = validateCheckModuleExport(mod, {
+    codePrefix: 'STRUCTURE',
+    runnerLabel: `aspect '${aspectId}'`,
+  });
+  if (!exportCheck.ok) {
+    throw new StructureRunnerError(exportCheck.code, exportCheck.message);
   }
   const checkFn = mod.check as (...args: unknown[]) => unknown;
-  if (checkFn.length !== 1) {
-    throw new StructureRunnerError(
-      'STRUCTURE_CHECK_WRONG_ARITY',
-      `'check' must take exactly one argument (ctx); got ${checkFn.length}.`,
-    );
-  }
 
   const allowedSet = collectAllowedReadsForAspect(nodePath, graph);
   const ctxFs = createCtxFs({ allowedSet, projectRoot, touchedFiles });
@@ -229,23 +221,26 @@ export async function runStructureAspect(
         succeeded: false,
       };
     }
-    throw new StructureRunnerError(
-      'STRUCTURE_CHECK_THROWN',
-      `check.mjs threw: ${(err as Error).message}\n${(err as Error).stack ?? ''}`,
-    );
+    throw new StructureRunnerError('STRUCTURE_CHECK_THROWN', {
+      what: `check.mjs threw an exception while running (aspect '${aspectId}').`,
+      why: `${(err as Error).message}\n${(err as Error).stack ?? ''}`,
+      next: `Fix the bug in check.mjs and re-run yg approve.`,
+    });
   }
 
   if (raw !== null && typeof raw === 'object' && typeof (raw as Record<string, unknown>).then === 'function') {
-    throw new StructureRunnerError(
-      'STRUCTURE_CHECK_ASYNC',
-      `check.mjs returned a Promise; only synchronous returns are supported.`,
-    );
+    throw new StructureRunnerError('STRUCTURE_CHECK_ASYNC', {
+      what: `check.mjs returned a Promise; only synchronous returns are supported.`,
+      why: `The runner does not await check's return value.`,
+      next: `Refactor check to be synchronous.`,
+    });
   }
   if (!Array.isArray(raw)) {
-    throw new StructureRunnerError(
-      'STRUCTURE_CHECK_RETURN_SHAPE',
-      `check.mjs returned ${typeof raw}, expected Violation[].`,
-    );
+    throw new StructureRunnerError('STRUCTURE_CHECK_RETURN_SHAPE', {
+      what: `check.mjs returned ${typeof raw}, expected Violation[].`,
+      why: `The runner reports violations from the array returned by check.`,
+      next: `Return [] or Violation[] from check.`,
+    });
   }
 
   const contextFiles = new Set<string>(ownFiles.map(f => f.path));
@@ -254,17 +249,19 @@ export async function runStructureAspect(
   const violations: Violation[] = [];
   for (const v of raw) {
     if (typeof v !== 'object' || v === null || typeof (v as Violation).message !== 'string') {
-      throw new StructureRunnerError(
-        'STRUCTURE_CHECK_RETURN_SHAPE',
-        `Violation entry must be an object with a string 'message' field.`,
-      );
+      throw new StructureRunnerError('STRUCTURE_CHECK_RETURN_SHAPE', {
+        what: `Violation entry must be an object with a string 'message' field.`,
+        why: `The runner renders each violation from its message and optional file/line.`,
+        next: `Return objects shaped { message: string, file?: string, line?: number } from check.`,
+      });
     }
     const vv = v as Violation;
     if (typeof vv.file === 'string' && !contextFiles.has(normalizeMappingPath(vv.file))) {
-      throw new StructureRunnerError(
-        'STRUCTURE_CHECK_FILE_NOT_IN_CONTEXT',
-        `Violation references file '${vv.file}' not in ctx (own mapping or touched via ctx.fs/ctx.graph).`,
-      );
+      throw new StructureRunnerError('STRUCTURE_CHECK_FILE_NOT_IN_CONTEXT', {
+        what: `Violation references file '${vv.file}' not in ctx (own mapping or touched via ctx.fs/ctx.graph).`,
+        why: `Author cannot synthesize violations against files they were not given.`,
+        next: `Return only violations for files in ctx, or declare a relation to the node owning '${vv.file}'.`,
+      });
     }
     violations.push(vv);
   }

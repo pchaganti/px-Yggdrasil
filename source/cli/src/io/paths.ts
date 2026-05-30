@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stat } from 'node:fs/promises';
+import { normalizeMappingPath } from '../utils/mapping-path.js';
 
 /**
  * Directory containing the CLI package (dist/ when bundled).
@@ -53,7 +54,7 @@ export function normalizeMappingPaths(mapping: string[] | undefined): string[] {
   const paths: string[] = [];
   for (const item of mapping) {
     if (typeof item === 'string') {
-      const normalized = item.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+      const normalized = normalizeMappingPath(item);
       if (normalized) {
         paths.push(normalized);
       }
