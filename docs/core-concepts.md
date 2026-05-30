@@ -172,9 +172,9 @@ The content `.md` files are the actual rules. The reviewer reads them and checks
 whether the source code satisfies them. Write them as clearly as you would write
 a code review comment.
 
-Aspects are verified by reviewers — Yggdrasil ships three reviewer types (LLM, AST, and structure).
+Aspects are verified by reviewers — Yggdrasil ships two reviewer types (LLM and deterministic).
 See [Reviewers](/reviewers) for the decision matrix, authoring guides for `content.md`,
-`check.mjs` (AST and structure), suppression mechanics, and edge cases.
+`check.mjs` (deterministic), suppression mechanics, and edge cases.
 
 ### The `implies` field
 
@@ -281,8 +281,8 @@ to an entire business process.
    and sees which aspects apply
 2. Agent writes code
 3. Agent runs `yg approve` — each aspect's reviewer checks the source code
-   against its rules. LLM aspects call the model with `content.md`; AST and
-   structure aspects run `check.mjs` locally with no LLM call
+   against its rules. LLM aspects call the model with `content.md`; deterministic
+   aspects run `check.mjs` locally with no LLM call
 4. Reviewer says pass → approved, new baseline hash recorded
 5. Reviewer says fail → `aspect-violation`, agent must fix and re-approve
 
@@ -361,6 +361,6 @@ node_types:
 
 ## Next
 
-- [Reviewers](/reviewers) — LLM, AST, and structure reviewer types, authoring guides, suppression, drift, edge cases
+- [Reviewers](/reviewers) — LLM and deterministic reviewer types, authoring guides, suppression, drift, edge cases
 - [Conditional Aspects](/conditional-aspects) — `when` predicates for selective aspect application
 - [CLI Reference](/cli-reference) — full command surface

@@ -246,7 +246,7 @@ yg knowledge read <name>
 ```
 
 Available topics include: `working-with-architecture`, `aspects-overview`, `aspect-status`,
-`writing-llm-aspects`, `writing-ast-aspects`, `writing-structure-aspects`,
+`writing-llm-aspects`, `writing-deterministic-aspects`,
 `conditional-aspects`, `suppress-syntax`, `drift-and-cascade`, `configuration`,
 `cli-reference`, `log-management`, `ports-and-relations`, `flows`.
 
@@ -258,44 +258,31 @@ Run `yg knowledge list` to see the current list with one-line descriptions.
 
 | Command                                                          | Purpose                               |
 |------------------------------------------------------------------|---------------------------------------|
-| `yg ast-test --aspect <id> --node <path>` / `--files <paths...>` | Run AST aspect check without approving |
-| `yg structure-test --aspect <id> --node <path>` | Run structure aspect check without approving |
+| `yg deterministic-test --aspect <id> --node <path>` / `--files <paths...>` | Run a deterministic aspect check without approving |
 
-### `yg ast-test`
+### `yg deterministic-test`
 
-Runs an AST aspect's `check.mjs` against source files and prints violations. Use this
-during authoring to iterate on the check logic without going through the full approve cycle.
+Runs a deterministic aspect's `check.mjs` against source files and prints violations.
+Use this during authoring to iterate on the check logic without going through the full
+approve cycle. It works in two modes: graph-scoped (`--node`) and ad-hoc (`--files`).
 
 ```bash
-yg ast-test --aspect <id> --node <node-path>
-yg ast-test --aspect <id> --files <path> [<path2> ...]
+yg deterministic-test --aspect <id> --node <node-path>
+yg deterministic-test --aspect <id> --files <path> [<path2> ...]
+yg deterministic-test --aspect <id> --node <node-path> --check-determinism
 ```
 
-- `--aspect <id>` — Required. The aspect must have `reviewer.type: ast` in its `yg-aspect.yaml`.
-  Exits 1 with an error if the aspect uses the LLM reviewer.
-- `--node <path>` — Run against all files mapped to this node.
+- `--aspect <id>` — Required. The aspect must have `reviewer.type: deterministic` in its
+  `yg-aspect.yaml`. Exits 1 with an error if the aspect uses the LLM reviewer.
+- `--node <path>` — Run against the files mapped to this node, with the node's sandboxed
+  `ctx` (its own files plus, via declared relations, related nodes' files and metadata).
 - `--files <paths...>` — Run against an explicit file list. Useful for ad-hoc testing
   before wiring the aspect into the graph.
+- `--check-determinism` — Runs the check twice and exits 1 if the violation sets
+  differ (lexically sorted), catching side effects in `check.mjs`.
 
 Exits 0 with "No violations" if all checks pass. Exits 1 if any violations found,
 with file path, line number, and violation message for each.
-
-### `yg structure-test`
-
-Runs a structure aspect's `check.mjs` against a named node and prints violations —
-the structure-reviewer counterpart of `yg ast-test`. Use it to iterate on a
-structure `check.mjs` without the full approve cycle.
-
-```bash
-yg structure-test --aspect <id> --node <node-path>
-yg structure-test --aspect <id> --node <node-path> --check-determinism
-```
-
-- `--aspect <id>` — Required. The aspect must have `reviewer.type: structure`.
-- `--node <path>` — Required. Runs the check with the node's sandboxed `ctx`
-  (its own files plus, via declared relations, related nodes' files and metadata).
-- `--check-determinism` — Runs the check twice and exits 1 if the violation sets
-  differ (lexically sorted), catching side effects in `check.mjs`.
 
 Exits 0 with no violations, 1 otherwise.
 
