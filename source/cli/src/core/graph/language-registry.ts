@@ -2,6 +2,7 @@ export interface LanguageDef {
   id: string;
   extensions: string[];
   wasmFile: string;
+  wasmPackage: string;
   grammarRepo: string;
   grammarCommit: string;
   treeSitterCliVersion: string;
@@ -17,6 +18,7 @@ export const LANGUAGES: Record<string, LanguageDef> = {
     id: 'typescript',
     extensions: ['.ts'],
     wasmFile: 'tree-sitter-typescript.wasm',
+    wasmPackage: 'tree-sitter-typescript',
     grammarRepo: 'https://github.com/tree-sitter/tree-sitter-typescript',
     grammarCommit: '',
     treeSitterCliVersion: '',
@@ -28,6 +30,7 @@ export const LANGUAGES: Record<string, LanguageDef> = {
     id: 'tsx',
     extensions: ['.tsx'],
     wasmFile: 'tree-sitter-tsx.wasm',
+    wasmPackage: 'tree-sitter-typescript',
     grammarRepo: 'https://github.com/tree-sitter/tree-sitter-typescript',
     grammarCommit: '',
     treeSitterCliVersion: '',
@@ -39,6 +42,7 @@ export const LANGUAGES: Record<string, LanguageDef> = {
     id: 'javascript',
     extensions: ['.js', '.mjs', '.cjs', '.jsx'],
     wasmFile: 'tree-sitter-javascript.wasm',
+    wasmPackage: 'tree-sitter-javascript',
     grammarRepo: 'https://github.com/tree-sitter/tree-sitter-javascript',
     grammarCommit: '',
     treeSitterCliVersion: '',
@@ -59,4 +63,11 @@ export function getLanguageForExtension(ext: string, overrides?: Record<string, 
 
 export function getExtensionsForLanguage(lang: string): string[] {
   return LANGUAGES[lang]?.extensions ?? [];
+}
+
+export function getGrammarForExtension(ext: string): { wasmFile: string; wasmPackage: string } | null {
+  const lang = getLanguageForExtension(ext.toLowerCase());
+  if (lang === null) return null;
+  const def = LANGUAGES[lang];
+  return { wasmFile: def.wasmFile, wasmPackage: def.wasmPackage };
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { LANGUAGES, EXTENSION_TO_LANGUAGE, getLanguageForExtension, getExtensionsForLanguage } from '../../../src/core/graph/language-registry.js';
+import { LANGUAGES, EXTENSION_TO_LANGUAGE, getLanguageForExtension, getExtensionsForLanguage, getGrammarForExtension } from '../../../src/core/graph/language-registry.js';
 
 describe('language registry phase 1 stub', () => {
   it('lists ts/tsx/javascript only', () => {
@@ -55,5 +55,25 @@ describe('language registry phase 1 stub', () => {
 
   it('getExtensionsForLanguage returns empty array for unknown language', () => {
     expect(getExtensionsForLanguage('cobol')).toEqual([]);
+  });
+});
+
+describe('getGrammarForExtension', () => {
+  it('maps .ts to the typescript grammar + package', () => {
+    expect(getGrammarForExtension('.ts')).toEqual({ wasmFile: 'tree-sitter-typescript.wasm', wasmPackage: 'tree-sitter-typescript' });
+  });
+  it('maps .tsx to the tsx wasm but the typescript package', () => {
+    expect(getGrammarForExtension('.tsx')).toEqual({ wasmFile: 'tree-sitter-tsx.wasm', wasmPackage: 'tree-sitter-typescript' });
+  });
+  it('maps .js/.mjs/.cjs/.jsx to the javascript grammar', () => {
+    for (const ext of ['.js', '.mjs', '.cjs', '.jsx']) {
+      expect(getGrammarForExtension(ext)).toEqual({ wasmFile: 'tree-sitter-javascript.wasm', wasmPackage: 'tree-sitter-javascript' });
+    }
+  });
+  it('is case-insensitive (.TS resolves like .ts)', () => {
+    expect(getGrammarForExtension('.TS')?.wasmFile).toBe('tree-sitter-typescript.wasm');
+  });
+  it('returns null for an unregistered extension', () => {
+    expect(getGrammarForExtension('.py')).toBeNull();
   });
 });

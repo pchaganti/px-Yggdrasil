@@ -81,7 +81,7 @@ export async function prewarmupAstCache(params: {
 }
 
 function isAstLanguageExtension(p: string): boolean {
-  return /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(p);
+  return getLanguageForExtension(extname(p).toLowerCase()) !== null;
 }
 
 /**
