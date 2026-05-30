@@ -1,8 +1,7 @@
 import * as workingWithArchitecture from './working-with-architecture.js';
 import * as aspectsOverview from './aspects-overview.js';
 import * as writingLlmAspects from './writing-llm-aspects.js';
-import * as writingAstAspects from './writing-ast-aspects.js';
-import * as writingStructureAspects from './writing-structure-aspects.js';
+import * as writingDeterministicAspects from './writing-deterministic-aspects.js';
 import * as conditionalAspects from './conditional-aspects.js';
 import * as suppressSyntax from './suppress-syntax.js';
 import * as driftAndCascade from './drift-and-cascade.js';
@@ -35,13 +34,9 @@ export const KNOWLEDGE_TOPICS: Record<string, KnowledgeTopic> = {
     summary: writingLlmAspects.summary,
     content: writingLlmAspects.content,
   },
-  'writing-ast-aspects': {
-    summary: writingAstAspects.summary,
-    content: writingAstAspects.content,
-  },
-  'writing-structure-aspects': {
-    summary: writingStructureAspects.summary,
-    content: writingStructureAspects.content,
+  'writing-deterministic-aspects': {
+    summary: writingDeterministicAspects.summary,
+    content: writingDeterministicAspects.content,
   },
   'conditional-aspects': {
     summary: conditionalAspects.summary,

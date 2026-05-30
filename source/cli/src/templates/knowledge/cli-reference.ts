@@ -98,29 +98,20 @@ Find which node owns a source file.
 yg owner --file src/orders/handler.ts
 \`\`\`
 
-## yg ast-test
+## yg deterministic-test
 
-Run an AST aspect check against ad-hoc files (no baseline, no drift).
+Run a deterministic aspect's \`check.mjs\` without recording a baseline (no
+drift). Scope it either to ad-hoc files or to a named graph node.
 
 \`\`\`bash
-yg ast-test --aspect no-sync-fs --files src/orders/handler.ts
-yg ast-test --aspect no-sync-fs --node orders/handler
+yg deterministic-test --aspect no-sync-fs --files src/orders/handler.ts        # ad-hoc files
+yg deterministic-test --aspect sibling-test-file --node orders/handler          # graph-scoped
+yg deterministic-test --aspect sibling-test-file --node orders/handler --check-determinism
 \`\`\`
 
 Exits 1 if violations exist. Use during \`check.mjs\` development.
-
-## yg structure-test
-
-Run a structure aspect's \`check.mjs\` against a named node without recording a
-baseline — the structure-reviewer counterpart of \`yg ast-test\`.
-
-\`\`\`bash
-yg structure-test --aspect sibling-test-file --node orders/handler
-yg structure-test --aspect sibling-test-file --node orders/handler --check-determinism
-\`\`\`
-
-Exits 1 if violations exist. \`--check-determinism\` runs the check twice and
-fails if the violation sets differ, catching side effects in \`check.mjs\`.
+\`--check-determinism\` runs the check twice and fails if the violation sets
+differ, catching side effects in \`check.mjs\`.
 
 ## yg find
 

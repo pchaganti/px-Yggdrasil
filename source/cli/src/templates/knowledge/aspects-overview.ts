@@ -1,14 +1,14 @@
-export const summary = 'What aspects are, when to create, LLM/AST/structure reviewer choice, cost model';
+export const summary = 'What aspects are, when to create, LLM vs deterministic reviewer choice, cost model';
 
 export const content = `# Aspects overview
 
-Aspects are enforceable rules attached to nodes. A reviewer (LLM, AST, or
-structure) checks every source file of a node against every effective aspect.
+Aspects are enforceable rules attached to nodes. A reviewer (LLM or
+deterministic) checks every source file of a node against every effective aspect.
 
 ## What an aspect is
 
-An aspect pairs a description (\`content.md\` for LLM, \`check.mjs\` for AST or
-structure) with metadata (\`yg-aspect.yaml\`), and optionally reference files (LLM aspects only) for supporting context. When you run \`yg approve --node <path>\`,
+An aspect pairs a description (\`content.md\` for LLM, \`check.mjs\` for
+deterministic) with metadata (\`yg-aspect.yaml\`), and optionally reference files (LLM aspects only) for supporting context. When you run \`yg approve --node <path>\`,
 the reviewer receives the aspect description and all source files of the
 node, then returns approved or refused with a violation report.
 
@@ -38,12 +38,12 @@ While the rule is still being authored or is unclear, give the aspect
 \`status: draft\` — a draft aspect is WIP, so the reviewer never runs on it
 and it costs zero.
 
-## LLM vs AST
+## LLM vs deterministic
 
-Three reviewer types exist. This section contrasts the two most common, LLM and
-AST; the structure reviewer — a sandboxed \`check.mjs\` for cross-node graph-shape
-rules — is covered in \`yg knowledge read writing-structure-aspects\`. LLM and AST
-each have a distinct sweet spot.
+Two reviewer types exist: LLM and deterministic. The deterministic reviewer runs
+a sandboxed \`check.mjs\` locally — it covers both per-file syntactic rules
+(single-file style) and cross-node graph-shape rules (graph-aware style), all in
+one reviewer. LLM and deterministic each have a distinct sweet spot.
 
 ### When to use LLM
 
@@ -61,42 +61,53 @@ specific reviewer tier configured in \`yg-config.yaml\` (a higher-capability
 model for critical aspects, for example). If \`tier:\` is omitted, the
 aspect uses \`reviewer.default\` from the config.
 
-### When to use AST
+### When to use deterministic
 
-Choose AST (\`reviewer: { type: ast }\`) when:
+Choose deterministic (\`reviewer: { type: deterministic }\`) when:
 - The rule is structural ("never import from \`db/\` in \`ui/\`")
 - The rule is naming-based ("exported classes must be PascalCase")
+- The rule is about graph or file-system shape ("every command node must have
+  a sibling test file"; "every child of an engine node must be of type
+  engine-component")
 - You need zero false-positive tolerance and determinism
 - The rule is "X must never appear" — forbidden API calls, banned imports
 
-AST aspects run synchronously with no LLM call; they are free to run
-and produce exact, deterministic results. AST aspects do NOT use reviewer
-tiers — \`reviewer.tier:\` is rejected on \`reviewer.type: ast\` aspects.
+Deterministic aspects run synchronously with no LLM call; they are free to run
+and produce exact, deterministic results. They come in two styles: a single-file
+style that inspects each file's syntax tree, and a graph-aware style that
+inspects the node's files, the file system, and the graph topology. Deterministic
+aspects do NOT use reviewer tiers — \`reviewer.tier:\` is rejected on
+\`reviewer.type: deterministic\` aspects.
 
 ### Decision tree
 
-1. Can the rule be expressed as "this syntax pattern must (not) appear"?
-   → Yes: use AST
+1. Can the rule be expressed as "this syntax pattern must (not) appear" or
+   "this graph/file-system shape must hold"?
+   → Yes: use deterministic
    → No: continue
 
 2. Does the rule require understanding code intent or business logic?
    → Yes: use LLM
 
-3. Is the rule about naming, import paths, or structural shape?
-   → Yes: use AST
+3. Is the rule about naming, import paths, structural shape, or cross-node
+   consistency?
+   → Yes: use deterministic
 
 4. Does the rule need to assess whether semantics match a requirement?
    → Yes: use LLM
 
-When in doubt: write a draft \`check.mjs\`, test it with \`yg ast-test\`.
-If it catches real violations without false positives, ship it as AST.
+When in doubt: write a draft \`check.mjs\`, test it with \`yg deterministic-test\`.
+If it catches real violations without false positives, ship it as deterministic.
 If it misses violations that require reading intent, switch to LLM.
+
+To author a \`check.mjs\` (both single-file and graph-aware styles):
+\`yg knowledge read writing-deterministic-aspects\`.
 
 ## Cost model
 
 Every effective non-draft LLM aspect on a node = at least one reviewer call
 during \`yg approve\`, multiplied by the tier's consensus count AND by the
-number of prompt chunks. AST and structure aspects run locally at zero LLM
+number of prompt chunks. Deterministic aspects run locally at zero LLM
 cost. A node with 5 LLM aspects = at least 5 reviewer calls. An LLM aspect
 touching 20 nodes = at least 20 calls when you run \`yg approve --aspect <id>\`.
 
