@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { KNOWLEDGE_TOPICS } from '../../../src/templates/knowledge/index.js';
 
 describe('KNOWLEDGE_TOPICS', () => {
-  it('exports exactly 14 topics', () => {
-    expect(Object.keys(KNOWLEDGE_TOPICS).length).toBe(14);
+  it('exports exactly 13 topics', () => {
+    expect(Object.keys(KNOWLEDGE_TOPICS).length).toBe(13);
   });
 
   it('has expected topic names', () => {
@@ -20,9 +20,8 @@ describe('KNOWLEDGE_TOPICS', () => {
       'ports-and-relations',
       'suppress-syntax',
       'working-with-architecture',
-      'writing-ast-aspects',
+      'writing-deterministic-aspects',
       'writing-llm-aspects',
-      'writing-structure-aspects',
     ]);
   });
 
@@ -43,10 +42,11 @@ describe('KNOWLEDGE_TOPICS', () => {
       '## Pitfalls',
     ],
     'aspects-overview': [
-      '## LLM vs AST',
-      '## When to use LLM',
-      '## When to use AST',
-      '## Decision tree',
+      '## What an aspect is',
+      '## When to create an aspect',
+      '## LLM vs deterministic',
+      '## Cost model',
+      '## Aspect status',
     ],
     'writing-llm-aspects': [
       '## content.md format',
@@ -54,12 +54,16 @@ describe('KNOWLEDGE_TOPICS', () => {
       '## Cost considerations',
       '## False-positive mitigation',
     ],
-    'writing-ast-aspects': [
-      '## When to use AST',
+    'writing-deterministic-aspects': [
       '## Runtime contract',
       '## Minimal API — imports from `@chrisdudek/yg/ast`',
-      '## Testing with yg ast-test',
       '## Migration table — removed helpers → raw tree-sitter',
+      '## The ctx surface',
+      '## parseAst is synchronous',
+      '## Allowed reads set (D9=A)',
+      '## Testing with yg deterministic-test',
+      '## Adoption workflow',
+      '## Cookbook',
     ],
     'conditional-aspects': [
       '## Aspect-level when grammar',
@@ -107,15 +111,6 @@ describe('KNOWLEDGE_TOPICS', () => {
       '## Implies propagation',
       '## Drift mechanics',
       '## When to use which status',
-    ],
-    'writing-structure-aspects': [
-      '## What is a structure aspect',
-      '## Reviewer type decision tree',
-      '## The ctx surface',
-      '## parseAst is synchronous',
-      '## Allowed reads set (D9=A)',
-      '## Adoption workflow',
-      '## Cookbook',
     ],
   };
 

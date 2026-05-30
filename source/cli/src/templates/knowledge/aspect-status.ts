@@ -99,5 +99,5 @@ For aspect A implies aspect B on node N:
 - [[aspects-overview]] — when to create aspects in general
 - [[drift-and-cascade]] — full drift mechanics including tier-identity
 - [[conditional-aspects]] — \`when\` predicates (orthogonal to status)
-- [[writing-llm-aspects]] / [[writing-ast-aspects]] — authoring guide
+- [[writing-llm-aspects]] / [[writing-deterministic-aspects]] — authoring guide
 `;
