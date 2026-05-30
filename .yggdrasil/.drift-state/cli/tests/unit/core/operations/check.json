@@ -1,5 +1,5 @@
 {
-  "hash": "daaf2ecfdecd65576f4cf527b252fd5625e9b5c4085f9e23d49d861dcb7c47db",
+  "hash": "46266c57ce73613645955b7a408d4264dac4407ba7d74486a5c3da707c1d4654",
   "files": {
     "own-subset:cli/tests/unit/core/operations/check": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -10,8 +10,7 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": "a5408f7e331d1e28996ceaf2b67c4fada5e52ee3909db85a7904aae88cd55146",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/core/check-log.test.ts": "3024110025bf28d0f4912cc73cf513fa08d6f9db757ba573e40b25df1842f50e",
-    "source/cli/tests/unit/core/check-drift.test.ts": "5ea488e7c5cf18b78288ff8ec9f98597d509b0e0c30ae2510586e9f03f933660"
+    "source/cli/tests/unit/core/check-drift.test.ts": "44e14685ffa50cb83e5113dbde9c35b2d115d63eb7e5a568e624494940b29667"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -21,12 +20,11 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": 1779996108975.9385,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/check-drift.test.ts": 1780103336265.853,
-    "source/cli/tests/unit/core/check-log.test.ts": 1778854223542.9958
+    "source/cli/tests/unit/core/check-drift.test.ts": 1780176534380.429
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T19:52:54.267Z",
-    "prefix_hash": "42772682954cdda8a8b87e7fa3158910cfae91cc63b2c00c809af5cf5e35605e"
+    "last_entry_datetime": "2026-05-30T21:35:22.237Z",
+    "prefix_hash": "ae050a224fe9893dbebecc188ce0fa152496cd48d1a1bfaf2590765b943cf28d"
   },
   "aspectVerdicts": {
     "test-deterministic": {
