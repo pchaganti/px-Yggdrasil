@@ -59,7 +59,7 @@ describe('AGENT_RULES_CONTENT — required sections', () => {
     'yg knowledge read working-with-architecture',
     'yg knowledge read aspects-overview',
     'yg knowledge read writing-llm-aspects',
-    'yg knowledge read writing-ast-aspects',
+    'yg knowledge read writing-deterministic-aspects',
     'yg knowledge read conditional-aspects',
     'yg knowledge read suppress-syntax',
     'yg knowledge read drift-and-cascade',

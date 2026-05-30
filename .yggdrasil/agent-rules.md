@@ -19,11 +19,9 @@ The CLI (`yg`) reads and validates — it never modifies files. You create and e
 
 **Nodes** — components. `model/<path>/yg-node.yaml`. Nodes nest by directory — children inherit parent aspects. Schema: `schemas/yg-node.yaml`.
 
-**Aspects** — enforceable rules. `aspects/<id>/yg-aspect.yaml` + either `content.md` (LLM reviewer) or `check.mjs` (AST or structure reviewer). The `yg-aspect.yaml` requires a `reviewer:` mapping: `reviewer.type` is `llm`, `ast`, or `structure`. LLM aspects may also set `reviewer.tier:` to pick a named tier from `yg-config.yaml` (otherwise the configured default tier is used). An aspect can declare `implies: [other-aspect]` — implied aspects are included recursively (must be acyclic). LLM aspects may declare `references:` — supporting files (lookup tables, catalogues) included in the reviewer prompt and exposed to the agent under `read:`. Schema: `schemas/yg-aspect.yaml`. Aspects also carry a `status:` field (default `enforced`) — three levels `draft / advisory / enforced` control whether the reviewer runs and whether violations block.
+**Aspects** — enforceable rules. `aspects/<id>/yg-aspect.yaml` + either `content.md` (LLM reviewer) or `check.mjs` (deterministic reviewer). The `yg-aspect.yaml` requires a `reviewer:` mapping: `reviewer.type` is `llm` or `deterministic`. LLM aspects may also set `reviewer.tier:` to pick a named tier from `yg-config.yaml` (otherwise the configured default tier is used). An aspect can declare `implies: [other-aspect]` — implied aspects are included recursively (must be acyclic). LLM aspects may declare `references:` — supporting files (lookup tables, catalogues) included in the reviewer prompt and exposed to the agent under `read:`. Schema: `schemas/yg-aspect.yaml`. Aspects also carry a `status:` field (default `enforced`) — three levels `draft / advisory / enforced` control whether the reviewer runs and whether violations block.
 
-AST aspects (`reviewer.type: ast`) ship `check.mjs`; the runner detects each file's language from its extension (no `language:` field). AST aspects must NOT set `reviewer.tier:` — tiers apply only to LLM aspects. See `yg knowledge read writing-ast-aspects`.
-
-Structure aspects (`reviewer.type: structure`) also ship `check.mjs`, but run with graph-aware context (files, filesystem, the graph, parsers) and are language-agnostic — no `language:` field. See `yg knowledge read writing-structure-aspects`.
+Deterministic aspects (`reviewer.type: deterministic`) ship `check.mjs` instead of `content.md` — the CLI runs the check locally at zero LLM cost and the returned violations are the verdict. A check may scope to a single file (parsing it with tree-sitter) or to the whole graph (reading the node's files, related nodes, and graph metadata through a context object). Deterministic aspects must NOT set `reviewer.tier:` — tiers apply only to LLM aspects. See `yg knowledge read writing-deterministic-aspects`.
 
 **Flows** — business processes. `flows/<name>/yg-flow.yaml` with name, description, nodes (participants), aspects. Flow-level aspects propagate to all participants. Descendants of a declared participant are automatically included — adding a parent node to a flow covers all its children. Deep dive: `yg knowledge read flows`.
 
@@ -69,7 +67,7 @@ Each object-form attach entry on channels 1–6 may carry an explicit `status:` 
 
 ### Reviewer
 
-The reviewer for an LLM aspect is an LLM invoked by `yg approve`. It receives: the aspect's content.md, any declared reference files, and all source files of the node. It checks every rule from content.md against the code. (AST and structure aspects are not sent to an LLM — `yg approve` runs their `check.mjs` locally, at zero LLM cost.)
+The reviewer for an LLM aspect is an LLM invoked by `yg approve`. It receives: the aspect's content.md, any declared reference files, and all source files of the node. It checks every rule from content.md against the code. (Deterministic aspects are not sent to an LLM — `yg approve` runs their `check.mjs` locally, at zero LLM cost.)
 
 - **Approved** → baseline recorded, drift cleared.
 - **Refused** → violation report with what and where. Fix the code, re-run approve. Only an ENFORCED code violation refuses (`yg approve` exits 1). A code violation of an ADVISORY aspect does NOT fail approve — it exits 0 with an informational line, the baseline and verdict are still recorded, and `yg check` later renders it as a non-blocking warning.
@@ -87,7 +85,7 @@ Drift = source code or upstream context changed since the last approve. The revi
 - **Source drift** — mapped source files were modified. Fix: `yg approve --node <path>`.
 - **Upstream drift (cascade)** — an aspect, parent node, flow, or dependency changed. This cascades: one aspect change can cause drift in every node that uses it. Fix: `yg approve --aspect <id>` or approve affected nodes individually.
 
-Cascade is the cost multiplier. Before changing a widely-used aspect, run `yg impact --aspect <id>` to see how many nodes will need re-approval. Re-approving an aspect-only cascade re-runs just the changed aspect on each affected node — the node's other aspects carry their prior verdict forward — so the cost is one LLM call per affected node for an LLM aspect, and zero for an AST/structure aspect.
+Cascade is the cost multiplier. Before changing a widely-used aspect, run `yg impact --aspect <id>` to see how many nodes will need re-approval. Re-approving an aspect-only cascade re-runs just the changed aspect on each affected node — the node's other aspects carry their prior verdict forward — so the cost is one LLM call per affected node for an LLM aspect, and zero for a deterministic aspect.
 
 If you modify code without reading the aspect content files (`yg context --file` → follow the `read:` paths), you will likely write code that violates rules you didn't know about. The reviewer will reject it. You will have to read the aspects anyway, then rewrite. Double cost.
 
@@ -113,11 +111,11 @@ When `yg check` emits both errors AND warnings, `suggestedNext` points at the fi
 | `yg log merge-resolve --node <path>` | Reconcile log.md after a git merge (validates byte-exact ancestor + union of new entries) |
 | `yg knowledge list` / `yg knowledge read <name>` | Browse deep-reference topics |
 
-Full command reference (`yg aspects`, `yg flows`, `yg owner`, `yg ast-test`, `yg type-suggest`, `yg init`, `yg log merge-resolve`, all option flags): `yg knowledge read cli-reference`.
+Full command reference (`yg aspects`, `yg flows`, `yg owner`, `yg deterministic-test`, `yg type-suggest`, `yg init`, `yg log merge-resolve`, all option flags): `yg knowledge read cli-reference`.
 
 ### Impact and Cost
 
-Every graph change has blast radius. `yg impact` shows how many nodes are affected. For an LLM aspect, each affected node re-runs just the changed aspect — one LLM request (multiplied by the tier's consensus count and by the number of prompt chunks) — so an LLM aspect touching 20 nodes is at least 20 LLM calls = real cost. (A source-code edit, by contrast, is node-global: it re-runs every effective non-draft LLM aspect on that one node.) AST and structure aspects run locally and cost zero LLM calls regardless of how many nodes they touch.
+Every graph change has blast radius. `yg impact` shows how many nodes are affected. For an LLM aspect, each affected node re-runs just the changed aspect — one LLM request (multiplied by the tier's consensus count and by the number of prompt chunks) — so an LLM aspect touching 20 nodes is at least 20 LLM calls = real cost. (A source-code edit, by contrast, is node-global: it re-runs every effective non-draft LLM aspect on that one node.) Deterministic aspects run locally and cost zero LLM calls regardless of how many nodes they touch.
 
 When code doesn't match an aspect, five options:
 
@@ -139,7 +137,7 @@ This is a cost/impact trade-off. Assess, propose the option to the user, let the
 
 **Start of conversation:** `yg check`. If errors — fix before any other work. `yg check` failures block commits and CI. Nothing passes until check is clean.
 
-**Before touching a source file:** `yg context --file <path>`. Read the files listed under `read:` — these are the rules the reviewer will check your code against. For LLM aspects, `read:` points to `content.md`. For AST and structure aspects (`reviewer.type: ast` or `structure`), `read:` points to `check.mjs` — read it to know what rules will be enforced. For blast radius: `yg impact --file <path>`.
+**Before touching a source file:** `yg context --file <path>`. Read the files listed under `read:` — these are the rules the reviewer will check your code against. For LLM aspects, `read:` points to `content.md`. For deterministic aspects (`reviewer.type: deterministic`), `read:` points to `check.mjs` — read it to know what rules will be enforced. For blast radius: `yg impact --file <path>`.
 
 **After modifying code:** `yg check` → fix errors → `yg log add` (per affected node) → `yg approve --node <path>`. Approve is part of the change — the change is not done until approve passes. Do not defer approval.
 
@@ -400,7 +398,7 @@ context.
 
 ### When to Create Graph Elements
 
-**Aspect** — when the same pattern appears in 3+ files AND the reviewer can verify it against source code. Both conditions. "Every handler logs audit trail" — pattern + verifiable = aspect. "Code should be readable" — not verifiable, not an aspect. Read `schemas/yg-aspect.yaml` before creating. For reviewer choice (LLM, AST, or structure), aspect format, cost model: `yg knowledge read aspects-overview`. To write the rules: `yg knowledge read writing-llm-aspects` (or `writing-ast-aspects`, `writing-structure-aspects`). Content `.md` files state WHAT must be satisfied and WHY — use the user's words, never invent rationale. Things that do NOT become aspects: knowledge already visible in source code (imports, config), non-enforceable knowledge (business strategy, personas, pricing), and conventions the reviewer cannot check against code. Choose initial status: `draft` if content.md is still being authored or the rule is unclear (no enforcement, no cost); `advisory` if content.md is complete but you want to gather signal across the repo without blocking CI; `enforced` if the rule is vetted on a small set and you want repo-wide enforcement immediately.
+**Aspect** — when the same pattern appears in 3+ files AND the reviewer can verify it against source code. Both conditions. "Every handler logs audit trail" — pattern + verifiable = aspect. "Code should be readable" — not verifiable, not an aspect. Read `schemas/yg-aspect.yaml` before creating. For reviewer choice (LLM or deterministic), aspect format, cost model: `yg knowledge read aspects-overview`. To write the rules: `yg knowledge read writing-llm-aspects` (or `writing-deterministic-aspects`). Content `.md` files state WHAT must be satisfied and WHY — use the user's words, never invent rationale. Things that do NOT become aspects: knowledge already visible in source code (imports, config), non-enforceable knowledge (business strategy, personas, pricing), and conventions the reviewer cannot check against code. Choose initial status: `draft` if content.md is still being authored or the rule is unclear (no enforcement, no cost); `advisory` if content.md is complete but you want to gather signal across the repo without blocking CI; `enforced` if the rule is vetted on a small set and you want repo-wide enforcement immediately.
 
 **Flow** — when you see a sequence of steps toward a business goal. Not code call sequences — real-world processes. "User places an order" = flow. "Handler calls service" = relation between nodes. Read `schemas/yg-flow.yaml` and `yg knowledge read flows` before creating.
 
@@ -498,10 +496,9 @@ When you need to do X, run/read Y:
 | Edit `yg-aspect.yaml` | `schemas/yg-aspect.yaml` + `yg knowledge read aspects-overview` |
 | Edit `yg-config.yaml` | `schemas/yg-config.yaml` + `yg knowledge read configuration` |
 | Pick the right type for new file | `yg knowledge read working-with-architecture` |
-| Choose LLM/AST/structure reviewer | `yg knowledge read aspects-overview` |
+| Choose LLM or deterministic reviewer | `yg knowledge read aspects-overview` |
 | Write an LLM aspect | `yg knowledge read writing-llm-aspects` |
-| Write an AST aspect | `yg knowledge read writing-ast-aspects` |
-| Write a structure aspect | `yg knowledge read writing-structure-aspects` |
+| Write a deterministic aspect | `yg knowledge read writing-deterministic-aspects` |
 | Use `when` on an aspect | `yg knowledge read conditional-aspects` |
 | Write `yg-suppress` in code | `yg knowledge read suppress-syntax` |
 | Understand drift, batch approve, costs | `yg knowledge read drift-and-cascade` |
