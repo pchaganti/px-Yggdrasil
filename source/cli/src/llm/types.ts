@@ -13,6 +13,6 @@ export interface AspectResponse {
   aspectId?: string;
   satisfied: boolean;
   reason: string;
-  /** Discriminator: codeViolation = real code issue; provider = infra/API error; astRuntime = AST check threw */
+  /** Discriminator: codeViolation = real code issue; provider = infra/API error; astRuntime = deterministic check threw (name retained for baseline compat) */
   errorSource: 'codeViolation' | 'provider' | 'astRuntime';
 }

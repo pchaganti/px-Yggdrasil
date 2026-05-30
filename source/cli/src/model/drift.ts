@@ -28,8 +28,11 @@ export interface AspectVerdict {
    *  - 'codeViolation' — source code did not satisfy the aspect's content (LLM judgement)
    *    or violated a structural rule (AST/structure runner).
    *  - 'provider'      — LLM provider call itself failed.
-   *  - 'astRuntime'    — runtime crash inside an AST OR STRUCTURE runner check.mjs.
-   *    Despite the historical name, this tag is generic "non-LLM runner crash".
+   *  - 'astRuntime'    — runtime crash inside a deterministic runner's check.mjs.
+   *    Despite the historical name, this tag is the generic "non-LLM runner
+   *    crash" discriminator. The token is persisted per-aspect in baseline
+   *    AspectVerdict.errorSource, so it is NOT renamed (e.g. to 'checkRuntime')
+   *    without a versioned migration; deferred deliberately.
    */
   errorSource?: 'codeViolation' | 'provider' | 'astRuntime';
 }
@@ -41,7 +44,15 @@ export interface AspectVerdict {
 /** Category of a drifted file — source (mapping) or graph (.yggdrasil/) */
 export type DriftCategory = 'source' | 'graph';
 
-/** Which layer of the context package brought this file into tracking */
+/**
+ * Which layer of the context package brought this file into tracking.
+ *
+ * NOTE: the 'structure-touched' token is serialized into every baseline
+ * .drift-state/*.json. It is retained verbatim (not renamed to e.g.
+ * 'deterministic-touched') because renaming it would break baseline
+ * parse/compare for every adopting repo. A rename requires a versioned
+ * drift-state migration; deferred deliberately.
+ */
 export type TrackedFileLayer = 'hierarchy' | 'aspects' | 'relational' | 'flows' | 'source' | 'structure-touched';
 
 /** Per-file drift detail */
@@ -83,6 +94,10 @@ export interface DriftNodeState {
    *   - missing = pre-feature baseline → cold start
    *   - preserved across draft toggle (clearDraftAspectsFromDriftState does NOT clear it)
    * Schema: { [aspectId]: { [repoRelPosixPath]: sha256Hex } }
+   *
+   * The field name is retained (not renamed to deterministicTouchedFiles)
+   * for baseline compatibility — every existing .drift-state/*.json holds it
+   * under this key. Renaming requires a versioned migration; deferred.
    */
   structureTouchedFiles?: Record<string, Record<string, string>>;
 }
