@@ -1,7 +1,7 @@
 # yg-aspect.yaml — Schema for cross-cutting aspects
 # Each aspect is a directory under .yggdrasil/aspects/ containing this file
 # plus any number of .md content files (for LLM aspects) or a check.mjs
-# (for AST aspects).
+# (for AST and structure aspects).
 #
 # Aspect identifier = relative path from aspects/ to the directory
 # (e.g. observability/logging). Aspects can be organized in nested
@@ -18,7 +18,7 @@ description: "Short description"   # required — shown in yg aspects output and
 reviewer:                          # required — which reviewer verifies this aspect
   type: llm                        #   required: 'llm', 'ast' or 'structure'
                                    #     llm       — aspect ships content.md; an LLM reads it and judges the code.
-                                   #     ast       — aspect ships check.mjs; the AST runner executes it locally per language.
+                                   #     ast       — aspect ships check.mjs; the AST runner executes it locally.
                                    #     structure — aspect ships check.mjs; the structure runner executes it with
                                    #                 graph-aware ctx (files, fs, graph, parsers). Language-agnostic.
   # tier: deep                     #   optional, only when type: llm.
@@ -28,13 +28,20 @@ reviewer:                          # required — which reviewer verifies this a
 
 # language: [typescript, tsx]      # required when reviewer.type is 'ast' — list of languages check.mjs handles.
                                    # Forbidden when reviewer.type is 'llm' or 'structure'.
-                                   # The runner invokes check.mjs once per declared language.
+                                   # Today the runner parses each file by extension (TS/JS family only) and
+                                   # passes all files to ONE check.mjs invocation; per-language dispatch is
+                                   # designed but not yet built.
 
 status: enforced                   # optional — aspect-level default. enum: draft | advisory | enforced.
                                    # Absent → 'enforced'.
-                                   # draft     = reviewer skipped, no baseline, no drift.
+                                   # draft     = reviewer skipped, no verdict, no baseline, no drift.
                                    # advisory  = reviewer runs; refused → warning (no block).
                                    # enforced  = reviewer runs; refused → error (blocks check).
+                                   # This is only the aspect-level default. The effective status on a
+                                   # node is max() across cascading channels 1–6; channel 7 (implies)
+                                   # carries status_inherit instead. Downgrade attempts are validator
+                                   # errors. Advisory and enforced verdicts are recorded in the
+                                   # baseline; draft aspects get no verdict.
 
 # implies:                         # optional — other aspects included automatically when this
 #                                  # aspect is effective on a node. Two forms:

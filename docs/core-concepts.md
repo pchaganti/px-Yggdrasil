@@ -75,6 +75,16 @@ mapping:
 
 Nodes can be nested. Children inherit parent aspects automatically.
 
+### Node size budget
+
+The reviewer sees all of a node's mapped source (plus any aspect reference
+files) at once, so a node has a character budget: `quality.max_node_chars`
+in `yg-config.yaml`, default 40000. A node that exceeds it produces an
+`oversized-node` error in `yg check` — split it into children or trim its
+mapping. Binary files (images, fonts, archives, etc.) count 0 toward the
+budget automatically. For a large unsplittable text artifact — a generated
+lockfile, for example — opt the node out with `sizeExempt: { reason: "..." }`.
+
 ### Relations
 
 Relations declare dependencies between nodes. They serve two purposes:
@@ -90,7 +100,10 @@ relations:
 ```
 
 Available types: `calls`, `uses`, `extends`, `implements`, `emits`, `listens`.
-The type is descriptive — it documents the nature of the dependency.
+Relation types are constrained by the architecture — each node type declares
+which target types it may reach per relation type, and `yg check` rejects
+relations that violate those constraints. The event types `emits` and `listens`
+must be paired.
 
 ### Ports
 
@@ -267,8 +280,9 @@ to an entire business process.
 1. Agent reads context before writing code (`yg context --file <path>`)
    and sees which aspects apply
 2. Agent writes code
-3. Agent runs `yg approve` — reviewer (LLM) checks each aspect's content.md
-   against the source code
+3. Agent runs `yg approve` — each aspect's reviewer checks the source code
+   against its rules. LLM aspects call the model with `content.md`; AST and
+   structure aspects run `check.mjs` locally with no LLM call
 4. Reviewer says pass → approved, new baseline hash recorded
 5. Reviewer says fail → `aspect-violation`, agent must fix and re-approve
 
@@ -280,10 +294,11 @@ does the approve (running the relevant reviewer) locally, CI just verifies it ha
 
 ## Architecture file
 
-`yg init` creates `.yggdrasil/yg-architecture.yaml` with default node types.
+`yg init` creates `.yggdrasil/yg-architecture.yaml` with an empty
+`node_types: {}` and commented examples — types are defined per project.
 This file controls what types of nodes are allowed and can set default
-aspects per type. The defaults work out of the box — customize when you
-need to. The agent knows the schema and can modify this file on your behalf.
+aspects per type. You define the types your project needs; the agent knows
+the schema and can modify this file on your behalf.
 
 ```yaml
 node_types:
@@ -321,10 +336,12 @@ node_types:
   running the reviewer. Defaults to `true`. Set to `false` for types where business
   reasoning entries aren't needed (e.g. test suites, config nodes).
 
-- **`enforce: strict`** — When set to `true`, every source file matched by the type's
-  `when` predicate must belong to exactly one node of this type. Files matched by `when`
-  but not in any node's `mapping:` produce a `strict-coverage` error in `yg check`.
-  Use this to prevent new files from being added to the codebase without graph coverage.
+- **`enforce: strict`** — When set to the string literal `strict`, every source file
+  matched by the type's `when` predicate must belong to exactly one node of this type.
+  Files matched by `when` but not in any node's `mapping:` produce a `type-strict-orphan`
+  error in `yg check`; files mapped to a node of the wrong type produce a
+  `type-strict-misplaced` error. Use this to prevent new files from being added to the
+  codebase without graph coverage.
 
 - **`parents`** — List of type IDs that nodes of this type may nest under. If specified,
   `yg check` rejects nodes placed under an unlisted parent type. Omit to allow any parent.
@@ -336,7 +353,9 @@ node_types:
 - **`when`** — Predicate that classifies files into this type. Can match on `path`
   (glob pattern) and/or `content` (text patterns). Used by `yg type-suggest` and by
   `enforce: strict` backward coverage. See [Conditional Aspects](/conditional-aspects)
-  for the full predicate grammar — the same grammar applies here.
+  for the full predicate grammar — the same grammar applies here. A type with no `when`
+  is organizational: it can act as a hierarchy parent but its nodes cannot have a
+  non-empty `mapping:`.
 
 ---
 

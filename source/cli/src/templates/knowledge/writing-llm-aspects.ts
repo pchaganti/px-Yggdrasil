@@ -65,7 +65,10 @@ the others.
 
 ## Cost considerations
 
-Every effective LLM aspect on a node = one LLM call during \`yg approve\` (AST and structure aspects are free).
+Each effective NON-DRAFT LLM aspect on a node = at least one reviewer call
+during \`yg approve\`, multiplied by the tier's consensus count AND by the
+number of prompt chunks. AST and structure aspects run locally and cost ZERO
+LLM calls. Draft aspects are skipped (zero cost, no verdict).
 
 Before creating a new LLM aspect:
 1. Check if an existing aspect covers the rule (\`yg aspects\`)

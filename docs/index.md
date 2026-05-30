@@ -18,9 +18,9 @@ features:
   - title: Scoped rules, not flat files
     details: Aspects deliver only the 3-5 rules relevant to the file your agent is editing. No noise, no filtering.
   - title: Mechanical verification
-    details: An LLM reviewer checks source code against aspect rules at approve time. If it doesn't pass, the agent fixes it.
+    details: An llm, ast, or structure reviewer checks source code against aspect rules at approve time. If it doesn't pass, the agent fixes it.
   - title: Cascading re-review
     details: Change a rule and every file that should satisfy it gets flagged for re-approval automatically.
   - title: Draft, advisory, enforced
-    details: Stage every rule through three enforcement levels — author silently, observe as warnings, then block CI. No flag-day rollouts.
+    details: Stage every rule through three statuses — author silently, observe as warnings, then block CI. No flag-day rollouts.
 ---

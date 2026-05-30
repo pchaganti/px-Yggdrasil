@@ -28,8 +28,11 @@ export function check(ctx) {
 
 A structure aspect checks **graph and file-system shape** — cross-node consistency
 rules that cannot be expressed as per-file syntax checks. The reviewer receives a
-\`ctx\` object that exposes the graph, the file system, and the current node. It
-does not receive an LLM — all logic is author-written JavaScript.
+graph-aware \`ctx\` object: the node's own files, the file system, the graph, and
+parsers (\`parseAst\`, \`parseYaml\`, \`parseJson\`, \`parseToml\`). It does not receive
+an LLM — all logic is author-written JavaScript. The runner does not enforce
+purity; \`check.mjs\` must not write files, make network calls, or call
+\`process.exit\` — respecting that is your responsibility.
 
 ## Reviewer type decision tree
 
@@ -156,6 +159,13 @@ Accessing anything outside this set produces:
 If your check needs to reach a node not currently in scope, add an explicit
 relation in \`yg-node.yaml\` pointing to that node. Relations are the contract
 that widens the allowed reads set.
+
+The allowed reads set is the access *boundary* — the maximum the check is
+permitted to touch. The **drift baseline** is narrower: it is the set of files
+the check actually touched (read) at this run, recorded at approve time. Only a
+later change to one of those actually-read files causes cascade drift and
+re-approval — not every file the boundary would have allowed. Keep checks
+focused: reading fewer files yields a tighter baseline and less spurious drift.
 
 ## Reserved violation kinds
 

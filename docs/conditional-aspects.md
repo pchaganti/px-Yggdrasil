@@ -11,6 +11,18 @@ it deterministically before the reviewer is invoked. If the predicate is
 false for a node, the aspect is silently skipped on that node — no LLM
 call, no reviewer uncertainty.
 
+> **Two distinct uses of `when` — same operators, different operands.**
+> This page is about **aspect-level `when`**: it decides *node
+> applicability* — whether an aspect applies to a given node, operating on
+> that node's type, relations, ports, and descendants. A separate
+> **file-level `when`** lives in `yg-architecture.yaml` (`node_types.*.when`)
+> and does *architecture file classification* — it decides which source
+> files belong to a node type, operating on file paths and contents. Both
+> use the same predicate operators but evaluate over different operands; do
+> not confuse them. The grammar below is the aspect-level form. For the
+> file-classification form, see `schemas/yg-architecture.yaml` and
+> `yg knowledge read working-with-architecture`.
+
 ## When to reach for `when`
 
 - The aspect is meaningful only when a relation, port, or property holds.
@@ -46,13 +58,15 @@ Full grammar reference: `schemas/yg-aspect.yaml`.
 
 - **Globally on the aspect** (`yg-aspect.yaml`, top-level `when:`) — the aspect
   has this precondition *wherever* it is attached.
-- **On any attach site** — the same channel-specific list entry can become
-  an object with `id` + `when`:
+- **On any attach site** — the same channel-specific list entry (the *attach
+  entry*) can become an object with `id` + `when`. This is the attach entry's
+  own `when`, distinct from the `references:` feature (supporting files for an
+  LLM reviewer prompt):
 
 ```yaml
 aspects:
   - simple-aspect               # no filter
-  - id: conditional-aspect      # with filter
+  - id: conditional-aspect      # attach entry with filter
     when:
       node: { has_port: charge }
 ```

@@ -12,14 +12,13 @@ A `content.md` (LLM) and a `check.mjs` (AST or structure) are mutually exclusive
 
 ## Choosing a reviewer
 
-| Use AST when the rule is **structural**         | Use LLM when the rule requires **semantic judgment** |
-|--------------------------------------------------|-----------------------------------------------------|
-| Forbidden API calls (`fs.readFileSync`, `eval`)  | "Mutations must emit audit events"                  |
-| Naming conventions (PascalCase exports)          | "Error responses must follow the API contract"      |
-| Import restrictions (no cross-module relatives)  | "Business logic must respect rounding rules"        |
-| Missing guards (`@Log` decorator required)       | "This handler must validate input semantically"     |
+| Reviewer | Use when the rule is… | Examples |
+|---|---|---|
+| **AST** | a per-file **syntactic** check | Forbidden API calls (`fs.readFileSync`, `eval`); naming conventions (PascalCase exports); import restrictions (no cross-module relatives); missing guards (`@Log` decorator required) |
+| **Structure** | a **graph or file-system shape** check spanning more than one file | "Every command node has a sibling test file"; "every child of an engine node is of type engine-component"; "every knowledge topic is registered in the index" |
+| **LLM** | a **semantic judgment** a human reviewer would read surrounding context to make | "Mutations must emit audit events"; "Error responses must follow the API contract"; "Business logic must respect rounding rules"; "This handler must validate input semantically" |
 
-If you can write a regex or an AST traversal to verify the rule, use AST. If a human reviewer would need to read surrounding context to decide, use LLM.
+If you can write a regex or an AST traversal over a single file to verify the rule, use AST. If the rule depends on graph topology or multi-file consistency that a single-file check cannot express, use structure. If a human reviewer would need to read surrounding context to decide, use LLM. AST and structure both run locally at zero LLM cost; only the LLM reviewer makes paid calls.
 
 `reviewer.type` is **required** on every aspect — there is no implicit default. LLM aspects may also declare `reviewer.tier:` to opt into a specific tier from `yg-config.yaml` — see [Reviewer tiers](./configuration.md#reviewer-tiers) for tier configuration.
 
@@ -27,7 +26,7 @@ If you can write a regex or an AST traversal to verify the rule, use AST. If a h
 
 ## LLM reviewer
 
-The LLM reviewer is a separate LLM call from the coding agent — one LLM verifying the work of another. `yg approve` sends each aspect's `content.md` plus the relevant source files to the reviewer. The LLM reviewer also receives any reference files declared on the aspect, presented as authoritative context (not under review). The reviewer responds with SATISFIED or NOT SATISFIED per aspect. One LLM call per aspect per node.
+The LLM reviewer is a separate LLM call from the coding agent — one LLM verifying the work of another. `yg approve` sends each aspect's `content.md` plus the relevant source files to the reviewer. The LLM reviewer also receives any reference files declared on the aspect, presented as authoritative context (not under review). The reviewer responds with SATISFIED or NOT SATISFIED per aspect. Each effective non-draft LLM aspect on a node costs at least one reviewer call during `yg approve`, multiplied by the tier's consensus count and by the number of prompt chunks.
 
 **Effective-draft aspects are skipped before dispatch.** When an aspect's effective status on a node is `draft`, `yg approve` prints a skip line and never sends the rule to the reviewer — zero cost, zero verdict. Aspects with effective status `advisory` or `enforced` go through the reviewer normally; the level only changes how a refused verdict surfaces in `yg check` (warning vs. error). See [Aspect Status](/aspect-status) for the lifecycle.
 
@@ -124,7 +123,7 @@ reviewer:
 language: [typescript, tsx, javascript]
 ```
 
-The `reviewer.type: ast` and `language:` fields are required. The runner invokes `check.mjs` once per declared language. Everything else (`implies`, `when`, `aspects` on nodes) works identically across all reviewer types.
+The `reviewer.type: ast` and `language:` fields are required. Today the runner parses each source file by extension (the TypeScript/JavaScript family) and passes all files to a single `check.mjs` invocation — per-language dispatch and file filtering are designed but not yet built. Everything else (`implies`, `when`, `aspects` on nodes) works identically across all reviewer types.
 
 ### Writing `check.mjs`
 
@@ -134,8 +133,7 @@ import { walk, report, inFile } from '@chrisdudek/yg/ast';
 
 export function check(ctx) {
   const violations = [];
-  // ctx.language — current language id (e.g. 'typescript')
-  // ctx.files    — source files for this language
+  // ctx.files — the node's source files, each with a tree-sitter parse tree
   // ... examine ctx.files ...
   return violations;   // return Violation[], synchronous
 }
@@ -145,7 +143,6 @@ export function check(ctx) {
 
 ```typescript
 interface CheckContext {
-  language: string;   // e.g. 'typescript', 'javascript'
   files: SourceFile[];
 }
 
@@ -289,6 +286,89 @@ yg ast-test --aspect async-fs --node orders/order-service
 src/utils/config.ts
   L12: fs.readFileSync is synchronous — use async equivalent
 ```
+
+---
+
+## Structure reviewer
+
+The structure reviewer is deterministic and language-agnostic. Like the AST reviewer it ships a `check.mjs` module and runs locally at zero LLM cost, but instead of a single file's parse tree it receives a graph-aware `ctx` object — the node being reviewed, its files, the file system, and the graph topology. Use it for cross-node structural rules a single-file AST check cannot express: "every command node has a sibling test file", "every child of an engine node is of type engine-component", "every knowledge topic is registered in the index". See `yg knowledge read writing-structure-aspects`.
+
+### Directory structure
+
+```
+.yggdrasil/aspects/
+  sibling-test-file/
+    yg-aspect.yaml       ← reviewer: { type: structure }
+    check.mjs            ← your check function
+```
+
+### `yg-aspect.yaml`
+
+```yaml
+name: sibling-test-file
+description: "Every command node must have a sibling test file"
+reviewer:
+  type: structure
+```
+
+Structure aspects do NOT declare a `language:` array — the runner invokes `check.mjs` once per affected node regardless of file types. Setting `reviewer.tier:` on a structure aspect is a validator error; tiers apply only to LLM aspects.
+
+### Writing `check.mjs`
+
+The `check(ctx)` function is synchronous and returns `Violation[]`. The `ctx` object exposes the graph and the file system rather than a single parse tree:
+
+```typescript
+interface Ctx {
+  node: GraphNode;     // the node being reviewed
+  files: File[];       // alias for node.files — own files with child carve-out applied
+
+  fs: {
+    exists(path: string): 'file' | 'dir' | false;
+    list(dir: string): { name: string; kind: 'file' | 'dir' }[];
+    read(path: string): string;
+  };
+
+  graph: {
+    node(id: string): GraphNode | undefined;
+    nodesByType(type: string): GraphNode[];
+    relationsFrom(node: GraphNode): Relation[];
+    relationsTo(node: GraphNode): Relation[];
+    children(node: GraphNode): GraphNode[];
+    flowParticipants(flowName: string): GraphNode[];
+  };
+
+  // Synchronous — pre-warmed by the dispatcher. Do NOT await.
+  parseAst(file: File | string, language: string): unknown;
+  parseYaml(file: File | string): unknown;
+  parseJson(file: File | string): unknown;
+  parseToml(file: File | string): unknown;
+}
+
+interface Violation {
+  message: string;
+  file?: string;    // repo-relative POSIX path
+  line?: number;    // 1-based
+  column?: number;  // 0-based
+}
+```
+
+The same helper exports available to AST aspects (`walk`, `report`, `inFile`, `closest`, `findComments`) are re-exported from `@chrisdudek/yg/structure` for checks that also inspect parsed trees via `ctx.parseAst`. Most structure checks work purely with `ctx.graph` and `ctx.fs` without parsing any AST.
+
+### Allowed reads
+
+The structure runner enforces a strict read boundary — reading outside it throws a runtime violation instead of returning data. A node may read its own mapping files, its declared relation targets (and their descendants), its ancestor mappings, and its own descendant mappings. If a check needs to reach a node outside this set, add an explicit relation in `yg-node.yaml` pointing to it — relations are the contract that widens the allowed reads. The **drift baseline** is narrower than this boundary: it records only the files the check actually read at approve time, so only a later change to one of those files causes cascade re-approval.
+
+### Testing structure aspects
+
+```bash
+# Test the check against a specific node without wiring the aspect
+yg structure-test --aspect sibling-test-file --node orders/order-service
+
+# Verify the check is deterministic (same violations on every run)
+yg structure-test --aspect sibling-test-file --node orders/order-service --check-determinism
+```
+
+`yg structure-test` exits 1 if violations exist. Run it against both compliant and non-compliant nodes to confirm no false positives and no false negatives.
 
 ---
 

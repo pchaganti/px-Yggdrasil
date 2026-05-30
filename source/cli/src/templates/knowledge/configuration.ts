@@ -33,7 +33,9 @@ quality:
   max_direct_relations: 10        # Max out-edges per node before high-fan-out warning
   max_node_chars: 40000           # Per-node character budget (source + aspect refs) before oversized-node error
 
-parallel: 10                      # Concurrent aspect verifications across nodes
+parallel: 1                       # Concurrent aspect verifications across nodes (default: 1)
+
+debug: false                      # When true, appends all command output to .yggdrasil/.debug.log (default: false)
 \`\`\`
 
 ## Reviewer tiers
@@ -45,9 +47,9 @@ the entire repository, shared by every aspect.
 Two motivating shapes:
 
 - Single-tier projects (cheapest setup): one tier; no \`reviewer.default\` needed.
-- Multi-tier projects: cheap tier for routine checks, premium tier for
-  critical aspects. \`reviewer.default\` selects the cheap one; critical
-  aspects opt into the premium with \`reviewer.tier: deep\`.
+- Multi-tier projects: a \`standard\` tier for routine checks, a premium
+  \`deep\` tier for critical aspects. \`reviewer.default\` selects \`standard\`;
+  critical aspects opt into the premium with \`reviewer.tier: deep\`.
 
 ### reviewer.default
 
@@ -66,7 +68,7 @@ emits \`config-default-tier-missing\`.
 Tier name regex: \`^[a-zA-Z][a-zA-Z0-9_-]{0,62}$\`.
 The literal name \`default\` is reserved (it would clash with
 \`reviewer.default\` visually). Convention: \`standard\` for the primary
-tier, \`deep\` (or \`thorough\`) for an opt-in higher-capability tier.
+tier, \`deep\` for an opt-in higher-capability tier.
 
 ### reviewer.tiers.<name>.provider
 
@@ -99,23 +101,26 @@ Provider-specific options passed to the LLM client:
 | \`endpoint\` | string | Required for \`ollama\` and \`openai-compatible\`. |
 | \`max_tokens\` | number\\|'auto' | Response budget. 'auto' queries the provider. |
 | \`context_length_field\` | string | Ollama: field name in model info for context length. |
-| \`timeout\` | number | Per-call timeout in seconds. |
+| \`timeout\` | number | Timeout in seconds. Default 300. Applies to CLI providers only — non-CLI/API providers ignore it. |
 
 API keys do NOT live here — they belong in \`yg-secrets.yaml\` (api_key only).
+API providers also read the provider API key from environment variables (e.g.
+the provider's standard \`*_API_KEY\`) as a fallback when not present in
+\`yg-secrets.yaml\`.
 
 ## Multi-tier example
 
 \`\`\`yaml
 reviewer:
-  default: fast
+  default: standard
   tiers:
-    fast:
+    standard:
       provider: ollama
       consensus: 1
       config:
         model: qwen3
         endpoint: http://localhost:11434
-    thorough:
+    deep:
       provider: anthropic
       consensus: 3
       config:
@@ -123,12 +128,12 @@ reviewer:
         temperature: 0
 \`\`\`
 
-Aspect using the thorough tier:
+Aspect using the deep tier:
 
 \`\`\`yaml
 reviewer:
   type: llm
-  tier: thorough
+  tier: deep
 \`\`\`
 
 Aspect using the default tier — no \`tier:\` needed:
@@ -154,6 +159,10 @@ The secrets file accepts only \`api_key\` per provider. Any other field
 triggers \`secrets-non-credential-field\` from \`yg check\` — non-credential
 overrides belong in the tier's \`config:\` block instead.
 
+API providers also read the provider API key from environment variables (e.g.
+the provider's standard \`*_API_KEY\`) as a fallback when not present in
+\`yg-secrets.yaml\`. If the env var is set, \`yg-secrets.yaml\` is not required.
+
 \`yg-config.yaml\` itself must never contain credentials. Commit it to the
 repository — it is safe to share.
 
@@ -175,10 +184,17 @@ an append-only changelog, an image), opt out per-node with
 ## Parallel vs consensus
 
 \`parallel\` (top-level) controls how many aspect verifications run concurrently
-across nodes. Each verification runs its tier's \`consensus\` calls sequentially
+across nodes. It defaults to \`1\`; raise it (for example to 10) to verify nodes
+in parallel. Each verification runs its tier's \`consensus\` calls sequentially
 in a single slot. Cross-tier traffic shares one queue: an expensive tier
 saturating the queue starves a cheap tier. Tune \`parallel\` conservatively when
 mixing tier costs.
+
+## Debug logging
+
+\`debug\` (top-level) defaults to \`false\`. When set to \`true\`, every command
+appends its output to \`.yggdrasil/.debug.log\`. The log is append-only — rotate
+or delete it manually.
 
 ## Upgrading
 
@@ -187,8 +203,10 @@ yg init --upgrade
 \`\`\`
 
 Reads the existing \`yg-config.yaml\`, applies registered migrations, and
-writes the updated version. Run from the repository root only. Review the
-diff before committing.
+writes the updated version. The legacy single-section reviewer format (flat
+provider keys + \`reviewer.active\`) is migrated to \`reviewer.tiers\`
+automatically. Run from the repository root only. Review the diff before
+committing.
 
 ### Tier reference limits
 

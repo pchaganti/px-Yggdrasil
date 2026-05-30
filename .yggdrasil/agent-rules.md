@@ -19,15 +19,17 @@ The CLI (`yg`) reads and validates — it never modifies files. You create and e
 
 **Nodes** — components. `model/<path>/yg-node.yaml`. Nodes nest by directory — children inherit parent aspects. Schema: `schemas/yg-node.yaml`.
 
-**Aspects** — enforceable rules. `aspects/<id>/yg-aspect.yaml` + either `content.md` (LLM reviewer) or `check.mjs` (AST reviewer). The `yg-aspect.yaml` requires a `reviewer:` mapping: `reviewer.type` is `llm` or `ast`. LLM aspects may also set `reviewer.tier:` to pick a named tier from `yg-config.yaml` (otherwise the configured default tier is used). An aspect can declare `implies: [other-aspect]` — implied aspects are included recursively (must be acyclic). LLM aspects may declare `references:` — supporting files (lookup tables, catalogues) included in the reviewer prompt and exposed to the agent under `read:`. Schema: `schemas/yg-aspect.yaml`. Aspects also carry a `status:` field (default `enforced`) — three levels `draft / advisory / enforced` control whether the reviewer runs and whether violations block.
+**Aspects** — enforceable rules. `aspects/<id>/yg-aspect.yaml` + either `content.md` (LLM reviewer) or `check.mjs` (AST or structure reviewer). The `yg-aspect.yaml` requires a `reviewer:` mapping: `reviewer.type` is `llm`, `ast`, or `structure`. LLM aspects may also set `reviewer.tier:` to pick a named tier from `yg-config.yaml` (otherwise the configured default tier is used). An aspect can declare `implies: [other-aspect]` — implied aspects are included recursively (must be acyclic). LLM aspects may declare `references:` — supporting files (lookup tables, catalogues) included in the reviewer prompt and exposed to the agent under `read:`. Schema: `schemas/yg-aspect.yaml`. Aspects also carry a `status:` field (default `enforced`) — three levels `draft / advisory / enforced` control whether the reviewer runs and whether violations block.
 
-AST aspects (`reviewer.type: ast`) must declare `language: [<lang>, ...]` array — runner invokes `check.mjs` once per declared language. AST aspects must NOT set `reviewer.tier:` — tiers apply only to LLM aspects. See `yg knowledge read writing-ast-aspects`.
+AST aspects (`reviewer.type: ast`) must declare a `language: [<lang>, ...]` array naming the languages the check handles. AST aspects must NOT set `reviewer.tier:` — tiers apply only to LLM aspects. See `yg knowledge read writing-ast-aspects`.
+
+Structure aspects (`reviewer.type: structure`) also ship `check.mjs`, but run with graph-aware context (files, filesystem, the graph, parsers) and are language-agnostic — no `language:` field. See `yg knowledge read writing-structure-aspects`.
 
 **Flows** — business processes. `flows/<name>/yg-flow.yaml` with name, description, nodes (participants), aspects. Flow-level aspects propagate to all participants. Descendants of a declared participant are automatically included — adding a parent node to a flow covers all its children. Deep dive: `yg knowledge read flows`.
 
 **Relations** — typed dependencies between nodes. Six types: `calls`, `uses`, `extends`, `implements` (structural) and `emits`, `listens` (event-based). Event relations must be paired. Architecture controls which relation types are allowed between which node types.
 
-**Ports** — named entry points on a node with required aspects. A consumer references a port via `consumes` on its relation; the port's aspects then become effective on the consumer (channel 6 below). Ports are how a critical aspect crosses node boundaries — bare relations do NOT propagate aspects. Deep dive (port contracts, channel 6 defense, missing-contract warnings): `yg knowledge read ports-and-relations`.
+**Ports** — named entry points on a node with required aspects. A consumer references a port via `consumes` on its relation; the port's aspects then become effective on the consumer (channel 6 below). Ports are how a critical aspect crosses node boundaries — bare relations do NOT propagate aspects. Deep dive (port contracts, channel 6 defense, missing-contract errors): `yg knowledge read ports-and-relations`.
 
 **Architecture** — `yg-architecture.yaml` defines the vocabulary: node types, default aspects per type, allowed parent types, allowed relation targets per type. This is the foundation — read it when starting work on a new repo. Changes require user confirmation. Structure details in `schemas/yg-architecture.yaml`.
 
@@ -61,22 +63,22 @@ Consequences of this cascade:
 - Architecture default aspects apply to every node of that type automatically.
 - Implies chains expand recursively. Cycles are forbidden — CLI detects them.
 
-A `when` predicate on an aspect (or on a per-attach-site reference) filters applicability per channel — deterministic, zero LLM cost. Grammar deep dive: `yg knowledge read conditional-aspects`.
+A `when` predicate on an aspect (or on an individual attach entry) filters applicability per channel — deterministic, zero LLM cost. Grammar deep dive: `yg knowledge read conditional-aspects`.
 
 Each object-form attach entry on channels 1–6 may carry an explicit `status:` value; channel 7 (implies) carries `status_inherit:` instead. Effective status = max() across cascading channels; downgrade attempts are validator errors.
 
 ### Reviewer
 
-The reviewer is an LLM invoked by `yg approve`. It receives: the aspect's content.md, any declared reference files, and all source files of the node. It checks every rule from content.md against the code.
+The reviewer for an LLM aspect is an LLM invoked by `yg approve`. It receives: the aspect's content.md, any declared reference files, and all source files of the node. It checks every rule from content.md against the code. (AST and structure aspects are not sent to an LLM — `yg approve` runs their `check.mjs` locally, at zero LLM cost.)
 
 - **Approved** → baseline recorded, drift cleared.
 - **Refused** → violation report with what and where. Fix the code, re-run approve. Only an ENFORCED code violation refuses (`yg approve` exits 1). A code violation of an ADVISORY aspect does NOT fail approve — it exits 0 with an informational line, the baseline and verdict are still recorded, and `yg check` later renders it as a non-blocking warning.
 
-Three approve modes: `--node <path>` (one or more nodes), `--aspect <id>` (batch all nodes affected by this aspect change), `--flow <name>` (batch all nodes in this flow). Batch at most 3-5 nodes per invocation when using multiple `--node` flags — the reviewer loses accuracy with too many. Use `--dry-run` to preview the reviewer prompt without making an LLM call.
+Three approve modes: `--node <path>` (one or more nodes), `--aspect <id>` (batch every node with cascade drift from this aspect change), `--flow <name>` (batch every node in this flow with cascade drift). Batch at most 3-5 nodes per invocation when using multiple `--node` flags — the reviewer loses accuracy with too many. Use `--dry-run` to preview the reviewer prompt without making an LLM call.
 
 In a batch invocation each node runs the full approve algorithm independently — one node's failure does NOT abort the others. Details (algorithm phases, partial-failure recovery, scenario cost table): `yg knowledge read drift-and-cascade`.
 
-Reviewer skips draft aspects entirely. Advisory aspect refusals render as warnings (do not block `yg check`); enforced aspect refusals render as errors (block `yg check`). Verdicts are recorded in baseline regardless of status.
+Reviewer skips draft aspects entirely — no verdict is recorded for a draft aspect. Advisory aspect refusals render as warnings (do not block `yg check`); enforced aspect refusals render as errors (block `yg check`). Verdicts for advisory and enforced aspects are recorded in the baseline.
 
 ### Drift and Cascade
 
@@ -106,7 +108,7 @@ When `yg check` emits both errors AND warnings, `suggestedNext` points at the fi
 | `yg impact --node\|--file\|--aspect\|--flow\|--type <x>` | Blast radius before a change |
 | `yg tree [--root <path>] [--depth <n>]` | Browse graph structure |
 | `yg find "<query>"` | Locate entry-point nodes/aspects by natural-language query |
-| `yg log add --node <path> --reason <text>` | Append per-node business-context entry |
+| `yg log add --node <path> --reason <text>` | Append per-node business-context entry (multi-line via `--reason-file <path>`) |
 | `yg log read --node <path> [--top N \| --all]` | Read log entries (default top 10, newest first) |
 | `yg log merge-resolve --node <path>` | Reconcile log.md after a git merge (validates byte-exact ancestor + union of new entries) |
 | `yg knowledge list` / `yg knowledge read <name>` | Browse deep-reference topics |
@@ -137,7 +139,7 @@ This is a cost/impact trade-off. Assess, propose the option to the user, let the
 
 **Start of conversation:** `yg check`. If errors — fix before any other work. `yg check` failures block commits and CI. Nothing passes until check is clean.
 
-**Before touching a source file:** `yg context --file <path>`. Read the files listed under `read:` — these are the rules the reviewer will check your code against. For LLM aspects, `read:` points to `content.md`. For AST aspects (`reviewer.type: ast`), `read:` points to `check.mjs` — read it to know what structural rules will be enforced. For blast radius: `yg impact --file <path>`.
+**Before touching a source file:** `yg context --file <path>`. Read the files listed under `read:` — these are the rules the reviewer will check your code against. For LLM aspects, `read:` points to `content.md`. For AST and structure aspects (`reviewer.type: ast` or `structure`), `read:` points to `check.mjs` — read it to know what rules will be enforced. For blast radius: `yg impact --file <path>`.
 
 **After modifying code:** `yg check` → fix errors → `yg log add` (per affected node) → `yg approve --node <path>`. Approve is part of the change — the change is not done until approve passes. Do not defer approval.
 
@@ -402,7 +404,7 @@ context.
 
 **Flow** — when you see a sequence of steps toward a business goal. Not code call sequences — real-world processes. "User places an order" = flow. "Handler calls service" = relation between nodes. Read `schemas/yg-flow.yaml` and `yg knowledge read flows` before creating.
 
-**Node** — one per cohesive feature area. Not per directory, not per file. If a node's mapped source (plus any aspect reference files) exceeds the per-node character budget (`quality.max_node_chars`, default 40000) or it covers >3 distinct workflows, split into children — `yg check` enforces the budget as an `oversized-node` error. Why: the reviewer sees ALL files in a node at once; an oversized context dilutes focus and risks window truncation that falsely rejects unchanged code. Keep each node well under the budget. A node mapping a single unsplittable generated/binary artifact (lockfile, image) can opt out with `sizeExempt: { reason: "..." }`. Read `schemas/yg-node.yaml` before creating.
+**Node** — one per cohesive feature area. Not per directory, not per file. If a node's mapped source (plus any aspect reference files) exceeds the per-node character budget (`quality.max_node_chars`, default 40000) or it covers >3 distinct workflows, split into children — `yg check` enforces the budget as an `oversized-node` error. Why: the reviewer sees ALL files in a node at once; an oversized context dilutes focus and risks window truncation that falsely rejects unchanged code. Keep each node well under the budget. Binary files (images, fonts, archives, etc.) count 0 toward the budget automatically. A node mapping a single unsplittable generated **text** artifact (e.g. a large lockfile) can opt out with `sizeExempt: { reason: "..." }`. Read `schemas/yg-node.yaml` before creating.
 
 **Port / relation** — when a critical aspect must cross a node boundary, or when a new typed dependency is needed. Bare relations do NOT propagate aspects; ports do. Six relation types exist (`calls`, `uses`, `extends`, `implements`, `emits`, `listens`); event relations must be paired. Deep dive: `yg knowledge read ports-and-relations`.
 

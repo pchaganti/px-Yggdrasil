@@ -11,9 +11,11 @@ violations. Three levels:
 | \`advisory\`| yes               | warning                    | no                   |
 | \`enforced\`| yes               | error                      | yes                  |
 
-A code violation of an \`advisory\` aspect does NOT fail \`yg approve\`: the
-baseline and per-aspect verdict are still recorded and the CLI exits 0 with an
-informational line (the verdict surfaces later as a non-blocking \`yg check\`
+Draft aspects are skipped entirely: the reviewer never runs, so a draft aspect
+gets no verdict and no baseline. Verdicts for advisory and enforced aspects are
+recorded. A code violation of an \`advisory\` aspect does NOT fail \`yg approve\`:
+the baseline and per-aspect verdict are still recorded and the CLI exits 0 with
+an informational line (the verdict surfaces later as a non-blocking \`yg check\`
 warning). Only a code violation of an \`enforced\` aspect refuses (exit 1); a mix
 of advisory + enforced refuses on the enforced one. Reviewer infrastructure
 failures always block regardless of status.
@@ -56,10 +58,13 @@ ports:
 
 For each (node, aspect):
 1. Collect every channel that attaches the aspect (after \`when\` filtering).
-2. effective = max(declared in each channel), where draft < advisory < enforced.
-3. If a channel's EXPLICIT declaration is lower than the cascade would yield
-   without that declaration, validator emits \`aspect-status-downgrade\`. This
-   is the "bump up OK, downgrade is error" rule.
+2. Effective status = max() across cascading channels 1–6, where
+   draft < advisory < enforced. Channel 7 (implies) does not carry a
+   \`status:\` of its own — it propagates via \`status_inherit:\` (see below).
+3. If a channel's EXPLICIT declaration on channels 1–6 is lower than the
+   cascade would yield without that declaration, the validator emits
+   \`aspect-status-downgrade\` — downgrade attempts are validator errors.
+   This is the "bump up OK, downgrade is error" rule.
 
 ## Implies propagation
 
@@ -78,8 +83,8 @@ For aspect A implies aspect B on node N:
   missing baseline (emitted as \`aspect-newly-active\`).
 - Transition \`advisory → enforced\` does NOT drift but may flip CI from
   green to red overnight if the baseline contains a refused verdict.
-- Transition \`active → draft\` does NOT drift; the stale baseline entry is
-  cleared lazily on the next \`yg approve\` of the node.
+- Transition \`advisory or enforced → draft\` does NOT drift; the stale
+  baseline entry is cleared lazily on the next \`yg approve\` of the node.
 
 ## When to use which status
 

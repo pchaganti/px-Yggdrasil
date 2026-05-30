@@ -1,4 +1,4 @@
-export const summary = 'Six relation types, paired events, ports propagate aspects via channel 6, defense against cross-file evasion, missing-contract warnings';
+export const summary = 'Six relation types, paired events, ports propagate aspects via channel 6, defense against cross-file evasion, missing-contract errors';
 
 export const content = `# Ports and relations
 
@@ -88,22 +88,30 @@ Ports restore the boundary:
 3. The helper inherits the port's aspects (channel 6 propagation).
 
 An attacker who routes calls through an intermediary without declaring
-\`consumes\` will not inherit the port's aspects — but \`yg check\` flags the
-missing port contract, surfacing the gap.
+\`consumes\` will not inherit the port's aspects — but \`yg check\` fails with
+a blocking error on the missing port contract, surfacing the gap.
 
 ## Missing port contracts
 
 If a target node declares ports and the consumer's relation does NOT
-declare \`consumes\`, \`yg check\` warns:
+declare \`consumes\`, \`yg check\` emits a blocking error (code
+\`port-missing-consumes\`) that fails the architecture gate:
 
 \`\`\`
 Missing port contract: <consumer> → <target> has ports [<list>],
-consumer must declare consumes: [<port-name>] or accept the aspect gap.
+consumer must declare consumes: [<port-name>].
 \`\`\`
 
-Resolve by declaring which port(s) you consume, OR by accepting the gap
-explicitly (with user approval — it is a graph hole that the reviewer
-will not catch).
+There is no "accept the gap" mechanism. Resolve it one of two ways:
+declare which port(s) you consume on the relation, or remove the ports
+from the target node.
+
+## Consuming a target with no ports
+
+The inverse is also an error. If a relation declares \`consumes\` naming a
+target that declares NO ports, \`yg check\` emits a blocking error (code
+\`consumes-without-ports\`). Resolve it by removing the \`consumes\` from the
+relation, or by adding the named port(s) to the target node.
 
 ## When to use ports
 

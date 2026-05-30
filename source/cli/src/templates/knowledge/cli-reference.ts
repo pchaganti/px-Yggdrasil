@@ -40,10 +40,13 @@ Run the reviewer against node source files.
 \`\`\`bash
 yg approve --node orders/handler
 yg approve --node orders/handler --node orders/repo   # batch
-yg approve --aspect audit-logging                     # all nodes with aspect
-yg approve --flow order-processing                    # all nodes in flow
+yg approve --aspect audit-logging                     # nodes with cascade drift from this aspect
+yg approve --flow order-processing                    # nodes with cascade drift from this flow
 yg approve --dry-run --node orders/handler            # preview, no LLM call
 \`\`\`
+
+\`--aspect\` and \`--flow\` re-approve only the nodes that have cascade drift
+from that aspect or flow — not every node carrying the aspect or in the flow.
 
 Batch at most 3-5 nodes per invocation when using multiple \`--node\` flags.
 
@@ -71,7 +74,8 @@ yg tree --depth 2              # limit depth
 
 ## yg aspects
 
-List all aspects with usage counts and reviewer type.
+List all aspects with usage counts and reviewer type. Output is a custom
+human-readable line format, not YAML.
 
 \`\`\`bash
 yg aspects
@@ -79,7 +83,8 @@ yg aspects
 
 ## yg flows
 
-List all flows with participants and aspects.
+List all flows with participants and aspects. Output is a custom
+human-readable line format, not YAML.
 
 \`\`\`bash
 yg flows
@@ -127,7 +132,8 @@ yg find "authentication middleware"
 \`\`\`
 
 Returns ranked candidates with score. Score >0.6: likely correct entry
-point. Score <0.3: weak match, verify.
+point. Score <0.3: weak match, verify. \`yg find\` indexes nodes and aspects
+only — not flows.
 
 ## yg log
 
@@ -135,11 +141,16 @@ Append and read per-node business-context log entries.
 
 \`\`\`bash
 yg log add --node orders/handler --reason "Added cancellation at billing cycle end"
+yg log add --node orders/handler --reason-file entry.md   # multi-line reason from a file
 yg log read --node orders/handler              # top 10 entries, newest first
 yg log read --node orders/handler --top 5
 yg log read --node orders/handler --all
 yg log merge-resolve --node orders/handler     # after git merge with conflicting logs
 \`\`\`
+
+Use \`--reason-file <path>\` instead of \`--reason\` to supply multi-line entry
+content from a file. On \`yg log read\`, \`--top\` and \`--all\` are mutually
+exclusive — you cannot combine them.
 
 ## yg type-suggest
 

@@ -1,4 +1,4 @@
-export const summary = 'How to write check.mjs for AST reviewer: runtime contract, tree-sitter API, multi-language dispatch, migration from removed helpers';
+export const summary = 'How to write check.mjs for AST reviewer: runtime contract, tree-sitter API, helper library, migration from removed helpers';
 
 export const content = `# Writing AST aspects
 
@@ -34,9 +34,12 @@ The aspect's identity is its directory path under \`aspects/\` (here
 \`my-rule\`) — there is no \`id:\` field; \`name:\` and \`description:\` are
 required.
 
-The runner invokes \`check.mjs\` once per declared language, passing only the
-files for that language via \`ctx.language\` and \`ctx.files\`. Four validator
-errors enforce the shape:
+Multi-language dispatch is designed but not yet built. Today the runner
+parses each mapped file by extension (the TypeScript/JavaScript family
+only) and passes ALL files to a single \`check.mjs\` invocation via
+\`ctx.files\` — there is no per-language invocation and no \`ctx.language\`.
+The \`language:\` field is still required and validated. Four validator
+errors enforce its shape:
 
 | Error code | Cause |
 |---|---|
@@ -50,8 +53,10 @@ errors enforce the shape:
 \`\`\`javascript
 // check.mjs
 export function check(ctx) {
-  // ctx.language  — string id of the current language (e.g. 'typescript')
-  // ctx.files     — array of { path: string, ast: { rootNode } }
+  // ctx.files — array of { path, content, ast }
+  //   path:    string source path
+  //   content: string raw source text
+  //   ast:     tree-sitter Tree — reach the root via file.ast.rootNode
   const violations = [];
   // ... inspect each file ...
   return violations;  // Violation[] — synchronous only
@@ -65,28 +70,29 @@ Rules:
 - Do not access \`ctx.files\` of a file not in \`ctx.files\` — runtime error
   \`AST_CHECK_FILE_NOT_IN_CONTEXT\`.
 
-## Dispatch pattern for multiple languages
+## Iterating over the files
 
-When behaviour differs per language, switch on \`ctx.language\`:
+Today every mapped file (TypeScript/JavaScript family) arrives in a single
+\`check.mjs\` invocation via \`ctx.files\`. Iterate the array and inspect each
+file's AST:
 
 \`\`\`javascript
 import { walk, report, inFile, closest } from '@chrisdudek/yg/ast';
 
 export function check(ctx) {
-  switch (ctx.language) {
-    case 'typescript':
-    case 'tsx':
-      return checkTs(ctx);
-    case 'javascript':
-      return checkJs(ctx);
-    default:
-      // Always include a default — future registry expansions may pass
-      // an unexpected language id if the aspect yaml is updated before
-      // check.mjs is.
-      return [];
+  const violations = [];
+  for (const file of ctx.files) {
+    walk(file.ast.rootNode, node => {
+      // ... inspect node, push report(file, node, ...) on a hit ...
+    });
   }
+  return violations;
 }
 \`\`\`
+
+If a rule should apply only to a subset of files, filter on \`file.path\`
+(for example with \`inFile(file, { glob: 'src/api/**' })\`) — there is no
+\`ctx.language\` and no per-language invocation today.
 
 ## Minimal API — imports from \`@chrisdudek/yg/ast\`
 
@@ -95,7 +101,7 @@ export function check(ctx) {
 | \`walk(node, visitor)\` | \`(node, (n) => boolean|void) => void\` | DFS traversal; visitor returning \`false\` skips descent into that subtree |
 | \`report(file, node, message)\` | \`(file, TreeNode, string) => Violation\` | Build a \`{ file, line, column, message }\` — \`line\` 1-based, \`column\` 0-based |
 | \`inFile(file, pattern)\` | \`(file, { glob } | { regex } | { contains }) => boolean\` | Path filter (discriminated object form) |
-| \`findComments(target)\` | \`(file | node) => TreeNode[]\` | Returns comment nodes; reads comment node types from language registry |
+| \`findComments(target)\` | \`(file | node) => TreeNode[]\` | Returns comment nodes within the file or subtree |
 | \`closest(node, types)\` | \`(TreeNode, string[]) => TreeNode | null\` | Nearest ancestor whose \`type\` is in \`types\` |
 
 ## tree-sitter node API

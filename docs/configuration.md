@@ -76,12 +76,12 @@ The tier name aspects fall back to when they don't declare `reviewer.tier:`.
 
 Tier name regex: `^[a-zA-Z][a-zA-Z0-9_-]{0,62}$`. The literal name `default` is
 **reserved** (it would clash with `reviewer.default` visually). Convention:
-`standard` for the primary tier. Add a second tier (e.g. `fast`) for aspects
-that tolerate a cheaper model.
+`standard` for the primary tier. Add a second tier (e.g. `deep`) for aspects
+that need a higher-capability model.
 
 ```yaml
 reviewer:
-  default: fast
+  default: deep
   tiers:
     standard:
       provider: anthropic
@@ -89,7 +89,7 @@ reviewer:
       config:
         model: claude-opus-4-7
         temperature: 0
-    fast:
+    deep:
       provider: ollama
       consensus: 1
       config:
@@ -105,7 +105,7 @@ reviewer:
   tier: standard
 ```
 
-An aspect with no explicit tier uses `reviewer.default` (`fast` in the above example):
+An aspect with no explicit tier uses `reviewer.default` (`deep` in the above example):
 
 ```yaml
 reviewer:
@@ -122,7 +122,7 @@ reviewer:
 | `config.temperature` | no | Sampling temperature. Defaults to `0`. |
 | `config.endpoint` | required for `ollama`, `openai-compatible` | API endpoint URL |
 | `config.max_tokens` | no | Response budget. `auto` queries the provider. |
-| `config.timeout` | no | Per-call timeout in seconds |
+| `config.timeout` | no | Per-call timeout in seconds. Defaults to `300`. Applies to CLI providers only (non-CLI/API providers ignore it). |
 | `config.context_length_field` | no | Ollama: model info field override for context length |
 
 ### Supported providers

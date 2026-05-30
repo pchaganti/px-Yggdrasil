@@ -59,8 +59,10 @@ when:
 
 Use \`enforce: strict\` for types carrying critical aspects (security,
 auditing, etc) where missing the type means missing the aspect. Strict
-guarantees: every file matching \`when\` must be in a mapping of this
-type. Closes the type-shopping evasion entirely for the type.
+guarantees coverage in both directions: forward — every file in a mapping
+of this type must satisfy \`when\` — and strict backward — every file in the
+repo matching \`when\` must be in a mapping of this type (and of the right
+type). Closes the type-shopping evasion entirely for the type.
 
 Don't use \`enforce: strict\` when the \`when\` predicate is broad (e.g.
 \`path: "**"\`) — every repo file would be required in that type's mapping.

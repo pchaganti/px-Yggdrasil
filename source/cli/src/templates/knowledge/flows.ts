@@ -26,14 +26,23 @@ the same nodes.
 \`\`\`yaml
 name: order-processing
 description: Customer places an order, payment is captured, fulfillment is notified
-nodes:
+nodes:                  # alias: participants
   - orders            # parent — descendants auto-included
   - payments/charge
   - fulfillment/notify
 aspects:
-  - deterministic
-  - correlation-tracking
+  - deterministic                 # bare string
+  - id: correlation-tracking      # object form
+    when: <predicate>             # optional — per-site applicability filter
 \`\`\`
+
+\`description\` is required — a flow without it blocks \`yg check\` (the
+validator emits \`description-missing\`). \`nodes:\` may also be written as
+\`participants:\` (alias); the two are interchangeable.
+
+Flow-level aspects accept either a bare string or the object form
+\`{ id, when }\`. The \`when\` predicate filters applicability per
+participant — see \`yg knowledge read conditional-aspects\` for the grammar.
 
 Schema: \`schemas/yg-flow.yaml\`.
 

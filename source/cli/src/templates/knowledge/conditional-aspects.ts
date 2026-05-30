@@ -8,19 +8,24 @@ false, the aspect is silently skipped on that node — no reviewer call, no cost
 
 ## Two distinct \`when\` grammars
 
-There are TWO predicate grammars. They share only the boolean combinators
-(\`all_of\`, \`any_of\`, \`not\`); their atomic clauses are completely different.
-Do not mix atoms across them.
+There are TWO predicate grammars. They share the same boolean operator names
+(\`all_of\`, \`any_of\`, \`not\`), but their atomic clauses are completely
+different — each grammar inspects a different kind of subject. The operators
+are interchangeable; the atoms are NOT. Never use an atom from one grammar in
+the other.
 
-1. **Aspect-when** — filters whether an aspect applies to a node. Used by
-   EVERY aspect attach site: the aspect's own \`yg-aspect.yaml\` \`when:\`,
-   \`yg-node.yaml\` aspects and ports, \`yg-architecture.yaml\`
-   \`node_types.*.aspects[].when\`, \`yg-flow.yaml\` aspects, and \`implies\`
-   edges. Atoms inspect the NODE: its type, ports, mapping, and relations.
+1. **Aspect-when** — node-level applicability: filters whether an aspect
+   applies to a NODE. Used by EVERY aspect attach site: the aspect's own
+   \`yg-aspect.yaml\` \`when:\`, \`yg-node.yaml\` aspects and ports,
+   \`yg-architecture.yaml\` \`node_types.*.aspects[].when\`, \`yg-flow.yaml\`
+   aspects, and \`implies\` edges. Its atoms are \`node\`, \`relations\`, and
+   \`descendants\` — they inspect the node's type, ports, mapping, and relations.
 
-2. **File-when** — classifies which source FILES belong to a node type. Used
-   ONLY in \`yg-architecture.yaml\` \`node_types.*.when\`. Atoms inspect a single
-   file: its path and content. (Deep dive: \`yg knowledge read working-with-architecture\`.)
+2. **File-when** — architecture file classification: decides which source
+   FILES belong to a node type. Used ONLY in \`yg-architecture.yaml\`
+   \`node_types.*.when\`. Its atoms are \`path\` and \`content\` — they inspect a
+   single file's repo-relative path and its text. (Deep dive:
+   \`yg knowledge read working-with-architecture\`.)
 
 This document is about aspect-when unless a section is explicitly labelled
 file-when.
@@ -61,14 +66,14 @@ when:
 \`\`\`
 
 Rules the parser enforces:
-- A bare relation-type match (e.g. \`relations: { emits: {} }\` is NOT valid —
-  you must give at least one of \`target_type\`, \`target\`, \`consumes_port\`).
-  A relation clause that names a type and a match means "at least one relation
-  of that type satisfies the match" — there is no count operator.
+- A relation-type entry must carry a match. \`relations: { emits: {} }\` is
+  rejected — give at least one of \`target_type\`, \`target\`, or
+  \`consumes_port\`. A relation clause then means "at least one relation of that
+  type satisfies the match"; there is no count operator.
 - A \`node\`, \`relations\`, or \`descendants\` clause must carry at least one
   inner field; an empty clause is rejected.
-- You cannot mix a boolean operator with atomic clauses at the same level, and
-  you may use at most one boolean operator per level. Nest to combine.
+- At a single level, use EITHER one boolean operator OR atomic clauses — not
+  both, and at most one boolean operator. To combine more, nest another level.
 
 ### A node calls a service client
 

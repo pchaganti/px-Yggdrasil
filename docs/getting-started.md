@@ -26,10 +26,11 @@ The wizard asks two things:
 That's it. Takes about a minute. The wizard creates `.yggdrasil/` with
 config, schemas, architecture defaults, and the rules file for your platform.
 
-The architecture file (`.yggdrasil/yg-architecture.yaml`) comes pre-configured
-with common node types: `module`, `service`, `library`, `infrastructure`, `data`.
-These work out of the box. You can customize them later — add new types, set
-default aspects per type, constrain relations. Tell the agent to do it:
+The architecture file (`.yggdrasil/yg-architecture.yaml`) ships with an empty
+architecture (`node_types: {}`) and commented examples — node types are defined
+per project, not pre-configured. You add the types your project needs: define
+new types, set default aspects per type, constrain relations. Tell the agent to
+do it:
 
 > "Add a node type 'api' with a default aspect 'requires-auth'."
 
@@ -66,7 +67,7 @@ The agent will create:
 .yggdrasil/
   aspects/
     requires-audit/
-      yg-aspect.yaml       ← name and description
+      yg-aspect.yaml       ← name, description, reviewer: { type: llm }
       content.md            ← the actual rule (plain Markdown)
   model/
     payments/

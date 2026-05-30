@@ -117,6 +117,11 @@ demands.
 To resolve a downgrade error: remove the explicit lower status from the
 attach site, or raise the lower-ranked channel to match.
 
+This `max()` computation and the downgrade check apply to the cascading
+attach channels 1–6 (own, ancestor, own type, ancestor type, flows,
+ports). Channel 7 (implies) does not declare a `status:` — it carries
+`status_inherit:` instead, described in the next section.
+
 ## Implies propagation
 
 For aspect `A` that implies aspect `B`, propagation to a node depends on

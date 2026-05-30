@@ -46,7 +46,8 @@ happened to the plan or the code.
 - Entry headers \`## [<ISO datetime UTC with milliseconds>]\` are reserved.
 - Sub-headings in your \`--reason\` must be level 3+ (\`###\` or deeper).
 - Do not put a level-2 heading (\`##\`) at the start of any line in your
-  \`--reason\` content — UNLESS inside a fenced code block, those are allowed.
+  \`--reason\` content. Only a real line-start level-2 heading is the
+  problem — a \`## \` that appears inside a fenced code block is allowed.
 - Multi-line content via bash \`$'multi\\nline'\` or via \`--reason-file <path>\`
   (the file-based form is cross-platform; it reads the entire file as the
   entry body).

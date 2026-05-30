@@ -69,10 +69,10 @@ When cascade scope is high:
 
 ## Cost
 
-A drifted node makes one LLM call per effective non-draft LLM aspect during
-approve (× the tier's consensus count). AST and structure aspects re-verify
-locally at zero LLM cost, so a node whose aspects are all AST/structure
-re-approves with no LLM call.
+A drifted node makes at least one LLM call per effective non-draft LLM aspect
+during approve (× the tier's consensus count × the number of prompt chunks).
+AST and structure aspects re-verify locally at zero LLM cost, so a node whose
+aspects are all AST/structure re-approves with no LLM call.
 
 | Scenario | LLM calls |
 |----------|-------|
@@ -127,8 +127,8 @@ cycle until approve succeeds.
 
 \`\`\`bash
 yg approve --node A --node B --node C      # explicit batch
-yg approve --aspect audit-logging          # all nodes with this aspect
-yg approve --flow order-processing         # all nodes in this flow
+yg approve --aspect audit-logging          # only nodes with cascade drift from this aspect
+yg approve --flow order-processing         # only nodes with cascade drift from this flow
 yg approve --dry-run --node <path>         # preview without LLM call
 \`\`\`
 
@@ -160,8 +160,8 @@ Transitions:
 - \`draft → advisory/enforced\` → drift emitted as \`aspect-newly-active\`
   (missing baseline). Run \`yg approve --node <path>\`.
 - \`advisory ↔ enforced\` → not drift, but rendering severity may flip.
-- \`active → draft\` → not drift. Stale baseline entries cleared lazily
-  on next \`yg approve\` of the node.
+- \`advisory/enforced → draft\` → not drift. Stale baseline entries cleared
+  lazily on next \`yg approve\` of the node.
 
 See: \`yg knowledge read aspect-status\`.
 `;

@@ -16,7 +16,7 @@ This page is for inspecting or debugging your graph and enforcement state.
 | `yg context --file <path>` / `--node <path>` | Assemble context package |
 | `yg impact --file <path>` / `--node <path>` / `--aspect <id>` / `--flow <name>` / `--type <id>` | Blast radius analysis |
 | `yg check` | Unified gate — everything wrong, always global |
-| `yg approve --node <paths...>` / `--aspect <id>` / `--flow <name>` | Record baseline after review |
+| `yg approve --node <path>` (repeatable) / `--aspect <id>` / `--flow <name>` | Record baseline after review |
 | `yg log add` / `read` / `merge-resolve` | Per-node append-only business log |
 
 ### `yg context`
@@ -91,7 +91,7 @@ Records the current file state as the new baseline after review.
 
 ```bash
 yg approve --node <path>
-yg approve --node <path1> <path2> <path3>
+yg approve --node <path1> --node <path2> --node <path3>
 yg approve --aspect <id>
 yg approve --flow <name>
 yg approve --dry-run --node <path>
@@ -99,8 +99,9 @@ yg approve --dry-run --node <path>
 
 Exactly one of `--node`, `--aspect`, or `--flow` is required.
 
-- `--node <paths...>` — One or more node paths to approve. When a single node has no mapping,
-  CLI redirects to batch-approve its children with cascade drift.
+- `--node <path>` (repeatable) — One or more node paths to approve, passing `--node` once per
+  path. When a single node has no mapping, CLI redirects to batch-approve its children with
+  cascade drift.
 - `--aspect <id>` — Batch approve all nodes with cascade drift from this aspect.
 - `--flow <name>` — Batch approve all nodes with cascade drift from this flow.
 - `--dry-run` — Show what would be sent to the reviewer (aspects, source files, prompt)
@@ -130,7 +131,8 @@ yg log merge-resolve --node <path>
   Requires `--node`. When `log_required: true` is set on the node's type (the default),
   `yg approve` enforces that at least one log entry exists before running the reviewer.
 - `read` — Print entries newest-first. Default: top 10. `--top N` shows N entries.
-  `--all` shows the full history. Use this before editing a node to understand past decisions.
+  `--all` shows the full history. `--top` and `--all` are mutually exclusive. Use this
+  before editing a node to understand past decisions.
 - `merge-resolve` — Reconcile `log.md` after a git merge. Must be run from a merge commit.
   Validates byte-exact ancestor portion and unions new entries from both branches.
   Never manually concatenate log files — integrity hashes will break.
@@ -161,8 +163,8 @@ yg tree [--root <path>] [--depth <n>]
 
 ### `yg find`
 
-Natural-language search across nodes, aspects, and flows. Returns results ranked by
-relevance with score, kind (node/aspect/flow), and a short description.
+Natural-language search across nodes and aspects (flows are not indexed). Returns results
+ranked by relevance with score, kind (node/aspect), and a short description.
 
 ```bash
 yg find "order cancellation"
@@ -180,7 +182,8 @@ Lists all defined aspects with metadata.
 yg aspects
 ```
 
-Output: YAML format with fields: `id`, `name`, `description`, `implies`.
+Output: a custom human-readable line format (not YAML) with fields: `id`, `name`,
+`description`, `implies`.
 
 ### `yg flows`
 
@@ -190,7 +193,8 @@ Lists all defined flows with metadata.
 yg flows
 ```
 
-Output: YAML format with fields: `name`, `nodes` (participants), `aspects`.
+Output: a custom human-readable line format (not YAML) with fields: `name`, `nodes`
+(participants), `aspects`.
 
 ### `yg owner`
 
@@ -235,10 +239,10 @@ yg knowledge list
 yg knowledge read <name>
 ```
 
-Available topics include: `flows`, `ports-and-relations`, `aspects-overview`,
-`writing-llm-aspects`, `writing-ast-aspects`, `conditional-aspects`,
-`drift-and-cascade`, `log-management`, `suppress-syntax`, `working-with-architecture`,
-`configuration`, `cli-reference`.
+Available topics include: `working-with-architecture`, `aspects-overview`, `aspect-status`,
+`writing-llm-aspects`, `writing-ast-aspects`, `writing-structure-aspects`,
+`conditional-aspects`, `suppress-syntax`, `drift-and-cascade`, `configuration`,
+`cli-reference`, `log-management`, `ports-and-relations`, `flows`.
 
 Run `yg knowledge list` to see the current list with one-line descriptions.
 

@@ -34,6 +34,10 @@ See agent-rules.md "Aspect Discovery" for the brownfield triggers
 (repeated patterns, "invisible" cross-cutting concerns) — also not
 duplicated here.
 
+While the rule is still being authored or is unclear, give the aspect
+\`status: draft\` — a draft aspect is WIP, so the reviewer never runs on it
+and it costs zero.
+
 ## LLM vs AST
 
 Three reviewer types exist. This section contrasts the two most common, LLM and
@@ -90,11 +94,11 @@ If it misses violations that require reading intent, switch to LLM.
 
 ## Cost model
 
-Every effective non-draft LLM aspect on a node = one reviewer call during
-\`yg approve\` (multiplied by the tier's consensus count). AST and structure
-aspects run locally at zero LLM cost. A node with 5 LLM aspects = at least 5
-reviewer calls. An LLM aspect touching 20 nodes = at least 20 calls when you
-run \`yg approve --aspect <id>\`.
+Every effective non-draft LLM aspect on a node = at least one reviewer call
+during \`yg approve\`, multiplied by the tier's consensus count AND by the
+number of prompt chunks. AST and structure aspects run locally at zero LLM
+cost. A node with 5 LLM aspects = at least 5 reviewer calls. An LLM aspect
+touching 20 nodes = at least 20 calls when you run \`yg approve --aspect <id>\`.
 
 Use \`yg impact --aspect <id>\` before creating or modifying a widely-used
 aspect to assess the re-approval cost.

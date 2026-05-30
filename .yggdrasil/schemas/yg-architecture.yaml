@@ -30,10 +30,13 @@ node_types:
                                              # See: yg knowledge read working-with-architecture
 
     enforce: strict                          # optional — bidirectional enforcement.
-                                             # Requires `when`. Every repo file matching `when` MUST
-                                             # be in a mapping of a node of this type (backward scan).
+                                             # Requires `when`. Every repo file matching the type's
+                                             # `when` MUST belong to exactly one node of this type
+                                             # (backward scan). A matching file owned by no such node
+                                             # emits type-strict-orphan; one owned by a node of a
+                                             # different type emits type-strict-misplaced.
                                              # Use only for types where missing the type means missing
-                                             # a critical aspect (security, audit, regulatory). Spec §3.
+                                             # a critical aspect (security, audit, regulatory).
 
     log_required: <boolean>                  # optional — default true. Set false for infrastructure
                                              # or utility types where an approval log adds no value
