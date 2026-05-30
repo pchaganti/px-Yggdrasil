@@ -1,0 +1,7 @@
+name: Approve LLM Dispatch Unit Tests
+type: test-suite
+description: "Unit tests for the approve LLM reviewer dispatch — runApproveWithReviewer across the core and CLI layers, advisory-status code violations, execution-plan resolution, and AST aspect handling and error paths."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/core/approve-llm.test.ts

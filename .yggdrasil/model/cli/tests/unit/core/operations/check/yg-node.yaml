@@ -1,9 +1,8 @@
-name: Check Operation Unit Tests
+name: Check Operation Drift & Log Unit Tests
 type: test-suite
-description: "Unit tests for the check orchestration — drift detection, aspect-status surfacing, and log handling."
+description: "Unit tests for the check orchestration — drift classification (source, upstream, cascade) and log handling."
 aspects: []
 relations: []
 mapping:
-  - source/cli/tests/unit/core/check.test.ts
-  - source/cli/tests/unit/core/check-aspect-status.test.ts
+  - source/cli/tests/unit/core/check-drift.test.ts
   - source/cli/tests/unit/core/check-log.test.ts

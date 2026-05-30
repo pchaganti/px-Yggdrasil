@@ -1,0 +1,7 @@
+name: Migration to-5.0.0 Tests
+type: test-suite
+description: Unit tests for the version 5.0.0 migration
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/migrations/to-5.0.0.test.ts

@@ -1,5 +1,5 @@
 {
-  "hash": "9070313956b89ce47fdada3f8c076d2e1b429410699c0231f522216a5e8ee7c7",
+  "hash": "82f2552d8847d220cda03a3b91f8e35fb25270f0e42379a5e8721b720e9fc6cd",
   "files": {
     "own-subset:cli/tests/unit/core/operations/other": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -10,10 +10,7 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": "a5408f7e331d1e28996ceaf2b67c4fada5e52ee3909db85a7904aae88cd55146",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/core/effective-aspects.test.ts": "e8cdb09dd9778ad5e4fe8dd0e605cd727b3e82fe38ca08ef28e0b4e24304a3fc",
-    "source/cli/tests/unit/core/log-format.test.ts": "bb52340c7c6cbc08dad98efbb81aa8fe9f7888c2a81d9e684f9602a96d4b592f",
-    "source/cli/tests/unit/core/log-integrity.test.ts": "aa2ee7eb50e2dc30ea0afafe1ce36ef48ad6cec59ec85a136cee3748c46e9b21",
-    "source/cli/tests/unit/core/impact.test.ts": "01c7ab4ea41ce25874d6943580139f976b551a5b8e3609ce89fefc032da96074"
+    "source/cli/tests/unit/core/effective-aspects.test.ts": "e8cdb09dd9778ad5e4fe8dd0e605cd727b3e82fe38ca08ef28e0b4e24304a3fc"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -23,10 +20,7 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": 1779996108975.9385,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/effective-aspects.test.ts": 1779867496240.9702,
-    "source/cli/tests/unit/core/impact.test.ts": 1780077945488.2178,
-    "source/cli/tests/unit/core/log-format.test.ts": 1778573444835.2947,
-    "source/cli/tests/unit/core/log-integrity.test.ts": 1778573590477.678
+    "source/cli/tests/unit/core/effective-aspects.test.ts": 1779867496240.9702
   },
   "aspectVerdicts": {
     "test-deterministic": {

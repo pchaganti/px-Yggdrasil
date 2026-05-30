@@ -1,15 +1,8 @@
-name: Approve Operation Unit Tests
+name: Approve Operation Core Algorithm Unit Tests
 type: test-suite
-description: "Unit tests for the approve orchestration — core algorithm, LLM dispatch, log integration, reviewer-side references, and aspect-status verdict propagation."
+description: "Unit tests for the core approve orchestration algorithm — proper/no-aspect/deleted-file node approval, GC and recording, aspect resolution, drift cleanup, and upstream-change annotation. LLM dispatch, log integration, references, aspect-status, verdicts, and reviewer-structure tests live in sibling child suites."
 aspects: []
 relations: []
 mapping:
   - source/cli/tests/unit/core/approve.test.ts
-  - source/cli/tests/unit/core/approve-llm.test.ts
-  - source/cli/tests/unit/core/approve-log.test.ts
-  - source/cli/tests/unit/core/approve-reviewer-references.test.ts
-  - source/cli/tests/unit/core/approve-aspect-status.test.ts
-  - source/cli/tests/unit/core/approve-aspect-verdicts.test.ts
   - source/cli/tests/unit/core/approve-annotate.test.ts
-  - source/cli/tests/unit/core/approve-reviewer-structure.test.ts
-  - source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts

@@ -1,0 +1,32 @@
+{
+  "hash": "9c793b6021b480ccbb82d0b38eec7ce60feafb79a9c4b9ad653cab603907bc46",
+  "files": {
+    "own-subset:cli/tests/integration/structure/cross-node-and-concurrency": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
+    ".yggdrasil/model/cli/tests/integration/yg-node.yaml": "f6203e633f0cb0b6bc84c3337606df49a00920a414f6557fe2f3f91bfd034442",
+    ".yggdrasil/model/cli/tests/integration/structure/yg-node.yaml": "c86885bb35b1be5d79271dbb1e33bf676dc2e17c51c46e2e20d13f9020809089",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
+    ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/integration/structure-cold-start.test.ts": "c780f00ef87c31986055e9dd325c80d79f4fd098c5963ff8bf63e42db43301b8",
+    "source/cli/tests/integration/structure-concurrent-approve.test.ts": "7853a9c50a310003fecd16ae33ea83594eed4d2039b1936be762de940721736e",
+    "source/cli/tests/integration/structure-cross-node-drift.test.ts": "177f2b3fb93cd6592290ae964b3ce2aaa8c60b033c85aae02b3a075d8860c887"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
+    ".yggdrasil/model/cli/tests/integration/yg-node.yaml": 1778923836291.2395,
+    ".yggdrasil/model/cli/tests/integration/structure/yg-node.yaml": 1780103155819.3481,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
+    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
+    "source/cli/tests/integration/structure-cold-start.test.ts": 1780049478468.9333,
+    "source/cli/tests/integration/structure-concurrent-approve.test.ts": 1780050356245.7988,
+    "source/cli/tests/integration/structure-cross-node-drift.test.ts": 1780074132218.9678
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
+  }
+}

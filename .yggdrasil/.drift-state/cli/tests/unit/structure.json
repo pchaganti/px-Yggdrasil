@@ -1,5 +1,5 @@
 {
-  "hash": "1d1883d18d2bb5f474a2020dd3c0fc337d33b7b7b3798d74cae735a4bc0ebb7a",
+  "hash": "b0e326817d2a7fcde7d44273e3eb724333e6533eddf7f16229fbd26663bf0b0a",
   "files": {
     "own-subset:cli/tests/unit/structure": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -9,12 +9,9 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/structure/expand-mapping-sync.test.ts": "bc89c07d63fa1ed6e9d16f8f09902752d7dfa6f6396ae096340abf856dce3a5d",
-    "source/cli/tests/unit/structure/allowed-reads.test.ts": "bf0a40a32add185889fe58af0724d0097314dc9718ea74aa9367a8e2dedf1f11",
-    "source/cli/tests/unit/structure/allowed-reads-conformance.test.ts": "f4cb931f4802ae7c98b8fff94d36fb4c4f03a42732797b1705fd4984fc2cbdd1",
     "source/cli/tests/unit/structure/ctx-fs.test.ts": "b816528d2b0f3ad04dba3e6118b11260a30a552a8a07776e94844b5268e389ec",
     "source/cli/tests/unit/structure/ctx-graph.test.ts": "25cef7c41688caa8ac25487d2b44d55ee50874aaae2b3634754d30b239b1c657",
-    "source/cli/tests/unit/structure/ctx-parsers.test.ts": "ae0858a34338604673a33545bf4c23b1bedb319b0f404116bb0828dbe98f9995",
-    "source/cli/tests/unit/structure/runner.test.ts": "6a215fe0f8f0200599e264813c0f3a75040e1e2409f2ca2007aa794a46a62a81"
+    "source/cli/tests/unit/structure/ctx-parsers.test.ts": "ae0858a34338604673a33545bf4c23b1bedb319b0f404116bb0828dbe98f9995"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -23,12 +20,9 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/structure/expand-mapping-sync.test.ts": 1780031216276.4795,
-    "source/cli/tests/unit/structure/allowed-reads.test.ts": 1780034132334.0703,
-    "source/cli/tests/unit/structure/allowed-reads-conformance.test.ts": 1780034762498.9387,
     "source/cli/tests/unit/structure/ctx-fs.test.ts": 1780063667134.9392,
     "source/cli/tests/unit/structure/ctx-graph.test.ts": 1780063554381.5352,
-    "source/cli/tests/unit/structure/ctx-parsers.test.ts": 1780063533185.2603,
-    "source/cli/tests/unit/structure/runner.test.ts": 1780078373717.7446
+    "source/cli/tests/unit/structure/ctx-parsers.test.ts": 1780063533185.2603
   },
   "log": {
     "last_entry_datetime": "2026-05-29T18:15:44.596Z",

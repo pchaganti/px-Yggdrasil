@@ -1,0 +1,36 @@
+{
+  "hash": "fdf68e99ccd418cf58f3e5041a7ef7b18eea02672864b5d761e0871195bd4524",
+  "files": {
+    "own-subset:cli/tests/unit/support/formatters/diagnostic-messages": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
+    ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": "e00d9fa0fe37a252b92888b2e217811de7fa6df420f60cdbc3e692833a16be4d",
+    ".yggdrasil/model/cli/tests/unit/support/formatters/yg-node.yaml": "df7d4bb6640f1a3aea339f10d718e3c31c2f05a7b19e7aec6344b1825b33de86",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
+    ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/unit/formatters/issue-message-snapshots.test.ts": "67654d74804714a122f850a3290e35349468d7d6eeb149e585184c12501155db",
+    "source/cli/tests/unit/formatters/__snapshots__/issue-message-snapshots.test.ts.snap": "0e15e9799478a6720fa5387350db849f611a9f4428dbf2d474cb99b416c3177c",
+    "source/cli/tests/unit/formatters/message-builder.test.ts": "dae4e20ba6f4bc07f48c3f5ebf07b057d9503e21dbd67dd94f6288d83afded97",
+    "source/cli/tests/unit/formatters/predicate-trace.test.ts": "d9ec5fe6351e5ecfb8b5903bcb5d1b3a170d67dd1a94e585eb3181b482b3eba2"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
+    ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": 1778866544645.0125,
+    ".yggdrasil/model/cli/tests/unit/support/formatters/yg-node.yaml": 1780103153177.935,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
+    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
+    "source/cli/tests/unit/formatters/issue-message-snapshots.test.ts": 1779983258129.4502,
+    "source/cli/tests/unit/formatters/__snapshots__/issue-message-snapshots.test.ts.snap": 1779983261697.277,
+    "source/cli/tests/unit/formatters/message-builder.test.ts": 1776177846287.37,
+    "source/cli/tests/unit/formatters/predicate-trace.test.ts": 1778650989394.8916
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
+  }
+}

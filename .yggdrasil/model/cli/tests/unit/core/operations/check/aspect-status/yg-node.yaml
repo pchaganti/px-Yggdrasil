@@ -1,0 +1,7 @@
+name: Check Aspect-Status Surfacing Unit Tests
+type: test-suite
+description: "Unit tests for how the check orchestration surfaces aspect-status (draft, advisory, enforced) in drift and verdict rendering."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/core/check-aspect-status.test.ts

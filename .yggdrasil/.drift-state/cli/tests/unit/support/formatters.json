@@ -1,5 +1,5 @@
 {
-  "hash": "0a402870c6809b99873abe5e4be68e374ba31cc7967970883d37180dc02a2198",
+  "hash": "dac8ff3c2bcb8b974d073af50b689fff34b9043979ddd4e3a6527f8e3e8fdf4e",
   "files": {
     "own-subset:cli/tests/unit/support/formatters": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -12,11 +12,7 @@
     "source/cli/tests/unit/formatters/cli-preamble.test.ts": "c94879afee429cd66e72ae15f562839245c6ecea547ef7bf4d084d1ece13d822",
     "source/cli/tests/unit/formatters/context-file.test.ts": "95e71b00c9550ce331544c9ef3c4bea826d2dd146772ca8a897e846c353cdfb6",
     "source/cli/tests/unit/formatters/context-node.test.ts": "ea97bbb7763e2c1016ab4b890dcf154dffa13cacf59c1be0419508a0e8bf3459",
-    "source/cli/tests/unit/formatters/context-references.test.ts": "ce314d44224f461803dc9aae04cd1b45967767ae0a4344e51d5dbcbc4f5d4298",
-    "source/cli/tests/unit/formatters/issue-message-snapshots.test.ts": "67654d74804714a122f850a3290e35349468d7d6eeb149e585184c12501155db",
-    "source/cli/tests/unit/formatters/message-builder.test.ts": "dae4e20ba6f4bc07f48c3f5ebf07b057d9503e21dbd67dd94f6288d83afded97",
-    "source/cli/tests/unit/formatters/predicate-trace.test.ts": "d9ec5fe6351e5ecfb8b5903bcb5d1b3a170d67dd1a94e585eb3181b482b3eba2",
-    "source/cli/tests/unit/formatters/__snapshots__/issue-message-snapshots.test.ts.snap": "0e15e9799478a6720fa5387350db849f611a9f4428dbf2d474cb99b416c3177c"
+    "source/cli/tests/unit/formatters/context-references.test.ts": "ce314d44224f461803dc9aae04cd1b45967767ae0a4344e51d5dbcbc4f5d4298"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -28,11 +24,7 @@
     "source/cli/tests/unit/formatters/cli-preamble.test.ts": 1778957142618.7937,
     "source/cli/tests/unit/formatters/context-file.test.ts": 1779977514726.3618,
     "source/cli/tests/unit/formatters/context-node.test.ts": 1779977538031.67,
-    "source/cli/tests/unit/formatters/context-references.test.ts": 1779956331168.1033,
-    "source/cli/tests/unit/formatters/issue-message-snapshots.test.ts": 1779983258129.4502,
-    "source/cli/tests/unit/formatters/__snapshots__/issue-message-snapshots.test.ts.snap": 1779983261697.277,
-    "source/cli/tests/unit/formatters/message-builder.test.ts": 1776177846287.37,
-    "source/cli/tests/unit/formatters/predicate-trace.test.ts": 1778650989394.8916
+    "source/cli/tests/unit/formatters/context-references.test.ts": 1779956331168.1033
   },
   "log": {
     "last_entry_datetime": "2026-05-28T15:48:35.256Z",

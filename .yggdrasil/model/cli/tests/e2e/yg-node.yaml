@@ -1,7 +1,7 @@
-name: E2E Tests
+name: E2E Tests — Query and Navigation
 type: test-suite
-description: Subprocess-based end-to-end tests that spawn the compiled dist/bin.js binary and assert on stdout/stderr/exit code
+description: Subprocess-based end-to-end tests that spawn the compiled dist/bin.js binary and assert on stdout/stderr/exit code for read-only query and navigation commands (help, version, aspects, tree, check, context, owner, find, flows, knowledge, type-suggest)
 aspects: []
 relations: []
 mapping:
-  - source/cli/tests/e2e/cli.test.ts
+  - source/cli/tests/e2e/cli-query.test.ts

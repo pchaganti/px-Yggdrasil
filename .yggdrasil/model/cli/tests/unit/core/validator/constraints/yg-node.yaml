@@ -1,0 +1,8 @@
+name: Validator Constraint Tests
+type: test-suite
+description: Unit tests for validator architecture and port/relation constraints (relation-target/parent-type rules, port consumes, integration-aspect-missing, when-schema checks) and aspect-status handling
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/core/validator-constraints.test.ts
+  - source/cli/tests/unit/core/validator-aspect-status.test.ts

@@ -1,0 +1,34 @@
+{
+  "hash": "765f9d1e847a48c2b92315fa675ed1bbaabae0a658d6bafd6b4c8e3a0b43f0b4",
+  "files": {
+    "own-subset:cli/tests/unit/support/io/drift-state-store": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
+    ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": "e00d9fa0fe37a252b92888b2e217811de7fa6df420f60cdbc3e692833a16be4d",
+    ".yggdrasil/model/cli/tests/unit/support/io/yg-node.yaml": "24199834e04bff9d1ce415cdfcfc5c8fb7c61080b040732d46f509e66cd4819d",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
+    ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/unit/io/drift-state-store.test.ts": "2a17b835327a709d04c2c7d7ffead78367de14f3991d7c61961423690cab1c9a",
+    "source/cli/tests/unit/io/drift-state-store-status.test.ts": "f961dd0539df4db27361fbd3c39cceba644c294d7d7fc90efb278d33babf60de",
+    "source/cli/tests/unit/io/drift-state-store-structure.test.ts": "5ccf8ce123d5a13d029c0e4921127e3605ff2df56f86062557226648485b3bd8"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
+    ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": 1778866544645.0125,
+    ".yggdrasil/model/cli/tests/unit/support/io/yg-node.yaml": 1780103612866.827,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
+    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
+    "source/cli/tests/unit/io/drift-state-store.test.ts": 1778918658054.3496,
+    "source/cli/tests/unit/io/drift-state-store-status.test.ts": 1779974998796.8467,
+    "source/cli/tests/unit/io/drift-state-store-structure.test.ts": 1780039166651.6616
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
+  }
+}

@@ -1,0 +1,7 @@
+name: Impact Computation Unit Tests
+type: test-suite
+description: "Unit tests for impact computation — the blast radius of a graph change across affected nodes."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/core/impact.test.ts

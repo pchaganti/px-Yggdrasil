@@ -1,0 +1,9 @@
+name: Drift State Store Tests
+type: test-suite
+description: "Unit tests for the drift-state-store I/O adapter — core read/write behavior, status persistence, and on-disk structure"
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/io/drift-state-store.test.ts
+  - source/cli/tests/unit/io/drift-state-store-status.test.ts
+  - source/cli/tests/unit/io/drift-state-store-structure.test.ts

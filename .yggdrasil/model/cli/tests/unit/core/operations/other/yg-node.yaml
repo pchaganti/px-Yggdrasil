@@ -1,10 +1,7 @@
-name: Core Operations Support Unit Tests
+name: Effective-Aspect Resolution Unit Tests
 type: test-suite
-description: "Unit tests for supporting core operations — effective-aspect resolution, impact computation, and log format / integrity helpers."
+description: "Unit tests for effective-aspect resolution — how aspects accumulate on a node across cascading channels."
 aspects: []
 relations: []
 mapping:
   - source/cli/tests/unit/core/effective-aspects.test.ts
-  - source/cli/tests/unit/core/impact.test.ts
-  - source/cli/tests/unit/core/log-format.test.ts
-  - source/cli/tests/unit/core/log-integrity.test.ts

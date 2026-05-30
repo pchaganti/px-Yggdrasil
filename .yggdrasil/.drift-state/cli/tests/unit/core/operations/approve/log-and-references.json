@@ -1,0 +1,34 @@
+{
+  "hash": "ee727e7b87047dc5dfae6c4978e2578ba80e8ecd1ce776f70761135c34782571",
+  "files": {
+    "own-subset:cli/tests/unit/core/operations/approve/log-and-references": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
+    ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": "de00f518b04112cb692d73d15acfd232c3f1874b163d22d482f0b8e5a7163f48",
+    ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": "a5408f7e331d1e28996ceaf2b67c4fada5e52ee3909db85a7904aae88cd55146",
+    ".yggdrasil/model/cli/tests/unit/core/operations/approve/yg-node.yaml": "03e8e97452ea62eeca43edd2f87c500f7124dff455227599dd3f00227cb558fc",
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
+    ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/unit/core/approve-log.test.ts": "02574172052e6f58213b40cd0462bb54bdf7645203e3d41f2f12fc5f02c04da4",
+    "source/cli/tests/unit/core/approve-reviewer-references.test.ts": "dabdc0fd293c842acc049b73cf1f774436c4146ce99282a860a94a88d62ca9b5"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
+    ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": 1778866543616.299,
+    ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": 1779996108975.9385,
+    ".yggdrasil/model/cli/tests/unit/core/operations/approve/yg-node.yaml": 1780103162436.2014,
+    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
+    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
+    "source/cli/tests/unit/core/approve-log.test.ts": 1780068415720.9775,
+    "source/cli/tests/unit/core/approve-reviewer-references.test.ts": 1779957604783.6033
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
+  }
+}

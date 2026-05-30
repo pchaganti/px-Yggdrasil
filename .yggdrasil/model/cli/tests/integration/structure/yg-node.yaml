@@ -1,6 +1,6 @@
 name: Integration Structure Tests
 type: test-suite
-description: Integration tests for the structure-aspect CLI command (yg structure-test) — verifies end-to-end behavior including violations, graph-level output, and --check-determinism flag.
+description: Integration tests for the structure-aspect CLI command (yg structure-test) — verifies command output (violations, graph-level rendering, --check-determinism), the create→approve→edit→re-approve lifecycle, aspect-status behavior (draft/advisory/enforced), and implied-aspect drift.
 aspects: []
 relations: []
 mapping:
@@ -8,6 +8,3 @@ mapping:
   - source/cli/tests/integration/structure-lifecycle.test.ts
   - source/cli/tests/integration/structure-aspect-status.test.ts
   - source/cli/tests/integration/structure-implies.test.ts
-  - source/cli/tests/integration/structure-cold-start.test.ts
-  - source/cli/tests/integration/structure-concurrent-approve.test.ts
-  - source/cli/tests/integration/structure-cross-node-drift.test.ts

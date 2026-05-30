@@ -1,0 +1,8 @@
+name: Validator Reviewer Tests
+type: test-suite
+description: Unit tests for the validator reviewer configuration checks and aspect-verifier behavior
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/core/validator-reviewer.test.ts
+  - source/cli/tests/unit/core/aspect-verifier.test.ts

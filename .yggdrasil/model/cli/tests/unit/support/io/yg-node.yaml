@@ -1,16 +1,11 @@
 name: I/O Adapter Tests
 type: test-suite
-description: "Unit tests for I/O adapters that read/write runtime state — artifact-reader, config-parser, drift-state-store, find-index, schema-parser, secrets-parser"
+description: "Unit tests for I/O adapters that read/write runtime state — artifact-reader, find-index, schema-parser, secrets-parser, read-or-default (config-parser and drift-state-store tests live in child nodes)"
 aspects: []
 relations: []
 mapping:
   - source/cli/tests/unit/io/artifact-reader.test.ts
-  - source/cli/tests/unit/io/config-parser.test.ts
-  - source/cli/tests/unit/io/drift-state-store.test.ts
-  - source/cli/tests/unit/io/drift-state-store-status.test.ts
   - source/cli/tests/unit/io/find-index.test.ts
   - source/cli/tests/unit/io/schema-parser.test.ts
   - source/cli/tests/unit/io/secrets-parser.test.ts
   - source/cli/tests/unit/io/read-or-default.test.ts
-  - source/cli/tests/unit/io/config-parser-references.test.ts
-  - source/cli/tests/unit/io/drift-state-store-structure.test.ts

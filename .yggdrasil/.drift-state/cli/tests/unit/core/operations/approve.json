@@ -1,5 +1,5 @@
 {
-  "hash": "44570f6dfa860ca025d49f843290935b2d35e525a8e01f96d5f1998d0d434806",
+  "hash": "25c88db7d7af3d4c8705f8572d649b354a91692229c0410011cc6cbfa6e096a9",
   "files": {
     "own-subset:cli/tests/unit/core/operations/approve": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -11,14 +11,7 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/core/approve.test.ts": "a39b6d1264f6a8d2031de194f90eef4d8f5980efdaaeb2253cbc088c352c2902",
-    "source/cli/tests/unit/core/approve-llm.test.ts": "3398edbeedb9b02fa0b79fcc19f299aeb023e5baeec3606813f259258f7f2e1f",
-    "source/cli/tests/unit/core/approve-log.test.ts": "02574172052e6f58213b40cd0462bb54bdf7645203e3d41f2f12fc5f02c04da4",
-    "source/cli/tests/unit/core/approve-reviewer-references.test.ts": "dabdc0fd293c842acc049b73cf1f774436c4146ce99282a860a94a88d62ca9b5",
-    "source/cli/tests/unit/core/approve-aspect-status.test.ts": "fd6d0ef3578aeb0b351e6cf6bc90f52fa59ed97f28fbcc3649c8316270b431b4",
-    "source/cli/tests/unit/core/approve-annotate.test.ts": "561a9ebf0108fb3567eb1cf48dbd4b0536069ccf27707f6efc023c80d7efbda3",
-    "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": "9928028de3090bdf6a3eafc79a5a547301228aed1aeddafd464db180ba518e7d",
-    "source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts": "680358c5f234ba69c571bedba8161f02b15e702df9fd4a3dad23340197e14280",
-    "source/cli/tests/unit/core/approve-aspect-verdicts.test.ts": "b736260518c31a978cfb2a53ee25ae238d6ea51922e5d9d03316c6a9b97e3092"
+    "source/cli/tests/unit/core/approve-annotate.test.ts": "561a9ebf0108fb3567eb1cf48dbd4b0536069ccf27707f6efc023c80d7efbda3"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -29,14 +22,7 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/core/approve.test.ts": 1780068634675.9792,
-    "source/cli/tests/unit/core/approve-llm.test.ts": 1780071236770.393,
-    "source/cli/tests/unit/core/approve-log.test.ts": 1780068415720.9775,
-    "source/cli/tests/unit/core/approve-reviewer-references.test.ts": 1779957604783.6033,
-    "source/cli/tests/unit/core/approve-aspect-status.test.ts": 1780068680029.7,
-    "source/cli/tests/unit/core/approve-aspect-verdicts.test.ts": 1780089469089.7917,
-    "source/cli/tests/unit/core/approve-annotate.test.ts": 1780039619124.888,
-    "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": 1780074076586.8472,
-    "source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts": 1780071914517.0925
+    "source/cli/tests/unit/core/approve-annotate.test.ts": 1780039619124.888
   },
   "log": {
     "last_entry_datetime": "2026-05-29T21:19:15.497Z",

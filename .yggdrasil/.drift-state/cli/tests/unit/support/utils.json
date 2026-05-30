@@ -1,5 +1,5 @@
 {
-  "hash": "2d1eac27c1aea724cafad4357f679008fd470a8da7ce91aa134dbde7d743fcf0",
+  "hash": "b158a648febb54a835b83f67d17b7d233f25fe8babf42e6a845f46182ed29315",
   "files": {
     "own-subset:cli/tests/unit/support/utils": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -11,12 +11,8 @@
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/utils/atomic-write.test.ts": "4118ff79de31ea1d87c8e57c579e0f594e541f635384ebc34e1aa1e72eed5881",
     "source/cli/tests/unit/utils/debug-log.test.ts": "4e1d6069259ea219eaaecdf2b539924977fdb8264ae859c3c65f3bcf17fa0436",
-    "source/cli/tests/unit/utils/git-introspect.test.ts": "73afa6fcc2aa069006d141dc649a470c5b383ed686b2629d75e4709d6ba95e0f",
-    "source/cli/tests/unit/utils/git.test.ts": "9dc5a7232bca34cf538fb04ed621d9872151f23d9c775ba169b0275f25981f8b",
-    "source/cli/tests/unit/utils/hash.test.ts": "44c8a7a193aa92774f68a19f85f55c70bdf2dc70f9f53753a0d073d941a946e9",
     "source/cli/tests/unit/utils/node-path-validator.test.ts": "e169d6f1cdb9f70169f7705a401b625991b84a9837cf287d4386325e37e47cb3",
-    "source/cli/tests/unit/utils/paths.test.ts": "85c8e195bdb4535bfee87e6337b63da9ec71a1a67f9ae349412262ae09795993",
-    "source/cli/tests/unit/utils/repo-scan.test.ts": "09112784157befca20f197651c620d9138bb3e2b0d1eee121817463d142baed9"
+    "source/cli/tests/unit/utils/paths.test.ts": "85c8e195bdb4535bfee87e6337b63da9ec71a1a67f9ae349412262ae09795993"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -27,11 +23,12 @@
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/utils/atomic-write.test.ts": 1778848166885.919,
     "source/cli/tests/unit/utils/debug-log.test.ts": 1778910417066.699,
-    "source/cli/tests/unit/utils/git-introspect.test.ts": 1778573732088.5134,
-    "source/cli/tests/unit/utils/git.test.ts": 1778571030354.725,
-    "source/cli/tests/unit/utils/hash.test.ts": 1778960620326.6235,
     "source/cli/tests/unit/utils/node-path-validator.test.ts": 1778572617116.5535,
-    "source/cli/tests/unit/utils/paths.test.ts": 1778910897411.442,
-    "source/cli/tests/unit/utils/repo-scan.test.ts": 1778847103029.8223
+    "source/cli/tests/unit/utils/paths.test.ts": 1778910897411.442
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   }
 }

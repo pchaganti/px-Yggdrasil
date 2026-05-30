@@ -1,0 +1,7 @@
+name: E2E Tests — Impact
+type: test-suite
+description: Subprocess-based end-to-end tests that spawn the compiled dist/bin.js binary and assert on stdout/stderr/exit code for the impact command across all targeting modes (--node, --file, --aspect, --flow, --type) and mutual-exclusion errors
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-impact.test.ts
