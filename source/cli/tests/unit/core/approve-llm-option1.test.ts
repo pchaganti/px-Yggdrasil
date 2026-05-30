@@ -313,6 +313,31 @@ describe('runApproveWithReviewer — reReviewAspectIds (Option 1)', () => {
     expect(committed?.['det']).toEqual({ verdict: 'approved' });
     await rm(tmpDir, { recursive: true, force: true });
   });
+
+  it('via runLlmVerification: a --aspect approve (filterAspectId set) bypasses the drift subset', async () => {
+    const tmpDir = await setup('rereview-filteraspect');
+    await recordBaselineWithVerdicts(tmpDir);
+    // A change attributable to `det`; but the caller passes filterAspectId='llm'.
+    await writeFile(
+      path.join(tmpDir, '.yggdrasil/aspects/det/check.mjs'),
+      'export function check(_ctx) { return []; /* tweaked */ }\n',
+    );
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+
+    let verifyCallCount = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { verifyCallCount++; return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }; },
+    }));
+
+    // filterAspectId='llm' takes priority: the det-attributable drift subset is NOT
+    // computed (reReviewAspectIds suppressed), and only `llm` is dispatched.
+    const result = await runLlmVerification(graph, 'svc/my-service', coreResult, new Map(), 'llm');
+
+    expect(verifyCallCount).toBe(1); // llm ran via the filter, not the det subset
+    expect(result.aspectResults?.['det']).toBeUndefined(); // det not re-run under --aspect=llm
+    await rm(tmpDir, { recursive: true, force: true });
+  });
 });
 
 // ── Option 1: end-to-end correctness invariants ──────────────
