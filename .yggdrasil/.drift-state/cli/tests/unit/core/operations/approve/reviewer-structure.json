@@ -1,5 +1,5 @@
 {
-  "hash": "f380b1d69f6ec612d68c613d11a5247115fb0171593a769e1f8df713d28a88db",
+  "hash": "6dac372a1a2a02b99fa9736953810316916a17a14d7f4dd9433aa38d9b00cf47",
   "files": {
     "own-subset:cli/tests/unit/core/operations/approve/reviewer-structure": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -11,8 +11,8 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/approve/yg-node.yaml": "03e8e97452ea62eeca43edd2f87c500f7124dff455227599dd3f00227cb558fc",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": "9928028de3090bdf6a3eafc79a5a547301228aed1aeddafd464db180ba518e7d",
-    "source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts": "680358c5f234ba69c571bedba8161f02b15e702df9fd4a3dad23340197e14280"
+    "source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts": "680358c5f234ba69c571bedba8161f02b15e702df9fd4a3dad23340197e14280",
+    "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": "d685bec65c32e4b8cf626a596c8da92242ae162a760b6801b29186ba599c6d6c"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -23,8 +23,12 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/approve/yg-node.yaml": 1780103162436.2014,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": 1780074076586.8472,
+    "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": 1780157417242.411,
     "source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts": 1780071914517.0925
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-30T16:13:47.435Z",
+    "prefix_hash": "dccf3fc307c2a2293a87f195f06518dc52c0c7415e02aec1c5353758df8f812d"
   },
   "aspectVerdicts": {
     "test-deterministic": {
