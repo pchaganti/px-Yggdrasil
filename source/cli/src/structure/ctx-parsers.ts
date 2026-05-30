@@ -1,9 +1,11 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { extname } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { parse as parseTomlSmol } from 'smol-toml';
 import { parseFile as parseAstFile } from '../ast/parser.js';
 import type { ParseCache } from '../ast/parse-cache.js';
+import { getLanguageForExtension } from '../core/graph/language-registry.js';
 import { resolveAllowedReadPath } from './ctx-fs.js';
 import type { File } from './types.js';
 
@@ -80,4 +82,20 @@ export async function prewarmupAstCache(params: {
 
 function isAstLanguageExtension(p: string): boolean {
   return /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(p);
+}
+
+/**
+ * Return copies of `files` enriched with `language` (from the extension registry) and
+ * `ast` (from the prewarmed cache). A file whose extension has no registered grammar gets
+ * both undefined. Pure — does not parse; call prewarmupAstCache(files) first.
+ * The cache hit requires the SAME content that was prewarmed (cached.content === f.content),
+ * so pass the exact File objects that were prewarmed.
+ */
+export function enrichFilesWithAst(files: File[], astCache: ParseCache): File[] {
+  return files.map((f) => {
+    const language = getLanguageForExtension(extname(f.path)) ?? undefined;
+    const cached = astCache.get(f.path);
+    const ast = cached && cached.content === f.content ? cached.ast : undefined;
+    return { ...f, ast, language };
+  });
 }
