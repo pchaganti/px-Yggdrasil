@@ -636,7 +636,7 @@ function categorizeFile(filePath: string, rootPath: string, projectRoot: string)
  * Describe why a cascade fired AND provide the cause-specific review instruction.
  * Each cause type has a distinct message per the CLI messages spec.
  */
-function describeCascadeCause(filePath: string, layer: TrackedFileLayer, graph: Graph): string {
+export function describeCascadeCause(filePath: string, layer: TrackedFileLayer, graph: Graph): string {
   const normalized = filePath.replace(/\\/g, '/').replace(/\/+$/, '');
   const yggPrefix = path.relative(path.dirname(graph.rootPath), graph.rootPath).replace(/\\/g, '/').replace(/\/+$/, '');
   const escPrefix = yggPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

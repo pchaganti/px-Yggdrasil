@@ -7,7 +7,9 @@ import { buildIssueMessage } from '../../../src/formatters/message-builder.js';
 const msgOf = (i: { messageData: Parameters<typeof buildIssueMessage>[0] }) => buildIssueMessage(i.messageData);
 import {
   classifyDrift,
+  describeCascadeCause,
 } from '../../../src/core/check.js';
+import type { Graph, AspectDef } from '../../../src/model/graph.js';
 import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
 import { hashTrackedFiles } from '../../../src/io/hash.js';
 import { collectTrackedFiles } from '../../../src/core/graph/files.js';
@@ -627,3 +629,122 @@ describe('classifyDrift', () => {
     expect(subIssues.length).toBeGreaterThanOrEqual(1);
     await rm(tmpDir, { recursive: true, force: true });
   });
+
+// ── describeCascadeCause ──────────────────────────────────
+//
+// Pure helper that maps a cascade cause (a tracked-file path + its layer) to a
+// human-readable message. Built directly against a minimal in-memory Graph so
+// every branch is exercised without filesystem fixtures.
+
+describe('describeCascadeCause', () => {
+  const YGG = '.yggdrasil';
+
+  // Shared reference paths used to drive the "reference file declared by N
+  // aspects" branch of the 'aspects' layer.
+  const SOLE_REF = 'docs/sole-ref.md';        // declared by exactly ONE aspect
+  const SHARED_REF = 'docs/shared-ref.md';    // declared by TWO aspects
+  const UNDECLARED_REF = 'docs/orphan-ref.md'; // declared by NONE
+
+  const llm = (id: string, references?: Array<{ path: string }>): AspectDef => ({
+    name: id,
+    id,
+    reviewer: { type: 'llm' },
+    artifacts: [],
+    ...(references ? { references } : {}),
+  });
+
+  // rootPath ends in `.yggdrasil` so yggPrefix resolves to `.yggdrasil`:
+  //   path.relative(path.dirname(rootPath), rootPath) === '.yggdrasil'
+  const graph = {
+    rootPath: '/repo/.yggdrasil',
+    aspects: [
+      llm('only', [{ path: SOLE_REF }]),
+      llm('left', [{ path: SHARED_REF }]),
+      llm('right', [{ path: SHARED_REF }]),
+      // A deterministic aspect also "declaring" SHARED_REF must NOT be counted —
+      // describeCascadeCause filters to reviewer.type === 'llm' only.
+      { name: 'det', id: 'det', reviewer: { type: 'deterministic' }, artifacts: [], references: [{ path: SHARED_REF }] },
+    ],
+  } as unknown as Graph;
+
+  it('aspects layer, real aspect content path → names the aspect with artifact label', () => {
+    const out = describeCascadeCause(`${YGG}/aspects/my-aspect/content.md`, 'aspects', graph);
+    expect(out).toContain("aspect 'my-aspect' content changed");
+  });
+
+  it('aspects layer, yg-aspect.yaml content path → names aspect with no label', () => {
+    const out = describeCascadeCause(`${YGG}/aspects/my-aspect/yg-aspect.yaml`, 'aspects', graph);
+    // No artifact label between the id and "changed" (unlike "content changed").
+    expect(out).toContain("aspect 'my-aspect' changed");
+  });
+
+  it('aspects layer, structure-touched synthetic key → names the deterministic aspect', () => {
+    const out = describeCascadeCause('structure-touched:det-x', 'aspects', graph);
+    expect(out).toContain("the set of files read by deterministic aspect 'det-x'");
+  });
+
+  it('aspects layer, tier-identity synthetic key → names the aspect tier', () => {
+    const out = describeCascadeCause('tier-identity:llm-x', 'aspects', graph);
+    expect(out).toContain("the resolved reviewer tier for aspect 'llm-x'");
+  });
+
+  it('aspects layer, reference file declared by exactly one aspect', () => {
+    const out = describeCascadeCause(SOLE_REF, 'aspects', graph);
+    expect(out).toContain(`reference file '${SOLE_REF}'`);
+    expect(out).toContain("declared by aspect 'only'");
+  });
+
+  it('aspects layer, reference file declared by multiple aspects', () => {
+    const out = describeCascadeCause(SHARED_REF, 'aspects', graph);
+    expect(out).toMatch(/declared by aspects '.*', '.*'/);
+    expect(out).toContain("'left'");
+    expect(out).toContain("'right'");
+    // deterministic 'det' must be excluded
+    expect(out).not.toContain("'det'");
+  });
+
+  it('aspects layer, reference file declared by no aspect → unknown', () => {
+    const out = describeCascadeCause(UNDECLARED_REF, 'aspects', graph);
+    expect(out).toContain('declared by unknown aspect');
+  });
+
+  it('hierarchy layer → parent node metadata changed', () => {
+    const out = describeCascadeCause(`${YGG}/model/parent/child/yg-node.yaml`, 'hierarchy', graph);
+    expect(out).toContain("parent node 'parent/child' metadata changed");
+  });
+
+  it('hierarchy layer, path not under model/ → unknown ancestor', () => {
+    const out = describeCascadeCause('some/other/file.txt', 'hierarchy', graph);
+    expect(out).toContain("parent node 'unknown' metadata changed");
+  });
+
+  it('relational layer, yg-node.yaml → dependency metadata changed', () => {
+    const out = describeCascadeCause(`${YGG}/model/dep/svc/yg-node.yaml`, 'relational', graph);
+    expect(out).toContain("dependency 'dep/svc' metadata changed");
+  });
+
+  it('relational layer, non-yaml artifact → dependency <artifact> changed', () => {
+    const out = describeCascadeCause(`${YGG}/model/dep/svc/log.md`, 'relational', graph);
+    expect(out).toContain("dependency 'dep/svc' log changed");
+  });
+
+  it('relational layer, path not under model/ → unknown dependency', () => {
+    const out = describeCascadeCause('elsewhere.txt', 'relational', graph);
+    expect(out).toContain("dependency 'unknown'");
+  });
+
+  it('structure-touched layer (real cross-node path) → tracked file changed', () => {
+    const out = describeCascadeCause('source/cli/src/other/reader.ts', 'structure-touched', graph);
+    expect(out).toContain('tracked file changed');
+  });
+
+  it('source layer → tracked file changed', () => {
+    const out = describeCascadeCause('src/svc/index.ts', 'source', graph);
+    expect(out).toContain('tracked file changed');
+  });
+
+  it('flows layer → tracked file changed', () => {
+    const out = describeCascadeCause(`${YGG}/flows/checkout/yg-flow.yaml`, 'flows', graph);
+    expect(out).toContain('tracked file changed');
+  });
+});
