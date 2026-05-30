@@ -10,7 +10,7 @@ The check function is deterministic, synchronous, and costs zero LLM calls.
 
 \`\`\`yaml
 # .yggdrasil/aspects/example/yg-aspect.yaml
-id: example
+# (the aspect id is derived from the directory name — there is no 'id:' field)
 name: example
 description: "Always passes"
 reviewer:

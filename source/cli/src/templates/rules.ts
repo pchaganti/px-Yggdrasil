@@ -130,7 +130,7 @@ Full command reference (\`yg aspects\`, \`yg flows\`, \`yg owner\`, \`yg ast-tes
 
 ### Impact and Cost
 
-Every graph change has blast radius. \`yg impact\` shows how many nodes are affected. Each affected node is a separate reviewer call (LLM request) during approve. An aspect touching 20 nodes = 20 LLM calls = real cost.
+Every graph change has blast radius. \`yg impact\` shows how many nodes are affected. For an LLM aspect, each affected node is a separate reviewer call (one LLM request per effective non-draft LLM aspect on the node, multiplied by the tier's consensus count and by the number of prompt chunks) during approve — so an LLM aspect touching 20 nodes is at least 20 LLM calls = real cost. AST and structure aspects run locally and cost zero LLM calls regardless of how many nodes they touch.
 
 When code doesn't match an aspect, five options:
 

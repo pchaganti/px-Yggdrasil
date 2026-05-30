@@ -159,9 +159,9 @@ The content `.md` files are the actual rules. The reviewer reads them and checks
 whether the source code satisfies them. Write them as clearly as you would write
 a code review comment.
 
-Aspects are verified by reviewers — Yggdrasil ships two reviewer types (LLM and AST).
-See [Reviewers](/reviewers) for the decision matrix, authoring guides for `content.md`
-and `check.mjs`, suppression mechanics, and edge cases.
+Aspects are verified by reviewers — Yggdrasil ships three reviewer types (LLM, AST, and structure).
+See [Reviewers](/reviewers) for the decision matrix, authoring guides for `content.md`,
+`check.mjs` (AST and structure), suppression mechanics, and edge cases.
 
 ### The `implies` field
 
@@ -274,7 +274,7 @@ to an entire business process.
 
 `yg check` is the CI gate. It compares file hashes — no LLM calls, runs
 instantly. If a file changed since its last approve, check fails. The agent
-does the approve (with LLM review) locally, CI just verifies it happened.
+does the approve (running the relevant reviewer) locally, CI just verifies it happened.
 
 ---
 
@@ -342,6 +342,6 @@ node_types:
 
 ## Next
 
-- [Reviewers](/reviewers) — LLM and AST reviewer types, authoring guides, suppression, drift, edge cases
+- [Reviewers](/reviewers) — LLM, AST, and structure reviewer types, authoring guides, suppression, drift, edge cases
 - [Conditional Aspects](/conditional-aspects) — `when` predicates for selective aspect application
 - [CLI Reference](/cli-reference) — full command surface

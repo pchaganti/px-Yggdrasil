@@ -249,6 +249,7 @@ Run `yg knowledge list` to see the current list with one-line descriptions.
 | Command                                                          | Purpose                               |
 |------------------------------------------------------------------|---------------------------------------|
 | `yg ast-test --aspect <id> --node <path>` / `--files <paths...>` | Run AST aspect check without approving |
+| `yg structure-test --aspect <id> --node <path>` | Run structure aspect check without approving |
 
 ### `yg ast-test`
 
@@ -268,6 +269,25 @@ yg ast-test --aspect <id> --files <path> [<path2> ...]
 
 Exits 0 with "No violations" if all checks pass. Exits 1 if any violations found,
 with file path, line number, and violation message for each.
+
+### `yg structure-test`
+
+Runs a structure aspect's `check.mjs` against a named node and prints violations —
+the structure-reviewer counterpart of `yg ast-test`. Use it to iterate on a
+structure `check.mjs` without the full approve cycle.
+
+```bash
+yg structure-test --aspect <id> --node <node-path>
+yg structure-test --aspect <id> --node <node-path> --check-determinism
+```
+
+- `--aspect <id>` — Required. The aspect must have `reviewer.type: structure`.
+- `--node <path>` — Required. Runs the check with the node's sandboxed `ctx`
+  (its own files plus, via declared relations, related nodes' files and metadata).
+- `--check-determinism` — Runs the check twice and exits 1 if the violation sets
+  differ (lexically sorted), catching side effects in `check.mjs`.
+
+Exits 0 with no violations, 1 otherwise.
 
 ---
 

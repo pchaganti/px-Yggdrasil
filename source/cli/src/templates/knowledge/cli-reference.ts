@@ -104,6 +104,19 @@ yg ast-test --aspect no-sync-fs --node orders/handler
 
 Exits 1 if violations exist. Use during \`check.mjs\` development.
 
+## yg structure-test
+
+Run a structure aspect's \`check.mjs\` against a named node without recording a
+baseline — the structure-reviewer counterpart of \`yg ast-test\`.
+
+\`\`\`bash
+yg structure-test --aspect sibling-test-file --node orders/handler
+yg structure-test --aspect sibling-test-file --node orders/handler --check-determinism
+\`\`\`
+
+Exits 1 if violations exist. \`--check-determinism\` runs the check twice and
+fails if the violation sets differ, catching side effects in \`check.mjs\`.
+
 ## yg find
 
 Locate entry-point nodes/aspects by natural-language query.

@@ -1,11 +1,12 @@
 # Aspect Reviewers
 
-Aspects are verified by reviewers. Yggdrasil ships two reviewer types — both operate on the same aspect-node-flow graph; the `reviewer` field in `yg-aspect.yaml` selects which one runs.
+Aspects are verified by reviewers. Yggdrasil ships three reviewer types — all operate on the same aspect-node-flow graph; the `reviewer` field in `yg-aspect.yaml` selects which one runs.
 
 - **LLM reviewer** (`reviewer: { type: llm }`): ships a `content.md` rule file. An LLM reads the rule and the node's source code, then accepts or rejects.
 - **AST reviewer** (`reviewer: { type: ast }`): ships a `check.mjs` module. A deterministic runner parses the source files with tree-sitter and executes your `check` function against the AST.
+- **Structure reviewer** (`reviewer: { type: structure }`): ships a `check.mjs` module that runs in a sandboxed context (`ctx`) with read access to the node's own files plus, through declared relations, related nodes' files and graph metadata. Use it for cross-node structural rules a single-file AST check cannot express. See `yg knowledge read writing-structure-aspects`.
 
-`content.md` and `check.mjs` are mutually exclusive — exactly one must be present per aspect. `yg check` enforces this.
+A `content.md` (LLM) and a `check.mjs` (AST or structure) are mutually exclusive — exactly one must be present per aspect, and `reviewer.type` selects which runner consumes the `check.mjs`. `yg check` enforces this. Both AST and structure aspects run locally at zero LLM cost.
 
 ---
 
