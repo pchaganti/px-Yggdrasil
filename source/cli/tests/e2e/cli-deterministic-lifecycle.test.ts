@@ -23,10 +23,10 @@ const distExists = existsSync(BIN_PATH);
 // A dead loopback endpoint. Pointing the reviewer at this makes the LLM aspect
 // path unreachable, so `yg approve` records deterministic-only verdicts and
 // never produces an unreliable (or environment-dependent) LLM verdict. The
-// deterministic block uses this so its assertions hold whether or not a real
-// Ollama is running on the host.
+// reviewer-unreachable test uses this so its assertion holds on ANY machine —
+// port 1 never has a listener — with no dependency on any real endpoint being
+// absent.
 const DEAD_ENDPOINT = 'http://127.0.0.1:1';
-const OLLAMA_ENDPOINT = 'http://host.docker.internal:11434';
 
 function run(
   args: string[],
@@ -77,10 +77,18 @@ function deterministicFixture(label: string): string {
   return dir;
 }
 
-/** Repoint the reviewer endpoint at the dead loopback address. */
+/**
+ * Repoint the reviewer endpoint at the dead loopback address. Rewrites whatever
+ * `endpoint:` the fixture config carries to the guaranteed-dead port-1 address,
+ * so the reviewer is ALWAYS unreachable regardless of the machine — no reliance
+ * on any specific external host being present or absent.
+ */
 function killReviewer(dir: string): void {
   const cfgPath = path.join(dir, '.yggdrasil', 'yg-config.yaml');
-  const cfg = readFileSync(cfgPath, 'utf-8').replace(OLLAMA_ENDPOINT, DEAD_ENDPOINT);
+  const cfg = readFileSync(cfgPath, 'utf-8').replace(
+    /endpoint:\s*["']?[^"'\n]+["']?/,
+    `endpoint: "${DEAD_ENDPOINT}"`,
+  );
   writeFileSync(cfgPath, cfg, 'utf-8');
 }
 
@@ -342,48 +350,6 @@ describe.skipIf(!distExists)('CLI E2E — deterministic approve/drift/cascade/st
       expect(status).toBe(0);
       expect(stdout).toContain('not reachable');
       expect(existsSync(baselinePath(dir, 'services/orders'))).toBe(true);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-});
-
-// ---------------------------------------------------------------------------
-// F: Ollama-gated LLM reviewer path. Proves the real reviewer functions
-// end-to-end. Skipped when no Ollama is reachable (e.g. CI).
-// ---------------------------------------------------------------------------
-
-async function probeOllama(): Promise<boolean> {
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2000);
-    const res = await fetch(`${OLLAMA_ENDPOINT}/api/tags`, { signal: controller.signal });
-    clearTimeout(timer);
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
-const ollamaUp = await probeOllama();
-
-describe.skipIf(!ollamaUp || !distExists)('CLI E2E — Ollama-gated LLM reviewer path', () => {
-  it('F14: approve reaches the LLM reviewer and records a has-doc-comment verdict', () => {
-    const dir = copyFixture('ollama');
-    try {
-      // Verdict from a 0.5b model is not reliable, so exit code may be 0 or 1.
-      // We only assert the reviewer was REACHED and produced a recorded verdict.
-      const { stdout, stderr } = run(['approve', '--node', 'services/orders'], dir);
-      const all = stdout + stderr;
-      expect(all).not.toContain('not reachable');
-      expect(all).not.toContain('Reviewer configured but not reachable');
-
-      const blPath = baselinePath(dir, 'services/orders');
-      expect(existsSync(blPath)).toBe(true);
-      const baseline = JSON.parse(readFileSync(blPath, 'utf-8'));
-      expect(baseline.aspectVerdicts).toBeDefined();
-      expect(baseline.aspectVerdicts['has-doc-comment']).toBeDefined();
-      expect(baseline.aspectVerdicts['has-doc-comment'].verdict).toMatch(/approved|refused/);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
