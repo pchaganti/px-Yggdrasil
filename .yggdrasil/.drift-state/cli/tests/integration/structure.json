@@ -1,5 +1,5 @@
 {
-  "hash": "9e3f5ac9fb5faa7cf43db636bc7b35f430287d35af85a6efa89c4f894fd22d19",
+  "hash": "d8beb7529216dbda3b3d52b5f114e4c33d7bafc133824d7006c3e7f593673eac",
   "files": {
     "own-subset:cli/tests/integration/structure": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -8,9 +8,9 @@
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": "f6203e633f0cb0b6bc84c3337606df49a00920a414f6557fe2f3f91bfd034442",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/integration/structure-lifecycle.test.ts": "cf6b1a4fe7df72bb93e7683a660e3d0723b81df9d83b44e270b28bd5d344744b",
-    "source/cli/tests/integration/structure-aspect-status.test.ts": "ed8bc0ed7195d424245838b618a922a8a6998e84903a31ffc7b8e6bea271986a",
-    "source/cli/tests/integration/structure-implies.test.ts": "b456f139ee27a60115fef1e9a43177ea2eb77c322461b1f8d357449f6c1acb3f"
+    "source/cli/tests/integration/structure-lifecycle.test.ts": "10cb23c7b52c73ff938fb189968fbf7dc001d5b90ebe164560201ea57672ad62",
+    "source/cli/tests/integration/structure-aspect-status.test.ts": "f319dac34330a48038d4e99d42b8052d8efb63b743657921bb384cd078e8ed7b",
+    "source/cli/tests/integration/structure-implies.test.ts": "cb9858f156676ca79e3aa86cdaf3535b39bb82a1f4430730a05ebb03e1e92864"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -18,13 +18,13 @@
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": 1778923836291.2395,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/integration/structure-lifecycle.test.ts": 1780163410549.7021,
-    "source/cli/tests/integration/structure-aspect-status.test.ts": 1780163410550.0916,
-    "source/cli/tests/integration/structure-implies.test.ts": 1780163410548.9895
+    "source/cli/tests/integration/structure-lifecycle.test.ts": 1780177673510.5234,
+    "source/cli/tests/integration/structure-aspect-status.test.ts": 1780177673509.47,
+    "source/cli/tests/integration/structure-implies.test.ts": 1780177673510.2883
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T20:06:30.857Z",
-    "prefix_hash": "aac1087c46c5b1a7dabc45fb390a5b6e77dfaab0c7211e705da9e38fa362c172"
+    "last_entry_datetime": "2026-05-30T21:54:04.094Z",
+    "prefix_hash": "37e69f89b5086724046381ac664c99fa7bf7c467979425ec5aaadc372d68dee5"
   },
   "aspectVerdicts": {
     "test-deterministic": {

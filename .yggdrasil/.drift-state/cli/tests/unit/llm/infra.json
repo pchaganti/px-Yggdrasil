@@ -1,5 +1,5 @@
 {
-  "hash": "1f080485e82ce267aab72d3f6859d2564dcb9cc4ad9d8043646e675171513cce",
+  "hash": "b48ef784a8bc1cc4181f564416e8064fb0f156c03ca7d7c05a3a655425874cd6",
   "files": {
     "own-subset:cli/tests/unit/llm/infra": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -11,8 +11,8 @@
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/llm/api-utils.test.ts": "fe6d0edff596b810ed09bac712c30aa20c8cfe5fc3a7ab45c08b3f3252d38788",
     "source/cli/tests/unit/llm/model-fetcher.test.ts": "384f3fb605ccf985c985001566bfaef3301ee751415a09645e327ddd77fe567c",
-    "source/cli/tests/unit/llm/error-source.test.ts": "ff1362e850b1b3f36db6ad113fe65ea1823dee1a93ea30ae92483512bf6f7ee2",
-    "source/cli/tests/unit/llm/reviewer-test.test.ts": "623728381ef7dd8c90ac996648d645f40922638c344194fc3dde66a17cf04380"
+    "source/cli/tests/unit/llm/reviewer-test.test.ts": "623728381ef7dd8c90ac996648d645f40922638c344194fc3dde66a17cf04380",
+    "source/cli/tests/unit/llm/error-source.test.ts": "16fb7e668c81430cfb06bf9c5d682d4ad85eb08b3f3fe4095d5095be396b9743"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -23,8 +23,12 @@
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/llm/api-utils.test.ts": 1779963520997.236,
     "source/cli/tests/unit/llm/model-fetcher.test.ts": 1779956895719.0083,
-    "source/cli/tests/unit/llm/error-source.test.ts": 1779794513954.2378,
+    "source/cli/tests/unit/llm/error-source.test.ts": 1780177673514.2983,
     "source/cli/tests/unit/llm/reviewer-test.test.ts": 1779956899708.9058
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-30T21:54:06.090Z",
+    "prefix_hash": "047a4aa4dead26c1f601d3478288064be65d5443015fee1b3515cc307ecba510"
   },
   "aspectVerdicts": {
     "test-deterministic": {

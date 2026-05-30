@@ -1,10 +1,10 @@
 {
-  "hash": "7b5285c9c32a4d8c3c78ade7d2e5bbbba84fc6bb74db3b00cfd9b650243e5028",
+  "hash": "58482311d387441d143fc478227596dafd40e097df973eb1c28ed2e4198fa599",
   "files": {
     "own-subset:cli/templates": "f68bcd5143fd11da71f121095f5b7b88f309ccecd0a1190a8d557b7eeeda9f51",
     "tier-identity:what-why-next": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     "tier-identity:posix-paths-output": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "structure-touched:posix-paths-source": "b02b58a071843df9a7dfb27b2da5709fbf883de3716aa28f234247a7ff3bb1d7",
+    "deterministic-touched:posix-paths-source": "b02b58a071843df9a7dfb27b2da5709fbf883de3716aa28f234247a7ff3bb1d7",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": "5bfc4a07961653ab402950fc1ddf55450c35762e9fde4ab2b0fb9185ab091581",
     ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
@@ -28,7 +28,7 @@
     "last_entry_datetime": "2026-05-30T20:06:21.739Z",
     "prefix_hash": "818f8a7ed5496f48d28ddfa25220f67c66083644a9e2aca92b49298fce1907b6"
   },
-  "structureTouchedFiles": {
+  "deterministicTouchedFiles": {
     "posix-paths-source": {
       "source/cli/src/templates/rules.ts": "aa954cffa1779857106c2e5514c8d395fedb0f7d2b2481dbb4088002747e6d2c"
     }

@@ -1,5 +1,5 @@
 {
-  "hash": "d121fbca3354391a70c71385bd2a041f8dc3b6e3cab9395610014dfe85db4056",
+  "hash": "40291a6c3b43d17ab4c60c1d695c1dc131ab1761232950323a08c3874fae9223",
   "files": {
     "own-subset:cli/tests/unit/core/operations/approve/reviewer-structure": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -11,8 +11,8 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/approve/yg-node.yaml": "03e8e97452ea62eeca43edd2f87c500f7124dff455227599dd3f00227cb558fc",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts": "b9009a7b2b201caa3be98132295eca356bdec7cfb917c46e6821e0d43f5d095b",
-    "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": "3302283c071262726036695f3ef9b61d13ee6284c1b96d1970856ddca48237f4"
+    "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": "e3a0c428d4eb960c32aa1d9b797a9f80c98b48a3162727717da41b02158e8ee6",
+    "source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts": "758596f1c64597f09fd41c03c2cef91da1fa3c8890dd2f3f1418df18e922d359"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -23,12 +23,12 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/approve/yg-node.yaml": 1780103162436.2014,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": 1780167069496.7788,
-    "source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts": 1780163410546.9463
+    "source/cli/tests/unit/core/approve-reviewer-structure.test.ts": 1780177673512.7537,
+    "source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts": 1780177673512.457
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T18:52:35.322Z",
-    "prefix_hash": "dcd3c1ec9b7061c47eaf591e77cd8968c67dc348eff833c6ba39c59af22af03d"
+    "last_entry_datetime": "2026-05-30T21:54:05.560Z",
+    "prefix_hash": "6303dcba6d0365b5446cfec2b99840d710a7826e8fd29b8d2a5a473cf11e11da"
   },
   "aspectVerdicts": {
     "test-deterministic": {

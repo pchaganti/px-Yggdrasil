@@ -1,5 +1,5 @@
 {
-  "hash": "765f9d1e847a48c2b92315fa675ed1bbaabae0a658d6bafd6b4c8e3a0b43f0b4",
+  "hash": "9bb707fdac4768e279765f2d006fa10f9c90b98d5c0ce2b340032c96f5318eaf",
   "files": {
     "own-subset:cli/tests/unit/support/io/drift-state-store": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -12,7 +12,7 @@
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/io/drift-state-store.test.ts": "2a17b835327a709d04c2c7d7ffead78367de14f3991d7c61961423690cab1c9a",
     "source/cli/tests/unit/io/drift-state-store-status.test.ts": "f961dd0539df4db27361fbd3c39cceba644c294d7d7fc90efb278d33babf60de",
-    "source/cli/tests/unit/io/drift-state-store-structure.test.ts": "5ccf8ce123d5a13d029c0e4921127e3605ff2df56f86062557226648485b3bd8"
+    "source/cli/tests/unit/io/drift-state-store-structure.test.ts": "73a5d62b86f53db1d3db2c0bec7786c6e97bafa514db80fb8f57f6563454d6ec"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -24,7 +24,11 @@
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/io/drift-state-store.test.ts": 1778918658054.3496,
     "source/cli/tests/unit/io/drift-state-store-status.test.ts": 1779974998796.8467,
-    "source/cli/tests/unit/io/drift-state-store-structure.test.ts": 1780039166651.6616
+    "source/cli/tests/unit/io/drift-state-store-structure.test.ts": 1780177673514.091
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-30T21:54:06.259Z",
+    "prefix_hash": "5975fd983bb3c1d68510054d965808818632e2a094e52dd1b3cf37449468fa36"
   },
   "aspectVerdicts": {
     "test-deterministic": {

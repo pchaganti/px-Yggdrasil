@@ -1,9 +1,11 @@
 {
-  "hash": "cc5fe828fddb86ac94853978b83a989db27ef627f50ebf5c6c3e6c01906608b1",
+  "hash": "05a53eb6eb891ebca90dace8edc82374a81900faeb6a62512ed88fb339a762b5",
   "files": {
     "own-subset:cli/io/atomic-write": "c4a156865776f24f70d0d7a086bd8f807c4c1355653c2fa5444e846ac442363b",
     "tier-identity:silent-missing-files": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "structure-touched:read-or-default-via-helper": "84b89458a6efea81f1806082b2ea3c6a75e703eb97f947ccc19b4add7f5e39b3",
+    "deterministic-touched:atomic-write-contract": "84b89458a6efea81f1806082b2ea3c6a75e703eb97f947ccc19b4add7f5e39b3",
+    "deterministic-touched:posix-paths-source": "84b89458a6efea81f1806082b2ea3c6a75e703eb97f947ccc19b4add7f5e39b3",
+    "deterministic-touched:read-or-default-via-helper": "84b89458a6efea81f1806082b2ea3c6a75e703eb97f947ccc19b4add7f5e39b3",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
     ".yggdrasil/aspects/silent-missing-files/yg-aspect.yaml": "991b315766fa9203f9454da67da991382718cb3e1fd771eb121b1f722d0e1e5d",
@@ -33,11 +35,11 @@
     "last_entry_datetime": "2026-05-15T17:44:22.955Z",
     "prefix_hash": "089b0de107a7d911330b7c365bdba6063c5dc5a13d2b1ad09d40c41a166756ab"
   },
-  "structureTouchedFiles": {
-    "atomic-write-contract": {
+  "deterministicTouchedFiles": {
+    "posix-paths-source": {
       "source/cli/src/io/atomic-write.ts": "46202039fa117ba4236d82b60ead294b9b2751e57e34579a39341c50d125b47a"
     },
-    "posix-paths-source": {
+    "atomic-write-contract": {
       "source/cli/src/io/atomic-write.ts": "46202039fa117ba4236d82b60ead294b9b2751e57e34579a39341c50d125b47a"
     },
     "read-or-default-via-helper": {
