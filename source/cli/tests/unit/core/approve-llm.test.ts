@@ -811,16 +811,22 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
   // Node: structure aspect `det` + llm aspect `llm`. The llm aspect is wired so
   // we can make it refuse on demand by swapping the mock provider verdict.
   async function setupDetLlm(name: string, opts: { detRefuses?: boolean } = {}) {
+    // The node maps a single FILE (not the directory). buildOwnFiles only
+    // includes stat.isFile() mapping entries, so a file mapping makes
+    // ctx.files non-empty. The refusing check below references ctx.files[0]
+    // — a real file that IS in context — so the violation is a genuine
+    // CODE violation, not a STRUCTURE_CHECK_FILE_NOT_IN_CONTEXT infra error.
     const detCheck = opts.detRefuses
       ? `export function check(ctx) {
   const first = ctx.files[0];
-  return [{ file: first ? first.path : 'x', line: 1, message: 'structural violation' }];
+  if (!first) throw new Error('det fixture invariant broken: ctx.files is empty (mapping must be a file, not a directory)');
+  return [{ file: first.path, line: 1, message: 'structural violation' }];
 }\n`
       : 'export function check(_ctx) { return []; }\n';
     const { tmpDir } = await createTmpProject(name, {
       nodePath: 'svc/my-service',
       nodeYaml:
-        'name: MyService\ntype: service\ndescription: test\naspects:\n  - det\n  - llm\nmapping:\n  - src/svc/\n',
+        'name: MyService\ntype: service\ndescription: test\naspects:\n  - det\n  - llm\nmapping:\n  - src/svc/index.ts\n',
       mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
       aspects: [
         {
@@ -877,11 +883,17 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
     });
   }
 
-  // ── I4 — enforced refusal still blocks under a subset ──────
-  it('I4: reReviewAspectIds={det} where det produces an ENFORCED code violation → refused, baseline NOT persisted', async () => {
-    // `det` (a structure aspect; default status enforced) is wired to always
-    // return a violation. We restrict dispatch to {det} only. The subset path
-    // must still refuse — it must not weaken refusal.
+  // ── I4 — a genuine enforced CODE violation under a subset still refuses,
+  //         records the refused verdict, and carries forward the other aspect ──
+  it('I4: reReviewAspectIds={det} where det produces a genuine ENFORCED code violation → refused, det verdict persisted as refused, llm carried forward', async () => {
+    // `det` (a structure aspect; default status enforced) maps a single FILE,
+    // so ctx.files is non-empty and the check returns a violation against
+    // ctx.files[0] — a real, in-context file. That makes it a genuine CODE
+    // violation (errorSource: 'codeViolation'), NOT an infrastructure error.
+    // We restrict dispatch to {det} only. The subset path must still refuse —
+    // it must not weaken refusal — and the refused verdict is committed to the
+    // baseline (the project records refused verdicts so yg check can render
+    // them), while `llm` (not in the subset) is carried forward untouched.
     const tmpDir = await setupDetLlm('e2e-i4-refuse', { detRefuses: true });
     await recordVerdicts(tmpDir, { det: { verdict: 'approved' }, llm: { verdict: 'approved' } });
     // Upstream-only change so approveNode produces a pendingDriftState w/o source edit.
@@ -912,15 +924,24 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
 
     // The subset path must NOT weaken refusal: an enforced structure violation refuses.
     expect(result.action).toBe('refused');
-    expect(result.aspectViolations!.map(v => v.aspectId)).toContain('det');
+    // det refuses with a GENUINE code violation — not an infra/astRuntime error.
+    const detViolation = result.aspectViolations!.find(v => v.aspectId === 'det');
+    expect(detViolation).toBeDefined();
+    expect(detViolation!.errorSource).toBe('codeViolation');
+    expect(detViolation!.reason).toContain('src/svc/index.ts');
     // The llm provider was never dispatched (only det in the subset).
     expect(verifyCallCount).toBe(0);
     expect(mockCreateLlmProvider).not.toHaveBeenCalled();
-    // A refused node is an early return — no fresh baseline is committed; the
-    // persisted verdicts on disk are unchanged from before the run.
+    // The baseline IS written on the refusal path: det's refused verdict is
+    // persisted (with its code-violation reason), and llm — not in the subset —
+    // is carried forward from the prior baseline untouched.
     const storedAfter = await readNodeDriftState(graph.rootPath, 'svc/my-service');
     expect(storedAfter?.aspectVerdicts).toEqual({
-      det: { verdict: 'approved' },
+      det: {
+        verdict: 'refused',
+        reason: 'src/svc/index.ts:1: structural violation',
+        errorSource: 'codeViolation',
+      },
       llm: { verdict: 'approved' },
     });
     await rm(tmpDir, { recursive: true, force: true });
