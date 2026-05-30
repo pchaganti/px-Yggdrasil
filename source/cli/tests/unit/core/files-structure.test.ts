@@ -124,11 +124,14 @@ describe('structure-identity lockstep — producer (collectTrackedFiles) vs cons
     expect(tracked.find(t => t.path === 'structure-identity:s1')).toBeUndefined();
   });
 
-  it('consumer matches deterministic-touched but does NOT expect structure-identity', () => {
+  it('consumer matches deterministic-touched but does NOT expect structure-identity', async () => {
     // The consumer (aspectDependencyKeys, exercised via filterAspectCascadeNodes)
     // must stay in lockstep with the producer: it recognizes the keys the producer
     // actually emits (deterministic-touched, aspects/<id>/ prefix, references) and must
     // NOT carry a stale structure-identity key the producer no longer writes.
+    // filterAspectCascadeNodes is async (it reads per-node baselines to attribute
+    // cross-node deterministic-touched paths); no baseline exists for 'N' here, so it
+    // falls back to synthetic-key/prefix matching.
     const g = buildTestGraphForStructure({
       nodes: [{ path: 'N', type: 'module', mapping: ['src/a.ts'], aspects: ['s1'] }],
     });
@@ -136,18 +139,18 @@ describe('structure-identity lockstep — producer (collectTrackedFiles) vs cons
 
     // deterministic-touched:<id> is a recognized cause for the aspect.
     expect(
-      filterAspectCascadeNodes([cascade('N', 'deterministic-touched:s1')], g, 's1', '.yggdrasil'),
+      await filterAspectCascadeNodes([cascade('N', 'deterministic-touched:s1')], g, 's1', '.yggdrasil'),
     ).toEqual(['N']);
 
     // aspects/<id>/ prefix is a recognized cause.
     expect(
-      filterAspectCascadeNodes([cascade('N', '.yggdrasil/aspects/s1/yg-aspect.yaml')], g, 's1', '.yggdrasil'),
+      await filterAspectCascadeNodes([cascade('N', '.yggdrasil/aspects/s1/yg-aspect.yaml')], g, 's1', '.yggdrasil'),
     ).toEqual(['N']);
 
     // structure-identity:<id> is NOT a recognized cause — the producer never emits it,
     // so the consumer must not match it (would be a stale, orphaned key).
     expect(
-      filterAspectCascadeNodes([cascade('N', 'structure-identity:s1')], g, 's1', '.yggdrasil'),
+      await filterAspectCascadeNodes([cascade('N', 'structure-identity:s1')], g, 's1', '.yggdrasil'),
     ).toEqual([]);
   });
 });
