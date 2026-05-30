@@ -51,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Node-size gate is now a per-node **character budget** enforced as a blocking error, replacing the previous file-count `wide-node` warning. `yg check` emits `oversized-node` (error) when a node's reviewer context — the total characters of its mapped source files plus the distinct reference files of its effective aspects — exceeds `quality.max_node_chars` (default 40000). The metric is uniform across all node types (it no longer depends on aspect presence), so granularity is enforced even on nodes with no LLM aspect. Binary files (by extension or NUL-byte content) contribute 0; a file over the 5 MB content-scan limit is counted by its on-disk size so it cannot evade the gate. Rationale: the reviewer concatenates all of a node's files into each aspect prompt, so an oversized node risks context-window truncation that deterministically rejects unchanged code — a file-count limit missed this because one very large file could stay under the count. `quality.max_node_chars` is validated as a positive integer.
 - Internal: `core/validator.ts` (the 2121-line / ~83k-char validation god-file) split into a thin `validate()` orchestrator plus domain-grouped check modules under `core/checks/` (`architecture.ts`, `aspects.ts`, `aspect-contracts.ts`, `mapping.ts`, `relations.ts`, and a shared `shared.ts` holding `issueMsg`). Verbatim function moves — no change to which checks run, their order, their messages, or their verdicts. Reduces the largest engine file so the reviewer can inspect it without context-window truncation.
 - `command` node type gains permission to depend on the new `test-suite` organizational type. Required for the new `sibling-test-file` aspect's cross-node lookup.
 - New `structure-adapter` node type added (mirrors `ast-adapter`) covering `source/cli/src/structure/*.ts`.
@@ -89,6 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- `quality.max_mapping_source_files` config key and the `wide-node` warning code — replaced by `quality.max_node_chars` and the `oversized-node` error (see Changed). Existing configs that still set `max_mapping_source_files` are tolerated (the key is ignored). New `yg-node.yaml` field `sizeExempt: { reason }` opts a node mapping a single unsplittable generated/binary artifact (lockfile, append-only changelog, image) out of the character budget; the justification is required.
 - `@chrisdudek/yg/ast` helpers: `call`, `imports`, `exports`, `decoratorsOf`, `modifiersOf`, `jsxElements`, `casing`, `nameOf`, `within`. Replaced by direct tree-sitter API access via `walk(node, visitor)`. `closest` retained in minimal API.
 - Old `inFile(file, string)` signature. Replaced by discriminated object.
 - Graph nodes `cli/ast/helpers-syntactic` and `cli/ast/helpers-naming`.

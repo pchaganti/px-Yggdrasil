@@ -64,7 +64,12 @@ export async function checkStrictBackwardCoverage(
   const unreadable: ValidationIssue[] = [];
   const overlapPairsSeen = new Set<string>();
 
-  for (const relPath of repoFiles) {
+  for (const rawRel of repoFiles) {
+    // walkRepoFiles already POSIX-normalizes, but re-apply the canonical normalization
+    // defensively so every repo-relative path written into an output message below is
+    // provably POSIX (no backslash, no trailing slash) regardless of the scanner's
+    // contract. Idempotent on already-clean paths, so file-owner lookups are unaffected.
+    const relPath = normalizePathForCompare(rawRel);
     const absPath = path.join(projectRoot, relPath);
 
     // Evaluate each strict type's when against this file.
@@ -257,30 +262,100 @@ export async function checkMappingPathsExist(graph: Graph): Promise<ValidationIs
   return issues;
 }
 
-// --- wide-node: Maps too many source files ---
+// --- oversized-node: Node maps more than the per-node character budget ---
 
-export async function checkWideNodes(graph: Graph): Promise<ValidationIssue[]> {
+/** File extensions whose contents are binary and never enter a reviewer prompt
+ *  — they do not count toward a node's character budget. */
+const BINARY_EXTENSIONS = new Set([
+  '.gif', '.png', '.jpg', '.jpeg', '.webp', '.bmp', '.ico', '.svgz',
+  '.woff', '.woff2', '.ttf', '.otf', '.eot',
+  '.zip', '.gz', '.tgz', '.tar', '.bz2', '.7z',
+  '.pdf', '.mp4', '.mov', '.webm', '.mp3', '.wav', '.wasm', '.bin',
+]);
+
+/**
+ * A node's reviewer context is its mapped source files plus the reference files
+ * of every effective aspect — all concatenated into the per-aspect prompt. When
+ * that total exceeds the budget the prompt risks context-window truncation,
+ * which produces deterministic false rejections of unchanged code near the cut.
+ * This is a blocking error: the node must be split (or, for an unsplittable
+ * generated/binary artifact, carry a documented `sizeExempt` opt-out).
+ *
+ * The count is uniform across all node types (it does not depend on aspect
+ * presence), so granularity is enforced even on nodes with no LLM aspect.
+ * Binary files contribute nothing.
+ */
+export async function checkOversizedNodes(
+  graph: Graph,
+  cache: FileContentCache,
+): Promise<ValidationIssue[]> {
   const issues: ValidationIssue[] = [];
-  const maxFiles = graph.config.quality?.max_mapping_source_files ?? 10;
+  const maxChars = graph.config.quality?.max_node_chars ?? 40000;
   const projectRoot = path.dirname(graph.rootPath);
 
+  // aspect id -> its reference file paths (repo-root-relative)
+  const refsByAspect = new Map<string, string[]>();
+  for (const aspect of graph.aspects) {
+    if (aspect.references?.length) {
+      refsByAspect.set(aspect.id, aspect.references.map((r) => r.path));
+    }
+  }
+
+  async function charsOf(repoRelPath: string): Promise<number> {
+    if (BINARY_EXTENSIONS.has(path.extname(repoRelPath).toLowerCase())) return 0;
+    const abs = path.resolve(projectRoot, repoRelPath);
+    const res = await cache.read(abs);
+    if (res.content !== undefined) return res.content.length;
+    // No content: binary (NUL bytes), unreadable, or over the cache's 5MB limit.
+    // A non-binary file over 5MB is almost certainly oversized text the gate must
+    // catch — the cache skips reading it as a binary-probe optimization, not a
+    // budget exemption — so fall back to its on-disk byte size as a character proxy.
+    if (res.tooLarge) {
+      try {
+        return (await statPath(abs)).size;
+      } catch {
+        return 0;
+      }
+    }
+    return 0; // binary content or unreadable
+  }
+
   for (const [nodePath, node] of graph.nodes) {
-    const effectiveAspects = computeEffectiveAspects(node, graph);
-    if (effectiveAspects.size === 0) continue;
+    if (node.meta.sizeExempt) continue; // documented opt-out (justification required at parse)
     const mappingPaths = normalizeMappingPaths(node.meta.mapping);
     if (mappingPaths.length === 0) continue;
 
     const sourceFiles = await expandMappingPaths(projectRoot, mappingPaths);
-    if (sourceFiles.length <= maxFiles) continue;
+
+    // distinct reference files pulled in by this node's effective aspects. An
+    // aspect-implies cycle makes computeEffectiveAspects throw; that cycle is
+    // reported by checkImpliesNoCycles, so skip the reference contribution here
+    // rather than crash the whole validation run with a raw stack trace.
+    const refPaths = new Set<string>();
+    let effectiveAspects: Set<string>;
+    try {
+      effectiveAspects = computeEffectiveAspects(node, graph);
+    } catch {
+      effectiveAspects = new Set();
+    }
+    for (const aspectId of effectiveAspects) {
+      for (const rp of refsByAspect.get(aspectId) ?? []) refPaths.add(rp);
+    }
+
+    let total = 0;
+    for (const f of sourceFiles) total += await charsOf(f);
+    for (const rp of refPaths) total += await charsOf(rp);
+
+    if (total <= maxChars) continue;
 
     issues.push({
-      severity: 'warning',
-      code: 'wide-node',
-      rule: 'wide-node',
+      severity: 'error',
+      code: 'oversized-node',
+      rule: 'oversized-node',
       ...issueMsg({
-        what: `Node maps ${sourceFiles.length} source files (max: ${maxFiles}).`,
-        why: `Wide nodes degrade reviewer accuracy — the reviewer verifies aspects against all source files at once. Too many files dilute focus and cause false rejections.`,
-        next: `Split into child nodes with 2-5 source files each. Each child should map only the files relevant to its aspects.`,
+        what: `Node's reviewer context is ${total} characters (max: ${maxChars}).`,
+        why: `Oversized nodes risk context-window truncation — the reviewer verifies every aspect against all mapped source plus reference files at once, and a prompt larger than the window deterministically rejects unchanged code near the cut. Smaller nodes also keep reviewer focus sharp.`,
+        next: `Split into child nodes so each maps under ${maxChars} characters; group files by the aspects that apply to them. If this node maps a single unsplittable generated or binary artifact, add 'sizeExempt: { reason: "<why it cannot be split>" }' to its yg-node.yaml.`,
       }),
       nodePath,
     });

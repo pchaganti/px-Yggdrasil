@@ -3,6 +3,8 @@ type: repo-config
 description: "Root-level repository configuration: dev tool settings, CI, editor config, and project documentation files"
 aspects: []
 relations: []
+sizeExempt:
+  reason: "Maps root project metadata including the append-only CHANGELOG (which grows unboundedly by design) plus standard repository dotfiles and docs. None is sent to a reviewer and it cannot be split."
 mapping:
   - .claude/
   - .devcontainer/

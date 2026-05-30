@@ -3,6 +3,8 @@ type: repo-config
 description: "VitePress documentation site infrastructure: package manifests, static assets (logo, og-image), and public directory"
 aspects: []
 relations: []
+sizeExempt:
+  reason: "Maps generated and bundled documentation-site infrastructure — the npm lockfile, VitePress build config, and static assets including a recorded demo GIF. None of it is sent to a reviewer and it cannot be meaningfully split."
 mapping:
   - docs/package.json
   - docs/package-lock.json

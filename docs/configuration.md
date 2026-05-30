@@ -47,7 +47,7 @@ reviewer:
 
 quality:
   max_direct_relations: 10
-  max_mapping_source_files: 10
+  max_node_chars: 40000
 
 parallel: 10
 debug: false
@@ -169,12 +169,15 @@ API providers also check environment variables: `ANTHROPIC_API_KEY`, `OPENAI_API
 
 ```yaml
 quality:
-  max_direct_relations: 10        # Max out-edges per node (wide-node warning)
-  max_mapping_source_files: 10    # Max files per node mapping (wide-node warning)
+  max_direct_relations: 10        # Max out-edges per node (high-fan-out warning)
+  max_node_chars: 40000           # Per-node character budget — source + aspect reference files (oversized-node error)
 ```
 
-Both thresholds fire warnings (not errors) when exceeded. Violations appear in `yg check`
-output as `wide-node` warnings. Split large nodes into children to stay under the thresholds.
+`max_direct_relations` fires a warning when exceeded. `max_node_chars` is a blocking
+error: a node whose mapped source plus aspect reference files exceed it (binary files
+do not count) must be split into children. For a node mapping a single unsplittable
+generated or binary artifact (a lockfile, an append-only changelog, an image), opt out
+per-node with `sizeExempt: { reason: "<why it cannot be split>" }`.
 
 ---
 

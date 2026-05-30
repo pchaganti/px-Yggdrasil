@@ -416,7 +416,7 @@ context.
 
 **Flow** — when you see a sequence of steps toward a business goal. Not code call sequences — real-world processes. "User places an order" = flow. "Handler calls service" = relation between nodes. Read \`schemas/yg-flow.yaml\` and \`yg knowledge read flows\` before creating.
 
-**Node** — one per cohesive feature area. Not per directory, not per file. If a node would map >10 source files or cover >3 distinct workflows, split into children. Why: the reviewer sees ALL files in a node. Too many files = reviewer loses context and produces false rejections. Aim for 2-5 source files per node with aspects. Read \`schemas/yg-node.yaml\` before creating.
+**Node** — one per cohesive feature area. Not per directory, not per file. If a node's mapped source (plus any aspect reference files) exceeds the per-node character budget (\`quality.max_node_chars\`, default 40000) or it covers >3 distinct workflows, split into children — \`yg check\` enforces the budget as an \`oversized-node\` error. Why: the reviewer sees ALL files in a node at once; an oversized context dilutes focus and risks window truncation that falsely rejects unchanged code. Keep each node well under the budget. A node mapping a single unsplittable generated/binary artifact (lockfile, image) can opt out with \`sizeExempt: { reason: "..." }\`. Read \`schemas/yg-node.yaml\` before creating.
 
 **Port / relation** — when a critical aspect must cross a node boundary, or when a new typed dependency is needed. Bare relations do NOT propagate aspects; ports do. Six relation types exist (\`calls\`, \`uses\`, \`extends\`, \`implements\`, \`emits\`, \`listens\`); event relations must be paired. Deep dive: \`yg knowledge read ports-and-relations\`.
 

@@ -37,6 +37,7 @@ export async function parseNodeYaml(filePath: string): Promise<NodeMeta> {
   const mapping = parseMapping(raw.mapping, filePath);
   const aspectsResult = parseAspects(raw.aspects, filePath);
   const ports = parsePorts(raw.ports, filePath);
+  const sizeExempt = parseSizeExempt(raw.sizeExempt, filePath);
 
   return {
     name: (raw.name as string).trim(),
@@ -48,7 +49,28 @@ export async function parseNodeYaml(filePath: string): Promise<NodeMeta> {
     relations: relations.length > 0 ? relations : undefined,
     mapping,
     ports,
+    ...(sizeExempt && { sizeExempt }),
   };
+}
+
+/**
+ * Parse the optional `sizeExempt` opt-out from the per-node character budget.
+ * Must be a mapping with a non-empty `reason` string — the documented
+ * justification for exempting an unsplittable artifact node. Absent → undefined.
+ */
+function parseSizeExempt(
+  raw: unknown,
+  filePath: string,
+): { reason: string } | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error(`yg-node.yaml at ${filePath}: 'sizeExempt' must be a mapping with a 'reason' string`);
+  }
+  const reason = (raw as Record<string, unknown>).reason;
+  if (typeof reason !== 'string' || reason.trim() === '') {
+    throw new Error(`yg-node.yaml at ${filePath}: 'sizeExempt' requires a non-empty 'reason' justifying why this node cannot be split`);
+  }
+  return { reason: reason.trim() };
 }
 
 function parseAspects(

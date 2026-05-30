@@ -88,16 +88,16 @@ describe('formatOutput', () => {
 
   it('displays full completeness-warning message including breakdown', () => {
     const output = formatOutput(makeCheckResult({
-      issues: [makeWarning('wide-node', 'Context is 18,000 tokens...\n     own: 2,100 | hierarchy: 3,200 | ...')],
+      issues: [makeWarning('high-fan-out', 'Context is 18,000 tokens...\n     own: 2,100 | hierarchy: 3,200 | ...')],
     }));
     // The 'what' first line is shown; multi-line detail in messageData.what is preserved via Why/Fix
-    expect(output).toContain('wide-node');
+    expect(output).toContain('high-fan-out');
     expect(output).toContain('Warnings (1)');
   });
 
   it('shows warnings even when errors exist', () => {
     const output = formatOutput(makeCheckResult({
-      issues: [makeError('source-drift', 'drift'), makeWarning('wide-node', 'budget')],
+      issues: [makeError('source-drift', 'drift'), makeWarning('high-fan-out', 'budget')],
     }));
     expect(output).toContain('Warnings (1)');
     // New format: verdict line says FAIL (no warning count in header when errors exist)
@@ -106,7 +106,7 @@ describe('formatOutput', () => {
 
   it('shows full warnings when no errors', () => {
     const output = formatOutput(makeCheckResult({
-      issues: [makeWarning('wide-node', 'budget warning message')],
+      issues: [makeWarning('high-fan-out', 'budget warning message')],
     }));
     expect(output).toContain('Warnings (1)');
     expect(output).toContain('budget warning message');

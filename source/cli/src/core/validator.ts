@@ -35,7 +35,7 @@ import {
   checkStrictBackwardCoverage,
   checkMappingOverlap,
   checkMappingPathsExist,
-  checkWideNodes,
+  checkOversizedNodes,
   checkDirectoriesHaveNodeYaml,
 } from './checks/mapping.js';
 import {
@@ -165,7 +165,7 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   issues.push(...(await checkMappingPathsExist(graph)));
   issues.push(...checkBrokenFlowRefs(graph));
   issues.push(...(await checkDirectoriesHaveNodeYaml(graph)));
-  issues.push(...(await checkWideNodes(graph)));
+  issues.push(...(await checkOversizedNodes(graph, cache)));
   issues.push(...checkUnpairedEvents(graph));
   issues.push(...checkArchitectureConstraints(graph));
   issues.push(...checkPortAspectsDefined(graph));
@@ -214,8 +214,13 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
           nodesScanned: 0,
         };
       }
+      const msgData = {
+        what: `Node not found: ${normalizedScope}`,
+        why: 'Validation scope references a node that does not exist in the graph.',
+        next: 'Check the node path and try again.',
+      };
       return {
-        issues: [{ severity: 'error', rule: 'invalid-scope', ...issueMsg({ what: `Node not found: ${normalizedScope}`, why: 'Validation scope references a node that does not exist in the graph.', next: 'Check the node path and try again.' }) }],
+        issues: [{ severity: 'error', code: 'invalid-scope', rule: 'invalid-scope', ...issueMsg(msgData), messageData: msgData }],
         nodesScanned: 0,
       };
     }

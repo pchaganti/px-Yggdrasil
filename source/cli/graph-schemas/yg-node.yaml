@@ -39,3 +39,8 @@ mapping:                      # optional — source files and directories owned 
   - src/modules/component.ts  # file — exact match
                               # paths are relative to repository root
                               # each source file must have exactly one owner node
+
+sizeExempt:                   # optional — opt out of the per-node character budget (quality.max_node_chars)
+  reason: "package-lock.json is npm-generated and cannot be split"  # required — non-empty justification
+                              # use ONLY for nodes mapping an unsplittable generated/binary artifact
+                              # (lockfile, append-only changelog, image). Normal oversized nodes must be split.

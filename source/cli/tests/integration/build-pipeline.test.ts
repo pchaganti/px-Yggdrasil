@@ -106,9 +106,9 @@ describe('context pipeline integration', () => {
   });
 
   /**
-   * Cross-command consistency test: context, approve --dry-run, and check (wide-node)
-   * must all agree on file count when directory mapping contains gitignored files
-   * at multiple directory levels.
+   * Cross-command consistency test: context, approve --dry-run, and check must all
+   * agree on the mapped file set when a directory mapping contains gitignored files
+   * at multiple directory levels (gitignored files are excluded everywhere).
    *
    * Fixture layout:
    *   src/svc/           — mapped directory
@@ -162,8 +162,6 @@ describe('context pipeline integration', () => {
       );
 
       await writeFile(path.join(yggDir, 'yg-config.yaml'), [
-        'quality:',
-        '  max_mapping_source_files: 7',
         'reviewer:',
         '  tiers:',
         '    default-tier:',
@@ -228,13 +226,14 @@ describe('context pipeline integration', () => {
       expect(dryRunSourceLine).not.toContain('.log');
       expect(dryRunSourceLine).not.toContain('.generated.cs');
 
-      // 3. check: wide-node must NOT fire (7 <= max 7)
-      // If gitignored files were counted (11 > 7), wide-node would fire — that's the regression.
+      // 3. check: the oversized-node gate counts the same gitignore-excluded file
+      // set used by context and dry-run. The tiny fixture is well under the
+      // character budget, so it must not fire — confirming cross-command consistency.
       const checkResult = spawnSync(
         'node', [BIN_PATH, 'check'],
         { cwd: root, encoding: 'utf-8' },
       );
-      expect(checkResult.stdout).not.toContain('wide-node');
+      expect(checkResult.stdout).not.toContain('oversized-node');
     } finally {
       const { rm } = await import('node:fs/promises');
       await rm(root, { recursive: true, force: true });

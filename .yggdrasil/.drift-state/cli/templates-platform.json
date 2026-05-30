@@ -1,5 +1,5 @@
 {
-  "hash": "ce7701ac6ebff4ae933ad9896a1e03054c9a0960ea1387a1ea5fab2b40fbbbfd",
+  "hash": "8fc1971ec67190b3e88d1f50d7433c3ed813b7c71f35fbaf68bf148136d4047c",
   "files": {
     "own-subset:cli/templates-platform": "f68bcd5143fd11da71f121095f5b7b88f309ccecd0a1190a8d557b7eeeda9f51",
     "tier-identity:what-why-next": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -8,8 +8,8 @@
     ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "7a30b1005b8db9642b89f98a63ec71e36d486207e51f6ad3f744079c67fdb9e6",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
-    "source/cli/src/templates/default-config.ts": "9501fa45c16da35796f91b7fc57e0f6a99f5764f78eed6ba631e1125304bde54",
-    "source/cli/src/templates/platform.ts": "d96addc8b4fc854500c14acda1846fef398a39d1c1df4668de3cc4c5425d2f7e"
+    "source/cli/src/templates/platform.ts": "d96addc8b4fc854500c14acda1846fef398a39d1c1df4668de3cc4c5425d2f7e",
+    "source/cli/src/templates/default-config.ts": "d24d0e1a4b64b1931113b4658e338ac39c1b653212960f389baf2995a9ba6a46"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -17,12 +17,12 @@
     ".yggdrasil/aspects/what-why-next/content.md": 1780050256245.0933,
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1779869611285.0671,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1779794513934.5745,
-    "source/cli/src/templates/default-config.ts": 1779884715080.4534,
+    "source/cli/src/templates/default-config.ts": 1780107340286.6384,
     "source/cli/src/templates/platform.ts": 1778920718473.7297
   },
   "log": {
-    "last_entry_datetime": "2026-05-29T22:37:52.435Z",
-    "prefix_hash": "8f4abf6b0bb3c800326512e08c6cd82a92499d716069e3afd02225e4e2a267da"
+    "last_entry_datetime": "2026-05-30T02:29:45.010Z",
+    "prefix_hash": "18bcc3db88444850e1990beaff22a77d234137080467bc8ae147c5affb98fb58"
   },
   "aspectVerdicts": {
     "what-why-next": {
