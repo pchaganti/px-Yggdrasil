@@ -220,35 +220,60 @@ nodes to confirm no false positives and no false negatives.
 
 ### Cookbook 1: sibling-test-file
 
-Every node of type \`command\` must have a sibling test file. Uses \`ctx.fs.exists\`.
+Every node of type \`command\` must have a sibling test in a separate test-suite
+node. The command node reaches that node through a declared relation — the
+cross-node lookup an AST aspect on a single file cannot express. Declare it in
+the command node's \`yg-node.yaml\`: \`relations: [{ type: uses, target: tests/unit }]\`.
 
 \`\`\`javascript
 // .yggdrasil/aspects/sibling-test-file/check.mjs
 export function check(ctx) {
   const violations = [];
-  for (const file of ctx.files) {
-    // Assume command node maps a single src/<area>/<name>.ts file.
-    // Expected test sibling: tests/<area>/<name>.test.ts
-    const testPath = file.path
-      .replace(/^src\\//, 'tests/')
-      .replace(/\\.ts$/, '.test.ts');
-    if (ctx.fs.exists(testPath) !== 'file') {
-      violations.push({
-        message: \`Missing sibling test file: \${testPath}\`,
-        file: file.path,
-        line: 1,
-        column: 1,
-      });
-    }
+  const sourceFile = ctx.node.files[0];
+  if (!sourceFile) return violations;
+  const stem = sourceFile.path.split('/').pop().replace(/\\.ts$/, '');
+  const expected = \`/\${stem}.test.ts\`;
+
+  // Reach the test-suite node via the declared relation. ctx.graph.node throws
+  // if this node has no relation reaching it — surface that as an actionable fix.
+  let testSuite;
+  try {
+    testSuite = ctx.graph.node('tests/unit');
+  } catch {
+    violations.push({
+      file: sourceFile.path,
+      message: "Cannot reach 'tests/unit' — add relations: [{ type: uses, target: tests/unit }] to this node's yg-node.yaml.",
+      line: 1,
+      column: 1,
+    });
+    return violations;
+  }
+  if (!testSuite) return violations; // reachable but not present — nothing to check
+
+  // Walk the suite node and its child nodes; check the sibling test exists.
+  const tests = collectFiles(testSuite, ctx);
+  if (!tests.some(f => f.path.endsWith(expected))) {
+    violations.push({
+      file: sourceFile.path,
+      message: \`Missing sibling test '\${stem}.test.ts' under tests/unit/.\`,
+      line: 1,
+      column: 1,
+    });
   }
   return violations;
 }
+
+function collectFiles(node, ctx) {
+  const out = [...node.files];
+  for (const child of ctx.graph.children(node)) out.push(...collectFiles(child, ctx));
+  return out;
+}
 \`\`\`
 
-This pattern requires that the test directory path is in the allowed reads set.
-Because the test files live under the same or an ancestor path as the source
-files, they are typically covered by the ancestor mapping channel. If not,
-declare an explicit relation to a node that owns the test directory.
+The relation is what makes the test-suite node reachable: \`ctx.graph\` exposes only
+this node, its ancestors, and nodes it declares a relation to. Reaching a sibling
+subtree (the test suite) therefore requires the explicit \`uses\` relation — that is
+the contract a structure aspect enforces and an AST aspect cannot.
 
 ### Cookbook 2: knowledge-topic-consistency
 
