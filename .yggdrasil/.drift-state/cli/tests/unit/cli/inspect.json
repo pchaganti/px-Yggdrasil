@@ -1,5 +1,5 @@
 {
-  "hash": "ff052c294b0c8e44b50ed4d067e8bea77356c8b3bdfcf371361a108efec9e6d2",
+  "hash": "5050a2eaad520c6b454c9c244516685d2d9b3e1770261888fb794569a1f97a0c",
   "files": {
     "own-subset:cli/tests/unit/cli/inspect": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -9,10 +9,10 @@
     ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": "d51c269d4b45bd597645a6c918e820c67762877ac22d64f861c53421b67a4fbd",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/cli/tree.test.ts": "3f9cc63d9d6f248d16c80a6d13634897a71c805decc5eb1cef339f202d77a462",
-    "source/cli/tests/unit/cli/type-suggest.test.ts": "bb015a4b5b68666fc449a285692fee36f9c3238d58d755691644ce403ff46398",
     "source/cli/tests/unit/cli/knowledge.test.ts": "25bfb4394cde4390c00885480bbfaf671bebc78a6c3eddc084f101dd6a8bad9d",
-    "source/cli/tests/unit/cli/deterministic-test.test.ts": "94463b5a288088aee041bd6dbd1ea7e8d7e6b3b82ab1ef51793226e34fb88c24"
+    "source/cli/tests/unit/cli/deterministic-test.test.ts": "94463b5a288088aee041bd6dbd1ea7e8d7e6b3b82ab1ef51793226e34fb88c24",
+    "source/cli/tests/unit/cli/type-suggest.test.ts": "bb015a4b5b68666fc449a285692fee36f9c3238d58d755691644ce403ff46398",
+    "source/cli/tests/unit/cli/tree.test.ts": "c9bd1acb644778b95fae9c0b91ea7cf08fca23890f264b6b3d1569d2d1e3b197"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -23,12 +23,12 @@
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/cli/knowledge.test.ts": 1780170438501.8518,
     "source/cli/tests/unit/cli/deterministic-test.test.ts": 1780169475285.8843,
-    "source/cli/tests/unit/cli/tree.test.ts": 1780047244232.665,
+    "source/cli/tests/unit/cli/tree.test.ts": 1780180168642.1973,
     "source/cli/tests/unit/cli/type-suggest.test.ts": 1778834244672.9507
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T20:06:31.393Z",
-    "prefix_hash": "b582c8858cf828ea303f6f91f945521a106c9ef0a7f150688aaa8763de5c90b9"
+    "last_entry_datetime": "2026-05-30T22:31:37.101Z",
+    "prefix_hash": "f83717ca5672c705800d8c5a5baa85b9d124fe0d5ee201a361b2ff4fdaad5e8d"
   },
   "aspectVerdicts": {
     "test-deterministic": {

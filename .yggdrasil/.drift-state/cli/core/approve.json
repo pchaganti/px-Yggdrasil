@@ -1,5 +1,5 @@
 {
-  "hash": "7e2a91755b4e387f96bed59adc5d19ce706ea3e6c621678edb2edfc8d296618c",
+  "hash": "551b4916d22c921f3a8c8821cf99d2b5a0af82201eb934d9035912725963de2e",
   "files": {
     "own-subset:cli/core/approve": "593734754ac4ed43da115f699960e92d9f7b2cd8810e9284d2bc35abb2544efc",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -37,7 +37,7 @@
     ".yggdrasil/model/cli/io/stores/yg-node.yaml": "84aeaf20ba92142c324fc575a4cdd693f41eece01c7f7a6aba82f6d4f2afba3c",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
     ".yggdrasil/model/cli/utils/yg-node.yaml": "4085a0c3fd91715499479821039adf3999cd42358845b09dc5467bc7e7811ec8",
-    "source/cli/src/core/approve.ts": "92ecf775f602465e138822bafde664ce67d3c6237a760b3486c9e6f27ad33bff"
+    "source/cli/src/core/approve.ts": "27b8f9a0c6840ebb22747a7f470d920cd8520478f34aa96c33973c51b9be3154"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -65,27 +65,27 @@
     ".yggdrasil/model/cli/io/stores/yg-node.yaml": 1778951854561.564,
     ".yggdrasil/model/cli/io/yg-node.yaml": 1778865790703.1045,
     ".yggdrasil/model/cli/utils/yg-node.yaml": 1780124613353.3586,
-    "source/cli/src/core/approve.ts": 1780177673507.3083
+    "source/cli/src/core/approve.ts": 1780180710574.437
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T21:54:03.088Z",
-    "prefix_hash": "2d910191728875bec154aec443f19be2ddd5db93063d7500137cb763b8c67c57"
+    "last_entry_datetime": "2026-05-30T22:38:48.486Z",
+    "prefix_hash": "5b801aebe654573acb3b7a66205a9345468d8833838db7df03239b85ca07acbd"
   },
   "deterministicTouchedFiles": {
     "no-nondeterminism-direct": {
-      "source/cli/src/core/approve.ts": "92ecf775f602465e138822bafde664ce67d3c6237a760b3486c9e6f27ad33bff"
+      "source/cli/src/core/approve.ts": "27b8f9a0c6840ebb22747a7f470d920cd8520478f34aa96c33973c51b9be3154"
     },
     "no-direct-fs": {
-      "source/cli/src/core/approve.ts": "92ecf775f602465e138822bafde664ce67d3c6237a760b3486c9e6f27ad33bff"
+      "source/cli/src/core/approve.ts": "27b8f9a0c6840ebb22747a7f470d920cd8520478f34aa96c33973c51b9be3154"
     },
     "no-direct-console": {
-      "source/cli/src/core/approve.ts": "92ecf775f602465e138822bafde664ce67d3c6237a760b3486c9e6f27ad33bff"
+      "source/cli/src/core/approve.ts": "27b8f9a0c6840ebb22747a7f470d920cd8520478f34aa96c33973c51b9be3154"
     },
     "posix-paths-source": {
-      "source/cli/src/core/approve.ts": "92ecf775f602465e138822bafde664ce67d3c6237a760b3486c9e6f27ad33bff"
+      "source/cli/src/core/approve.ts": "27b8f9a0c6840ebb22747a7f470d920cd8520478f34aa96c33973c51b9be3154"
     },
     "single-source-graph-queries": {
-      "source/cli/src/core/approve.ts": "92ecf775f602465e138822bafde664ce67d3c6237a760b3486c9e6f27ad33bff"
+      "source/cli/src/core/approve.ts": "27b8f9a0c6840ebb22747a7f470d920cd8520478f34aa96c33973c51b9be3154"
     }
   },
   "aspectVerdicts": {

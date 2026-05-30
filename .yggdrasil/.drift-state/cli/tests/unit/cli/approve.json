@@ -1,5 +1,5 @@
 {
-  "hash": "e0f4dda2ce139fc859c251f5c53012c8037156116accf9a43481ab8d195f76ec",
+  "hash": "55b2ae7db42ad06a9ea6b6dee6b8b791c7a41291982dea02d662db682aaff525",
   "files": {
     "own-subset:cli/tests/unit/cli/approve": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -12,10 +12,11 @@
     "source/cli/tests/unit/cli/approve.test.ts": "872433216426c1fa9aff3b0e7ad82424f81e0e1bb860eedf1731e389ad8cee06",
     "source/cli/tests/unit/cli/approve-batch.test.ts": "c59619ad846ed53db20f63cf8c5f1e55d720963e056cff106a758331e4f514a3",
     "source/cli/tests/unit/cli/approve-batch-integration.test.ts": "6498d29cac4d13780df2deba6bbde5fd51a73e9f795f6ea51f42cc169ccd27dd",
-    "source/cli/tests/unit/cli/approve-aspect-cascade.test.ts": "441274cc08898037acbce0bb81abea87f658904334131a722ef4981e8f1bf26c",
+    "source/cli/tests/unit/cli/approve-aspect-cascade.test.ts": "aefef7a4590c9b44628a15aeda84e3eca4927bb05a9d3fbc0edadce7d7330a2b",
     "source/cli/tests/unit/cli/approve-flow-cascade.test.ts": "d50617acf37f5956941405edaca68f907c4d2c698b1db9b82d52d4f5e52b73c7",
+    "source/cli/tests/unit/cli/approve-select-drifted-aspects.test.ts": "1c7cd32ce7de4c8f1c4ee5471f578f2a0f6692b3bfc4bfc1da595c1f8cdac4f1",
     "source/cli/tests/unit/cli/run-batch.test.ts": "15dcfa3052af8f7adef71fbc1ce9865f6640d745ca0300a56d519aa921c32887",
-    "source/cli/tests/unit/cli/approve-select-drifted-aspects.test.ts": "1c7cd32ce7de4c8f1c4ee5471f578f2a0f6692b3bfc4bfc1da595c1f8cdac4f1"
+    "source/cli/tests/unit/cli/approve-action-guards.test.ts": "2d35faaa68aa1ec0bec632298a63c467d99895cb3bb3bf133f10d90a0df2481a"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -25,16 +26,17 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/cli/approve.test.ts": 1780175737859.9473,
+    "source/cli/tests/unit/cli/approve-action-guards.test.ts": 1780179959902.3354,
     "source/cli/tests/unit/cli/approve-batch.test.ts": 1778854589347.4822,
     "source/cli/tests/unit/cli/approve-batch-integration.test.ts": 1779869468774.8708,
-    "source/cli/tests/unit/cli/approve-aspect-cascade.test.ts": 1780133819578.648,
+    "source/cli/tests/unit/cli/approve-aspect-cascade.test.ts": 1780179876232.9756,
     "source/cli/tests/unit/cli/approve-flow-cascade.test.ts": 1780133272222.319,
     "source/cli/tests/unit/cli/approve-select-drifted-aspects.test.ts": 1780177673510.817,
     "source/cli/tests/unit/cli/run-batch.test.ts": 1778917038514.553
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T21:54:04.431Z",
-    "prefix_hash": "cecb79f313b8eea4cefcb6f791f0416750fe00b050e3d31f38a07f7578098450"
+    "last_entry_datetime": "2026-05-30T22:42:41.154Z",
+    "prefix_hash": "f0cda750751c6aad6d540413afeb4ef0f4a2e37ac25989cd877a92ecd1a92b6d"
   },
   "aspectVerdicts": {
     "test-deterministic": {
