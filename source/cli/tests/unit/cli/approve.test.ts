@@ -48,13 +48,17 @@ describe('formatResult — LLM results', () => {
     expect(output).toContain('fs.readFileSync');
   });
 
-  it('shows LLM unavailable notice', () => {
+  it('shows LLM unavailable notice with an actionable next step', () => {
     const result = makeApproveResult({
       action: 'approved',
       llmSkipped: 'unavailable',
     });
     const output = captureOutput(() => formatResult('some/node', result));
-    expect(output).toContain('aspects not verified');
+    // Structured what/why/next — what states aspects were not verified, next is actionable.
+    expect(output).toContain('not reachable');
+    expect(output).toContain('not verified');
+    expect(output).toContain('re-run yg approve');
+    expect(output).toContain('yg-config.yaml');
   });
 
 });
@@ -71,9 +75,13 @@ describe('formatResult — advisory-only violations', () => {
     const output = captureOutput(() => formatResult('svc/thing', result));
     // Approved summary still printed.
     expect(output).toContain('Approved: svc/thing');
-    // Informational advisory line — NOT the red refusal, NOT "NOT SATISFIED".
+    // Structured what/why/next advisory line — NOT the red refusal, NOT "NOT SATISFIED".
     expect(output).toContain('advisory aspect violation');
-    expect(output).toContain('advisory-rule — ADVISORY (not blocking)');
+    // The structured `what` still names the violated aspect id.
+    expect(output).toContain('advisory-rule');
+    // The `why` explains advisory aspects do not block.
+    expect(output).toContain('do not block');
+    // The per-violation reason (exempt LLM output) is still surfaced.
     expect(output).toContain('advisory issue on line 9');
     expect(output).not.toContain('NOT SATISFIED');
     expect(output).not.toContain('Reviewer found aspect violations');
@@ -95,7 +103,10 @@ describe('formatResult — advisory-only violations', () => {
     ];
     const output = captureOutput(() => formatBatchOutput(results));
     expect(output).toContain('1 approved, 0 failed.');
-    expect(output).toContain('ADVISORY (not blocking)');
+    // Structured advisory line still surfaces the aspect id and reason in batch output.
+    expect(output).toContain('advisory aspect violation');
+    expect(output).toContain('advisory-rule');
+    expect(output).toContain('advisory issue');
   });
 });
 

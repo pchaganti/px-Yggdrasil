@@ -95,10 +95,14 @@ export function formatResult(nodePath: string, result: LlmApproveResult): void {
 
 function formatLlmResults(result: LlmApproveResult): void {
   if (result.llmSkipped) {
-    const messages: Record<NonNullable<LlmApproveResult['llmSkipped']>, string> = {
-      'unavailable': 'Reviewer configured but not reachable — aspects not verified. Structural checks only.',
+    const messages: Record<NonNullable<LlmApproveResult['llmSkipped']>, { what: string; why: string; next: string }> = {
+      'unavailable': {
+        what: 'Reviewer configured but not reachable — LLM aspects were not verified (structural checks only).',
+        why: 'The configured LLM reviewer could not be contacted, so verdicts for LLM aspects were skipped on this approve; the recorded baseline reflects only the deterministic checks.',
+        next: 'Check the reviewer provider and credentials in .yggdrasil/yg-config.yaml, then re-run yg approve.',
+      },
     };
-    process.stdout.write(chalk.yellow(`  ${messages[result.llmSkipped]}\n`));
+    process.stdout.write(chalk.yellow(buildIssueMessage(messages[result.llmSkipped]) + '\n'));
     return;
   }
 
@@ -137,12 +141,13 @@ function formatLlmResults(result: LlmApproveResult): void {
 function formatAdvisoryViolations(nodePath: string, result: LlmApproveResult): void {
   const advisory = result.advisoryViolations ?? [];
   if (advisory.length === 0) return;
-  process.stdout.write(chalk.yellow(
-    `\nInfo: ${advisory.length} advisory aspect violation(s) on ${nodePath} — recorded, not blocking:\n`,
-  ));
+  process.stdout.write(chalk.yellow(buildIssueMessage({
+    what: `${advisory.length} advisory aspect violation(s) on ${nodePath} — recorded, not blocking: ${advisory.map(v => v.aspectId).join(', ')}.`,
+    why: 'Advisory aspects warn but do not block approval or CI; their refused verdicts are recorded in the baseline and surfaced by yg check as non-blocking warnings.',
+    next: 'Review each recorded reason below and fix the violation, or keep the aspect advisory. To see them again later, run yg check.',
+  }) + '\n'));
   for (const v of advisory) {
-    process.stdout.write(chalk.yellow(`  ${v.aspectId} — ADVISORY (not blocking)\n`));
-    process.stdout.write(chalk.dim(`    ${v.reason}\n`));
+    process.stdout.write(chalk.dim(`    ${v.aspectId}: ${v.reason}\n`));
   }
 }
 
