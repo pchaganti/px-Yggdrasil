@@ -8,7 +8,7 @@ import { BOOLEAN_KEYS, parsePredicateBoolean } from './predicate-boolean.js';
 /**
  * Distinguished error class for when-predicate failures so callers
  * (architecture-parser) can re-raise as `when-predicate-invalid` error code
- * instead of generic `architecture-invalid`. Spec §7 Klasa 6.
+ * instead of generic `architecture-invalid`.
  */
 export class WhenPredicateInvalidError extends Error {
   readonly code = 'when-predicate-invalid' as const;

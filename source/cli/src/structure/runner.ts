@@ -177,7 +177,7 @@ export async function runStructureAspect(
     parseToml: parsers.parseToml,
   };
 
-  // PREWARMUP — Decision A. Compute AST input set, prewarm cache.
+  // PREWARMUP. Compute AST input set, prewarm cache.
   const astInputSet: File[] = [...ownFiles];
   for (const rel of (node.meta.relations ?? [])) {
     const target = graph.nodes.get(rel.target);

@@ -810,7 +810,7 @@ function computeSuggestedNext(issues: CheckIssue[], graph?: Graph): string | nul
 
   // Smaller subset used only at line 684 for an internal filter (not CI blocking).
   // CI blocking uses cli/check.ts STRUCTURAL_CODES. Aligning these two sets is
-  // tracked as a separate dogfood cleanup; not in this plan.
+  // tracked separately as a future cleanup.
   const STRUCTURAL_CODES = new Set(['yaml-invalid', 'type-invalid', 'relation-broken', 'flow-node-broken', 'aspect-undefined', 'overlapping-mapping', 'structural-cycle', 'config-invalid', 'duplicate-aspect-id', 'node-yaml-missing', 'implied-aspect-missing', 'aspect-implies-cycle', 'event-unpaired', 'schema-missing']);
   const COMPLETENESS_CODES = new Set(['description-missing']);
 

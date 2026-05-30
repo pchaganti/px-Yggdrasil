@@ -28,3 +28,5 @@ Add clearDraftAspectsFromDriftState helper. Removes specified aspect IDs from th
 Extend IndexedDocument with an optional status field carrying aspect-default enforcement status. Populated by buildIndex only for aspect-kind documents (nodes do not carry status). The field is added to storeFields so search consumers can read it directly from result hits without re-querying the graph.
 ## [2026-05-29T07:19:58.014Z]
 Added clarifying JSDoc comment to clearDraftAspectsFromDriftState explicitly documenting that structureTouchedFiles is not cleared, preserving the D8.3 invariant across draft-toggle operations. No behavior change.
+## [2026-05-30T04:57:35.754Z]
+Removed leaked internal planning references — task, phase, and decision identifiers and section citations — from source-code comments. These tokens named ephemeral planning artifacts that mean nothing to a future reader and violated the project's comment self-containment rule. The substantive explanation each comment carried was preserved; no code or behavior changed.

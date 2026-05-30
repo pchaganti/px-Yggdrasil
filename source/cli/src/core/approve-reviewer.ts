@@ -24,7 +24,7 @@ import path from 'node:path';
  * aspects on this node. Called after every commitApproval site in this file.
  *
  * Why eviction is needed: draft aspects are dormant (skipped before reviewer
- * dispatch — see Task 13), so if a prior approve recorded a verdict for an
+ * dispatch), so if a prior approve recorded a verdict for an
  * aspect that has since transitioned to `draft`, that verdict would linger in
  * the baseline despite no reviewer ever evaluating it again. The cleanup
  * removes those orphaned verdicts so the persisted state reflects only
@@ -506,7 +506,7 @@ export async function runApproveWithReviewer(
     }
   }
 
-  // D8.3 — preserve structureTouchedFiles for structure aspects that were NOT
+  // Preserve structureTouchedFiles for structure aspects that were NOT
   // freshly evaluated this run. Two cases collapse into one pass:
   //   - draft-skipped: a structure aspect toggled to draft retains its prior
   //     entry so a later enforced→draft→enforced cycle does not cascade drift.

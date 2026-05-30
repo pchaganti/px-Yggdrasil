@@ -229,8 +229,8 @@ function aspectDefaultStatus(graph: Graph, aspectId: string): AspectStatus {
 }
 
 /**
- * Compute effective status per aspect for a node. Phase-1: channels 1–6 only.
- * Phase-2 (implies) added by Task 11.
+ * Compute effective status per aspect for a node. Covers channels 1–6 plus
+ * implies propagation.
  *
  * Returns a Map keyed by aspect id; only contains entries reachable via at
  * least one channel after `when` filtering.
@@ -308,7 +308,7 @@ export function computeEffectiveAspectStatuses(node: GraphNode, graph: Graph): M
     }
   }
 
-  // Phase 2 — implies fix-point. Monotone (max only) → terminates in
+  // Implies fix-point. Monotone (max only) → terminates in
   // O(aspects × max-depth). Draft aspects do not propagate.
   const idToAspect = new Map<string, AspectDef>();
   for (const a of graph.aspects) idToAspect.set(a.id, a as AspectDef);

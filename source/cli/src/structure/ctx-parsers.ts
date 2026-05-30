@@ -62,7 +62,7 @@ export function createCtxParsers(params: CtxParsersParams): CtxParsers {
   };
 }
 
-// Helper used by dispatcher (Task 17) to prewarmup astCache for a given aspect run.
+// Helper used by dispatcher to prewarmup astCache for a given aspect run.
 export async function prewarmupAstCache(params: {
   astCache: ParseCache;
   projectRoot: string;

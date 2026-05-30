@@ -16,7 +16,7 @@ export interface FileContextAspect {
   verifiedAgainst: string;
   source?: string; // for implied aspects
   references?: Array<{ path: string; description?: string }>;
-  /** Effective enforcement status for this aspect on the owner node. Task 18 consumers render this. */
+  /** Effective enforcement status for this aspect on the owner node. Consumers render this. */
   status?: import('../model/graph.js').AspectStatus;
 }
 

@@ -10,8 +10,8 @@ export interface LanguageDef {
   commentDelimiters: string[];
 }
 
-// Phase 1 stub: TS/TSX/JS only. Phase 3 expands to 35.
-// Pin/scanner fields empty in phase 1 — phase 4 build pipeline populates.
+// Stub: TypeScript/TSX/JavaScript only; expands to more languages later.
+// Pin/scanner fields empty for now — the build pipeline populates them later.
 export const LANGUAGES: Record<string, LanguageDef> = {
   typescript: {
     id: 'typescript',

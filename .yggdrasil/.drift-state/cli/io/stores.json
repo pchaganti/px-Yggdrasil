@@ -1,5 +1,5 @@
 {
-  "hash": "b018eab99476fef69fb69d3e89372809b63c70de6cbeab3630587e84c1a6afda",
+  "hash": "b3b47d4bf93644367706bfbabc25d418f2fc5b55198b92aaac2d3f371e5ed3fe",
   "files": {
     "own-subset:cli/io/stores": "a62120e7f439a113e58095db1ee1804268da2e859a558c5ea86ced189d5eec9a",
     "tier-identity:silent-missing-files": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -27,7 +27,7 @@
     "source/cli/src/io/paths.ts": "7963ce71c72939400cff032aaba1030885ebcd0dde1e4110b2bfce8a7fd2dc95",
     "source/cli/src/io/read-or-default.ts": "14ae9ceb3b56e9b3d433ef9cd217a84ca71a90264e438b2fa186455f7906b393",
     "source/cli/src/io/repo-scanner.ts": "ab2f8f748c3745a6f82117ddbf09ffbb7995bf245484b4cd0f0a11a72137b52a",
-    "source/cli/src/io/drift-state-store.ts": "84edb57d5c937ff3138da3cb0146af1f037161f15b4bbdae804498020ec910df"
+    "source/cli/src/io/drift-state-store.ts": "833e82b577da7d3dfbbe8c8fd3622c2f80eac9cc56812c201e9622e1a5205346"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -46,7 +46,7 @@
     ".yggdrasil/model/cli/io/atomic-write/yg-node.yaml": 1778919314141.992,
     "source/cli/src/io/artifact-reader.ts": 1776177846230.4192,
     "source/cli/src/io/debug-log-writer.ts": 1778910277504.241,
-    "source/cli/src/io/drift-state-store.ts": 1780039182229.6028,
+    "source/cli/src/io/drift-state-store.ts": 1780116632853.728,
     "source/cli/src/io/find-index.ts": 1779976588683.0483,
     "source/cli/src/io/graph-fs.ts": 1778910103922.5334,
     "source/cli/src/io/hash.ts": 1778960620320.961,
@@ -56,8 +56,8 @@
     "source/cli/src/io/repo-scanner.ts": 1778847561619.7393
   },
   "log": {
-    "last_entry_datetime": "2026-05-29T07:19:58.014Z",
-    "prefix_hash": "50e9611c306638b0a48268e879d6e12bbc083f3ff23b7f1a691fcaf034413767"
+    "last_entry_datetime": "2026-05-30T04:57:35.754Z",
+    "prefix_hash": "d811c5410f7c2d06c63dff22f7697f517c97dad3c5ad4dd8edd9878610123534"
   },
   "aspectVerdicts": {
     "silent-missing-files": {

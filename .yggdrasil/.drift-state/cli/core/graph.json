@@ -1,5 +1,5 @@
 {
-  "hash": "3de7a6fead2c9b474580049521f3327ea510f62989ec9a82c06afd6311491c80",
+  "hash": "4e20fa8f634221496de552f8a540ce4ebfcee84fe94afe8190103216351a6b5b",
   "files": {
     "own-subset:cli/core/graph": "017d50656501e8b443151a1fb73d7403f5b0a9279ac7e31e3d3029b12ad7399f",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -19,14 +19,14 @@
     ".yggdrasil/aspects/single-source-graph-queries/check.mjs": "8364b0c42413e7b467a22b493543f882d77cc3b65616af93127c07c76c212361",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
-    "source/cli/src/core/graph/aspects.ts": "01e7fc46ac84476ec8db60e06ee208f3e7ec634a2f8d86fe810e801251c25a59",
     "source/cli/src/core/graph/dependencies.ts": "ef894f905b8a3b48edae8ca053c1a93f1d85b6e6ab8ad852e3d8fb8021334966",
+    "source/cli/src/core/graph/files.ts": "b5ac4ee8f66dcd47ce26263e8b54913e8a8f41befe256c9a5944e50fd6a8ead7",
     "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
     "source/cli/src/core/graph/impact-graph.ts": "77bf8e3073cd5f9c95c6fe9e2b97fdafe16fb594b6db943fd4def11a56e17de3",
     "source/cli/src/core/graph/index.ts": "563e36848000ab08dd5ab49b769455be58ce21ced356fbc59a3639b4704e0208",
-    "source/cli/src/core/graph/language-registry.ts": "f054610584e5e0e5a68de94eec30385103ae938df58ec2087ff5c1e8ddea906c",
     "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b",
-    "source/cli/src/core/graph/files.ts": "b5ac4ee8f66dcd47ce26263e8b54913e8a8f41befe256c9a5944e50fd6a8ead7"
+    "source/cli/src/core/graph/aspects.ts": "557b07a2af03fa9babd0342bb3e34dbdb8a4b747a969a7455ee6291e2a53da3e",
+    "source/cli/src/core/graph/language-registry.ts": "2e58a0a00eec2eae5ac15da4f072bb55a213d8e21ca5fe24864391c62d829761"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -45,18 +45,18 @@
     ".yggdrasil/aspects/single-source-graph-queries/check.mjs": 1779794513935.7961,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    "source/cli/src/core/graph/aspects.ts": 1780064765034.0183,
+    "source/cli/src/core/graph/aspects.ts": 1780116393881.775,
     "source/cli/src/core/graph/dependencies.ts": 1778959819575.0183,
     "source/cli/src/core/graph/files.ts": 1780114301638.904,
     "source/cli/src/core/graph/flows.ts": 1778958982525.8142,
     "source/cli/src/core/graph/impact-graph.ts": 1780077332253.6726,
     "source/cli/src/core/graph/index.ts": 1779794513949.0657,
-    "source/cli/src/core/graph/language-registry.ts": 1779794513949.1516,
+    "source/cli/src/core/graph/language-registry.ts": 1780116963369.5334,
     "source/cli/src/core/graph/traversal.ts": 1778958972950.3818
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T04:16:52.732Z",
-    "prefix_hash": "981b5e60f50fc2ad63e261fcbd0074526eadce14257979ae7bc7c5d0a3b0ce70"
+    "last_entry_datetime": "2026-05-30T04:57:35.253Z",
+    "prefix_hash": "88b7e4b469c0d08dd07a8f80743d8b156d3d2e6618921cebf95573bbd2de24f7"
   },
   "aspectVerdicts": {
     "deterministic": {

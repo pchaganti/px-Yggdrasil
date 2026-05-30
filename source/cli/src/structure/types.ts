@@ -72,12 +72,12 @@ export interface Ctx {
   parseToml(file: File | string): unknown;
 }
 
-// **DECISION (LOCKED, 2026-05-29): Option A — PREWARMUP.**
+// Approach: PREWARMUP.
 // `parseAst` is async (web-tree-sitter `parseFile` returns Promise<Tree>) BUT the structure
 // runner enforces synchronous `check.mjs` via the STRUCTURE_CHECK_ASYNC guard (mirroring
 // AST runner). Author CANNOT `await ctx.parseAst(...)` inside `check`.
 //
-// Resolution: PREWARMUP. Dispatcher (Task 17) pre-parses every file in the aspect's
+// Resolution: PREWARMUP. The dispatcher pre-parses every file in the aspect's
 // "AST input set" before invoking `check(ctx)`. The AST input set is auto-derived:
 //   - all paths in ctx.files (own mapping minus child carve-out)
 //   - all paths in ctx.node.mapping that match known AST language extensions

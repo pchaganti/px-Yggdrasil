@@ -22,7 +22,7 @@ export interface NodeContextAspect {
   verifiedAgainst: string;
   implies?: string[];
   references?: Array<{ path: string; description?: string }>;
-  /** Effective enforcement status on this node. Task 18 consumers render this. */
+  /** Effective enforcement status on this node. Consumers render this. */
   status?: import('../model/graph.js').AspectStatus;
 }
 

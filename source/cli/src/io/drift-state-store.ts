@@ -100,7 +100,7 @@ export async function writeNodeDriftState(
  * none of the requested IDs are present. If removal empties the aspectVerdicts
  * map, the field is dropped entirely (matches initial-write shape).
  *
- * Per design D8.3 for structure aspects, `structureTouchedFiles` is NOT
+ * For structure aspects, `structureTouchedFiles` is NOT
  * cleared here — it is preserved across draft toggle so the next non-draft
  * approve can compare against the previous baseline.
  */

@@ -79,7 +79,7 @@ export interface DriftNodeState {
   aspectVerdicts?: Record<string, AspectVerdict>;
   /**
    * Per-structure-aspect touched files captured at the last enforced/advisory
-   * approve (D8.3). Optional for backward compat:
+   * approve. Optional for backward compat:
    *   - missing = pre-feature baseline → cold start
    *   - preserved across draft toggle (clearDraftAspectsFromDriftState does NOT clear it)
    * Schema: { [aspectId]: { [repoRelPosixPath]: sha256Hex } }

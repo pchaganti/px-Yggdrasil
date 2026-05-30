@@ -266,7 +266,7 @@ export interface SchemaDef {
  *
  * Bare string keeps backward compatibility with legacy parse failures.
  * Structured form lets validators distinguish error codes — e.g.
- * `when-predicate-invalid` (Spec §7 Klasa 6) vs. generic `architecture-invalid`.
+ * `when-predicate-invalid` vs. generic `architecture-invalid`.
  */
 export type ArchitectureLoadError =
   | { code: 'architecture-invalid'; messageData: IssueMessage }

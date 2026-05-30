@@ -3,7 +3,7 @@ import { normalizeMappingPath } from './expand-mapping-sync.js';
 
 /**
  * Computes the set of repo-relative paths a structure aspect on `nodePath`
- * is allowed to read via ctx.fs.* and ctx.graph.*. D9=A:
+ * is allowed to read via ctx.fs.* and ctx.graph.*:
  *   1. own mapping minus child mapping (child wins)
  *   2. declared relation target mappings + their transitive descendants
  *      (covers port owners — port is on target)
