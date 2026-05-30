@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { ensureLoaderRegistered } from '../ast/loader-hook.js';
 import { createCtxFs, UndeclaredFsReadError } from './ctx-fs.js';
 import { createCtxGraph, UndeclaredGraphReadError } from './ctx-graph.js';
-import { createCtxParsers, prewarmupAstCache, ParseAstNotPrewarmedError } from './ctx-parsers.js';
+import { createCtxParsers, prewarmupAstCache, enrichFilesWithAst, ParseAstNotPrewarmedError } from './ctx-parsers.js';
 import { collectAllowedReadsForAspect } from './allowed-reads.js';
 import { normalizeMappingPath } from './expand-mapping-sync.js';
 import { validateCheckModuleExport } from '../utils/validate-check-module.js';
@@ -152,15 +152,18 @@ export async function runStructureAspect(
   const parsers = createCtxParsers({ allowedSet, projectRoot, touchedFiles, astCache });
 
   const ownFiles = buildOwnFiles(node, projectRoot, touchedFiles);
+  // Eagerly parse own-mapping files so ctx.files carry .ast + .language (AST-aspect parity).
+  await prewarmupAstCache({ astCache, projectRoot, files: ownFiles });
+  const ownFilesEnriched = enrichFilesWithAst(ownFiles, astCache);
   const ctx: Ctx = {
     node: {
       id: node.path,
       type: node.meta.type,
       mapping: node.meta.mapping ?? [],
-      files: ownFiles,
+      files: ownFilesEnriched,
       ports: (node.meta.ports ?? {}) as Record<string, Port>,
     },
-    files: ownFiles,
+    files: ownFilesEnriched,
     fs: ctxFs,
     graph: ctxGraph,
     parseAst: parsers.parseAst,
