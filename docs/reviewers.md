@@ -1,12 +1,11 @@
 # Aspect Reviewers
 
-Aspects are verified by reviewers. Yggdrasil ships three reviewer types — all operate on the same aspect-node-flow graph; the `reviewer` field in `yg-aspect.yaml` selects which one runs.
+Aspects are verified by reviewers. Yggdrasil ships two reviewer types — both operate on the same aspect-node-flow graph; the `reviewer` field in `yg-aspect.yaml` selects which one runs.
 
 - **LLM reviewer** (`reviewer: { type: llm }`): ships a `content.md` rule file. An LLM reads the rule and the node's source code, then accepts or rejects.
-- **AST reviewer** (`reviewer: { type: ast }`): ships a `check.mjs` module. A deterministic runner parses the source files with tree-sitter and executes your `check` function against the AST.
-- **Structure reviewer** (`reviewer: { type: structure }`): ships a `check.mjs` module that runs in a sandboxed context (`ctx`) with read access to the node's own files plus, through declared relations, related nodes' files and graph metadata. Use it for cross-node structural rules a single-file AST check cannot express. See `yg knowledge read writing-structure-aspects`.
+- **Deterministic reviewer** (`reviewer: { type: deterministic }`): ships a `check.mjs` module run by a deterministic runner at zero LLM cost. The check returns a `Violation[]` — no LLM, no nondeterminism, no per-call cost. It can inspect a single file's tree-sitter parse tree (`file.ast`) for per-file syntactic rules, or read the graph (the node's own files, related nodes' files, the file system, and graph metadata) for cross-node and structural rules a single-file check cannot express. See `yg knowledge read writing-deterministic-aspects`.
 
-A `content.md` (LLM) and a `check.mjs` (AST or structure) are mutually exclusive — exactly one must be present per aspect, and `reviewer.type` selects which runner consumes the `check.mjs`. `yg check` enforces this. Both AST and structure aspects run locally at zero LLM cost.
+A `content.md` (LLM) and a `check.mjs` (deterministic) are mutually exclusive — exactly one must be present per aspect, and `reviewer.type` selects which runner consumes the `check.mjs`. `yg check` enforces this. Deterministic aspects run locally at zero LLM cost.
 
 ---
 
@@ -14,11 +13,10 @@ A `content.md` (LLM) and a `check.mjs` (AST or structure) are mutually exclusive
 
 | Reviewer | Use when the rule is… | Examples |
 |---|---|---|
-| **AST** | a per-file **syntactic** check | Forbidden API calls (`fs.readFileSync`, `eval`); naming conventions (PascalCase exports); import restrictions (no cross-module relatives); missing guards (`@Log` decorator required) |
-| **Structure** | a **graph or file-system shape** check spanning more than one file | "Every command node has a sibling test file"; "every child of an engine node is of type engine-component"; "every knowledge topic is registered in the index" |
+| **Deterministic** | a **programmatic** check — either a per-file **syntactic** rule or a **graph/file-system shape** rule spanning more than one file | Forbidden API calls (`fs.readFileSync`, `eval`); naming conventions (PascalCase exports); import restrictions (no cross-module relatives); missing guards (`@Log` decorator required); "every command node has a sibling test file"; "every child of an engine node is of type engine-component"; "every knowledge topic is registered in the index" |
 | **LLM** | a **semantic judgment** a human reviewer would read surrounding context to make | "Mutations must emit audit events"; "Error responses must follow the API contract"; "Business logic must respect rounding rules"; "This handler must validate input semantically" |
 
-If you can write a regex or an AST traversal over a single file to verify the rule, use AST. If the rule depends on graph topology or multi-file consistency that a single-file check cannot express, use structure. If a human reviewer would need to read surrounding context to decide, use LLM. AST and structure both run locally at zero LLM cost; only the LLM reviewer makes paid calls.
+If a programmatic check can decide the rule — a regex or AST traversal over a single file, or a graph-aware check spanning multiple files and the file system — use the deterministic reviewer. If a human reviewer would need to read surrounding context to decide, use LLM. The deterministic reviewer runs locally at zero LLM cost; only the LLM reviewer makes paid calls.
 
 `reviewer.type` is **required** on every aspect — there is no implicit default. LLM aspects may also declare `reviewer.tier:` to opt into a specific tier from `yg-config.yaml` — see [Reviewer tiers](./configuration.md#reviewer-tiers) for tier configuration.
 
@@ -100,31 +98,37 @@ reviewer:
 
 ---
 
-## AST reviewer
+## Deterministic reviewer
 
-The AST reviewer is deterministic. The runner parses each source file with tree-sitter and calls your `check(ctx)` function with the parse tree. Whatever `Violation[]` you return is the verdict — no LLM, no nondeterminism, no per-call cost.
+The deterministic reviewer ships a `check.mjs` module run locally at zero LLM cost. Whatever `Violation[]` your `check` function returns is the verdict — no LLM, no nondeterminism, no per-call cost. A check can scope to a **single file** — parsing it with tree-sitter and inspecting the parse tree (`file.ast`) — or to the **whole graph**, reading the node's own files, related nodes' files, the file system, and graph metadata for cross-node and structural rules. See `yg knowledge read writing-deterministic-aspects`.
 
-### Directory structure
+Both styles run through the same reviewer and the same `reviewer.type: deterministic` field. The two subsections below cover each: [Single-file checks](#single-file-checks) for per-file syntactic rules, and [Graph-aware checks](#graph-aware-checks) for rules spanning more than one node.
+
+### Single-file checks
+
+A single-file check parses each source file with tree-sitter and calls your `check(ctx)` function with the parse tree. Whatever `Violation[]` you return is the verdict.
+
+#### Directory structure
 
 ```
 .yggdrasil/aspects/
   async-fs/
-    yg-aspect.yaml       ← reviewer: { type: ast }
+    yg-aspect.yaml       ← reviewer: { type: deterministic }
     check.mjs            ← your check function
 ```
 
-### `yg-aspect.yaml`
+#### `yg-aspect.yaml`
 
 ```yaml
 name: No Sync FS
 description: Forbid synchronous fs calls — use async equivalents
 reviewer:
-  type: ast
+  type: deterministic
 ```
 
-The `reviewer.type: ast` field is required. The runner parses each source file by extension (the TypeScript/JavaScript family) and passes all files to a single `check.mjs` invocation — per-language dispatch and file filtering are designed but not yet built. Everything else (`implies`, `when`, `aspects` on nodes) works identically across all reviewer types.
+The `reviewer.type: deterministic` field is required. The runner parses each source file by extension (the TypeScript/JavaScript family) and passes all files to a single `check.mjs` invocation — per-language dispatch and file filtering are designed but not yet built. Everything else (`implies`, `when`, `aspects` on nodes) works identically across both reviewer types.
 
-### Writing `check.mjs`
+#### Writing `check.mjs`
 
 ```javascript
 // check.mjs — must export a named 'check' function (not default)
@@ -159,7 +163,7 @@ interface Violation {
 }
 ```
 
-### End-to-end example — async-fs
+#### End-to-end example — async-fs
 
 ```javascript
 // .yggdrasil/aspects/async-fs/check.mjs
@@ -185,7 +189,7 @@ export function check(ctx) {
 
 This flags any call matching `fs.<anythingSync>()` anywhere in the files, across function boundaries.
 
-### Minimal API
+#### Minimal API
 
 Five exports are available from `@chrisdudek/yg/ast` — no installation required. If `yg` works on the machine, the import resolves at runtime.
 
@@ -214,7 +218,7 @@ node.parent                      // parent node
 
 Full type signatures are in the CLI's `dist/ast.d.ts`. Locally installed users get editor completion automatically; global/npx users get runtime resolution.
 
-### Worked example — before and after
+#### Worked example — before and after
 
 **Rule:** no array-mutation methods called on function parameters.
 
@@ -265,54 +269,52 @@ walk(file.ast.rootNode, fn => {
 });
 ```
 
-### Purity rule
+#### Purity rule
 
 `check.mjs` must be pure: **no file writes, no network calls, no `process.exit`**. The runner does not sandbox or enforce this; respecting it is your responsibility. Impure checks produce non-deterministic results and can corrupt the project.
 
-### Testing AST aspects
+#### Testing single-file checks
 
 ```bash
 # Verify an aspect against specific files (no graph attachment, no baseline)
-yg ast-test --aspect async-fs --files src/utils/config.ts
+yg deterministic-test --aspect async-fs --files src/utils/config.ts
 
 # Use a node's mapping as the file list
-yg ast-test --aspect async-fs --node orders/order-service
+yg deterministic-test --aspect async-fs --node orders/order-service
 ```
 
-`yg ast-test` exits 0 for clean, 1 for violations. Output:
+`yg deterministic-test` exits 0 for clean, 1 for violations. Output:
 
 ```text
 src/utils/config.ts
   L12: fs.readFileSync is synchronous — use async equivalent
 ```
 
----
+### Graph-aware checks
 
-## Structure reviewer
+A graph-aware check is language-agnostic. Like a single-file check it ships one `check.mjs` module and runs locally at zero LLM cost, but instead of a single file's parse tree it receives a graph-aware `ctx` object — the node being reviewed, its files, the file system, and the graph topology. Use it for cross-node structural rules a single-file check cannot express: "every command node has a sibling test file", "every child of an engine node is of type engine-component", "every knowledge topic is registered in the index". See `yg knowledge read writing-deterministic-aspects`.
 
-The structure reviewer is deterministic and language-agnostic. Like the AST reviewer it ships a `check.mjs` module and runs locally at zero LLM cost, but instead of a single file's parse tree it receives a graph-aware `ctx` object — the node being reviewed, its files, the file system, and the graph topology. Use it for cross-node structural rules a single-file AST check cannot express: "every command node has a sibling test file", "every child of an engine node is of type engine-component", "every knowledge topic is registered in the index". See `yg knowledge read writing-structure-aspects`.
-
-### Directory structure
+#### Directory structure
 
 ```
 .yggdrasil/aspects/
   sibling-test-file/
-    yg-aspect.yaml       ← reviewer: { type: structure }
+    yg-aspect.yaml       ← reviewer: { type: deterministic }
     check.mjs            ← your check function
 ```
 
-### `yg-aspect.yaml`
+#### `yg-aspect.yaml`
 
 ```yaml
 name: sibling-test-file
 description: "Every command node must have a sibling test file"
 reviewer:
-  type: structure
+  type: deterministic
 ```
 
-Structure aspects do NOT declare a `language:` array — the runner invokes `check.mjs` once per affected node regardless of file types. Setting `reviewer.tier:` on a structure aspect is a validator error; tiers apply only to LLM aspects.
+Graph-aware aspects do NOT declare a `language:` array — the runner invokes `check.mjs` once per affected node regardless of file types. Setting `reviewer.tier:` on a deterministic aspect is a validator error; tiers apply only to LLM aspects.
 
-### Writing `check.mjs`
+#### Writing `check.mjs`
 
 The `check(ctx)` function is synchronous and returns `Violation[]`. The `ctx` object exposes the graph and the file system rather than a single parse tree:
 
@@ -351,23 +353,23 @@ interface Violation {
 }
 ```
 
-The same helper exports available to AST aspects (`walk`, `report`, `inFile`, `closest`, `findComments`) are re-exported from `@chrisdudek/yg/structure` for checks that also inspect parsed trees via `ctx.parseAst`. Most structure checks work purely with `ctx.graph` and `ctx.fs` without parsing any AST.
+The same helper exports available to single-file checks (`walk`, `report`, `inFile`, `closest`, `findComments`) are re-exported from `@chrisdudek/yg/structure` for checks that also inspect parsed trees via `ctx.parseAst`. Most graph-aware checks work purely with `ctx.graph` and `ctx.fs` without parsing any AST.
 
-### Allowed reads
+#### Allowed reads
 
-The structure runner enforces a strict read boundary — reading outside it throws a runtime violation instead of returning data. A node may read its own mapping files, its declared relation targets (and their descendants), its ancestor mappings, and its own descendant mappings. If a check needs to reach a node outside this set, add an explicit relation in `yg-node.yaml` pointing to it — relations are the contract that widens the allowed reads. The **drift baseline** is narrower than this boundary: it records only the files the check actually read at approve time, so only a later change to one of those files causes cascade re-approval.
+The graph-aware runner enforces a strict read boundary — reading outside it throws a runtime violation instead of returning data. A node may read its own mapping files, its declared relation targets (and their descendants), its ancestor mappings, and its own descendant mappings. If a check needs to reach a node outside this set, add an explicit relation in `yg-node.yaml` pointing to it — relations are the contract that widens the allowed reads. The **drift baseline** is narrower than this boundary: it records only the files the check actually read at approve time, so only a later change to one of those files causes cascade re-approval.
 
-### Testing structure aspects
+#### Testing graph-aware checks
 
 ```bash
 # Test the check against a specific node without wiring the aspect
-yg structure-test --aspect sibling-test-file --node orders/order-service
+yg deterministic-test --aspect sibling-test-file --node orders/order-service
 
 # Verify the check is deterministic (same violations on every run)
-yg structure-test --aspect sibling-test-file --node orders/order-service --check-determinism
+yg deterministic-test --aspect sibling-test-file --node orders/order-service --check-determinism
 ```
 
-`yg structure-test` exits 1 if violations exist. Run it against both compliant and non-compliant nodes to confirm no false positives and no false negatives.
+`yg deterministic-test` exits 1 if violations exist. Run it against both compliant and non-compliant nodes to confirm no false positives and no false negatives.
 
 ---
 
@@ -388,7 +390,7 @@ Source code comments can carry a `yg-suppress` marker to waive a specific aspect
 const data = fs.readFileSync(path, 'utf-8');
 ```
 
-- **AST and structure reviewers:** applies to the **immediately following line**. Deterministic, no scope inference.
+- **Deterministic reviewer:** applies to the **immediately following line**. Deterministic, no scope inference.
 - **LLM reviewer:** the reviewer interprets scope **contextually** — a marker inside a function applies to that function, at file top it applies to the whole file.
 
 ### Bracket suppress
@@ -422,11 +424,11 @@ Agents may propose adding a suppress marker but must **never** write one without
 
 ## Drift and baseline — shared
 
-The drift model is similar across all three reviewer types:
+The drift model is similar across both reviewer types:
 
 - **LLM aspect:** baseline records the hash of `content.md`. Change → cascade re-approve.
-- **AST aspect:** baseline records the hash of `check.mjs`. Change → cascade re-approve.
-- **Structure aspect:** baseline records the hash of `check.mjs` plus the files it touched (including cross-node files read through declared relations). A change to the check, or to any touched file, → cascade re-approve.
+- **Deterministic aspect (single-file check):** baseline records the hash of `check.mjs`. Change → cascade re-approve.
+- **Deterministic aspect (graph-aware check):** baseline records the hash of `check.mjs` plus the files it touched (including cross-node files read through declared relations). A change to the check, or to any touched file, → cascade re-approve.
 
 `yg check` compares file hashes — no LLM calls, runs instantly. Source drift on mapped files and upstream drift on aspect content both trigger re-approval through the same mechanism.
 
@@ -440,7 +442,7 @@ The drift model is similar across all three reviewer types:
 
 **Cost spikes on cascade.** A widely-used aspect changed → every dependent node re-approves → N LLM calls. Before changing such an aspect, run `yg impact --aspect <id>` to see scope. Consider `consensus: 1` for high-fan-out aspects.
 
-### AST reviewer
+### Deterministic reviewer
 
 **Imports inside `check.mjs`.** Yggdrasil hashes only `check.mjs` itself. If your check imports a helper from `node_modules`, changes to that helper do **not** trigger drift — Yggdrasil does not know about transitive dependencies. Guidance: keep all rule logic inside `check.mjs`. If you import a helper, consciously accept that bumping the helper version requires a manual `yg approve --aspect <id>` to refresh baselines.
 
@@ -455,6 +457,6 @@ yg approve --aspect <id>   # re-approve all nodes affected by this aspect
 ## See also
 
 - [Core Concepts](/core-concepts) — nodes, aspects, and the graph
-- [CLI Reference](/cli-reference) — `yg approve`, `yg ast-test`, `yg aspects`
+- [CLI Reference](/cli-reference) — `yg approve`, `yg deterministic-test`, `yg aspects`
 - [Configuration](/configuration) — reviewer provider setup
 - [Conditional Aspects](/conditional-aspects) — `when` predicates for selective aspect application
