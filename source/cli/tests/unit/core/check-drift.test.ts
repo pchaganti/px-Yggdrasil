@@ -311,7 +311,7 @@ describe('classifyDrift', () => {
   });
 
   it('returns source-drift when both source and graph metadata change', async () => {
-    const { tmpDir, yggRoot } = await createTmpProject('full-drift', {
+    const { tmpDir } = await createTmpProject('full-drift', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - testing\nmapping:\n  - src/svc/\n',
       aspects: [TEST_ASPECT],
@@ -473,6 +473,90 @@ describe('classifyDrift', () => {
     const layers = upstreamDrift[0].cascadeCauses!.map(c => c.layer);
     expect(layers).toContain('aspects');
     expect(layers).toContain('relational');
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('structure-touched cascade names the owning deterministic aspect (not "unknown aspect")', async () => {
+    // A deterministic aspect `det` recorded a set of cross-node files it read,
+    // captured in structureTouchedFiles. When the SET MEMBERSHIP changes, the
+    // synthetic `structure-touched:det` key (tracked on the 'aspects' layer)
+    // drifts. The rendered cascade message must name the owning aspect — the
+    // synthetic key is not a real file under .yggdrasil/aspects/, so without
+    // special handling it would fall into the reference-file fallback and render
+    // "declared by unknown aspect".
+    const { tmpDir } = await createTmpProject('structure-touched-cause', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - det\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
+      aspects: [{
+        id: 'det',
+        yaml: 'name: Det\ndescription: structural shape\nreviewer:\n  type: deterministic\n',
+        files: { 'check.mjs': 'export function check(_ctx) { return []; }\n' },
+      }],
+    });
+    const graph0 = await loadGraph(tmpDir);
+    const node0 = graph0.nodes.get('svc/my-service')!;
+    const projectRoot0 = path.dirname(graph0.rootPath);
+    // Record the baseline's tracked-file hashes computed from the OLD touched set
+    // (a single cross-node member path that is never created on disk, so it is
+    // skipped from `files` and only the synthetic `structure-touched:det` key
+    // captures the set). The member paths themselves never exist on disk, so the
+    // only thing that can drift is the synthetic set-membership key.
+    const oldSet = { det: { 'src/related/a.ts': 'h1' } };
+    const trackedOld = collectTrackedFiles(node0, graph0, { hash: '', files: {}, structureTouchedFiles: oldSet });
+    const hOld = await hashTrackedFiles(projectRoot0, trackedOld, undefined, []);
+    // Store the baseline with the OLD set's per-file hashes but a NEW (grown) set
+    // in structureTouchedFiles. At check time collectTrackedFiles recomputes the
+    // synthetic key from this NEW set, mismatching the recorded OLD-set hash.
+    const newSet = { det: { 'src/related/a.ts': 'h1', 'src/related/b.ts': 'h2' } };
+    await writeNodeDriftState(graph0.rootPath, 'svc/my-service', {
+      hash: hOld.canonicalHash,
+      files: hOld.fileHashes,
+      mtimes: hOld.fileMtimes,
+      structureTouchedFiles: newSet,
+    });
+    const graph = await loadGraph(tmpDir);
+    const result = await classifyDrift(graph);
+    const upstreamDrift = result.filter(i => i.code === 'upstream-drift' && i.nodePath === 'svc/my-service');
+    expect(upstreamDrift).toHaveLength(1);
+    const rendered = msgOf(upstreamDrift[0]);
+    expect(rendered).toContain("the set of files read by deterministic aspect 'det'");
+    expect(rendered).not.toContain('unknown aspect');
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('tier-identity cascade names the owning aspect (not "unknown aspect")', async () => {
+    // An LLM aspect carries a synthetic `tier-identity:<id>` key that hashes its
+    // resolved reviewer tier config. When the tier config changes, that key
+    // drifts on the 'aspects' layer. Like structure-touched, the key is not a
+    // real file under .yggdrasil/aspects/, so the rendered cascade message must
+    // name the owning aspect rather than render "declared by unknown aspect".
+    const { tmpDir } = await createTmpProject('tier-identity-cause', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - logging\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
+      configYaml:
+        'reviewer:\n  tiers:\n    standard:\n      provider: ollama\n      consensus: 1\n      config:\n        model: llama3\n',
+      aspects: [{
+        id: 'logging',
+        yaml: 'name: Logging\ndescription: test aspect\nreviewer:\n  type: llm\n',
+        files: { 'content.md': 'Log all mutations.\n' },
+      }],
+    });
+    await recordBaseline(tmpDir);
+    // Change the resolved tier config (consensus 1 → 3): the canonical tier JSON
+    // changes, so the synthetic tier-identity:logging key drifts.
+    await writeFile(
+      path.join(tmpDir, '.yggdrasil/yg-config.yaml'),
+      'reviewer:\n  tiers:\n    standard:\n      provider: ollama\n      consensus: 3\n      config:\n        model: llama3\n',
+    );
+    const graph = await loadGraph(tmpDir);
+    const result = await classifyDrift(graph);
+    const upstreamDrift = result.filter(i => i.code === 'upstream-drift' && i.nodePath === 'svc/my-service');
+    expect(upstreamDrift).toHaveLength(1);
+    const rendered = msgOf(upstreamDrift[0]);
+    expect(rendered).toContain("the resolved reviewer tier for aspect 'logging'");
+    expect(rendered).not.toContain('unknown aspect');
     await rm(tmpDir, { recursive: true, force: true });
   });
 

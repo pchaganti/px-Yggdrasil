@@ -649,6 +649,16 @@ function describeCascadeCause(filePath: string, layer: TrackedFileLayer, graph: 
       const label = filename === 'yg-aspect.yaml' ? '' : filename.replace('.md', '') + ' ';
       return `aspect '${aspectId}' ${label}changed\n       (${normalized})`;
     }
+    // Synthetic per-aspect identity keys live on the 'aspects' layer but are not
+    // real files under .yggdrasil/aspects/. Name the aspect they belong to.
+    const synth = normalized.match(/^(structure-touched|tier-identity):(.+)$/);
+    if (synth) {
+      const [, kind, aspectId] = synth;
+      const what = kind === 'structure-touched'
+        ? `the set of files read by deterministic aspect '${aspectId}'`
+        : `the resolved reviewer tier for aspect '${aspectId}'`;
+      return `${what} changed\n       (${normalized})`;
+    }
     // Path is not under .yggdrasil/aspects/ but is tracked under the 'aspects' layer —
     // this is a reference file declared in some aspect's `references:` list.
     const declaringAspects = graph.aspects
