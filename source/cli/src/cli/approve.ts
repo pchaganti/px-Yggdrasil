@@ -387,7 +387,7 @@ export async function runDryRunForNode(params: {
   graph: Graph;
   nodePath: string;
   yggPrefix: string;
-}): Promise<void> {
+}): Promise<boolean> {
   const { graph, nodePath, yggPrefix } = params;
   const node = graph.nodes.get(nodePath);
   if (!node) {
@@ -400,7 +400,7 @@ export async function runDryRunForNode(params: {
         })}\n`,
       ),
     );
-    return;
+    return false;
   }
 
   const { buildPrompt } = await import('../llm/aspect-verifier.js');
@@ -492,6 +492,7 @@ export async function runDryRunForNode(params: {
       process.stdout.write(prompt + '\n');
     }
   }
+  return true;
 }
 
 // ── Gating codes — approve must not invoke LLM when these are present ──
@@ -651,11 +652,13 @@ export function registerApproveCommand(program: Command): void {
 
         // --dry-run: show what would be sent to the reviewer
         if (options.dryRun && options.node) {
+          let allFound = true;
           for (const rawPath of options.node) {
             const nodePath = rawPath.trim().replace(/\/$/, '');
-            await runDryRunForNode({ graph, nodePath, yggPrefix });
+            const found = await runDryRunForNode({ graph, nodePath, yggPrefix });
+            if (!found) allFound = false;
           }
-          process.exit(0);
+          process.exit(allFound ? 0 : 1);
         }
 
         // --aspect: batch approve all nodes with cascade drift from this aspect

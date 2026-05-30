@@ -102,7 +102,12 @@ async function dispatchStructureAspects(
       const violated = structResult.violations.length > 0;
       const reason = violated
         ? structResult.violations.map(v => {
-            const loc = v.file ? `${v.file}:${v.line ?? '?'}: ` : '';
+            // Normalize the violation path to POSIX before embedding it in the
+            // reason string — this reason is persisted into the drift-state
+            // aspectVerdicts, an output boundary the posix-paths-output contract
+            // governs (runStructureAspect may return backslash paths on Windows).
+            const file = v.file ? v.file.replace(/\\/g, '/').replace(/\/+$/, '') : v.file;
+            const loc = file ? `${file}:${v.line ?? '?'}: ` : '';
             return `${loc}${v.message}`;
           }).join('\n')
         : 'all rules satisfied';

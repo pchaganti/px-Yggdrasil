@@ -205,12 +205,16 @@ export async function checkAspectReferences(graph: Graph): Promise<ValidationIss
     let totalBytes = 0;
     for (const ref of aspect.references) {
       const absPath = path.join(projectRoot, ref.path);
+      // POSIX-normalize the reference path before embedding it in any output
+      // message (the posix-paths-output contract governs these ValidationIssue
+      // strings); absPath above is filesystem-only and stays OS-native.
+      const refPath = ref.path.replace(/\\/g, '/').replace(/\/+$/, '');
       let stats: Awaited<ReturnType<typeof statPath>>;
       try {
         stats = await statPath(absPath);
       } catch {
         const msgData: IssueMessage = {
-          what: `Aspect '${aspect.id}' references '${ref.path}' but the file does not exist.`,
+          what: `Aspect '${aspect.id}' references '${refPath}' but the file does not exist.`,
           why: `reviewer cannot load missing reference files; approve would fail at runtime.`,
           next: `create the file, fix the path, or remove the reference entry in .yggdrasil/aspects/${aspect.id}/yg-aspect.yaml.`,
         };
@@ -225,7 +229,7 @@ export async function checkAspectReferences(graph: Graph): Promise<ValidationIss
       }
       if (!stats.isFile()) {
         const msgData: IssueMessage = {
-          what: `Aspect '${aspect.id}' references '${ref.path}' but the path resolves to a directory.`,
+          what: `Aspect '${aspect.id}' references '${refPath}' but the path resolves to a directory.`,
           why: `reference files must be regular files; directories cannot be loaded into the reviewer prompt.`,
           next: `point references entry to a specific file or remove the entry in .yggdrasil/aspects/${aspect.id}/yg-aspect.yaml.`,
         };
@@ -241,7 +245,7 @@ export async function checkAspectReferences(graph: Graph): Promise<ValidationIss
       const size = stats.size;
       if (size > maxPerFile) {
         const msgData: IssueMessage = {
-          what: `Aspect '${aspect.id}' reference '${ref.path}' is ${formatBytes(size)}, exceeding the per-file limit of ${formatBytes(maxPerFile)} ${tierLabel}.`,
+          what: `Aspect '${aspect.id}' reference '${refPath}' is ${formatBytes(size)}, exceeding the per-file limit of ${formatBytes(maxPerFile)} ${tierLabel}.`,
           why: `oversized references inflate prompt cost on every approve call across every node where this aspect is effective.`,
           next: `split the reference into smaller files, raise references.max_bytes_per_file on the aspect's tier in .yggdrasil/yg-config.yaml, or move the aspect to a higher-context tier.`,
         };
