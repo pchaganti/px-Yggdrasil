@@ -648,6 +648,68 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
+  // ── I5 — a cross-node structure-touched file change re-runs ONLY det ──
+  //         (mirror of I1, but inverted provider outcome: the det aspect read a
+  //          file owned by a RELATED node; when only that cross-node file
+  //          changes, the change lands on the 'structure-touched' layer →
+  //          changedUpstream attributable to det → llm verdict carried forward,
+  //          provider never called).
+  it('I5: a cross-node structure-touched file change re-runs ONLY the deterministic aspect; llm provider NOT called, llm verdict carried forward', async () => {
+    // A cross-node path: NOT in this node's own mapping (mapping is
+    // src/svc/index.ts). It is a file a related node owns that the det aspect
+    // reads. Recording it under structureTouchedFiles[det] is exactly what a
+    // prior approve of a graph-aware deterministic aspect would have done.
+    const CROSS_NODE_PATH = 'src/related/dep.ts';
+    const tmpDir = await setupDetLlm('e2e-i5-cross-node-stf');
+    // Put the cross-node file on disk BEFORE recording the baseline so its
+    // disk hash is captured in the baseline `files` (under the structure-touched
+    // layer that recordVerdicts folds in via structureTouchedFiles).
+    await mkdir(path.dirname(path.join(tmpDir, CROSS_NODE_PATH)), { recursive: true });
+    await writeFile(path.join(tmpDir, CROSS_NODE_PATH), 'export const dep = 1;\n');
+    // Baseline: both det and llm approved; structureTouchedFiles maps the
+    // cross-node path under det (the value is a placeholder — only the key path
+    // participates in attribution and in the structure-touched tracking entry).
+    await recordVerdicts(
+      tmpDir,
+      { det: { verdict: 'approved' }, llm: { verdict: 'approved' } },
+      { det: { [CROSS_NODE_PATH]: 'deadbeef'.repeat(8) } },
+    );
+    // The ONLY upstream change: the cross-node file's content changes.
+    await writeFile(path.join(tmpDir, CROSS_NODE_PATH), 'export const dep = 2;\n');
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+
+    // ── Load-bearing layer assertions — WHY the fix works. The cross-node path
+    // must land on the 'structure-touched' layer → changedUpstream, and NOT on
+    // changedSource (which would trip the conservative full-re-run guard in
+    // selectDriftedAspects). Mirror the migration-shape test's core assertions.
+    expect(coreResult.changedUpstream?.map(c => c.filePath)).toContain(CROSS_NODE_PATH);
+    expect(coreResult.changedSource ?? []).toHaveLength(0);
+
+    let verifyCallCount = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { verifyCallCount++; return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }; },
+    }));
+
+    // Drive through runLlmVerification so selectDriftedAspects runs end-to-end
+    // and computes reReviewAspectIds={det} from the cross-node structure-touched
+    // change attributed to det via the baseline's structureTouchedFiles.
+    const result = await runLlmVerification(graph, 'svc/my-service', coreResult, new Map());
+
+    expect(result.action).toBe('approved');
+    // The OPPOSITE of I1: the llm provider is NEVER called — only det re-runs.
+    expect(verifyCallCount).toBe(0);
+    expect(mockCreateLlmProvider).not.toHaveBeenCalled();
+    // det WAS re-evaluated this run (it is in the re-review subset).
+    expect(result.aspectResults?.['det']?.satisfied).toBe(true);
+    // The llm verdict is carried forward byte-for-byte from the prior baseline.
+    const committed = result.pendingDriftState?.state.aspectVerdicts;
+    expect(committed?.['llm']).toEqual({ verdict: 'approved' });
+    expect(committed?.['det']).toEqual({ verdict: 'approved' });
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
   // ── no-change → zero reviewer calls AND structureTouchedFiles preserved ──
   it('no-change: zero reviewer calls and structureTouchedFiles preserved byte-identical', async () => {
     const PRIOR_STF = { det: { 'src/svc/index.ts': 'deadbeef'.repeat(8) } };
