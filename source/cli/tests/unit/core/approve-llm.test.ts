@@ -580,6 +580,175 @@ describe('LLM verification (CLI layer)', () => {
 
 });
 
+// ── Option 1: reReviewAspectIds (per-aspect re-verification) ──
+//
+// On an approve where filterAspectId is undefined (--node, --flow cascade,
+// parent-redirect), `reReviewAspectIds` restricts reviewer dispatch to the
+// drifted subset. Every other effective non-draft aspect is carried forward
+// from the prior baseline via the existing carryForward path — no reviewer
+// call, prior verdict preserved.
+
+describe('runApproveWithReviewer — reReviewAspectIds (Option 1)', () => {
+  // Node with one deterministic structure aspect `det` and one llm aspect `llm`.
+  // A prior baseline records both as approved. We drive an upstream-only change
+  // (no source edit) so the node re-approves, then restrict dispatch to `det`.
+  async function setup(name: string) {
+    const { tmpDir } = await createTmpProject(name, {
+      nodePath: 'svc/my-service',
+      nodeYaml:
+        'name: MyService\ntype: service\ndescription: test\naspects:\n  - det\n  - llm\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [
+        {
+          id: 'det',
+          yaml: 'name: Det\ndescription: structural shape\nreviewer:\n  type: structure\n',
+          files: { 'check.mjs': 'export function check(_ctx) { return []; }\n' },
+        },
+        {
+          id: 'llm',
+          yaml: 'name: Llm\ndescription: must be deterministic\nreviewer:\n  type: llm\n',
+          files: { 'content.md': 'Code must be deterministic.\n' },
+        },
+      ],
+    });
+    return tmpDir;
+  }
+
+  // Record a baseline that carries a prior verdict for BOTH aspects, then induce
+  // upstream-only drift (touch the `det` aspect content) so approveNode produces
+  // a pendingDriftState without any source change.
+  async function recordBaselineWithVerdicts(tmpDir: string): Promise<void> {
+    const graph = await loadGraph(tmpDir);
+    const node = graph.nodes.get('svc/my-service')!;
+    const trackedFiles = collectTrackedFiles(node, graph);
+    const projectRoot = path.dirname(graph.rootPath);
+    const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
+      projectRoot, trackedFiles, undefined, [],
+    );
+    await writeNodeDriftState(graph.rootPath, 'svc/my-service', {
+      hash: canonicalHash,
+      files: fileHashes,
+      mtimes: fileMtimes,
+      aspectVerdicts: {
+        det: { verdict: 'approved' },
+        llm: { verdict: 'approved' },
+      },
+    });
+  }
+
+  it('with reReviewAspectIds={det}: llm provider NOT called, llm verdict carried forward, det re-evaluated', async () => {
+    const tmpDir = await setup('rereview-subset');
+    await recordBaselineWithVerdicts(tmpDir);
+    // Upstream-only change — touch the det aspect's check.mjs (still passes).
+    await writeFile(
+      path.join(tmpDir, '.yggdrasil/aspects/det/check.mjs'),
+      'export function check(_ctx) { return []; /* tweaked */ }\n',
+    );
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    // No source change — upstream drift only.
+    expect(coreResult.changedSource).toBeUndefined();
+    expect(coreResult.pendingDriftState).toBeDefined();
+
+    let verifyCallCount = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { verifyCallCount++; return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }; },
+    }));
+
+    const storedEntry = await readNodeDriftState(graph.rootPath, 'svc/my-service');
+    const result = await runApproveWithReviewer({
+      graph,
+      nodePath: 'svc/my-service',
+      result: coreResult,
+      rootPath: graph.rootPath,
+      secretsByProvider: new Map(),
+      storedEntry,
+      reReviewAspectIds: new Set(['det']),
+    });
+
+    expect(result.action).toBe('approved');
+    // The LLM provider must NOT be called — only `det` was dispatched.
+    expect(verifyCallCount).toBe(0);
+    expect(mockCreateLlmProvider).not.toHaveBeenCalled();
+    // `det` was re-evaluated this run.
+    expect(result.aspectResults?.['det']?.satisfied).toBe(true);
+    // `llm` carried forward — committed verdict equals the prior baseline value.
+    const committed = result.pendingDriftState?.state.aspectVerdicts;
+    expect(committed?.['llm']).toEqual({ verdict: 'approved' });
+    expect(committed?.['det']).toEqual({ verdict: 'approved' });
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('with reReviewAspectIds undefined: BOTH aspects dispatch (llm provider IS called)', async () => {
+    const tmpDir = await setup('rereview-all');
+    await recordBaselineWithVerdicts(tmpDir);
+    await writeFile(
+      path.join(tmpDir, '.yggdrasil/aspects/det/check.mjs'),
+      'export function check(_ctx) { return []; /* tweaked */ }\n',
+    );
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+
+    let verifyCallCount = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { verifyCallCount++; return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }; },
+    }));
+
+    const storedEntry = await readNodeDriftState(graph.rootPath, 'svc/my-service');
+    const result = await runApproveWithReviewer({
+      graph,
+      nodePath: 'svc/my-service',
+      result: coreResult,
+      rootPath: graph.rootPath,
+      secretsByProvider: new Map(),
+      storedEntry,
+      // reReviewAspectIds undefined → re-run all (today's behavior).
+    });
+
+    expect(result.action).toBe('approved');
+    // The llm aspect IS dispatched → provider called exactly once.
+    expect(verifyCallCount).toBe(1);
+    expect(result.aspectResults?.['llm']?.satisfied).toBe(true);
+    expect(result.aspectResults?.['det']?.satisfied).toBe(true);
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('via runLlmVerification: an aspects/det/ upstream change attributes to det only — llm carried forward (yggPrefix threading)', async () => {
+    const tmpDir = await setup('rereview-cli-layer');
+    await recordBaselineWithVerdicts(tmpDir);
+    // Upstream-only change under .yggdrasil/aspects/det/ — must attribute to `det`.
+    await writeFile(
+      path.join(tmpDir, '.yggdrasil/aspects/det/check.mjs'),
+      'export function check(_ctx) { return []; /* tweaked */ }\n',
+    );
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    expect(coreResult.changedSource).toBeUndefined();
+
+    let verifyCallCount = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { verifyCallCount++; return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }; },
+    }));
+
+    // CLI layer computes yggPrefix internally and threads reReviewAspectIds.
+    const result = await runLlmVerification(graph, 'svc/my-service', coreResult, new Map());
+
+    expect(result.action).toBe('approved');
+    // Only `det` drifted (attributable to aspects/det/), so the llm provider is
+    // never called — proving the internal yggPrefix matches the changedUpstream paths.
+    expect(verifyCallCount).toBe(0);
+    expect(mockCreateLlmProvider).not.toHaveBeenCalled();
+    expect(result.aspectResults?.['det']?.satisfied).toBe(true);
+    const committed = result.pendingDriftState?.state.aspectVerdicts;
+    expect(committed?.['llm']).toEqual({ verdict: 'approved' });
+    expect(committed?.['det']).toEqual({ verdict: 'approved' });
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+});
+
 // ── resolveExecutionPlan unit tests ──────────────────────────
 
 function makeAspect(id: string, type: 'llm' | 'ast', tier?: string): AspectDef {

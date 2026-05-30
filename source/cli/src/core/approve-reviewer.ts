@@ -443,12 +443,20 @@ export interface ApproveWithReviewerInput {
    * approve.
    */
   storedEntry?: DriftNodeState;
+  /**
+   * Option 1 (per-aspect re-verification). When set (on any approve where
+   * filterAspectId is undefined — --node, --flow cascade, parent-redirect),
+   * restrict the reviewer dispatch to these aspect ids; every other effective
+   * non-draft aspect is carried forward from the prior baseline via the existing
+   * carryForward path. Ignored when filterAspectId is set. Absent → re-run all.
+   */
+  reReviewAspectIds?: Set<string>;
 }
 
 export async function runApproveWithReviewer(
   input: ApproveWithReviewerInput,
 ): Promise<LlmApproveResult> {
-  const { graph, nodePath, result, rootPath, filterAspectId, secretsByProvider, storedEntry } = input;
+  const { graph, nodePath, result, rootPath, filterAspectId, secretsByProvider, storedEntry, reReviewAspectIds } = input;
 
   if (result.action === 'refused') return result;
 
@@ -473,7 +481,9 @@ export async function runApproveWithReviewer(
 
   const filtered = filterAspectId
     ? nonDraft.filter(a => a.id === filterAspectId)
-    : nonDraft;
+    : reReviewAspectIds
+      ? nonDraft.filter(a => reReviewAspectIds.has(a.id))
+      : nonDraft;
 
   // Hoisted: needed by buildAspectVerdicts in early-return paths below.
   const aspectViolations: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' }> = [];

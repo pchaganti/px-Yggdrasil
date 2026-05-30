@@ -37,6 +37,18 @@ export async function runLlmVerification(
   // Read prior baseline to thread its per-aspect verdicts through. Used by the
   // reviewer to preserve untouched aspects' verdicts in filter-aspect runs.
   const storedEntry = await readNodeDriftState(graph.rootPath, nodePath);
+  // Option 1: on an approve where filterAspectId is undefined (--node, --flow
+  // cascade, parent-redirect), restrict the reviewer dispatch to the drifted
+  // subset and carry the rest forward. yggPrefix MUST match how approveNode
+  // derives it (path.dirname(graph.rootPath) as projectRoot) so the
+  // `aspects/<id>/` prefix lines up with the changedUpstream filePaths.
+  const yggPrefix = path
+    .relative(path.dirname(graph.rootPath), graph.rootPath)
+    .split(/[\\/]/)
+    .join('/');
+  const reReviewAspectIds = filterAspectId
+    ? undefined
+    : selectDriftedAspects(graph, nodePath, result, storedEntry, yggPrefix);
   return runApproveWithReviewer({
     graph,
     nodePath,
@@ -45,6 +57,7 @@ export async function runLlmVerification(
     filterAspectId,
     secretsByProvider,
     storedEntry,
+    reReviewAspectIds,
   });
 }
 
