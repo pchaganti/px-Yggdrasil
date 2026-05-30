@@ -33,7 +33,7 @@ function run(
   };
 }
 
-describe.skipIf(!distExists)('CLI E2E — lifecycle (approve, log, ast-test, platform, init)', () => {
+describe.skipIf(!distExists)('CLI E2E — lifecycle (approve, log, deterministic-test, platform, init)', () => {
   // --- approve ---
 
   it('yg approve --node records hash and clears drift', () => {
@@ -300,25 +300,25 @@ describe.skipIf(!distExists)('CLI E2E — lifecycle (approve, log, ast-test, pla
     expect(stderr).toContain('node');
   });
 
-  // --- ast-test ---
+  // --- deterministic-test ---
 
-  it('yg ast-test with unknown aspect returns exit 1', () => {
-    const { status, stderr } = run(['ast-test', '--aspect', 'nonexistent-aspect-xyz']);
+  it('yg deterministic-test with unknown aspect returns exit 1', () => {
+    const { status, stderr } = run(['deterministic-test', '--aspect', 'nonexistent-aspect-xyz']);
     expect(status).toBe(1);
     expect(stderr).toContain('not found');
   });
 
-  it('yg ast-test with LLM reviewer aspect returns exit 1 with reviewer error', () => {
-    const { status, stderr } = run(['ast-test', '--aspect', 'requires-audit']);
+  it('yg deterministic-test with LLM reviewer aspect returns exit 1 with reviewer error', () => {
+    const { status, stderr } = run(['deterministic-test', '--aspect', 'requires-audit']);
     expect(status).toBe(1);
     expect(stderr).toContain('reviewer');
   });
 
-  it('yg ast-test runs AST check and reports no violations on clean code', () => {
-    // Use the dogfood project which has real AST aspects and a proper node_modules tree
+  it('yg deterministic-test runs the check and reports no violations on clean code', () => {
+    // Use the dogfood project which has real deterministic aspects and a proper node_modules tree
     const WORKSPACE_ROOT = path.resolve(CLI_ROOT, '../..');
     const { stdout, status } = run(
-      ['ast-test', '--aspect', 'no-direct-console', '--node', 'cli/formatters'],
+      ['deterministic-test', '--aspect', 'no-direct-console', '--node', 'cli/formatters'],
       WORKSPACE_ROOT,
     );
     expect(status).toBe(0);
@@ -485,26 +485,29 @@ describe.skipIf(!distExists)('CLI E2E — lifecycle (approve, log, ast-test, pla
     expect(stdout + stderr).toContain('Usage: yg log');
   });
 
-  // --- ast-test extended ---
+  // --- deterministic-test extended ---
 
-  it('yg ast-test without --aspect returns exit 1', () => {
-    const { status, stderr } = run(['ast-test']);
+  it('yg deterministic-test without --aspect returns exit 1', () => {
+    const { status, stderr } = run(['deterministic-test']);
     expect(status).toBe(1);
     expect(stderr).toContain('--aspect');
   });
 
-  it('yg ast-test with valid AST aspect but no --files or --node returns exit 1', () => {
+  it('yg deterministic-test with valid aspect but no --files or --node returns exit 1', () => {
     const WORKSPACE_ROOT = path.resolve(CLI_ROOT, '../..');
-    const { status, stderr } = run(['ast-test', '--aspect', 'no-direct-console'], WORKSPACE_ROOT);
+    const { status, stderr } = run(
+      ['deterministic-test', '--aspect', 'no-direct-console'],
+      WORKSPACE_ROOT,
+    );
     expect(status).toBe(1);
-    expect(stderr).toContain('--files');
+    expect(stderr).toContain('Neither --node nor --files');
   });
 
-  it('yg ast-test with --files runs check against specific files', () => {
+  it('yg deterministic-test with --files runs check against specific files', () => {
     const WORKSPACE_ROOT = path.resolve(CLI_ROOT, '../..');
     const { stdout, status } = run(
       [
-        'ast-test',
+        'deterministic-test',
         '--aspect', 'no-direct-console',
         '--files', 'source/cli/src/formatters/message-builder.ts',
       ],
