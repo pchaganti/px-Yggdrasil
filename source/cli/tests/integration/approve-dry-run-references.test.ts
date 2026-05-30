@@ -221,4 +221,76 @@ aspects:
     expect(out).toContain('no violations');
     expect(out).not.toContain('Prompt for LLM aspect: shape');
   });
+
+  it('routes a former-ast aspect dry-run through the structure runner so the preview matches the verdict', () => {
+    // A former-ast aspect on a PARENT that maps src/parent.ts AND src/child.ts,
+    // with a CHILD node carving out src/child.ts. Real approve runs through the
+    // structure runner, whose buildOwnFiles EXCLUDES the child-mapped path — so
+    // the parent's own-file set is { src/parent.ts } only. The dry-run preview
+    // must reflect the SAME set (preview-equals-verdict). Before Phase 4 the
+    // dry-run used the AST runner over collectTrackedFiles (no child carve-out),
+    // which would have surfaced src/child.ts too.
+    const repo = mkdtempSync(join(tmpdir(), 'yg-dryrun-former-ast-'));
+    repos.push(repo);
+    const ygg = join(repo, '.yggdrasil');
+    mkdirSync(join(ygg, 'aspects', 'count'), { recursive: true });
+    mkdirSync(join(ygg, 'model', 'svc'), { recursive: true });
+    mkdirSync(join(ygg, 'model', 'svc', 'child'), { recursive: true });
+    mkdirSync(join(repo, 'src'), { recursive: true });
+    writeFileSync(join(repo, 'src', 'parent.ts'), 'export const p = 1;\n', 'utf-8');
+    writeFileSync(join(repo, 'src', 'child.ts'), 'export const c = 1;\n', 'utf-8');
+    writeFileSync(join(ygg, 'yg-config.yaml'), `
+version: "5.0.0"
+reviewer:
+  default: standard
+  tiers:
+    standard:
+      provider: ollama
+      consensus: 1
+      config: { model: m, endpoint: http://x }
+`, 'utf-8');
+    writeFileSync(join(ygg, 'yg-architecture.yaml'), `
+node_types:
+  - id: module
+    description: m
+    allowed_parents: []
+  - id: leaf
+    description: l
+    allowed_parents: [module]
+`, 'utf-8');
+    writeFileSync(join(ygg, 'aspects', 'count', 'yg-aspect.yaml'), `name: Count
+description: emits one violation per own file (former-ast)
+reviewer:
+  type: ast
+language: [typescript]
+`, 'utf-8');
+    writeFileSync(join(ygg, 'aspects', 'count', 'check.mjs'), `export function check(ctx) {
+  return ctx.files.map(f => ({ file: f.path, line: 1, column: 0, message: 'seen ' + f.path }));
+}
+`, 'utf-8');
+    writeFileSync(join(ygg, 'model', 'svc', 'yg-node.yaml'), `name: svc
+type: module
+mapping:
+  - src/parent.ts
+  - src/child.ts
+aspects:
+  - count
+`, 'utf-8');
+    writeFileSync(join(ygg, 'model', 'svc', 'log.md'), '# log\n', 'utf-8');
+    writeFileSync(join(ygg, 'model', 'svc', 'child', 'yg-node.yaml'), `name: child
+type: leaf
+mapping:
+  - src/child.ts
+`, 'utf-8');
+    writeFileSync(join(ygg, 'model', 'svc', 'child', 'log.md'), '# log\n', 'utf-8');
+
+    const out = execFileSync('node', [CLI, 'approve', '--dry-run', '--node', 'svc'], {
+      cwd: repo, encoding: 'utf-8',
+    });
+    // The former-ast aspect ran through the structure runner: the parent's own
+    // file is reported...
+    expect(out).toMatch(/seen src\/parent\.ts/);
+    // ...and the child-mapped file is carved out (matches the real verdict).
+    expect(out).not.toMatch(/seen src\/child\.ts/);
+  });
 });

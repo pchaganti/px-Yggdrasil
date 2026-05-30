@@ -425,9 +425,13 @@ describe('runApproveWithReviewer — advisory-status code violations', () => {
 
   it('does NOT refuse when an advisory AST aspect is violated (short-circuit is status-aware)', async () => {
     const ADV_AST_YAML = 'name: NoConsole\ndescription: No console\nreviewer:\n  type: ast\nlanguage:\n  - typescript\nstatus: advisory\n';
+    // Former-ast aspects now run through the structure runner, whose
+    // buildOwnFiles materializes explicit-file mapping entries (it does not walk
+    // directory mappings). Map the file directly so ctx.files is populated —
+    // this mirrors how every real AST-aspect node is mapped.
     const { tmpDir } = await createTmpProject('advisory-ast', {
       nodePath: 'svc/my-service',
-      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - adv-ast\nmapping:\n  - src/svc/\n',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - adv-ast\nmapping:\n  - src/svc/index.ts\n',
       mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
       aspects: [{
         id: 'adv-ast',
@@ -599,13 +603,13 @@ function makeReviewer(tiers: Record<string, object>, defaultTier?: string): Revi
 }
 
 describe('resolveExecutionPlan', () => {
-  it('assigns AST aspects to ast kind', () => {
+  it('assigns AST aspects to the deterministic kind (routed through the structure runner)', () => {
     const aspects = [makeAspect('check-syntax', 'ast')];
     const reviewer = makeReviewer({ fast: { provider: 'ollama', consensus: 1, config: { model: 'llama3' } } });
     const { resolved, errors } = resolveExecutionPlan(aspects, reviewer);
     expect(errors).toHaveLength(0);
     expect(resolved).toHaveLength(1);
-    expect(resolved[0].kind).toBe('ast');
+    expect(resolved[0].kind).toBe('deterministic');
   });
 
   it('assigns LLM aspects to llm kind with single tier as default', () => {
@@ -649,7 +653,8 @@ describe('resolveExecutionPlan', () => {
     const { resolved, errors } = resolveExecutionPlan(aspects, reviewer);
     expect(errors).toHaveLength(0);
     expect(resolved).toHaveLength(2);
-    expect(resolved.filter(r => r.kind === 'ast')).toHaveLength(1);
+    // The former-ast aspect now resolves to the deterministic kind.
+    expect(resolved.filter(r => r.kind === 'deterministic')).toHaveLength(1);
     expect(resolved.filter(r => r.kind === 'llm')).toHaveLength(1);
   });
 });
@@ -689,9 +694,11 @@ describe('runApproveWithReviewer — AST aspects', () => {
   });
 
   it('refuses when AST aspect finds violations', async () => {
+    // Former-ast aspects route through the structure runner; map an explicit
+    // file so buildOwnFiles materializes ctx.files (it does not walk dir maps).
     const { tmpDir } = await createTmpProject('ast-fail', {
       nodePath: 'svc/my-service',
-      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - no-console\nmapping:\n  - src/svc/\n',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - no-console\nmapping:\n  - src/svc/index.ts\n',
       mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
       aspects: [{
         id: 'no-console',

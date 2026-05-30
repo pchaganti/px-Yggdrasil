@@ -17,7 +17,6 @@ import { normalizeMappingPaths } from '../io/paths.js';
 import type { ApproveResult, DriftNodeState } from '../model/drift.js';
 import type { Graph, LlmConfig } from '../model/graph.js';
 import { readNodeDriftState } from '../io/drift-state-store.js';
-import { runAstAspect } from '../ast/runner.js';
 import { runStructureAspect } from '../structure/runner.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { computeEffectiveAspects, computeEffectiveAspectStatuses, getAspectStatusSources, hasNonDraftEffectiveAspects } from '../core/graph/aspects.js';
@@ -419,55 +418,20 @@ export async function runDryRunForNode(params: {
   process.stdout.write(`Aspects (${aspects.length}): ${aspects.map(a => a.id).join(', ') || 'none'}\n`);
   process.stdout.write(`Source files (${sourceFiles.length}): ${sourceFiles.map(f => f.path).join(', ') || 'none'}\n\n`);
 
+  // Deterministic aspects: former-ast AND structure both run locally through the
+  // structure runner (no LLM call). Route the former-ast preview through
+  // runStructureAspect too, so the preview cannot diverge from the verdict real
+  // approve produces (the documented preview-equals-verdict invariant). The
+  // header still reads "AST aspect" for type:ast — the enum is unchanged this
+  // phase — but the execution path is identical to a structure aspect.
   const astAspects = aspects.filter(a => a.reviewer?.type === 'ast');
   const structureAspects = aspects.filter(a => a.reviewer?.type === 'structure');
   const llmAspects = aspects.filter(a => a.reviewer?.type === 'llm');
 
-  // AST aspects — run check and print violations
-  const realFilePaths = sourceFiles.map(f => f.path);
   const astParseCache = new Map();
-  for (const aspect of astAspects) {
+  const previewDeterministic = async (aspect: typeof aspects[number], label: 'AST' | 'Structure'): Promise<void> => {
     const status = statuses.get(aspect.id) ?? 'enforced';
-    process.stdout.write(chalk.bold(`\n--- AST aspect: ${aspect.id} [${status}] ---\n\n`));
-    if (status === 'draft') {
-      process.stdout.write(chalk.dim('(real approve would skip — preview only)\n\n'));
-    }
-    process.stdout.write(`Files:\n`);
-    for (const f of realFilePaths) {
-      process.stdout.write(`  ${f}\n`);
-    }
-    process.stdout.write('\n');
-    try {
-      const astResult = await runAstAspect({
-        aspectDir: path.join('.yggdrasil/aspects', aspect.id),
-        aspectId: aspect.id,
-        files: realFilePaths.map(f => ({ path: f })),
-        projectRoot,
-        parseCache: astParseCache,
-      });
-      if (astResult.violations.length === 0) {
-        process.stdout.write('  no violations\n');
-      } else {
-        for (const v of astResult.violations) {
-          process.stdout.write(`  ${v.file}:${v.line}: ${v.message}\n`);
-        }
-      }
-    } catch (e: unknown) {
-      debugWrite(`[approve] dry-run ast aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
-      process.stderr.write(chalk.red(buildIssueMessage({
-        what: `AST aspect '${aspect.id}' runner failed.`,
-        why: (e as Error).message,
-        next: 'Verify the aspect check.mjs is valid and that AST runner dependencies are installed.',
-      }) + '\n'));
-    }
-  }
-
-  // STRUCTURE aspects — run the real structure check and print violations.
-  // Routed exactly like real approve (runStructureAspect, no LLM), so the
-  // preview cannot diverge from the verdict approve would actually produce.
-  for (const aspect of structureAspects) {
-    const status = statuses.get(aspect.id) ?? 'enforced';
-    process.stdout.write(chalk.bold(`\n--- Structure aspect: ${aspect.id} [${status}] ---\n\n`));
+    process.stdout.write(chalk.bold(`\n--- ${label} aspect: ${aspect.id} [${status}] ---\n\n`));
     if (status === 'draft') {
       process.stdout.write(chalk.dim('(real approve would skip — preview only)\n\n'));
     }
@@ -489,13 +453,23 @@ export async function runDryRunForNode(params: {
         }
       }
     } catch (e: unknown) {
-      debugWrite(`[approve] dry-run structure aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
+      debugWrite(`[approve] dry-run ${label.toLowerCase()} aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
       process.stderr.write(chalk.red(buildIssueMessage({
-        what: `Structure aspect '${aspect.id}' runner failed.`,
+        what: `${label} aspect '${aspect.id}' runner failed.`,
         why: (e as Error).message,
         next: 'Verify the aspect check.mjs is valid and that the node declares relations for any graph or filesystem reads it performs.',
       }) + '\n'));
     }
+  };
+
+  // Former-ast aspects — routed through the structure runner (preview = verdict).
+  for (const aspect of astAspects) {
+    await previewDeterministic(aspect, 'AST');
+  }
+
+  // Structure aspects — same runner, distinct header.
+  for (const aspect of structureAspects) {
+    await previewDeterministic(aspect, 'Structure');
   }
 
   // LLM aspects — show prompt for each (with references loaded for parity with real run)

@@ -11,7 +11,6 @@ import { collectTrackedFiles } from './graph/files.js';
 import { hashTrackedFiles } from '../io/hash.js';
 import { selectTierForAspect } from './tier-selection.js';
 import { loadSecrets, mergeLlmConfig } from '../io/secrets-parser.js';
-import { runAstAspect, AstRunnerError } from '../ast/runner.js';
 import { runStructureAspect, StructureRunnerError } from '../structure/runner.js';
 import { debugWrite } from '../utils/debug-log.js';
 import { readTextFile } from '../io/graph-fs.js';
@@ -20,58 +19,15 @@ import { hashFile } from '../io/hash.js';
 import type { ParseCache } from '../ast/parse-cache.js';
 import path from 'node:path';
 
-/** A failed aspect: a code violation, a provider error, or an AST/structure runtime error. */
+/** A failed aspect: a code violation, a provider error, or a structure runtime error. */
 type AspectViolation = { aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' };
 
 /**
- * Run every AST aspect in the plan (no LLM call), recording each result in
- * `results` and any violation (code or astRuntime) in `violations`.
- */
-async function dispatchAstAspects(
-  plan: ExecutionPlan,
-  sourceFiles: Array<{ path: string; content: string }>,
-  projectRoot: string,
-  parseCache: ParseCache,
-  results: Record<string, AspectVerificationResult>,
-  violations: AspectViolation[],
-): Promise<void> {
-  for (const entry of plan.resolved) {
-    if (entry.kind !== 'ast') continue;
-    const aspect = entry.aspect;
-    try {
-      const astResult = await runAstAspect({
-        aspectDir: path.join('.yggdrasil/aspects', aspect.id),
-        aspectId: aspect.id,
-        files: sourceFiles.map(f => ({ path: f.path })),
-        projectRoot,
-        parseCache,
-      });
-      const violated = astResult.violations.length > 0;
-      const reason = violated
-        ? astResult.violations.map(v => `${v.file}:${v.line}: ${v.message}`).join('\n')
-        : 'all rules satisfied';
-      results[aspect.id] = { satisfied: !violated, reason, errorSource: 'codeViolation' };
-      if (violated) {
-        violations.push({ aspectId: aspect.id, reason, errorSource: 'codeViolation' });
-      }
-    } catch (e: unknown) {
-      debugWrite(`[approve] ast aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
-      const code: string = (e as { code?: string }).code ?? 'AST_RUNNER_UNKNOWN';
-      const rendered = e instanceof AstRunnerError
-        ? `${e.messageData.what} — ${e.messageData.why}`
-        : (e as Error).message;
-      const reason = `[${code}] ${rendered}`;
-      results[aspect.id] = { satisfied: false, reason, errorSource: 'astRuntime' };
-      violations.push({ aspectId: aspect.id, reason, errorSource: 'astRuntime' });
-    }
-  }
-}
-
-/**
- * Run every structure aspect in the plan (graph-shape + fs verification, no LLM
- * call), recording results/violations and persisting each aspect's touched-file
- * hashes into result.pendingDriftState.state.structureTouchedFiles. Cross-node
- * touched paths are hashed from disk but kept OUT of state.files (see inline note).
+ * Run every deterministic aspect in the plan — former-ast and structure aspects
+ * alike (graph-shape + fs verification, no LLM call). Records results/violations
+ * and persists each aspect's touched-file hashes into
+ * result.pendingDriftState.state.structureTouchedFiles. Cross-node touched paths
+ * are hashed from disk but kept OUT of state.files (see inline note).
  */
 async function dispatchStructureAspects(
   plan: ExecutionPlan,
@@ -84,7 +40,7 @@ async function dispatchStructureAspects(
   violations: AspectViolation[],
 ): Promise<void> {
   for (const entry of plan.resolved) {
-    if (entry.kind !== 'structure') continue;
+    if (entry.kind !== 'deterministic') continue;
     const aspect = entry.aspect;
     const aspectDirAbs = path.join(projectRoot, '.yggdrasil/aspects', aspect.id);
     try {
@@ -247,9 +203,8 @@ function partitionCodeViolationsByStatus(
 // ── resolveExecutionPlan ─────────────────────────────────────
 
 export type ResolvedAspectExecution =
-  | { kind: 'ast'; aspect: AspectDef }
-  | { kind: 'llm'; aspect: AspectDef; tier: LlmConfig; tierName: string }
-  | { kind: 'structure'; aspect: AspectDef };
+  | { kind: 'deterministic'; aspect: AspectDef }
+  | { kind: 'llm'; aspect: AspectDef; tier: LlmConfig; tierName: string };
 
 export interface ExecutionPlan {
   resolved: ResolvedAspectExecution[];
@@ -264,12 +219,12 @@ export function resolveExecutionPlan(
   const errors: IssueMessage[] = [];
 
   for (const aspect of aspects) {
-    if (aspect.reviewer.type === 'ast') {
-      resolved.push({ kind: 'ast', aspect });
-      continue;
-    }
-    if (aspect.reviewer.type === 'structure') {
-      resolved.push({ kind: 'structure', aspect });
+    // Former-ast and structure aspects now share ONE deterministic execution
+    // kind: both run locally through the structure runner (no LLM call). The
+    // reviewer.type enum still carries 'ast' and 'structure' literals; a later
+    // phase collapses the enum to { llm, deterministic }.
+    if (aspect.reviewer.type === 'ast' || aspect.reviewer.type === 'structure') {
+      resolved.push({ kind: 'deterministic', aspect });
       continue;
     }
     const r = selectTierForAspect(aspect, reviewer);
@@ -526,15 +481,15 @@ export async function runApproveWithReviewer(
 
   const nodeDescription = node.meta.description ?? '';
 
-  // Resolve execution plan
+  // Resolve execution plan. With no reviewer configured, only the deterministic
+  // aspects (former-ast + structure) can run — they take no LLM call; LLM aspects
+  // are dropped here and surfaced as llmSkipped above.
   const plan: ExecutionPlan = graph.config.reviewer
     ? resolveExecutionPlan(filtered, graph.config.reviewer)
     : {
         resolved: filtered
           .filter(a => a.reviewer.type === 'ast' || a.reviewer.type === 'structure')
-          .map(a => a.reviewer.type === 'structure'
-            ? { kind: 'structure' as const, aspect: a }
-            : { kind: 'ast' as const, aspect: a }),
+          .map(a => ({ kind: 'deterministic' as const, aspect: a })),
         errors: [],
       };
 
@@ -552,19 +507,21 @@ export async function runApproveWithReviewer(
     });
   }
 
-  // AST + structure aspects (no LLM call) populate results/violations.
+  // Deterministic aspects — former-ast and structure alike — run locally (no LLM
+  // call) through the structure runner, populating results/violations.
   const astParseCache: ParseCache = new Map();
-  await dispatchAstAspects(plan, sourceFiles, projectRoot, astParseCache, allAspectResults, aspectViolations);
   await dispatchStructureAspects(plan, node, graph, result, projectRoot, astParseCache, allAspectResults, aspectViolations);
 
-  // Preserve structureTouchedFiles for structure aspects that were NOT
-  // freshly evaluated this run. Two cases collapse into one pass:
-  //   - draft-skipped: a structure aspect toggled to draft retains its prior
+  // Preserve structureTouchedFiles for deterministic aspects that were NOT
+  // freshly evaluated this run. Both former-ast and structure aspects now run
+  // through the structure runner and write a structureTouchedFiles entry, so
+  // both must be carried forward. Two cases collapse into one pass:
+  //   - draft-skipped: a deterministic aspect toggled to draft retains its prior
   //     entry so a later enforced→draft→enforced cycle does not cascade drift.
   //   - filter-excluded: a filtered approve (`yg approve --aspect X`) runs only
-  //     X's runner; a neighbor enforced/advisory structure aspect's prior entry
-  //     must be carried forward, otherwise its touched files silently drop out
-  //     of the node's drift identity and impact blast-radius.
+  //     X's runner; a neighbor enforced/advisory deterministic aspect's prior
+  //     entry must be carried forward, otherwise its touched files silently drop
+  //     out of the node's drift identity and impact blast-radius.
   // An aspect was "freshly evaluated" iff it survived the draft + filter passes
   // (i.e. it is in `filtered`); only those produce a new entry this run.
   if (storedEntry?.structureTouchedFiles && result.pendingDriftState) {
@@ -577,12 +534,13 @@ export async function runApproveWithReviewer(
       if (freshlyEvaluated.has(id)) continue; // a fresh entry was produced this run
       if (id in stf) continue;                // already carried (defensive)
       const aspect = aspectById.get(id);
-      if (aspect?.reviewer.type !== 'structure') continue;
+      // Only deterministic (former-ast + structure) aspects produce stf entries.
+      if (aspect?.reviewer.type !== 'ast' && aspect?.reviewer.type !== 'structure') continue;
       stf[id] = prior;
       preserved += 1;
     }
     if (preserved > 0) {
-      debugWrite(`[d8.3] preserved structureTouchedFiles for ${preserved} non-evaluated structure aspect(s) on node ${node.path}`);
+      debugWrite(`[d8.3] preserved structureTouchedFiles for ${preserved} non-evaluated deterministic aspect(s) on node ${node.path}`);
     }
     result.pendingDriftState.state.structureTouchedFiles = stf;
   }

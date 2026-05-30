@@ -26,7 +26,7 @@ describe('resolveExecutionPlan — structure branch', () => {
     },
   };
 
-  it('creates a kind:structure entry for structure aspects', () => {
+  it('creates a kind:deterministic entry for structure aspects', () => {
     const aspect: AspectDef = {
       id: 's1',
       name: 's1',
@@ -36,7 +36,7 @@ describe('resolveExecutionPlan — structure branch', () => {
     } as unknown as AspectDef;
     const plan = resolveExecutionPlan([aspect], reviewer);
     expect(plan.resolved).toHaveLength(1);
-    expect(plan.resolved[0]).toMatchObject({ kind: 'structure', aspect: { id: 's1' } });
+    expect(plan.resolved[0]).toMatchObject({ kind: 'deterministic', aspect: { id: 's1' } });
   });
 
   it('does not invoke tier resolution for structure aspects', () => {
@@ -49,10 +49,10 @@ describe('resolveExecutionPlan — structure branch', () => {
     } as unknown as AspectDef;
     const plan = resolveExecutionPlan([aspect], { tiers: {} } as ReviewerConfig);
     expect(plan.errors).toHaveLength(0);
-    expect(plan.resolved[0]).toMatchObject({ kind: 'structure' });
+    expect(plan.resolved[0]).toMatchObject({ kind: 'deterministic' });
   });
 
-  it('includes ast, structure, and llm aspects all together in the plan', () => {
+  it('includes ast, structure, and llm aspects in the plan — ast+structure share the deterministic kind', () => {
     const astAspect: AspectDef = {
       id: 'a1',
       name: 'a1',
@@ -77,7 +77,10 @@ describe('resolveExecutionPlan — structure branch', () => {
     const plan = resolveExecutionPlan([astAspect, structAspect, llmAspect], reviewer);
     expect(plan.errors).toHaveLength(0);
     expect(plan.resolved).toHaveLength(3);
-    expect(plan.resolved.map(e => e.kind)).toEqual(expect.arrayContaining(['ast', 'structure', 'llm']));
+    // Former-ast and structure both resolve to 'deterministic'; LLM stays 'llm'.
+    expect(plan.resolved.find(e => e.aspect.id === 'a1')!.kind).toBe('deterministic');
+    expect(plan.resolved.find(e => e.aspect.id === 's1')!.kind).toBe('deterministic');
+    expect(plan.resolved.find(e => e.aspect.id === 'l1')!.kind).toBe('llm');
   });
 });
 
