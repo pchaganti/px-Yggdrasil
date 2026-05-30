@@ -210,6 +210,156 @@ describe('runApproveWithReviewer — structure dispatch', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
+  it('cross-node touched file (declared relation read) — hashed from disk into structureTouchedFiles', async () => {
+    // A structure aspect on svc/my-service reads src/dep.ts, owned by the
+    // RELATED node svc/dep (declared via a `uses` relation, so the read is
+    // allowed). src/dep.ts lands in structResult.touchedFiles but is NOT in
+    // this node's state.files (which only carries own-mapping src/svc.ts).
+    // That makes the `if (!hash)` branch in dispatchStructureAspects true: the
+    // cross-node path is hashed from disk and recorded under
+    // structureTouchedFiles[aspectId], without leaking into state.files.
+    const { tmpDir } = await createStructureProject('struct-crossnode', {
+      nodePath: 'svc/my-service',
+      nodeYaml: [
+        'name: MyService',
+        'type: service',
+        'description: test',
+        'aspects:',
+        '  - reads-dep',
+        'relations:',
+        '  - target: svc/dep',
+        '    type: uses',
+        'mapping:',
+        '  - src/svc.ts',
+      ].join('\n') + '\n',
+      mappingFiles: {
+        'src/svc.ts': 'export const x = 1;\n',
+        'src/dep.ts': 'export const d = 1;\n',
+      },
+      aspects: [{
+        id: 'reads-dep',
+        yaml: 'name: ReadsDep\ndescription: test\nreviewer:\n  type: structure\n',
+        // Reads the related node's file via ctx.fs — adds src/dep.ts to touchedFiles.
+        files: {
+          'check.mjs': `export function check(ctx) {
+  ctx.fs.read('src/dep.ts');
+  return [];
+}\n`,
+        },
+      }],
+      parentNodes: [
+        { path: 'svc', yaml: 'name: Svc\ntype: service\ndescription: parent\n' },
+        {
+          path: 'svc/dep',
+          yaml: 'name: Dep\ntype: service\ndescription: dependency\nmapping:\n  - src/dep.ts\n',
+        },
+      ],
+    });
+
+    await recordBaseline(tmpDir);
+    await writeFile(path.join(tmpDir, 'src/svc.ts'), 'export const x = 2;\n');
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    expect(coreResult.pendingDriftState).toBeDefined();
+
+    const result = await runApproveWithReviewer({
+      graph,
+      nodePath: 'svc/my-service',
+      result: coreResult,
+      rootPath: graph.rootPath,
+      secretsByProvider: new Map(),
+    });
+
+    expect(result.action).toBe('approved');
+    expect(result.aspectResults?.['reads-dep']?.satisfied).toBe(true);
+
+    // The cross-node touched path is recorded under structureTouchedFiles with a
+    // real disk hash (proving the `if (!hash)` branch ran)...
+    const stf = result.pendingDriftState?.state.structureTouchedFiles?.['reads-dep'];
+    expect(stf).toBeDefined();
+    expect(stf!['src/dep.ts']).toMatch(/^[a-f0-9]+$/);
+    // ...but it must NOT leak into this node's canonical own-source map.
+    expect(result.pendingDriftState?.state.files['src/dep.ts']).toBeUndefined();
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('cross-node touched file missing on disk — hashFile throws, path skipped, run still completes', async () => {
+    // Same cross-node wiring, but the related node's file is deleted before the
+    // reviewer runs. The structure check reads it once (caching the content via
+    // the runner), so the path enters touchedFiles, yet hashFile(abs) in
+    // dispatchStructureAspects throws (file gone). The catch's `continue` must
+    // skip the path: the run still completes and the missing path is simply
+    // absent from the recorded structureTouchedFiles hashes.
+    const { tmpDir } = await createStructureProject('struct-crossnode-missing', {
+      nodePath: 'svc/my-service',
+      nodeYaml: [
+        'name: MyService',
+        'type: service',
+        'description: test',
+        'aspects:',
+        '  - reads-dep',
+        'relations:',
+        '  - target: svc/dep',
+        '    type: uses',
+        'mapping:',
+        '  - src/svc.ts',
+      ].join('\n') + '\n',
+      mappingFiles: {
+        'src/svc.ts': 'export const x = 1;\n',
+        'src/dep.ts': 'export const d = 1;\n',
+      },
+      aspects: [{
+        id: 'reads-dep',
+        yaml: 'name: ReadsDep\ndescription: test\nreviewer:\n  type: structure\n',
+        // Reads the related file, then deletes it so the post-run hashFile fails.
+        files: {
+          'check.mjs': `import { existsSync, rmSync } from 'node:fs';
+import { resolve } from 'node:path';
+export function check(ctx) {
+  // Touch the cross-node path (adds it to touchedFiles), then remove it on disk.
+  ctx.fs.exists('src/dep.ts');
+  const abs = resolve('${path.join(__dirname, '../../fixtures/tmp-struct-struct-crossnode-missing')}', 'src/dep.ts');
+  if (existsSync(abs)) rmSync(abs);
+  return [];
+}\n`,
+        },
+      }],
+      parentNodes: [
+        { path: 'svc', yaml: 'name: Svc\ntype: service\ndescription: parent\n' },
+        {
+          path: 'svc/dep',
+          yaml: 'name: Dep\ntype: service\ndescription: dependency\nmapping:\n  - src/dep.ts\n',
+        },
+      ],
+    });
+
+    await recordBaseline(tmpDir);
+    await writeFile(path.join(tmpDir, 'src/svc.ts'), 'export const x = 2;\n');
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+
+    const result = await runApproveWithReviewer({
+      graph,
+      nodePath: 'svc/my-service',
+      result: coreResult,
+      rootPath: graph.rootPath,
+      secretsByProvider: new Map(),
+    });
+
+    // Run still completes — the missing cross-node path was skipped, not fatal.
+    expect(result.action).toBe('approved');
+    expect(result.aspectResults?.['reads-dep']?.satisfied).toBe(true);
+    const stf = result.pendingDriftState?.state.structureTouchedFiles?.['reads-dep'];
+    expect(stf).toBeDefined();
+    // The deleted cross-node path is absent from recorded hashes (catch → continue).
+    expect(stf!['src/dep.ts']).toBeUndefined();
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
   it('structure aspect with violations — refused and violation message includes file:line', async () => {
     const { tmpDir } = await createStructureProject('struct-violated', {
       nodePath: 'svc/my-service',
