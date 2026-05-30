@@ -1,0 +1,8 @@
+name: Core Graph Aspect-Cascade Unit Tests
+type: test-suite
+description: "Unit tests for effective-aspect computation — the seven-channel cascade that accumulates aspects onto a node, and the max() status resolution across cascading channels (draft/advisory/enforced)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/core/graph/aspect-status.test.ts
+  - source/cli/tests/unit/core/graph/aspects-cascade-characterization.test.ts

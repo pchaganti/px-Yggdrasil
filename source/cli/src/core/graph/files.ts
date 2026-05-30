@@ -222,3 +222,36 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
   return result;
 }
 
+/**
+ * Build a function resolving a hashed (possibly directory-expanded) file path to
+ * the drift layer that brought it into tracking. Both `yg check` (classifyDrift)
+ * and `yg approve` (approveNode) use this to tell a source change from an
+ * upstream cascade.
+ *
+ * `collectTrackedFiles` may emit directory entries (e.g. `src/svc`) that the
+ * hasher later expands into individual files (`src/svc/index.ts`); a directory
+ * entry is matched by prefix. Paths are normalized (trim, backslash→slash, no
+ * trailing slash) before comparison, so callers pass raw hashed keys.
+ */
+export function buildLayerResolver(
+  trackedFiles: TrackedFile[],
+): (filePath: string) => TrackedFileLayer | undefined {
+  const normalize = (p: string): string => p.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+  const fileLayerMap = new Map<string, TrackedFileLayer>();
+  const dirPrefixes: Array<{ prefix: string; layer: TrackedFileLayer }> = [];
+  for (const tf of trackedFiles) {
+    const key = normalize(tf.path);
+    if (!fileLayerMap.has(key)) fileLayerMap.set(key, tf.layer);
+    dirPrefixes.push({ prefix: key + '/', layer: tf.layer });
+  }
+  return (filePath: string): TrackedFileLayer | undefined => {
+    const normalized = normalize(filePath);
+    const direct = fileLayerMap.get(normalized);
+    if (direct) return direct;
+    for (const { prefix, layer } of dirPrefixes) {
+      if (normalized.startsWith(prefix)) return layer;
+    }
+    return undefined;
+  };
+}
+

@@ -9,7 +9,7 @@ import type {
 import type { ValidationIssue } from '../model/validation.js';
 import { readDriftState, readNodeDriftState, garbageCollectDriftState } from '../io/drift-state-store.js';
 import { hashTrackedFiles } from '../io/hash.js';
-import { collectTrackedFiles } from './graph/files.js';
+import { collectTrackedFiles, buildLayerResolver } from './graph/files.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import { validate } from './validator.js';
 import { computeEffectiveAspectStatuses, hasNonDraftEffectiveAspects } from './graph/aspects.js';
@@ -158,31 +158,9 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
 
     if (canonicalHash === storedEntry.hash) continue; // No drift
 
-    // Build a map: filePath -> layer
-    // trackedFiles may contain directory paths (e.g. 'src/svc/') that hashTrackedFiles
-    // expands into individual files (e.g. 'src/svc/index.ts'). We need to handle both
-    // exact matches and directory-prefix matches.
-    const fileLayerMap = new Map<string, TrackedFileLayer>();
-    const dirPrefixes: Array<{ prefix: string; layer: TrackedFileLayer }> = [];
-    for (const tf of trackedFiles) {
-      const tfNormalized = tf.path.replace(/\\/g, '/').replace(/\/+$/, '');
-      if (!fileLayerMap.has(tfNormalized)) {
-        fileLayerMap.set(tfNormalized, tf.layer);
-      }
-      // Track directory prefixes for files expanded from directory mappings.
-      const normalized = tfNormalized;
-      dirPrefixes.push({ prefix: normalized + '/', layer: tf.layer });
-    }
-
-    function resolveLayer(filePath: string): TrackedFileLayer | undefined {
-      const normalized = filePath.replace(/\\/g, '/').replace(/\/+$/, '');
-      const direct = fileLayerMap.get(normalized);
-      if (direct) return direct;
-      for (const { prefix, layer } of dirPrefixes) {
-        if (normalized.startsWith(prefix)) return layer;
-      }
-      return undefined;
-    }
+    // Resolve each changed file's drift layer (source vs upstream cascade),
+    // handling directory-mapping expansion. Shared with approveNode.
+    const resolveLayer = buildLayerResolver(trackedFiles);
 
     // Find changed files
     const directChanges: DriftFileChange[] = [];

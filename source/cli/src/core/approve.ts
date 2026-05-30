@@ -10,7 +10,7 @@ import {
   garbageCollectDriftState,
 } from '../io/drift-state-store.js';
 import { hashTrackedFiles } from '../io/hash.js';
-import { collectTrackedFiles } from './graph/files.js';
+import { collectTrackedFiles, buildLayerResolver } from './graph/files.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import { computeEffectiveAspects, hasNonDraftEffectiveAspects } from './graph/aspects.js';
 import { readTextFile, lstatFile } from '../io/graph-fs.js';
@@ -237,31 +237,9 @@ export async function approveNode(
     excludePrefixes,
   );
 
-  // Build layer map (same logic as classifyDrift in check.ts)
-  const fileLayerMap = new Map<string, TrackedFileLayer>();
-  const dirPrefixes: Array<{ prefix: string; layer: TrackedFileLayer }> = [];
-  for (const tf of trackedFiles) {
-    const tfKey = tf.path.trim().replace(/\\/g, '/').replace(/\/+$/, '');
-    if (!fileLayerMap.has(tfKey)) {
-      fileLayerMap.set(tfKey, tf.layer);
-    }
-    const trimmedPath = tf.path.trim().replace(/\\/g, '/');
-    /* v8 ignore next 3 -- normalizeMappingPaths strips trailing slashes; this branch is unreachable */
-    if (trimmedPath.endsWith('/')) {
-      dirPrefixes.push({ prefix: tfKey + '/', layer: tf.layer });
-    }
-  }
-
-  function resolveLayer(filePath: string): TrackedFileLayer | undefined {
-    const normalized = filePath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
-    const direct = fileLayerMap.get(normalized);
-    if (direct) return direct;
-    for (const { prefix, layer } of dirPrefixes) {
-      /* v8 ignore next -- dirPrefixes is always empty (see normalizeMappingPaths) */
-      if (normalized.startsWith(prefix)) return layer;
-    }
-    return undefined;
-  }
+  // Resolve each changed file's drift layer (source vs upstream cascade),
+  // handling directory-mapping expansion. Shared with classifyDrift in check.ts.
+  const resolveLayer = buildLayerResolver(trackedFiles);
 
   const yggPrefix = path
     .relative(projectRoot, graph.rootPath)
@@ -436,21 +414,26 @@ async function sourceFilesChanged(
     excludePrefixes,
   );
 
+  // Normalize at the output boundary: this function's result is emitted (it
+  // flows into the mandatory-log refusal message, part of the public approve
+  // result written to CLI output), so guarantee POSIX form on the way out.
+  const norm = (p: string): string => p.replace(/\\/g, '/').replace(/\/+$/, '');
+
   // No baseline → first approve: any present source file is a "change".
-  if (!storedEntry) return Object.keys(fileHashes);
+  if (!storedEntry) return Object.keys(fileHashes).map(norm);
 
   const changed: string[] = [];
   for (const [filePath, hash] of Object.entries(fileHashes)) {
-    if (storedEntry.files[filePath] !== hash) changed.push(filePath);
+    if (storedEntry.files[filePath] !== hash) changed.push(norm(filePath));
   }
   for (const storedPath of Object.keys(storedEntry.files)) {
     // Only consider source-layer stored paths we are tracking now; a deleted
     // tracked source file also counts as a change.
     if (!(storedPath in fileHashes) && sourceTracked.some((tf) => {
-      const key = tf.path.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+      const key = norm(tf.path.trim());
       return storedPath === key || storedPath.startsWith(key + '/');
     })) {
-      changed.push(storedPath);
+      changed.push(norm(storedPath));
     }
   }
   return changed;
@@ -588,7 +571,10 @@ export async function loadSourceFiles(
   for (const filePath of filePaths) {
     try {
       const content = await readTextFile(path.join(projectRoot, filePath));
-      results.push({ path: filePath, content });
+      // Normalize at the output boundary: this is a public function and the
+      // returned path is emitted (e.g. into the dry-run reviewer prompt). Not
+      // every caller normalizes its inputs, so guarantee POSIX form here.
+      results.push({ path: filePath.replace(/\\/g, '/').replace(/\/+$/, ''), content });
     } catch (err) {
       debugWrite(`[approve] skipped unreadable file ${filePath}: ${(err as Error).message}`);
     }
