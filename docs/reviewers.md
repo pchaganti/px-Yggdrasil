@@ -389,7 +389,7 @@ Source code comments can carry a `yg-suppress` marker to waive a specific aspect
 const data = fs.readFileSync(path, 'utf-8');
 ```
 
-- **AST reviewer:** applies to the **immediately following line**. Deterministic, no scope inference.
+- **AST and structure reviewers:** applies to the **immediately following line**. Deterministic, no scope inference.
 - **LLM reviewer:** the reviewer interprets scope **contextually** — a marker inside a function applies to that function, at file top it applies to the whole file.
 
 ### Bracket suppress

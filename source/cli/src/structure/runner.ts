@@ -7,6 +7,8 @@ import { createCtxGraph, UndeclaredGraphReadError } from './ctx-graph.js';
 import { createCtxParsers, prewarmupAstCache, enrichFilesWithAst, ParseAstNotPrewarmedError } from './ctx-parsers.js';
 import { collectAllowedReadsForAspect } from './allowed-reads.js';
 import { normalizeMappingPath } from './expand-mapping-sync.js';
+import { collectSuppressions, isLineSuppressed } from '../ast/suppress.js';
+import type { SuppressedRange } from '../ast/suppress.js';
 import { validateCheckModuleExport } from '../utils/validate-check-module.js';
 import type { Graph, GraphNode as ModelNode } from '../model/graph.js';
 import type { Ctx, Violation, File, Port } from './types.js';
@@ -269,5 +271,26 @@ export async function runStructureAspect(
     violations.push(vv);
   }
 
-  return { violations, touchedFiles, succeeded: true };
+  // Filter suppressed violations. Ranges come from each file's parsed tree in the
+  // astCache (own files are eagerly parsed; cross-node files the check parsed are cached).
+  // A violation with no file/line, or in a file with no parsed tree, is not suppressible.
+  const rangesByFile = new Map<string, SuppressedRange[] | null>();
+  function rangesFor(filePath: string): SuppressedRange[] | null {
+    const existing = rangesByFile.get(filePath);
+    if (existing !== undefined) return existing;
+    const cached = astCache.get(filePath);
+    const ranges = cached
+      ? collectSuppressions(cached.ast, filePath, cached.content.split('\n').length)
+      : null;
+    rangesByFile.set(filePath, ranges);
+    return ranges;
+  }
+  const visible = violations.filter(v => {
+    if (typeof v.file !== 'string' || typeof v.line !== 'number') return true;
+    const ranges = rangesFor(normalizeMappingPath(v.file));
+    if (!ranges) return true;
+    return !isLineSuppressed(ranges, aspectId, v.line);
+  });
+
+  return { violations: visible, touchedFiles, succeeded: true };
 }
