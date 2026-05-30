@@ -1,0 +1,5 @@
+name: HasDocComment
+description: Every source file must begin with a documentation comment describing the file's purpose.
+reviewer:
+  type: llm
+status: enforced

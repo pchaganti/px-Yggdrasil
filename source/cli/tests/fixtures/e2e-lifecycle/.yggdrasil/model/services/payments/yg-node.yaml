@@ -1,0 +1,5 @@
+name: PaymentsService
+description: Charges and refunds payments for orders.
+type: service
+mapping:
+  - src/services/payments.ts

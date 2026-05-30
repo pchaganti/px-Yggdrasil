@@ -1,0 +1,18 @@
+node_types:
+  module:
+    description: 'Organizational grouping of related services. Parent-only — has no file mapping.'
+    log_required: false
+
+  service:
+    description: 'Discrete service unit implemented as a single source file under src/services/.'
+    log_required: false
+    when:
+      path: "src/services/**"
+    parents: [module]
+    aspects:
+      - no-todo-comments
+      - requires-named-export
+      - has-doc-comment
+    relations:
+      uses: [service]
+      calls: [service]

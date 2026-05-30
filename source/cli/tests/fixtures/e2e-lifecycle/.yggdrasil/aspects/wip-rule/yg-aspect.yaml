@@ -1,0 +1,5 @@
+name: WipRule
+description: Work-in-progress rule that is not ready for judgment yet — kept draft so the reviewer skips it.
+reviewer:
+  type: deterministic
+status: draft

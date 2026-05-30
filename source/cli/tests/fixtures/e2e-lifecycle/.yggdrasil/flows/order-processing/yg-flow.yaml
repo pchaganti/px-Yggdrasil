@@ -1,0 +1,7 @@
+name: OrderProcessing
+description: End-to-end processing of a customer order, from creation through payment.
+nodes:
+  - services/orders
+  - services/payments
+aspects:
+  - no-todo-comments

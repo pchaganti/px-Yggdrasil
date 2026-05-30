@@ -1,0 +1,7 @@
+name: OrdersService
+description: Creates and retrieves customer orders.
+type: service
+aspects:
+  - wip-rule
+mapping:
+  - src/services/orders.ts

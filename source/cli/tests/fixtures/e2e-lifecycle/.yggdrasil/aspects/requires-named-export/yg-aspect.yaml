@@ -1,0 +1,5 @@
+name: RequiresNamedExport
+description: Each source file should expose at least one named export so it can be consumed as a module.
+reviewer:
+  type: deterministic
+status: advisory
