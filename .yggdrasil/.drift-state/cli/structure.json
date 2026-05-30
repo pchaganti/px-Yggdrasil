@@ -1,5 +1,5 @@
 {
-  "hash": "b07435cc71a26649b0c27470c598d8541879387ea389fad47808e735e3caa882",
+  "hash": "35bebe8426235b20ab64a28691a51064c03f640e597e2639557f4fbb77116868",
   "files": {
     "own-subset:cli/structure": "204bb5c981df191b1ce7c90b917c430e5813e7219cb7a2f740e2c87bcc605709",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -15,7 +15,7 @@
     "source/cli/src/structure/ctx-graph.ts": "c9ee5f0615d54f9d730b016d9177bbd03a05573fa0b5dbe90d5e4860de880d98",
     "source/cli/src/structure/types.ts": "5b2a720665ac08d88c383a5b996e06a78a7e22d341ae615057d09d94512a97e2",
     "source/cli/src/structure/ctx-parsers.ts": "4a1a9d7179fefb263a3061acffae99933a7b3805d5ea03b41bd906fed4c44a82",
-    "source/cli/src/structure/runner.ts": "c8f24d091e99d06b85775849fc03c999e04f002a973e14c1d957e4ac3d5701a4"
+    "source/cli/src/structure/runner.ts": "cc388a996c62c87f737ae68725baa56cfc48cf7cb9212c3dc61ecef24403c4df"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -26,15 +26,15 @@
     "source/cli/src/structure/index.ts": 1780038029653.0693,
     "source/cli/src/structure/expand-mapping-sync.ts": 1780124691902.667,
     "source/cli/src/structure/allowed-reads.ts": 1780116976692.7002,
-    "source/cli/src/structure/types.ts": 1780143113540.243,
+    "source/cli/src/structure/types.ts": 1780144008579.319,
     "source/cli/src/structure/ctx-fs.ts": 1780124751335.105,
     "source/cli/src/structure/ctx-graph.ts": 1780063726725.511,
-    "source/cli/src/structure/ctx-parsers.ts": 1780143127250.442,
-    "source/cli/src/structure/runner.ts": 1780143339851.276
+    "source/cli/src/structure/ctx-parsers.ts": 1780144008578.85,
+    "source/cli/src/structure/runner.ts": 1780144880439.8018
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T12:20:30.759Z",
-    "prefix_hash": "5e9d460db6b4166b7d49fa1a825bbbecf78665f061636ce91b5ac2e5a34dea0a"
+    "last_entry_datetime": "2026-05-30T12:46:19.855Z",
+    "prefix_hash": "388e671238b63a196529f55080b86f16b98a02e7d3120936be9ab66221d68e6d"
   },
   "aspectVerdicts": {
     "deterministic": {

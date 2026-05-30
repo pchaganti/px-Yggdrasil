@@ -1,5 +1,5 @@
 {
-  "hash": "dd1cd38f21bab52890e32557c5dd075aa031d3df9ed1aeddf9d6b0c92334e288",
+  "hash": "6c6350bab5b7ee1dd8ff6fd3049abba2b094b392be4ebcd56c7762cf0c8199f7",
   "files": {
     "own-subset:cli/tests/unit/structure/allowed-reads-and-runner": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -13,7 +13,8 @@
     "source/cli/tests/unit/structure/allowed-reads-conformance.test.ts": "f4cb931f4802ae7c98b8fff94d36fb4c4f03a42732797b1705fd4984fc2cbdd1",
     "source/cli/tests/unit/structure/runner.test.ts": "3f74aa1d76b14d299aeab5d48f396421a059a95a5922f21e756135220e9200bb",
     "source/cli/tests/unit/structure/enrich-files.test.ts": "58badf920d3ff668ecc3a8b972e8ecb8683eaf45d89f0f9cafe32ef23051ba57",
-    "source/cli/tests/unit/structure/runner-eager-ast.test.ts": "ab3e5b063ad1d87deea058bbf9d7bdec3f7a93a82c7fc5cd9c9a7f0d9de2cd81"
+    "source/cli/tests/unit/structure/runner-eager-ast.test.ts": "ab3e5b063ad1d87deea058bbf9d7bdec3f7a93a82c7fc5cd9c9a7f0d9de2cd81",
+    "source/cli/tests/unit/structure/runner-suppress.test.ts": "51dc50ac1bca513fa407aab224544d18ebccc20eaf38836b1a0314b6e04c0e6f"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -25,8 +26,13 @@
     "source/cli/tests/unit/structure/allowed-reads.test.ts": 1780034132334.0703,
     "source/cli/tests/unit/structure/allowed-reads-conformance.test.ts": 1780034762498.9387,
     "source/cli/tests/unit/structure/runner.test.ts": 1780124897353.4092,
-    "source/cli/tests/unit/structure/enrich-files.test.ts": 1780143104504.3828,
-    "source/cli/tests/unit/structure/runner-eager-ast.test.ts": 1780143328158.8916
+    "source/cli/tests/unit/structure/enrich-files.test.ts": 1780144008579.617,
+    "source/cli/tests/unit/structure/runner-eager-ast.test.ts": 1780144008579.938,
+    "source/cli/tests/unit/structure/runner-suppress.test.ts": 1780144865099.3586
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-30T12:46:26.639Z",
+    "prefix_hash": "18164e65d0739660f22291953aaa88ba4be67a674b067638de23ee4d2651faec"
   },
   "aspectVerdicts": {
     "test-deterministic": {

@@ -9,3 +9,4 @@ mapping:
   - source/cli/tests/unit/structure/runner.test.ts
   - source/cli/tests/unit/structure/enrich-files.test.ts
   - source/cli/tests/unit/structure/runner-eager-ast.test.ts
+  - source/cli/tests/unit/structure/runner-suppress.test.ts
