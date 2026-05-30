@@ -456,4 +456,34 @@ describe('parseAspect v5 error paths', () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.errors.some(e => e.code === 'aspect-reviewer-type-missing')).toBe(true);
   });
+
+  it('rejects a reference object whose description is not a string', async () => {
+    const dir = await newDir(
+      `name: Foo\ndescription: x\nreviewer:\n  type: llm\nreferences:\n  - path: foo.md\n    description: 123\n`,
+      'rule',
+    );
+    const errors = assertFail(await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'foo'));
+    expect(errors.some(e => e.code === 'aspect-reference-invalid-form')).toBe(true);
+  });
+
+  it('rejects a reference entry that is neither a string nor an object', async () => {
+    const dir = await newDir(
+      `name: Foo\ndescription: x\nreviewer:\n  type: llm\nreferences:\n  - 123\n`,
+      'rule',
+    );
+    const errors = assertFail(await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'foo'));
+    expect(errors.some(e => e.code === 'aspect-reference-invalid-form')).toBe(true);
+  });
+
+  it('rejects an empty-string reviewer.tier', async () => {
+    const dir = await newDir(`name: Foo\ndescription: x\nreviewer:\n  type: llm\n  tier: ""\n`, 'rule');
+    const errors = assertFail(await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'foo'));
+    expect(errors.some(e => e.code === 'aspect-reviewer-tier-invalid')).toBe(true);
+  });
+
+  it('rejects a non-string reviewer.tier', async () => {
+    const dir = await newDir(`name: Foo\ndescription: x\nreviewer:\n  type: llm\n  tier: 5\n`, 'rule');
+    const errors = assertFail(await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'foo'));
+    expect(errors.some(e => e.code === 'aspect-reviewer-tier-invalid')).toBe(true);
+  });
 });
