@@ -24,7 +24,6 @@ const STRUCTURAL_RELATION_TYPES = new Set(['uses', 'calls', 'extends', 'implemen
 // STRINGS are part of every recorded baseline's drift hashes — changing them
 // would invalidate all baselines and trigger a mass cascade. Keep byte-identical.
 export const tierIdentityKey = (aspectId: string): string => `tier-identity:${aspectId}`;
-export const structureIdentityKey = (aspectId: string): string => `structure-identity:${aspectId}`;
 export const structureTouchedKey = (aspectId: string): string => `structure-touched:${aspectId}`;
 
 /**
