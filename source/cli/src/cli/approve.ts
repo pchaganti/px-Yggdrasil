@@ -7,7 +7,7 @@ import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { approveNode, resolveAspects, loadSourceFiles } from '../core/approve.js';
 import { runApproveWithReviewer, type LlmApproveResult } from '../core/approve-reviewer.js';
 export type { LlmApproveResult };
-import { collectTrackedFiles, tierIdentityKey, structureIdentityKey, structureTouchedKey } from '../core/graph/files.js';
+import { collectTrackedFiles, tierIdentityKey, structureIdentityKey, structureTouchedKey, yggPrefixOf } from '../core/graph/files.js';
 import { collectParticipatingFlows } from '../core/graph/flows.js';
 import { hashTrackedFiles } from '../io/hash.js';
 import { classifyDrift } from '../core/check.js';
@@ -39,13 +39,10 @@ export async function runLlmVerification(
   const storedEntry = await readNodeDriftState(graph.rootPath, nodePath);
   // Option 1: on an approve where filterAspectId is undefined (--node, --flow
   // cascade, parent-redirect), restrict the reviewer dispatch to the drifted
-  // subset and carry the rest forward. yggPrefix MUST match how approveNode
-  // derives it (path.dirname(graph.rootPath) as projectRoot) so the
-  // `aspects/<id>/` prefix lines up with the changedUpstream filePaths.
-  const yggPrefix = path
-    .relative(path.dirname(graph.rootPath), graph.rootPath)
-    .split(/[\\/]/)
-    .join('/');
+  // subset and carry the rest forward. yggPrefixOf is the shared derivation also
+  // used by approveNode, so the `aspects/<id>/` prefix lines up byte-identically
+  // with the changedUpstream filePaths.
+  const yggPrefix = yggPrefixOf(graph);
   const reReviewAspectIds = filterAspectId
     ? undefined
     : selectDriftedAspects(graph, nodePath, result, storedEntry, yggPrefix);

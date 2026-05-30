@@ -28,6 +28,20 @@ export const structureIdentityKey = (aspectId: string): string => `structure-ide
 export const structureTouchedKey = (aspectId: string): string => `structure-touched:${aspectId}`;
 
 /**
+ * Repo-relative POSIX path to the .yggdrasil/ graph root (e.g. ".yggdrasil").
+ *
+ * The SINGLE source of truth for this prefix string. Both approveNode
+ * (core/approve.ts, classifying changed files into source vs upstream) and
+ * runLlmVerification (cli/approve.ts, lining up `aspects/<id>/` keys with the
+ * drifted-subset filePaths) derive it. The produced string MUST stay
+ * byte-identical across those sites or cascade attribution silently breaks —
+ * keep this the only place it is computed.
+ */
+export function yggPrefixOf(graph: { rootPath: string }): string {
+  return path.relative(path.dirname(graph.rootPath), graph.rootPath).split(/[\\/]/).join('/');
+}
+
+/**
  * Collect all files tracked by a node's context package.
  * Mirrors the traversal of build-context but returns file paths
  * instead of rendered content. This is the core function for

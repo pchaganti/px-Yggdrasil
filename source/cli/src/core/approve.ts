@@ -10,7 +10,7 @@ import {
   garbageCollectDriftState,
 } from '../io/drift-state-store.js';
 import { hashTrackedFiles } from '../io/hash.js';
-import { collectTrackedFiles, buildLayerResolver } from './graph/files.js';
+import { collectTrackedFiles, buildLayerResolver, yggPrefixOf } from './graph/files.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import { computeEffectiveAspects, hasNonDraftEffectiveAspects } from './graph/aspects.js';
 import { readTextFile, lstatFile } from '../io/graph-fs.js';
@@ -241,10 +241,7 @@ export async function approveNode(
   // handling directory-mapping expansion. Shared with classifyDrift in check.ts.
   const resolveLayer = buildLayerResolver(trackedFiles);
 
-  const yggPrefix = path
-    .relative(projectRoot, graph.rootPath)
-    .split(/[\\/]/)
-    .join('/');
+  const yggPrefix = yggPrefixOf(graph);
 
   // Classify changed files into two categories
   const changedSource: string[] = [];

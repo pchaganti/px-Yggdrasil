@@ -680,6 +680,53 @@ describe('runApproveWithReviewer — reReviewAspectIds (Option 1)', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
+  it('with reReviewAspectIds=∅ (empty): NOTHING dispatched, full prior baseline preserved byte-for-byte', async () => {
+    const tmpDir = await setup('rereview-empty');
+    await recordBaselineWithVerdicts(tmpDir);
+    // Upstream-only change so approveNode still produces a pendingDriftState.
+    await writeFile(
+      path.join(tmpDir, '.yggdrasil/aspects/det/check.mjs'),
+      'export function check(_ctx) { return []; /* tweaked */ }\n',
+    );
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    // No source change — upstream drift only.
+    expect(coreResult.changedSource).toBeUndefined();
+    expect(coreResult.pendingDriftState).toBeDefined();
+
+    let verifyCallCount = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { verifyCallCount++; return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }; },
+    }));
+
+    const storedEntry = await readNodeDriftState(graph.rootPath, 'svc/my-service');
+    const result = await runApproveWithReviewer({
+      graph,
+      nodePath: 'svc/my-service',
+      result: coreResult,
+      rootPath: graph.rootPath,
+      secretsByProvider: new Map(),
+      storedEntry,
+      // Empty subset → filtered.length === 0 → reviewerAborted no-op path.
+      reReviewAspectIds: new Set<string>(),
+    });
+
+    // Empty-subset no-op: no aspect dispatched at all.
+    expect(verifyCallCount).toBe(0);
+    expect(mockCreateLlmProvider).not.toHaveBeenCalled();
+    // No reviewer landed a result — aspectResults stays absent/empty.
+    expect(result.aspectResults).toBeUndefined();
+    // The committed verdicts equal the FULL prior baseline, byte-for-byte: both
+    // det and llm carried forward unchanged.
+    const committed = result.pendingDriftState?.state.aspectVerdicts;
+    expect(committed).toEqual({
+      det: { verdict: 'approved' },
+      llm: { verdict: 'approved' },
+    });
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
   it('with reReviewAspectIds undefined: BOTH aspects dispatch (llm provider IS called)', async () => {
     const tmpDir = await setup('rereview-all');
     await recordBaselineWithVerdicts(tmpDir);

@@ -479,6 +479,8 @@ export async function runApproveWithReviewer(
     process.stdout.write(`[draft] node '${node.path}': aspect '${id}' skipped (status: draft)\n`);
   }
 
+  // Dispatch-set precedence: explicit --aspect (filterAspectId) wins; else the
+  // Option-1 drifted subset (reReviewAspectIds); else every non-draft aspect.
   const filtered = filterAspectId
     ? nonDraft.filter(a => a.id === filterAspectId)
     : reReviewAspectIds
