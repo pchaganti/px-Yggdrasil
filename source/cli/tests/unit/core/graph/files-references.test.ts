@@ -76,6 +76,29 @@ describe('collectTrackedFiles — references', () => {
     expect(own?.layer).toBe('source');
   });
 
+  it('reference UNDER a directory mapping → owned (prefix-aware), not classified as graph/aspects', () => {
+    // A reference file that sits inside a directory mapping is claimed by the SOURCE
+    // step (the directory expands to it at hash time). It must NOT also be tracked as
+    // an upstream graph/aspects reference — that would classify an own-file edit as an
+    // upstream cascade and bypass the source-drift log requirement.
+    const aspect: AspectDef = {
+      id: 'a', name: 'A', reviewer: { type: 'llm' },
+      artifacts: [{ filename: 'content.md', content: '' }, { filename: 'yg-aspect.yaml', content: '' }],
+      references: [{ path: 'src/feature/own.ts' }],
+    };
+    const { graph, node } = makeMinimalGraph({
+      nodePath: 'svc', nodeAspects: ['a'], aspects: [aspect],
+      mapping: ['src/feature/'], // directory mapping (trailing slash normalized away)
+    });
+    const tracked = collectTrackedFiles(node, graph);
+    // The reference is owned by the directory mapping → not a separate upstream entry.
+    expect(tracked.find(t => t.path === 'src/feature/own.ts')).toBeUndefined();
+    // The directory mapping itself is the SOURCE entry.
+    const dir = tracked.find(t => t.path === 'src/feature');
+    expect(dir?.category).toBe('source');
+    expect(dir?.layer).toBe('source');
+  });
+
   it('shared reference across two aspects → tracked once', () => {
     const aspects: AspectDef[] = [
       { id: 'a', name: 'A', reviewer: { type: 'llm' }, artifacts: [{ filename: 'content.md', content: '' }, { filename: 'yg-aspect.yaml', content: '' }], references: [{ path: 'docs/shared.md' }] },

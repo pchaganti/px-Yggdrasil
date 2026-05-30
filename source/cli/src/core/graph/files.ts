@@ -87,9 +87,17 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
   // 3. ASPECTS — use computeEffectiveAspects for ALL aspects from all 7 channels
   const allAspectIds = computeEffectiveAspects(node, graph);
 
-  // Compute mapping paths set once — used both for SOURCE step and reference-skip guard
+  // Compute mapping paths once — used by the SOURCE step and the ownership guards below.
   const mappingPathsList = normalizeMappingPaths(node.meta.mapping);
   const mappingPathsSet = new Set(mappingPathsList);
+  // A path is owned by this node's mapping if it equals a mapping entry OR sits under a
+  // directory mapping entry. Exact-set membership alone misses files under a directory
+  // mapping, which would misclassify an own-file edit (a reference file or a
+  // structure-touched path under that directory) as an upstream cascade — bypassing the
+  // source-drift classification and its log requirement. mappingPathsList is normalized
+  // (no trailing slash), so `m + '/'` is the directory prefix.
+  const isOwnedByMapping = (p: string): boolean =>
+    mappingPathsSet.has(p) || mappingPathsList.some((m) => p.startsWith(m + '/'));
 
   for (const aspectId of allAspectIds) {
     const aspect = graph.aspects.find(a => a.id === aspectId);
@@ -111,9 +119,11 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
           'aspects',
         );
       }
-      // references — LLM only; skip paths in this node's mapping (SOURCE step claims them)
+      // references — LLM only; skip paths owned by this node's mapping (the SOURCE
+      // step claims them). Prefix-aware so a reference under a directory mapping is
+      // also recognized as own, not reclassified as upstream drift.
       for (const ref of aspect.references ?? []) {
-        if (mappingPathsSet.has(ref.path)) continue;
+        if (isOwnedByMapping(ref.path)) continue;
         addFile(ref.path, 'graph', 'aspects');
       }
     }
@@ -146,7 +156,7 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
   if (baseline?.structureTouchedFiles) {
     for (const [aspectId, pathMap] of Object.entries(baseline.structureTouchedFiles)) {
       for (const p of Object.keys(pathMap)) {
-        if (mappingPathsSet.has(p)) continue;
+        if (isOwnedByMapping(p)) continue;
         addFile(p, 'source', 'structure-touched');
       }
       const sorted = Object.keys(pathMap).sort();
