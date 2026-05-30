@@ -192,7 +192,7 @@ export function buildNodeContextData(graph: Graph, nodePath: string): NodeContex
       name: aspectDef?.name ?? aspectId,
       description: aspectDef?.description ?? '',
       source,
-      verifiedAgainst: aspectDef?.reviewer?.type === 'ast'
+      verifiedAgainst: aspectDef?.reviewer?.type === 'deterministic'
         ? `.yggdrasil/aspects/${aspectId}/check.mjs`
         : `.yggdrasil/aspects/${aspectId}/content.md`,
       implies: aspectDef?.implies,
@@ -265,7 +265,7 @@ export function buildFileContextData(graph: Graph, filePath: string, ownerPath: 
     return {
       aspectId,
       aspectDescription: aspectDef?.description ?? aspectDef?.name ?? aspectId,
-      verifiedAgainst: aspectDef?.reviewer?.type === 'ast'
+      verifiedAgainst: aspectDef?.reviewer?.type === 'deterministic'
         ? `.yggdrasil/aspects/${aspectId}/check.mjs`
         : `.yggdrasil/aspects/${aspectId}/content.md`,
       status,

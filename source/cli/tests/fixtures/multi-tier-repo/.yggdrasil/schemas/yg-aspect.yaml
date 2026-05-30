@@ -15,13 +15,13 @@ description: "Short description"   # required — shown in yg aspects output and
                                    # Validator emits description-missing if absent.
 
 reviewer:                          # required — reviewer specification
-  type: llm                        # required — 'llm' or 'ast'
+  type: llm                        # required — 'llm' or 'deterministic'
                                    # 'llm': aspect ships content.md; LLM reads and judges
-                                   # 'ast': aspect ships check.mjs; deterministic structural check
+                                   # 'deterministic': aspect ships check.mjs; local structural check
   # tier: deep                     # optional — name of a tier from yg-config.yaml's reviewer.tiers
                                    # Valid only when type: llm.
                                    # When omitted, reviewer.default from config is used.
-                                   # AST aspects cannot have tier (validator emits aspect-ast-tier-not-allowed).
+                                   # Deterministic aspects cannot have tier (validator emits aspect-tier-on-deterministic).
 
 # implies:                         # optional — other aspects included automatically when this
 #                                  # aspect is effective on a node. Two forms:

@@ -1,6 +1,6 @@
 name: No Sync IO
 description: "Forbid synchronous fs calls"
 reviewer:
-  type: ast
+  type: deterministic
 language:
   - typescript

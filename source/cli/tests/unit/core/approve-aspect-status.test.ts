@@ -577,7 +577,7 @@ describe('cli approve: --node Y with all-draft', () => {
       aspects: [
         {
           id: 'no-llm-structure',
-          yaml: 'name: NoLlmStructure\ndescription: test\nreviewer:\n  type: structure\nstatus: enforced\n',
+          yaml: 'name: NoLlmStructure\ndescription: test\nreviewer:\n  type: deterministic\nstatus: enforced\n',
           files: { 'check.mjs': 'export function check(ctx) {\n  return [];\n}\n' },
         },
         {
@@ -606,7 +606,7 @@ describe('cli approve: --node Y with all-draft', () => {
     const combined = writes.join('');
     expect(combined).toContain('Prompt for LLM aspect: enforced-rule [enforced]');
     expect(combined).not.toContain('Prompt for LLM aspect: no-llm-structure');
-    expect(combined).toContain('Structure aspect: no-llm-structure [enforced]');
+    expect(combined).toContain('Deterministic aspect: no-llm-structure [enforced]');
     await rm(tmpDir, { recursive: true, force: true });
   });
 
@@ -620,7 +620,7 @@ describe('cli approve: --node Y with all-draft', () => {
       aspects: [
         {
           id: 'struct-violations',
-          yaml: 'name: StructViolations\ndescription: test\nreviewer:\n  type: structure\nstatus: enforced\n',
+          yaml: 'name: StructViolations\ndescription: test\nreviewer:\n  type: deterministic\nstatus: enforced\n',
           files: {
             'check.mjs':
               'export function check(ctx) {\n' +
@@ -650,7 +650,7 @@ describe('cli approve: --node Y with all-draft', () => {
     }
 
     const combined = writes.join('');
-    expect(combined).toContain('Structure aspect: struct-violations [enforced]');
+    expect(combined).toContain('Deterministic aspect: struct-violations [enforced]');
     // with-file branch: "<file>:<line>: <message>"
     expect(combined).toContain('src/svc/index.ts:3: bad shape here');
     // without-file branch: bare message, no leading location prefix

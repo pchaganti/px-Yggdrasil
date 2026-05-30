@@ -17,7 +17,7 @@ import type { ApproveResult, DriftNodeState, AnnotatedChange } from '../../../sr
 const NODE_PATH = 'orders/handler';
 const PARENT_PATH = 'orders';
 
-function aspectDef(id: string, type: 'llm' | 'ast' | 'structure'): AspectDef {
+function aspectDef(id: string, type: 'llm' | 'deterministic'): AspectDef {
   return {
     id,
     name: id,
@@ -63,7 +63,7 @@ const STORED: DriftNodeState = {
 
 describe('selectDriftedAspects', () => {
   const aspects = [
-    aspectDef('det', 'ast'),
+    aspectDef('det', 'deterministic'),
     aspectDef('llmA', 'llm'),
     aspectDef('llmB', 'llm'),
   ];
@@ -165,7 +165,7 @@ describe('selectDriftedAspects', () => {
 
   it('monotonicity: every returned Set is a subset of effective aspects and contains no draft id', () => {
     const draftAspects = [
-      aspectDef('det', 'ast'),
+      aspectDef('det', 'deterministic'),
       aspectDef('llmA', 'llm'),
       aspectDef('llmB', 'llm'),
       { ...aspectDef('llmD', 'llm'), status: 'draft' as const },
@@ -191,7 +191,7 @@ describe('selectDriftedAspects', () => {
 
   it('does not select a draft aspect even when its own files change', () => {
     const draftAspects = [
-      aspectDef('det', 'ast'),
+      aspectDef('det', 'deterministic'),
       aspectDef('llmA', 'llm'),
       aspectDef('llmB', 'llm'),
       { ...aspectDef('llmD', 'llm'), status: 'draft' as const },

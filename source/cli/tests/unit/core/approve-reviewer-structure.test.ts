@@ -30,7 +30,7 @@ describe('resolveExecutionPlan — structure branch', () => {
     const aspect: AspectDef = {
       id: 's1',
       name: 's1',
-      reviewer: { type: 'structure' },
+      reviewer: { type: 'deterministic' },
       artifacts: [],
       description: 'd',
     } as unknown as AspectDef;
@@ -43,7 +43,7 @@ describe('resolveExecutionPlan — structure branch', () => {
     const aspect: AspectDef = {
       id: 's2',
       name: 's2',
-      reviewer: { type: 'structure' },
+      reviewer: { type: 'deterministic' },
       artifacts: [],
       description: 'd',
     } as unknown as AspectDef;
@@ -56,14 +56,14 @@ describe('resolveExecutionPlan — structure branch', () => {
     const astAspect: AspectDef = {
       id: 'a1',
       name: 'a1',
-      reviewer: { type: 'ast' },
+      reviewer: { type: 'deterministic' },
       artifacts: [],
       description: 'd',
     } as unknown as AspectDef;
     const structAspect: AspectDef = {
       id: 's1',
       name: 's1',
-      reviewer: { type: 'structure' },
+      reviewer: { type: 'deterministic' },
       artifacts: [],
       description: 'd',
     } as unknown as AspectDef;
@@ -184,7 +184,7 @@ describe('runApproveWithReviewer — structure dispatch', () => {
       mappingFiles: { 'src/svc.ts': 'export const x = 1;\n' },
       aspects: [{
         id: 'shape-check',
-        yaml: 'name: ShapeCheck\ndescription: test\nreviewer:\n  type: structure\n',
+        yaml: 'name: ShapeCheck\ndescription: test\nreviewer:\n  type: deterministic\n',
         // check.mjs: returns no violations
         files: {
           'check.mjs': 'export function check(_ctx) { return []; }\n',
@@ -241,7 +241,7 @@ describe('runApproveWithReviewer — structure dispatch', () => {
       },
       aspects: [{
         id: 'reads-dep',
-        yaml: 'name: ReadsDep\ndescription: test\nreviewer:\n  type: structure\n',
+        yaml: 'name: ReadsDep\ndescription: test\nreviewer:\n  type: deterministic\n',
         // Reads the related node's file via ctx.fs — adds src/dep.ts to touchedFiles.
         files: {
           'check.mjs': `export function check(ctx) {
@@ -315,7 +315,7 @@ describe('runApproveWithReviewer — structure dispatch', () => {
       },
       aspects: [{
         id: 'reads-dep',
-        yaml: 'name: ReadsDep\ndescription: test\nreviewer:\n  type: structure\n',
+        yaml: 'name: ReadsDep\ndescription: test\nreviewer:\n  type: deterministic\n',
         // Reads the related file, then deletes it so the post-run hashFile fails.
         files: {
           'check.mjs': `import { existsSync, rmSync } from 'node:fs';
@@ -370,7 +370,7 @@ export function check(ctx) {
       mappingFiles: { 'src/svc.ts': 'export const x = 1;\n' },
       aspects: [{
         id: 'shape-check',
-        yaml: 'name: ShapeCheck\ndescription: test\nreviewer:\n  type: structure\n',
+        yaml: 'name: ShapeCheck\ndescription: test\nreviewer:\n  type: deterministic\n',
         files: {
           // Returns a violation with file and line — exercises lines 419-420
           'check.mjs': `export function check(ctx) {
@@ -410,7 +410,7 @@ export function check(ctx) {
       mappingFiles: { 'src/svc.ts': 'export const x = 1;\n' },
       aspects: [{
         id: 'broken-check',
-        yaml: 'name: BrokenCheck\ndescription: test\nreviewer:\n  type: structure\n',
+        yaml: 'name: BrokenCheck\ndescription: test\nreviewer:\n  type: deterministic\n',
         // check.mjs returns a Promise — this triggers STRUCTURE_CHECK_ASYNC from runner
         files: {
           'check.mjs': 'export function check(_ctx) { return Promise.resolve([]); }\n',
@@ -450,7 +450,7 @@ export function check(ctx) {
       },
       aspects: [{
         id: 'undeclared-check',
-        yaml: 'name: UndeclaredCheck\ndescription: test\nreviewer:\n  type: structure\n',
+        yaml: 'name: UndeclaredCheck\ndescription: test\nreviewer:\n  type: deterministic\n',
         // reads a path not in allowedSet — triggers succeeded:false from runner
         files: {
           'check.mjs': `export function check(ctx) {
@@ -491,7 +491,7 @@ export function check(ctx) {
       mappingFiles: { 'src/svc.ts': 'export const x = 1;\n' },
       aspects: [{
         id: 'shape-check',
-        yaml: 'name: ShapeCheck\ndescription: test\nreviewer:\n  type: structure\n',
+        yaml: 'name: ShapeCheck\ndescription: test\nreviewer:\n  type: deterministic\n',
         files: {
           'check.mjs': 'export function check(_ctx) { return []; }\n',
         },
@@ -545,12 +545,12 @@ describe('D8.3 — structureTouchedFiles carry-forward for draft-skipped structu
       aspects: [
         {
           id: 'shape-a',
-          yaml: 'name: ShapeA\ndescription: test\nreviewer:\n  type: structure\nstatus: enforced\n',
+          yaml: 'name: ShapeA\ndescription: test\nreviewer:\n  type: deterministic\nstatus: enforced\n',
           files: { 'check.mjs': 'export function check(_ctx) { return []; }\n' },
         },
         {
           id: 'shape-b',
-          yaml: 'name: ShapeB\ndescription: test\nreviewer:\n  type: structure\nstatus: draft\n',
+          yaml: 'name: ShapeB\ndescription: test\nreviewer:\n  type: deterministic\nstatus: draft\n',
           files: { 'check.mjs': 'export function check(_ctx) { return []; }\n' },
         },
       ],
@@ -630,7 +630,7 @@ describe('D8.3 — structureTouchedFiles carry-forward for draft-skipped structu
       aspects: [
         {
           id: 'shape-a',
-          yaml: 'name: ShapeA\ndescription: test\nreviewer:\n  type: structure\nstatus: enforced\n',
+          yaml: 'name: ShapeA\ndescription: test\nreviewer:\n  type: deterministic\nstatus: enforced\n',
           files: { 'check.mjs': 'export function check(_ctx) { return []; }\n' },
         },
         {
@@ -670,7 +670,7 @@ describe('D8.3 — structureTouchedFiles carry-forward for draft-skipped structu
 
     expect(result.action).toBe('approved');
     // shape-a ran (structure, enforced) — stf updated
-    // llm-draft was skipped — D8.3 loop hit continue (type !== 'structure'), no crash
+    // llm-draft was skipped — D8.3 loop hit continue (type !== 'deterministic'), no crash
     const stf = result.pendingDriftState?.state.structureTouchedFiles;
     expect(stf?.['shape-a']).toBeDefined();
     // llm-draft has no structureTouchedFiles entry (it is not structure type)
@@ -701,12 +701,12 @@ describe('D8.3 — structureTouchedFiles carry-forward for draft-skipped structu
       aspects: [
         {
           id: 'shape-a',
-          yaml: 'name: ShapeA\ndescription: test\nreviewer:\n  type: structure\nstatus: enforced\n',
+          yaml: 'name: ShapeA\ndescription: test\nreviewer:\n  type: deterministic\nstatus: enforced\n',
           files: { 'check.mjs': 'export function check(_ctx) { return []; }\n' },
         },
         {
           id: 'shape-b',
-          yaml: 'name: ShapeB\ndescription: test\nreviewer:\n  type: structure\nstatus: enforced\n',
+          yaml: 'name: ShapeB\ndescription: test\nreviewer:\n  type: deterministic\nstatus: enforced\n',
           files: { 'check.mjs': 'export function check(_ctx) { return []; }\n' },
         },
       ],

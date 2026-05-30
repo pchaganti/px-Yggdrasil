@@ -51,7 +51,7 @@ async function setupProject(): Promise<{ root: string; aspectDir: string }> {
   await mkdir(aspectDir, { recursive: true });
   await writeFile(
     path.join(aspectDir, 'yg-aspect.yaml'),
-    `name: AsyncFS\ndescription: Use async fs APIs\nreviewer:\n  type: ast\nlanguage: [typescript]\n`,
+    `name: AsyncFS\ndescription: Use async fs APIs\nreviewer:\n  type: deterministic\nlanguage: [typescript]\n`,
   );
   await writeFile(path.join(aspectDir, 'check.mjs'), SYNC_FS_CHECK_MJS);
 
@@ -103,14 +103,14 @@ describe('ast-test command logic', () => {
     expect(result.violations[0].line).toBeGreaterThan(0);
   });
 
-  it('aspect with reviewer llm is not ast', async () => {
+  it('aspect with reviewer llm is not deterministic', async () => {
     const { root } = await setupProject();
     cleanupPaths.push(root);
 
     const graph = await loadGraph(root);
-    const llmAspect = graph.aspects.find((a) => a.reviewer.type !== 'ast');
+    const llmAspect = graph.aspects.find((a) => a.reviewer.type !== 'deterministic');
     expect(llmAspect).toBeDefined();
-    expect(llmAspect!.reviewer.type).not.toBe('ast');
+    expect(llmAspect!.reviewer.type).not.toBe('deterministic');
   });
 
   it('aspect not found yields undefined from graph.aspects.find', async () => {
@@ -149,7 +149,7 @@ describe('ast-test command logic', () => {
     );
     await writeFile(
       path.join(brokenAspectDir, 'yg-aspect.yaml'),
-      `name: Broken\nreviewer:\n  type: ast\nlanguage: [typescript]\n`,
+      `name: Broken\nreviewer:\n  type: deterministic\nlanguage: [typescript]\n`,
     );
 
     const srcFile = path.join(root, 'x.ts');
@@ -195,13 +195,13 @@ describe('ast-test command logic', () => {
     expect(bViolations.length).toBeGreaterThan(0);
   });
 
-  it('ast aspect in loaded graph has reviewer: ast', async () => {
+  it('deterministic aspect in loaded graph has reviewer: deterministic', async () => {
     const { root } = await setupProject();
     cleanupPaths.push(root);
 
     const graph = await loadGraph(root);
     const astAspect = graph.aspects.find((a) => a.id === 'async-fs');
     expect(astAspect).toBeDefined();
-    expect(astAspect!.reviewer.type).toBe('ast');
+    expect(astAspect!.reviewer.type).toBe('deterministic');
   });
 });

@@ -91,7 +91,7 @@ describe.skipIf(!distExists)('structure cold start + baseline migration', () => 
     );
     writeFileSync(
       path.join(ygg, 'aspects', 's', 'yg-aspect.yaml'),
-      `name: S\ndescription: structure rule that reads src/a.ts\nreviewer:\n  type: structure\nstatus: enforced\n`,
+      `name: S\ndescription: structure rule that reads src/a.ts\nreviewer:\n  type: deterministic\nstatus: enforced\n`,
     );
     writeFileSync(
       path.join(ygg, 'aspects', 's', 'check.mjs'),
@@ -141,7 +141,7 @@ describe.skipIf(!distExists)('structure cold start + baseline migration', () => 
     );
     writeFileSync(
       path.join(ygg, 'aspects', 's', 'yg-aspect.yaml'),
-      `name: S\ndescription: structure rule\nreviewer:\n  type: structure\nstatus: enforced\n`,
+      `name: S\ndescription: structure rule\nreviewer:\n  type: deterministic\nstatus: enforced\n`,
     );
     writeFileSync(
       path.join(ygg, 'aspects', 's', 'check.mjs'),

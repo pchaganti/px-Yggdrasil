@@ -418,20 +418,17 @@ export async function runDryRunForNode(params: {
   process.stdout.write(`Aspects (${aspects.length}): ${aspects.map(a => a.id).join(', ') || 'none'}\n`);
   process.stdout.write(`Source files (${sourceFiles.length}): ${sourceFiles.map(f => f.path).join(', ') || 'none'}\n\n`);
 
-  // Deterministic aspects: former-ast AND structure both run locally through the
-  // structure runner (no LLM call). Route the former-ast preview through
-  // runStructureAspect too, so the preview cannot diverge from the verdict real
-  // approve produces (the documented preview-equals-verdict invariant). The
-  // header still reads "AST aspect" for type:ast — the enum is unchanged this
-  // phase — but the execution path is identical to a structure aspect.
-  const astAspects = aspects.filter(a => a.reviewer?.type === 'ast');
-  const structureAspects = aspects.filter(a => a.reviewer?.type === 'structure');
+  // Deterministic aspects run locally through the structure runner (no LLM
+  // call). The preview routes through runStructureAspect so it cannot diverge
+  // from the verdict real approve produces (the documented preview-equals-verdict
+  // invariant).
+  const deterministicAspects = aspects.filter(a => a.reviewer?.type === 'deterministic');
   const llmAspects = aspects.filter(a => a.reviewer?.type === 'llm');
 
   const astParseCache = new Map();
-  const previewDeterministic = async (aspect: typeof aspects[number], label: 'AST' | 'Structure'): Promise<void> => {
+  const previewDeterministic = async (aspect: typeof aspects[number]): Promise<void> => {
     const status = statuses.get(aspect.id) ?? 'enforced';
-    process.stdout.write(chalk.bold(`\n--- ${label} aspect: ${aspect.id} [${status}] ---\n\n`));
+    process.stdout.write(chalk.bold(`\n--- Deterministic aspect: ${aspect.id} [${status}] ---\n\n`));
     if (status === 'draft') {
       process.stdout.write(chalk.dim('(real approve would skip — preview only)\n\n'));
     }
@@ -453,23 +450,18 @@ export async function runDryRunForNode(params: {
         }
       }
     } catch (e: unknown) {
-      debugWrite(`[approve] dry-run ${label.toLowerCase()} aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
+      debugWrite(`[approve] dry-run deterministic aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
       process.stderr.write(chalk.red(buildIssueMessage({
-        what: `${label} aspect '${aspect.id}' runner failed.`,
+        what: `Deterministic aspect '${aspect.id}' runner failed.`,
         why: (e as Error).message,
         next: 'Verify the aspect check.mjs is valid and that the node declares relations for any graph or filesystem reads it performs.',
       }) + '\n'));
     }
   };
 
-  // Former-ast aspects — routed through the structure runner (preview = verdict).
-  for (const aspect of astAspects) {
-    await previewDeterministic(aspect, 'AST');
-  }
-
-  // Structure aspects — same runner, distinct header.
-  for (const aspect of structureAspects) {
-    await previewDeterministic(aspect, 'Structure');
+  // Deterministic aspects — routed through the structure runner (preview = verdict).
+  for (const aspect of deterministicAspects) {
+    await previewDeterministic(aspect);
   }
 
   // LLM aspects — show prompt for each (with references loaded for parity with real run)
@@ -504,7 +496,7 @@ export async function runDryRunForNode(params: {
 
 // ── Gating codes — approve must not invoke LLM when these are present ──
 
-const APPROVE_GATING_CODES = new Set([
+export const APPROVE_GATING_CODES = new Set([
   'config-reviewer-legacy-format',
   'config-reviewer-mixed-format',
   'config-reviewer-missing',
@@ -527,7 +519,7 @@ const APPROVE_GATING_CODES = new Set([
   'aspect-reviewer-type-missing',
   'aspect-reviewer-type-invalid',
   'aspect-reviewer-unknown-key',
-  'aspect-ast-tier-not-allowed',
+  'aspect-tier-on-deterministic',
   'aspect-tier-unknown',
   'secrets-non-credential-field',
 ]);

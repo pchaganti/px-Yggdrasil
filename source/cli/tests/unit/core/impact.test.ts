@@ -508,7 +508,7 @@ describe('collectStructureCascade', () => {
     return {
       id,
       name: id,
-      reviewer: { type: 'structure' },
+      reviewer: { type: 'deterministic' },
       artifacts: [],
     };
   }

@@ -76,17 +76,16 @@ reviewer: { type: llm }
 });
 
 describe('parseAspect — references parser-phase validation', () => {
-  it('aspect-references-on-ast: references on AST aspect → error', async () => {
+  it('aspect-references-on-deterministic: references on deterministic aspect → error', async () => {
     const dir = makeAspectDir(`name: T
-reviewer: { type: ast }
-language: [typescript]
+reviewer: { type: deterministic }
 references:
   - x.md
 `);
     const result = await parseAspect(dir, join(dir, 'yg-aspect.yaml'), 't');
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.errors[0].code).toBe('aspect-references-on-ast');
+    expect(result.errors[0].code).toBe('aspect-references-on-deterministic');
   });
 
   it('aspect-reference-blank-path: empty string path → error', async () => {

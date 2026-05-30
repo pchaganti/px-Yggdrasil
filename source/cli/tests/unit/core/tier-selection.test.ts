@@ -17,7 +17,7 @@ const tierB: LlmConfig = {
   max_tokens: 'auto',
 };
 
-function aspect(reviewer: { type: 'llm' | 'ast'; tier?: string }): AspectDef {
+function aspect(reviewer: { type: 'llm' | 'deterministic'; tier?: string }): AspectDef {
   return {
     id: 'test-aspect',
     name: 'TestAspect',
@@ -67,11 +67,11 @@ describe('selectTierForAspect', () => {
     if (r.ok) expect(r.tierName).toBe('only');
   });
 
-  it('errors when called with AST aspect (programmer error)', () => {
+  it('errors when called with deterministic aspect (programmer error)', () => {
     const cfg: ReviewerConfig = { tiers: { a: tierA } };
-    const r = selectTierForAspect(aspect({ type: 'ast' }), cfg);
+    const r = selectTierForAspect(aspect({ type: 'deterministic' }), cfg);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error.what).toMatch(/reviewer type 'ast'/);
+    if (!r.ok) expect(r.error.what).toMatch(/reviewer type 'deterministic'/);
   });
 
   it('errors when tiers is empty', () => {

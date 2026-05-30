@@ -3,10 +3,10 @@ import path from 'node:path';
 import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
 import { debugWrite } from '../utils/debug-log.js';
 import { runAstAspect } from '../ast/runner.js';
+import { runStructureAspect } from '../structure/runner.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
-import { normalizeMappingPaths } from '../io/paths.js';
-import { expandMappingPaths } from '../io/hash.js';
 import type { Violation } from '../ast/types.js';
+import type { Violation as StructureViolation } from '../structure/types.js';
 
 export function registerAstTestCommand(program: Command): void {
   program
@@ -33,22 +33,24 @@ export function registerAstTestCommand(program: Command): void {
           return;
         }
 
-        if (aspect.reviewer.type !== 'ast') {
+        if (aspect.reviewer.type !== 'deterministic') {
           process.stderr.write(
             buildIssueMessage({
-              what: `Aspect '${opts.aspect}' has reviewer '${aspect.reviewer.type}', not 'ast'.`,
-              why: `yg ast-test only runs AST aspects (those with check.mjs).`,
-              next: `Pick an aspect with 'reviewer: ast' in yg-aspect.yaml, or run yg approve for LLM aspects.`,
+              what: `Aspect '${opts.aspect}' has reviewer '${aspect.reviewer.type}', not 'deterministic'.`,
+              why: `yg ast-test only runs deterministic aspects (those with check.mjs).`,
+              next: `Pick an aspect with 'reviewer: deterministic' in yg-aspect.yaml, or run yg approve for LLM aspects.`,
             }) + '\n',
           );
           process.exit(1);
           return;
         }
 
-        let filePaths: string[];
-        if (opts.files) {
-          filePaths = opts.files as string[];
-        } else if (opts.node) {
+        const aspectDir = path.join('.yggdrasil', 'aspects', aspect.id);
+
+        // --node: route through the structure runner so the node-scoped preview
+        // matches real approve (which is always node-scoped). The structure
+        // runner resolves the node's own mapping and graph-aware ctx itself.
+        if (opts.node) {
           const nodePath = (opts.node as string).trim().replace(/\/$/, '');
           const node = graph.nodes.get(nodePath);
           if (!node) {
@@ -62,9 +64,25 @@ export function registerAstTestCommand(program: Command): void {
             process.exit(1);
             return;
           }
-          const mappingPaths = normalizeMappingPaths(node.meta.mapping);
-          filePaths = await expandMappingPaths(projectRoot, mappingPaths);
-        } else {
+          const structResult = await runStructureAspect({
+            aspectDir,
+            aspectId: aspect.id,
+            nodePath,
+            graph,
+            projectRoot,
+          });
+          if (structResult.violations.length === 0) {
+            process.stdout.write('No violations.\n');
+            return;
+          }
+          printStructureViolations(structResult.violations);
+          process.exit(1);
+          return;
+        }
+
+        // --files: ad-hoc mode has no node and thus no approve equivalent; it
+        // stays on the AST runner.
+        if (!opts.files) {
           process.stderr.write(
             buildIssueMessage({
               what: `Neither --files nor --node was provided.`,
@@ -76,7 +94,7 @@ export function registerAstTestCommand(program: Command): void {
           return;
         }
 
-        const aspectDir = path.join('.yggdrasil', 'aspects', aspect.id);
+        const filePaths = opts.files as string[];
         const result = await runAstAspect({
           aspectDir,
           aspectId: aspect.id,
@@ -109,6 +127,32 @@ function printViolations(violations: Violation[]): void {
     process.stdout.write(file + '\n');
     for (const v of vs.sort((a, b) => a.line - b.line)) {
       process.stdout.write(`  L${v.line}: ${v.message}\n`);
+    }
+  }
+}
+
+// Structure violations carry optional file/line (graph-level violations have
+// neither), so they are rendered separately from AST violations.
+function printStructureViolations(violations: StructureViolation[]): void {
+  const withFile: StructureViolation[] = [];
+  const withoutFile: StructureViolation[] = [];
+  for (const v of violations) {
+    if (typeof v.file === 'string') withFile.push(v);
+    else withoutFile.push(v);
+  }
+  for (const v of withoutFile) {
+    process.stdout.write(`<graph>: ${v.message}\n`);
+  }
+  const byFile = new Map<string, StructureViolation[]>();
+  for (const v of withFile) {
+    if (!byFile.has(v.file!)) byFile.set(v.file!, []);
+    byFile.get(v.file!)!.push(v);
+  }
+  const entries = [...byFile.entries()].sort(([a], [b]) => a.localeCompare(b));
+  for (const [file, vs] of entries) {
+    process.stdout.write(file + '\n');
+    for (const v of vs.sort((a, b) => (a.line ?? 0) - (b.line ?? 0))) {
+      process.stdout.write(`  L${v.line ?? '?'}: ${v.message}\n`);
     }
   }
 }

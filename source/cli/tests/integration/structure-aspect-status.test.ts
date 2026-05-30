@@ -81,7 +81,7 @@ function layout(root: string, aspectStatus: 'draft' | 'advisory' | 'enforced'): 
   );
   writeFileSync(
     path.join(ygg, 'aspects', 'has-readme', 'yg-aspect.yaml'),
-    `name: HasReadme\ndescription: own mapping must include a README\nreviewer:\n  type: structure\nstatus: ${aspectStatus}\n`,
+    `name: HasReadme\ndescription: own mapping must include a README\nreviewer:\n  type: deterministic\nstatus: ${aspectStatus}\n`,
   );
   // check.mjs returns a violation: no README found in the node's own files
   writeFileSync(

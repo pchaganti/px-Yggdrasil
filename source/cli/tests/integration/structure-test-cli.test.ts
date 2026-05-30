@@ -79,7 +79,7 @@ describe.skipIf(!distExists)('yg structure-test', () => {
     mkdirSync(aspectDir, { recursive: true });
     writeFileSync(
       path.join(aspectDir, 'yg-aspect.yaml'),
-      `name: Test\ndescription: test aspect\nreviewer:\n  type: structure\n`,
+      `name: Test\ndescription: test aspect\nreviewer:\n  type: deterministic\n`,
     );
     writeFileSync(
       path.join(aspectDir, 'check.mjs'),
@@ -96,7 +96,7 @@ describe.skipIf(!distExists)('yg structure-test', () => {
     mkdirSync(aspectDir, { recursive: true });
     writeFileSync(
       path.join(aspectDir, 'yg-aspect.yaml'),
-      `name: Clean\ndescription: clean aspect\nreviewer:\n  type: structure\n`,
+      `name: Clean\ndescription: clean aspect\nreviewer:\n  type: deterministic\n`,
     );
     writeFileSync(
       path.join(aspectDir, 'check.mjs'),
@@ -108,24 +108,24 @@ describe.skipIf(!distExists)('yg structure-test', () => {
     expect(stdout).toContain('No violations.');
   });
 
-  it('rejects non-structure aspect id with exit code 1', () => {
-    const aspectDir = path.join(projectRoot, '.yggdrasil', 'aspects', 'ast-aspect');
+  it('rejects an llm aspect id with exit code 1', () => {
+    const aspectDir = path.join(projectRoot, '.yggdrasil', 'aspects', 'llm-aspect');
     mkdirSync(aspectDir, { recursive: true });
     writeFileSync(
       path.join(aspectDir, 'yg-aspect.yaml'),
-      `name: AstAspect\ndescription: ast aspect\nreviewer:\n  type: ast\nlanguage: [typescript]\n`,
+      `name: LlmAspect\ndescription: llm aspect\nreviewer:\n  type: llm\n`,
     );
     writeFileSync(
-      path.join(aspectDir, 'check.mjs'),
-      `export function check(ctx) { return []; }\n`,
+      path.join(aspectDir, 'content.md'),
+      `Code must be tidy.\n`,
     );
 
     const { stderr, status } = run(
-      ['structure-test', '--aspect', 'ast-aspect', '--node', 'N'],
+      ['structure-test', '--aspect', 'llm-aspect', '--node', 'N'],
       projectRoot,
     );
     expect(status).toBe(1);
-    expect(stderr).toContain("not 'structure'");
+    expect(stderr).toContain("not 'deterministic'");
   });
 
   it('prints error when aspect is not found', () => {
@@ -142,7 +142,7 @@ describe.skipIf(!distExists)('yg structure-test', () => {
     mkdirSync(aspectDir, { recursive: true });
     writeFileSync(
       path.join(aspectDir, 'yg-aspect.yaml'),
-      `name: Test2\ndescription: test2\nreviewer:\n  type: structure\n`,
+      `name: Test2\ndescription: test2\nreviewer:\n  type: deterministic\n`,
     );
     writeFileSync(
       path.join(aspectDir, 'check.mjs'),
@@ -162,7 +162,7 @@ describe.skipIf(!distExists)('yg structure-test', () => {
     mkdirSync(aspectDir, { recursive: true });
     writeFileSync(
       path.join(aspectDir, 'yg-aspect.yaml'),
-      `name: Stable\ndescription: stable aspect\nreviewer:\n  type: structure\n`,
+      `name: Stable\ndescription: stable aspect\nreviewer:\n  type: deterministic\n`,
     );
     writeFileSync(
       path.join(aspectDir, 'check.mjs'),
@@ -182,7 +182,7 @@ describe.skipIf(!distExists)('yg structure-test', () => {
     mkdirSync(aspectDir, { recursive: true });
     writeFileSync(
       path.join(aspectDir, 'yg-aspect.yaml'),
-      `name: WithFile\ndescription: with file\nreviewer:\n  type: structure\n`,
+      `name: WithFile\ndescription: with file\nreviewer:\n  type: deterministic\n`,
     );
     writeFileSync(
       path.join(aspectDir, 'check.mjs'),
@@ -205,7 +205,7 @@ describe.skipIf(!distExists)('yg structure-test', () => {
     mkdirSync(aspectDir, { recursive: true });
     writeFileSync(
       path.join(aspectDir, 'yg-aspect.yaml'),
-      `name: GraphLevel\ndescription: graph level\nreviewer:\n  type: structure\n`,
+      `name: GraphLevel\ndescription: graph level\nreviewer:\n  type: deterministic\n`,
     );
     writeFileSync(
       path.join(aspectDir, 'check.mjs'),

@@ -608,7 +608,7 @@ describe('verifiedAgainst path (Task 31)', () => {
   const astAspect: AspectDef = {
     name: 'AST Aspect',
     id: 'ast-aspect',
-    reviewer: { type: 'ast' as const },
+    reviewer: { type: 'deterministic' as const },
     artifacts: [{ filename: 'check.mjs', content: 'export function check(ctx) { return []; }' }],
   };
   const svcNode: GraphNode = {

@@ -219,11 +219,9 @@ export function resolveExecutionPlan(
   const errors: IssueMessage[] = [];
 
   for (const aspect of aspects) {
-    // Former-ast and structure aspects now share ONE deterministic execution
-    // kind: both run locally through the structure runner (no LLM call). The
-    // reviewer.type enum still carries 'ast' and 'structure' literals; a later
-    // phase collapses the enum to { llm, deterministic }.
-    if (aspect.reviewer.type === 'ast' || aspect.reviewer.type === 'structure') {
+    // Deterministic aspects run locally through the structure runner (no LLM
+    // call). The reviewer.type enum is { llm, deterministic }.
+    if (aspect.reviewer.type === 'deterministic') {
       resolved.push({ kind: 'deterministic', aspect });
       continue;
     }
@@ -482,13 +480,13 @@ export async function runApproveWithReviewer(
   const nodeDescription = node.meta.description ?? '';
 
   // Resolve execution plan. With no reviewer configured, only the deterministic
-  // aspects (former-ast + structure) can run — they take no LLM call; LLM aspects
-  // are dropped here and surfaced as llmSkipped above.
+  // aspects can run — they take no LLM call; LLM aspects are dropped here and
+  // surfaced as llmSkipped above.
   const plan: ExecutionPlan = graph.config.reviewer
     ? resolveExecutionPlan(filtered, graph.config.reviewer)
     : {
         resolved: filtered
-          .filter(a => a.reviewer.type === 'ast' || a.reviewer.type === 'structure')
+          .filter(a => a.reviewer.type === 'deterministic')
           .map(a => ({ kind: 'deterministic' as const, aspect: a })),
         errors: [],
       };
@@ -534,8 +532,8 @@ export async function runApproveWithReviewer(
       if (freshlyEvaluated.has(id)) continue; // a fresh entry was produced this run
       if (id in stf) continue;                // already carried (defensive)
       const aspect = aspectById.get(id);
-      // Only deterministic (former-ast + structure) aspects produce stf entries.
-      if (aspect?.reviewer.type !== 'ast' && aspect?.reviewer.type !== 'structure') continue;
+      // Only deterministic aspects produce stf entries.
+      if (aspect?.reviewer.type !== 'deterministic') continue;
       stf[id] = prior;
       preserved += 1;
     }

@@ -50,7 +50,7 @@ describe('collectTrackedFiles — references', () => {
 
   it('AST aspect with references is treated as if it had none (LLM guard)', () => {
     const aspect: AspectDef = {
-      id: 'a', name: 'A', reviewer: { type: 'ast' },
+      id: 'a', name: 'A', reviewer: { type: 'deterministic' },
       artifacts: [{ filename: 'check.mjs', content: '' }, { filename: 'yg-aspect.yaml', content: '' }],
       // Should not happen (parser rejects), but defensive guard:
       references: [{ path: 'docs/codes.md' }],

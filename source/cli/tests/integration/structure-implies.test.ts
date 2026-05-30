@@ -91,7 +91,7 @@ describe.skipIf(!distExists)('structure aspect implies cascade', () => {
     // structure aspect with implies: [astrule]
     writeFileSync(
       path.join(ygg, 'aspects', 'structural', 'yg-aspect.yaml'),
-      `name: Structural\ndescription: structure rule that reads src/a.ts\nreviewer:\n  type: structure\nimplies:\n  - astrule\nstatus: enforced\n`,
+      `name: Structural\ndescription: structure rule that reads src/a.ts\nreviewer:\n  type: deterministic\nimplies:\n  - astrule\nstatus: enforced\n`,
     );
     writeFileSync(
       path.join(ygg, 'aspects', 'structural', 'check.mjs'),
@@ -100,7 +100,7 @@ describe.skipIf(!distExists)('structure aspect implies cascade', () => {
     // implied AST aspect — trivially passes
     writeFileSync(
       path.join(ygg, 'aspects', 'astrule', 'yg-aspect.yaml'),
-      `name: AstRule\ndescription: ast-judged rule that always passes\nreviewer:\n  type: ast\nlanguage:\n  - typescript\nstatus: enforced\n`,
+      `name: AstRule\ndescription: ast-judged rule that always passes\nreviewer:\n  type: deterministic\nlanguage:\n  - typescript\nstatus: enforced\n`,
     );
     writeFileSync(
       path.join(ygg, 'aspects', 'astrule', 'check.mjs'),

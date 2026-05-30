@@ -120,7 +120,7 @@ describe('runApproveWithReviewer — reReviewAspectIds (Option 1)', () => {
       aspects: [
         {
           id: 'det',
-          yaml: 'name: Det\ndescription: structural shape\nreviewer:\n  type: structure\n',
+          yaml: 'name: Det\ndescription: structural shape\nreviewer:\n  type: deterministic\n',
           files: { 'check.mjs': 'export function check(_ctx) { return []; }\n' },
         },
         {
@@ -374,7 +374,7 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
       aspects: [
         {
           id: 'det',
-          yaml: 'name: Det\ndescription: structural shape\nreviewer:\n  type: structure\n',
+          yaml: 'name: Det\ndescription: structural shape\nreviewer:\n  type: deterministic\n',
           files: { 'check.mjs': detCheck },
         },
         {
@@ -442,7 +442,7 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
     // Upstream-only change so approveNode produces a pendingDriftState w/o source edit.
     await writeFile(
       path.join(tmpDir, '.yggdrasil/aspects/det/yg-aspect.yaml'),
-      'name: Det\ndescription: structural shape (tweaked)\nreviewer:\n  type: structure\n',
+      'name: Det\ndescription: structural shape (tweaked)\nreviewer:\n  type: deterministic\n',
     );
 
     const graph = await loadGraph(tmpDir);
@@ -535,7 +535,7 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
       aspects: [
         {
           id: 'det',
-          yaml: 'name: Det\ndescription: structural shape\nreviewer:\n  type: structure\n',
+          yaml: 'name: Det\ndescription: structural shape\nreviewer:\n  type: deterministic\n',
           files: { 'check.mjs': 'export function check(_ctx) { return []; }\n' },
         },
         {
@@ -617,7 +617,7 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
     // Phase-4 migration shape: a change to the aspect's yg-aspect.yaml content.
     await writeFile(
       path.join(tmpDir, '.yggdrasil/aspects/det/yg-aspect.yaml'),
-      'name: Det\ndescription: structural shape (migrated)\nreviewer:\n  type: structure\n',
+      'name: Det\ndescription: structural shape (migrated)\nreviewer:\n  type: deterministic\n',
     );
 
     const graph = await loadGraph(tmpDir);

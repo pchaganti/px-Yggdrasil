@@ -600,7 +600,7 @@ describe('Task 33 — drift hash uses check.mjs for AST aspects', () => {
         {
           id: 'async-fs',
           name: 'AsyncFS',
-          reviewer: { type: 'ast' as const },
+          reviewer: { type: 'deterministic' as const },
           artifacts: [{ filename: 'check.mjs', content: 'export function check(ctx) { return []; }' }],
         },
       ],

@@ -95,7 +95,7 @@ describe('buildIndex', () => {
     // Add an AST aspect (reviewer: ast, no content.md)
     const astAspectDir = path.join(projectRoot, '.yggdrasil', 'aspects', 'ast-only');
     await mkdir(astAspectDir, { recursive: true });
-    await writeFile(path.join(astAspectDir, 'yg-aspect.yaml'), 'name: ASTOnly\ndescription: ast check\nreviewer:\n  type: ast\nlanguage: [typescript]\n');
+    await writeFile(path.join(astAspectDir, 'yg-aspect.yaml'), 'name: ASTOnly\ndescription: ast check\nreviewer:\n  type: deterministic\nlanguage: [typescript]\n');
     const graph = await loadGraph(projectRoot);
     const docs = await buildIndex(graph);
     const asp = docs.find((d) => d.kind === 'aspect' && d.id === 'aspect:ast-only');

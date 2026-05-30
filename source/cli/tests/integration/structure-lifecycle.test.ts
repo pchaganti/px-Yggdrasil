@@ -69,7 +69,7 @@ function layout(root: string): void {
   );
   writeFileSync(
     path.join(ygg, 'aspects', 'touches-a', 'yg-aspect.yaml'),
-    `name: TouchesA\ndescription: reads src/a.ts\nreviewer:\n  type: structure\nstatus: enforced\n`,
+    `name: TouchesA\ndescription: reads src/a.ts\nreviewer:\n  type: deterministic\nstatus: enforced\n`,
   );
   writeFileSync(
     path.join(ygg, 'aspects', 'touches-a', 'check.mjs'),

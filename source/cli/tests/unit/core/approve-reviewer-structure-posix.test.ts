@@ -62,7 +62,7 @@ async function createProject(name: string) {
   await mkdir(aspDir, { recursive: true });
   await writeFile(
     path.join(aspDir, 'yg-aspect.yaml'),
-    'name: ShapeCheck\ndescription: test\nreviewer:\n  type: structure\n',
+    'name: ShapeCheck\ndescription: test\nreviewer:\n  type: deterministic\n',
   );
   await writeFile(path.join(aspDir, 'check.mjs'), 'export function check(_ctx) { return []; }\n');
   const srcAbs = path.join(tmpDir, 'src/svc.ts');

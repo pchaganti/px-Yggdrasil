@@ -16,7 +16,7 @@ export function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
 
   for (const aspect of graph.aspects) {
     const reviewer = aspect.reviewer.type;
-    if (reviewer !== 'ast' && reviewer !== 'llm' && reviewer !== 'structure') continue; // covered by enum check
+    if (reviewer !== 'deterministic' && reviewer !== 'llm') continue; // covered by enum check
 
     const aspectDir = path.join(projectRoot, '.yggdrasil', 'aspects', aspect.id);
     const hasContentMd = fileExistsSync(path.join(aspectDir, 'content.md'));
@@ -41,20 +41,19 @@ export function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
           rule: 'aspect-rule-sources',
           ...issueMsg({
             what: `Aspect '${aspect.id}' has reviewer 'llm' but check.mjs is present.`,
-            why: `LLM aspects must not ship check.mjs (that's the AST reviewer's input).`,
-            next: `Remove .yggdrasil/aspects/${aspect.id}/check.mjs or change reviewer to 'ast'.`,
+            why: `LLM aspects must not ship check.mjs (that's the deterministic reviewer's input).`,
+            next: `Remove .yggdrasil/aspects/${aspect.id}/check.mjs or change reviewer to 'deterministic'.`,
           }),
         });
       } else {
-        // reviewer === 'ast' or 'structure'
-        const reviewerLabel = reviewer === 'structure' ? 'Structure' : 'AST';
+        // reviewer === 'deterministic'
         issues.push({
           severity: 'error',
           code: 'aspect-unexpected-rule-source',
           rule: 'aspect-rule-sources',
           ...issueMsg({
             what: `Aspect '${aspect.id}' has reviewer '${reviewer}' but content.md is present.`,
-            why: `${reviewerLabel} aspects must not ship content.md (that's the LLM reviewer's input).`,
+            why: `Deterministic aspects must not ship content.md (that's the LLM reviewer's input).`,
             next: `Remove .yggdrasil/aspects/${aspect.id}/content.md or change reviewer to 'llm'.`,
           }),
         });
@@ -82,36 +81,33 @@ export function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
           rule: 'aspect-rule-sources',
           ...issueMsg({
             what: `Aspect '${aspect.id}' has reviewer 'llm' but check.mjs is present.`,
-            why: `LLM aspects must not ship check.mjs (that's the AST reviewer's input).`,
-            next: `Remove .yggdrasil/aspects/${aspect.id}/check.mjs or change reviewer to 'ast'.`,
+            why: `LLM aspects must not ship check.mjs (that's the deterministic reviewer's input).`,
+            next: `Remove .yggdrasil/aspects/${aspect.id}/check.mjs or change reviewer to 'deterministic'.`,
           }),
         });
       }
     } else {
-      // reviewer === 'ast' or 'structure'
+      // reviewer === 'deterministic'
       if (!hasCheckMjs) {
-        const reviewerLabel = reviewer === 'structure' ? 'Structure' : 'AST';
-        const runnerLabel = reviewer === 'structure' ? 'structure runner' : 'AST runner';
         issues.push({
           severity: 'error',
           code: 'aspect-missing-rule-source',
           rule: 'aspect-rule-sources',
           ...issueMsg({
             what: `Aspect '${aspect.id}' has reviewer '${reviewer}' but check.mjs is missing.`,
-            why: `${reviewerLabel} aspects need check.mjs as the rule definition the ${runnerLabel} executes.`,
+            why: `Deterministic aspects need check.mjs as the rule definition the structure runner executes.`,
             next: `Create .yggdrasil/aspects/${aspect.id}/check.mjs exporting a check function.`,
           }),
         });
       }
       if (hasContentMd) {
-        const reviewerLabel = reviewer === 'structure' ? 'Structure' : 'AST';
         issues.push({
           severity: 'error',
           code: 'aspect-unexpected-rule-source',
           rule: 'aspect-rule-sources',
           ...issueMsg({
             what: `Aspect '${aspect.id}' has reviewer '${reviewer}' but content.md is present.`,
-            why: `${reviewerLabel} aspects must not ship content.md (that's the LLM reviewer's input).`,
+            why: `Deterministic aspects must not ship content.md (that's the LLM reviewer's input).`,
             next: `Remove .yggdrasil/aspects/${aspect.id}/content.md or change reviewer to 'llm'.`,
           }),
         });

@@ -196,15 +196,15 @@ describe('aspect-parser', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('parses object-form reviewer { type: ast }', async () => {
-    const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-reviewer-obj-ast');
+  it('parses object-form reviewer { type: deterministic }', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-reviewer-obj-det');
     await mkdir(tmpDir, { recursive: true });
     const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
-    await writeFile(aspectPath, `name: Test\nreviewer:\n  type: ast\nlanguage: [typescript]\n`, 'utf-8');
+    await writeFile(aspectPath, `name: Test\nreviewer:\n  type: deterministic\n`, 'utf-8');
 
     const r = await parseAspect(tmpDir, aspectPath, 'test');
     const aspect = assertOk(r);
-    expect(aspect.reviewer.type).toBe('ast');
+    expect(aspect.reviewer.type).toBe('deterministic');
     expect(aspect.reviewer.tier).toBeUndefined();
 
     await rm(tmpDir, { recursive: true, force: true });
@@ -362,12 +362,12 @@ describe('aspect-parser — when filter', () => {
 });
 
 describe('parseAspect v5 happy paths', () => {
-  it('parses AST aspect with reviewer: { type: ast }', async () => {
-    const dir = await newDir(`name: NoSyncFs\ndescription: x\nreviewer:\n  type: ast\nlanguage: [typescript]\n`);
+  it('parses deterministic aspect with reviewer: { type: deterministic }', async () => {
+    const dir = await newDir(`name: NoSyncFs\ndescription: x\nreviewer:\n  type: deterministic\n`);
     const r = await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'no-sync-fs');
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.aspect.reviewer.type).toBe('ast');
+      expect(r.aspect.reviewer.type).toBe('deterministic');
       expect(r.aspect.reviewer.tier).toBeUndefined();
     }
   });
@@ -425,11 +425,11 @@ describe('parseAspect v5 error paths', () => {
     if (!r.ok) expect(r.errors.some(e => e.code === 'aspect-reviewer-type-invalid')).toBe(true);
   });
 
-  it('errors on AST + tier', async () => {
-    const dir = await newDir(`name: Foo\ndescription: x\nreviewer:\n  type: ast\n  tier: deep\nlanguage: [typescript]\n`);
+  it('errors on deterministic + tier', async () => {
+    const dir = await newDir(`name: Foo\ndescription: x\nreviewer:\n  type: deterministic\n  tier: deep\n`);
     const r = await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'foo');
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.errors.some(e => e.code === 'aspect-ast-tier-not-allowed')).toBe(true);
+    if (!r.ok) expect(r.errors.some(e => e.code === 'aspect-tier-on-deterministic')).toBe(true);
   });
 
   it('errors on unknown reviewer key', async () => {

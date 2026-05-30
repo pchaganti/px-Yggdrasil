@@ -83,7 +83,7 @@ function layout(root: string): void {
   );
   writeFileSync(
     path.join(ygg, 'aspects', 'reads-b', 'yg-aspect.yaml'),
-    `name: ReadsB\ndescription: reads node B's file cross-node\nreviewer:\n  type: structure\nstatus: enforced\n`,
+    `name: ReadsB\ndescription: reads node B's file cross-node\nreviewer:\n  type: deterministic\nstatus: enforced\n`,
   );
   // Reaching B via ctx.graph.node('B') reads B's mapped files (src/b.ts) and
   // records them as touched — this is the cross-node read under test.

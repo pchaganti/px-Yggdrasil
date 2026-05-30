@@ -6,7 +6,7 @@ function makeAspect(id: string, overrides: Partial<Omit<AspectDef, 'reviewer'>> 
   const { reviewer: rev, ...rest } = overrides;
   const reviewerSpec: AspectDef['reviewer'] =
     rev === undefined ? { type: 'llm' } :
-    typeof rev === 'string' ? { type: rev as 'llm' | 'ast' } :
+    typeof rev === 'string' ? { type: rev as 'llm' | 'deterministic' } :
     rev;
   return {
     id,
@@ -158,11 +158,11 @@ describe('formatAspectsOutput', () => {
     expect(output).toContain('Used by: 1 node');
   });
 
-  it('shows Reviewer: ast for ast aspects', () => {
-    const aspects = [makeAspect('async-fs', { reviewer: 'ast' })];
+  it('shows Reviewer: deterministic for deterministic aspects', () => {
+    const aspects = [makeAspect('async-fs', { reviewer: 'deterministic' })];
     const graph = makeGraph(aspects);
     const output = formatAspectsOutput(graph);
-    expect(output).toMatch(/Reviewer:\s*ast/);
+    expect(output).toMatch(/Reviewer:\s*deterministic/);
   });
 
   it('shows Reviewer: llm for aspects without explicit reviewer', () => {

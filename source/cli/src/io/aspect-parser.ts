@@ -196,32 +196,17 @@ export async function parseAspect(
         }],
       };
     }
-    // aspect-references-on-structure: cross-field check
-    if (reviewer.type === 'structure') {
+    // aspect-references-on-deterministic: cross-field check
+    if (reviewer.type === 'deterministic') {
       return {
         ok: false,
         aspectId: idTrimmed,
         errors: [{
-          code: 'aspect-references-on-structure',
+          code: 'aspect-references-on-deterministic',
           messageData: {
-            what: `Aspect '${idTrimmed}' declares 'references:' but reviewer.type is 'structure'.`,
-            why: 'reference files are passed to the LLM reviewer in the prompt. Structure aspects run a local check.mjs and ignore them.',
+            what: `Aspect '${idTrimmed}' declares 'references:' but reviewer.type is 'deterministic'.`,
+            why: 'reference files are passed to the LLM reviewer in the prompt. Deterministic aspects run a local check.mjs and ignore them.',
             next: `remove 'references:' from .yggdrasil/aspects/${idTrimmed}/yg-aspect.yaml, or embed lookup tables in check.mjs directly, or change reviewer.type to 'llm'.`,
-          },
-        }],
-      };
-    }
-    // aspect-references-on-ast: cross-field check
-    if (reviewer.type === 'ast') {
-      return {
-        ok: false,
-        aspectId: idTrimmed,
-        errors: [{
-          code: 'aspect-references-on-ast',
-          messageData: {
-            what: `Aspect '${idTrimmed}' declares 'references:' but reviewer.type is 'ast'.`,
-            why: 'reference files are passed to the LLM reviewer in the prompt. AST aspects run a local check.mjs and ignore them.',
-            next: `remove 'references:' from .yggdrasil/aspects/${idTrimmed}/yg-aspect.yaml, or change reviewer.type to 'llm'.`,
           },
         }],
       };
@@ -368,7 +353,7 @@ function parseReviewer(
         messageData: {
           what: `aspect '${aspectId}' has no reviewer: block (field absent or null)`,
           why: 'every aspect must declare its reviewer explicitly (no implicit default)',
-          next: 'add `reviewer:\\n  type: llm` or `reviewer:\\n  type: ast`',
+          next: 'add `reviewer:\\n  type: llm` or `reviewer:\\n  type: deterministic`',
         },
       }],
     };
@@ -411,17 +396,17 @@ function parseReviewer(
       code: 'aspect-reviewer-type-missing',
       messageData: {
         what: `aspect '${aspectId}' has reviewer: mapping without type:`,
-        why: 'type: distinguishes LLM and AST aspects',
-        next: 'add `type: llm`, `type: ast`, or `type: structure` under reviewer:',
+        why: 'type: distinguishes LLM and deterministic aspects',
+        next: 'add `type: llm` or `type: deterministic` under reviewer:',
       },
     });
-  } else if (obj.type !== 'llm' && obj.type !== 'ast' && obj.type !== 'structure') {
+  } else if (obj.type !== 'llm' && obj.type !== 'deterministic') {
     errors.push({
       code: 'aspect-reviewer-type-invalid',
       messageData: {
         what: `aspect '${aspectId}' has invalid reviewer.type: '${String(obj.type)}'`,
-        why: 'only "llm", "ast" and "structure" are valid',
-        next: 'change to type: llm, type: ast, or type: structure',
+        why: 'only "llm" and "deterministic" are valid',
+        next: 'change to type: llm or type: deterministic',
       },
     });
   } else {
@@ -448,7 +433,7 @@ function parseReviewer(
   // Step 4: cross-field — only when type is valid
   if (!typeValid) return { ok: false, errors }; // unreachable but type-safe
 
-  const type = obj.type as 'llm' | 'ast' | 'structure';
+  const type = obj.type as 'llm' | 'deterministic';
   if (obj.tier !== undefined) {
     if (typeof obj.tier !== 'string' || obj.tier.trim() === '') {
       return {
@@ -463,27 +448,14 @@ function parseReviewer(
         }],
       };
     }
-    if (type === 'structure') {
+    if (type === 'deterministic') {
       return {
         ok: false,
         errors: [{
-          code: 'aspect-structure-tier-not-allowed',
+          code: 'aspect-tier-on-deterministic',
           messageData: {
-            what: `aspect '${aspectId}' has reviewer.type: structure together with reviewer.tier: '${obj.tier}'`,
-            why: 'Structure aspects run locally without an LLM; tiers do not apply',
-            next: 'remove tier: from the aspect',
-          },
-        }],
-      };
-    }
-    if (type === 'ast') {
-      return {
-        ok: false,
-        errors: [{
-          code: 'aspect-ast-tier-not-allowed',
-          messageData: {
-            what: `aspect '${aspectId}' has reviewer.type: ast together with reviewer.tier: '${obj.tier}'`,
-            why: 'AST aspects run locally without an LLM; tiers do not apply',
+            what: `aspect '${aspectId}' has reviewer.type: deterministic together with reviewer.tier: '${obj.tier}'`,
+            why: 'Deterministic aspects run locally without an LLM; tiers do not apply',
             next: 'remove tier: from the aspect',
           },
         }],

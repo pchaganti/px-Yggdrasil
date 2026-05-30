@@ -78,7 +78,7 @@ async function createProject(name: string) {
   await mkdir(path.join(yggRoot, 'aspects', 'astrule'), { recursive: true });
   await writeFile(
     path.join(yggRoot, 'aspects', 'astrule', 'yg-aspect.yaml'),
-    `name: AstRule\ndescription: ast aspect touching shared.ts\nreviewer:\n  type: ast\nlanguage:\n  - typescript\n`,
+    `name: AstRule\ndescription: ast aspect touching shared.ts\nreviewer:\n  type: deterministic\nlanguage:\n  - typescript\n`,
   );
   await writeFile(
     path.join(yggRoot, 'aspects', 'astrule', 'check.mjs'),
@@ -90,7 +90,7 @@ async function createProject(name: string) {
   await mkdir(path.join(yggRoot, 'aspects', 'structrule'), { recursive: true });
   await writeFile(
     path.join(yggRoot, 'aspects', 'structrule', 'yg-aspect.yaml'),
-    `name: StructRule\ndescription: structure aspect touching shared.ts\nreviewer:\n  type: structure\n`,
+    `name: StructRule\ndescription: structure aspect touching shared.ts\nreviewer:\n  type: deterministic\n`,
   );
   // check.mjs requests parseAst for src/shared.ts — tests cache hit via prewarmupAstCache
   await writeFile(

@@ -12,7 +12,7 @@ describe('integration — approve --dry-run with references', () => {
     while (repos.length > 0) rmSync(repos.pop()!, { recursive: true, force: true });
   });
 
-  it('runs AST aspects in dry-run and shows their section', () => {
+  it('runs deterministic aspects in dry-run and shows their section', () => {
     const repo = mkdtempSync(join(tmpdir(), 'yg-dryrun-ast-'));
     repos.push(repo);
     const ygg = join(repo, '.yggdrasil');
@@ -39,7 +39,7 @@ node_types:
     writeFileSync(join(ygg, 'aspects', 'no-foo', 'yg-aspect.yaml'), `name: NoFoo
 description: forbids identifier foo
 reviewer:
-  type: ast
+  type: deterministic
 language: [typescript]
 `, 'utf-8');
     writeFileSync(join(ygg, 'aspects', 'no-foo', 'check.mjs'), `export function check(ctx) {
@@ -58,7 +58,7 @@ aspects:
     const out = execFileSync('node', [CLI, 'approve', '--dry-run', '--node', 'svc'], {
       cwd: repo, encoding: 'utf-8',
     });
-    expect(out).toContain('AST aspect: no-foo');
+    expect(out).toContain('Deterministic aspect: no-foo');
     expect(out).toContain('no violations');
   });
 
@@ -199,7 +199,7 @@ node_types:
     writeFileSync(join(ygg, 'aspects', 'shape', 'yg-aspect.yaml'), `name: Shape
 description: a structure-reviewer aspect
 reviewer:
-  type: structure
+  type: deterministic
 `, 'utf-8');
     writeFileSync(join(ygg, 'aspects', 'shape', 'check.mjs'), `export function check(ctx) {
   return [];
@@ -217,7 +217,7 @@ aspects:
     const out = execFileSync('node', [CLI, 'approve', '--dry-run', '--node', 'svc'], {
       cwd: repo, encoding: 'utf-8',
     });
-    expect(out).toContain('Structure aspect: shape');
+    expect(out).toContain('Deterministic aspect: shape');
     expect(out).toContain('no violations');
     expect(out).not.toContain('Prompt for LLM aspect: shape');
   });
@@ -261,7 +261,7 @@ node_types:
     writeFileSync(join(ygg, 'aspects', 'count', 'yg-aspect.yaml'), `name: Count
 description: emits one violation per own file (former-ast)
 reviewer:
-  type: ast
+  type: deterministic
 language: [typescript]
 `, 'utf-8');
     writeFileSync(join(ygg, 'aspects', 'count', 'check.mjs'), `export function check(ctx) {

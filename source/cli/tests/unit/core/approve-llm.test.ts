@@ -424,7 +424,7 @@ describe('runApproveWithReviewer — advisory-status code violations', () => {
   });
 
   it('does NOT refuse when an advisory AST aspect is violated (short-circuit is status-aware)', async () => {
-    const ADV_AST_YAML = 'name: NoConsole\ndescription: No console\nreviewer:\n  type: ast\nlanguage:\n  - typescript\nstatus: advisory\n';
+    const ADV_AST_YAML = 'name: NoConsole\ndescription: No console\nreviewer:\n  type: deterministic\nlanguage:\n  - typescript\nstatus: advisory\n';
     // Former-ast aspects now run through the structure runner, whose
     // buildOwnFiles materializes explicit-file mapping entries (it does not walk
     // directory mappings). Map the file directly so ctx.files is populated —
@@ -586,7 +586,7 @@ describe('LLM verification (CLI layer)', () => {
 
 // ── resolveExecutionPlan unit tests ──────────────────────────
 
-function makeAspect(id: string, type: 'llm' | 'ast', tier?: string): AspectDef {
+function makeAspect(id: string, type: 'llm' | 'deterministic', tier?: string): AspectDef {
   return {
     id,
     name: id,
@@ -604,7 +604,7 @@ function makeReviewer(tiers: Record<string, object>, defaultTier?: string): Revi
 
 describe('resolveExecutionPlan', () => {
   it('assigns AST aspects to the deterministic kind (routed through the structure runner)', () => {
-    const aspects = [makeAspect('check-syntax', 'ast')];
+    const aspects = [makeAspect('check-syntax', 'deterministic')];
     const reviewer = makeReviewer({ fast: { provider: 'ollama', consensus: 1, config: { model: 'llama3' } } });
     const { resolved, errors } = resolveExecutionPlan(aspects, reviewer);
     expect(errors).toHaveLength(0);
@@ -648,7 +648,7 @@ describe('resolveExecutionPlan', () => {
   });
 
   it('mixes AST and LLM aspects without errors', () => {
-    const aspects = [makeAspect('check-syntax', 'ast'), makeAspect('deterministic', 'llm')];
+    const aspects = [makeAspect('check-syntax', 'deterministic'), makeAspect('deterministic', 'llm')];
     const reviewer = makeReviewer({ fast: { provider: 'ollama', consensus: 1, config: { model: 'llama3' } } });
     const { resolved, errors } = resolveExecutionPlan(aspects, reviewer);
     expect(errors).toHaveLength(0);
@@ -660,7 +660,7 @@ describe('resolveExecutionPlan', () => {
 });
 
 describe('runApproveWithReviewer — AST aspects', () => {
-  const AST_ASPECT_YAML = 'name: NoConsole\ndescription: No console.log\nreviewer:\n  type: ast\nlanguage:\n  - typescript\n';
+  const AST_ASPECT_YAML = 'name: NoConsole\ndescription: No console.log\nreviewer:\n  type: deterministic\nlanguage:\n  - typescript\n';
 
   it('commits when AST-only aspect finds no violations (no reviewer configured)', async () => {
     const { tmpDir } = await createTmpProject('ast-pass', {
@@ -733,7 +733,7 @@ describe('runApproveWithReviewer — AST aspects', () => {
 });
 
 describe('runApproveWithReviewer — AST error paths', () => {
-  const AST_ASPECT_YAML = 'name: NoConsole\ndescription: No console.log\nreviewer:\n  type: ast\nlanguage:\n  - typescript\n';
+  const AST_ASPECT_YAML = 'name: NoConsole\ndescription: No console.log\nreviewer:\n  type: deterministic\nlanguage:\n  - typescript\n';
 
   it('refuses with astRuntime error when check.mjs throws', async () => {
     const { tmpDir } = await createTmpProject('ast-throw', {

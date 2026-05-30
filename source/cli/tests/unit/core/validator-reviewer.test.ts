@@ -20,10 +20,10 @@ afterEach(async () => {
   );
 });
 
-function createAspect(id: string, reviewer?: AspectDef['reviewer'] | 'llm' | 'ast'): AspectDef {
+function createAspect(id: string, reviewer?: AspectDef['reviewer'] | 'llm' | 'deterministic'): AspectDef {
   const reviewerSpec: AspectDef['reviewer'] =
     reviewer === undefined ? { type: 'llm' } :
-    typeof reviewer === 'string' ? { type: reviewer as 'llm' | 'ast' } :
+    typeof reviewer === 'string' ? { type: reviewer as 'llm' | 'deterministic' } :
     reviewer;
   return {
     name: id,
@@ -190,7 +190,7 @@ describe('aspect-tier-unknown (Task 37)', () => {
   });
 
   it('does not emit aspect-tier-unknown for ast aspects even with a tier property', async () => {
-    const aspect = createAspect('ast-aspect', 'ast');
+    const aspect = createAspect('ast-aspect', 'deterministic');
     const graph = createGraph({ aspects: [aspect], config: {} });
 
     const result = await validate(graph);

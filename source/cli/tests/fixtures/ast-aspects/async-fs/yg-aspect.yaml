@@ -1,5 +1,5 @@
 name: AsyncFS
 description: Use async fs APIs — no synchronous calls like readFileSync or writeFileSync
 reviewer:
-  type: ast
+  type: deterministic
 language: [typescript]

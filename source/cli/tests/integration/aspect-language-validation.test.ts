@@ -23,7 +23,7 @@ async function fixture(aspectYaml: string): Promise<{ projectRoot: string; clean
 
 describe('aspect language validation', () => {
   it('an ast aspect with no language: field validates clean (D2: language removed)', async () => {
-    const f = await fixture(`name: T\nid: t\nreviewer:\n  type: ast\ndescription: x\n`);
+    const f = await fixture(`name: T\nid: t\nreviewer:\n  type: deterministic\ndescription: x\n`);
     try {
       const graph = await loadGraph(f.projectRoot);
       const result = await validate(graph);

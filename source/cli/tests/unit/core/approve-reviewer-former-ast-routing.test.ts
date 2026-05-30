@@ -117,7 +117,7 @@ async function recordBaseline(tmpDir: string) {
   }
 }
 
-const AST_ASPECT_YAML = 'name: NoX\ndescription: forbids x\nreviewer:\n  type: ast\nlanguage:\n  - typescript\n';
+const AST_ASPECT_YAML = 'name: NoX\ndescription: forbids x\nreviewer:\n  type: deterministic\nlanguage:\n  - typescript\n';
 
 describe('resolveExecutionPlan — former-ast and structure collapse to a single deterministic kind', () => {
   const reviewer: ReviewerConfig = {
@@ -128,8 +128,8 @@ describe('resolveExecutionPlan — former-ast and structure collapse to a single
   } as unknown as ReviewerConfig;
 
   it('an ast-type aspect resolves to the SAME deterministic kind as a structure-type aspect', () => {
-    const astAspect = { id: 'a1', name: 'a1', reviewer: { type: 'ast' }, artifacts: [], description: 'd' } as unknown as AspectDef;
-    const structAspect = { id: 's1', name: 's1', reviewer: { type: 'structure' }, artifacts: [], description: 'd' } as unknown as AspectDef;
+    const astAspect = { id: 'a1', name: 'a1', reviewer: { type: 'deterministic' }, artifacts: [], description: 'd' } as unknown as AspectDef;
+    const structAspect = { id: 's1', name: 's1', reviewer: { type: 'deterministic' }, artifacts: [], description: 'd' } as unknown as AspectDef;
     const plan = resolveExecutionPlan([astAspect, structAspect], reviewer);
     expect(plan.errors).toHaveLength(0);
     expect(plan.resolved).toHaveLength(2);
@@ -297,7 +297,7 @@ describe('runApproveWithReviewer — former-ast aspect routed through the struct
       ],
       aspects: [{
         id: 'count-files',
-        yaml: 'name: CountFiles\ndescription: pins the own-file set\nreviewer:\n  type: ast\nlanguage:\n  - typescript\n',
+        yaml: 'name: CountFiles\ndescription: pins the own-file set\nreviewer:\n  type: deterministic\nlanguage:\n  - typescript\n',
         files: {
           // Emit one violation per own file path so we can assert the exact set.
           'check.mjs': `export function check(ctx) {

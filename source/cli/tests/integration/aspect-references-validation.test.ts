@@ -95,18 +95,16 @@ references:
     expect(out).toContain('aspect-reference-broken');
   });
 
-  it('references on AST aspect causes yg check to fail with aspect-references-on-ast', () => {
+  it('references on deterministic aspect causes yg check to fail with aspect-references-on-deterministic', () => {
     const repo = makeBaseRepo();
     repos.push(repo);
     const ygg = join(repo, '.yggdrasil');
     writeFileSync(join(repo, 'docs', 'x.md'), 'content\n', 'utf-8');
-    // AST aspect with references — invalid combination
-    // Note: language is a top-level field (not under reviewer:)
+    // Deterministic aspect with references — invalid combination.
     writeFileSync(join(ygg, 'aspects', 'a', 'yg-aspect.yaml'), `name: A
 description: t
 reviewer:
-  type: ast
-language: [ts]
+  type: deterministic
 references:
   - docs/x.md
 `, 'utf-8');
@@ -114,7 +112,7 @@ references:
 
     const { code, out } = ygCheck(repo);
     expect(code).toBe(1);
-    expect(out).toContain('aspect-references-on-ast');
+    expect(out).toContain('aspect-references-on-deterministic');
   });
 
   it('parser-phase aspect-reference-escape surfaces in yg check output', () => {
@@ -167,7 +165,7 @@ references:
 
     const { out } = ygCheck(repo);
     expect(out).not.toContain('aspect-reference-broken');
-    expect(out).not.toContain('aspect-references-on-ast');
+    expect(out).not.toContain('aspect-references-on-deterministic');
     expect(out).not.toContain('aspect-reference-too-large');
   });
 });

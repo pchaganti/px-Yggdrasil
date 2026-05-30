@@ -1,7 +1,7 @@
 # yg-aspect.yaml — Schema for cross-cutting aspects
 # Each aspect is a directory under .yggdrasil/aspects/ containing this file
 # plus any number of .md content files (for LLM aspects) or a check.mjs
-# (for AST and structure aspects).
+# (for deterministic aspects).
 #
 # Aspect identifier = relative path from aspects/ to the directory
 # (e.g. observability/logging). Aspects can be organized in nested
@@ -16,15 +16,15 @@ description: "Short description"   # required — shown in yg aspects output and
                                    # Validator emits description-missing if absent.
 
 reviewer:                          # required — which reviewer verifies this aspect
-  type: llm                        #   required: 'llm', 'ast' or 'structure'
-                                   #     llm       — aspect ships content.md; an LLM reads it and judges the code.
-                                   #     ast       — aspect ships check.mjs; the AST runner executes it locally.
-                                   #     structure — aspect ships check.mjs; the structure runner executes it with
-                                   #                 graph-aware ctx (files, fs, graph, parsers). Language-agnostic.
+  type: llm                        #   required: 'llm' or 'deterministic'
+                                   #     llm           — aspect ships content.md; an LLM reads it and judges the code.
+                                   #     deterministic — aspect ships check.mjs; the structure runner executes it
+                                   #                     locally with graph-aware ctx (files, fs, graph, parsers).
+                                   #                     Language-agnostic. No LLM call, zero token cost.
   # tier: deep                     #   optional, only when type: llm.
                                    #     If omitted, the aspect uses reviewer.default from yg-config.yaml.
                                    #     If present, must reference a key under reviewer.tiers in the config.
-                                   #     Forbidden when type is 'ast' or 'structure'.
+                                   #     Forbidden when type is 'deterministic'.
 
 status: enforced                   # optional — aspect-level default. enum: draft | advisory | enforced.
                                    # Absent → 'enforced'.
@@ -98,7 +98,7 @@ status: enforced                   # optional — aspect-level default. enum: dr
                                    #       - descendants: { relations: { calls: { target_type: service-client } } }
 
 # references:                      # optional — supporting files for the LLM reviewer.
-                                   #   Permitted on LLM aspects ONLY (forbidden on ast and structure).
+                                   #   Permitted on LLM aspects ONLY (forbidden on deterministic).
                                    #   Each entry is a string (shorthand) OR an object { path, description? }.
                                    #
                                    # Example:

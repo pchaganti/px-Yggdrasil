@@ -192,12 +192,12 @@ export async function collectStructureCascade(
       continue;
     }
 
-    // Cold start: pessimistic — does an effective non-draft structure aspect on
-    // this node have this file in its allowed-reads set?
+    // Cold start: pessimistic — does an effective non-draft deterministic aspect
+    // on this node have this file in its allowed-reads set?
     const statuses = computeEffectiveAspectStatuses(node, graph);
     const hasStructureAspect = [...computeEffectiveAspects(node, graph)].some(id => {
       if (statuses.get(id) === 'draft') return false;
-      return graph.aspects.find(a => a.id === id)?.reviewer.type === 'structure';
+      return graph.aspects.find(a => a.id === id)?.reviewer.type === 'deterministic';
     });
     if (!hasStructureAspect) continue;
     const allowed = collectAllowedReadsForAspect(nodePath, graph);

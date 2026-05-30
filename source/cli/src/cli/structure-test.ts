@@ -31,12 +31,12 @@ export function registerStructureTestCommand(program: Command): void {
           return;
         }
 
-        if (aspect.reviewer.type !== 'structure') {
+        if (aspect.reviewer.type !== 'deterministic') {
           process.stderr.write(
             buildIssueMessage({
-              what: `Aspect '${opts.aspect}' has reviewer '${aspect.reviewer.type}', not 'structure'.`,
-              why: `yg structure-test only runs structure aspects (those with check.mjs).`,
-              next: `Pick an aspect with 'reviewer: structure' in yg-aspect.yaml, or run yg approve for LLM aspects.`,
+              what: `Aspect '${opts.aspect}' has reviewer '${aspect.reviewer.type}', not 'deterministic'.`,
+              why: `yg structure-test only runs deterministic aspects (those with check.mjs).`,
+              next: `Pick an aspect with 'reviewer: deterministic' in yg-aspect.yaml, or run yg approve for LLM aspects.`,
             }) + '\n',
           );
           process.exit(1);

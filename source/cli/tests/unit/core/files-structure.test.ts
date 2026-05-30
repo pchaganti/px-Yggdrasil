@@ -8,7 +8,7 @@ import type { CheckIssue } from '../../../src/core/check.js';
 
 describe('collectTrackedFiles — structure aspects', () => {
   function structureAspect(id: string): AspectDef {
-    return { id, name: id, reviewer: { type: 'structure' }, artifacts: [], description: 'd' };
+    return { id, name: id, reviewer: { type: 'deterministic' }, artifacts: [], description: 'd' };
   }
 
   it('emits NO synthetic identity entry for a structure aspect', () => {
@@ -82,7 +82,7 @@ describe('collectTrackedFiles — structure aspects', () => {
       nodes: [{ path: 'N', type: 'module', mapping: ['src/a.ts'], aspects: ['s1'] }],
     });
     g.aspects = [{
-      id: 's1', name: 's1', reviewer: { type: 'structure' }, description: 'd',
+      id: 's1', name: 's1', reviewer: { type: 'deterministic' }, description: 'd',
       artifacts: [{ filename: 'check.mjs', content: 'export function check(){return [];}' }],
     } as AspectDef];
     const node = g.nodes.get('N')!;
@@ -96,7 +96,7 @@ describe('collectTrackedFiles — structure aspects', () => {
 
 describe('structure-identity lockstep — producer (collectTrackedFiles) vs consumer (aspectDependencyKeys)', () => {
   function structureAspect(id: string): AspectDef {
-    return { id, name: id, reviewer: { type: 'structure' }, artifacts: [], description: 'd' };
+    return { id, name: id, reviewer: { type: 'deterministic' }, artifacts: [], description: 'd' };
   }
 
   const cascade = (nodePath: string, causeFile: string): CheckIssue => ({

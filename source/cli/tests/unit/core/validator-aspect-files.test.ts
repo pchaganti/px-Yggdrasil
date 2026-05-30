@@ -33,10 +33,10 @@ async function createAspectDir(
   }
 }
 
-function makeAspect(id: string, reviewer?: AspectDef['reviewer'] | 'llm' | 'ast'): AspectDef {
+function makeAspect(id: string, reviewer?: AspectDef['reviewer'] | 'llm' | 'deterministic'): AspectDef {
   const reviewerSpec: AspectDef['reviewer'] =
     reviewer === undefined ? { type: 'llm' } :
-    typeof reviewer === 'string' ? { type: reviewer as 'llm' | 'ast' } :
+    typeof reviewer === 'string' ? { type: reviewer as 'llm' | 'deterministic' } :
     reviewer;
   return {
     name: id,
@@ -78,7 +78,7 @@ describe('validator — aspect rule-source mutual exclusion', () => {
   it('reports aspect-missing-rule-source when reviewer is ast and check.mjs is absent', async () => {
     const rootPath = await createTempYggdrasil();
     // No files created
-    const aspect = makeAspect('my-ast-aspect', 'ast');
+    const aspect = makeAspect('my-ast-aspect', 'deterministic');
     const graph = makeGraph(rootPath, { aspects: [aspect] });
 
     const result = await validate(graph);
@@ -103,7 +103,7 @@ describe('validator — aspect rule-source mutual exclusion', () => {
   it('reports aspect-both-rule-sources AND aspect-unexpected-rule-source when reviewer is ast and both files exist', async () => {
     const rootPath = await createTempYggdrasil();
     await createAspectDir(rootPath, 'dual-ast', ['content.md', 'check.mjs']);
-    const aspect = makeAspect('dual-ast', 'ast');
+    const aspect = makeAspect('dual-ast', 'deterministic');
     const graph = makeGraph(rootPath, { aspects: [aspect] });
 
     const result = await validate(graph);
@@ -116,7 +116,7 @@ describe('validator — aspect rule-source mutual exclusion', () => {
   it('does not report missing or unexpected errors when reviewer is ast and only check.mjs exists', async () => {
     const rootPath = await createTempYggdrasil();
     await createAspectDir(rootPath, 'clean-ast', ['check.mjs']);
-    const aspect = makeAspect('clean-ast', 'ast');
+    const aspect = makeAspect('clean-ast', 'deterministic');
     const graph = makeGraph(rootPath, { aspects: [aspect] });
 
     const result = await validate(graph);
@@ -155,7 +155,7 @@ describe('validator — aspect rule-source mutual exclusion', () => {
   it('reports aspect-missing-rule-source AND aspect-unexpected-rule-source when reviewer is ast and only content.md exists', async () => {
     const rootPath = await createTempYggdrasil();
     await createAspectDir(rootPath, 'ast-wrong-file', ['content.md']);
-    const aspect = makeAspect('ast-wrong-file', 'ast');
+    const aspect = makeAspect('ast-wrong-file', 'deterministic');
     const graph = makeGraph(rootPath, { aspects: [aspect] });
 
     const result = await validate(graph);

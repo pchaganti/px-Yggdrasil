@@ -62,33 +62,33 @@ describe('validator — aspect-rule-sources for structure', () => {
   it('rejects structure aspect with content.md (aspect-unexpected-rule-source)', async () => {
     const rootPath = await createTempYggdrasil();
     await createAspectDir(rootPath, 's1', ['content.md']);
-    const aspect = makeAspect('s1', { type: 'structure' });
+    const aspect = makeAspect('s1', { type: 'deterministic' });
     const graph = makeGraph(rootPath, { aspects: [aspect] });
 
     const result = await validate(graph);
     const issue = result.issues.find((i) => i.code === 'aspect-unexpected-rule-source');
 
     expect(issue).toBeDefined();
-    expect(issue?.messageData.why).toContain('Structure aspects');
+    expect(issue?.messageData.why).toContain('Deterministic aspects');
   });
 
   it('rejects structure aspect without check.mjs (aspect-missing-rule-source)', async () => {
     const rootPath = await createTempYggdrasil();
     // No files created in the aspect dir
-    const aspect = makeAspect('s2', { type: 'structure' });
+    const aspect = makeAspect('s2', { type: 'deterministic' });
     const graph = makeGraph(rootPath, { aspects: [aspect] });
 
     const result = await validate(graph);
     const issue = result.issues.find((i) => i.code === 'aspect-missing-rule-source');
 
     expect(issue).toBeDefined();
-    expect(issue?.messageData.why).toContain('Structure aspects');
+    expect(issue?.messageData.why).toContain('Deterministic aspects');
   });
 
   it('accepts structure aspect with check.mjs only', async () => {
     const rootPath = await createTempYggdrasil();
     await createAspectDir(rootPath, 's3', ['check.mjs']);
-    const aspect = makeAspect('s3', { type: 'structure' });
+    const aspect = makeAspect('s3', { type: 'deterministic' });
     const graph = makeGraph(rootPath, { aspects: [aspect] });
 
     const result = await validate(graph);
@@ -102,7 +102,7 @@ describe('validator — aspect-rule-sources for structure', () => {
   it('rejects structure aspect with both check.mjs and content.md', async () => {
     const rootPath = await createTempYggdrasil();
     await createAspectDir(rootPath, 's4', ['check.mjs', 'content.md']);
-    const aspect = makeAspect('s4', { type: 'structure' });
+    const aspect = makeAspect('s4', { type: 'deterministic' });
     const graph = makeGraph(rootPath, { aspects: [aspect] });
 
     const result = await validate(graph);
@@ -111,6 +111,6 @@ describe('validator — aspect-rule-sources for structure', () => {
     expect(codes).toContain('aspect-both-rule-sources');
     expect(codes).toContain('aspect-unexpected-rule-source');
     const issue = result.issues.find((i) => i.code === 'aspect-unexpected-rule-source');
-    expect(issue?.messageData.why).toContain('Structure aspects');
+    expect(issue?.messageData.why).toContain('Deterministic aspects');
   });
 });
