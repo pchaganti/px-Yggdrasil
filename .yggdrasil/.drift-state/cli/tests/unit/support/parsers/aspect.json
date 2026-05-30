@@ -1,5 +1,5 @@
 {
-  "hash": "b5c7489d1611e1ac4fef65eacd3d6f49ba8469f5ce3fa4d8d1831c8bd903da87",
+  "hash": "676a6095941ca924142a27a46517b28f0bdf92ddc8a39d6e8ed76d621f9826f1",
   "files": {
     "own-subset:cli/tests/unit/support/parsers/aspect": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -10,10 +10,10 @@
     ".yggdrasil/model/cli/tests/unit/support/parsers/yg-node.yaml": "8a19892532b2ce4db09ef8d61e63c0b6e82bf4638e4efe3f558469c162c603ac",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/io/aspect-parser-references.test.ts": "0e3e2357878d82eb0e9c04c1bebcd1388ce4b8e6308cdd748133b7876e8aefd2",
     "source/cli/tests/unit/io/aspect-status-parsing.test.ts": "b223e5c9717cc7ad482d23ab6caeee8712a1c38cb7e88aa92ef6f942f8a68e91",
-    "source/cli/tests/unit/io/aspect-parser-structure.test.ts": "08a36b5fa94d387ac338c344988106cbc14a1da1c71fac6bb28ea1b7e6b0651c",
-    "source/cli/tests/unit/io/aspect-parser.test.ts": "b24d6e4f791fcf786b730293776ffded79683db5ccdc57e036d3ac7bd429b969"
+    "source/cli/tests/unit/io/aspect-parser.test.ts": "6ac5bc0cf8e085e8107ea1ad7b9495d2a01ff3c69f104b560c7b2de03e62f097",
+    "source/cli/tests/unit/io/aspect-parser-references.test.ts": "9e6c0fe24b5c934795fad0ae020749d334a38a345ca61925272287fa9cfbb841",
+    "source/cli/tests/unit/io/aspect-parser-deterministic.test.ts": "f039cf5d53966b6091d3a12a35e38ec2ebf5dde0bf1ed603e92a74abaa6736e2"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -23,14 +23,14 @@
     ".yggdrasil/model/cli/tests/unit/support/parsers/yg-node.yaml": 1779996158801.8574,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/io/aspect-parser.test.ts": 1780151057092.1868,
-    "source/cli/tests/unit/io/aspect-parser-references.test.ts": 1779951183386.4688,
+    "source/cli/tests/unit/io/aspect-parser.test.ts": 1780163381208.3086,
+    "source/cli/tests/unit/io/aspect-parser-references.test.ts": 1780163358508.7651,
     "source/cli/tests/unit/io/aspect-status-parsing.test.ts": 1780095052964.994,
-    "source/cli/tests/unit/io/aspect-parser-structure.test.ts": 1780149337046.8284
+    "source/cli/tests/unit/io/aspect-parser-deterministic.test.ts": 1780162981190.6753
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T14:25:10.875Z",
-    "prefix_hash": "8cbd8750c2c1153ad3271b693ad013018f4866f8f83a0c677739174403fdf1ab"
+    "last_entry_datetime": "2026-05-30T18:08:14.442Z",
+    "prefix_hash": "795d69c14cb898e1ba2f6630eaf7ac78f44fcacf38c24afe45bf32d05c82d0ec"
   },
   "aspectVerdicts": {
     "test-deterministic": {

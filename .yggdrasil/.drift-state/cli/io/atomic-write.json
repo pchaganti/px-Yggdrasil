@@ -1,17 +1,18 @@
 {
-  "hash": "98b8d68a606291d8c0669a7911eadfc0a28d03a230c89e9ceb69c2123facba37",
+  "hash": "cc5fe828fddb86ac94853978b83a989db27ef627f50ebf5c6c3e6c01906608b1",
   "files": {
     "own-subset:cli/io/atomic-write": "c4a156865776f24f70d0d7a086bd8f807c4c1355653c2fa5444e846ac442363b",
     "tier-identity:silent-missing-files": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
+    "structure-touched:read-or-default-via-helper": "84b89458a6efea81f1806082b2ea3c6a75e703eb97f947ccc19b4add7f5e39b3",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
     ".yggdrasil/aspects/silent-missing-files/yg-aspect.yaml": "991b315766fa9203f9454da67da991382718cb3e1fd771eb121b1f722d0e1e5d",
     ".yggdrasil/aspects/silent-missing-files/content.md": "fe5f8f88a4e6a49f20fba61836d04c3796f5c97c3a7c1c366582f16cd4ec93b7",
-    ".yggdrasil/aspects/atomic-write-contract/yg-aspect.yaml": "cdad31934343a408ca51d8fb12327af88f248af70dc7309546bb281ec0ea188c",
+    ".yggdrasil/aspects/atomic-write-contract/yg-aspect.yaml": "e2f09285923a6b1bd31c5b5f735ca2f1f1a8d83ce761a5203004d71a195bc9cd",
     ".yggdrasil/aspects/atomic-write-contract/check.mjs": "59507d3af2a0619d73908afb6ee0a16840b45f41e3430e2c9ed895ac58de77d9",
-    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "7a30b1005b8db9642b89f98a63ec71e36d486207e51f6ad3f744079c67fdb9e6",
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "352e3aff65b59e18f07fddd58372e91a2f3250d9e41483998ace328e5989df84",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
-    ".yggdrasil/aspects/read-or-default-via-helper/yg-aspect.yaml": "7ca2bf040edcf3af3975417deaa46dab493dcc17bacef47b9d8e4a948f80be90",
+    ".yggdrasil/aspects/read-or-default-via-helper/yg-aspect.yaml": "66ef436cf079c0d09e6b9edcadb53c7ecbb4ee52e9b6c4e0e607ec3e4e75543d",
     ".yggdrasil/aspects/read-or-default-via-helper/check.mjs": "88d488f91ec022c08e6eb1a69425c8b067b1ba36abcbcb3de066d7dab7b7f642",
     "source/cli/src/io/atomic-write.ts": "46202039fa117ba4236d82b60ead294b9b2751e57e34579a39341c50d125b47a"
   },
@@ -20,16 +21,41 @@
     ".yggdrasil/model/cli/io/yg-node.yaml": 1778865790703.1045,
     ".yggdrasil/aspects/silent-missing-files/yg-aspect.yaml": 1779869611339.8682,
     ".yggdrasil/aspects/silent-missing-files/content.md": 1776494731302.076,
-    ".yggdrasil/aspects/atomic-write-contract/yg-aspect.yaml": 1779869611132.1443,
+    ".yggdrasil/aspects/atomic-write-contract/yg-aspect.yaml": 1780164134378.9639,
     ".yggdrasil/aspects/atomic-write-contract/check.mjs": 1779794513930.1577,
-    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1779869611285.0671,
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1780164134382.8323,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1779794513934.5745,
-    ".yggdrasil/aspects/read-or-default-via-helper/yg-aspect.yaml": 1779869611320.9482,
+    ".yggdrasil/aspects/read-or-default-via-helper/yg-aspect.yaml": 1780164134383.5989,
     ".yggdrasil/aspects/read-or-default-via-helper/check.mjs": 1779794513935.3242,
     "source/cli/src/io/atomic-write.ts": 1778571868781.7659
   },
   "log": {
     "last_entry_datetime": "2026-05-15T17:44:22.955Z",
     "prefix_hash": "089b0de107a7d911330b7c365bdba6063c5dc5a13d2b1ad09d40c41a166756ab"
+  },
+  "structureTouchedFiles": {
+    "atomic-write-contract": {
+      "source/cli/src/io/atomic-write.ts": "46202039fa117ba4236d82b60ead294b9b2751e57e34579a39341c50d125b47a"
+    },
+    "posix-paths-source": {
+      "source/cli/src/io/atomic-write.ts": "46202039fa117ba4236d82b60ead294b9b2751e57e34579a39341c50d125b47a"
+    },
+    "read-or-default-via-helper": {
+      "source/cli/src/io/atomic-write.ts": "46202039fa117ba4236d82b60ead294b9b2751e57e34579a39341c50d125b47a"
+    }
+  },
+  "aspectVerdicts": {
+    "silent-missing-files": {
+      "verdict": "approved"
+    },
+    "atomic-write-contract": {
+      "verdict": "approved"
+    },
+    "posix-paths-source": {
+      "verdict": "approved"
+    },
+    "read-or-default-via-helper": {
+      "verdict": "approved"
+    }
   }
 }

@@ -1,5 +1,5 @@
 {
-  "hash": "1189a64bccf246f95b6968d51239e023f90861c26e7b8debfc6e8bcbeb7837b5",
+  "hash": "383abcf0abcc7bf22c93797cb3cc096722a71908c6096a7d54c20799702e2059",
   "files": {
     "own-subset:cli/tests/integration/pipeline/aspect-references": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -10,11 +10,11 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/integration/aspect-references-context.test.ts": "6791d1583496b80d329634400984b2b0612924c6528211fc3696b7ebd389b47c",
+    "source/cli/tests/integration/aspect-references-drift.test.ts": "d5d1df14ae1052689182b462516166995d9920051c0d60aa8aca9db1d474cd4e",
     "source/cli/tests/integration/aspect-references-impact.test.ts": "5cafa4e50ad453d976a3c5ae56f43370d7fbce6ef2f9d68bc4dd13e57bfef8e5",
-    "source/cli/tests/integration/aspect-references-validation.test.ts": "b9f779c9b76922f85b44c6773d6b849cffd6a2d5cf7bf9c81a35678cb8185557",
     "source/cli/tests/integration/aspect-references-when-implies.test.ts": "406b88eebffb860b7d56cb229a7c5e3889526633ea7aed2fb64128f543b7d5d3",
-    "source/cli/tests/integration/aspect-language-validation.test.ts": "057f3423eeb0cede636e2b97267432f829ed5653f70bbe985d1e7f239f6fe04f",
-    "source/cli/tests/integration/aspect-references-drift.test.ts": "d5d1df14ae1052689182b462516166995d9920051c0d60aa8aca9db1d474cd4e"
+    "source/cli/tests/integration/aspect-language-validation.test.ts": "0df429a8356db8a024c887f31d4dbf04fbf1c4eebbffe3f4e2439ccbcbd5a888",
+    "source/cli/tests/integration/aspect-references-validation.test.ts": "b4446689491295e037b88931efd77cabf72814c08869a4151f409f5822b73893"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -23,16 +23,16 @@
     ".yggdrasil/model/cli/tests/integration/pipeline/yg-node.yaml": 1779996040953.1306,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/integration/aspect-language-validation.test.ts": 1780149313114.3203,
+    "source/cli/tests/integration/aspect-language-validation.test.ts": 1780163410550.3582,
     "source/cli/tests/integration/aspect-references-context.test.ts": 1779959296035.736,
     "source/cli/tests/integration/aspect-references-drift.test.ts": 1780050256253.0051,
     "source/cli/tests/integration/aspect-references-impact.test.ts": 1779962628466.4946,
-    "source/cli/tests/integration/aspect-references-validation.test.ts": 1779960828818.569,
+    "source/cli/tests/integration/aspect-references-validation.test.ts": 1780163402706.2808,
     "source/cli/tests/integration/aspect-references-when-implies.test.ts": 1779977480958.8684
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T14:09:02.217Z",
-    "prefix_hash": "611e9448f28526a4f964b32905d5abc9f39664d89fa666df90a7c71f5d8ba0a0"
+    "last_entry_datetime": "2026-05-30T18:08:11.299Z",
+    "prefix_hash": "a2529fa90e370c03e224da1a828ce36fed9bee69d22449d44649eee4e1286465"
   },
   "aspectVerdicts": {
     "test-deterministic": {

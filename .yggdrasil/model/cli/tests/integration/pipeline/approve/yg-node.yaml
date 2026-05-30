@@ -8,3 +8,4 @@ mapping:
   - source/cli/tests/integration/approve-dry-run-references.test.ts
   - source/cli/tests/integration/approve-pipeline.test.ts
   - source/cli/tests/integration/approve-with-references.test.ts
+  - source/cli/tests/integration/deterministic-tier-gating.test.ts

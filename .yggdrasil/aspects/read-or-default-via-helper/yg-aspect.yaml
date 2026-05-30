@@ -1,8 +1,7 @@
 name: ReadOrDefaultViaHelper
 description: "IO text-file reads with ENOENT-swallow must go through readFileOrDefault() from io/read-or-default. Inline try/catch around readFile that swallows ENOENT is forbidden; non-readFile error handling (lstat, readdir, dir-traversal) is allowed."
 reviewer:
-  type: ast
-language: [typescript]
+  type: deterministic
 when:
   any_of:
     - node:

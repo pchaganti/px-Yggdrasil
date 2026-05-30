@@ -1,5 +1,5 @@
 {
-  "hash": "c83a86dae6cf058ab0485872c79b0956f83e17b227c125c062bdd45f5752bfd0",
+  "hash": "df40b70e712051ef24f35d976b81e54320ac373da3f2a0651540413aa2c2b2ba",
   "files": {
     "own-subset:cli/tests/unit/core/validator/aspect-references": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -10,8 +10,8 @@
     ".yggdrasil/model/cli/tests/unit/core/validator/yg-node.yaml": "7a868ba82079f08604e51117454c275bd72095f3be2fb41da38b5769858aed36",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/core/validator-aspect-files.test.ts": "c6c22a7cd2cf93df3d6542f08f18f73b34622a78754486a963073bf9dfceaba9",
-    "source/cli/tests/unit/core/validator-references.test.ts": "e0175cb1c2bf596e8210f79b148b896cfcd350936eb0277f16cf5936cee49950"
+    "source/cli/tests/unit/core/validator-references.test.ts": "e0175cb1c2bf596e8210f79b148b896cfcd350936eb0277f16cf5936cee49950",
+    "source/cli/tests/unit/core/validator-aspect-files.test.ts": "77ec088f4066df15061006b438f156f0cbce3287eef711c2e3405d05c8d9274b"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -21,8 +21,12 @@
     ".yggdrasil/model/cli/tests/unit/core/validator/yg-node.yaml": 1780103492871.9792,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/validator-aspect-files.test.ts": 1779876686791.4502,
+    "source/cli/tests/unit/core/validator-aspect-files.test.ts": 1780163312773.0972,
     "source/cli/tests/unit/core/validator-references.test.ts": 1779963491838.8076
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-30T18:08:13.935Z",
+    "prefix_hash": "f01cadeb41cc16e0ea6be6306d71cab5c5e040324fae6d7f6d00ecf2d853e7b2"
   },
   "aspectVerdicts": {
     "test-deterministic": {

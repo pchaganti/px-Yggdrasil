@@ -1,21 +1,22 @@
 {
-  "hash": "dd939efd20c6f4f12ba5624ef45b937c9a2bebcbb2ca0ebf6635794bd0041d79",
+  "hash": "e69e17b9e564cc161a4e7d71123c144b4ade1f475c42ace83f899211e1291d9c",
   "files": {
     "own-subset:cli/core/when-evaluator": "08ba0223e2c2452cdfd008254d57daa56f83d17d01ccfe9b5db59c3078e13c16",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
+    "structure-touched:posix-paths-source": "630ac17461d97a266e3398aa716a35f9c76d1c6fd46ae2d685c5c6aee4ca6e15",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": "8444da42bbb1f4d19f3a01cce19f2737dd99eae360cf38c117a58719622d5673",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
-    ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": "b42352e49de2d978be0993b3156c4622abd03c984c12827e98fc57797dea3154",
+    ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": "1a68e9671073505b018b3e5c978f83d0ad3e4b2b82ada15790d615b9fef248ed",
     ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": "28d4910031027fc82e9b1b745930f0a22280d1cf5fc8d021bca54c3172990ccb",
-    ".yggdrasil/aspects/no-direct-fs/yg-aspect.yaml": "302fe2c42f759d00825455cecc063eefd1dcdde9f11d8ab49b62689719c0a842",
+    ".yggdrasil/aspects/no-direct-fs/yg-aspect.yaml": "995408a54c2643bc4a589b918ea819025de7834dcf27906bb12d3d60e0f6d692",
     ".yggdrasil/aspects/no-direct-fs/check.mjs": "6e0c398a74ee1909a324c7b9658e2159a5c3976799bdc2ed88caeefe4428fdf7",
-    ".yggdrasil/aspects/no-direct-console/yg-aspect.yaml": "2672345620c6166d61bfc8c94bf2cb1c67d913c0117ffb8a5d214f507670c947",
+    ".yggdrasil/aspects/no-direct-console/yg-aspect.yaml": "8b2c52404e9013b439c757f1b8282ecb5b9ee845fd97d19ae8f8e89189dd315c",
     ".yggdrasil/aspects/no-direct-console/check.mjs": "03800a8adef35989d60bfcb5677a72b4c0dfedc3f7eb50aed8249421c4e24f44",
-    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "7a30b1005b8db9642b89f98a63ec71e36d486207e51f6ad3f744079c67fdb9e6",
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "352e3aff65b59e18f07fddd58372e91a2f3250d9e41483998ace328e5989df84",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
-    ".yggdrasil/aspects/single-source-graph-queries/yg-aspect.yaml": "ae7212c76f9852a5c96d3f8ae431a7410462053825f020f6c89bd5d271f9afa7",
+    ".yggdrasil/aspects/single-source-graph-queries/yg-aspect.yaml": "abd43c6a1647d003c926cd7391182a88f1d304dd87fb48b187358182519d2758",
     ".yggdrasil/aspects/single-source-graph-queries/check.mjs": "8364b0c42413e7b467a22b493543f882d77cc3b65616af93127c07c76c212361",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
@@ -27,15 +28,15 @@
     ".yggdrasil/model/cli/core/yg-node.yaml": 1776177846202.0774,
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": 1779869611186.3752,
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
-    ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": 1779869611242.354,
+    ".yggdrasil/aspects/no-nondeterminism-direct/yg-aspect.yaml": 1780164134381.9263,
     ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": 1779794513933.2222,
-    ".yggdrasil/aspects/no-direct-fs/yg-aspect.yaml": 1779869611233.252,
+    ".yggdrasil/aspects/no-direct-fs/yg-aspect.yaml": 1780164134381.4487,
     ".yggdrasil/aspects/no-direct-fs/check.mjs": 1779794513932.871,
-    ".yggdrasil/aspects/no-direct-console/yg-aspect.yaml": 1779869611224.7031,
+    ".yggdrasil/aspects/no-direct-console/yg-aspect.yaml": 1780164134381.087,
     ".yggdrasil/aspects/no-direct-console/check.mjs": 1779794513932.3838,
-    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1779869611285.0671,
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1780164134382.8323,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1779794513934.5745,
-    ".yggdrasil/aspects/single-source-graph-queries/yg-aspect.yaml": 1779869611347.979,
+    ".yggdrasil/aspects/single-source-graph-queries/yg-aspect.yaml": 1780164134384.7603,
     ".yggdrasil/aspects/single-source-graph-queries/check.mjs": 1779794513935.7961,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
@@ -45,5 +46,42 @@
   "log": {
     "last_entry_datetime": "2026-05-16T19:18:57.664Z",
     "prefix_hash": "3545d2f2e9d13117992edc8aa6b0a1cd5f9516a08083a51db6feac774db4554e"
+  },
+  "structureTouchedFiles": {
+    "no-nondeterminism-direct": {
+      "source/cli/src/core/when-evaluator.ts": "8f884234f114d39a44933e07f829dfcfb6c54cd18550f40d8b473dc2822d30c9"
+    },
+    "no-direct-fs": {
+      "source/cli/src/core/when-evaluator.ts": "8f884234f114d39a44933e07f829dfcfb6c54cd18550f40d8b473dc2822d30c9"
+    },
+    "no-direct-console": {
+      "source/cli/src/core/when-evaluator.ts": "8f884234f114d39a44933e07f829dfcfb6c54cd18550f40d8b473dc2822d30c9"
+    },
+    "posix-paths-source": {
+      "source/cli/src/core/when-evaluator.ts": "8f884234f114d39a44933e07f829dfcfb6c54cd18550f40d8b473dc2822d30c9"
+    },
+    "single-source-graph-queries": {
+      "source/cli/src/core/when-evaluator.ts": "8f884234f114d39a44933e07f829dfcfb6c54cd18550f40d8b473dc2822d30c9"
+    }
+  },
+  "aspectVerdicts": {
+    "deterministic": {
+      "verdict": "approved"
+    },
+    "no-direct-fs": {
+      "verdict": "approved"
+    },
+    "no-direct-console": {
+      "verdict": "approved"
+    },
+    "no-nondeterminism-direct": {
+      "verdict": "approved"
+    },
+    "posix-paths-source": {
+      "verdict": "approved"
+    },
+    "single-source-graph-queries": {
+      "verdict": "approved"
+    }
   }
 }

@@ -1,5 +1,5 @@
 {
-  "hash": "3fb735c18eed4d63ee8c6e92a611ef836bb853f2b169ab4d7790e23d9323f04f",
+  "hash": "6f6b3494ac18793b2c8e6f0d01bbf21f77607cc7a5d358aacaa4f23164458502",
   "files": {
     "own-subset:cli/llm/providers": "ea05c9ef2db84f762ecbc438c885b0d8bdbd9eb62dcd0835662cae7c1d3398b5",
     "tier-identity:provider-retry-contract": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -8,9 +8,7 @@
     ".yggdrasil/model/cli/llm/yg-node.yaml": "eb86d7c0b81642af0c1d40cba6a1f5a780293a2304635bd100bd64677a4c8838",
     ".yggdrasil/aspects/provider-retry-contract/yg-aspect.yaml": "03f8bb53265d7411a311005fdaa4b7fd2741119632bf4c1f83620bd0a5cba909",
     ".yggdrasil/aspects/provider-retry-contract/content.md": "338028c6781d98a7c42f63d1a0cbfedd037721d86f5a7853113ac9793087530d",
-    ".yggdrasil/aspects/provider-redaction/yg-aspect.yaml": "dee8ee4b2438c144df50d27f8034c08acc6b5b168d60cf9e3e9ab76745368834",
     ".yggdrasil/aspects/provider-redaction/check.mjs": "a507ff5d85fc4ee796ecfd0279ba03ee89c84088153902b2866a2c7738df1ced",
-    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "7a30b1005b8db9642b89f98a63ec71e36d486207e51f6ad3f744079c67fdb9e6",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
     ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": "5bfc4a07961653ab402950fc1ddf55450c35762e9fde4ab2b0fb9185ab091581",
     ".yggdrasil/model/cli/llm/shared/yg-node.yaml": "74f188e3b990026e1d3a29edf6672909bdde0d4b7d91ced32cf34f211530f9c6",
@@ -21,6 +19,8 @@
     "source/cli/src/llm/claude-code.ts": "fa1fa53507f8359c40eb74e6d28af3eec755ede927efe4ca0ec5224f19f55118",
     "source/cli/src/llm/codex.ts": "cdb8f0acf6f797c6efa5f69a659eed1830f9c35a128d75fa72d26c12e5cf9771",
     "source/cli/src/llm/gemini-cli.ts": "a13ad7858c81e040ab32a4a229e59c64e75cef38d9da600efd9ef95c931362b2",
+    ".yggdrasil/aspects/provider-redaction/yg-aspect.yaml": "328bd1ac8588842ee7ab340ef2c79e664836a2a5da25a3a5eb3dde0ff2d0a2fa",
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "352e3aff65b59e18f07fddd58372e91a2f3250d9e41483998ace328e5989df84",
     ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994"
   },
   "mtimes": {
@@ -28,12 +28,12 @@
     ".yggdrasil/model/cli/llm/yg-node.yaml": 1778866396180.118,
     ".yggdrasil/aspects/provider-retry-contract/yg-aspect.yaml": 1779869611313.0989,
     ".yggdrasil/aspects/provider-retry-contract/content.md": 1778914752602.5513,
-    ".yggdrasil/aspects/provider-redaction/yg-aspect.yaml": 1779869611303.7532,
+    ".yggdrasil/aspects/provider-redaction/yg-aspect.yaml": 1780164134383.013,
     ".yggdrasil/aspects/provider-redaction/check.mjs": 1779794513934.9487,
-    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1779869611285.0671,
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1780164134382.8323,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1779794513934.5745,
     ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": 1779869611377.3955,
-    ".yggdrasil/aspects/what-why-next/content.md": 1780049565396.277,
+    ".yggdrasil/aspects/what-why-next/content.md": 1780050256245.0933,
     ".yggdrasil/model/cli/llm/shared/yg-node.yaml": 1779956720879.04,
     "source/cli/src/llm/anthropic.ts": 1779794513949.5933,
     "source/cli/src/llm/openai.ts": 1779794513950.316,
@@ -46,6 +46,17 @@
   "log": {
     "last_entry_datetime": "2026-05-29T10:10:06.574Z",
     "prefix_hash": "1e9ee1368a94a25be3d4ca8443fba84c42928a75d1c706f9d81bc31c447f9537"
+  },
+  "structureTouchedFiles": {
+    "provider-redaction": {
+      "source/cli/src/llm/anthropic.ts": "efff9d479f1a77ee61f78f88caba279f839476fd0f092d56a5fef68e36cd948b",
+      "source/cli/src/llm/openai.ts": "743ee2daaec5b2d424d352c577e85c330481c50d817ae9004898b2ea593bc626",
+      "source/cli/src/llm/google.ts": "ed5e1f1aa8bfebf7c9c06a7e1b96035964ada742e8846dda613c50b54acb98f5",
+      "source/cli/src/llm/ollama.ts": "8ff07e46f069bee2804263737c8074ef5ada74ab88a09c40aaddd80b679bb62a",
+      "source/cli/src/llm/claude-code.ts": "fa1fa53507f8359c40eb74e6d28af3eec755ede927efe4ca0ec5224f19f55118",
+      "source/cli/src/llm/codex.ts": "cdb8f0acf6f797c6efa5f69a659eed1830f9c35a128d75fa72d26c12e5cf9771",
+      "source/cli/src/llm/gemini-cli.ts": "a13ad7858c81e040ab32a4a229e59c64e75cef38d9da600efd9ef95c931362b2"
+    }
   },
   "aspectVerdicts": {
     "provider-retry-contract": {

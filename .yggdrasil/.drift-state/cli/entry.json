@@ -1,33 +1,33 @@
 {
-  "hash": "b122250bfd1dbc0978787029692567454032bf115b6e3cbd3f50f1de57cddbb0",
+  "hash": "06c2658d2e0b7b63d116164ee1edcdcf36a74b656f2980b0106a22122d73c743",
   "files": {
     "own-subset:cli/entry": "429b97c933068b63c478ba54cae9aa5f90bba001107db52b2626d4706e154398",
     "tier-identity:top-level-error-handler": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/top-level-error-handler/yg-aspect.yaml": "8cfd8e2dc94f1a5de091879f18efa25784d35a6b94d76bab3b6d9015b08ee333",
     ".yggdrasil/aspects/top-level-error-handler/content.md": "83041eb2e1f1da613f13a8ea9755d8eb9cf1e16992baa97cc84616d209ac6f5b",
-    ".yggdrasil/aspects/command-exit-codes/yg-aspect.yaml": "efa2ed17f1b102e3d62c2aec0743bd6701481c31dabce9ebc284b38942419194",
     ".yggdrasil/aspects/command-exit-codes/check.mjs": "94a5b7df842faa9447ee526e9f9dcf3dcb55f62502f3dca6dd40628e79a0bb52",
-    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "7a30b1005b8db9642b89f98a63ec71e36d486207e51f6ad3f744079c67fdb9e6",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
-    ".yggdrasil/model/cli/commands/yg-node.yaml": "4d929734cf56d8fbf3adfdbb908be64075a4a3322a892656ad00ea07bb026ab4",
-    "source/cli/src/bin.ts": "d2ab3c7a06a8077583ebebe345a9a18ca341887a0b519f35645e536ed77c5908",
     ".yggdrasil/model/cli/commands/init/yg-node.yaml": "a113872506e21d36cb637a09bf42f20a9a3e237c3987ea55a2e3dd5cc8b8435f",
+    ".yggdrasil/model/cli/commands/yg-node.yaml": "4d929734cf56d8fbf3adfdbb908be64075a4a3322a892656ad00ea07bb026ab4",
     ".yggdrasil/model/cli/commands/build-context/yg-node.yaml": "6774ecace1a803a9063c41eb06c7f062fee5160289da991056202c17a4f660ba",
     ".yggdrasil/model/cli/commands/owner/yg-node.yaml": "77076a3ea8767b4b156bbea7618cda5099442a2724fab0d3b20de4ba322d088f",
     ".yggdrasil/model/cli/commands/tree/yg-node.yaml": "d7fc680153237490717e7a440c9bea176450d3de1ccd526c780e118653d80d19",
     ".yggdrasil/model/cli/commands/impact/yg-node.yaml": "2a6be50265ffd1793a1aa536c0f97c25e7782df40d720dcf3e9ad36879a433d5",
     ".yggdrasil/model/cli/commands/aspects/yg-node.yaml": "c76d7e921df5f54de94914f70de408552ef6f521917d586d3729992f92477e85",
     ".yggdrasil/model/cli/commands/flows/yg-node.yaml": "c69d452be1286eeef33616f4f6728030c7847e625c642544f0fbc6b964901c0a",
-    ".yggdrasil/model/cli/commands/check/yg-node.yaml": "4467c35778726a95958f2177ecbb6b2746f004ada5754e54c72a8a8fcff97ae7"
+    ".yggdrasil/model/cli/commands/check/yg-node.yaml": "4467c35778726a95958f2177ecbb6b2746f004ada5754e54c72a8a8fcff97ae7",
+    "source/cli/src/bin.ts": "d2ab3c7a06a8077583ebebe345a9a18ca341887a0b519f35645e536ed77c5908",
+    ".yggdrasil/aspects/command-exit-codes/yg-aspect.yaml": "cbd6f14c886f97b4250ffc53036338b629161f5392849b7e41295ddc60adbe68",
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "352e3aff65b59e18f07fddd58372e91a2f3250d9e41483998ace328e5989df84"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/aspects/top-level-error-handler/yg-aspect.yaml": 1779869611367.1887,
     ".yggdrasil/aspects/top-level-error-handler/content.md": 1778913571175.6917,
-    ".yggdrasil/aspects/command-exit-codes/yg-aspect.yaml": 1779869611175.5789,
+    ".yggdrasil/aspects/command-exit-codes/yg-aspect.yaml": 1780164134380.0251,
     ".yggdrasil/aspects/command-exit-codes/check.mjs": 1779794513931.5146,
-    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1779869611285.0671,
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1780164134382.8323,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1779794513934.5745,
     ".yggdrasil/model/cli/commands/init/yg-node.yaml": 1780044871396.8037,
     ".yggdrasil/model/cli/commands/yg-node.yaml": 1776177846200.1738,
@@ -43,6 +43,11 @@
   "log": {
     "last_entry_datetime": "2026-05-29T08:26:02.108Z",
     "prefix_hash": "5a556e225f72d84cc3ca3b193c59077671686c5bc96a819937802358a3aef322"
+  },
+  "structureTouchedFiles": {
+    "command-exit-codes": {
+      "source/cli/src/bin.ts": "d2ab3c7a06a8077583ebebe345a9a18ca341887a0b519f35645e536ed77c5908"
+    }
   },
   "aspectVerdicts": {
     "top-level-error-handler": {

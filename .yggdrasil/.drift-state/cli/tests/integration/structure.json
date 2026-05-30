@@ -1,5 +1,5 @@
 {
-  "hash": "1346a4b650070fe90be9d40ac99723c3c130f88023ed36518c213e6517c26d0a",
+  "hash": "01c9364e40b9dc4ce75fa94982de4eb21e2bc87f3c8e2156019ffce29140d065",
   "files": {
     "own-subset:cli/tests/integration/structure": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -8,10 +8,10 @@
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": "f6203e633f0cb0b6bc84c3337606df49a00920a414f6557fe2f3f91bfd034442",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/integration/structure-test-cli.test.ts": "853a396e43575d7655ca4c4256652e5c992c668f48115b70746a4f958c5464c8",
-    "source/cli/tests/integration/structure-lifecycle.test.ts": "89e364f50cc1630f37483682789edaf193a6a8891534eb88ead1768ce89289e7",
-    "source/cli/tests/integration/structure-aspect-status.test.ts": "bb4298e6652ab3c807e7c15ff32a5dd3231c711fafc938cb4d4021278a23757f",
-    "source/cli/tests/integration/structure-implies.test.ts": "19a1ad45c7b28dbbe39ffcf9b3db25ab190bb0391564941a1eba2ec83e1ddeaf"
+    "source/cli/tests/integration/structure-test-cli.test.ts": "e0243faa91a16b59d79d4978cc6bc31673984108fa8654f3459b0e43d76b64b8",
+    "source/cli/tests/integration/structure-lifecycle.test.ts": "cf6b1a4fe7df72bb93e7683a660e3d0723b81df9d83b44e270b28bd5d344744b",
+    "source/cli/tests/integration/structure-aspect-status.test.ts": "ed8bc0ed7195d424245838b618a922a8a6998e84903a31ffc7b8e6bea271986a",
+    "source/cli/tests/integration/structure-implies.test.ts": "b456f139ee27a60115fef1e9a43177ea2eb77c322461b1f8d357449f6c1acb3f"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -19,14 +19,14 @@
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": 1778923836291.2395,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/integration/structure-test-cli.test.ts": 1780043047881.7568,
-    "source/cli/tests/integration/structure-lifecycle.test.ts": 1780048969455.608,
-    "source/cli/tests/integration/structure-aspect-status.test.ts": 1780049055608.9536,
-    "source/cli/tests/integration/structure-implies.test.ts": 1780056328598.4036
+    "source/cli/tests/integration/structure-test-cli.test.ts": 1780163482071.234,
+    "source/cli/tests/integration/structure-lifecycle.test.ts": 1780163410549.7021,
+    "source/cli/tests/integration/structure-aspect-status.test.ts": 1780163410550.0916,
+    "source/cli/tests/integration/structure-implies.test.ts": 1780163410548.9895
   },
   "log": {
-    "last_entry_datetime": "2026-05-29T10:25:55.592Z",
-    "prefix_hash": "0c0c15b34bd20ceb02cd28128214f7ebe5caeeb9eab909c1a904f306011649fa"
+    "last_entry_datetime": "2026-05-30T18:08:11.458Z",
+    "prefix_hash": "fecf67cf3d9e0819577ba7a60c637a5028d39f6b2eb5cc83a026526066f04528"
   },
   "aspectVerdicts": {
     "test-deterministic": {

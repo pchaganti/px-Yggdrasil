@@ -1,27 +1,27 @@
 {
-  "hash": "fd1fc94e16856cc8f53fcfb1a73aa655b2ea465befc53976ad1af180a95ea7f7",
+  "hash": "45c60f8b34f3965ad6d859cb126b88955a8ebe1b85b2de8b2a0c1f01cace1f6d",
   "files": {
     "own-subset:cli/structure": "204bb5c981df191b1ce7c90b917c430e5813e7219cb7a2f740e2c87bcc605709",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": "8444da42bbb1f4d19f3a01cce19f2737dd99eae360cf38c117a58719622d5673",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
-    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "7a30b1005b8db9642b89f98a63ec71e36d486207e51f6ad3f744079c67fdb9e6",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
     "source/cli/src/structure/index.ts": "a3d83b2e300b9a92baf8a5667e330f3a7ee8ff284453c7534d95292013762c84",
     "source/cli/src/structure/expand-mapping-sync.ts": "ceb528fe72ee5a3064d824245a891a8d3dea18a3895a489721848ef1fa71894e",
     "source/cli/src/structure/allowed-reads.ts": "9356276775f1bffa4d02b0f9c126aeb3ef3c3005b36a0488f97621a81618b2bc",
+    "source/cli/src/structure/types.ts": "62c088d33e826a58c193e2a9012eb5c406e5472cc352bcf69397db7112e6d5f6",
     "source/cli/src/structure/ctx-fs.ts": "3a4a15b9efb879f494222a0ed9c2f5540029f2015e36ce5f6892d15e418a779d",
     "source/cli/src/structure/ctx-graph.ts": "c9ee5f0615d54f9d730b016d9177bbd03a05573fa0b5dbe90d5e4860de880d98",
-    "source/cli/src/structure/types.ts": "62c088d33e826a58c193e2a9012eb5c406e5472cc352bcf69397db7112e6d5f6",
     "source/cli/src/structure/ctx-parsers.ts": "aaaa977d9781a3211b437b8fc435e260bfe279e5a3e287e1176fac905be1769d",
-    "source/cli/src/structure/runner.ts": "cc388a996c62c87f737ae68725baa56cfc48cf7cb9212c3dc61ecef24403c4df"
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "352e3aff65b59e18f07fddd58372e91a2f3250d9e41483998ace328e5989df84",
+    "source/cli/src/structure/runner.ts": "fb70428bd3d4dd059a9614100ce53c8bcc39c15c7c90af229eb1df0ab2f1fecd"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": 1779869611186.3752,
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
-    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1779869611285.0671,
+    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1780164134382.8323,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1779794513934.5745,
     "source/cli/src/structure/index.ts": 1780038029653.0693,
     "source/cli/src/structure/expand-mapping-sync.ts": 1780124691902.667,
@@ -30,11 +30,23 @@
     "source/cli/src/structure/ctx-fs.ts": 1780124751335.105,
     "source/cli/src/structure/ctx-graph.ts": 1780063726725.511,
     "source/cli/src/structure/ctx-parsers.ts": 1780148891304.002,
-    "source/cli/src/structure/runner.ts": 1780145529807.248
+    "source/cli/src/structure/runner.ts": 1780162307266.337
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T14:09:01.899Z",
-    "prefix_hash": "470044ef2bfe5f327b08beec58208e64decba385a793c0e6cadaaf4c2c4177cd"
+    "last_entry_datetime": "2026-05-30T18:08:10.439Z",
+    "prefix_hash": "d1cec652dae48454ba7f00585bdfed808769603d28836a590fd674d605baabc9"
+  },
+  "structureTouchedFiles": {
+    "posix-paths-source": {
+      "source/cli/src/structure/index.ts": "a3d83b2e300b9a92baf8a5667e330f3a7ee8ff284453c7534d95292013762c84",
+      "source/cli/src/structure/expand-mapping-sync.ts": "ceb528fe72ee5a3064d824245a891a8d3dea18a3895a489721848ef1fa71894e",
+      "source/cli/src/structure/allowed-reads.ts": "9356276775f1bffa4d02b0f9c126aeb3ef3c3005b36a0488f97621a81618b2bc",
+      "source/cli/src/structure/types.ts": "62c088d33e826a58c193e2a9012eb5c406e5472cc352bcf69397db7112e6d5f6",
+      "source/cli/src/structure/ctx-fs.ts": "3a4a15b9efb879f494222a0ed9c2f5540029f2015e36ce5f6892d15e418a779d",
+      "source/cli/src/structure/ctx-graph.ts": "c9ee5f0615d54f9d730b016d9177bbd03a05573fa0b5dbe90d5e4860de880d98",
+      "source/cli/src/structure/ctx-parsers.ts": "aaaa977d9781a3211b437b8fc435e260bfe279e5a3e287e1176fac905be1769d",
+      "source/cli/src/structure/runner.ts": "fb70428bd3d4dd059a9614100ce53c8bcc39c15c7c90af229eb1df0ab2f1fecd"
+    }
   },
   "aspectVerdicts": {
     "deterministic": {

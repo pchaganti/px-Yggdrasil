@@ -1,5 +1,5 @@
 {
-  "hash": "cc4be98dde90d6d98407200a4aef91812f53fc6779769cee288515af83c0f025",
+  "hash": "39e8aca040f10982a583f60cb799becd17915dabe19b5c2c4e6dcff06d82c1a3",
   "files": {
     "own-subset:cli/tests/integration/pipeline/approve": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -10,9 +10,10 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/integration/approve-batch-with-missing-reference.test.ts": "10f89b2bdd5492b2cc5cc4975f5103865ecc9ff3cdbd1351c3537bb76d3dc578",
-    "source/cli/tests/integration/approve-dry-run-references.test.ts": "e18aaee1a7377b9af5fd2bc398255dc000789dee4b18300490e4d20b9f67449b",
+    "source/cli/tests/integration/approve-pipeline.test.ts": "953ce1f37d658edd7c29e8a7de53703745979ed1b08557667682d90326a8ba4f",
     "source/cli/tests/integration/approve-with-references.test.ts": "02a3c84e70ba5fb5aa39ced38b7ccf4a157f61f3c36476f9c79c4bc4cb26f916",
-    "source/cli/tests/integration/approve-pipeline.test.ts": "953ce1f37d658edd7c29e8a7de53703745979ed1b08557667682d90326a8ba4f"
+    "source/cli/tests/integration/approve-dry-run-references.test.ts": "2c1d3c46392adda05cab1f0f1628e81164984c16a01b8d3b909b70767bbdf6cb",
+    "source/cli/tests/integration/deterministic-tier-gating.test.ts": "3e04a9470db76252d50313d3224d917e1e82bc10888da9dea1e2bc158e19839d"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -22,9 +23,14 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/integration/approve-batch-with-missing-reference.test.ts": 1779962471949.9426,
-    "source/cli/tests/integration/approve-dry-run-references.test.ts": 1780058972691.791,
+    "source/cli/tests/integration/approve-dry-run-references.test.ts": 1780163641524.7854,
     "source/cli/tests/integration/approve-pipeline.test.ts": 1780068799857.1973,
-    "source/cli/tests/integration/approve-with-references.test.ts": 1780058289467.0676
+    "source/cli/tests/integration/approve-with-references.test.ts": 1780058289467.0676,
+    "source/cli/tests/integration/deterministic-tier-gating.test.ts": 1780163017148.6274
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-30T18:08:11.136Z",
+    "prefix_hash": "6aa680cb38f6fd9a322c871e057a1eb2b73bc9680aa50b9267b2d3c858815f71"
   },
   "aspectVerdicts": {
     "test-deterministic": {
