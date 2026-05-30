@@ -17,7 +17,152 @@ import { debugWrite } from '../utils/debug-log.js';
 import { readTextFile } from '../io/graph-fs.js';
 import { clearDraftAspectsFromDriftState } from '../io/drift-state-store.js';
 import { hashFile } from '../io/hash.js';
+import type { ParseCache } from '../ast/parse-cache.js';
 import path from 'node:path';
+
+/** A failed aspect: a code violation, a provider error, or an AST/structure runtime error. */
+type AspectViolation = { aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' };
+
+/**
+ * Run every AST aspect in the plan (no LLM call), recording each result in
+ * `results` and any violation (code or astRuntime) in `violations`.
+ */
+async function dispatchAstAspects(
+  plan: ExecutionPlan,
+  sourceFiles: Array<{ path: string; content: string }>,
+  projectRoot: string,
+  parseCache: ParseCache,
+  results: Record<string, AspectVerificationResult>,
+  violations: AspectViolation[],
+): Promise<void> {
+  for (const entry of plan.resolved) {
+    if (entry.kind !== 'ast') continue;
+    const aspect = entry.aspect;
+    try {
+      const astResult = await runAstAspect({
+        aspectDir: path.join('.yggdrasil/aspects', aspect.id),
+        aspectId: aspect.id,
+        files: sourceFiles.map(f => ({ path: f.path })),
+        projectRoot,
+        parseCache,
+      });
+      const violated = astResult.violations.length > 0;
+      const reason = violated
+        ? astResult.violations.map(v => `${v.file}:${v.line}: ${v.message}`).join('\n')
+        : 'all rules satisfied';
+      results[aspect.id] = { satisfied: !violated, reason, errorSource: 'codeViolation' };
+      if (violated) {
+        violations.push({ aspectId: aspect.id, reason, errorSource: 'codeViolation' });
+      }
+    } catch (e: unknown) {
+      debugWrite(`[approve] ast aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
+      const code: string = (e as { code?: string }).code ?? 'AST_RUNNER_UNKNOWN';
+      const rendered = e instanceof AstRunnerError
+        ? `${e.messageData.what} — ${e.messageData.why}`
+        : (e as Error).message;
+      const reason = `[${code}] ${rendered}`;
+      results[aspect.id] = { satisfied: false, reason, errorSource: 'astRuntime' };
+      violations.push({ aspectId: aspect.id, reason, errorSource: 'astRuntime' });
+    }
+  }
+}
+
+/**
+ * Run every structure aspect in the plan (graph-shape + fs verification, no LLM
+ * call), recording results/violations and persisting each aspect's touched-file
+ * hashes into result.pendingDriftState.state.structureTouchedFiles. Cross-node
+ * touched paths are hashed from disk but kept OUT of state.files (see inline note).
+ */
+async function dispatchStructureAspects(
+  plan: ExecutionPlan,
+  node: GraphNode,
+  graph: Graph,
+  result: ApproveResult,
+  projectRoot: string,
+  parseCache: ParseCache,
+  results: Record<string, AspectVerificationResult>,
+  violations: AspectViolation[],
+): Promise<void> {
+  for (const entry of plan.resolved) {
+    if (entry.kind !== 'structure') continue;
+    const aspect = entry.aspect;
+    const aspectDirAbs = path.join(projectRoot, '.yggdrasil/aspects', aspect.id);
+    try {
+      const structResult = await runStructureAspect({
+        aspectDir: aspectDirAbs,
+        aspectId: aspect.id,
+        nodePath: node.path,
+        graph,
+        projectRoot,
+        parseCache,
+      });
+      if (structResult.succeeded === false) {
+        const reason = structResult.violations.map(v => v.message).join('\n') || 'structure runtime error';
+        results[aspect.id] = { satisfied: false, reason, errorSource: 'astRuntime' };
+        violations.push({ aspectId: aspect.id, reason, errorSource: 'astRuntime' });
+        continue;
+      }
+
+      // Persist touched files into the pending drift state. Normalize each
+      // path to forward-slash separators before using it as a drift-state key,
+      // matching every other path written at this output boundary (projectRoot,
+      // yggPrefix, sourceFilePaths, normalizedNodePath). runStructureAspect may
+      // return backslash-separated paths on Windows; storing them verbatim
+      // would violate the posix-paths-output contract for drift-state files.
+      const sourceFileHashes: Record<string, string> = {};
+      for (const raw of new Set(structResult.touchedFiles)) {
+        const p = raw.replace(/\\/g, '/').replace(/\/+$/, '');
+        let hash = result.pendingDriftState?.state.files[p];
+        // A touched path absent from state.files is a CROSS-NODE read — a file
+        // owned by a related node, reached via ctx.fs/ctx.graph. Hash it from
+        // disk, but DO NOT inject it into state.files: state.files is the
+        // canonical own source/graph map, and check.ts's deleted-file detector
+        // walks it — a cross-node path there would be reported as a phantom
+        // "(deleted)". Such paths live ONLY in structureTouchedFiles and
+        // re-enter the canonical hash via the structure-touched recompute below.
+        if (!hash) {
+          const abs = path.resolve(projectRoot, p);
+          try {
+            hash = await hashFile(abs);
+          } catch {
+            continue;
+          }
+        }
+        sourceFileHashes[p] = hash;
+      }
+      /* v8 ignore next 5 -- unreachable: approve.ts no-change branch now always populates
+       * pendingDriftState; approved/initial branches always set it; refused is an early-return */
+      if (!result.pendingDriftState) {
+        throw new Error(
+          `internal: structure dispatch ran without pendingDriftState for node ${node.path}; ` +
+          `caller must guarantee pendingDriftState is populated before reviewer dispatch.`,
+        );
+      }
+      const stf = result.pendingDriftState.state.structureTouchedFiles ?? {};
+      stf[aspect.id] = sourceFileHashes;
+      result.pendingDriftState.state.structureTouchedFiles = stf;
+
+      const violated = structResult.violations.length > 0;
+      const reason = violated
+        ? structResult.violations.map(v => {
+            const loc = v.file ? `${v.file}:${v.line ?? '?'}: ` : '';
+            return `${loc}${v.message}`;
+          }).join('\n')
+        : 'all rules satisfied';
+      results[aspect.id] = { satisfied: !violated, reason, errorSource: 'codeViolation' };
+      if (violated) {
+        violations.push({ aspectId: aspect.id, reason, errorSource: 'codeViolation' });
+      }
+    } catch (e: unknown) {
+      debugWrite(`[approve] structure aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
+      const code: string = (e as { code?: string }).code ?? 'STRUCTURE_RUNNER_UNKNOWN';
+      const rendered = e instanceof StructureRunnerError ? e.message : (e as Error).message;
+      const reason = `[${code}] ${rendered}`;
+      results[aspect.id] = { satisfied: false, reason, errorSource: 'astRuntime' };
+      violations.push({ aspectId: aspect.id, reason, errorSource: 'astRuntime' });
+    }
+  }
+}
 
 /**
  * Commit approval and evict any stale baseline entries for effective-draft
@@ -392,119 +537,10 @@ export async function runApproveWithReviewer(
     });
   }
 
-  // AST aspects first (no LLM call)
-  const astParseCache = new Map();
-  for (const entry of plan.resolved) {
-    if (entry.kind !== 'ast') continue;
-    const aspect = entry.aspect;
-    try {
-      const astResult = await runAstAspect({
-        aspectDir: path.join('.yggdrasil/aspects', aspect.id),
-        aspectId: aspect.id,
-        files: sourceFiles.map(f => ({ path: f.path })),
-        projectRoot,
-        parseCache: astParseCache,
-      });
-      const violated = astResult.violations.length > 0;
-      const reason = violated
-        ? astResult.violations.map(v => `${v.file}:${v.line}: ${v.message}`).join('\n')
-        : 'all rules satisfied';
-      allAspectResults[aspect.id] = { satisfied: !violated, reason, errorSource: 'codeViolation' };
-      if (violated) {
-        aspectViolations.push({ aspectId: aspect.id, reason, errorSource: 'codeViolation' });
-      }
-    } catch (e: unknown) {
-      debugWrite(`[approve] ast aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
-      const code: string = (e as { code?: string }).code ?? 'AST_RUNNER_UNKNOWN';
-      const rendered = e instanceof AstRunnerError
-        ? `${e.messageData.what} — ${e.messageData.why}`
-        : (e as Error).message;
-      const reason = `[${code}] ${rendered}`;
-      allAspectResults[aspect.id] = { satisfied: false, reason, errorSource: 'astRuntime' };
-      aspectViolations.push({ aspectId: aspect.id, reason, errorSource: 'astRuntime' });
-    }
-  }
-
-  // STRUCTURE aspects (no LLM call; graph-shape + fs verification)
-  for (const entry of plan.resolved) {
-    if (entry.kind !== 'structure') continue;
-    const aspect = entry.aspect;
-    const aspectDirAbs = path.join(projectRoot, '.yggdrasil/aspects', aspect.id);
-    try {
-      const structResult = await runStructureAspect({
-        aspectDir: aspectDirAbs,
-        aspectId: aspect.id,
-        nodePath: node.path,
-        graph,
-        projectRoot,
-        parseCache: astParseCache,
-      });
-      if (structResult.succeeded === false) {
-        const reason = structResult.violations.map(v => v.message).join('\n') || 'structure runtime error';
-        allAspectResults[aspect.id] = { satisfied: false, reason, errorSource: 'astRuntime' };
-        aspectViolations.push({ aspectId: aspect.id, reason, errorSource: 'astRuntime' });
-        continue;
-      }
-
-      // Persist touched files into the pending drift state. Normalize each
-      // path to forward-slash separators before using it as a drift-state key,
-      // matching every other path written at this output boundary (projectRoot,
-      // yggPrefix, sourceFilePaths, normalizedNodePath). runStructureAspect may
-      // return backslash-separated paths on Windows; storing them verbatim
-      // would violate the posix-paths-output contract for drift-state files.
-      const sourceFileHashes: Record<string, string> = {};
-      for (const raw of new Set(structResult.touchedFiles)) {
-        const p = raw.replace(/\\/g, '/').replace(/\/+$/, '');
-        let hash = result.pendingDriftState?.state.files[p];
-        // A touched path absent from state.files is a CROSS-NODE read — a file
-        // owned by a related node, reached via ctx.fs/ctx.graph. Hash it from
-        // disk, but DO NOT inject it into state.files: state.files is the
-        // canonical own source/graph map, and check.ts's deleted-file detector
-        // walks it — a cross-node path there would be reported as a phantom
-        // "(deleted)". Such paths live ONLY in structureTouchedFiles and
-        // re-enter the canonical hash via the structure-touched recompute below.
-        if (!hash) {
-          const abs = path.resolve(projectRoot, p);
-          try {
-            hash = await hashFile(abs);
-          } catch {
-            continue;
-          }
-        }
-        sourceFileHashes[p] = hash;
-      }
-      /* v8 ignore next 5 -- unreachable: approve.ts no-change branch now always populates
-       * pendingDriftState; approved/initial branches always set it; refused is an early-return */
-      if (!result.pendingDriftState) {
-        throw new Error(
-          `internal: structure dispatch ran without pendingDriftState for node ${node.path}; ` +
-          `caller must guarantee pendingDriftState is populated before reviewer dispatch.`,
-        );
-      }
-      const stf = result.pendingDriftState.state.structureTouchedFiles ?? {};
-      stf[aspect.id] = sourceFileHashes;
-      result.pendingDriftState.state.structureTouchedFiles = stf;
-
-      const violated = structResult.violations.length > 0;
-      const reason = violated
-        ? structResult.violations.map(v => {
-            const loc = v.file ? `${v.file}:${v.line ?? '?'}: ` : '';
-            return `${loc}${v.message}`;
-          }).join('\n')
-        : 'all rules satisfied';
-      allAspectResults[aspect.id] = { satisfied: !violated, reason, errorSource: 'codeViolation' };
-      if (violated) {
-        aspectViolations.push({ aspectId: aspect.id, reason, errorSource: 'codeViolation' });
-      }
-    } catch (e: unknown) {
-      debugWrite(`[approve] structure aspect ${aspect.id}: ${e instanceof Error ? e.message : String(e)}`);
-      const code: string = (e as { code?: string }).code ?? 'STRUCTURE_RUNNER_UNKNOWN';
-      const rendered = e instanceof StructureRunnerError ? e.message : (e as Error).message;
-      const reason = `[${code}] ${rendered}`;
-      allAspectResults[aspect.id] = { satisfied: false, reason, errorSource: 'astRuntime' };
-      aspectViolations.push({ aspectId: aspect.id, reason, errorSource: 'astRuntime' });
-    }
-  }
+  // AST + structure aspects (no LLM call) populate results/violations.
+  const astParseCache: ParseCache = new Map();
+  await dispatchAstAspects(plan, sourceFiles, projectRoot, astParseCache, allAspectResults, aspectViolations);
+  await dispatchStructureAspects(plan, node, graph, result, projectRoot, astParseCache, allAspectResults, aspectViolations);
 
   // Preserve structureTouchedFiles for structure aspects that were NOT
   // freshly evaluated this run. Two cases collapse into one pass:
