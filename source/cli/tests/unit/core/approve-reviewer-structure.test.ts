@@ -177,7 +177,7 @@ async function recordBaseline(tmpDir: string) {
 }
 
 describe('runApproveWithReviewer — structure dispatch', () => {
-  it('structure aspect with no violations — approved and structureTouchedFiles populated', async () => {
+  it('structure aspect with no violations — approved and deterministicTouchedFiles populated', async () => {
     const { tmpDir } = await createStructureProject('struct-pass', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - shape-check\nmapping:\n  - src/svc.ts\n',
@@ -213,14 +213,14 @@ describe('runApproveWithReviewer — structure dispatch', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('cross-node touched file (declared relation read) — hashed from disk into structureTouchedFiles', async () => {
+  it('cross-node touched file (declared relation read) — hashed from disk into deterministicTouchedFiles', async () => {
     // A structure aspect on svc/my-service reads src/dep.ts, owned by the
     // RELATED node svc/dep (declared via a `uses` relation, so the read is
     // allowed). src/dep.ts lands in structResult.touchedFiles but is NOT in
     // this node's state.files (which only carries own-mapping src/svc.ts).
     // That makes the `if (!hash)` branch in dispatchStructureAspects true: the
     // cross-node path is hashed from disk and recorded under
-    // structureTouchedFiles[aspectId], without leaking into state.files.
+    // deterministicTouchedFiles[aspectId], without leaking into state.files.
     const { tmpDir } = await createStructureProject('struct-crossnode', {
       nodePath: 'svc/my-service',
       nodeYaml: [
@@ -277,9 +277,9 @@ describe('runApproveWithReviewer — structure dispatch', () => {
     expect(result.action).toBe('approved');
     expect(result.aspectResults?.['reads-dep']?.satisfied).toBe(true);
 
-    // The cross-node touched path is recorded under structureTouchedFiles with a
+    // The cross-node touched path is recorded under deterministicTouchedFiles with a
     // real disk hash (proving the `if (!hash)` branch ran)...
-    const stf = result.pendingDriftState?.state.structureTouchedFiles?.['reads-dep'];
+    const stf = result.pendingDriftState?.state.deterministicTouchedFiles?.['reads-dep'];
     expect(stf).toBeDefined();
     expect(stf!['src/dep.ts']).toMatch(/^[a-f0-9]+$/);
     // ...but it must NOT leak into this node's canonical own-source map.
@@ -294,7 +294,7 @@ describe('runApproveWithReviewer — structure dispatch', () => {
     // the runner), so the path enters touchedFiles, yet hashFile(abs) in
     // dispatchStructureAspects throws (file gone). The catch's `continue` must
     // skip the path: the run still completes and the missing path is simply
-    // absent from the recorded structureTouchedFiles hashes.
+    // absent from the recorded deterministicTouchedFiles hashes.
     const { tmpDir } = await createStructureProject('struct-crossnode-missing', {
       nodePath: 'svc/my-service',
       nodeYaml: [
@@ -355,7 +355,7 @@ export function check(ctx) {
     // Run still completes — the missing cross-node path was skipped, not fatal.
     expect(result.action).toBe('approved');
     expect(result.aspectResults?.['reads-dep']?.satisfied).toBe(true);
-    const stf = result.pendingDriftState?.state.structureTouchedFiles?.['reads-dep'];
+    const stf = result.pendingDriftState?.state.deterministicTouchedFiles?.['reads-dep'];
     expect(stf).toBeDefined();
     // The deleted cross-node path is absent from recorded hashes (catch → continue).
     expect(stf!['src/dep.ts']).toBeUndefined();
@@ -448,7 +448,7 @@ export function check(ctx) {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('structure aspect that throws StructureRunnerError — classified as astRuntime', async () => {
+  it('structure aspect that throws StructureRunnerError — classified as checkRuntime', async () => {
     const { tmpDir } = await createStructureProject('struct-throw', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - broken-check\nmapping:\n  - src/svc.ts\n',
@@ -479,13 +479,13 @@ export function check(ctx) {
     expect(result.action).toBe('refused');
     const v = result.aspectViolations?.find(v => v.aspectId === 'broken-check');
     expect(v).toBeDefined();
-    expect(v!.errorSource).toBe('astRuntime');
+    expect(v!.errorSource).toBe('checkRuntime');
     expect(v!.reason).toMatch(/STRUCTURE_CHECK_ASYNC/);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('structure aspect with succeeded:false (undeclared fs read) — classified as astRuntime', async () => {
+  it('structure aspect with succeeded:false (undeclared fs read) — classified as checkRuntime', async () => {
     const { tmpDir } = await createStructureProject('struct-undeclared-fs', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - undeclared-check\nmapping:\n  - src/svc.ts\n',
@@ -522,14 +522,14 @@ export function check(ctx) {
     expect(result.action).toBe('refused');
     const v = result.aspectViolations?.find(v => v.aspectId === 'undeclared-check');
     expect(v).toBeDefined();
-    expect(v!.errorSource).toBe('astRuntime');
+    expect(v!.errorSource).toBe('checkRuntime');
     // runner returns succeeded:false, message should reference the undeclared path
     expect(v!.reason).toMatch(/undeclared/i);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('structure aspect on no-change node — pendingDriftState populated from baseline, structureTouchedFiles recorded', async () => {
+  it('structure aspect on no-change node — pendingDriftState populated from baseline, deterministicTouchedFiles recorded', async () => {
     const { tmpDir } = await createStructureProject('struct-nochange', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - shape-check\nmapping:\n  - src/svc.ts\n',
@@ -563,16 +563,16 @@ export function check(ctx) {
     // Structure aspect ran successfully on a no-change node — action stays 'no-change'
     expect(result.action).toBe('no-change');
     expect(result.aspectResults?.['shape-check']?.satisfied).toBe(true);
-    expect(result.pendingDriftState?.state.structureTouchedFiles?.['shape-check']).toBeDefined();
+    expect(result.pendingDriftState?.state.deterministicTouchedFiles?.['shape-check']).toBeDefined();
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 });
 
-describe('D8.3 — structureTouchedFiles carry-forward for draft-skipped structure aspects', () => {
-  it('preserves baseline structureTouchedFiles for draft-skipped structure aspects (D8.3)', async () => {
+describe('D8.3 — deterministicTouchedFiles carry-forward for draft-skipped structure aspects', () => {
+  it('preserves baseline deterministicTouchedFiles for draft-skipped structure aspects (D8.3)', async () => {
     // Aspect A = enforced structure aspect, Aspect B = draft structure aspect.
-    // Seed a baseline where both A and B have structureTouchedFiles entries.
+    // Seed a baseline where both A and B have deterministicTouchedFiles entries.
     // Run approve — B is skipped (draft), but its entry must be preserved verbatim.
     const { tmpDir, yggRoot } = await createStructureProject('d83-carry', {
       nodePath: 'svc/my-service',
@@ -601,7 +601,7 @@ describe('D8.3 — structureTouchedFiles carry-forward for draft-skipped structu
       ],
     });
 
-    // Record baseline — with seeded structureTouchedFiles for BOTH aspects (A and B).
+    // Record baseline — with seeded deterministicTouchedFiles for BOTH aspects (A and B).
     await recordBaseline(tmpDir);
     const graph0 = await loadGraph(tmpDir);
     for (const [nodePath, node] of graph0.nodes) {
@@ -615,8 +615,8 @@ describe('D8.3 — structureTouchedFiles carry-forward for draft-skipped structu
         hash: canonicalHash,
         files: fileHashes,
         mtimes: fileMtimes,
-        // Seed structureTouchedFiles for both aspects — simulating a prior enforce-both approve
-        structureTouchedFiles: {
+        // Seed deterministicTouchedFiles for both aspects — simulating a prior enforce-both approve
+        deterministicTouchedFiles: {
           'shape-a': { 'src/svc.ts': 'aaa111' },
           'shape-b': { 'src/svc.ts': 'bbb222' },
         },
@@ -626,7 +626,7 @@ describe('D8.3 — structureTouchedFiles carry-forward for draft-skipped structu
     // Read the baseline BEFORE modifying source (this is the entry with shape-b stf)
     const { readNodeDriftState } = await import('../../../src/io/drift-state-store.js');
     const seededBaseline = await readNodeDriftState(yggRoot, 'svc/my-service');
-    expect(seededBaseline?.structureTouchedFiles?.['shape-b']).toMatchObject({ 'src/svc.ts': 'bbb222' });
+    expect(seededBaseline?.deterministicTouchedFiles?.['shape-b']).toMatchObject({ 'src/svc.ts': 'bbb222' });
 
     // Modify source so approve runs (approved, not no-change)
     await writeFile(path.join(tmpDir, 'src/svc.ts'), 'export const x = 2;\n');
@@ -644,8 +644,8 @@ describe('D8.3 — structureTouchedFiles carry-forward for draft-skipped structu
       storedEntry: seededBaseline,
     });
 
-    // shape-b was skipped (draft) — its prior structureTouchedFiles entry must be preserved
-    const stf = result.pendingDriftState?.state.structureTouchedFiles;
+    // shape-b was skipped (draft) — its prior deterministicTouchedFiles entry must be preserved
+    const stf = result.pendingDriftState?.state.deterministicTouchedFiles;
     expect(stf).toBeDefined();
     // shape-a ran and may update its entry
     expect(stf!['shape-a']).toBeDefined();
@@ -655,9 +655,9 @@ describe('D8.3 — structureTouchedFiles carry-forward for draft-skipped structu
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('D8.3 skip branch — non-structure draft aspects do not affect structureTouchedFiles', async () => {
+  it('D8.3 skip branch — non-structure draft aspects do not affect deterministicTouchedFiles', async () => {
     // Draft aspect C is LLM type (not structure). The D8.3 loop must skip it without crashing.
-    // No prior structureTouchedFiles for llm-draft since it is not structure type.
+    // No prior deterministicTouchedFiles for llm-draft since it is not structure type.
     const { tmpDir } = await createStructureProject('d83-llm-draft', {
       nodePath: 'svc/my-service',
       nodeYaml: [
@@ -688,13 +688,13 @@ describe('D8.3 — structureTouchedFiles carry-forward for draft-skipped structu
     });
 
     await recordBaseline(tmpDir);
-    // Seed baseline with structureTouchedFiles (only for shape-a, llm-draft has none)
+    // Seed baseline with deterministicTouchedFiles (only for shape-a, llm-draft has none)
     const { readNodeDriftState: rds, writeNodeDriftState: wds } = await import('../../../src/io/drift-state-store.js');
     const priorState = await rds(path.join(tmpDir, '.yggdrasil'), 'svc/my-service');
     if (priorState) {
       await wds(path.join(tmpDir, '.yggdrasil'), 'svc/my-service', {
         ...priorState,
-        structureTouchedFiles: { 'shape-a': { 'src/svc.ts': 'aaa111' } },
+        deterministicTouchedFiles: { 'shape-a': { 'src/svc.ts': 'aaa111' } },
       });
     }
 
@@ -716,19 +716,19 @@ describe('D8.3 — structureTouchedFiles carry-forward for draft-skipped structu
     expect(result.action).toBe('approved');
     // shape-a ran (structure, enforced) — stf updated
     // llm-draft was skipped — D8.3 loop hit continue (type !== 'deterministic'), no crash
-    const stf = result.pendingDriftState?.state.structureTouchedFiles;
+    const stf = result.pendingDriftState?.state.deterministicTouchedFiles;
     expect(stf?.['shape-a']).toBeDefined();
-    // llm-draft has no structureTouchedFiles entry (it is not structure type)
+    // llm-draft has no deterministicTouchedFiles entry (it is not structure type)
     expect(stf?.['llm-draft']).toBeUndefined();
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('filtered approve carries forward a non-targeted enforced structure aspect\'s structureTouchedFiles', async () => {
+  it('filtered approve carries forward a non-targeted enforced structure aspect\'s deterministicTouchedFiles', async () => {
     // Two ENFORCED structure aspects on one node: shape-a + shape-b. A filtered
     // approve (`yg approve --aspect shape-a`) runs only shape-a's runner. shape-b
     // is enforced (not draft) but filter-excluded this run. Its prior
-    // structureTouchedFiles entry must be carried forward — otherwise its touched
+    // deterministicTouchedFiles entry must be carried forward — otherwise its touched
     // files silently drop out of the node's drift identity and impact blast-radius.
     const { tmpDir, yggRoot } = await createStructureProject('filter-carry', {
       nodePath: 'svc/my-service',
@@ -757,7 +757,7 @@ describe('D8.3 — structureTouchedFiles carry-forward for draft-skipped structu
       ],
     });
 
-    // Record baseline, then seed structureTouchedFiles for BOTH enforced aspects.
+    // Record baseline, then seed deterministicTouchedFiles for BOTH enforced aspects.
     await recordBaseline(tmpDir);
     const graph0 = await loadGraph(tmpDir);
     for (const [nodePath, node] of graph0.nodes) {
@@ -771,7 +771,7 @@ describe('D8.3 — structureTouchedFiles carry-forward for draft-skipped structu
         hash: canonicalHash,
         files: fileHashes,
         mtimes: fileMtimes,
-        structureTouchedFiles: {
+        deterministicTouchedFiles: {
           'shape-a': { 'src/svc.ts': 'aaa111' },
           'shape-b': { 'src/other.ts': 'bbb222' },
         },
@@ -780,7 +780,7 @@ describe('D8.3 — structureTouchedFiles carry-forward for draft-skipped structu
 
     const { readNodeDriftState } = await import('../../../src/io/drift-state-store.js');
     const seededBaseline = await readNodeDriftState(yggRoot, 'svc/my-service');
-    expect(seededBaseline?.structureTouchedFiles?.['shape-b']).toMatchObject({ 'src/other.ts': 'bbb222' });
+    expect(seededBaseline?.deterministicTouchedFiles?.['shape-b']).toMatchObject({ 'src/other.ts': 'bbb222' });
 
     // Modify source so approve runs (approved, not no-change).
     await writeFile(path.join(tmpDir, 'src/svc.ts'), 'export const x = 2;\n');
@@ -800,7 +800,7 @@ describe('D8.3 — structureTouchedFiles carry-forward for draft-skipped structu
       filterAspectId: 'shape-a',
     });
 
-    const stf = result.pendingDriftState?.state.structureTouchedFiles;
+    const stf = result.pendingDriftState?.state.deterministicTouchedFiles;
     expect(stf).toBeDefined();
     // shape-a ran this run — its entry is present (freshly evaluated).
     expect(stf!['shape-a']).toBeDefined();

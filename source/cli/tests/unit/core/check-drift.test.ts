@@ -478,15 +478,15 @@ describe('classifyDrift', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('structure-touched cascade names the owning deterministic aspect (not "unknown aspect")', async () => {
+  it('deterministic-touched cascade names the owning deterministic aspect (not "unknown aspect")', async () => {
     // A deterministic aspect `det` recorded a set of cross-node files it read,
-    // captured in structureTouchedFiles. When the SET MEMBERSHIP changes, the
-    // synthetic `structure-touched:det` key (tracked on the 'aspects' layer)
+    // captured in deterministicTouchedFiles. When the SET MEMBERSHIP changes, the
+    // synthetic `deterministic-touched:det` key (tracked on the 'aspects' layer)
     // drifts. The rendered cascade message must name the owning aspect — the
     // synthetic key is not a real file under .yggdrasil/aspects/, so without
     // special handling it would fall into the reference-file fallback and render
     // "declared by unknown aspect".
-    const { tmpDir } = await createTmpProject('structure-touched-cause', {
+    const { tmpDir } = await createTmpProject('deterministic-touched-cause', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - det\nmapping:\n  - src/svc/\n',
       mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
@@ -501,21 +501,21 @@ describe('classifyDrift', () => {
     const projectRoot0 = path.dirname(graph0.rootPath);
     // Record the baseline's tracked-file hashes computed from the OLD touched set
     // (a single cross-node member path that is never created on disk, so it is
-    // skipped from `files` and only the synthetic `structure-touched:det` key
+    // skipped from `files` and only the synthetic `deterministic-touched:det` key
     // captures the set). The member paths themselves never exist on disk, so the
     // only thing that can drift is the synthetic set-membership key.
     const oldSet = { det: { 'src/related/a.ts': 'h1' } };
-    const trackedOld = collectTrackedFiles(node0, graph0, { hash: '', files: {}, structureTouchedFiles: oldSet });
+    const trackedOld = collectTrackedFiles(node0, graph0, { hash: '', files: {}, deterministicTouchedFiles: oldSet });
     const hOld = await hashTrackedFiles(projectRoot0, trackedOld, undefined, []);
     // Store the baseline with the OLD set's per-file hashes but a NEW (grown) set
-    // in structureTouchedFiles. At check time collectTrackedFiles recomputes the
+    // in deterministicTouchedFiles. At check time collectTrackedFiles recomputes the
     // synthetic key from this NEW set, mismatching the recorded OLD-set hash.
     const newSet = { det: { 'src/related/a.ts': 'h1', 'src/related/b.ts': 'h2' } };
     await writeNodeDriftState(graph0.rootPath, 'svc/my-service', {
       hash: hOld.canonicalHash,
       files: hOld.fileHashes,
       mtimes: hOld.fileMtimes,
-      structureTouchedFiles: newSet,
+      deterministicTouchedFiles: newSet,
     });
     const graph = await loadGraph(tmpDir);
     const result = await classifyDrift(graph);
@@ -530,7 +530,7 @@ describe('classifyDrift', () => {
   it('tier-identity cascade names the owning aspect (not "unknown aspect")', async () => {
     // An LLM aspect carries a synthetic `tier-identity:<id>` key that hashes its
     // resolved reviewer tier config. When the tier config changes, that key
-    // drifts on the 'aspects' layer. Like structure-touched, the key is not a
+    // drifts on the 'aspects' layer. Like deterministic-touched, the key is not a
     // real file under .yggdrasil/aspects/, so the rendered cascade message must
     // name the owning aspect rather than render "declared by unknown aspect".
     const { tmpDir } = await createTmpProject('tier-identity-cause', {
@@ -678,8 +678,8 @@ describe('describeCascadeCause', () => {
     expect(out).toContain("aspect 'my-aspect' changed");
   });
 
-  it('aspects layer, structure-touched synthetic key → names the deterministic aspect', () => {
-    const out = describeCascadeCause('structure-touched:det-x', 'aspects', graph);
+  it('aspects layer, deterministic-touched synthetic key → names the deterministic aspect', () => {
+    const out = describeCascadeCause('deterministic-touched:det-x', 'aspects', graph);
     expect(out).toContain("the set of files read by deterministic aspect 'det-x'");
   });
 
@@ -733,8 +733,8 @@ describe('describeCascadeCause', () => {
     expect(out).toContain("dependency 'unknown'");
   });
 
-  it('structure-touched layer (real cross-node path) → tracked file changed', () => {
-    const out = describeCascadeCause('source/cli/src/other/reader.ts', 'structure-touched', graph);
+  it('deterministic-touched layer (real cross-node path) → tracked file changed', () => {
+    const out = describeCascadeCause('source/cli/src/other/reader.ts', 'deterministic-touched', graph);
     expect(out).toContain('tracked file changed');
   });
 

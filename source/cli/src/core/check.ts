@@ -140,8 +140,8 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
     emitPerAspectIssues(node, graph, storedEntry, issues);
 
     // Collect tracked files WITH layer info. Pass the stored baseline so the
-    // structure-touched layer (cross-node files read by a structure aspect,
-    // recorded in structureTouchedFiles) participates in drift identity —
+    // deterministic-touched layer (cross-node files read by a deterministic aspect,
+    // recorded in deterministicTouchedFiles) participates in drift identity —
     // editing such a file must drift this dependent node.
     const trackedFiles = collectTrackedFiles(node, graph, storedEntry);
 
@@ -651,10 +651,10 @@ export function describeCascadeCause(filePath: string, layer: TrackedFileLayer, 
     }
     // Synthetic per-aspect identity keys live on the 'aspects' layer but are not
     // real files under .yggdrasil/aspects/. Name the aspect they belong to.
-    const synth = normalized.match(/^(structure-touched|tier-identity):(.+)$/);
+    const synth = normalized.match(/^(deterministic-touched|tier-identity):(.+)$/);
     if (synth) {
       const [, kind, aspectId] = synth;
-      const what = kind === 'structure-touched'
+      const what = kind === 'deterministic-touched'
         ? `the set of files read by deterministic aspect '${aspectId}'`
         : `the resolved reviewer tier for aspect '${aspectId}'`;
       return `${what} changed\n       (${normalized})`;

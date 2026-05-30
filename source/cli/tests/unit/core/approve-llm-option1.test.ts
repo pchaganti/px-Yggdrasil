@@ -348,7 +348,7 @@ describe('runApproveWithReviewer — reReviewAspectIds (Option 1)', () => {
 // forward (I1), drafts are never dispatched (I3), the Phase-4 migration shape
 // (an aspect yaml content change) re-runs only that aspect locally at zero LLM
 // cost (cost win), and a genuine no-change run dispatches nothing while leaving
-// the prior structureTouchedFiles byte-identical.
+// the prior deterministicTouchedFiles byte-identical.
 
 describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
   // Node: structure aspect `det` + llm aspect `llm`. The llm aspect is wired so
@@ -390,19 +390,19 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
   async function recordVerdicts(
     tmpDir: string,
     aspectVerdicts: Record<string, { verdict: 'approved' | 'refused' }>,
-    structureTouchedFiles?: Record<string, Record<string, string>>,
+    deterministicTouchedFiles?: Record<string, Record<string, string>>,
   ): Promise<void> {
     const graph = await loadGraph(tmpDir);
     const node = graph.nodes.get('svc/my-service')!;
     const projectRoot = path.dirname(graph.rootPath);
-    // When structureTouchedFiles is part of the baseline, fold it into the
+    // When deterministicTouchedFiles is part of the baseline, fold it into the
     // tracked-file set so the recorded canonical hash and fileHashes include the
-    // synthetic `structure-touched:<id>` key — exactly as a real prior approve
+    // synthetic `deterministic-touched:<id>` key — exactly as a real prior approve
     // would have recorded it. Otherwise approveNode (which collects WITH the
     // baseline) would see a fresh synthetic key and mis-classify a genuine
     // no-change as upstream drift.
-    const baselineForCollect = structureTouchedFiles
-      ? ({ hash: '', files: {}, structureTouchedFiles } as DriftNodeState)
+    const baselineForCollect = deterministicTouchedFiles
+      ? ({ hash: '', files: {}, deterministicTouchedFiles } as DriftNodeState)
       : undefined;
     const trackedFiles = collectTrackedFiles(node, graph, baselineForCollect);
     const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
@@ -412,7 +412,7 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
     // against this fresh project (no baseline yet → 'initial' with a populated
     // pendingDriftState.state.log). Recording it here makes logChanged false on
     // the subsequent no-change approve, so approveNode takes the branch that
-    // clones the full prior baseline (including structureTouchedFiles) rather
+    // clones the full prior baseline (including deterministicTouchedFiles) rather
     // than the log-update branch that drops it.
     const initial = await approveNode(graph, 'svc/my-service');
     const log = initial.pendingDriftState?.state.log;
@@ -422,7 +422,7 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
       mtimes: fileMtimes,
       ...(log ? { log } : {}),
       aspectVerdicts,
-      ...(structureTouchedFiles ? { structureTouchedFiles } : {}),
+      ...(deterministicTouchedFiles ? { deterministicTouchedFiles } : {}),
     });
   }
 
@@ -467,7 +467,7 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
 
     // The subset path must NOT weaken refusal: an enforced structure violation refuses.
     expect(result.action).toBe('refused');
-    // det refuses with a GENUINE code violation — not an infra/astRuntime error.
+    // det refuses with a GENUINE code violation — not an infra/checkRuntime error.
     const detViolation = result.aspectViolations!.find(v => v.aspectId === 'det');
     expect(detViolation).toBeDefined();
     expect(detViolation!.errorSource).toBe('codeViolation');
@@ -648,27 +648,27 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  // ── I5 — a cross-node structure-touched file change re-runs ONLY det ──
+  // ── I5 — a cross-node deterministic-touched file change re-runs ONLY det ──
   //         (mirror of I1, but inverted provider outcome: the det aspect read a
   //          file owned by a RELATED node; when only that cross-node file
-  //          changes, the change lands on the 'structure-touched' layer →
+  //          changes, the change lands on the 'deterministic-touched' layer →
   //          changedUpstream attributable to det → llm verdict carried forward,
   //          provider never called).
-  it('I5: a cross-node structure-touched file change re-runs ONLY the deterministic aspect; llm provider NOT called, llm verdict carried forward', async () => {
+  it('I5: a cross-node deterministic-touched file change re-runs ONLY the deterministic aspect; llm provider NOT called, llm verdict carried forward', async () => {
     // A cross-node path: NOT in this node's own mapping (mapping is
     // src/svc/index.ts). It is a file a related node owns that the det aspect
-    // reads. Recording it under structureTouchedFiles[det] is exactly what a
+    // reads. Recording it under deterministicTouchedFiles[det] is exactly what a
     // prior approve of a graph-aware deterministic aspect would have done.
     const CROSS_NODE_PATH = 'src/related/dep.ts';
     const tmpDir = await setupDetLlm('e2e-i5-cross-node-stf');
     // Put the cross-node file on disk BEFORE recording the baseline so its
-    // disk hash is captured in the baseline `files` (under the structure-touched
-    // layer that recordVerdicts folds in via structureTouchedFiles).
+    // disk hash is captured in the baseline `files` (under the deterministic-touched
+    // layer that recordVerdicts folds in via deterministicTouchedFiles).
     await mkdir(path.dirname(path.join(tmpDir, CROSS_NODE_PATH)), { recursive: true });
     await writeFile(path.join(tmpDir, CROSS_NODE_PATH), 'export const dep = 1;\n');
-    // Baseline: both det and llm approved; structureTouchedFiles maps the
+    // Baseline: both det and llm approved; deterministicTouchedFiles maps the
     // cross-node path under det (the value is a placeholder — only the key path
-    // participates in attribution and in the structure-touched tracking entry).
+    // participates in attribution and in the deterministic-touched tracking entry).
     await recordVerdicts(
       tmpDir,
       { det: { verdict: 'approved' }, llm: { verdict: 'approved' } },
@@ -681,7 +681,7 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
     const coreResult = await approveNode(graph, 'svc/my-service');
 
     // ── Load-bearing layer assertions — WHY the fix works. The cross-node path
-    // must land on the 'structure-touched' layer → changedUpstream, and NOT on
+    // must land on the 'deterministic-touched' layer → changedUpstream, and NOT on
     // changedSource (which would trip the conservative full-re-run guard in
     // selectDriftedAspects). Mirror the migration-shape test's core assertions.
     expect(coreResult.changedUpstream?.map(c => c.filePath)).toContain(CROSS_NODE_PATH);
@@ -693,8 +693,8 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
     }));
 
     // Drive through runLlmVerification so selectDriftedAspects runs end-to-end
-    // and computes reReviewAspectIds={det} from the cross-node structure-touched
-    // change attributed to det via the baseline's structureTouchedFiles.
+    // and computes reReviewAspectIds={det} from the cross-node deterministic-touched
+    // change attributed to det via the baseline's deterministicTouchedFiles.
     const result = await runLlmVerification(graph, 'svc/my-service', coreResult, new Map());
 
     expect(result.action).toBe('approved');
@@ -710,11 +710,11 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  // ── no-change → zero reviewer calls AND structureTouchedFiles preserved ──
-  it('no-change: zero reviewer calls and structureTouchedFiles preserved byte-identical', async () => {
+  // ── no-change → zero reviewer calls AND deterministicTouchedFiles preserved ──
+  it('no-change: zero reviewer calls and deterministicTouchedFiles preserved byte-identical', async () => {
     const PRIOR_STF = { det: { 'src/svc/index.ts': 'deadbeef'.repeat(8) } };
     const tmpDir = await setupDetLlm('e2e-no-change-stf');
-    // Record a baseline WITH structureTouchedFiles and both verdicts approved.
+    // Record a baseline WITH deterministicTouchedFiles and both verdicts approved.
     await recordVerdicts(
       tmpDir,
       { det: { verdict: 'approved' }, llm: { verdict: 'approved' } },
@@ -729,7 +729,7 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
     expect(coreResult.changedSource).toBeUndefined();
     expect(coreResult.changedUpstream).toBeUndefined();
     // approveNode clones the prior baseline into pendingDriftState for no-change.
-    expect(coreResult.pendingDriftState?.state.structureTouchedFiles).toEqual(PRIOR_STF);
+    expect(coreResult.pendingDriftState?.state.deterministicTouchedFiles).toEqual(PRIOR_STF);
 
     let verifyCallCount = 0;
     mockCreateLlmProvider.mockReturnValue(makeMockProvider({
@@ -744,16 +744,16 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
     expect(verifyCallCount).toBe(0);
     expect(mockCreateLlmProvider).not.toHaveBeenCalled();
     expect(result.aspectResults).toBeUndefined();
-    // The no-dispatch path must NOT wipe structureTouchedFiles — it is byte-identical.
-    expect(result.pendingDriftState?.state.structureTouchedFiles).toEqual(PRIOR_STF);
+    // The no-dispatch path must NOT wipe deterministicTouchedFiles — it is byte-identical.
+    expect(result.pendingDriftState?.state.deterministicTouchedFiles).toEqual(PRIOR_STF);
     // And the committed verdicts equal the full prior baseline.
     expect(result.pendingDriftState?.state.aspectVerdicts).toEqual({
       det: { verdict: 'approved' },
       llm: { verdict: 'approved' },
     });
-    // The on-disk baseline retains the prior structureTouchedFiles too.
+    // The on-disk baseline retains the prior deterministicTouchedFiles too.
     const stored = await readNodeDriftState(graph.rootPath, 'svc/my-service');
-    expect(stored?.structureTouchedFiles).toEqual(PRIOR_STF);
+    expect(stored?.deterministicTouchedFiles).toEqual(PRIOR_STF);
     await rm(tmpDir, { recursive: true, force: true });
   });
 });

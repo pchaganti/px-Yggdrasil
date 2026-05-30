@@ -8,8 +8,8 @@ import type { IssueMessage } from './validation.js';
 export interface AspectVerificationResult {
   satisfied: boolean;
   reason: string;
-  /** Discriminator: codeViolation = real code issue; provider = infra/API error; astRuntime = AST check threw */
-  errorSource: 'codeViolation' | 'provider' | 'astRuntime';
+  /** Discriminator: codeViolation = real code issue; provider = infra/API error; checkRuntime = deterministic check threw */
+  errorSource: 'codeViolation' | 'provider' | 'checkRuntime';
 }
 
 /**
@@ -28,13 +28,11 @@ export interface AspectVerdict {
    *  - 'codeViolation' — source code did not satisfy the aspect's content (LLM judgement)
    *    or violated a structural rule (AST/structure runner).
    *  - 'provider'      — LLM provider call itself failed.
-   *  - 'astRuntime'    — runtime crash inside a deterministic runner's check.mjs.
-   *    Despite the historical name, this tag is the generic "non-LLM runner
-   *    crash" discriminator. The token is persisted per-aspect in baseline
-   *    AspectVerdict.errorSource, so it is NOT renamed (e.g. to 'checkRuntime')
-   *    without a versioned migration; deferred deliberately.
+   *  - 'checkRuntime'  — runtime crash inside a deterministic runner's check.mjs.
+   *    This tag is the generic "non-LLM runner crash" discriminator,
+   *    persisted per-aspect in baseline AspectVerdict.errorSource.
    */
-  errorSource?: 'codeViolation' | 'provider' | 'astRuntime';
+  errorSource?: 'codeViolation' | 'provider' | 'checkRuntime';
 }
 
 // ============================================================
@@ -47,13 +45,10 @@ export type DriftCategory = 'source' | 'graph';
 /**
  * Which layer of the context package brought this file into tracking.
  *
- * NOTE: the 'structure-touched' token is serialized into every baseline
- * .drift-state/*.json. It is retained verbatim (not renamed to e.g.
- * 'deterministic-touched') because renaming it would break baseline
- * parse/compare for every adopting repo. A rename requires a versioned
- * drift-state migration; deferred deliberately.
+ * The 'deterministic-touched' token marks files that a deterministic aspect
+ * read during its run; it is serialized into baseline .drift-state/*.json.
  */
-export type TrackedFileLayer = 'hierarchy' | 'aspects' | 'relational' | 'flows' | 'source' | 'structure-touched';
+export type TrackedFileLayer = 'hierarchy' | 'aspects' | 'relational' | 'flows' | 'source' | 'deterministic-touched';
 
 /** Per-file drift detail */
 export interface DriftFileChange {
@@ -89,17 +84,13 @@ export interface DriftNodeState {
    */
   aspectVerdicts?: Record<string, AspectVerdict>;
   /**
-   * Per-structure-aspect touched files captured at the last enforced/advisory
-   * approve. Optional for backward compat:
+   * Per-deterministic-aspect touched files captured at the last
+   * enforced/advisory approve. Optional for backward compat:
    *   - missing = pre-feature baseline → cold start
    *   - preserved across draft toggle (clearDraftAspectsFromDriftState does NOT clear it)
    * Schema: { [aspectId]: { [repoRelPosixPath]: sha256Hex } }
-   *
-   * The field name is retained (not renamed to deterministicTouchedFiles)
-   * for baseline compatibility — every existing .drift-state/*.json holds it
-   * under this key. Renaming requires a versioned migration; deferred.
    */
-  structureTouchedFiles?: Record<string, Record<string, string>>;
+  deterministicTouchedFiles?: Record<string, Record<string, string>>;
 }
 
 /** Upstream change with type annotation for CLI messages */
@@ -115,7 +106,7 @@ export interface ApproveResult {
   previousHash?: string;
   currentHash: string;
   refuseReasonData?: IssueMessage;
-  aspectViolations?: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' }>;
+  aspectViolations?: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'checkRuntime' }>;
   changedSource?: string[];
   changedUpstream?: AnnotatedChange[];
   gcPaths?: string[];

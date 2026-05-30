@@ -14,7 +14,7 @@ describe('collectTrackedFiles — structure aspects', () => {
   it('emits NO synthetic identity entry for a structure aspect', () => {
     // Deterministic (structure) aspects carry no synthetic identity hash — their
     // identity is fully file-tracked (yg-aspect.yaml + check.mjs + mapping +
-    // per-aspectId structureTouchedFiles). The constant structure-identity hash
+    // per-aspectId deterministicTouchedFiles). The constant structure-identity hash
     // added no drift signal beyond the yg-aspect.yaml file hash.
     const g = buildTestGraphForStructure({
       nodes: [{ path: 'N', type: 'module', mapping: ['src/a.ts'], aspects: ['s1'] }],
@@ -39,7 +39,7 @@ describe('collectTrackedFiles — structure aspects', () => {
     expect(tracked.find(t => t.path === 'src/a.ts')).toBeDefined();
   });
 
-  it('includes baseline structureTouchedFiles paths as structure-touched layer', () => {
+  it('includes baseline deterministicTouchedFiles paths as deterministic-touched layer', () => {
     const g = buildTestGraphForStructure({
       nodes: [{ path: 'N', type: 'module', mapping: ['src/a.ts'], aspects: ['s1'] }],
     });
@@ -47,13 +47,13 @@ describe('collectTrackedFiles — structure aspects', () => {
     const node = g.nodes.get('N')!;
     const baseline: DriftNodeState = {
       hash: 'x', files: {},
-      structureTouchedFiles: { s1: { 'src/b.ts': 'hash-b' } },
+      deterministicTouchedFiles: { s1: { 'src/b.ts': 'hash-b' } },
     };
     const tracked = collectTrackedFiles(node, g, baseline);
-    expect(tracked.find(t => t.path === 'src/b.ts' && t.layer === 'structure-touched')).toBeDefined();
+    expect(tracked.find(t => t.path === 'src/b.ts' && t.layer === 'deterministic-touched')).toBeDefined();
   });
 
-  it('adds structure-touched:<id> synthetic entry summarizing path set (set change still drifts)', () => {
+  it('adds deterministic-touched:<id> synthetic entry summarizing path set (set change still drifts)', () => {
     const g = buildTestGraphForStructure({
       nodes: [{ path: 'N', type: 'module', mapping: ['src/a.ts'], aspects: ['s1'] }],
     });
@@ -61,16 +61,16 @@ describe('collectTrackedFiles — structure aspects', () => {
     const node = g.nodes.get('N')!;
     const baselineOne: DriftNodeState = {
       hash: 'x', files: {},
-      structureTouchedFiles: { s1: { 'src/b.ts': 'hash-b' } },
+      deterministicTouchedFiles: { s1: { 'src/b.ts': 'hash-b' } },
     };
     const baselineTwo: DriftNodeState = {
       hash: 'x', files: {},
-      structureTouchedFiles: { s1: { 'src/b.ts': 'hash-b', 'src/c.ts': 'hash-c' } },
+      deterministicTouchedFiles: { s1: { 'src/b.ts': 'hash-b', 'src/c.ts': 'hash-c' } },
     };
     const trackedOne = collectTrackedFiles(node, g, baselineOne);
     const trackedTwo = collectTrackedFiles(node, g, baselineTwo);
-    const keyOne = trackedOne.find(t => t.path === 'structure-touched:s1');
-    const keyTwo = trackedTwo.find(t => t.path === 'structure-touched:s1');
+    const keyOne = trackedOne.find(t => t.path === 'deterministic-touched:s1');
+    const keyTwo = trackedTwo.find(t => t.path === 'deterministic-touched:s1');
     expect(keyOne).toBeDefined();
     expect(keyTwo).toBeDefined();
     // A change to the touched-file set must change the synthetic hash → drift fires.
@@ -116,27 +116,27 @@ describe('structure-identity lockstep — producer (collectTrackedFiles) vs cons
     const node = g.nodes.get('N')!;
     const baseline: DriftNodeState = {
       hash: 'x', files: {},
-      structureTouchedFiles: { s1: { 'src/b.ts': 'hash-b' } },
+      deterministicTouchedFiles: { s1: { 'src/b.ts': 'hash-b' } },
     };
     const tracked = collectTrackedFiles(node, g, baseline);
-    // The only per-aspect synthetic key for a structure aspect is structure-touched.
-    expect(tracked.find(t => t.path === 'structure-touched:s1')).toBeDefined();
+    // The only per-aspect synthetic key for a structure aspect is deterministic-touched.
+    expect(tracked.find(t => t.path === 'deterministic-touched:s1')).toBeDefined();
     expect(tracked.find(t => t.path === 'structure-identity:s1')).toBeUndefined();
   });
 
-  it('consumer matches structure-touched but does NOT expect structure-identity', () => {
+  it('consumer matches deterministic-touched but does NOT expect structure-identity', () => {
     // The consumer (aspectDependencyKeys, exercised via filterAspectCascadeNodes)
     // must stay in lockstep with the producer: it recognizes the keys the producer
-    // actually emits (structure-touched, aspects/<id>/ prefix, references) and must
+    // actually emits (deterministic-touched, aspects/<id>/ prefix, references) and must
     // NOT carry a stale structure-identity key the producer no longer writes.
     const g = buildTestGraphForStructure({
       nodes: [{ path: 'N', type: 'module', mapping: ['src/a.ts'], aspects: ['s1'] }],
     });
     g.aspects = [structureAspect('s1')];
 
-    // structure-touched:<id> is a recognized cause for the aspect.
+    // deterministic-touched:<id> is a recognized cause for the aspect.
     expect(
-      filterAspectCascadeNodes([cascade('N', 'structure-touched:s1')], g, 's1', '.yggdrasil'),
+      filterAspectCascadeNodes([cascade('N', 'deterministic-touched:s1')], g, 's1', '.yggdrasil'),
     ).toEqual(['N']);
 
     // aspects/<id>/ prefix is a recognized cause.

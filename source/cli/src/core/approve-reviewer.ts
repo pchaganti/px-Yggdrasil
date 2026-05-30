@@ -19,14 +19,14 @@ import { hashFile } from '../io/hash.js';
 import type { ParseCache } from '../ast/parse-cache.js';
 import path from 'node:path';
 
-/** A failed aspect: a code violation, a provider error, or a structure runtime error. */
-type AspectViolation = { aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' };
+/** A failed aspect: a code violation, a provider error, or a deterministic runtime error. */
+type AspectViolation = { aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'checkRuntime' };
 
 /**
  * Run every deterministic aspect in the plan — former-ast and structure aspects
  * alike (graph-shape + fs verification, no LLM call). Records results/violations
  * and persists each aspect's touched-file hashes into
- * result.pendingDriftState.state.structureTouchedFiles. Cross-node touched paths
+ * result.pendingDriftState.state.deterministicTouchedFiles. Cross-node touched paths
  * are hashed from disk but kept OUT of state.files (see inline note).
  */
 async function dispatchStructureAspects(
@@ -54,8 +54,8 @@ async function dispatchStructureAspects(
       });
       if (structResult.succeeded === false) {
         const reason = structResult.violations.map(v => v.message).join('\n') || 'structure runtime error';
-        results[aspect.id] = { satisfied: false, reason, errorSource: 'astRuntime' };
-        violations.push({ aspectId: aspect.id, reason, errorSource: 'astRuntime' });
+        results[aspect.id] = { satisfied: false, reason, errorSource: 'checkRuntime' };
+        violations.push({ aspectId: aspect.id, reason, errorSource: 'checkRuntime' });
         continue;
       }
 
@@ -74,8 +74,8 @@ async function dispatchStructureAspects(
         // disk, but DO NOT inject it into state.files: state.files is the
         // canonical own source/graph map, and check.ts's deleted-file detector
         // walks it — a cross-node path there would be reported as a phantom
-        // "(deleted)". Such paths live ONLY in structureTouchedFiles and
-        // re-enter the canonical hash via the structure-touched recompute below.
+        // "(deleted)". Such paths live ONLY in deterministicTouchedFiles and
+        // re-enter the canonical hash via the deterministic-touched recompute below.
         if (!hash) {
           const abs = path.resolve(projectRoot, p);
           try {
@@ -95,9 +95,9 @@ async function dispatchStructureAspects(
           `caller must guarantee pendingDriftState is populated before reviewer dispatch.`,
         );
       }
-      const stf = result.pendingDriftState.state.structureTouchedFiles ?? {};
+      const stf = result.pendingDriftState.state.deterministicTouchedFiles ?? {};
       stf[aspect.id] = sourceFileHashes;
-      result.pendingDriftState.state.structureTouchedFiles = stf;
+      result.pendingDriftState.state.deterministicTouchedFiles = stf;
 
       const violated = structResult.violations.length > 0;
       const reason = violated
@@ -122,8 +122,8 @@ async function dispatchStructureAspects(
         ? `${e.messageData.what} — ${e.messageData.why}`
         : (e as Error).message;
       const reason = `[${code}] ${rendered}`;
-      results[aspect.id] = { satisfied: false, reason, errorSource: 'astRuntime' };
-      violations.push({ aspectId: aspect.id, reason, errorSource: 'astRuntime' });
+      results[aspect.id] = { satisfied: false, reason, errorSource: 'checkRuntime' };
+      violations.push({ aspectId: aspect.id, reason, errorSource: 'checkRuntime' });
     }
   }
 }
@@ -163,7 +163,7 @@ async function commitApprovalAndCleanDrafts(
 export interface LlmApproveResult extends ApproveResult {
   aspectResults?: Record<string, AspectVerificationResult>;
   llmSkipped?: 'unavailable';
-  aspectViolations?: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' }>;
+  aspectViolations?: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'checkRuntime' }>;
   /** Effective-draft aspects skipped before reviewer dispatch. Empty when none. */
   skippedDraftAspects?: string[];
   /**
@@ -182,17 +182,17 @@ export interface LlmApproveResult extends ApproveResult {
  * Partition code violations (errorSource === 'codeViolation') by the violated
  * aspect's effective status on this node. Anything not present in the status
  * map defaults to `enforced` — the safe default that blocks. Infrastructure
- * errors (provider / astRuntime) are NOT code violations and are excluded by
+ * errors (provider / checkRuntime) are NOT code violations and are excluded by
  * the caller before this is used; they refuse via their own branches.
  */
 function partitionCodeViolationsByStatus(
-  codeViolations: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' }>,
+  codeViolations: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'checkRuntime' }>,
   statuses: Map<string, AspectStatus>,
 ): {
-  enforced: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' }>;
+  enforced: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'checkRuntime' }>;
   advisory: Array<{ aspectId: string; reason: string }>;
 } {
-  const enforced: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' }> = [];
+  const enforced: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'checkRuntime' }> = [];
   const advisory: Array<{ aspectId: string; reason: string }> = [];
   for (const v of codeViolations) {
     const status = statuses.get(v.aspectId) ?? 'enforced';
@@ -447,7 +447,7 @@ export async function runApproveWithReviewer(
       : nonDraft;
 
   // Hoisted: needed by buildAspectVerdicts in early-return paths below.
-  const aspectViolations: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'astRuntime' }> = [];
+  const aspectViolations: Array<{ aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'checkRuntime' }> = [];
   const allAspectResults: Record<string, AspectVerificationResult> = {};
   const referencesCache = new Map<string, string>();
 
@@ -515,9 +515,9 @@ export async function runApproveWithReviewer(
   const astParseCache: ParseCache = new Map();
   await dispatchStructureAspects(plan, node, graph, result, projectRoot, astParseCache, allAspectResults, aspectViolations);
 
-  // Preserve structureTouchedFiles for deterministic aspects that were NOT
+  // Preserve deterministicTouchedFiles for deterministic aspects that were NOT
   // freshly evaluated this run. Both former-ast and structure aspects now run
-  // through the structure runner and write a structureTouchedFiles entry, so
+  // through the structure runner and write a deterministicTouchedFiles entry, so
   // both must be carried forward. Two cases collapse into one pass:
   //   - draft-skipped: a deterministic aspect toggled to draft retains its prior
   //     entry so a later enforced→draft→enforced cycle does not cascade drift.
@@ -527,13 +527,13 @@ export async function runApproveWithReviewer(
   //     out of the node's drift identity and impact blast-radius.
   // An aspect was "freshly evaluated" iff it survived the draft + filter passes
   // (i.e. it is in `filtered`); only those produce a new entry this run.
-  if (storedEntry?.structureTouchedFiles && result.pendingDriftState) {
-    const stf = result.pendingDriftState.state.structureTouchedFiles ?? {};
+  if (storedEntry?.deterministicTouchedFiles && result.pendingDriftState) {
+    const stf = result.pendingDriftState.state.deterministicTouchedFiles ?? {};
     const aspectById = new Map<string, AspectDef>();
     for (const a of allAspects) aspectById.set(a.id, a);
     const freshlyEvaluated = new Set(filtered.map(a => a.id));
     let preserved = 0;
-    for (const [id, prior] of Object.entries(storedEntry.structureTouchedFiles)) {
+    for (const [id, prior] of Object.entries(storedEntry.deterministicTouchedFiles)) {
       if (freshlyEvaluated.has(id)) continue; // a fresh entry was produced this run
       if (id in stf) continue;                // already carried (defensive)
       const aspect = aspectById.get(id);
@@ -543,25 +543,25 @@ export async function runApproveWithReviewer(
       preserved += 1;
     }
     if (preserved > 0) {
-      debugWrite(`[d8.3] preserved structureTouchedFiles for ${preserved} non-evaluated deterministic aspect(s) on node ${node.path}`);
+      debugWrite(`[d8.3] preserved deterministicTouchedFiles for ${preserved} non-evaluated deterministic aspect(s) on node ${node.path}`);
     }
-    result.pendingDriftState.state.structureTouchedFiles = stf;
+    result.pendingDriftState.state.deterministicTouchedFiles = stf;
   }
 
-  // Recompute the canonical drift hash to fold in the structure-touched layer.
+  // Recompute the canonical drift hash to fold in the deterministic-touched layer.
   // approveNode computed state.hash BEFORE the structure runner ran, so on a
   // NEW baseline (action initial/approved) the cross-node files just recorded
-  // in structureTouchedFiles are not yet part of the node's drift identity.
+  // in deterministicTouchedFiles are not yet part of the node's drift identity.
   // Re-collect WITH the now-populated baseline so collectTrackedFiles emits the
-  // structure-touched entries, re-hash, and adopt only the canonical hash —
+  // deterministic-touched entries, re-hash, and adopt only the canonical hash —
   // state.files stays the canonical own source/graph map (cross-node paths must
   // NOT enter it; see the touched-files loop above). Skip on no-change/refused:
   // those do not write a fresh baseline.
   if (
     result.pendingDriftState &&
     (result.action === 'initial' || result.action === 'approved') &&
-    result.pendingDriftState.state.structureTouchedFiles &&
-    Object.keys(result.pendingDriftState.state.structureTouchedFiles).length > 0
+    result.pendingDriftState.state.deterministicTouchedFiles &&
+    Object.keys(result.pendingDriftState.state.deterministicTouchedFiles).length > 0
   ) {
     const recomputeTracked = collectTrackedFiles(node, graph, result.pendingDriftState.state);
     const recomputeExclusions = getChildMappingExclusions(graph, node.path);
@@ -571,7 +571,7 @@ export async function runApproveWithReviewer(
   }
 
   // AST/structure short-circuit refusal. Refuse early (skipping LLM dispatch)
-  // ONLY when something here MUST block: an infrastructure crash (astRuntime)
+  // ONLY when something here MUST block: an infrastructure crash (checkRuntime)
   // or a code violation of an ENFORCED aspect. If every violation so far is a
   // code violation of an advisory-only aspect, do NOT short-circuit — let the
   // LLM aspects run and let the final status-aware decision below surface the

@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { annotateUpstreamChange } from '../../../src/core/approve.js';
 
 describe('annotateUpstreamChange', () => {
-  it('annotates structure-touched as "structure aspect tracked file"', () => {
-    expect(annotateUpstreamChange('src/foo.ts', 'structure-touched')).toBe('structure aspect tracked file');
+  it('annotates deterministic-touched as "structure aspect tracked file"', () => {
+    expect(annotateUpstreamChange('src/foo.ts', 'deterministic-touched')).toBe('structure aspect tracked file');
   });
 
   it('annotates aspects layer as "aspect content"', () => {

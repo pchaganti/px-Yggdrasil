@@ -735,7 +735,7 @@ describe('runApproveWithReviewer — AST aspects', () => {
 describe('runApproveWithReviewer — AST error paths', () => {
   const AST_ASPECT_YAML = 'name: NoConsole\ndescription: No console.log\nreviewer:\n  type: deterministic\nlanguage:\n  - typescript\n';
 
-  it('refuses with astRuntime error when check.mjs throws', async () => {
+  it('refuses with checkRuntime error when check.mjs throws', async () => {
     const { tmpDir } = await createTmpProject('ast-throw', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - no-console\nmapping:\n  - src/svc/\n',
@@ -760,7 +760,7 @@ describe('runApproveWithReviewer — AST error paths', () => {
       secretsByProvider: new Map(),
     });
     expect(result.action).toBe('refused');
-    expect(result.aspectViolations?.[0].errorSource).toBe('astRuntime');
+    expect(result.aspectViolations?.[0].errorSource).toBe('checkRuntime');
     await rm(tmpDir, { recursive: true, force: true });
   });
 });

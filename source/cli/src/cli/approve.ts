@@ -7,7 +7,7 @@ import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { approveNode, resolveAspects, loadSourceFiles } from '../core/approve.js';
 import { runApproveWithReviewer, type LlmApproveResult } from '../core/approve-reviewer.js';
 export type { LlmApproveResult };
-import { collectTrackedFiles, tierIdentityKey, structureTouchedKey, yggPrefixOf } from '../core/graph/files.js';
+import { collectTrackedFiles, tierIdentityKey, deterministicTouchedKey, yggPrefixOf } from '../core/graph/files.js';
 import { collectParticipatingFlows } from '../core/graph/flows.js';
 import { hashTrackedFiles } from '../io/hash.js';
 import { classifyDrift } from '../core/check.js';
@@ -265,7 +265,7 @@ export function filterFlowCascadeNodes(
  * the per-aspect drift identities are synthetic keys (see collectTrackedFiles).
  * A plain `aspects/<id>/` prefix filter misses all of those, so a node that
  * drifted only because the aspect's reference file (or the tier-identity / the
- * structure-touched set) changed would be silently skipped. Match the prefix OR
+ * deterministic-touched set) changed would be silently skipped. Match the prefix OR
  * any of those.
  */
 /**
@@ -277,7 +277,7 @@ export function filterFlowCascadeNodes(
  * below (filterAspectCascadeNodes, selectDriftedAspects) match a cause path with
  * `file.startsWith(prefix) || keys.has(file)`.
  *
- * When given the node's `structureTouchedFiles` (the baseline's per-aspect map of
+ * When given the node's `deterministicTouchedFiles` (the baseline's per-aspect map of
  * actual cross-node paths a graph-aware deterministic aspect read), the keys also
  * include those raw paths for this aspect. A change to one of them then resolves to
  * the owning deterministic aspect instead of being un-attributable and forcing a
@@ -287,15 +287,15 @@ function aspectDependencyKeys(
   aspectId: string,
   yggPrefix: string,
   graph: Graph,
-  structureTouchedFiles?: Record<string, Record<string, string>>,
+  deterministicTouchedFiles?: Record<string, Record<string, string>>,
 ): { prefix: string; keys: Set<string> } {
   const aspect = graph.aspects.find(a => a.id === aspectId);
-  const touched = structureTouchedFiles?.[aspectId];
+  const touched = deterministicTouchedFiles?.[aspectId];
   return {
     prefix: `${yggPrefix}/aspects/${aspectId}/`,
     keys: new Set<string>([
       tierIdentityKey(aspectId),
-      structureTouchedKey(aspectId),
+      deterministicTouchedKey(aspectId),
       ...(aspect?.references ?? []).map(r => r.path.replace(/\\/g, '/')),
       ...(touched ? Object.keys(touched).map(p => p.replace(/\\/g, '/')) : []),
     ]),
@@ -350,7 +350,7 @@ export function selectDriftedAspects(
     const owners: string[] = [];
     for (const id of effective) {
       if (statuses.get(id) === 'draft') continue;
-      const { prefix, keys } = aspectDependencyKeys(id, yggPrefix, graph, storedEntry.structureTouchedFiles);
+      const { prefix, keys } = aspectDependencyKeys(id, yggPrefix, graph, storedEntry.deterministicTouchedFiles);
       if (file.startsWith(prefix) || keys.has(file)) owners.push(id);
     }
     if (owners.length === 0) return undefined; // un-attributable upstream → node-global

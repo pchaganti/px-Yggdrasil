@@ -12,7 +12,7 @@ import { buildLayerResolver } from '../../../../src/core/graph/files.js';
 describe('buildLayerResolver', () => {
   const tf = (path: string, layer: TrackedFile['layer']): TrackedFile => ({
     path,
-    category: layer === 'source' || layer === 'structure-touched' ? 'source' : 'graph',
+    category: layer === 'source' || layer === 'deterministic-touched' ? 'source' : 'graph',
     layer,
   });
 
@@ -37,9 +37,9 @@ describe('buildLayerResolver', () => {
   it('prefers an exact match over a directory prefix match', () => {
     const resolve = buildLayerResolver([
       tf('src/svc', 'source'),
-      tf('src/svc/index.ts', 'structure-touched'),
+      tf('src/svc/index.ts', 'deterministic-touched'),
     ]);
-    expect(resolve('src/svc/index.ts')).toBe('structure-touched');
+    expect(resolve('src/svc/index.ts')).toBe('deterministic-touched');
   });
 
   it('returns undefined for a path that is neither tracked nor under a tracked directory', () => {

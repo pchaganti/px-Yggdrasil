@@ -629,7 +629,7 @@ describe('collectStructureCascade', () => {
     expect(result).toEqual([]);
   });
 
-  it('precise: reports a node whose baseline records the file under structureTouchedFiles', async () => {
+  it('precise: reports a node whose baseline records the file under deterministicTouchedFiles', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'impact-structure-cascade-'));
     try {
       const yggRoot = join(dir, '.yggdrasil');
@@ -653,11 +653,11 @@ describe('collectStructureCascade', () => {
       );
 
       // Baseline records that the neighbour's structure aspect read the owner's
-      // file cross-node — collectTrackedFiles emits it under 'structure-touched'.
+      // file cross-node — collectTrackedFiles emits it under 'deterministic-touched'.
       await writeNodeDriftState(yggRoot, 'neighbour', {
         hash: 'h',
         files: {},
-        structureTouchedFiles: {
+        deterministicTouchedFiles: {
           shape: { 'src/owner.ts': 'sha-of-owner' },
         },
       });

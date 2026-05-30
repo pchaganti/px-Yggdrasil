@@ -204,7 +204,7 @@ describe('buildAspectVerdicts', () => {
     expect(verdicts['A']).toEqual({ verdict: 'approved' });
   });
 
-  it('infra error (errorSource: astRuntime) — aspect is skipped, no refused verdict recorded', () => {
+  it('infra error (errorSource: checkRuntime) — aspect is skipped, no refused verdict recorded', () => {
     // A runner crash is not a code violation. buildAspectVerdicts must skip
     // it so the prior baseline verdict (if any) is carried forward.
     const graph = buildTestGraph({
@@ -217,7 +217,7 @@ describe('buildAspectVerdicts', () => {
     const node = graph.nodes.get('n')!;
     const results: Record<string, AspectVerificationResult> = {
       A: { satisfied: false, reason: 'real violation', errorSource: 'codeViolation' },
-      B: { satisfied: false, reason: 'runner crash', errorSource: 'astRuntime' },
+      B: { satisfied: false, reason: 'runner crash', errorSource: 'checkRuntime' },
     };
     const { verdicts } = buildAspectVerdicts(node, graph, results);
     // B had a runner-crash infra failure — must NOT appear as refused

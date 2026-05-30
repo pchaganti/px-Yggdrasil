@@ -6,7 +6,7 @@ describe('AspectResponse errorSource — filter semantics', () => {
     const responses: AspectResponse[] = [
       { aspectId: 'a', satisfied: false, reason: 'real bug', errorSource: 'codeViolation' },
       { aspectId: 'b', satisfied: false, reason: 'API key invalid', errorSource: 'provider' },
-      { aspectId: 'c', satisfied: false, reason: 'check threw', errorSource: 'astRuntime' },
+      { aspectId: 'c', satisfied: false, reason: 'check threw', errorSource: 'checkRuntime' },
     ];
     const codeOnly = responses.filter(r => r.errorSource === 'codeViolation');
     const infra = responses.filter(r => r.errorSource !== 'codeViolation');

@@ -2,7 +2,7 @@
  * posix-paths-output for structure-runner touched files.
  *
  * Paths returned by `runStructureAspect` as `touchedFiles` are stored as keys
- * in the pending drift state (`state.files` and `state.structureTouchedFiles`).
+ * in the pending drift state (`state.files` and `state.deterministicTouchedFiles`).
  * Every path written at this output boundary must use forward-slash separators
  * — on Windows the structure runner could surface backslash paths. This test
  * mocks the structure runner to return a backslash path and asserts the stored
@@ -112,7 +112,7 @@ describe('runApproveWithReviewer — structure touched-file paths normalized to 
     });
 
     expect(result.action).toBe('approved');
-    const stf = result.pendingDriftState?.state.structureTouchedFiles?.['shape-check'] ?? {};
+    const stf = result.pendingDriftState?.state.deterministicTouchedFiles?.['shape-check'] ?? {};
     const keys = Object.keys(stf);
     // The key is normalized to POSIX; no backslash survives into the baseline.
     expect(keys).toContain('src/svc.ts');

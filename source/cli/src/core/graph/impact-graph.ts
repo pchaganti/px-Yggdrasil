@@ -162,11 +162,11 @@ export function collectIndirectDependents(
 /**
  * Find nodes whose effective structure aspect reads `repoRelative` CROSS-NODE.
  * Unified through collectTrackedFiles (precise) and collectAllowedReadsForAspect
- * (cold-start) so it cannot diverge from `yg check`'s structure-touched drift.
+ * (cold-start) so it cannot diverge from `yg check`'s deterministic-touched drift.
  *   - precise (post-approve): the node's baseline records the file in
- *     structureTouchedFiles, so collectTrackedFiles(node, graph, baseline) emits
- *     it under the 'structure-touched' layer.
- *   - potential (cold-start, no structureTouchedFiles baseline yet): the file is
+ *     deterministicTouchedFiles, so collectTrackedFiles(node, graph, baseline) emits
+ *     it under the 'deterministic-touched' layer.
+ *   - potential (cold-start, no deterministicTouchedFiles baseline yet): the file is
  *     in the node's allowed-reads set for its structure aspect — editing it MAY
  *     cascade once the node is approved.
  * The structural owner (if any) is excluded — it is handled separately.
@@ -182,12 +182,12 @@ export async function collectStructureCascade(
 
     const baseline = await readNodeDriftState(graph.rootPath, nodePath);
     const hasStfBaseline =
-      !!baseline?.structureTouchedFiles &&
-      Object.keys(baseline.structureTouchedFiles).length > 0;
+      !!baseline?.deterministicTouchedFiles &&
+      Object.keys(baseline.deterministicTouchedFiles).length > 0;
 
     if (hasStfBaseline) {
       const tracked = collectTrackedFiles(node, graph, baseline);
-      const reads = tracked.some(t => t.layer === 'structure-touched' && t.path === repoRelative);
+      const reads = tracked.some(t => t.layer === 'deterministic-touched' && t.path === repoRelative);
       if (reads) out.push({ nodePath, mode: 'precise' });
       continue;
     }
