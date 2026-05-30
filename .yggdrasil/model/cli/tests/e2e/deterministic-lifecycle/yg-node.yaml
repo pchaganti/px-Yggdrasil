@@ -1,0 +1,8 @@
+name: E2E Tests — Deterministic Lifecycle
+type: test-suite
+description: Subprocess-based end-to-end tests that spawn the compiled dist/bin.js against a fixture repo and assert the full approve/drift/cascade lifecycle with deterministic aspects — fresh approve, source-drift refusal, re-approve, advisory vs draft vs enforced status, yg-suppress waivers, aspect-cascade batch approval, the command guards (mutual-exclusion, --dry-run with --aspect, node-not-found, tree --depth validation), and the reviewer-unreachable fallback. The companion *.external.test.ts (run via npm run test:external, excluded from CI) proves the LLM reviewer path functions end-to-end against a real Ollama endpoint.
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-deterministic-lifecycle.test.ts
+  - source/cli/tests/e2e/cli-ollama-reviewer.external.test.ts
