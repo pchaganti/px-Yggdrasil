@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import { Command, InvalidArgumentError } from 'commander';
 import chalk from 'chalk';
 import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
 import { initDebugLog } from '../utils/debug-log.js';
@@ -11,7 +11,13 @@ export function registerTreeCommand(program: Command): void {
     .command('tree')
     .description('Display graph structure as a flat list')
     .option('--root <path>', 'Show only subtree rooted at this path')
-    .option('--depth <n>', 'Maximum depth', (v) => parseInt(v, 10))
+    .option('--depth <n>', 'Maximum depth', (v) => {
+      const n = parseInt(v, 10);
+      if (Number.isNaN(n) || n < 0) {
+        throw new InvalidArgumentError('--depth must be a non-negative integer.');
+      }
+      return n;
+    })
     .action(async (options: { root?: string; depth?: number }) => {
       try {
         const graph = await loadGraphOrAbort(process.cwd());

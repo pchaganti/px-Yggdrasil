@@ -463,6 +463,36 @@ describe('resolveAspects', () => {
   });
 });
 
+describe('approveNode — corrupted baseline (missing files map)', () => {
+  it('does not crash when the stored baseline has no files field (cold-start)', async () => {
+    const { tmpDir, yggRoot } = await createTmpProject('missing-files-baseline', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - testing\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
+      aspects: [TEST_ASPECT],
+    });
+    // A fresh log entry so the mandatory log gate does not interfere.
+    await writeFile(
+      path.join(yggRoot, 'model', 'svc', 'my-service', 'log.md'),
+      '## [2026-05-11T10:00:00.000Z]\nChange rationale.\n',
+    );
+    // Hand-edited / corrupted baseline that dropped its `files` map. The store
+    // does no runtime shape validation, so this reads back with files=undefined.
+    await writeNodeDriftState(yggRoot, 'svc/my-service', {
+      hash: 'some-stale-hash',
+    } as unknown as Parameters<typeof writeNodeDriftState>[2]);
+
+    const graph = await loadGraph(tmpDir);
+    // Must treat all current files as new/changed and proceed — never throw
+    // "Cannot convert undefined or null to object".
+    const result = await approveNode(graph, 'svc/my-service');
+    expect(result.action).toBe('approved');
+    expect(result.changedSource).toBeDefined();
+    expect(result.changedSource).toContain('src/svc/index.ts');
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+});
+
 describe('approveNode — zero effective aspects drift cleanup', () => {
   it('deletes stale drift state file when node has no effective aspects', async () => {
     const { tmpDir, yggRoot } = await createTmpProject('zero-effective-cleanup', {

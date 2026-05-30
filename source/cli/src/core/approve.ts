@@ -227,6 +227,11 @@ export async function approveNode(
   // read by a deterministic aspect) participates in drift detection here too.
   const trackedFiles = collectTrackedFiles(node, graph, storedEntry);
   const excludePrefixes = getChildMappingExclusions(graph, nodePath);
+  // A corrupted/hand-edited baseline may drop `files` entirely (the store does
+  // no runtime shape validation). Treat a missing map as "no previously-tracked
+  // files" so every current file reads as new/changed (correct cold-start),
+  // rather than crashing on undefined access below.
+  const storedFiles = storedEntry.files ?? {};
   const storedFileData = storedEntry.files
     ? { hashes: storedEntry.files, mtimes: storedEntry.mtimes ?? {} }
     : undefined;
@@ -249,13 +254,13 @@ export async function approveNode(
 
   // Check current vs stored
   for (const [filePath, hash] of Object.entries(fileHashes)) {
-    const storedHash = storedEntry.files[filePath];
+    const storedHash = storedFiles[filePath];
     if (storedHash && storedHash === hash) continue;
     classifyChangedFile(filePath);
   }
 
   // Check deleted files
-  for (const storedPath of Object.keys(storedEntry.files)) {
+  for (const storedPath of Object.keys(storedFiles)) {
     if (storedPath in fileHashes) continue;
     classifyChangedFile(storedPath);
   }
@@ -404,10 +409,14 @@ async function sourceFilesChanged(
   if (sourceTracked.length === 0) return [];
 
   const excludePrefixes = getChildMappingExclusions(graph, node.path);
+  // A corrupted/hand-edited baseline may drop `files` entirely; treat a missing
+  // map as "no previously-tracked files" to match the cold-start guard used in
+  // the main approve body, rather than crashing on undefined access below.
+  const storedFiles = storedEntry?.files ?? {};
   const { fileHashes } = await hashTrackedFiles(
     projectRoot,
     sourceTracked,
-    storedEntry ? { hashes: storedEntry.files, mtimes: storedEntry.mtimes ?? {} } : undefined,
+    storedEntry ? { hashes: storedFiles, mtimes: storedEntry.mtimes ?? {} } : undefined,
     excludePrefixes,
   );
 
@@ -421,9 +430,9 @@ async function sourceFilesChanged(
 
   const changed: string[] = [];
   for (const [filePath, hash] of Object.entries(fileHashes)) {
-    if (storedEntry.files[filePath] !== hash) changed.push(norm(filePath));
+    if (storedFiles[filePath] !== hash) changed.push(norm(filePath));
   }
-  for (const storedPath of Object.keys(storedEntry.files)) {
+  for (const storedPath of Object.keys(storedFiles)) {
     // Only consider source-layer stored paths we are tracking now; a deleted
     // tracked source file also counts as a change.
     if (!(storedPath in fileHashes) && sourceTracked.some((tf) => {

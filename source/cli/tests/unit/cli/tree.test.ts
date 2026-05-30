@@ -17,4 +17,24 @@ describe('tree command', () => {
     expect(options).toContain('--root');
     expect(options).toContain('--depth');
   });
+
+  it('rejects a non-numeric --depth value', async () => {
+    const program = new Command();
+    program.exitOverride();
+    program.configureOutput({ writeErr: () => {} });
+    registerTreeCommand(program);
+    await expect(
+      program.parseAsync(['tree', '--depth', 'abc'], { from: 'user' }),
+    ).rejects.toThrow(/--depth must be a non-negative integer/);
+  });
+
+  it('rejects a negative --depth value', async () => {
+    const program = new Command();
+    program.exitOverride();
+    program.configureOutput({ writeErr: () => {} });
+    registerTreeCommand(program);
+    await expect(
+      program.parseAsync(['tree', '--depth', '-1'], { from: 'user' }),
+    ).rejects.toThrow(/--depth must be a non-negative integer/);
+  });
 });
