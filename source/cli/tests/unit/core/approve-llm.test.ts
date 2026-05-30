@@ -11,6 +11,7 @@ import { hashTrackedFiles } from '../../../src/io/hash.js';
 import { collectTrackedFiles } from '../../../src/core/graph/files.js';
 import type { LlmProvider } from '../../../src/llm/types.js';
 import type { AspectDef, ReviewerConfig } from '../../../src/model/graph.js';
+import type { DriftNodeState } from '../../../src/model/drift.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -792,6 +793,341 @@ describe('runApproveWithReviewer — reReviewAspectIds (Option 1)', () => {
     const committed = result.pendingDriftState?.state.aspectVerdicts;
     expect(committed?.['llm']).toEqual({ verdict: 'approved' });
     expect(committed?.['det']).toEqual({ verdict: 'approved' });
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+});
+
+// ── Option 1: end-to-end correctness invariants ──────────────
+//
+// These lock the composed behavior the unit tests (selectDriftedAspects,
+// reReviewAspectIds dispatch) prove in isolation: a subset re-run must not
+// weaken refusal (I4), a genuinely-changed aspect is never silently carried
+// forward (I1), drafts are never dispatched (I3), the Phase-4 migration shape
+// (an aspect yaml content change) re-runs only that aspect locally at zero LLM
+// cost (cost win), and a genuine no-change run dispatches nothing while leaving
+// the prior structureTouchedFiles byte-identical.
+
+describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
+  // Node: structure aspect `det` + llm aspect `llm`. The llm aspect is wired so
+  // we can make it refuse on demand by swapping the mock provider verdict.
+  async function setupDetLlm(name: string, opts: { detRefuses?: boolean } = {}) {
+    const detCheck = opts.detRefuses
+      ? `export function check(ctx) {
+  const first = ctx.files[0];
+  return [{ file: first ? first.path : 'x', line: 1, message: 'structural violation' }];
+}\n`
+      : 'export function check(_ctx) { return []; }\n';
+    const { tmpDir } = await createTmpProject(name, {
+      nodePath: 'svc/my-service',
+      nodeYaml:
+        'name: MyService\ntype: service\ndescription: test\naspects:\n  - det\n  - llm\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [
+        {
+          id: 'det',
+          yaml: 'name: Det\ndescription: structural shape\nreviewer:\n  type: structure\n',
+          files: { 'check.mjs': detCheck },
+        },
+        {
+          id: 'llm',
+          yaml: 'name: Llm\ndescription: must be deterministic\nreviewer:\n  type: llm\n',
+          files: { 'content.md': 'Code must be deterministic.\n' },
+        },
+      ],
+    });
+    return tmpDir;
+  }
+
+  async function recordVerdicts(
+    tmpDir: string,
+    aspectVerdicts: Record<string, { verdict: 'approved' | 'refused' }>,
+    structureTouchedFiles?: Record<string, Record<string, string>>,
+  ): Promise<void> {
+    const graph = await loadGraph(tmpDir);
+    const node = graph.nodes.get('svc/my-service')!;
+    const projectRoot = path.dirname(graph.rootPath);
+    // When structureTouchedFiles is part of the baseline, fold it into the
+    // tracked-file set so the recorded canonical hash and fileHashes include the
+    // synthetic `structure-touched:<id>` key — exactly as a real prior approve
+    // would have recorded it. Otherwise approveNode (which collects WITH the
+    // baseline) would see a fresh synthetic key and mis-classify a genuine
+    // no-change as upstream drift.
+    const baselineForCollect = structureTouchedFiles
+      ? ({ hash: '', files: {}, structureTouchedFiles } as DriftNodeState)
+      : undefined;
+    const trackedFiles = collectTrackedFiles(node, graph, baselineForCollect);
+    const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
+      projectRoot, trackedFiles, undefined, [],
+    );
+    // Capture the production-computed log baseline by running approveNode once
+    // against this fresh project (no baseline yet → 'initial' with a populated
+    // pendingDriftState.state.log). Recording it here makes logChanged false on
+    // the subsequent no-change approve, so approveNode takes the branch that
+    // clones the full prior baseline (including structureTouchedFiles) rather
+    // than the log-update branch that drops it.
+    const initial = await approveNode(graph, 'svc/my-service');
+    const log = initial.pendingDriftState?.state.log;
+    await writeNodeDriftState(graph.rootPath, 'svc/my-service', {
+      hash: canonicalHash,
+      files: fileHashes,
+      mtimes: fileMtimes,
+      ...(log ? { log } : {}),
+      aspectVerdicts,
+      ...(structureTouchedFiles ? { structureTouchedFiles } : {}),
+    });
+  }
+
+  // ── I4 — enforced refusal still blocks under a subset ──────
+  it('I4: reReviewAspectIds={det} where det produces an ENFORCED code violation → refused, baseline NOT persisted', async () => {
+    // `det` (a structure aspect; default status enforced) is wired to always
+    // return a violation. We restrict dispatch to {det} only. The subset path
+    // must still refuse — it must not weaken refusal.
+    const tmpDir = await setupDetLlm('e2e-i4-refuse', { detRefuses: true });
+    await recordVerdicts(tmpDir, { det: { verdict: 'approved' }, llm: { verdict: 'approved' } });
+    // Upstream-only change so approveNode produces a pendingDriftState w/o source edit.
+    await writeFile(
+      path.join(tmpDir, '.yggdrasil/aspects/det/yg-aspect.yaml'),
+      'name: Det\ndescription: structural shape (tweaked)\nreviewer:\n  type: structure\n',
+    );
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    expect(coreResult.changedSource).toBeUndefined();
+
+    let verifyCallCount = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { verifyCallCount++; return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }; },
+    }));
+
+    const storedBefore = await readNodeDriftState(graph.rootPath, 'svc/my-service');
+    const result = await runApproveWithReviewer({
+      graph,
+      nodePath: 'svc/my-service',
+      result: coreResult,
+      rootPath: graph.rootPath,
+      secretsByProvider: new Map(),
+      storedEntry: storedBefore,
+      reReviewAspectIds: new Set(['det']),
+    });
+
+    // The subset path must NOT weaken refusal: an enforced structure violation refuses.
+    expect(result.action).toBe('refused');
+    expect(result.aspectViolations!.map(v => v.aspectId)).toContain('det');
+    // The llm provider was never dispatched (only det in the subset).
+    expect(verifyCallCount).toBe(0);
+    expect(mockCreateLlmProvider).not.toHaveBeenCalled();
+    // A refused node is an early return — no fresh baseline is committed; the
+    // persisted verdicts on disk are unchanged from before the run.
+    const storedAfter = await readNodeDriftState(graph.rootPath, 'svc/my-service');
+    expect(storedAfter?.aspectVerdicts).toEqual({
+      det: { verdict: 'approved' },
+      llm: { verdict: 'approved' },
+    });
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  // ── I1 — a changed LLM aspect IS re-run (never silently carried forward) ──
+  it('I1: an aspects/llm/ upstream change re-runs the llm aspect (provider called once), det carried forward', async () => {
+    const tmpDir = await setupDetLlm('e2e-i1-llm-changed');
+    await recordVerdicts(tmpDir, { det: { verdict: 'approved' }, llm: { verdict: 'approved' } });
+    // Upstream-only change under .yggdrasil/aspects/llm/ — must attribute to `llm`.
+    await writeFile(
+      path.join(tmpDir, '.yggdrasil/aspects/llm/content.md'),
+      'Code must be deterministic. (clarified)\n',
+    );
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    expect(coreResult.changedSource).toBeUndefined();
+
+    let verifyCallCount = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { verifyCallCount++; return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }; },
+    }));
+
+    // Drive through runLlmVerification so selectDriftedAspects runs for real and
+    // computes reReviewAspectIds={llm} internally from result.changedUpstream.
+    const result = await runLlmVerification(graph, 'svc/my-service', coreResult, new Map());
+
+    expect(result.action).toBe('approved');
+    // The genuinely-changed llm aspect IS dispatched — never silently carried forward.
+    expect(verifyCallCount).toBe(1);
+    expect(result.aspectResults?.['llm']?.satisfied).toBe(true);
+    // The structure aspect `det` was NOT re-evaluated this run (carried forward).
+    expect(result.aspectResults?.['det']).toBeUndefined();
+    const committed = result.pendingDriftState?.state.aspectVerdicts;
+    expect(committed?.['det']).toEqual({ verdict: 'approved' });
+    expect(committed?.['llm']).toEqual({ verdict: 'approved' });
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  // ── I3 — draft aspect never dispatched, prior verdict preserved ──
+  it('I3: a draft aspect is never dispatched and its prior verdict is left untouched', async () => {
+    const { tmpDir } = await createTmpProject('e2e-i3-draft', {
+      nodePath: 'svc/my-service',
+      nodeYaml:
+        'name: MyService\ntype: service\ndescription: test\naspects:\n  - det\n  - llm\n  - drafty\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
+      aspects: [
+        {
+          id: 'det',
+          yaml: 'name: Det\ndescription: structural shape\nreviewer:\n  type: structure\n',
+          files: { 'check.mjs': 'export function check(_ctx) { return []; }\n' },
+        },
+        {
+          id: 'llm',
+          yaml: 'name: Llm\ndescription: must be deterministic\nreviewer:\n  type: llm\n',
+          files: { 'content.md': 'Code must be deterministic.\n' },
+        },
+        {
+          id: 'drafty',
+          yaml: 'name: Drafty\ndescription: work in progress\nreviewer:\n  type: llm\nstatus: draft\n',
+          files: { 'content.md': 'Some draft rule.\n' },
+        },
+      ],
+    });
+    // Prior baseline carries a verdict for the (now-draft) aspect too — it must
+    // be left untouched, then evicted by the draft cleanup (not by a reviewer).
+    const graph0 = await loadGraph(tmpDir);
+    const node0 = graph0.nodes.get('svc/my-service')!;
+    const trackedFiles0 = collectTrackedFiles(node0, graph0);
+    const projectRoot0 = path.dirname(graph0.rootPath);
+    const h0 = await hashTrackedFiles(projectRoot0, trackedFiles0, undefined, []);
+    await writeNodeDriftState(graph0.rootPath, 'svc/my-service', {
+      hash: h0.canonicalHash,
+      files: h0.fileHashes,
+      mtimes: h0.fileMtimes,
+      aspectVerdicts: {
+        det: { verdict: 'approved' },
+        llm: { verdict: 'approved' },
+        drafty: { verdict: 'approved' },
+      },
+    });
+    // Upstream-only change under aspects/det/ so the subset is {det}.
+    await writeFile(
+      path.join(tmpDir, '.yggdrasil/aspects/det/check.mjs'),
+      'export function check(_ctx) { return []; /* tweaked */ }\n',
+    );
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    expect(coreResult.changedSource).toBeUndefined();
+
+    let verifyCallCount = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { verifyCallCount++; return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }; },
+    }));
+
+    const storedEntry = await readNodeDriftState(graph.rootPath, 'svc/my-service');
+    const result = await runApproveWithReviewer({
+      graph,
+      nodePath: 'svc/my-service',
+      result: coreResult,
+      rootPath: graph.rootPath,
+      secretsByProvider: new Map(),
+      storedEntry,
+      reReviewAspectIds: new Set(['det']),
+    });
+
+    expect(result.action).toBe('approved');
+    // The draft aspect was never dispatched to any reviewer.
+    expect(result.aspectResults?.['drafty']).toBeUndefined();
+    // The non-draft llm aspect was carried forward (subset = {det}), so the
+    // provider was never called either.
+    expect(verifyCallCount).toBe(0);
+    expect(mockCreateLlmProvider).not.toHaveBeenCalled();
+    // The draft aspect was skipped — listed in skippedDraftAspects.
+    expect(result.skippedDraftAspects).toContain('drafty');
+    // The committed verdicts retain det+llm; the draft's stale verdict is evicted
+    // by the draft-cleanup pass (no reviewer ever produced/changed it).
+    const committed = result.pendingDriftState?.state.aspectVerdicts;
+    expect(committed?.['det']).toEqual({ verdict: 'approved' });
+    expect(committed?.['llm']).toEqual({ verdict: 'approved' });
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  // ── Migration-shape payoff — the cost win ──────────────────
+  it('migration shape: an aspects/det/yg-aspect.yaml content change re-runs det locally, llm NOT called', async () => {
+    const tmpDir = await setupDetLlm('e2e-migration-win');
+    await recordVerdicts(tmpDir, { det: { verdict: 'approved' }, llm: { verdict: 'approved' } });
+    // Phase-4 migration shape: a change to the aspect's yg-aspect.yaml content.
+    await writeFile(
+      path.join(tmpDir, '.yggdrasil/aspects/det/yg-aspect.yaml'),
+      'name: Det\ndescription: structural shape (migrated)\nreviewer:\n  type: structure\n',
+    );
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    // Confirm the migration shape: upstream-only, attributable to aspects/det/.
+    expect(coreResult.changedSource).toBeUndefined();
+    expect(coreResult.changedUpstream?.map(c => c.filePath)).toContain(
+      '.yggdrasil/aspects/det/yg-aspect.yaml',
+    );
+
+    let verifyCallCount = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { verifyCallCount++; return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }; },
+    }));
+
+    // Drive through runLlmVerification so selectDriftedAspects runs end-to-end.
+    const result = await runLlmVerification(graph, 'svc/my-service', coreResult, new Map());
+
+    expect(result.action).toBe('approved');
+    // The concrete cost win: only `det` re-runs locally, the llm provider is
+    // never constructed/called — ZERO LLM calls for an aspect-yaml migration.
+    expect(verifyCallCount).toBe(0);
+    expect(mockCreateLlmProvider).not.toHaveBeenCalled();
+    expect(result.aspectResults?.['det']?.satisfied).toBe(true);
+    const committed = result.pendingDriftState?.state.aspectVerdicts;
+    expect(committed?.['det']).toEqual({ verdict: 'approved' });
+    expect(committed?.['llm']).toEqual({ verdict: 'approved' });
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  // ── no-change → zero reviewer calls AND structureTouchedFiles preserved ──
+  it('no-change: zero reviewer calls and structureTouchedFiles preserved byte-identical', async () => {
+    const PRIOR_STF = { det: { 'src/svc/index.ts': 'deadbeef'.repeat(8) } };
+    const tmpDir = await setupDetLlm('e2e-no-change-stf');
+    // Record a baseline WITH structureTouchedFiles and both verdicts approved.
+    await recordVerdicts(
+      tmpDir,
+      { det: { verdict: 'approved' }, llm: { verdict: 'approved' } },
+      PRIOR_STF,
+    );
+    // No source edit, no upstream edit → genuine no-change.
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    // Genuine no-change: neither source nor upstream drifted.
+    expect(coreResult.action).toBe('no-change');
+    expect(coreResult.changedSource).toBeUndefined();
+    expect(coreResult.changedUpstream).toBeUndefined();
+    // approveNode clones the prior baseline into pendingDriftState for no-change.
+    expect(coreResult.pendingDriftState?.state.structureTouchedFiles).toEqual(PRIOR_STF);
+
+    let verifyCallCount = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { verifyCallCount++; return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }; },
+    }));
+
+    // Drive through runLlmVerification so selectDriftedAspects returns ∅ for real
+    // (no changedSource, no changedUpstream) → no dispatch path.
+    const result = await runLlmVerification(graph, 'svc/my-service', coreResult, new Map());
+
+    // No aspect dispatched at all — neither the structure runner nor the provider.
+    expect(verifyCallCount).toBe(0);
+    expect(mockCreateLlmProvider).not.toHaveBeenCalled();
+    expect(result.aspectResults).toBeUndefined();
+    // The no-dispatch path must NOT wipe structureTouchedFiles — it is byte-identical.
+    expect(result.pendingDriftState?.state.structureTouchedFiles).toEqual(PRIOR_STF);
+    // And the committed verdicts equal the full prior baseline.
+    expect(result.pendingDriftState?.state.aspectVerdicts).toEqual({
+      det: { verdict: 'approved' },
+      llm: { verdict: 'approved' },
+    });
+    // The on-disk baseline retains the prior structureTouchedFiles too.
+    const stored = await readNodeDriftState(graph.rootPath, 'svc/my-service');
+    expect(stored?.structureTouchedFiles).toEqual(PRIOR_STF);
     await rm(tmpDir, { recursive: true, force: true });
   });
 });
