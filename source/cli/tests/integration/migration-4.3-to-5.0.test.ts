@@ -92,7 +92,7 @@ describe('migration 4.3 → 5.0', () => {
     const syncio = parseYaml(
       readFileSync(join(repo, '.yggdrasil', 'aspects', 'no-sync-io', 'yg-aspect.yaml'), 'utf-8'),
     ) as Record<string, unknown>;
-    expect((syncio.reviewer as Record<string, unknown>).type).toBe('ast');
+    expect((syncio.reviewer as Record<string, unknown>).type).toBe('deterministic');
   });
 
   it('preserves multiple providers as named tiers when active is set', async () => {
@@ -158,7 +158,7 @@ describe('migration 4.3 → 5.0', () => {
     expect(second.bumpVersion).toBe(true);
   });
 
-  it("transforms reviewer: 'ast' string to type: ast", async () => {
+  it("transforms legacy reviewer: 'ast' string to type: deterministic", async () => {
     makeLegacyRepo(repo, {
       aspects: { 'check-ast': 'name: CheckAST\ndescription: AST check\nreviewer: ast\n' },
     });
@@ -167,7 +167,7 @@ describe('migration 4.3 → 5.0', () => {
     const aspect = parseYaml(
       readFileSync(join(repo, '.yggdrasil', 'aspects', 'check-ast', 'yg-aspect.yaml'), 'utf-8'),
     ) as Record<string, unknown>;
-    expect((aspect.reviewer as Record<string, unknown>).type).toBe('ast');
+    expect((aspect.reviewer as Record<string, unknown>).type).toBe('deterministic');
   });
 
   it("WARNS for reviewer: 'claude-code' (unrecognized) — file unchanged", async () => {

@@ -225,7 +225,7 @@ describe('to-5.0.0 — realistic v4.3 → v5 content transformation (aspects)', 
     const logging = readYaml(join(ygg, 'aspects', 'requires-logging', 'yg-aspect.yaml'));
     expect(logging.reviewer).toEqual({ type: 'llm' });
     const ast = readYaml(join(ygg, 'aspects', 'no-sync-io', 'yg-aspect.yaml'));
-    expect(ast.reviewer).toEqual({ type: 'ast' });
+    expect(ast.reviewer).toEqual({ type: 'deterministic' });
     expect(ast.language).toEqual(['typescript']);
   });
 
@@ -332,7 +332,7 @@ describe('to-5.0.0 — realistic v4.3 → v5 content transformation (aspects)', 
     const inner = readYaml(join(ygg, 'aspects', 'group', 'inner', 'yg-aspect.yaml'));
     expect(inner.reviewer).toEqual({ type: 'llm' });
     const veryInner = readYaml(join(ygg, 'aspects', 'group', 'deep', 'very-inner', 'yg-aspect.yaml'));
-    expect(veryInner.reviewer).toEqual({ type: 'ast' });
+    expect(veryInner.reviewer).toEqual({ type: 'deterministic' });
   });
 });
 
@@ -441,7 +441,7 @@ describe('to-5.0.0 — combined realistic v4.3 fixture', () => {
 
     // Aspects.
     expect(readYaml(join(ygg, 'aspects', 'requires-audit', 'yg-aspect.yaml')).reviewer).toEqual({ type: 'llm' });
-    expect(readYaml(join(ygg, 'aspects', 'no-sync-io', 'yg-aspect.yaml')).reviewer).toEqual({ type: 'ast' });
+    expect(readYaml(join(ygg, 'aspects', 'no-sync-io', 'yg-aspect.yaml')).reviewer).toEqual({ type: 'deterministic' });
     expect(readYaml(join(ygg, 'aspects', 'observability', 'logging', 'yg-aspect.yaml')).reviewer).toEqual({ type: 'llm' });
 
     // Secrets untouched.

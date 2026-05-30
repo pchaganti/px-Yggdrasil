@@ -275,9 +275,9 @@ describe('transformAspectReviewer', () => {
     expect(result.value?.reviewer).toEqual({ type: 'llm' });
   });
 
-  it('maps "ast" string to { type: ast }', () => {
+  it('maps legacy "ast" string to { type: deterministic }', () => {
     const result = transformAspectReviewer({ name: 'X', reviewer: 'ast' });
-    expect(result.value?.reviewer).toEqual({ type: 'ast' });
+    expect(result.value?.reviewer).toEqual({ type: 'deterministic' });
   });
 
   it('WARNS and leaves file unchanged for unknown string', () => {
@@ -285,6 +285,8 @@ describe('transformAspectReviewer', () => {
     expect(result.value).toBeUndefined();
     expect(result.changed).toBe(false);
     expect(result.warnings[0]).toMatch(/unrecognized reviewer value/);
+    expect(result.warnings[0]).toMatch(/deterministic/);
+    expect(result.warnings[0]).not.toMatch(/'ast'/);
   });
 
   it('WARNS and leaves file unchanged when reviewer mapping has no type', () => {
@@ -344,7 +346,7 @@ describe('migrateTo50', () => {
     const llm = parseYaml(await readFile(path.join(ygg, 'aspects/my-rule/yg-aspect.yaml'), 'utf-8')) as { reviewer: { type: string } };
     const ast = parseYaml(await readFile(path.join(ygg, 'aspects/ast-rule/yg-aspect.yaml'), 'utf-8')) as { reviewer: { type: string } };
     expect(llm.reviewer).toEqual({ type: 'llm' });
-    expect(ast.reviewer).toEqual({ type: 'ast' });
+    expect(ast.reviewer).toEqual({ type: 'deterministic' });
   });
 
   it('migrates aspect with absent reviewer to { type: llm }', async () => {

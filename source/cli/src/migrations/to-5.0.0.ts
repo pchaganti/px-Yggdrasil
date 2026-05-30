@@ -13,6 +13,7 @@ import { addAspectStatusDefaults } from './aspect-status-defaults.js';
 const PROVIDER_SET = new Set<string>(KNOWN_PROVIDERS);
 const AST_STRING = 'ast';
 const LLM_STRING = 'llm';
+const DETERMINISTIC_STRING = 'deterministic';
 
 // ── pure transformations ───────────────────────────────────────
 
@@ -137,7 +138,9 @@ export interface AspectTransformResult {
 
 /**
  * Transform a legacy aspect reviewer field (absent | null | 'llm' | 'ast')
- * into a mapping form `{ type: 'llm' | 'ast' }`. Pure; no I/O.
+ * into a mapping form `{ type: 'llm' | 'deterministic' }`. Pure; no I/O.
+ * The legacy `'ast'` string maps to `{ type: 'deterministic' }` for the
+ * 5.0.0 two-value reviewer enum.
  *
  *   - Returns `undefined` when the input is already mapping-shape or
  *     when warnings prevent migration (caller must NOT write).
@@ -161,7 +164,7 @@ export function transformAspectReviewer(
   if (typeof reviewer === 'string') {
     if (reviewer === AST_STRING) {
       return {
-        value: { ...raw, reviewer: { type: AST_STRING } },
+        value: { ...raw, reviewer: { type: DETERMINISTIC_STRING } },
         warnings,
         changed: true,
       };
@@ -174,8 +177,8 @@ export function transformAspectReviewer(
       };
     }
     warnings.push(
-      `unrecognized reviewer value '${reviewer}' (expected 'llm' or 'ast'). ` +
-        'Set reviewer to `{ type: llm }` or `{ type: ast }` manually.',
+      `unrecognized reviewer value '${reviewer}' (expected 'llm' or 'deterministic'). ` +
+        'Set reviewer to `{ type: llm }` or `{ type: deterministic }` manually.',
     );
     return { value: undefined, warnings, changed: false };
   }
@@ -185,7 +188,7 @@ export function transformAspectReviewer(
     if (!('type' in obj)) {
       warnings.push(
         'reviewer mapping has no `type:` key. ' +
-          'Set `reviewer.type` to `llm` or `ast` manually.',
+          'Set `reviewer.type` to `llm` or `deterministic` manually.',
       );
       return { value: undefined, warnings, changed: false };
     }
@@ -194,7 +197,7 @@ export function transformAspectReviewer(
 
   warnings.push(
     `reviewer has an unexpected value (type: ${typeof reviewer}). ` +
-      'Set reviewer to `{ type: llm }` or `{ type: ast }` manually.',
+      'Set reviewer to `{ type: llm }` or `{ type: deterministic }` manually.',
   );
   return { value: undefined, warnings, changed: false };
 }
