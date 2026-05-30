@@ -1,0 +1,2 @@
+## [2026-05-30T15:59:39.688Z]
+The per-aspect re-verification tests were moved into their own test component, separate from the broader reviewer-dispatch tests they grew alongside. The motivation is the reviewer context-size budget: a test component whose combined mapped source exceeds the reviewer's window risks the prompt being truncated and unchanged code near the cut being rejected, so a component that grew past the budget is split so each half is reviewable in full. No test behaviour changed — the cases were moved verbatim.

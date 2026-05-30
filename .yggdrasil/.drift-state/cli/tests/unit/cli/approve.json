@@ -1,5 +1,5 @@
 {
-  "hash": "fe6a3f42235cdcf56cd518712e8d5fe0ea9bb052ef0e840e734726471466884c",
+  "hash": "a42e50e3885ce05dda9ee1840609e1c7e19dbf28ed1e6669af19a2e640d3965b",
   "files": {
     "own-subset:cli/tests/unit/cli/approve": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -12,9 +12,10 @@
     "source/cli/tests/unit/cli/approve.test.ts": "52f3fe1ed40b8e9012e86deb9e83d5b50889e48aefe585071c2069b1adca168f",
     "source/cli/tests/unit/cli/approve-batch.test.ts": "c59619ad846ed53db20f63cf8c5f1e55d720963e056cff106a758331e4f514a3",
     "source/cli/tests/unit/cli/approve-batch-integration.test.ts": "6498d29cac4d13780df2deba6bbde5fd51a73e9f795f6ea51f42cc169ccd27dd",
-    "source/cli/tests/unit/cli/run-batch.test.ts": "15dcfa3052af8f7adef71fbc1ce9865f6640d745ca0300a56d519aa921c32887",
     "source/cli/tests/unit/cli/approve-aspect-cascade.test.ts": "441274cc08898037acbce0bb81abea87f658904334131a722ef4981e8f1bf26c",
-    "source/cli/tests/unit/cli/approve-flow-cascade.test.ts": "d50617acf37f5956941405edaca68f907c4d2c698b1db9b82d52d4f5e52b73c7"
+    "source/cli/tests/unit/cli/approve-flow-cascade.test.ts": "d50617acf37f5956941405edaca68f907c4d2c698b1db9b82d52d4f5e52b73c7",
+    "source/cli/tests/unit/cli/run-batch.test.ts": "15dcfa3052af8f7adef71fbc1ce9865f6640d745ca0300a56d519aa921c32887",
+    "source/cli/tests/unit/cli/approve-select-drifted-aspects.test.ts": "722eb8aa2426476b36015d6a71bae5f570ea7209c1824ec4f449218762dad148"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -28,11 +29,12 @@
     "source/cli/tests/unit/cli/approve-batch-integration.test.ts": 1779869468774.8708,
     "source/cli/tests/unit/cli/approve-aspect-cascade.test.ts": 1780133819578.648,
     "source/cli/tests/unit/cli/approve-flow-cascade.test.ts": 1780133272222.319,
+    "source/cli/tests/unit/cli/approve-select-drifted-aspects.test.ts": 1780153398430.477,
     "source/cli/tests/unit/cli/run-batch.test.ts": 1778917038514.553
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T12:46:23.419Z",
-    "prefix_hash": "0e1fc7a355f16759ec8ba85dbb9a2c40d6080d737659386b0e4288a53ed11930"
+    "last_entry_datetime": "2026-05-30T15:43:16.852Z",
+    "prefix_hash": "740b2799ce626497ac6c13e37ffec1ab7734ea1261a25ba50a5f1a445d0d6481"
   },
   "aspectVerdicts": {
     "test-deterministic": {

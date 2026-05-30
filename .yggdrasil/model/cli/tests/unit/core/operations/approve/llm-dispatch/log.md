@@ -1,12 +1,8 @@
-## [2026-05-26T08:36:28.793Z]
-Updated AspectVerificationResult fixture objects to include required errorSource field, following migration of the interface from optional to required discriminator.
-## [2026-05-27T07:55:57.026Z]
-Updated createBatchProject() aspect fixture to use v5 reviewer format (reviewer: { type: llm }) instead of no reviewer field. Required because parseAspect now returns aspect-reviewer-missing for aspects without reviewer.
-## [2026-05-28T12:46:23.419Z]
-Test fixtures updated to include skippedDraftAspects field per the new BatchResult shape required by formatBatchOutput. Pure test fixture maintenance; no production behavior change.
-## [2026-05-30T15:43:16.852Z]
+## [2026-05-30T15:43:17.018Z]
 Re-verification was made selective. When a component needs re-approval because one of its rules changed, only that rule is re-checked and the component's other rules keep their prior verdict — instead of re-checking every rule on the component on every re-approval. The motivation is cost: re-checking a rule against a non-deterministic reviewer is the expensive operation, and a change to one rule's definition (or a cheap deterministic identity shift) previously forced a full, repeated re-review of every rule on every affected component, including expensive rules that could not possibly have been affected by that change.
 
 A source-code edit still re-checks every rule on that component, because every rule reads all of the component's source — that case is component-global by nature. The optimization applies only to changes cleanly attributable to a specific rule (a change to that rule's own definition, content, reference material, or identity). Any change that cannot be attributed to a single rule conservatively re-checks everything, so a documented verdict is never silently preserved when the thing it judged has actually moved. A re-approval where nothing attributable changed performs no reviewer work at all and leaves every prior verdict intact.
 
 This is the enabler for an upcoming change that re-stamps the identity of a large set of rules at once: without selective re-verification that re-stamp would have forced a full, expensive re-review across nearly the whole graph; with it, each re-stamped rule re-checks for free and the components' unrelated expensive verdicts carry forward.
+## [2026-05-30T15:59:39.526Z]
+The per-aspect re-verification tests were moved into their own test component, separate from the broader reviewer-dispatch tests they grew alongside. The motivation is the reviewer context-size budget: a test component whose combined mapped source exceeds the reviewer's window risks the prompt being truncated and unchanged code near the cut being rejected, so a component that grew past the budget is split so each half is reviewable in full. No test behaviour changed — the cases were moved verbatim.

@@ -1,0 +1,7 @@
+name: Approve Per-Aspect Re-Verification Tests
+type: test-suite
+description: "Unit tests for Option-1 per-aspect re-verification in runApproveWithReviewer — the reReviewAspectIds dispatch subset and the end-to-end invariants (carry-forward, enforced-refusal blocking, draft exclusion, migration-shape cost win, no-change no-op)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/core/approve-llm-option1.test.ts
