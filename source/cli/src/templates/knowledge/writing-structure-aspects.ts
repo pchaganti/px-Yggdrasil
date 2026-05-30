@@ -49,7 +49,7 @@ Structure is the right choice when:
 
 ## No \`language:\` field
 
-Unlike AST aspects, structure aspects do NOT declare a \`language:\` array.
+Structure aspects declare no \`language:\` field — they are language-agnostic.
 The runner invokes \`check.mjs\` once per affected node, regardless of file types.
 Adding \`reviewer.tier:\` to a structure aspect is also a validator error — tiers
 apply only to LLM aspects.
