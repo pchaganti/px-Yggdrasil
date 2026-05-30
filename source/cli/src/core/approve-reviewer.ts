@@ -124,7 +124,8 @@ async function dispatchStructureAspects(
           const abs = path.resolve(projectRoot, p);
           try {
             hash = await hashFile(abs);
-          } catch {
+          } catch (e) {
+            debugWrite(`[approve] structure aspect ${aspect.id}: cross-node touched file hash failed for ${p}: ${e instanceof Error ? e.message : String(e)}`);
             continue;
           }
         }

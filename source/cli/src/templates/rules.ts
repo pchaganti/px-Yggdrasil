@@ -102,7 +102,7 @@ Drift = source code or upstream context changed since the last approve. The revi
 - **Source drift** — mapped source files were modified. Fix: \`yg approve --node <path>\`.
 - **Upstream drift (cascade)** — an aspect, parent node, flow, or dependency changed. This cascades: one aspect change can cause drift in every node that uses it. Fix: \`yg approve --aspect <id>\` or approve affected nodes individually.
 
-Cascade is the cost multiplier. Before changing a widely-used aspect, run \`yg impact --aspect <id>\` to see how many nodes will need re-approval. Each is a separate LLM call.
+Cascade is the cost multiplier. Before changing a widely-used aspect, run \`yg impact --aspect <id>\` to see how many nodes will need re-approval. Re-approving an aspect-only cascade re-runs just the changed aspect on each affected node — the node's other aspects carry their prior verdict forward — so the cost is one LLM call per affected node for an LLM aspect, and zero for an AST/structure aspect.
 
 If you modify code without reading the aspect content files (\`yg context --file\` → follow the \`read:\` paths), you will likely write code that violates rules you didn't know about. The reviewer will reject it. You will have to read the aspects anyway, then rewrite. Double cost.
 
@@ -132,7 +132,7 @@ Full command reference (\`yg aspects\`, \`yg flows\`, \`yg owner\`, \`yg ast-tes
 
 ### Impact and Cost
 
-Every graph change has blast radius. \`yg impact\` shows how many nodes are affected. For an LLM aspect, each affected node is a separate reviewer call (one LLM request per effective non-draft LLM aspect on the node, multiplied by the tier's consensus count and by the number of prompt chunks) during approve — so an LLM aspect touching 20 nodes is at least 20 LLM calls = real cost. AST and structure aspects run locally and cost zero LLM calls regardless of how many nodes they touch.
+Every graph change has blast radius. \`yg impact\` shows how many nodes are affected. For an LLM aspect, each affected node re-runs just the changed aspect — one LLM request (multiplied by the tier's consensus count and by the number of prompt chunks) — so an LLM aspect touching 20 nodes is at least 20 LLM calls = real cost. (A source-code edit, by contrast, is node-global: it re-runs every effective non-draft LLM aspect on that one node.) AST and structure aspects run locally and cost zero LLM calls regardless of how many nodes they touch.
 
 When code doesn't match an aspect, five options:
 

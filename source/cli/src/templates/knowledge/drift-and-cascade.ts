@@ -69,10 +69,14 @@ When cascade scope is high:
 
 ## Cost
 
-A drifted node makes at least one LLM call per effective non-draft LLM aspect
-during approve (× the tier's consensus count × the number of prompt chunks).
-AST and structure aspects re-verify locally at zero LLM cost, so a node whose
-aspects are all AST/structure re-approves with no LLM call.
+A re-approval re-verifies ONLY the aspects whose dependency actually changed and
+carries the rest forward. A SOURCE change is node-global — every effective
+non-draft aspect re-runs (each LLM aspect = one LLM call × the tier's consensus
+count × the number of prompt chunks). An aspect-only cascade — a change to one
+aspect's content / metadata / reference file — re-runs just that one aspect; the
+node's other aspects keep their prior verdict (no LLM call). AST and structure
+aspects re-verify locally at zero LLM cost, so a node whose aspects are all
+AST/structure re-approves with no LLM call.
 
 | Scenario | LLM calls |
 |----------|-------|

@@ -138,11 +138,11 @@ function formatLlmResults(result: LlmApproveResult): void {
 function formatAdvisoryViolations(nodePath: string, result: LlmApproveResult): void {
   const advisory = result.advisoryViolations ?? [];
   if (advisory.length === 0) return;
-  process.stdout.write(chalk.cyan(
+  process.stdout.write(chalk.yellow(
     `\nInfo: ${advisory.length} advisory aspect violation(s) on ${nodePath} — recorded, not blocking:\n`,
   ));
   for (const v of advisory) {
-    process.stdout.write(chalk.cyan(`  ${v.aspectId} — ADVISORY (not blocking)\n`));
+    process.stdout.write(chalk.yellow(`  ${v.aspectId} — ADVISORY (not blocking)\n`));
     process.stdout.write(chalk.dim(`    ${v.reason}\n`));
   }
 }
