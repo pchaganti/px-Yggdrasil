@@ -120,10 +120,9 @@ name: No Sync FS
 description: Forbid synchronous fs calls — use async equivalents
 reviewer:
   type: ast
-language: [typescript, tsx, javascript]
 ```
 
-The `reviewer.type: ast` and `language:` fields are required. Today the runner parses each source file by extension (the TypeScript/JavaScript family) and passes all files to a single `check.mjs` invocation — per-language dispatch and file filtering are designed but not yet built. Everything else (`implies`, `when`, `aspects` on nodes) works identically across all reviewer types.
+The `reviewer.type: ast` field is required. The runner parses each source file by extension (the TypeScript/JavaScript family) and passes all files to a single `check.mjs` invocation — per-language dispatch and file filtering are designed but not yet built. Everything else (`implies`, `when`, `aspects` on nodes) works identically across all reviewer types.
 
 ### Writing `check.mjs`
 

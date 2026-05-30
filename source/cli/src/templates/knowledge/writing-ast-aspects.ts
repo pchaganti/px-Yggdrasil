@@ -17,9 +17,10 @@ Use AST when the rule is structural:
 
 Use LLM for semantic rules that require reading intent.
 
-## Required: \`language:\` field in yg-aspect.yaml
+## The \`yg-aspect.yaml\`
 
-Every AST aspect must declare the languages it handles:
+An AST aspect's \`yg-aspect.yaml\` declares the reviewer type; the runner
+detects each file's language from its extension:
 
 \`\`\`yaml
 # .yggdrasil/aspects/my-rule/yg-aspect.yaml
@@ -27,26 +28,16 @@ name: MyRule
 description: What this structural rule enforces.
 reviewer:
   type: ast
-language: [typescript, tsx, javascript]
 \`\`\`
 
 The aspect's identity is its directory path under \`aspects/\` (here
 \`my-rule\`) — there is no \`id:\` field; \`name:\` and \`description:\` are
 required.
 
-Multi-language dispatch is designed but not yet built. Today the runner
-parses each mapped file by extension (the TypeScript/JavaScript family
-only) and passes ALL files to a single \`check.mjs\` invocation via
-\`ctx.files\` — there is no per-language invocation and no \`ctx.language\`.
-The \`language:\` field is still required and validated. Four validator
-errors enforce its shape:
-
-| Error code | Cause |
-|---|---|
-| \`aspect-ast-missing-language\` | \`language:\` field absent |
-| \`aspect-language-not-array\` | value is not a list |
-| \`aspect-empty-language-list\` | list is empty |
-| \`aspect-unknown-language\` | id not in language registry |
+The runner parses each mapped file by its extension (the
+TypeScript/JavaScript family) and passes all files to a single
+\`check.mjs\` invocation via \`ctx.files\` — there is no \`language:\` field to
+declare and no \`ctx.language\`.
 
 ## Runtime contract
 
@@ -100,7 +91,8 @@ export function check(ctx) {
 
 If a rule should apply only to a subset of files, filter on \`file.path\`
 (for example with \`inFile(file, { glob: 'src/api/**' })\`) — there is no
-\`ctx.language\` and no per-language invocation today.
+\`ctx.language\` and no per-language invocation today; every mapped file
+arrives in the one \`check.mjs\` invocation.
 
 ## Minimal API — imports from \`@chrisdudek/yg/ast\`
 

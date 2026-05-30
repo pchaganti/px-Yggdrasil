@@ -36,7 +36,7 @@ The CLI (\`yg\`) reads and validates — it never modifies files. You create and
 
 **Aspects** — enforceable rules. \`aspects/<id>/yg-aspect.yaml\` + either \`content.md\` (LLM reviewer) or \`check.mjs\` (AST or structure reviewer). The \`yg-aspect.yaml\` requires a \`reviewer:\` mapping: \`reviewer.type\` is \`llm\`, \`ast\`, or \`structure\`. LLM aspects may also set \`reviewer.tier:\` to pick a named tier from \`yg-config.yaml\` (otherwise the configured default tier is used). An aspect can declare \`implies: [other-aspect]\` — implied aspects are included recursively (must be acyclic). LLM aspects may declare \`references:\` — supporting files (lookup tables, catalogues) included in the reviewer prompt and exposed to the agent under \`read:\`. Schema: \`schemas/yg-aspect.yaml\`. Aspects also carry a \`status:\` field (default \`enforced\`) — three levels \`draft / advisory / enforced\` control whether the reviewer runs and whether violations block.
 
-AST aspects (\`reviewer.type: ast\`) must declare a \`language: [<lang>, ...]\` array naming the languages the check handles. AST aspects must NOT set \`reviewer.tier:\` — tiers apply only to LLM aspects. See \`yg knowledge read writing-ast-aspects\`.
+AST aspects (\`reviewer.type: ast\`) ship \`check.mjs\`; the runner detects each file's language from its extension (no \`language:\` field). AST aspects must NOT set \`reviewer.tier:\` — tiers apply only to LLM aspects. See \`yg knowledge read writing-ast-aspects\`.
 
 Structure aspects (\`reviewer.type: structure\`) also ship \`check.mjs\`, but run with graph-aware context (files, filesystem, the graph, parsers) and are language-agnostic — no \`language:\` field. See \`yg knowledge read writing-structure-aspects\`.
 

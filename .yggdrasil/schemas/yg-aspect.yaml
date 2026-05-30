@@ -26,12 +26,6 @@ reviewer:                          # required — which reviewer verifies this a
                                    #     If present, must reference a key under reviewer.tiers in the config.
                                    #     Forbidden when type is 'ast' or 'structure'.
 
-# language: [typescript, tsx]      # required when reviewer.type is 'ast' — list of languages check.mjs handles.
-                                   # Forbidden when reviewer.type is 'llm' or 'structure'.
-                                   # Today the runner parses each file by extension (TS/JS family only) and
-                                   # passes all files to ONE check.mjs invocation; per-language dispatch is
-                                   # designed but not yet built.
-
 status: enforced                   # optional — aspect-level default. enum: draft | advisory | enforced.
                                    # Absent → 'enforced'.
                                    # draft     = reviewer skipped, no verdict, no baseline, no drift.
