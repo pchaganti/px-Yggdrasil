@@ -199,12 +199,34 @@ export async function runBatch(
       const item = queue.shift(); // atomic in JS single-threaded event loop
       if (!item) break;
       const [i, nodePath] = item;
-      const result = await approveOne(nodePath);
-      results[i] = {
-        nodePath,
-        result,
-        skippedDraftAspects: result.skippedDraftAspects ?? [],
-      };
+      try {
+        const result = await approveOne(nodePath);
+        results[i] = {
+          nodePath,
+          result,
+          skippedDraftAspects: result.skippedDraftAspects ?? [],
+        };
+      } catch (err) {
+        // Contract: one node's failure must NOT abort the others. An
+        // unexpected throw (e.g. a filesystem error) is recorded as a
+        // synthetic refused result so the batch completes, every node is
+        // reported, and the failure counts toward the exit code.
+        const message = err instanceof Error ? err.message : String(err);
+        debugWrite(`[approve] batch worker threw for ${nodePath}: ${message}`);
+        results[i] = {
+          nodePath,
+          result: {
+            action: 'refused',
+            currentHash: '',
+            refuseReasonData: {
+              what: `Approve crashed for ${nodePath}.`,
+              why: message,
+              next: `Investigate the error above, then re-run: yg approve --node ${nodePath}`,
+            },
+          },
+          skippedDraftAspects: [],
+        };
+      }
     }
   });
   await Promise.all(workers);
@@ -302,16 +324,28 @@ function aspectDependencyKeys(
   };
 }
 
-export function filterAspectCascadeNodes(
+export async function filterAspectCascadeNodes(
   issues: CheckIssue[],
   graph: Graph,
   aspectId: string,
   yggPrefix: string,
-): string[] {
-  const { prefix, keys } = aspectDependencyKeys(aspectId, yggPrefix, graph);
+): Promise<string[]> {
   const matched: string[] = [];
   for (const issue of issues) {
     if (issue.code !== 'upstream-drift' || !issue.nodePath || !issue.cascadeCauses) continue;
+    // Attribute cross-node deterministic-touched paths by consulting THIS
+    // node's stored baseline: the raw file path a graph-aware deterministic
+    // aspect read (not a synthetic key) only resolves to its owning aspect via
+    // the baseline's per-aspect deterministicTouchedFiles map. A missing or
+    // corrupt baseline reads as undefined → fall back to the synthetic-key /
+    // prefix match only (never crash, never exclude a prefix/key hit).
+    const storedEntry = await readNodeDriftState(graph.rootPath, issue.nodePath);
+    const { prefix, keys } = aspectDependencyKeys(
+      aspectId,
+      yggPrefix,
+      graph,
+      storedEntry?.deterministicTouchedFiles,
+    );
     const hit = issue.cascadeCauses.some((c: CascadeCause) => {
       const f = c.file.replace(/\\/g, '/');
       return f.startsWith(prefix) || keys.has(f);
@@ -558,11 +592,11 @@ async function abortOnGatingErrors(graph: Graph): Promise<void> {
 async function runBatchApprove(
   graph: Graph,
   entityLabel: string,
-  selectNodes: (issues: CheckIssue[]) => string[],
+  selectNodes: (issues: CheckIssue[]) => string[] | Promise<string[]>,
   filterAspectId?: string,
 ): Promise<boolean> {
   const issues = await classifyDrift(graph);
-  const matchedNodes = selectNodes(issues);
+  const matchedNodes = await selectNodes(issues);
 
   if (matchedNodes.length === 0) {
     process.stdout.write(`No cascade drift found for ${entityLabel}.\n`);
@@ -657,6 +691,20 @@ export function registerApproveCommand(program: Command): void {
             ),
           );
           process.exit(1);
+        }
+
+        // --dry-run is a single-node preview only. A batch target (--aspect /
+        // --flow) has no preview mode; silently honoring --dry-run here would
+        // either do nothing or fall through to a REAL batch approval, so reject
+        // it before either batch branch dispatches.
+        if (options.dryRun && (options.aspect || options.flow)) {
+          process.stderr.write(chalk.red(buildIssueMessage({
+            what: '--dry-run is only supported with --node, not with --aspect or --flow.',
+            why: 'A batch approve (--aspect / --flow) commits real verdicts to every affected node; there is no preview mode for it, so honoring --dry-run silently would either do nothing or perform a real approval.',
+            next: 'Preview a single node with: yg approve --node <path> --dry-run. To run the batch for real, drop --dry-run.',
+          })) + '\n');
+          process.exit(1);
+          return;
         }
 
         const graph = await loadGraphOrAbort(process.cwd());
