@@ -213,8 +213,6 @@ export interface AspectDef {
   description?: string;
   /** Reviewer specification — type and optional tier reference */
   reviewer: AspectReviewerSpec;
-  /** Target languages for AST aspects (required). Optional for LLM aspects with registry-membership check. */
-  language?: string[];
   implies?: string[];
   /** Per-implies applicability filters for aspect ids listed in `implies` */
   impliesWhens?: Record<string, WhenPredicate>;

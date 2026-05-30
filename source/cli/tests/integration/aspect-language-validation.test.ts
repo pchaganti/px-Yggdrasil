@@ -22,70 +22,14 @@ async function fixture(aspectYaml: string): Promise<{ projectRoot: string; clean
 }
 
 describe('aspect language validation', () => {
-  it('aspect-ast-missing-language', async () => {
+  it('an ast aspect with no language: field validates clean (D2: language removed)', async () => {
     const f = await fixture(`name: T\nid: t\nreviewer:\n  type: ast\ndescription: x\n`);
     try {
       const graph = await loadGraph(f.projectRoot);
       const result = await validate(graph);
-      expect(result.issues.some((i: any) => i.code === 'aspect-ast-missing-language')).toBe(true);
-    } finally {
-      await f.cleanup();
-    }
-  });
-
-  it('aspect-language-not-array', async () => {
-    const f = await fixture(`name: T\nid: t\nreviewer:\n  type: ast\nlanguage: typescript\ndescription: x\n`);
-    try {
-      const graph = await loadGraph(f.projectRoot);
-      const result = await validate(graph);
-      expect(result.issues.some((i: any) => i.code === 'aspect-language-not-array')).toBe(true);
-    } finally {
-      await f.cleanup();
-    }
-  });
-
-  it('aspect-empty-language-list', async () => {
-    const f = await fixture(`name: T\nid: t\nreviewer:\n  type: ast\nlanguage: []\ndescription: x\n`);
-    try {
-      const graph = await loadGraph(f.projectRoot);
-      const result = await validate(graph);
-      expect(result.issues.some((i: any) => i.code === 'aspect-empty-language-list')).toBe(true);
-    } finally {
-      await f.cleanup();
-    }
-  });
-
-  it('aspect-unknown-language', async () => {
-    const f = await fixture(`name: T\nid: t\nreviewer:\n  type: ast\nlanguage: [martian]\ndescription: x\n`);
-    try {
-      const graph = await loadGraph(f.projectRoot);
-      const result = await validate(graph);
-      expect(result.issues.some((i: any) => i.code === 'aspect-unknown-language')).toBe(true);
-    } finally {
-      await f.cleanup();
-    }
-  });
-
-  it('valid language passes', async () => {
-    const f = await fixture(`name: T\nid: t\nreviewer:\n  type: ast\nlanguage: [typescript]\ndescription: x\n`);
-    try {
-      const graph = await loadGraph(f.projectRoot);
-      const result = await validate(graph);
       const langCodes = ['aspect-ast-missing-language', 'aspect-language-not-array', 'aspect-empty-language-list', 'aspect-unknown-language'];
-      expect(result.issues.filter((i: any) => langCodes.includes(i.code ?? ''))).toEqual([]);
-    } finally {
-      await f.cleanup();
-    }
-  });
-
-  it('LLM aspect with unknown language fires aspect-unknown-language', async () => {
-    const f = await fixture(`name: T\nid: t\nreviewer:\n  type: llm\ncontent_file: content.md\nlanguage: [martian]\ndescription: x\n`);
-    try {
-      const ygDir = path.join(f.projectRoot, '.yggdrasil');
-      await writeFile(path.join(ygDir, 'aspects', 't', 'content.md'), '# T\n');
-      const graph = await loadGraph(f.projectRoot);
-      const result = await validate(graph);
-      expect(result.issues.some((i: any) => i.code === 'aspect-unknown-language')).toBe(true);
+      const issues = result.issues;
+      expect(issues.filter((i: any) => langCodes.includes(i.code ?? ''))).toEqual([]);
     } finally {
       await f.cleanup();
     }

@@ -129,12 +129,18 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
     }
 
     // structure-identity synthetic hash — mirrors tier-identity for structure aspects.
-    // Includes language array so a language change triggers drift.
+    // The `language: null` literal is a deliberate hash-stability placeholder: the
+    // aspect-level `language:` field was removed in D2 (language is derived per file
+    // by extension), but structure aspects were always language-agnostic so this
+    // value was always null. Emitting the literal `null` keeps the produced hash
+    // byte-identical to the pre-removal baseline and avoids a needless cascade across
+    // every structure-aspect node. Do NOT collapse to `{ kind: 'structure' }` — that
+    // would change the hash and drift every structure-aspect node.
     // Excludes status so a draft toggle does NOT invalidate the baseline.
     if (aspect.reviewer.type === 'structure') {
       addSyntheticHash(
         `structure-identity:${aspect.id}`,
-        canonicalJson({ kind: 'structure', language: aspect.language ?? null }),
+        canonicalJson({ kind: 'structure', language: null }),
         'graph',
         'aspects',
       );

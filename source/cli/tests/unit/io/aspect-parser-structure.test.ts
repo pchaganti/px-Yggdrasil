@@ -60,35 +60,4 @@ describe('aspect-parser — structure reviewer.type', () => {
     }
   });
 
-  it('rejects structure aspect with language — aspect-language-on-structure', async () => {
-    writeFileSync(yamlPath, [
-      'name: T',
-      'description: x',
-      'reviewer:',
-      '  type: structure',
-      'language: [typescript]',
-      ''
-    ].join('\n'));
-    const r = await parseAspect(aspectDir, yamlPath, 'test');
-    expect(r.ok).toBe(false);
-    if (!r.ok) {
-      expect(r.errors[0].code).toBe('aspect-language-on-structure');
-    }
-  });
-
-  it('rejects structure aspect with language even when references is absent', async () => {
-    writeFileSync(yamlPath, [
-      'name: T',
-      'description: x',
-      'reviewer:',
-      '  type: structure',
-      'language: [typescript]',
-      ''
-    ].join('\n'));
-    const r = await parseAspect(aspectDir, yamlPath, 'test');
-    expect(r.ok).toBe(false);
-    if (!r.ok) {
-      expect(r.errors[0].code).toBe('aspect-language-on-structure');
-    }
-  });
 });
