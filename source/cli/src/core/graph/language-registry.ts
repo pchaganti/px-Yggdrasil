@@ -69,5 +69,6 @@ export function getGrammarForExtension(ext: string): { wasmFile: string; wasmPac
   const lang = getLanguageForExtension(ext.toLowerCase());
   if (lang === null) return null;
   const def = LANGUAGES[lang];
+  if (!def) return null;
   return { wasmFile: def.wasmFile, wasmPackage: def.wasmPackage };
 }
