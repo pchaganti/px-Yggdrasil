@@ -5,6 +5,99 @@ import { evaluateWhen } from '../when-evaluator.js';
 import { collectAncestors } from './traversal.js';
 import { debugWrite } from '../../utils/debug-log.js';
 
+// ============================================================
+// iterateAttachments — single source of truth for the channel walk
+// ============================================================
+
+/**
+ * One aspect attachment reaching a node via one of channels 1–6.
+ * Channel 7 (implies) is structural propagation, not an attachment.
+ */
+interface Attachment {
+  channel: 1 | 2 | 3 | 4 | 5 | 6;
+  aspectId: string;
+  declaredStatus: AspectStatus | undefined;
+  attachWhen: WhenPredicate | undefined;
+  ancestor?: GraphNode; // channels 2, 4
+  flow?: Graph['flows'][number]; // channel 5
+  port?: { name: string; target: string }; // channel 6
+}
+
+/**
+ * Yield every aspect attachment reaching `node` via channels 1–6, in channel
+ * order: own → ancestor-node → own-type → ancestor-type → flow → port. This is
+ * the ONE place the cascade channel-walk lives; `computeEffectiveAspects`,
+ * `computeEffectiveAspectStatuses`, `getAspectSource`, and
+ * `getAspectStatusSources` are all reducers over it, each applying its own
+ * `when` policy, aggregation, and origin formatting. A flow matches if any of
+ * its declared nodes is the node itself or one of its ancestors.
+ */
+function* iterateAttachments(node: GraphNode, graph: Graph): Generator<Attachment> {
+  const ancestors = collectAncestors(node);
+
+  // 1. Own aspects
+  for (const id of node.meta.aspects ?? []) {
+    yield { channel: 1, aspectId: id, declaredStatus: node.meta.aspectStatus?.[id], attachWhen: node.meta.aspectWhens?.[id] };
+  }
+
+  // 2. Ancestor node direct aspects
+  for (const ancestor of ancestors) {
+    for (const id of ancestor.meta.aspects ?? []) {
+      yield { channel: 2, aspectId: id, declaredStatus: ancestor.meta.aspectStatus?.[id], attachWhen: ancestor.meta.aspectWhens?.[id], ancestor };
+    }
+  }
+
+  // 3. Own architecture type aspects
+  const ownType = graph.architecture?.node_types[node.meta.type];
+  for (const id of ownType?.aspects ?? []) {
+    yield { channel: 3, aspectId: id, declaredStatus: ownType?.aspectStatus?.[id], attachWhen: ownType?.aspectWhens?.[id] };
+  }
+
+  // 4. Ancestor architecture type aspects
+  if (graph.architecture) {
+    for (const ancestor of ancestors) {
+      const typeDef = graph.architecture.node_types[ancestor.meta.type];
+      for (const id of typeDef?.aspects ?? []) {
+        yield { channel: 4, aspectId: id, declaredStatus: typeDef?.aspectStatus?.[id], attachWhen: typeDef?.aspectWhens?.[id], ancestor };
+      }
+    }
+  }
+
+  // 5. Flow aspects (flow matches if any of its nodes is the node or an ancestor)
+  const allPaths = new Set<string>([node.path, ...ancestors.map((a) => a.path)]);
+  for (const flow of graph.flows) {
+    if (!flow.nodes.some((n) => allPaths.has(n))) continue;
+    for (const id of flow.aspects ?? []) {
+      yield { channel: 5, aspectId: id, declaredStatus: flow.aspectStatus?.[id], attachWhen: flow.aspectWhens?.[id], flow };
+    }
+  }
+
+  // 6. Port consumption aspects (channel 6)
+  for (const relation of node.meta.relations ?? []) {
+    const targetNode = graph.nodes.get(relation.target);
+    if (!targetNode?.meta.ports || !relation.consumes) continue;
+    for (const portName of relation.consumes) {
+      const port = targetNode.meta.ports[portName];
+      if (!port?.aspects) continue;
+      for (const id of port.aspects) {
+        yield { channel: 6, aspectId: id, declaredStatus: port.aspectStatus?.[id], attachWhen: port.aspectWhens?.[id], port: { name: portName, target: relation.target } };
+      }
+    }
+  }
+}
+
+/** An attachment passes iff both the aspect's global `when` and the attach-site `when` hold. */
+function attachmentPasses(att: Attachment, node: GraphNode, graph: Graph): boolean {
+  const aspectDef = graph.aspects.find((a) => a.id === att.aspectId);
+  if (aspectDef?.when && !evaluateWhen(aspectDef.when, node, graph)) return false;
+  if (att.attachWhen && !evaluateWhen(att.attachWhen, node, graph)) return false;
+  return true;
+}
+
+// ============================================================
+// computeEffectiveAspects
+// ============================================================
+
 /**
  * Compute the full set of effective aspects for a node from ALL 7 channels,
  * filtered by the 8th mechanism (`when` applicability predicate).
@@ -18,80 +111,9 @@ import { debugWrite } from '../../utils/debug-log.js';
  */
 export function computeEffectiveAspects(node: GraphNode, graph: Graph): Set<string> {
   const direct = new Set<string>();
-  const ancestors = collectAncestors(node);
-
-  const tryAdd = (
-    aspectId: string,
-    attachWhen: WhenPredicate | undefined,
-  ): void => {
-    const aspectDef = graph.aspects.find(a => a.id === aspectId);
-    const globalWhen = aspectDef?.when;
-    if (globalWhen && !evaluateWhen(globalWhen, node, graph)) {
-      debugWrite(`[effective-aspects] node '${node.path}' aspect '${aspectId}' filtered: global when=false`);
-      return;
-    }
-    if (attachWhen && !evaluateWhen(attachWhen, node, graph)) {
-      debugWrite(`[effective-aspects] node '${node.path}' aspect '${aspectId}' filtered: attach-site when=false`);
-      return;
-    }
-    direct.add(aspectId);
-  };
-
-  // 1. Own aspects
-  for (const id of node.meta.aspects ?? []) {
-    tryAdd(id, node.meta.aspectWhens?.[id]);
+  for (const att of iterateAttachments(node, graph)) {
+    if (attachmentPasses(att, node, graph)) direct.add(att.aspectId);
   }
-
-  // 2. Ancestor node direct aspects
-  for (const ancestor of ancestors) {
-    for (const id of ancestor.meta.aspects ?? []) {
-      tryAdd(id, ancestor.meta.aspectWhens?.[id]);
-    }
-  }
-
-  // 3. Own architecture type aspects
-  if (graph.architecture) {
-    const typeDef = graph.architecture.node_types[node.meta.type];
-    for (const id of typeDef?.aspects ?? []) {
-      tryAdd(id, typeDef?.aspectWhens?.[id]);
-    }
-  }
-
-  // 4. Ancestor architecture type aspects
-  if (graph.architecture) {
-    for (const ancestor of ancestors) {
-      const typeDef = graph.architecture.node_types[ancestor.meta.type];
-      for (const id of typeDef?.aspects ?? []) {
-        tryAdd(id, typeDef?.aspectWhens?.[id]);
-      }
-    }
-  }
-
-  // 5. Flow aspects
-  const allPaths = new Set<string>([node.path, ...ancestors.map(a => a.path)]);
-  for (const flow of graph.flows) {
-    if (!flow.nodes.some(n => allPaths.has(n))) continue;
-    for (const id of flow.aspects ?? []) {
-      tryAdd(id, flow.aspectWhens?.[id]);
-    }
-  }
-
-  // 6. Port consumption aspects
-  if (node.meta.relations) {
-    for (const relation of node.meta.relations) {
-      const targetNode = graph.nodes.get(relation.target);
-      if (!targetNode) continue;
-      if (!relation.consumes || !targetNode.meta.ports) continue;
-      for (const portName of relation.consumes) {
-        const port = targetNode.meta.ports[portName];
-        if (!port?.aspects) continue;
-        for (const id of port.aspects) {
-          tryAdd(id, port.aspectWhens?.[id]);
-        }
-      }
-    }
-  }
-
   // 7. Expand implies (filter global + per-implies when)
   return expandImpliesFiltered(direct, node, graph);
 }
@@ -146,76 +168,53 @@ function expandImpliesFiltered(
   return result;
 }
 
+// ============================================================
+// getAspectSource — human-readable provenance (first match, ignores `when`)
+// ============================================================
+
 /**
  * Determine the source of an aspect for a node. Checks all 7 channels in order
  * and returns the first match (ignoring `when` — informational).
  */
 export function getAspectSource(aspectId: string, node: GraphNode, graph: Graph): string {
-  if (node.meta.aspects?.includes(aspectId)) {
-    return 'own declaration';
+  for (const att of iterateAttachments(node, graph)) {
+    if (att.aspectId !== aspectId) continue;
+    return attachmentSourceLabel(att, node);
   }
-
-  const ancestors = collectAncestors(node);
-  for (const ancestor of ancestors) {
-    if (ancestor.meta.aspects?.includes(aspectId)) {
-      return `inherited from parent '${ancestor.path}'`;
-    }
-  }
-
-  if (graph.architecture) {
-    const typeDef = graph.architecture.node_types[node.meta.type];
-    if (typeDef?.aspects?.includes(aspectId)) {
-      return `architecture (type: ${node.meta.type})`;
-    }
-  }
-
-  if (graph.architecture) {
-    for (const ancestor of ancestors) {
-      const typeDef = graph.architecture.node_types[ancestor.meta.type];
-      if (typeDef?.aspects?.includes(aspectId)) {
-        return `inherited from parent (type: ${ancestor.meta.type})`;
-      }
-    }
-  }
-
-  const allPaths = new Set<string>([node.path, ...ancestors.map(a => a.path)]);
-  for (const flow of graph.flows) {
-    if (flow.aspects?.includes(aspectId) && flow.nodes.some(n => allPaths.has(n))) {
-      if (flow.nodes.includes(node.path)) {
-        return `flow '${flow.path}'`;
-      }
-      const viaAncestor = ancestors.find(a => flow.nodes.includes(a.path));
-      if (viaAncestor) {
-        return `flow '${flow.path}' (via parent '${viaAncestor.path}')`;
-      }
-      return `flow '${flow.path}'`;
-    }
-  }
-
-  if (node.meta.relations) {
-    for (const relation of node.meta.relations) {
-      const targetNode = graph.nodes.get(relation.target);
-      if (!targetNode?.meta.ports || !relation.consumes) continue;
-      for (const portName of relation.consumes) {
-        const port = targetNode.meta.ports[portName];
-        if (port?.aspects?.includes(aspectId)) {
-          return `port '${portName}' on '${relation.target}'`;
-        }
-      }
-    }
-  }
-
+  // 7. Implied by another aspect
   for (const otherAspect of graph.aspects) {
     if (otherAspect.implies?.includes(aspectId)) {
       return `implied by '${otherAspect.id}'`;
     }
   }
-
   return 'unknown source';
 }
 
+/** Human-readable origin label for an attachment (used by yg context / impact). */
+function attachmentSourceLabel(att: Attachment, node: GraphNode): string {
+  switch (att.channel) {
+    case 1:
+      return 'own declaration';
+    case 2:
+      return `inherited from parent '${att.ancestor!.path}'`;
+    case 3:
+      return `architecture (type: ${node.meta.type})`;
+    case 4:
+      return `inherited from parent (type: ${att.ancestor!.meta.type})`;
+    case 5: {
+      const flow = att.flow!;
+      if (flow.nodes.includes(node.path)) return `flow '${flow.path}'`;
+      const viaAncestor = collectAncestors(node).find((a) => flow.nodes.includes(a.path));
+      if (viaAncestor) return `flow '${flow.path}' (via parent '${viaAncestor.path}')`;
+      return `flow '${flow.path}'`;
+    }
+    case 6:
+      return `port '${att.port!.name}' on '${att.port!.target}'`;
+  }
+}
+
 // ============================================================
-// computeEffectiveAspectStatuses — phase-1 (channels 1–6)
+// computeEffectiveAspectStatuses — channels 1–6 + implies fix-point
 // ============================================================
 
 function maxStatus(a: AspectStatus | undefined, b: AspectStatus): AspectStatus {
@@ -239,73 +238,11 @@ function aspectDefaultStatus(graph: Graph, aspectId: string): AspectStatus {
  */
 export function computeEffectiveAspectStatuses(node: GraphNode, graph: Graph): Map<string, AspectStatus> {
   const result = new Map<string, AspectStatus>();
-  const ancestors = collectAncestors(node);
 
-  const contribute = (
-    aspectId: string,
-    declared: AspectStatus | undefined,
-    attachWhen: WhenPredicate | undefined,
-  ): void => {
-    const aspectDef = graph.aspects.find(a => a.id === aspectId);
-    const globalWhen = aspectDef?.when;
-    if (globalWhen && !evaluateWhen(globalWhen, node, graph)) return;
-    if (attachWhen && !evaluateWhen(attachWhen, node, graph)) return;
-    const effective = declared ?? aspectDefaultStatus(graph, aspectId);
-    result.set(aspectId, maxStatus(result.get(aspectId), effective));
-  };
-
-  // 1. Own aspects
-  for (const id of node.meta.aspects ?? []) {
-    contribute(id, node.meta.aspectStatus?.[id], node.meta.aspectWhens?.[id]);
-  }
-
-  // 2. Ancestor node aspects
-  for (const ancestor of ancestors) {
-    for (const id of ancestor.meta.aspects ?? []) {
-      contribute(id, ancestor.meta.aspectStatus?.[id], ancestor.meta.aspectWhens?.[id]);
-    }
-  }
-
-  // 3. Own architecture type aspects
-  if (graph.architecture) {
-    const typeDef = graph.architecture.node_types[node.meta.type];
-    for (const id of typeDef?.aspects ?? []) {
-      contribute(id, typeDef?.aspectStatus?.[id], typeDef?.aspectWhens?.[id]);
-    }
-  }
-
-  // 4. Ancestor architecture type aspects
-  if (graph.architecture) {
-    for (const ancestor of ancestors) {
-      const typeDef = graph.architecture.node_types[ancestor.meta.type];
-      for (const id of typeDef?.aspects ?? []) {
-        contribute(id, typeDef?.aspectStatus?.[id], typeDef?.aspectWhens?.[id]);
-      }
-    }
-  }
-
-  // 5. Flow aspects
-  const allPaths = new Set<string>([node.path, ...ancestors.map(a => a.path)]);
-  for (const flow of graph.flows) {
-    if (!flow.nodes.some(n => allPaths.has(n))) continue;
-    for (const id of flow.aspects ?? []) {
-      contribute(id, flow.aspectStatus?.[id], flow.aspectWhens?.[id]);
-    }
-  }
-
-  // 6. Port consumption aspects
-  if (node.meta.relations) {
-    for (const relation of node.meta.relations) {
-      const targetNode = graph.nodes.get(relation.target);
-      if (!targetNode?.meta.ports || !relation.consumes) continue;
-      for (const portName of relation.consumes) {
-        const port = targetNode.meta.ports[portName];
-        if (!port?.aspects) continue;
-        for (const id of port.aspects) {
-          contribute(id, port.aspectStatus?.[id], port.aspectWhens?.[id]);
-        }
-      }
-    }
+  for (const att of iterateAttachments(node, graph)) {
+    if (!attachmentPasses(att, node, graph)) continue;
+    const effective = att.declaredStatus ?? aspectDefaultStatus(graph, att.aspectId);
+    result.set(att.aspectId, maxStatus(result.get(att.aspectId), effective));
   }
 
   // Implies fix-point. Monotone (max only) → terminates in
@@ -353,6 +290,10 @@ export function computeEffectiveAspectStatuses(node: GraphNode, graph: Graph): M
   return result;
 }
 
+// ============================================================
+// getAspectStatusSources — per-channel provenance (channels 1–6, `when`-filtered)
+// ============================================================
+
 /**
  * Channels 1-6 only. Channel 7 (implies) is structural propagation, not a
  * direct attach declaration, so it never produces an AttachSource entry.
@@ -369,69 +310,33 @@ export interface AttachSource {
  */
 export function getAspectStatusSources(node: GraphNode, aspectId: string, graph: Graph): AttachSource[] {
   const sources: AttachSource[] = [];
-  const ancestors = collectAncestors(node);
-  const aspectDef = graph.aspects.find(a => a.id === aspectId);
-  const defaultStatus = aspectDef?.status ?? 'enforced';
+  const defaultStatus = graph.aspects.find((a) => a.id === aspectId)?.status ?? 'enforced';
 
-  const tryAdd = (
-    channel: 1 | 2 | 3 | 4 | 5 | 6,
-    origin: string,
-    declared: AspectStatus | undefined,
-    attachWhen: WhenPredicate | undefined,
-  ): void => {
-    const globalWhen = aspectDef?.when;
-    if (globalWhen && !evaluateWhen(globalWhen, node, graph)) return;
-    if (attachWhen && !evaluateWhen(attachWhen, node, graph)) return;
-    sources.push({ channel, origin, declared: declared ?? defaultStatus });
-  };
-
-  // 1. Own
-  if (node.meta.aspects?.includes(aspectId)) {
-    tryAdd(1, `own:${node.path}`, node.meta.aspectStatus?.[aspectId], node.meta.aspectWhens?.[aspectId]);
-  }
-  // 2. Ancestor nodes
-  for (const ancestor of ancestors) {
-    if (ancestor.meta.aspects?.includes(aspectId)) {
-      tryAdd(2, `ancestor:${ancestor.path}`, ancestor.meta.aspectStatus?.[aspectId], ancestor.meta.aspectWhens?.[aspectId]);
-    }
-  }
-  // 3. Own arch type
-  if (graph.architecture) {
-    const typeDef = graph.architecture.node_types[node.meta.type];
-    if (typeDef?.aspects?.includes(aspectId)) {
-      tryAdd(3, `type:${node.meta.type}`, typeDef?.aspectStatus?.[aspectId], typeDef?.aspectWhens?.[aspectId]);
-    }
-  }
-  // 4. Ancestor arch type
-  if (graph.architecture) {
-    for (const ancestor of ancestors) {
-      const typeDef = graph.architecture.node_types[ancestor.meta.type];
-      if (typeDef?.aspects?.includes(aspectId)) {
-        tryAdd(4, `ancestor-type:${ancestor.meta.type}@${ancestor.path}`, typeDef?.aspectStatus?.[aspectId], typeDef?.aspectWhens?.[aspectId]);
-      }
-    }
-  }
-  // 5. Flows
-  const allPaths = new Set<string>([node.path, ...ancestors.map(a => a.path)]);
-  for (const flow of graph.flows) {
-    if (!flow.aspects?.includes(aspectId)) continue;
-    if (!flow.nodes.some(n => allPaths.has(n))) continue;
-    tryAdd(5, `flow:${flow.path}`, flow.aspectStatus?.[aspectId], flow.aspectWhens?.[aspectId]);
-  }
-  // 6. Ports
-  if (node.meta.relations) {
-    for (const relation of node.meta.relations) {
-      const targetNode = graph.nodes.get(relation.target);
-      if (!targetNode?.meta.ports || !relation.consumes) continue;
-      for (const portName of relation.consumes) {
-        const port = targetNode.meta.ports[portName];
-        if (!port?.aspects?.includes(aspectId)) continue;
-        tryAdd(6, `port:${portName}@${relation.target}`, port.aspectStatus?.[aspectId], port.aspectWhens?.[aspectId]);
-      }
-    }
+  for (const att of iterateAttachments(node, graph)) {
+    if (att.aspectId !== aspectId) continue;
+    if (!attachmentPasses(att, node, graph)) continue;
+    sources.push({ channel: att.channel, origin: attachmentMachineOrigin(att, node), declared: att.declaredStatus ?? defaultStatus });
   }
 
   return sources;
+}
+
+/** Machine-readable origin token for an attachment (used by downgrade detection). */
+function attachmentMachineOrigin(att: Attachment, node: GraphNode): string {
+  switch (att.channel) {
+    case 1:
+      return `own:${node.path}`;
+    case 2:
+      return `ancestor:${att.ancestor!.path}`;
+    case 3:
+      return `type:${node.meta.type}`;
+    case 4:
+      return `ancestor-type:${att.ancestor!.meta.type}@${att.ancestor!.path}`;
+    case 5:
+      return `flow:${att.flow!.path}`;
+    case 6:
+      return `port:${att.port!.name}@${att.port!.target}`;
+  }
 }
 
 /**

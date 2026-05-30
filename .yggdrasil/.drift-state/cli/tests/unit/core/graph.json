@@ -1,5 +1,5 @@
 {
-  "hash": "b8f13773e7b07720fcf83f0fd6beba790be6985a77bf5e38254cbfb58d55edc5",
+  "hash": "af23ee1272ad7f06b8e8dbf26e08d29f4e437c68be545385615ab8a43dddcca6",
   "files": {
     "own-subset:cli/tests/unit/core/graph": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -10,9 +10,10 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/core/language-registry.test.ts": "caf2eb3f0d3b273e6c3fb191aa3b318c9017b85a873930252016170f4f4700d8",
-    "source/cli/tests/unit/core/files-structure.test.ts": "e8b4d16be835162850aab2326db0feeacb9ff40e5abf58945f60a9edddab0361",
     "source/cli/tests/unit/core/graph/files-references.test.ts": "551b3ffef3830f8f7ab0643964f680c8adecc619a99c257b890182bfa36a5910",
-    "source/cli/tests/unit/core/graph/aspect-status.test.ts": "2ff5fe66184e89aa001acaf1aed517fc053c0a1ee623ba869892b036138a3107"
+    "source/cli/tests/unit/core/graph/aspect-status.test.ts": "2ff5fe66184e89aa001acaf1aed517fc053c0a1ee623ba869892b036138a3107",
+    "source/cli/tests/unit/core/files-structure.test.ts": "e8b4d16be835162850aab2326db0feeacb9ff40e5abf58945f60a9edddab0361",
+    "source/cli/tests/unit/core/graph/aspects-cascade-characterization.test.ts": "2a28d692ab39bc236ed75fe891622db059a8420e41dd056d58bab7e0270576a9"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -24,6 +25,7 @@
     "source/cli/tests/unit/core/language-registry.test.ts": 1779794513953.8416,
     "source/cli/tests/unit/core/graph/files-references.test.ts": 1780114437026.7866,
     "source/cli/tests/unit/core/graph/aspect-status.test.ts": 1780064765039.7664,
+    "source/cli/tests/unit/core/graph/aspects-cascade-characterization.test.ts": 1780118814493.0112,
     "source/cli/tests/unit/core/files-structure.test.ts": 1780038980497.4595
   },
   "log": {
