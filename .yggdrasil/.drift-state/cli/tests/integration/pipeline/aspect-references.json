@@ -1,5 +1,5 @@
 {
-  "hash": "383abcf0abcc7bf22c93797cb3cc096722a71908c6096a7d54c20799702e2059",
+  "hash": "96b2c31d7342ee5cb0907e82d6a01a86116cd0a7b76fc830635e100630064902",
   "files": {
     "own-subset:cli/tests/integration/pipeline/aspect-references": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -12,9 +12,8 @@
     "source/cli/tests/integration/aspect-references-context.test.ts": "6791d1583496b80d329634400984b2b0612924c6528211fc3696b7ebd389b47c",
     "source/cli/tests/integration/aspect-references-drift.test.ts": "d5d1df14ae1052689182b462516166995d9920051c0d60aa8aca9db1d474cd4e",
     "source/cli/tests/integration/aspect-references-impact.test.ts": "5cafa4e50ad453d976a3c5ae56f43370d7fbce6ef2f9d68bc4dd13e57bfef8e5",
-    "source/cli/tests/integration/aspect-references-when-implies.test.ts": "406b88eebffb860b7d56cb229a7c5e3889526633ea7aed2fb64128f543b7d5d3",
-    "source/cli/tests/integration/aspect-language-validation.test.ts": "0df429a8356db8a024c887f31d4dbf04fbf1c4eebbffe3f4e2439ccbcbd5a888",
-    "source/cli/tests/integration/aspect-references-validation.test.ts": "b4446689491295e037b88931efd77cabf72814c08869a4151f409f5822b73893"
+    "source/cli/tests/integration/aspect-references-validation.test.ts": "b4446689491295e037b88931efd77cabf72814c08869a4151f409f5822b73893",
+    "source/cli/tests/integration/aspect-references-when-implies.test.ts": "406b88eebffb860b7d56cb229a7c5e3889526633ea7aed2fb64128f543b7d5d3"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -23,7 +22,6 @@
     ".yggdrasil/model/cli/tests/integration/pipeline/yg-node.yaml": 1779996040953.1306,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/integration/aspect-language-validation.test.ts": 1780163410550.3582,
     "source/cli/tests/integration/aspect-references-context.test.ts": 1779959296035.736,
     "source/cli/tests/integration/aspect-references-drift.test.ts": 1780050256253.0051,
     "source/cli/tests/integration/aspect-references-impact.test.ts": 1779962628466.4946,
@@ -31,8 +29,8 @@
     "source/cli/tests/integration/aspect-references-when-implies.test.ts": 1779977480958.8684
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T18:08:11.299Z",
-    "prefix_hash": "a2529fa90e370c03e224da1a828ce36fed9bee69d22449d44649eee4e1286465"
+    "last_entry_datetime": "2026-05-30T20:06:31.037Z",
+    "prefix_hash": "8b8cff2c6ce830ddfdc4d7a2e6936f6659a76d29c65ee7a4c857e5cebed95893"
   },
   "aspectVerdicts": {
     "test-deterministic": {

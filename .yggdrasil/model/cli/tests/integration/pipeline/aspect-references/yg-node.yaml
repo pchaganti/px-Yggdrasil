@@ -1,10 +1,9 @@
 name: Aspect References Integration Tests
 type: test-suite
-description: "End-to-end smoke tests for aspect references — context assembly, drift, impact, validation, language validation, and when/implies interactions."
+description: "End-to-end smoke tests for aspect references — context assembly, drift, impact, validation, and when/implies interactions."
 aspects: []
 relations: []
 mapping:
-  - source/cli/tests/integration/aspect-language-validation.test.ts
   - source/cli/tests/integration/aspect-references-context.test.ts
   - source/cli/tests/integration/aspect-references-drift.test.ts
   - source/cli/tests/integration/aspect-references-impact.test.ts

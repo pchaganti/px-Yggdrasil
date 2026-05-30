@@ -8,3 +8,7 @@ Required-heading list updated for the configuration knowledge topic now that the
 Update knowledge topic tests for new aspect-status topic: increment expected count to 13, add aspect-status to sorted names list, add required heading assertions
 ## [2026-05-29T08:36:51.010Z]
 Updated knowledge topic count assertion from 13 to 14 and added writing-structure-aspects to the expected topic names list and required headings table to match the new knowledge topic introduced alongside this test change.
+## [2026-05-30T20:06:21.887Z]
+The way a rule's verification is declared collapsed from three kinds — a human-language reviewer, a single-file programmable check, and a graph-aware programmable check — down to two: the human-language reviewer and one unified deterministic programmable check. The two programmable kinds were never a real choice, since the graph-aware kind is a superset of the single-file one; keeping both forced authors into a false up-front decision and made the tooling carry two parallel surfaces for one concept. Collapsing them removes that false choice. This change consolidates the remaining user-facing surface that still exposed the old split.
+
+Specific to this node: the template tests are updated because the knowledge registry shrank by one topic (two merged into one) and the system-prompt sections were rewritten to the two-type vocabulary; the suite's expected topic set, count, and section assertions now reflect the consolidated surface.

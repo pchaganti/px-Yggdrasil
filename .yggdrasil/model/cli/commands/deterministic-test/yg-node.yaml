@@ -1,0 +1,15 @@
+name: DeterministicTestCommand
+type: command
+description: Runs a deterministic aspect check (check.mjs) without recording a baseline — against a graph node via --node (graph-aware ctx) or ad-hoc files via --files. Supports --check-determinism to detect non-stable check.mjs outputs.
+aspects: []
+relations:
+  - target: cli/ast/runtime
+    type: calls
+  - target: cli/structure
+    type: calls
+  - target: cli/core/loader
+    type: calls
+  - target: cli/tests/unit/cli
+    type: uses
+mapping:
+  - source/cli/src/cli/deterministic-test.ts

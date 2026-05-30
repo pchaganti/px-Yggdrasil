@@ -1,9 +1,9 @@
 name: Integration AST Tests
 type: test-suite
-description: Integration tests for the AST engine — runner, CLI entrypoint, and impact computation
+description: Integration tests for the single-file (AST) runner and the deterministic-test CLI command — runner, command entrypoint (--files/--node, --check-determinism), and impact computation
 aspects: []
 relations: []
 mapping:
   - source/cli/tests/integration/ast-runner.test.ts
-  - source/cli/tests/integration/ast-test-cli.test.ts
+  - source/cli/tests/integration/deterministic-test-cli.test.ts
   - source/cli/tests/integration/impact-ast.test.ts

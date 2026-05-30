@@ -1,10 +1,9 @@
 name: CLI Build & Check Command Tests
 type: test-suite
-description: Unit tests for build and check CLI commands — ast-test, build-command, build-context, check, check-render, init, and init/upgrade.
+description: Unit tests for build and check CLI commands — build-command, build-context, check, check-render, init, and init/upgrade.
 aspects: []
 relations: []
 mapping:
-  - source/cli/tests/unit/cli/ast-test.test.ts
   - source/cli/tests/unit/cli/build-command.test.ts
   - source/cli/tests/unit/cli/build-context.test.ts
   - source/cli/tests/unit/cli/check.test.ts

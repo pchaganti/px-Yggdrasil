@@ -1,0 +1,4 @@
+## [2026-05-30T20:06:22.053Z]
+The way a rule's verification is declared collapsed from three kinds — a human-language reviewer, a single-file programmable check, and a graph-aware programmable check — down to two: the human-language reviewer and one unified deterministic programmable check. The two programmable kinds were never a real choice, since the graph-aware kind is a superset of the single-file one; keeping both forced authors into a false up-front decision and made the tooling carry two parallel surfaces for one concept. Collapsing them removes that false choice. This change consolidates the remaining user-facing surface that still exposed the old split.
+
+Specific to this node: the end-to-end lifecycle suite invokes the unified aspect-testing command in place of the two former command names, preserving every exit-code and message expectation against the real built CLI.

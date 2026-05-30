@@ -1,5 +1,5 @@
 {
-  "hash": "e5f56871e9efd988980838bfd3a4f1eccffa6e04f5c85da15f647509371cb0a5",
+  "hash": "986256833fa82b42d1d2df01117fec59763755b2cd77ceadcfd69345561b3724",
   "files": {
     "own-subset:cli/tests/unit/support/templates": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -12,9 +12,9 @@
     "source/cli/tests/unit/templates/commands.test.ts": "6a4f3e2ade8ad6f4067eebc2d74eb8368617dfe0f17f5a8bacb0332b36c89473",
     "source/cli/tests/unit/templates/default-config.test.ts": "707272ad9cac1ba4d16f50ed273d7eca8d435b3dc6f2c746809c448836e45b7a",
     "source/cli/tests/unit/templates/platform.test.ts": "dc837d48e5e11e3983fc14a7c6a831b3941df91906da0447566c67d9756220ab",
-    "source/cli/tests/unit/templates/rules-sections.test.ts": "dafc4474e9a9e2bd94b7e6d45632ab057a2ae7cea80847b43279c08c7861dc17",
     "source/cli/tests/unit/templates/rules.test.ts": "b768fae3b015c0eb3e56898661b63eefba31e6d9cedb6bb0a465ee4fb3730aae",
-    "source/cli/tests/unit/templates/knowledge.test.ts": "45c87a56448a88f11650483904261eea2826bceef6fc1efa7993dce747005ad2"
+    "source/cli/tests/unit/templates/knowledge.test.ts": "d612e1071b25acde83fdc37bf7f870f5d3b98c20cf9bef38aed75440c37c17bd",
+    "source/cli/tests/unit/templates/rules-sections.test.ts": "28058e8afffbdcb33b530a1b3d5e9d3e92d43e95efbc5b2527cb53f22821f1c0"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -25,14 +25,14 @@
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/templates/commands.test.ts": 1771702372076.214,
     "source/cli/tests/unit/templates/default-config.test.ts": 1779885521795.7646,
-    "source/cli/tests/unit/templates/knowledge.test.ts": 1780043770011.0364,
+    "source/cli/tests/unit/templates/knowledge.test.ts": 1780170461199.6155,
     "source/cli/tests/unit/templates/platform.test.ts": 1776179066148.0842,
-    "source/cli/tests/unit/templates/rules-sections.test.ts": 1778842997642.2437,
+    "source/cli/tests/unit/templates/rules-sections.test.ts": 1780170623614.5786,
     "source/cli/tests/unit/templates/rules.test.ts": 1776349121518.1729
   },
   "log": {
-    "last_entry_datetime": "2026-05-29T08:36:51.010Z",
-    "prefix_hash": "bb3633f6f0231d792e9570c1b3c3767307a6876671f31930fa843d99049f3660"
+    "last_entry_datetime": "2026-05-30T20:06:21.887Z",
+    "prefix_hash": "6ae44eee849793da36817162c7aed8712a3714cbd9489ab018861f58e4e34231"
   },
   "aspectVerdicts": {
     "test-deterministic": {
