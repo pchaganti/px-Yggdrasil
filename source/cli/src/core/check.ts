@@ -191,28 +191,31 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
     for (const storedPath of Object.keys(storedEntry.files)) {
       const normalizedStored = storedPath.replace(/\\/g, '/').replace(/\/+$/, '');
       if (normalizedStored in fileHashes || normalizedFileHashes.has(normalizedStored)) continue;
-      const layer = resolveLayer(storedPath);
-      const category = categorizeFile(storedPath, graph.rootPath, projectRoot);
+      // Use the POSIX-normalized path for every classification lookup AND every
+      // output-bound string below — the raw key may carry host separators, which
+      // must never reach the agent-visible drift report (posix-paths-output).
+      const layer = resolveLayer(normalizedStored);
+      const category = categorizeFile(normalizedStored, graph.rootPath, projectRoot);
 
       if (layer === 'source') {
-        directChanges.push({ filePath: `${storedPath} (deleted)`, category });
+        directChanges.push({ filePath: `${normalizedStored} (deleted)`, category });
       } else if (layer) {
         cascadeCauses.push({
-          file: storedPath,
+          file: normalizedStored,
           layer,
-          description: describeCascadeCause(storedPath, layer, graph),
+          description: describeCascadeCause(normalizedStored, layer, graph),
         });
       } else {
         // File was in baseline but not in current tracked files -- layer unknown
         // Classify by path: .yggdrasil/ = graph, else source
         if (category === 'source') {
-          directChanges.push({ filePath: `${storedPath} (deleted)`, category });
+          directChanges.push({ filePath: `${normalizedStored} (deleted)`, category });
         } else {
           // Could be upstream file that was removed -- treat as cascade
           cascadeCauses.push({
-            file: storedPath,
+            file: normalizedStored,
             layer: 'relational',
-            description: `Tracked file removed: ${storedPath}`,
+            description: `Tracked file removed: ${normalizedStored}`,
           });
         }
       }
