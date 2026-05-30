@@ -164,7 +164,9 @@ yg tree [--root <path>] [--depth <n>]
 ### `yg find`
 
 Natural-language search across nodes and aspects (flows are not indexed). Returns results
-ranked by relevance with score, kind (node/aspect), and a short description.
+ranked by relevance. Each result shows the `score`, the `Kind` (node/aspect), and a short
+`Description`. Node results also print a `Type:` line; aspect results print a `status:` line.
+A `Matched:` line lists the query terms that matched.
 
 ```bash
 yg find "order cancellation"
@@ -182,8 +184,12 @@ Lists all defined aspects with metadata.
 yg aspects
 ```
 
-Output: a custom human-readable line format (not YAML) with fields: `id`, `name`,
-`description`, `implies`.
+Output: a custom human-readable line format (not YAML). Each aspect renders as a header line
+`<id> [<status>] — <description>` (the description falls back to the aspect name when no
+description is set — there is no separate `name` field), followed by a `Reviewer:` line (for
+`llm` reviewers it also shows the tier), a usage line `Used by: N nodes
+(architecture/direct/implied/flow)` — or `Used by: 0 nodes — orphaned` when nothing references
+it — and an `Implies:` line when the aspect implies others.
 
 ### `yg flows`
 

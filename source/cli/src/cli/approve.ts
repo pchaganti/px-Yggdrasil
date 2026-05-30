@@ -8,6 +8,7 @@ import { approveNode, resolveAspects, loadSourceFiles } from '../core/approve.js
 import { runApproveWithReviewer, type LlmApproveResult } from '../core/approve-reviewer.js';
 export type { LlmApproveResult };
 import { collectTrackedFiles } from '../core/graph/files.js';
+import { collectParticipatingFlows } from '../core/graph/flows.js';
 import { hashTrackedFiles } from '../io/hash.js';
 import { classifyDrift } from '../core/check.js';
 import type { CheckIssue, CascadeCause } from '../core/check.js';
@@ -213,6 +214,67 @@ export function filterCascadeNodes(
     if (hasMatchingCause) {
       matched.push(issue.nodePath);
     }
+  }
+  return matched;
+}
+
+/**
+ * Select nodes for `yg approve --flow <name>`: nodes that have cascade
+ * (upstream) drift AND participate in the flow. Unlike `filterCascadeNodes`,
+ * this does NOT match on a cause-file prefix — a flow-attached aspect's change
+ * is recorded under `aspects/<id>/`, never `flows/<name>/`, so a path-prefix
+ * filter misses every participant. Flow participation follows the
+ * descendant-inclusion rule via `collectParticipatingFlows` (a node
+ * participates when it or any ancestor is a declared participant).
+ */
+export function filterFlowCascadeNodes(
+  issues: CheckIssue[],
+  graph: Graph,
+  flowName: string,
+): string[] {
+  const matched: string[] = [];
+  for (const issue of issues) {
+    if (issue.code !== 'upstream-drift' || !issue.nodePath) continue;
+    const node = graph.nodes.get(issue.nodePath);
+    if (!node) continue;
+    if (collectParticipatingFlows(graph, node).some(f => f.path === flowName)) {
+      matched.push(issue.nodePath);
+    }
+  }
+  return matched;
+}
+
+/**
+ * Select nodes for `yg approve --aspect <id>`: nodes with cascade drift caused
+ * by this aspect. Not every cause for an aspect lives under `aspects/<id>/` —
+ * an aspect's declared reference files are tracked at their own repo path, and
+ * the per-aspect drift identities are synthetic keys (see collectTrackedFiles).
+ * A plain `aspects/<id>/` prefix filter misses all of those, so a node that
+ * drifted only because the aspect's reference file (or tier/structure identity)
+ * changed would be silently skipped. Match the prefix OR any of those.
+ */
+export function filterAspectCascadeNodes(
+  issues: CheckIssue[],
+  graph: Graph,
+  aspectId: string,
+  yggPrefix: string,
+): string[] {
+  const prefix = `${yggPrefix}/aspects/${aspectId}/`;
+  const aspect = graph.aspects.find(a => a.id === aspectId);
+  const extra = new Set<string>([
+    `tier-identity:${aspectId}`,
+    `structure-identity:${aspectId}`,
+    `structure-touched:${aspectId}`,
+    ...(aspect?.references ?? []).map(r => r.path.replace(/\\/g, '/')),
+  ]);
+  const matched: string[] = [];
+  for (const issue of issues) {
+    if (issue.code !== 'upstream-drift' || !issue.nodePath || !issue.cascadeCauses) continue;
+    const hit = issue.cascadeCauses.some((c: CascadeCause) => {
+      const f = c.file.replace(/\\/g, '/');
+      return f.startsWith(prefix) || extra.has(f);
+    });
+    if (hit) matched.push(issue.nodePath);
   }
   return matched;
 }
@@ -441,11 +503,11 @@ async function abortOnGatingErrors(graph: Graph): Promise<void> {
 async function runBatchApprove(
   graph: Graph,
   entityLabel: string,
-  causePrefix: string,
+  selectNodes: (issues: CheckIssue[]) => string[],
   filterAspectId?: string,
 ): Promise<boolean> {
   const issues = await classifyDrift(graph);
-  const matchedNodes = filterCascadeNodes(issues, causePrefix);
+  const matchedNodes = selectNodes(issues);
 
   if (matchedNodes.length === 0) {
     process.stdout.write(`No cascade drift found for ${entityLabel}.\n`);
@@ -575,8 +637,7 @@ export function registerApproveCommand(program: Command): void {
             process.stdout.write(buildIssueMessage(approveAspectDraftScenarioAMessage({ aspectId })) + '\n');
             process.exit(0);
           }
-          const causePrefix = `${yggPrefix}/aspects/${aspectId}/`;
-          const allPassed = await runBatchApprove(graph, `aspect '${aspectId}'`, causePrefix, aspectId);
+          const allPassed = await runBatchApprove(graph, `aspect '${aspectId}'`, (issues) => filterAspectCascadeNodes(issues, graph, aspectId, yggPrefix), aspectId);
           process.exit(allPassed ? 0 : 1);
         }
 
@@ -592,8 +653,7 @@ export function registerApproveCommand(program: Command): void {
             }) + '\n'));
             process.exit(1);
           }
-          const causePrefix = `${yggPrefix}/flows/${flowName}/`;
-          const allPassed = await runBatchApprove(graph, `flow '${flowName}'`, causePrefix);
+          const allPassed = await runBatchApprove(graph, `flow '${flowName}'`, (issues) => filterFlowCascadeNodes(issues, graph, flowName));
           process.exit(allPassed ? 0 : 1);
         }
 
@@ -639,7 +699,7 @@ export function registerApproveCommand(program: Command): void {
         const mappingPaths = normalizeMappingPaths(node.meta.mapping);
         if (mappingPaths.length === 0) {
           const causePrefix = `${yggPrefix}/model/${nodePath}/`;
-          const allPassed = await runBatchApprove(graph, `parent node '${nodePath}'`, causePrefix);
+          const allPassed = await runBatchApprove(graph, `parent node '${nodePath}'`, (issues) => filterCascadeNodes(issues, causePrefix));
           process.exit(allPassed ? 0 : 1);
         }
 

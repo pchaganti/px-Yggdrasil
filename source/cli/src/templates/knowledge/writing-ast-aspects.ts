@@ -70,6 +70,14 @@ Rules:
 - Do not access \`ctx.files\` of a file not in \`ctx.files\` — runtime error
   \`AST_CHECK_FILE_NOT_IN_CONTEXT\`.
 
+The runner raises typed runtime errors when the contract is broken:
+
+| Error code | Cause |
+|---|---|
+| \`AST_CHECK_FILE_NOT_IN_CONTEXT\` | \`check\` touched a file that is not in \`ctx.files\` |
+| \`AST_CHECK_ASYNC\` | \`check\` returned a thenable/Promise — it must be synchronous |
+| \`AST_CHECK_RETURN_SHAPE\` | \`check\` returned a non-array — it must return \`Violation[]\` |
+
 ## Iterating over the files
 
 Today every mapped file (TypeScript/JavaScript family) arrives in a single

@@ -119,6 +119,43 @@ describe('logMergeResolve (core)', () => {
     if (!result.ok) expect(result.error.what).toContain('missing');
   });
 
+  it('rejects a fabricated entry not present in either merge parent', async () => {
+    const { projectRoot, nodePath } = await setupMergeRepo();
+    const logPath = path.join(projectRoot, '.yggdrasil', 'model', nodePath, 'log.md');
+    const fabricated =
+      ANCESTOR_LOG +
+      '## [2026-05-11T11:00:00.000Z]\nfeat1.\n' +
+      '## [2026-05-11T12:00:00.000Z]\nfeat2.\n' +
+      '## [2026-05-11T13:00:00.000Z]\nFABRICATED — never written on either branch.\n';
+    await writeFile(logPath, fabricated);
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logMergeResolve({ graph, nodePath, repoRoot: projectRoot });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects an altered entry body (same timestamp, changed text)', async () => {
+    const { projectRoot, nodePath } = await setupMergeRepo();
+    const logPath = path.join(projectRoot, '.yggdrasil', 'model', nodePath, 'log.md');
+    const altered =
+      ANCESTOR_LOG +
+      '## [2026-05-11T11:00:00.000Z]\nALTERED feat1 body — tampered after the fact.\n' +
+      '## [2026-05-11T12:00:00.000Z]\nfeat2.\n';
+    await writeFile(logPath, altered);
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logMergeResolve({ graph, nodePath, repoRoot: projectRoot });
+    expect(result.ok).toBe(false);
+  });
+
+  it('returns a structured error when log.md is absent (no unexpected throw)', async () => {
+    const { projectRoot, nodePath } = await setupMergeRepo();
+    const logPath = path.join(projectRoot, '.yggdrasil', 'model', nodePath, 'log.md');
+    await rm(logPath);
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logMergeResolve({ graph, nodePath, repoRoot: projectRoot });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.what).toMatch(/log\.md/);
+  });
+
   it('rejects when new entries out of chronological order', async () => {
     const { projectRoot, nodePath } = await setupMergeRepo();
     const logPath = path.join(projectRoot, '.yggdrasil', 'model', nodePath, 'log.md');

@@ -1,5 +1,5 @@
 {
-  "hash": "d03d60247d5ee13dd0258403ed18a3fe7ed9c8d0cda69371fb6e357d991fd07a",
+  "hash": "d4242517a1cee0e1519fedbe00e668110d6ec1c9c1f32f63be41defc03ca63eb",
   "files": {
     "own-subset:cli/tests/unit/ast/core": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -9,12 +9,12 @@
     ".yggdrasil/model/cli/tests/unit/ast/yg-node.yaml": "560e64c59b6b3426fc7dd266ce6bd2b61d3b62d2ad275cc1ffefaf740cfa2063",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/ast/find-comments.test.ts": "55e045863920dcdcab6b73c6bb569732d50d41f8ed31514003e77f9873be5f2b",
     "source/cli/tests/unit/ast/index-exports.test.ts": "4c832a31bf52ba3afb001179e4276552ed83d83614a32fac20d8987517e59019",
     "source/cli/tests/unit/ast/parser.test.ts": "20363289967ccb20300c74cc1ba90c897b0e08fec08f8251cca6dcf171381fbc",
     "source/cli/tests/unit/ast/report.test.ts": "bcbb06ced69ddadba34cf12f13237081edf2fe2502f765836b9a130580cd48e0",
     "source/cli/tests/unit/ast/suppress.test.ts": "f560963024164316556d2458f628ecac5c905d551269a04bd96778203c3cbdaf",
-    "source/cli/tests/unit/ast/walk.test.ts": "2ebdc4a0555b01eab30d544b961292f986f2a7be436664eb4e7009cd42341b8e"
+    "source/cli/tests/unit/ast/walk.test.ts": "2ebdc4a0555b01eab30d544b961292f986f2a7be436664eb4e7009cd42341b8e",
+    "source/cli/tests/unit/ast/find-comments.test.ts": "e4e43c846a4dee66ed759297390d27b62f8d5f87b21945965093ec373fe5a223"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -23,7 +23,7 @@
     ".yggdrasil/model/cli/tests/unit/ast/yg-node.yaml": 1778923838526.995,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/ast/find-comments.test.ts": 1779794513952.764,
+    "source/cli/tests/unit/ast/find-comments.test.ts": 1780133934017.0627,
     "source/cli/tests/unit/ast/index-exports.test.ts": 1779794513952.9321,
     "source/cli/tests/unit/ast/parser.test.ts": 1778432436135.0542,
     "source/cli/tests/unit/ast/report.test.ts": 1779794513953.0547,
@@ -33,5 +33,10 @@
   "log": {
     "last_entry_datetime": "2026-05-26T09:48:28.518Z",
     "prefix_hash": "069acfc5d51beebe5bde87546b68267241c125203512ba8f215d2d02e003b851"
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   }
 }

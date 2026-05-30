@@ -13,6 +13,7 @@ import {
 import { readNodeDriftState, writeNodeDriftState } from '../../io/drift-state-store.js';
 import type { DriftNodeState } from '../../model/drift.js';
 import { readTextFile } from '../../io/graph-fs.js';
+import { debugWrite } from '../../utils/debug-log.js';
 
 export interface LogMergeResolveInput {
   graph: Graph;
@@ -64,7 +65,20 @@ export async function logMergeResolve(input: LogMergeResolveInput): Promise<LogM
   }
 
   const logPath = path.join(yggRoot, 'model', nodePath, 'log.md');
-  const currentLog = await readTextFile(logPath);
+  let currentLog: string;
+  try {
+    currentLog = await readTextFile(logPath);
+  } catch (err) {
+    debugWrite(`[log-merge-resolve] log.md unreadable for node ${nodePath}: ${err instanceof Error ? err.message : String(err)}`);
+    return {
+      ok: false,
+      error: {
+        what: `log.md not found for node ${nodePath}`,
+        why: 'merge-resolve reconciles an existing per-node log; this node has no log.md in the working tree.',
+        next: 'Confirm the --node path. If the node has no log yet, there is nothing to merge-resolve.',
+      },
+    };
+  }
 
   if (/^(<{7}|={7}|>{7})/m.test(currentLog)) {
     return {
@@ -106,15 +120,38 @@ export async function logMergeResolve(input: LogMergeResolveInput): Promise<LogM
   const currentEntries = parseLog(currentLog);
   const currentNew = currentEntries.slice(ancestorEntries.length);
 
-  const currentNewDatetimes = new Set(currentNew.map(e => e.datetime));
-  const missing = [...p1New, ...p2New].filter(e => !currentNewDatetimes.has(e.datetime));
+  // Match new entries by CONTENT (datetime + body), not datetime alone, and in
+  // BOTH directions: every parent-new entry must survive unmodified (no drops,
+  // no body edits), and every result-new entry must originate from a parent (no
+  // fabricated entries). Datetime-only matching let an altered body or an
+  // invented entry pass integrity verification.
+  const entryKey = (e: { datetime: string; body: string }): string =>
+    createHash('sha256').update(`${e.datetime}\n${e.body}`).digest('hex');
+
+  const parentNew = [...p1New, ...p2New];
+  const parentNewKeys = new Set(parentNew.map(entryKey));
+  const currentNewKeys = new Set(currentNew.map(entryKey));
+
+  const missing = parentNew.filter(e => !currentNewKeys.has(entryKey(e)));
   if (missing.length > 0) {
     return {
       ok: false,
       error: {
-        what: `log.md is missing ${missing.length} entr${missing.length === 1 ? 'y' : 'ies'} from merge parents`,
-        why: 'All new log entries from both branches must be preserved in the merge result.',
-        next: `Add the missing entries: ${missing.map(e => e.datetime).join(', ')}`,
+        what: `log.md is missing or has altered ${missing.length} entr${missing.length === 1 ? 'y' : 'ies'} from merge parents`,
+        why: 'Every new log entry from both branches must be preserved byte-for-byte in the merge result.',
+        next: `Restore these entries unmodified: ${missing.map(e => e.datetime).join(', ')}`,
+      },
+    };
+  }
+
+  const fabricated = currentNew.filter(e => !parentNewKeys.has(entryKey(e)));
+  if (fabricated.length > 0) {
+    return {
+      ok: false,
+      error: {
+        what: `log.md contains ${fabricated.length} new entr${fabricated.length === 1 ? 'y' : 'ies'} not present in either merge parent`,
+        why: 'A merge resolution may only union the entries from the two branches — it cannot add or alter entries.',
+        next: `Remove the fabricated or altered entries: ${fabricated.map(e => e.datetime).join(', ')}`,
       },
     };
   }

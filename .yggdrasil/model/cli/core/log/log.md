@@ -12,3 +12,7 @@ Refactor logAdd to require nowMs parameter: move Date.now() call out of engine (
 Re-approving after drift state was wiped during concurrent development session. No source changes — this approval records the baseline verdicts for newly-active aspects.
 ## [2026-05-29T10:10:06.418Z]
 Re-approving all aspects because the what-why-next aspect content was updated (clarified that structured messageData field access in CLI renderers satisfies the rule, not just direct buildIssueMessage calls). The aspect content change triggered a cascade drift requiring full re-approval to establish verdicts for all active aspects.
+## [2026-05-30T10:05:16.434Z]
+Merge reconciliation of a per-node history now verifies entries by their full content, not just their timestamp, and in both directions. Matching only on timestamp let a reconciliation silently keep an entry whose text had been altered, or add an entry present on neither merged branch, as long as the timestamps lined up. Reconciliation now rejects dropped, altered, and fabricated entries alike, and reports a clear, actionable message when the history file is absent instead of failing with an opaque error.
+## [2026-05-30T10:28:16.596Z]
+The merge-reconciliation path that handles an unreadable per-node history file now writes a diagnostic log line before returning its user-facing error, so a swallowed read failure is never silent. This follows the codebase convention that any caught error which is not re-thrown must still be recorded for later diagnosis, rather than disappearing into a fallback return.

@@ -1,18 +1,20 @@
 {
-  "hash": "e02a77c72b01801b2fc2fb98af22f20aa1f52e0d15ac96b8657d1a34caf82d09",
+  "hash": "fe6a3f42235cdcf56cd518712e8d5fe0ea9bb052ef0e840e734726471466884c",
   "files": {
     "own-subset:cli/tests/unit/cli/approve": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
+    ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": "d51c269d4b45bd597645a6c918e820c67762877ac22d64f861c53421b67a4fbd",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/unit/cli/approve.test.ts": "52f3fe1ed40b8e9012e86deb9e83d5b50889e48aefe585071c2069b1adca168f",
     "source/cli/tests/unit/cli/approve-batch.test.ts": "c59619ad846ed53db20f63cf8c5f1e55d720963e056cff106a758331e4f514a3",
     "source/cli/tests/unit/cli/approve-batch-integration.test.ts": "6498d29cac4d13780df2deba6bbde5fd51a73e9f795f6ea51f42cc169ccd27dd",
     "source/cli/tests/unit/cli/run-batch.test.ts": "15dcfa3052af8f7adef71fbc1ce9865f6640d745ca0300a56d519aa921c32887",
-    ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": "d51c269d4b45bd597645a6c918e820c67762877ac22d64f861c53421b67a4fbd",
-    "source/cli/tests/unit/cli/approve.test.ts": "52f3fe1ed40b8e9012e86deb9e83d5b50889e48aefe585071c2069b1adca168f"
+    "source/cli/tests/unit/cli/approve-aspect-cascade.test.ts": "441274cc08898037acbce0bb81abea87f658904334131a722ef4981e8f1bf26c",
+    "source/cli/tests/unit/cli/approve-flow-cascade.test.ts": "d50617acf37f5956941405edaca68f907c4d2c698b1db9b82d52d4f5e52b73c7"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -24,6 +26,8 @@
     "source/cli/tests/unit/cli/approve.test.ts": 1780071226036.4976,
     "source/cli/tests/unit/cli/approve-batch.test.ts": 1778854589347.4822,
     "source/cli/tests/unit/cli/approve-batch-integration.test.ts": 1779869468774.8708,
+    "source/cli/tests/unit/cli/approve-aspect-cascade.test.ts": 1780133819578.648,
+    "source/cli/tests/unit/cli/approve-flow-cascade.test.ts": 1780133272222.319,
     "source/cli/tests/unit/cli/run-batch.test.ts": 1778917038514.553
   },
   "log": {

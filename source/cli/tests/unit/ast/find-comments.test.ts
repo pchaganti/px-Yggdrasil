@@ -31,4 +31,19 @@ describe('findComments', () => {
     expect(() => findComments({ ast: tree, language: 'martian' }))
       .toThrow();
   });
+
+  it('SourceFile form (a ctx.files element) derives the language from the path extension', async () => {
+    const tree = await parseFile('test.ts', '// hi\nconst x = 1; /* bye */');
+    // ctx.files elements are { path, content, ast } — no language field.
+    const file = { path: 'src/foo.ts', content: '// hi\nconst x = 1; /* bye */', ast: tree };
+    const comments = findComments(file);
+    expect(comments.length).toBe(2);
+    expect(comments[0].text).toBe('// hi');
+  });
+
+  it('SourceFile form with an unknown extension throws a clear error', async () => {
+    const tree = await parseFile('test.ts', '// x');
+    expect(() => findComments({ path: 'src/foo.weird', ast: tree }))
+      .toThrow(/AST_FINDCOMMENTS/);
+  });
 });

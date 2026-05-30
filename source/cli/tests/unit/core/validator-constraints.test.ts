@@ -263,7 +263,7 @@ describe('validator', () => {
       expect(result.issues.filter(i => i.code === 'port-missing-consumes')).toHaveLength(0);
     });
 
-    it('does not fire for emits/listens relations even when target has ports', async () => {
+    it('fires for emits/listens relations to a port-bearing target without consumes (ports apply to every relation type)', async () => {
       const graph = createGraph({
         aspects: [{ name: 'Audit', id: 'valid-tag', reviewer: { type: 'llm' as const }, artifacts: [] }],
       });
@@ -278,7 +278,8 @@ describe('validator', () => {
       }));
 
       const result = await validate(graph);
-      expect(result.issues.filter(i => i.code === 'port-missing-consumes')).toHaveLength(0);
+      const missing = result.issues.filter(i => i.code === 'port-missing-consumes');
+      expect(missing.map(i => i.nodePath).sort()).toEqual(['emitter', 'listener']);
     });
   });
 

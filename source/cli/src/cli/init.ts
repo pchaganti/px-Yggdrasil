@@ -376,11 +376,11 @@ async function freshInit(projectRoot: string): Promise<void> {
   const yggRoot = path.join(projectRoot, '.yggdrasil');
 
   if (!isTTY()) {
-    process.stderr.write(chalk.red(buildIssueMessage({
+    process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
       what: 'yg init requires an interactive terminal.',
       why: 'Setup requires interactive prompts to configure platform and reviewer.',
       next: 'Run yg init in an interactive terminal session.',
-    }) + '\n'));
+    })}\n`));
     process.exit(1);
   }
 
@@ -632,11 +632,11 @@ export function registerInitCommand(program: Command): void {
 
           const currentVersion = await detectVersion(yggRoot);
           if (currentVersion === null) {
-            process.stderr.write(chalk.red(buildIssueMessage({
+            process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
               what: 'No graph version detected.',
               why: ".yggdrasil/yg-config.yaml is missing a 'version:' field, so --upgrade cannot determine which migrations to run.",
               next: "Run 'yg init' interactively once to record the current version, then retry 'yg init --upgrade --platform <name>'.",
-            }) + '\n'));
+            })}\n`));
             process.exit(1);
           }
           const result = await runVersionUpgrade(

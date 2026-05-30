@@ -1,10 +1,12 @@
 name: CLI Approve Command Tests
 type: test-suite
-description: Unit tests for approve and batch execution commands — approve, approve-batch, approve-batch-integration, and run-batch
+description: Unit tests for approve and batch execution commands — approve, approve-batch, approve-batch-integration, run-batch, and the --aspect / --flow cascade-node selectors
 aspects: []
 relations: []
 mapping:
   - source/cli/tests/unit/cli/approve.test.ts
   - source/cli/tests/unit/cli/approve-batch.test.ts
   - source/cli/tests/unit/cli/approve-batch-integration.test.ts
+  - source/cli/tests/unit/cli/approve-aspect-cascade.test.ts
+  - source/cli/tests/unit/cli/approve-flow-cascade.test.ts
   - source/cli/tests/unit/cli/run-batch.test.ts

@@ -75,6 +75,15 @@ Rules the parser enforces:
 - At a single level, use EITHER one boolean operator OR atomic clauses — not
   both, and at most one boolean operator. To combine more, nest another level.
 
+Beyond these structural checks, \`yg check\` reference-integrity-validates the
+identifiers a \`when\` predicate names. These are error-severity and block
+\`yg check\`:
+- An unknown \`target_type\`, \`descendants.type\`, or \`node.type\` raises a
+  \`when-unknown-type\` error.
+- An unknown relation \`target\` (a node path that does not exist) raises a
+  \`when-unknown-node\` error.
+- An unknown \`consumes_port\` raises a \`when-unknown-port\` error.
+
 ### A node calls a service client
 
 \`\`\`yaml

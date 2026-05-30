@@ -372,9 +372,9 @@ export function checkPortConsumes(graph: Graph): ValidationIssue[] {
 
   for (const [nodePath, node] of graph.nodes) {
     for (const rel of node.meta.relations ?? []) {
-      // Skip event relations — they don't consume ports
-      if (rel.type === 'emits' || rel.type === 'listens') continue;
-
+      // Port contracts apply to EVERY relation type, including event relations
+      // (emits/listens): channel-6 aspect propagation does not skip them, so the
+      // consumes contract must be enforced uniformly for consistency.
       const target = graph.nodes.get(rel.target);
       const hasPorts = target?.meta.ports && Object.keys(target.meta.ports).length > 0;
 

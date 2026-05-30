@@ -1,5 +1,5 @@
 {
-  "hash": "1217df0fda280536196109c651a4c47947a919d4d2bdacef2466179ef5de2df1",
+  "hash": "cf903fa7761309f1cb6d3bc0b4021aef407849aff9b45cb0b1bb26ec5a915f43",
   "files": {
     "own-subset:cli/ast/report": "81c446303e7f0f81e4442926d9268b200464da4ffadf167ab4d6c49a0da2a341",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -10,11 +10,11 @@
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "7a30b1005b8db9642b89f98a63ec71e36d486207e51f6ad3f744079c67fdb9e6",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
     "source/cli/src/ast/file-path.ts": "60f3f76473e9135fdd2ed773ae351688dda7fe9b635816427ab09c968a147eab",
-    "source/cli/src/ast/find-comments.ts": "eefb9e502f00d22cd465959ee56ac044bcec653490dccc2b1f41fcb7db542d17",
     "source/cli/src/ast/index.ts": "fdfb122a2fdb8cfe5b44b0edc9a7a9e526026783abd6685c84c8ee69dc2f5a3d",
     "source/cli/src/ast/report.ts": "420d5bb586f406696052698f2b45f91de75e873ccb8a08cd76031ae07fc639ce",
     "source/cli/src/ast/types.ts": "e9a8c2ad458969690bf9a682a1b8507c1e6b3ff86de3fbed8cc1166b68cb8d18",
-    "source/cli/src/ast/walk.ts": "41671e266d656b2ec96bee5788ecd412e0e1b371d8d33cf9185f63ae3a2a09bd"
+    "source/cli/src/ast/walk.ts": "41671e266d656b2ec96bee5788ecd412e0e1b371d8d33cf9185f63ae3a2a09bd",
+    "source/cli/src/ast/find-comments.ts": "b4be25cd015af2b55e2d72a1bd1f9604408664bfc6377d6e18c466cb20edf85d"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -24,14 +24,22 @@
     ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1779869611285.0671,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1779794513934.5745,
     "source/cli/src/ast/file-path.ts": 1779794513946.8381,
-    "source/cli/src/ast/find-comments.ts": 1779794513946.9302,
+    "source/cli/src/ast/find-comments.ts": 1780133951402.9832,
     "source/cli/src/ast/index.ts": 1779794513947.147,
     "source/cli/src/ast/report.ts": 1779794513947.2622,
     "source/cli/src/ast/types.ts": 1779794513947.6184,
     "source/cli/src/ast/walk.ts": 1779794513947.914
   },
   "log": {
-    "last_entry_datetime": "2026-05-26T10:52:12.815Z",
-    "prefix_hash": "254efa447dada37b729340af4211b4efb31e6903a2b8f6d8977febb1d7b6a112"
+    "last_entry_datetime": "2026-05-30T10:05:16.581Z",
+    "prefix_hash": "2e7d42c2b6d356b56521fb629d908c9126b3546d37dbce7de91654cb5061c055"
+  },
+  "aspectVerdicts": {
+    "deterministic": {
+      "verdict": "approved"
+    },
+    "posix-paths-source": {
+      "verdict": "approved"
+    }
   }
 }
