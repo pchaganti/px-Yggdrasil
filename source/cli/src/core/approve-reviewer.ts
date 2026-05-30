@@ -333,20 +333,25 @@ export async function runApproveWithReviewer(
   const allAspectResults: Record<string, AspectVerificationResult> = {};
   const referencesCache = new Map<string, string>();
 
-  if (filtered.length === 0) {
+  // Every terminal branch funnels through here: record per-aspect verdicts,
+  // commit the baseline (evicting stale draft verdicts), and return the result
+  // with any branch-specific extras layered on. `skippedDraftAspects` is always
+  // attached. Closes over the per-run state above.
+  const finalizeAndReturn = async (extras: Partial<LlmApproveResult>): Promise<LlmApproveResult> => {
     const { verdicts, carryForward } = buildAspectVerdicts(node, graph, allAspectResults);
     applyAspectVerdictsToResult(result, verdicts, carryForward, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
     await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
-    return { ...result, skippedDraftAspects };
+    return { ...result, ...extras, skippedDraftAspects };
+  };
+
+  if (filtered.length === 0) {
+    return finalizeAndReturn({});
   }
 
   // No reviewer configured — LLM aspects cannot run; skip and commit
   const hasLlmAspects = filtered.some(a => a.reviewer.type === 'llm');
   if (!graph.config.reviewer && hasLlmAspects) {
-    const { verdicts, carryForward } = buildAspectVerdicts(node, graph, allAspectResults);
-    applyAspectVerdictsToResult(result, verdicts, carryForward, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
-    await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
-    return { ...result, llmSkipped: 'unavailable', skippedDraftAspects };
+    return finalizeAndReturn({ llmSkipped: 'unavailable' });
   }
 
   // Load source files
@@ -376,11 +381,7 @@ export async function runApproveWithReviewer(
   if (plan.errors.length > 0) {
     const normalizedNodePath = nodePath.replace(/\\/g, '/').replace(/\/+$/, '');
     const why = plan.errors.map(e => [e.what, e.why].filter(Boolean).join('\n')).join('\n\n');
-    const { verdicts, carryForward } = buildAspectVerdicts(node, graph, allAspectResults);
-    applyAspectVerdictsToResult(result, verdicts, carryForward, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
-    await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
-    return {
-      ...result,
+    return finalizeAndReturn({
       action: 'refused',
       refuseReasonData: {
         what: 'Tier resolution failed for one or more aspects.',
@@ -388,8 +389,7 @@ export async function runApproveWithReviewer(
         next: `Fix the tier configuration in yg-config.yaml and re-run: yg approve --node ${normalizedNodePath}`,
       },
       aspectViolations: [],
-      skippedDraftAspects,
-    };
+    });
   }
 
   // AST aspects first (no LLM call)
@@ -570,11 +570,7 @@ export async function runApproveWithReviewer(
     const { enforced: enforcedAstCode } = partitionCodeViolationsByStatus(astCodeViolations, statuses);
     if (astInfraErrors.length > 0 || enforcedAstCode.length > 0) {
       const normalizedNodePath = nodePath.replace(/\\/g, '/').replace(/\/+$/, '');
-      const { verdicts, carryForward } = buildAspectVerdicts(node, graph, allAspectResults);
-      applyAspectVerdictsToResult(result, verdicts, carryForward, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
-      await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
-      return {
-        ...result,
+      return finalizeAndReturn({
         action: 'refused',
         refuseReasonData: {
           what: 'Reviewer found aspect violations.',
@@ -583,8 +579,7 @@ export async function runApproveWithReviewer(
         },
         aspectResults: allAspectResults,
         aspectViolations,
-        skippedDraftAspects,
-      };
+      });
     }
   }
 
@@ -593,20 +588,15 @@ export async function runApproveWithReviewer(
   const llmEntries = plan.resolved.filter((e): e is LlmEntry => e.kind === 'llm');
 
   if (llmEntries.length === 0) {
-    const { verdicts, carryForward } = buildAspectVerdicts(node, graph, allAspectResults);
-    applyAspectVerdictsToResult(result, verdicts, carryForward, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
-    await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
     // No LLM aspects ran. Any violations reaching here are advisory-only code
     // violations from AST/structure (enforced/infra short-circuited above) —
     // surface them so the CLI prints the informational line without refusing.
     const { advisory: advisoryCodeViolations } =
       partitionCodeViolationsByStatus(aspectViolations.filter(v => v.errorSource === 'codeViolation'), statuses);
-    return {
-      ...result,
+    return finalizeAndReturn({
       aspectResults: allAspectResults,
       advisoryViolations: advisoryCodeViolations.length > 0 ? advisoryCodeViolations : undefined,
-      skippedDraftAspects,
-    };
+    });
   }
 
   const aspectsByTier = new Map<string, LlmEntry[]>();
@@ -646,20 +636,15 @@ export async function runApproveWithReviewer(
     const provider = createLlmProvider(merged);
 
     if (!(await provider.isAvailable())) {
-      const { verdicts, carryForward } = buildAspectVerdicts(node, graph, allAspectResults);
-      applyAspectVerdictsToResult(result, verdicts, carryForward, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
-      await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
       // LLM provider unreachable; any violations here are advisory-only code
       // violations from AST/structure (enforced/infra short-circuited above).
       const { advisory: advisoryCodeViolations } =
         partitionCodeViolationsByStatus(aspectViolations.filter(v => v.errorSource === 'codeViolation'), statuses);
-      return {
-        ...result,
+      return finalizeAndReturn({
         llmSkipped: 'unavailable',
         aspectResults: allAspectResults,
         advisoryViolations: advisoryCodeViolations.length > 0 ? advisoryCodeViolations : undefined,
-        skippedDraftAspects,
-      };
+      });
     }
 
     const maxTokens = merged.max_tokens === 'auto'
@@ -721,11 +706,7 @@ export async function runApproveWithReviewer(
   // Check for reference-load failures first — distinct message, takes precedence over generic infra error
   const referenceFailures = aspectViolations.filter(v => v.reason.startsWith('LLM_REFERENCE_UNREADABLE'));
   if (referenceFailures.length > 0 && codeViolations.length === 0) {
-    const { verdicts, carryForward } = buildAspectVerdicts(node, graph, allAspectResults);
-    applyAspectVerdictsToResult(result, verdicts, carryForward, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
-    await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
-    return {
-      ...result,
+    return finalizeAndReturn({
       action: 'refused',
       refuseReasonData: {
         what: `Reference file load failed for ${referenceFailures.length} aspect(s): ${referenceFailures.map(f => f.aspectId).join(', ')}.`,
@@ -734,16 +715,11 @@ export async function runApproveWithReviewer(
       },
       aspectResults: allAspectResults,
       aspectViolations,
-      skippedDraftAspects,
-    };
+    });
   }
 
   if (infrastructureErrors.length > 0 && codeViolations.length === 0) {
-    const { verdicts, carryForward } = buildAspectVerdicts(node, graph, allAspectResults);
-    applyAspectVerdictsToResult(result, verdicts, carryForward, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
-    await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
-    return {
-      ...result,
+    return finalizeAndReturn({
       action: 'refused',
       refuseReasonData: {
         what: 'Reviewer infrastructure failed — this is not a code issue.',
@@ -752,8 +728,7 @@ export async function runApproveWithReviewer(
       },
       aspectResults: allAspectResults,
       aspectViolations,
-      skippedDraftAspects,
-    };
+    });
   }
 
   // Final code-violations decision — status-aware.
@@ -773,13 +748,8 @@ export async function runApproveWithReviewer(
     const { enforced: enforcedCodeViolations, advisory: advisoryCodeViolations } =
       partitionCodeViolationsByStatus(codeViolations, statuses);
 
-    const { verdicts, carryForward } = buildAspectVerdicts(node, graph, allAspectResults);
-    applyAspectVerdictsToResult(result, verdicts, carryForward, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
-    await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
-
     if (infrastructureErrors.length > 0 || enforcedCodeViolations.length > 0) {
-      return {
-        ...result,
+      return finalizeAndReturn({
         action: 'refused',
         refuseReasonData: {
           what: 'Reviewer found aspect violations.',
@@ -788,21 +758,15 @@ export async function runApproveWithReviewer(
         },
         aspectResults: allAspectResults,
         aspectViolations,
-        skippedDraftAspects,
-      };
+      });
     }
 
     // Advisory-only code violations: preserve the approved-family action.
-    return {
-      ...result,
+    return finalizeAndReturn({
       aspectResults: allAspectResults,
       advisoryViolations: advisoryCodeViolations,
-      skippedDraftAspects,
-    };
+    });
   }
 
-  const { verdicts, carryForward } = buildAspectVerdicts(node, graph, allAspectResults);
-  applyAspectVerdictsToResult(result, verdicts, carryForward, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
-  await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
-  return { ...result, aspectResults: allAspectResults, skippedDraftAspects };
+  return finalizeAndReturn({ aspectResults: allAspectResults });
 }
