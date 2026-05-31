@@ -1,0 +1,7 @@
+name: E2E Tests — Check Validation Matrix
+type: test-suite
+description: "Subprocess E2E proving yg check surfaces blocking validation codes with exit 1 and the code plus node path — oversized-node, mapping-path-missing, yaml-invalid, aspect-undefined, aspect-implies-cycle, aspect-reference-broken, aspect-references-on-deterministic, flow-node-broken."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-check-validation.test.ts

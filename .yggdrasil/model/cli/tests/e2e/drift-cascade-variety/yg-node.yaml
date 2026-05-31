@@ -1,0 +1,7 @@
+name: E2E Tests — Drift/Cascade Variety
+type: test-suite
+description: Subprocess E2E proving yg check detects upstream (cascade) drift for each cascade layer (aspect content.md + reference file, parent/hierarchy node, relational dependency, flow) and that the documented re-approve path (--aspect / --node parent / --node dep / --flow) clears it back to exit 0.
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-drift-cascade-variety.test.ts

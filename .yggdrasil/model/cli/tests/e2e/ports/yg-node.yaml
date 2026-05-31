@@ -1,0 +1,7 @@
+name: E2E Tests — Ports & Channel-6
+type: test-suite
+description: "Subprocess E2E proving the consumes/port contract end-to-end — a port's aspects become effective on the consumer (channel 6), yg context shows the port-derived origin, and the four blocking port error codes surface (port-missing-consumes, port-undefined, port-missing-aspect, consumes-without-ports)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-ports.test.ts

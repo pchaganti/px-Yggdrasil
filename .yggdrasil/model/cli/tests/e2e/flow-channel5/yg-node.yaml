@@ -1,0 +1,7 @@
+name: E2E Tests — Flow Channel-5 Propagation
+type: test-suite
+description: Subprocess E2E proving flow aspects (channel 5) reach participants and descendants of participants and are enforced at approve time, and that yg approve --flow batches drifted participants and yg flows lists the propagated aspects.
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-flow-channel5.test.ts

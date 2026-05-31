@@ -1,5 +1,5 @@
 {
-  "hash": "8eff66f093cba05116f2c115761e9b1da9ae043bf9e33489b3d2c37adfcb4b29",
+  "hash": "06460679387ec7be310c8ca689ee2c924e3524f2a4526127368d4c208e0afec1",
   "files": {
     "own-subset:cli/core/migrator-runner": "059bc0a48365b8011491c5765327e3e76183fbc19ae7a6ac87fa76b172a0fc72",
     "tier-identity:posix-paths-output": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -26,7 +26,7 @@
     ".yggdrasil/aspects/single-source-graph-queries/yg-aspect.yaml": "abd43c6a1647d003c926cd7391182a88f1d304dd87fb48b187358182519d2758",
     ".yggdrasil/aspects/single-source-graph-queries/check.mjs": "8364b0c42413e7b467a22b493543f882d77cc3b65616af93127c07c76c212361",
     ".yggdrasil/model/cli/core/migrator/yg-node.yaml": "b641bb974fa2139fb5fc5670f8889e91ea2f2f23600149b1a8eca98f1b953946",
-    "source/cli/src/core/migrator-runner.ts": "e7b1224a95138bb6721767c8ba4d50d05ff628389ab8b1646b3c716571589afa"
+    "source/cli/src/core/migrator-runner.ts": "ee4b0b0384692929304ac1b1df4e0fb653cd2af472a62e1b85daaf19a6daa364"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -46,27 +46,27 @@
     ".yggdrasil/aspects/single-source-graph-queries/yg-aspect.yaml": 1780164134384.7603,
     ".yggdrasil/aspects/single-source-graph-queries/check.mjs": 1779794513935.7961,
     ".yggdrasil/model/cli/core/migrator/yg-node.yaml": 1778912998928.313,
-    "source/cli/src/core/migrator-runner.ts": 1779944669425.7827
+    "source/cli/src/core/migrator-runner.ts": 1780196478923.115
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T05:09:52.679Z",
-    "prefix_hash": "8b7e20aae7a435874058f55e4bf99a4057de2fb5403c3ba99103b3f18c0d1863"
+    "last_entry_datetime": "2026-05-31T03:04:38.731Z",
+    "prefix_hash": "31489a02fcae034ef07968066d800f7dcd451cb4f21de1836d0901d7226abf35"
   },
   "deterministicTouchedFiles": {
     "no-nondeterminism-direct": {
-      "source/cli/src/core/migrator-runner.ts": "e7b1224a95138bb6721767c8ba4d50d05ff628389ab8b1646b3c716571589afa"
+      "source/cli/src/core/migrator-runner.ts": "ee4b0b0384692929304ac1b1df4e0fb653cd2af472a62e1b85daaf19a6daa364"
     },
     "no-direct-fs": {
-      "source/cli/src/core/migrator-runner.ts": "e7b1224a95138bb6721767c8ba4d50d05ff628389ab8b1646b3c716571589afa"
+      "source/cli/src/core/migrator-runner.ts": "ee4b0b0384692929304ac1b1df4e0fb653cd2af472a62e1b85daaf19a6daa364"
     },
     "no-direct-console": {
-      "source/cli/src/core/migrator-runner.ts": "e7b1224a95138bb6721767c8ba4d50d05ff628389ab8b1646b3c716571589afa"
+      "source/cli/src/core/migrator-runner.ts": "ee4b0b0384692929304ac1b1df4e0fb653cd2af472a62e1b85daaf19a6daa364"
     },
     "posix-paths-source": {
-      "source/cli/src/core/migrator-runner.ts": "e7b1224a95138bb6721767c8ba4d50d05ff628389ab8b1646b3c716571589afa"
+      "source/cli/src/core/migrator-runner.ts": "ee4b0b0384692929304ac1b1df4e0fb653cd2af472a62e1b85daaf19a6daa364"
     },
     "single-source-graph-queries": {
-      "source/cli/src/core/migrator-runner.ts": "e7b1224a95138bb6721767c8ba4d50d05ff628389ab8b1646b3c716571589afa"
+      "source/cli/src/core/migrator-runner.ts": "ee4b0b0384692929304ac1b1df4e0fb653cd2af472a62e1b85daaf19a6daa364"
     }
   },
   "aspectVerdicts": {

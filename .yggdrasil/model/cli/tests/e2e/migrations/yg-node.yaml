@@ -1,0 +1,7 @@
+name: E2E Tests — Migrations
+type: test-suite
+description: "Subprocess E2E proving init --upgrade migration paths — v4.3 to v5 config migration, idempotency, withheld-bump on a bad config (now surfaced with exit 1), aspect reviewer ast to deterministic and absent to llm, and version-too-new rejection by check and tree."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-migrations.test.ts
