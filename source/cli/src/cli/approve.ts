@@ -97,8 +97,8 @@ function formatLlmResults(result: LlmApproveResult): void {
   if (result.llmSkipped) {
     const messages: Record<NonNullable<LlmApproveResult['llmSkipped']>, { what: string; why: string; next: string }> = {
       'unavailable': {
-        what: 'Reviewer configured but not reachable — LLM aspects were not verified (structural checks only).',
-        why: 'The configured LLM reviewer could not be contacted, so verdicts for LLM aspects were skipped on this approve; the recorded baseline reflects only the deterministic checks.',
+        what: 'The configured reviewer could not be contacted, so LLM aspects were not verified.',
+        why: 'Approval fails closed when an LLM aspect cannot be verified: NO baseline was recorded and the prior drift stays visible, so a later yg check remains red rather than going green over unverified code.',
         next: 'Check the reviewer provider and credentials in .yggdrasil/yg-config.yaml, then re-run yg approve.',
       },
     };
@@ -529,9 +529,11 @@ export async function runDryRunForNode(params: {
       });
       const references = loaded.ok ? loaded.references : [];
       if (!loaded.ok) {
-        process.stdout.write(chalk.yellow(
-          `(warning: reference load failed for ${aspect.id} at dry-run time: ${loaded.reason})\n`,
-        ));
+        process.stdout.write(chalk.yellow(buildIssueMessage({
+          what: `Reference file failed to load for LLM aspect '${aspect.id}' during dry-run: ${loaded.reason}`,
+          why: 'The dry-run preview omits this reference, so the prompt shown here will not match what a real approve would send once the reference loads.',
+          next: `Fix the reference path or file declared on aspect '${aspect.id}', then re-run the dry-run.`,
+        }) + '\n'));
       }
       const prompt = buildPrompt(aspect, node.meta.description ?? '', nodePath, sourceFiles, references);
       process.stdout.write(chalk.bold(`\n--- Prompt for LLM aspect: ${aspect.id} [${status}] ---\n`));

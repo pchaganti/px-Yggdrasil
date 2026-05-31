@@ -563,7 +563,11 @@ describe('LLM verification (CLI layer)', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('reports LLM unavailable when no reviewer configured', async () => {
+  // FAIL-CLOSED (#2): an LLM aspect with NO reviewer configured cannot be verified.
+  // Approving would record a verdict over unverified code, so it must refuse (infra)
+  // and leave the prior baseline hash intact — never commit a green over code the
+  // reviewer never saw.
+  it('fails closed when an LLM aspect has no reviewer configured', async () => {
     const { tmpDir } = await createTmpProject('llm-skip-unavailable', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - deterministic\nmapping:\n  - src/svc/\n',
@@ -572,13 +576,18 @@ describe('LLM verification (CLI layer)', () => {
       configYaml: 'version: "4.0.0"\n',  // no reviewer section
     });
     await recordBaseline(tmpDir);
+    const baselineBefore = (await readNodeDriftState(
+      (await loadGraph(tmpDir)).rootPath, 'svc/my-service'))?.hash;
     await writeFile(path.join(tmpDir, 'src/svc/index.ts'), 'const x = 2;\n');
 
     const graph = await loadGraph(tmpDir);
     const coreResult = await approveNode(graph, 'svc/my-service');
     const result = await runLlmVerification(graph, 'svc/my-service', coreResult, new Map());
     expect(result.llmSkipped).toBe('unavailable');
-    expect(result.action).toBe('approved');
+    expect(result.action).toBe('refused');
+    // Fail-closed: the baseline hash must NOT have advanced over the edited source.
+    const stored = await readNodeDriftState(graph.rootPath, 'svc/my-service');
+    expect(stored?.hash).toBe(baselineBefore);
     await rm(tmpDir, { recursive: true, force: true });
   });
 
@@ -766,7 +775,10 @@ describe('runApproveWithReviewer — AST error paths', () => {
 });
 
 describe('runApproveWithReviewer — additional coverage', () => {
-  it('skips LLM and commits when provider is not available', async () => {
+  // FAIL-CLOSED (#2): a configured reviewer whose availability check fails is an
+  // infrastructure failure, not a code PASS. It must refuse and leave the prior
+  // baseline intact, never commit a green over code the reviewer never saw.
+  it('fails closed when the reviewer provider is unreachable', async () => {
     const { tmpDir } = await createTmpProject('reviewer-provider-unavail', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - deterministic\nmapping:\n  - src/svc/\n',
@@ -778,6 +790,8 @@ describe('runApproveWithReviewer — additional coverage', () => {
       }],
     });
     await recordBaseline(tmpDir);
+    const baselineBefore = (await readNodeDriftState(
+      (await loadGraph(tmpDir)).rootPath, 'svc/my-service'))?.hash;
     await writeFile(path.join(tmpDir, 'src/svc/index.ts'), 'const x = 2;\n');
 
     const graph = await loadGraph(tmpDir);
@@ -792,7 +806,10 @@ describe('runApproveWithReviewer — additional coverage', () => {
       secretsByProvider: new Map(),
     });
     expect(result.llmSkipped).toBe('unavailable');
-    expect(result.action).toBe('approved');
+    expect(result.action).toBe('refused');
+    // Fail-closed: the baseline hash must NOT have advanced over the edited source.
+    const stored = await readNodeDriftState(graph.rootPath, 'svc/my-service');
+    expect(stored?.hash).toBe(baselineBefore);
     await rm(tmpDir, { recursive: true, force: true });
   });
 

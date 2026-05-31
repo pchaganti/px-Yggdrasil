@@ -455,21 +455,43 @@ export async function runApproveWithReviewer(
   // commit the baseline (evicting stale draft verdicts), and return the result
   // with any branch-specific extras layered on. `skippedDraftAspects` is always
   // attached. Closes over the per-run state above.
-  const finalizeAndReturn = async (extras: Partial<LlmApproveResult>): Promise<LlmApproveResult> => {
+  const finalizeAndReturn = async (extras: Partial<LlmApproveResult>, infra = false): Promise<LlmApproveResult> => {
     const { verdicts, carryForward } = buildAspectVerdicts(node, graph, allAspectResults);
     applyAspectVerdictsToResult(result, verdicts, carryForward, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
-    await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
-    return { ...result, ...extras, skippedDraftAspects };
+    // FAIL-CLOSED (#2): commit ONLY on a run with NO infra disposition. Any infra
+    // failure — provider unreachable, no reviewer configured for an LLM aspect,
+    // tier-resolution failure, reference-load failure, check-runtime crash, garbled
+    // response — must leave the prior baseline FULLY intact (no advanced hash, no
+    // draft cleanup) and end RED, so drift stays visible until a clean approve.
+    // Committing on infra would clear drift while carrying the prior `approved`
+    // verdict forward → the next `yg check` goes green over unverified code.
+    if (!infra) {
+      await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
+    }
+    const out: LlmApproveResult = { ...result, ...extras, skippedDraftAspects };
+    if (infra) out.action = 'refused';
+    return out;
   };
 
   if (filtered.length === 0) {
     return finalizeAndReturn({});
   }
 
-  // No reviewer configured — LLM aspects cannot run; skip and commit
+  // No reviewer configured but this node has effective non-draft LLM aspects — they
+  // cannot be verified, so approving would record a verdict over unverified code.
+  // Fail closed (infra): refuse, do not commit.
   const hasLlmAspects = filtered.some(a => a.reviewer.type === 'llm');
   if (!graph.config.reviewer && hasLlmAspects) {
-    return finalizeAndReturn({ llmSkipped: 'unavailable' });
+    const llmIds = filtered.filter(a => a.reviewer.type === 'llm').map(a => a.id).join(', ');
+    return finalizeAndReturn({
+      action: 'refused',
+      llmSkipped: 'unavailable',
+      refuseReasonData: {
+        what: `No reviewer is configured, but this node has effective non-draft LLM aspect(s): ${llmIds}.`,
+        why: 'An LLM aspect needs a configured reviewer to be verified — approving without one would record a verdict over unverified code.',
+        next: 'Add a reviewer tier in .yggdrasil/yg-config.yaml, or set the aspect(s) to status: draft until ready to enforce.',
+      },
+    }, true);
   }
 
   // Load source files
@@ -507,7 +529,7 @@ export async function runApproveWithReviewer(
         next: `Fix the tier configuration in yg-config.yaml and re-run: yg approve --node ${normalizedNodePath}`,
       },
       aspectViolations: [],
-    });
+    }, true); // infra — config problem, do not commit
   }
 
   // Deterministic aspects — former-ast and structure alike — run locally (no LLM
@@ -582,16 +604,25 @@ export async function runApproveWithReviewer(
     const { enforced: enforcedAstCode } = partitionCodeViolationsByStatus(astCodeViolations, statuses);
     if (astInfraErrors.length > 0 || enforcedAstCode.length > 0) {
       const normalizedNodePath = nodePath.replace(/\\/g, '/').replace(/\/+$/, '');
+      // A check-runtime crash / infra error is NOT a code issue → do not commit
+      // (fail closed). A pure enforced code violation DOES commit a refused verdict.
+      const isInfra = astInfraErrors.length > 0;
       return finalizeAndReturn({
         action: 'refused',
-        refuseReasonData: {
-          what: 'Reviewer found aspect violations.',
-          why: 'One or more aspects were not satisfied by the source code.',
-          next: `Fix the violations and re-run: yg approve --node ${normalizedNodePath}`,
-        },
+        refuseReasonData: isInfra
+          ? {
+              what: `A deterministic check failed to run for ${astInfraErrors.length} aspect(s): ${[...new Set(astInfraErrors.map(v => v.aspectId))].join(', ')}.`,
+              why: 'The check.mjs crashed or returned an invalid result — an infrastructure problem in the check, not a code violation.',
+              next: `Fix the check.mjs, then re-run: yg approve --node ${normalizedNodePath}`,
+            }
+          : {
+              what: 'Reviewer found aspect violations.',
+              why: 'One or more aspects were not satisfied by the source code.',
+              next: `Fix the violations and re-run: yg approve --node ${normalizedNodePath}`,
+            },
         aspectResults: allAspectResults,
         aspectViolations,
-      });
+      }, isInfra);
     }
   }
 
@@ -648,15 +679,20 @@ export async function runApproveWithReviewer(
     const provider = createLlmProvider(merged);
 
     if (!(await provider.isAvailable())) {
-      // LLM provider unreachable; any violations here are advisory-only code
-      // violations from AST/structure (enforced/infra short-circuited above).
-      const { advisory: advisoryCodeViolations } =
-        partitionCodeViolationsByStatus(aspectViolations.filter(v => v.errorSource === 'codeViolation'), statuses);
+      // LLM provider unreachable — an infrastructure failure, not a code issue.
+      // Fail closed: refuse, do not commit (so drift stays visible). A co-occurring
+      // advisory code violation is not surfaced this cycle — the node is red on infra.
+      const np = nodePath.replace(/\\/g, '/').replace(/\/+$/, '');
       return finalizeAndReturn({
+        action: 'refused',
         llmSkipped: 'unavailable',
+        refuseReasonData: {
+          what: 'Reviewer provider is unreachable.',
+          why: 'The configured reviewer endpoint did not respond (availability check failed) — an infrastructure problem, not a code violation.',
+          next: `Check the provider endpoint, network, and credentials, then re-run: yg approve --node ${np}`,
+        },
         aspectResults: allAspectResults,
-        advisoryViolations: advisoryCodeViolations.length > 0 ? advisoryCodeViolations : undefined,
-      });
+      }, true);
     }
 
     const maxTokens = merged.max_tokens === 'auto'
@@ -727,7 +763,7 @@ export async function runApproveWithReviewer(
       },
       aspectResults: allAspectResults,
       aspectViolations,
-    });
+    }, true); // infra — reference unreadable, do not commit
   }
 
   if (infrastructureErrors.length > 0 && codeViolations.length === 0) {
@@ -740,7 +776,7 @@ export async function runApproveWithReviewer(
       },
       aspectResults: allAspectResults,
       aspectViolations,
-    });
+    }, true); // infra — do not commit
   }
 
   // Final code-violations decision — status-aware.
@@ -761,16 +797,25 @@ export async function runApproveWithReviewer(
       partitionCodeViolationsByStatus(codeViolations, statuses);
 
     if (infrastructureErrors.length > 0 || enforcedCodeViolations.length > 0) {
+      // Infra dominates the commit decision: any infra error → do not commit (fail
+      // closed). A pure enforced code violation still commits its refused verdict.
+      const isInfra = infrastructureErrors.length > 0;
       return finalizeAndReturn({
         action: 'refused',
-        refuseReasonData: {
-          what: 'Reviewer found aspect violations.',
-          why: 'One or more aspects were not satisfied by the source code.',
-          next: `Fix the violations and re-run: yg approve --node ${normalizedNodePath}`,
-        },
+        refuseReasonData: isInfra
+          ? {
+              what: 'Reviewer infrastructure failed — this is not a code issue.',
+              why: 'A provider/connection/runtime error occurred while verifying one or more aspects.',
+              next: `Resolve the infrastructure problem (see above), then re-run: yg approve --node ${normalizedNodePath}`,
+            }
+          : {
+              what: 'Reviewer found aspect violations.',
+              why: 'One or more aspects were not satisfied by the source code.',
+              next: `Fix the violations and re-run: yg approve --node ${normalizedNodePath}`,
+            },
         aspectResults: allAspectResults,
         aspectViolations,
-      });
+      }, isInfra);
     }
 
     // Advisory-only code violations: preserve the approved-family action.

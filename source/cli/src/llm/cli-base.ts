@@ -16,6 +16,48 @@ function normalizeResponse(raw: unknown): AspectResponse {
   };
 }
 
+/**
+ * Scan `text` for balanced `{...}` spans (respecting string literals and escapes)
+ * and return the LAST one that parses to an object carrying a boolean `satisfied`
+ * field — i.e. the actual verdict. A greedy `\{[\s\S]*\}` cannot be used: a model
+ * that wraps its JSON verdict in prose (markdown analysis, code snippets, the
+ * literal text `{ what, why, next }`) has brace characters BEFORE the verdict, so
+ * a greedy match spans unrelated braces and fails to parse. Requiring a boolean
+ * `satisfied` key means brace-laden prose without a real verdict still yields
+ * nothing here (→ fail closed), preserving the A3b guarantee.
+ */
+function extractLastVerdict(text: string): Record<string, unknown> | undefined {
+  let last: Record<string, unknown> | undefined;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] !== '{') continue;
+    let depth = 0;
+    let inStr = false;
+    let esc = false;
+    for (let j = i; j < text.length; j++) {
+      const c = text[j];
+      if (inStr) {
+        if (esc) esc = false;
+        else if (c === '\\') esc = true;
+        else if (c === '"') inStr = false;
+        continue;
+      }
+      if (c === '"') inStr = true;
+      else if (c === '{') depth++;
+      else if (c === '}') {
+        depth--;
+        if (depth === 0) {
+          try {
+            const obj = JSON.parse(text.slice(i, j + 1)) as Record<string, unknown>;
+            if (obj && typeof obj.satisfied === 'boolean') last = obj;
+          } catch { /* not a JSON object — keep scanning */ }
+          break;
+        }
+      }
+    }
+  }
+  return last;
+}
+
 export function parseAspectResponse(output: string): AspectResponse | undefined {
   const trimmed = output.trim();
   if (!trimmed) return undefined;
@@ -29,18 +71,19 @@ export function parseAspectResponse(output: string): AspectResponse | undefined 
     try { return normalizeResponse(JSON.parse(fenceMatch[1].trim())); } catch (err) { debugWrite(`[parseAspectResponse] fence JSON parse failed: ${(err as Error).message}`); }
   }
 
-  // 3. Embedded JSON object
-  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    try { return normalizeResponse(JSON.parse(jsonMatch[0])); } catch (err) { debugWrite(`[parseAspectResponse] embedded JSON parse failed: ${(err as Error).message}`); }
-  }
+  // 3. Embedded JSON verdict — the model may emit its JSON verdict surrounded by
+  // prose that itself contains braces, so locate the balanced object that holds a
+  // boolean `satisfied` rather than greedy-matching the outermost braces.
+  const verdict = extractLastVerdict(trimmed);
+  if (verdict) return normalizeResponse(verdict);
 
-  // 4. Natural language fallback — conservative
-  const lower = trimmed.toLowerCase();
-  const hasSatisfied = lower.includes('satisfied') && !lower.includes('not satisfied');
-  const hasExplicitYes = lower.includes('"satisfied": true') || lower.includes('"satisfied":true');
-  const satisfied = hasExplicitYes || (hasSatisfied && !lower.includes('cannot') && !lower.includes('unable'));
-  return { satisfied, reason: trimmed.slice(0, 200), errorSource: 'codeViolation' };
+  // 4. Unparseable response — no valid JSON verdict found. Do NOT heuristically
+  // guess "satisfied" from a substring match: a garbled/non-JSON reply that happens
+  // to contain the word would become a false code-PASS that commits green over
+  // unverified code (A3b). Classify it as a PROVIDER (infrastructure) error so the
+  // fail-closed gate refuses without committing.
+  debugWrite('[parseAspectResponse] no parseable JSON verdict — classifying as provider error');
+  return { satisfied: false, reason: `Unparseable reviewer response: ${trimmed.slice(0, 160)}`, errorSource: 'provider' };
 }
 
 export abstract class CliAgentProvider implements LlmProvider {

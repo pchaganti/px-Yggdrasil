@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startMockReviewer, runAsync } from './support/mock-reviewer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');
@@ -13,6 +14,21 @@ const PKG_VERSION = JSON.parse(readFileSync(path.join(CLI_ROOT, 'package.json'),
 const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'sample-project');
 
 const distExists = existsSync(BIN_PATH);
+
+/**
+ * Repoint the fixture's reviewer endpoint at a live mock so LLM aspects are
+ * genuinely verified (and approve can succeed). Without this, the configured
+ * reviewer is unreachable and #2 fail-closed refuses — which is correct, but
+ * these tests exercise the success path, so they need a reachable reviewer.
+ */
+function pointReviewer(dir: string, endpoint: string): void {
+  const cfg = path.join(dir, '.yggdrasil', 'yg-config.yaml');
+  writeFileSync(
+    cfg,
+    readFileSync(cfg, 'utf-8').replace(/endpoint:\s*["']?[^"'\n]+["']?/, `endpoint: "${endpoint}"`),
+    'utf-8',
+  );
+}
 
 function run(
   args: string[],
@@ -36,15 +52,17 @@ function run(
 describe.skipIf(!distExists)('CLI E2E — lifecycle (approve, log, deterministic-test, platform, init)', () => {
   // --- approve ---
 
-  it('yg approve --node records hash and clears drift', () => {
+  it('yg approve --node records hash and clears drift', async () => {
     const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-approve-'));
+    const mock = await startMockReviewer();
     try {
       cpSync(FIXTURE, tmpDir, { recursive: true });
+      pointReviewer(tmpDir, mock.endpoint);
       // Remove the stored drift state to force the node to be (re-)approved
       rmSync(path.join(tmpDir, '.yggdrasil', '.drift-state', 'orders', 'order-service.json'), {
         force: true,
       });
-      const { status: approveStatus, stdout } = run(
+      const { status: approveStatus, stdout } = await runAsync(
         ['approve', '--node', 'orders/order-service'],
         tmpDir,
       );
@@ -52,12 +70,13 @@ describe.skipIf(!distExists)('CLI E2E — lifecycle (approve, log, deterministic
       expect(stdout).toMatch(/Approved: orders\/order-service/);
 
       // After approving, check should not show source-drift for this node
-      const { stdout: checkOut } = run(['check'], tmpDir);
+      const { stdout: checkOut } = await runAsync(['check'], tmpDir);
       const driftLines = checkOut.split('\n').filter((l: string) =>
         l.includes('source-drift') && l.includes('orders/order-service'),
       );
       expect(driftLines.length).toBe(0);
     } finally {
+      await mock.close();
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
@@ -334,26 +353,32 @@ describe.skipIf(!distExists)('CLI E2E — lifecycle (approve, log, deterministic
     expect(stdout).toContain('orders/order-service');
   });
 
-  it('yg approve --aspect exits 0 and runs batch approval', () => {
+  it('yg approve --aspect exits 0 and runs batch approval', async () => {
     const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-approve-aspect-'));
+    const mock = await startMockReviewer();
     try {
       cpSync(FIXTURE, tmpDir, { recursive: true });
-      const { stdout, status } = run(['approve', '--aspect', 'requires-audit'], tmpDir);
+      pointReviewer(tmpDir, mock.endpoint);
+      const { stdout, status } = await runAsync(['approve', '--aspect', 'requires-audit'], tmpDir);
       expect(status).toBe(0);
       expect(stdout).toContain('requires-audit');
     } finally {
+      await mock.close();
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
-  it('yg approve --flow exits 0 and runs batch approval', () => {
+  it('yg approve --flow exits 0 and runs batch approval', async () => {
     const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-approve-flow-'));
+    const mock = await startMockReviewer();
     try {
       cpSync(FIXTURE, tmpDir, { recursive: true });
-      const { stdout, status } = run(['approve', '--flow', 'checkout-flow'], tmpDir);
+      pointReviewer(tmpDir, mock.endpoint);
+      const { stdout, status } = await runAsync(['approve', '--flow', 'checkout-flow'], tmpDir);
       expect(status).toBe(0);
       expect(stdout).toContain('checkout-flow');
     } finally {
+      await mock.close();
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });

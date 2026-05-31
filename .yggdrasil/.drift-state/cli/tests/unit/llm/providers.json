@@ -1,6 +1,9 @@
 {
-  "hash": "3859ae7e8a6158aee1072a672df4202066cb568bc988baee1f695db81f499a4e",
+  "hash": "6aec331daabd09cd605af395c887fe04d59a4505480deaa01d83920ae6b316e7",
   "files": {
+    "own-subset:cli/tests/unit/llm/providers": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
@@ -8,13 +11,10 @@
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/llm/anthropic.test.ts": "f1f00a7d0cf181975e1b4b3776e2a581572108dc20c420755c73c870638be1a1",
     "source/cli/tests/unit/llm/claude-code.test.ts": "6dfb0b542d0bbb0079d64a3777a456172fd715e2f534304fd7e7ab653f9f9f46",
-    "source/cli/tests/unit/llm/cli-base.test.ts": "b8c39e522b0ff38cdeed92445746283833a6c1ed98313ac07abea2db766c6b3f",
     "source/cli/tests/unit/llm/cli-providers.test.ts": "a57dd1c8dea3c3de2da6824f2e6d51ff93b788da6cf0987a259a95cc2c251529",
     "source/cli/tests/unit/llm/google.test.ts": "fa3fec511fbc66a1d2bdceeb425abae0bbf197b5aa1057b5a19df793daece00c",
     "source/cli/tests/unit/llm/openai.test.ts": "054a154dc0ec6a93d602d736e03a51b50260bcd70bcf25d56ac397c9464d6467",
-    "own-subset:cli/tests/unit/llm/providers": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+    "source/cli/tests/unit/llm/cli-base.test.ts": "69fcba0f9e5fa53173355767e633763152b06eda718ec35736e68d7b76c287ee"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -24,7 +24,7 @@
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/llm/anthropic.test.ts": 1779963738022.3489,
     "source/cli/tests/unit/llm/claude-code.test.ts": 1776177846290.4834,
-    "source/cli/tests/unit/llm/cli-base.test.ts": 1779794513954.12,
+    "source/cli/tests/unit/llm/cli-base.test.ts": 1780226898196.8828,
     "source/cli/tests/unit/llm/cli-providers.test.ts": 1776177846290.8035,
     "source/cli/tests/unit/llm/google.test.ts": 1779963762261.494,
     "source/cli/tests/unit/llm/openai.test.ts": 1779963744066.013

@@ -48,15 +48,17 @@ describe('formatResult — LLM results', () => {
     expect(output).toContain('fs.readFileSync');
   });
 
-  it('shows LLM unavailable notice with an actionable next step', () => {
+  it('shows LLM-unavailable fail-closed notice with an actionable next step', () => {
     const result = makeApproveResult({
-      action: 'approved',
+      action: 'refused',
       llmSkipped: 'unavailable',
     });
     const output = captureOutput(() => formatResult('some/node', result));
-    // Structured what/why/next — what states aspects were not verified, next is actionable.
-    expect(output).toContain('not reachable');
+    // Structured what/why/next — the reviewer could not be contacted, the aspects
+    // were NOT verified, the approval fails closed (no baseline), next is actionable.
+    expect(output).toContain('could not be contacted');
     expect(output).toContain('not verified');
+    expect(output).toContain('fails closed');
     expect(output).toContain('re-run yg approve');
     expect(output).toContain('yg-config.yaml');
   });

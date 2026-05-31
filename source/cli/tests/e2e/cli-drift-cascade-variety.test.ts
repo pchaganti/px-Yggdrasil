@@ -13,6 +13,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startMockReviewer, runAsync } from './support/mock-reviewer.js';
 
 // ---------------------------------------------------------------------------
 // Harness — duplicated from cli-deterministic-lifecycle.test.ts because the two
@@ -178,18 +179,22 @@ describe.skipIf(!distExists)('CLI E2E — upstream cascade drift across every la
   //
   // The reference-file mechanism is LLM-only, so this scenario KEEPS the LLM
   // aspect `has-doc-comment` (it does NOT use deterministicFixture). The reviewer
-  // is killed (dead loopback) so approve records deterministic-only verdicts and
-  // never makes an LLM call. Because the LLM verdict is consequently never
-  // recorded, the node carries an `aspect-newly-active` state and a fully clean
-  // approve is impossible — exactly the case the scenario anticipates. We
-  // therefore assert (per the adaptation clause) that the reference-file cascade
-  // MESSAGE is REPORTED by `yg check` after the reference file changes, without
-  // depending on a prior clean approve. The deterministic-only baseline still
-  // records the reference file's hash, so editing it surfaces as a cascade.
-  it('2: editing an LLM aspect reference file cascades; check reports the reference-file cascade', () => {
+  // is pointed at a live in-process mock that returns a satisfied verdict, so
+  // approve records a genuine, clean baseline that captures the declared
+  // reference file's hash. Editing that reference file then surfaces a
+  // reference-file cascade in `yg check`. (A dead reviewer would fail closed and
+  // write NO baseline (#2), leaving nothing to cascade against — hence the mock.)
+  it('2: editing an LLM aspect reference file cascades; check reports the reference-file cascade', async () => {
     const dir = copyFixture('reference');
+    const mock = await startMockReviewer();
     try {
-      killReviewer(dir);
+      // Point the reviewer at the live mock so the LLM aspect is verified.
+      const cfgPath = path.join(dir, '.yggdrasil', 'yg-config.yaml');
+      writeFileSync(
+        cfgPath,
+        readFileSync(cfgPath, 'utf-8').replace(/endpoint:\s*["']?[^"'\n]+["']?/, `endpoint: "${mock.endpoint}"`),
+        'utf-8',
+      );
 
       // Declare a reference file on the LLM aspect and create it in the copy.
       const aspectYaml = path.join(dir, '.yggdrasil', 'aspects', 'has-doc-comment', 'yg-aspect.yaml');
@@ -215,14 +220,14 @@ describe.skipIf(!distExists)('CLI E2E — upstream cascade drift across every la
         'utf-8',
       );
 
-      // Record a (deterministic-only) baseline that captures the reference hash.
-      run(['approve', '--node', 'services/orders'], dir);
-      run(['approve', '--node', 'services/payments'], dir);
+      // Record a clean (LLM-verified) baseline that captures the reference hash.
+      expect((await runAsync(['approve', '--node', 'services/orders'], dir)).status).toBe(0);
+      expect((await runAsync(['approve', '--node', 'services/payments'], dir)).status).toBe(0);
 
       // Now change the reference file — this is the reference-file cascade.
       appendFileSync(guidance, '\nAdditional guidance appended to trigger a cascade.\n');
 
-      const drifted = run(['check'], dir);
+      const drifted = await runAsync(['check'], dir);
       expect(drifted.status).toBe(1);
       expect(drifted.stdout).toContain('cascade');
       expect(drifted.stdout).toContain("reference file 'docs/guidance.md'");
@@ -232,6 +237,7 @@ describe.skipIf(!distExists)('CLI E2E — upstream cascade drift across every la
       expect(drifted.stdout).toContain('services/{orders, payments}');
       expect(drifted.stdout).not.toContain('services//{');
     } finally {
+      await mock.close();
       rmSync(dir, { recursive: true, force: true });
     }
   });

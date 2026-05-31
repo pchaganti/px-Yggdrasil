@@ -1,5 +1,5 @@
 {
-  "hash": "7ed9346e49f0f96869fe62248f1f61339a0e0b80495e503cb004cf4deb029f47",
+  "hash": "c7d128b4599ab2af3f9edd55fb6db0f491580e906c9e85ae31d994fd0786dd65",
   "files": {
     "own-subset:cli/commands/owner": "8f92176a242faf2119c3c9093fbaa1214332829c4250d7fdf2dfb067772de012",
     "aspect-meta:posix-paths-output": "0616e83dea174e69b84be8d3bc43a180a8f33aa8e4f1df8473419c0b9897bd03",
@@ -31,7 +31,7 @@
     ".yggdrasil/aspects/command-error-via-buildissuemessage/check.mjs": "219a26a0bab6ac99fb970b87146c37efc2a7382596fb0f1bf067319b23f0d369",
     ".yggdrasil/aspects/sibling-test-file/check.mjs": "cc6668feef2b552fae34d335bae2800df37ff15ca3483a6a5afbc9484c5cc483",
     ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
-    "source/cli/tests/unit/cli/approve.test.ts": "872433216426c1fa9aff3b0e7ad82424f81e0e1bb860eedf1731e389ad8cee06",
+    "source/cli/tests/unit/cli/approve-action-guards.test.ts": "2d35faaa68aa1ec0bec632298a63c467d99895cb3bb3bf133f10d90a0df2481a",
     "source/cli/tests/unit/cli/approve-batch.test.ts": "c59619ad846ed53db20f63cf8c5f1e55d720963e056cff106a758331e4f514a3",
     "source/cli/tests/unit/cli/approve-batch-integration.test.ts": "6498d29cac4d13780df2deba6bbde5fd51a73e9f795f6ea51f42cc169ccd27dd",
     "source/cli/tests/unit/cli/approve-aspect-cascade.test.ts": "7b4d857e2bf68f90f804eb0a3232f04631873be906e7800d29462f92dfe16848",
@@ -67,7 +67,7 @@
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
     "source/cli/src/cli/owner.ts": "9b1995dac746ea82efeee70ec7f599481868f94b18bffc543cfee9b9b062cc08",
-    "source/cli/tests/unit/cli/approve-action-guards.test.ts": "2d35faaa68aa1ec0bec632298a63c467d99895cb3bb3bf133f10d90a0df2481a"
+    "source/cli/tests/unit/cli/approve.test.ts": "4948af8d177a0238753379046dae9a453f9ebe4de20161470c41e5d386bf3ef0"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -81,7 +81,7 @@
     ".yggdrasil/aspects/command-error-via-buildissuemessage/check.mjs": 1779794513931.0696,
     ".yggdrasil/aspects/sibling-test-file/check.mjs": 1780047108901.342,
     ".yggdrasil/aspects/what-why-next/content.md": 1780050256245.0933,
-    "source/cli/tests/unit/cli/approve.test.ts": 1780175737859.9473,
+    "source/cli/tests/unit/cli/approve.test.ts": 1780226288894.991,
     "source/cli/tests/unit/cli/approve-action-guards.test.ts": 1780179959902.3354,
     "source/cli/tests/unit/cli/approve-batch.test.ts": 1778854589347.4822,
     "source/cli/tests/unit/cli/approve-batch-integration.test.ts": 1779869468774.8708,
@@ -126,7 +126,7 @@
   "checkTouchedFiles": {
     "sibling-test-file": {
       "source/cli/src/cli/owner.ts": "9b1995dac746ea82efeee70ec7f599481868f94b18bffc543cfee9b9b062cc08",
-      "source/cli/tests/unit/cli/approve.test.ts": "872433216426c1fa9aff3b0e7ad82424f81e0e1bb860eedf1731e389ad8cee06",
+      "source/cli/tests/unit/cli/approve.test.ts": "4948af8d177a0238753379046dae9a453f9ebe4de20161470c41e5d386bf3ef0",
       "source/cli/tests/unit/cli/approve-action-guards.test.ts": "2d35faaa68aa1ec0bec632298a63c467d99895cb3bb3bf133f10d90a0df2481a",
       "source/cli/tests/unit/cli/approve-batch.test.ts": "c59619ad846ed53db20f63cf8c5f1e55d720963e056cff106a758331e4f514a3",
       "source/cli/tests/unit/cli/approve-batch-integration.test.ts": "6498d29cac4d13780df2deba6bbde5fd51a73e9f795f6ea51f42cc169ccd27dd",

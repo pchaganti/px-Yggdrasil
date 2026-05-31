@@ -160,6 +160,19 @@ One node's failure does NOT abort the others. The CLI lists per-node
 results and exits 1 if ANY node failed. On partial failure: fix the
 per-node errors and re-run the batch with only the failed nodes.
 
+The final \`commit\` phase advances the baseline (clearing drift) ONLY on a
+run with no infrastructure failure. If an LLM aspect cannot be verified —
+the reviewer provider is unreachable, returns an error or unparseable
+response, or NO reviewer is configured for an effective non-draft LLM
+aspect — the node fails closed: approve exits 1 and the \`commit\` phase is
+skipped entirely, so NOTHING is written to drift state and the prior
+baseline is left fully intact. The drift stays visible and a later
+\`yg check\` stays red, rather than carrying the previous verdict forward to
+green over code the reviewer never saw. An infrastructure failure is not a
+code rejection — fix the configuration or connection (or set the aspect to
+\`draft\`), then re-run approve. A pure code refusal, by contrast, DOES
+commit a \`refused\` verdict (the node is red via the verdict, with reason).
+
 Do not interrupt \`yg approve\` mid-run — it leaves drift state unrecorded.
 
 ## Status and drift

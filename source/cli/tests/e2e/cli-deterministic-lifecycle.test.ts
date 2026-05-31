@@ -340,16 +340,19 @@ describe.skipIf(!distExists)('CLI E2E — deterministic approve/drift/cascade/st
     }
   });
 
-  // --- Reviewer-unreachable fallback (deterministic, exercises the LLM-gate) ---
+  // --- Reviewer-unreachable fail-closed (#2): an enforced LLM aspect that cannot
+  // be verified must refuse, NOT silently commit a structural-only baseline. ---
 
-  it('approve with the LLM reviewer unreachable records deterministic verdicts and exits 0', () => {
+  it('approve with the LLM reviewer unreachable fails closed (exit 1) and records no baseline', () => {
     const dir = copyFixture('unreachable');
     try {
       killReviewer(dir);
-      const { status, stdout } = run(['approve', '--node', 'services/orders'], dir);
-      expect(status).toBe(0);
-      expect(stdout).toContain('not reachable');
-      expect(existsSync(baselinePath(dir, 'services/orders'))).toBe(true);
+      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain('unreachable');
+      // Fail-closed: no baseline is written, so the node's drift stays visible
+      // and a later yg check cannot go green over the unverified LLM aspect.
+      expect(existsSync(baselinePath(dir, 'services/orders'))).toBe(false);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
