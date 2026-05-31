@@ -47,7 +47,7 @@ async function createProject(name: string) {
   await writeFile(path.join(yggRoot, 'schemas', 'yg-node.yaml'), 'type: node\n');
   await writeFile(path.join(yggRoot, 'schemas', 'yg-aspect.yaml'), 'type: aspect\n');
   await writeFile(path.join(yggRoot, 'schemas', 'yg-flow.yaml'), 'type: flow\n');
-  await writeFile(path.join(yggRoot, 'yg-config.yaml'), 'version: "4.0.0"\n');
+  await writeFile(path.join(yggRoot, 'yg-config.yaml'), 'version: "5.0.0"\n');
   await writeFile(
     path.join(nodeDir, 'yg-node.yaml'),
     'name: MyService\ntype: service\ndescription: test\naspects:\n  - shape-check\nmapping:\n  - src/svc.ts\n',

@@ -174,11 +174,11 @@ describe.skipIf(!distExists)('CLI E2E — schema migrations (v4 → v5 config/as
       // Version must NOT have been bumped.
       expect(after).toContain('version: "4.3.0"');
 
-      // The real enforcement: `yg check` rejects the still-legacy config and
+      // The real enforcement: `yg check` rejects the still-legacy (outdated) config and
       // points the agent at the migration command.
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
-      expect(check.all).toContain('legacy reviewer format');
+      expect(check.all).toContain('older than this CLI');
       expect(check.all).toContain('yg init --upgrade');
     } finally {
       rmSync(dir, { recursive: true, force: true });

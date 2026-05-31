@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Fail-closed lower schema-version gate.** `loadGraph` now throws `OutdatedSchemaVersionError` when the on-disk graph version is older than the CLI's supported version (5.0.0). Previously, graphs with a version field below 5.0.0 were silently parsed; now the CLI refuses immediately with a structured what/why/next message and exits 1, directing users to `yg init --upgrade`. This is the symmetric lower bound to the existing upper-bound refusal (`UnsupportedSchemaVersionError`). The gate is caught in `preamble.loadGraphOrAbort` and rendered via `buildIssueMessage`; it does not crash with a generic stack trace.
+
 ## [5.0.0-alpha.1] - 2026-05-31
 
 First public prerelease of the 5.0.0 line. Published under the `alpha` dist-tag — `npm i @chrisdudek/yg` continues to resolve the stable release; this build is only installed by an explicit `@chrisdudek/yg@alpha` / `@5.0.0-alpha.1`.

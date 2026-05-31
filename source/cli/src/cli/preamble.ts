@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { buildIssueMessage } from '../formatters/message-builder.js';
-import { loadGraph, UnsupportedSchemaVersionError } from '../core/graph-loader.js';
+import { loadGraph, UnsupportedSchemaVersionError, OutdatedSchemaVersionError } from '../core/graph-loader.js';
 import type { Graph } from '../model/graph.js';
 
 /**
@@ -42,6 +42,15 @@ export async function loadGraphOrAbort(
         what: `Graph schema version ${err.detectedVersion} is newer than this CLI supports (max: ${err.maxSupportedVersion}).`,
         why: 'This CLI cannot safely read a graph written for a newer schema — it may misinterpret or skip fields it does not understand.',
         next: `Upgrade the yg CLI to a version that supports schema ${err.detectedVersion} (e.g. \`npm i -g @chrisdudek/yg\`), then re-run this command.`,
+      });
+      process.stderr.write(chalk.red(`Error: ${formatted}\n`));
+      process.exit(1);
+    }
+    if (err instanceof OutdatedSchemaVersionError) {
+      const formatted = buildIssueMessage({
+        what: `the .yggdrasil graph is at version ${err.detectedVersion}, older than this CLI (${err.cliVersion}).`,
+        why: `${err.cliVersion} reads only the current on-disk format; older formats are upgraded by a migration, not parsed directly.`,
+        next: `run \`yg init --upgrade\` to migrate the graph to ${err.cliVersion}, then re-run.`,
       });
       process.stderr.write(chalk.red(`Error: ${formatted}\n`));
       process.exit(1);

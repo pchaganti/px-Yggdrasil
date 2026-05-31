@@ -196,7 +196,9 @@ describe('migration 4.3 → 5.0', () => {
       'Log on entry.\n',
     );
 
-    await migrateTo50(join(repo, '.yggdrasil'));
+    // Use runVersionUpgrade to migrate AND bump the version to 5.0.0 so
+    // loadGraph's lower-bound gate doesn't reject the on-disk graph.
+    await runVersionUpgrade({ yggRoot: join(repo, '.yggdrasil'), migrations: MIGRATIONS });
 
     const graph = await loadGraph(repo);
     expect(graph.configError).toBeUndefined();

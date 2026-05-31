@@ -36,7 +36,7 @@ async function setup(opts: {
   await mkdir(path.join(yggRoot, 'aspects', 'a1'), { recursive: true });
   await mkdir(path.join(root, 'src'), { recursive: true });
 
-  await writeFile(path.join(yggRoot, 'yg-config.yaml'), 'version: "4.2.0"\n');
+  await writeFile(path.join(yggRoot, 'yg-config.yaml'), 'version: "5.0.0"\n');
   await writeFile(
     path.join(yggRoot, 'yg-architecture.yaml'),
     `node_types:\n  module:\n    description: m\n    log_required: ${opts.logRequiredOnModule ?? true}\n`,
@@ -327,7 +327,7 @@ describe('approveNode — logical node (no mapping)', () => {
     const nodeDir = path.join(yggRoot, 'model', 'mod');
     await mkdir(nodeDir, { recursive: true });
     await mkdir(path.join(yggRoot, '.drift-state'), { recursive: true });
-    await writeFile(path.join(yggRoot, 'yg-config.yaml'), 'version: "4.2.0"\n');
+    await writeFile(path.join(yggRoot, 'yg-config.yaml'), 'version: "5.0.0"\n');
     const archModule = opts.logRequired === undefined
       ? '    description: m\n'
       : `    description: m\n    log_required: ${opts.logRequired}\n`;

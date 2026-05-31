@@ -107,7 +107,7 @@ async function createStructureProject(name: string, opts: {
   await writeFile(path.join(yggRoot, 'schemas', 'yg-flow.yaml'), 'type: flow\n');
   await writeFile(
     path.join(yggRoot, 'yg-config.yaml'),
-    opts.configYaml ?? 'version: "4.0.0"\n',
+    opts.configYaml ?? 'version: "5.0.0"\n',
   );
   await writeFile(path.join(nodeDir, 'yg-node.yaml'), opts.nodeYaml);
   // A log entry exists so the mandatory log gate (log_required + source change)
@@ -766,7 +766,7 @@ describe('D8.3 — checkTouchedFiles carry-forward for draft-skipped structure a
         '  - src/svc.ts',
       ].join('\n') + '\n',
       mappingFiles: { 'src/svc.ts': 'export const x = 1;\n' },
-      configYaml: 'version: "4.0.0"\n',
+      configYaml: 'version: "5.0.0"\n',
       aspects: [
         {
           id: 'shape-a',

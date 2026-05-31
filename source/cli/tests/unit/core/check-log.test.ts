@@ -28,7 +28,7 @@ async function setup(opts: {
   await mkdir(path.join(yggRoot, '.drift-state'), { recursive: true });
   await mkdir(path.join(yggRoot, 'aspects', 'a1'), { recursive: true });
   await mkdir(path.join(root, 'src'), { recursive: true });
-  await writeFile(path.join(yggRoot, 'yg-config.yaml'), 'version: "4.2.0"\n');
+  await writeFile(path.join(yggRoot, 'yg-config.yaml'), 'version: "5.0.0"\n');
   await writeFile(path.join(yggRoot, 'yg-architecture.yaml'), 'node_types:\n  module:\n    description: m\n');
   await writeFile(path.join(yggRoot, 'aspects', 'a1', 'yg-aspect.yaml'), 'name: A1\ndescription: x\n');
   await writeFile(path.join(yggRoot, 'aspects', 'a1', 'content.md'), 'r.\n');

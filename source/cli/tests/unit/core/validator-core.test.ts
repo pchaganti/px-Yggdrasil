@@ -181,7 +181,7 @@ describe('validator', () => {
     await mkdir(badNodeDir, { recursive: true });
     await writeFile(
       path.join(yggRoot, 'yg-config.yaml'),
-      'version: "4.0.0"',
+      'version: "5.0.0"',
     );
     await writeFile(path.join(badNodeDir, 'yg-node.yaml'), 'type: service\n# missing name');
 
@@ -219,7 +219,7 @@ describe('validator', () => {
     await mkdir(serviceDir, { recursive: true });
     await writeFile(
       path.join(yggRoot, 'yg-config.yaml'),
-      'version: "4.0.0"',
+      'version: "5.0.0"',
     );
     await writeFile(path.join(serviceDir, 'yg-node.yaml'), 'name: Svc\ntype: service\n');
     await writeFile(path.join(orphanDir, 'readme.md'), '# orphan content');
@@ -648,7 +648,7 @@ describe('validator', () => {
         await mkdir(path.dirname(abs), { recursive: true });
         await writeFile(abs, content);
       }
-      await writeFile(path.join(yggRoot, 'yg-config.yaml'), opts.config ?? 'version: "4.0.0"');
+      await writeFile(path.join(yggRoot, 'yg-config.yaml'), opts.config ?? 'version: "5.0.0"');
       await writeFile(path.join(yggRoot, 'model', 'n', 'yg-node.yaml'), opts.nodeYaml);
       try {
         const result = await validate(await loadGraph(dir));
@@ -698,7 +698,7 @@ describe('validator', () => {
       const issues = await oversizedIssues({
         files: { 'src/a.ts': big(12000) },
         nodeYaml: 'name: N\ntype: service\ndescription: x\nmapping:\n  - src/a.ts',
-        config: 'version: "4.0.0"\nquality:\n  max_node_chars: 5000',
+        config: 'version: "5.0.0"\nquality:\n  max_node_chars: 5000',
       });
       expect(issues).toHaveLength(1);
       expect(msgOf(issues[0])).toContain('max: 5000');

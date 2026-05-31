@@ -544,7 +544,7 @@ describe.skipIf(!distExists)('CLI E2E — lifecycle (approve, log, deterministic
 
   // --- v5 reviewer tiers ---
 
-  it('yg check rejects legacy reviewer config with a migration hint', () => {
+  it('yg check rejects an outdated graph version with a migration hint', () => {
     const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-legacy-config-'));
     try {
       cpSync(FIXTURE, tmpDir, { recursive: true });
@@ -553,10 +553,10 @@ describe.skipIf(!distExists)('CLI E2E — lifecycle (approve, log, deterministic
         'version: "4.3.0"\nreviewer:\n  ollama:\n    model: qwen3\n    endpoint: http://localhost:11434\n',
         'utf-8',
       );
-      const { status, stdout } = run(['check'], tmpDir);
+      const { status, stderr } = run(['check'], tmpDir);
       expect(status).toBe(1);
-      expect(stdout).toContain('legacy reviewer format');
-      expect(stdout).toContain('yg init --upgrade');
+      expect(stderr).toContain('older than this CLI');
+      expect(stderr).toContain('yg init --upgrade');
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }

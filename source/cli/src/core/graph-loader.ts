@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { readSortedDir, readSortedDirOrEmpty, readTextFile } from '../io/graph-fs.js';
-import { gt, valid } from 'semver';
+import { gt, lt, valid } from 'semver';
 import type {
   Graph,
   GraphNode,
@@ -46,6 +46,28 @@ export class UnsupportedSchemaVersionError extends Error {
   }
 }
 
+/**
+ * Thrown when the project's yg-config.yaml declares a schema version older than
+ * this CLI supports. The graph must be migrated before it can be read.
+ * This is an expected USER condition (the user must run `yg init --upgrade`),
+ * NOT an internal bug — callers recognize it and emit a clean what/why/next
+ * message instead of the generic "please file an issue" wrapper.
+ */
+export class OutdatedSchemaVersionError extends Error {
+  readonly detectedVersion: string;
+  readonly cliVersion: string;
+
+  constructor(detectedVersion: string, cliVersion: string) {
+    super(
+      `the .yggdrasil graph is at version ${detectedVersion}, older than this CLI (${cliVersion}). ` +
+        `Run \`yg init --upgrade\` to migrate the graph, then re-run.`,
+    );
+    this.name = 'OutdatedSchemaVersionError';
+    this.detectedVersion = detectedVersion;
+    this.cliVersion = cliVersion;
+  }
+}
+
 function toModelPath(absolutePath: string, modelDir: string): string {
   return toPosixPath(path.relative(modelDir, absolutePath));
 }
@@ -61,6 +83,9 @@ export async function loadGraph(
   const detected = await detectVersion(yggRoot);
   if (detected !== null && valid(detected) && gt(detected, CLI_SUPPORTED_SCHEMA)) {
     throw new UnsupportedSchemaVersionError(detected, CLI_SUPPORTED_SCHEMA);
+  }
+  if (detected !== null && valid(detected) && lt(detected, CLI_SUPPORTED_SCHEMA)) {
+    throw new OutdatedSchemaVersionError(detected, CLI_SUPPORTED_SCHEMA);
   }
 
   let configError: string | undefined;

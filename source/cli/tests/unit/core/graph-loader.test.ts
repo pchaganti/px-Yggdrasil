@@ -6,7 +6,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { loadGraph, UnsupportedSchemaVersionError } from '../../../src/core/graph-loader.js';
+import { loadGraph, UnsupportedSchemaVersionError, OutdatedSchemaVersionError } from '../../../src/core/graph-loader.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_PROJECT = path.join(__dirname, '../../fixtures/sample-project');
@@ -42,9 +42,17 @@ describe('loadGraph version gate', () => {
     await expect(loadGraph(tmpRoot)).resolves.toBeDefined();
   });
 
-  it('loads when version < "4.3.0" (migration handles upgrade)', async () => {
-    writeFileSync(join(tmpRoot, '.yggdrasil', 'yg-config.yaml'), 'version: "4.2.0"\n');
-    await expect(loadGraph(tmpRoot)).resolves.toBeDefined();
+  it('refuses to load when version < "5.0.0" (older than CLI)', async () => {
+    writeFileSync(join(tmpRoot, '.yggdrasil', 'yg-config.yaml'), 'version: "4.3.0"\n');
+    await expect(loadGraph(tmpRoot)).rejects.toThrow(/older than this CLI/i);
+    await expect(loadGraph(tmpRoot)).rejects.toThrow(/yg init --upgrade/i);
+    await expect(loadGraph(tmpRoot)).rejects.toBeInstanceOf(OutdatedSchemaVersionError);
+    await loadGraph(tmpRoot).catch((e: unknown) => {
+      expect(e).toBeInstanceOf(OutdatedSchemaVersionError);
+      const err = e as OutdatedSchemaVersionError;
+      expect(err.detectedVersion).toBe('4.3.0');
+      expect(err.cliVersion).toBe('5.0.0');
+    });
   });
 });
 
@@ -55,7 +63,7 @@ describe('graph-loader', () => {
     await mkdir(yggRoot, { recursive: true });
     await writeFile(
       path.join(yggRoot, 'yg-config.yaml'),
-      'version: "4.0.0"',
+      'version: "5.0.0"',
       'utf-8',
     );
 
@@ -193,7 +201,7 @@ describe('graph-loader', () => {
     await mkdir(path.join(modelDir, 'svc', 'empty-dir'), { recursive: true });
     await writeFile(
       path.join(yggRoot, 'yg-config.yaml'),
-      'version: "4.0.0"',
+      'version: "5.0.0"',
     );
     await writeFile(path.join(modelDir, 'svc', 'yg-node.yaml'), 'name: Svc\ntype: module\n');
     await writeFile(
@@ -220,7 +228,7 @@ describe('graph-loader', () => {
     await writeFile(path.join(yggRoot, 'aspects'), 'not-a-dir', 'utf-8');
     await writeFile(
       path.join(yggRoot, 'yg-config.yaml'),
-      'version: "4.0.0"',
+      'version: "5.0.0"',
     );
     await writeFile(path.join(modelDir, 'yg-node.yaml'), 'name: S\ntype: service\n');
 
@@ -241,7 +249,7 @@ describe('graph-loader', () => {
     await mkdir(modelDir, { recursive: true });
     await writeFile(
       path.join(yggRoot, 'yg-config.yaml'),
-      'version: "4.0.0"',
+      'version: "5.0.0"',
     );
     await writeFile(path.join(modelDir, 'yg-node.yaml'), 'name: S\ntype: service\n');
     // No aspects/, flows/, schemas/ dirs

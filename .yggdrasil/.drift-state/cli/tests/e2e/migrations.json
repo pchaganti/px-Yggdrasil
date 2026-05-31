@@ -1,21 +1,21 @@
 {
-  "hash": "78c50b96f39ebe5266b13b3104d5cfbf207d7a93ba22ef0fdb432d3713e857ba",
+  "hash": "42cbf6a5fdf50238ced616e3361cd8f318984ddc7d8a23053aab25b152817a85",
   "files": {
+    "own-subset:cli/tests/e2e/migrations": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/e2e/yg-node.yaml": "84d325c5de6fb3ff286926646e67ffb49921cf556d58712e850acafd0c57bb7b",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/e2e/cli-migrations.test.ts": "1cb162c92dd466aae23369a6cf9ef2ef49c4487bee3b9a9bd92dd54fdc597108",
-    "own-subset:cli/tests/e2e/migrations": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+    "source/cli/tests/e2e/cli-migrations.test.ts": "5a96aa6dea8876f61afe0a188ea36989a81030864191ac0565d39fcae34d19cc"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/e2e/yg-node.yaml": 1780104092868.105,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/e2e/cli-migrations.test.ts": 1780208207830.0525
+    "source/cli/tests/e2e/cli-migrations.test.ts": 1780262534848.8484
   },
   "log": {
     "last_entry_datetime": "2026-05-31T06:24:50.988Z",

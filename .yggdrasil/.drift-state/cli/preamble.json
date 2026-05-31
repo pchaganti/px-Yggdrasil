@@ -1,15 +1,15 @@
 {
-  "hash": "a284d72a994e68ed03a97ce35177aa2c779476e3ce8a503b46b02a1af949c636",
+  "hash": "c7facc8af2d75b3d2517c69bd8557d4942693e12b2ca4d9752b71084ca867019",
   "files": {
     "own-subset:cli/preamble": "77236a94a057d553889b19c679cad83621cb79a32522d3e155aa6c7b5b36d75a",
     "aspect-meta:posix-paths-source": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
+    "check-touched:posix-paths-source": "94e08b32cb48ba6a226fc07804e7d3b69e2f37d60e10df37451f2ec59246ff8c",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
     ".yggdrasil/model/cli/core/loader/yg-node.yaml": "6efbbf493727f08d46a4a3f16acce62b942bc8950a81e15896713a018961b46d",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
     ".yggdrasil/model/cli/formatters/yg-node.yaml": "dbb65e1e73064a8d94c694869754eca68997d3baefe4beb2a88c3fd5ea576507",
-    "source/cli/src/cli/preamble.ts": "7ab3b68ddd4e2bf00f4b9c9dfb2095523041c2421cc52c2194cb83a356cbed61",
-    "check-touched:posix-paths-source": "94e08b32cb48ba6a226fc07804e7d3b69e2f37d60e10df37451f2ec59246ff8c"
+    "source/cli/src/cli/preamble.ts": "33c0d896947db6be58b2483e5df811f79402635158715d3b9884c2544d510de9"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -17,15 +17,15 @@
     ".yggdrasil/model/cli/core/loader/yg-node.yaml": 1779954121835.5833,
     ".yggdrasil/model/cli/core/yg-node.yaml": 1776177846202.0774,
     ".yggdrasil/model/cli/formatters/yg-node.yaml": 1780248380447.949,
-    "source/cli/src/cli/preamble.ts": 1780248310956.69
+    "source/cli/src/cli/preamble.ts": 1780261797216.471
   },
   "log": {
-    "last_entry_datetime": "2026-05-31T17:27:18.460Z",
-    "prefix_hash": "4c942e26a9222836245787486edaae8c27eeee7cfc744517e5520254329901cf"
+    "last_entry_datetime": "2026-05-31T21:13:17.658Z",
+    "prefix_hash": "1e8ef6a806af15d89a30b3331bbe9b56ec1194884fd5f123d8e739fa3a6516ac"
   },
   "checkTouchedFiles": {
     "posix-paths-source": {
-      "source/cli/src/cli/preamble.ts": "7ab3b68ddd4e2bf00f4b9c9dfb2095523041c2421cc52c2194cb83a356cbed61"
+      "source/cli/src/cli/preamble.ts": "33c0d896947db6be58b2483e5df811f79402635158715d3b9884c2544d510de9"
     }
   },
   "aspectVerdicts": {

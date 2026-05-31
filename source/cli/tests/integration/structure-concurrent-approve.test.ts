@@ -46,7 +46,7 @@ async function createProject(name: string) {
   await writeFile(path.join(yggRoot, 'schemas', 'yg-flow.yaml'), 'type: flow\n');
 
   // Config: no reviewer needed (aspects are ast + structure, not llm)
-  await writeFile(path.join(yggRoot, 'yg-config.yaml'), 'version: "4.0.0"\n');
+  await writeFile(path.join(yggRoot, 'yg-config.yaml'), 'version: "5.0.0"\n');
 
   // Architecture: one service type
   await writeFile(

@@ -44,7 +44,7 @@ async function createProject(name: string, opts: {
   await writeFile(path.join(yggRoot, 'schemas', 'yg-node.yaml'), 'type: node\n');
   await writeFile(path.join(yggRoot, 'schemas', 'yg-aspect.yaml'), 'type: aspect\n');
   await writeFile(path.join(yggRoot, 'schemas', 'yg-flow.yaml'), 'type: flow\n');
-  await writeFile(path.join(yggRoot, 'yg-config.yaml'), opts.configYaml ?? 'version: "4.0.0"\n');
+  await writeFile(path.join(yggRoot, 'yg-config.yaml'), opts.configYaml ?? 'version: "5.0.0"\n');
   await writeFile(path.join(nodeDir, 'yg-node.yaml'), opts.nodeYaml);
   await writeFile(path.join(nodeDir, 'log.md'), '## [2026-05-11T10:00:00.000Z]\nInitial setup.\n');
 

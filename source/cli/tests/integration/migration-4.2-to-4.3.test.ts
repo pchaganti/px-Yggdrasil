@@ -8,6 +8,7 @@ import { loadGraph } from '../../src/core/graph-loader.js';
 import { validate } from '../../src/core/validator.js';
 
 const MIGRATION_TO_4_3 = MIGRATIONS.filter((m) => m.to === '4.3.0');
+const ALL_MIGRATIONS = MIGRATIONS;
 
 describe('4.2.0 → 4.3.0 migration end-to-end', () => {
   let repo: string;
@@ -42,6 +43,15 @@ describe('4.2.0 → 4.3.0 migration end-to-end', () => {
     const config = readFileSync(join(repo, '.yggdrasil', 'yg-config.yaml'), 'utf-8');
     expect(config).toMatch(/version:\s*["']4\.3\.0["']/);
     expect(config).not.toMatch(/version:\s*["']5\.0\.0["']/);
+
+    // Run the remaining migrations to reach 5.0.0 so loadGraph can succeed
+    // (the lower-bound version gate refuses to load graphs older than the CLI).
+    // The validator check for 'type-without-when-with-mapping' is a structural
+    // check that still fires on 5.0.0 graphs with types that have mappings but no when.
+    await runVersionUpgrade({
+      yggRoot: join(repo, '.yggdrasil'),
+      migrations: ALL_MIGRATIONS.filter((m) => m.to !== '4.3.0'),
+    });
 
     const graph = await loadGraph(repo);
     const result = await validate(graph);

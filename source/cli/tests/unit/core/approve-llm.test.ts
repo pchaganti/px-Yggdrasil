@@ -573,7 +573,7 @@ describe('LLM verification (CLI layer)', () => {
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - deterministic\nmapping:\n  - src/svc/\n',
       mappingFiles: { 'src/svc/index.ts': 'const x = 1;\n' },
       aspects: [{ id: 'deterministic', yaml: ASPECT_YAML }],
-      configYaml: 'version: "4.0.0"\n',  // no reviewer section
+      configYaml: 'version: "5.0.0"\n',  // no reviewer section
     });
     await recordBaseline(tmpDir);
     const baselineBefore = (await readNodeDriftState(

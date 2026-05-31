@@ -1,5 +1,5 @@
 {
-  "hash": "6f49ea80417c25d85fd424e41d22cf0c4a481d91bf1b73e5a049e5e78880ef13",
+  "hash": "8dc4130b0b6c0fb21a5cd2f00bb9bc8daead1ce25d373be825dfedf7370d0c56",
   "files": {
     "own-subset:cli/tests/unit/cli/approve": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
@@ -9,14 +9,14 @@
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
     ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": "d51c269d4b45bd597645a6c918e820c67762877ac22d64f861c53421b67a4fbd",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/unit/cli/approve.test.ts": "4948af8d177a0238753379046dae9a453f9ebe4de20161470c41e5d386bf3ef0",
     "source/cli/tests/unit/cli/approve-action-guards.test.ts": "2d35faaa68aa1ec0bec632298a63c467d99895cb3bb3bf133f10d90a0df2481a",
     "source/cli/tests/unit/cli/approve-batch.test.ts": "c59619ad846ed53db20f63cf8c5f1e55d720963e056cff106a758331e4f514a3",
-    "source/cli/tests/unit/cli/approve-batch-integration.test.ts": "6498d29cac4d13780df2deba6bbde5fd51a73e9f795f6ea51f42cc169ccd27dd",
     "source/cli/tests/unit/cli/approve-aspect-cascade.test.ts": "7b4d857e2bf68f90f804eb0a3232f04631873be906e7800d29462f92dfe16848",
     "source/cli/tests/unit/cli/approve-flow-cascade.test.ts": "d50617acf37f5956941405edaca68f907c4d2c698b1db9b82d52d4f5e52b73c7",
     "source/cli/tests/unit/cli/approve-select-drifted-aspects.test.ts": "ba759f1a1a060c4addc2333a6ba22caa454d58cf2477933efb6e92df71635a18",
     "source/cli/tests/unit/cli/run-batch.test.ts": "15dcfa3052af8f7adef71fbc1ce9865f6640d745ca0300a56d519aa921c32887",
-    "source/cli/tests/unit/cli/approve.test.ts": "4948af8d177a0238753379046dae9a453f9ebe4de20161470c41e5d386bf3ef0"
+    "source/cli/tests/unit/cli/approve-batch-integration.test.ts": "7b9a0308069e74d67cfc0bf8c5e9096f1c73649d6cd7b9f76695e0d4aa15c31d"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -27,7 +27,7 @@
     "source/cli/tests/unit/cli/approve.test.ts": 1780226288894.991,
     "source/cli/tests/unit/cli/approve-action-guards.test.ts": 1780179959902.3354,
     "source/cli/tests/unit/cli/approve-batch.test.ts": 1778854589347.4822,
-    "source/cli/tests/unit/cli/approve-batch-integration.test.ts": 1779869468774.8708,
+    "source/cli/tests/unit/cli/approve-batch-integration.test.ts": 1780262504838.7585,
     "source/cli/tests/unit/cli/approve-aspect-cascade.test.ts": 1780207999738.858,
     "source/cli/tests/unit/cli/approve-flow-cascade.test.ts": 1780133272222.319,
     "source/cli/tests/unit/cli/approve-select-drifted-aspects.test.ts": 1780207999739.2107,
