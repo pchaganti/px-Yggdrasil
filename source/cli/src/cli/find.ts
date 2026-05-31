@@ -38,6 +38,11 @@ export async function findCommand(query: string, projectRoot: string): Promise<n
       return 0;
     }
 
+    // Normalize the raw MiniSearch relevance scores (TF-IDF-ish, unbounded and
+    // query-dependent — e.g. 2.94) to a 0–1 scale RELATIVE to the best match, so
+    // the rendered score is interpretable: the top result is 1.00 and the rest are
+    // its fraction. results are score-sorted, so results[0] carries the max.
+    const maxScore = results[0]?.score ?? 0;
     process.stdout.write('Top entry points (ranked by relevance):\n\n');
     for (let i = 0; i < results.length; i++) {
       const r = results[i];
@@ -45,7 +50,7 @@ export async function findCommand(query: string, projectRoot: string): Promise<n
       /* v8 ignore next */
       if (!doc) continue;
       const matched = (r.terms ?? []).join(', ');
-      const score = (r.score ?? 0).toFixed(2);
+      const score = (maxScore > 0 ? (r.score ?? 0) / maxScore : 0).toFixed(2);
       const docPath = doc.path.replace(/\\/g, '/').replace(/\/+$/, '');
       process.stdout.write(`${i + 1}. ${docPath.padEnd(40)} score: ${score}\n`);
       process.stdout.write(`   Kind: ${doc.kind}\n`);

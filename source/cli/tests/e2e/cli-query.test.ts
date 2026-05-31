@@ -216,6 +216,18 @@ describe.skipIf(!distExists)('CLI E2E — query and navigation', () => {
     expect(stdout).toContain('score:');
   });
 
+  it('yg find scores are normalized to 0–1 — the top result is 1.00 and the rest are its fraction', () => {
+    const { stdout, status } = run(['find', 'order service payment']);
+    expect(status).toBe(0);
+    const scores = [...stdout.matchAll(/score:\s*([\d.]+)/g)].map((m) => Number(m[1]));
+    expect(scores.length).toBeGreaterThan(1);
+    expect(scores[0]).toBe(1); // best match is exactly 1.00
+    for (const s of scores) {
+      expect(s).toBeGreaterThanOrEqual(0);
+      expect(s).toBeLessThanOrEqual(1); // matches the documented 0–1 scale
+    }
+  });
+
   it('yg find without query returns exit 1', () => {
     const { status, stderr } = run(['find']);
     expect(status).toBe(1);

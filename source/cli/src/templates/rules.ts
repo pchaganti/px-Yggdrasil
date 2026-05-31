@@ -354,10 +354,15 @@ When a user request describes desired behavior:
 
   1. Translate keywords to English (Yggdrasil artifacts are English)
   2. Run: \`yg find "<keywords>"\`
-  3. Read the top-ranked candidate's score critically:
-     - Score >0.6: probably correct entry point
-     - Score 0.3-0.6: maybe — verify with \`yg context\`
-     - Score <0.3: weak match, consider fallback
+  3. Read the scores critically. They are RELATIVE to the best match in this
+     query — the top result is always \`1.00\` and the rest are its fraction —
+     NOT an absolute confidence:
+     - A large gap from #1 to #2 (e.g. \`1.00\` then \`0.40\`) signals a confident
+       winner — likely the right entry point.
+     - Closely-clustered scores (e.g. \`1.00\`, \`0.95\`, \`0.90\`) mean the query is
+       ambiguous — verify the top few with \`yg context\` before choosing.
+     - Always confirm the top candidate with \`yg context\`; never trust the score
+       alone, and re-query with sharper keywords if nothing stands out.
   4. Use the \`Kind\` line to interpret the result:
      - \`Kind: node\` → strip \`model/\` prefix, use as \`--node\` value
      - \`Kind: aspect\` → read aspect file directly, not as node
