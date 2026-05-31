@@ -268,7 +268,7 @@ describe('context CLI exit codes', () => {
     });
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain('Node not found');
+    expect(result.stderr).toContain("Node 'nonexistent/node' does not exist in the graph.");
   });
 
   it('exit code 1 for broken relation', async () => {

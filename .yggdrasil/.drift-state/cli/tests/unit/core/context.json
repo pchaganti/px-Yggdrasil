@@ -1,16 +1,16 @@
 {
-  "hash": "708e33a0e989738a78c491d0f8d5ea0aca23fb78e2165fe2c3caa87b73547081",
+  "hash": "5ee73d0978649fd6d4300a6e339b3c9df01c731df807be0e8e536dcb62027554",
   "files": {
+    "own-subset:cli/tests/unit/core/context": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": "de00f518b04112cb692d73d15acfd232c3f1874b163d22d482f0b8e5a7163f48",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/core/context-builder.test.ts": "5ec2f79abb6dcbbbc3f716a0b606c953d25f074c60f1dd49be3122cca2cb52eb",
     "source/cli/tests/unit/core/graph-loader.test.ts": "445d5d4ef5aa4d3b5e36cf971ef5ff09335104e24767b7bb88f1c78216321ae8",
-    "own-subset:cli/tests/unit/core/context": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+    "source/cli/tests/unit/core/context-builder.test.ts": "5aab2d8a43866b6fae53f0b7cd3bd5610b7673a812fa054def357584299b0bcd"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -18,7 +18,7 @@
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": 1778866543616.299,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/context-builder.test.ts": 1780163279213.6855,
+    "source/cli/tests/unit/core/context-builder.test.ts": 1780237253281.5803,
     "source/cli/tests/unit/core/graph-loader.test.ts": 1780208246814.132
   },
   "log": {

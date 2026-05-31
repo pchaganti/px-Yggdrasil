@@ -167,6 +167,18 @@ export function registerBuildCommand(program: Command): void {
         }
       } catch (error) {
         debugWrite(`[build-context] context assembly failed: ${error instanceof Error ? error.message : String(error)}`);
+        // A typo'd --node path is a USER error, not an internal bug — classify it
+        // with a structured what/why/next instead of the generic crash handler.
+        const msg = error instanceof Error ? error.message : String(error);
+        const notFound = msg.match(/^Node not found: (.+)$/);
+        if (notFound) {
+          process.stderr.write(chalk.red(buildIssueMessage({
+            what: `Node '${notFound[1]}' does not exist in the graph.`,
+            why: `The --node path must name an existing node — a directory under .yggdrasil/model/, written without the model/ prefix.`,
+            next: `Browse the graph with 'yg tree', or locate one with 'yg find "<keywords>"', then retry with a valid --node path.`,
+          }) + '\n'));
+          process.exit(1);
+        }
         abortOnUnexpectedError(error, 'building context');
       }
   };

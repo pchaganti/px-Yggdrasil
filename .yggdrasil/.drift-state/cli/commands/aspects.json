@@ -1,5 +1,5 @@
 {
-  "hash": "6523dada0754ccf81aa992791613087e91bd6c267f8e0871a1e379cb7a93a8b0",
+  "hash": "df2842b297c7967c4a486df59ec189683994d37e16d13eada49d2ba608cdfbc3",
   "files": {
     "own-subset:cli/commands/aspects": "feded4aeae85fe653d75330697aaf3524d9ad66618e8d4ee4613e65da739ac7e",
     "aspect-meta:cli-command-contract": "832ff81fcbafa24a7311d10407c891e096d7d27c93b0059676afea9a44fab811",
@@ -31,6 +31,7 @@
     ".yggdrasil/aspects/sibling-test-file/check.mjs": "cc6668feef2b552fae34d335bae2800df37ff15ca3483a6a5afbc9484c5cc483",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
     ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
+    "source/cli/tests/unit/cli/approve.test.ts": "4948af8d177a0238753379046dae9a453f9ebe4de20161470c41e5d386bf3ef0",
     "source/cli/tests/unit/cli/approve-action-guards.test.ts": "2d35faaa68aa1ec0bec632298a63c467d99895cb3bb3bf133f10d90a0df2481a",
     "source/cli/tests/unit/cli/approve-batch.test.ts": "c59619ad846ed53db20f63cf8c5f1e55d720963e056cff106a758331e4f514a3",
     "source/cli/tests/unit/cli/approve-batch-integration.test.ts": "6498d29cac4d13780df2deba6bbde5fd51a73e9f795f6ea51f42cc169ccd27dd",
@@ -38,7 +39,6 @@
     "source/cli/tests/unit/cli/approve-flow-cascade.test.ts": "d50617acf37f5956941405edaca68f907c4d2c698b1db9b82d52d4f5e52b73c7",
     "source/cli/tests/unit/cli/approve-select-drifted-aspects.test.ts": "ba759f1a1a060c4addc2333a6ba22caa454d58cf2477933efb6e92df71635a18",
     "source/cli/tests/unit/cli/run-batch.test.ts": "15dcfa3052af8f7adef71fbc1ce9865f6640d745ca0300a56d519aa921c32887",
-    "source/cli/tests/unit/cli/build-command.test.ts": "3f63d67c19787eab8108a8cf36dad9a94f730dd545a0e0e0107acca6ffa88a36",
     "source/cli/tests/unit/cli/build-context.test.ts": "690afcf1dbe99563db5409f56ddbe2f38ce3fafb89e551b9ba77af885a5a1cdc",
     "source/cli/tests/unit/cli/check.test.ts": "0ec67e34e49b6b38cbe13c2a24d918c9f0d0b9372d6baaaba6f3092c39a12054",
     "source/cli/tests/unit/cli/check-render.test.ts": "43e854c1506b076d266e7e054d32812345fc9e7844b95c1d3916387c319bdb8d",
@@ -65,7 +65,7 @@
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
     "source/cli/src/cli/aspects.ts": "21ab89a6828b09e5b1a0e596553f69bc29e9fcc34c51582168264210f67324e1",
-    "source/cli/tests/unit/cli/approve.test.ts": "4948af8d177a0238753379046dae9a453f9ebe4de20161470c41e5d386bf3ef0"
+    "source/cli/tests/unit/cli/build-command.test.ts": "ae2d6146e94a1394a1ea8d9d3f90a51b2d54b5d6dddbcdb7ae46633886d10beb"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -87,7 +87,7 @@
     "source/cli/tests/unit/cli/approve-flow-cascade.test.ts": 1780133272222.319,
     "source/cli/tests/unit/cli/approve-select-drifted-aspects.test.ts": 1780207999739.2107,
     "source/cli/tests/unit/cli/run-batch.test.ts": 1778917038514.553,
-    "source/cli/tests/unit/cli/build-command.test.ts": 1779976823855.0754,
+    "source/cli/tests/unit/cli/build-command.test.ts": 1780237242885.672,
     "source/cli/tests/unit/cli/build-context.test.ts": 1780047229590.604,
     "source/cli/tests/unit/cli/check.test.ts": 1780107226868.072,
     "source/cli/tests/unit/cli/check-render.test.ts": 1780208159470.8293,
@@ -130,7 +130,7 @@
       "source/cli/tests/unit/cli/approve-flow-cascade.test.ts": "d50617acf37f5956941405edaca68f907c4d2c698b1db9b82d52d4f5e52b73c7",
       "source/cli/tests/unit/cli/approve-select-drifted-aspects.test.ts": "ba759f1a1a060c4addc2333a6ba22caa454d58cf2477933efb6e92df71635a18",
       "source/cli/tests/unit/cli/run-batch.test.ts": "15dcfa3052af8f7adef71fbc1ce9865f6640d745ca0300a56d519aa921c32887",
-      "source/cli/tests/unit/cli/build-command.test.ts": "3f63d67c19787eab8108a8cf36dad9a94f730dd545a0e0e0107acca6ffa88a36",
+      "source/cli/tests/unit/cli/build-command.test.ts": "ae2d6146e94a1394a1ea8d9d3f90a51b2d54b5d6dddbcdb7ae46633886d10beb",
       "source/cli/tests/unit/cli/build-context.test.ts": "690afcf1dbe99563db5409f56ddbe2f38ce3fafb89e551b9ba77af885a5a1cdc",
       "source/cli/tests/unit/cli/check.test.ts": "0ec67e34e49b6b38cbe13c2a24d918c9f0d0b9372d6baaaba6f3092c39a12054",
       "source/cli/tests/unit/cli/check-render.test.ts": "43e854c1506b076d266e7e054d32812345fc9e7844b95c1d3916387c319bdb8d",

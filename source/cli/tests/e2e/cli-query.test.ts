@@ -100,9 +100,13 @@ describe.skipIf(!distExists)('CLI E2E — query and navigation', () => {
     expect(stdout).toContain('After modifying source files');
   });
 
-  it('yg context nonexistent node', () => {
-    const { status } = run(['context', '--node', 'does/not/exist']);
+  it('yg context nonexistent node gives a structured what/why/next (not a generic bug crash)', () => {
+    const { status, stderr } = run(['context', '--node', 'does/not/exist']);
     expect(status).toBe(1);
+    expect(stderr).toContain("Node 'does/not/exist' does not exist in the graph.");
+    expect(stderr).toContain('yg tree');
+    // A user typo must NOT be reported as an internal bug.
+    expect(stderr).not.toContain('This is a bug');
   });
 
   it('yg context without --node or --file returns exit 1', () => {
