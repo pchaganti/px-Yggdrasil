@@ -81,7 +81,11 @@ try {
   for (const s of ['yg-architecture', 'yg-node', 'yg-aspect', 'yg-flow', 'yg-config']) {
     writeFileSync(path.join(ygg, 'schemas', `${s}.yaml`), '{}\n');
   }
+  // One file per a couple of DISTINCT grammars so the smoke proves new-language
+  // WASMs (python, go) also resolve from the tarball — not just typescript.
   writeFileSync(path.join(proj, 'src', 'a.ts'), '// a\nexport const a = 1;\n');
+  writeFileSync(path.join(proj, 'src', 'a.py'), '# a\na = 1\n');
+  writeFileSync(path.join(proj, 'src', 'a.go'), 'package a\n// a\nvar a = 1\n');
   writeFileSync(
     path.join(ygg, 'yg-config.yaml'),
     'version: "5.0.0"\nreviewer:\n  tiers:\n    standard:\n      provider: ollama\n      consensus: 1\n      config:\n        model: m\n        endpoint: "http://127.0.0.1:1"\n',
@@ -92,19 +96,20 @@ try {
   );
   writeFileSync(
     path.join(ygg, 'model', 'svc', 'yg-node.yaml'),
-    'name: svc\ndescription: "smoke node"\ntype: service\naspects:\n  - parse-smoke\nmapping:\n  - src/a.ts\n',
+    'name: svc\ndescription: "smoke node"\ntype: service\naspects:\n  - parse-smoke\nmapping:\n  - src/a.ts\n  - src/a.py\n  - src/a.go\n',
   );
   writeFileSync(
     path.join(ygg, 'aspects', 'parse-smoke', 'yg-aspect.yaml'),
     'name: ParseSmoke\ndescription: "parses a source file via tree-sitter"\nreviewer:\n  type: deterministic\nstatus: enforced\n',
   );
-  // The check parses the file's AST; an unparseable/no-grammar path would throw.
+  // The check parses EVERY mapped file's AST; a missing/renamed/unresolved grammar
+  // WASM for any language would throw (failing the gate, not the user).
   writeFileSync(
     path.join(ygg, 'aspects', 'parse-smoke', 'check.mjs'),
-    'export function check(ctx) {\n  const f = ctx.files[0];\n  const tree = ctx.parseAst(f);\n  if (!tree || !tree.rootNode) throw new Error("no AST");\n  return [];\n}\n',
+    'export function check(ctx) {\n  for (const f of ctx.files) {\n    const tree = ctx.parseAst(f);\n    if (!tree || !tree.rootNode) throw new Error("no AST for " + f.path);\n  }\n  return [];\n}\n',
   );
 
-  log('yg deterministic-test (parses a .ts via the packaged grammar)…');
+  log('yg deterministic-test (parses .ts/.py/.go via the packaged grammars)…');
   const res = execFileSync('node', [bin, 'deterministic-test', '--aspect', 'parse-smoke', '--node', 'svc'], {
     cwd: proj,
     encoding: 'utf-8',

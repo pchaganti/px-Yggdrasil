@@ -11,8 +11,16 @@ export interface LanguageDef {
   commentDelimiters: string[];
 }
 
-// Stub: TypeScript/TSX/JavaScript only; expands to more languages later.
-// Pin/scanner fields empty for now — the build pipeline populates them later.
+// Tier 0 (TypeScript/TSX/JavaScript) + Tier 1 (Python, Go, Rust, Java, C#, C,
+// C++, PHP, Ruby) + JSON. Each grammar ships a prebuilt `.wasm` in its per-language
+// npm package (devDep); tsup copies it to dist/grammars/<wasmFile> and the parser
+// resolves it by that name. `commentTypes` (the grammar's AST node-type names for
+// comments) and `commentDelimiters` were verified by parsing a sample with each
+// grammar — they drive findComments() and the yg-suppress scanner, so a wrong
+// value silently breaks comment-based rules for that language.
+//
+// Pin/scanner fields (grammarCommit, treeSitterCliVersion) are empty for now —
+// the build pipeline populates them later (the determinism-pin enhancement).
 export const LANGUAGES: Record<string, LanguageDef> = {
   typescript: {
     id: 'typescript',
@@ -49,6 +57,126 @@ export const LANGUAGES: Record<string, LanguageDef> = {
     externalScanner: false,
     commentTypes: ['comment'],
     commentDelimiters: ['//', '/*'],
+  },
+  python: {
+    id: 'python',
+    extensions: ['.py'],
+    wasmFile: 'tree-sitter-python.wasm',
+    wasmPackage: 'tree-sitter-python',
+    grammarRepo: 'https://github.com/tree-sitter/tree-sitter-python',
+    grammarCommit: '',
+    treeSitterCliVersion: '',
+    externalScanner: false,
+    commentTypes: ['comment'],
+    commentDelimiters: ['#'],
+  },
+  go: {
+    id: 'go',
+    extensions: ['.go'],
+    wasmFile: 'tree-sitter-go.wasm',
+    wasmPackage: 'tree-sitter-go',
+    grammarRepo: 'https://github.com/tree-sitter/tree-sitter-go',
+    grammarCommit: '',
+    treeSitterCliVersion: '',
+    externalScanner: false,
+    commentTypes: ['comment'],
+    commentDelimiters: ['//', '/*'],
+  },
+  rust: {
+    id: 'rust',
+    extensions: ['.rs'],
+    wasmFile: 'tree-sitter-rust.wasm',
+    wasmPackage: 'tree-sitter-rust',
+    grammarRepo: 'https://github.com/tree-sitter/tree-sitter-rust',
+    grammarCommit: '',
+    treeSitterCliVersion: '',
+    externalScanner: false,
+    commentTypes: ['line_comment', 'block_comment'],
+    commentDelimiters: ['//', '/*'],
+  },
+  java: {
+    id: 'java',
+    extensions: ['.java'],
+    wasmFile: 'tree-sitter-java.wasm',
+    wasmPackage: 'tree-sitter-java',
+    grammarRepo: 'https://github.com/tree-sitter/tree-sitter-java',
+    grammarCommit: '',
+    treeSitterCliVersion: '',
+    externalScanner: false,
+    commentTypes: ['line_comment', 'block_comment'],
+    commentDelimiters: ['//', '/*'],
+  },
+  csharp: {
+    id: 'csharp',
+    extensions: ['.cs'],
+    wasmFile: 'tree-sitter-c_sharp.wasm',
+    wasmPackage: 'tree-sitter-c-sharp',
+    grammarRepo: 'https://github.com/tree-sitter/tree-sitter-c-sharp',
+    grammarCommit: '',
+    treeSitterCliVersion: '',
+    externalScanner: false,
+    commentTypes: ['comment'],
+    commentDelimiters: ['//', '/*'],
+  },
+  c: {
+    id: 'c',
+    extensions: ['.c', '.h'],
+    wasmFile: 'tree-sitter-c.wasm',
+    wasmPackage: 'tree-sitter-c',
+    grammarRepo: 'https://github.com/tree-sitter/tree-sitter-c',
+    grammarCommit: '',
+    treeSitterCliVersion: '',
+    externalScanner: false,
+    commentTypes: ['comment'],
+    commentDelimiters: ['//', '/*'],
+  },
+  cpp: {
+    id: 'cpp',
+    extensions: ['.cpp', '.cc', '.cxx', '.hpp', '.hh', '.hxx'],
+    wasmFile: 'tree-sitter-cpp.wasm',
+    wasmPackage: 'tree-sitter-cpp',
+    grammarRepo: 'https://github.com/tree-sitter/tree-sitter-cpp',
+    grammarCommit: '',
+    treeSitterCliVersion: '',
+    externalScanner: false,
+    commentTypes: ['comment'],
+    commentDelimiters: ['//', '/*'],
+  },
+  php: {
+    id: 'php',
+    extensions: ['.php'],
+    wasmFile: 'tree-sitter-php_only.wasm',
+    wasmPackage: 'tree-sitter-php',
+    grammarRepo: 'https://github.com/tree-sitter/tree-sitter-php',
+    grammarCommit: '',
+    treeSitterCliVersion: '',
+    externalScanner: false,
+    commentTypes: ['comment'],
+    commentDelimiters: ['//', '#', '/*'],
+  },
+  ruby: {
+    id: 'ruby',
+    extensions: ['.rb'],
+    wasmFile: 'tree-sitter-ruby.wasm',
+    wasmPackage: 'tree-sitter-ruby',
+    grammarRepo: 'https://github.com/tree-sitter/tree-sitter-ruby',
+    grammarCommit: '',
+    treeSitterCliVersion: '',
+    externalScanner: false,
+    commentTypes: ['comment'],
+    commentDelimiters: ['#'],
+  },
+  json: {
+    id: 'json',
+    extensions: ['.json'],
+    wasmFile: 'tree-sitter-json.wasm',
+    wasmPackage: 'tree-sitter-json',
+    grammarRepo: 'https://github.com/tree-sitter/tree-sitter-json',
+    grammarCommit: '',
+    treeSitterCliVersion: '',
+    externalScanner: false,
+    commentTypes: [],
+    commentDelimiters: [],
   },
 };
 

@@ -1,5 +1,5 @@
 {
-  "hash": "95ba92dfb39ad54c790685690d28ef34b67a0b26aa7cf86a273fb26c11347699",
+  "hash": "7f72dfc79408735f6624f13901641f183c0e8b4cb4e79d66a282d66bcc2bad41",
   "files": {
     "own-subset:cli/core/graph": "017d50656501e8b443151a1fb73d7403f5b0a9279ac7e31e3d3029b12ad7399f",
     "aspect-meta:deterministic": "c519ac2565dbb22b41029f6e95a238b3345ef3d3b3a433b0e4c13c684969ca2c",
@@ -28,10 +28,10 @@
     "source/cli/src/core/graph/dependencies.ts": "ef894f905b8a3b48edae8ca053c1a93f1d85b6e6ab8ad852e3d8fb8021334966",
     "source/cli/src/core/graph/files.ts": "14188c943c2e4672c841e46cf9512abc8e353fa05ab062e7a5bc37e384203e19",
     "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
+    "source/cli/src/core/graph/impact-graph.ts": "ccb6811440dbc9c04857f184ebd90d3927a9d40e5d1b3e944ee31fe045889cf4",
     "source/cli/src/core/graph/index.ts": "563e36848000ab08dd5ab49b769455be58ce21ced356fbc59a3639b4704e0208",
-    "source/cli/src/core/graph/language-registry.ts": "6d55d3deaf925eb2680b11eb13df52aa57a0a60d41f1add0890044c812a3603b",
     "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b",
-    "source/cli/src/core/graph/impact-graph.ts": "ccb6811440dbc9c04857f184ebd90d3927a9d40e5d1b3e944ee31fe045889cf4"
+    "source/cli/src/core/graph/language-registry.ts": "d2eb15f68db0d6fec69ed0e7236b7f29c1a0d94b4ce8c58c16b7f18494b0c17a"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -50,12 +50,12 @@
     "source/cli/src/core/graph/flows.ts": 1778958982525.8142,
     "source/cli/src/core/graph/impact-graph.ts": 1780222150960.778,
     "source/cli/src/core/graph/index.ts": 1779794513949.0657,
-    "source/cli/src/core/graph/language-registry.ts": 1780149149192.4832,
+    "source/cli/src/core/graph/language-registry.ts": 1780234482082.1648,
     "source/cli/src/core/graph/traversal.ts": 1778958972950.3818
   },
   "log": {
-    "last_entry_datetime": "2026-05-31T10:10:32.074Z",
-    "prefix_hash": "91b9e7f1ff90879ba2ad71757e693cd5807d7199d925bd710c2b9c527ba7af65"
+    "last_entry_datetime": "2026-05-31T13:40:20.253Z",
+    "prefix_hash": "5130214e0b0243daf57abbf519b7a611a105b70743f7fc64a0ca9844e215d201"
   },
   "checkTouchedFiles": {
     "no-nondeterminism-direct": {
@@ -65,7 +65,7 @@
       "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
       "source/cli/src/core/graph/impact-graph.ts": "ccb6811440dbc9c04857f184ebd90d3927a9d40e5d1b3e944ee31fe045889cf4",
       "source/cli/src/core/graph/index.ts": "563e36848000ab08dd5ab49b769455be58ce21ced356fbc59a3639b4704e0208",
-      "source/cli/src/core/graph/language-registry.ts": "6d55d3deaf925eb2680b11eb13df52aa57a0a60d41f1add0890044c812a3603b",
+      "source/cli/src/core/graph/language-registry.ts": "d2eb15f68db0d6fec69ed0e7236b7f29c1a0d94b4ce8c58c16b7f18494b0c17a",
       "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b"
     },
     "no-direct-fs": {
@@ -75,7 +75,7 @@
       "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
       "source/cli/src/core/graph/impact-graph.ts": "ccb6811440dbc9c04857f184ebd90d3927a9d40e5d1b3e944ee31fe045889cf4",
       "source/cli/src/core/graph/index.ts": "563e36848000ab08dd5ab49b769455be58ce21ced356fbc59a3639b4704e0208",
-      "source/cli/src/core/graph/language-registry.ts": "6d55d3deaf925eb2680b11eb13df52aa57a0a60d41f1add0890044c812a3603b",
+      "source/cli/src/core/graph/language-registry.ts": "d2eb15f68db0d6fec69ed0e7236b7f29c1a0d94b4ce8c58c16b7f18494b0c17a",
       "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b"
     },
     "no-direct-console": {
@@ -85,7 +85,7 @@
       "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
       "source/cli/src/core/graph/impact-graph.ts": "ccb6811440dbc9c04857f184ebd90d3927a9d40e5d1b3e944ee31fe045889cf4",
       "source/cli/src/core/graph/index.ts": "563e36848000ab08dd5ab49b769455be58ce21ced356fbc59a3639b4704e0208",
-      "source/cli/src/core/graph/language-registry.ts": "6d55d3deaf925eb2680b11eb13df52aa57a0a60d41f1add0890044c812a3603b",
+      "source/cli/src/core/graph/language-registry.ts": "d2eb15f68db0d6fec69ed0e7236b7f29c1a0d94b4ce8c58c16b7f18494b0c17a",
       "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b"
     },
     "posix-paths-source": {
@@ -95,7 +95,7 @@
       "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
       "source/cli/src/core/graph/impact-graph.ts": "ccb6811440dbc9c04857f184ebd90d3927a9d40e5d1b3e944ee31fe045889cf4",
       "source/cli/src/core/graph/index.ts": "563e36848000ab08dd5ab49b769455be58ce21ced356fbc59a3639b4704e0208",
-      "source/cli/src/core/graph/language-registry.ts": "6d55d3deaf925eb2680b11eb13df52aa57a0a60d41f1add0890044c812a3603b",
+      "source/cli/src/core/graph/language-registry.ts": "d2eb15f68db0d6fec69ed0e7236b7f29c1a0d94b4ce8c58c16b7f18494b0c17a",
       "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b"
     },
     "single-source-graph-queries": {
@@ -105,7 +105,7 @@
       "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
       "source/cli/src/core/graph/impact-graph.ts": "ccb6811440dbc9c04857f184ebd90d3927a9d40e5d1b3e944ee31fe045889cf4",
       "source/cli/src/core/graph/index.ts": "563e36848000ab08dd5ab49b769455be58ce21ced356fbc59a3639b4704e0208",
-      "source/cli/src/core/graph/language-registry.ts": "6d55d3deaf925eb2680b11eb13df52aa57a0a60d41f1add0890044c812a3603b",
+      "source/cli/src/core/graph/language-registry.ts": "d2eb15f68db0d6fec69ed0e7236b7f29c1a0d94b4ce8c58c16b7f18494b0c17a",
       "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b"
     }
   },

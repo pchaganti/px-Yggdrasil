@@ -1,9 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import { LANGUAGES, EXTENSION_TO_LANGUAGE, getLanguageForExtension, getExtensionsForLanguage, getGrammarForExtension } from '../../../src/core/graph/language-registry.js';
 
-describe('language registry phase 1 stub', () => {
-  it('lists ts/tsx/javascript only', () => {
-    expect(Object.keys(LANGUAGES).sort()).toEqual(['javascript', 'tsx', 'typescript']);
+describe('language registry', () => {
+  it('lists Tier 0 (ts/tsx/js) + Tier 1 + JSON', () => {
+    expect(Object.keys(LANGUAGES).sort()).toEqual([
+      'c', 'cpp', 'csharp', 'go', 'java', 'javascript', 'json',
+      'php', 'python', 'ruby', 'rust', 'tsx', 'typescript',
+    ]);
+  });
+
+  it('each entry id matches its key and has a wasmFile + wasmPackage', () => {
+    for (const [key, def] of Object.entries(LANGUAGES)) {
+      expect(def.id).toBe(key);
+      expect(def.wasmFile).toMatch(/\.wasm$/);
+      expect(def.wasmPackage.length).toBeGreaterThan(0);
+    }
   });
 
   it('extension map is consistent with each LANGUAGES entry', () => {
@@ -73,7 +84,13 @@ describe('getGrammarForExtension', () => {
   it('is case-insensitive (.TS resolves like .ts)', () => {
     expect(getGrammarForExtension('.TS')?.wasmFile).toBe('tree-sitter-typescript.wasm');
   });
-  it('returns null for an unregistered extension', () => {
-    expect(getGrammarForExtension('.py')).toBeNull();
+  it('maps .py to the python grammar', () => {
+    expect(getGrammarForExtension('.py')).toEqual({ wasmFile: 'tree-sitter-python.wasm', wasmPackage: 'tree-sitter-python' });
+  });
+  it('maps .rs to the rust grammar', () => {
+    expect(getGrammarForExtension('.rs')).toEqual({ wasmFile: 'tree-sitter-rust.wasm', wasmPackage: 'tree-sitter-rust' });
+  });
+  it('returns null for a still-unregistered extension', () => {
+    expect(getGrammarForExtension('.kt')).toBeNull();
   });
 });
