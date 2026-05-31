@@ -19,6 +19,7 @@ import { clearDraftAspectsFromDriftState } from '../io/drift-state-store.js';
 import { hashFile } from '../io/hash.js';
 import type { ParseCache } from '../ast/parse-cache.js';
 import path from 'node:path';
+import { toPosixPath } from '../utils/posix.js';
 
 /** A failed aspect: a code violation, a provider error, or a deterministic runtime error. */
 type AspectViolation = { aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'checkRuntime' };
@@ -68,7 +69,7 @@ async function dispatchStructureAspects(
       // would violate the posix-paths-output contract for drift-state files.
       const sourceFileHashes: Record<string, string> = {};
       for (const raw of new Set(structResult.touchedFiles)) {
-        const p = raw.replace(/\\/g, '/').replace(/\/+$/, '');
+        const p = toPosixPath(raw);
         let hash = result.pendingDriftState?.state.files[p];
         // A touched path absent from state.files is a CROSS-NODE read — a file
         // owned by a related node, reached via ctx.fs/ctx.graph. Hash it from
@@ -107,7 +108,7 @@ async function dispatchStructureAspects(
             // reason string — this reason is persisted into the drift-state
             // aspectVerdicts, an output boundary the posix-paths-output contract
             // governs (runStructureAspect may return backslash paths on Windows).
-            const file = v.file ? v.file.replace(/\\/g, '/').replace(/\/+$/, '') : v.file;
+            const file = v.file ? toPosixPath(v.file) : v.file;
             const loc = file ? `${file}:${v.line ?? '?'}: ` : '';
             return `${loc}${v.message}`;
           }).join('\n')
@@ -402,12 +403,12 @@ export async function runApproveWithReviewer(
   }
 
   // Load source files
-  const projectRoot = path.dirname(rootPath).replace(/\\/g, '/').replace(/\/+$/, '');
+  const projectRoot = toPosixPath(path.dirname(rootPath));
   const trackedFiles = collectTrackedFiles(node, graph);
   const { fileHashes } = await hashTrackedFiles(projectRoot, trackedFiles, undefined, []);
-  const yggPrefix = path.relative(projectRoot, rootPath).replace(/\\/g, '/').replace(/\/+$/, '');
+  const yggPrefix = toPosixPath(path.relative(projectRoot, rootPath));
   const sourceFilePaths = Object.keys(fileHashes)
-    .map(f => f.replace(/\\/g, '/').replace(/\/+$/, ''))
+    .map(f => toPosixPath(f))
     .filter(f => !f.startsWith(yggPrefix));
   const sourceFiles = await loadSourceFiles(sourceFilePaths, projectRoot);
 
@@ -426,7 +427,7 @@ export async function runApproveWithReviewer(
       };
 
   if (plan.errors.length > 0) {
-    const normalizedNodePath = nodePath.replace(/\\/g, '/').replace(/\/+$/, '');
+    const normalizedNodePath = toPosixPath(nodePath);
     const why = plan.errors.map(e => [e.what, e.why].filter(Boolean).join('\n')).join('\n\n');
     return finalizeAndReturn({
       action: 'refused',
@@ -525,7 +526,7 @@ export async function runApproveWithReviewer(
     const astCodeViolations = aspectViolations.filter(v => v.errorSource === 'codeViolation');
     const { enforced: enforcedAstCode } = partitionCodeViolationsByStatus(astCodeViolations, statuses);
     if (astInfraErrors.length > 0 || enforcedAstCode.length > 0) {
-      const normalizedNodePath = nodePath.replace(/\\/g, '/').replace(/\/+$/, '');
+      const normalizedNodePath = toPosixPath(nodePath);
       // A check-runtime crash / infra error is NOT a code issue → do not commit
       // (fail closed). A pure enforced code violation DOES commit a refused verdict.
       const isInfra = astInfraErrors.length > 0;
@@ -604,7 +605,7 @@ export async function runApproveWithReviewer(
       // LLM provider unreachable — an infrastructure failure, not a code issue.
       // Fail closed: refuse, do not commit (so drift stays visible). A co-occurring
       // advisory code violation is not surfaced this cycle — the node is red on infra.
-      const np = nodePath.replace(/\\/g, '/').replace(/\/+$/, '');
+      const np = toPosixPath(nodePath);
       return finalizeAndReturn({
         action: 'refused',
         llmSkipped: 'unavailable',
@@ -671,7 +672,7 @@ export async function runApproveWithReviewer(
 
   const infrastructureErrors = aspectViolations.filter(v => v.errorSource !== 'codeViolation');
   const codeViolations = aspectViolations.filter(v => v.errorSource === 'codeViolation');
-  const normalizedNodePath = nodePath.replace(/\\/g, '/').replace(/\/+$/, '');
+  const normalizedNodePath = toPosixPath(nodePath);
 
   // Check for reference-load failures first — distinct message, takes precedence over generic infra error
   const referenceFailures = aspectViolations.filter(v => v.reason.startsWith('LLM_REFERENCE_UNREADABLE'));

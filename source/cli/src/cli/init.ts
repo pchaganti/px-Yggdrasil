@@ -17,6 +17,7 @@ import { abortOnUnexpectedError } from '../formatters/cli-preamble.js';
 import { MIGRATIONS } from '../migrations/index.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { debugWrite } from '../utils/debug-log.js';
+import { toPosixPath } from '../utils/posix.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -484,7 +485,7 @@ export async function runVersionUpgrade(
   }
 
   const rawRulesPath = await installRulesForPlatform(projectRoot, platform);
-  const rulesPath = rawRulesPath.replace(/\\/g, '/').replace(/\/+$/, '');
+  const rulesPath = toPosixPath(rawRulesPath);
 
   return { rulesPath, migrationActions, migrationWarnings, withheld };
 }
@@ -534,7 +535,7 @@ async function existingInit(projectRoot: string): Promise<void> {
     p.log.info('2. Run yg approve on all nodes to establish baselines');
     p.outro(
       chalk.green(
-        `Migrated from ${currentVersion} to ${landedVersion}. Rules installed: ${path.relative(projectRoot, result.rulesPath).replace(/\\/g, '/').replace(/\/+$/, '')}`,
+        `Migrated from ${currentVersion} to ${landedVersion}. Rules installed: ${toPosixPath(path.relative(projectRoot, result.rulesPath))}`,
       ),
     );
     return;
@@ -554,7 +555,7 @@ async function existingInit(projectRoot: string): Promise<void> {
     case 'upgrade': {
       const platform = await promptPlatform();
       const result = await runVersionUpgrade(projectRoot, yggRoot, platform);
-      p.outro(chalk.green(`Rules and schemas refreshed: ${path.relative(projectRoot, result.rulesPath).replace(/\\/g, '/').replace(/\/+$/, '')}`));
+      p.outro(chalk.green(`Rules and schemas refreshed: ${toPosixPath(path.relative(projectRoot, result.rulesPath))}`));
       break;
     }
     case 'reviewer': {
@@ -569,7 +570,7 @@ async function existingInit(projectRoot: string): Promise<void> {
     case 'platform': {
       const platform = await promptPlatform();
       const rulesPath = await installRulesForPlatform(projectRoot, platform);
-      p.outro(chalk.green(`Platform changed: ${path.relative(projectRoot, rulesPath).replace(/\\/g, '/').replace(/\/+$/, '')}`));
+      p.outro(chalk.green(`Platform changed: ${toPosixPath(path.relative(projectRoot, rulesPath))}`));
       break;
     }
   }
@@ -679,7 +680,7 @@ export function registerInitCommand(program: Command): void {
           }
 
           process.stdout.write(
-            `Rules and schemas refreshed: ${path.relative(projectRoot, result.rulesPath).replace(/\\/g, '/').replace(/\/+$/, '')}\n`,
+            `Rules and schemas refreshed: ${toPosixPath(path.relative(projectRoot, result.rulesPath))}\n`,
           );
           return;
         }

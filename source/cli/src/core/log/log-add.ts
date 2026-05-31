@@ -4,6 +4,7 @@ import type { IssueMessage } from '../../model/validation.js';
 import { validateNodePath } from '../../utils/node-path-validator.js';
 import { parseLog } from '../parsing/log-parser.js';
 import { readLogSafe, statLogFile, writeLogFile } from '../../io/log-store.js';
+import { toPosix } from '../../utils/posix.js';
 
 export interface LogAddInput {
   graph: Graph;
@@ -19,7 +20,7 @@ export type LogAddResult =
 export async function logAdd(input: LogAddInput): Promise<LogAddResult> {
   const { graph, reasonText, nowMs } = input;
 
-  const nv = validateNodePath(input.nodePath.trim().replace(/\\/g, '/').replace(/\/$/, ''));
+  const nv = validateNodePath(toPosix(input.nodePath.trim()).replace(/\/$/, ''));
   if (!nv.ok) {
     return {
       ok: false,

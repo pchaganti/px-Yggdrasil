@@ -7,6 +7,7 @@ import type { WhenPredicate } from '../model/when.js';
 import { readArtifacts } from './artifact-reader.js';
 import { parseWhen, parseAspectAttachment } from '../core/parsing/when-parser.js';
 import { aspectStatusInvalidMessage, impliesStatusInheritInvalidMessage } from '../formatters/aspect-status-messages.js';
+import { toPosixPath } from '../utils/posix.js';
 
 export type ParseAspectResult =
   | { ok: true; aspect: AspectDef }
@@ -268,7 +269,7 @@ export async function parseAspect(
         };
       }
       // normalize: trim, \ -> /, strip trailing /
-      const normalized = rawPath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+      const normalized = toPosixPath(rawPath.trim());
       // aspect-reference-blank-path
       if (normalized === '') {
         return {

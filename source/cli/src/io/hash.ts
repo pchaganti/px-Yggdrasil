@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { type Ignore, type Options as IgnoreOptions } from 'ignore';
 import type { TrackedFile } from '../core/graph/files.js';
+import { toPosix, toPosixPath } from '../utils/posix.js';
 
 export { loadRootGitignoreStack, isIgnoredByStack, walkRepoFiles } from '../io/repo-scanner.js';
 export type { GitignoreEntry } from '../io/repo-scanner.js';
@@ -74,7 +75,7 @@ async function loadRootGitignoreStack(projectRoot?: string): Promise<GitignoreEn
 
 function isIgnoredByStack(candidatePath: string, stack: GitignoreEntry[]): boolean {
   for (const { basePath, matcher } of stack) {
-    const relativePath = path.relative(basePath, candidatePath).replace(/\\/g, '/');
+    const relativePath = toPosix(path.relative(basePath, candidatePath));
     if (relativePath === '' || relativePath.startsWith('..')) continue;
     if (matcher.ignores(relativePath) || matcher.ignores(relativePath + '/')) return true;
   }
@@ -101,7 +102,7 @@ export async function perFileHashes(
     const absPath = path.join(root, p);
     const st = await stat(absPath);
     if (st.isFile()) {
-      result.push({ path: p.replace(/\\/g, '/').replace(/\/+$/, ''), hash: await hashFile(absPath) });
+      result.push({ path: toPosixPath(p), hash: await hashFile(absPath) });
     } else if (st.isDirectory()) {
       const hashes = await collectDirectoryFileHashes(absPath, absPath, {
         projectRoot: root,
@@ -109,7 +110,7 @@ export async function perFileHashes(
       });
       for (const h of hashes) {
         result.push({
-          path: path.join(p, h.path).replace(/\\/g, '/').replace(/\/+$/, ''),
+          path: toPosixPath(path.join(p, h.path)),
           hash: h.hash,
         });
       }
@@ -134,10 +135,10 @@ export async function hashForMapping(
     const absPath = path.join(root, p);
     const st = await stat(absPath);
     if (st.isFile()) {
-      pairs.push({ path: p.replace(/\\/g, '/').replace(/\/+$/, ''), hash: await hashFile(absPath) });
+      pairs.push({ path: toPosixPath(p), hash: await hashFile(absPath) });
     } else if (st.isDirectory()) {
       const dirHash = await hashPath(absPath, { projectRoot: root });
-      pairs.push({ path: p.replace(/\\/g, '/').replace(/\/+$/, ''), hash: dirHash });
+      pairs.push({ path: toPosixPath(p), hash: dirHash });
     }
   }
 
@@ -193,7 +194,7 @@ export async function hashTrackedFiles(
         });
         for (const entry of dirEntries) {
           allFiles.push({
-            relPath: path.join(tf.path, entry.relPath).replace(/\\/g, '/').replace(/\/+$/, ''),
+            relPath: toPosixPath(path.join(tf.path, entry.relPath)),
             absPath: entry.absPath,
             mtimeMs: entry.mtimeMs,
           });
@@ -286,7 +287,7 @@ async function collectDirectoryFilePaths(
     Promise.all(files.map(async (f) => {
       const fileStat = await stat(f);
       return {
-        relPath: path.relative(rootDirectoryPath, f).replace(/\\/g, '/').replace(/\/+$/, ''),
+        relPath: toPosixPath(path.relative(rootDirectoryPath, f)),
         absPath: f,
         mtimeMs: fileStat.mtimeMs,
       };
@@ -323,10 +324,10 @@ export async function expandMappingPaths(
           gitignoreStack,
         });
         for (const entry of dirEntries) {
-          result.push(path.join(mp, entry.relPath).replace(/\\/g, '/').replace(/\/+$/, ''));
+          result.push(toPosixPath(path.join(mp, entry.relPath)));
         }
       } else {
-        result.push(mp.replace(/\\/g, '/').replace(/\/+$/, ''));
+        result.push(toPosixPath(mp));
       }
     } catch {
       // Missing path — skip

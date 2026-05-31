@@ -43,9 +43,10 @@ export interface NodeContextDep {
 }
 
 import { truncateDescription } from './truncate.js';
+import { toPosixPath } from '../utils/posix.js';
 
 function posixPath(p: string): string {
-  return p.replace(/\\/g, '/').replace(/\/+$/, '');
+  return toPosixPath(p);
 }
 
 export function formatNodeContext(data: NodeContextData): string {

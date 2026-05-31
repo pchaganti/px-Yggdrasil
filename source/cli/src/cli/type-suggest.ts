@@ -9,6 +9,7 @@ import { renderTrace } from '../formatters/predicate-trace.js';
 import { loadRootGitignoreStack, isIgnoredByStack } from '../io/repo-scanner.js';
 import { projectRootFromGraph, resolveFileArg } from '../io/paths.js';
 import { debugWrite } from '../utils/debug-log.js';
+import { toPosixPath } from '../utils/posix.js';
 
 /**
  * Core logic for `yg type-suggest --file <path>`.
@@ -17,7 +18,7 @@ import { debugWrite } from '../utils/debug-log.js';
 export async function typeSuggestCommand(file: string, projectRoot: string): Promise<void> {
   const graph = await loadGraphOrAbort(projectRoot, { tolerateInvalidConfig: true });
   const repoRoot = projectRootFromGraph(graph.rootPath);
-  const repoRelPath = resolveFileArg(repoRoot, file.trim()).replace(/\\/g, '/').replace(/\/+$/, '');
+  const repoRelPath = toPosixPath(resolveFileArg(repoRoot, file.trim()));
   const absPath = resolve(repoRoot, repoRelPath);
   const cache = new FileContentCache();
 

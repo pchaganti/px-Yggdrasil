@@ -5,6 +5,7 @@ import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-prea
 import { buildIndex, createMiniSearch } from '../io/find-index.js';
 import type { IndexedDocument } from '../io/find-index.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
+import { toPosixPath } from '../utils/posix.js';
 
 const TOP_N = 5;
 
@@ -69,7 +70,7 @@ export async function findCommand(query: string, projectRoot: string): Promise<n
     const matched =
       shownTerms.join(', ') + (overflow > 0 ? ` (+${overflow} more)` : '');
     const score = (maxScore > 0 ? (r.score ?? 0) / maxScore : 0).toFixed(2);
-    const docPath = doc.path.replace(/\\/g, '/').replace(/\/+$/, '');
+    const docPath = toPosixPath(doc.path);
     process.stdout.write(`${i + 1}. ${docPath.padEnd(40)} score: ${score}\n`);
     process.stdout.write(`   Kind: ${doc.kind}\n`);
     if (doc.type) process.stdout.write(`   Type: ${doc.type}\n`);

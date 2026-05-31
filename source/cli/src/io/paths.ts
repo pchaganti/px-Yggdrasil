@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stat } from 'node:fs/promises';
 import { normalizeMappingPath } from '../utils/mapping-path.js';
+import { toPosixPath } from '../utils/posix.js';
 
 /**
  * Directory containing the CLI package (dist/ when bundled).
@@ -68,7 +69,7 @@ export function normalizeMappingPaths(mapping: string[] | undefined): string[] {
  * E.g., "/abs/path/.yggdrasil/orders/order-service" → "orders/order-service"
  */
 export function toGraphPath(absolutePath: string, yggRoot: string): string {
-  return path.relative(yggRoot, absolutePath).replace(/\\/g, '/').replace(/\/+$/, '');
+  return toPosixPath(path.relative(yggRoot, absolutePath));
 }
 
 /**
@@ -76,7 +77,7 @@ export function toGraphPath(absolutePath: string, yggRoot: string): string {
  * Throws when the target path points outside the project root.
  */
 export function normalizeProjectRelativePath(projectRoot: string, rawPath: string): string {
-  const normalizedInput = rawPath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+  const normalizedInput = toPosixPath(rawPath.trim());
   if (normalizedInput.length === 0) {
     throw new Error('Path cannot be empty');
   }
@@ -88,7 +89,7 @@ export function normalizeProjectRelativePath(projectRoot: string, rawPath: strin
     throw new Error(`Path is outside project root: ${rawPath}`);
   }
 
-  return relative.replace(/\\/g, '/').replace(/\/+$/, '');
+  return toPosixPath(relative);
 }
 
 /**
@@ -100,5 +101,5 @@ export function projectRootFromGraph(yggRootPath: string): string {
 
 export function resolveFileArg(repoRoot: string, rawPath: string): string {
   const absolute = path.resolve(repoRoot, rawPath.trim());
-  return path.relative(repoRoot, absolute).replace(/\\/g, '/').replace(/\/+$/, '');
+  return toPosixPath(path.relative(repoRoot, absolute));
 }

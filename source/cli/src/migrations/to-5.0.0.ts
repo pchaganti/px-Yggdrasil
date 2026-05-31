@@ -9,6 +9,7 @@ import {
 } from '../core/format-version.js';
 import { inspectSecretsForValidation } from '../io/secrets-parser.js';
 import { addAspectStatusDefaults } from './aspect-status-defaults.js';
+import { toPosix } from '../utils/posix.js';
 
 const PROVIDER_SET = new Set<string>(KNOWN_PROVIDERS);
 const AST_STRING = 'ast';
@@ -292,7 +293,7 @@ async function scanAspectsDir(
     throw e;
   }
 
-  const aspectId = relPath.replace(/\\/g, '/');
+  const aspectId = toPosix(relPath);
   const aspectYamlPath = path.join(dir, 'yg-aspect.yaml');
   let hasAspectYaml = false;
   try {

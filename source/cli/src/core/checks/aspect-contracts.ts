@@ -7,6 +7,7 @@ import { computeEffectiveAspectStatuses, getAspectStatusSources, type AttachSour
 import { selectTierForAspect } from '../tier-selection.js';
 import { aspectStatusDowngradeMessage } from '../../formatters/aspect-status-messages.js';
 import { issueMsg } from './shared.js';
+import { toPosixPath } from '../../utils/posix.js';
 
 // --- aspect-rule-sources: content.md vs check.mjs mutual exclusion ---
 
@@ -208,7 +209,7 @@ export async function checkAspectReferences(graph: Graph): Promise<ValidationIss
       // POSIX-normalize the reference path before embedding it in any output
       // message (the posix-paths-output contract governs these ValidationIssue
       // strings); absPath above is filesystem-only and stays OS-native.
-      const refPath = ref.path.replace(/\\/g, '/').replace(/\/+$/, '');
+      const refPath = toPosixPath(ref.path);
       let stats: Awaited<ReturnType<typeof statPath>>;
       try {
         stats = await statPath(absPath);

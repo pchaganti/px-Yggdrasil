@@ -3,11 +3,12 @@ import path from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { MigrationResult } from '../core/migrator.js';
 import { updateConfigVersion } from '../core/migrator.js';
+import { toPosixPath } from '../utils/posix.js';
 
 const NODE_ARTIFACTS = ['responsibility.md', 'interface.md', 'internals.md'];
 
 function posix(p: string): string {
-  return p.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+  return toPosixPath(p.trim());
 }
 
 export async function migrateTo4(yggRoot: string): Promise<MigrationResult> {

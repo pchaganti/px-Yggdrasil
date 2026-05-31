@@ -1,3 +1,4 @@
+import { toPosix } from './posix.js';
 export type NodePathValidation =
   | { ok: true; normalized: string }
   | { ok: false; reason: string };
@@ -16,7 +17,7 @@ export function validateNodePath(raw: string): NodePathValidation {
   const trimmed = raw.trim();
   if (trimmed === '') return { ok: false, reason: 'Node path is empty' };
 
-  const posix = trimmed.replace(/\\/g, '/');
+  const posix = toPosix(trimmed);
 
   if (posix.startsWith('/')) {
     return { ok: false, reason: 'Node path must not be absolute (starts with /)' };

@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { FsEntry } from './types.js';
 import { normalizeMappingPath } from '../utils/mapping-path.js';
+import { toPosix } from '../utils/posix.js';
 
 export interface CtxFsParams {
   allowedSet: Set<string>;
@@ -56,7 +57,7 @@ function assertRealpathContained(abs: string, projectRoot: string, rel: string):
   }
   let realProbe: string;
   try { realProbe = fs.realpathSync(probe); } catch { return; }
-  const relReal = path.relative(realRoot, realProbe).replace(/\\/g, '/');
+  const relReal = toPosix(path.relative(realRoot, realProbe));
   if (relReal === '..' || relReal.startsWith('../') || path.isAbsolute(relReal)) {
     throw new UndeclaredFsReadError(rel);
   }
@@ -72,7 +73,7 @@ function assertRealpathContained(abs: string, projectRoot: string, rel: string):
  */
 export function resolveAllowedReadPath(raw: string, allowedSet: Set<string>, projectRoot: string): string {
   const abs = path.resolve(projectRoot, normalizeMappingPath(raw));
-  const rel = path.relative(projectRoot, abs).replace(/\\/g, '/');
+  const rel = toPosix(path.relative(projectRoot, abs));
   // rel === '' (the repo root itself), starts with '..' (escapes repo), or is absolute → reject
   if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) {
     throw new UndeclaredFsReadError(normalizeMappingPath(raw));

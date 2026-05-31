@@ -14,6 +14,7 @@ import type { FileContextData } from '../formatters/context-file.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import { readTextFile } from '../io/graph-fs.js';
 import { computeEffectiveAspects, computeEffectiveAspectStatuses, getAspectSource } from './graph/aspects.js';
+import { toPosixPath } from '../utils/posix.js';
 import {
   collectAncestors,
   collectParticipatingFlows,
@@ -30,7 +31,7 @@ const EVENT_RELATION_TYPES = new Set(['emits', 'listens']);
 
 /** Normalize a path for output: replace backslashes with forward slashes and strip trailing slashes. */
 function normPath(p: string): string {
-  return p.replace(/\\/g, '/').replace(/\/+$/, '');
+  return toPosixPath(p);
 }
 
 
@@ -170,7 +171,7 @@ function countDependents(graph: Graph, nodePath: string): { count: number; paths
 }
 
 export function buildNodeContextData(graph: Graph, nodePath: string): NodeContextData {
-  const normalizedNodePath = nodePath.replace(/\\/g, '/').replace(/\/+$/, '');
+  const normalizedNodePath = toPosixPath(nodePath);
   const node = graph.nodes.get(nodePath);
   if (!node) throw new Error(`Node not found: ${nodePath}`);
 
@@ -184,7 +185,7 @@ export function buildNodeContextData(graph: Graph, nodePath: string): NodeContex
     const aspectDef = graph.aspects.find(a => a.id === aspectId);
     const source = getAspectSource(aspectId, node, graph);
     const refs = aspectDef?.reviewer?.type === 'llm' && aspectDef.references && aspectDef.references.length > 0
-      ? aspectDef.references.map(r => ({ path: r.path, description: r.description }))
+      ? aspectDef.references.map(r => ({ path: toPosixPath(r.path), description: r.description }))
       : undefined;
     const status = effectiveStatuses.get(aspectId) ?? aspectDef?.status ?? 'enforced';
     return {
@@ -249,8 +250,8 @@ export function buildFileContextData(graph: Graph, filePath: string, ownerPath: 
   const node = graph.nodes.get(ownerPath);
   if (!node) throw new Error(`Node not found: ${ownerPath}`);
 
-  const normalizedFilePath = filePath.replace(/\\/g, '/').replace(/\/+$/, '');
-  const normalizedOwnerPath = ownerPath.replace(/\\/g, '/').replace(/\/+$/, '');
+  const normalizedFilePath = toPosixPath(filePath);
+  const normalizedOwnerPath = toPosixPath(ownerPath);
   const ancestors = collectAncestors(node);
 
   const effectiveAspectIds = computeEffectiveAspects(node, graph);
@@ -259,7 +260,7 @@ export function buildFileContextData(graph: Graph, filePath: string, ownerPath: 
   const aspects = Array.from(effectiveAspectIds).map(aspectId => {
     const aspectDef = graph.aspects.find(a => a.id === aspectId);
     const refs = aspectDef?.reviewer?.type === 'llm' && aspectDef.references && aspectDef.references.length > 0
-      ? aspectDef.references.map(r => ({ path: r.path, description: r.description }))
+      ? aspectDef.references.map(r => ({ path: toPosixPath(r.path), description: r.description }))
       : undefined;
     const status = effectiveStatuses.get(aspectId) ?? aspectDef?.status ?? 'enforced';
     return {

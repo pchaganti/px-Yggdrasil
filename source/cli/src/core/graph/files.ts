@@ -7,6 +7,7 @@ import { collectAncestors } from './traversal.js';
 import { computeEffectiveAspects } from './aspects.js';
 import { selectTierForAspect } from '../tier-selection.js';
 import { canonicalTierJson } from '../tier-identity.js';
+import { toPosixPath } from '../../utils/posix.js';
 
 export interface TrackedFile {
   path: string;           // relative to project root
@@ -63,7 +64,7 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
   const projectRoot = path.dirname(graph.rootPath);
   const yggPrefix = path.relative(projectRoot, graph.rootPath);
   // Normalize to forward slashes for consistency
-  const yggPrefixNormalized = yggPrefix.replace(/\\/g, '/').replace(/\/+$/, '');
+  const yggPrefixNormalized = toPosixPath(yggPrefix);
 
   function addFile(filePath: string, category: DriftCategory, layer: TrackedFileLayer): void {
     if (seen.has(filePath)) return;
@@ -260,7 +261,7 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
 export function buildLayerResolver(
   trackedFiles: TrackedFile[],
 ): (filePath: string) => TrackedFileLayer | undefined {
-  const normalize = (p: string): string => p.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+  const normalize = (p: string): string => toPosixPath(p.trim());
   const fileLayerMap = new Map<string, TrackedFileLayer>();
   const dirPrefixes: Array<{ prefix: string; layer: TrackedFileLayer }> = [];
   for (const tf of trackedFiles) {

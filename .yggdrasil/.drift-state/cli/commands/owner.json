@@ -1,5 +1,5 @@
 {
-  "hash": "9232621e43500528318f6a073ab33a4905314f468d334b2708aa3013ef2b8d33",
+  "hash": "9148cd25fb9180d52fc7c333918041032cd2aaad052f7236a6f3f6018927ca48",
   "files": {
     "own-subset:cli/commands/owner": "8f92176a242faf2119c3c9093fbaa1214332829c4250d7fdf2dfb067772de012",
     "aspect-meta:posix-paths-output": "0616e83dea174e69b84be8d3bc43a180a8f33aa8e4f1df8473419c0b9897bd03",
@@ -58,16 +58,16 @@
     "source/cli/tests/unit/cli/log.test.ts": "aac1123869b0ba6c09e583ece9b90aa2a0a9a80b61a8c2391123852cb6bdb92a",
     "source/cli/tests/unit/cli/log-add.test.ts": "ddde6752778f2f88a83e0f1f342a950bdbb0eb47c6348e38bdae24e78b563a5a",
     "source/cli/tests/unit/cli/log-read.test.ts": "2e3ef47655294dd15809d4ef072429ca69a18678a3f3b7f9ea271d9b8a70869b",
+    "source/cli/tests/unit/cli/log-merge-resolve.test.ts": "671a240f298b0754cc4fc55190ef01f76472844ae15ff9db1975b35d1849cb68",
     ".yggdrasil/model/cli/core/loader/yg-node.yaml": "6efbbf493727f08d46a4a3f16acce62b942bc8950a81e15896713a018961b46d",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
-    ".yggdrasil/model/cli/utils/yg-node.yaml": "4085a0c3fd91715499479821039adf3999cd42358845b09dc5467bc7e7811ec8",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
     ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": "d51c269d4b45bd597645a6c918e820c67762877ac22d64f861c53421b67a4fbd",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
-    "source/cli/src/cli/owner.ts": "9b1995dac746ea82efeee70ec7f599481868f94b18bffc543cfee9b9b062cc08",
-    "source/cli/tests/unit/cli/log-merge-resolve.test.ts": "671a240f298b0754cc4fc55190ef01f76472844ae15ff9db1975b35d1849cb68"
+    ".yggdrasil/model/cli/utils/yg-node.yaml": "61b845a3c10031ab6de26a554e2488d93401ff1dd3b158fed0fb4515a50dfe55",
+    "source/cli/src/cli/owner.ts": "5024f4679379140b5ec6073593c6f82ba5ca8f77ca88510a143de2261990bde9"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -111,21 +111,33 @@
     "source/cli/tests/unit/cli/log-merge-resolve.test.ts": 1780239035814.9297,
     ".yggdrasil/model/cli/core/loader/yg-node.yaml": 1779954121835.5833,
     ".yggdrasil/model/cli/core/yg-node.yaml": 1776177846202.0774,
-    ".yggdrasil/model/cli/utils/yg-node.yaml": 1780124613353.3586,
+    ".yggdrasil/model/cli/utils/yg-node.yaml": 1780243391788.3115,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": 1780048240858.293,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
-    "source/cli/src/cli/owner.ts": 1778957107712.1167
+    "source/cli/src/cli/owner.ts": 1780243067948.6226
   },
   "log": {
-    "last_entry_datetime": "2026-05-29T10:07:13.877Z",
-    "prefix_hash": "dab13090338e17a48659b054249e29d174e8ecd7d8baf47648e9c87fbef1f4c6"
+    "last_entry_datetime": "2026-05-31T16:03:31.938Z",
+    "prefix_hash": "2430d41f3e8f27e60975ed55b8c5dec425f734ee0b287eed705e340da950c16a"
   },
   "checkTouchedFiles": {
+    "command-exit-codes": {
+      "source/cli/src/cli/owner.ts": "5024f4679379140b5ec6073593c6f82ba5ca8f77ca88510a143de2261990bde9"
+    },
+    "command-contract-shape": {
+      "source/cli/src/cli/owner.ts": "5024f4679379140b5ec6073593c6f82ba5ca8f77ca88510a143de2261990bde9"
+    },
+    "posix-paths-source": {
+      "source/cli/src/cli/owner.ts": "5024f4679379140b5ec6073593c6f82ba5ca8f77ca88510a143de2261990bde9"
+    },
+    "command-error-via-buildissuemessage": {
+      "source/cli/src/cli/owner.ts": "5024f4679379140b5ec6073593c6f82ba5ca8f77ca88510a143de2261990bde9"
+    },
     "sibling-test-file": {
-      "source/cli/src/cli/owner.ts": "9b1995dac746ea82efeee70ec7f599481868f94b18bffc543cfee9b9b062cc08",
+      "source/cli/src/cli/owner.ts": "5024f4679379140b5ec6073593c6f82ba5ca8f77ca88510a143de2261990bde9",
       "source/cli/tests/unit/cli/approve.test.ts": "4948af8d177a0238753379046dae9a453f9ebe4de20161470c41e5d386bf3ef0",
       "source/cli/tests/unit/cli/approve-action-guards.test.ts": "2d35faaa68aa1ec0bec632298a63c467d99895cb3bb3bf133f10d90a0df2481a",
       "source/cli/tests/unit/cli/approve-batch.test.ts": "c59619ad846ed53db20f63cf8c5f1e55d720963e056cff106a758331e4f514a3",
@@ -154,24 +166,9 @@
       "source/cli/tests/unit/cli/log-add.test.ts": "ddde6752778f2f88a83e0f1f342a950bdbb0eb47c6348e38bdae24e78b563a5a",
       "source/cli/tests/unit/cli/log-read.test.ts": "2e3ef47655294dd15809d4ef072429ca69a18678a3f3b7f9ea271d9b8a70869b",
       "source/cli/tests/unit/cli/log-merge-resolve.test.ts": "671a240f298b0754cc4fc55190ef01f76472844ae15ff9db1975b35d1849cb68"
-    },
-    "command-contract-shape": {
-      "source/cli/src/cli/owner.ts": "9b1995dac746ea82efeee70ec7f599481868f94b18bffc543cfee9b9b062cc08"
-    },
-    "posix-paths-source": {
-      "source/cli/src/cli/owner.ts": "9b1995dac746ea82efeee70ec7f599481868f94b18bffc543cfee9b9b062cc08"
-    },
-    "command-error-via-buildissuemessage": {
-      "source/cli/src/cli/owner.ts": "9b1995dac746ea82efeee70ec7f599481868f94b18bffc543cfee9b9b062cc08"
-    },
-    "command-exit-codes": {
-      "source/cli/src/cli/owner.ts": "9b1995dac746ea82efeee70ec7f599481868f94b18bffc543cfee9b9b062cc08"
     }
   },
   "aspectVerdicts": {
-    "sibling-test-file": {
-      "verdict": "approved"
-    },
     "posix-paths-output": {
       "verdict": "approved"
     },
@@ -188,6 +185,9 @@
       "verdict": "approved"
     },
     "command-error-via-buildissuemessage": {
+      "verdict": "approved"
+    },
+    "sibling-test-file": {
       "verdict": "approved"
     },
     "what-why-next": {

@@ -21,6 +21,7 @@ import type { ArchitectureLoadError } from '../model/graph.js';
 import type { IssueMessage } from '../model/validation.js';
 import { findYggRoot } from '../io/paths.js';
 import { detectVersion } from './migrator.js';
+import { toPosixPath } from '../utils/posix.js';
 
 const CLI_SUPPORTED_SCHEMA = '5.0.0';
 
@@ -46,7 +47,7 @@ export class UnsupportedSchemaVersionError extends Error {
 }
 
 function toModelPath(absolutePath: string, modelDir: string): string {
-  return path.relative(modelDir, absolutePath).replace(/\\/g, '/').replace(/\/+$/, '');
+  return toPosixPath(path.relative(modelDir, absolutePath));
 }
 
 const FALLBACK_CONFIG: YggConfig = {};
@@ -114,7 +115,7 @@ export async function loadGraph(
     aspects: aspectsLoad.aspects,
     flows,
     schemas,
-    rootPath: yggRoot.replace(/\\/g, '/').replace(/\/+$/, ''),
+    rootPath: toPosixPath(yggRoot),
   };
 }
 
@@ -251,7 +252,7 @@ async function scanAspectsDirectory(
   const hasAspectYaml = entries.some((e) => e.isFile() && e.name === 'yg-aspect.yaml');
 
   if (hasAspectYaml) {
-    const id = path.relative(aspectsRoot, dirPath).replace(/\\/g, '/').replace(/\/+$/, '');
+    const id = toPosixPath(path.relative(aspectsRoot, dirPath));
     const aspectYamlPath = path.join(dirPath, 'yg-aspect.yaml');
     const result = await parseAspect(dirPath, aspectYamlPath, id);
     if (result.ok) {

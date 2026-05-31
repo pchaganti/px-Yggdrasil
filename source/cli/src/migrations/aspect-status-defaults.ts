@@ -25,6 +25,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import { toPosix } from '../utils/posix.js';
 
 const STATUS_RANK: Readonly<Record<string, number>> = {
   draft: 0,
@@ -86,7 +87,7 @@ async function walkGraphDirs(
     return;
   }
   const yamlPath = path.join(dir, yamlName);
-  const relativeId = relPath.replace(/\\/g, '/');
+  const relativeId = toPosix(relPath);
   try {
     await readFile(yamlPath, 'utf-8');
     if (relativeId !== '') await visit(relativeId, yamlPath);

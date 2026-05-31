@@ -12,6 +12,7 @@ import { normalizeMappingPaths, projectRootFromGraph, resolveFileArg } from '../
 import { expandMappingPaths } from '../io/hash.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import type { Graph } from '../model/graph.js';
+import { toPosixPath } from '../utils/posix.js';
 
 type CandidateNode = { nodePath: string; fileCount: number };
 
@@ -25,7 +26,7 @@ function findCandidateNodes(graph: Graph, unmappedFile: string): CandidateNode[]
     const mappingPaths = normalizeMappingPaths(node.meta.mapping);
     let count = 0;
     for (const mp of mappingPaths) {
-      const mpNorm = mp.replace(/\\/g, '/').replace(/\/+$/, '');
+      const mpNorm = toPosixPath(mp);
       const mpDir = mpNorm.replace(/\/[^/]+$/, '');
       if (mpDir === dir) {
         count++;
@@ -96,7 +97,7 @@ export function registerBuildCommand(program: Command): void {
           const repoRoot = projectRootFromGraph(graph.rootPath);
           const repoRelative = resolveFileArg(repoRoot, options.file);
           const result = findOwner(graph, repoRoot, repoRelative);
-          const displayFile = result.file.replace(/\\/g, '/').replace(/\/+$/, '');
+          const displayFile = toPosixPath(result.file);
           if (!result.nodePath) {
             const candidates = findCandidateNodes(graph, result.file);
             if (candidates.length > 0) {
@@ -122,8 +123,11 @@ export function registerBuildCommand(program: Command): void {
           }
           process.stderr.write(`${displayFile} -> ${result.nodePath}\n`);
           nodePath = result.nodePath;
-          resolvedFilePath = result.file.replace(/\\/g, '/').replace(/\/+$/, '');
+          resolvedFilePath = toPosixPath(result.file);
         } else {
+          // cli-command-contract verifies the --node path normalization by reading
+          // the explicit separator-conversion + trailing-slash strip in source, so
+          // this one site keeps the inlined idiom rather than the toPosixPath helper.
           nodePath = options.node!.trim().replace(/\\/g, '/').replace(/\/+$/, '');
         }
 

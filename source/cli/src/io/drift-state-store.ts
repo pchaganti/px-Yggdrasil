@@ -3,6 +3,7 @@ import path from 'node:path';
 import type { DriftState, DriftNodeState } from '../model/drift.js';
 import { debugWrite } from '../utils/debug-log.js';
 import { atomicWriteFile } from '../io/atomic-write.js';
+import { toPosix } from '../utils/posix.js';
 
 const DRIFT_STATE_DIR = '.drift-state';
 
@@ -32,7 +33,7 @@ async function scanJsonFiles(dir: string, baseDir: string): Promise<string[]> {
     } else if (entry.isFile() && entry.name.endsWith('.json')) {
       const relPath = path.relative(baseDir, fullPath);
       // Remove .json extension and normalize to posix
-      const nodePath = relPath.replace(/\\/g, '/').replace(/\.json$/, '');
+      const nodePath = toPosix(relPath).replace(/\.json$/, '');
       results.push(nodePath);
     }
   }

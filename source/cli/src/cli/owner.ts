@@ -7,9 +7,10 @@ import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import type { Graph, OwnerResult } from '../model/graph.js';
 import { normalizeMappingPaths, normalizeProjectRelativePath, projectRootFromGraph, resolveFileArg } from '../io/paths.js';
+import { toPosixPath } from '../utils/posix.js';
 
 function normalizeForMatch(inputPath: string): string {
-  return inputPath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+  return toPosixPath(inputPath.trim());
 }
 
 export function findOwner(graph: Graph, projectRoot: string, rawPath: string): OwnerResult {

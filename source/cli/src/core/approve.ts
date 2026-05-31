@@ -21,6 +21,7 @@ import { parseLog } from './parsing/log-parser.js';
 import { validateFormat } from './log-format.js';
 import { validateAppendOnly } from './log-integrity.js';
 import type { IssueMessage } from '../model/validation.js';
+import { toPosixPath } from '../utils/posix.js';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ApproveOptions {
@@ -189,7 +190,7 @@ export async function approveNode(
     // entry. With no baseline, "fresh entry" reduces to "any entry exists".
     const sourcePathsFirst = trackedFiles
       .filter((tf) => tf.layer === 'source')
-      .map((tf) => tf.path.trim().replace(/\\/g, '/').replace(/\/+$/, ''));
+      .map((tf) => toPosixPath(tf.path.trim()));
     if (sourcePathsFirst.length > 0 && logRequired && !hasFreshLogEntry(logSnapshot.content, undefined)) {
       return mandatoryLogRefusal(node, nodePath, sourcePathsFirst);
     }
@@ -267,9 +268,9 @@ export async function approveNode(
 
   function classifyChangedFile(filePath: string): void {
     const layer = resolveLayer(filePath);
-    const isGraph = filePath.trim().replace(/\\/g, '/').replace(/\/+$/, '').startsWith(yggPrefix);
+    const isGraph = toPosixPath(filePath.trim()).startsWith(yggPrefix);
 
-    const normalizedFilePath = filePath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+    const normalizedFilePath = toPosixPath(filePath.trim());
     if (layer === 'source' || (!isGraph && !layer)) {
       changedSource.push(normalizedFilePath);
     } else if (layer) {
@@ -467,7 +468,7 @@ async function sourceFilesChanged(
   // Normalize at the output boundary: this function's result is emitted (it
   // flows into the mandatory-log refusal message, part of the public approve
   // result written to CLI output), so guarantee POSIX form on the way out.
-  const norm = (p: string): string => p.replace(/\\/g, '/').replace(/\/+$/, '');
+  const norm = (p: string): string => toPosixPath(p);
 
   // No baseline → first approve: any present source file is a "change".
   if (!storedEntry) return Object.keys(fileHashes).map(norm);
@@ -510,7 +511,7 @@ async function snapshotLog(yggRoot: string, nodePath: string): Promise<LogSnapsh
     return { content, existed: true };
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-      debugWrite(`[approve] log.md not found at ${logPath.replace(/\\/g, '/').replace(/\/+$/, '')} — treating as absent`);
+      debugWrite(`[approve] log.md not found at ${toPosixPath(logPath)} — treating as absent`);
       return { content: '', existed: false };
     }
     /* v8 ignore next */
@@ -582,7 +583,7 @@ export function getChildMappingExclusions(graph: Graph, nodePath: string): strin
 
 /** Annotate an upstream changed file with a human-readable category label. */
 export function annotateUpstreamChange(filePath: string, layer: TrackedFileLayer | undefined): string {
-  const normalized = filePath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+  const normalized = toPosixPath(filePath.trim());
   if (layer === 'check-touched') return 'structure aspect tracked file';
   if (layer === 'aspects' || normalized.includes('/aspects/')) return 'aspect content';
   if (normalized.includes('/flows/')) return 'flow description';
@@ -623,7 +624,7 @@ export async function loadSourceFiles(
     // is emitted both into the returned source list (e.g. the dry-run reviewer
     // prompt) and the debug log. Not every caller normalizes its inputs, so
     // guarantee POSIX form here, in BOTH the success and the skipped branch.
-    const posixPath = filePath.replace(/\\/g, '/').replace(/\/+$/, '');
+    const posixPath = toPosixPath(filePath);
     try {
       const content = await readTextFile(path.join(projectRoot, filePath));
       results.push({ path: posixPath, content });

@@ -2,6 +2,7 @@ import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { readTextFile, writeTextFile } from '../io/graph-fs.js';
 import { gt, valid, compare } from 'semver';
+import { toPosixPath } from '../utils/posix.js';
 
 export interface Migration {
   to: string;
@@ -21,7 +22,7 @@ export interface MigrationResult {
  * Returns semver string or null if no config found.
  */
 export async function detectVersion(yggRoot: string): Promise<string | null> {
-  const root = yggRoot.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+  const root = toPosixPath(yggRoot.trim());
   const configPath = path.join(root, 'yg-config.yaml');
   try {
     const content = await readTextFile(configPath);
@@ -44,7 +45,7 @@ export async function runMigrations(
   migrations: Migration[],
   yggRoot: string,
 ): Promise<MigrationResult[]> {
-  const root = yggRoot.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+  const root = toPosixPath(yggRoot.trim());
   const cVer = valid(currentVersion);
   if (!cVer) return [];
 
@@ -68,7 +69,7 @@ export async function runMigrations(
  * Update version field in yg-config.yaml.
  */
 export async function updateConfigVersion(yggRoot: string, version: string): Promise<void> {
-  const root = yggRoot.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+  const root = toPosixPath(yggRoot.trim());
   const configPath = path.join(root, 'yg-config.yaml');
   const content = await readTextFile(configPath);
   const updated = content.match(/^version:\s/m)

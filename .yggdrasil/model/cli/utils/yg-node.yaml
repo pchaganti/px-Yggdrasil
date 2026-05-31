@@ -11,4 +11,5 @@ mapping:
   - source/cli/src/utils/known-providers.ts
   - source/cli/src/utils/mapping-path.ts
   - source/cli/src/utils/node-path-validator.ts
+  - source/cli/src/utils/posix.ts
   - source/cli/src/utils/validate-check-module.ts

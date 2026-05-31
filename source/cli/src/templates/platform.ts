@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { AGENT_RULES_CONTENT } from './rules.js';
+import { toPosixPath } from '../utils/posix.js';
 
 const AGENT_RULES_IMPORT = '@.yggdrasil/agent-rules.md';
 const YGGDRASIL_START = '<!-- yggdrasil:start -->';
@@ -75,7 +76,7 @@ export async function installRulesForPlatform(
     default:
       result = await installForGeneric(projectRoot); break;
   }
-  return result.replace(/\\/g, '/').replace(/\/+$/, '');
+  return toPosixPath(result);
 }
 
 async function ensureAgentRules(agentRulesPath: string): Promise<void> {

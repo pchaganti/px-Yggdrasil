@@ -17,6 +17,7 @@ import { readTextFile, fileAccess } from '../io/graph-fs.js';
 import path from 'node:path';
 import { validateAppendOnly } from './log-integrity.js';
 import { validateFormat } from './log-format.js';
+import { toPosixPath } from '../utils/posix.js';
 import {
   aspectNewlyActiveMessage,
   aspectViolationEnforcedMessage,
@@ -205,7 +206,7 @@ async function classifyNodeDrift(
 
     // Current files vs stored
     for (const [rawFilePath, hash] of Object.entries(fileHashes)) {
-      const filePath = rawFilePath.replace(/\\/g, '/').replace(/\/+$/, '');
+      const filePath = toPosixPath(rawFilePath);
       const storedHash = storedEntry.files[rawFilePath] ?? storedEntry.files[filePath];
       if (storedHash && storedHash === hash) continue;
 
@@ -224,9 +225,9 @@ async function classifyNodeDrift(
     }
 
     // Deleted files (in stored but not in current)
-    const normalizedFileHashes = new Set(Object.keys(fileHashes).map(p => p.replace(/\\/g, '/').replace(/\/+$/, '')));
+    const normalizedFileHashes = new Set(Object.keys(fileHashes).map(p => toPosixPath(p)));
     for (const storedPath of Object.keys(storedEntry.files)) {
-      const normalizedStored = storedPath.replace(/\\/g, '/').replace(/\/+$/, '');
+      const normalizedStored = toPosixPath(storedPath);
       if (normalizedStored in fileHashes || normalizedFileHashes.has(normalizedStored)) continue;
       // Use the POSIX-normalized path for every classification lookup AND every
       // output-bound string below — the raw key may carry host separators, which
@@ -399,12 +400,12 @@ export function scanUncoveredFiles(graph: Graph, gitTrackedFiles: string[]): str
 
   // Determine .yggdrasil prefix relative to project root
   const projectRoot = path.dirname(graph.rootPath);
-  const yggPrefix = path.relative(projectRoot, graph.rootPath).replace(/\\/g, '/').replace(/\/+$/, '');
+  const yggPrefix = toPosixPath(path.relative(projectRoot, graph.rootPath));
 
   const uncovered: string[] = [];
 
   for (const file of gitTrackedFiles) {
-    const normalized = file.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+    const normalized = toPosixPath(file.trim());
 
     // Exclude .yggdrasil/ files
     if (normalized.startsWith(yggPrefix + '/') || normalized === yggPrefix) continue;
@@ -413,7 +414,7 @@ export function scanUncoveredFiles(graph: Graph, gitTrackedFiles: string[]): str
     let covered = false;
     for (const rawMp of allMappings) {
       // Normalize: strip trailing slash to avoid double-slash in startsWith check
-      const mp = rawMp.replace(/\\/g, '/').replace(/\/+$/, '');
+      const mp = toPosixPath(rawMp);
       if (normalized === mp || normalized.startsWith(mp + '/')) {
         covered = true;
         break;
@@ -513,9 +514,9 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
   if (gitTrackedFiles !== null) {
     // Exclude .yggdrasil/ files from total count
     const projectRoot = path.dirname(graph.rootPath);
-    const yggPrefix = path.relative(projectRoot, graph.rootPath).replace(/\\/g, '/').replace(/\/+$/, '');
+    const yggPrefix = toPosixPath(path.relative(projectRoot, graph.rootPath));
     const sourceFiles = gitTrackedFiles.filter(f => {
-      const normalized = f.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+      const normalized = toPosixPath(f.trim());
       return !normalized.startsWith(yggPrefix + '/') && normalized !== yggPrefix;
     });
     totalFiles = sourceFiles.length;
@@ -539,7 +540,7 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
       return n ? hasNonDraftEffectiveAspects(n, graph) : false;
     },
   );
-  const yggRelative = path.relative(path.dirname(graph.rootPath), graph.rootPath).replace(/\\/g, '/').replace(/\/+$/, '');
+  const yggRelative = toPosixPath(path.relative(path.dirname(graph.rootPath), graph.rootPath));
   const orphanWarnings: CheckIssue[] = orphanedPaths.map(p => {
     const orphanMd = {
       what: `Drift state file exists for '${p}' but node is no longer in the graph.`,
@@ -676,8 +677,8 @@ function countDraftAspectsAcrossGraph(graph: Graph): number {
 }
 
 function categorizeFile(filePath: string, rootPath: string, projectRoot: string): DriftCategory {
-  const yggPrefix = path.relative(projectRoot, rootPath).replace(/\\/g, '/').replace(/\/+$/, '');
-  const normalized = filePath.replace(/\\/g, '/').replace(/\/+$/, '');
+  const yggPrefix = toPosixPath(path.relative(projectRoot, rootPath));
+  const normalized = toPosixPath(filePath);
   return normalized.startsWith(yggPrefix) ? 'graph' : 'source';
 }
 
@@ -686,8 +687,8 @@ function categorizeFile(filePath: string, rootPath: string, projectRoot: string)
  * Each cause type has a distinct message per the CLI messages spec.
  */
 export function describeCascadeCause(filePath: string, layer: TrackedFileLayer, graph: Graph): string {
-  const normalized = filePath.replace(/\\/g, '/').replace(/\/+$/, '');
-  const yggPrefix = path.relative(path.dirname(graph.rootPath), graph.rootPath).replace(/\\/g, '/').replace(/\/+$/, '');
+  const normalized = toPosixPath(filePath);
+  const yggPrefix = toPosixPath(path.relative(path.dirname(graph.rootPath), graph.rootPath));
   const escPrefix = yggPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   if (layer === 'aspects') {
@@ -812,14 +813,14 @@ async function allPathsMissing(projectRoot: string, mappingPaths: string[]): Pro
 function groupCascadeByCause(cascadeErrors: CheckIssue[], graph?: Graph): Map<string, Set<string>> {
   const groups = new Map<string, Set<string>>();
   const yggPrefix = graph
-    ? path.relative(path.dirname(graph.rootPath), graph.rootPath).replace(/\\/g, '/').replace(/\/+$/, '')
+    ? toPosixPath(path.relative(path.dirname(graph.rootPath), graph.rootPath))
     : '.yggdrasil';
   const escPrefix = yggPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   for (const issue of cascadeErrors) {
     if (!issue.nodePath || !issue.cascadeCauses) continue;
     for (const cause of issue.cascadeCauses) {
-      const normalized = cause.file.replace(/\\/g, '/').replace(/\/+$/, '');
+      const normalized = toPosixPath(cause.file);
       let key: string | null = null;
 
       const aspectMatch = normalized.match(new RegExp(`^${escPrefix}/aspects/([^/]+(?:/[^/]+)*)/`));

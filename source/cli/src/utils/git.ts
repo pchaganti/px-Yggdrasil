@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { toPosixPath } from './posix.js';
 
 /**
  * Returns Unix timestamp (seconds) of the last commit touching the given path,
@@ -6,7 +7,7 @@ import { execFileSync } from 'node:child_process';
  * Path is relative to projectRoot.
  */
 export function getLastCommitTimestamp(projectRoot: string, relativePath: string): number | null {
-  const normalized = relativePath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+  const normalized = toPosixPath(relativePath.trim());
   try {
     const out = execFileSync('git', ['log', '-1', '--format=%ct', '--', normalized], {
       cwd: projectRoot,

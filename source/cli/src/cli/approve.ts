@@ -20,6 +20,7 @@ import { readNodeDriftState } from '../io/drift-state-store.js';
 import { runStructureAspect } from '../structure/runner.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { computeEffectiveAspects, computeEffectiveAspectStatuses, getAspectStatusSources, hasNonDraftEffectiveAspects } from '../core/graph/aspects.js';
+import { toPosix, toPosixPath } from '../utils/posix.js';
 import {
   approveAspectDraftScenarioAMessage,
   approveAspectDraftScenarioBMessage,
@@ -245,7 +246,7 @@ export function filterCascadeNodes(
   for (const issue of issues) {
     if (issue.code !== 'upstream-drift' || !issue.nodePath || !issue.cascadeCauses) continue;
     const hasMatchingCause = issue.cascadeCauses.some(
-      (c: CascadeCause) => c.file.replace(/\\/g, '/').startsWith(causePrefix),
+      (c: CascadeCause) => toPosix(c.file).startsWith(causePrefix),
     );
     if (hasMatchingCause) {
       matched.push(issue.nodePath);
@@ -319,8 +320,8 @@ function aspectDependencyKeys(
       tierIdentityKey(aspectId),
       checkTouchedKey(aspectId),
       aspectMetaKey(aspectId),
-      ...(aspect?.references ?? []).map(r => r.path.replace(/\\/g, '/')),
-      ...(touched ? Object.keys(touched).map(p => p.replace(/\\/g, '/')) : []),
+      ...(aspect?.references ?? []).map(r => toPosix(r.path)),
+      ...(touched ? Object.keys(touched).map(p => toPosix(p)) : []),
     ]),
   };
 }
@@ -348,7 +349,7 @@ export async function filterAspectCascadeNodes(
       storedEntry?.checkTouchedFiles,
     );
     const hit = issue.cascadeCauses.some((c: CascadeCause) => {
-      const f = c.file.replace(/\\/g, '/');
+      const f = toPosix(c.file);
       return f.startsWith(prefix) || keys.has(f);
     });
     if (hit) matched.push(issue.nodePath);
@@ -381,7 +382,7 @@ export function selectDriftedAspects(
 
   const subset = new Set<string>();
   for (const change of result.changedUpstream ?? []) {
-    const file = change.filePath.replace(/\\/g, '/');
+    const file = toPosix(change.filePath);
     const owners: string[] = [];
     for (const id of effective) {
       if (statuses.get(id) === 'draft') continue;
@@ -459,7 +460,7 @@ export async function runDryRunForNode(params: {
   const trackedFiles = collectTrackedFiles(node, graph);
   const { fileHashes } = await hashTrackedFiles(projectRoot, trackedFiles, undefined, []);
   const sourceFilePaths = Object.keys(fileHashes).filter(f => {
-    const normalized = f.replace(/\\/g, '/').replace(/\/+$/, '');
+    const normalized = toPosixPath(f);
     return !normalized.startsWith(yggPrefix);
   });
   const sourceFiles = await loadSourceFiles(sourceFilePaths, projectRoot);
@@ -712,8 +713,7 @@ export function registerApproveCommand(program: Command): void {
 
         const graph = await loadGraphOrAbort(process.cwd());
         initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
-        const yggPrefix = path.relative(path.dirname(graph.rootPath), graph.rootPath)
-          .replace(/\\/g, '/').replace(/\/+$/, '');
+        const yggPrefix = toPosixPath(path.relative(path.dirname(graph.rootPath), graph.rootPath));
 
         // --dry-run: show what would be sent to the reviewer
         if (options.dryRun && options.node) {

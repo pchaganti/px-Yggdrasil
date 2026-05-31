@@ -3,6 +3,7 @@ import type { ValidationResult, ValidationIssue } from '../model/validation.js';
 import type { IssueMessage } from '../model/validation.js';
 import { FileContentCache } from '../io/file-content-cache.js';
 import { issueMsg } from './checks/shared.js';
+import { toPosixPath } from '../utils/posix.js';
 import {
   checkTypeUnknownParent,
   checkArchitectureParentCycles,
@@ -194,7 +195,7 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
 
   let filtered = issues;
   let nodesScanned = graph.nodes.size;
-  const normalizedScope = scope.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+  const normalizedScope = toPosixPath(scope.trim());
   if (normalizedScope !== 'all' && normalizedScope) {
     if (!graph.nodes.has(normalizedScope)) {
       // Check if the node exists but has a parse error

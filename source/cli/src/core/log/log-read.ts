@@ -5,6 +5,7 @@ import { validateNodePath } from '../../utils/node-path-validator.js';
 import { parseLog } from '../parsing/log-parser.js';
 import { validateFormat } from '../log-format.js';
 import { readLogSafe } from '../../io/log-store.js';
+import { toPosix } from '../../utils/posix.js';
 
 export interface LogReadInput {
   graph: Graph;
@@ -48,7 +49,7 @@ export async function logRead(input: LogReadInput): Promise<LogReadResult> {
     };
   }
 
-  const nv = validateNodePath(input.nodePath.trim().replace(/\\/g, '/').replace(/\/$/, ''));
+  const nv = validateNodePath(toPosix(input.nodePath.trim()).replace(/\/$/, ''));
   if (!nv.ok) {
     return {
       ok: false,

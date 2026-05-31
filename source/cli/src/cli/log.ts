@@ -8,6 +8,7 @@ import { buildIssueMessage } from '../formatters/message-builder.js';
 import { logAdd } from '../core/log/log-add.js';
 import { logRead } from '../core/log/log-read.js';
 import { logMergeResolve } from '../core/log/log-merge-resolve.js';
+import { toPosix } from '../utils/posix.js';
 
 function handleError(error: unknown): never {
   debugWrite(`[log] command failed: ${(error as Error).message}`);
@@ -80,7 +81,7 @@ export function registerLogCommand(program: Command): void {
           reasonText = opts.reason!;
         }
 
-        const nodePath = opts.node.trim().replace(/\\/g, '/').replace(/\/$/, '');
+        const nodePath = toPosix(opts.node.trim()).replace(/\/$/, '');
         const result = await logAdd({ graph, nodePath, reasonText, nowMs: Date.now() });
         if (!result.ok) {
           process.stderr.write(chalk.red(buildIssueMessage(result.error)) + '\n');
@@ -105,7 +106,7 @@ export function registerLogCommand(program: Command): void {
     .action(async (opts: { node: string; top?: number; all?: boolean }) => {
       try {
         const graph = await loadGraphOrAbort(process.cwd(), { tolerateInvalidConfig: true });
-        const nodePath = opts.node.trim().replace(/\\/g, '/').replace(/\/$/, '');
+        const nodePath = toPosix(opts.node.trim()).replace(/\/$/, '');
         const result = await logRead({ graph, nodePath, top: opts.top, all: opts.all });
         if (!result.ok) {
           process.stderr.write(chalk.red(buildIssueMessage(result.error)) + '\n');
@@ -131,7 +132,7 @@ export function registerLogCommand(program: Command): void {
       try {
         const graph = await loadGraphOrAbort(process.cwd(), { tolerateInvalidConfig: true });
         const repoRoot = path.dirname(graph.rootPath);
-        const nodePath = opts.node.trim().replace(/\\/g, '/').replace(/\/$/, '');
+        const nodePath = toPosix(opts.node.trim()).replace(/\/$/, '');
         const result = await logMergeResolve({ graph, nodePath, repoRoot });
         if (!result.ok) {
           process.stderr.write(chalk.red(buildIssueMessage(result.error)) + '\n');

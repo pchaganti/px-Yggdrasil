@@ -1,4 +1,5 @@
 import { truncateDescription } from './truncate.js';
+import { toPosixPath } from '../utils/posix.js';
 
 export interface FileContextData {
   filePath: string;
@@ -26,7 +27,7 @@ export interface FileContextDep {
 }
 
 function posixPath(p: string): string {
-  return p.replace(/\\/g, '/').replace(/\/+$/, '');
+  return toPosixPath(p);
 }
 
 export function formatFileContext(data: FileContextData): string {

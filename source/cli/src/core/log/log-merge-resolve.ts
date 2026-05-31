@@ -14,6 +14,7 @@ import { readNodeDriftState, writeNodeDriftState } from '../../io/drift-state-st
 import type { DriftNodeState } from '../../model/drift.js';
 import { readTextFile } from '../../io/graph-fs.js';
 import { debugWrite } from '../../utils/debug-log.js';
+import { toPosix } from '../../utils/posix.js';
 
 export interface LogMergeResolveInput {
   graph: Graph;
@@ -29,7 +30,7 @@ export async function logMergeResolve(input: LogMergeResolveInput): Promise<LogM
   const { graph, repoRoot } = input;
   const yggRoot = graph.rootPath;
 
-  const nv = validateNodePath(input.nodePath.trim().replace(/\\/g, '/').replace(/\/$/, ''));
+  const nv = validateNodePath(toPosix(input.nodePath.trim()).replace(/\/$/, ''));
   if (!nv.ok) {
     return {
       ok: false,

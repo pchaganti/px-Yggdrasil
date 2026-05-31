@@ -10,6 +10,7 @@ import { FileContentCache } from '../../io/file-content-cache.js';
 import { evaluateFileWhen } from '../file-when-evaluator.js';
 import { renderTrace } from '../../formatters/predicate-trace.js';
 import { issueMsg } from './shared.js';
+import { toPosixPath } from '../../utils/posix.js';
 
 export async function checkFileMappingGitignored(graph: Graph): Promise<ValidationIssue[]> {
   const projectRoot = path.dirname(graph.rootPath);
@@ -30,7 +31,7 @@ export async function checkFileMappingGitignored(graph: Graph): Promise<Validati
         rule: 'file-mapping-gitignored',
         nodePath,
         ...issueMsg({
-          what: `File '${relPath}' is in mapping of node '${nodePath}' but is excluded by .gitignore.`,
+          what: `File '${normalizePathForCompare(relPath)}' is in mapping of node '${nodePath}' but is excluded by .gitignore.`,
           why: `Mappings cannot contain .gitignored files — strict backward scan skips them, creating a gap where agent-created files matching a strict type's when could evade enforcement.`,
           next: `Either:\n  1. Remove the file from .gitignore (if it should be tracked code).\n  2. Remove the file from the mapping (if it's a generated artifact).`,
         }),
@@ -162,7 +163,7 @@ export async function checkStrictBackwardCoverage(
 // --- Rule 5: Mapping ownership overlap ---
 
 function normalizePathForCompare(mappingPath: string): string {
-  return mappingPath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
+  return toPosixPath(mappingPath.trim());
 }
 
 function arePathsOverlapping(pathA: string, pathB: string): boolean {
@@ -239,7 +240,7 @@ export async function checkMappingPathsExist(graph: Graph): Promise<ValidationIs
   const issues: ValidationIssue[] = [];
   const projectRoot = path.dirname(graph.rootPath);
   for (const [nodePath, node] of graph.nodes) {
-    const mappingPaths = normalizeMappingPaths(node.meta.mapping);
+    const mappingPaths = normalizeMappingPaths(node.meta.mapping).map(normalizePathForCompare);
     for (const mp of mappingPaths) {
       const absPath = path.join(projectRoot, mp);
       try {
@@ -385,7 +386,7 @@ export async function checkDirectoriesHaveNodeYaml(graph: Graph): Promise<Valida
           ...issueMsg({
             what: `Directory '${graphPath}' has files but no yg-node.yaml.`,
             why: `Every directory in model/ must have a node definition.`,
-            next: `Create yg-node.yaml in ${graphPath}/ or move files to an existing node directory.`,
+            next: `Create yg-node.yaml in ${graphPath} or move files to an existing node directory.`,
           }),
           nodePath: graphPath,
         });

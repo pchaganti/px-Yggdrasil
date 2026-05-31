@@ -1,8 +1,9 @@
 import type { IssueMessage } from '../model/validation.js';
 import type { AspectStatus } from '../model/graph.js';
+import { toPosixPath } from '../utils/posix.js';
 
 function posixPath(p: string): string {
-  return p.replace(/\\/g, '/').replace(/\/+$/, '');
+  return toPosixPath(p);
 }
 
 export function aspectStatusInvalidMessage(params: {

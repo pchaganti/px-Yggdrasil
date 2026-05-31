@@ -1,5 +1,5 @@
 {
-  "hash": "25d33b13d400a7b3505f50f3a01967911654e1e53f0b0ee2b80a108bdae76237",
+  "hash": "2298e01cfa1645f6755a04be3a618490f44055ec870025288fc21b234c79d8a1",
   "files": {
     "own-subset:cli/commands/find": "359fab479cc48519a8c0409c05e7a3f4a7005b9124ebcd5a241253cee1b3a31d",
     "aspect-meta:posix-paths-output": "0616e83dea174e69b84be8d3bc43a180a8f33aa8e4f1df8473419c0b9897bd03",
@@ -64,7 +64,7 @@
     ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": "d51c269d4b45bd597645a6c918e820c67762877ac22d64f861c53421b67a4fbd",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
-    "source/cli/src/cli/find.ts": "1a8a5afe98c2ea340d78e571c1e124bc494efb0bf99085014fdf63af23c17da6"
+    "source/cli/src/cli/find.ts": "0a1c75e549b55b25d6faa1857ed38e10ab8bc4afc2bcd53e8048534564236815"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -113,27 +113,27 @@
     ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": 1780048240858.293,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
-    "source/cli/src/cli/find.ts": 1780241073203.2217
+    "source/cli/src/cli/find.ts": 1780243067947.7246
   },
   "log": {
-    "last_entry_datetime": "2026-05-31T15:26:48.857Z",
-    "prefix_hash": "20e13c22aa274324043079b91ab57c76bf908ce8883ee652ac90642619ed026d"
+    "last_entry_datetime": "2026-05-31T16:03:31.393Z",
+    "prefix_hash": "14a6972a8495d0f5736090c72b83c0424917eded82dc7d90f902b7b671ae1b32"
   },
   "checkTouchedFiles": {
     "command-exit-codes": {
-      "source/cli/src/cli/find.ts": "1a8a5afe98c2ea340d78e571c1e124bc494efb0bf99085014fdf63af23c17da6"
+      "source/cli/src/cli/find.ts": "0a1c75e549b55b25d6faa1857ed38e10ab8bc4afc2bcd53e8048534564236815"
     },
     "command-contract-shape": {
-      "source/cli/src/cli/find.ts": "1a8a5afe98c2ea340d78e571c1e124bc494efb0bf99085014fdf63af23c17da6"
+      "source/cli/src/cli/find.ts": "0a1c75e549b55b25d6faa1857ed38e10ab8bc4afc2bcd53e8048534564236815"
     },
     "posix-paths-source": {
-      "source/cli/src/cli/find.ts": "1a8a5afe98c2ea340d78e571c1e124bc494efb0bf99085014fdf63af23c17da6"
+      "source/cli/src/cli/find.ts": "0a1c75e549b55b25d6faa1857ed38e10ab8bc4afc2bcd53e8048534564236815"
     },
     "command-error-via-buildissuemessage": {
-      "source/cli/src/cli/find.ts": "1a8a5afe98c2ea340d78e571c1e124bc494efb0bf99085014fdf63af23c17da6"
+      "source/cli/src/cli/find.ts": "0a1c75e549b55b25d6faa1857ed38e10ab8bc4afc2bcd53e8048534564236815"
     },
     "sibling-test-file": {
-      "source/cli/src/cli/find.ts": "1a8a5afe98c2ea340d78e571c1e124bc494efb0bf99085014fdf63af23c17da6",
+      "source/cli/src/cli/find.ts": "0a1c75e549b55b25d6faa1857ed38e10ab8bc4afc2bcd53e8048534564236815",
       "source/cli/tests/unit/cli/approve.test.ts": "4948af8d177a0238753379046dae9a453f9ebe4de20161470c41e5d386bf3ef0",
       "source/cli/tests/unit/cli/approve-action-guards.test.ts": "2d35faaa68aa1ec0bec632298a63c467d99895cb3bb3bf133f10d90a0df2481a",
       "source/cli/tests/unit/cli/approve-batch.test.ts": "c59619ad846ed53db20f63cf8c5f1e55d720963e056cff106a758331e4f514a3",

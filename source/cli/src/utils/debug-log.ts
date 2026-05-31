@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { toPosixPath } from './posix.js';
 
 type AppendFn = (filePath: string, text: string) => void;
 
@@ -21,7 +22,7 @@ export function initDebugLog(yggRoot: string, enabled: boolean, appendFn: Append
   if (!enabled || logPath !== null) return;
 
   _append = appendFn;
-  logPath = path.join(yggRoot, '.debug.log').replace(/\\/g, '/').replace(/\/+$/, '');
+  logPath = toPosixPath(path.join(yggRoot, '.debug.log'));
   stderrHeaderWritten = false;
 
   const sep = '═'.repeat(56);
