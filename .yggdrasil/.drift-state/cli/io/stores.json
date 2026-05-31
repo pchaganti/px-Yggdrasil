@@ -1,11 +1,11 @@
 {
-  "hash": "606a6bf7fdebb90890f7ceabbb7c31d28bd8f721cd5af4ca62950062b5d4e195",
+  "hash": "199550c7e2e28dc07bca24a4e313f4f048cb6890de902c01d129a6661c147fc9",
   "files": {
     "own-subset:cli/io/stores": "a62120e7f439a113e58095db1ee1804268da2e859a558c5ea86ced189d5eec9a",
     "tier-identity:silent-missing-files": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "deterministic-touched:atomic-write-contract": "6d2d1021d80e670b9f31489ca03d465db297350661459cd89498518b7c8fb4ed",
-    "deterministic-touched:posix-paths-source": "6d2d1021d80e670b9f31489ca03d465db297350661459cd89498518b7c8fb4ed",
-    "deterministic-touched:read-or-default-via-helper": "6d2d1021d80e670b9f31489ca03d465db297350661459cd89498518b7c8fb4ed",
+    "check-touched:atomic-write-contract": "6d2d1021d80e670b9f31489ca03d465db297350661459cd89498518b7c8fb4ed",
+    "check-touched:posix-paths-source": "6d2d1021d80e670b9f31489ca03d465db297350661459cd89498518b7c8fb4ed",
+    "check-touched:read-or-default-via-helper": "6d2d1021d80e670b9f31489ca03d465db297350661459cd89498518b7c8fb4ed",
     "port-aspects:cli/io/atomic-write": "a06b2092361391ab57c3d1a214f093e920176271b0f1b9d25c61b619dec30d6b",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
@@ -30,7 +30,7 @@
     "source/cli/src/io/paths.ts": "0d91a1f5e239990476066ab38bc9fdf2e7e5efa29e30dbade9ed38dd1019d1a0",
     "source/cli/src/io/read-or-default.ts": "14ae9ceb3b56e9b3d433ef9cd217a84ca71a90264e438b2fa186455f7906b393",
     "source/cli/src/io/repo-scanner.ts": "ab2f8f748c3745a6f82117ddbf09ffbb7995bf245484b4cd0f0a11a72137b52a",
-    "source/cli/src/io/drift-state-store.ts": "b256e28ab362003508244d188d8f2856d4a889657abc22295e78311daf059dfe"
+    "source/cli/src/io/drift-state-store.ts": "ea7e04ea17e0a6cd5e2c49e73558f3f8ac03ed3d5b9bc130f34b53c4796ab042"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -49,7 +49,7 @@
     ".yggdrasil/model/cli/io/atomic-write/yg-node.yaml": 1778919314141.992,
     "source/cli/src/io/artifact-reader.ts": 1776177846230.4192,
     "source/cli/src/io/debug-log-writer.ts": 1778910277504.241,
-    "source/cli/src/io/drift-state-store.ts": 1780177673508.4922,
+    "source/cli/src/io/drift-state-store.ts": 1780207999736.0083,
     "source/cli/src/io/find-index.ts": 1780163098696.067,
     "source/cli/src/io/graph-fs.ts": 1778910103922.5334,
     "source/cli/src/io/hash.ts": 1778960620320.961,
@@ -59,14 +59,14 @@
     "source/cli/src/io/repo-scanner.ts": 1778847561619.7393
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T21:54:03.787Z",
-    "prefix_hash": "1166313e894f4f54d3ce2eca9a5545e8b0def4f0e784e6f99bdd22056317a66a"
+    "last_entry_datetime": "2026-05-31T06:24:46.841Z",
+    "prefix_hash": "32b2f922fee55af85e4a16185566a305d6b195d075828a071119f52de37b655b"
   },
-  "deterministicTouchedFiles": {
+  "checkTouchedFiles": {
     "atomic-write-contract": {
       "source/cli/src/io/artifact-reader.ts": "88ceb67755c0725962910cf0bc31e756dd50ffa64127d09c47a79dc43935c5cc",
       "source/cli/src/io/debug-log-writer.ts": "ba34244ed4decc481b0bf40046742667e34a4aaabdfa5a03b402d35b7685c361",
-      "source/cli/src/io/drift-state-store.ts": "b256e28ab362003508244d188d8f2856d4a889657abc22295e78311daf059dfe",
+      "source/cli/src/io/drift-state-store.ts": "ea7e04ea17e0a6cd5e2c49e73558f3f8ac03ed3d5b9bc130f34b53c4796ab042",
       "source/cli/src/io/find-index.ts": "6d68236071d1656f4c5261fa3a66e3665a8d3ff69a1561200ec775919b2b3f1b",
       "source/cli/src/io/graph-fs.ts": "b216722295d1e2e3c53811ee610421c58ed44024a0cd96f7aa95cdff38145d82",
       "source/cli/src/io/hash.ts": "53074c2c2edec3a7b809323f36c038a22bca265862c86636529c220e1ea6ba74",
@@ -78,7 +78,7 @@
     "posix-paths-source": {
       "source/cli/src/io/artifact-reader.ts": "88ceb67755c0725962910cf0bc31e756dd50ffa64127d09c47a79dc43935c5cc",
       "source/cli/src/io/debug-log-writer.ts": "ba34244ed4decc481b0bf40046742667e34a4aaabdfa5a03b402d35b7685c361",
-      "source/cli/src/io/drift-state-store.ts": "b256e28ab362003508244d188d8f2856d4a889657abc22295e78311daf059dfe",
+      "source/cli/src/io/drift-state-store.ts": "ea7e04ea17e0a6cd5e2c49e73558f3f8ac03ed3d5b9bc130f34b53c4796ab042",
       "source/cli/src/io/find-index.ts": "6d68236071d1656f4c5261fa3a66e3665a8d3ff69a1561200ec775919b2b3f1b",
       "source/cli/src/io/graph-fs.ts": "b216722295d1e2e3c53811ee610421c58ed44024a0cd96f7aa95cdff38145d82",
       "source/cli/src/io/hash.ts": "53074c2c2edec3a7b809323f36c038a22bca265862c86636529c220e1ea6ba74",
@@ -90,7 +90,7 @@
     "read-or-default-via-helper": {
       "source/cli/src/io/artifact-reader.ts": "88ceb67755c0725962910cf0bc31e756dd50ffa64127d09c47a79dc43935c5cc",
       "source/cli/src/io/debug-log-writer.ts": "ba34244ed4decc481b0bf40046742667e34a4aaabdfa5a03b402d35b7685c361",
-      "source/cli/src/io/drift-state-store.ts": "b256e28ab362003508244d188d8f2856d4a889657abc22295e78311daf059dfe",
+      "source/cli/src/io/drift-state-store.ts": "ea7e04ea17e0a6cd5e2c49e73558f3f8ac03ed3d5b9bc130f34b53c4796ab042",
       "source/cli/src/io/find-index.ts": "6d68236071d1656f4c5261fa3a66e3665a8d3ff69a1561200ec775919b2b3f1b",
       "source/cli/src/io/graph-fs.ts": "b216722295d1e2e3c53811ee610421c58ed44024a0cd96f7aa95cdff38145d82",
       "source/cli/src/io/hash.ts": "53074c2c2edec3a7b809323f36c038a22bca265862c86636529c220e1ea6ba74",

@@ -1,10 +1,10 @@
 {
-  "hash": "58482311d387441d143fc478227596dafd40e097df973eb1c28ed2e4198fa599",
+  "hash": "5d744ef8761cc8d59383c24c700a16f637bbad70cdf2f8d860e52c8f7854e571",
   "files": {
     "own-subset:cli/templates": "f68bcd5143fd11da71f121095f5b7b88f309ccecd0a1190a8d557b7eeeda9f51",
     "tier-identity:what-why-next": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     "tier-identity:posix-paths-output": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "deterministic-touched:posix-paths-source": "b02b58a071843df9a7dfb27b2da5709fbf883de3716aa28f234247a7ff3bb1d7",
+    "check-touched:posix-paths-source": "b02b58a071843df9a7dfb27b2da5709fbf883de3716aa28f234247a7ff3bb1d7",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/what-why-next/yg-aspect.yaml": "5bfc4a07961653ab402950fc1ddf55450c35762e9fde4ab2b0fb9185ab091581",
     ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
@@ -12,7 +12,7 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
     ".yggdrasil/aspects/posix-paths-output/yg-aspect.yaml": "c416daed4d0f68afd287205e0abe40409c6643ec4507ebe0399f4e9fb2ffedc9",
     ".yggdrasil/aspects/posix-paths-output/content.md": "2659859dc13a8efe32e098b0c220d24c9ecddff26b42a4f22e3135d8b750bc13",
-    "source/cli/src/templates/rules.ts": "aa954cffa1779857106c2e5514c8d395fedb0f7d2b2481dbb4088002747e6d2c"
+    "source/cli/src/templates/rules.ts": "853281d0372c5ae1d31f612c008b245fcb703bb0332956eef1b53cff1b722b6b"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -22,15 +22,15 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1779794513934.5745,
     ".yggdrasil/aspects/posix-paths-output/yg-aspect.yaml": 1779869611275.605,
     ".yggdrasil/aspects/posix-paths-output/content.md": 1778912983383.063,
-    "source/cli/src/templates/rules.ts": 1780170605223.0273
+    "source/cli/src/templates/rules.ts": 1780208527544.6787
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T20:06:21.739Z",
-    "prefix_hash": "818f8a7ed5496f48d28ddfa25220f67c66083644a9e2aca92b49298fce1907b6"
+    "last_entry_datetime": "2026-05-31T06:24:51.159Z",
+    "prefix_hash": "ca66d17c100d18da988d5f41c1b7d4e50e5b2c8ce06012b5dae15a9e2443b97b"
   },
-  "deterministicTouchedFiles": {
+  "checkTouchedFiles": {
     "posix-paths-source": {
-      "source/cli/src/templates/rules.ts": "aa954cffa1779857106c2e5514c8d395fedb0f7d2b2481dbb4088002747e6d2c"
+      "source/cli/src/templates/rules.ts": "853281d0372c5ae1d31f612c008b245fcb703bb0332956eef1b53cff1b722b6b"
     }
   },
   "aspectVerdicts": {

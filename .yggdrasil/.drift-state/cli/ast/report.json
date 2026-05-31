@@ -1,9 +1,9 @@
 {
-  "hash": "1f58f487ec1c29466d6102981f78fd1da7267e254733d1a2df4aab424484cd60",
+  "hash": "53c81ee2d7cb00004628b5d932f96f98eac7c4e2918879ccd61af32e8c327188",
   "files": {
     "own-subset:cli/ast/report": "81c446303e7f0f81e4442926d9268b200464da4ffadf167ab4d6c49a0da2a341",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "deterministic-touched:posix-paths-source": "32dd283994abce4ed6b089b2e85a955321471d3a93fa733f70ff0a261d949a25",
+    "check-touched:posix-paths-source": "32dd283994abce4ed6b089b2e85a955321471d3a93fa733f70ff0a261d949a25",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/ast/yg-node.yaml": "8f03e5b210cb99fc306e6bcb5219da9c8ef146227715d956d36b60c6e69c4010",
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": "8444da42bbb1f4d19f3a01cce19f2737dd99eae360cf38c117a58719622d5673",
@@ -35,7 +35,7 @@
     "last_entry_datetime": "2026-05-30T10:05:16.581Z",
     "prefix_hash": "2e7d42c2b6d356b56521fb629d908c9126b3546d37dbce7de91654cb5061c055"
   },
-  "deterministicTouchedFiles": {
+  "checkTouchedFiles": {
     "posix-paths-source": {
       "source/cli/src/ast/file-path.ts": "60f3f76473e9135fdd2ed773ae351688dda7fe9b635816427ab09c968a147eab",
       "source/cli/src/ast/find-comments.ts": "b4be25cd015af2b55e2d72a1bd1f9604408664bfc6377d6e18c466cb20edf85d",

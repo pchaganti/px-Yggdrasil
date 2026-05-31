@@ -1,10 +1,10 @@
 {
-  "hash": "aa6b81feaac6b5cbd8593ba589b49cdb804d9c3b98d06c28d9ef7f4c9133a72b",
+  "hash": "3f58d88dd00237620985326452800d58ddd8dc43c18ff13baafee2e7450401f2",
   "files": {
     "own-subset:cli/io/parsers/config": "49eba5656163800b5213d51e9c6969831d387f9252bafe1e854a9e84e7bebf9e",
     "tier-identity:parser-contract": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     "tier-identity:silent-missing-files": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "deterministic-touched:parser-yaml-guard": "672e1494b6e7a4454a2bef06f2515f6c287beaff379486fb2fa18644bf32f2ac",
+    "check-touched:parser-yaml-guard": "672e1494b6e7a4454a2bef06f2515f6c287beaff379486fb2fa18644bf32f2ac",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
     ".yggdrasil/model/cli/io/parsers/yg-node.yaml": "3a22ea35f02e26ba06eb0c63a6150d99119a9748fb8d862974ac5b8736029be1",
@@ -48,7 +48,7 @@
     "last_entry_datetime": "2026-05-30T04:04:46.282Z",
     "prefix_hash": "913a68fcc39f169cb93b08bb86cc87a559ec5a22451bd81f147b75d5b8b3d637"
   },
-  "deterministicTouchedFiles": {
+  "checkTouchedFiles": {
     "parser-yaml-guard": {
       "source/cli/src/io/config-parser.ts": "48f9522aee5321dd91f21a94b3c8ced2a9d55c10d05195fd89bbf6fc677a271f",
       "source/cli/src/io/secrets-parser.ts": "2e3b4fd24443e2c1bf7c7148dd47f871108c38f491b69fa8e5a75fd06755b397",

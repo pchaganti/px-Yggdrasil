@@ -1,5 +1,5 @@
 {
-  "hash": "7e4d5b86cfaffa2271ad82fc89ce0bca51f15f2539c98040b468d91187775285",
+  "hash": "fb6fc22037501eed36d7c6ce4d71b8342119577858460e125e9ef85315c01fe5",
   "files": {
     "own-subset:cli/tests/unit/support/parsers/structural": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -10,10 +10,10 @@
     ".yggdrasil/model/cli/tests/unit/support/parsers/yg-node.yaml": "8a19892532b2ce4db09ef8d61e63c0b6e82bf4638e4efe3f558469c162c603ac",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/io/architecture-parser.test.ts": "912466fe0664f80617d97063aef671c3272274ff2216b4de995de79fb3bbaff5",
     "source/cli/tests/unit/io/architecture-parser-status.test.ts": "b11962b385f705888a571c5f996fc483437a5fc3330b41dec7130b899f73fd12",
-    "source/cli/tests/unit/io/flow-parser.test.ts": "22cd03e5b59de13106d6e9b9b37032c4ea8c711bc26eedda74fc7cd42232c451",
-    "source/cli/tests/unit/io/flow-parser-status.test.ts": "e1341695af7453a82863040008823b76a863407c9ab1859a9e54e6817e25f5a4"
+    "source/cli/tests/unit/io/flow-parser-status.test.ts": "e1341695af7453a82863040008823b76a863407c9ab1859a9e54e6817e25f5a4",
+    "source/cli/tests/unit/io/architecture-parser.test.ts": "97407ad83a15bb9067be95c100e53debab8edd6aa5bf91618abe4366e41aca8e",
+    "source/cli/tests/unit/io/flow-parser.test.ts": "a9f3f0486ada7b0f8d9b64edf5ce162f5986cf836c9cd1926e70587e5ee0ae2f"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -23,10 +23,14 @@
     ".yggdrasil/model/cli/tests/unit/support/parsers/yg-node.yaml": 1779996158801.8574,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/io/architecture-parser.test.ts": 1778917592468.0361,
+    "source/cli/tests/unit/io/architecture-parser.test.ts": 1780208012681.0996,
     "source/cli/tests/unit/io/architecture-parser-status.test.ts": 1779968128494.7646,
-    "source/cli/tests/unit/io/flow-parser.test.ts": 1778918778052.933,
+    "source/cli/tests/unit/io/flow-parser.test.ts": 1780207999742.5298,
     "source/cli/tests/unit/io/flow-parser-status.test.ts": 1779968478334.18
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-31T06:24:49.823Z",
+    "prefix_hash": "c7c40bdadc26fe4fa44af92c3eafb854eae9a9bee9340e8dab9a6874434fe0f2"
   },
   "aspectVerdicts": {
     "test-deterministic": {

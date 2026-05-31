@@ -1,12 +1,12 @@
 {
-  "hash": "56422355afae7d21298f971356f207c97707143cb4cd5949264dc2d2ee9f59bb",
+  "hash": "c2970f8eab92e1b37bbd55a81977b9dedc6b02ed6c58fb3bdf2509410026c7ae",
   "files": {
     "own-subset:cli/io/parsers/graph": "49eba5656163800b5213d51e9c6969831d387f9252bafe1e854a9e84e7bebf9e",
     "tier-identity:parser-contract": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     "tier-identity:silent-missing-files": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "deterministic-touched:posix-paths-source": "3d767d3d09b81a3223a07fc94b78291572b7ec9d01ce7036dd077e02b9006721",
-    "deterministic-touched:read-or-default-via-helper": "3d767d3d09b81a3223a07fc94b78291572b7ec9d01ce7036dd077e02b9006721",
-    "deterministic-touched:parser-yaml-guard": "3d767d3d09b81a3223a07fc94b78291572b7ec9d01ce7036dd077e02b9006721",
+    "check-touched:posix-paths-source": "3d767d3d09b81a3223a07fc94b78291572b7ec9d01ce7036dd077e02b9006721",
+    "check-touched:read-or-default-via-helper": "3d767d3d09b81a3223a07fc94b78291572b7ec9d01ce7036dd077e02b9006721",
+    "check-touched:parser-yaml-guard": "3d767d3d09b81a3223a07fc94b78291572b7ec9d01ce7036dd077e02b9006721",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
     ".yggdrasil/model/cli/io/parsers/yg-node.yaml": "3a22ea35f02e26ba06eb0c63a6150d99119a9748fb8d862974ac5b8736029be1",
@@ -22,10 +22,10 @@
     ".yggdrasil/aspects/parser-yaml-guard/check.mjs": "db6b20210a4ad5dcd7d3633220b42af810cccc1a6df7f1122c2b09592ac23a81",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
-    "source/cli/src/io/architecture-parser.ts": "00d4284c4205e8f1d85c2bcc93eee55b0c720de29c0d8990b351a27cd4080227",
     "source/cli/src/io/aspect-parser.ts": "ebe196be55aa21e63b380ee0ee713226682b243881f6c11bab8634e29583688e",
-    "source/cli/src/io/node-parser.ts": "0a6baf512361fcc3271e8317b361051aa5165cd62c87b824fea1dd91989dddae",
-    "source/cli/src/io/flow-parser.ts": "aed0dfdb779d7d3e02853fe904554ad0ab669f9994c08b23dc310e945465a384"
+    "source/cli/src/io/architecture-parser.ts": "5b6cb7bc5ec90f5e7b67a58945aad63a275a169e233b6f7058491c9d4a30d93d",
+    "source/cli/src/io/node-parser.ts": "e3d78a65999b1a2dd38dfe510018290f2b4214b3884056d02c3d936560d99f19",
+    "source/cli/src/io/flow-parser.ts": "68d070e1d0ca96a4d43af6d2d8ce84f75abffa6261ec0c04ca8844ca7a3fbd1b"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -43,33 +43,33 @@
     ".yggdrasil/aspects/parser-yaml-guard/check.mjs": 1779794513934.1914,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    "source/cli/src/io/architecture-parser.ts": 1779968157725.6292,
+    "source/cli/src/io/architecture-parser.ts": 1780207999735.5144,
     "source/cli/src/io/aspect-parser.ts": 1780163063673.6404,
-    "source/cli/src/io/node-parser.ts": 1780105604438.7153,
-    "source/cli/src/io/flow-parser.ts": 1779968499243.5312
+    "source/cli/src/io/node-parser.ts": 1780207999736.6206,
+    "source/cli/src/io/flow-parser.ts": 1780207999736.2993
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T18:08:10.104Z",
-    "prefix_hash": "b3557abb7670fae5daa91d49ec76468127ebd33defdb73193e8737c5f55007ff"
+    "last_entry_datetime": "2026-05-31T06:24:49.653Z",
+    "prefix_hash": "2e6a12977f7e10d050511960d6237e4f7c34adad93e2d4dc65dbea3c96664225"
   },
-  "deterministicTouchedFiles": {
+  "checkTouchedFiles": {
     "posix-paths-source": {
-      "source/cli/src/io/architecture-parser.ts": "00d4284c4205e8f1d85c2bcc93eee55b0c720de29c0d8990b351a27cd4080227",
+      "source/cli/src/io/architecture-parser.ts": "5b6cb7bc5ec90f5e7b67a58945aad63a275a169e233b6f7058491c9d4a30d93d",
       "source/cli/src/io/aspect-parser.ts": "ebe196be55aa21e63b380ee0ee713226682b243881f6c11bab8634e29583688e",
-      "source/cli/src/io/node-parser.ts": "0a6baf512361fcc3271e8317b361051aa5165cd62c87b824fea1dd91989dddae",
-      "source/cli/src/io/flow-parser.ts": "aed0dfdb779d7d3e02853fe904554ad0ab669f9994c08b23dc310e945465a384"
+      "source/cli/src/io/node-parser.ts": "e3d78a65999b1a2dd38dfe510018290f2b4214b3884056d02c3d936560d99f19",
+      "source/cli/src/io/flow-parser.ts": "68d070e1d0ca96a4d43af6d2d8ce84f75abffa6261ec0c04ca8844ca7a3fbd1b"
     },
     "read-or-default-via-helper": {
-      "source/cli/src/io/architecture-parser.ts": "00d4284c4205e8f1d85c2bcc93eee55b0c720de29c0d8990b351a27cd4080227",
+      "source/cli/src/io/architecture-parser.ts": "5b6cb7bc5ec90f5e7b67a58945aad63a275a169e233b6f7058491c9d4a30d93d",
       "source/cli/src/io/aspect-parser.ts": "ebe196be55aa21e63b380ee0ee713226682b243881f6c11bab8634e29583688e",
-      "source/cli/src/io/node-parser.ts": "0a6baf512361fcc3271e8317b361051aa5165cd62c87b824fea1dd91989dddae",
-      "source/cli/src/io/flow-parser.ts": "aed0dfdb779d7d3e02853fe904554ad0ab669f9994c08b23dc310e945465a384"
+      "source/cli/src/io/node-parser.ts": "e3d78a65999b1a2dd38dfe510018290f2b4214b3884056d02c3d936560d99f19",
+      "source/cli/src/io/flow-parser.ts": "68d070e1d0ca96a4d43af6d2d8ce84f75abffa6261ec0c04ca8844ca7a3fbd1b"
     },
     "parser-yaml-guard": {
-      "source/cli/src/io/architecture-parser.ts": "00d4284c4205e8f1d85c2bcc93eee55b0c720de29c0d8990b351a27cd4080227",
+      "source/cli/src/io/architecture-parser.ts": "5b6cb7bc5ec90f5e7b67a58945aad63a275a169e233b6f7058491c9d4a30d93d",
       "source/cli/src/io/aspect-parser.ts": "ebe196be55aa21e63b380ee0ee713226682b243881f6c11bab8634e29583688e",
-      "source/cli/src/io/node-parser.ts": "0a6baf512361fcc3271e8317b361051aa5165cd62c87b824fea1dd91989dddae",
-      "source/cli/src/io/flow-parser.ts": "aed0dfdb779d7d3e02853fe904554ad0ab669f9994c08b23dc310e945465a384"
+      "source/cli/src/io/node-parser.ts": "e3d78a65999b1a2dd38dfe510018290f2b4214b3884056d02c3d936560d99f19",
+      "source/cli/src/io/flow-parser.ts": "68d070e1d0ca96a4d43af6d2d8ce84f75abffa6261ec0c04ca8844ca7a3fbd1b"
     }
   },
   "aspectVerdicts": {

@@ -1,9 +1,9 @@
 {
-  "hash": "5044d17a594d5bb1963cbe6340de77f1afcb23490c0cb22c84c6eb297ee9bb0c",
+  "hash": "d8d3f67e21521cb379f7dff4afafd69a324d40905fe25d467ca443220f3cd875",
   "files": {
     "own-subset:cli/core/reviewer-tiers": "017d50656501e8b443151a1fb73d7403f5b0a9279ac7e31e3d3029b12ad7399f",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "deterministic-touched:posix-paths-source": "f438f0b2578fc24c1715c94e81c81f9a92d9247c12b25498840e8645fb0d3fb8",
+    "check-touched:posix-paths-source": "f438f0b2578fc24c1715c94e81c81f9a92d9247c12b25498840e8645fb0d3fb8",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": "8444da42bbb1f4d19f3a01cce19f2737dd99eae360cf38c117a58719622d5673",
@@ -49,7 +49,7 @@
     "last_entry_datetime": "2026-05-29T20:38:46.685Z",
     "prefix_hash": "9acbbbd9ef4e13f9fe366e749552e31f276daa9f20af472ead2c3de608d934e6"
   },
-  "deterministicTouchedFiles": {
+  "checkTouchedFiles": {
     "posix-paths-source": {
       "source/cli/src/core/tier-identity.ts": "259b71f3e76041e8f333179e4b5ecbba08120051180b9867b346ff4e9682d6bb",
       "source/cli/src/core/tier-selection.ts": "0599794d52c0453d1ffbb9ebda8dbf0f6abf4ae40ec8b3d52bb40408762cc615",

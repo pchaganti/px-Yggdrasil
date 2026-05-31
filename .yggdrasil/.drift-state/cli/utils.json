@@ -1,9 +1,9 @@
 {
-  "hash": "69f92e86dbec9be31c795eeac6f4ec0d9df6aa0c2c52c970eaefaa7c3cb43417",
+  "hash": "269f1caaa81340620a6ed83c0b29b1fc8cb63dad92eb2bada361ab5f5eaac039",
   "files": {
     "own-subset:cli/utils": "047452c0e9d0c021ebe08b3cefa811217b797ebf91b324240b9687d94c9187dd",
     "tier-identity:posix-paths-output": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "deterministic-touched:no-side-effects-on-import": "bc2b7fb30c35115fca084c251a4b6918b9cebce4e70bb89cfd6c6e77bef6dac4",
+    "check-touched:no-side-effects-on-import": "bc2b7fb30c35115fca084c251a4b6918b9cebce4e70bb89cfd6c6e77bef6dac4",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/posix-paths-output/yg-aspect.yaml": "c416daed4d0f68afd287205e0abe40409c6643ec4507ebe0399f4e9fb2ffedc9",
     ".yggdrasil/aspects/posix-paths-output/content.md": "2659859dc13a8efe32e098b0c220d24c9ecddff26b42a4f22e3135d8b750bc13",
@@ -43,7 +43,7 @@
     "last_entry_datetime": "2026-05-30T07:12:18.020Z",
     "prefix_hash": "49ff3a868b7e289a01c80d733a09d9dca25627ca1d5a0be30f9c044f2b44bdd8"
   },
-  "deterministicTouchedFiles": {
+  "checkTouchedFiles": {
     "no-side-effects-on-import": {
       "source/cli/src/utils/debug-log.ts": "65e031b16df330abe391b2d1787e676f9163adf5c3570a9da8a4cec5dd54a819",
       "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",

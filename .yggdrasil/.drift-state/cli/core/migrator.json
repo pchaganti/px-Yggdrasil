@@ -1,14 +1,14 @@
 {
-  "hash": "2ec98a3b5f492e3265fd7c9d405ebe460a9543c9bf04039ee8e6ae478bc5d1a8",
+  "hash": "33da4b39b8856eb5dc29312bd7ee7e1b438676586f1765b2a856b5de8c3e6e00",
   "files": {
     "own-subset:cli/core/migrator": "1019002a135421261a15e73112ee1d7ce668116ac4d275c5f5ef338bfc300e7d",
     "tier-identity:posix-paths-output": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "deterministic-touched:no-nondeterminism-direct": "ad1d2ac479a995270dd39c464b5aefb05b9ba6eea29558e4d3a940bfd0ae70ef",
-    "deterministic-touched:no-direct-fs": "ad1d2ac479a995270dd39c464b5aefb05b9ba6eea29558e4d3a940bfd0ae70ef",
-    "deterministic-touched:no-direct-console": "ad1d2ac479a995270dd39c464b5aefb05b9ba6eea29558e4d3a940bfd0ae70ef",
-    "deterministic-touched:posix-paths-source": "ad1d2ac479a995270dd39c464b5aefb05b9ba6eea29558e4d3a940bfd0ae70ef",
-    "deterministic-touched:single-source-graph-queries": "ad1d2ac479a995270dd39c464b5aefb05b9ba6eea29558e4d3a940bfd0ae70ef",
+    "check-touched:no-nondeterminism-direct": "ad1d2ac479a995270dd39c464b5aefb05b9ba6eea29558e4d3a940bfd0ae70ef",
+    "check-touched:no-direct-fs": "ad1d2ac479a995270dd39c464b5aefb05b9ba6eea29558e4d3a940bfd0ae70ef",
+    "check-touched:no-direct-console": "ad1d2ac479a995270dd39c464b5aefb05b9ba6eea29558e4d3a940bfd0ae70ef",
+    "check-touched:posix-paths-source": "ad1d2ac479a995270dd39c464b5aefb05b9ba6eea29558e4d3a940bfd0ae70ef",
+    "check-touched:single-source-graph-queries": "ad1d2ac479a995270dd39c464b5aefb05b9ba6eea29558e4d3a940bfd0ae70ef",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
     ".yggdrasil/aspects/posix-paths-output/yg-aspect.yaml": "c416daed4d0f68afd287205e0abe40409c6643ec4507ebe0399f4e9fb2ffedc9",
@@ -54,7 +54,7 @@
     "last_entry_datetime": "2026-05-27T07:22:23.741Z",
     "prefix_hash": "de41e23e3b5fdc0e94cc24e7671791721cd1b0d190f0d89ad90e10c2eb1e193e"
   },
-  "deterministicTouchedFiles": {
+  "checkTouchedFiles": {
     "no-nondeterminism-direct": {
       "source/cli/src/core/migrator.ts": "4ebd22ba3827c20de48655f520a64a51545fb203a3a7f422f4b9947a89e71b7b"
     },

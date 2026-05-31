@@ -1,0 +1,2 @@
+## [2026-05-31T06:24:50.833Z]
+Two agent-facing diagnostics were corrected. A multi-node cascade target list rendered with a doubled path separator; it now renders with a single separator. And a configuration whose schema version is newer than this CLI supports was being wrapped as an internal bug with a file-an-issue prompt; it is now classified as the expected user error it is — telling the user to upgrade the CLI — without the bug framing. Neither changes the underlying detection; both make the output read correctly.

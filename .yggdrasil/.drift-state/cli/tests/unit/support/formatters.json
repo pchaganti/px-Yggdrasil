@@ -1,5 +1,5 @@
 {
-  "hash": "dac8ff3c2bcb8b974d073af50b689fff34b9043979ddd4e3a6527f8e3e8fdf4e",
+  "hash": "16b173d4f5c46022d2d6b76dad64513ea67b1df3fbc229477d8eecf620f69847",
   "files": {
     "own-subset:cli/tests/unit/support/formatters": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -9,10 +9,10 @@
     ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": "e00d9fa0fe37a252b92888b2e217811de7fa6df420f60cdbc3e692833a16be4d",
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/formatters/cli-preamble.test.ts": "c94879afee429cd66e72ae15f562839245c6ecea547ef7bf4d084d1ece13d822",
     "source/cli/tests/unit/formatters/context-file.test.ts": "95e71b00c9550ce331544c9ef3c4bea826d2dd146772ca8a897e846c353cdfb6",
     "source/cli/tests/unit/formatters/context-node.test.ts": "ea97bbb7763e2c1016ab4b890dcf154dffa13cacf59c1be0419508a0e8bf3459",
-    "source/cli/tests/unit/formatters/context-references.test.ts": "ce314d44224f461803dc9aae04cd1b45967767ae0a4344e51d5dbcbc4f5d4298"
+    "source/cli/tests/unit/formatters/context-references.test.ts": "ce314d44224f461803dc9aae04cd1b45967767ae0a4344e51d5dbcbc4f5d4298",
+    "source/cli/tests/unit/formatters/cli-preamble.test.ts": "42f64f44ffa05a867ece1969e5e443dd49ff2bdb5dbaa5413e56db585ed93212"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -21,14 +21,14 @@
     ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": 1778866544645.0125,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/formatters/cli-preamble.test.ts": 1778957142618.7937,
+    "source/cli/tests/unit/formatters/cli-preamble.test.ts": 1780208227918.4314,
     "source/cli/tests/unit/formatters/context-file.test.ts": 1779977514726.3618,
     "source/cli/tests/unit/formatters/context-node.test.ts": 1779977538031.67,
     "source/cli/tests/unit/formatters/context-references.test.ts": 1779956331168.1033
   },
   "log": {
-    "last_entry_datetime": "2026-05-28T15:48:35.256Z",
-    "prefix_hash": "f8c26eccdce67e4169b698f46554cc4c022130500feb8fd293e254f149d3c40a"
+    "last_entry_datetime": "2026-05-31T06:24:50.666Z",
+    "prefix_hash": "a650beda0143df29b04a9c6f4bc5258050344d7da98e62c3f18244b83a8f252f"
   },
   "aspectVerdicts": {
     "test-deterministic": {

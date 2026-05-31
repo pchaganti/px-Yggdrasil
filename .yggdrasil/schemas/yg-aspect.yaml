@@ -18,7 +18,7 @@ description: "Short description"   # required — shown in yg aspects output and
 reviewer:                          # required — which reviewer verifies this aspect
   type: llm                        #   required: 'llm' or 'deterministic'
                                    #     llm           — aspect ships content.md; an LLM reads it and judges the code.
-                                   #     deterministic — aspect ships check.mjs; the deterministic runner executes it
+                                   #     deterministic — aspect ships check.mjs; the structure runner executes it
                                    #                     locally with graph-aware ctx (files, fs, graph, parsers).
                                    #                     Language-agnostic. No LLM call, zero token cost.
   # tier: deep                     #   optional, only when type: llm.

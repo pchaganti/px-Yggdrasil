@@ -1,5 +1,5 @@
 {
-  "hash": "da8f5fcf1139f654e9b7fb280c0d586efdb7339e5ad6ed76a6267e1121f5e75e",
+  "hash": "786c1f610e56015b51617162411ab3ad9545a2476c01792abc56c558760ec625",
   "files": {
     "own-subset:cli/tests/integration/structure/cross-node-and-concurrency": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -10,8 +10,8 @@
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/integration/structure-concurrent-approve.test.ts": "7910e5955c8f4554074b95b25a61977c5e3c1f3ba221974804dde307829fe714",
-    "source/cli/tests/integration/structure-cold-start.test.ts": "f53d6ae55333e5dad9086cc041aa4c9bc6cbee900e53bd4d325accba2afff125",
-    "source/cli/tests/integration/structure-cross-node-drift.test.ts": "203e78a48021a00a1ad716a04a9bc06c575a6edf935c03777b410d7181c7a5aa"
+    "source/cli/tests/integration/structure-cold-start.test.ts": "247145b1663d9b9e445086bca0063d41af4168f2b679e25a89edc871cee9c2a5",
+    "source/cli/tests/integration/structure-cross-node-drift.test.ts": "9a2d098e95637e5e97833bfd020bd4874e385c470ac09e141f87edd930b04b08"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -20,13 +20,13 @@
     ".yggdrasil/model/cli/tests/integration/structure/yg-node.yaml": 1780171276633.127,
     ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/integration/structure-cold-start.test.ts": 1780177673509.7664,
+    "source/cli/tests/integration/structure-cold-start.test.ts": 1780207999737.8352,
     "source/cli/tests/integration/structure-concurrent-approve.test.ts": 1780163410549.9048,
-    "source/cli/tests/integration/structure-cross-node-drift.test.ts": 1780177673510.0247
+    "source/cli/tests/integration/structure-cross-node-drift.test.ts": 1780207999738.1064
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T21:54:04.268Z",
-    "prefix_hash": "5ac93b2943399ad1bafb5da872031fb00c4fc9cf15516f831d061860935e5e86"
+    "last_entry_datetime": "2026-05-31T06:24:48.806Z",
+    "prefix_hash": "c0072d4b08ff7a0fcbbeabf8721bed82f1f3e9b11d908d8caa1bf40d5917c5e1"
   },
   "aspectVerdicts": {
     "test-deterministic": {

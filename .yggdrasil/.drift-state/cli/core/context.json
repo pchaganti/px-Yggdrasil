@@ -1,15 +1,15 @@
 {
-  "hash": "4acf57edaa7920f90e2a6906d303e0a83a81321cff5532c6b891f571b62556e7",
+  "hash": "35a48ff5afa26a532b5e891407730e95da9211b13093c1e365e080b700edcbd1",
   "files": {
     "own-subset:cli/core/context": "f024c01db6a22a541747c0be08271eb81721e0870a5fae237bcf3068e1a3db3b",
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     "tier-identity:posix-paths-output": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     "tier-identity:what-why-next": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "deterministic-touched:no-nondeterminism-direct": "c7df3b8979e40590506c231dfb536ebfea26467438f6ce0df1d547047f0bf50a",
-    "deterministic-touched:no-direct-fs": "c7df3b8979e40590506c231dfb536ebfea26467438f6ce0df1d547047f0bf50a",
-    "deterministic-touched:no-direct-console": "c7df3b8979e40590506c231dfb536ebfea26467438f6ce0df1d547047f0bf50a",
-    "deterministic-touched:posix-paths-source": "c7df3b8979e40590506c231dfb536ebfea26467438f6ce0df1d547047f0bf50a",
-    "deterministic-touched:single-source-graph-queries": "c7df3b8979e40590506c231dfb536ebfea26467438f6ce0df1d547047f0bf50a",
+    "check-touched:no-nondeterminism-direct": "c7df3b8979e40590506c231dfb536ebfea26467438f6ce0df1d547047f0bf50a",
+    "check-touched:no-direct-fs": "c7df3b8979e40590506c231dfb536ebfea26467438f6ce0df1d547047f0bf50a",
+    "check-touched:no-direct-console": "c7df3b8979e40590506c231dfb536ebfea26467438f6ce0df1d547047f0bf50a",
+    "check-touched:posix-paths-source": "c7df3b8979e40590506c231dfb536ebfea26467438f6ce0df1d547047f0bf50a",
+    "check-touched:single-source-graph-queries": "c7df3b8979e40590506c231dfb536ebfea26467438f6ce0df1d547047f0bf50a",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
     ".yggdrasil/aspects/deterministic/yg-aspect.yaml": "8444da42bbb1f4d19f3a01cce19f2737dd99eae360cf38c117a58719622d5673",
@@ -65,7 +65,7 @@
     "last_entry_datetime": "2026-05-30T18:08:09.608Z",
     "prefix_hash": "8e64d68d53e8ad3c2debd3f5022ea2cac69cfeb615d55c7972f0e6625a172f79"
   },
-  "deterministicTouchedFiles": {
+  "checkTouchedFiles": {
     "posix-paths-source": {
       "source/cli/src/core/context-builder.ts": "b6e7c05576cdbc0f16ba129d38bdaec3ae26d07214fbb0733e82fad1702ec9ad"
     },
