@@ -128,21 +128,55 @@ describe.skipIf(!distExists)('structure aspect implies cascade', () => {
     expect(checkClean.status).toBe(0);
   });
 
-  // status_inherit is not yet implemented in the effective-aspect-status computation.
-  // This test is skipped until statusInherit propagation is wired in
-  // source/cli/src/core/graph/aspects.ts (computeEffectiveAspectStatuses).
-  it.skip('LLM aspect implies structure aspect with status_inherit: strictest — effective status promotes to enforced', () => {
-    // When an enforced LLM aspect implies a structure aspect via
-    //   implies:
-    //     - id: struct-aspect
-    //       status_inherit: strictest
-    // the structure aspect's effective status should be promoted to enforced even
-    // if its own declared status is advisory. This test will verify that promotion
-    // via `yg context --node N` output containing "enforced" for the structure aspect,
-    // or by verifying that yg check exits 1 (enforced violation) rather than 0
-    // (advisory warning) when the structure aspect produces a violation.
-    //
-    // TODO: implement status_inherit propagation in computeEffectiveAspectStatuses
-    // in source/cli/src/core/graph/aspects.ts, then enable this test.
+  // status_inherit propagation IS implemented in computeEffectiveAspectStatuses
+  // (source/cli/src/core/graph/aspects.ts). An enforced implier with
+  // status_inherit: strictest promotes the implied aspect's effective status to
+  // enforced even when the implied aspect's own default is advisory — so an
+  // implied-aspect violation BLOCKS (exit 1) instead of warning (exit 0).
+  // (Deterministic aspects on both sides for hermetic CI — no LLM.)
+  it('aspect implies another with status_inherit: strictest — the implied aspect is promoted to enforced and blocks', () => {
+    const ygg = path.join(root, '.yggdrasil');
+    mkdirSync(path.join(ygg, 'schemas'), { recursive: true });
+    mkdirSync(path.join(ygg, 'aspects', 'gate'), { recursive: true });
+    mkdirSync(path.join(ygg, 'aspects', 'child'), { recursive: true });
+    mkdirSync(path.join(ygg, 'model', 'N'), { recursive: true });
+    mkdirSync(path.join(root, 'src'), { recursive: true });
+    for (const schema of ['yg-node.yaml', 'yg-aspect.yaml', 'yg-flow.yaml']) {
+      copyFileSync(path.join(SCHEMAS_SRC, schema), path.join(ygg, 'schemas', schema));
+    }
+    writeFileSync(path.join(root, 'src', 'a.ts'), 'export const x = 1; // BANNED\n');
+    writeFileSync(path.join(ygg, 'yg-architecture.yaml'), YG_ARCH);
+    writeFileSync(path.join(ygg, 'yg-config.yaml'), YG_CONFIG);
+    // gate: enforced, always passes, implies child with strictest inheritance.
+    writeFileSync(
+      path.join(ygg, 'aspects', 'gate', 'yg-aspect.yaml'),
+      'name: Gate\ndescription: gate\nreviewer:\n  type: deterministic\nstatus: enforced\nimplies:\n  - id: child\n    status_inherit: strictest\n',
+    );
+    writeFileSync(path.join(ygg, 'aspects', 'gate', 'check.mjs'), 'export function check() { return []; }\n');
+    // child: advisory by its OWN default; flags the BANNED token.
+    writeFileSync(
+      path.join(ygg, 'aspects', 'child', 'yg-aspect.yaml'),
+      'name: Child\ndescription: child\nreviewer:\n  type: deterministic\nstatus: advisory\n',
+    );
+    writeFileSync(
+      path.join(ygg, 'aspects', 'child', 'check.mjs'),
+      'export function check(ctx) {\n  const v = [];\n  for (const f of ctx.files) {\n    const lines = f.content.split("\\n");\n    lines.forEach((l, i) => { if (l.includes("BANNED")) v.push({ file: f.path, line: i + 1, column: 0, message: "banned token" }); });\n  }\n  return v;\n}\n',
+    );
+    writeFileSync(
+      path.join(ygg, 'model', 'N', 'yg-node.yaml'),
+      'name: N\ntype: service\ndescription: test\nmapping:\n  - src/a.ts\naspects:\n  - gate\n',
+    );
+
+    // child reaches N ONLY via the implies edge, and strictest inheritance
+    // promotes it from its own advisory default to the implier's enforced status.
+    const ctx = run(['context', '--node', 'N'], root);
+    expect(ctx.status).toBe(0);
+    expect(ctx.stdout).toContain('child [enforced]');
+
+    // Because child is now ENFORCED (not advisory), its BANNED violation BLOCKS:
+    // approve refuses (exit 1) instead of recording a non-blocking advisory warning.
+    const approve = run(['approve', '--node', 'N'], root);
+    expect(approve.status).toBe(1);
+    expect(approve.stdout + approve.stderr).toContain('child');
   });
 });

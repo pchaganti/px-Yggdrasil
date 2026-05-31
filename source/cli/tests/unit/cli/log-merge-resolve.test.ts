@@ -184,4 +184,40 @@ describe('logMergeResolve (core)', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.what).toContain('Node not found');
   });
+
+  // D5: plural-count message branches + the no-prior-baseline write path.
+
+  it('reports the plural "entries" form when MULTIPLE parent entries are missing', async () => {
+    const { projectRoot, nodePath } = await setupMergeRepo();
+    const logPath = path.join(projectRoot, '.yggdrasil', 'model', nodePath, 'log.md');
+    // Drop BOTH new entries (feat1 + feat2) — only the ancestor remains.
+    await writeFile(logPath, ANCESTOR_LOG);
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logMergeResolve({ graph, nodePath, repoRoot: projectRoot });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.what).toContain('missing or has altered 2 entries');
+  });
+
+  it('reports the plural "entries" form when MULTIPLE fabricated entries are present', async () => {
+    const { projectRoot, nodePath } = await setupMergeRepo();
+    const logPath = path.join(projectRoot, '.yggdrasil', 'model', nodePath, 'log.md');
+    const twoFabricated =
+      RESOLVED_LOG_GOOD +
+      '## [2026-05-11T13:00:00.000Z]\nfab one.\n' +
+      '## [2026-05-11T14:00:00.000Z]\nfab two.\n';
+    await writeFile(logPath, twoFabricated);
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logMergeResolve({ graph, nodePath, repoRoot: projectRoot });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.what).toContain('2 new entries not present');
+  });
+
+  it('accepts a valid merge even when NO prior drift-state baseline exists (writes a fresh one)', async () => {
+    const { projectRoot, nodePath } = await setupMergeRepo();
+    // No writeNodeDriftState here — the resolved log is a valid union, and the
+    // merge-resolve must succeed, creating the baseline from scratch.
+    const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
+    const result = await logMergeResolve({ graph, nodePath, repoRoot: projectRoot });
+    expect(result.ok).toBe(true);
+  });
 });

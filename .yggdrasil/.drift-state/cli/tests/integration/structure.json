@@ -1,16 +1,16 @@
 {
-  "hash": "e7c35b10d5dd4a1acab6e4abdb2c8156ff8c262efc1a905a5990b3311ad263af",
+  "hash": "a03cf04967b2548a89ccd9675edac21f631d82c72b744157493063a4c3df7432",
   "files": {
+    "own-subset:cli/tests/integration/structure": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": "f6203e633f0cb0b6bc84c3337606df49a00920a414f6557fe2f3f91bfd034442",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/integration/structure-lifecycle.test.ts": "bd294e4d2ae5755653a8038a85bbbfcd122de73b4093073ddc8eb8b17bb2a56c",
     "source/cli/tests/integration/structure-aspect-status.test.ts": "e56f9ecd2de6ea04d54f5bd96424b115699b21ee835386b1eeda14806e24b77b",
-    "source/cli/tests/integration/structure-implies.test.ts": "5bf67bee112d023b3a05e5cb19815083c7d5d02f3de874162f71686e7535f95b",
-    "own-subset:cli/tests/integration/structure": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+    "source/cli/tests/integration/structure-implies.test.ts": "d1d4224feef5e3c3e2c88d6afed1c4a6539179425b490a835218c2e5d214a962"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -19,7 +19,7 @@
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/integration/structure-lifecycle.test.ts": 1780207999738.5938,
     "source/cli/tests/integration/structure-aspect-status.test.ts": 1780207999737.5593,
-    "source/cli/tests/integration/structure-implies.test.ts": 1780207999738.3574
+    "source/cli/tests/integration/structure-implies.test.ts": 1780238892262.7507
   },
   "log": {
     "last_entry_datetime": "2026-05-31T06:24:48.647Z",

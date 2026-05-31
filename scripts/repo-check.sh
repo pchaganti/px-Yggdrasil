@@ -25,6 +25,10 @@ run_step() {
 run_step "CLI: typecheck" "$REPO_ROOT/source/cli" "npm run typecheck"
 run_step "CLI: lint" "$REPO_ROOT/source/cli" "npm run lint"
 run_step "CLI: build" "$REPO_ROOT/source/cli" "npm run build"
+# Guard (D4): the spawned-binary E2E suites self-skip via describe.skipIf(!distExists).
+# If the build silently produced no dist/bin.js they would ALL no-op and the test
+# run would go green over zero E2E coverage. Fail loudly here instead.
+run_step "CLI: built binary present (E2E guard)" "$REPO_ROOT/source/cli" "test -f dist/bin.js || { echo 'dist/bin.js missing after build — E2E suites would silently skip'; exit 1; }"
 run_step "CLI: pack-smoke (A2)" "$REPO_ROOT/source/cli" "node scripts/pack-smoke.mjs"
 run_step "CLI: test (with coverage)" "$REPO_ROOT/source/cli" "npm run test:coverage"
 run_step "CLI: coverage >= 90%" "$REPO_ROOT/source/cli" "node -e \"
