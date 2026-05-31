@@ -3,6 +3,8 @@ node_types:
     description: "Business logic unit with clear domain responsibility"
   service:
     description: "Component providing functionality to other nodes"
+    when:
+      path: "src/**"
     relations:
       calls: [service, library]
       uses: [library]
