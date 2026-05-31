@@ -5,6 +5,24 @@ import { evaluateWhen } from '../when-evaluator.js';
 import { collectAncestors } from './traversal.js';
 import { debugWrite } from '../../utils/debug-log.js';
 
+/**
+ * Thrown when implies expansion / status propagation encounters a cycle in the
+ * aspect implies graph. Recognizable as a distinct class so callers (notably
+ * `classifyDrift` in core/check.ts) can skip per-node drift computation on a
+ * structurally-invalid graph WITHOUT swallowing unrelated errors. The static
+ * validator (`checkImpliesNoCycles`) still produces the user-facing structured
+ * `aspect-implies-cycle` issue — this error only signals "stop computing here".
+ */
+export class ImpliesCycleError extends Error {
+  /** The aspect id at which the cycle was detected (best-effort). */
+  readonly aspectId: string | undefined;
+  constructor(message: string, aspectId?: string) {
+    super(message);
+    this.name = 'ImpliesCycleError';
+    this.aspectId = aspectId;
+  }
+}
+
 // ============================================================
 // iterateAttachments — single source of truth for the channel walk
 // ============================================================
@@ -132,7 +150,7 @@ function expandImpliesFiltered(
 
   const visit = (id: string, implierId: string | null): void => {
     if (stack.has(id)) {
-      throw new Error(`Aspect implies cycle detected involving aspect '${id}'`);
+      throw new ImpliesCycleError(`Aspect implies cycle detected involving aspect '${id}'`, id);
     }
     if (visited.has(id)) return;
 
@@ -255,7 +273,7 @@ export function computeEffectiveAspectStatuses(node: GraphNode, graph: Graph): M
   const maxIterations = graph.aspects.length + 1;
   while (changed) {
     if (++iterations > maxIterations) {
-      throw new Error(`implies fix-point did not converge after ${maxIterations} iterations (cycle suspected)`);
+      throw new ImpliesCycleError(`implies fix-point did not converge after ${maxIterations} iterations (cycle suspected)`);
     }
     changed = false;
     const currentIds = [...result.keys()];

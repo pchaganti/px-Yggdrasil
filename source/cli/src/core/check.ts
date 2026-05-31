@@ -12,7 +12,7 @@ import { hashTrackedFiles } from '../io/hash.js';
 import { collectTrackedFiles, buildLayerResolver } from './graph/files.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import { validate } from './validator.js';
-import { computeEffectiveAspectStatuses, hasNonDraftEffectiveAspects } from './graph/aspects.js';
+import { computeEffectiveAspectStatuses, hasNonDraftEffectiveAspects, ImpliesCycleError } from './graph/aspects.js';
 import { readTextFile, fileAccess } from '../io/graph-fs.js';
 import path from 'node:path';
 import { validateAppendOnly } from './log-integrity.js';
@@ -80,11 +80,46 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
     const mappingPaths = normalizeMappingPaths(node.meta.mapping);
     if (mappingPaths.length === 0) continue;
 
+    // An implies cycle makes effective-aspect resolution undefined for this
+    // node. The static validator (`checkImpliesNoCycles`, run in `runCheck`
+    // before drift) already emits the blocking, structured `aspect-implies-cycle`
+    // error, so the graph is invalid and per-node drift is moot. Skip this node
+    // rather than letting the cycle throw escape to the generic top-level
+    // "file an issue" handler. Both `hasNonDraftEffectiveAspects` (status
+    // fix-point) and `collectTrackedFiles` (implies DFS) below can raise it.
+    try {
+      await classifyNodeDrift(graph, projectRoot, nodePath, node, mappingPaths, issues);
+    } catch (err) {
+      if (err instanceof ImpliesCycleError) continue;
+      throw err;
+    }
+  }
+
+  await classifyLogState(graph, projectRoot, issues);
+
+  return issues;
+}
+
+/**
+ * Drift classification for ONE mapped node. Extracted from `classifyDrift` so
+ * the per-node body can be wrapped in a single try/catch that skips the node on
+ * an `ImpliesCycleError` (graph structurally invalid — validator already
+ * reports the cycle). Pushes any source-drift / upstream-drift / per-aspect
+ * issues into `issues`.
+ */
+async function classifyNodeDrift(
+  graph: Graph,
+  projectRoot: string,
+  nodePath: string,
+  node: GraphNode,
+  mappingPaths: string[],
+  issues: CheckIssue[],
+): Promise<void> {
     // Nodes whose every effective aspect is draft auto-approve — skip drift
     // detection. Draft aspects are dormant: no baseline, no drift, no per-aspect
     // emission. If a non-draft aspect exists, fall through to the per-aspect
     // emission loop below so aspect-newly-active / aspect-violation-* fire.
-    if (!hasNonDraftEffectiveAspects(node, graph)) continue;
+    if (!hasNonDraftEffectiveAspects(node, graph)) return;
 
     const storedEntry = await readNodeDriftState(graph.rootPath, nodePath);
 
@@ -111,7 +146,7 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
         lifecycleState: 'unapproved',
         directChangedFiles: [],
       });
-      continue;
+      return;
     }
 
     // Check if all source paths are gone
@@ -131,7 +166,7 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
         lifecycleState: 'missing',
         directChangedFiles: mappingPaths.map(p => ({ filePath: p, category: 'source' as DriftCategory })),
       });
-      continue;
+      return;
     }
 
     // Per-aspect emission (aspect-newly-active / aspect-violation-*) runs
@@ -156,7 +191,7 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
       projectRoot, trackedFiles, storedFileData, excludePrefixes,
     );
 
-    if (canonicalHash === storedEntry.hash) continue; // No drift
+    if (canonicalHash === storedEntry.hash) return; // No drift
 
     // Resolve each changed file's drift layer (source vs upstream cascade),
     // handling directory-mapping expansion. Shared with approveNode.
@@ -277,9 +312,19 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
         cascadeCauses: nodeUpstreamCauses,
       });
     }
-  }
+}
 
-  // ── Log checks (all nodes, including logical = no-mapping) ──
+/**
+ * Log integrity + format checks for ALL nodes (including logical / no-mapping).
+ * Extracted from `classifyDrift` so the per-node drift body can be wrapped in a
+ * cycle-safe try/catch without entangling log checks (which never touch the
+ * implies graph). Pushes log-integrity / log-format issues into `issues`.
+ */
+async function classifyLogState(
+  graph: Graph,
+  projectRoot: string,
+  issues: CheckIssue[],
+): Promise<void> {
   for (const [nodePath] of graph.nodes) {
     const logRel = `.yggdrasil/model/${nodePath}/log.md`;
     const logAbs = path.join(projectRoot, logRel);
@@ -333,8 +378,6 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
       });
     }
   }
-
-  return issues;
 }
 
 // ── Coverage scan (unmapped-files) ────────────────────────
