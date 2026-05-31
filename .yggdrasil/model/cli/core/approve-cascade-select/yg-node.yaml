@@ -1,0 +1,11 @@
+name: Approve Cascade Select
+type: engine
+description: "Cascade-node and cascade-aspect selection for batch approve — chooses which nodes a --node cascade, --flow, or --aspect invocation must re-approve, and which effective non-draft aspects must be re-verified on a node. Pure graph/string logic, extracted from the command wrapper so it is coverage-included rather than hidden by the cli/** coverage exclusion."
+aspects: []
+relations:
+  - target: cli/core/graph
+    type: calls
+  - target: cli/io/stores
+    type: calls
+mapping:
+  - source/cli/src/core/approve-cascade-select.ts
