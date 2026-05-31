@@ -1,0 +1,10 @@
+name: PaymentsService
+description: Captures payments and exposes the charge port to consumers.
+type: provider
+ports:
+  charge:
+    description: Capture a payment from the user.
+    aspects:
+      - audit-required
+mapping:
+  - src/services/payments.ts

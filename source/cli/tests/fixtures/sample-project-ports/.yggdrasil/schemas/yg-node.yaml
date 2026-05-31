@@ -1,0 +1,3 @@
+# Schema presence stub for the sample-project-ports test fixture.
+# yg check only requires the node/aspect/flow schemas to be present.
+schema: yg-node
