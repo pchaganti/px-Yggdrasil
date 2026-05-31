@@ -1,0 +1,7 @@
+name: E2E Tests — LLM Reviewer Mechanics (Mock)
+type: test-suite
+description: "Subprocess E2E proving the LLM reviewer machinery against an in-process mock that plays the provider deterministically — an approve verdict records a baseline while a refuse blocks with the reason surfaced, consensus issues exactly N calls and aggregates by majority, the verifier prompt carries the aspect id and content and node path and source, a non-200 or malformed response becomes a provider-error fallback, a draft aspect is never sent and an advisory refusal does not block, dry-run never calls the reviewer, a source edit re-invokes it, and the request carries the configured tier model."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-llm-reviewer-mock.test.ts

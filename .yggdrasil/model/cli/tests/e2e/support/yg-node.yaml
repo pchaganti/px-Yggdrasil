@@ -1,0 +1,7 @@
+name: E2E Tests — Support Helpers
+type: test-suite
+description: "Shared helper module for the end-to-end test suites — an in-process mock that speaks the reviewer provider's HTTP protocol on an ephemeral loopback port, capturing every verdict request so a suite can drive and assert the reviewer mechanics deterministically, plus an asynchronous spawn helper that keeps the parent event loop alive to serve that mock while the spawned binary makes its calls."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/support/mock-reviewer.ts
