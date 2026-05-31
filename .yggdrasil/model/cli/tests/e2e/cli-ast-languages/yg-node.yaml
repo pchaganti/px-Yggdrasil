@@ -1,0 +1,6 @@
+name: AST Languages E2E
+type: test-suite
+description: "E2E for multi-language AST support: a deterministic aspect's check.mjs receives file.ast for a source file in each of the 16 built-in tree-sitter grammars (language auto-detected by extension) and asserts a non-empty parse plus per-language comment detection via findComments."
+aspects: []
+mapping:
+  - source/cli/tests/e2e/cli-ast-languages.test.ts
