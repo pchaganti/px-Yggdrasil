@@ -51,7 +51,12 @@ export function registerCheckCommand(program: Command): void {
 /** Code sets for grouping errors by category. */
 const STRUCTURAL_CODES = new Set(['yaml-invalid', 'type-invalid', 'relation-broken', 'flow-node-broken', 'aspect-undefined', 'overlapping-mapping', 'file-duplicate-mapping', 'structural-cycle', 'config-invalid', 'config-reviewer-legacy-format', 'config-reviewer-mixed-format', 'duplicate-aspect-id', 'node-yaml-missing', 'implied-aspect-missing', 'aspect-implies-cycle', 'event-unpaired', 'schema-missing', 'type-without-when-with-mapping', 'type-when-mismatch', 'file-mapping-gitignored', 'enforce-strict-without-when', 'architecture-cycle', 'when-predicate-invalid', 'when-unknown-type', 'when-unknown-node', 'when-unknown-port', 'aspect-unexpected-rule-source', 'aspect-missing-rule-source', 'file-unreadable', 'aspect-references-on-deterministic', 'aspect-reference-broken', 'aspect-reference-too-large', 'aspect-references-total-too-large', 'aspect-reference-invalid-form', 'aspect-reference-blank-path', 'aspect-reference-escape', 'aspect-reference-duplicate', 'aspect-tier-unknown']);
 const ARCHITECTURE_CODES = new Set(['relation-target-forbidden', 'parent-type-forbidden', 'type-undefined', 'port-missing-aspect', 'port-missing-consumes', 'port-undefined', 'consumes-without-ports']);
-const COVERAGE_CODES = new Set(['unmapped-files', 'mapping-path-missing']);
+// `unmapped-files` renders through renderUnmappedBlock (count + file list).
+// `mapping-path-missing` is NOT a coverage code: it carries a nodePath and
+// structured messageData, so it falls through to the normal validation-error
+// renderer (code + node path + what/why/next) — renderUnmappedBlock would
+// otherwise drop both the code and the offending node path.
+const COVERAGE_CODES = new Set(['unmapped-files']);
 const COMPLETENESS_CODES = new Set(['description-missing']);
 const STRICT_CODES = new Set(['type-strict-orphan', 'type-strict-misplaced', 'strict-overlap-conflict']);
 

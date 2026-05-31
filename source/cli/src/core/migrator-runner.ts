@@ -12,6 +12,13 @@ export interface UpgradeResult {
   landedVersion: string | null;
   migrationActions: string[];
   migrationWarnings: string[];
+  /**
+   * True when a migration returned `bumpVersion: false`, stopping the chain
+   * before it reached the latest applicable target — i.e. the upgrade is
+   * INCOMPLETE and the version was withheld. Distinct from a completed upgrade
+   * that merely emitted informational warnings (withheld === false).
+   */
+  withheld: boolean;
 }
 
 /**
@@ -35,7 +42,7 @@ export async function runVersionUpgrade(options: RunUpgradeOptions): Promise<Upg
   const migrationWarnings: string[] = [];
 
   if (fromVersion === null || valid(fromVersion) === null) {
-    return { fromVersion, landedVersion: fromVersion, migrationActions, migrationWarnings };
+    return { fromVersion, landedVersion: fromVersion, migrationActions, migrationWarnings, withheld: false };
   }
 
   const applicable = migrations
@@ -46,6 +53,7 @@ export async function runVersionUpgrade(options: RunUpgradeOptions): Promise<Upg
     .sort((a, b) => compare(valid(a.to)!, valid(b.to)!));
 
   let landedVersion = fromVersion;
+  let withheld = false;
 
   for (const migration of applicable) {
     const result = await migration.run(yggRoot);
@@ -56,7 +64,8 @@ export async function runVersionUpgrade(options: RunUpgradeOptions): Promise<Upg
       // Migration emitted warnings — version stays where it was; do not
       // advance to migration.to. The user fixes the listed problems and
       // re-runs. Stop the chain (later migrations may depend on this step
-      // having completed).
+      // having completed). This is a WITHHELD (incomplete) upgrade.
+      withheld = true;
       break;
     }
 
@@ -72,5 +81,5 @@ export async function runVersionUpgrade(options: RunUpgradeOptions): Promise<Upg
     }
   }
 
-  return { fromVersion, landedVersion, migrationActions, migrationWarnings };
+  return { fromVersion, landedVersion, migrationActions, migrationWarnings, withheld };
 }

@@ -308,7 +308,7 @@ async function writeReviewerConfig(
     if (e.code !== 'ENOENT') {
       throw new Error(`Failed to parse ${configPath}: ${e.message}`, { cause: err });
     }
-    debugWrite(`[init] writeReviewerConfig: ${configPath} not found, starting fresh`);
+    debugWrite(`[init] writeReviewerConfig: ${configPath} not found (${e.message}), starting fresh`);
   }
 
   // Build reviewer section with a single-tier default.
@@ -352,7 +352,7 @@ async function writeSecretsFile(
     if (e.code !== 'ENOENT') {
       throw new Error(`Failed to parse ${secretsPath}: ${e.message}`, { cause: err });
     }
-    debugWrite(`[init] writeSecretsFile: ${secretsPath} not found, starting fresh`);
+    debugWrite(`[init] writeSecretsFile: ${secretsPath} not found (${e.message}), starting fresh`);
   }
 
   if (!raw.reviewer || typeof raw.reviewer !== 'object') {
@@ -460,6 +460,8 @@ export interface VersionUpgradeResult {
   rulesPath: string;
   migrationActions: string[];
   migrationWarnings: string[];
+  /** True when a migration withheld the version bump (incomplete upgrade). */
+  withheld: boolean;
 }
 
 export async function runVersionUpgrade(
@@ -467,7 +469,7 @@ export async function runVersionUpgrade(
   yggRoot: string,
   platform: Platform,
 ): Promise<VersionUpgradeResult> {
-  const { migrationActions, migrationWarnings } = await coreRunVersionUpgrade({
+  const { migrationActions, migrationWarnings, withheld } = await coreRunVersionUpgrade({
     yggRoot, migrations: MIGRATIONS,
   });
 
@@ -484,7 +486,7 @@ export async function runVersionUpgrade(
   const rawRulesPath = await installRulesForPlatform(projectRoot, platform);
   const rulesPath = rawRulesPath.replace(/\\/g, '/').replace(/\/+$/, '');
 
-  return { rulesPath, migrationActions, migrationWarnings };
+  return { rulesPath, migrationActions, migrationWarnings, withheld };
 }
 
 // ---------------------------------------------------------------------------
@@ -644,6 +646,38 @@ export function registerInitCommand(program: Command): void {
             yggRoot,
             options.platform as Platform,
           );
+
+          // A migration that WITHHELD the version bump (bumpVersion: false)
+          // leaves yg-config.yaml at its prior version — an INCOMPLETE upgrade.
+          // The interactive path surfaces this; the non-interactive flag path
+          // (agents/CI) must signal it too, not report a false success. A
+          // COMPLETED upgrade that merely emitted informational warnings still
+          // succeeds (exit 0) but surfaces them rather than swallowing them.
+          if (result.withheld) {
+            process.stderr.write(
+              chalk.red(
+                `Error: ${buildIssueMessage({
+                  what:
+                    'Migration withheld — the version bump was NOT applied.\n' +
+                    result.migrationWarnings.map((w) => `  - ${w}`).join('\n'),
+                  why: 'A migration step could not be safely applied, so the chain stopped and yg-config.yaml was left at its prior version. Reporting success here would hide an incomplete upgrade from agents and CI.',
+                  next: 'Fix the listed configuration problems, then re-run yg init --upgrade --platform <name>.',
+                })}\n`,
+              ),
+            );
+            process.exit(1);
+          }
+
+          if (result.migrationWarnings.length > 0) {
+            process.stdout.write(
+              chalk.yellow(
+                'Migration warnings:\n' +
+                  result.migrationWarnings.map((w) => `  - ${w}`).join('\n') +
+                  '\n',
+              ),
+            );
+          }
+
           process.stdout.write(
             `Rules and schemas refreshed: ${path.relative(projectRoot, result.rulesPath).replace(/\\/g, '/').replace(/\/+$/, '')}\n`,
           );
