@@ -38,6 +38,8 @@ export interface CheckIssue extends Omit<ValidationIssue, 'code'> {
   uncoveredFiles?: string[];
   /** For unmapped-files: total count of uncovered files */
   uncoveredCount?: number;
+  /** For aspect-newly-active / aspect-violation-*: the aspect this issue concerns */
+  aspectId?: string;
 }
 
 export interface CascadeCause {
@@ -629,6 +631,7 @@ function emitPerAspectIssues(
         rule: 'aspect-newly-active',
         messageData: md,
         nodePath: node.path,
+        aspectId,
       });
       continue;
     }
@@ -697,12 +700,14 @@ export function describeCascadeCause(filePath: string, layer: TrackedFileLayer, 
     }
     // Synthetic per-aspect identity keys live on the 'aspects' layer but are not
     // real files under .yggdrasil/aspects/. Name the aspect they belong to.
-    const synth = normalized.match(/^(check-touched|tier-identity):(.+)$/);
+    const synth = normalized.match(/^(check-touched|tier-identity|aspect-meta):(.+)$/);
     if (synth) {
       const [, kind, aspectId] = synth;
       const what = kind === 'check-touched'
         ? `the set of files read by deterministic aspect '${aspectId}'`
-        : `the resolved reviewer tier for aspect '${aspectId}'`;
+        : kind === 'tier-identity'
+          ? `the resolved reviewer tier for aspect '${aspectId}'`
+          : `the definition of aspect '${aspectId}'`;
       return `${what} changed\n       (${normalized})`;
     }
     // Path is not under .yggdrasil/aspects/ but is tracked under the 'aspects' layer —

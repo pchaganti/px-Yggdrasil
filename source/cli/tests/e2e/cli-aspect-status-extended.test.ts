@@ -397,7 +397,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
   // fires aspect-newly-active on EVERY node that has it effective (not just one);
   // the `--aspect` batch re-approve records the missing verdict on both and
   // clears the drift.
-  it('D5: flipping a SHARED aspect draft->enforced fires aspect-newly-active on EVERY effective node; --aspect batch clears both', () => {
+  it('D5: flipping a SHARED aspect draft->enforced fires aspect-newly-active on EVERY effective node; per-node approve clears both', () => {
     const dir = hermeticFixture('flip-newly-active-multi');
     try {
       // Start with no-todo-comments DRAFT (dormant on both nodes). The advisory
@@ -443,8 +443,11 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       // The newly-active aspect is named in the message.
       expect(drifted.stdout).toContain("Aspect 'no-todo-comments'");
 
-      // The batch --aspect re-approve records the missing verdict on both nodes.
-      const reapprove = run(['approve', '--aspect', 'no-todo-comments'], dir);
+      // A draft->non-draft activation surfaces as aspect-newly-active (not an
+      // aspect cascade — status is not part of the canonical hash), so the
+      // documented remediation is a per-node approve, which records the missing
+      // verdict on both nodes.
+      const reapprove = run(['approve', '--node', 'services/orders', '--node', 'services/payments'], dir);
       expect(reapprove.status).toBe(0);
       expect(reapprove.stdout).toContain('services/orders');
       expect(reapprove.stdout).toContain('services/payments');
@@ -518,27 +521,21 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
   //     "Status is NOT part of the canonical drift hash. The hash stays stable
   //      across advisory <-> enforced flips."
   //
-  //   ACTUAL (this binary):
-  //     The aspect's ENTIRE yg-aspect.yaml file (status: line included) is tracked
-  //     in the per-node drift `files` map (core/graph/files.ts adds
-  //     `aspects/<id>/yg-aspect.yaml` for every effective aspect), so editing the
-  //     `status:` line changes that file's hash and therefore the node's
-  //     canonical `hash`. `yg check` consequently reports a
-  //     `cascade  aspect '<id>' changed` for every node using the aspect on a
-  //     bare status flip, and the recorded `hash` differs before vs after.
-  //
-  // We pin the ACTUAL behavior: the flip cascades and the canonical hash changes.
-  // (The per-aspect VERDICT is carried forward — that stability is covered by D6
-  // and E8 — but the file-tracked node hash is not.)
-  it('E7: BUG — a bare enforced->advisory status flip cascades and CHANGES the per-node canonical hash (contract says it should be stable)', () => {
-    const dir = hermeticFixture('hash-flip-bug');
+  //   The drift tracker hashes the aspect's DEFINITION metadata EXCLUDING the
+  //   `status` field (core/graph/files.ts tracks an `aspect-meta:<id>` synthetic
+  //   instead of the raw yg-aspect.yaml whose bytes include `status:`). So a bare
+  //   advisory<->enforced flip — check.mjs and source byte-for-byte unchanged —
+  //   does NOT change the node's canonical hash and does NOT cascade. (A
+  //   draft<->non-draft transition is still surfaced, but via aspect-newly-active,
+  //   covered by D5; the render-severity flip is covered by D6.)
+  it('E7: a bare enforced->advisory status flip does NOT cascade and the per-node canonical hash stays stable', () => {
+    const dir = hermeticFixture('hash-flip-stable');
     try {
       run(['approve', '--node', 'services/orders'], dir);
       run(['approve', '--node', 'services/payments'], dir);
       const before = baselineHash(dir, 'services/orders');
 
-      // Flip ONLY the status line — check.mjs is byte-for-byte unchanged, the
-      // source is unchanged. Per the documented contract this should NOT cascade.
+      // Flip ONLY the status line — check.mjs and source are unchanged.
       writeFileSync(
         aspectYaml(dir, 'no-todo-comments'),
         readFileSync(aspectYaml(dir, 'no-todo-comments'), 'utf-8').replace(
@@ -548,20 +545,17 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
         'utf-8',
       );
 
-      // ACTUAL: the yg-aspect.yaml file hash changed, so check reports an upstream
-      // cascade naming the aspect and both effective nodes (rendered in the
-      // compact `services/{orders, payments}` group form).
+      // No cascade: status is not part of the canonical drift hash. The aspect
+      // passes (orders.ts has no TODO), so advisory renders nothing → check clean.
       const drifted = run(['check'], dir);
-      expect(drifted.status).toBe(1);
-      expect(drifted.stdout).toContain("aspect 'no-todo-comments' changed");
-      expect(drifted.stdout).toContain('services/{orders, payments}');
+      expect(drifted.status).toBe(0);
+      expect(drifted.stdout).not.toContain("aspect 'no-todo-comments' changed");
+      expect(drifted.stdout).not.toContain('Source files changed');
 
-      // Re-approve and confirm the recorded canonical hash actually DIFFERS — the
-      // proof that status participates in the file-tracked node hash, contrary to
-      // the "hash stays stable across advisory<->enforced" contract.
-      run(['approve', '--aspect', 'no-todo-comments'], dir);
+      // The recorded canonical hash is unchanged — a status flip is not drift, so
+      // there is nothing to re-approve and the baseline is untouched.
       const after = baselineHash(dir, 'services/orders');
-      expect(after).not.toBe(before);
+      expect(after).toBe(before);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

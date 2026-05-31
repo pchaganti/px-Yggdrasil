@@ -1,16 +1,16 @@
 {
-  "hash": "fb42de982d3ab874e78dba86d04a81a4eef9890a4395a65f7f027f5d7effe6ec",
+  "hash": "3badf5da021caf69fb42a14efaaf488fa576a8149065645bc6f51433454e58b8",
   "files": {
-    "own-subset:cli/tests/unit/core/graph/language-registry": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": "de00f518b04112cb692d73d15acfd232c3f1874b163d22d482f0b8e5a7163f48",
     ".yggdrasil/model/cli/tests/unit/core/graph/yg-node.yaml": "3c8d8895c7e571942bc838c5f1995df4a574b9cf0a55d3c728a6154d039a3058",
-    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/core/language-registry.test.ts": "8953bcf9160d343f5a1505097346cbe87809269b453d3c93e6d4e88430e60739"
+    "source/cli/tests/unit/core/language-registry.test.ts": "8953bcf9160d343f5a1505097346cbe87809269b453d3c93e6d4e88430e60739",
+    "own-subset:cli/tests/unit/core/graph/language-registry": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -18,7 +18,6 @@
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": 1778866543616.299,
     ".yggdrasil/model/cli/tests/unit/core/graph/yg-node.yaml": 1780122508647.7935,
-    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/core/language-registry.test.ts": 1780148843935.9004
   },

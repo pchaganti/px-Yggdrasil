@@ -25,6 +25,7 @@ const STRUCTURAL_RELATION_TYPES = new Set(['uses', 'calls', 'extends', 'implemen
 // would invalidate all baselines and trigger a mass cascade. Keep byte-identical.
 export const tierIdentityKey = (aspectId: string): string => `tier-identity:${aspectId}`;
 export const checkTouchedKey = (aspectId: string): string => `check-touched:${aspectId}`;
+export const aspectMetaKey = (aspectId: string): string => `aspect-meta:${aspectId}`;
 
 /**
  * Repo-relative POSIX path to the .yggdrasil/ graph root (e.g. ".yggdrasil").
@@ -113,19 +114,32 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
   // Compute mapping paths once — used by the SOURCE step and the ownership guards below.
   const mappingPathsList = normalizeMappingPaths(node.meta.mapping);
   const mappingPathsSet = new Set(mappingPathsList);
-  // A path is owned by this node's mapping if it equals a mapping entry OR sits under a
-  // directory mapping entry. Exact-set membership alone misses files under a directory
-  // mapping, which would misclassify an own-file edit (a reference file or a
-  // check-touched path under that directory) as an upstream cascade — bypassing the
-  // source-drift classification and its log requirement. mappingPathsList is normalized
-  // (no trailing slash), so `m + '/'` is the directory prefix.
+  // Owned = equals a mapping entry OR sits under a directory mapping entry. Exact-set
+  // membership alone misses files under a directory mapping, misclassifying an own-file
+  // edit as an upstream cascade. mappingPathsList is normalized (no trailing slash).
   const isOwnedByMapping = (p: string): boolean =>
     mappingPathsSet.has(p) || mappingPathsList.some((m) => p.startsWith(m + '/'));
 
   for (const aspectId of allAspectIds) {
     const aspect = graph.aspects.find(a => a.id === aspectId);
     if (!aspect) continue;
-    addFile(graphPath('aspects', aspect.id, 'yg-aspect.yaml'), 'graph', 'aspects');
+    // Track the aspect's DEFINITION metadata EXCLUDING `status` (not the raw
+    // yg-aspect.yaml, whose bytes include status), so an advisory<->enforced flip is
+    // NOT drift — the canonical hash stays stable, the verdict carries forward. A
+    // draft<->non-draft transition is still surfaced via aspect-newly-active; a
+    // rule-content change still cascades via the artifacts/references tracked below.
+    const aspectMeta = {
+      id: aspect.id,
+      name: aspect.name,
+      description: aspect.description,
+      reviewer: aspect.reviewer,
+      implies: aspect.implies,
+      impliesWhens: aspect.impliesWhens,
+      impliesStatusInherit: aspect.impliesStatusInherit,
+      when: aspect.when,
+      references: aspect.references,
+    };
+    addSyntheticHash(aspectMetaKey(aspect.id), JSON.stringify(aspectMeta), 'graph', 'aspects');
     for (const art of aspect.artifacts) {
       addFile(graphPath('aspects', aspect.id, art.filename), 'graph', 'aspects');
     }
@@ -143,34 +157,26 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
         );
       }
       // references — LLM only; skip paths owned by this node's mapping (the SOURCE
-      // step claims them). Prefix-aware so a reference under a directory mapping is
-      // also recognized as own, not reclassified as upstream drift.
+      // step claims them; prefix-aware for directory mappings).
       for (const ref of aspect.references ?? []) {
         if (isOwnedByMapping(ref.path)) continue;
         addFile(ref.path, 'graph', 'aspects');
       }
     }
 
-    // Deterministic (structure) aspects carry NO synthetic identity hash. Their
-    // identity is fully file-tracked — the yg-aspect.yaml file hash (above), the
-    // check.mjs artifact (above), the node's own mapping files, and the per-aspectId
-    // checkTouchedFiles set hash (below). The former structure-identity key was a
-    // CONSTANT (canonicalJson({ kind:'structure', language:null })) that added no drift
-    // signal beyond the yg-aspect.yaml file hash, so it was removed.
+    // Deterministic aspects carry NO extra synthetic identity hash beyond the
+    // aspect-meta above — their identity is the meta + the check.mjs artifact + the
+    // node's mapping files + the per-aspectId checkTouchedFiles set hash (below).
   }
 
   // check-touched: inject entries from baseline's checkTouchedFiles so
   // drift fires when the set (or content) of files touched by a deterministic aspect changes.
   //
-  // A touched path that is in this node's OWN mapping is skipped here: the SOURCE
-  // step (below) already tracks it under the 'source' layer, which check.ts
-  // classifies as source-drift. Adding it here first would label it
-  // 'check-touched' (addFile dedups by path, first-writer-wins) and misreport
-  // an own-file edit as an upstream cascade. Cross-node touched paths (owned by a
-  // related node, not in this mapping) ARE added here as 'check-touched' — that
-  // is the whole point: they otherwise have no tracking entry. The synthetic
-  // per-aspect hash still summarizes the FULL set (own + cross) so a change to the
-  // set membership drifts regardless of which paths are own vs cross.
+  // A touched path in this node's OWN mapping is skipped here (the SOURCE step
+  // tracks it under 'source' = source-drift; addFile is first-writer-wins). Only
+  // CROSS-node touched paths (owned by a related node) are added as 'check-touched'
+  // — they otherwise have no tracking entry. The synthetic per-aspect hash still
+  // summarizes the FULL set, so set-membership changes drift regardless.
   if (baseline?.checkTouchedFiles) {
     for (const [aspectId, pathMap] of Object.entries(baseline.checkTouchedFiles)) {
       for (const p of Object.keys(pathMap)) {

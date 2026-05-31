@@ -1,22 +1,20 @@
 {
-  "hash": "f70eee1e64f1919b5dccd63b709a384262885aa1c566cee9d101186e8eb2dc61",
+  "hash": "7bebc8f48bcaf5f927bf9278d35086bd31377e4e2e7e9856ea16cf6925dce002",
   "files": {
-    "own-subset:cli/llm/subprocess-base": "58d4431f67f75bb5974ed7e8297871e037858fd029ed93aa54cca2a64422a507",
-    "check-touched:provider-redaction": "6d04a94f532479a549ce8e8191bf16b35c4476de6229a112d04f40031c028fb0",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/llm/yg-node.yaml": "eb86d7c0b81642af0c1d40cba6a1f5a780293a2304635bd100bd64677a4c8838",
-    ".yggdrasil/aspects/provider-redaction/yg-aspect.yaml": "328bd1ac8588842ee7ab340ef2c79e664836a2a5da25a3a5eb3dde0ff2d0a2fa",
     ".yggdrasil/aspects/provider-redaction/check.mjs": "a507ff5d85fc4ee796ecfd0279ba03ee89c84088153902b2866a2c7738df1ced",
-    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": "352e3aff65b59e18f07fddd58372e91a2f3250d9e41483998ace328e5989df84",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
-    "source/cli/src/llm/cli-base.ts": "40000c5be970bd7ad81f8c23ccf449d084d2e917fa4925205b8b6b0406893ded"
+    "source/cli/src/llm/cli-base.ts": "40000c5be970bd7ad81f8c23ccf449d084d2e917fa4925205b8b6b0406893ded",
+    "own-subset:cli/llm/subprocess-base": "58d4431f67f75bb5974ed7e8297871e037858fd029ed93aa54cca2a64422a507",
+    "aspect-meta:provider-redaction": "3d7488002012b712fb3c3073148f04275051d472e90a490fe4dd5e5cd7ee20f9",
+    "aspect-meta:posix-paths-source": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
+    "check-touched:provider-redaction": "6d04a94f532479a549ce8e8191bf16b35c4476de6229a112d04f40031c028fb0"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/llm/yg-node.yaml": 1778866396180.118,
-    ".yggdrasil/aspects/provider-redaction/yg-aspect.yaml": 1780164134383.013,
     ".yggdrasil/aspects/provider-redaction/check.mjs": 1779794513934.9487,
-    ".yggdrasil/aspects/posix-paths-source/yg-aspect.yaml": 1780164134382.8323,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1779794513934.5745,
     "source/cli/src/llm/cli-base.ts": 1780086634804.343
   },

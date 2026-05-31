@@ -7,7 +7,7 @@ import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { approveNode, evaluateAllDraftLogGate, resolveAspects, loadSourceFiles } from '../core/approve.js';
 import { runApproveWithReviewer, type LlmApproveResult } from '../core/approve-reviewer.js';
 export type { LlmApproveResult };
-import { collectTrackedFiles, tierIdentityKey, checkTouchedKey, yggPrefixOf } from '../core/graph/files.js';
+import { collectTrackedFiles, tierIdentityKey, checkTouchedKey, aspectMetaKey, yggPrefixOf } from '../core/graph/files.js';
 import { collectParticipatingFlows } from '../core/graph/flows.js';
 import { hashTrackedFiles } from '../io/hash.js';
 import { classifyDrift } from '../core/check.js';
@@ -318,6 +318,7 @@ function aspectDependencyKeys(
     keys: new Set<string>([
       tierIdentityKey(aspectId),
       checkTouchedKey(aspectId),
+      aspectMetaKey(aspectId),
       ...(aspect?.references ?? []).map(r => r.path.replace(/\\/g, '/')),
       ...(touched ? Object.keys(touched).map(p => p.replace(/\\/g, '/')) : []),
     ]),

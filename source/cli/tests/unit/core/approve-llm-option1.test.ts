@@ -611,10 +611,12 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
   });
 
   // ── Migration-shape payoff — the cost win ──────────────────
-  it('migration shape: an aspects/det/yg-aspect.yaml content change re-runs det locally, llm NOT called', async () => {
+  it('migration shape: a det aspect DEFINITION change (description) re-runs det locally, llm NOT called', async () => {
     const tmpDir = await setupDetLlm('e2e-migration-win');
     await recordVerdicts(tmpDir, { det: { verdict: 'approved' }, llm: { verdict: 'approved' } });
-    // Phase-4 migration shape: a change to the aspect's yg-aspect.yaml content.
+    // A change to the aspect's definition metadata (description). The drift tracker
+    // hashes a status-stripped `aspect-meta:<id>` synthetic, not the raw yg-aspect.yaml,
+    // so a definition change surfaces as the synthetic key changing.
     await writeFile(
       path.join(tmpDir, '.yggdrasil/aspects/det/yg-aspect.yaml'),
       'name: Det\ndescription: structural shape (migrated)\nreviewer:\n  type: deterministic\n',
@@ -622,11 +624,9 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
 
     const graph = await loadGraph(tmpDir);
     const coreResult = await approveNode(graph, 'svc/my-service');
-    // Confirm the migration shape: upstream-only, attributable to aspects/det/.
+    // Confirm the migration shape: upstream-only, attributable to det via aspect-meta:det.
     expect(coreResult.changedSource).toBeUndefined();
-    expect(coreResult.changedUpstream?.map(c => c.filePath)).toContain(
-      '.yggdrasil/aspects/det/yg-aspect.yaml',
-    );
+    expect(coreResult.changedUpstream?.map(c => c.filePath)).toContain('aspect-meta:det');
 
     let verifyCallCount = 0;
     mockCreateLlmProvider.mockReturnValue(makeMockProvider({

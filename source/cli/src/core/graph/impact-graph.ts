@@ -205,6 +205,8 @@ export async function collectStructureCascade(
       out.push({ nodePath, mode: 'potential' });
     }
   }
-  out.sort((a, b) => a.nodePath.localeCompare(b.nodePath));
+  // Code-unit comparison (locale-independent, deterministic across environments),
+  // consistent with the plain .sort() calls elsewhere in this module.
+  out.sort((a, b) => (a.nodePath < b.nodePath ? -1 : a.nodePath > b.nodePath ? 1 : 0));
   return out;
 }

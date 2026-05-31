@@ -25,17 +25,19 @@ describe('collectTrackedFiles — structure aspects', () => {
     expect(tracked.find(t => t.path === 'structure-identity:s1')).toBeUndefined();
   });
 
-  it('still tracks structure aspect file entries (yg-aspect.yaml, mapping)', () => {
+  it('tracks the aspect definition metadata (aspect-meta synthetic) + mapping', () => {
     const g = buildTestGraphForStructure({
       nodes: [{ path: 'N', type: 'module', mapping: ['src/a.ts'], aspects: ['s1'] }],
     });
     g.aspects = [structureAspect('s1')];
     const node = g.nodes.get('N')!;
     const tracked = collectTrackedFiles(node, g);
-    const aspectYaml = tracked.find(t =>
-      t.path === '.yggdrasil/aspects/s1/yg-aspect.yaml' || t.path === 'aspects/s1/yg-aspect.yaml'
-    );
-    expect(aspectYaml).toBeDefined();
+    // The aspect's definition is tracked as a status-stripped synthetic, not the
+    // raw yg-aspect.yaml file (a status flip must not cascade).
+    const aspectMeta = tracked.find(t => t.path === 'aspect-meta:s1');
+    expect(aspectMeta).toBeDefined();
+    expect(aspectMeta?.syntheticHash).toBeDefined();
+    expect(tracked.find(t => t.path.endsWith('aspects/s1/yg-aspect.yaml'))).toBeUndefined();
     expect(tracked.find(t => t.path === 'src/a.ts')).toBeDefined();
   });
 

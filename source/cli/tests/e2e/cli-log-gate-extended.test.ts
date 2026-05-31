@@ -440,8 +440,8 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
 
   // --- 2B. A `## [datetime]` header line INSIDE a code fence is not a header ---
   // (to validateFormat). It does NOT become a duplicate/out-of-order entry, so
-  // approve passes. BUG: parseLog (used by `yg log read`) is NOT fence-aware, so
-  // the same fenced header IS split into a spurious entry on read — see below.
+  // approve passes. parseLog (used by `yg log read`) is fence-aware too, so both
+  // agree on entry boundaries: the fenced line is body, not a separate entry.
   it('2B: a fenced `## [datetime]` line does not trip the format validator — approve passes (exit 0)', () => {
     const dir = deterministicFixture('fence-datetime-exempt');
     try {
@@ -472,22 +472,26 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
   //   datetime line. A log that validateFormat treats as 2 entries is rendered
   //   by `yg log read` as 3. This test pins the actual (divergent) read output.
   //   Fix would make parseLog fence-aware so both agree.
-  it('2B-bug: `yg log read` splits a fenced `## [datetime]` into a spurious extra entry', () => {
-    const dir = deterministicFixture('fence-datetime-readbug');
+  it('2B-fence: `yg log read` is fence-aware — a fenced `## [datetime]` is body, not a separate (newer) entry', () => {
+    const dir = deterministicFixture('fence-datetime-read');
     try {
       seedLogBaseline(dir, 'base entry');
       appendFileSync(
         ordersLogPath(dir),
         '## [2027-03-03T00:00:00.000Z]\nreal body\n```\n## [2030-12-31T23:59:59.999Z]\n```\ntail\n',
       );
-      const { status, stdout } = run(['log', 'read', '--node', 'services/orders', '--all'], dir);
+      // parseLog (used by log read) agrees with the format validator: the fenced
+      // 2030-12-31 line belongs to the 2027-03-03 entry's body, it is NOT a
+      // separate, newer entry. So the single newest entry is 2027-03-03.
+      // (--all renders the same text either way because bodies tile together, so
+      // --top 1 is the distinguishing probe: a fence-UNAWARE reader would surface
+      // the larger fenced datetime as the newest entry.)
+      const { status, stdout } = run(['log', 'read', '--node', 'services/orders', '--top', '1'], dir);
       expect(status).toBe(0);
-      // ACTUAL: the fenced datetime is rendered as its own entry header. There
-      // are really two authored entries (the base + the 2027-03-03 one), but the
-      // fence-unaware parser also surfaces the fenced 2030-12-31 line.
-      expect(stdout).toContain('2030-12-31T23:59:59.999Z');
-      const headerCount = stdout.split('\n').filter((l) => l.startsWith('## [')).length;
-      expect(headerCount).toBe(3);
+      expect(stdout.trimStart().startsWith('## [2027-03-03T00:00:00.000Z]')).toBe(true);
+      expect(stdout.trimStart().startsWith('## [2030-12-31')).toBe(false);
+      // The fenced datetime is present only inside that entry's body.
+      expect(stdout).toContain('## [2030-12-31T23:59:59.999Z]');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

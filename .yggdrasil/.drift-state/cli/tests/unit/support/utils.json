@@ -1,27 +1,26 @@
 {
-  "hash": "ba8dc688f5264ef44d8fcc184f8502a217fd17063f51c707b09a9d10c28ce841",
+  "hash": "feb95b36faaeeb094d5491d9751def67f61a969962832e50ff2800efedbb2ca3",
   "files": {
-    "own-subset:cli/tests/unit/support/utils": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
     ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": "e00d9fa0fe37a252b92888b2e217811de7fa6df420f60cdbc3e692833a16be4d",
-    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/utils/atomic-write.test.ts": "4118ff79de31ea1d87c8e57c579e0f594e541f635384ebc34e1aa1e72eed5881",
     "source/cli/tests/unit/utils/debug-log.test.ts": "4e1d6069259ea219eaaecdf2b539924977fdb8264ae859c3c65f3bcf17fa0436",
     "source/cli/tests/unit/utils/node-path-validator.test.ts": "e169d6f1cdb9f70169f7705a401b625991b84a9837cf287d4386325e37e47cb3",
     "source/cli/tests/unit/utils/mapping-path.test.ts": "42136edf61599ff73e421cc93006da247e46cd1d3c5187697e03955899badd23",
     "source/cli/tests/unit/utils/paths.test.ts": "572c93a02cfc2a7433eaac1a06066e23003fcb02a0a59df70b3518407b6faf30",
-    "source/cli/tests/unit/utils/validate-check-module.test.ts": "9e0158b36e54b319f868ea975fee70839484d83a24160ad1bd2e9dcaeb76ea2a"
+    "source/cli/tests/unit/utils/validate-check-module.test.ts": "9e0158b36e54b319f868ea975fee70839484d83a24160ad1bd2e9dcaeb76ea2a",
+    "own-subset:cli/tests/unit/support/utils": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
     ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": 1778866544645.0125,
-    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/utils/atomic-write.test.ts": 1778848166885.919,
     "source/cli/tests/unit/utils/debug-log.test.ts": 1778910417066.699,

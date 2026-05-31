@@ -1,22 +1,21 @@
 {
-  "hash": "0f079c3ef495c001dd5ac05f22ce29f44426d57afcf732d600701ca6984c65d9",
+  "hash": "61063ae9bac4863ada34933ea3d6f6965af96bb095528127ab23a494bb8a0952",
   "files": {
-    "own-subset:cli/tests/unit/model": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
-    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": "4174e8b604a4114e621a9bea902ee1f46d82fe39438a476ee637d58d190a5611",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/model/when.test.ts": "889620e11241ddab05b5173c279e5005529d7a53f9e9a4341374e1ef2df49c8d",
     "source/cli/tests/unit/model/file-when.test.ts": "117e04470705dcd8bfac9d8e81239f7a2cf9d740da8a8825d4843d8756344a6e",
-    "source/cli/tests/unit/model/drift-state.test.ts": "f1770085bc133d35aedafbf8889232a3277949448fca755f5cabd77a5a264c8a"
+    "source/cli/tests/unit/model/drift-state.test.ts": "f1770085bc133d35aedafbf8889232a3277949448fca755f5cabd77a5a264c8a",
+    "own-subset:cli/tests/unit/model": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
-    ".yggdrasil/aspects/test-deterministic/yg-aspect.yaml": 1779869611357.566,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/model/when.test.ts": 1776494731318.3137,
     "source/cli/tests/unit/model/file-when.test.ts": 1778650071678.2227,

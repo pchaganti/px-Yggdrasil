@@ -34,8 +34,11 @@ describe('collectTrackedFiles', () => {
     const files = collectTrackedFiles(node, graph);
     const paths = files.map((f) => f.path);
 
-    // orders/order-service has requires-audit aspect
-    expect(paths).toContain('.yggdrasil/aspects/requires-audit/yg-aspect.yaml');
+    // orders/order-service has requires-audit aspect. Its definition metadata is
+    // tracked as a status-stripped synthetic (aspect-meta:<id>), not the raw
+    // yg-aspect.yaml file; the content.md artifact is tracked as a file.
+    expect(paths).toContain('aspect-meta:requires-audit');
+    expect(paths).not.toContain('.yggdrasil/aspects/requires-audit/yg-aspect.yaml');
     expect(paths).toContain('.yggdrasil/aspects/requires-audit/content.md');
   });
 
@@ -63,7 +66,7 @@ describe('collectTrackedFiles', () => {
 
     // Graph files should start with .yggdrasil/ or be synthetic hash entries
     for (const f of graphFiles) {
-      expect(f.path).toMatch(/^(\.yggdrasil\/|own-subset:|port-aspects:|tier-identity:)/);
+      expect(f.path).toMatch(/^(\.yggdrasil\/|own-subset:|port-aspects:|tier-identity:|aspect-meta:|check-touched:)/);
     }
 
     expect(sourceFiles.length).toBeGreaterThan(0);
@@ -85,10 +88,11 @@ describe('collectTrackedFiles', () => {
     expect(hierarchyNodeYaml).toBeDefined();
     expect(hierarchyNodeYaml?.layer).toBe('hierarchy');
 
-    // Aspects layer: aspect files
-    const aspectYaml = files.find((f) => f.path === '.yggdrasil/aspects/requires-audit/yg-aspect.yaml');
-    expect(aspectYaml).toBeDefined();
-    expect(aspectYaml?.layer).toBe('aspects');
+    // Aspects layer: the aspect's definition metadata (status-stripped synthetic)
+    const aspectMeta = files.find((f) => f.path === 'aspect-meta:requires-audit');
+    expect(aspectMeta).toBeDefined();
+    expect(aspectMeta?.layer).toBe('aspects');
+    expect(aspectMeta?.syntheticHash).toBeDefined();
 
     const aspectContent = files.find((f) => f.path === '.yggdrasil/aspects/requires-audit/content.md');
     expect(aspectContent).toBeDefined();
@@ -437,7 +441,7 @@ describe('collectTrackedFiles', () => {
     // requires-audit appears in both parent and child aspects,
     // but aspect files should only appear once
     const auditPaths = paths.filter((p) => p.includes('requires-audit'));
-    expect(auditPaths).toHaveLength(3); // yg-aspect.yaml + content.md + tier-identity: synthetic
+    expect(auditPaths).toHaveLength(3); // aspect-meta: synthetic + content.md + tier-identity: synthetic
     expect(new Set(paths).size).toBe(paths.length);
   });
 
