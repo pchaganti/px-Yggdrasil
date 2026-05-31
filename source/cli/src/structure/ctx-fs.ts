@@ -35,10 +35,39 @@ function isAllowed(p: string, set: Set<string>): boolean {
 }
 
 /**
+ * Symlink-escape defense. The lexical checks in resolveAllowedReadPath only guard
+ * the TEXTUAL path; a symlink inside an allowed path that points OUTSIDE the repo
+ * passes them, and the subsequent fs read follows the link out (e.g. an allowed
+ * `src/x` that is a symlink to `/etc`). Re-check against the REAL path: realpath
+ * the nearest existing ancestor of `abs` and require it to stay within the
+ * realpath'd repo root. A non-existent leaf has nothing to follow yet — the
+ * lexical check already proved it is textually in-repo, and the read will fail
+ * naturally — so only existing ancestors are probed. `projectRoot` itself may sit
+ * under a symlink (e.g. /tmp → /private/tmp), so both sides are canonicalized.
+ */
+function assertRealpathContained(abs: string, projectRoot: string, rel: string): void {
+  let realRoot: string;
+  try { realRoot = fs.realpathSync(projectRoot); } catch { realRoot = projectRoot; }
+  let probe = abs;
+  while (!fs.existsSync(probe)) {
+    const parent = path.dirname(probe);
+    if (parent === probe) return; // reached the fs root with nothing existing to follow
+    probe = parent;
+  }
+  let realProbe: string;
+  try { realProbe = fs.realpathSync(probe); } catch { return; }
+  const relReal = path.relative(realRoot, realProbe).replace(/\\/g, '/');
+  if (relReal === '..' || relReal.startsWith('../') || path.isAbsolute(relReal)) {
+    throw new UndeclaredFsReadError(rel);
+  }
+}
+
+/**
  * Resolve a check.mjs-supplied read path to a safe, allow-set-checked repo-relative path.
  * Rejects absolute paths and any `..` traversal that escapes the repo, then enforces the
- * allow-set. Throws UndeclaredFsReadError on any violation. Shared by ctx.fs and ctx.parsers
- * so the two sandbox surfaces cannot diverge.
+ * allow-set, then re-checks the REAL (symlink-resolved) path is still inside the repo.
+ * Throws UndeclaredFsReadError on any violation. Shared by ctx.fs and ctx.parsers so the
+ * two sandbox surfaces cannot diverge.
  */
 export function resolveAllowedReadPath(raw: string, allowedSet: Set<string>, projectRoot: string): string {
   const abs = path.resolve(projectRoot, normalizeMappingPath(raw));
@@ -48,6 +77,9 @@ export function resolveAllowedReadPath(raw: string, allowedSet: Set<string>, pro
     throw new UndeclaredFsReadError(normalizeMappingPath(raw));
   }
   if (!isAllowed(rel, allowedSet)) throw new UndeclaredFsReadError(rel);
+  // Symlink-escape defense: the textual path is in-repo and allow-listed, but a
+  // symlink could still redirect the real read outside the repo. Reject if so.
+  assertRealpathContained(abs, projectRoot, rel);
   return rel;
 }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createCtxFs, UndeclaredFsReadError } from '../../../src/structure/ctx-fs.js';
@@ -101,5 +101,30 @@ describe('ctx.fs', () => {
   it('exists() throws for an absolute path outside the repo', () => {
     const fs = createCtxFs({ allowedSet, projectRoot: root, touchedFiles: touched });
     expect(() => fs.exists('/etc/passwd')).toThrow(UndeclaredFsReadError);
+  });
+
+  // Symlink escape: the textual path stays inside the repo and passes the
+  // allow-set, but an allowed directory is a SYMLINK pointing outside the repo,
+  // so the real read would follow the link out. The post-resolve realpath
+  // containment check must reject it (the lexical checks above cannot).
+  it('read() throws when an allowed path is a symlink pointing OUTSIDE the repo', () => {
+    const outside = mkdtempSync(path.join(tmpdir(), 'yg-outside-'));
+    writeFileSync(path.join(outside, 'secret.txt'), 'SECRET');
+    // src/lib/escape -> <outside>; src/lib is in the allow-set.
+    symlinkSync(outside, path.join(root, 'src/lib/escape'), 'dir');
+    try {
+      const fs = createCtxFs({ allowedSet: new Set(['src/lib']), projectRoot: root, touchedFiles: touched });
+      expect(() => fs.read('src/lib/escape/secret.txt')).toThrow(UndeclaredFsReadError);
+      expect(() => fs.exists('src/lib/escape/secret.txt')).toThrow(UndeclaredFsReadError);
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it('read() still works for a symlink pointing to an allowed file INSIDE the repo', () => {
+    // A within-repo symlink must not be over-rejected: src/lib/alias -> src/foo.ts.
+    symlinkSync(path.join(root, 'src/foo.ts'), path.join(root, 'src/lib/alias.ts'), 'file');
+    const fs = createCtxFs({ allowedSet: new Set(['src/lib']), projectRoot: root, touchedFiles: touched });
+    expect(fs.read('src/lib/alias.ts')).toBe('foo-content');
   });
 });
