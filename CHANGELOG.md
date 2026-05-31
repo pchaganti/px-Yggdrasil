@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0-alpha.1] - 2026-05-31
+
+First public prerelease of the 5.0.0 line. Published under the `alpha` dist-tag — `npm i @chrisdudek/yg` continues to resolve the stable release; this build is only installed by an explicit `@chrisdudek/yg@alpha` / `@5.0.0-alpha.1`.
+
 ### Added
 
 - **`mapping-escapes-repo` validator (B3).** A node mapping that resolves outside the repository root — an absolute path, or one that climbs above the root with a `..` segment — is now a blocking structural error. The mapping-path normalizer only converts separators and strips a leading `./` and trailing slashes; it does not collapse `..`, so without this guard a mapping like `../../etc/passwd` would resolve against the project root and let a node claim files outside the project, bypassing coverage and aspect enforcement. Added to the structural code set (always blocks `yg check`).
