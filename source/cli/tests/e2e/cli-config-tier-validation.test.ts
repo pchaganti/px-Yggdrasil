@@ -42,11 +42,9 @@ import { fileURLToPath } from 'node:url';
 //   - cli-check-validation.test.ts deliberately scaffolds a VALID config, so it
 //     never fires any config-* code. This suite owns the config-defect matrix.
 //   - cli-migrations.test.ts (M3) already covers the legacy v4→v5 rejection via
-//     `yg init --upgrade` AND via `yg check` ("legacy reviewer format" +
-//     "yg init --upgrade" hint). A thin code-level assertion of
-//     config-reviewer-legacy-format through `yg check` is still included here
-//     (CR1) because the migrations suite pins the message phrase bundled with
-//     migration mechanics, not the bare validator code through the check gate.
+//     `yg init --upgrade` AND via `yg check`. Legacy/mixed config-shape
+//     detection has been removed from the runtime parser — a malformed v5 config
+//     yields `config-tiers-missing` or `config-reviewer-unknown-key`.
 //   - cli-tier-cascade.test.ts covers tier-identity DRIFT/cascade, not config
 //     VALIDATION errors. No overlap.
 // ---------------------------------------------------------------------------
@@ -391,7 +389,7 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
   });
 
   // =========================================================================
-  // GROUP F — reviewer-section shape (missing, unknown key, legacy, mixed)
+  // GROUP F — reviewer-section shape (missing, unknown key)
   // =========================================================================
 
   it('F1: a config with no reviewer: block yields config-reviewer-missing (exit 1)', () => {
