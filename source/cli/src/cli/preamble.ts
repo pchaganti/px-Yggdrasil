@@ -48,9 +48,9 @@ export async function loadGraphOrAbort(
     }
     if (err instanceof OutdatedSchemaVersionError) {
       const formatted = buildIssueMessage({
-        what: `the .yggdrasil graph is at version ${err.detectedVersion}, older than this CLI (${err.cliVersion}).`,
-        why: `${err.cliVersion} reads only the current on-disk format; older formats are upgraded by a migration, not parsed directly.`,
-        next: `run \`yg init --upgrade\` to migrate the graph to ${err.cliVersion}, then re-run.`,
+        what: `the .yggdrasil graph is at version ${err.detectedVersion}, older than this CLI (${err.minSupportedVersion}).`,
+        why: `${err.minSupportedVersion} reads only the current on-disk format; older formats are upgraded by a migration, not parsed directly.`,
+        next: `run \`yg init --upgrade\` to migrate the graph to ${err.minSupportedVersion}, then re-run.`,
       });
       process.stderr.write(chalk.red(`Error: ${formatted}\n`));
       process.exit(1);

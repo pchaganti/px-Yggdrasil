@@ -51,7 +51,7 @@ describe('loadGraph version gate', () => {
       expect(e).toBeInstanceOf(OutdatedSchemaVersionError);
       const err = e as OutdatedSchemaVersionError;
       expect(err.detectedVersion).toBe('4.3.0');
-      expect(err.cliVersion).toBe('5.0.0');
+      expect(err.minSupportedVersion).toBe('5.0.0');
     });
   });
 });

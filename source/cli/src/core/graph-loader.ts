@@ -55,16 +55,16 @@ export class UnsupportedSchemaVersionError extends Error {
  */
 export class OutdatedSchemaVersionError extends Error {
   readonly detectedVersion: string;
-  readonly cliVersion: string;
+  readonly minSupportedVersion: string;
 
-  constructor(detectedVersion: string, cliVersion: string) {
+  constructor(detectedVersion: string, minSupportedVersion: string) {
     super(
-      `the .yggdrasil graph is at version ${detectedVersion}, older than this CLI (${cliVersion}). ` +
+      `the .yggdrasil graph is at version ${detectedVersion}, older than this CLI (${minSupportedVersion}). ` +
         `Run \`yg init --upgrade\` to migrate the graph, then re-run.`,
     );
     this.name = 'OutdatedSchemaVersionError';
     this.detectedVersion = detectedVersion;
-    this.cliVersion = cliVersion;
+    this.minSupportedVersion = minSupportedVersion;
   }
 }
 
