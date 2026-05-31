@@ -1,0 +1,7 @@
+name: E2E Tests — Conditional When
+type: test-suite
+description: "Subprocess E2E proving the deterministic when predicate gates aspect applicability per channel — node type/has_mapping/has_port atoms and not/any_of/all_of combinators, on both the architecture-default and per-attach-site forms, with enforcement following applicability (applies then refuses, not-applies then passes)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-conditional-when.test.ts

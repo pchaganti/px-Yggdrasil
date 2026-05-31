@@ -1,0 +1,7 @@
+name: E2E Tests — Implies
+type: test-suite
+description: "Subprocess E2E proving implied aspects (channel 7) pull aspects into a node effective set transitively and enforce them — recursive expansion, enforcement of an aspect reachable only via implies, removal unlinks the chain, status_inherit semantics, and clean aspect-implies-cycle reporting with and without a baseline."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-implies.test.ts
