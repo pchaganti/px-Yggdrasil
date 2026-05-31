@@ -1,0 +1,7 @@
+name: E2E Tests — Config & Tier Validation
+type: test-suite
+description: "Subprocess E2E proving yg check surfaces the yg-config reviewer/tier validation matrix with exit 1 and the exact code — unknown/missing provider, even/zero/negative/non-integer/missing consensus, missing tier config, unknown tier key, invalid/reserved tier name, missing/unknown default tier, missing reviewer block, empty tiers, legacy and mixed reviewer shapes, bad quality/parallel values, empty config, plus aspect-tier-on-deterministic and aspect-tier-unknown."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-config-tier-validation.test.ts
