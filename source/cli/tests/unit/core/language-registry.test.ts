@@ -4,8 +4,8 @@ import { LANGUAGES, EXTENSION_TO_LANGUAGE, getLanguageForExtension, getExtension
 describe('language registry', () => {
   it('lists Tier 0 (ts/tsx/js) + Tier 1 + JSON', () => {
     expect(Object.keys(LANGUAGES).sort()).toEqual([
-      'c', 'cpp', 'csharp', 'go', 'java', 'javascript', 'json',
-      'php', 'python', 'ruby', 'rust', 'tsx', 'typescript',
+      'c', 'cpp', 'csharp', 'go', 'java', 'javascript', 'json', 'kotlin',
+      'php', 'python', 'ruby', 'rust', 'toml', 'tsx', 'typescript', 'yaml',
     ]);
   });
 
@@ -91,6 +91,6 @@ describe('getGrammarForExtension', () => {
     expect(getGrammarForExtension('.rs')).toEqual({ wasmFile: 'tree-sitter-rust.wasm', wasmPackage: 'tree-sitter-rust' });
   });
   it('returns null for a still-unregistered extension', () => {
-    expect(getGrammarForExtension('.kt')).toBeNull();
+    expect(getGrammarForExtension('.swift')).toBeNull();
   });
 });

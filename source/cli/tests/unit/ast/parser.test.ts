@@ -40,6 +40,9 @@ describe('ast/parser', () => {
     { ext: '.php', lang: 'php', src: '<?php\n// line\n# hash\n/* block */\n$x = 1;\n', comments: 3 },
     { ext: '.rb', lang: 'ruby', src: '# a comment\nx = 1\n', comments: 1 },
     { ext: '.json', lang: 'json', src: '{"a": 1}\n', comments: 0 },
+    { ext: '.kt', lang: 'kotlin', src: '// line\n/* block */\nfun main() {}\n', comments: 2 },
+    { ext: '.yaml', lang: 'yaml', src: '# a comment\nkey: value\n', comments: 1 },
+    { ext: '.toml', lang: 'toml', src: '# a comment\nkey = "value"\n', comments: 1 },
   ];
 
   for (const { ext, lang, src, comments } of CASES) {
@@ -56,6 +59,6 @@ describe('ast/parser', () => {
   }
 
   it('throws on a still-unsupported extension', async () => {
-    await expect(parseFile('foo.kt', 'fun main() {}')).rejects.toThrow(/no parser for extension/);
+    await expect(parseFile('foo.swift', 'let x = 1')).rejects.toThrow(/no parser for extension/);
   });
 });

@@ -90,12 +90,13 @@ describe('prewarmupAstCache', () => {
     const astCache = new Map();
     const files = [
       { path: 'a.ts', content: 'const a = 1;' },
-      { path: 'b.yaml', content: 'foo: bar' },
+      { path: 'b.swift', content: 'let b = 1' },
     ];
     await prewarmupAstCache({ astCache, projectRoot: '/tmp', files });
     expect(astCache.has('a.ts')).toBe(true);
     expect(astCache.get('a.ts')!.content).toBe('const a = 1;');
-    expect(astCache.has('b.yaml')).toBe(false);
+    // .swift has no registered grammar — it is skipped (no parse tree cached).
+    expect(astCache.has('b.swift')).toBe(false);
   });
 
   it('skips re-parsing when cache entry matches content', async () => {

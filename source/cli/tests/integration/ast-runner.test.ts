@@ -188,8 +188,8 @@ export function check(ctx) {
     const { tmpdir } = await import('node:os');
     const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-')); tmpDirs.push(dir);
     writeFileSync(path.join(dir, 'check.mjs'), 'export function check(ctx) { return []; }');
-    const tmpFile = path.join(dir, 'data.yaml');
-    writeFileSync(tmpFile, 'key: value\n');
+    const tmpFile = path.join(dir, 'data.swift');
+    writeFileSync(tmpFile, 'let x = 1\n');
     await expect(
       runAstAspect({ aspectDir: dir, aspectId: 'test', files: [{ path: tmpFile }], projectRoot: '/' }),
     ).rejects.toMatchObject({ code: 'AST_NO_PARSER_FOR_EXTENSION' });

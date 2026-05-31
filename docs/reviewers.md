@@ -126,7 +126,7 @@ reviewer:
   type: deterministic
 ```
 
-The `reviewer.type: deterministic` field is required. The runner parses each source file by extension — built-in grammars cover TypeScript/TSX/JavaScript, Python, Go, Rust, Java, C#, C, C++, PHP, Ruby, and JSON — and passes all files to a single `check.mjs` invocation; a file whose extension has no registered grammar is still passed to the check, just without a parse tree. Per-language file filtering (a `language:` array on the aspect) is designed but not yet built. Everything else (`implies`, `when`, `aspects` on nodes) works identically across both reviewer types.
+The `reviewer.type: deterministic` field is required. The runner parses each source file by extension — built-in grammars cover TypeScript/TSX/JavaScript, Python, Go, Rust, Java, C#, C, C++, PHP, Ruby, Kotlin, JSON, YAML, and TOML — and passes all files to a single `check.mjs` invocation; a file whose extension has no registered grammar is still passed to the check, just without a parse tree. Per-language file filtering (a `language:` array on the aspect) is designed but not yet built. Everything else (`implies`, `when`, `aspects` on nodes) works identically across both reviewer types.
 
 #### Writing `check.mjs`
 

@@ -24,6 +24,9 @@ const GRAMMARS: { pkg: string; wasm: string }[] = [
   { pkg: 'tree-sitter-php', wasm: 'tree-sitter-php_only.wasm' },
   { pkg: 'tree-sitter-ruby', wasm: 'tree-sitter-ruby.wasm' },
   { pkg: 'tree-sitter-json', wasm: 'tree-sitter-json.wasm' },
+  { pkg: '@tree-sitter-grammars/tree-sitter-kotlin', wasm: 'tree-sitter-kotlin.wasm' },
+  { pkg: '@tree-sitter-grammars/tree-sitter-yaml', wasm: 'tree-sitter-yaml.wasm' },
+  { pkg: '@tree-sitter-grammars/tree-sitter-toml', wasm: 'tree-sitter-toml.wasm' },
 ];
 
 async function copyWasmGrammars() {
