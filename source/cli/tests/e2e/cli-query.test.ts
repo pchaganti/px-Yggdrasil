@@ -404,4 +404,26 @@ describe.skipIf(!distExists)('CLI E2E — query and navigation', () => {
     }
   });
 
+  it('yg aspects marks an aspect used by no node as orphaned', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-aspects-orphan-'));
+    try {
+      cpSync(FIXTURE, dir, { recursive: true });
+      // A deterministic aspect defined but attached to NO node (no node lists it).
+      const aspectDir = path.join(dir, '.yggdrasil', 'aspects', 'orphan-rule');
+      mkdirSync(aspectDir, { recursive: true });
+      writeFileSync(
+        path.join(aspectDir, 'yg-aspect.yaml'),
+        'name: OrphanRule\ndescription: An aspect no node uses.\nreviewer:\n  type: deterministic\n',
+        'utf-8',
+      );
+      writeFileSync(path.join(aspectDir, 'check.mjs'), 'export function check() { return []; }\n', 'utf-8');
+      const { stdout, status } = run(['aspects'], dir);
+      expect(status).toBe(0);
+      expect(stdout).toContain('orphan-rule');
+      expect(stdout).toContain('Used by: 0 nodes — orphaned');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
 });
