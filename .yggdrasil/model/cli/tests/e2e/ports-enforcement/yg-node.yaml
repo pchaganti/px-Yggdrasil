@@ -1,0 +1,7 @@
+name: E2E Tests — Port Enforcement
+type: test-suite
+description: "Subprocess E2E proving channel-6 enforcement — a port aspect reaching a consumer via consumes actually refuses approve, a bare relation does not propagate, extends/implements relation-target enforcement, and when over relation predicates."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-ports-enforcement.test.ts

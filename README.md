@@ -6,7 +6,7 @@
 
 **Your agent will ignore CLAUDE.md. Yggdrasil makes sure it doesn't.**
 
-Architecture rules your agent can't ignore. You write them in plain Markdown for a reviewer LLM to enforce, or as deterministic check scripts that run locally at zero LLM cost. Every change gets verified before the agent moves on. Works with Claude Code, Cursor, Copilot, Codex, Cline, and more. The reviewer runs against your code, not your diffs. The feedback is specific. The agent has to fix before it can move on.
+Architecture rules your agent can't ignore. You write them in plain Markdown for a reviewer LLM to enforce, or as check scripts that run locally at zero LLM cost. Every change gets verified before the agent moves on. Works with Claude Code, Cursor, Copilot, Codex, Cline, and more. The reviewer runs against your code, not your diffs. The feedback is specific. The agent has to fix before it can move on.
 
 [![CI](https://github.com/krzysztofdudek/Yggdrasil/actions/workflows/ci.yml/badge.svg)](https://github.com/krzysztofdudek/Yggdrasil/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@chrisdudek/yg.svg)](https://www.npmjs.com/package/@chrisdudek/yg)
@@ -44,16 +44,18 @@ The architecture lives in a graph next to the code, under `.yggdrasil/`. It has 
 Every aspect declares a reviewer type:
 
 - **LLM aspects** are plain Markdown (`content.md`). A separate LLM call — one model verifying another — reads the rule and the node's source, then returns SATISFIED or NOT SATISFIED.
-- **Deterministic aspects** ship a `check.mjs` that the CLI runs locally at zero LLM cost. These come in two styles: *single-file* checks that walk a tree-sitter parse tree (TypeScript/JavaScript), and *graph-aware* checks that are language-agnostic and operate on the node, its files, the file system, and the full graph topology. The two styles are mutually exclusive with `content.md` — an aspect is one or the other.
+- **Script aspects** ship a `check.mjs` that the CLI runs locally at zero LLM cost. Today these walk a tree-sitter parse tree (TypeScript/JavaScript) — declared as `reviewer: ast` and run with `yg ast-test`. A `check.mjs` and `content.md` are mutually exclusive — an aspect is one or the other.
 
-Before the agent edits a file, `yg context` returns the aspects that touch it (as `read:` pointers the agent opens individually, not an inline dump). The agent writes code that targets them. After editing, `yg approve` records a new baseline: LLM aspects go to the reviewer, deterministic aspects run locally. If anything fails, the agent gets specific feedback, fixes, and re-verifies. This is code review while the agent is working, not after.
+> **New in 5.0 (in development).** The script-aspect surface is being reworked: the `reviewer:` field moves to the object form `reviewer: { type: deterministic | llm }`, deterministic aspects gain a second *graph-aware* style (language-agnostic, operating on the node, its files, the file system, and the full graph topology) alongside the existing single-file tree-sitter checks, and `yg ast-test` is renamed `yg deterministic-test`. The current published package (`@chrisdudek/yg`, see the npm badge above) ships the 4.x surface described in the bullets above — use `reviewer: ast` and `yg ast-test` until 5.0 is released. These notes are tracked under `[Unreleased]` in the CHANGELOG.
+
+Before the agent edits a file, `yg context` returns the aspects that touch it (as `read:` pointers the agent opens individually, not an inline dump). The agent writes code that targets them. After editing, `yg approve` records a new baseline: LLM aspects go to the reviewer, script aspects run locally. If anything fails, the agent gets specific feedback, fixes, and re-verifies. This is code review while the agent is working, not after.
 
 ```
 agent about to edit a file
   → yg context: the aspects that touch this file
   → agent writes code that targets them
   → yg log add: record why this change happened
-  → yg approve: reviewer checks LLM aspects, check.mjs runs locally for deterministic ones
+  → yg approve: reviewer checks LLM aspects, check.mjs runs locally for script ones
   → reviewer: "audit logging missing in charge()"
   → agent fixes, re-runs approve
   → baseline recorded
@@ -62,9 +64,11 @@ agent about to edit a file
 
 Aspects are scoped. The agent only sees the ones that touch the file it's working on, not all 200. One aspect can cover dozens of files. Change an aspect and every file that should satisfy it gets flagged for re-verification.
 
-How aspects reach a node is itself a graph computation. An aspect can arrive through any of **seven channels** — declared on the node, inherited from an ancestor, applied as an architecture default for the node's type (or an ancestor type), propagated from a flow, required by a consumed port, or pulled in by another aspect's recursive `implies` chain. The effective set is the union across all of them.
+How aspects reach a node is itself a graph computation. An aspect can arrive through any of **seven channels** — declared on the node, inherited from an ancestor node, applied as an architecture default for the node's own type, applied as an architecture default for an ancestor's type, propagated from a flow, required by a consumed port, or pulled in by another aspect's recursive `implies` chain. The effective set is the union across all of them.
 
 ### Status: draft, advisory, enforced
+
+> **New in 5.0 (in development).** The draft / advisory / enforced status lifecycle described in this section is not in the current published package — it is tracked under `[Unreleased]` in the CHANGELOG. In the 4.x package the npm badge points at, there is no status field: every aspect is reviewed and blocks `yg check`, equivalent to `enforced` below.
 
 Every aspect has a status that controls whether the reviewer runs and how a refusal surfaces:
 
@@ -79,7 +83,7 @@ A typical lifecycle is draft while you author the rule, advisory for a sprint or
 ### When you need finer control
 
 - **Conditional aspects.** A `when` predicate filters applicability per node, deterministically, before the reviewer is ever invoked — over relations, descendants, ports, and node type. If it evaluates false, the aspect is invisible on that node: no cost, no display, no verdict.
-- **Tiers and consensus.** LLM aspects pick a named tier in `yg-config.yaml` that pins a provider, model, temperature, and endpoint. A tier can set `consensus` to a positive odd number to run the reviewer N times and take the majority vote for high-stakes rules (cost multiplies accordingly). Deterministic aspects must not set a tier.
+- **Tiers and consensus.** *New in 5.0 (in development; tracked under `[Unreleased]`).* LLM aspects pick a named tier in `yg-config.yaml` that pins a provider, model, temperature, and endpoint. A tier can set `consensus` to a positive odd number to run the reviewer N times and take the majority vote for high-stakes rules (cost multiplies accordingly). Script aspects must not set a tier. The current 4.x package configures the reviewer through the flat `reviewer.active` shape rather than named tiers.
 
 Each node also has an append-only `log.md` under its model directory (next to `yg-node.yaml`). The agent records *why* a change happened via `yg log add` and reads prior entries with `yg log read` — when a node's type requires it (the default), `yg approve` won't record a baseline until a fresh log entry exists for the change. The log carries intent between sessions. The reviewer doesn't see it. The next agent does.
 
@@ -93,7 +97,7 @@ When a genuine exception is needed, an inline `yg-suppress(<aspect-path>) <reaso
 
 ## Rules can be anything enforceable
 
-Team conventions. Company standards. ISO compliance. Architecture boundaries. Error handling patterns. Logging formats. If you can describe it in plain language and a reviewer can check it — or express it as a deterministic script — Yggdrasil enforces it.
+Team conventions. Company standards. ISO compliance. Architecture boundaries. Error handling patterns. Logging formats. If you can describe it in plain language and a reviewer can check it — or express it as a script — Yggdrasil enforces it.
 
 ## The Yggdrasil family
 
@@ -102,7 +106,7 @@ Four tools, one thesis: **make an AI coding agent prove correctness, stage by st
 | Tool | Stage | What it makes the agent prove |
 |---|---|---|
 | **Yggdrasil** (this one) | code → architecture | Every change satisfies the rules that govern it, checked before the agent moves on. |
-| **[Ratatoskr](https://github.com/krzysztofdudek/RatatoskrSkill)** | request → intent | Reads your request back in plain words and waits for an explicit yes before it acts. |
+| **[Ratatoskr](https://github.com/krzysztofdudek/RatatoskrSkill)** | request → intent | Reads your request back in plain words so you see what it understood before it builds. |
 | **[Urd](https://github.com/krzysztofdudek/UrdSkill)** | intent → code | When the spec is ambiguous, it consults the source of truth and asks — it doesn't guess. |
 | **[Researcher](https://github.com/krzysztofdudek/ResearcherSkill)** | code → measured result | Point it at a metric and it runs experiments — hypotheses kept and discarded. |
 
@@ -163,8 +167,8 @@ Works with any AI coding agent. `yg init` sets up the rules file your agent expe
 - `yg check` — the deterministic CI gate (drift, structure, coverage, completeness; no LLM calls).
 - `yg log add | read | merge-resolve` — the per-node decision log.
 - `yg impact`, `yg tree`, `yg find`, `yg aspects`, `yg flows`, `yg owner`, `yg type-suggest` — navigate and query the graph.
-- `yg knowledge list | read <name>` — the built-in reference topics (aspects, status, conditional aspects, ports, flows, deterministic checks, and more).
-- `yg deterministic-test` — run a `check.mjs` against specific files without attaching it to the graph.
+- `yg knowledge list | read <name>` — the built-in reference topics (aspects, ports, flows, script checks, and more).
+- `yg ast-test` — run a `check.mjs` against specific files without attaching it to the graph. (Renamed `yg deterministic-test` in the upcoming 5.0 release.)
 
 ## FAQ
 
@@ -172,13 +176,13 @@ Works with any AI coding agent. `yg init` sets up the rules file your agent expe
 Rules files are flat text dumped into every prompt. No scoping, no verification. Yggdrasil delivers only the rules relevant to each file and reviews the output against them.
 
 **How is this different from linters?**
-Linters check syntax and patterns. "Rate limiting required" isn't a lint rule. "No direct DB access from this layer" isn't in any AST. "All mutations must emit audit events" can't be checked with regex. Yggdrasil reviews against rules that only exist in your head until you write them down — and where a rule *is* mechanically checkable, you can write it as a deterministic check that runs for free.
+Linters check syntax and patterns. "Rate limiting required" isn't a lint rule. "No direct DB access from this layer" isn't in any AST. "All mutations must emit audit events" can't be checked with regex. Yggdrasil reviews against rules that only exist in your head until you write them down — and where a rule *is* mechanically checkable, you can write it as a script that runs for free.
 
 **How is this different from a PR review?**
 PR review happens after the code is written. By then the agent has moved on, context is lost, and you're catching up. Yggdrasil reviews while the agent is working, so violations get fixed in the same session.
 
 **Does it work?**
-Locally, `yg approve` sends LLM aspects to the reviewer and runs deterministic aspects on your machine, then records a baseline. `yg check` in CI makes no LLM calls — it compares file hashes against that baseline (and validates structure and coverage). If a PR has unverified changes, CI catches it.
+Locally, `yg approve` sends LLM aspects to the reviewer and runs script aspects on your machine, then records a baseline. `yg check` in CI makes no LLM calls — it compares file hashes against that baseline (and validates structure and coverage). If a PR has unverified changes, CI catches it.
 
 **What if I want to stop?**
 Delete `.yggdrasil/` and the rules file. No runtime dependencies, no build hooks, nothing left behind.

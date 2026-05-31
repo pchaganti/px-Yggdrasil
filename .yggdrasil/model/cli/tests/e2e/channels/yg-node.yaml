@@ -1,0 +1,7 @@
+name: E2E Tests — Aspect Channels
+type: test-suite
+description: "Subprocess E2E proving aspect propagation channels with correct yg context source attribution and enforcement — ancestor node (channel 2), ancestor architecture type (channel 4), own vs type vs ancestor labels, and effective status max() across channels."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-channels.test.ts
