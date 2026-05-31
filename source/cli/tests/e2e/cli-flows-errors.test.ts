@@ -1,0 +1,510 @@
+import { describe, it, expect } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import {
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  cpSync,
+  readFileSync,
+  writeFileSync,
+  appendFileSync,
+  renameSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// ---------------------------------------------------------------------------
+// FLOW definition + filesystem ERROR paths (the uncovered FL-DEF / FL-ERR
+// cases). Everything is driven through the spawned dist binary (yg check / yg
+// flows / yg approve). This suite pins the flow-parser and flow-loader error
+// surfaces that the other flow suites do NOT reach:
+//
+//   N*  flow `name:` edges — EMPTY name ("") parse throw (cli-flows-extended P4
+//       pins MISSING name, not empty); plus the same throw surfacing via
+//       `yg flows`, not only `yg check`.
+//   A*  flow `aspects:` shape edges — a NON-ARRAY scalar and an EMPTY (null)
+//       key both raise "'aspects' must be an array of strings"; a MISSING
+//       aspects key is VALID (exit 0). (cli-flows-extended P-series only pins
+//       node/name/description errors, never the aspects-shape branch.)
+//   B   non-string node entry — BOOLEAN variant exercising the `(boolean)`
+//       type-label branch (P3 pins only the `(number)` branch).
+//   D*  flow `description:` edge — an EMPTY ("") description trips
+//       description-missing exactly like a MISSING key (P5 pins MISSING only).
+//   F*  flow FILESYSTEM errors — a flow directory whose yg-flow.yaml is MISSING,
+//       is a DIRECTORY (EISDIR), is UNPARSEABLE YAML (tab indent), or parses to
+//       a NON-MAPPING (scalar / top-level array); and a STRAY non-directory file
+//       directly under flows/ that the loader must ignore.
+//   R   flow RENAME (directory + name field) with the participant/aspect set
+//       UNCHANGED does NOT cascade — check stays green (a flow's identity is
+//       cosmetic; only its effective aspect/participant set drives drift).
+//   P   flow batch PARTIAL-failure isolation — one participant refuses, the
+//       other still approves, exit 1 (cli-flow-channel5 test 3 pins a flow batch
+//       where the SINGLE drifted node refuses; this pins isolation across a
+//       2-node batch: one PASS + one FAIL in the same invocation).
+//
+// Two BUG findings are pinned to ACTUAL behavior (see the `BUG:` comments):
+//   * A flow directory with a MISSING yg-flow.yaml is mis-reported as
+//     "No .yggdrasil/ directory found" — the graph IS initialized; the ENOENT
+//     from the absent flow file is misclassified by the loader preamble.
+//   * yg-flow.yaml being a DIRECTORY / unparseable / a non-mapping surfaces as
+//     an UNCLASSIFIED "Unexpected error ... This is a bug" abort rather than a
+//     structured flow finding.
+//
+// HERMETIC: every test copies the committed e2e-lifecycle fixture into a fresh
+// mkdtemp, mutates ONLY that copy, and rmSync's it in `finally`. The LLM aspect
+// (`has-doc-comment`) is stripped so the reviewer endpoint is never contacted —
+// only deterministic check.mjs aspects drive every outcome. No network, no
+// clock, no randomness in any assertion. Harness (run / copyFixture / the
+// distExists guard) duplicated verbatim from cli-deterministic-lifecycle.test.ts.
+// ---------------------------------------------------------------------------
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const CLI_ROOT = path.join(__dirname, '../..');
+const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
+const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle');
+
+const distExists = existsSync(BIN_PATH);
+
+function run(
+  args: string[],
+  cwd: string,
+): {
+  stdout: string;
+  stderr: string;
+  status: number | null;
+  all: string;
+} {
+  const result = spawnSync('node', [BIN_PATH, ...args], {
+    cwd,
+    encoding: 'utf-8',
+  });
+  const stdout = result.stdout ?? '';
+  const stderr = result.stderr ?? '';
+  return { stdout, stderr, status: result.status, all: stdout + stderr };
+}
+
+/** Copy the e2e-lifecycle fixture into a fresh temp dir for mutation. */
+function copyFixture(label: string): string {
+  const dir = mkdtempSync(path.join(tmpdir(), `yg-flowerr-${label}-`));
+  cpSync(FIXTURE, dir, { recursive: true });
+  return dir;
+}
+
+/**
+ * Copy the fixture and strip the LLM aspect (`has-doc-comment`) so every node's
+ * effective aspects are purely deterministic. No reviewer endpoint is ever
+ * contacted, so the suite is hermetic and reproducible.
+ */
+function deterministicFixture(label: string): string {
+  const dir = copyFixture(label);
+  const arch = readFileSync(archPath(dir), 'utf-8')
+    .split('\n')
+    .filter((line) => line.trim() !== '- has-doc-comment')
+    .join('\n');
+  writeFileSync(archPath(dir), arch, 'utf-8');
+  rmSync(path.join(dir, '.yggdrasil', 'aspects', 'has-doc-comment'), {
+    recursive: true,
+    force: true,
+  });
+  return dir;
+}
+
+// --- path helpers (operate on the temp COPY only) ---------------------------
+
+const archPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-architecture.yaml');
+const flowsRoot = (dir: string) => path.join(dir, '.yggdrasil', 'flows');
+const flowDir = (dir: string) => path.join(flowsRoot(dir), 'order-processing');
+const flowYaml = (dir: string) => path.join(flowDir(dir), 'yg-flow.yaml');
+const paymentsFile = (dir: string) => path.join(dir, 'src', 'services', 'payments.ts');
+const noTodoCheckMjs = (dir: string) =>
+  path.join(dir, '.yggdrasil', 'aspects', 'no-todo-comments', 'check.mjs');
+
+/** Overwrite the order-processing flow file with raw YAML lines. */
+function writeFlowYaml(dir: string, lines: string[]): void {
+  writeFileSync(flowYaml(dir), lines.join('\n') + '\n', 'utf-8');
+}
+
+/** Approve both committed participants so a later check sees only the flow finding. */
+function baselineParticipants(dir: string): void {
+  expect(
+    run(['approve', '--node', 'services/orders', '--node', 'services/payments'], dir).status,
+  ).toBe(0);
+}
+
+describe.skipIf(!distExists)('CLI E2E — flow definition + filesystem error paths', () => {
+  // =========================================================================
+  // N. flow `name:` edges.
+  // =========================================================================
+
+  it('N1: an EMPTY name (name: "") is a parse throw, distinct from a MISSING name (exit 1)', () => {
+    const dir = deterministicFixture('n1');
+    try {
+      writeFlowYaml(dir, [
+        'name: ""',
+        'description: A flow whose name is an empty string.',
+        'nodes:',
+        '  - services/orders',
+        'aspects:',
+        '  - no-todo-comments',
+      ]);
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      expect(check.all).toContain("missing or empty 'name'");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('N2: the same name parse throw surfaces via `yg flows`, attributed to listing flows (exit 1)', () => {
+    const dir = deterministicFixture('n2');
+    try {
+      writeFlowYaml(dir, [
+        'description: A flow file that omits the name field.',
+        'nodes:',
+        '  - services/orders',
+      ]);
+      const flows = run(['flows'], dir);
+      expect(flows.status).toBe(1);
+      expect(flows.all).toContain("missing or empty 'name'");
+      // The error is attributed to the flows command, not check.
+      expect(flows.all).toContain('Unexpected error while listing flows');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // =========================================================================
+  // A. flow `aspects:` shape edges.
+  // =========================================================================
+
+  it('A1: a NON-ARRAY (scalar) aspects value is rejected as "must be an array of strings" (exit 1)', () => {
+    const dir = deterministicFixture('a1');
+    try {
+      writeFlowYaml(dir, [
+        'name: OrderProcessing',
+        'description: A flow whose aspects field is a bare scalar.',
+        'nodes:',
+        '  - services/orders',
+        'aspects: no-todo-comments',
+      ]);
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      expect(check.all).toContain("'aspects' must be an array of strings");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('A2: an EMPTY aspects key (aspects: with a null value) is the SAME non-array error (exit 1)', () => {
+    const dir = deterministicFixture('a2');
+    try {
+      // `aspects:` present but null — raw.aspects !== undefined yet not an Array.
+      writeFlowYaml(dir, [
+        'name: OrderProcessing',
+        'description: A flow with an empty (null) aspects key.',
+        'nodes:',
+        '  - services/orders',
+        'aspects:',
+      ]);
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      expect(check.all).toContain("'aspects' must be an array of strings");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('A3: a MISSING aspects key entirely is VALID — an aspect-less flow loads and check passes (exit 0)', () => {
+    const dir = deterministicFixture('a3');
+    try {
+      baselineParticipants(dir);
+      // No `aspects:` key at all → optional → flow loads with no flow aspects.
+      writeFlowYaml(dir, [
+        'name: OrderProcessing',
+        'description: A flow that declares no aspects at all.',
+        'nodes:',
+        '  - services/orders',
+        '  - services/payments',
+      ]);
+      const check = run(['check'], dir);
+      expect(check.status).toBe(0);
+      expect(check.stdout).toContain('PASS');
+      // The flow still lists, just with no Aspects line.
+      const flows = run(['flows'], dir);
+      expect(flows.status).toBe(0);
+      expect(flows.stdout).toContain('OrderProcessing');
+      expect(flows.stdout).toContain('Participants: 2 nodes (services/orders, services/payments)');
+      expect(flows.stdout).not.toContain('Aspects:');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // =========================================================================
+  // B. non-string node entry — boolean type-label branch.
+  // =========================================================================
+
+  it('B1: a BOOLEAN node entry is rejected with its index and the (boolean) type label (exit 1)', () => {
+    const dir = deterministicFixture('b1');
+    try {
+      writeFlowYaml(dir, [
+        'name: OrderProcessing',
+        'description: A flow with a boolean node entry.',
+        'nodes:',
+        '  - services/orders',
+        '  - true',
+        'aspects:',
+        '  - no-todo-comments',
+      ]);
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      expect(check.all).toContain('contains non-string entry [index 1: true (boolean)]');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // =========================================================================
+  // D. flow `description:` edge — empty string trips description-missing.
+  // =========================================================================
+
+  it('D1: an EMPTY description (description: "") trips description-missing, same as a MISSING key (exit 1)', () => {
+    const dir = deterministicFixture('d1');
+    try {
+      baselineParticipants(dir);
+      // The parser trims the description; "" trims to falsy → treated as absent.
+      writeFlowYaml(dir, [
+        'name: OrderProcessing',
+        'description: ""',
+        'nodes:',
+        '  - services/orders',
+        '  - services/payments',
+        'aspects:',
+        '  - no-todo-comments',
+      ]);
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      expect(check.stdout).toContain('description-missing');
+      expect(check.stdout).toContain("Flow 'OrderProcessing' has no description.");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // =========================================================================
+  // F. flow FILESYSTEM errors.
+  // =========================================================================
+
+  it('F1: a flow directory whose yg-flow.yaml is MISSING blocks check (exit 1)', () => {
+    const dir = deterministicFixture('f1');
+    try {
+      rmSync(flowYaml(dir), { force: true });
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      // BUG: the absent flow file raises ENOENT, which the loader preamble
+      // misclassifies as "No .yggdrasil/ directory found" even though the graph
+      // IS initialized (the .yggdrasil/ tree and the flow directory both exist).
+      // Pin ACTUAL behavior; the message is misleading for this case.
+      expect(check.all).toContain('No .yggdrasil/ directory found');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('F2: a flow directory with a MISSING yg-flow.yaml also breaks `yg approve --node` the same way (exit 1)', () => {
+    const dir = deterministicFixture('f2');
+    try {
+      rmSync(flowYaml(dir), { force: true });
+      const approve = run(['approve', '--node', 'services/orders'], dir);
+      expect(approve.status).toBe(1);
+      // BUG (same ENOENT misclassification): the graph cannot load at all, so an
+      // unrelated approve fails with the misleading not-initialized message.
+      expect(approve.all).toContain('No .yggdrasil/ directory found');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('F3: a yg-flow.yaml that is a DIRECTORY surfaces as an unclassified EISDIR abort (exit 1)', () => {
+    const dir = deterministicFixture('f3');
+    try {
+      rmSync(flowYaml(dir), { force: true });
+      mkdirSync(flowYaml(dir), { recursive: true });
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      // BUG: a flow YAML that is a directory raises EISDIR on read; the loader
+      // does not classify it, so it aborts as a generic "Unexpected error ...
+      // This is a bug" rather than a structured flow finding. Pin actual.
+      expect(check.all).toContain('Unexpected error while running check');
+      expect(check.all).toContain('EISDIR');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('F4: an UNPARSEABLE yg-flow.yaml (tab indentation) surfaces as an unclassified YAML-parse abort (exit 1)', () => {
+    const dir = deterministicFixture('f4');
+    try {
+      // A tab as indentation is a hard YAML syntax error.
+      writeFileSync(flowYaml(dir), 'name: X\n\tnodes: [a]\n', 'utf-8');
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      // BUG: a YAML syntax error in a flow file aborts the whole loader as a
+      // generic unclassified error rather than a structured flow/yaml finding.
+      expect(check.all).toContain('Unexpected error while running check');
+      expect(check.all).toContain('Tabs are not allowed as indentation');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('F5: a yg-flow.yaml that parses to a SCALAR (not a mapping) is rejected as "not a valid YAML mapping" (exit 1)', () => {
+    const dir = deterministicFixture('f5');
+    try {
+      writeFileSync(flowYaml(dir), 'just a bare string\n', 'utf-8');
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      expect(check.all).toContain('file is empty or not a valid YAML mapping');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('F6: a yg-flow.yaml whose top level is an ARRAY is rejected as "not a valid YAML mapping" (exit 1)', () => {
+    const dir = deterministicFixture('f6');
+    try {
+      writeFileSync(flowYaml(dir), '- services/orders\n- services/payments\n', 'utf-8');
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      expect(check.all).toContain('file is empty or not a valid YAML mapping');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('F7: a STRAY non-directory file directly under flows/ is ignored by the loader (exit 0, flow count unchanged)', () => {
+    const dir = deterministicFixture('f7');
+    try {
+      baselineParticipants(dir);
+      // A loose file in flows/ is not a flow directory → loader skips it.
+      writeFileSync(path.join(flowsRoot(dir), 'README.md'), '# notes, not a flow\n', 'utf-8');
+      const check = run(['check'], dir);
+      expect(check.status).toBe(0);
+      expect(check.stdout).toContain('PASS');
+      // Still exactly one flow — the stray file was not counted.
+      expect(check.stdout).toContain('1 flows');
+      const flows = run(['flows'], dir);
+      expect(flows.status).toBe(0);
+      const participantLines = flows.stdout
+        .split('\n')
+        .filter((l) => l.includes('Participants:'));
+      expect(participantLines.length).toBe(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // =========================================================================
+  // R. flow RENAME — identity change WITHOUT a set change does NOT cascade.
+  // =========================================================================
+
+  it('R1: renaming a flow (directory + name) with an UNCHANGED participant/aspect set does NOT cascade — check stays green (exit 0)', () => {
+    const dir = deterministicFixture('r1');
+    try {
+      baselineParticipants(dir);
+      expect(run(['check'], dir).status).toBe(0);
+
+      // Rename the flow directory and its `name:` field; participants + aspects
+      // are byte-for-byte the same effective set.
+      const renamed = path.join(flowsRoot(dir), 'fulfillment');
+      renameSync(flowDir(dir), renamed);
+      const yamlPath = path.join(renamed, 'yg-flow.yaml');
+      const updated = readFileSync(yamlPath, 'utf-8').replace(/^name:.*/m, 'name: Fulfillment');
+      writeFileSync(yamlPath, updated, 'utf-8');
+
+      // The participants' effective-aspect sets are unchanged → no drift.
+      const check = run(['check'], dir);
+      expect(check.status).toBe(0);
+      expect(check.stdout).toContain('PASS');
+      expect(check.stdout).not.toContain('cascade');
+      expect(check.stdout).not.toContain('aspect-newly-active');
+
+      // The flow lists under its new name.
+      const flows = run(['flows'], dir);
+      expect(flows.status).toBe(0);
+      expect(flows.stdout).toContain('Fulfillment');
+      expect(flows.stdout).not.toContain('OrderProcessing');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // =========================================================================
+  // P. flow batch PARTIAL-failure isolation.
+  // =========================================================================
+
+  it('P1: a flow batch isolates failures — one participant approves, the other refuses, exit 1', () => {
+    const dir = deterministicFixture('p1');
+    try {
+      // Baseline both participants clean.
+      baselineParticipants(dir);
+
+      // Cascade BOTH participants by a no-op edit to the flow aspect's
+      // implementation (an aspect change, not a source change) so the flow batch
+      // selects both for re-approval.
+      appendFileSync(noTodoCheckMjs(dir), '\n// cascade-trigger: trivial no-op comment\n');
+
+      // Then violate ONLY payments at the source. When the batch re-runs each
+      // node's FULL approve, orders is clean and payments refuses.
+      appendFileSync(paymentsFile(dir), '\n// TODO: fix later\n');
+
+      const batch = run(['approve', '--flow', 'order-processing'], dir);
+      expect(batch.status).toBe(1);
+      // One node passed, one failed — failures do not abort the clean node.
+      expect(batch.stdout).toContain('Approved: services/orders');
+      expect(batch.stdout).toContain('services/payments');
+      expect(batch.stdout).toContain('no-todo-comments — NOT SATISFIED');
+      expect(batch.stdout).toContain('1 approved, 1 failed');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('P2: the batch records the refusal — after the batch a re-run finds NO cascade, and the per-node fix (not --flow) clears it (exit 0)', () => {
+    const dir = deterministicFixture('p2');
+    try {
+      baselineParticipants(dir);
+      appendFileSync(noTodoCheckMjs(dir), '\n// cascade-trigger: trivial no-op comment\n');
+
+      // First pass: orders approves, payments refuses (exit 1). The batch RECORDS
+      // payments' refused enforced verdict and clears its cascade drift.
+      const original = readFileSync(paymentsFile(dir), 'utf-8');
+      appendFileSync(paymentsFile(dir), '\n// TODO: fix later\n');
+      expect(run(['approve', '--flow', 'order-processing'], dir).status).toBe(1);
+
+      // The cascade is now gone for BOTH nodes (the batch recorded a verdict on
+      // each), but the recorded enforced REFUSAL still blocks check.
+      const afterBatch = run(['check'], dir);
+      expect(afterBatch.status).toBe(1);
+      expect(afterBatch.stdout).toContain('enforced');
+      expect(afterBatch.stdout).toContain('services/payments');
+      // A second flow batch finds nothing to do — the cascade was already cleared.
+      const second = run(['approve', '--flow', 'order-processing'], dir);
+      expect(second.status).toBe(0);
+      expect(second.stdout).toContain("No cascade drift found for flow 'order-processing'");
+
+      // Fixing the source is SOURCE drift, cleared by the per-node approve, not
+      // by --flow (which only re-approves cascade-drifted participants).
+      writeFileSync(paymentsFile(dir), original, 'utf-8');
+      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+
+      const cleared = run(['check'], dir);
+      expect(cleared.status).toBe(0);
+      expect(cleared.stdout).toContain('PASS');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

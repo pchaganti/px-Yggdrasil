@@ -295,7 +295,7 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
     }
   });
 
-  // --- 1D. Gate INDEPENDENCE from aspect status (ALL-DRAFT) — BUG ---
+  // --- 1D. Gate INDEPENDENCE from aspect status (ALL-DRAFT) ---
   //
   // The mandatory-log gate is INDEPENDENT of aspect status (agent-rules.md "Log
   // management — workflow" + knowledge read log-management): a node whose every
@@ -460,18 +460,10 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
     }
   });
 
-  // BUG: validateFormat (fence-aware) and parseLog (NOT fence-aware) disagree.
-  //   CONTRACT (knowledge read log-management "Format constraints"): "a `## `
-  //   that appears inside a fenced code block is allowed" — i.e. fenced header
-  //   lines are body text, not entry headers.
-  //   ACTUAL: src/core/log-format.ts honors the fence (the line is skipped while
-  //   fenceOpen), but src/core/parsing/log-parser.ts splits on ANY `## [<dt>]`
-  //   at column 0 regardless of fences. So `yg log read` — which validates with
-  //   the fence-aware validator (clean) and then renders entries via the
-  //   fence-UNaware parser — emits a SPURIOUS extra entry for the fenced
-  //   datetime line. A log that validateFormat treats as 2 entries is rendered
-  //   by `yg log read` as 3. This test pins the actual (divergent) read output.
-  //   Fix would make parseLog fence-aware so both agree.
+  // parseLog (used by `yg log read`) is fence-aware, matching validateFormat
+  // (knowledge read log-management "Format constraints": "a `## ` inside a fenced
+  // code block is allowed" — fenced header lines are body, not entry headers). Both
+  // agree on entry boundaries, so a fenced `## [datetime]` is never a separate entry.
   it('2B-fence: `yg log read` is fence-aware — a fenced `## [datetime]` is body, not a separate (newer) entry', () => {
     const dir = deterministicFixture('fence-datetime-read');
     try {

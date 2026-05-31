@@ -1,0 +1,2 @@
+## [2026-05-31T10:32:07.519Z]
+Adds end-to-end coverage for the remaining rule-authoring paths — editing a rule's supporting reference material correctly re-opens verification on every component using that rule, the helpers a programmable check uses to parse structured inputs behave on both valid and malformed input, and removing a rule from a component leaves no stale recorded verdict behind. These close the gaps in how a rule's inputs and lifecycle drive re-verification.

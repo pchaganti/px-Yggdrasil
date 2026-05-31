@@ -1,0 +1,2 @@
+## [2026-05-31T10:32:06.962Z]
+Adds end-to-end coverage for how an obligation attached to a named entry point travels across component boundaries in the harder cases — inherited by a child of the consumer, pulled along an implies chain seeded at the boundary, and carried transitively through a chain of consumers. The motivation is that a named entry point is the mechanism by which a critical obligation crosses a boundary, so the inheritance and transitive paths must be proven or a consumer could escape an obligation it should carry.

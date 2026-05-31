@@ -1,25 +1,25 @@
 {
-  "hash": "8d8b710a48fd7cc1e8be11b09f3684e82619f647d55a40a228427e0d2956ba89",
+  "hash": "12009b20c037cdebc4045f1142ad8b805285cbfb8a6d9d783d89d33a9498675d",
   "files": {
-    "own-subset:cli/tests/e2e/log-gate-extended": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "own-subset:cli/tests/e2e/channels-multilevel": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/e2e/yg-node.yaml": "84d325c5de6fb3ff286926646e67ffb49921cf556d58712e850acafd0c57bb7b",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/e2e/cli-log-gate-extended.test.ts": "66509c583073f7f19716bb12b4458823befc3b489ff99b0cbc44dff4ccb804f5"
+    "source/cli/tests/e2e/cli-channels-multilevel.test.ts": "63f99a767a902297ca78c4b52e0f7357cd21a339d53b88e4f1a5617dfe2a2b34"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/e2e/yg-node.yaml": 1780104092868.105,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/e2e/cli-log-gate-extended.test.ts": 1780223593191.9534
+    "source/cli/tests/e2e/cli-channels-multilevel.test.ts": 1780223377756.1746
   },
   "log": {
-    "last_entry_datetime": "2026-05-31T10:33:50.991Z",
-    "prefix_hash": "7f01650073150936e9183821b9f015342f12fb3a3a258b99b25b13637ac930b3"
+    "last_entry_datetime": "2026-05-31T10:32:06.743Z",
+    "prefix_hash": "756a951bff06d6f96c3518445c9e44c5f0e50887f3b906ed2ede750213094b5f"
   },
   "aspectVerdicts": {
     "test-deterministic": {

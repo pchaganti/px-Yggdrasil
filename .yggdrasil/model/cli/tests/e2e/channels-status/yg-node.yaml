@@ -1,0 +1,7 @@
+name: E2E Tests — channels-status
+type: test-suite
+description: "Subprocess E2E proving aspect-status (advisory/draft) propagation on the cascading channels — an advisory aspect via the own-type default (CH3) or ancestor-type default (CH4) renders as a non-blocking warning, a draft one is skipped, and effective-status max() across a draft contributor and an enforced flow channel resolves to enforced."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-channels-status.test.ts

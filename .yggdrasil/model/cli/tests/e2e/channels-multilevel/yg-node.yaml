@@ -1,0 +1,7 @@
+name: E2E Tests — channels-multilevel
+type: test-suite
+description: "Subprocess E2E proving multi-level and transitive cascade — an ancestor-type default and an ancestor-node aspect reaching a grandchild two generations down with correct attribution, the when relation-atom matrix across uses/extends/implements/emits/listens evaluated against the recipient, cross-channel when AND-composition, and the status_inherit own-default inheritance branch."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-channels-multilevel.test.ts

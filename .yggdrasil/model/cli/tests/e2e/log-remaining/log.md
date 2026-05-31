@@ -1,0 +1,2 @@
+## [2026-05-31T10:32:07.321Z]
+Adds end-to-end coverage for the remaining per-component history paths — the convention for marking an entry as superseding an earlier one, reading a long history with and without a limit, and the error branches of adding, reading, and merge-reconciling history. History integrity is a trust anchor, so the less-trodden read and reconcile paths must be exercised to be sure they neither lose nor fabricate entries.
