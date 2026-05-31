@@ -103,9 +103,9 @@ describe.skipIf(!distExists)('structure aspect lifecycle', () => {
     const approveResult = run(['approve', '--node', 'N'], root);
     expect(approveResult.status).toBe(0);
 
-    // 3. Read baseline, assert deterministicTouchedFiles populated for touches-a
+    // 3. Read baseline, assert checkTouchedFiles populated for touches-a
     const baseline = readBaseline(root, 'N');
-    const stf = (baseline.deterministicTouchedFiles as Record<string, Record<string, string>> | undefined);
+    const stf = (baseline.checkTouchedFiles as Record<string, Record<string, string>> | undefined);
     expect(stf).toBeDefined();
     expect(stf!['touches-a']).toBeDefined();
     expect(Object.keys(stf!['touches-a'])).toContain('src/a.ts');

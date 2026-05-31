@@ -126,8 +126,9 @@ function approveBoth(dir: string): void {
 //
 // Note on node rendering: when a cascade affects multiple sibling nodes under
 // one parent, `yg check` collapses them to the compact form
-// `services//{orders, payments}` (a stable substring that proves BOTH
-// participants), rather than printing each full node path. The single-node
+// `services/{orders, payments}` (a stable substring that proves BOTH
+// participants), rather than printing each full node path. Note the single
+// slash between the common prefix and the brace group. The single-node
 // cascades print the full `services/orders` path. Assertions below target the
 // form the CLI actually emits.
 // ---------------------------------------------------------------------------
@@ -151,9 +152,11 @@ describe.skipIf(!distExists)('CLI E2E — upstream cascade drift across every la
       expect(drifted.status).toBe(1);
       expect(drifted.stdout).toContain('cascade');
       expect(drifted.stdout).toContain("aspect 'no-todo-comments' check.mjs changed");
-      // Both participants are named (compact sibling rendering).
+      // Both participants are named (compact sibling rendering) with a single
+      // slash before the brace group — not the doubled `services//{...}` form.
       expect(drifted.stdout).toContain('services/orders');
-      expect(drifted.stdout).toContain('{orders, payments}');
+      expect(drifted.stdout).toContain('services/{orders, payments}');
+      expect(drifted.stdout).not.toContain('services//{');
 
       const reapprove = run(['approve', '--aspect', 'no-todo-comments'], dir);
       expect(reapprove.status).toBe(0);
@@ -226,7 +229,8 @@ describe.skipIf(!distExists)('CLI E2E — upstream cascade drift across every la
       expect(drifted.stdout).toContain('changed');
       // The cascade names the declaring aspect and reaches both participants.
       expect(drifted.stdout).toContain("declared by aspect 'has-doc-comment'");
-      expect(drifted.stdout).toContain('{orders, payments}');
+      expect(drifted.stdout).toContain('services/{orders, payments}');
+      expect(drifted.stdout).not.toContain('services//{');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -245,9 +249,10 @@ describe.skipIf(!distExists)('CLI E2E — upstream cascade drift across every la
       const drifted = run(['check'], dir);
       expect(drifted.status).toBe(1);
       expect(drifted.stdout).toContain("parent node 'services' metadata changed");
-      // Both children are named (compact sibling rendering).
+      // Both children are named (compact sibling rendering, single slash).
       expect(drifted.stdout).toContain('services/orders');
-      expect(drifted.stdout).toContain('{orders, payments}');
+      expect(drifted.stdout).toContain('services/{orders, payments}');
+      expect(drifted.stdout).not.toContain('services//{');
 
       const reapprove = run(['approve', '--node', 'services'], dir);
       expect(reapprove.status).toBe(0);

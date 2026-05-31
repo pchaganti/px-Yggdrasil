@@ -187,8 +187,59 @@ nodes: [123, {}]
     );
 
     await expect(parseFlow(tmpDir, flowYaml)).rejects.toThrow(
-      'must contain string node paths',
+      /'nodes'.*contains non-string entries/,
     );
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('throws when nodes contains a mix of strings and non-strings (no silent drop)', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-flow-mixed-nodes');
+    await mkdir(tmpDir, { recursive: true });
+    const flowYaml = path.join(tmpDir, 'yg-flow.yaml');
+    await writeFile(
+      flowYaml,
+      `
+name: Test Flow
+nodes:
+  - a/first
+  - 42
+  - b/second
+`,
+      'utf-8',
+    );
+
+    // The middle entry (42) must NOT be silently dropped: parsing must fail loud,
+    // naming the field and the offending value at its index.
+    const err = await parseFlow(tmpDir, flowYaml).then(
+      () => null,
+      (e: Error) => e,
+    );
+    expect(err).toBeInstanceOf(Error);
+    expect(err?.message).toMatch(/'nodes'.*contains non-string entry/);
+    expect(err?.message).toContain('index 1');
+    expect(err?.message).toContain('42');
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('parses an all-string nodes array unchanged (control)', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-flow-allstring-nodes');
+    await mkdir(tmpDir, { recursive: true });
+    const flowYaml = path.join(tmpDir, 'yg-flow.yaml');
+    await writeFile(
+      flowYaml,
+      `
+name: Test Flow
+nodes:
+  - a/first
+  - b/second
+`,
+      'utf-8',
+    );
+
+    const flow = await parseFlow(tmpDir, flowYaml);
+    expect(flow.nodes).toEqual(['a/first', 'b/second']);
 
     await rm(tmpDir, { recursive: true, force: true });
   });

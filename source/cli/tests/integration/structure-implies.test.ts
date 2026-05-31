@@ -64,10 +64,10 @@ describe.skipIf(!distExists)('structure aspect implies cascade', () => {
 
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-  it('structure aspect implies AST aspect — drift on deterministic-touched file forces re-approve of implied AST aspect', () => {
+  it('structure aspect implies AST aspect — drift on check-touched file forces re-approve of implied AST aspect', () => {
     // Layout: structure aspect 'structural' implies AST aspect 'astrule'.
     // Both applied to node N with src/a.ts in mapping.
-    // 'structural' reads src/a.ts via ctx.fs.read → tracked in deterministicTouchedFiles.
+    // 'structural' reads src/a.ts via ctx.fs.read → tracked in checkTouchedFiles.
     // After approve: mutate src/a.ts → check should detect drift (both aspects need re-approve).
     // NOTE: using type:ast for the implied aspect (not LLM) for deterministic CI behaviour.
     const ygg = path.join(root, '.yggdrasil');
@@ -114,7 +114,7 @@ describe.skipIf(!distExists)('structure aspect implies cascade', () => {
     // Mutate the file the structure aspect tracked
     writeFileSync(path.join(root, 'src', 'a.ts'), 'export const x = 2;\n');
 
-    // yg check must detect drift because deterministicTouchedFiles[structural][src/a.ts] changed
+    // yg check must detect drift because checkTouchedFiles[structural][src/a.ts] changed
     const checkResult = run(['check'], root);
     expect(checkResult.status).toBe(1);
     // Output should reference drift and suggest approve

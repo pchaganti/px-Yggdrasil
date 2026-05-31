@@ -487,6 +487,37 @@ relations:
     await rm(tmpDir, { recursive: true, force: true });
   });
 
+  it('throws when relation consumes mixes strings and non-strings (no silent drop)', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-bad-consumes');
+    await mkdir(tmpDir, { recursive: true });
+    const nodePath = path.join(tmpDir, 'yg-node.yaml');
+    await writeFile(
+      nodePath,
+      `
+name: BadConsumes
+type: service
+relations:
+  - target: auth/auth-api
+    type: uses
+    consumes: [login, 99, logout]
+`,
+      'utf-8',
+    );
+
+    // The middle port (99) must NOT be silently dropped — its port aspects would
+    // then go unenforced. Parsing must fail loud, naming the field and the value.
+    const err = await parseNodeYaml(nodePath).then(
+      () => null,
+      (e: Error) => e,
+    );
+    expect(err).toBeInstanceOf(Error);
+    expect(err?.message).toMatch(/consumes.*contains non-string entry/);
+    expect(err?.message).toContain('index 1');
+    expect(err?.message).toContain('99');
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
   it('parses flat string aspects array', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-node-flat-aspects');
     await mkdir(tmpDir, { recursive: true });

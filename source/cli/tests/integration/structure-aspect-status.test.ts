@@ -109,22 +109,22 @@ describe.skipIf(!distExists)('structure aspect-status integration', () => {
 
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-  it('draft: reviewer skipped, no verdict or deterministicTouchedFiles in baseline on approve', () => {
+  it('draft: reviewer skipped, no verdict or checkTouchedFiles in baseline on approve', () => {
     layout(root, 'draft');
     const result = run(['approve', '--node', 'N'], root);
     expect(result.status).toBe(0);
 
     // For a node with only draft aspects, a baseline IS written (source hash),
-    // but it contains no aspectVerdicts or deterministicTouchedFiles for the draft aspect.
+    // but it contains no aspectVerdicts or checkTouchedFiles for the draft aspect.
     const jsonPath = path.join(root, '.yggdrasil', '.drift-state', 'N.json');
     // If no baseline was written (node auto-approved with no aspects), skip further checks
     if (!existsSync(jsonPath)) return;
 
     const b = readBaseline(root);
-    // Draft aspects never produce a verdict or deterministicTouchedFiles entry
+    // Draft aspects never produce a verdict or checkTouchedFiles entry
     const verdicts = b.aspectVerdicts as Record<string, unknown> | undefined;
     expect(verdicts?.['has-readme']).toBeUndefined();
-    const stf = b.deterministicTouchedFiles as Record<string, unknown> | undefined;
+    const stf = b.checkTouchedFiles as Record<string, unknown> | undefined;
     expect(stf?.['has-readme']).toBeUndefined();
   });
 
@@ -172,7 +172,7 @@ describe.skipIf(!distExists)('structure aspect-status integration', () => {
     expect(baselineHashN).toBe(baselineHash0);
   });
 
-  it('D8.3: draft toggle preserves deterministicTouchedFiles entry from prior enforced baseline', () => {
+  it('D8.3: draft toggle preserves checkTouchedFiles entry from prior enforced baseline', () => {
     // Create a passing enforced baseline with a README
     layout(root, 'enforced');
     writeFileSync(path.join(root, 'src', 'README.md'), 'readme\n');
@@ -183,7 +183,7 @@ describe.skipIf(!distExists)('structure aspect-status integration', () => {
     run(['approve', '--node', 'N'], root);
 
     const baselineBefore = readBaseline(root);
-    const stfBefore = (baselineBefore.deterministicTouchedFiles as Record<string, unknown> | undefined)?.['has-readme'];
+    const stfBefore = (baselineBefore.checkTouchedFiles as Record<string, unknown> | undefined)?.['has-readme'];
     expect(stfBefore).toBeDefined();
 
     // Toggle aspect to draft, approve
@@ -193,8 +193,8 @@ describe.skipIf(!distExists)('structure aspect-status integration', () => {
     run(['approve', '--node', 'N'], root);
 
     const baselineAfter = readBaseline(root);
-    const stfAfter = (baselineAfter.deterministicTouchedFiles as Record<string, unknown> | undefined)?.['has-readme'];
-    // D8.3 carry-forward: draft-skipped structure aspects retain their prior deterministicTouchedFiles entry
+    const stfAfter = (baselineAfter.checkTouchedFiles as Record<string, unknown> | undefined)?.['has-readme'];
+    // D8.3 carry-forward: draft-skipped structure aspects retain their prior checkTouchedFiles entry
     expect(stfAfter).toEqual(stfBefore);
   });
 });

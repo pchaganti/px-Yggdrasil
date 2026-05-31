@@ -243,6 +243,25 @@ describe('node list truncation', () => {
     const out = formatOutput(makeResult({ issues }));
     expect(out).toContain('... +9');
   });
+
+  it('sibling nodes group under common prefix with a SINGLE slash', () => {
+    // Common prefix of the two paths is `services/` (ends in a slash).
+    // The grouped form must not double the separator (`services//{...}`).
+    const nodes = ['services/orders', 'services/payments'];
+    const issues = nodes.map(n => makeCascadeIssue(n, 'deterministic'));
+    const out = formatOutput(makeResult({ issues }));
+    expect(out).toContain('services/{orders, payments}');
+    expect(out).not.toContain('services//{');
+    expect(out).not.toContain('//{');
+  });
+
+  it('deeper common prefix groups with a single slash', () => {
+    const nodes = ['cli/commands/approve', 'cli/commands/aspects'];
+    const issues = nodes.map(n => makeCascadeIssue(n, 'my-aspect'));
+    const out = formatOutput(makeResult({ issues }));
+    expect(out).toContain('cli/commands/{approve, aspects}');
+    expect(out).not.toContain('//{');
+  });
 });
 
 // ── 5. FAIL mixed errors ──────────────────────────────────────

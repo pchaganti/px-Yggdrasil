@@ -98,17 +98,17 @@ describe.skipIf(!distExists)('structure cold start + baseline migration', () => 
       `export function check(ctx) { ctx.fs.read('src/a.ts'); return []; }\n`,
     );
 
-    // Never approved — no baseline / no deterministicTouchedFiles.
+    // Never approved — no baseline / no checkTouchedFiles.
     // yg impact --file must identify N as owner of src/a.ts via the mapping,
-    // even without a deterministicTouchedFiles baseline (cold-start pessimistic fallback
+    // even without a checkTouchedFiles baseline (cold-start pessimistic fallback
     // = the mapping itself is the minimum set that can be tracked).
     const result = run(['impact', '--file', 'src/a.ts'], root);
     // Either exit 0 (found owner) or shows N in output
     expect(result.stdout).toContain('N');
   });
 
-  it('pre-feature baseline (no deterministicTouchedFiles field) is treated as cold start — no crash', () => {
-    // Pre-seed a baseline JSON without deterministicTouchedFiles, simulating a baseline
+  it('pre-feature baseline (no checkTouchedFiles field) is treated as cold start — no crash', () => {
+    // Pre-seed a baseline JSON without checkTouchedFiles, simulating a baseline
     // written by an older CLI version before the structure-aspect feature was added.
     // After attaching a structure aspect, yg check must not crash on missing field —
     // it should surface drift (aspect-newly-active or source-drift) directing the user
@@ -122,7 +122,7 @@ describe.skipIf(!distExists)('structure cold start + baseline migration', () => 
       `name: N\ntype: service\ndescription: test\nmapping:\n  - src/a.ts\naspects: []\n`,
     );
 
-    // Pre-seed a "legacy" baseline without deterministicTouchedFiles
+    // Pre-seed a "legacy" baseline without checkTouchedFiles
     mkdirSync(path.join(ygg, '.drift-state'), { recursive: true });
     const legacyBaseline = {
       hash: 'cafebabe',

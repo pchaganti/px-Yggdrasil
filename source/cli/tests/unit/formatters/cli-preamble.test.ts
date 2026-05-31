@@ -62,6 +62,23 @@ describe('loadGraphOrAbort', () => {
     expect(written).toContain('Unexpected error while loading: plain string');
   });
 
+  it('exits 1 with a clean (non-bug) message when config schema is newer than the CLI', async () => {
+    const ygg = join(dir, '.yggdrasil');
+    mkdirSync(join(ygg, 'model'), { recursive: true });
+    writeFileSync(join(ygg, 'yg-config.yaml'), `version: "99.0.0"\n`);
+    writeFileSync(join(ygg, 'yg-architecture.yaml'), 'node_types: {}\n');
+
+    await expect(loadGraphOrAbort(dir, { tolerateInvalidConfig: true })).rejects.toThrow('__exit__');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    const written = errSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('');
+    expect(written).toContain('newer than this CLI supports');
+    expect(written).toContain('max: 5.0.0');
+    expect(written).toContain('99.0.0');
+    // Expected user error (upgrade your CLI), not an internal bug.
+    expect(written).not.toContain('file an issue');
+    expect(written).not.toContain('This is a bug');
+  });
+
   it('rethrows non-ENOENT errors so callers can decide', async () => {
     const ygg = join(dir, '.yggdrasil');
     mkdirSync(ygg, { recursive: true });

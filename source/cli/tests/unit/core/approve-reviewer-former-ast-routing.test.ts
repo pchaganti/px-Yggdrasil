@@ -184,7 +184,7 @@ describe('runApproveWithReviewer — former-ast aspect routed through the struct
     expect(v!.errorSource).toBe('codeViolation');
     expect(v!.reason).toMatch(/src\/svc\.ts:2: bad found/);
     // structure runner records own-file footprint for the former-ast aspect.
-    expect(result.pendingDriftState?.state.deterministicTouchedFiles?.['no-x']).toBeDefined();
+    expect(result.pendingDriftState?.state.checkTouchedFiles?.['no-x']).toBeDefined();
 
     await rm(tmpDir, { recursive: true, force: true });
   });

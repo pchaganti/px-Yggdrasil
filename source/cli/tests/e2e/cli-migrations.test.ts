@@ -258,11 +258,17 @@ describe.skipIf(!distExists)('CLI E2E — schema migrations (v4 → v5 config/as
       expect(check.status).toBe(1);
       expect(check.all).toContain('newer than this CLI supports');
       expect(check.all).toContain('max: 5.0.0');
+      // A newer-than-CLI config is an expected USER error (upgrade your CLI),
+      // not an internal bug — it must NOT be wrapped as "please file an issue".
+      expect(check.all).not.toContain('file an issue');
+      expect(check.all).not.toContain('This is a bug');
 
       const tree = run(['tree'], dir);
       expect(tree.status).toBe(1);
       expect(tree.all).toContain('newer than this CLI supports');
       expect(tree.all).toContain('max: 5.0.0');
+      expect(tree.all).not.toContain('file an issue');
+      expect(tree.all).not.toContain('This is a bug');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

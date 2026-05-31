@@ -4,7 +4,7 @@ import type { Graph } from '../../../src/model/graph.js';
 import type { DriftNodeState } from '../../../src/model/drift.js';
 
 // filterAspectCascadeNodes is async and reads each candidate node's baseline
-// (via readNodeDriftState) to attribute cross-node deterministic-touched paths
+// (via readNodeDriftState) to attribute cross-node check-touched paths
 // to the aspect. Mock the store so the test controls each node's baseline.
 const driftStateByNode = new Map<string, DriftNodeState>();
 vi.mock('../../../src/io/drift-state-store.js', () => ({
@@ -59,12 +59,12 @@ describe('filterAspectCascadeNodes', () => {
   // BUG 2 positive case: the node drifted only because a cross-node file read by
   // the deterministic aspect 'catalog-rule' changed. The raw path (not a synthetic
   // key) is the cascade cause; it lives in the node baseline's
-  // deterministicTouchedFiles['catalog-rule']. The node MUST be included.
-  it('matches a node whose cascade cause is a cross-node deterministic-touched path in its baseline', async () => {
+  // checkTouchedFiles['catalog-rule']. The node MUST be included.
+  it('matches a node whose cascade cause is a cross-node check-touched path in its baseline', async () => {
     driftStateByNode.set('a/b', {
       hash: 'h',
       files: {},
-      deterministicTouchedFiles: {
+      checkTouchedFiles: {
         'catalog-rule': { 'src/other/reader.ts': 'deadbeef' },
       },
     });
@@ -73,12 +73,12 @@ describe('filterAspectCascadeNodes', () => {
   });
 
   // BUG 2 negative control: the cascade cause path is NOT in any
-  // deterministicTouchedFiles entry → still excluded.
-  it('does not match a node whose cross-node cause path is absent from deterministicTouchedFiles', async () => {
+  // checkTouchedFiles entry → still excluded.
+  it('does not match a node whose cross-node cause path is absent from checkTouchedFiles', async () => {
     driftStateByNode.set('a/b', {
       hash: 'h',
       files: {},
-      deterministicTouchedFiles: {
+      checkTouchedFiles: {
         'catalog-rule': { 'src/other/reader.ts': 'deadbeef' },
       },
     });

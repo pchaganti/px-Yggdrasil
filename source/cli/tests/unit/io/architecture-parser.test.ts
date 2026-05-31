@@ -1,11 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { writeFile, rm, mkdtemp } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { parseArchitecture } from '../../../src/io/architecture-parser.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe('parseArchitecture', () => {
   const dirsToCleanup: string[] = [];
@@ -136,6 +133,60 @@ node_types:
       uses: "library"
 `);
     await expect(parseArchitecture(file)).rejects.toThrow('array');
+    await cleanup(file);
+  });
+
+  it('throws when relation targets mix strings and non-strings (no silent drop)', async () => {
+    const file = await writeTmp('yg-architecture.yaml', `
+node_types:
+  service:
+    description: "test"
+    relations:
+      calls: [service, 42, library]
+`);
+    // The middle target (42) must NOT be silently dropped — fail loud naming
+    // the field and the offending value at its index.
+    const err = await parseArchitecture(file).then(
+      () => null,
+      (e: Error) => e,
+    );
+    expect(err).toBeInstanceOf(Error);
+    expect(err?.message).toMatch(/relations\.calls.*contains non-string entry/);
+    expect(err?.message).toContain('index 1');
+    expect(err?.message).toContain('42');
+    await cleanup(file);
+  });
+
+  it('throws when parents array mixes strings and non-strings (no silent drop)', async () => {
+    const file = await writeTmp('yg-architecture.yaml', `
+node_types:
+  service:
+    description: "test"
+    parents: [module, 7, root]
+`);
+    const err = await parseArchitecture(file).then(
+      () => null,
+      (e: Error) => e,
+    );
+    expect(err).toBeInstanceOf(Error);
+    expect(err?.message).toMatch(/parents.*contains non-string entry/);
+    expect(err?.message).toContain('index 1');
+    expect(err?.message).toContain('7');
+    await cleanup(file);
+  });
+
+  it('parses all-string parents and relation targets unchanged (control)', async () => {
+    const file = await writeTmp('yg-architecture.yaml', `
+node_types:
+  service:
+    description: "test"
+    parents: [module, root]
+    relations:
+      calls: [service, library]
+`);
+    const arch = await parseArchitecture(file);
+    expect(arch.node_types.service.parents).toEqual(['module', 'root']);
+    expect(arch.node_types.service.relations?.calls).toEqual(['service', 'library']);
     await cleanup(file);
   });
 

@@ -54,7 +54,7 @@ function run(
  *   - N: owns src/a.ts, declares `uses -> B`, carries an ENFORCED structure
  *     aspect `reads-b` that reaches B cross-node via ctx.graph.node('B') and
  *     reads B's mapped file. The cross-node read records src/b.ts in N's
- *     deterministicTouchedFiles baseline — so editing src/b.ts must drift N.
+ *     checkTouchedFiles baseline — so editing src/b.ts must drift N.
  */
 function layout(root: string): void {
   const ygg = path.join(root, '.yggdrasil');
@@ -118,10 +118,10 @@ describe.skipIf(!distExists)('structure aspect cross-node drift + impact', () =>
     const approveN = run(['approve', '--node', 'N'], root);
     expect(approveN.status).toBe(0);
 
-    // N's baseline must record src/b.ts under deterministicTouchedFiles[reads-b] —
+    // N's baseline must record src/b.ts under checkTouchedFiles[reads-b] —
     // proof the cross-node read participates in N's drift identity.
     const baselineN = readBaseline(root, 'N');
-    const stf = baselineN.deterministicTouchedFiles as Record<string, Record<string, string>> | undefined;
+    const stf = baselineN.checkTouchedFiles as Record<string, Record<string, string>> | undefined;
     expect(stf).toBeDefined();
     expect(stf!['reads-b']).toBeDefined();
     expect(Object.keys(stf!['reads-b'])).toContain('src/b.ts');
@@ -138,7 +138,7 @@ describe.skipIf(!distExists)('structure aspect cross-node drift + impact', () =>
 
     const checkDrift = run(['check'], root);
     // Before this fix, collectTrackedFiles was called without the baseline at the
-    // drift sites, so the deterministic-touched layer was never emitted and editing a
+    // drift sites, so the check-touched layer was never emitted and editing a
     // cross-node-read file did NOT drift N — check would exit 0 here.
     expect(checkDrift.status).toBe(1);
     expect(checkDrift.stdout).toContain('N');
@@ -156,7 +156,7 @@ describe.skipIf(!distExists)('structure aspect cross-node drift + impact', () =>
   it('yg impact --file on a cross-node-read file names the dependent node', () => {
     layout(root);
 
-    // Approve both so N's deterministicTouchedFiles baseline records src/b.ts (precise mode).
+    // Approve both so N's checkTouchedFiles baseline records src/b.ts (precise mode).
     expect(run(['approve', '--node', 'B'], root).status).toBe(0);
     expect(run(['approve', '--node', 'N'], root).status).toBe(0);
 

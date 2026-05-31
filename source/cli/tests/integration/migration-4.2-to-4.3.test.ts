@@ -51,6 +51,9 @@ describe('4.2.0 → 4.3.0 migration end-to-end', () => {
 
   it('refuse-load triggers when config bumped above 5.0.0', async () => {
     writeFileSync(join(repo, '.yggdrasil', 'yg-config.yaml'), 'version: "6.0.0"\n');
-    await expect(loadGraph(repo)).rejects.toThrow(/upgrade CLI/i);
+    // A too-new schema version is an expected user error (upgrade the CLI), thrown as
+    // UnsupportedSchemaVersionError; the "upgrade CLI" guidance now lives in the
+    // command-layer presentation, not the loader's message.
+    await expect(loadGraph(repo)).rejects.toThrow(/newer than this CLI supports/i);
   });
 });

@@ -120,9 +120,9 @@ describe('selectDriftedAspects', () => {
     expect(selectDriftedAspects(graph, NODE_PATH, result, STORED, '.yggdrasil')).toBeUndefined();
   });
 
-  // Negative control: the path is NOT in any aspect's deterministicTouchedFiles
+  // Negative control: the path is NOT in any aspect's checkTouchedFiles
   // (STORED has none) → un-attributable → undefined. Must keep passing after the fix.
-  it('returns undefined for a bare cross-node source path in changedUpstream (deterministic-touched)', () => {
+  it('returns undefined for a bare cross-node source path in changedUpstream (check-touched)', () => {
     const { graph } = makeGraph(['det', 'llmA', 'llmB'], aspects);
     const result = approveResult({
       changedUpstream: upstream('source/cli/src/other/foo.ts'),
@@ -130,14 +130,14 @@ describe('selectDriftedAspects', () => {
     expect(selectDriftedAspects(graph, NODE_PATH, result, STORED, '.yggdrasil')).toBeUndefined();
   });
 
-  // Case A: a cross-node file present in the baseline's deterministicTouchedFiles[det]
+  // Case A: a cross-node file present in the baseline's checkTouchedFiles[det]
   // changed. Attributable to the deterministic aspect 'det' → returns Set(['det']),
   // NOT undefined, NOT the llm aspects (which carry forward).
-  it('attributes a deterministic-touched cross-node path to its deterministic aspect (det)', () => {
+  it('attributes a check-touched cross-node path to its deterministic aspect (det)', () => {
     const { graph } = makeGraph(['det', 'llmA', 'llmB'], aspects);
     const storedWithTouched: DriftNodeState = {
       ...STORED,
-      deterministicTouchedFiles: {
+      checkTouchedFiles: {
         det: { 'source/cli/src/other/reader.ts': 'deadbeef' },
       },
     };

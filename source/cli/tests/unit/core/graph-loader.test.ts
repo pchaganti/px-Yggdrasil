@@ -6,7 +6,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { loadGraph } from '../../../src/core/graph-loader.js';
+import { loadGraph, UnsupportedSchemaVersionError } from '../../../src/core/graph-loader.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_PROJECT = path.join(__dirname, '../../fixtures/sample-project');
@@ -25,7 +25,16 @@ describe('loadGraph version gate', () => {
   it('refuses to load when version > "5.0.0"', async () => {
     writeFileSync(join(tmpRoot, '.yggdrasil', 'yg-config.yaml'), 'version: "6.0.0"\n');
     await expect(loadGraph(tmpRoot)).rejects.toThrow(/version "6\.0\.0"/);
-    await expect(loadGraph(tmpRoot)).rejects.toThrow(/Upgrade CLI/i);
+    await expect(loadGraph(tmpRoot)).rejects.toThrow(/newer than this CLI supports/i);
+    // Throws an identifiable error type so callers can render a clean user
+    // error (upgrade your CLI) instead of the generic "file an issue" wrapper.
+    await expect(loadGraph(tmpRoot)).rejects.toBeInstanceOf(UnsupportedSchemaVersionError);
+    await loadGraph(tmpRoot).catch((e: unknown) => {
+      expect(e).toBeInstanceOf(UnsupportedSchemaVersionError);
+      const err = e as UnsupportedSchemaVersionError;
+      expect(err.detectedVersion).toBe('6.0.0');
+      expect(err.maxSupportedVersion).toBe('5.0.0');
+    });
   });
 
   it('loads when version === "5.0.0"', async () => {
