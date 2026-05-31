@@ -26,7 +26,9 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'off',
-      '@typescript-eslint/no-explicit-any': 'warn',
+      // Error (not warn): repo-check does not fail on warnings, so a `warn` here
+      // let future `any`-leaks pass CI silently. The codebase is `any`-free today.
+      '@typescript-eslint/no-explicit-any': 'error',
     },
   },
   {

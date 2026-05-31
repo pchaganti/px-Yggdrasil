@@ -9,18 +9,26 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # The package supports Node >= 22. Run the full gate on the floor (22) and
+      # the current major (24) so a version-specific regression fails CI, not the
+      # user. Verified locally: build + 2833 tests pass on both.
+      matrix:
+        node-version: [22, 24]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: ${{ matrix.node-version }}
       - run: npm ci
         working-directory: source/cli
       - run: npm ci
         working-directory: docs
       - run: scripts/repo-check.sh
       - uses: codecov/codecov-action@v6
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        # Upload coverage from a single matrix leg to avoid duplicate reports.
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && matrix.node-version == 22
         with:
           files: source/cli/coverage/lcov.info
           fail_ci_if_error: false

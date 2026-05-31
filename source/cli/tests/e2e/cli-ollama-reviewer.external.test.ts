@@ -12,6 +12,15 @@ import { fileURLToPath } from 'node:url';
 // This file deliberately carries an ambient dependency on external environment
 // state; it is gated with `describe.skipIf` so it is a no-op where Ollama is
 // not reachable (e.g. CI).
+//
+// CI coverage (E3): this lane is INTENTIONALLY not run on every CI push — a real
+// model is required. It is excluded from the default `vitest run` via
+// `vitest.external.config.ts` and invoked manually with `npm run test:external`
+// against a local Ollama. The reviewer MECHANICS (request shape, consensus,
+// chunking, provider-error fallback, verdict parsing) are exercised hermetically
+// in CI by the in-process mock suites `cli-llm-reviewer-mock(-extended)`; this
+// file additionally proves the path end-to-end against a real provider. The file
+// itself is still typechecked in CI (tsconfig `tests/**`), so it cannot bitrot.
 // ---------------------------------------------------------------------------
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
