@@ -202,4 +202,14 @@ describe.skipIf(!distExists)('CLI E2E — impact', () => {
     expect(stderr).toContain('not mapped');
   });
 
+  it('yg impact --node lists event-connected nodes (emits/listens)', () => {
+    // orders/order-service emits `order.created`; users/user-repo listens to it.
+    // The event relation is a distinct blast-radius channel from structural deps.
+    const { stdout, status } = run(['impact', '--node', 'orders/order-service']);
+    expect(status).toBe(0);
+    expect(stdout).toContain('Event-connected:');
+    expect(stdout).toContain('users/user-repo');
+    expect(stdout).toContain('order.created');
+  });
+
 });

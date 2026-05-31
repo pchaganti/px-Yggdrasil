@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, rmSync, cpSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -131,10 +131,12 @@ describe.skipIf(!distExists)('CLI E2E — query and navigation', () => {
     expect(stdout).toContain('orders/order-service');
   });
 
-  it('yg owner --file nonexistent file returns no graph coverage', () => {
+  it('yg owner --file nonexistent file returns no graph coverage (file not found)', () => {
     const { stdout, status } = run(['owner', '--file', 'nonexistent/file.ts']);
     expect(status).toBe(0);
-    expect(stdout).toContain('no graph coverage');
+    // A path that does not exist on disk is distinguished from an existing-but-
+    // unmapped file by the explicit "(file not found)" suffix.
+    expect(stdout).toContain('no graph coverage (file not found)');
   });
 
   it('yg owner without --file returns exit 1', () => {
@@ -362,6 +364,44 @@ describe.skipIf(!distExists)('CLI E2E — query and navigation', () => {
     const { status, stdout, stderr } = run(['knowledge']);
     expect(status).toBe(1);
     expect(stdout + stderr).toContain('Usage: yg knowledge');
+  });
+
+  // --- empty-graph + candidate-suggestion output paths ---
+
+  it('yg find on a graph with zero nodes reports the empty graph and exits 0', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-find-empty-'));
+    try {
+      // A structurally-valid .yggdrasil (schemas + config + architecture) with NO
+      // searchable elements — empty model/, aspects/, and flows/ (the loader needs
+      // the dirs to exist; the search index then has zero documents).
+      cpSync(path.join(FIXTURE, '.yggdrasil'), path.join(dir, '.yggdrasil'), { recursive: true });
+      for (const sub of ['model', 'aspects', 'flows']) {
+        const p = path.join(dir, '.yggdrasil', sub);
+        rmSync(p, { recursive: true, force: true });
+        mkdirSync(p, { recursive: true });
+      }
+      const { stdout, status } = run(['find', 'anything'], dir);
+      expect(status).toBe(0);
+      expect(stdout).toContain('Empty graph, nothing to search.');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('yg context --file on an unmapped file suggests sibling nodes mapped in the same directory', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-ctx-candidate-'));
+    try {
+      cpSync(FIXTURE, dir, { recursive: true });
+      // src/orders/order.service.ts is mapped by orders/order-service. Add an
+      // UNMAPPED sibling in the same directory.
+      writeFileSync(path.join(dir, 'src', 'orders', 'unmapped.ts'), 'export const x = 1;\n', 'utf-8');
+      const { stderr, status } = run(['context', '--file', 'src/orders/unmapped.ts'], dir);
+      expect(status).toBe(1);
+      expect(stderr).toContain('Other files in the same directory are mapped to these nodes:');
+      expect(stderr).toContain('orders/order-service');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
 });
