@@ -632,4 +632,74 @@ describe.skipIf(!distExists)('CLI E2E — yg check validation code matrix (remai
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  // -------------------------------------------------------------------------
+  // GROUP H — structural codes not exercised anywhere else in the E2E corpus:
+  // a broken implies edge, an overlapping (non-hierarchical) mapping, and a
+  // model directory with files but no yg-node.yaml. Each code was verified to
+  // exist in src/core/checks/* and to be absent from every other e2e suite.
+  // -------------------------------------------------------------------------
+
+  it('H1: an aspect implying a non-existent aspect yields implied-aspect-missing (exit 1)', () => {
+    const dir = minimalGraph('implied-missing', ({ ygRoot, projectRoot }) => {
+      writeAspect(
+        ygRoot,
+        'audit',
+        ['name: Audit', 'description: Audit rule', 'reviewer:', '  type: deterministic', 'implies:', '  - ghost-aspect', ''].join('\n'),
+        { file: 'check.mjs', body: 'export function check() { return []; }\n' },
+      );
+      writeNode(
+        ygRoot,
+        'widget',
+        ['name: Widget', 'description: A widget', 'type: service', 'aspects:', '  - audit', 'mapping:', '  - src/widget.ts', ''].join('\n'),
+      );
+      writeSource(projectRoot, 'src/widget.ts', 'export const w = 1;\n');
+    });
+    try {
+      const { status, all } = run(['check'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain('implied-aspect-missing');
+      expect(all).toContain('ghost-aspect');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('H2: two non-hierarchical nodes with overlapping directory mappings yield overlapping-mapping (exit 1)', () => {
+    const dir = minimalGraph('overlap', ({ ygRoot, projectRoot }) => {
+      // alpha and beta are siblings (neither is an ancestor of the other), yet
+      // alpha maps a directory that CONTAINS beta's — an ambiguous-ownership
+      // overlap that the "child wins" containment rule does not excuse.
+      writeNode(ygRoot, 'alpha', ['name: Alpha', 'description: A', 'type: service', 'mapping:', '  - src/shared/', ''].join('\n'));
+      writeNode(ygRoot, 'beta', ['name: Beta', 'description: B', 'type: service', 'mapping:', '  - src/shared/sub/', ''].join('\n'));
+      writeSource(projectRoot, 'src/shared/sub/x.ts', 'export const x = 1;\n');
+    });
+    try {
+      const { status, all } = run(['check'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain('overlapping-mapping');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('H3: a model directory with files but no yg-node.yaml yields node-yaml-missing (exit 1)', () => {
+    const dir = minimalGraph('node-yaml-missing', ({ ygRoot, projectRoot }) => {
+      // A valid node so the graph is not empty…
+      writeNode(ygRoot, 'widget', ['name: Widget', 'description: A widget', 'type: service', 'mapping:', '  - src/widget.ts', ''].join('\n'));
+      writeSource(projectRoot, 'src/widget.ts', 'export const w = 1;\n');
+      // …plus a stray model directory that has a file but no node definition.
+      const strayDir = path.join(ygRoot, 'model', 'orphan-dir');
+      mkdirSync(strayDir, { recursive: true });
+      writeFileSync(path.join(strayDir, 'notes.md'), '# stray notes\n', 'utf-8');
+    });
+    try {
+      const { status, all } = run(['check'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain('node-yaml-missing');
+      expect(all).toContain('orphan-dir');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
