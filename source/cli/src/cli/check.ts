@@ -312,7 +312,10 @@ function formatNodeList(paths: string[], max: number): string {
   });
 
   const prefix = longestCommonPrefix(paths);
-  const trimmedPrefix = prefix.replace(/\/?[^/]+$/, ''); // Remove trailing partial segment
+  // Trim back to the last directory boundary: drop any trailing partial segment,
+  // then strip the trailing slash so re-appending '/' below yields exactly one
+  // separator (the common prefix often already ends in '/').
+  const trimmedPrefix = prefix.replace(/\/?[^/]+$/, '').replace(/\/+$/, '');
 
   const shown = tails.slice(0, max);
   const extra = paths.length - shown.length;

@@ -223,7 +223,7 @@ export async function approveNode(
   }
 
   // ── Existing baseline — compute changes ───────────────
-  // Pass the stored baseline so the deterministic-touched layer (cross-node files
+  // Pass the stored baseline so the check-touched layer (cross-node files
   // read by a deterministic aspect) participates in drift detection here too.
   const trackedFiles = collectTrackedFiles(node, graph, storedEntry);
   const excludePrefixes = getChildMappingExclusions(graph, nodePath);
@@ -335,7 +335,7 @@ export async function approveNode(
       }
     : {
         // no-change, no log update — populate from baseline so structure dispatch
-        // can run and update deterministicTouchedFiles without violating the
+        // can run and update checkTouchedFiles without violating the
         // pendingDriftState-exists contract.
         nodePath,
         state: structuredClone(storedEntry),
@@ -539,7 +539,7 @@ export function getChildMappingExclusions(graph: Graph, nodePath: string): strin
 /** Annotate an upstream changed file with a human-readable category label. */
 export function annotateUpstreamChange(filePath: string, layer: TrackedFileLayer | undefined): string {
   const normalized = filePath.trim().replace(/\\/g, '/').replace(/\/+$/, '');
-  if (layer === 'deterministic-touched') return 'structure aspect tracked file';
+  if (layer === 'check-touched') return 'structure aspect tracked file';
   if (layer === 'aspects' || normalized.includes('/aspects/')) return 'aspect content';
   if (normalized.includes('/flows/')) return 'flow description';
   if (layer === 'hierarchy') return 'parent metadata';

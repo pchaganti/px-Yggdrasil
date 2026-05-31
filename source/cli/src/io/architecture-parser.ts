@@ -63,7 +63,11 @@ export async function parseArchitecture(filePath: string): Promise<ArchitectureD
     }
 
     const parents = Array.isArray(entry.parents)
-      ? (entry.parents as unknown[]).filter((t): t is string => typeof t === 'string')
+      ? assertStringArray(
+          entry.parents as unknown[],
+          `yg-architecture.yaml: node_types.${typeName}.parents`,
+          'parent type name',
+        )
       : undefined;
 
     const relations: Partial<Record<RelationType, string[]>> | undefined = parseRelations(entry.relations, typeName);
@@ -138,11 +142,39 @@ function parseRelations(
       );
     }
 
-    const targetStrings = (targets as unknown[]).filter((t): t is string => typeof t === 'string');
+    const targetStrings = assertStringArray(
+      targets as unknown[],
+      `yg-architecture.yaml: node_types.${typeName}.relations.${relType}`,
+      'target type name',
+    );
     if (targetStrings.length > 0) {
       relations[relType as RelationType] = targetStrings;
     }
   }
 
   return Object.keys(relations).length > 0 ? relations : {};
+}
+
+/**
+ * Validate that every entry in `arr` is a string, throwing a structured error
+ * naming the field, each offending value, and its index when any entry is not.
+ *
+ * Non-string entries must fail loud rather than be silently dropped: a dropped
+ * type/target name removes an intended architectural constraint without notice.
+ */
+function assertStringArray(arr: unknown[], fieldPath: string, itemLabel: string): string[] {
+  const offenders = arr
+    .map((value, index) => ({ value, index }))
+    .filter((e) => typeof e.value !== 'string');
+  if (offenders.length > 0) {
+    const detail = offenders
+      .map((e) => `index ${e.index}: ${JSON.stringify(e.value)} (${typeof e.value})`)
+      .join('; ');
+    throw new Error(
+      `${fieldPath} contains non-string ${offenders.length === 1 ? 'entry' : 'entries'} [${detail}]. ` +
+        `Every entry must be a string ${itemLabel}; non-string entries would be silently dropped and weaken architecture enforcement. ` +
+        `Fix or remove the offending ${offenders.length === 1 ? 'entry' : 'entries'}.`,
+    );
+  }
+  return arr as string[];
 }

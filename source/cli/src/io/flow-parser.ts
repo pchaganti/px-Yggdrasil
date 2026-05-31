@@ -26,12 +26,20 @@ export async function parseFlow(flowDir: string, flowYamlPath: string): Promise<
     );
   }
 
-  const nodePaths = (nodes as unknown[]).filter((n): n is string => typeof n === 'string');
-  if (nodePaths.length === 0) {
+  const nonStringNodes = (nodes as unknown[])
+    .map((n, i) => ({ value: n, index: i }))
+    .filter((e) => typeof e.value !== 'string');
+  if (nonStringNodes.length > 0) {
+    const offenders = nonStringNodes
+      .map((e) => `index ${e.index}: ${JSON.stringify(e.value)} (${typeof e.value})`)
+      .join('; ');
     throw new Error(
-      `yg-flow.yaml at ${flowYamlPath}: 'nodes' (or 'participants') must contain string node paths`,
+      `yg-flow.yaml at ${flowYamlPath}: 'nodes' (or 'participants') contains non-string ${nonStringNodes.length === 1 ? 'entry' : 'entries'} [${offenders}]. ` +
+        `Every entry must be a string node path; non-string entries would be silently dropped from the flow and escape aspect enforcement. ` +
+        `Fix or remove the offending ${nonStringNodes.length === 1 ? 'entry' : 'entries'}.`,
     );
   }
+  const nodePaths = nodes as string[];
 
   let aspects: string[] | undefined;
   let aspectWhens: Record<string, WhenPredicate> | undefined;

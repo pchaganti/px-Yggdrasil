@@ -143,7 +143,21 @@ function parseRelations(raw: unknown, filePath: string): Relation[] {
       type: type as RelationType,
     };
     if (Array.isArray(obj.consumes)) {
-      rel.consumes = (obj.consumes as unknown[]).filter((c): c is string => typeof c === 'string');
+      const consumesArr = obj.consumes as unknown[];
+      const offenders = consumesArr
+        .map((value, i) => ({ value, index: i }))
+        .filter((e) => typeof e.value !== 'string');
+      if (offenders.length > 0) {
+        const detail = offenders
+          .map((e) => `index ${e.index}: ${JSON.stringify(e.value)} (${typeof e.value})`)
+          .join('; ');
+        throw new Error(
+          `yg-node.yaml at ${filePath}: relations[${index}].consumes contains non-string ${offenders.length === 1 ? 'entry' : 'entries'} [${detail}]. ` +
+            `Every entry must be a string port name; non-string entries would be silently dropped and a consumed port's aspects would not be enforced. ` +
+            `Fix or remove the offending ${offenders.length === 1 ? 'entry' : 'entries'}.`,
+        );
+      }
+      rel.consumes = consumesArr as string[];
     }
     if (typeof obj.event_name === 'string' && obj.event_name.trim()) {
       rel.event_name = obj.event_name.trim();

@@ -17,8 +17,9 @@ Fix: \`yg approve --node <path>\`
 
 ## Upstream drift
 
-Upstream drift occurs when an aspect, parent node, flow, or dependency
-changed. The node's context changed even if its own source files didn't.
+Upstream drift occurs when an aspect, parent node, or dependency changed,
+or when a flow the node participates in changes its aspect or participant
+set. The node's context changed even if its own source files didn't.
 The reviewer must re-verify the node against the updated context.
 
 Fix: \`yg approve --aspect <id>\` (batch) or \`yg approve --node <path>\`
@@ -28,7 +29,7 @@ Causes of upstream drift:
 - An aspect's \`content.md\` or \`check.mjs\` is modified.
 - A reference file declared in an aspect's \`references:\` is modified — same cascade as content.md change.
 - A parent node's aspects change.
-- A flow the node participates in changes.
+- A flow the node participates in changes its aspect set (adding/removing a flow aspect, surfacing via that aspect) or its participant set (adding/removing the node as a participant, recomputing the node's effective aspects). A cosmetic edit to the flow file — e.g. its \`description:\` — does not cascade.
 - A dependency the node consumes changes.
 
 Upstream drift is also called cascade because a single upstream change
@@ -84,7 +85,7 @@ deterministic re-approves with no LLM call.
 | Add \`implies\` to an aspect | affected nodes × 1 |
 | Change aspect \`content.md\` | affected nodes × 1 |
 | Add aspect to parent node | all descendants × 1 |
-| Add node to a flow | node × flow-aspect-count |
+| Add node to a flow (or add an aspect to a flow) | node × flow-aspect-count |
 
 Use \`yg impact\` before every graph change to see the call count.
 An aspect touching 20 nodes that each have 3 effective aspects = 60 calls.
@@ -108,9 +109,9 @@ pinned to a high-consensus tier multiplies cost by that consensus value
 per affected node. Run \`yg impact --aspect <id>\` to see affected nodes
 before swapping the tier on a widely-used aspect.
 
-### Deterministic-touched is part of the per-node drift hash
+### Check-touched is part of the per-node drift hash
 
-Each deterministic aspect contributes a \`deterministic-touched:<aspectId>\`
+Each deterministic aspect contributes a \`check-touched:<aspectId>\`
 synthetic entry recording the set of files its \`check.mjs\` actually read at
 approve time. Changing that set — adding or removing a touched file, or editing
 a cross-node file the check reads — triggers re-approve on every node using that

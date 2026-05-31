@@ -45,10 +45,10 @@ export type DriftCategory = 'source' | 'graph';
 /**
  * Which layer of the context package brought this file into tracking.
  *
- * The 'deterministic-touched' token marks files that a deterministic aspect
+ * The 'check-touched' token marks files that a deterministic aspect
  * read during its run; it is serialized into baseline .drift-state/*.json.
  */
-export type TrackedFileLayer = 'hierarchy' | 'aspects' | 'relational' | 'flows' | 'source' | 'deterministic-touched';
+export type TrackedFileLayer = 'hierarchy' | 'aspects' | 'relational' | 'flows' | 'source' | 'check-touched';
 
 /** Per-file drift detail */
 export interface DriftFileChange {
@@ -90,7 +90,7 @@ export interface DriftNodeState {
    *   - preserved across draft toggle (clearDraftAspectsFromDriftState does NOT clear it)
    * Schema: { [aspectId]: { [repoRelPosixPath]: sha256Hex } }
    */
-  deterministicTouchedFiles?: Record<string, Record<string, string>>;
+  checkTouchedFiles?: Record<string, Record<string, string>>;
 }
 
 /** Upstream change with type annotation for CLI messages */

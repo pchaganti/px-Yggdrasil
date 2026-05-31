@@ -98,7 +98,7 @@ Reviewer skips draft aspects entirely — no verdict is recorded for a draft asp
 Drift = source code or upstream context changed since the last approve. The reviewer must verify again. \`yg check\` detects two kinds:
 
 - **Source drift** — mapped source files were modified. Fix: \`yg approve --node <path>\`.
-- **Upstream drift (cascade)** — an aspect, parent node, flow, or dependency changed. This cascades: one aspect change can cause drift in every node that uses it. Fix: \`yg approve --aspect <id>\` or approve affected nodes individually.
+- **Upstream drift (cascade)** — an aspect, parent node, or dependency changed — or a flow's aspect/participant set changed. This cascades: one aspect change can cause drift in every node that uses it. A flow influences a participant's drift only by changing the participant's effective aspects (adding/removing a flow aspect, or adding/removing a participant) — a cosmetic edit to the flow file (e.g. its \`description:\`) does not cascade. Fix: \`yg approve --aspect <id>\` or approve affected nodes individually.
 
 Cascade is the cost multiplier. Before changing a widely-used aspect, run \`yg impact --aspect <id>\` to see how many nodes will need re-approval. Re-approving an aspect-only cascade re-runs just the changed aspect on each affected node — the node's other aspects carry their prior verdict forward — so the cost is one LLM call per affected node for an LLM aspect, and zero for a deterministic aspect.
 

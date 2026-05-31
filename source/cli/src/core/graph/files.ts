@@ -24,7 +24,7 @@ const STRUCTURAL_RELATION_TYPES = new Set(['uses', 'calls', 'extends', 'implemen
 // STRINGS are part of every recorded baseline's drift hashes — changing them
 // would invalidate all baselines and trigger a mass cascade. Keep byte-identical.
 export const tierIdentityKey = (aspectId: string): string => `tier-identity:${aspectId}`;
-export const deterministicTouchedKey = (aspectId: string): string => `deterministic-touched:${aspectId}`;
+export const checkTouchedKey = (aspectId: string): string => `check-touched:${aspectId}`;
 
 /**
  * Repo-relative POSIX path to the .yggdrasil/ graph root (e.g. ".yggdrasil").
@@ -49,7 +49,7 @@ export function yggPrefixOf(graph: { rootPath: string }): string {
  * Synchronous — no I/O needed; all data comes from the loaded Graph.
  *
  * @param baseline Optional stored drift state for the node. When provided,
- *   deterministicTouchedFiles entries are included as 'deterministic-touched'
+ *   checkTouchedFiles entries are included as 'check-touched'
  *   layer entries so drift fires when the set of files touched by a
  *   deterministic aspect changes between runs.
  */
@@ -116,7 +116,7 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
   // A path is owned by this node's mapping if it equals a mapping entry OR sits under a
   // directory mapping entry. Exact-set membership alone misses files under a directory
   // mapping, which would misclassify an own-file edit (a reference file or a
-  // deterministic-touched path under that directory) as an upstream cascade — bypassing the
+  // check-touched path under that directory) as an upstream cascade — bypassing the
   // source-drift classification and its log requirement. mappingPathsList is normalized
   // (no trailing slash), so `m + '/'` is the directory prefix.
   const isOwnedByMapping = (p: string): boolean =>
@@ -154,32 +154,32 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
     // Deterministic (structure) aspects carry NO synthetic identity hash. Their
     // identity is fully file-tracked — the yg-aspect.yaml file hash (above), the
     // check.mjs artifact (above), the node's own mapping files, and the per-aspectId
-    // deterministicTouchedFiles set hash (below). The former structure-identity key was a
+    // checkTouchedFiles set hash (below). The former structure-identity key was a
     // CONSTANT (canonicalJson({ kind:'structure', language:null })) that added no drift
     // signal beyond the yg-aspect.yaml file hash, so it was removed.
   }
 
-  // deterministic-touched: inject entries from baseline's deterministicTouchedFiles so
+  // check-touched: inject entries from baseline's checkTouchedFiles so
   // drift fires when the set (or content) of files touched by a deterministic aspect changes.
   //
   // A touched path that is in this node's OWN mapping is skipped here: the SOURCE
   // step (below) already tracks it under the 'source' layer, which check.ts
   // classifies as source-drift. Adding it here first would label it
-  // 'deterministic-touched' (addFile dedups by path, first-writer-wins) and misreport
+  // 'check-touched' (addFile dedups by path, first-writer-wins) and misreport
   // an own-file edit as an upstream cascade. Cross-node touched paths (owned by a
-  // related node, not in this mapping) ARE added here as 'deterministic-touched' — that
+  // related node, not in this mapping) ARE added here as 'check-touched' — that
   // is the whole point: they otherwise have no tracking entry. The synthetic
   // per-aspect hash still summarizes the FULL set (own + cross) so a change to the
   // set membership drifts regardless of which paths are own vs cross.
-  if (baseline?.deterministicTouchedFiles) {
-    for (const [aspectId, pathMap] of Object.entries(baseline.deterministicTouchedFiles)) {
+  if (baseline?.checkTouchedFiles) {
+    for (const [aspectId, pathMap] of Object.entries(baseline.checkTouchedFiles)) {
       for (const p of Object.keys(pathMap)) {
         if (isOwnedByMapping(p)) continue;
-        addFile(p, 'source', 'deterministic-touched');
+        addFile(p, 'source', 'check-touched');
       }
       const sorted = Object.keys(pathMap).sort();
       addSyntheticHash(
-        deterministicTouchedKey(aspectId),
+        checkTouchedKey(aspectId),
         sorted.join('\n'),
         'graph',
         'aspects',

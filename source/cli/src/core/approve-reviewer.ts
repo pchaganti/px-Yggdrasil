@@ -26,7 +26,7 @@ type AspectViolation = { aspectId: string; reason: string; errorSource: 'codeVio
  * Run every deterministic aspect in the plan — former-ast and structure aspects
  * alike (graph-shape + fs verification, no LLM call). Records results/violations
  * and persists each aspect's touched-file hashes into
- * result.pendingDriftState.state.deterministicTouchedFiles. Cross-node touched paths
+ * result.pendingDriftState.state.checkTouchedFiles. Cross-node touched paths
  * are hashed from disk but kept OUT of state.files (see inline note).
  */
 async function dispatchStructureAspects(
@@ -74,8 +74,8 @@ async function dispatchStructureAspects(
         // disk, but DO NOT inject it into state.files: state.files is the
         // canonical own source/graph map, and check.ts's deleted-file detector
         // walks it — a cross-node path there would be reported as a phantom
-        // "(deleted)". Such paths live ONLY in deterministicTouchedFiles and
-        // re-enter the canonical hash via the deterministic-touched recompute below.
+        // "(deleted)". Such paths live ONLY in checkTouchedFiles and
+        // re-enter the canonical hash via the check-touched recompute below.
         if (!hash) {
           const abs = path.resolve(projectRoot, p);
           try {
@@ -95,9 +95,9 @@ async function dispatchStructureAspects(
           `caller must guarantee pendingDriftState is populated before reviewer dispatch.`,
         );
       }
-      const stf = result.pendingDriftState.state.deterministicTouchedFiles ?? {};
+      const stf = result.pendingDriftState.state.checkTouchedFiles ?? {};
       stf[aspect.id] = sourceFileHashes;
-      result.pendingDriftState.state.deterministicTouchedFiles = stf;
+      result.pendingDriftState.state.checkTouchedFiles = stf;
 
       const violated = structResult.violations.length > 0;
       const reason = violated
@@ -515,9 +515,9 @@ export async function runApproveWithReviewer(
   const astParseCache: ParseCache = new Map();
   await dispatchStructureAspects(plan, node, graph, result, projectRoot, astParseCache, allAspectResults, aspectViolations);
 
-  // Preserve deterministicTouchedFiles for deterministic aspects that were NOT
+  // Preserve checkTouchedFiles for deterministic aspects that were NOT
   // freshly evaluated this run. Both former-ast and structure aspects now run
-  // through the structure runner and write a deterministicTouchedFiles entry, so
+  // through the structure runner and write a checkTouchedFiles entry, so
   // both must be carried forward. Two cases collapse into one pass:
   //   - draft-skipped: a deterministic aspect toggled to draft retains its prior
   //     entry so a later enforced→draft→enforced cycle does not cascade drift.
@@ -527,13 +527,13 @@ export async function runApproveWithReviewer(
   //     out of the node's drift identity and impact blast-radius.
   // An aspect was "freshly evaluated" iff it survived the draft + filter passes
   // (i.e. it is in `filtered`); only those produce a new entry this run.
-  if (storedEntry?.deterministicTouchedFiles && result.pendingDriftState) {
-    const stf = result.pendingDriftState.state.deterministicTouchedFiles ?? {};
+  if (storedEntry?.checkTouchedFiles && result.pendingDriftState) {
+    const stf = result.pendingDriftState.state.checkTouchedFiles ?? {};
     const aspectById = new Map<string, AspectDef>();
     for (const a of allAspects) aspectById.set(a.id, a);
     const freshlyEvaluated = new Set(filtered.map(a => a.id));
     let preserved = 0;
-    for (const [id, prior] of Object.entries(storedEntry.deterministicTouchedFiles)) {
+    for (const [id, prior] of Object.entries(storedEntry.checkTouchedFiles)) {
       if (freshlyEvaluated.has(id)) continue; // a fresh entry was produced this run
       if (id in stf) continue;                // already carried (defensive)
       const aspect = aspectById.get(id);
@@ -543,25 +543,25 @@ export async function runApproveWithReviewer(
       preserved += 1;
     }
     if (preserved > 0) {
-      debugWrite(`[d8.3] preserved deterministicTouchedFiles for ${preserved} non-evaluated deterministic aspect(s) on node ${node.path}`);
+      debugWrite(`[d8.3] preserved checkTouchedFiles for ${preserved} non-evaluated deterministic aspect(s) on node ${node.path}`);
     }
-    result.pendingDriftState.state.deterministicTouchedFiles = stf;
+    result.pendingDriftState.state.checkTouchedFiles = stf;
   }
 
-  // Recompute the canonical drift hash to fold in the deterministic-touched layer.
+  // Recompute the canonical drift hash to fold in the check-touched layer.
   // approveNode computed state.hash BEFORE the structure runner ran, so on a
   // NEW baseline (action initial/approved) the cross-node files just recorded
-  // in deterministicTouchedFiles are not yet part of the node's drift identity.
+  // in checkTouchedFiles are not yet part of the node's drift identity.
   // Re-collect WITH the now-populated baseline so collectTrackedFiles emits the
-  // deterministic-touched entries, re-hash, and adopt only the canonical hash —
+  // check-touched entries, re-hash, and adopt only the canonical hash —
   // state.files stays the canonical own source/graph map (cross-node paths must
   // NOT enter it; see the touched-files loop above). Skip on no-change/refused:
   // those do not write a fresh baseline.
   if (
     result.pendingDriftState &&
     (result.action === 'initial' || result.action === 'approved') &&
-    result.pendingDriftState.state.deterministicTouchedFiles &&
-    Object.keys(result.pendingDriftState.state.deterministicTouchedFiles).length > 0
+    result.pendingDriftState.state.checkTouchedFiles &&
+    Object.keys(result.pendingDriftState.state.checkTouchedFiles).length > 0
   ) {
     const recomputeTracked = collectTrackedFiles(node, graph, result.pendingDriftState.state);
     const recomputeExclusions = getChildMappingExclusions(graph, node.path);

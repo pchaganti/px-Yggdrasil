@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { buildIssueMessage } from './message-builder.js';
-import { loadGraph } from '../core/graph-loader.js';
+import { loadGraph, UnsupportedSchemaVersionError } from '../core/graph-loader.js';
 import type { Graph } from '../model/graph.js';
 
 /**
@@ -37,6 +37,15 @@ export async function loadGraphOrAbort(
   try {
     return await loadGraph(rootPath, options);
   } catch (err) {
+    if (err instanceof UnsupportedSchemaVersionError) {
+      const formatted = buildIssueMessage({
+        what: `Graph schema version ${err.detectedVersion} is newer than this CLI supports (max: ${err.maxSupportedVersion}).`,
+        why: 'This CLI cannot safely read a graph written for a newer schema — it may misinterpret or skip fields it does not understand.',
+        next: `Upgrade the yg CLI to a version that supports schema ${err.detectedVersion} (e.g. \`npm i -g @chrisdudek/yg\`), then re-run this command.`,
+      });
+      process.stderr.write(chalk.red(`Error: ${formatted}\n`));
+      process.exit(1);
+    }
     const msg = (err as Error).message ?? '';
     const code = (err as NodeJS.ErrnoException).code;
     if (

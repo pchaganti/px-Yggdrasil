@@ -24,6 +24,27 @@ import { detectVersion } from './migrator.js';
 
 const CLI_SUPPORTED_SCHEMA = '5.0.0';
 
+/**
+ * Thrown when the project's yg-config.yaml declares a schema version newer than
+ * this CLI can read. This is an expected USER condition (the user must upgrade
+ * their CLI), NOT an internal bug — callers recognize it and emit a clean
+ * what/why/next message instead of the generic "please file an issue" wrapper.
+ */
+export class UnsupportedSchemaVersionError extends Error {
+  readonly detectedVersion: string;
+  readonly maxSupportedVersion: string;
+
+  constructor(detectedVersion: string, maxSupportedVersion: string) {
+    super(
+      `yg-config.yaml version "${detectedVersion}" is newer than this CLI supports ` +
+        `(max: ${maxSupportedVersion}).`,
+    );
+    this.name = 'UnsupportedSchemaVersionError';
+    this.detectedVersion = detectedVersion;
+    this.maxSupportedVersion = maxSupportedVersion;
+  }
+}
+
 function toModelPath(absolutePath: string, modelDir: string): string {
   return path.relative(modelDir, absolutePath).replace(/\\/g, '/').replace(/\/+$/, '');
 }
@@ -38,10 +59,7 @@ export async function loadGraph(
 
   const detected = await detectVersion(yggRoot);
   if (detected !== null && valid(detected) && gt(detected, CLI_SUPPORTED_SCHEMA)) {
-    throw new Error(
-      `yg-config.yaml version "${detected}" is newer than this CLI supports ` +
-        `(max: ${CLI_SUPPORTED_SCHEMA}).\nUpgrade CLI: \`npm i -g @chrisdudek/yg\`.`,
-    );
+    throw new UnsupportedSchemaVersionError(detected, CLI_SUPPORTED_SCHEMA);
   }
 
   let configError: string | undefined;
