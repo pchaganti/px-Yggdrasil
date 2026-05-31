@@ -1,0 +1,2 @@
+## [2026-05-31T08:36:52.124Z]
+Adds end-to-end coverage proving a malformed architecture is rejected loudly rather than silently accepted. The architecture is the foundation every other rule rests on; a typo in a type definition, a parent that does not exist, a cycle in the type hierarchy, or an unparseable classification predicate must fail fast with a precise diagnostic. This suite spawns the real binary against deliberately broken architectures and asserts each integrity error surfaces, so the foundation cannot rot undetected.

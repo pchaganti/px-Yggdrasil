@@ -1,0 +1,868 @@
+import { describe, it, expect } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import {
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  cpSync,
+  readFileSync,
+  writeFileSync,
+  appendFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Hermetic E2E — ASPECT AUTHORING & the DETERMINISTIC CHECK CONTRACT: rule-source
+// XOR validation, the check.mjs runtime contract (non-array/throw/async/file-write/
+// file-not-in-ctx) via approve and deterministic-test, directory aspect-reference-broken,
+// implies-edge when, when on relation/descendants atoms, and deterministic-test error
+// paths. Harness reused verbatim from cli-deterministic-lifecycle.test.ts; fully hermetic.
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const CLI_ROOT = path.join(__dirname, '../..');
+const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
+const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle');
+
+const distExists = existsSync(BIN_PATH);
+
+function run(
+  args: string[],
+  cwd: string,
+): {
+  stdout: string;
+  stderr: string;
+  status: number | null;
+  all: string;
+} {
+  const result = spawnSync('node', [BIN_PATH, ...args], {
+    cwd,
+    encoding: 'utf-8',
+  });
+  const stdout = result.stdout ?? '';
+  const stderr = result.stderr ?? '';
+  return { stdout, stderr, status: result.status, all: stdout + stderr };
+}
+
+/** Copy the e2e-lifecycle fixture into a fresh temp dir for mutation. */
+function copyFixture(label: string): string {
+  const dir = mkdtempSync(path.join(tmpdir(), `yg-authoring-${label}-`));
+  cpSync(FIXTURE, dir, { recursive: true });
+  return dir;
+}
+
+/**
+ * Copy the fixture and strip the LLM aspect (`has-doc-comment`) so the node's
+ * effective aspects are purely deterministic. This keeps the suite hermetic:
+ * no reviewer endpoint is ever contacted, every approve/context/check outcome is
+ * reproducible, and only deterministic check.mjs runs drive every verdict.
+ */
+function deterministicFixture(label: string): string {
+  const dir = copyFixture(label);
+  const archPath = path.join(dir, '.yggdrasil', 'yg-architecture.yaml');
+  const arch = readFileSync(archPath, 'utf-8')
+    .split('\n')
+    .filter((line) => line.trim() !== '- has-doc-comment')
+    .join('\n');
+  writeFileSync(archPath, arch, 'utf-8');
+  rmSync(path.join(dir, '.yggdrasil', 'aspects', 'has-doc-comment'), {
+    recursive: true,
+    force: true,
+  });
+  return dir;
+}
+
+// --- path helpers (operate on the temp COPY only) ---------------------------
+
+const ordersFile = (dir: string) => path.join(dir, 'src', 'services', 'orders.ts');
+const aspectDir = (dir: string, id: string) => path.join(dir, '.yggdrasil', 'aspects', id);
+const aspectYaml = (dir: string, id: string) => path.join(aspectDir(dir, id), 'yg-aspect.yaml');
+const docCommentDir = (dir: string) => path.join(dir, '.yggdrasil', 'aspects', 'has-doc-comment');
+const nodeYaml = (dir: string, node: string) =>
+  path.join(dir, '.yggdrasil', 'model', ...node.split('/'), 'yg-node.yaml');
+
+/** Author a deterministic aspect (yg-aspect.yaml + check.mjs) into the temp copy. */
+function writeDeterministicAspect(dir: string, id: string, status: string, checkSource: string): void {
+  const adir = aspectDir(dir, id);
+  mkdirSync(adir, { recursive: true });
+  writeFileSync(
+    aspectYaml(dir, id),
+    [
+      `name: ${id.replace(/-/g, '')}`,
+      `description: Authored deterministic aspect ${id}.`,
+      'reviewer:',
+      '  type: deterministic',
+      `status: ${status}`,
+      '',
+    ].join('\n'),
+    'utf-8',
+  );
+  writeFileSync(path.join(adir, 'check.mjs'), checkSource, 'utf-8');
+}
+
+/** Prepend an aspect id to the orders node's own aspects: list (creating it). */
+function attachToOrders(dir: string, aspectId: string): void {
+  const p = nodeYaml(dir, 'services/orders');
+  let s = readFileSync(p, 'utf-8');
+  if (/^aspects:\n/m.test(s)) {
+    s = s.replace(/^aspects:\n/m, `aspects:\n  - ${aspectId}\n`);
+  } else {
+    s = s.replace(/^mapping:/m, `aspects:\n  - ${aspectId}\nmapping:`);
+  }
+  writeFileSync(p, s, 'utf-8');
+}
+
+/**
+ * Silence the two channels that deliver `no-todo-comments` unconditionally in
+ * the committed fixture (the `service` architecture-type default, channel 3, and
+ * the order-processing flow, channel 5), leaving a node's own declaration as the
+ * sole delivery path. Required so a per-attach `when` on the node is the ONLY
+ * thing that can include/exclude the aspect.
+ */
+function isolateNoTodoToNodeChannel(dir: string): void {
+  const archPath = path.join(dir, '.yggdrasil', 'yg-architecture.yaml');
+  const arch = readFileSync(archPath, 'utf-8').replace(
+    '    aspects:\n      - no-todo-comments\n      - requires-named-export\n',
+    '    aspects:\n      - requires-named-export\n',
+  );
+  writeFileSync(archPath, arch, 'utf-8');
+  const flowPath = path.join(dir, '.yggdrasil', 'flows', 'order-processing', 'yg-flow.yaml');
+  const flow = readFileSync(flowPath, 'utf-8').replace(
+    'aspects:\n  - no-todo-comments\n',
+    'aspects: []\n',
+  );
+  writeFileSync(flowPath, flow, 'utf-8');
+}
+
+// `no-todo-comments [enforced]` is the stable heading substring `yg context`
+// prints when the aspect is effective; it is wholly absent when `when` filters
+// it out — the deterministic ground truth for "applies" vs "does not apply".
+const EFFECTIVE_MARKER = 'no-todo-comments [enforced]';
+
+// A check.mjs body that flags any line containing the given literal token.
+function bannedLiteralCheck(literal: string): string {
+  return [
+    'export function check(ctx) {',
+    '  const violations = [];',
+    '  for (const file of ctx.files) {',
+    "    const lines = file.content.split('\\n');",
+    '    for (let i = 0; i < lines.length; i++) {',
+    `      if (lines[i].includes(${JSON.stringify(literal)})) {`,
+    `        violations.push({ file: file.path, line: i + 1, column: 0, message: ${JSON.stringify(`${literal} token found.`)} });`,
+    '      }',
+    '    }',
+    '  }',
+    '  return violations;',
+    '}',
+    '',
+  ].join('\n');
+}
+
+describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check contract', () => {
+  // =========================================================================
+  // GROUP A — rule-source XOR (content.md vs check.mjs) validation via yg check.
+  // checkAspectRuleSources (core/checks/aspect-contracts.ts). NOT pinned by any
+  // other E2E suite. Each case mutates the committed fixture's aspect files in
+  // the temp COPY to trip exactly one reviewer/rule-source mismatch.
+  // =========================================================================
+
+  it('A1: an LLM aspect missing content.md yields aspect-missing-rule-source (exit 1)', () => {
+    // Keep the LLM aspect (do NOT strip it) but delete its content.md.
+    const dir = copyFixture('a1');
+    try {
+      rmSync(path.join(docCommentDir(dir), 'content.md'), { force: true });
+      const { status, all } = run(['check'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain('aspect-missing-rule-source');
+      expect(all).toContain("Aspect 'has-doc-comment' has reviewer 'llm' but content.md is missing.");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('A2: a deterministic aspect missing check.mjs yields aspect-missing-rule-source (exit 1)', () => {
+    const dir = deterministicFixture('a2');
+    try {
+      rmSync(path.join(aspectDir(dir, 'no-todo-comments'), 'check.mjs'), { force: true });
+      const { status, all } = run(['check'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain('aspect-missing-rule-source');
+      expect(all).toContain("Aspect 'no-todo-comments' has reviewer 'deterministic' but check.mjs is missing.");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('A3: a deterministic aspect carrying BOTH content.md and check.mjs yields aspect-both-rule-sources + aspect-unexpected-rule-source (exit 1)', () => {
+    const dir = deterministicFixture('a3');
+    try {
+      // no-todo-comments already ships check.mjs; add an illegal content.md.
+      writeFileSync(path.join(aspectDir(dir, 'no-todo-comments'), 'content.md'), 'Bogus LLM rule.\n', 'utf-8');
+      const { status, all } = run(['check'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain('aspect-both-rule-sources');
+      expect(all).toContain("Aspect 'no-todo-comments' has both content.md and check.mjs.");
+      // The mismatched-file companion error names content.md as the wrong source.
+      expect(all).toContain('aspect-unexpected-rule-source');
+      expect(all).toContain("Aspect 'no-todo-comments' has reviewer 'deterministic' but content.md is present.");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('A4: an LLM aspect carrying BOTH content.md and check.mjs yields aspect-both-rule-sources + aspect-unexpected-rule-source (exit 1)', () => {
+    const dir = copyFixture('a4');
+    try {
+      // has-doc-comment already ships content.md; add an illegal check.mjs.
+      writeFileSync(path.join(docCommentDir(dir), 'check.mjs'), 'export function check() { return []; }\n', 'utf-8');
+      const { status, all } = run(['check'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain('aspect-both-rule-sources');
+      expect(all).toContain("Aspect 'has-doc-comment' has both content.md and check.mjs.");
+      // The mismatched-file companion error names check.mjs as the wrong source.
+      expect(all).toContain('aspect-unexpected-rule-source');
+      expect(all).toContain("Aspect 'has-doc-comment' has reviewer 'llm' but check.mjs is present.");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('A5: reviewer.type llm WITH only check.mjs (no content.md) yields aspect-missing-rule-source + aspect-unexpected-rule-source (exit 1)', () => {
+    const dir = copyFixture('a5');
+    try {
+      // Drop content.md and ship check.mjs instead — an llm aspect with the
+      // deterministic reviewer's input and none of its own.
+      rmSync(path.join(docCommentDir(dir), 'content.md'), { force: true });
+      writeFileSync(path.join(docCommentDir(dir), 'check.mjs'), 'export function check() { return []; }\n', 'utf-8');
+      const { status, all } = run(['check'], dir);
+      expect(status).toBe(1);
+      // Missing its OWN source (content.md) AND carrying the WRONG one (check.mjs).
+      expect(all).toContain('aspect-missing-rule-source');
+      expect(all).toContain("Aspect 'has-doc-comment' has reviewer 'llm' but content.md is missing.");
+      expect(all).toContain('aspect-unexpected-rule-source');
+      expect(all).toContain("Aspect 'has-doc-comment' has reviewer 'llm' but check.mjs is present.");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('A6: reviewer.type deterministic WITH only content.md (no check.mjs) yields aspect-missing-rule-source + aspect-unexpected-rule-source (exit 1)', () => {
+    const dir = deterministicFixture('a6');
+    try {
+      // Replace check.mjs with content.md — a deterministic aspect with the LLM
+      // reviewer's input and none of its own.
+      rmSync(path.join(aspectDir(dir, 'no-todo-comments'), 'check.mjs'), { force: true });
+      writeFileSync(path.join(aspectDir(dir, 'no-todo-comments'), 'content.md'), 'Bogus LLM rule.\n', 'utf-8');
+      const { status, all } = run(['check'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain('aspect-missing-rule-source');
+      expect(all).toContain("Aspect 'no-todo-comments' has reviewer 'deterministic' but check.mjs is missing.");
+      expect(all).toContain('aspect-unexpected-rule-source');
+      expect(all).toContain("Aspect 'no-todo-comments' has reviewer 'deterministic' but content.md is present.");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // =========================================================================
+  // GROUP B — the deterministic check.mjs RUNTIME contract.
+  //
+  // The runners (structure runner for --node/approve, AST runner for --files)
+  // guard the author-authored check against returning a non-array, throwing, and
+  // returning a Promise, and against synthesizing a violation for a file not in
+  // ctx. yg approve catches these and renders a refused (NOT SATISFIED) verdict
+  // with the runner code embedded in the reason. yg deterministic-test does NOT
+  // catch them — see the BUG note below.
+  // =========================================================================
+
+  // BUG (pinned, not encoded as correct; full detail in .temp/dogfood-report.md):
+  // yg deterministic-test renders a well-classified runner error (STRUCTURE_CHECK_*,
+  // AST_*) through the GENERIC abortOnUnexpectedError "file an issue" wrapper rather
+  // than a clean what/why/next. Exit 1 + the runner's own message text still present,
+  // so those are what we pin.
+
+  it('B1: a check returning a NON-ARRAY refuses approve (NOT SATISFIED, STRUCTURE_CHECK_RETURN_SHAPE)', () => {
+    const dir = deterministicFixture('b1');
+    try {
+      writeDeterministicAspect(dir, 'ret-nonarray', 'enforced', 'export function check(ctx) { return { nope: true }; }\n');
+      attachToOrders(dir, 'ret-nonarray');
+      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain('ret-nonarray');
+      expect(all).toContain('NOT SATISFIED');
+      // The runner code + message are carried into the refused reason.
+      expect(all).toContain('STRUCTURE_CHECK_RETURN_SHAPE');
+      expect(all).toContain('check.mjs returned object, expected Violation[].');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('B2: a check returning a NON-ARRAY fails deterministic-test --node (exit 1, STRUCTURE_CHECK_RETURN_SHAPE)', () => {
+    const dir = deterministicFixture('b2');
+    try {
+      writeDeterministicAspect(dir, 'ret-nonarray', 'enforced', 'export function check(ctx) { return { nope: true }; }\n');
+      attachToOrders(dir, 'ret-nonarray');
+      const { status, all } = run(['deterministic-test', '--aspect', 'ret-nonarray', '--node', 'services/orders'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain('STRUCTURE_CHECK_RETURN_SHAPE');
+      expect(all).toContain('check.mjs returned object, expected Violation[].');
+      // BUG: surfaced through the generic "file an issue" wrapper (see note above).
+      expect(all).toContain('This is a bug — please file an issue');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('B3: a check that THROWS refuses approve (NOT SATISFIED, STRUCTURE_CHECK_THROWN, error message)', () => {
+    const dir = deterministicFixture('b3');
+    try {
+      writeDeterministicAspect(dir, 'thrower', 'enforced', 'export function check(ctx) { throw new Error("boom in check"); }\n');
+      attachToOrders(dir, 'thrower');
+      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain('thrower');
+      expect(all).toContain('NOT SATISFIED');
+      expect(all).toContain('STRUCTURE_CHECK_THROWN');
+      expect(all).toContain("check.mjs threw an exception while running (aspect 'thrower').");
+      expect(all).toContain('boom in check');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('B4: a check that THROWS fails deterministic-test --node (exit 1, STRUCTURE_CHECK_THROWN)', () => {
+    const dir = deterministicFixture('b4');
+    try {
+      writeDeterministicAspect(dir, 'thrower', 'enforced', 'export function check(ctx) { throw new Error("boom in check"); }\n');
+      attachToOrders(dir, 'thrower');
+      const { status, all } = run(['deterministic-test', '--aspect', 'thrower', '--node', 'services/orders'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain('STRUCTURE_CHECK_THROWN');
+      expect(all).toContain("check.mjs threw an exception while running (aspect 'thrower').");
+      expect(all).toContain('boom in check');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('B5: a check that THROWS fails deterministic-test --files via the single-file runner (exit 1, AST_CHECK_THROWN message)', () => {
+    const dir = deterministicFixture('b5');
+    try {
+      // No node attachment needed for --files; the aspect just has to exist.
+      writeDeterministicAspect(dir, 'thrower', 'enforced', 'export function check(ctx) { throw new Error("boom in check"); }\n');
+      const { status, all } = run(
+        ['deterministic-test', '--aspect', 'thrower', '--files', 'src/services/orders.ts'],
+        dir,
+      );
+      expect(status).toBe(1);
+      // The AST (single-file) runner's AstRunnerError omits the code prefix from
+      // its .message, so we pin the what/why text, not the AST_CHECK_THROWN token.
+      expect(all).toContain("check.mjs threw an exception while running (aspect 'thrower').");
+      expect(all).toContain('boom in check');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('B6: an ASYNC check fails deterministic-test --node (exit 1, STRUCTURE_CHECK_ASYNC)', () => {
+    const dir = deterministicFixture('b6');
+    try {
+      writeDeterministicAspect(dir, 'asyncer', 'enforced', 'export async function check(ctx) { return []; }\n');
+      attachToOrders(dir, 'asyncer');
+      const { status, all } = run(['deterministic-test', '--aspect', 'asyncer', '--node', 'services/orders'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain('STRUCTURE_CHECK_ASYNC');
+      expect(all).toContain('check.mjs returned a Promise; only synchronous returns are supported.');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('B7: an ASYNC check fails deterministic-test --files via the single-file runner (exit 1, async message)', () => {
+    const dir = deterministicFixture('b7');
+    try {
+      writeDeterministicAspect(dir, 'asyncer', 'enforced', 'export async function check(ctx) { return []; }\n');
+      const { status, all } = run(
+        ['deterministic-test', '--aspect', 'asyncer', '--files', 'src/services/orders.ts'],
+        dir,
+      );
+      expect(status).toBe(1);
+      expect(all).toContain('check.mjs returned a Promise; only synchronous returns are supported');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // BUG / CONTRACT NOTE (pinned, not encoded as desirable) — the runners do NOT
+  // sandbox the check. A check.mjs that performs a side effect (node:fs write,
+  // network I/O) is NOT caught by the runner: it FAILS OPEN — the write actually
+  // happens and the check returns its violations as if nothing occurred.
+  // CONTRACT (knowledge read writing-deterministic-aspects, "Purity rule"):
+  //   "Do not write files, make network calls, or call process.exit ...
+  //    respecting that is your responsibility." — i.e. the runtime does NOT
+  //    enforce purity; --check-determinism is the only mechanism that catches an
+  //    impure check, and only when the impurity makes the output vary across runs
+  //    (already pinned in cli-deterministic-ctx S4b). We pin the fail-open fact:
+  //    the write lands and the check reports "No violations" (exit 0).
+  // (Network side effects are NOT asserted here: a real network call is
+  //  non-hermetic and forbidden by this suite's rules; the runner provably does
+  //  not sandbox it either — same fail-open semantics as the file write, just
+  //  non-deterministically timed via an unhandled async rejection.)
+  it('B8: a file-WRITE side effect is NOT sandboxed — the runner fails open (exit 0, the write lands)', () => {
+    const dir = deterministicFixture('b8');
+    try {
+      // Write the sentinel under a path inside the temp graph so the side effect
+      // stays fully contained in the per-test mkdtemp (cleaned in finally).
+      const sentinel = path.join(dir, 'SIDE_EFFECT_SENTINEL.txt');
+      writeDeterministicAspect(
+        dir,
+        'writer',
+        'enforced',
+        [
+          "import { writeFileSync } from 'node:fs';",
+          'export function check(ctx) {',
+          `  writeFileSync(${JSON.stringify(sentinel)}, 'written by check.mjs');`,
+          '  return [];',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      expect(existsSync(sentinel)).toBe(false);
+      const { status, all } = run(
+        ['deterministic-test', '--aspect', 'writer', '--files', 'src/services/orders.ts'],
+        dir,
+      );
+      // Runner fails open: it reports no violations and the side effect happened.
+      expect(status).toBe(0);
+      expect(all).toContain('No violations.');
+      expect(existsSync(sentinel)).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('B9: a check synthesizing a violation for a file NOT in ctx fails deterministic-test --files (exit 1, AST_CHECK_FILE_NOT_IN_CONTEXT)', () => {
+    const dir = deterministicFixture('b9');
+    try {
+      // Return a violation referencing a file the single-file runner was not
+      // handed — the runner rejects it rather than failing open.
+      writeDeterministicAspect(
+        dir,
+        'badfile',
+        'enforced',
+        [
+          'export function check(ctx) {',
+          "  return [{ file: 'src/services/NOT_GIVEN.ts', line: 1, column: 0, message: 'synthesized for an unseen file' }];",
+          '}',
+          '',
+        ].join('\n'),
+      );
+      const { status, all } = run(
+        ['deterministic-test', '--aspect', 'badfile', '--files', 'src/services/orders.ts'],
+        dir,
+      );
+      expect(status).toBe(1);
+      expect(all).toContain("Violation referencing file 'src/services/NOT_GIVEN.ts' which is not in ctx.files");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // =========================================================================
+  // GROUP C — references validation gap (the directory variant of
+  // aspect-reference-broken; cli-check-validation 6a pins only the missing-file
+  // variant). Every other aspect-reference* code is already pinned by
+  // cli-validation-codes / cli-check-validation (see SKIPPED in the report).
+  // =========================================================================
+
+  it('C1: an LLM aspect reference resolving to a DIRECTORY yields aspect-reference-broken (exit 1)', () => {
+    const dir = copyFixture('c1');
+    try {
+      mkdirSync(path.join(dir, 'docs', 'atable'), { recursive: true });
+      appendFileSync(aspectYaml(dir, 'has-doc-comment'), 'references:\n  - docs/atable\n');
+      const { status, all } = run(['check'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain('aspect-reference-broken');
+      expect(all).toContain("Aspect 'has-doc-comment' references 'docs/atable' but the path resolves to a directory.");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // =========================================================================
+  // GROUP D — implies edges: `when` on the implies edge, and a draft implier.
+  // cli-implies covers bare implies, recursion, removal, status_inherit, cycles.
+  // It does NOT cover a `when` on the implies edge object form, nor the
+  // draft-implier-with-draft-implied divergence below.
+  // =========================================================================
+
+  // The implier `no-todo-comments` (service type default) implies `no-banned-word`
+  // via the object form `{ id, when }`. The `when` is a relation atom: it passes
+  // only when the node declares a `calls` relation to services/payments.
+  it('D1: an implies edge object-form `when` (TRUE) pulls the implied aspect into the effective set', () => {
+    const dir = deterministicFixture('d1-when-true');
+    try {
+      writeDeterministicAspect(dir, 'no-banned-word', 'enforced', bannedLiteralCheck('BANNED'));
+      // Object-form implies edge with a relation-atom when on no-todo-comments.
+      writeFileSync(
+        aspectYaml(dir, 'no-todo-comments'),
+        [
+          'name: NoTodoComments',
+          'description: Source files must not contain TODO comments.',
+          'reviewer:',
+          '  type: deterministic',
+          'status: enforced',
+          'implies:',
+          '  - id: no-banned-word',
+          '    when:',
+          '      relations:',
+          '        calls:',
+          '          target: services/payments',
+          '',
+        ].join('\n'),
+        'utf-8',
+      );
+      // orders declares the calls→payments relation → the edge `when` is TRUE.
+      writeFileSync(
+        nodeYaml(dir, 'services/orders'),
+        [
+          'name: OrdersService',
+          'description: Creates and retrieves customer orders.',
+          'type: service',
+          'relations:',
+          '  - target: services/payments',
+          '    type: calls',
+          'mapping:',
+          '  - src/services/orders.ts',
+          '',
+        ].join('\n'),
+        'utf-8',
+      );
+
+      const ctx = run(['context', '--node', 'services/orders'], dir);
+      expect(ctx.status).toBe(0);
+      expect(ctx.stdout).toContain('no-banned-word [enforced]');
+      expect(ctx.stdout).toContain("implied by 'no-todo-comments'");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('D2: an implies edge object-form `when` (FALSE) excludes the implied aspect from the effective set', () => {
+    const dir = deterministicFixture('d2-when-false');
+    try {
+      writeDeterministicAspect(dir, 'no-banned-word', 'enforced', bannedLiteralCheck('BANNED'));
+      writeFileSync(
+        aspectYaml(dir, 'no-todo-comments'),
+        [
+          'name: NoTodoComments',
+          'description: Source files must not contain TODO comments.',
+          'reviewer:',
+          '  type: deterministic',
+          'status: enforced',
+          'implies:',
+          '  - id: no-banned-word',
+          '    when:',
+          '      relations:',
+          '        calls:',
+          '          target: services/payments',
+          '',
+        ].join('\n'),
+        'utf-8',
+      );
+      // orders declares NO relation → the edge `when` is FALSE → implied excluded.
+      // (The committed orders node has no relations, so leave it untouched.)
+      const ctx = run(['context', '--node', 'services/orders'], dir);
+      expect(ctx.status).toBe(0);
+      // The implied aspect is NOT in the effective set: it has no heading line
+      // (`no-banned-word [<status>]`) and no "implied by" provenance line. (The
+      // implier's static `Implies: no-banned-word` line still prints — that names
+      // the declared edge, not an effective aspect — so we must not assert on the
+      // bare token.)
+      expect(ctx.stdout).not.toContain('no-banned-word [');
+      expect(ctx.stdout).not.toContain("implied by 'no-todo-comments'");
+
+      // Enforcement follows: a BANNED line is NOT flagged (the aspect never reached
+      // the node), so a clean-but-for-BANNED approve succeeds.
+      appendFileSync(ordersFile(dir), '\n// this constant is BANNED here\n');
+      const approve = run(['approve', '--node', 'services/orders'], dir);
+      expect(approve.status).toBe(0);
+      expect(approve.stdout).toContain('Approved: services/orders');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // BUG (pinned, not encoded as correct) — a DRAFT implier whose implied aspect
+  // is ALSO draft: yg context and yg approve DISAGREE on the implied aspect.
+  //
+  //   CONTRACT (agent-rules "Reviewer", knowledge read aspect-status):
+  //     "Reviewer skips draft aspects entirely — no verdict is recorded for a
+  //      draft aspect." And `yg context` renders the implied aspect as
+  //      "[draft] ... (reviewer skipped; aspect is draft)".
+  //
+  //   ACTUAL (this binary):
+  //     computeEffectiveAspects (the id SET, core/graph/aspects.ts
+  //     expandImpliesFiltered) walks the implies graph applying only `when`
+  //     filters — never the implier's status — so the draft implier STILL pulls
+  //     `no-banned-word` into the evaluated set. computeEffectiveAspectStatuses
+  //     (the status MAP) separately skips draft impliers, so `no-banned-word`
+  //     gets NO status entry and approve's `statuses.get(id) !== 'draft'` guard
+  //     reads undefined !== 'draft' === true → treats it as NON-draft → evaluates
+  //     and REFUSES. Net: context says "draft, skipped"; approve evaluates it and
+  //     blocks (exit 1). The two commands contradict each other on the same
+  //     aspect. (Distinct from cli-aspect-status-extended G10, where the implied
+  //     aspect's OWN default is enforced so context and approve AGREE it is
+  //     enforced — there is no context/approve disagreement there.)
+  //   We pin the ACTUAL behavior.
+  it('D3: BUG — a DRAFT implier of a DRAFT-default aspect: context says [draft]/skipped, but approve evaluates it and REFUSES (exit 1)', () => {
+    const dir = deterministicFixture('d3-draft-implier');
+    try {
+      // no-banned-word: own default DRAFT, attached NOWHERE except via the edge.
+      writeDeterministicAspect(dir, 'no-banned-word', 'draft', bannedLiteralCheck('BANNED'));
+      // draft-implier: DRAFT, implies the draft aspect, attached on orders only.
+      writeDeterministicAspect(dir, 'draft-implier', 'draft', 'export function check(ctx) { return []; }\n');
+      writeFileSync(
+        aspectYaml(dir, 'draft-implier'),
+        [
+          'name: draftimplier',
+          'description: A draft implier of a draft-default aspect.',
+          'reviewer:',
+          '  type: deterministic',
+          'status: draft',
+          'implies:',
+          '  - no-banned-word',
+          '',
+        ].join('\n'),
+        'utf-8',
+      );
+      attachToOrders(dir, 'draft-implier');
+
+      // context: the implier is draft/skipped AND the implied aspect renders as
+      // draft with "reviewer skipped" — the documented dormant contract.
+      const ctx = run(['context', '--node', 'services/orders'], dir);
+      expect(ctx.status).toBe(0);
+      expect(ctx.stdout).toContain('draft-implier [draft]');
+      expect(ctx.stdout).toContain('no-banned-word [draft]');
+      expect(ctx.stdout).toContain("implied by 'draft-implier'");
+
+      // approve: despite context saying "skipped", the implied aspect IS evaluated
+      // and a BANNED line REFUSES (the divergence).
+      appendFileSync(ordersFile(dir), '\n// this constant is BANNED here\n');
+      const approve = run(['approve', '--node', 'services/orders'], dir);
+      expect(approve.status).toBe(1);
+      expect(approve.stdout).toContain('no-banned-word');
+      expect(approve.stdout).toContain('NOT SATISFIED');
+      expect(approve.stdout).toContain('BANNED token found.');
+      // The implier itself IS announced as skipped (draft) — the asymmetry.
+      expect(approve.stdout).toContain('draft-implier');
+      expect(approve.stdout).toContain('skipped');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // =========================================================================
+  // GROUP E — `when` on a relation atom and on a descendants atom for an aspect
+  // attach. cli-conditional-when covers only the node.* atoms (type / has_port /
+  // has_mapping) and the boolean combinators; the relations / descendants atoms
+  // of the aspect-when grammar are unexercised end-to-end.
+  // =========================================================================
+
+  it('E1: a per-attach `when` on a RELATION atom includes the aspect when the relation exists and excludes it otherwise', () => {
+    const dir = deterministicFixture('e1-relation-atom');
+    try {
+      isolateNoTodoToNodeChannel(dir);
+      // orders: a calls→payments relation present AND a node-attached
+      // no-todo-comments gated on that same relation → predicate TRUE.
+      writeFileSync(
+        nodeYaml(dir, 'services/orders'),
+        [
+          'name: OrdersService',
+          'description: Creates and retrieves customer orders.',
+          'type: service',
+          'aspects:',
+          '  - id: no-todo-comments',
+          '    when:',
+          '      relations:',
+          '        calls:',
+          '          target: services/payments',
+          'relations:',
+          '  - target: services/payments',
+          '    type: calls',
+          'mapping:',
+          '  - src/services/orders.ts',
+          '',
+        ].join('\n'),
+        'utf-8',
+      );
+      const present = run(['context', '--node', 'services/orders'], dir);
+      expect(present.status).toBe(0);
+      expect(present.stdout).toContain(EFFECTIVE_MARKER);
+
+      // payments: SAME gated attach but NO relation → predicate FALSE → excluded.
+      writeFileSync(
+        nodeYaml(dir, 'services/payments'),
+        [
+          'name: PaymentsService',
+          'description: Charges and refunds payments for orders.',
+          'type: service',
+          'aspects:',
+          '  - id: no-todo-comments',
+          '    when:',
+          '      relations:',
+          '        calls:',
+          '          target: services/payments',
+          'mapping:',
+          '  - src/services/payments.ts',
+          '',
+        ].join('\n'),
+        'utf-8',
+      );
+      const absent = run(['context', '--node', 'services/payments'], dir);
+      expect(absent.status).toBe(0);
+      expect(absent.stdout).not.toContain(EFFECTIVE_MARKER);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('E2: a per-attach `when` on a DESCENDANTS atom includes the aspect on a parent with matching descendants and excludes it otherwise', () => {
+    const dir = deterministicFixture('e2-descendants-atom');
+    try {
+      isolateNoTodoToNodeChannel(dir);
+      // Attach no-todo-comments on the `services` module, gated on having a
+      // descendant of type `service` → TRUE (orders + payments are services).
+      writeFileSync(
+        nodeYaml(dir, 'services'),
+        [
+          'name: Services',
+          'description: Organizational grouping of services.',
+          'type: module',
+          'aspects:',
+          '  - id: no-todo-comments',
+          '    when:',
+          '      descendants:',
+          '        type: service',
+          '',
+        ].join('\n'),
+        'utf-8',
+      );
+      const matched = run(['context', '--node', 'services'], dir);
+      expect(matched.status).toBe(0);
+      expect(matched.stdout).toContain(EFFECTIVE_MARKER);
+
+      // Re-gate on a descendant TYPE the subtree does not contain (`module`) →
+      // FALSE → the aspect drops off the parent's effective list.
+      writeFileSync(
+        nodeYaml(dir, 'services'),
+        [
+          'name: Services',
+          'description: Organizational grouping of services.',
+          'type: module',
+          'aspects:',
+          '  - id: no-todo-comments',
+          '    when:',
+          '      descendants:',
+          '        type: module',
+          '',
+        ].join('\n'),
+        'utf-8',
+      );
+      const unmatched = run(['context', '--node', 'services'], dir);
+      expect(unmatched.status).toBe(0);
+      expect(unmatched.stdout).not.toContain(EFFECTIVE_MARKER);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // =========================================================================
+  // GROUP F — yg deterministic-test error paths. (cli-deterministic-ctx covers
+  // the both-modes / neither-mode guards; these are the remaining argument /
+  // target errors and the tier-irrelevance confirmation.)
+  // =========================================================================
+
+  it('F1: deterministic-test with an unknown --aspect id is rejected (exit 1)', () => {
+    const dir = deterministicFixture('f1');
+    try {
+      const { status, all } = run(['deterministic-test', '--aspect', 'does-not-exist', '--node', 'services/orders'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain("Aspect 'does-not-exist' not found.");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('F2: deterministic-test --node on a nonexistent node is rejected (exit 1)', () => {
+    const dir = deterministicFixture('f2');
+    try {
+      const { status, all } = run(['deterministic-test', '--aspect', 'no-todo-comments', '--node', 'no/such/node'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain("Node 'no/such/node' not found.");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // BUG (pinned, not encoded as correct) — a nonexistent --files path is an
+  // EXPECTED user error (a typo'd path) but surfaces through the generic
+  // abortOnUnexpectedError wrapper as an unclassified ENOENT crash ("This is a
+  // bug — please file an issue"), rather than a clean what/why/next telling the
+  // user the file does not exist. We pin the actual ENOENT + exit 1.
+  it('F3: deterministic-test --files on a nonexistent path fails (exit 1, ENOENT)', () => {
+    const dir = deterministicFixture('f3');
+    try {
+      const { status, all } = run(
+        ['deterministic-test', '--aspect', 'no-todo-comments', '--files', 'src/services/MISSING.ts'],
+        dir,
+      );
+      expect(status).toBe(1);
+      expect(all).toContain('ENOENT');
+      expect(all).toContain('src/services/MISSING.ts');
+      // BUG: rendered as an unclassified crash (see note above).
+      expect(all).toContain('This is a bug — please file an issue');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('F4: deterministic-test on an --aspect that is an LLM aspect is rejected (exit 1)', () => {
+    // Keep the LLM aspect this time (do NOT strip it) so we can target it.
+    const dir = copyFixture('f4');
+    try {
+      const { status, all } = run(['deterministic-test', '--aspect', 'has-doc-comment', '--node', 'services/orders'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain("Aspect 'has-doc-comment' has reviewer 'llm', not 'deterministic'.");
+      expect(all).toContain('yg deterministic-test only runs deterministic aspects');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // Tier selection is irrelevant for a deterministic aspect: the fixture config
+  // declares a `standard` reviewer tier (an LLM concept), yet deterministic-test
+  // runs the check.mjs locally with zero LLM involvement and never dials the
+  // reviewer endpoint. (A tier declared ON a deterministic aspect is a separate
+  // validation error — aspect-tier-on-deterministic — already pinned in
+  // cli-validation-codes C4.) Here we confirm the run succeeds regardless of the
+  // configured tier and contacts no endpoint.
+  it('F5: tier is irrelevant for deterministic — deterministic-test runs the check locally and passes (exit 0), no endpoint dialed', () => {
+    const dir = deterministicFixture('f5');
+    try {
+      // Sanity: the config still carries a reviewer tier (the thing being ignored).
+      const cfg = readFileSync(path.join(dir, '.yggdrasil', 'yg-config.yaml'), 'utf-8');
+      expect(cfg).toContain('tiers:');
+      const { status, all } = run(['deterministic-test', '--aspect', 'no-todo-comments', '--node', 'services/orders'], dir);
+      expect(status).toBe(0);
+      expect(all).toContain('No violations.');
+      // No reviewer/tier/endpoint chatter — the deterministic path bypasses it.
+      expect(all).not.toContain('endpoint');
+      expect(all).not.toContain('not reachable');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

@@ -1,0 +1,7 @@
+name: E2E Tests — Aspect Status Extended
+type: test-suite
+description: "Subprocess E2E proving aspect-status combinatorics — effective-status max() across cascading channels involving draft, default-to-enforced when status omitted, a multi-node cascade on a status flip firing newly-active on every affected node, a refused enforced verdict persisted in the baseline and re-rendered without re-running, transitive strictest status_inherit promotion across an implies chain, and a draft-default aspect skipping every node under approve --aspect."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-aspect-status-extended.test.ts

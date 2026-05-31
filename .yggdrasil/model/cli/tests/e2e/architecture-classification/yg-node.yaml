@@ -1,0 +1,7 @@
+name: E2E Tests — Architecture Classification
+type: test-suite
+description: "Subprocess E2E proving node-type classification against custom from-scratch architectures — type-when-mismatch (path/content/not atoms), strict backward coverage (type-strict-misplaced, strict-overlap-conflict), organizational type with a non-empty mapping rejected, channel-3/4 default-aspect attribution and enforcement, and the full yg type-suggest surface (single/multiple/no-match, closest ranking, partial score, path-only, .yggdrasil auto-exempt, gitignore warning)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-architecture-classification.test.ts

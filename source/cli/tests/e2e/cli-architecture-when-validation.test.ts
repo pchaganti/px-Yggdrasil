@@ -1,0 +1,852 @@
+import { describe, it, expect } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import {
+  existsSync,
+  mkdtempSync,
+  rmSync,
+  cpSync,
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const CLI_ROOT = path.join(__dirname, '../..');
+const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
+const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle');
+
+const distExists = existsSync(BIN_PATH);
+
+// ---------------------------------------------------------------------------
+// Harness — reused verbatim from cli-deterministic-lifecycle.test.ts:
+// the spawnSync `run(args, cwd)` wrapper, BIN_PATH resolution, distExists
+// guard with describe.skipIf, and the copyFixture/mkdtemp pattern. Each test
+// builds its own graph in a fresh temp dir and rmSync's it in a finally —
+// zero committed fixtures, no network, no LLM (every assertion is a structural
+// validator verdict surfaced by the spawned binary).
+// ---------------------------------------------------------------------------
+
+function run(
+  args: string[],
+  cwd: string,
+): {
+  stdout: string;
+  stderr: string;
+  status: number | null;
+  all: string;
+} {
+  const result = spawnSync('node', [BIN_PATH, ...args], {
+    cwd,
+    encoding: 'utf-8',
+  });
+  const stdout = result.stdout ?? '';
+  const stderr = result.stderr ?? '';
+  return { stdout, stderr, status: result.status, all: stdout + stderr };
+}
+
+/** Copy the e2e-lifecycle fixture into a fresh temp dir for mutation. */
+function copyFixture(label: string): string {
+  const dir = mkdtempSync(path.join(tmpdir(), `yg-archwhen-${label}-`));
+  cpSync(FIXTURE, dir, { recursive: true });
+  return dir;
+}
+
+const archPath = (dir: string) =>
+  path.join(dir, '.yggdrasil', 'yg-architecture.yaml');
+const ordersNodePath = (dir: string) =>
+  path.join(dir, '.yggdrasil', 'model', 'services', 'orders', 'yg-node.yaml');
+
+/** Overwrite the architecture file with the given content. */
+function writeArch(dir: string, content: string): void {
+  writeFileSync(archPath(dir), content, 'utf-8');
+}
+
+/** Append text to the architecture file. */
+function appendArch(dir: string, content: string): void {
+  writeFileSync(archPath(dir), readFileSync(archPath(dir), 'utf-8') + content, 'utf-8');
+}
+
+/**
+ * Replace the `service` type's file-`when` block in the fixture architecture
+ * with an arbitrary `when:` block. The fixture ships exactly:
+ *   `    when:\n      path: "src/services/**"`
+ * so this single substitution injects malformed file-when predicates while
+ * leaving the rest of the architecture intact and valid.
+ */
+function replaceServiceWhen(dir: string, whenBlock: string): void {
+  const arch = readFileSync(archPath(dir), 'utf-8').replace(
+    '    when:\n      path: "src/services/**"',
+    whenBlock,
+  );
+  writeArch(dir, arch);
+}
+
+// A fully valid baseline architecture, byte-equal in spirit to the fixture's
+// own, used by tests that need to add EXTRA types/aspects without disturbing
+// the two `service` children. Keeping it inline (not reading the fixture) makes
+// each malformed variant self-describing.
+const VALID_ARCH = `node_types:
+  module:
+    description: 'Organizational grouping of related services.'
+    log_required: false
+  service:
+    description: 'A service unit under src/services/.'
+    log_required: false
+    when:
+      path: "src/services/**"
+    parents: [module]
+    aspects:
+      - no-todo-comments
+      - requires-named-export
+      - has-doc-comment
+    relations:
+      uses: [service]
+      calls: [service]
+`;
+
+describe.skipIf(!distExists)(
+  'CLI E2E — architecture when-predicate validation + type-graph integrity',
+  () => {
+    // -----------------------------------------------------------------------
+    // GROUP 1 — Type reference integrity (node→type, type→parent-type).
+    // -----------------------------------------------------------------------
+
+    it('T1: a node declaring a type absent from architecture raises type-undefined (exit 1)', () => {
+      const dir = copyFixture('t1');
+      try {
+        writeFileSync(
+          ordersNodePath(dir),
+          [
+            'name: OrdersService',
+            'description: Creates and retrieves customer orders.',
+            'type: ghost-type',
+            'mapping:',
+            '  - src/services/orders.ts',
+            '',
+          ].join('\n'),
+          'utf-8',
+        );
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('type-undefined');
+        expect(stdout).toContain(
+          "Node type 'ghost-type' is not defined in yg-architecture.yaml.",
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T2: a type listing an undefined parent type raises type-unknown-parent (exit 1)', () => {
+      const dir = copyFixture('t2');
+      try {
+        const arch = readFileSync(archPath(dir), 'utf-8').replace(
+          'parents: [module]',
+          'parents: [ghost-parent]',
+        );
+        writeArch(dir, arch);
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('type-unknown-parent');
+        expect(stdout).toContain(
+          "Architecture type 'service' declares parent 'ghost-parent' which is not defined in node_types.",
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T3: a node whose actual parent type is not in its type.parents raises parent-type-forbidden (exit 1)', () => {
+      const dir = copyFixture('t3');
+      try {
+        // Add an organizational `widget` type allowed only under `service`, and
+        // place a widget node under the module-typed `services` parent. The
+        // architecture stays acyclic (so no cycle short-circuit), exercising the
+        // Stage-4 parent-type constraint cleanly.
+        appendArch(
+          dir,
+          [
+            '',
+            '  widget:',
+            "    description: 'A widget; only allowed under service.'",
+            '    log_required: false',
+            '    parents: [service]',
+            '',
+          ].join('\n'),
+        );
+        const gizmoDir = path.join(dir, '.yggdrasil', 'model', 'services', 'gizmo');
+        mkdirSync(gizmoDir, { recursive: true });
+        writeFileSync(
+          path.join(gizmoDir, 'yg-node.yaml'),
+          [
+            'name: Gizmo',
+            'description: A widget node placed under a module parent.',
+            'type: widget',
+            '',
+          ].join('\n'),
+          'utf-8',
+        );
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('parent-type-forbidden');
+        expect(stdout).toContain(
+          "Architecture does not allow type 'widget' under parent type 'module'. Allowed parents: [service]",
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // GROUP 2 — Architecture parent-type cycles.
+    // -----------------------------------------------------------------------
+
+    it('T4: a two-type parent cycle (alpha↔beta) raises architecture-cycle (exit 1)', () => {
+      const dir = copyFixture('t4');
+      try {
+        appendArch(
+          dir,
+          [
+            '',
+            '  alpha:',
+            "    description: 'cycle alpha'",
+            '    parents: [beta]',
+            '  beta:',
+            "    description: 'cycle beta'",
+            '    parents: [alpha]',
+            '',
+          ].join('\n'),
+        );
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('architecture-cycle');
+        expect(stdout).toContain('Cycle in parents');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T5: a three-type parent cycle (aa→bb→cc→aa) raises architecture-cycle (exit 1)', () => {
+      const dir = copyFixture('t5');
+      try {
+        appendArch(
+          dir,
+          [
+            '',
+            '  aa:',
+            "    description: 'cycle aa'",
+            '    parents: [bb]',
+            '  bb:',
+            "    description: 'cycle bb'",
+            '    parents: [cc]',
+            '  cc:',
+            "    description: 'cycle cc'",
+            '    parents: [aa]',
+            '',
+          ].join('\n'),
+        );
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('architecture-cycle');
+        expect(stdout).toContain('Cycle in parents');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T6: a self-referential parent (selfloop→selfloop) raises architecture-cycle (exit 1)', () => {
+      const dir = copyFixture('t6');
+      try {
+        appendArch(
+          dir,
+          [
+            '',
+            '  selfloop:',
+            "    description: 'self loop'",
+            '    parents: [selfloop]',
+            '',
+          ].join('\n'),
+        );
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('architecture-cycle');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T7: an unknown parent inside a would-be cycle suppresses the cycle check — only type-unknown-parent fires', () => {
+      const dir = copyFixture('t7');
+      try {
+        // aa↔bb is a 2-cycle, but bb ALSO references an undefined parent. The
+        // cycle pass bails out when any parent reference is unknown, so the
+        // unknown-parent error pre-empts (and replaces) the cycle error.
+        appendArch(
+          dir,
+          [
+            '',
+            '  aa:',
+            "    description: 'aa'",
+            '    parents: [bb]',
+            '  bb:',
+            "    description: 'bb'",
+            '    parents: [aa, ghostxyz]',
+            '',
+          ].join('\n'),
+        );
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('type-unknown-parent');
+        expect(stdout).toContain("declares parent 'ghostxyz'");
+        // The cycle error must NOT appear — unknown parent short-circuits it.
+        expect(stdout).not.toContain('architecture-cycle');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // GROUP 3 — File-when (node_types.*.when) structural validation.
+    // Every malformed file-when surfaces as when-predicate-invalid. The atoms
+    // for file-when are ONLY `path` and `content`.
+    // -----------------------------------------------------------------------
+
+    it('T8: an empty when mapping (when: {}) raises when-predicate-invalid (exit 1)', () => {
+      const dir = copyFixture('t8');
+      try {
+        replaceServiceWhen(dir, '    when: {}');
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('when-predicate-invalid');
+        expect(stdout).toContain(
+          'yg-architecture.yaml: node_types.service.when: when mapping must not be empty',
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T9: an unknown file-when key raises when-predicate-invalid naming the allowed keys', () => {
+      const dir = copyFixture('t9');
+      try {
+        replaceServiceWhen(dir, '    when:\n      foo: "bar"');
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('when-predicate-invalid');
+        expect(stdout).toContain(
+          "unknown when key 'foo' (expected one of: all_of, any_of, not, path, content)",
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T10: mixing a boolean operator with an atomic clause at one level raises when-predicate-invalid', () => {
+      const dir = copyFixture('t10');
+      try {
+        replaceServiceWhen(
+          dir,
+          '    when:\n      all_of:\n        - path: "src/**"\n      path: "src/services/**"',
+        );
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('when-predicate-invalid');
+        expect(stdout).toContain(
+          'when cannot mix boolean operators with atomic clauses at the same level',
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T11: two boolean operators at one level raises when-predicate-invalid', () => {
+      const dir = copyFixture('t11');
+      try {
+        replaceServiceWhen(
+          dir,
+          '    when:\n      all_of:\n        - path: "a"\n      any_of:\n        - path: "b"',
+        );
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('when-predicate-invalid');
+        expect(stdout).toContain(
+          'when can have at most one boolean operator at a level (got: all_of, any_of)',
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T12: a path atom that is not a string raises when-predicate-invalid', () => {
+      const dir = copyFixture('t12');
+      try {
+        replaceServiceWhen(dir, '    when:\n      path: 123');
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('when-predicate-invalid');
+        expect(stdout).toContain('path must be a string (got number)');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T13: a content atom that is not a string raises when-predicate-invalid', () => {
+      const dir = copyFixture('t13');
+      try {
+        replaceServiceWhen(dir, '    when:\n      content: 99');
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('when-predicate-invalid');
+        expect(stdout).toContain('content must be a string (got number)');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T14: an invalid regex in a content atom raises when-predicate-invalid (Invalid regex)', () => {
+      const dir = copyFixture('t14');
+      try {
+        replaceServiceWhen(dir, '    when:\n      content: "([unclosed"');
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('when-predicate-invalid');
+        expect(stdout).toContain('Invalid regex in content');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T15: a `not` whose child is not a mapping raises when-predicate-invalid', () => {
+      const dir = copyFixture('t15');
+      try {
+        replaceServiceWhen(dir, '    when:\n      not: "src/**"');
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('when-predicate-invalid');
+        expect(stdout).toContain('when must be a YAML mapping');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T16: an all_of whose value is not an array raises when-predicate-invalid', () => {
+      const dir = copyFixture('t16');
+      try {
+        replaceServiceWhen(dir, '    when:\n      all_of: "src/**"');
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('when-predicate-invalid');
+        expect(stdout).toContain("'all_of' must be an array");
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T17: an all_of with an empty array raises when-predicate-invalid', () => {
+      const dir = copyFixture('t17');
+      try {
+        replaceServiceWhen(dir, '    when:\n      all_of: []');
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('when-predicate-invalid');
+        expect(stdout).toContain("'all_of' array must not be empty");
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // GROUP 4 — Aspect-when reference integrity at the architecture default
+    // aspect attach site (channel 3, node_types.*.aspects[].when). This is
+    // aspect-when grammar (node/relations/descendants atoms), validated by the
+    // reference-integrity pass as when-unknown-type / -node / -port. These are
+    // NON-fatal Stage-4 checks (they coexist with drift/unapproved noise), so
+    // each test asserts the specific code + message rather than isolation.
+    // -----------------------------------------------------------------------
+
+    it('T18: aspect-when relations.calls.target_type referencing an undefined type raises when-unknown-type', () => {
+      const dir = copyFixture('t18');
+      try {
+        writeArch(
+          dir,
+          [
+            'node_types:',
+            '  module:',
+            "    description: 'Organizational grouping.'",
+            '    log_required: false',
+            '  service:',
+            "    description: 'A service unit.'",
+            '    log_required: false',
+            '    when:',
+            '      path: "src/services/**"',
+            '    parents: [module]',
+            '    aspects:',
+            '      - id: no-todo-comments',
+            '        when:',
+            '          relations:',
+            '            calls:',
+            '              target_type: ghost-type',
+            '      - requires-named-export',
+            '      - has-doc-comment',
+            '    relations:',
+            '      uses: [service]',
+            '      calls: [service]',
+            '',
+          ].join('\n'),
+        );
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('when-unknown-type');
+        expect(stdout).toContain("Unknown node type 'ghost-type' in when");
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T19: aspect-when relations.calls.target referencing a missing node raises when-unknown-node', () => {
+      const dir = copyFixture('t19');
+      try {
+        writeArch(
+          dir,
+          [
+            'node_types:',
+            '  module:',
+            "    description: 'Organizational grouping.'",
+            '    log_required: false',
+            '  service:',
+            "    description: 'A service unit.'",
+            '    log_required: false',
+            '    when:',
+            '      path: "src/services/**"',
+            '    parents: [module]',
+            '    aspects:',
+            '      - id: no-todo-comments',
+            '        when:',
+            '          relations:',
+            '            calls:',
+            '              target: services/ghostnode',
+            '      - requires-named-export',
+            '      - has-doc-comment',
+            '    relations:',
+            '      uses: [service]',
+            '      calls: [service]',
+            '',
+          ].join('\n'),
+        );
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('when-unknown-node');
+        expect(stdout).toContain(
+          "Referenced node 'services/ghostnode' in when",
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T20: aspect-when consumes_port for a port absent on an existing target raises when-unknown-port', () => {
+      const dir = copyFixture('t20');
+      try {
+        // `services/payments` exists but declares no ports — consuming a named
+        // port there is a dangling port reference.
+        writeArch(
+          dir,
+          [
+            'node_types:',
+            '  module:',
+            "    description: 'Organizational grouping.'",
+            '    log_required: false',
+            '  service:',
+            "    description: 'A service unit.'",
+            '    log_required: false',
+            '    when:',
+            '      path: "src/services/**"',
+            '    parents: [module]',
+            '    aspects:',
+            '      - id: no-todo-comments',
+            '        when:',
+            '          relations:',
+            '            calls:',
+            '              target: services/payments',
+            '              consumes_port: ghostport',
+            '      - requires-named-export',
+            '      - has-doc-comment',
+            '    relations:',
+            '      uses: [service]',
+            '      calls: [service]',
+            '',
+          ].join('\n'),
+        );
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('when-unknown-port');
+        expect(stdout).toContain(
+          "Port 'ghostport' is not declared on node 'services/payments' in when",
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // GROUP 5 — Architecture relation constraints + deprecated/invalid fields.
+    // -----------------------------------------------------------------------
+
+    it('T21: a relation between nodes that the architecture forbids raises relation-target-forbidden', () => {
+      const dir = copyFixture('t21');
+      try {
+        // Narrow `service.relations.calls` to [module] only, then make orders
+        // CALL payments (a service) — now a forbidden target type.
+        const arch = readFileSync(archPath(dir), 'utf-8').replace(
+          '      calls: [service]',
+          '      calls: [module]',
+        );
+        writeArch(dir, arch);
+        const ordersYaml =
+          readFileSync(ordersNodePath(dir), 'utf-8') +
+          'relations:\n  - type: calls\n    target: services/payments\n';
+        writeFileSync(ordersNodePath(dir), ordersYaml, 'utf-8');
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('relation-target-forbidden');
+        expect(stdout).toContain(
+          "Architecture does not allow type 'service' to 'calls' type 'service'. Allowed targets for 'calls': [module]",
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T22: an unknown relation type in node_types.*.relations fails to parse as architecture-invalid', () => {
+      const dir = copyFixture('t22');
+      try {
+        const arch = readFileSync(archPath(dir), 'utf-8').replace(
+          '      uses: [service]',
+          '      foobar: [service]',
+        );
+        writeArch(dir, arch);
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('architecture-invalid');
+        expect(stdout).toContain(
+          "unknown relation type 'foobar' (valid types: uses, calls, extends, implements, emits, listens)",
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T23: the deprecated integration_aspects field on a type fails as architecture-invalid', () => {
+      const dir = copyFixture('t23');
+      try {
+        const arch = readFileSync(archPath(dir), 'utf-8').replace(
+          '    log_required: false\n    when:',
+          '    log_required: false\n    integration_aspects: []\n    when:',
+        );
+        writeArch(dir, arch);
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('architecture-invalid');
+        expect(stdout).toContain(
+          "has unknown field 'integration_aspects'. Use ports on the target node instead.",
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T24: enforce: strict without a when predicate raises enforce-strict-without-when', () => {
+      const dir = copyFixture('t24');
+      try {
+        appendArch(
+          dir,
+          [
+            '',
+            '  strictnowhen:',
+            "    description: 'strict without when'",
+            '    enforce: strict',
+            '',
+          ].join('\n'),
+        );
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('enforce-strict-without-when');
+        expect(stdout).toContain(
+          "Type 'strictnowhen' has enforce: strict but no when predicate.",
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // GROUP 6 — Architecture file parse failures (whole-file integrity).
+    // -----------------------------------------------------------------------
+
+    it('T25: node_types as a YAML sequence (not a mapping) raises architecture-invalid', () => {
+      const dir = copyFixture('t25');
+      try {
+        writeArch(dir, 'node_types: [a, b, c]\n');
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('architecture-invalid');
+        expect(stdout).toContain(
+          "'node_types' must be a YAML mapping (or empty/omitted)",
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T26: a node type missing its description raises architecture-invalid', () => {
+      const dir = copyFixture('t26');
+      try {
+        writeArch(
+          dir,
+          ['node_types:', '  service:', '    log_required: false', ''].join('\n'),
+        );
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('architecture-invalid');
+        expect(stdout).toContain(
+          "node_types.service must have a non-empty 'description' string",
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T27: syntactically broken architecture YAML raises architecture-invalid', () => {
+      const dir = copyFixture('t27');
+      try {
+        // Unterminated quote — the YAML parser itself rejects this.
+        writeArch(
+          dir,
+          ['node_types:', '  service:', '    description: "unterminated', ''].join('\n'),
+        );
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('architecture-invalid');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T28: enforce: with a non-strict value raises architecture-invalid', () => {
+      const dir = copyFixture('t28');
+      try {
+        replaceServiceWhen(dir, '    when:\n      path: "src/services/**"\n    enforce: loose');
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('architecture-invalid');
+        expect(stdout).toContain("enforce must be 'strict'");
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T29: a non-string entry in a type.parents list raises architecture-invalid', () => {
+      const dir = copyFixture('t29');
+      try {
+        const arch = readFileSync(archPath(dir), 'utf-8').replace(
+          'parents: [module]',
+          'parents: [module, 42]',
+        );
+        writeArch(dir, arch);
+        const { status, stdout } = run(['check'], dir);
+        expect(status).toBe(1);
+        expect(stdout).toContain('architecture-invalid');
+        expect(stdout).toContain('contains non-string');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // GROUP 7 — Documented edge / guard behaviors + one CONTRACT DIVERGENCE.
+    // -----------------------------------------------------------------------
+
+    it('T30: empty node_types ({}) disables architecture type checks — no type-undefined for unknown node types', () => {
+      const dir = copyFixture('t30');
+      try {
+        // With NO types defined, checkArchitectureConstraints returns early: the
+        // architecture is treated as "not configured", so nodes whose `type`
+        // names nothing are NOT reported as type-undefined. This guard is
+        // deliberate (greenfield / pre-architecture repos must not be spammed).
+        writeArch(dir, 'node_types: {}\n');
+        const { stdout } = run(['check'], dir);
+        expect(stdout).not.toContain('type-undefined');
+        expect(stdout).not.toContain('is not defined in yg-architecture.yaml');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T31: a valid baseline architecture produces no architecture/when validation errors', () => {
+      const dir = copyFixture('t31');
+      try {
+        writeArch(dir, VALID_ARCH);
+        const { stdout } = run(['check'], dir);
+        // None of the architecture-integrity codes this suite exercises should
+        // appear for a well-formed architecture. (Drift/unapproved noise is
+        // expected and unrelated — we assert only on architecture codes.)
+        for (const code of [
+          'type-undefined',
+          'type-unknown-parent',
+          'parent-type-forbidden',
+          'relation-target-forbidden',
+          'architecture-cycle',
+          'enforce-strict-without-when',
+          'when-predicate-invalid',
+          'when-unknown-type',
+          'when-unknown-node',
+          'when-unknown-port',
+          'architecture-invalid',
+        ]) {
+          expect(stdout).not.toContain(code);
+        }
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('T32: BUG — a node type whose relation TARGET type is undefined produces NO validation error', () => {
+      // CONTRACT vs ACTUAL.
+      //   CONTRACT (subagent brief / intent): "a type lists a relation target
+      //     type that does not exist" should be a validation error at the
+      //     architecture level, symmetric with type-unknown-parent (which DOES
+      //     reject an undefined PARENT type).
+      //   ACTUAL: parseRelations in src/io/architecture-parser.ts accepts any
+      //     string as a relation target-type name without checking it against
+      //     node_types, and no later validator pass (checkArchitectureRelations
+      //     only validates ACTUAL node relations against the allowed list)
+      //     re-checks it. So an undefined relation target TYPE is silently
+      //     accepted — the architecture loads clean and `yg check` reports only
+      //     unrelated drift/unapproved errors.
+      // This test PINS the actual (buggy) behavior: no architecture-integrity
+      // error fires for the undefined target type. If the CLI is later fixed to
+      // reject it, this test will fail and must be updated to assert the new
+      // error code.
+      const dir = copyFixture('t32');
+      try {
+        const arch = readFileSync(archPath(dir), 'utf-8').replace(
+          '      uses: [service]',
+          '      uses: [ghost-target-type]',
+        );
+        writeArch(dir, arch);
+        const { stdout } = run(['check'], dir);
+        // No architecture-integrity error mentions the undefined target type.
+        expect(stdout).not.toContain('ghost-target-type');
+        expect(stdout).not.toContain('relation-target-forbidden');
+        expect(stdout).not.toContain('type-undefined');
+        expect(stdout).not.toContain('architecture-invalid');
+        expect(stdout).not.toContain('when-unknown-type');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  },
+);

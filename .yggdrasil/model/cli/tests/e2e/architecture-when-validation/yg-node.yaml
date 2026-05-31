@@ -1,0 +1,7 @@
+name: E2E Tests — Architecture When-Validation
+type: test-suite
+description: "Subprocess E2E proving malformed-architecture rejection via the spawned binary — type-undefined, type-unknown-parent, architecture parent-type cycle, enforce-strict-without-when, and the full when-predicate validation error matrix (unknown node field, unknown node.type value, unknown port, invalid regex, malformed all_of/any_of/not, empty predicate) plus architecture-level allowed-relation-target integrity."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-architecture-when-validation.test.ts

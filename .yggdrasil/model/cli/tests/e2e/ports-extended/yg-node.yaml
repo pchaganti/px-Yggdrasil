@@ -1,0 +1,7 @@
+name: E2E Tests — Ports Extended
+type: test-suite
+description: "Subprocess E2E proving the remaining port mechanics — multiple ports per provider, a multi-port consumes list, port-aspect status (advisory warning, draft skipped), a port aspect gated by a when predicate, port-definition-change cascade to consumers, removing a still-consumed port surfacing port-undefined, and port description validation."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-ports-extended.test.ts
