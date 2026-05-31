@@ -28,6 +28,8 @@ The LLM reviewer is a separate LLM call from the coding agent — one LLM verify
 
 **Effective-draft aspects are skipped before dispatch.** When an aspect's effective status on a node is `draft`, `yg approve` prints a skip line and never sends the rule to the reviewer — zero cost, zero verdict. Aspects with effective status `advisory` or `enforced` go through the reviewer normally; the level only changes how a refused verdict surfaces in `yg check` (warning vs. error). See [Aspect Status](/aspect-status) for the lifecycle.
 
+**LLM verdicts are not deterministic.** The same code against the same rule can come back SATISFIED on one run and NOT SATISFIED on another — most often on borderline rules, or when re-reviewing a file edited for an unrelated reason (the reviewer re-reads the whole file and may surface a latent issue it passed over before). This is inherent to LLM review and is a feature as much as a hazard: a fresh pair of eyes each time. Manage it by writing rules that are concrete and decidable rather than vague, by preferring a `deterministic` `check.mjs` whenever a rule is programmatically checkable (zero LLM cost, identical result every run), and by raising `consensus` on high-stakes or noisy aspects so a majority vote smooths out single-call variance. A one-off flip on an unchanged file is usually resolved by re-running `yg approve`.
+
 ### Directory structure
 
 ```
