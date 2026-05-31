@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { AspectStatus, FlowDef } from '../model/graph.js';
-import { parseAspectAttachment } from '../core/parsing/when-parser.js';
+import { parseAspectAttachment } from '../utils/when-parser.js';
 import type { WhenPredicate } from '../model/when.js';
 
 export async function parseFlow(flowDir: string, flowYamlPath: string): Promise<FlowDef> {

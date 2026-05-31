@@ -1,5 +1,5 @@
 {
-  "hash": "7207fb41e64097b71f12bb1753139ccec1c66a5964d921f5d756928e85c35de2",
+  "hash": "c751124f80985874a97330b0de61ee7a4d76fe907cf02684fd00ce2267cd233f",
   "files": {
     "own-subset:cli/core/loader": "c4e900bef924dd4002f51ed268926150d9a01028036e2c931ac84bdba2107003",
     "aspect-meta:silent-missing-files": "26f99ba1035a190cdfd242b984d3f502355ab6b39f0d5390aaf8ca34c5090218",
@@ -38,8 +38,8 @@
     ".yggdrasil/model/cli/io/parsers/config/yg-node.yaml": "88a2596a91bcd10a2e4f4a59212aff4f30a16a766835ffae70b1030799da1303",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
-    ".yggdrasil/model/cli/utils/yg-node.yaml": "61b845a3c10031ab6de26a554e2488d93401ff1dd3b158fed0fb4515a50dfe55",
-    "source/cli/src/core/graph-loader.ts": "9c106c58ee38e224f24971aa9ffc5ecdc941a5e9155d8f71b46b1b3b9d643ef9"
+    ".yggdrasil/model/cli/utils/yg-node.yaml": "f1d878eaf5cede8dcbac77340ad2bd1a75125b963e9190d33d408dde5ce78b78",
+    "source/cli/src/core/graph-loader.ts": "d8ff9ad4fd4b6b0ba535fc191f2b66b61e7983e971931dd50096e8c1e5f72d4a"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -60,28 +60,28 @@
     ".yggdrasil/model/cli/io/parsers/config/yg-node.yaml": 1779954115751.835,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    ".yggdrasil/model/cli/utils/yg-node.yaml": 1780243391788.3115,
-    "source/cli/src/core/graph-loader.ts": 1780243181225.249
+    ".yggdrasil/model/cli/utils/yg-node.yaml": 1780246223022.0115,
+    "source/cli/src/core/graph-loader.ts": 1780246154125.1448
   },
   "log": {
-    "last_entry_datetime": "2026-05-31T16:03:33.534Z",
-    "prefix_hash": "ed0e0b264a1ab7dff0c558bb8e83070b841265dea0b88a62e3f4d43420d08c41"
+    "last_entry_datetime": "2026-05-31T16:51:20.474Z",
+    "prefix_hash": "220a41c2c511f98bbc26e66f0fa017c4e5761299abe0e3c32b5d10510d56e0fe"
   },
   "checkTouchedFiles": {
     "no-nondeterminism-direct": {
-      "source/cli/src/core/graph-loader.ts": "9c106c58ee38e224f24971aa9ffc5ecdc941a5e9155d8f71b46b1b3b9d643ef9"
+      "source/cli/src/core/graph-loader.ts": "d8ff9ad4fd4b6b0ba535fc191f2b66b61e7983e971931dd50096e8c1e5f72d4a"
     },
     "no-direct-fs": {
-      "source/cli/src/core/graph-loader.ts": "9c106c58ee38e224f24971aa9ffc5ecdc941a5e9155d8f71b46b1b3b9d643ef9"
+      "source/cli/src/core/graph-loader.ts": "d8ff9ad4fd4b6b0ba535fc191f2b66b61e7983e971931dd50096e8c1e5f72d4a"
     },
     "no-direct-console": {
-      "source/cli/src/core/graph-loader.ts": "9c106c58ee38e224f24971aa9ffc5ecdc941a5e9155d8f71b46b1b3b9d643ef9"
+      "source/cli/src/core/graph-loader.ts": "d8ff9ad4fd4b6b0ba535fc191f2b66b61e7983e971931dd50096e8c1e5f72d4a"
     },
     "posix-paths-source": {
-      "source/cli/src/core/graph-loader.ts": "9c106c58ee38e224f24971aa9ffc5ecdc941a5e9155d8f71b46b1b3b9d643ef9"
+      "source/cli/src/core/graph-loader.ts": "d8ff9ad4fd4b6b0ba535fc191f2b66b61e7983e971931dd50096e8c1e5f72d4a"
     },
     "single-source-graph-queries": {
-      "source/cli/src/core/graph-loader.ts": "9c106c58ee38e224f24971aa9ffc5ecdc941a5e9155d8f71b46b1b3b9d643ef9"
+      "source/cli/src/core/graph-loader.ts": "d8ff9ad4fd4b6b0ba535fc191f2b66b61e7983e971931dd50096e8c1e5f72d4a"
     }
   },
   "aspectVerdicts": {

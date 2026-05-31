@@ -2,8 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { parse as parseYaml } from 'yaml';
 import type { ArchitectureDef, ArchitectureNodeType, AspectStatus, RelationType } from '../model/graph.js';
 import type { FileWhenPredicate } from '../model/file-when.js';
-import { parseAspectAttachment } from '../core/parsing/when-parser.js';
-import { parseFileWhen } from '../core/parsing/file-when-parser.js';
+import { parseAspectAttachment } from '../utils/when-parser.js';
+import { parseFileWhen } from '../utils/file-when-parser.js';
 import type { WhenPredicate } from '../model/when.js';
 
 const VALID_RELATION_TYPES: Set<string> = new Set(['uses', 'calls', 'extends', 'implements', 'emits', 'listens']);

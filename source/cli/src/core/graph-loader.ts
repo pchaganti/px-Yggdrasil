@@ -16,7 +16,7 @@ import { parseAspect } from '../io/aspect-parser.js';
 import { parseFlow } from '../io/flow-parser.js';
 import { parseSchema } from '../io/schema-parser.js';
 import { parseArchitecture } from '../io/architecture-parser.js';
-import { WhenPredicateInvalidError } from './parsing/file-when-parser.js';
+import { WhenPredicateInvalidError } from '../utils/file-when-parser.js';
 import type { ArchitectureLoadError } from '../model/graph.js';
 import type { IssueMessage } from '../model/validation.js';
 import { findYggRoot } from '../io/paths.js';

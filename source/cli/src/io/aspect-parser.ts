@@ -5,7 +5,7 @@ import { ASPECT_STATUS_VALUES } from '../model/graph.js';
 import type { IssueMessage } from '../model/validation.js';
 import type { WhenPredicate } from '../model/when.js';
 import { readArtifacts } from './artifact-reader.js';
-import { parseWhen, parseAspectAttachment } from '../core/parsing/when-parser.js';
+import { parseWhen, parseAspectAttachment } from '../utils/when-parser.js';
 import { aspectStatusInvalidMessage, impliesStatusInheritInvalidMessage } from '../formatters/aspect-status-messages.js';
 import { toPosixPath } from '../utils/posix.js';
 

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { parse as parseYaml } from 'yaml';
 import type { AspectStatus, NodeMeta, PortDef, Relation, RelationType } from '../model/graph.js';
-import { parseAspectAttachment } from '../core/parsing/when-parser.js';
+import { parseAspectAttachment } from '../utils/when-parser.js';
 import type { WhenPredicate } from '../model/when.js';
 
 const RELATION_TYPES: RelationType[] = [

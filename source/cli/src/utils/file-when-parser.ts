@@ -2,7 +2,7 @@ import type {
   FileWhenPredicate,
   FileBooleanClause,
   FileAtomicClause,
-} from '../../model/file-when.js';
+} from '../model/file-when.js';
 import { BOOLEAN_KEYS, parsePredicateBoolean } from './predicate-boolean.js';
 
 /**

@@ -6,9 +6,9 @@ import type {
   RelationMatch,
   DescendantsClause,
   NodeClause,
-} from '../../model/when.js';
-import type { RelationType, AspectStatus, StatusInherit } from '../../model/graph.js';
-import { ASPECT_STATUS_VALUES, STATUS_INHERIT_VALUES } from '../../model/graph.js';
+} from '../model/when.js';
+import type { RelationType, AspectStatus, StatusInherit } from '../model/graph.js';
+import { ASPECT_STATUS_VALUES, STATUS_INHERIT_VALUES } from '../model/graph.js';
 import { BOOLEAN_KEYS, parsePredicateBoolean } from './predicate-boolean.js';
 
 const RELATION_TYPES = new Set<string>([

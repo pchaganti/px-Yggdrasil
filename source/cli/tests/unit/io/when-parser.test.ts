@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseWhen, parseAspectAttachment } from '../../../src/core/parsing/when-parser.js';
+import { parseWhen, parseAspectAttachment } from '../../../src/utils/when-parser.js';
 
 describe('parseWhen — error paths', () => {
   it('rejects empty when mapping', () => {

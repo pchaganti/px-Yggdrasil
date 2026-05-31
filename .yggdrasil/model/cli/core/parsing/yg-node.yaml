@@ -1,15 +1,8 @@
 name: Core Parsing
 type: engine
-description: In-memory parsers that transform pre-parsed data structures (not raw files). Includes the log.md entry parser, the file-level when-predicate parser, and the aspect-level when-predicate parser. No file I/O — callers read files and pass strings/objects.
+description: In-memory parser for log.md entries — transforms the pre-read log string into structured entries. No file I/O; the caller reads the file and passes the string. (The when-predicate parsers moved to utils/ so the io layer can import them without an io→engine boundary violation.)
 aspects:
   - diagnostic-logging
-relations:
-  - target: cli/model/graph
-    type: uses
-  - target: cli/model/file-when
-    type: uses
+relations: []
 mapping:
   - source/cli/src/core/parsing/log-parser.ts
-  - source/cli/src/core/parsing/file-when-parser.ts
-  - source/cli/src/core/parsing/when-parser.ts
-  - source/cli/src/core/parsing/predicate-boolean.ts
