@@ -1,6 +1,14 @@
 {
-  "hash": "cef20fc8a2ad4cff5737c6d49b6cec73d78f0be8043debacfe0d10f86ed35023",
+  "hash": "e2ee3dd3972024105cb8842e2442770305720c8e3c012859becf1e9282019c9a",
   "files": {
+    "own-subset:cli/llm/providers": "ea05c9ef2db84f762ecbc438c885b0d8bdbd9eb62dcd0835662cae7c1d3398b5",
+    "aspect-meta:provider-retry-contract": "b1b88e61840c03cd476eee80cc224c06fac6aa8cbf51e70e44a878026cf884aa",
+    "tier-identity:provider-retry-contract": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
+    "aspect-meta:provider-redaction": "3d7488002012b712fb3c3073148f04275051d472e90a490fe4dd5e5cd7ee20f9",
+    "aspect-meta:posix-paths-source": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
+    "aspect-meta:what-why-next": "1b09853973f277b1f6e8f02db3d9a1b5611e69b04f25b40dca5873730e17b037",
+    "tier-identity:what-why-next": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
+    "check-touched:provider-redaction": "9c799f0aecbebe713182ce53e8eecc2498b12c321b89881d7d09b6303140dea2",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/llm/yg-node.yaml": "eb86d7c0b81642af0c1d40cba6a1f5a780293a2304635bd100bd64677a4c8838",
     ".yggdrasil/aspects/provider-retry-contract/content.md": "338028c6781d98a7c42f63d1a0cbfedd037721d86f5a7853113ac9793087530d",
@@ -10,19 +18,12 @@
     ".yggdrasil/model/cli/llm/shared/yg-node.yaml": "74f188e3b990026e1d3a29edf6672909bdde0d4b7d91ced32cf34f211530f9c6",
     "source/cli/src/llm/anthropic.ts": "efff9d479f1a77ee61f78f88caba279f839476fd0f092d56a5fef68e36cd948b",
     "source/cli/src/llm/openai.ts": "743ee2daaec5b2d424d352c577e85c330481c50d817ae9004898b2ea593bc626",
-    "source/cli/src/llm/google.ts": "ed5e1f1aa8bfebf7c9c06a7e1b96035964ada742e8846dda613c50b54acb98f5",
     "source/cli/src/llm/ollama.ts": "8ff07e46f069bee2804263737c8074ef5ada74ab88a09c40aaddd80b679bb62a",
     "source/cli/src/llm/claude-code.ts": "fa1fa53507f8359c40eb74e6d28af3eec755ede927efe4ca0ec5224f19f55118",
     "source/cli/src/llm/codex.ts": "cdb8f0acf6f797c6efa5f69a659eed1830f9c35a128d75fa72d26c12e5cf9771",
     "source/cli/src/llm/gemini-cli.ts": "a13ad7858c81e040ab32a4a229e59c64e75cef38d9da600efd9ef95c931362b2",
-    "own-subset:cli/llm/providers": "ea05c9ef2db84f762ecbc438c885b0d8bdbd9eb62dcd0835662cae7c1d3398b5",
-    "aspect-meta:provider-retry-contract": "b1b88e61840c03cd476eee80cc224c06fac6aa8cbf51e70e44a878026cf884aa",
-    "tier-identity:provider-retry-contract": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "aspect-meta:provider-redaction": "3d7488002012b712fb3c3073148f04275051d472e90a490fe4dd5e5cd7ee20f9",
-    "aspect-meta:posix-paths-source": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
-    "aspect-meta:what-why-next": "1b09853973f277b1f6e8f02db3d9a1b5611e69b04f25b40dca5873730e17b037",
-    "tier-identity:what-why-next": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "check-touched:provider-redaction": "9c799f0aecbebe713182ce53e8eecc2498b12c321b89881d7d09b6303140dea2"
+    "source/cli/src/llm/google.ts": "39272aebf775b7c1b2506c6cf4cb0cb1599aad8567bb566c94fec288bc7353c0",
+    "check-touched:posix-paths-source": "9c799f0aecbebe713182ce53e8eecc2498b12c321b89881d7d09b6303140dea2"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -34,21 +35,30 @@
     ".yggdrasil/model/cli/llm/shared/yg-node.yaml": 1779956720879.04,
     "source/cli/src/llm/anthropic.ts": 1779794513949.5933,
     "source/cli/src/llm/openai.ts": 1779794513950.316,
-    "source/cli/src/llm/google.ts": 1779794513950.0574,
+    "source/cli/src/llm/google.ts": 1780237540781.9172,
     "source/cli/src/llm/ollama.ts": 1779794513950.202,
     "source/cli/src/llm/claude-code.ts": 1778826268284.3376,
     "source/cli/src/llm/codex.ts": 1776177846232.6042,
     "source/cli/src/llm/gemini-cli.ts": 1776177846232.7507
   },
   "log": {
-    "last_entry_datetime": "2026-05-29T10:10:06.574Z",
-    "prefix_hash": "1e9ee1368a94a25be3d4ca8443fba84c42928a75d1c706f9d81bc31c447f9537"
+    "last_entry_datetime": "2026-05-31T14:27:08.824Z",
+    "prefix_hash": "f0c9fd53a98dc8c5dcc5ee53b948c632fcbc1ce17b727082d7dcbfcab2d441c8"
   },
   "checkTouchedFiles": {
     "provider-redaction": {
       "source/cli/src/llm/anthropic.ts": "efff9d479f1a77ee61f78f88caba279f839476fd0f092d56a5fef68e36cd948b",
       "source/cli/src/llm/openai.ts": "743ee2daaec5b2d424d352c577e85c330481c50d817ae9004898b2ea593bc626",
-      "source/cli/src/llm/google.ts": "ed5e1f1aa8bfebf7c9c06a7e1b96035964ada742e8846dda613c50b54acb98f5",
+      "source/cli/src/llm/google.ts": "39272aebf775b7c1b2506c6cf4cb0cb1599aad8567bb566c94fec288bc7353c0",
+      "source/cli/src/llm/ollama.ts": "8ff07e46f069bee2804263737c8074ef5ada74ab88a09c40aaddd80b679bb62a",
+      "source/cli/src/llm/claude-code.ts": "fa1fa53507f8359c40eb74e6d28af3eec755ede927efe4ca0ec5224f19f55118",
+      "source/cli/src/llm/codex.ts": "cdb8f0acf6f797c6efa5f69a659eed1830f9c35a128d75fa72d26c12e5cf9771",
+      "source/cli/src/llm/gemini-cli.ts": "a13ad7858c81e040ab32a4a229e59c64e75cef38d9da600efd9ef95c931362b2"
+    },
+    "posix-paths-source": {
+      "source/cli/src/llm/anthropic.ts": "efff9d479f1a77ee61f78f88caba279f839476fd0f092d56a5fef68e36cd948b",
+      "source/cli/src/llm/openai.ts": "743ee2daaec5b2d424d352c577e85c330481c50d817ae9004898b2ea593bc626",
+      "source/cli/src/llm/google.ts": "39272aebf775b7c1b2506c6cf4cb0cb1599aad8567bb566c94fec288bc7353c0",
       "source/cli/src/llm/ollama.ts": "8ff07e46f069bee2804263737c8074ef5ada74ab88a09c40aaddd80b679bb62a",
       "source/cli/src/llm/claude-code.ts": "fa1fa53507f8359c40eb74e6d28af3eec755ede927efe4ca0ec5224f19f55118",
       "source/cli/src/llm/codex.ts": "cdb8f0acf6f797c6efa5f69a659eed1830f9c35a128d75fa72d26c12e5cf9771",

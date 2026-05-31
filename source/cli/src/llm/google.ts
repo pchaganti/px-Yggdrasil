@@ -19,15 +19,19 @@ export class GoogleProvider implements LlmProvider {
   }
 
   private buildUrl(): string {
-    return `${this.endpoint}/models/${this.model}:generateContent?key=${this.apiKey}`;
+    return `${this.endpoint}/models/${this.model}:generateContent`;
   }
 
   async verifyAspect(prompt: string): Promise<AspectResponse> {
     const fallback: AspectResponse = { satisfied: false, reason: 'Google request failed', errorSource: 'provider' };
     try {
+      // Send the API key in the `x-goog-api-key` header, NOT the URL query string.
+      // A `?key=` URL leaks the secret into proxy/CDN/server access logs and any
+      // error report that echoes the request URL; the header form is Google's
+      // supported alternative and keeps the credential out of the URL.
       const res = await apiFetch(this.buildUrl(), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': this.apiKey },
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           generationConfig: {

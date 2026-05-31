@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { GoogleProvider } from '../../../src/llm/google.js';
 import type { LlmConfig } from '../../../src/model/graph.js';
 
@@ -27,5 +27,30 @@ describe('GoogleProvider', () => {
     const provider = new GoogleProvider({ ...baseCfg, api_key: 'goog-test', endpoint: 'http://localhost:99999' });
     const result = await provider.verifyAspect('test prompt');
     expect(result.satisfied).toBe(false);
+  });
+
+  it('sends the api key in the x-goog-api-key header, NOT the URL query string', async () => {
+    let capturedUrl = '';
+    let capturedHeaders: Record<string, string> = {};
+    const fakeFetch = vi.fn(async (url: string, init: RequestInit) => {
+      capturedUrl = url;
+      capturedHeaders = (init.headers ?? {}) as Record<string, string>;
+      return new Response(
+        JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"satisfied":true,"reason":"ok"}' }] } }] }),
+        { status: 200 },
+      );
+    });
+    vi.stubGlobal('fetch', fakeFetch);
+    try {
+      const provider = new GoogleProvider({ ...baseCfg, api_key: 'goog-SECRET-123' });
+      await provider.verifyAspect('test prompt');
+      // The secret must NOT appear in the URL (logged by proxies/CDNs/servers).
+      expect(capturedUrl).not.toContain('key=');
+      expect(capturedUrl).not.toContain('goog-SECRET-123');
+      // It is carried in the header instead.
+      expect(capturedHeaders['x-goog-api-key']).toBe('goog-SECRET-123');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

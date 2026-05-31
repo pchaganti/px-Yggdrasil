@@ -1,5 +1,5 @@
 {
-  "hash": "6aec331daabd09cd605af395c887fe04d59a4505480deaa01d83920ae6b316e7",
+  "hash": "41d07fcdfcbe2a0f15ada071c803708e6b6a4e0865a03e9b62f9bd19be7f4415",
   "files": {
     "own-subset:cli/tests/unit/llm/providers": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
@@ -11,10 +11,10 @@
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/llm/anthropic.test.ts": "f1f00a7d0cf181975e1b4b3776e2a581572108dc20c420755c73c870638be1a1",
     "source/cli/tests/unit/llm/claude-code.test.ts": "6dfb0b542d0bbb0079d64a3777a456172fd715e2f534304fd7e7ab653f9f9f46",
+    "source/cli/tests/unit/llm/cli-base.test.ts": "69fcba0f9e5fa53173355767e633763152b06eda718ec35736e68d7b76c287ee",
     "source/cli/tests/unit/llm/cli-providers.test.ts": "a57dd1c8dea3c3de2da6824f2e6d51ff93b788da6cf0987a259a95cc2c251529",
-    "source/cli/tests/unit/llm/google.test.ts": "fa3fec511fbc66a1d2bdceeb425abae0bbf197b5aa1057b5a19df793daece00c",
     "source/cli/tests/unit/llm/openai.test.ts": "054a154dc0ec6a93d602d736e03a51b50260bcd70bcf25d56ac397c9464d6467",
-    "source/cli/tests/unit/llm/cli-base.test.ts": "69fcba0f9e5fa53173355767e633763152b06eda718ec35736e68d7b76c287ee"
+    "source/cli/tests/unit/llm/google.test.ts": "7c6b2d8deddf5b572c8625c3d8f115638fc323a24a3f48c96fe77c813c2a5063"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -26,7 +26,7 @@
     "source/cli/tests/unit/llm/claude-code.test.ts": 1776177846290.4834,
     "source/cli/tests/unit/llm/cli-base.test.ts": 1780226898196.8828,
     "source/cli/tests/unit/llm/cli-providers.test.ts": 1776177846290.8035,
-    "source/cli/tests/unit/llm/google.test.ts": 1779963762261.494,
+    "source/cli/tests/unit/llm/google.test.ts": 1780237597851.1848,
     "source/cli/tests/unit/llm/openai.test.ts": 1779963744066.013
   },
   "aspectVerdicts": {
