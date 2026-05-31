@@ -1,6 +1,6 @@
 import { Command, InvalidArgumentError } from 'commander';
 import chalk from 'chalk';
-import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
+import { loadGraphOrAbort, abortOnUnexpectedError } from './preamble.js';
 import { initDebugLog } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';

@@ -1,5 +1,5 @@
 {
-  "hash": "341977f879b0d38623951b94291ddd704be856895bffa47e4654ced58b25c613",
+  "hash": "7679b5af84a687f5efa8a6bd9c69c3cbacba6d1e43f98eb98733d7bb73fe9d61",
   "files": {
     "own-subset:cli/formatters": "15ceb1b16c4614dc0a81954fcf485bf53e3db603b33388864d56a989412db3a3",
     "aspect-meta:what-why-next": "1b09853973f277b1f6e8f02db3d9a1b5611e69b04f25b40dca5873730e17b037",
@@ -9,7 +9,7 @@
     "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     "aspect-meta:posix-paths-output": "0616e83dea174e69b84be8d3bc43a180a8f33aa8e4f1df8473419c0b9897bd03",
     "tier-identity:posix-paths-output": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "check-touched:posix-paths-source": "1af847fd78e793830fb55ed6fa9adda80971b4a66dd3bbc840bc70396deca25f",
+    "check-touched:posix-paths-source": "034c46ebc12bfa7485e58c36e666bd17b784e6b3f9f949dc5d63fdb2828483f6",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
@@ -17,12 +17,11 @@
     ".yggdrasil/aspects/posix-paths-output/content.md": "2659859dc13a8efe32e098b0c220d24c9ecddff26b42a4f22e3135d8b750bc13",
     ".yggdrasil/model/cli/model/context/yg-node.yaml": "64e105e412ef925827cde4f59346925000f405ec38cd36676ed4318a34590a33",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
-    "source/cli/src/formatters/cli-preamble.ts": "0f3716a09c8a51ebf19746edb0ad9666463a64ead3dbb29cbae723e7aa5a62a2",
-    "source/cli/src/formatters/message-builder.ts": "eb9f5e94c04b9d372cb8299a84ee5f85daa463620ed195ee01e736e13ab9f518",
-    "source/cli/src/formatters/predicate-trace.ts": "16b318bedb945ccf6d921f5529dfe43685bee0cba969ab67aaae3435fad9d194",
     "source/cli/src/formatters/aspect-status-messages.ts": "107f8670205dd99ee63e76b40cd0a54ad46f65c1fbf5426e0073e5957e256c9f",
     "source/cli/src/formatters/context-file.ts": "99a9c9ae15c35be0e2fb1c2304230546f5387f4347897dcbddf605a6a746ea09",
     "source/cli/src/formatters/context-node.ts": "7524e179d9e2de1b069612db09ce368210862776b37615a61042bda4b9f609af",
+    "source/cli/src/formatters/message-builder.ts": "eb9f5e94c04b9d372cb8299a84ee5f85daa463620ed195ee01e736e13ab9f518",
+    "source/cli/src/formatters/predicate-trace.ts": "16b318bedb945ccf6d921f5529dfe43685bee0cba969ab67aaae3435fad9d194",
     "source/cli/src/formatters/truncate.ts": "e8162777e6034f34e3dd5b9e13921ad7365f22b9a508d62950c8a110d4fba599"
   },
   "mtimes": {
@@ -34,7 +33,6 @@
     ".yggdrasil/model/cli/model/context/yg-node.yaml": 1776177846203.256,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     "source/cli/src/formatters/aspect-status-messages.ts": 1780243067937.5132,
-    "source/cli/src/formatters/cli-preamble.ts": 1780208200661.129,
     "source/cli/src/formatters/context-file.ts": 1780243067939.1125,
     "source/cli/src/formatters/context-node.ts": 1780243067938.381,
     "source/cli/src/formatters/message-builder.ts": 1778872978779.9426,
@@ -48,7 +46,6 @@
   "checkTouchedFiles": {
     "posix-paths-source": {
       "source/cli/src/formatters/aspect-status-messages.ts": "107f8670205dd99ee63e76b40cd0a54ad46f65c1fbf5426e0073e5957e256c9f",
-      "source/cli/src/formatters/cli-preamble.ts": "0f3716a09c8a51ebf19746edb0ad9666463a64ead3dbb29cbae723e7aa5a62a2",
       "source/cli/src/formatters/context-file.ts": "99a9c9ae15c35be0e2fb1c2304230546f5387f4347897dcbddf605a6a746ea09",
       "source/cli/src/formatters/context-node.ts": "7524e179d9e2de1b069612db09ce368210862776b37615a61042bda4b9f609af",
       "source/cli/src/formatters/message-builder.ts": "eb9f5e94c04b9d372cb8299a84ee5f85daa463620ed195ee01e736e13ab9f518",
@@ -57,10 +54,10 @@
     }
   },
   "aspectVerdicts": {
-    "what-why-next": {
+    "posix-paths-source": {
       "verdict": "approved"
     },
-    "posix-paths-source": {
+    "what-why-next": {
       "verdict": "approved"
     },
     "deterministic": {

@@ -1,0 +1,10 @@
+name: CLI Preamble
+type: command-support
+description: "Command-layer support helpers shared by every command handler: loadGraphOrAbort (load the graph or print a uniform what/why/next error and exit) and abortOnUnexpectedError (the canonical funnel for unclassified errors). Lives in the command layer so it may import both the engine (loadGraph) and formatters (buildIssueMessage); it registers no Commander subcommand."
+relations:
+  - target: cli/core/loader
+    type: calls
+  - target: cli/formatters
+    type: calls
+mapping:
+  - source/cli/src/cli/preamble.ts

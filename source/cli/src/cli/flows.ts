@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
+import { loadGraphOrAbort, abortOnUnexpectedError } from './preamble.js';
 import { initDebugLog } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import type { Graph } from '../model/graph.js';

@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import path from 'node:path';
-import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
+import { loadGraphOrAbort, abortOnUnexpectedError } from './preamble.js';
 import { debugWrite } from '../utils/debug-log.js';
 import { runAstAspect } from '../ast/runner.js';
 import { runStructureAspect } from '../structure/runner.js';

@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { buildIssueMessage } from './message-builder.js';
+import { buildIssueMessage } from '../formatters/message-builder.js';
 import { loadGraph, UnsupportedSchemaVersionError } from '../core/graph-loader.js';
 import type { Graph } from '../model/graph.js';
 

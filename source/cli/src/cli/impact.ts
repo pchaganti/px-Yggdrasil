@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { join } from 'node:path';
 import { buildIssueMessage } from '../formatters/message-builder.js';
-import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
+import { loadGraphOrAbort, abortOnUnexpectedError } from './preamble.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { collectAncestors } from '../core/context-builder.js';
@@ -41,11 +41,11 @@ async function handleAspectImpact(
 ): Promise<void> {
   const aspect = graph.aspects.find((a) => a.id === aspectId);
   if (!aspect) {
-    process.stderr.write(chalk.red(buildIssueMessage({
+    process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
       what: `Aspect not found: ${aspectId}`,
       why: 'The aspect id must match a directory name under .yggdrasil/aspects/.',
       next: 'Run: yg aspects — to list all defined aspects.',
-    }) + '\n'));
+    })}\n`));
     process.exit(1);
   }
 
@@ -143,11 +143,11 @@ async function handleFlowImpact(
 ): Promise<void> {
   const flow = graph.flows.find((f) => f.name === flowName || f.path === flowName);
   if (!flow) {
-    process.stderr.write(chalk.red(buildIssueMessage({
+    process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
       what: `Flow not found: ${flowName}`,
       why: 'The flow name must match a directory name under .yggdrasil/flows/.',
       next: 'Run: yg flows — to list all defined flows.',
-    }) + '\n'));
+    })}\n`));
     process.exit(1);
   }
 
@@ -199,11 +199,11 @@ async function handleFlowImpact(
 async function handleTypeImpact(graph: Graph, typeId: string): Promise<void> {
   const def = graph.architecture.node_types[typeId];
   if (!def) {
-    process.stderr.write(chalk.red(buildIssueMessage({
+    process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
       what: `Type '${typeId}' not found in architecture.`,
       why: 'The type id must match a node_types key in .yggdrasil/yg-architecture.yaml.',
       next: 'Read .yggdrasil/yg-architecture.yaml to see defined types.',
-    }) + '\n'));
+    })}\n`));
     process.exit(1);
   }
 
@@ -369,11 +369,11 @@ export function registerImpactCommand(program: Command): void {
             const structureCascade = await collectStructureCascade(graph, repoRelative, ownerResult.nodePath);
 
             if (!ownerResult.nodePath && refCascadeNodes.length === 0 && structureCascade.length === 0) {
-              process.stderr.write(chalk.red(buildIssueMessage({
+              process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
                 what: `${repoRelative} -> no graph coverage`,
                 why: 'file is not mapped to any node, is not referenced by any aspect, and is not read by any structure aspect in the graph.',
                 next: 'Add the file to an existing node mapping, or create a new node.',
-              }) + '\n'));
+              })}\n`));
               process.exit(1);
             }
 
@@ -428,11 +428,11 @@ export function registerImpactCommand(program: Command): void {
           const nodePath = options.node!.trim().replace(/\/$/, '');
 
           if (!graph.nodes.has(nodePath)) {
-            process.stderr.write(chalk.red(buildIssueMessage({
+            process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
               what: `Node not found: ${nodePath}`,
               why: 'The node path must match a node in the graph.',
               next: 'Run: yg tree — to list all nodes.',
-            }) + '\n'));
+            })}\n`));
             process.exit(1);
           }
 

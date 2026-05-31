@@ -1,7 +1,7 @@
 import type { Command } from 'commander';
 import chalk from 'chalk';
 import { debugWrite } from '../utils/debug-log.js';
-import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
+import { loadGraphOrAbort, abortOnUnexpectedError } from './preamble.js';
 import { buildIndex, createMiniSearch } from '../io/find-index.js';
 import type { IndexedDocument } from '../io/find-index.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';

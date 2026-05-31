@@ -4,7 +4,7 @@ import { Command } from 'commander';
 // Mock the graph preamble so the command never touches the real filesystem.
 // loadGraphOrAbort returns whatever graph we stage per-test; abortOnUnexpectedError
 // is kept real-ish (we don't expect it on the happy paths under test).
-vi.mock('../../../src/formatters/cli-preamble.js', () => ({
+vi.mock('../../../src/cli/preamble.js', () => ({
   loadGraphOrAbort: vi.fn(),
   abortOnUnexpectedError: vi.fn(),
 }));
@@ -16,7 +16,7 @@ vi.mock('../../../src/ast/runner.js', () => ({ runAstAspect: vi.fn() }));
 vi.mock('../../../src/structure/runner.js', () => ({ runStructureAspect: vi.fn() }));
 
 import { registerDeterministicTestCommand } from '../../../src/cli/deterministic-test.js';
-import { loadGraphOrAbort } from '../../../src/formatters/cli-preamble.js';
+import { loadGraphOrAbort } from '../../../src/cli/preamble.js';
 import { runAstAspect } from '../../../src/ast/runner.js';
 import { runStructureAspect } from '../../../src/structure/runner.js';
 

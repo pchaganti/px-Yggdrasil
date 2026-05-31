@@ -6,7 +6,6 @@ relations:
     type: uses
 mapping:
   - source/cli/src/formatters/aspect-status-messages.ts
-  - source/cli/src/formatters/cli-preamble.ts
   - source/cli/src/formatters/context-file.ts
   - source/cli/src/formatters/context-node.ts
   - source/cli/src/formatters/message-builder.ts

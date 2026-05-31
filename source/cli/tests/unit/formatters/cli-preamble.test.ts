@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { loadGraphOrAbort, abortOnUnexpectedError } from '../../../src/formatters/cli-preamble.js';
+import { loadGraphOrAbort, abortOnUnexpectedError } from '../../../src/cli/preamble.js';
 
 describe('loadGraphOrAbort', () => {
   let dir: string;

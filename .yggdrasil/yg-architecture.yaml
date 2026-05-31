@@ -57,6 +57,24 @@ node_types:
       calls: [engine, parser-adapter, persistence-adapter, llm-shared, llm-subprocess-base, formatter, utility, ast-adapter, structure-adapter, template]
       uses: [types, test-suite]
 
+  command-support:
+    description: "Shared command-layer support — helpers used by command handlers but registering no Commander subcommand (e.g. graph-load-or-abort, the unexpected-error funnel). Lives in cli/ so it may legally import both the engine (loadGraph) and formatters (buildIssueMessage) that command handlers need, without each handler duplicating the logic. Distinguished from `command` by the absence of a register<X>Command export."
+    enforce: strict
+    when:
+      all_of:
+        - path: "source/cli/src/cli/*.ts"
+        - not:
+            path: "**/*.test.ts"
+        - not:
+            content: "export\\s+function\\s+register[A-Z]\\w*Command\\("
+    aspects:
+      - posix-paths-source
+      - command-error-via-buildissuemessage
+    parents: [module]
+    relations:
+      calls: [engine, parser-adapter, persistence-adapter, formatter, utility]
+      uses: [types]
+
   engine:
     description: "Core domain logic — algorithms, validation, assembly, drift detection. No I/O, no console output, no LLM calls."
     enforce: strict

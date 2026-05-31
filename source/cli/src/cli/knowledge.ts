@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { KNOWLEDGE_TOPICS } from '../templates/knowledge/index.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
-import { abortOnUnexpectedError } from '../formatters/cli-preamble.js';
+import { abortOnUnexpectedError } from './preamble.js';
 
 export function listKnowledge(): void {
   process.stdout.write('\nAvailable knowledge topics:\n\n');
