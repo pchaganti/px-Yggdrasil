@@ -24,8 +24,13 @@ export function buildPrompt(
   sourceFiles: Array<{ path: string; content: string }>,
   references: Array<{ path: string; description?: string; content: string }> = [],
 ): string {
+  // Escape adopter-controlled interpolations so source content cannot break out
+  // of the XML framing or inject markup into the reviewer prompt — matching the
+  // references block, which is already escaped. The `path` is an attribute; the
+  // file body is text. (The aspect rule body below stays raw: it is the trusted
+  // instruction the reviewer must read verbatim.)
   const files = sourceFiles.map(f =>
-    `<file path="${f.path}">\n${f.content}\n</file>`
+    `<file path="${escapeXmlText(f.path, { attribute: true })}">\n${escapeXmlText(f.content, { attribute: false })}\n</file>`
   ).join('\n\n');
 
   const referencesBlock = references.length === 0 ? '' : `
@@ -60,9 +65,9 @@ Respond with EXACTLY this JSON, nothing else:
 {"satisfied": true|false, "reason": "explanation with file:line references"}
 </task>
 
-<node path="${nodePath}" description="${nodeDescription}" />
+<node path="${escapeXmlText(nodePath, { attribute: true })}" description="${escapeXmlText(nodeDescription, { attribute: true })}" />
 
-<aspect id="${aspect.id}" description="${aspect.description}">
+<aspect id="${escapeXmlText(aspect.id, { attribute: true })}" description="${escapeXmlText(aspect.description, { attribute: true })}">
 ${aspect.content}
 </aspect>${referencesBlock}
 
