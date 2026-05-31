@@ -28,6 +28,15 @@ jobs:
       - run: scripts/repo-check.sh
       - uses: codecov/codecov-action@v6
         # Upload coverage from a single matrix leg to avoid duplicate reports.
+        #
+        # Codecov is ADVISORY here, by design (fail_ci_if_error: false). The
+        # binding coverage gate is `scripts/repo-check.sh`, which fails the build
+        # if any of lines/statements/functions/branches drops below 90% — that
+        # ran in the step above and already gates this job. Codecov adds reporting
+        # and PR trend annotations only; a flaky upload (network, token, rate
+        # limit) must NOT fail CI over coverage that repo-check already enforced.
+        # Do not flip this to `true` expecting it to enforce coverage — it would
+        # only make CI fail on Codecov outages, not on real coverage regressions.
         if: github.ref == 'refs/heads/main' && github.event_name == 'push' && matrix.node-version == 22
         with:
           files: source/cli/coverage/lcov.info
