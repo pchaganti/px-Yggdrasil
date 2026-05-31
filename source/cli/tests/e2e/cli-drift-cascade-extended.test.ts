@@ -560,36 +560,29 @@ describe.skipIf(!distExists)('CLI E2E — drift & cascade extended paths', () =>
   // Re-running approve on a node with no source change and no upstream change
   // records nothing new and prints the `No changes:` verdict, exit 0.
   //
-  // SETTLE: the no-op only appears once the per-node baseline is fully settled.
-  // The first approve writes the baseline WITHOUT the deterministic aspects'
-  // check-touched synthetic keys; the second approve folds them in (a real hash
-  // change, reported as "2 aspects satisfied", NOT a no-op). Only the third
-  // approve — against the now-stable baseline — is the true no-op. The
-  // intermediate verdicts are asserted so the settle behaviour is pinned, not
-  // worked around.
+  // SETTLE: the per-node baseline is FULLY SETTLED by a SINGLE approve — the
+  // first approve folds the deterministic aspects' check-touched synthetic keys
+  // into both state.hash AND state.files, so no redundant second approve is
+  // needed. The very next approve against the unchanged, settled baseline is the
+  // true no-op.
   // -------------------------------------------------------------------------
 
-  it('7: re-approving a settled, unchanged node is a no-op — prints "No changes:" and exits 0', () => {
+  it('7: re-approving an unchanged node is a no-op after a SINGLE approve — prints "No changes:" and exits 0', () => {
     const dir = deterministicFixture('nochange');
     try {
-      // #1 — initial baseline (no check-touched synthetic keys yet).
+      // #1 — initial baseline, fully settled in ONE pass (check-touched keys
+      // folded into state.files, not just state.hash).
       const first = run(['approve', '--node', 'services/orders'], dir);
       expect(first.status).toBe(0);
       expect(first.all).toContain('Approved: services/orders (initial)');
 
-      // #2 — folds in the check-touched layer: a real hash change, not a no-op.
+      // #2 — nothing changed and the baseline is already settled: the true no-op.
       const second = run(['approve', '--node', 'services/orders'], dir);
       expect(second.status).toBe(0);
-      expect(second.all).toContain('Approved: services/orders — 2 aspects satisfied.');
-      expect(second.all).not.toContain('No changes:');
-
-      // #3 — baseline now stable and nothing changed: the true no-op verdict.
-      const third = run(['approve', '--node', 'services/orders'], dir);
-      expect(third.status).toBe(0);
-      expect(third.all).toContain('No changes: services/orders');
+      expect(second.all).toContain('No changes: services/orders');
       // A no-op does NOT re-record an initial baseline or re-run the aspects.
-      expect(third.all).not.toContain('Approved: services/orders (initial)');
-      expect(third.all).not.toContain('aspects satisfied');
+      expect(second.all).not.toContain('Approved: services/orders (initial)');
+      expect(second.all).not.toContain('aspects satisfied');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -335,11 +335,13 @@ describe.skipIf(!distExists)('CLI E2E — log remaining: supersedes, read format
       expect(headerCount(restored.stdout)).toBe(1);
       expect(restored.stdout).not.toContain('typo entyr');
 
-      // Re-add the corrected entry and approve — integrity intact, exit 0.
+      // Re-add the corrected entry and approve — integrity intact, exit 0. The
+      // log entry is the only change (no source/aspect drift), so this is a clean
+      // no-op that records the new log baseline either way.
       expect(run(['log', 'add', '--node', 'services/orders', '--reason', 'corrected entry text'], dir).status).toBe(0);
       const approve = run(['approve', '--node', 'services/orders'], dir);
       expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/orders');
+      expect(approve.stdout).toMatch(/Approved: services\/orders|No changes: services\/orders/);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

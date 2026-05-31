@@ -272,11 +272,16 @@ describe.skipIf(!distExists)('CLI E2E — channel 5: flow aspects reach particip
     const dir = deterministicFixture('flow-batch-violator');
     try {
       killReviewer(dir);
-      // Establish baselines so the violating node carries source drift that the
-      // flow batch then re-verifies.
+      // Establish clean baselines for both participants.
       expect(run(['approve', '--node', 'services/orders', '--node', 'services/payments'], dir).status).toBe(0);
 
+      // Plant a TODO in payments, then trigger a CASCADE on the flow participants
+      // by editing the shared aspect's implementation. `yg approve --flow` targets
+      // CASCADE drift (a pure source change would be handled by --node), so the
+      // batch re-verifies the cascaded `no-todo-comments` aspect on each
+      // participant against current source — catching payments' TODO.
       appendFileSync(paymentsFile(dir), '\n// TODO: fix\n');
+      appendFileSync(noTodoCheckMjs(dir), '\n// cascade-trigger: trivial no-op comment\n');
       const batch = run(['approve', '--flow', 'order-processing'], dir);
       expect(batch.status).toBe(1);
       expect(batch.stdout).toContain('services/payments');

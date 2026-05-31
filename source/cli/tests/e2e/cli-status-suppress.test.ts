@@ -166,12 +166,15 @@ describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + s
       expect(after).not.toBe(before); // guard: the flip actually applied
       writeFileSync(aspectYaml(dir, 'no-todo-comments'), after, 'utf-8');
 
-      // The status change cascades (the aspect definition changed), so re-approve
-      // the affected nodes. No source file changed and the code is clean, so each
-      // approve exits 0 with NO refusal — this is a render flip, not source drift.
+      // advisory<->enforced is NOT a source change and NOT a cascade: the status
+      // is excluded from the canonical hash and the prior `approved` verdict
+      // carries forward (only the render severity flips). So re-approving each
+      // node is a clean NO-OP — exit 0, no refusal, "No changes". (Under the old
+      // check-touched "settle" wart this spuriously printed "Approved"; the
+      // verdict carry-forward makes "No changes" the correct outcome.)
       const ordersApprove = run(['approve', '--node', 'services/orders'], dir);
       expect(ordersApprove.status).toBe(0);
-      expect(ordersApprove.stdout).toContain('Approved: services/orders');
+      expect(ordersApprove.stdout).toContain('No changes: services/orders');
       expect(ordersApprove.stdout).not.toContain('NOT SATISFIED');
 
       expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);

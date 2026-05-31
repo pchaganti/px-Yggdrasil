@@ -1,5 +1,5 @@
 {
-  "hash": "8d8b710a48fd7cc1e8be11b09f3684e82619f647d55a40a228427e0d2956ba89",
+  "hash": "65de50eaf723af053b61cfcc0a83799cd5e903f6fbcd48f587c0bfb2f12c37c1",
   "files": {
     "own-subset:cli/tests/e2e/log-gate-extended": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
@@ -8,14 +8,14 @@
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/e2e/yg-node.yaml": "84d325c5de6fb3ff286926646e67ffb49921cf556d58712e850acafd0c57bb7b",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/e2e/cli-log-gate-extended.test.ts": "66509c583073f7f19716bb12b4458823befc3b489ff99b0cbc44dff4ccb804f5"
+    "source/cli/tests/e2e/cli-log-gate-extended.test.ts": "071633bcd62a55a0fdba93e7e2966250eba65b1f9db4a9f17255c6940cc24659"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/e2e/yg-node.yaml": 1780104092868.105,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/e2e/cli-log-gate-extended.test.ts": 1780223593191.9534
+    "source/cli/tests/e2e/cli-log-gate-extended.test.ts": 1780232564786.1653
   },
   "log": {
     "last_entry_datetime": "2026-05-31T10:33:50.991Z",

@@ -139,6 +139,11 @@ describe.skipIf(!distExists)('CLI E2E — cascade cause messages (aspect-meta, o
       const drifted = run(['check'], dir);
       expect(drifted.status).toBe(1);
       expect(drifted.all).toContain("node 'services/orders' own metadata changed");
+      // REGRESSION: a single approve FULLY SETTLES the baseline. Adding an
+      // unrelated relation must NOT surface a spurious "set of files read by
+      // deterministic aspect '<id>' changed" cause for the node's single-file
+      // aspects — their read SET did not change.
+      expect(drifted.all).not.toContain('the set of files read by deterministic aspect');
 
       // Re-approving the node clears its own-metadata cascade.
       expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);

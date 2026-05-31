@@ -1,21 +1,21 @@
 {
-  "hash": "f9bf5082ca942cc5b9a4f6630b567c19231b81c59d779bf160960e1de77bc1d8",
+  "hash": "d8b74f9befcc4a598307729a1d4b8d7d3dd215f35ee761dbc77dfcc54571d275",
   "files": {
+    "own-subset:cli/tests/e2e/drift-cascade-extended": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/e2e/yg-node.yaml": "84d325c5de6fb3ff286926646e67ffb49921cf556d58712e850acafd0c57bb7b",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/e2e/cli-drift-cascade-extended.test.ts": "6eed16b4cb796849fed08ffaaabf74ba32c283313aa8cde2cfb9eeb48413c839",
-    "own-subset:cli/tests/e2e/drift-cascade-extended": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+    "source/cli/tests/e2e/cli-drift-cascade-extended.test.ts": "552481f350464e8f2f23e3b6c462c58bba5dc41c4d07edd1d1ff4df85f6a4fc8"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/e2e/yg-node.yaml": 1780104092868.105,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/e2e/cli-drift-cascade-extended.test.ts": 1780218325787.3247
+    "source/cli/tests/e2e/cli-drift-cascade-extended.test.ts": 1780232484534.8516
   },
   "log": {
     "last_entry_datetime": "2026-05-31T09:10:49.946Z",

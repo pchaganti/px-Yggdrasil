@@ -12,7 +12,7 @@ import {
 import { hashTrackedFiles } from '../io/hash.js';
 import { collectTrackedFiles, buildLayerResolver, yggPrefixOf } from './graph/files.js';
 import { normalizeMappingPaths } from '../io/paths.js';
-import { computeEffectiveAspects, hasNonDraftEffectiveAspects } from './graph/aspects.js';
+import { computeEffectiveAspects, computeEffectiveAspectStatuses, hasNonDraftEffectiveAspects } from './graph/aspects.js';
 import { readTextFile, lstatFile } from '../io/graph-fs.js';
 import { createHash } from 'node:crypto';
 import { debugWrite } from '../utils/debug-log.js';
@@ -300,10 +300,28 @@ export async function approveNode(
     return mandatoryLogRefusal(node, nodePath, changedSource);
   }
 
+  // ── Newly-active aspect detection ───────────────────────
+  // A draft -> advisory/enforced flip does NOT change the canonical hash (status
+  // is intentionally excluded from the hash for advisory<->enforced stability),
+  // so hash-based drift detection alone would miss it and report "No changes" —
+  // leaving the now-active aspect without a reviewer verdict and yg check
+  // permanently red (aspect-newly-active). Detect it exactly as check.ts does:
+  // an effective non-draft aspect with no recorded verdict in a non-legacy
+  // baseline. Such a node must re-approve so the reviewer records the verdict.
+  const newlyActiveAspects: string[] = [];
+  if (storedEntry.aspectVerdicts !== undefined) {
+    const statuses = computeEffectiveAspectStatuses(node, graph);
+    for (const [aspectId, status] of statuses) {
+      if (status === 'draft') continue;
+      if (!storedEntry.aspectVerdicts[aspectId]) newlyActiveAspects.push(aspectId);
+    }
+  }
+  const hasNewlyActiveAspect = newlyActiveAspects.length > 0;
+
   // ── Binary decision ─────────────────────────────────────
   let action: ApproveResult['action'];
 
-  if (!sourceChanged && !upstreamChanged) {
+  if (!sourceChanged && !upstreamChanged && !hasNewlyActiveAspect) {
     action = 'no-change';
   } else {
     action = 'approved';

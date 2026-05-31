@@ -153,11 +153,13 @@ describe.skipIf(!distExists)('CLI E2E — upstream cascade drift across every la
       expect(drifted.status).toBe(1);
       expect(drifted.stdout).toContain('cascade');
       expect(drifted.stdout).toContain("aspect 'no-todo-comments' check.mjs changed");
-      // Both participants are named (compact sibling rendering) with a single
-      // slash before the brace group — not the doubled `services//{...}` form.
-      expect(drifted.stdout).toContain('services/orders');
+      // Both participants are named in the compact sibling rendering with a
+      // single slash before the brace group — not the doubled `services//{...}`.
+      // (The baseline is settled in one approve, so this is the ONLY cascade —
+      // no spurious per-node "set of files read changed" causes are dragged in.)
       expect(drifted.stdout).toContain('services/{orders, payments}');
       expect(drifted.stdout).not.toContain('services//{');
+      expect(drifted.stdout).not.toContain('the set of files read by deterministic aspect');
 
       const reapprove = run(['approve', '--aspect', 'no-todo-comments'], dir);
       expect(reapprove.status).toBe(0);

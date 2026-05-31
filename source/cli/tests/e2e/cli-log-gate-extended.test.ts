@@ -430,7 +430,10 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
       );
       const { status, stdout, all } = run(['approve', '--node', 'services/orders'], dir);
       expect(status).toBe(0);
-      expect(stdout).toContain('Approved: services/orders');
+      // A log-only edit (no source/aspect change) is a clean no-op; the point is
+      // that the fenced heading does not trip the log-format gate, so approve
+      // succeeds either way (no refusal, no format error).
+      expect(stdout).toMatch(/Approved: services\/orders|No changes: services\/orders/);
       expect(all).not.toContain('level2_header_in_body');
       expect(all).not.toContain('Log format invalid');
     } finally {

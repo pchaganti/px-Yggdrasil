@@ -1,5 +1,5 @@
 {
-  "hash": "2ce39e6f6133fca798aa476343588022ef44253f10cec1fd4cd3ff213500f0af",
+  "hash": "733b3b3875ee6bdf0325b5f22518992f56171daaeeaaa11ce6c941ec7b28a5ca",
   "files": {
     "own-subset:cli/core/approve-reviewer": "4409b68f5aee0df143dde07dfd597dbb30087063a89a9e775e16a00ce1c55a14",
     "aspect-meta:what-why-next": "1b09853973f277b1f6e8f02db3d9a1b5611e69b04f25b40dca5873730e17b037",
@@ -34,7 +34,7 @@
     ".yggdrasil/model/cli/core/approve/yg-node.yaml": "11e671ee9be293a11350ee1078b42bb2a0a2e876a8e1a277e020a9f455d9ee04",
     ".yggdrasil/model/cli/llm/shared/yg-node.yaml": "74f188e3b990026e1d3a29edf6672909bdde0d4b7d91ced32cf34f211530f9c6",
     ".yggdrasil/model/cli/llm/yg-node.yaml": "eb86d7c0b81642af0c1d40cba6a1f5a780293a2304635bd100bd64677a4c8838",
-    "source/cli/src/core/approve-reviewer.ts": "00ced686859efc0b1ea4f9f07564aa2ea80b86d326b29942b8f3142a79d05310"
+    "source/cli/src/core/approve-reviewer.ts": "ce6e6ed85a94b24cc73fb93dd0d91d789664741d32ddbf47181ed68ac49f98a1"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -51,27 +51,27 @@
     ".yggdrasil/model/cli/core/approve/yg-node.yaml": 1778912998930.47,
     ".yggdrasil/model/cli/llm/shared/yg-node.yaml": 1779956720879.04,
     ".yggdrasil/model/cli/llm/yg-node.yaml": 1778866396180.118,
-    "source/cli/src/core/approve-reviewer.ts": 1780225310625.2004
+    "source/cli/src/core/approve-reviewer.ts": 1780232115397.7102
   },
   "log": {
-    "last_entry_datetime": "2026-05-31T11:21:39.170Z",
-    "prefix_hash": "1d05a4ae4ccf533710dda04f63390be0893ab1ba642d25f5a1457fdc3d469b77"
+    "last_entry_datetime": "2026-05-31T13:05:48.002Z",
+    "prefix_hash": "261937280628b431b0e9f6dadb7ab0fdbf60d1fb700348a66ffc562461eee96f"
   },
   "checkTouchedFiles": {
     "no-nondeterminism-direct": {
-      "source/cli/src/core/approve-reviewer.ts": "00ced686859efc0b1ea4f9f07564aa2ea80b86d326b29942b8f3142a79d05310"
+      "source/cli/src/core/approve-reviewer.ts": "ce6e6ed85a94b24cc73fb93dd0d91d789664741d32ddbf47181ed68ac49f98a1"
     },
     "no-direct-fs": {
-      "source/cli/src/core/approve-reviewer.ts": "00ced686859efc0b1ea4f9f07564aa2ea80b86d326b29942b8f3142a79d05310"
+      "source/cli/src/core/approve-reviewer.ts": "ce6e6ed85a94b24cc73fb93dd0d91d789664741d32ddbf47181ed68ac49f98a1"
     },
     "no-direct-console": {
-      "source/cli/src/core/approve-reviewer.ts": "00ced686859efc0b1ea4f9f07564aa2ea80b86d326b29942b8f3142a79d05310"
+      "source/cli/src/core/approve-reviewer.ts": "ce6e6ed85a94b24cc73fb93dd0d91d789664741d32ddbf47181ed68ac49f98a1"
     },
     "posix-paths-source": {
-      "source/cli/src/core/approve-reviewer.ts": "00ced686859efc0b1ea4f9f07564aa2ea80b86d326b29942b8f3142a79d05310"
+      "source/cli/src/core/approve-reviewer.ts": "ce6e6ed85a94b24cc73fb93dd0d91d789664741d32ddbf47181ed68ac49f98a1"
     },
     "single-source-graph-queries": {
-      "source/cli/src/core/approve-reviewer.ts": "00ced686859efc0b1ea4f9f07564aa2ea80b86d326b29942b8f3142a79d05310"
+      "source/cli/src/core/approve-reviewer.ts": "ce6e6ed85a94b24cc73fb93dd0d91d789664741d32ddbf47181ed68ac49f98a1"
     }
   },
   "aspectVerdicts": {

@@ -575,10 +575,8 @@ export async function runApproveWithReviewer(
   // NEW baseline (action initial/approved) the cross-node files just recorded
   // in checkTouchedFiles are not yet part of the node's drift identity.
   // Re-collect WITH the now-populated baseline so collectTrackedFiles emits the
-  // check-touched entries, re-hash, and adopt only the canonical hash —
-  // state.files stays the canonical own source/graph map (cross-node paths must
-  // NOT enter it; see the touched-files loop above). Skip on no-change/refused:
-  // those do not write a fresh baseline.
+  // check-touched entries, re-hash, and adopt the canonical hash. Skip on
+  // no-change/refused: those do not write a fresh baseline.
   if (
     result.pendingDriftState &&
     (result.action === 'initial' || result.action === 'approved') &&
@@ -587,9 +585,26 @@ export async function runApproveWithReviewer(
   ) {
     const recomputeTracked = collectTrackedFiles(node, graph, result.pendingDriftState.state);
     const recomputeExclusions = getChildMappingExclusions(graph, node.path);
-    const { canonicalHash } = await hashTrackedFiles(projectRoot, recomputeTracked, undefined, recomputeExclusions);
+    const { canonicalHash, fileHashes: recomputeHashes } =
+      await hashTrackedFiles(projectRoot, recomputeTracked, undefined, recomputeExclusions);
     result.pendingDriftState.state.hash = canonicalHash;
     result.currentHash = canonicalHash;
+    // Fold the SYNTHETIC per-aspect check-touched:<id> set-hash keys into
+    // state.files as well, so this baseline is FULLY SETTLED in one approve.
+    // Otherwise state.files (the per-file drift-cause map) would lack these keys
+    // while state.hash already includes them: the node still passes a clean
+    // `yg check` (hashes match), but the FIRST later drift for any other reason
+    // would enumerate them as spurious "the set of files read by deterministic
+    // aspect '<id>' changed" causes — and a redundant second approve was needed
+    // to settle. Cross-node REAL file paths are still kept OUT of state.files
+    // (they would trip the deleted-file detector — see the touched-files loop
+    // above); only the synthetic `check-touched:` keys are added here. This does
+    // not change state.hash, so it introduces no drift on existing baselines.
+    for (const [k, v] of Object.entries(recomputeHashes)) {
+      if (k.startsWith('check-touched:')) {
+        result.pendingDriftState.state.files[k] = v;
+      }
+    }
   }
 
   // AST/structure short-circuit refusal. Refuse early (skipping LLM dispatch)
