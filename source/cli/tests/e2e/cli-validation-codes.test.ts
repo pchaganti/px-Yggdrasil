@@ -702,4 +702,21 @@ describe.skipIf(!distExists)('CLI E2E — yg check validation code matrix (remai
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it('H4: a mapping path that climbs above the repo root yields mapping-escapes-repo (exit 1)', () => {
+    const dir = minimalGraph('mapping-escapes', ({ ygRoot, projectRoot }) => {
+      // A valid node keeps the graph non-empty and covered…
+      writeNode(ygRoot, 'widget', ['name: Widget', 'description: A widget', 'type: service', 'mapping:', '  - src/widget.ts', ''].join('\n'));
+      writeSource(projectRoot, 'src/widget.ts', 'export const w = 1;\n');
+      // …plus a node whose mapping climbs above the repo root with `..`.
+      writeNode(ygRoot, 'escaper', ['name: Escaper', 'description: Escapes', 'type: service', 'mapping:', '  - ../../outside.ts', ''].join('\n'));
+    });
+    try {
+      const { status, all } = run(['check'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain('mapping-escapes-repo');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

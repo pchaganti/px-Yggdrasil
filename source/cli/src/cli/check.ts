@@ -5,6 +5,7 @@ import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { runCheck } from '../core/check.js';
 import type { CheckIssue, CheckResult } from '../core/check.js';
+import { STRUCTURAL_CODES, COMPLETENESS_CODES } from '../core/check-codes.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
@@ -48,8 +49,9 @@ export function registerCheckCommand(program: Command): void {
 
 // ── Output formatting ──────────────────────────────────────
 
-/** Code sets for grouping errors by category. */
-const STRUCTURAL_CODES = new Set(['yaml-invalid', 'type-invalid', 'relation-broken', 'flow-node-broken', 'aspect-undefined', 'overlapping-mapping', 'file-duplicate-mapping', 'structural-cycle', 'config-invalid', 'config-reviewer-legacy-format', 'config-reviewer-mixed-format', 'duplicate-aspect-id', 'node-yaml-missing', 'implied-aspect-missing', 'aspect-implies-cycle', 'event-unpaired', 'schema-missing', 'type-without-when-with-mapping', 'type-when-mismatch', 'file-mapping-gitignored', 'enforce-strict-without-when', 'architecture-cycle', 'when-predicate-invalid', 'when-unknown-type', 'when-unknown-node', 'when-unknown-port', 'aspect-unexpected-rule-source', 'aspect-missing-rule-source', 'file-unreadable', 'aspect-references-on-deterministic', 'aspect-reference-broken', 'aspect-reference-too-large', 'aspect-references-total-too-large', 'aspect-reference-invalid-form', 'aspect-reference-blank-path', 'aspect-reference-escape', 'aspect-reference-duplicate', 'aspect-tier-unknown']);
+/** Code sets for grouping errors by category. STRUCTURAL_CODES and
+ *  COMPLETENESS_CODES are shared with the check engine via core/check-codes.ts
+ *  so the rendered grouping and the summary tally cannot drift apart. */
 const ARCHITECTURE_CODES = new Set(['relation-target-forbidden', 'parent-type-forbidden', 'type-undefined', 'port-missing-aspect', 'port-missing-consumes', 'port-undefined', 'consumes-without-ports']);
 // `unmapped-files` renders through renderUnmappedBlock (count + file list).
 // `mapping-path-missing` is NOT a coverage code: it carries a nodePath and
@@ -57,7 +59,6 @@ const ARCHITECTURE_CODES = new Set(['relation-target-forbidden', 'parent-type-fo
 // renderer (code + node path + what/why/next) — renderUnmappedBlock would
 // otherwise drop both the code and the offending node path.
 const COVERAGE_CODES = new Set(['unmapped-files']);
-const COMPLETENESS_CODES = new Set(['description-missing']);
 const STRICT_CODES = new Set(['type-strict-orphan', 'type-strict-misplaced', 'strict-overlap-conflict']);
 
 export function formatOutput(result: CheckResult): string {

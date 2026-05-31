@@ -16,6 +16,7 @@ import { computeEffectiveAspectStatuses, hasNonDraftEffectiveAspects, ImpliesCyc
 import { readTextFile, fileAccess } from '../io/graph-fs.js';
 import path from 'node:path';
 import { validateAppendOnly } from './log-integrity.js';
+import { STRUCTURAL_CODES, COMPLETENESS_CODES } from './check-codes.js';
 import { validateFormat } from './log-format.js';
 import { toPosixPath } from '../utils/posix.js';
 import {
@@ -866,12 +867,6 @@ function computeSuggestedNext(issues: CheckIssue[], graph?: Graph): string | nul
     /* v8 ignore next -- tested by clean-check test, but v8 sometimes marks it uncovered */
     return firstAspectWarning?.messageData.next ?? null;
   }
-
-  // Smaller subset used only at line 684 for an internal filter (not CI blocking).
-  // CI blocking uses cli/check.ts STRUCTURAL_CODES. Aligning these two sets is
-  // tracked separately as a future cleanup.
-  const STRUCTURAL_CODES = new Set(['yaml-invalid', 'type-invalid', 'relation-broken', 'flow-node-broken', 'aspect-undefined', 'overlapping-mapping', 'structural-cycle', 'config-invalid', 'duplicate-aspect-id', 'node-yaml-missing', 'implied-aspect-missing', 'aspect-implies-cycle', 'event-unpaired', 'schema-missing']);
-  const COMPLETENESS_CODES = new Set(['description-missing']);
 
   const driftErrors = errors.filter(i => i.code === 'source-drift' || i.code === 'unapproved');
   const cascadeErrors = errors.filter(i => i.code === 'upstream-drift');

@@ -263,6 +263,41 @@ export async function checkMappingPathsExist(graph: Graph): Promise<ValidationIs
   return issues;
 }
 
+// --- mapping-escapes-repo: a mapping entry resolves outside the repo root ---
+
+/**
+ * Reject mapping entries that are absolute or climb above the repository root
+ * with `..`. normalizeMappingPath only converts separators and strips a leading
+ * `./` and trailing slashes — it does NOT collapse `..`, so a mapping like
+ * `../../etc/passwd` would otherwise be resolved against the project root and let
+ * a node claim files outside the repository, bypassing coverage and enforcement.
+ */
+export function checkMappingEscapesRepo(graph: Graph): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const projectRoot = path.dirname(graph.rootPath);
+  for (const [nodePath, node] of graph.nodes) {
+    for (const raw of node.meta.mapping ?? []) {
+      const norm = normalizePathForCompare(raw);
+      const resolved = path.resolve(projectRoot, norm);
+      const rel = normalizePathForCompare(path.relative(projectRoot, resolved));
+      if (path.isAbsolute(norm) || rel === '..' || rel.startsWith('../')) {
+        issues.push({
+          severity: 'error',
+          code: 'mapping-escapes-repo',
+          rule: 'mapping-escapes-repo',
+          nodePath,
+          ...issueMsg({
+            what: `Mapping path '${norm}' in node '${nodePath}' resolves outside the repository root.`,
+            why: `A mapping must point to a file inside the repo. An absolute path, or one that climbs above the root with '..', would let a node claim files outside the project — bypassing coverage and aspect enforcement.`,
+            next: `Make the mapping repo-relative and within the project: no leading '/', and no '..' segment that climbs above the root.`,
+          }),
+        });
+      }
+    }
+  }
+  return issues;
+}
+
 // --- oversized-node: Node maps more than the per-node character budget ---
 
 /** File extensions whose contents are binary and never enter a reviewer prompt
