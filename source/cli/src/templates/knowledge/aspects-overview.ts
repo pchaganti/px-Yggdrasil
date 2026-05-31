@@ -41,9 +41,13 @@ and it costs zero.
 ## LLM vs deterministic
 
 Two reviewer types exist: LLM and deterministic. The deterministic reviewer runs
-a sandboxed \`check.mjs\` locally — it covers both per-file syntactic rules
+\`check.mjs\` locally — it covers both per-file syntactic rules
 (single-file style) and cross-node graph-shape rules (graph-aware style), all in
 one reviewer. LLM and deterministic each have a distinct sweet spot.
+
+\`check.mjs\` runs in the main Node process with full privileges — there is no
+security sandbox. The graph-aware allow-list (below) is a read *discipline* that
+scopes tracked dependencies, not an isolation boundary. Only run aspects you trust.
 
 ### When to use LLM
 

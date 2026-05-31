@@ -67,7 +67,8 @@ function assertRealpathContained(abs: string, projectRoot: string, rel: string):
  * Rejects absolute paths and any `..` traversal that escapes the repo, then enforces the
  * allow-set, then re-checks the REAL (symlink-resolved) path is still inside the repo.
  * Throws UndeclaredFsReadError on any violation. Shared by ctx.fs and ctx.parsers so the
- * two sandbox surfaces cannot diverge.
+ * two allow-set surfaces cannot diverge. (This is a read-tracking discipline, not a
+ * security sandbox — check.mjs runs with full Node privileges.)
  */
 export function resolveAllowedReadPath(raw: string, allowedSet: Set<string>, projectRoot: string): string {
   const abs = path.resolve(projectRoot, normalizeMappingPath(raw));

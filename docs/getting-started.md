@@ -169,6 +169,46 @@ If check fails, it means source files changed without being approved.
 Tell the agent: "resolve all yg check issues" and it will run approve,
 fix violations, and re-approve until check passes.
 
+## 6) Core vs. advanced — what to learn when
+
+Yggdrasil has a lot of surface area, but you only need a few ideas to be
+productive. Learn the rest the day you actually need it.
+
+**Core — everything above this point.** Four concepts carry day-to-day work:
+
+- **Node** — maps a set of source files (a `yg-node.yaml` with a `mapping:`).
+- **Aspect** — one enforceable rule (`content.md` for the LLM reviewer, or
+  `check.mjs` for a deterministic one).
+- **`yg check`** — the gate. Hash-only, no LLM, runs in CI. Red until every
+  change is approved.
+- **`yg approve`** — runs the reviewer and records the verdict so check goes
+  green.
+
+Plus aspect **status** (`draft` → `advisory` → `enforced`) to control whether a
+rule blocks. That is enough to enforce real rules on a real codebase.
+
+**Advanced — reach for these only when a rule needs to scale past one node.**
+Aspect inheritance through the node hierarchy, architecture type-defaults,
+`implies` chains, flows, ports, and conditional `when` predicates all exist for
+one purpose: applying a rule to many nodes **without** copy-pasting it onto each
+one. You do not need any of them to start. When "every X must do Y" spans more
+than a handful of files, that is the signal to read
+[Core Concepts](/core-concepts) and adopt one of these mechanisms.
+
+**You never trace the cascade by hand.** No matter how many of those mechanisms
+are in play, you do not work out which rules apply to a file by reading the
+graph yourself. Ask the tool:
+
+```bash
+yg context --file src/payments/charge.ts
+```
+
+It prints every aspect effective on that file, **where each one came from**
+(its own node, an ancestor, the architecture type, a flow, a port, or an
+`implies` edge), and the `read:` path to each rule's text. The graph computes
+the cascade; you read the answer. `yg context --node <path>` does the same from
+a node's point of view.
+
 Yggdrasil is zero lock-in. Delete `.yggdrasil/` and your project works
 exactly as before. No build dependencies, no runtime hooks.
 

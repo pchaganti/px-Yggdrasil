@@ -283,7 +283,9 @@ enforcement remains aspect-based.
 A fresh log entry is required BEFORE running approve whenever BOTH hold:
 the node type has \`log_required: true\` (the default) AND the node's source
 files changed since the last approve. The entry must be newer than the one
-captured at the last approve — one fresh entry per approve cycle. This
+captured at the last SUCCESSFUL approve — one fresh entry per approve cycle.
+(A failed approve records nothing, so the freshness baseline only advances when
+approve succeeds — this is what lets one entry cover all retries, below.) This
 requirement is INDEPENDENT of aspect status: it never depends on whether a
 node's aspects are draft, advisory, or enforced. A cascade-only re-approve
 (no source change) needs no new entry.

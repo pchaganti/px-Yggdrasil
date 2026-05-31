@@ -6,7 +6,7 @@ import { resolveExecutionPlan, runApproveWithReviewer } from '../../../src/core/
 import type { AspectDef, ReviewerConfig } from '../../../src/model/graph.js';
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import { approveNode } from '../../../src/core/approve.js';
-import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
+import { writeNodeDriftState, readNodeDriftState } from '../../../src/io/drift-state-store.js';
 import { hashTrackedFiles } from '../../../src/io/hash.js';
 import { collectTrackedFiles } from '../../../src/core/graph/files.js';
 
@@ -399,6 +399,101 @@ export function check(ctx) {
     expect(v).toBeDefined();
     // file:line prefix should appear in reason — exercises the loc branch
     expect(v!.reason).toMatch(/src\/svc\.ts:3: violation found/);
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  // H2: a reviewer REJECTION must not advance the log-freshness baseline. The
+  // baseline records the entry that justified the last SUCCESSFUL approve; if a
+  // refusal advanced it, the same entry would stop satisfying the mandatory-log
+  // gate and a fix-then-retry would demand a brand-new entry — contradicting the
+  // documented "one entry covers all retries until approve succeeds".
+  it('H2: a refused first approve drops the log baseline (no prior success to record)', async () => {
+    const { tmpDir } = await createStructureProject('struct-h2-drop', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - rej\nmapping:\n  - src/svc.ts\n',
+      mappingFiles: { 'src/svc.ts': 'export const x = 1;\n' },
+      aspects: [{
+        id: 'rej',
+        yaml: 'name: Rej\ndescription: test\nreviewer:\n  type: deterministic\n',
+        files: {
+          'check.mjs': `export function check(ctx) {\n  return [{ message: 'nope', file: ctx.files[0]?.path, line: 1 }];\n}\n`,
+        },
+      }],
+    });
+
+    // No recordBaseline → this is a first approve (no prior stored baseline).
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    // The fixture's log.md gives the deterministic stage a log baseline candidate…
+    expect(coreResult.pendingDriftState?.state.log).toBeDefined();
+
+    const result = await runApproveWithReviewer({
+      graph,
+      nodePath: 'svc/my-service',
+      result: coreResult,
+      rootPath: graph.rootPath,
+      secretsByProvider: new Map(),
+    });
+
+    expect(result.action).toBe('refused');
+    // …but the refusal must NOT persist it: no successful approve has happened.
+    expect(result.pendingDriftState?.state.log).toBeUndefined();
+    const persisted = await readNodeDriftState(graph.rootPath, 'svc/my-service');
+    expect(persisted?.log).toBeUndefined();
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('H2: a refused re-approve preserves the prior successful log baseline (does not advance it)', async () => {
+    const { tmpDir, yggRoot } = await createStructureProject('struct-h2-preserve', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - tog\nmapping:\n  - src/svc.ts\n',
+      mappingFiles: { 'src/svc.ts': 'export const x = 1;\n' },
+      aspects: [{
+        id: 'tog',
+        yaml: 'name: Tog\ndescription: test\nreviewer:\n  type: deterministic\n',
+        // Stable, content-sensitive check (rewriting check.mjs would hit the
+        // dynamic-import module cache): passes on clean source, rejects on BANNED.
+        files: {
+          'check.mjs': `export function check(ctx) {\n  const v = [];\n  for (const f of ctx.files) {\n    if (f.content.includes('BANNED')) v.push({ message: 'banned token', file: f.path, line: 1 });\n  }\n  return v;\n}\n`,
+        },
+      }],
+    });
+
+    // 1) Clean first approve → records a baseline whose log = the fixture entry T1.
+    let graph = await loadGraph(tmpDir);
+    let core = await approveNode(graph, 'svc/my-service');
+    let res = await runApproveWithReviewer({
+      graph, nodePath: 'svc/my-service', result: core,
+      rootPath: graph.rootPath, secretsByProvider: new Map(),
+    });
+    expect(['initial', 'approved']).toContain(res.action);
+    const afterClean = await readNodeDriftState(graph.rootPath, 'svc/my-service');
+    expect(afterClean?.log?.last_entry_datetime).toBe('2026-05-11T10:00:00.000Z');
+
+    // 2) Introduce a violation in the SOURCE (BANNED token) and APPEND a newer
+    //    entry T2 (append-only, so the T1 prefix the baseline pinned stays
+    //    byte-identical → integrity OK). The check module is unchanged.
+    await writeFile(path.join(tmpDir, 'src/svc.ts'), 'export const x = 2; // BANNED\n');
+    await writeFile(
+      path.join(yggRoot, 'model', 'svc/my-service', 'log.md'),
+      '## [2026-05-11T10:00:00.000Z]\nInitial setup.\n## [2026-05-11T12:00:00.000Z]\nattempted fix.\n',
+    );
+
+    // 3) Re-approve → reviewer rejects. The prior log baseline (T1) must survive;
+    //    it must NOT advance to the new entry T2.
+    graph = await loadGraph(tmpDir);
+    const stored = await readNodeDriftState(graph.rootPath, 'svc/my-service');
+    core = await approveNode(graph, 'svc/my-service');
+    res = await runApproveWithReviewer({
+      graph, nodePath: 'svc/my-service', result: core,
+      rootPath: graph.rootPath, secretsByProvider: new Map(),
+      storedEntry: stored ?? undefined,
+    });
+    expect(res.action).toBe('refused');
+    const afterRefuse = await readNodeDriftState(graph.rootPath, 'svc/my-service');
+    expect(afterRefuse?.log?.last_entry_datetime).toBe('2026-05-11T10:00:00.000Z');
 
     await rm(tmpDir, { recursive: true, force: true });
   });

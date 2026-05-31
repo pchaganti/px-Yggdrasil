@@ -166,7 +166,8 @@ yg tree [--root <path>] [--depth <n>]
 Natural-language search across nodes and aspects (flows are not indexed). Returns results
 ranked by relevance. Each result shows the `score`, the `Kind` (node/aspect), and a short
 `Description`. Node results also print a `Type:` line; aspect results print a `status:` line.
-A `Matched:` line lists the query terms that matched.
+A `Matched:` line lists the query terms that matched (deduplicated and capped to the
+first few, with a `(+N more)` suffix when the full set is longer).
 
 ```bash
 yg find "order cancellation"
@@ -274,8 +275,10 @@ yg deterministic-test --aspect <id> --node <node-path> --check-determinism
 
 - `--aspect <id>` — Required. The aspect must have `reviewer.type: deterministic` in its
   `yg-aspect.yaml`. Exits 1 with an error if the aspect uses the LLM reviewer.
-- `--node <path>` — Run against the files mapped to this node, with the node's sandboxed
-  `ctx` (its own files plus, via declared relations, related nodes' files and metadata).
+- `--node <path>` — Run against the files mapped to this node, with the node's allow-listed
+  `ctx` (its own files plus, via declared relations, related nodes' files and metadata). The
+  allow-list is a read *discipline* that scopes which files count as tracked dependencies —
+  not a security sandbox; `check.mjs` runs with full Node privileges.
 - `--files <paths...>` — Run against an explicit file list. Useful for ad-hoc testing
   before wiring the aspect into the graph.
 - `--check-determinism` — Runs the check twice and exits 1 if the violation sets

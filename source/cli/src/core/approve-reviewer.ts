@@ -1,12 +1,13 @@
 // yg-suppress(deterministic) approve-reviewer must invoke the configured LLM provider for verification; non-determinism is intentional and inherent to this engine's purpose
 import type { Graph, GraphNode, AspectDef, LlmConfig, ReviewerConfig, AspectStatus } from '../model/graph.js';
-import type { ApproveResult, AspectVerdict, AspectVerificationResult, DriftNodeState } from '../model/drift.js';
+import type { ApproveResult, AspectVerificationResult, DriftNodeState } from '../model/drift.js';
 import type { IssueMessage } from '../model/validation.js';
 import { verifyAspects } from '../llm/aspect-verifier.js';
 import { resolveMaxTokens } from '../llm/api-utils.js';
 import { createLlmProvider } from '../llm/index.js';
 import { commitApproval, loadSourceFiles, getChildMappingExclusions } from './approve.js';
 import { computeEffectiveAspects, computeEffectiveAspectStatuses } from './graph/aspects.js';
+import { buildAspectVerdicts, reviewerAborted, applyAspectVerdictsToResult } from './approve-verdicts.js';
 import { collectTrackedFiles } from './graph/files.js';
 import { hashTrackedFiles } from '../io/hash.js';
 import { selectTierForAspect } from './tier-selection.js';
@@ -129,19 +130,11 @@ async function dispatchStructureAspects(
 }
 
 /**
- * Commit approval and evict any stale baseline entries for effective-draft
- * aspects on this node. Called after every commitApproval site in this file.
- *
- * Why eviction is needed: draft aspects are dormant (skipped before reviewer
- * dispatch), so if a prior approve recorded a verdict for an
- * aspect that has since transitioned to `draft`, that verdict would linger in
- * the baseline despite no reviewer ever evaluating it again. The cleanup
- * removes those orphaned verdicts so the persisted state reflects only
- * aspects the reviewer actually saw.
- *
- * Note: in the all-draft case the approve path short-circuits earlier
- * (filtered.length === 0) — this helper still runs there and is a safe no-op
- * when there are no prior verdicts to clear.
+ * Commit approval and evict stale baseline verdicts for effective-draft aspects.
+ * Draft aspects are dormant (skipped before reviewer dispatch), so a verdict
+ * recorded before a transition to `draft` would linger though no reviewer
+ * re-evaluated it; eviction keeps the persisted state to aspects the reviewer
+ * actually saw. Safe no-op when there is nothing to clear.
  */
 async function commitApprovalAndCleanDrafts(
   rootPath: string,
@@ -283,107 +276,10 @@ export async function loadAndIsolateReferences(params: LoadReferencesParams): Pr
 
 // ── per-aspect verdict helpers ──────────────────────────────
 
-/**
- * Build per-aspect verdicts from reviewer results.
- *
- * Captures the verdict for every non-draft effective aspect that the reviewer
- * evaluated. Draft aspects are skipped — they were never dispatched. Aspects
- * absent from allAspectResults (e.g. when no reviewer ran) are also skipped.
- */
-export function buildAspectVerdicts(
-  node: GraphNode,
-  graph: Graph,
-  allAspectResults: Record<string, AspectVerificationResult>,
-): { verdicts: Record<string, AspectVerdict>; carryForward: string[] } {
-  const statuses = computeEffectiveAspectStatuses(node, graph);
-  const verdicts: Record<string, AspectVerdict> = {};
-  // Effective non-draft aspects that this run could NOT validly evaluate — an
-  // infra error (provider/runner failure, unreadable reference) or no reviewer
-  // result at all. Their prior baseline verdict must be carried forward rather
-  // than dropped (see applyAspectVerdictsToResult), so a transient failure never
-  // wipes a known-good verdict nor becomes a durable CI-blocking refusal.
-  const carryForward: string[] = [];
-  for (const [aspectId, status] of statuses) {
-    if (status === 'draft') continue;
-    const res = allAspectResults[aspectId];
-    if (res === undefined) {
-      // Effective non-draft aspect with no reviewer result this run.
-      carryForward.push(aspectId);
-    } else if (res.satisfied === false) {
-      if (res.errorSource !== 'codeViolation') {
-        // Infra error — not a code violation.
-        carryForward.push(aspectId);
-        continue;
-      }
-      verdicts[aspectId] = { verdict: 'refused', reason: res.reason, errorSource: res.errorSource };
-    } else if (res.satisfied === true) {
-      verdicts[aspectId] = { verdict: 'approved' };
-    }
-  }
-  return { verdicts, carryForward };
-}
-
-/**
- * Detect a reviewer abort: the node has non-draft effective aspects but
- * `allAspectResults` is empty (no reviewer call landed any verdict — e.g.
- * tier-resolution failed before any aspect ran). On abort we must NOT
- * clobber prior `aspectVerdicts` in the baseline; the prior state remains
- * authoritative until a successful re-approve produces fresh verdicts.
- */
-export function reviewerAborted(
-  node: GraphNode,
-  graph: Graph,
-  allAspectResults: Record<string, AspectVerificationResult>,
-): boolean {
-  if (Object.keys(allAspectResults).length > 0) return false;
-  const statuses = computeEffectiveAspectStatuses(node, graph);
-  for (const s of statuses.values()) {
-    if (s !== 'draft') return true;
-  }
-  return false;
-}
-
-/**
- * Merge new verdicts into result.pendingDriftState.
- *
- * When filterAspectId is set (per-aspect approve), only the targeted aspect's
- * verdict is updated — other aspects' prior verdicts are preserved from the
- * stored baseline. When unset (full-node approve), the new verdicts replace the
- * prior set, EXCEPT: (a) when the reviewer aborted before evaluating any aspect
- * (e.g. tier-resolution failure), all prior verdicts are preserved to avoid a
- * "nothing evaluated" wipe; (b) for each aspect in `carryForward` — effective
- * non-draft aspects that could not be validly evaluated this run (infra error or
- * missing result) — the prior verdict is carried forward. Without (b) a transient
- * provider/runner failure on one aspect of a full-node approve would wipe that
- * aspect's known-good baseline verdict, surfacing as aspect-newly-active (a
- * CI-blocking error) on the next check.
- *
- * No-op when result.pendingDriftState is undefined (some early-return paths
- * never set it; baseline simply isn't written, matching prior behavior).
- */
-export function applyAspectVerdictsToResult(
-  result: ApproveResult,
-  verdicts: Record<string, AspectVerdict>,
-  carryForward: string[],
-  priorVerdicts: Record<string, AspectVerdict> | undefined,
-  filterAspectId: string | undefined,
-  aborted: boolean,
-): void {
-  if (!result.pendingDriftState) return;
-  let merged: Record<string, AspectVerdict>;
-  if (filterAspectId) {
-    merged = { ...(priorVerdicts ?? {}), ...verdicts };
-  } else if (aborted) {
-    merged = { ...(priorVerdicts ?? {}) };
-  } else {
-    merged = { ...verdicts };
-    for (const id of carryForward) {
-      const prev = priorVerdicts?.[id];
-      if (prev) merged[id] = prev;
-    }
-  }
-  result.pendingDriftState.state.aspectVerdicts = merged;
-}
+// Per-aspect verdict construction/merge helpers live in approve-verdicts.ts
+// (pure, no LLM) — kept out of this engine to keep its reviewer context within
+// the node size budget. Re-exported here so existing import sites are unchanged.
+export { buildAspectVerdicts, reviewerAborted, applyAspectVerdictsToResult };
 
 // ── per-tier batching ────────────────────────────────────────
 
@@ -452,9 +348,8 @@ export async function runApproveWithReviewer(
   const referencesCache = new Map<string, string>();
 
   // Every terminal branch funnels through here: record per-aspect verdicts,
-  // commit the baseline (evicting stale draft verdicts), and return the result
-  // with any branch-specific extras layered on. `skippedDraftAspects` is always
-  // attached. Closes over the per-run state above.
+  // commit the baseline, and return with branch-specific extras plus the always-
+  // attached skippedDraftAspects. Closes over the per-run state above.
   const finalizeAndReturn = async (extras: Partial<LlmApproveResult>, infra = false): Promise<LlmApproveResult> => {
     const { verdicts, carryForward } = buildAspectVerdicts(node, graph, allAspectResults);
     applyAspectVerdictsToResult(result, verdicts, carryForward, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
@@ -466,6 +361,18 @@ export async function runApproveWithReviewer(
     // Committing on infra would clear drift while carrying the prior `approved`
     // verdict forward → the next `yg check` goes green over unverified code.
     if (!infra) {
+      // H2: a refused commit must NOT advance the log-freshness baseline (it marks
+      // the last SUCCESSFUL approve) — preserve the prior so one log entry still
+      // covers the fix-and-retry cycle. Hash + verdicts still advance, staying red.
+      const committedVerdicts = result.pendingDriftState?.state.aspectVerdicts ?? {};
+      const anyRefused = Object.values(committedVerdicts).some((v) => v.verdict === 'refused');
+      if (anyRefused && result.pendingDriftState) {
+        if (storedEntry?.log) {
+          result.pendingDriftState.state.log = storedEntry.log;
+        } else {
+          delete result.pendingDriftState.state.log;
+        }
+      }
       await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
     }
     const out: LlmApproveResult = { ...result, ...extras, skippedDraftAspects };

@@ -1,0 +1,79 @@
+{
+  "hash": "6051b1e55aec12d163391662513b78e92ac9f72f322e1dcccf11038959f3cad3",
+  "files": {
+    "own-subset:cli/core/approve-verdicts": "a49cf2924407eddb6b82dd268c3457d7fbb94d39effce9299bdb403a98ab4aad",
+    "aspect-meta:deterministic": "c519ac2565dbb22b41029f6e95a238b3345ef3d3b3a433b0e4c13c684969ca2c",
+    "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
+    "aspect-meta:no-nondeterminism-direct": "6e2986f1175fc284d63accb9209518c0d99994114f1ad9d30f91df11498a75ca",
+    "aspect-meta:no-direct-fs": "85008a60917fc599d6fbfcfb2af8e0d4e563f4eaeff9c8da8a5722aef696b948",
+    "aspect-meta:no-direct-console": "84cef429198884b3dcc2076061e164d50d97b011724d2f357350ede01f4fa975",
+    "aspect-meta:posix-paths-source": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
+    "aspect-meta:single-source-graph-queries": "b1dd772529ca4799de41809e1e615c58ab58fba6b861920dd646786ff43ad9c2",
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
+    ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
+    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": "28d4910031027fc82e9b1b745930f0a22280d1cf5fc8d021bca54c3172990ccb",
+    ".yggdrasil/aspects/no-direct-fs/check.mjs": "6e0c398a74ee1909a324c7b9658e2159a5c3976799bdc2ed88caeefe4428fdf7",
+    ".yggdrasil/aspects/no-direct-console/check.mjs": "03800a8adef35989d60bfcb5677a72b4c0dfedc3f7eb50aed8249421c4e24f44",
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
+    ".yggdrasil/aspects/single-source-graph-queries/check.mjs": "8364b0c42413e7b467a22b493543f882d77cc3b65616af93127c07c76c212361",
+    "source/cli/src/core/approve-verdicts.ts": "9738619c37f5a8e03a82d9c2b656f04cd1d3c8880c0c2ca7262ba2a49151fefa",
+    "check-touched:no-nondeterminism-direct": "47f7e224201457e00b9af6263cdec796161afd48ded83a5fc2c12588095eb929",
+    "check-touched:no-direct-fs": "47f7e224201457e00b9af6263cdec796161afd48ded83a5fc2c12588095eb929",
+    "check-touched:no-direct-console": "47f7e224201457e00b9af6263cdec796161afd48ded83a5fc2c12588095eb929",
+    "check-touched:posix-paths-source": "47f7e224201457e00b9af6263cdec796161afd48ded83a5fc2c12588095eb929",
+    "check-touched:single-source-graph-queries": "47f7e224201457e00b9af6263cdec796161afd48ded83a5fc2c12588095eb929"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/core/yg-node.yaml": 1776177846202.0774,
+    ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
+    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": 1779794513933.2222,
+    ".yggdrasil/aspects/no-direct-fs/check.mjs": 1779794513932.871,
+    ".yggdrasil/aspects/no-direct-console/check.mjs": 1779794513932.3838,
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1779794513934.5745,
+    ".yggdrasil/aspects/single-source-graph-queries/check.mjs": 1779794513935.7961,
+    "source/cli/src/core/approve-verdicts.ts": 1780242159993.3284
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-31T15:45:20.909Z",
+    "prefix_hash": "6f1bb3d2170bc73fc2ec135324527f6f17587298c6041e038b4dc7d7a53b856e"
+  },
+  "checkTouchedFiles": {
+    "no-nondeterminism-direct": {
+      "source/cli/src/core/approve-verdicts.ts": "9738619c37f5a8e03a82d9c2b656f04cd1d3c8880c0c2ca7262ba2a49151fefa"
+    },
+    "no-direct-fs": {
+      "source/cli/src/core/approve-verdicts.ts": "9738619c37f5a8e03a82d9c2b656f04cd1d3c8880c0c2ca7262ba2a49151fefa"
+    },
+    "no-direct-console": {
+      "source/cli/src/core/approve-verdicts.ts": "9738619c37f5a8e03a82d9c2b656f04cd1d3c8880c0c2ca7262ba2a49151fefa"
+    },
+    "posix-paths-source": {
+      "source/cli/src/core/approve-verdicts.ts": "9738619c37f5a8e03a82d9c2b656f04cd1d3c8880c0c2ca7262ba2a49151fefa"
+    },
+    "single-source-graph-queries": {
+      "source/cli/src/core/approve-verdicts.ts": "9738619c37f5a8e03a82d9c2b656f04cd1d3c8880c0c2ca7262ba2a49151fefa"
+    }
+  },
+  "aspectVerdicts": {
+    "deterministic": {
+      "verdict": "approved"
+    },
+    "no-direct-fs": {
+      "verdict": "approved"
+    },
+    "no-direct-console": {
+      "verdict": "approved"
+    },
+    "no-nondeterminism-direct": {
+      "verdict": "approved"
+    },
+    "posix-paths-source": {
+      "verdict": "approved"
+    },
+    "single-source-graph-queries": {
+      "verdict": "approved"
+    }
+  }
+}

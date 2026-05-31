@@ -149,10 +149,13 @@ A fresh log entry is required at \`yg approve\` whenever BOTH hold:
 - the node's source files changed since the last approve (or this is the
   first approve and the node owns source files).
 
-"Fresh" means newer than the entry captured at the last approve — one new
-entry per approve cycle. This requirement depends ONLY on the type flag and
-the source change. It is INDEPENDENT of aspect status: a node whose every
-effective aspect is in draft still needs a log entry when its source
+"Fresh" means newer than the entry captured at the last SUCCESSFUL approve —
+one new entry per approve cycle. The freshness baseline is recorded only when
+approve commits; a failed approve (reviewer rejection or infrastructure
+failure) advances nothing, so the SAME entry keeps satisfying the gate across
+every retry until approve finally succeeds. This requirement depends ONLY on
+the type flag and the source change. It is INDEPENDENT of aspect status: a node
+whose every effective aspect is in draft still needs a log entry when its source
 changes (the reviewer is skipped for draft aspects, but the log gate is
 not). A node with no source change (cascade-only re-approve) needs no new
 entry.

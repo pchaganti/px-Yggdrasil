@@ -1,0 +1,7 @@
+name: Approve Verdicts
+type: engine
+description: "Per-aspect verdict construction and merge — builds approved/refused verdicts from reviewer results, carries forward a prior verdict when an aspect could not be validly evaluated this run (infra error or missing result), and merges the set into the pending drift baseline. Pure, no I/O, no LLM."
+aspects: []
+relations: []
+mapping:
+  - source/cli/src/core/approve-verdicts.ts

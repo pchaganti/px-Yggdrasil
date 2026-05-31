@@ -309,6 +309,12 @@ For structured data files, prefer \`ctx.parseYaml\`, \`ctx.parseJson\`, or
 The graph-aware runner enforces a strict read boundary. Attempting to read outside
 it throws a runtime violation instead of returning data.
 
+This boundary is a read **discipline**, not a security sandbox. \`check.mjs\` runs
+in the main Node process with full privileges — an adversarial check could still
+write files or open sockets; the runner does not prevent it. The allow-list scopes
+which files count as *tracked dependencies* for drift, not what the process is
+capable of. Only run aspects you trust.
+
 Paths in the allowed reads set for a node:
 
 - **Own mapping** — files matching the node's \`mapping:\` entries, child carve-out applied.
