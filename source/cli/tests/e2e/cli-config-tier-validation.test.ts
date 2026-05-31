@@ -441,38 +441,6 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
     }
   });
 
-  it('CR1: the legacy v4 reviewer shape yields config-reviewer-legacy-format with the upgrade hint (exit 1)', () => {
-    // Bare provider keys directly under reviewer: (no tiers:) is the pre-tier v4
-    // shape. The parser emits config-reviewer-legacy-format with a `yg init
-    // --upgrade` hint. cli-migrations.test.ts covers the upgrade mechanics and
-    // the message phrase; this pins the bare CODE through the `yg check` gate.
-    const dir = scaffold('legacy-format', {
-      configYaml: ['reviewer:', '  active: ollama', '  ollama:', '    model: test', `    endpoint: ${LOOPBACK_ENDPOINT}`, ''].join('\n'),
-    });
-    try {
-      const { status, stdout } = run(['check'], dir);
-      expect(status).toBe(1);
-      expect(stdout).toContain('config-reviewer-legacy-format');
-      expect(stdout).toContain('yg init --upgrade');
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('CR2: a config mixing legacy keys with tiers: yields config-reviewer-mixed-format (exit 1)', () => {
-    const dir = scaffold('mixed-format', {
-      configYaml: ['reviewer:', '  active: ollama', '  tiers:', VALID_TIER, ''].join('\n'),
-    });
-    try {
-      const { status, stdout } = run(['check'], dir);
-      expect(status).toBe(1);
-      expect(stdout).toContain('config-reviewer-mixed-format');
-      expect(stdout).toContain('both the legacy and the current reviewer shape');
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
   // =========================================================================
   // GROUP G — top-level + global config (quality, parallel, empty file)
   // =========================================================================

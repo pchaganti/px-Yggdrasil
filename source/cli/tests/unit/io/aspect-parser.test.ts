@@ -183,19 +183,6 @@ describe('aspect-parser', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('returns error when reviewer is invalid string value', async () => {
-    const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-bad-reviewer');
-    await mkdir(tmpDir, { recursive: true });
-    const aspectPath = path.join(tmpDir, 'yg-aspect.yaml');
-    await writeFile(aspectPath, `name: Test\nreviewer: invalid\n`, 'utf-8');
-
-    const r = await parseAspect(tmpDir, aspectPath, 'test');
-    const errors = assertFail(r);
-    expect(errors.some(e => e.code === 'aspect-reviewer-legacy-string')).toBe(true);
-
-    await rm(tmpDir, { recursive: true, force: true });
-  });
-
   it('parses object-form reviewer { type: deterministic }', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-aspect-reviewer-obj-det');
     await mkdir(tmpDir, { recursive: true });
@@ -388,16 +375,6 @@ describe('parseAspect v5 happy paths', () => {
 });
 
 describe('parseAspect v5 error paths', () => {
-  it('errors on legacy string reviewer: llm', async () => {
-    const dir = await newDir(`name: Foo\ndescription: x\nreviewer: llm\n`);
-    const r = await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'foo');
-    expect(r.ok).toBe(false);
-    if (!r.ok) {
-      expect(r.errors.some(e => e.code === 'aspect-reviewer-legacy-string')).toBe(true);
-      expect(r.errors[0].messageData.next).toMatch(/yg init --upgrade/);
-    }
-  });
-
   it('errors on missing reviewer block', async () => {
     const dir = await newDir(`name: Foo\ndescription: x\n`);
     const r = await parseAspect(dir, path.join(dir, 'yg-aspect.yaml'), 'foo');

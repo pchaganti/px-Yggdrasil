@@ -345,7 +345,7 @@ function parseReviewer(
   | { ok: true; value: AspectReviewerSpec }
   | { ok: false; errors: Array<{ code: string; messageData: IssueMessage }> }
 {
-  // Step 1: structural/legacy — return on first (these mean file is fundamentally wrong)
+  // Step 1: structural — return on first (these mean file is fundamentally wrong)
   if (raw === undefined || raw === null) {
     return {
       ok: false,
@@ -355,19 +355,6 @@ function parseReviewer(
           what: `aspect '${aspectId}' has no reviewer: block (field absent or null)`,
           why: 'every aspect must declare its reviewer explicitly (no implicit default)',
           next: 'add `reviewer:\\n  type: llm` or `reviewer:\\n  type: deterministic`',
-        },
-      }],
-    };
-  }
-  if (typeof raw === 'string') {
-    return {
-      ok: false,
-      errors: [{
-        code: 'aspect-reviewer-legacy-string',
-        messageData: {
-          what: `aspect '${aspectId}' has reviewer: as a string ('${raw}')`,
-          why: 'reviewer: must be a mapping with a type: key',
-          next: 'run `yg init --upgrade` to migrate, or manually replace with `reviewer:\\n  type: <X>`',
         },
       }],
     };

@@ -9,10 +9,6 @@ import type {
 } from '../model/graph.js';
 import type { IssueMessage } from '../model/validation.js';
 import { KNOWN_PROVIDERS } from '../utils/known-providers.js';
-import {
-  isLegacyConfigFormat,
-  isMixedConfigFormat,
-} from '../core/format-version.js';
 
 export { KNOWN_PROVIDERS };
 
@@ -88,24 +84,11 @@ export async function parseConfig(filePath: string): Promise<YggConfig> {
   let reviewer: ReviewerConfig | undefined;
 
   if (raw.reviewer !== undefined) {
-    if (isMixedConfigFormat(raw)) {
-      throw new ConfigParseError({
-        what: `${filename} has both the legacy and the current reviewer shape`,
-        why: 'the reviewer section must contain only `default` and `tiers`; the legacy keys must be removed',
-        next: 'remove the legacy keys (reviewer.active, reviewer.<provider-name>) — their content should already be inside reviewer.tiers',
-      }, 'config-reviewer-mixed-format');
-    } else if (isLegacyConfigFormat(raw)) {
-      throw new ConfigParseError({
-        what: `${filename} uses the legacy reviewer format`,
-        why: 'the reviewer section now uses named tiers under `reviewer.tiers`, not provider keys directly under `reviewer:`',
-        next: 'run `yg init --upgrade` to migrate',
-      }, 'config-reviewer-legacy-format');
-    } else if (
+    if (
       raw.reviewer && typeof raw.reviewer === 'object' && !Array.isArray(raw.reviewer)
     ) {
-      // `tiers:` OR `default:` present (or empty mapping) — treat as current-shape
-      // intent and let parseReviewer emit `config-tiers-missing` / `config-tiers-empty`
-      // when the structural requirement is unmet.
+      // reviewer: is a mapping — let parseReviewer validate the tiers structure
+      // and emit specific errors (config-tiers-missing, config-tiers-empty, etc.)
       reviewer = parseReviewer(raw.reviewer as Record<string, unknown>, filename);
     } else {
       throw new ConfigParseError({

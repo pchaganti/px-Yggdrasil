@@ -2,9 +2,10 @@
  * Format-version detection for the legacy reviewer shape (pre-tier).
  * Pure predicates over raw parsed YAML objects. No I/O.
  *
- * Migration is the only place that should consume these — runtime code
- * operates on the current format. The parser uses them to emit a
- * structured migration-hint error when it sees the legacy shape.
+ * Migration is the only consumer — runtime parsers operate on the current
+ * format only. An old-shape config or aspect yields a generic validation
+ * error from the parser; the migration is the only code that understands
+ * and transforms old shapes.
  */
 
 import { KNOWN_PROVIDERS } from '../utils/known-providers.js';

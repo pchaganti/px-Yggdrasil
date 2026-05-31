@@ -1,6 +1,9 @@
 {
-  "hash": "9d4220d272c6dd41ff9fb69e07b11b556dc3815c29ee2def34ed6e5b78120717",
+  "hash": "90071a0d2e4ab1428ec9b41b1ce78341fc96275594a99db657061539fdc6badf",
   "files": {
+    "own-subset:cli/tests/unit/core/migrations": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
@@ -9,9 +12,7 @@
     "source/cli/tests/unit/core/migrator.test.ts": "69cd4d3ee39b059b84f57db203bb7d0fdf2a31a0fba5d9539f9d277887f9f30f",
     "source/cli/tests/unit/migrations/to-4.0.0.test.ts": "eb11f61e028ad1479bf07ad2bb13ba8551fcff3e4c3044be3dcc49cc2d0f31b9",
     "source/cli/tests/unit/migrations/to-4.3.0.test.ts": "4309e07b6485de60bac5c2c73380d2a3480bdcb179696f952e507a12ef922cd7",
-    "own-subset:cli/tests/unit/core/migrations": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+    "source/cli/tests/unit/migrations/format-detect.test.ts": "0ece65f00bcb9ed669aa757e573e8d26300bf3543b21ff475eb47a34fd917ced"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -21,11 +22,12 @@
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/core/migrator.test.ts": 1779944753230.7715,
     "source/cli/tests/unit/migrations/to-4.0.0.test.ts": 1778917051873.1067,
-    "source/cli/tests/unit/migrations/to-4.3.0.test.ts": 1778938777640.1946
+    "source/cli/tests/unit/migrations/to-4.3.0.test.ts": 1778938777640.1946,
+    "source/cli/tests/unit/migrations/format-detect.test.ts": 1780265327158.4355
   },
   "log": {
-    "last_entry_datetime": "2026-05-29T18:22:49.234Z",
-    "prefix_hash": "9611812d7184eaaf36736f275198f7e4b23318ed16a57a5375e6ae14fb19e083"
+    "last_entry_datetime": "2026-05-31T22:12:47.260Z",
+    "prefix_hash": "b7da0e8ca22fe651af63227467e16be567d09fd33cd591b4d2cdb51d137a0188"
   },
   "aspectVerdicts": {
     "test-deterministic": {

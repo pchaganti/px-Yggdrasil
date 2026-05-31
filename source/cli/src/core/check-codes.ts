@@ -21,8 +21,6 @@ export const STRUCTURAL_CODES = new Set<string>([
   'file-duplicate-mapping',
   'structural-cycle',
   'config-invalid',
-  'config-reviewer-legacy-format',
-  'config-reviewer-mixed-format',
   'duplicate-aspect-id',
   'node-yaml-missing',
   'implied-aspect-missing',

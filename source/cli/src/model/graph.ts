@@ -282,8 +282,7 @@ export interface Graph {
   /** Parse errors for yg-node.yaml files; reported as yaml-invalid */
   nodeParseErrors?: Array<{ nodePath: string; messageData: IssueMessage }>;
   /** Parse errors for yg-aspect.yaml files. Each carries the structured
-   *  validator code (e.g. 'aspect-reviewer-legacy-string') for the
-   *  validator to emit downstream. */
+   *  validator code for the validator to emit downstream. */
   aspectParseErrors?: Array<{
     aspectId: string;
     code: string;
@@ -291,8 +290,8 @@ export interface Graph {
   }>;
 
   /** Structured error code carried alongside `configError`. Used by
-   *  validator to suppress dependent checks (e.g., when config is in
-   *  legacy format, skip aspect-tier-unknown). */
+   *  validator to suppress dependent checks (e.g., skip aspect-tier-unknown
+   *  when the config is invalid). */
   configErrorCode?: string;
   /** All nodes indexed by their path (e.g. "orders/order-service") */
   nodes: Map<string, GraphNode>;

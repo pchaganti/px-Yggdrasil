@@ -4,7 +4,7 @@ import {
   isLegacyConfigFormat,
   isLegacyAspectReviewer,
   isMixedConfigFormat,
-} from '../../../src/core/format-version.js';
+} from '../../../src/core/format-detect.js';
 
 describe('isCurrentConfigFormat', () => {
   it('returns true for reviewer with tiers', () => {

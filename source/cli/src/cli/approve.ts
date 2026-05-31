@@ -392,8 +392,6 @@ export async function runDryRunForNode(params: {
 // ── Gating codes — approve must not invoke LLM when these are present ──
 
 export const APPROVE_GATING_CODES = new Set([
-  'config-reviewer-legacy-format',
-  'config-reviewer-mixed-format',
   'config-reviewer-missing',
   'config-tiers-missing',
   'config-tiers-empty',
@@ -408,7 +406,6 @@ export const APPROVE_GATING_CODES = new Set([
   'config-tier-name-reserved',
   'config-reviewer-unknown-key',
   'config-tier-unknown-key',
-  'aspect-reviewer-legacy-string',
   'aspect-reviewer-missing',
   'aspect-reviewer-not-mapping',
   'aspect-reviewer-type-missing',

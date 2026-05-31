@@ -6,7 +6,7 @@ import { KNOWN_PROVIDERS } from '../utils/known-providers.js';
 import {
   isCurrentConfigFormat,
   isLegacyAspectReviewer,
-} from '../core/format-version.js';
+} from '../core/format-detect.js';
 import { inspectSecretsForValidation } from '../io/secrets-parser.js';
 import { addAspectStatusDefaults } from './aspect-status-defaults.js';
 import { toPosix } from '../utils/posix.js';

@@ -1,0 +1,7 @@
+name: Format Detect
+type: engine
+description: "Pure predicates for detecting legacy reviewer shapes (pre-tier configs and aspects). Consumed only by the v5 migration; runtime parsers operate on the current 5.0 format only."
+aspects: []
+relations: []
+mapping:
+  - source/cli/src/core/format-detect.ts

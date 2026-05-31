@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Runtime parsers are now single-format (5.0 only); legacy-shape detection is migration-only.** `format-version.ts` has been relocated to `migrations/format-detect.ts` — the legacy-shape predicates (`isLegacyConfigFormat`, `isMixedConfigFormat`, `isLegacyAspectReviewer`) are now imported only by the migration (`to-5.0.0.ts`). The runtime config parser no longer checks for the old reviewer shape: a mapping without a `tiers:` key (whatever its old shape) falls through to `parseReviewer` and emits the existing generic `config-tiers-missing` error ("reviewer.tiers is missing or not a mapping"). The aspect parser no longer has a `typeof raw === 'string'` branch: a string `reviewer:` field falls through to the existing `aspect-reviewer-not-mapping` branch. The now-unreachable codes `config-reviewer-legacy-format`, `config-reviewer-mixed-format`, and `aspect-reviewer-legacy-string` have been removed from `STRUCTURAL_CODES` and `APPROVE_GATING_CODES`. The fail-closed version gate (5.0.0) ensures all graphs are at the current format before any parser runs, making this safe.
+
 ### Added
 
 - **Fail-closed lower schema-version gate.** `loadGraph` now throws `OutdatedSchemaVersionError` when the on-disk graph version is older than the CLI's supported version (5.0.0). Previously, graphs with a version field below 5.0.0 were silently parsed; now the CLI refuses immediately with a structured what/why/next message and exits 1, directing users to `yg init --upgrade`. This is the symmetric lower bound to the existing upper-bound refusal (`UnsupportedSchemaVersionError`). The gate is caught in `preamble.loadGraphOrAbort` and rendered via `buildIssueMessage`; it does not crash with a generic stack trace.

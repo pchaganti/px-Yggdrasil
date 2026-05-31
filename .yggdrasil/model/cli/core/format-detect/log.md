@@ -1,0 +1,2 @@
+## [2026-05-31T22:09:51.592Z]
+New engine node for format-detect.ts — pure predicates for detecting pre-tier legacy reviewer shapes (isCurrentConfigFormat, isLegacyConfigFormat, isLegacyAspectReviewer, isMixedConfigFormat). The file moved from core/format-version.ts to core/format-detect.ts as part of making the migration the sole consumer of legacy-shape detection. Runtime parsers no longer import these predicates; engine placement ensures the no-I/O and determinism aspects are enforced on this helper.

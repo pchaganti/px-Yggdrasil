@@ -358,26 +358,6 @@ describe.skipIf(!distExists)('CLI E2E — yg check validation code matrix (remai
     }
   });
 
-  it('C2: a string-form reviewer yields aspect-reviewer-legacy-string (exit 1)', () => {
-    const dir = minimalGraph('rev-legacy', ({ ygRoot }) => {
-      writeAspect(
-        ygRoot,
-        'ref-aspect',
-        ['name: RefAspect', 'description: A legacy string reviewer', 'reviewer: llm', ''].join('\n'),
-        { file: 'content.md', body: 'Rule.\n' },
-      );
-      writeNode(ygRoot, 'widget', WIDGET_WITH_REF_ASPECT);
-    });
-    try {
-      const { status, all } = run(['check'], dir);
-      expect(status).toBe(1);
-      expect(all).toContain('aspect-reviewer-legacy-string');
-      expect(all).toContain('ref-aspect');
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
   it('C3: an unknown reviewer.type yields aspect-reviewer-type-invalid (exit 1)', () => {
     const dir = minimalGraph('rev-type-invalid', ({ ygRoot }) => {
       // 'structure' is not a valid reviewer type — only 'llm' and 'deterministic'.
