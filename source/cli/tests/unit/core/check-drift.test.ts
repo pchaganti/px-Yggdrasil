@@ -8,6 +8,7 @@ const msgOf = (i: { messageData: Parameters<typeof buildIssueMessage>[0] }) => b
 import {
   classifyDrift,
   describeCascadeCause,
+  runCheck,
 } from '../../../src/core/check.js';
 import type { Graph, AspectDef } from '../../../src/model/graph.js';
 import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
@@ -559,6 +560,55 @@ describe('classifyDrift', () => {
     const rendered = msgOf(upstreamDrift[0]);
     expect(rendered).toContain("the resolved reviewer tier for aspect 'logging'");
     expect(rendered).not.toContain('unknown aspect');
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  // Regression: an implies cycle introduced AFTER a baseline exists must not
+  // crash drift classification. Previously expandImpliesFiltered /
+  // computeEffectiveAspectStatuses threw a bare Error on cycle detection, which
+  // escaped classifyDrift and surfaced as an unclassified "file an issue" crash.
+  // Now the cycle is an ImpliesCycleError that classifyDrift catches per-node;
+  // the structured aspect-implies-cycle error comes from the static validator.
+  it('does NOT throw on an implies cycle introduced after a baseline exists', async () => {
+    const { tmpDir, yggRoot } = await createTmpProject('cycle-post-baseline', {
+      nodePath: 'svc/my-service',
+      nodeYaml:
+        'name: MyService\ntype: service\ndescription: test\naspects:\n  - cyc-a\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
+      aspects: [
+        {
+          id: 'cyc-a',
+          yaml: 'name: CycA\ndescription: cycle a\nreviewer:\n  type: llm\nimplies:\n  - cyc-b\n',
+          files: { 'content.md': 'Rule A.\n' },
+        },
+        {
+          id: 'cyc-b',
+          // Acyclic at baseline time: cyc-b implies nothing.
+          yaml: 'name: CycB\ndescription: cycle b\nreviewer:\n  type: llm\n',
+          files: { 'content.md': 'Rule B.\n' },
+        },
+      ],
+    });
+    // Baseline recorded while the implies chain is acyclic (cyc-a → cyc-b).
+    await recordBaseline(tmpDir);
+
+    // Close the cycle: cyc-b → cyc-a (now cyc-a ↔ cyc-b).
+    await writeFile(
+      path.join(yggRoot, 'aspects/cyc-b/yg-aspect.yaml'),
+      'name: CycB\ndescription: cycle b\nreviewer:\n  type: llm\nimplies:\n  - cyc-a\n',
+    );
+
+    const graph = await loadGraph(tmpDir);
+
+    // classifyDrift must skip the cyclic node rather than throw.
+    await expect(classifyDrift(graph)).resolves.toBeDefined();
+
+    // runCheck must surface the structured aspect-implies-cycle error (exit-1
+    // territory) WITHOUT any unclassified throw — same as the no-baseline path.
+    const result = await runCheck(graph, null);
+    const cycleIssues = result.issues.filter(i => i.code === 'aspect-implies-cycle');
+    expect(cycleIssues.length).toBeGreaterThanOrEqual(1);
+    expect(cycleIssues[0].severity).toBe('error');
     await rm(tmpDir, { recursive: true, force: true });
   });
 

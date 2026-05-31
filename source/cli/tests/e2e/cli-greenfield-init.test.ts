@@ -1,0 +1,414 @@
+import { describe, it, expect } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const CLI_ROOT = path.join(__dirname, '../..');
+const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
+
+const distExists = existsSync(BIN_PATH);
+
+// ---------------------------------------------------------------------------
+// Harness — spawn the real dist/bin.js. Mirrors the run() helper from
+// cli-deterministic-lifecycle.test.ts (spawnSync, captured stdout/stderr, the
+// combined `all` stream) and the describe.skipIf(!distExists) gate. Every test
+// uses a fresh mkdtemp dir and rmSync in finally, so the suite is hermetic:
+// no committed fixtures, no shared state, no network host/port, no clock or
+// random in any assertion.
+// ---------------------------------------------------------------------------
+
+function run(
+  args: string[],
+  cwd: string,
+): {
+  stdout: string;
+  stderr: string;
+  status: number | null;
+  all: string;
+} {
+  const result = spawnSync('node', [BIN_PATH, ...args], { cwd, encoding: 'utf-8' });
+  const stdout = result.stdout ?? '';
+  const stderr = result.stderr ?? '';
+  return { stdout, stderr, status: result.status, all: stdout + stderr };
+}
+
+/** Write the three schema presence-stub files yg check requires by name. */
+function writeSchemaStubs(yggRoot: string): void {
+  const schemasDir = path.join(yggRoot, 'schemas');
+  mkdirSync(schemasDir, { recursive: true });
+  for (const schema of ['yg-node', 'yg-aspect', 'yg-flow']) {
+    writeFileSync(path.join(schemasDir, `${schema}.yaml`), `schema: ${schema}\n`, 'utf-8');
+  }
+}
+
+/**
+ * Minimal v5 config. The reviewer endpoint points at the dead loopback port 1
+ * (no listener on any machine) — but the graphs below carry only deterministic
+ * aspects, so the reviewer is never invoked. Including it keeps the config
+ * schema-valid without introducing any external dependency.
+ */
+const MINIMAL_CONFIG = `version: "5.0.0"
+quality:
+  max_direct_relations: 10
+reviewer:
+  default: standard
+  tiers:
+    standard:
+      provider: ollama
+      consensus: 1
+      config:
+        model: "qwen2.5-coder:0.5b"
+        endpoint: "http://127.0.0.1:1"
+`;
+
+/**
+ * Hand-author a minimal, fully deterministic greenfield graph in a fresh
+ * mkdtemp dir: config, architecture with one mapping node type + an
+ * organizational parent, schema stubs, two nodes (parent module + child
+ * widget), one deterministic aspect (no-todo-comments check.mjs), and one
+ * source file. Returns the project root. Caller owns cleanup.
+ */
+function greenfieldGraph(label: string): string {
+  const dir = mkdtempSync(path.join(tmpdir(), `yg-greenfield-${label}-`));
+  const yggRoot = path.join(dir, '.yggdrasil');
+  mkdirSync(path.join(yggRoot, 'model', 'widgets', 'widget'), { recursive: true });
+  mkdirSync(path.join(yggRoot, 'aspects', 'no-todo-comments'), { recursive: true });
+  mkdirSync(path.join(yggRoot, 'flows'), { recursive: true });
+  mkdirSync(path.join(dir, 'src', 'widgets'), { recursive: true });
+  writeSchemaStubs(yggRoot);
+
+  writeFileSync(path.join(yggRoot, 'yg-config.yaml'), MINIMAL_CONFIG, 'utf-8');
+
+  writeFileSync(
+    path.join(yggRoot, 'yg-architecture.yaml'),
+    `node_types:
+  module:
+    description: 'Organizational grouping. Parent-only — no file mapping.'
+    log_required: false
+  widget:
+    description: 'A widget implemented as a single source file under src/widgets/.'
+    log_required: false
+    when:
+      path: "src/widgets/**"
+    parents: [module]
+    aspects:
+      - no-todo-comments
+`,
+    'utf-8',
+  );
+
+  // Deterministic aspect: flags any line containing the token TODO. Pure text
+  // scan, no AST, no network — the same shape the e2e-lifecycle fixture uses.
+  writeFileSync(
+    path.join(yggRoot, 'aspects', 'no-todo-comments', 'yg-aspect.yaml'),
+    `name: NoTodoComments
+description: Source files must not contain TODO comments.
+reviewer:
+  type: deterministic
+status: enforced
+`,
+    'utf-8',
+  );
+  writeFileSync(
+    path.join(yggRoot, 'aspects', 'no-todo-comments', 'check.mjs'),
+    `export function check(ctx) {
+  const violations = [];
+  for (const file of ctx.files) {
+    const lines = file.content.split('\\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].includes('TODO')) {
+        violations.push({ file: file.path, line: i + 1, column: 0, message: 'TODO found.' });
+      }
+    }
+  }
+  return violations;
+}
+`,
+    'utf-8',
+  );
+
+  writeFileSync(
+    path.join(yggRoot, 'model', 'widgets', 'yg-node.yaml'),
+    `name: Widgets
+description: Organizational parent grouping the application's widgets.
+type: module
+`,
+    'utf-8',
+  );
+  writeFileSync(
+    path.join(yggRoot, 'model', 'widgets', 'widget', 'yg-node.yaml'),
+    `name: Widget
+description: A single widget unit.
+type: widget
+mapping:
+  - src/widgets/widget.ts
+`,
+    'utf-8',
+  );
+
+  writeFileSync(
+    path.join(dir, 'src', 'widgets', 'widget.ts'),
+    `export function widget() {
+  return 'ok';
+}
+`,
+    'utf-8',
+  );
+
+  return dir;
+}
+
+/**
+ * A bare repo for the --upgrade scaffold path: just .yggdrasil/yg-config.yaml
+ * carrying a version field (the minimum --upgrade needs to detect a version and
+ * refresh schemas + rules). No nodes, no architecture.
+ */
+function bareUpgradeRepo(label: string): string {
+  const dir = mkdtempSync(path.join(tmpdir(), `yg-upg-${label}-`));
+  const yggRoot = path.join(dir, '.yggdrasil');
+  mkdirSync(yggRoot, { recursive: true });
+  writeFileSync(path.join(yggRoot, 'yg-config.yaml'), 'version: "5.0.0"\n', 'utf-8');
+  return dir;
+}
+
+describe.skipIf(!distExists)('CLI E2E — greenfield / init / platform-install', () => {
+  // -------------------------------------------------------------------------
+  // 1. Scaffold via --upgrade on a bare repo (headless path)
+  //
+  // cli-lifecycle covers claude-code via the installRulesForPlatform unit and
+  // covers the version-bump on --upgrade. Here we drive the FULL headless
+  // `yg init --upgrade --platform generic` end-to-end through the real binary
+  // on a bare repo, asserting the generic rules file lands on disk.
+  // -------------------------------------------------------------------------
+
+  it('G1: init --upgrade --platform generic scaffolds agent-rules.md on a bare repo (exit 0)', () => {
+    const dir = bareUpgradeRepo('generic-scaffold');
+    try {
+      const { status, stdout } = run(['init', '--upgrade', '--platform', 'generic'], dir);
+      expect(status).toBe(0);
+      expect(stdout).toContain('Rules and schemas refreshed');
+      // Schemas refreshed + generic rules file written.
+      expect(existsSync(path.join(dir, '.yggdrasil', 'agent-rules.md'))).toBe(true);
+      expect(existsSync(path.join(dir, '.yggdrasil', 'schemas', 'yg-node.yaml'))).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // 2. Platform install matrix — distinct platforms NOT already E2E-covered
+  //    through the real `yg init --upgrade` binary path. (cli-lifecycle tests
+  //    installRulesForPlatform as a direct unit import; these drive the CLI.)
+  //
+  //    Path contracts from src/templates/platform.ts:
+  //      cursor   -> .cursor/rules/yggdrasil.mdc          (no agent-rules.md)
+  //      codex    -> AGENTS.md (yggdrasil:start block)     (no agent-rules.md)
+  //      opencode -> AGENTS.md (delegates to codex form)   (no agent-rules.md)
+  //      amp      -> AGENTS.md (@import line) + agent-rules.md
+  //      gemini   -> GEMINI.md (@import line) + agent-rules.md
+  // -------------------------------------------------------------------------
+
+  it('G2: --platform cursor writes .cursor/rules/yggdrasil.mdc', () => {
+    const dir = bareUpgradeRepo('cursor');
+    try {
+      const { status, stdout } = run(['init', '--upgrade', '--platform', 'cursor'], dir);
+      expect(status).toBe(0);
+      expect(stdout).toContain('.cursor/rules/yggdrasil.mdc');
+      expect(existsSync(path.join(dir, '.cursor', 'rules', 'yggdrasil.mdc'))).toBe(true);
+      // cursor does NOT write the shared agent-rules.md.
+      expect(existsSync(path.join(dir, '.yggdrasil', 'agent-rules.md'))).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('G3: --platform codex writes AGENTS.md with the yggdrasil block', () => {
+    const dir = bareUpgradeRepo('codex');
+    try {
+      const { status, stdout } = run(['init', '--upgrade', '--platform', 'codex'], dir);
+      expect(status).toBe(0);
+      expect(stdout).toContain('AGENTS.md');
+      const agentsPath = path.join(dir, 'AGENTS.md');
+      expect(existsSync(agentsPath)).toBe(true);
+      // codex embeds the rules inside delimited markers (not an @import line).
+      const content = readFileSync(agentsPath, 'utf-8');
+      expect(content).toContain('<!-- yggdrasil:start -->');
+      expect(content).toContain('<!-- yggdrasil:end -->');
+      // codex does NOT write the shared agent-rules.md.
+      expect(existsSync(path.join(dir, '.yggdrasil', 'agent-rules.md'))).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('G4: --platform opencode writes AGENTS.md (shares the codex form)', () => {
+    const dir = bareUpgradeRepo('opencode');
+    try {
+      const { status, stdout } = run(['init', '--upgrade', '--platform', 'opencode'], dir);
+      expect(status).toBe(0);
+      expect(stdout).toContain('AGENTS.md');
+      const agentsPath = path.join(dir, 'AGENTS.md');
+      expect(existsSync(agentsPath)).toBe(true);
+      expect(readFileSync(agentsPath, 'utf-8')).toContain('<!-- yggdrasil:start -->');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('G5: --platform amp writes AGENTS.md (@import) AND .yggdrasil/agent-rules.md', () => {
+    const dir = bareUpgradeRepo('amp');
+    try {
+      const { status } = run(['init', '--upgrade', '--platform', 'amp'], dir);
+      expect(status).toBe(0);
+      const agentsPath = path.join(dir, 'AGENTS.md');
+      expect(existsSync(agentsPath)).toBe(true);
+      // amp references the shared rules via an @import line and writes the file.
+      expect(readFileSync(agentsPath, 'utf-8')).toContain('@.yggdrasil/agent-rules.md');
+      expect(existsSync(path.join(dir, '.yggdrasil', 'agent-rules.md'))).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('G6: --platform claude-code writes BOTH CLAUDE.md and .yggdrasil/agent-rules.md', () => {
+    const dir = bareUpgradeRepo('claude');
+    try {
+      const { status } = run(['init', '--upgrade', '--platform', 'claude-code'], dir);
+      expect(status).toBe(0);
+      const claudePath = path.join(dir, 'CLAUDE.md');
+      expect(existsSync(claudePath)).toBe(true);
+      expect(readFileSync(claudePath, 'utf-8')).toContain('@.yggdrasil/agent-rules.md');
+      expect(existsSync(path.join(dir, '.yggdrasil', 'agent-rules.md'))).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // 3. Greenfield lifecycle: graph before approve, through the real binary.
+  //    A hand-authored deterministic graph proves the unapproved -> approve ->
+  //    clean progression without any LLM call.
+  // -------------------------------------------------------------------------
+
+  it('G7: greenfield check reports the node as unapproved, then approve -> check clean', () => {
+    const dir = greenfieldGraph('lifecycle');
+    try {
+      // (a) Never approved -> exit 1, reported as `unapproved` with guidance
+      // pointing at yg approve.
+      const before = run(['check'], dir);
+      expect(before.status).toBe(1);
+      expect(before.stdout).toContain('unapproved');
+      expect(before.stdout).toContain('widgets/widget');
+      expect(before.stdout).toContain('Node has never been approved');
+      expect(before.stdout).toContain('yg approve --node widgets/widget');
+
+      // (b) Approve the node -> exit 0, baseline established.
+      const approve = run(['approve', '--node', 'widgets/widget'], dir);
+      expect(approve.status).toBe(0);
+      expect(approve.stdout).toContain('Approved: widgets/widget');
+      expect(
+        existsSync(path.join(dir, '.yggdrasil', '.drift-state', 'widgets', 'widget.json')),
+      ).toBe(true);
+
+      // (c) Re-check -> clean (exit 0), no drift.
+      const after = run(['check'], dir);
+      expect(after.status).toBe(0);
+      expect(after.stdout).toContain('PASS');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('G8: a TODO introduced after approve refuses re-approve on the enforced aspect (exit 1)', () => {
+    const dir = greenfieldGraph('todo-refuse');
+    try {
+      expect(run(['approve', '--node', 'widgets/widget'], dir).status).toBe(0);
+      // Introduce the deterministic violation.
+      const src = path.join(dir, 'src', 'widgets', 'widget.ts');
+      writeFileSync(src, readFileSync(src, 'utf-8') + '\n// TODO: revisit\n', 'utf-8');
+      const refused = run(['approve', '--node', 'widgets/widget'], dir);
+      expect(refused.status).toBe(1);
+      expect(refused.stdout).toContain('no-todo-comments');
+      expect(refused.stdout).toContain('NOT SATISFIED');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // 4. Empty / no-node repo: config + architecture but ZERO nodes.
+  //    Documented behavior: yg check passes clean (nothing to verify), does
+  //    NOT crash. Asserted as exit 0 with a "0 nodes" summary.
+  // -------------------------------------------------------------------------
+
+  it('G9: a repo with config + architecture but no nodes passes check cleanly (exit 0)', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-empty-graph-'));
+    const yggRoot = path.join(dir, '.yggdrasil');
+    try {
+      mkdirSync(path.join(yggRoot, 'model'), { recursive: true });
+      mkdirSync(path.join(yggRoot, 'aspects'), { recursive: true });
+      mkdirSync(path.join(yggRoot, 'flows'), { recursive: true });
+      writeSchemaStubs(yggRoot);
+      writeFileSync(path.join(yggRoot, 'yg-config.yaml'), MINIMAL_CONFIG, 'utf-8');
+      writeFileSync(
+        path.join(yggRoot, 'yg-architecture.yaml'),
+        `node_types:
+  module:
+    description: 'Organizational grouping. Parent-only.'
+    log_required: false
+`,
+        'utf-8',
+      );
+
+      const { status, stdout } = run(['check'], dir);
+      expect(status).toBe(0);
+      expect(stdout).toContain('PASS');
+      expect(stdout).toContain('0 nodes');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // 5. Init guards (headless). cli-lifecycle already covers `--upgrade` with no
+  //    --platform, `--upgrade` with no .yggdrasil/, and fresh `yg init` in a
+  //    non-TTY. These EXTEND with the cases it does not:
+  //      - an unknown --platform value
+  //      - --upgrade against a config with no `version:` field
+  // -------------------------------------------------------------------------
+
+  it('G10: init --upgrade with an unknown --platform is rejected (exit 1)', () => {
+    const dir = bareUpgradeRepo('bad-platform');
+    try {
+      const { status, stderr } = run(['init', '--upgrade', '--platform', 'bogus-xyz'], dir);
+      expect(status).toBe(1);
+      expect(stderr).toContain("Unknown platform 'bogus-xyz'");
+      // The guard enumerates the supported platforms.
+      expect(stderr).toContain('generic');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('G11: init --upgrade on a config with no version field is rejected (exit 1)', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-no-version-'));
+    const yggRoot = path.join(dir, '.yggdrasil');
+    try {
+      mkdirSync(yggRoot, { recursive: true });
+      // Config present but missing the `version:` field.
+      writeFileSync(
+        path.join(yggRoot, 'yg-config.yaml'),
+        'quality:\n  max_direct_relations: 10\n',
+        'utf-8',
+      );
+      const { status, stderr } = run(['init', '--upgrade', '--platform', 'generic'], dir);
+      expect(status).toBe(1);
+      expect(stderr).toContain('No graph version detected');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
