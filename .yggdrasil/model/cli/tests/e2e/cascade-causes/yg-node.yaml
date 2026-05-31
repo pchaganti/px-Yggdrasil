@@ -1,0 +1,7 @@
+name: E2E Tests — Cascade Cause Messages
+type: test-suite
+description: "Subprocess E2E pinning the agent-facing cascade cause messages the drift tracker renders for its synthetic tracked keys — editing an aspect's metadata (its description, not its check.mjs) cascades to every using node with the definition-of-aspect-changed message, adding a relation re-derives a node's own metadata with the own-metadata-changed message, two simultaneous causes on one node are both surfaced and cleared by one approve, and deleting one of several mapped files raises source drift that clears when the file is restored byte-identically."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-cascade-causes.test.ts

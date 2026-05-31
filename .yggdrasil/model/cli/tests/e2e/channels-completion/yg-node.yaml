@@ -1,0 +1,7 @@
+name: E2E Tests — Channel Propagation Completion
+type: test-suite
+description: "Subprocess E2E closing the last gaps in the 7-channel aspect cascade so every propagation path is proven against the real binary — a draft implier does not pull its implied aspect into the effective set while flipping it to enforced does, an intermediate implied aspect whose global when is false is excluded and its own nested implications are never reached, a flow listing the parent module reaches the child service with via-parent provenance and enforces, a flow listing only one leaf participant does not reach a sibling leaf, and an aspect authored with no explicit status field resolves to the enforced default and blocks."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-channels-completion.test.ts
