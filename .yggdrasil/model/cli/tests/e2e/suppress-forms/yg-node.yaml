@@ -1,0 +1,7 @@
+name: E2E Tests — Suppress Forms
+type: test-suite
+description: "Subprocess E2E proving the yg-suppress syntactic forms against the deterministic reviewers — an unterminated disable waives to end of file, a single-line wildcard waives every aspect on the line below, a wrong/typo aspect-id is a silent no-op while the correct id waives, a named bracket waives only its aspect, and the graph-aware structure runner honors markers just like the single-file runner."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-suppress-forms.test.ts

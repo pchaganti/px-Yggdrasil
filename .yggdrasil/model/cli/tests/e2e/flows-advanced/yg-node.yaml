@@ -1,0 +1,7 @@
+name: E2E Tests — Flows Advanced
+type: test-suite
+description: "Subprocess E2E proving the advanced flow-channel mechanics beyond basic propagation — a conditional flow aspect (when predicate) applies to only the matching participants, an advisory flow aspect violation renders as a non-blocking warning while an enforced one blocks, a draft flow aspect is skipped, and the flow-set cascade is honored: adding an aspect to a flow or adding a participant fires aspect-newly-active on the affected participants and clears via approve."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-flows-advanced.test.ts
