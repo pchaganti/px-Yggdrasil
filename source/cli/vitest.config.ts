@@ -22,11 +22,15 @@ export default defineConfig({
         'src/core/graph-loader.ts', // loadAspects/Flows/Schemas — catch on missing dirs
         'src/llm/**', // LLM providers — external API calls not covered in unit tests
       ],
+      // Aligned with the repo-check.sh coverage gate (>= 90% on every metric).
+      // The previous values (85/90/69/82) sat far below the real gate, so a
+      // genuine coverage regression could pass `vitest run` yet fail repo-check;
+      // mirroring the gate here fails the test run itself at the same threshold.
       thresholds: {
-        lines: 85,
+        lines: 90,
         functions: 90,
-        branches: 69,
-        statements: 82,
+        branches: 90,
+        statements: 90,
       },
     },
   },
