@@ -595,29 +595,13 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
     }
   });
 
-  // BUG (pinned, not encoded as correct) — a DRAFT implier whose implied aspect
-  // is ALSO draft: yg context and yg approve DISAGREE on the implied aspect.
-  //
-  //   CONTRACT (agent-rules "Reviewer", knowledge read aspect-status):
-  //     "Reviewer skips draft aspects entirely — no verdict is recorded for a
-  //      draft aspect." And `yg context` renders the implied aspect as
-  //      "[draft] ... (reviewer skipped; aspect is draft)".
-  //
-  //   ACTUAL (this binary):
-  //     computeEffectiveAspects (the id SET, core/graph/aspects.ts
-  //     expandImpliesFiltered) walks the implies graph applying only `when`
-  //     filters — never the implier's status — so the draft implier STILL pulls
-  //     `no-banned-word` into the evaluated set. computeEffectiveAspectStatuses
-  //     (the status MAP) separately skips draft impliers, so `no-banned-word`
-  //     gets NO status entry and approve's `statuses.get(id) !== 'draft'` guard
-  //     reads undefined !== 'draft' === true → treats it as NON-draft → evaluates
-  //     and REFUSES. Net: context says "draft, skipped"; approve evaluates it and
-  //     blocks (exit 1). The two commands contradict each other on the same
-  //     aspect. (Distinct from cli-aspect-status-extended G10, where the implied
-  //     aspect's OWN default is enforced so context and approve AGREE it is
-  //     enforced — there is no context/approve disagreement there.)
-  //   We pin the ACTUAL behavior.
-  it('D3: BUG — a DRAFT implier of a DRAFT-default aspect: context says [draft]/skipped, but approve evaluates it and REFUSES (exit 1)', () => {
+  // A DRAFT implier is dormant for implies set-membership: it does NOT pull its
+  // implied aspect into the effective set. computeEffectiveAspects and
+  // computeEffectiveAspectStatuses agree (both skip draft impliers), so yg context
+  // omits the implied aspect and yg approve never evaluates it.
+  // (Contract: agent-rules "Reviewer" / knowledge read aspect-status — a draft
+  // aspect is dormant; an implied aspect arrives only via a NON-draft channel.)
+  it('D3: a DRAFT implier does NOT propagate its implied aspect — context omits it and approve does not evaluate it (exit 0)', () => {
     const dir = deterministicFixture('d3-draft-implier');
     try {
       // no-banned-word: own default DRAFT, attached NOWHERE except via the edge.
@@ -640,23 +624,22 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
       );
       attachToOrders(dir, 'draft-implier');
 
-      // context: the implier is draft/skipped AND the implied aspect renders as
-      // draft with "reviewer skipped" — the documented dormant contract.
+      // context: the implier itself is draft; the dormant implier does NOT pull
+      // its implied aspect into the effective set, so no-banned-word is absent.
       const ctx = run(['context', '--node', 'services/orders'], dir);
       expect(ctx.status).toBe(0);
       expect(ctx.stdout).toContain('draft-implier [draft]');
-      expect(ctx.stdout).toContain('no-banned-word [draft]');
-      expect(ctx.stdout).toContain("implied by 'draft-implier'");
+      // no-banned-word is NOT an effective aspect entry (it only appears in the
+      // implier's "Implies:" metadata line, never as a `no-banned-word [status]` entry).
+      expect(ctx.stdout).not.toContain('no-banned-word [');
+      expect(ctx.stdout).not.toContain("implied by 'draft-implier'");
 
-      // approve: despite context saying "skipped", the implied aspect IS evaluated
-      // and a BANNED line REFUSES (the divergence).
+      // approve: the implied aspect is dormant, so a BANNED line is NOT evaluated.
       appendFileSync(ordersFile(dir), '\n// this constant is BANNED here\n');
       const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(1);
-      expect(approve.stdout).toContain('no-banned-word');
-      expect(approve.stdout).toContain('NOT SATISFIED');
-      expect(approve.stdout).toContain('BANNED token found.');
-      // The implier itself IS announced as skipped (draft) — the asymmetry.
+      expect(approve.status).toBe(0);
+      expect(approve.stdout).not.toContain('NOT SATISFIED');
+      // The draft implier itself is announced as skipped (draft).
       expect(approve.stdout).toContain('draft-implier');
       expect(approve.stdout).toContain('skipped');
     } finally {

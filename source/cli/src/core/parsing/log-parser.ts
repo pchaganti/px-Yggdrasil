@@ -14,11 +14,15 @@ export interface LogEntry {
 }
 
 const HEADER_LINE = /^## \[([^\]]+)\]\s*$/;
+const FENCE_LINE = /^(`{3,})(.*)$/;
 
 /**
  * Lenient parser: split on `## [<datetime>]` at column 0.
  * Lines before the first header are dropped (treated as unparseable preamble).
  * Does NOT validate header well-formedness — that is the format validator's job.
+ * CommonMark backtick-fence aware (same rules as validateFormat): a `## [...]`
+ * line inside an open ```` ``` ```` fence is body text, not an entry header — so
+ * parseLog and validateFormat agree on entry boundaries.
  * Offsets are over UTF-8 bytes of the input string.
  */
 export function parseLog(content: string): LogEntry[] {
@@ -31,13 +35,27 @@ export function parseLog(content: string): LogEntry[] {
   const headers: Header[] = [];
 
   let lineStart = 0;
+  let fenceOpen = false;
+  let fenceOpenLen = 0;
   for (let i = 0; i <= bytes.length; i++) {
     if (i === bytes.length || bytes[i] === 0x0a /* \n */) {
       const lineBuf = bytes.subarray(lineStart, i);
       const line = lineBuf.toString('utf-8');
-      const match = HEADER_LINE.exec(line);
-      if (match) {
-        headers.push({ datetime: match[1], lineOffsetBytes: lineStart });
+      const fenceMatch = FENCE_LINE.exec(line);
+      if (fenceOpen) {
+        // A closing fence is a bare run of >= the opening length, with no info string.
+        if (fenceMatch && fenceMatch[2].trim() === '' && fenceMatch[1].length >= fenceOpenLen) {
+          fenceOpen = false;
+        }
+        // Inside an open fence: never a header.
+      } else if (fenceMatch) {
+        fenceOpen = true;
+        fenceOpenLen = fenceMatch[1].length;
+      } else {
+        const match = HEADER_LINE.exec(line);
+        if (match) {
+          headers.push({ datetime: match[1], lineOffsetBytes: lineStart });
+        }
       }
       lineStart = i + 1;
     }

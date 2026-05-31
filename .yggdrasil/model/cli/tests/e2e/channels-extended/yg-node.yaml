@@ -1,0 +1,7 @@
+name: E2E Tests — Channels Extended
+type: test-suite
+description: "Subprocess E2E proving when-predicate applicability on cascading channels — a when on an ancestor-node-inherited aspect and on an ancestor-type default (include and exclude on a descendant), relations and descendants when atoms evaluated against the recipient on a cascade channel, implies-edge when include and exclude, and effective-status max() across channels where one contributor is draft."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-channels-extended.test.ts

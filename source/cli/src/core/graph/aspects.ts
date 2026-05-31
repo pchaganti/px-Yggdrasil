@@ -132,14 +132,18 @@ export function computeEffectiveAspects(node: GraphNode, graph: Graph): Set<stri
   for (const att of iterateAttachments(node, graph)) {
     if (attachmentPasses(att, node, graph)) direct.add(att.aspectId);
   }
-  // 7. Expand implies (filter global + per-implies when)
-  return expandImpliesFiltered(direct, node, graph);
+  // 7. Expand implies (filter global + per-implies when). A DRAFT (dormant)
+  // implier must not propagate its implied aspect — so gate traversal on each
+  // implier's effective status, mirroring computeEffectiveAspectStatuses.
+  const statuses = computeEffectiveAspectStatuses(node, graph);
+  return expandImpliesFiltered(direct, node, graph, statuses);
 }
 
 function expandImpliesFiltered(
   directIds: Set<string>,
   node: GraphNode,
   graph: Graph,
+  statuses: Map<string, AspectStatus>,
 ): Set<string> {
   const idToAspect = new Map<string, typeof graph.aspects[number]>();
   for (const a of graph.aspects) idToAspect.set(a.id, a);
@@ -173,8 +177,9 @@ function expandImpliesFiltered(
     visited.add(id);
     result.add(id);
 
+    // A draft (dormant) implier does not propagate its implied aspects.
     const implies = aspectDef?.implies;
-    if (implies) {
+    if (implies && statuses.get(id) !== 'draft') {
       for (const implied of implies) {
         visit(implied, id);
       }

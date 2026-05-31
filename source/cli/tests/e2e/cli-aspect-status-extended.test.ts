@@ -669,29 +669,14 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
     }
   });
 
-  // G10: a DRAFT implier and the implied aspect.
-  //
-  // BUG / CONTRACT DIVERGENCE — a draft implier is NOT dormant for implies SET
-  // membership.
-  //
-  //   CONTRACT (knowledge read aspect-status, "Implies propagation"):
-  //     "If A's effective status on N is `draft` -> B is NOT propagated via
-  //      implies (draft aspects are dormant). B may still arrive via another
-  //      channel."
-  //
-  //   ACTUAL (this binary):
-  //     The effective-SET computation (core/graph/aspects.ts expandImpliesFiltered)
-  //     walks the implies graph applying only `when` filters — it never consults
-  //     the implier's status. So a DRAFT implier still pulls its implied aspect
-  //     into the node's effective set. The status MAP separately skips draft
-  //     impliers, so the implied aspect contributes no status from the draft edge
-  //     and falls back to its OWN default (enforced). Net effect: the implied
-  //     aspect is effective AND enforced AND its violation BLOCKS approve — even
-  //     though the only thing attaching it is a draft implier.
-  //
-  // We pin the ACTUAL behavior (effective + enforced + blocks).
-  it('G10: BUG — an implied aspect from a DRAFT implier is still effective + enforced and BLOCKS approve (contract says draft impliers are dormant)', () => {
-    const dir = hermeticFixture('draft-implier-bug');
+  // G10: a DRAFT implier is dormant for implies SET membership — it does NOT pull
+  // its implied aspect into the node's effective set (knowledge read aspect-status,
+  // "Implies propagation": "If A's effective status on N is draft -> B is NOT
+  // propagated via implies; B may still arrive via another channel"). Both the
+  // effective-SET (expandImpliesFiltered) and the status MAP skip draft impliers,
+  // so the implied aspect is absent from context and never evaluated at approve.
+  it('G10: a DRAFT implier does NOT propagate its implied aspect (dormant); context omits it and approve does not block', () => {
+    const dir = hermeticFixture('draft-implier-dormant');
     try {
       // draft-implier: DRAFT. implied-by-draft: own default enforced, attached
       // NOWHERE except via the draft implier's implies edge.
@@ -730,23 +715,22 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
 
       const ctx = run(['context', '--node', 'services/orders'], dir);
       expect(ctx.status).toBe(0);
-      // The draft implier is shown skipped...
+      // The draft implier is shown skipped, and the dormant implier does NOT pull
+      // its implied aspect into the effective set.
       expect(ctx.stdout).toContain('draft-implier [draft]');
-      // ...yet the implied aspect is effective and ENFORCED (the divergence).
-      expect(ctx.stdout).toContain('implied-by-draft [enforced]');
-      expect(ctx.stdout).toContain("implied by 'draft-implier'");
+      // implied-by-draft is NOT an effective aspect entry (only the implier's
+      // "Implies:" metadata line names it, never as `implied-by-draft [status]`).
+      expect(ctx.stdout).not.toContain('implied-by-draft [');
+      expect(ctx.stdout).not.toContain("implied by 'draft-implier'");
 
-      // And its violation BLOCKS approve — the draft implier did NOT make it
-      // dormant.
+      // Its violation does NOT block approve — the implied aspect is dormant.
       appendFileSync(ordersFile(dir), '\n// EEE token\n');
-      const refused = run(['approve', '--node', 'services/orders'], dir);
-      expect(refused.status).toBe(1);
-      expect(refused.stdout).toContain('implied-by-draft');
-      expect(refused.stdout).toContain('NOT SATISFIED');
-      expect(refused.stdout).toContain('EEE found.');
+      const result = run(['approve', '--node', 'services/orders'], dir);
+      expect(result.status).toBe(0);
+      expect(result.stdout).not.toContain('NOT SATISFIED');
       // The draft implier itself is announced as skipped.
-      expect(refused.stdout).toContain('draft-implier');
-      expect(refused.stdout).toContain('skipped');
+      expect(result.stdout).toContain('draft-implier');
+      expect(result.stdout).toContain('skipped');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

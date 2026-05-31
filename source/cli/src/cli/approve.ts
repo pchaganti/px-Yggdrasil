@@ -4,7 +4,7 @@ import path from 'node:path';
 import { loadGraphOrAbort, abortOnUnexpectedError } from '../formatters/cli-preamble.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
-import { approveNode, resolveAspects, loadSourceFiles } from '../core/approve.js';
+import { approveNode, evaluateAllDraftLogGate, resolveAspects, loadSourceFiles } from '../core/approve.js';
 import { runApproveWithReviewer, type LlmApproveResult } from '../core/approve-reviewer.js';
 export type { LlmApproveResult };
 import { collectTrackedFiles, tierIdentityKey, checkTouchedKey, yggPrefixOf } from '../core/graph/files.js';
@@ -811,11 +811,18 @@ export function registerApproveCommand(program: Command): void {
         // Has mapping — single node approve
         await abortOnGatingErrors(graph);
 
-        // All-draft short-circuit: every effective aspect on this node is
-        // draft → reviewer skipped, no baseline written, no drift tracked.
-        // approveNode already auto-approves; emit a clearer user-facing
-        // message instead of a generic "Approved" line.
+        // All-draft node: every effective aspect is draft → reviewer skipped, no
+        // baseline written, no drift tracked. But the mandatory-log gate is NOT
+        // skipped — a source change on a log_required node still demands an entry,
+        // independent of aspect status. Run the gate-only check (which does NOT GC
+        // or rewrite the baseline, so a prior baseline's carry-forward survives a
+        // draft toggle) and honor a refusal; only on a clean pass emit the notice.
         if (!hasNonDraftEffectiveAspects(node, graph)) {
+          const gate = await evaluateAllDraftLogGate(graph, nodePath);
+          if (gate?.action === 'refused') {
+            formatResult(nodePath, gate);
+            process.exit(1);
+          }
           process.stdout.write(buildIssueMessage(approveNodeAllDraftMessage({ nodePath })) + '\n');
           process.exit(0);
         }

@@ -1,0 +1,7 @@
+name: E2E Tests — Suppress Deterministic Remaining
+type: test-suite
+description: "Subprocess E2E pinning the remaining deterministic-reviewer suppress paths — the hierarchical aspect-id matching behavior, the empty-reason rejection on single-line and bracket markers during approve, an enable marker requiring no reason, a draft-to-advisory flip making a previously-inert suppress effective, multiple comma-separated aspect ids in one marker, and a block-comment marker honored."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-suppress-deterministic-remaining.test.ts

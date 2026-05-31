@@ -719,18 +719,37 @@ export function describeCascadeCause(filePath: string, layer: TrackedFileLayer, 
   }
 
   if (layer === 'hierarchy') {
+    // Synthetic key for a node's OWN definition subset (type/aspects/relations/ports).
+    // Not a parent change — it is the node re-deriving its own effective aspects.
+    const own = normalized.match(/^own-subset:(.+)$/);
+    if (own) {
+      return `node '${own[1]}' own metadata changed\n       (${normalized})`;
+    }
     const match = normalized.match(new RegExp(`${escPrefix}/model/(.+)/[^/]+$`));
     const ancestorPath = match ? match[1] : 'unknown';
     return `parent node '${ancestorPath}' metadata changed\n       (${normalized})`;
   }
 
   if (layer === 'relational') {
+    // Synthetic key for a dependency's scoped port-aspect set (channel 6).
+    const portAspects = normalized.match(/^port-aspects:(.+)$/);
+    if (portAspects) {
+      return `dependency '${portAspects[1]}' port aspects changed\n       (${normalized})`;
+    }
     const match = normalized.match(new RegExp(`${escPrefix}/model/(.+)/([^/]+)$`));
     const depPath = match ? match[1] : 'unknown';
     const filename = match ? match[2] : '';
     const artifactLabel = filename === 'yg-node.yaml' ? 'metadata'
       : filename.replace('.md', '');
     return `dependency '${depPath}' ${artifactLabel} changed\n       (${normalized})`;
+  }
+
+  if (layer === 'check-touched') {
+    // A real file (owned by another node) that a deterministic aspect's check reads.
+    // The owning aspect is named by the synthetic 'check-touched:<id>' key on the
+    // 'aspects' layer when the read SET changes; on a content edit we have only the
+    // path, so name the cause generically but accurately.
+    return `a file read by a deterministic aspect changed\n       (${normalized})`;
   }
 
   return `tracked file changed\n       (${normalized})`;

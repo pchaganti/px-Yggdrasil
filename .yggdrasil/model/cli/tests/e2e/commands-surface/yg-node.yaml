@@ -1,0 +1,7 @@
+name: E2E Tests — Command Surface
+type: test-suite
+description: "Subprocess E2E pinning the remaining CLI flag-contract and error paths — context node/file mutex, approve dry-run rejected with aspect/flow, approve no-target, approve aspect/flow not-found, deterministic-test node not-found, unknown log/knowledge subcommand, knowledge read missing-name, tree negative depth, find empty/whitespace query, and the no-graph error across commands plus graph-independent knowledge read."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-commands-surface.test.ts

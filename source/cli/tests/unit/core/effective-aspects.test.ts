@@ -151,6 +151,34 @@ describe('computeEffectiveAspects', () => {
     expect(result).toEqual(new Set(['a', 'b', 'c']));
   });
 
+  it('9b. a DRAFT implier does NOT propagate its implied aspect into the effective set', () => {
+    const node = makeNode('svc', { meta: { name: 'svc', type: 'service', aspects: ['a'] } });
+    const graph = makeGraph({
+      nodes: new Map([['svc', node]]),
+      aspects: [
+        { name: 'A', id: 'a', status: 'draft' as const, implies: ['b'], reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'B', id: 'b', reviewer: { type: 'llm' as const }, artifacts: [] },
+      ],
+    });
+    const result = computeEffectiveAspects(node, graph);
+    expect(result.has('a')).toBe(true); // the draft aspect is itself effective via its own channel
+    expect(result.has('b')).toBe(false); // but a dormant implier must NOT pull in its implied aspect
+  });
+
+  it('9c. an implied aspect reachable via a NON-draft implier stays effective despite a parallel draft implier', () => {
+    const node = makeNode('svc', { meta: { name: 'svc', type: 'service', aspects: ['a', 'c'] } });
+    const graph = makeGraph({
+      nodes: new Map([['svc', node]]),
+      aspects: [
+        { name: 'A', id: 'a', status: 'draft' as const, implies: ['b'], reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'C', id: 'c', implies: ['b'], reviewer: { type: 'llm' as const }, artifacts: [] },
+        { name: 'B', id: 'b', reviewer: { type: 'llm' as const }, artifacts: [] },
+      ],
+    });
+    const result = computeEffectiveAspects(node, graph);
+    expect(result.has('b')).toBe(true); // reachable via the non-draft implier C
+  });
+
   it('10. implies cycle -> throws error', () => {
     const node = makeNode('svc', { meta: { name: 'svc', type: 'service', aspects: ['a'] } });
     const graph = makeGraph({

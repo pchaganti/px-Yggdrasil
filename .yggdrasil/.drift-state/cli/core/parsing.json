@@ -1,5 +1,5 @@
 {
-  "hash": "b3aa8925dca2573c4c718458b73a85e6fb53b948a89debba3ee21b1a29b1ba10",
+  "hash": "c294761d0a3f1819ccb217fbf33becbeb4e79961dbd1235d64e66221bf74af11",
   "files": {
     "own-subset:cli/core/parsing": "41d78e2a463c3295d65bc0c806d31ff2dfbfc01e5dc2e00c053acb7848221c10",
     "tier-identity:diagnostic-logging": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -24,10 +24,10 @@
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
     ".yggdrasil/model/cli/model/file-when/yg-node.yaml": "f9ecd1d6196e240a49928bcbf2d7fcc5b210985df3157b7291b0aea2fef69a3e",
-    "source/cli/src/core/parsing/log-parser.ts": "29aa2620d7f0223666b23b78f914dfc204ff5102be3a42d6546ba055f42e5523",
     "source/cli/src/core/parsing/file-when-parser.ts": "537fa63de06888a11155eba3ae84955d5a88162543bccfddbc7e4e26d61a7730",
     "source/cli/src/core/parsing/when-parser.ts": "94d2a817a156081bf49ce7a8e21118fb301482b0b4fe5806afd1eca791beadd4",
-    "source/cli/src/core/parsing/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b"
+    "source/cli/src/core/parsing/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b",
+    "source/cli/src/core/parsing/log-parser.ts": "1f03c6b373b5e01f76f55353cbfeede5cf54b630410ca0c5714a6ff74bdc0131"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -49,18 +49,42 @@
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     ".yggdrasil/model/cli/model/file-when/yg-node.yaml": 1778650103730.5442,
-    "source/cli/src/core/parsing/log-parser.ts": 1778572714037.1997,
+    "source/cli/src/core/parsing/log-parser.ts": 1780217687613.0635,
     "source/cli/src/core/parsing/file-when-parser.ts": 1780116512839.6577,
     "source/cli/src/core/parsing/when-parser.ts": 1779967236795.9546,
     "source/cli/src/core/parsing/predicate-boolean.ts": 1778951247012.7993
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T04:57:35.418Z",
-    "prefix_hash": "d57e1eaa022473f06e2b01522884d1c06172d24512c4f3d5e54ec20988c87fc4"
+    "last_entry_datetime": "2026-05-31T09:10:42.342Z",
+    "prefix_hash": "d4e3f2f4a416e305d8cc2fa76671f486f48550bd78f4750b0d84472ac4849670"
   },
   "checkTouchedFiles": {
+    "no-nondeterminism-direct": {
+      "source/cli/src/core/parsing/log-parser.ts": "1f03c6b373b5e01f76f55353cbfeede5cf54b630410ca0c5714a6ff74bdc0131",
+      "source/cli/src/core/parsing/file-when-parser.ts": "537fa63de06888a11155eba3ae84955d5a88162543bccfddbc7e4e26d61a7730",
+      "source/cli/src/core/parsing/when-parser.ts": "94d2a817a156081bf49ce7a8e21118fb301482b0b4fe5806afd1eca791beadd4",
+      "source/cli/src/core/parsing/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b"
+    },
+    "no-direct-fs": {
+      "source/cli/src/core/parsing/log-parser.ts": "1f03c6b373b5e01f76f55353cbfeede5cf54b630410ca0c5714a6ff74bdc0131",
+      "source/cli/src/core/parsing/file-when-parser.ts": "537fa63de06888a11155eba3ae84955d5a88162543bccfddbc7e4e26d61a7730",
+      "source/cli/src/core/parsing/when-parser.ts": "94d2a817a156081bf49ce7a8e21118fb301482b0b4fe5806afd1eca791beadd4",
+      "source/cli/src/core/parsing/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b"
+    },
+    "no-direct-console": {
+      "source/cli/src/core/parsing/log-parser.ts": "1f03c6b373b5e01f76f55353cbfeede5cf54b630410ca0c5714a6ff74bdc0131",
+      "source/cli/src/core/parsing/file-when-parser.ts": "537fa63de06888a11155eba3ae84955d5a88162543bccfddbc7e4e26d61a7730",
+      "source/cli/src/core/parsing/when-parser.ts": "94d2a817a156081bf49ce7a8e21118fb301482b0b4fe5806afd1eca791beadd4",
+      "source/cli/src/core/parsing/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b"
+    },
     "posix-paths-source": {
-      "source/cli/src/core/parsing/log-parser.ts": "29aa2620d7f0223666b23b78f914dfc204ff5102be3a42d6546ba055f42e5523",
+      "source/cli/src/core/parsing/log-parser.ts": "1f03c6b373b5e01f76f55353cbfeede5cf54b630410ca0c5714a6ff74bdc0131",
+      "source/cli/src/core/parsing/file-when-parser.ts": "537fa63de06888a11155eba3ae84955d5a88162543bccfddbc7e4e26d61a7730",
+      "source/cli/src/core/parsing/when-parser.ts": "94d2a817a156081bf49ce7a8e21118fb301482b0b4fe5806afd1eca791beadd4",
+      "source/cli/src/core/parsing/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b"
+    },
+    "single-source-graph-queries": {
+      "source/cli/src/core/parsing/log-parser.ts": "1f03c6b373b5e01f76f55353cbfeede5cf54b630410ca0c5714a6ff74bdc0131",
       "source/cli/src/core/parsing/file-when-parser.ts": "537fa63de06888a11155eba3ae84955d5a88162543bccfddbc7e4e26d61a7730",
       "source/cli/src/core/parsing/when-parser.ts": "94d2a817a156081bf49ce7a8e21118fb301482b0b4fe5806afd1eca791beadd4",
       "source/cli/src/core/parsing/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b"

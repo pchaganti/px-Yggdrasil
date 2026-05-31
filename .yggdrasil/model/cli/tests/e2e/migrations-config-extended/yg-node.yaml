@@ -1,0 +1,7 @@
+name: E2E Tests — Migrations & Config Extended
+type: test-suite
+description: "Subprocess E2E proving the remaining migration and config paths — the platform rules-file installer matrix across the platforms not already pinned, a legacy and malformed reviewer-field migration edge, the secrets extra-fields withhold-bump signal in isolation, and config-parser coercion edges surfaced by check that the tier-validation suite does not pin."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-migrations-config-extended.test.ts

@@ -352,6 +352,32 @@ export async function approveNode(
   };
 }
 
+/**
+ * Gate-only mandatory-log check for an ALL-DRAFT node. Enforces the log
+ * requirement (a source change on a `log_required` node needs a fresh entry)
+ * WITHOUT running GC or touching the baseline — so the node's prior baseline
+ * (and its carried-forward checkTouchedFiles) is preserved across a draft toggle.
+ * Returns a refusal result, or null when the gate passes. The reviewer is skipped
+ * for an all-draft node, but the log gate is NOT — it is independent of aspect
+ * status. The CLI uses this instead of a full approveNode for the all-draft case.
+ */
+export async function evaluateAllDraftLogGate(
+  graph: Graph,
+  nodePath: string,
+): Promise<ApproveResult | null> {
+  const node = graph.nodes.get(nodePath);
+  if (!node) throw new Error(`Node '${nodePath}' does not exist.`);
+  if (!logRequiredFor(node, graph)) return null;
+  const storedEntry = await readNodeDriftState(graph.rootPath, nodePath);
+  const logSnapshot = await snapshotLog(graph.rootPath, nodePath);
+  const projectRoot = path.dirname(graph.rootPath);
+  const changed = await sourceFilesChanged(node, graph, projectRoot, storedEntry);
+  if (changed.length > 0 && !hasFreshLogEntry(logSnapshot.content, storedEntry?.log)) {
+    return mandatoryLogRefusal(node, nodePath, changed);
+  }
+  return null;
+}
+
 // ── Log requirement helpers ────────────────────────────────
 
 /**

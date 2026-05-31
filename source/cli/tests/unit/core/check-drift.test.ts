@@ -768,6 +768,13 @@ describe('describeCascadeCause', () => {
     expect(out).toContain("parent node 'unknown' metadata changed");
   });
 
+  it('hierarchy layer, own-subset synthetic key → node own metadata changed (not "unknown")', () => {
+    const out = describeCascadeCause('own-subset:services/orders', 'hierarchy', graph);
+    expect(out).toContain("node 'services/orders' own metadata changed");
+    expect(out).not.toContain("'unknown'");
+    expect(out).not.toContain('parent node');
+  });
+
   it('relational layer, yg-node.yaml → dependency metadata changed', () => {
     const out = describeCascadeCause(`${YGG}/model/dep/svc/yg-node.yaml`, 'relational', graph);
     expect(out).toContain("dependency 'dep/svc' metadata changed");
@@ -783,9 +790,15 @@ describe('describeCascadeCause', () => {
     expect(out).toContain("dependency 'unknown'");
   });
 
-  it('check-touched layer (real cross-node path) → tracked file changed', () => {
+  it('relational layer, port-aspects synthetic key → dependency port aspects changed (not "unknown")', () => {
+    const out = describeCascadeCause('port-aspects:services/payments', 'relational', graph);
+    expect(out).toContain("dependency 'services/payments' port aspects changed");
+    expect(out).not.toContain("'unknown'");
+  });
+
+  it('check-touched layer (real cross-node path) → file read by a deterministic aspect changed', () => {
     const out = describeCascadeCause('source/cli/src/other/reader.ts', 'check-touched', graph);
-    expect(out).toContain('tracked file changed');
+    expect(out).toContain('a file read by a deterministic aspect changed');
   });
 
   it('source layer → tracked file changed', () => {

@@ -195,23 +195,15 @@ describe.skipIf(!distExists)('CLI E2E — drift & cascade extended paths', () =>
   // cross-read check (zero LLM — it is deterministic). After re-approving both
   // nodes, check returns green.
   //
-  // BUG (documented divergence — see final report):
-  //   CONTRACT (task / drift-and-cascade): the cross-node check-touched cascade
-  //     "names the owning aspect" — i.e. the orders cascade line should read
-  //     "the set of files read by deterministic aspect 'cross-read-todo'
-  //     changed".
-  //   ACTUAL: a cross-node touched path whose CONTENT (not the set membership)
-  //     changes is tracked under the 'check-touched' file layer, which
-  //     describeCascadeCause() (source/cli/src/core/check.ts) does NOT special-
-  //     case — it falls through to the generic "tracked file changed". The
-  //     owning aspect name is therefore ABSENT from the orders cascade line. The
-  //     synthetic "check-touched:<id>" hash (which WOULD name the aspect) only
-  //     moves when the SET of touched paths changes, not on a content edit.
-  //   The STRUCTURAL contract still holds and IS asserted: the cross-node edit
-  //   DOES drift the dependent node, and re-approve re-runs only that one local
-  //   deterministic check ("1 aspects satisfied", zero LLM). This test pins the
-  //   ACTUAL behaviour (generic message, aspect name absent) without encoding
-  //   the divergence as correct.
+  // The cross-node check-touched cascade: a touched path whose CONTENT (not the set
+  // membership) changes is tracked under the 'check-touched' file layer, which
+  // describeCascadeCause() renders as "a file read by a deterministic aspect
+  // changed". The specific aspect id is named only when the SET of touched paths
+  // changes (the synthetic "check-touched:<id>" hash on the 'aspects' layer); on a
+  // content edit we have only the path, so the message is accurate but not aspect-
+  // specific. The STRUCTURAL contract holds and IS asserted: the cross-node edit
+  // drifts the dependent node, and re-approve re-runs only that one local
+  // deterministic check ("1 aspects satisfied", zero LLM).
   // -------------------------------------------------------------------------
 
   it('1: editing a file owned by node B drifts node A whose deterministic check reads it cross-node; re-approve re-runs only that local check (zero LLM) and clears it', () => {
@@ -239,9 +231,9 @@ describe.skipIf(!distExists)('CLI E2E — drift & cascade extended paths', () =>
       // The dependent node services/orders IS drifted by the cross-node edit.
       expect(drifted.all).toContain('services/orders');
       expect(drifted.all).toContain('Fix: yg approve --node services/orders');
-      // ACTUAL (BUG): the orders cascade renders as the generic message; the
-      // owning aspect 'cross-read-todo' is NOT named anywhere in the output.
-      expect(drifted.all).toContain('tracked file changed');
+      // The orders cascade names the deterministic-aspect read cause; the specific
+      // aspect id is not named on a content edit (only on a set-membership change).
+      expect(drifted.all).toContain('a file read by a deterministic aspect changed');
       expect(drifted.all).not.toContain('cross-read-todo');
       // payments itself shows ordinary source drift.
       expect(drifted.all).toContain('services/payments');

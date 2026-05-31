@@ -984,11 +984,10 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
   // =========================================================================
 
   // D1: ADDING a `uses` relation to a node's own yg-node.yaml drifts THAT node
-  //     (its tracked dependency set changed); re-approving the node clears it.
-  //     We pin the stable substring `dependency 'services/payments' metadata
-  //     changed` plus the cascade banner and affected node. BUG (in
-  //     .temp/dogfood-report.md): a node's OWN-metadata edit renders a cosmetic
-  //     `parent node 'unknown' metadata changed` line; not asserted as correct.
+  //     (its own definition subset and its tracked dependency set both changed);
+  //     re-approving the node clears it. The node's OWN-metadata change renders as
+  //     `node 'services/orders' own metadata changed` (the own-subset synthetic key),
+  //     never the cosmetic `'unknown'` it used to emit.
   it('D1: adding a uses relation to a node drifts it (cascade); re-approve clears it', () => {
     const dir = deterministicLifecycle('d1-add-relation');
     try {
@@ -1017,6 +1016,9 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
       expect(drifted.stdout).toContain(
         "dependency 'services/payments' metadata changed",
       );
+      // The node's own-metadata edit is named precisely (not "parent node 'unknown'").
+      expect(drifted.stdout).toContain("node 'services/orders' own metadata changed");
+      expect(drifted.stdout).not.toContain("parent node 'unknown'");
       expect(drifted.stdout).toContain('services/orders');
 
       const reapprove = run(['approve', '--node', 'services/orders'], dir);

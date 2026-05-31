@@ -297,24 +297,14 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
 
   // --- 1D. Gate INDEPENDENCE from aspect status (ALL-DRAFT) — BUG ---
   //
-  // BUG: contract vs actual.
-  //   CONTRACT (agent-rules.md "Log management — workflow" + knowledge
-  //   read log-management "Drift independence"): "a node whose every effective
-  //   aspect is in draft still needs a log entry when its source changes (the
-  //   reviewer is skipped for draft aspects, but the log gate is NOT)." The
-  //   core approve algorithm honors this — src/core/approve.ts:163-167 runs the
-  //   mandatory-log refusal inside the all-draft branch.
-  //   ACTUAL: the CLI command short-circuits all-draft nodes BEFORE the core
-  //   ever runs (src/cli/approve.ts:818-821): when !hasNonDraftEffectiveAspects
-  //   it prints the all-draft message and process.exit(0) without invoking
-  //   approveNode. So via `yg approve` the log gate is BYPASSED for an
-  //   all-draft node: a source change with no fresh entry is silently
-  //   "approved" (exit 0), no baseline written, no drift tracked. The core
-  //   gate at approve.ts:163-167 is dead code from the CLI's perspective.
-  //
-  // This test pins the ACTUAL behavior. If the short-circuit is fixed to honor
-  // the gate, flip the expectations to status 1 + the mandatory-log message.
-  it('1D: BUG — all-draft node bypasses the log gate via CLI short-circuit (exit 0, no entry)', () => {
+  // The mandatory-log gate is INDEPENDENT of aspect status (agent-rules.md "Log
+  // management — workflow" + knowledge read log-management): a node whose every
+  // effective aspect is draft still needs a log entry when its source changes —
+  // the reviewer is skipped for draft aspects, but the log gate is NOT. The CLI
+  // runs the core all-draft branch (src/core/approve.ts), which fires the
+  // mandatory-log refusal before the all-draft notice; only on a clean pass does
+  // the "all aspects draft" message appear.
+  it('1D: all-draft node still enforces the log gate — source change with no entry refuses (exit 1)', () => {
     const dir = deterministicFixture('status-indep-draft');
     try {
       enableServiceLogRequired(dir);
@@ -325,15 +315,34 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
 
       // Source change, no log entry at all, no prior baseline.
       writeFileSync(ordersFile(dir), readFileSync(ordersFile(dir), 'utf-8') + '\nexport const d = 4;\n', 'utf-8');
-      const { status, stdout } = run(['approve', '--node', 'services/orders'], dir);
+      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
 
-      // ACTUAL: short-circuit wins — exit 0, all-draft message, gate not fired.
+      // The log gate fires despite every aspect being draft.
+      expect(status).toBe(1);
+      expect(all).toContain('mandatory entry required when source files change');
+      // It refused before the all-draft notice and wrote no baseline.
+      expect(all).not.toContain('Reviewer skipped');
+      expect(existsSync(baselinePath(dir, 'services/orders'))).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // 1D-clear: with a fresh log entry, the same all-draft source change approves
+  // (exit 0) and emits the all-draft notice — proving the gate, not aspect status,
+  // was the blocker.
+  it('1D-clear: all-draft node with a fresh log entry approves and shows the all-draft notice', () => {
+    const dir = deterministicFixture('status-indep-draft-clear');
+    try {
+      enableServiceLogRequired(dir);
+      setAspectStatus(dir, 'no-todo-comments', 'draft');
+      setAspectStatus(dir, 'requires-named-export', 'draft');
+      writeFileSync(ordersFile(dir), readFileSync(ordersFile(dir), 'utf-8') + '\nexport const d = 4;\n', 'utf-8');
+      run(['log', 'add', '--node', 'services/orders', '--reason', 'draft-phase change recorded'], dir);
+      const { status, stdout } = run(['approve', '--node', 'services/orders'], dir);
       expect(status).toBe(0);
       expect(stdout).toContain("Every effective aspect on node 'services/orders' has status 'draft'");
       expect(stdout).toContain('Reviewer skipped');
-      expect(stdout).not.toContain('mandatory entry required when source files change');
-      // Consistent with "no baseline written, no drift tracked".
-      expect(existsSync(baselinePath(dir, 'services/orders'))).toBe(false);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

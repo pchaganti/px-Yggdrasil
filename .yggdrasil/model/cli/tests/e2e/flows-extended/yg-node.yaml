@@ -1,0 +1,7 @@
+name: E2E Tests — Flows Extended
+type: test-suite
+description: "Subprocess E2E proving the remaining flow paths — two distinct flow aspects propagating independently to every participant and each separately enforceable, approve flow dry-run, a new child of a participant auto-included after a baseline exists, participant removal dropping the flow aspect, flow YAML parse and validation errors, the empty and multi-flow listing, and the impact node/flow mutex."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-flows-extended.test.ts

@@ -1,5 +1,5 @@
 {
-  "hash": "61e1d2a0a42e4e7f2a357369c2fc38b3f9c54a8ad834fbec82154dc754457f78",
+  "hash": "92c73728a01879e490a6848de3b681255c16ea800d0de3ab201445933f48a47f",
   "files": {
     "own-subset:cli/tests/unit/support/parsers/predicate-log": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
@@ -12,7 +12,7 @@
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/io/file-when-parser.test.ts": "97783e8495cc46933dfb585564794cd42d18860061857eee099b356a611de86b",
     "source/cli/tests/unit/io/when-parser.test.ts": "46211247127c155656c1d67bd28a2b78b7a8ab845923498701e04fd3cd2f2389",
-    "source/cli/tests/unit/io/log-parser.test.ts": "72cbfd947e54141c3352f179b84e6a96ce5f4ecbef59490cc02438560c21d8df"
+    "source/cli/tests/unit/io/log-parser.test.ts": "6a2833fc95a3572dbb0d8e1cce7d708b5bc11e352c6c2f37a1e1855ae3a33afb"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -24,7 +24,11 @@
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/io/file-when-parser.test.ts": 1778851229833.6035,
     "source/cli/tests/unit/io/when-parser.test.ts": 1778851229835.2869,
-    "source/cli/tests/unit/io/log-parser.test.ts": 1778851229832.0247
+    "source/cli/tests/unit/io/log-parser.test.ts": 1780217654649.66
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-31T09:10:50.839Z",
+    "prefix_hash": "1c81e072ac85f67110bf3e6c6eeaf90e535c80c3e039afd7aba355213b5c4dbb"
   },
   "aspectVerdicts": {
     "test-deterministic": {
