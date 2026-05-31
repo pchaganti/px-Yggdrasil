@@ -1,5 +1,5 @@
 {
-  "hash": "21ef26d1dede4531a783536d225d31ad0c7ddc99ce584506a1f3c98e3d35059e",
+  "hash": "af0370cda4d24c38cd466a53a17a7e70874ea09852c47cae12b1de05e2d0c855",
   "files": {
     "own-subset:cli/tests/e2e/ports-inheritance": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
@@ -8,14 +8,14 @@
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/e2e/yg-node.yaml": "84d325c5de6fb3ff286926646e67ffb49921cf556d58712e850acafd0c57bb7b",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/e2e/cli-ports-inheritance.test.ts": "c5517f4020e1f5010f71caa8b44bd5083805d57fc7e4246bb28d2e8599c18cf5"
+    "source/cli/tests/e2e/cli-ports-inheritance.test.ts": "3c12edb79f245d47bb84ea2e36b0ccca270575aca514e20784aba9d11b0a6f88"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/e2e/yg-node.yaml": 1780104092868.105,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/e2e/cli-ports-inheritance.test.ts": 1780223139547.1506
+    "source/cli/tests/e2e/cli-ports-inheritance.test.ts": 1780230320496.8599
   },
   "log": {
     "last_entry_datetime": "2026-05-31T10:32:06.962Z",

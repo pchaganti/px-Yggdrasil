@@ -342,6 +342,53 @@ mapping:
     }
   });
 
+  // B6: own-default status inheritance THROUGH a port-sourced implies edge.
+  // The enforced charge-port aspect implies an advisory-default aspect with
+  // status_inherit: own-default, so the implied aspect keeps its OWN advisory
+  // default on the consumer instead of inheriting the implier's enforced status
+  // (which the default 'strictest' mode would propagate). This is the one
+  // channel-6→7 combination the other suites leave unpinned.
+  function setupPortImpliesOwnDefaultGraph(dir: string): void {
+    writeDetAspect(
+      dir,
+      'diag-advisory',
+      'advisory',
+      bannedTokenCheck('NOLOG'),
+      'Source files should not contain the literal token NOLOG.',
+    );
+    writeDetAspect(
+      dir,
+      'audit-required',
+      'enforced',
+      PASS_CHECK,
+      'Consumers of the charge port must record an audit trail for every charge.',
+      'implies:\n  - id: diag-advisory\n    status_inherit: own-default\n',
+    );
+  }
+
+  it('B6: a port aspect implying another with own-default status_inherit keeps the implied aspect at its OWN advisory default (violation warns, does not block)', () => {
+    const dir = copyFixture('b6-port-implies-own-default');
+    try {
+      setupPortImpliesOwnDefaultGraph(dir);
+
+      // Effective via channel 6 → channel 7, at its OWN advisory default — NOT
+      // the implier's enforced status that 'strictest' would have propagated.
+      const ctx = run(['context', '--node', 'services/orders'], dir);
+      expect(ctx.status).toBe(0);
+      expect(ctx.all).toContain('diag-advisory [advisory]');
+
+      // A NOLOG violation of the advisory implied aspect is a non-blocking
+      // warning — approve still exits 0. (Under 'strictest' it would inherit
+      // enforced and BLOCK with exit 1.)
+      appendFileSync(ordersSrc(dir), '\n// NOLOG here\n');
+      const approve = run(['approve', '--node', 'services/orders'], dir);
+      expect(approve.status).toBe(0);
+      expect(approve.all).toContain('diag-advisory');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   // ── C. Transitive / relay: the obligation does NOT transit a consumer chain ──
 
   // Bottom provider exposes `charge` (aspect audit-required). The MIDDLE node
