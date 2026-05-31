@@ -9,8 +9,13 @@ const _require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Production: dist/ast/../grammars; Dev (tests): src/ast/../grammars (may not exist)
-const GRAMMARS_DIR = path.resolve(__dirname, '../grammars');
+// Candidate grammar dirs, in order. The published package bundles entry files FLAT
+// (dist/bin.js, dist/ast.js …), so the WASM at dist/grammars/ is `__dirname/grammars`.
+// `../grammars` covers a legacy dist/ast/ subdir layout and the src/ast/ dev tree.
+const GRAMMAR_DIRS = [
+  path.resolve(__dirname, 'grammars'),
+  path.resolve(__dirname, '..', 'grammars'),
+];
 
 let initialized = false;
 const langCache = new Map<string, Language>();
@@ -22,19 +27,23 @@ async function init(): Promise<void> {
 }
 
 function resolveWasm(filename: string, pkg: string): string {
-  // Production: check dist/grammars/ first
-  const distPath = path.join(GRAMMARS_DIR, filename);
-  if (existsSync(distPath)) return distPath;
-  // Dev fallback: resolve from installed node_modules package
-  const pkgDir = path.dirname(_require.resolve(`${pkg}/package.json`));
-  const candidates = [
-    path.join(pkgDir, filename),
-    path.join(pkgDir, 'bindings/node', filename),
-  ];
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) return candidate;
+  // Published package: the WASM ships under dist/grammars/.
+  for (const dir of GRAMMAR_DIRS) {
+    const p = path.join(dir, filename);
+    if (existsSync(p)) return p;
   }
-  throw new Error(`Could not find WASM file ${filename} in dist/grammars/ or ${pkg}`);
+  // Dev fallback: resolve from the installed grammar package. This is a devDep, so it
+  // is ABSENT in a published install — the dist/grammars path above must succeed there.
+  // Wrapped so an absent devDep yields a clean error, not a raw 'Cannot find module'.
+  try {
+    const pkgDir = path.dirname(_require.resolve(`${pkg}/package.json`));
+    for (const candidate of [path.join(pkgDir, filename), path.join(pkgDir, 'bindings/node', filename)]) {
+      if (existsSync(candidate)) return candidate;
+    }
+  } catch {
+    /* devDep not installed (published package) — fall through to the error below */
+  }
+  throw new Error(`Could not find WASM grammar ${filename} in dist/grammars/ or in the ${pkg} package.`);
 }
 
 export async function getParser(extension: string): Promise<Parser> {

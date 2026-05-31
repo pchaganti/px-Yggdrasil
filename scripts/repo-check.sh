@@ -25,6 +25,7 @@ run_step() {
 run_step "CLI: typecheck" "$REPO_ROOT/source/cli" "npm run typecheck"
 run_step "CLI: lint" "$REPO_ROOT/source/cli" "npm run lint"
 run_step "CLI: build" "$REPO_ROOT/source/cli" "npm run build"
+run_step "CLI: pack-smoke (A2)" "$REPO_ROOT/source/cli" "node scripts/pack-smoke.mjs"
 run_step "CLI: test (with coverage)" "$REPO_ROOT/source/cli" "npm run test:coverage"
 run_step "CLI: coverage >= 90%" "$REPO_ROOT/source/cli" "node -e \"
 const j = require('./coverage/coverage-summary.json');

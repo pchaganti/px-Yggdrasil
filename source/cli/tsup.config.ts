@@ -23,9 +23,12 @@ async function copyWasmGrammars() {
     'bindings/node/tree-sitter-javascript.wasm',
   ]);
 
-  await copyFile(tsWasm, path.join(grammarsDir, 'typescript.wasm'));
-  await copyFile(tsxWasm, path.join(grammarsDir, 'tsx.wasm'));
-  await copyFile(jsWasm, path.join(grammarsDir, 'javascript.wasm'));
+  // Copy under the names the parser actually resolves (language-registry `wasmFile`,
+  // i.e. `tree-sitter-<lang>.wasm`) — NOT the short `<lang>.wasm`. The short names were
+  // never found in a published install (only the dev `node_modules` fallback worked).
+  await copyFile(tsWasm, path.join(grammarsDir, 'tree-sitter-typescript.wasm'));
+  await copyFile(tsxWasm, path.join(grammarsDir, 'tree-sitter-tsx.wasm'));
+  await copyFile(jsWasm, path.join(grammarsDir, 'tree-sitter-javascript.wasm'));
 
   console.log('Copied WASM grammars to dist/grammars/');
 }

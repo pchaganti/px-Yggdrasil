@@ -1,0 +1,118 @@
+#!/usr/bin/env node
+// A2 — pack-and-smoke: prove the PUBLISHED tarball actually works, especially that
+// the WASM grammars resolve from the package itself (NOT the dev `node_modules`
+// fallback, which is absent in a real install — tree-sitter-* are devDeps). This is
+// the only thing that exercises the production `dist/grammars` path; the unit/e2e
+// tests run from source and always hit the node_modules fallback.
+//
+// Steps: npm pack → extract to a clean temp dir → install PROD deps only → assert
+// every exports/bin path resolves → run a PARSE-requiring command (which loads a
+// grammar) and assert it succeeds. Any failure exits non-zero (so repo-check/CI red).
+
+import { execFileSync, execSync } from 'node:child_process';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, readdirSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const CLI_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const log = (m) => process.stdout.write(`[pack-smoke] ${m}\n`);
+const fail = (m) => {
+  process.stderr.write(`[pack-smoke] FAIL: ${m}\n`);
+  process.exit(1);
+};
+
+const work = mkdtempSync(path.join(tmpdir(), 'yg-pack-smoke-'));
+try {
+  // 1. Pack
+  log('npm pack…');
+  const tgzName = execFileSync('npm', ['pack', '--silent', '--pack-destination', work], {
+    cwd: CLI_ROOT,
+    encoding: 'utf-8',
+  }).trim().split('\n').pop().trim();
+  const tgz = path.join(work, tgzName);
+  if (!existsSync(tgz)) fail(`tarball not produced (${tgz})`);
+
+  // 2. Extract
+  const extract = path.join(work, 'extract');
+  mkdirSync(extract);
+  execFileSync('tar', ['-xzf', tgz, '-C', extract], { stdio: 'inherit' });
+  const pkgDir = path.join(extract, 'package');
+  if (!existsSync(pkgDir)) fail('extracted package/ dir missing');
+
+  // 3. Assert every exports/bin path + the WASM grammars + schemas are IN the tarball
+  const pkgJson = JSON.parse(readFileSync(path.join(pkgDir, 'package.json'), 'utf-8'));
+  const mustExist = [pkgJson.bin?.yg];
+  for (const e of Object.values(pkgJson.exports ?? {})) {
+    if (e.import) mustExist.push(e.import);
+    if (e.types) mustExist.push(e.types);
+  }
+  for (const rel of mustExist.filter(Boolean)) {
+    if (!existsSync(path.join(pkgDir, rel))) fail(`exports/bin path not in tarball: ${rel}`);
+  }
+  const grammars = existsSync(path.join(pkgDir, 'dist/grammars'))
+    ? readdirSync(path.join(pkgDir, 'dist/grammars')).filter((f) => f.endsWith('.wasm'))
+    : [];
+  if (grammars.length === 0) fail('no WASM grammars in tarball (dist/grammars/*.wasm)');
+  log(`tarball OK — bin+exports present, ${grammars.length} grammar(s): ${grammars.join(', ')}`);
+
+  // 4. Install PROD deps only (no devDeps → no tree-sitter-* fallback)
+  log('npm install --omit=dev…');
+  execSync('npm install --omit=dev --no-audit --no-fund --silent', { cwd: pkgDir, stdio: 'inherit' });
+  if (existsSync(path.join(pkgDir, 'node_modules/tree-sitter-typescript'))) {
+    fail('tree-sitter-typescript present in prod install — smoke would not exercise dist/grammars');
+  }
+
+  const bin = path.join(pkgDir, pkgJson.bin.yg);
+
+  // 5a. Basic bin smoke
+  const ver = execFileSync('node', [bin, '--version'], { encoding: 'utf-8' }).trim();
+  log(`yg --version → ${ver}`);
+
+  // 5b. PARSE-requiring smoke: a minimal graph with a deterministic AST aspect whose
+  // check parses a .ts file via ctx.parseAst. This loads tree-sitter-typescript.wasm
+  // FROM THE PACKAGE — the production path that the source-run tests never hit.
+  const proj = path.join(work, 'proj');
+  const ygg = path.join(proj, '.yggdrasil');
+  mkdirSync(path.join(proj, 'src'), { recursive: true });
+  mkdirSync(path.join(ygg, 'model', 'svc'), { recursive: true });
+  mkdirSync(path.join(ygg, 'aspects', 'parse-smoke'), { recursive: true });
+  mkdirSync(path.join(ygg, 'schemas'), { recursive: true });
+  for (const s of ['yg-architecture', 'yg-node', 'yg-aspect', 'yg-flow', 'yg-config']) {
+    writeFileSync(path.join(ygg, 'schemas', `${s}.yaml`), '{}\n');
+  }
+  writeFileSync(path.join(proj, 'src', 'a.ts'), '// a\nexport const a = 1;\n');
+  writeFileSync(
+    path.join(ygg, 'yg-config.yaml'),
+    'version: "5.0.0"\nreviewer:\n  tiers:\n    standard:\n      provider: ollama\n      consensus: 1\n      config:\n        model: m\n        endpoint: "http://127.0.0.1:1"\n',
+  );
+  writeFileSync(
+    path.join(ygg, 'yg-architecture.yaml'),
+    'node_types:\n  service:\n    description: "svc"\n    when:\n      path: "src/**"\n',
+  );
+  writeFileSync(
+    path.join(ygg, 'model', 'svc', 'yg-node.yaml'),
+    'name: svc\ndescription: "smoke node"\ntype: service\naspects:\n  - parse-smoke\nmapping:\n  - src/a.ts\n',
+  );
+  writeFileSync(
+    path.join(ygg, 'aspects', 'parse-smoke', 'yg-aspect.yaml'),
+    'name: ParseSmoke\ndescription: "parses a source file via tree-sitter"\nreviewer:\n  type: deterministic\nstatus: enforced\n',
+  );
+  // The check parses the file's AST; an unparseable/no-grammar path would throw.
+  writeFileSync(
+    path.join(ygg, 'aspects', 'parse-smoke', 'check.mjs'),
+    'export function check(ctx) {\n  const f = ctx.files[0];\n  const tree = ctx.parseAst(f);\n  if (!tree || !tree.rootNode) throw new Error("no AST");\n  return [];\n}\n',
+  );
+
+  log('yg deterministic-test (parses a .ts via the packaged grammar)…');
+  const res = execFileSync('node', [bin, 'deterministic-test', '--aspect', 'parse-smoke', '--node', 'svc'], {
+    cwd: proj,
+    encoding: 'utf-8',
+  });
+  if (!/No violations|violations|satisfied/i.test(res)) fail(`unexpected deterministic-test output:\n${res}`);
+  log(`parse smoke OK:\n${res.trim()}`);
+
+  log('PASS — published package parses with grammars resolved from the tarball.');
+} finally {
+  rmSync(work, { recursive: true, force: true });
+}

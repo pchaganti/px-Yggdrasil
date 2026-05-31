@@ -9,6 +9,7 @@
   "files": [
     "dist/**/*.js",
     "dist/**/*.d.ts",
+    "dist/**/*.wasm",
     "graph-schemas/"
   ],
   "engines": {
