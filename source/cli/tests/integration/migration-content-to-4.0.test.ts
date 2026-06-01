@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { migrateTo4 } from '../../src/migrations/to-4.0.0.js';
+import { runVersionUpgrade } from '../../src/core/migrator-runner.js';
 
 // ── Realistic pre-4.0 (v3.x) → v4.0 content test ──────────────
 //
@@ -145,7 +146,12 @@ describe('to-4.0.0 — realistic v3 → v4.0 content transformation', () => {
   });
 
   it('strips name, node_types, and obsolete quality fields from yg-config.yaml; adds parallel: 1', async () => {
-    await migrateTo4(ygg);
+    // The migration no longer writes the version itself — the runner is the
+    // sole writer. Drive it through the runner so the version still advances.
+    await runVersionUpgrade({
+      yggRoot: ygg,
+      migrations: [{ to: '4.0.0', description: 'to 4.0.0', run: migrateTo4 }],
+    });
 
     const cfg = readYaml(join(ygg, 'yg-config.yaml'));
     expect(cfg).not.toHaveProperty('name');
@@ -252,7 +258,7 @@ describe('to-4.0.0 — realistic v3 → v4.0 content transformation', () => {
     expect(result.actions.some((a) => a.includes('Deleted flow artifact'))).toBe(true);
     expect(result.actions.some((a) => a.includes('Removed stability from aspect'))).toBe(true);
     expect(result.actions.some((a) => a.includes('Deleted drift state'))).toBe(true);
-    expect(result.actions.some((a) => a.includes('version → 4.0.0'))).toBe(true);
+    expect(result.actions.some((a) => a.includes('the runner will bump yg-config.yaml version to 4.0.0'))).toBe(true);
   });
 
   it('is idempotent — running migrateTo4 twice produces the same final state', async () => {

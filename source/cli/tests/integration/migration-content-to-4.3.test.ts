@@ -74,7 +74,7 @@ describe('to-4.3.0 — realistic v4.x → v4.3 architecture transformation', () 
     for (const name of ['module', 'command', 'engine', 'adapter', 'types', 'test', 'project']) {
       expect(action).toContain(name);
     }
-    expect(result.actions.some((a) => a.includes('version → 4.3.0'))).toBe(true);
+    expect(result.actions.some((a) => a.includes('the runner will bump yg-config.yaml version to 4.3.0'))).toBe(true);
   });
 
   it('leaves node_types that already declare log_required untouched', async () => {
@@ -95,7 +95,7 @@ describe('to-4.3.0 — realistic v4.x → v4.3 architecture transformation', () 
     expect(nodeTypes.module.log_required).toBe(true);
     expect(nodeTypes.command.log_required).toBe(false);
     expect(result.actions.some((a) => a.includes('All node_types already declare log_required'))).toBe(true);
-    expect(result.actions.some((a) => a.includes('version → 4.3.0'))).toBe(false);
+    expect(result.actions.some((a) => a.includes('the runner will bump yg-config.yaml version to 4.3.0'))).toBe(false);
   });
 
   it('partial coverage — only touches types missing the field', async () => {
@@ -182,7 +182,7 @@ describe('to-4.3.0 — realistic v4.x → v4.3 architecture transformation', () 
     const result = await migrateTo43(ygg);
 
     expect(result.warnings.some((w) => w.includes('yg-architecture.yaml not found'))).toBe(true);
-    expect(result.actions.some((a) => a.includes('version → 4.3.0'))).toBe(false);
+    expect(result.actions.some((a) => a.includes('the runner will bump yg-config.yaml version to 4.3.0'))).toBe(false);
   });
 
   it('warns when yg-architecture.yaml has no node_types key', async () => {
@@ -191,7 +191,7 @@ describe('to-4.3.0 — realistic v4.x → v4.3 architecture transformation', () 
     const result = await migrateTo43(ygg);
 
     expect(result.warnings.some((w) => w.includes('node_types'))).toBe(true);
-    expect(result.actions.some((a) => a.includes('version → 4.3.0'))).toBe(false);
+    expect(result.actions.some((a) => a.includes('the runner will bump yg-config.yaml version to 4.3.0'))).toBe(false);
   });
 
   it('is idempotent — re-running on already-4.3 architecture produces no changes', async () => {
@@ -236,10 +236,11 @@ describe('to-4.3.0 — realistic v4.x → v4.3 architecture transformation', () 
 
     const result = await migrateTo43(ygg);
 
-    // log_required already set on every type → no architecture write → no version bump
-    // from this migration alone. (The runner may bump from another step.)
+    // log_required already set on every type → no architecture write → the
+    // migration emits no "will bump" action. (The runner is the sole version
+    // writer and would only bump once an applicable migration completed.)
     const cfg = readYaml(join(ygg, 'yg-config.yaml'));
     expect(cfg.version).toBe('4.2.0');
-    expect(result.actions.some((a) => a.includes('version → 4.3.0'))).toBe(false);
+    expect(result.actions.some((a) => a.includes('the runner will bump yg-config.yaml version to 4.3.0'))).toBe(false);
   });
 });

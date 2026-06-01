@@ -517,13 +517,7 @@ async function migrateDriftState(
   warnings: string[],
 ): Promise<void> {
   const driftDir = path.join(yggRoot, DRIFT_STATE_DIR);
-  let nodePaths: string[];
-  try {
-    nodePaths = await scanDriftBaselineNodePaths(driftDir, '');
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return;
-    throw e;
-  }
+  const nodePaths = await scanDriftBaselineNodePaths(driftDir, '');
   for (const nodePath of nodePaths.sort()) {
     await migrateOneDriftBaseline(yggRoot, driftDir, nodePath, actions, warnings);
   }

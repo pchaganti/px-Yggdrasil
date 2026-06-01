@@ -1,5 +1,5 @@
 name: SchemaBumpBookkeeping
-description: "Migrations that perform writes must call updateConfigVersion() at the end; migrations that detect no changes and return early must not call it — preserving the migrator's version-based completion detection."
+description: "A migration must NOT write the project version itself — the migration runner is the sole writer of yg-config.yaml's version field. A migration may return bumpVersion: false to withhold the bump when it emits recoverable warnings the user must resolve first."
 reviewer:
   type: llm
 when:

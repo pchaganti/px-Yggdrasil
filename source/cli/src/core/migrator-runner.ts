@@ -69,9 +69,9 @@ export async function runVersionUpgrade(options: RunUpgradeOptions): Promise<Upg
       break;
     }
 
-    // Advance version to this migration's target. Pattern A migrations
-    // may have already written this same value internally — the second
-    // write is a no-op-equivalent (writes the same string).
+    // Advance version to this migration's target. The runner is the SOLE
+    // writer of yg-config.yaml's version field — migrations never write it
+    // themselves; they only withhold the bump via bumpVersion: false.
     try {
       await updateConfigVersion(yggRoot, migration.to);
       landedVersion = migration.to;

@@ -2,7 +2,6 @@ import { readdir, readFile, writeFile, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { MigrationResult } from '../core/migrator.js';
-import { updateConfigVersion } from '../core/migrator.js';
 import { toPosixPath } from '../utils/posix.js';
 
 const NODE_ARTIFACTS = ['responsibility.md', 'interface.md', 'internals.md'];
@@ -39,12 +38,7 @@ export async function migrateTo4(yggRoot: string): Promise<MigrationResult> {
   }
 
   if (actions.length > 0) {
-    try {
-      await updateConfigVersion(yggRoot, '4.0.0');
-      actions.push('Updated yg-config.yaml: version → 4.0.0');
-    } catch (err) {
-      warnings.push(`Failed to update yg-config.yaml version: ${(err as Error).message}`);
-    }
+    actions.push('Migration complete; the runner will bump yg-config.yaml version to 4.0.0.');
   }
 
   return { actions, warnings };

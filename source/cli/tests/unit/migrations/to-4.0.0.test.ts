@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { migrateTo4 } from '../../../src/migrations/to-4.0.0.js';
+import { runVersionUpgrade } from '../../../src/core/migrator-runner.js';
 import { mkdtemp, writeFile, readFile, mkdir, stat, rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -78,7 +79,12 @@ quality:
   max_direct_relations: 10
 `);
 
-    await migrateTo4(root);
+    // The migration itself no longer writes the version — the runner is the
+    // sole writer. Drive it through the runner so the version still advances.
+    await runVersionUpgrade({
+      yggRoot: root,
+      migrations: [{ to: '4.0.0', description: 'to 4.0.0', run: migrateTo4 }],
+    });
 
     const config = await readYaml(path.join(root, 'yg-config.yaml'));
     expect(config.name).toBeUndefined();
