@@ -457,7 +457,7 @@ describe('resolveAspects', () => {
 });
 
 describe('approveNode — corrupted baseline (missing files map)', () => {
-  it('the store REJECTS a typed baseline missing its files map (shape-check, points at --upgrade)', async () => {
+  it('the store REJECTS a typed baseline missing its files map (shape-check, points at restore-or-delete, NOT --upgrade)', async () => {
     const { tmpDir, yggRoot } = await createTmpProject('missing-files-baseline', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - testing\nmapping:\n  - src/svc/\n',
@@ -470,8 +470,9 @@ describe('approveNode — corrupted baseline (missing files map)', () => {
       '## [2026-05-11T10:00:00.000Z]\nChange rationale.\n',
     );
     // Hand-corrupted schemaVersion-1 baseline that dropped its required `files`
-    // map. The store shape-checks at the read boundary and rejects it — single-
-    // format runtime never tolerates a malformed baseline.
+    // map. The store shape-checks at the read boundary and rejects it with a
+    // restore-or-delete message — NOT yg init --upgrade (that is for a version
+    // mismatch, not corruption of a current-version baseline).
     const { writeFile: wf, mkdir } = await import('node:fs/promises');
     await mkdir(path.join(yggRoot, '.drift-state', 'svc'), { recursive: true });
     await wf(
@@ -481,9 +482,11 @@ describe('approveNode — corrupted baseline (missing files map)', () => {
     );
 
     const graph = await loadGraph(tmpDir);
-    // approveNode reads the baseline via the store, which throws an
-    // upgrade-pointing OutdatedDriftBaselineError on the malformed shape.
-    await expect(approveNode(graph, 'svc/my-service')).rejects.toThrow(/yg init --upgrade/);
+    // approveNode reads the baseline via the store, which throws a plain Error
+    // pointing at restore-from-git or re-approve (NOT yg init --upgrade, which
+    // is for version-mismatch, not corruption of a current-version baseline).
+    await expect(approveNode(graph, 'svc/my-service')).rejects.toThrow(/re-run `yg approve --node/);
+    await expect(approveNode(graph, 'svc/my-service')).rejects.not.toThrow(/yg init --upgrade/);
     await rm(tmpDir, { recursive: true, force: true });
   });
 });

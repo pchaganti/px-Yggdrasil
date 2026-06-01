@@ -243,7 +243,7 @@ async function classifyNodeDrift(
       cascadeCauses.push({
         file: identityCauseToken(cause),
         layer: identityCauseLayerOf(cause),
-        description: describeIdentityCause(cause, graph),
+        description: describeIdentityCause(cause),
         identity: cause,
       });
     }

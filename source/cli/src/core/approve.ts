@@ -21,6 +21,7 @@ import {
   diffIdentity,
   identityCauseToken,
   identityCauseLayer,
+  buildCheckTouchedOwnerMap,
 } from './drift-cause.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import { computeEffectiveAspects, computeEffectiveAspectStatuses, hasNonDraftEffectiveAspects } from './graph/aspects.js';
@@ -276,16 +277,7 @@ export async function approveNode(
   // cross-node touched POSIX path → owning deterministic aspect id(s), from the
   // stored typed identity. Attributes a check-touched real-file content change
   // to its owning aspect without a baseline re-read.
-  const checkTouchedOwners = new Map<string, string[]>();
-  for (const [aspectId, ai] of Object.entries(storedEntry.identity.aspects)) {
-    if (!ai.checkTouched) continue;
-    for (const p of Object.keys(ai.checkTouched)) {
-      const norm = toPosixPath(p);
-      const list = checkTouchedOwners.get(norm) ?? [];
-      list.push(aspectId);
-      checkTouchedOwners.set(norm, list);
-    }
-  }
+  const checkTouchedOwners = buildCheckTouchedOwnerMap(storedEntry.identity);
 
   // Check current vs stored
   for (const [filePath, hash] of Object.entries(fileHashes)) {
@@ -421,7 +413,7 @@ export async function approveNode(
  * Gate-only mandatory-log check for an ALL-DRAFT node. Enforces the log
  * requirement (a source change on a `log_required` node needs a fresh entry)
  * WITHOUT running GC or touching the baseline — so the node's prior baseline
- * (and its carried-forward checkTouchedFiles) is preserved across a draft toggle.
+ * (and its carried-forward identity.aspects[id].checkTouched) is preserved across a draft toggle.
  * Returns a refusal result, or null when the gate passes. The reviewer is skipped
  * for an all-draft node, but the log gate is NOT — it is independent of aspect
  * status. The CLI uses this instead of a full approveNode for the all-draft case.

@@ -33,7 +33,7 @@ function hasAnyCheckTouched(identity: DriftIdentity): boolean {
  * Run every deterministic aspect in the plan — former-ast and structure aspects
  * alike (graph-shape + fs verification, no LLM call). Records results/violations
  * and persists each aspect's touched-file hashes into
- * result.pendingDriftState.state.checkTouchedFiles. Cross-node touched paths
+ * result.pendingDriftState.state.identity.aspects[id].checkTouched. Cross-node touched paths
  * are hashed from disk but kept OUT of state.files (see inline note).
  */
 async function dispatchStructureAspects(

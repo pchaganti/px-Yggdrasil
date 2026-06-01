@@ -732,17 +732,17 @@ describe('describeCascadeCause', () => {
   });
 
   it('identity cause: checkTouchedSet → names the deterministic aspect read-set', () => {
-    const out = describeIdentityCause({ kind: 'checkTouchedSet', aspectId: 'det-x' }, graph);
+    const out = describeIdentityCause({ kind: 'checkTouchedSet', aspectId: 'det-x' });
     expect(out).toContain("the set of files read by deterministic aspect 'det-x'");
   });
 
   it('identity cause: tier → names the aspect tier', () => {
-    const out = describeIdentityCause({ kind: 'tier', aspectId: 'llm-x' }, graph);
+    const out = describeIdentityCause({ kind: 'tier', aspectId: 'llm-x' });
     expect(out).toContain("the resolved reviewer tier for aspect 'llm-x'");
   });
 
   it('identity cause: aspectMeta → names the aspect definition', () => {
-    const out = describeIdentityCause({ kind: 'aspectMeta', aspectId: 'm-x' }, graph);
+    const out = describeIdentityCause({ kind: 'aspectMeta', aspectId: 'm-x' });
     expect(out).toContain("the definition of aspect 'm-x' changed");
   });
 
@@ -777,7 +777,7 @@ describe('describeCascadeCause', () => {
   });
 
   it('identity cause: ownSubset → node own metadata changed (not "unknown")', () => {
-    const out = describeIdentityCause({ kind: 'ownSubset', nodePath: 'services/orders' }, graph);
+    const out = describeIdentityCause({ kind: 'ownSubset', nodePath: 'services/orders' });
     expect(out).toContain("node 'services/orders' own metadata changed");
     expect(out).not.toContain("'unknown'");
     expect(out).not.toContain('parent node');
@@ -799,7 +799,7 @@ describe('describeCascadeCause', () => {
   });
 
   it('identity cause: port → dependency port aspects changed (not "unknown")', () => {
-    const out = describeIdentityCause({ kind: 'port', targetPath: 'services/payments' }, graph);
+    const out = describeIdentityCause({ kind: 'port', targetPath: 'services/payments' });
     expect(out).toContain("dependency 'services/payments' port aspects changed");
     expect(out).not.toContain("'unknown'");
   });

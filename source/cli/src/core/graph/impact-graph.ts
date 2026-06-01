@@ -164,9 +164,9 @@ export function collectIndirectDependents(
  * Unified through collectTrackedFiles (precise) and collectAllowedReadsForAspect
  * (cold-start) so it cannot diverge from `yg check`'s check-touched drift.
  *   - precise (post-approve): the node's baseline records the file in
- *     checkTouchedFiles, so collectTrackedFiles(node, graph, baseline) emits
+ *     identity.aspects[id].checkTouched, so collectTrackedFiles(node, graph, baseline) emits
  *     it under the 'check-touched' layer.
- *   - potential (cold-start, no checkTouchedFiles baseline yet): the file is
+ *   - potential (cold-start, no identity.aspects[id].checkTouched baseline yet): the file is
  *     in the node's allowed-reads set for its structure aspect — editing it MAY
  *     cascade once the node is approved.
  * The structural owner (if any) is excluded — it is handled separately.

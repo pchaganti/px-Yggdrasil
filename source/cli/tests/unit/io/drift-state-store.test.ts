@@ -152,6 +152,25 @@ describe('drift-state-store', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
+  it('rejects a corrupt v1 baseline (correct schemaVersion but missing fields) with restore-or-delete advice, NOT --upgrade', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-drift-corrupt-v1');
+    const driftDir = path.join(tmpDir, '.drift-state');
+    await mkdir(driftDir, { recursive: true });
+    // schemaVersion is current (1), but required fields are absent — simulates hand-editing.
+    await writeFile(
+      path.join(driftDir, 'svc.json'),
+      JSON.stringify({ schemaVersion: DRIFT_STATE_SCHEMA_VERSION }),
+      'utf-8',
+    );
+
+    await expect(readNodeDriftState(tmpDir, 'svc')).rejects.not.toThrow(OutdatedDriftBaselineError);
+    await expect(readNodeDriftState(tmpDir, 'svc')).rejects.toThrow(/re-run `yg approve --node/);
+    // Must NOT suggest yg init --upgrade for a corrupt-current-version baseline
+    await expect(readNodeDriftState(tmpDir, 'svc')).rejects.not.toThrow(/yg init --upgrade/);
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
   it('returns empty when .drift-state is a file instead of directory', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-drift-file-fallback');
     await mkdir(tmpDir, { recursive: true });

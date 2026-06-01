@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "342438bc1f20000073959dec91b16008edc9c36b36d813c2476b72ecceef0a05",
+  "hash": "2127a5ea1468010c9bafdb85b7e4d0872958c624820cddbdae51915ce94a1a14",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
@@ -14,11 +14,11 @@
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
     "source/cli/src/core/graph/aspects.ts": "1a7e85c742f69285fd7ac88f5d219c6af62ce05a3a272322429c8f292f550082",
     "source/cli/src/core/graph/dependencies.ts": "ef894f905b8a3b48edae8ca053c1a93f1d85b6e6ab8ad852e3d8fb8021334966",
-    "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
-    "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b",
     "source/cli/src/core/graph/files.ts": "6932bfe1289e6077d6af86f121f6b7e3d6c174d187c5e93cf785926807aa17c9",
-    "source/cli/src/core/graph/impact-graph.ts": "fe84c4061dd695138f8980677349832315d72314a36a9e444ce18222c6d29b74",
-    "source/cli/src/core/graph/index.ts": "62d2ed23b266a97b721bd6eff7e1d69e716793fb901ad9480ebc2cfbaaf21ced"
+    "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
+    "source/cli/src/core/graph/index.ts": "62d2ed23b266a97b721bd6eff7e1d69e716793fb901ad9480ebc2cfbaaf21ced",
+    "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b",
+    "source/cli/src/core/graph/impact-graph.ts": "ad0277cd2d6f9091092eb5f5bf21b634b8d94428c5eb079328994bfd62d489cb"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -35,7 +35,7 @@
     "source/cli/src/core/graph/dependencies.ts": 1778959819575.0183,
     "source/cli/src/core/graph/files.ts": 1780294477729.8113,
     "source/cli/src/core/graph/flows.ts": 1778958982525.8142,
-    "source/cli/src/core/graph/impact-graph.ts": 1780291792741.7598,
+    "source/cli/src/core/graph/impact-graph.ts": 1780297162287.2415,
     "source/cli/src/core/graph/index.ts": 1780291218321.993,
     "source/cli/src/core/graph/traversal.ts": 1778958972950.3818
   },
@@ -54,7 +54,7 @@
           "source/cli/src/core/graph/dependencies.ts": "ef894f905b8a3b48edae8ca053c1a93f1d85b6e6ab8ad852e3d8fb8021334966",
           "source/cli/src/core/graph/files.ts": "6932bfe1289e6077d6af86f121f6b7e3d6c174d187c5e93cf785926807aa17c9",
           "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
-          "source/cli/src/core/graph/impact-graph.ts": "fe84c4061dd695138f8980677349832315d72314a36a9e444ce18222c6d29b74",
+          "source/cli/src/core/graph/impact-graph.ts": "ad0277cd2d6f9091092eb5f5bf21b634b8d94428c5eb079328994bfd62d489cb",
           "source/cli/src/core/graph/index.ts": "62d2ed23b266a97b721bd6eff7e1d69e716793fb901ad9480ebc2cfbaaf21ced",
           "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b"
         }
@@ -66,7 +66,7 @@
           "source/cli/src/core/graph/dependencies.ts": "ef894f905b8a3b48edae8ca053c1a93f1d85b6e6ab8ad852e3d8fb8021334966",
           "source/cli/src/core/graph/files.ts": "6932bfe1289e6077d6af86f121f6b7e3d6c174d187c5e93cf785926807aa17c9",
           "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
-          "source/cli/src/core/graph/impact-graph.ts": "fe84c4061dd695138f8980677349832315d72314a36a9e444ce18222c6d29b74",
+          "source/cli/src/core/graph/impact-graph.ts": "ad0277cd2d6f9091092eb5f5bf21b634b8d94428c5eb079328994bfd62d489cb",
           "source/cli/src/core/graph/index.ts": "62d2ed23b266a97b721bd6eff7e1d69e716793fb901ad9480ebc2cfbaaf21ced",
           "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b"
         }
@@ -78,7 +78,7 @@
           "source/cli/src/core/graph/dependencies.ts": "ef894f905b8a3b48edae8ca053c1a93f1d85b6e6ab8ad852e3d8fb8021334966",
           "source/cli/src/core/graph/files.ts": "6932bfe1289e6077d6af86f121f6b7e3d6c174d187c5e93cf785926807aa17c9",
           "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
-          "source/cli/src/core/graph/impact-graph.ts": "fe84c4061dd695138f8980677349832315d72314a36a9e444ce18222c6d29b74",
+          "source/cli/src/core/graph/impact-graph.ts": "ad0277cd2d6f9091092eb5f5bf21b634b8d94428c5eb079328994bfd62d489cb",
           "source/cli/src/core/graph/index.ts": "62d2ed23b266a97b721bd6eff7e1d69e716793fb901ad9480ebc2cfbaaf21ced",
           "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b"
         }
@@ -90,7 +90,7 @@
           "source/cli/src/core/graph/dependencies.ts": "ef894f905b8a3b48edae8ca053c1a93f1d85b6e6ab8ad852e3d8fb8021334966",
           "source/cli/src/core/graph/files.ts": "6932bfe1289e6077d6af86f121f6b7e3d6c174d187c5e93cf785926807aa17c9",
           "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
-          "source/cli/src/core/graph/impact-graph.ts": "fe84c4061dd695138f8980677349832315d72314a36a9e444ce18222c6d29b74",
+          "source/cli/src/core/graph/impact-graph.ts": "ad0277cd2d6f9091092eb5f5bf21b634b8d94428c5eb079328994bfd62d489cb",
           "source/cli/src/core/graph/index.ts": "62d2ed23b266a97b721bd6eff7e1d69e716793fb901ad9480ebc2cfbaaf21ced",
           "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b"
         }
@@ -102,7 +102,7 @@
           "source/cli/src/core/graph/dependencies.ts": "ef894f905b8a3b48edae8ca053c1a93f1d85b6e6ab8ad852e3d8fb8021334966",
           "source/cli/src/core/graph/files.ts": "6932bfe1289e6077d6af86f121f6b7e3d6c174d187c5e93cf785926807aa17c9",
           "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
-          "source/cli/src/core/graph/impact-graph.ts": "fe84c4061dd695138f8980677349832315d72314a36a9e444ce18222c6d29b74",
+          "source/cli/src/core/graph/impact-graph.ts": "ad0277cd2d6f9091092eb5f5bf21b634b8d94428c5eb079328994bfd62d489cb",
           "source/cli/src/core/graph/index.ts": "62d2ed23b266a97b721bd6eff7e1d69e716793fb901ad9480ebc2cfbaaf21ced",
           "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b"
         }
@@ -130,7 +130,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-01T06:20:25.463Z",
-    "prefix_hash": "c80264620dd454a8719c0be7dafe115ed9bcdce890231c0278c61e5995ae8c68"
+    "last_entry_datetime": "2026-06-01T07:03:40.471Z",
+    "prefix_hash": "a8050ed305d47227977b8ee9fcbe2829697c625374434ce93584f32e0fce1608"
   }
 }

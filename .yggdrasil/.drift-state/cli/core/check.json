@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "83967b8f055e73e5b011e0e1449b64966917ddb66e1edd536a26692e67b456ff",
+  "hash": "8b3b1c509c5ede854f8458cec49e2aa6a484fb347f843eac47cabf3ef3d364ab",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
@@ -18,7 +18,7 @@
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
     ".yggdrasil/model/cli/model/drift/yg-node.yaml": "8818cf691e94ebf918022c7af9ff4f200a3d9cdf4a95a0e10f7e3c476e12320e",
     ".yggdrasil/model/cli/model/validation/yg-node.yaml": "0a96c3bcb0c32f24e4978d1350be8f91e4284aa323734801e7abcc2ed014120f",
-    "source/cli/src/core/check.ts": "f502b0d9d87e88f789d0a8ac647f2e86be42a9e192c50b0eabc2e3e75bac5023"
+    "source/cli/src/core/check.ts": "1cc4757727fab81e2624f665b648844c904fafebcd459eb739320869490108a6"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -37,7 +37,7 @@
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     ".yggdrasil/model/cli/model/drift/yg-node.yaml": 1776177846203.4216,
     ".yggdrasil/model/cli/model/validation/yg-node.yaml": 1776177846203.675,
-    "source/cli/src/core/check.ts": 1780294518122.977
+    "source/cli/src/core/check.ts": 1780297173692.2727
   },
   "identity": {
     "ownSubset": "93cb99183b0720c8426edb8b0f7c98ef5bfe89ac00a4971eb326f3db25cb71bd",
@@ -58,31 +58,31 @@
       "no-nondeterminism-direct": {
         "meta": "6e2986f1175fc284d63accb9209518c0d99994114f1ad9d30f91df11498a75ca",
         "checkTouched": {
-          "source/cli/src/core/check.ts": "f502b0d9d87e88f789d0a8ac647f2e86be42a9e192c50b0eabc2e3e75bac5023"
+          "source/cli/src/core/check.ts": "1cc4757727fab81e2624f665b648844c904fafebcd459eb739320869490108a6"
         }
       },
       "no-direct-fs": {
         "meta": "85008a60917fc599d6fbfcfb2af8e0d4e563f4eaeff9c8da8a5722aef696b948",
         "checkTouched": {
-          "source/cli/src/core/check.ts": "f502b0d9d87e88f789d0a8ac647f2e86be42a9e192c50b0eabc2e3e75bac5023"
+          "source/cli/src/core/check.ts": "1cc4757727fab81e2624f665b648844c904fafebcd459eb739320869490108a6"
         }
       },
       "no-direct-console": {
         "meta": "84cef429198884b3dcc2076061e164d50d97b011724d2f357350ede01f4fa975",
         "checkTouched": {
-          "source/cli/src/core/check.ts": "f502b0d9d87e88f789d0a8ac647f2e86be42a9e192c50b0eabc2e3e75bac5023"
+          "source/cli/src/core/check.ts": "1cc4757727fab81e2624f665b648844c904fafebcd459eb739320869490108a6"
         }
       },
       "posix-paths-source": {
         "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
         "checkTouched": {
-          "source/cli/src/core/check.ts": "f502b0d9d87e88f789d0a8ac647f2e86be42a9e192c50b0eabc2e3e75bac5023"
+          "source/cli/src/core/check.ts": "1cc4757727fab81e2624f665b648844c904fafebcd459eb739320869490108a6"
         }
       },
       "single-source-graph-queries": {
         "meta": "b1dd772529ca4799de41809e1e615c58ab58fba6b861920dd646786ff43ad9c2",
         "checkTouched": {
-          "source/cli/src/core/check.ts": "f502b0d9d87e88f789d0a8ac647f2e86be42a9e192c50b0eabc2e3e75bac5023"
+          "source/cli/src/core/check.ts": "1cc4757727fab81e2624f665b648844c904fafebcd459eb739320869490108a6"
         }
       }
     }
@@ -114,7 +114,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-01T06:20:25.280Z",
-    "prefix_hash": "1ca5d74ad024d2d05eb4b1c7a9f93c7d8af1075fc615f63a7ec55fd6d5451145"
+    "last_entry_datetime": "2026-06-01T07:03:30.364Z",
+    "prefix_hash": "07dd0791a42a906a6c02ff24a854ec344857a48c455e704dc0d40ff9688bc120"
   }
 }

@@ -189,7 +189,7 @@ export function buildCheckTouchedOwnerMap(identity: DriftIdentity): Map<string, 
  * reviewer tier, deterministic read-set, dependency port aspects). The typed
  * replacement for the former synthetic-key string parsing.
  */
-export function describeIdentityCause(cause: IdentityCause, _graph: Graph): string {
+export function describeIdentityCause(cause: IdentityCause): string {
   const token = identityCauseToken(cause);
   switch (cause.kind) {
     case 'ownSubset':
