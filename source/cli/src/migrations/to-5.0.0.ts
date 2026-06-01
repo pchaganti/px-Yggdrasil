@@ -1,4 +1,4 @@
-import { readFile, writeFile, readdir } from 'node:fs/promises';
+import { readFile, writeFile, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { MigrationResult } from '../core/migrator.js';
@@ -10,6 +10,9 @@ import {
 import { inspectSecretsForValidation } from '../io/secrets-parser.js';
 import { addAspectStatusDefaults } from './aspect-status-defaults.js';
 import { toPosix } from '../utils/posix.js';
+import { rekeyDriftBaseline, type FlatDriftBaseline } from '../core/drift-state-rekey.js';
+import { writeNodeDriftState } from '../io/drift-state-store.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../model/drift.js';
 
 const PROVIDER_SET = new Set<string>(KNOWN_PROVIDERS);
 const AST_STRING = 'ast';
@@ -370,6 +373,162 @@ async function migrateSecretsFile(
   }
 }
 
+// ── drift-state baselines ─────────────────────────────────────
+
+const DRIFT_STATE_DIR = '.drift-state';
+
+/**
+ * Recursively collect every `*.json` baseline file under `.drift-state/`,
+ * returning node paths (POSIX, without the `.json` suffix) relative to the
+ * drift-state root. Mirrors the runtime store's scan so the migration sees the
+ * same set of baselines the runtime would read.
+ */
+async function scanDriftBaselineNodePaths(driftDir: string, relDir: string): Promise<string[]> {
+  const absDir = path.join(driftDir, relDir);
+  let entries;
+  try {
+    entries = await readdir(absDir, { withFileTypes: true });
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw e;
+  }
+  const results: string[] = [];
+  for (const entry of entries) {
+    const childRel = relDir === '' ? entry.name : `${relDir}/${entry.name}`;
+    if (entry.isDirectory()) {
+      results.push(...(await scanDriftBaselineNodePaths(driftDir, childRel)));
+    } else if (entry.isFile() && entry.name.endsWith('.json')) {
+      results.push(toPosix(childRel).replace(/\.json$/, ''));
+    }
+  }
+  return results;
+}
+
+/**
+ * Re-key one on-disk drift-state baseline from the old flat synthetic-key shape
+ * into the typed DriftNodeState format, in place.
+ *
+ * Idempotency: a baseline already at the current `schemaVersion` is left
+ * untouched (the typed runtime owns it; `rekeyDriftBaseline` only understands
+ * the OLD shape, so re-keying it would be meaningless). Re-running the whole
+ * migration is therefore a safe no-op for already-migrated baselines.
+ *
+ * Safe degradation: a baseline that cannot be parsed or re-keyed is DELETED so
+ * the node surfaces as drift (the adopter re-approves just that node) and a
+ * warning naming the file is recorded. A partially-transformed/corrupt baseline
+ * is never written back.
+ *
+ * Pre-verdict synthesis (the relocated `isLegacyBaseline` "treat-as-approved"
+ * choice): the pure `rekeyDriftBaseline` synthesizes `aspectVerdicts: {}` when
+ * the source baseline carried none. Here — at the migration boundary, derived
+ * purely from the baseline with NO graph loading — we upgrade that `{}` to an
+ * `approved` verdict for each aspect id present in the re-keyed identity, so the
+ * aspects effective at the last approve are treated as previously-approved
+ * rather than flooding the first post-upgrade `yg check` with newly-active
+ * aspects. When the original baseline already carried `aspectVerdicts`, they are
+ * preserved unchanged. When a pre-verdict baseline has no per-aspect identity at
+ * all, `{}` is kept and a warning is recorded.
+ */
+async function migrateOneDriftBaseline(
+  yggRoot: string,
+  driftDir: string,
+  nodePath: string,
+  actions: string[],
+  warnings: string[],
+): Promise<void> {
+  const filePath = path.join(driftDir, `${nodePath}.json`);
+  const displayPath = toPosix(path.join(DRIFT_STATE_DIR, `${nodePath}.json`));
+
+  let parsed: unknown;
+  try {
+    const content = await readFile(filePath, 'utf-8');
+    parsed = JSON.parse(content);
+  } catch (e) {
+    // Unreadable or unparseable → delete so the node re-approves; never leave a
+    // half-readable baseline that the runtime would reject mid-build.
+    await rm(filePath, { force: true });
+    warnings.push(
+      `${displayPath}: drift-state baseline could not be parsed (${(e as Error).message}) — deleted. ` +
+        `The node will surface as drift; re-run \`yg approve --node ${nodePath}\` to rebuild it.`,
+    );
+    return;
+  }
+
+  // Idempotency guard: a baseline already at the current schema is owned by the
+  // typed runtime. rekeyDriftBaseline only understands the OLD flat shape, so
+  // skip it silently — a clean re-run of the migration touches nothing.
+  if (
+    parsed !== null &&
+    typeof parsed === 'object' &&
+    (parsed as Record<string, unknown>).schemaVersion === DRIFT_STATE_SCHEMA_VERSION
+  ) {
+    return;
+  }
+
+  const flat = parsed as FlatDriftBaseline;
+  const hadAspectVerdicts = flat !== null && typeof flat === 'object' && 'aspectVerdicts' in flat;
+
+  let typed;
+  try {
+    typed = rekeyDriftBaseline(flat);
+  } catch (e) {
+    await rm(filePath, { force: true });
+    warnings.push(
+      `${displayPath}: drift-state baseline could not be re-keyed (${(e as Error).message}) — deleted. ` +
+        `The node will surface as drift; re-run \`yg approve --node ${nodePath}\` to rebuild it.`,
+    );
+    return;
+  }
+
+  // Pre-verdict synthesis: only when the ORIGINAL baseline carried no
+  // aspectVerdicts field at all. rekeyDriftBaseline preserves an existing map
+  // and synthesizes {} when absent; here we promote that {} to approved per
+  // effective aspect id, purely from the re-keyed identity.
+  if (!hadAspectVerdicts) {
+    const aspectIds = Object.keys(typed.identity.aspects);
+    if (aspectIds.length === 0) {
+      warnings.push(
+        `${displayPath}: pre-verdict baseline carried no per-aspect identity — ` +
+          `aspectVerdicts left empty. The node may surface newly-active aspects on the next \`yg check\`; ` +
+          `re-run \`yg approve --node ${nodePath}\` to record verdicts.`,
+      );
+    } else {
+      typed.aspectVerdicts = {};
+      for (const id of aspectIds) {
+        typed.aspectVerdicts[id] = { verdict: 'approved' };
+      }
+    }
+  }
+
+  // writeNodeDriftState stamps schemaVersion and writes atomically (temp + rename).
+  await writeNodeDriftState(yggRoot, nodePath, typed);
+  actions.push(`${displayPath}: re-keyed drift-state baseline to typed format.`);
+}
+
+/**
+ * Re-key every on-disk drift-state baseline to the typed format. Lossless: the
+ * canonical hash is recomputed over the same logical inputs, so a fresh
+ * `yg check` over unchanged source sees no drift. Replaces the v4-era reset
+ * (which deleted every baseline) with a lossless in-place upgrade.
+ */
+async function migrateDriftState(
+  yggRoot: string,
+  actions: string[],
+  warnings: string[],
+): Promise<void> {
+  const driftDir = path.join(yggRoot, DRIFT_STATE_DIR);
+  let nodePaths: string[];
+  try {
+    nodePaths = await scanDriftBaselineNodePaths(driftDir, '');
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return;
+    throw e;
+  }
+  for (const nodePath of nodePaths.sort()) {
+    await migrateOneDriftBaseline(yggRoot, driftDir, nodePath, actions, warnings);
+  }
+}
+
 // ── main migration ────────────────────────────────────────────
 
 export async function migrateTo50(yggRoot: string): Promise<MigrationResult> {
@@ -382,6 +541,7 @@ export async function migrateTo50(yggRoot: string): Promise<MigrationResult> {
   }
   await migrateSecretsFile(yggRoot, actions, warnings);
   await addAspectStatusDefaults(yggRoot, warnings);
+  await migrateDriftState(yggRoot, actions, warnings);
 
   const bumpVersion = warnings.length === 0;
   if (bumpVersion) {

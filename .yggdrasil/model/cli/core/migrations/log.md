@@ -48,3 +48,23 @@ Replaced the hand-inlined path-separator normalization with calls to a single sh
 Relocated format-detect.ts (legacy-shape predicates) from core/ into migrations/. Runtime parsers no longer import or depend on these predicates — a 5.0-version graph with an old reviewer shape now yields a generic validation error from the parser. The migration remains the only code that understands and transforms old shapes, so keeping the predicates here prevents accidental reuse in runtime paths while preserving the migration's ability to detect and transform pre-tier configs and aspects.
 ## [2026-05-31T22:09:56.531Z]
 Updated to-5.0.0.ts import from core/format-version.ts to core/format-detect.ts (renamed during the legacy-detection relocation). The format-detect module now has its own engine node; the migration uses it via a declared dependency.
+## [2026-06-01T07:20:40.430Z]
+The 5.0 schema introduced a typed drift-state baseline format (a structured identity block plus a required per-aspect verdict map), replacing an older flat shape that stuffed upstream-identity information into synthetic string keys inside the file map. Adopters upgrading across this boundary carry on-disk baselines in the old flat shape. Earlier major upgrades simply deleted all baselines, which forced a full re-approval of every node — costly and noisy for adopters with large graphs.
+
+This migration instead re-keys each baseline losslessly: the same logical inputs are reshaped into the typed format and the canonical hash is recomputed over them, so a clean check over unchanged source sees no drift and no re-approval is needed. Deleting baselines is reserved for the safe-degradation path only.
+
+Three deliberate choices, all derivable from the baseline file alone (no graph load, keeping the migration cheap and side-effect-free):
+
+### Pre-verdict synthesis
+
+A baseline written before per-aspect verdicts existed has no verdict map at all. Treating that as "nothing approved" would flood the first post-upgrade check with every effective aspect appearing newly active. Instead, when the original baseline carried no verdict map, each aspect already present in the re-keyed identity is recorded as approved — reproducing "the aspects effective at the last approve were approved." When the baseline already carried a verdict map (even an empty one), it is preserved verbatim; synthesis must never overwrite a recorded refusal or an intentional empty map. When a pre-verdict baseline has no per-aspect identity at all, the verdict map is left empty and a warning is emitted, because there is nothing to mark approved.
+
+### Safe degradation
+
+A baseline that cannot be parsed or cannot be reshaped is deleted rather than partially rewritten, and a warning names the file. The owning node then surfaces as drift so the adopter re-approves exactly that one node. A half-transformed baseline must never be written, because the runtime read path rejects malformed current-format baselines and would break the build mid-upgrade.
+
+### Idempotency
+
+A baseline already at the current schema is owned by the runtime and is skipped untouched, so re-running the upgrade (including after an interruption) changes nothing. The reshape transform only understands the old shape, so re-applying it to an already-typed baseline would be meaningless; the schema-version guard prevents that.
+
+The reshape transform itself stays a pure, I/O-free helper; the approved-synthesis, the corrupt-file deletion, and the version-bookkeeping all live here at the migration boundary, where warnings withhold the version bump until the adopter has re-approved any nodes whose baselines could not be carried forward.
