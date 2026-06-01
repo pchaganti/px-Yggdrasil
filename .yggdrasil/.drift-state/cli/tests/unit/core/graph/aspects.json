@@ -1,5 +1,6 @@
 {
-  "hash": "eff0470b144c74df13b906c0d0709be99de97f375e17f30db87c564743c14bd7",
+  "schemaVersion": 1,
+  "hash": "183c554d559288376ad70ac9625575226d71170d964b72253cc8dbaab53b8ff2",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -8,10 +9,22 @@
     ".yggdrasil/model/cli/tests/unit/core/graph/yg-node.yaml": "3c8d8895c7e571942bc838c5f1995df4a574b9cf0a55d3c728a6154d039a3058",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/core/graph/aspect-status.test.ts": "2ff5fe66184e89aa001acaf1aed517fc053c0a1ee623ba869892b036138a3107",
-    "source/cli/tests/unit/core/graph/aspects-cascade-characterization.test.ts": "2a28d692ab39bc236ed75fe891622db059a8420e41dd056d58bab7e0270576a9",
-    "own-subset:cli/tests/unit/core/graph/aspects": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+    "source/cli/tests/unit/core/graph/aspects-cascade-characterization.test.ts": "2a28d692ab39bc236ed75fe891622db059a8420e41dd056d58bab7e0270576a9"
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -22,10 +35,5 @@
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/core/graph/aspect-status.test.ts": 1780064765039.7664,
     "source/cli/tests/unit/core/graph/aspects-cascade-characterization.test.ts": 1780118814493.0112
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
   }
 }

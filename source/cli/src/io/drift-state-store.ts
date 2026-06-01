@@ -1,11 +1,62 @@
 import { readFile, stat, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import type { DriftState, DriftNodeState } from '../model/drift.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../model/drift.js';
 import { debugWrite } from '../utils/debug-log.js';
 import { atomicWriteFile } from '../io/atomic-write.js';
 import { toPosix } from '../utils/posix.js';
+import { buildIssueMessage } from '../formatters/message-builder.js';
 
 const DRIFT_STATE_DIR = '.drift-state';
+
+/**
+ * Thrown when a baseline on disk lacks the current schemaVersion. Such a
+ * baseline predates the typed drift-state format and must be re-keyed by the
+ * migration (core/drift-state-rekey.ts via `yg init --upgrade`) — the
+ * single-format runtime never parses an old baseline. This is the second net
+ * behind the graph-loader version gate, scoped to baselines specifically.
+ */
+export class OutdatedDriftBaselineError extends Error {
+  constructor(nodePath: string, found: unknown) {
+    super(
+      buildIssueMessage({
+        what: `the drift-state baseline for node '${nodePath}' has schemaVersion ${JSON.stringify(found)}, not ${DRIFT_STATE_SCHEMA_VERSION}`,
+        why: 'this CLI reads only the current typed baseline format; a baseline with an absent or unrecognized schemaVersion predates it and is upgraded by a migration, never parsed directly',
+        next: 'run `yg init --upgrade` to migrate the .yggdrasil graph (including drift-state baselines) to the current format, then re-run',
+      }),
+    );
+    this.name = 'OutdatedDriftBaselineError';
+  }
+}
+
+/**
+ * Validate the parsed baseline's schemaVersion and required shape at the
+ * read boundary. Returns the value typed as DriftNodeState, or throws
+ * OutdatedDriftBaselineError when the version is absent/unrecognized.
+ */
+function validateBaselineShape(nodePath: string, parsed: unknown): DriftNodeState {
+  if (parsed === null || typeof parsed !== 'object') {
+    throw new OutdatedDriftBaselineError(nodePath, undefined);
+  }
+  const obj = parsed as Record<string, unknown>;
+  if (obj.schemaVersion !== DRIFT_STATE_SCHEMA_VERSION) {
+    throw new OutdatedDriftBaselineError(nodePath, obj.schemaVersion);
+  }
+  // A schemaVersion-1 baseline MUST carry the required typed fields. A missing
+  // field means the file was hand-corrupted (or written by buggy/foreign code);
+  // reject it rather than letting runtime crash on undefined access. The
+  // upgrade pointer is the recovery path (restore from git, or re-approve).
+  const isRecord = (v: unknown): boolean => v !== null && typeof v === 'object' && !Array.isArray(v);
+  if (
+    typeof obj.hash !== 'string' ||
+    !isRecord(obj.files) ||
+    !isRecord(obj.identity) ||
+    !isRecord(obj.aspectVerdicts)
+  ) {
+    throw new OutdatedDriftBaselineError(nodePath, obj.schemaVersion);
+  }
+  return parsed as DriftNodeState;
+}
 
 /** Convert node path to per-node state file path under .drift-state/ */
 function nodeStatePath(yggRoot: string, nodePath: string): string {
@@ -61,20 +112,31 @@ async function removeEmptyParents(filePath: string, stopDir: string): Promise<vo
   }
 }
 
-/** Read a single node's drift state from .drift-state/<nodePath>.json */
+/**
+ * Read a single node's drift state from .drift-state/<nodePath>.json.
+ *
+ * A missing or unparseable file reads as `undefined` (cold start / graceful
+ * skip of corrupt JSON). A file that parses but lacks the current
+ * schemaVersion is an OLD baseline — that throws OutdatedDriftBaselineError so
+ * the runtime never silently treats a stale baseline as a cold start (which
+ * would go green over unverified code). Version validation runs OUTSIDE the
+ * parse try so the upgrade-pointing error propagates rather than being
+ * swallowed as a corrupt-file skip.
+ */
 export async function readNodeDriftState(
   yggRoot: string,
   nodePath: string,
 ): Promise<DriftNodeState | undefined> {
+  let parsed: unknown;
   try {
     const filePath = nodeStatePath(yggRoot, nodePath);
     const content = await readFile(filePath, 'utf-8');
-    const parsed = JSON.parse(content) as DriftNodeState;
-    return parsed;
+    parsed = JSON.parse(content);
   } catch (err) {
     debugWrite(`[drift-state-store] readNodeDriftState: ${(err as Error).message}`);
     return undefined;
   }
+  return validateBaselineShape(nodePath, parsed);
 }
 
 /** Write a single node's drift state to .drift-state/<nodePath>.json */
@@ -84,7 +146,11 @@ export async function writeNodeDriftState(
   nodeState: DriftNodeState,
 ): Promise<void> {
   const filePath = nodeStatePath(yggRoot, nodePath);
-  const content = JSON.stringify(nodeState, null, 2) + '\n';
+  // Stamp the current schemaVersion on every write so producers cannot emit an
+  // unversioned baseline (the read store rejects those). schemaVersion is
+  // serialized first for readability.
+  const stamped: DriftNodeState = { ...nodeState, schemaVersion: DRIFT_STATE_SCHEMA_VERSION };
+  const content = JSON.stringify(stamped, null, 2) + '\n';
   await atomicWriteFile(filePath, content);
 }
 
@@ -97,11 +163,11 @@ export async function writeNodeDriftState(
  * must be cleared to keep the baseline consistent with what the reviewer
  * actually evaluated.
  *
- * No-op when the node has no stored state, no aspectVerdicts field, or when
- * none of the requested IDs are present. If removal empties the aspectVerdicts
- * map, the field is dropped entirely (matches initial-write shape).
+ * No-op when the node has no stored state or when none of the requested IDs
+ * are present. aspectVerdicts is required (may be `{}`) — when removal empties
+ * it, the empty map is retained, not dropped.
  *
- * For deterministic aspects, `checkTouchedFiles` is NOT
+ * For deterministic aspects, `identity.aspects[id].checkTouched` is NOT
  * cleared here — it is preserved across draft toggle so the next non-draft
  * approve can compare against the previous baseline.
  */
@@ -111,7 +177,7 @@ export async function clearDraftAspectsFromDriftState(
   aspectIdsToClear: Set<string>,
 ): Promise<void> {
   const state = await readNodeDriftState(yggRoot, nodePath);
-  if (!state?.aspectVerdicts) return;
+  if (!state) return;
   let mutated = false;
   for (const id of aspectIdsToClear) {
     if (id in state.aspectVerdicts) {
@@ -120,9 +186,6 @@ export async function clearDraftAspectsFromDriftState(
     }
   }
   if (!mutated) return;
-  if (Object.keys(state.aspectVerdicts).length === 0) {
-    delete state.aspectVerdicts;
-  }
   await writeNodeDriftState(yggRoot, nodePath, state);
 }
 

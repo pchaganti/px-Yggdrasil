@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { type Ignore, type Options as IgnoreOptions } from 'ignore';
 import type { TrackedFile } from '../core/graph/files.js';
+import type { DriftIdentity, AspectIdentity } from '../model/drift.js';
 import { toPosix, toPosixPath } from '../utils/posix.js';
 
 export { loadRootGitignoreStack, isIgnoredByStack, walkRepoFiles } from '../io/repo-scanner.js';
@@ -86,6 +87,67 @@ export function hashString(content: string): string {
   return createHash('sha256').update(content).digest('hex');
 }
 
+/**
+ * Stable, sorted serialization of a record of strings: `key=value` pairs in
+ * ascending code-unit key order, joined by `\n`. Reordering insertion does not
+ * change the output, so it folds order-independently into the canonical hash.
+ */
+function serializeStringRecord(record: Record<string, string>): string {
+  return Object.keys(record)
+    .sort()
+    .map((k) => `${k}=${record[k]}`)
+    .join('\n');
+}
+
+/** Stable serialization of one aspect's identity slice (sorted, fixed field order). */
+function serializeAspectIdentity(id: string, ai: AspectIdentity): string {
+  const parts: string[] = [`id=${id}`, `meta=${ai.meta}`];
+  if (ai.tier !== undefined) parts.push(`tier=${ai.tier}`);
+  if (ai.checkTouched !== undefined) {
+    parts.push(`checkTouched={${serializeStringRecord(ai.checkTouched)}}`);
+  }
+  return parts.join('|');
+}
+
+/**
+ * Stable, sorted serialization of the typed upstream identity. Aspects and
+ * ports are sorted by id/target so reordering the maps yields an identical
+ * string. `mtimes` and any other non-identity baseline field are NOT included.
+ */
+export function serializeIdentity(identity: DriftIdentity): string {
+  const aspectLines = Object.keys(identity.aspects)
+    .sort()
+    .map((id) => serializeAspectIdentity(id, identity.aspects[id]))
+    .join('\n');
+  const portLines = serializeStringRecord(identity.ports);
+  return [
+    `ownSubset=${identity.ownSubset}`,
+    `ports={${portLines}}`,
+    `aspects={${aspectLines}}`,
+  ].join('\n');
+}
+
+/**
+ * Compute the canonical drift hash for a baseline from its real-file hashes and
+ * typed identity. Deterministic: `files` fold as sorted `path:hash`, `identity`
+ * folds via serializeIdentity (sorted at every level). Reordering files,
+ * aspects, or ports does not change the result. `mtimes` is never an input.
+ *
+ * The single source of truth for the canonical hash scheme — both the runtime
+ * (hashTrackedFiles) and the re-key transform (drift-state-rekey) call this so
+ * a re-keyed baseline over unchanged inputs matches a fresh computation.
+ */
+export function computeCanonicalHash(
+  fileHashes: Record<string, string>,
+  identity: DriftIdentity,
+): string {
+  const filesDigest = Object.entries(fileHashes)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([p, h]) => `${p}:${h}`)
+    .join('\n');
+  return hashString(`files:\n${filesDigest}\nidentity:\n${serializeIdentity(identity)}`);
+}
+
 /** Compute per-file hashes for a mapping. Used for diagnostics (which files changed). */
 export async function perFileHashes(
   projectRoot: string,
@@ -155,20 +217,30 @@ export interface StoredFileData {
   mtimes: Record<string, number>;
 }
 
+/** Empty identity — folded when a caller hashes files without an upstream identity. */
+const EMPTY_IDENTITY: DriftIdentity = { ownSubset: hashString(''), ports: {}, aspects: {} };
+
 /**
  * Hash all tracked files (source + graph) for bidirectional drift detection.
  * Directories in the tracked list are expanded to their contained files.
- * Returns a canonical hash (sorted path:hash digest), per-file hashes, and mtimes.
+ * Returns a canonical hash (files digest + typed identity folded), per-file
+ * hashes, and mtimes.
  *
  * When `storedFileData` is provided, files whose mtime has not changed since
  * the last sync will reuse the stored hash instead of re-reading and hashing.
  * This makes the common case (no changes) nearly instant even for large mappings.
+ *
+ * `identity` is folded into the canonical hash via computeCanonicalHash. Pass
+ * the node's typed identity when computing a baseline-comparable hash; omit it
+ * (e.g. when only the per-file source map is needed) to fold an empty identity.
+ * `mtimes` is never part of the canonical hash.
  */
 export async function hashTrackedFiles(
   projectRoot: string,
   trackedFiles: TrackedFile[],
   storedFileData?: StoredFileData,
   excludePrefixes?: string[],
+  identity?: DriftIdentity,
 ): Promise<{ canonicalHash: string; fileHashes: Record<string, string>; fileMtimes: Record<string, number> }> {
   const fileHashes: Record<string, string> = {};
   const fileMtimes: Record<string, number> = {};
@@ -179,11 +251,6 @@ export async function hashTrackedFiles(
   const allFiles: FileEntry[] = [];
 
   for (const tf of trackedFiles) {
-    // Synthetic entries have a pre-computed hash — use it directly without disk I/O
-    if (tf.syntheticHash) {
-      fileHashes[tf.path] = tf.syntheticHash;
-      continue;
-    }
     const absPath = path.join(projectRoot, tf.path);
     try {
       const st = await stat(absPath);
@@ -237,10 +304,8 @@ export async function hashTrackedFiles(
     }
   }
 
-  // Canonical hash: sorted path:hash pairs
-  const sorted = Object.entries(fileHashes).sort(([a], [b]) => a.localeCompare(b));
-  const digest = sorted.map(([p, h]) => `${p}:${h}`).join('\n');
-  const canonicalHash = hashString(digest);
+  // Canonical hash: real-file digest + typed identity, via the single-source-of-truth fold.
+  const canonicalHash = computeCanonicalHash(fileHashes, identity ?? EMPTY_IDENTITY);
 
   return { canonicalHash, fileHashes, fileMtimes };
 }

@@ -181,13 +181,12 @@ export async function collectStructureCascade(
     if (ownerNodePath && nodePath === ownerNodePath) continue;
 
     const baseline = await readNodeDriftState(graph.rootPath, nodePath);
-    const hasStfBaseline =
-      !!baseline?.checkTouchedFiles &&
-      Object.keys(baseline.checkTouchedFiles).length > 0;
+    const hasStfBaseline = !!baseline && Object.values(baseline.identity.aspects)
+      .some(a => a.checkTouched && Object.keys(a.checkTouched).length > 0);
 
     if (hasStfBaseline) {
-      const tracked = collectTrackedFiles(node, graph, baseline);
-      const reads = tracked.some(t => t.layer === 'check-touched' && t.path === repoRelative);
+      const { trackedFiles } = collectTrackedFiles(node, graph, baseline);
+      const reads = trackedFiles.some(t => t.layer === 'check-touched' && t.path === repoRelative);
       if (reads) out.push({ nodePath, mode: 'precise' });
       continue;
     }

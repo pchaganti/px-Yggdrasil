@@ -134,11 +134,11 @@ describe('integration — aspect status hash stability', () => {
 
     const beforeState = readDriftStateForSvc(repo);
     expect(beforeState).toBeDefined();
-    const tierKey = 'tier-identity:a';
-    const hashBefore = beforeState!.files[tierKey];
+    
+    const hashBefore = beforeState!.identity.aspects['a']?.tier;
     expect(hashBefore).toBeDefined();
     expect(typeof hashBefore).toBe('string');
-    expect(hashBefore.length).toBeGreaterThan(0);
+    expect(hashBefore!.length).toBeGreaterThan(0);
 
     // 2. Flip status advisory → enforced and re-approve.
     //    The yg-aspect.yaml file bytes change, but the resolved tier config
@@ -148,7 +148,7 @@ describe('integration — aspect status hash stability', () => {
 
     const afterState = readDriftStateForSvc(repo);
     expect(afterState).toBeDefined();
-    const hashAfter = afterState!.files[tierKey];
+    const hashAfter = afterState!.identity.aspects['a']?.tier;
     expect(hashAfter).toBeDefined();
     // Invariant: tier-identity hash stable across status flip.
     expect(hashAfter).toBe(hashBefore);
@@ -162,15 +162,15 @@ describe('integration — aspect status hash stability', () => {
     await approveSvc(repo);
 
     const beforeState = readDriftStateForSvc(repo);
-    const tierKey = 'tier-identity:a';
-    const hashBefore = beforeState!.files[tierKey];
+    
+    const hashBefore = beforeState!.identity.aspects['a']?.tier;
     expect(hashBefore).toBeDefined();
 
     await setAspectStatus(repo, 'advisory');
     await approveSvc(repo);
 
     const afterState = readDriftStateForSvc(repo);
-    const hashAfter = afterState!.files[tierKey];
+    const hashAfter = afterState!.identity.aspects['a']?.tier;
     expect(hashAfter).toBe(hashBefore);
   });
 
@@ -189,7 +189,7 @@ describe('integration — aspect status hash stability', () => {
     await approveSvc(repo);
 
     const beforeState = readDriftStateForSvc(repo);
-    expect(beforeState!.files['tier-identity:a']).toBeDefined();
+    expect(beforeState!.identity.aspects['a']?.tier).toBeDefined();
 
     await setAspectStatus(repo, 'draft');
     await approveSvc(repo);

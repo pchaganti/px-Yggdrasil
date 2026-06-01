@@ -41,7 +41,7 @@ describe('collectTrackedFiles — references', () => {
       references: [{ path: 'docs/codes.md' }],
     };
     const { graph, node } = makeMinimalGraph({ nodePath: 'svc', nodeAspects: ['a'], aspects: [aspect] });
-    const tracked = collectTrackedFiles(node, graph);
+    const { trackedFiles: tracked } = collectTrackedFiles(node, graph);
     const ref = tracked.find(t => t.path === 'docs/codes.md');
     expect(ref).toBeDefined();
     expect(ref?.category).toBe('graph');
@@ -56,7 +56,7 @@ describe('collectTrackedFiles — references', () => {
       references: [{ path: 'docs/codes.md' }],
     } as AspectDef;
     const { graph, node } = makeMinimalGraph({ nodePath: 'svc', nodeAspects: ['a'], aspects: [aspect] });
-    const tracked = collectTrackedFiles(node, graph);
+    const { trackedFiles: tracked } = collectTrackedFiles(node, graph);
     expect(tracked.find(t => t.path === 'docs/codes.md')).toBeUndefined();
   });
 
@@ -70,7 +70,7 @@ describe('collectTrackedFiles — references', () => {
       nodePath: 'svc', nodeAspects: ['a'], aspects: [aspect],
       mapping: ['src/own.ts'],
     });
-    const tracked = collectTrackedFiles(node, graph);
+    const { trackedFiles: tracked } = collectTrackedFiles(node, graph);
     const own = tracked.find(t => t.path === 'src/own.ts');
     expect(own?.category).toBe('source');
     expect(own?.layer).toBe('source');
@@ -90,7 +90,7 @@ describe('collectTrackedFiles — references', () => {
       nodePath: 'svc', nodeAspects: ['a'], aspects: [aspect],
       mapping: ['src/feature/'], // directory mapping (trailing slash normalized away)
     });
-    const tracked = collectTrackedFiles(node, graph);
+    const { trackedFiles: tracked } = collectTrackedFiles(node, graph);
     // The reference is owned by the directory mapping → not a separate upstream entry.
     expect(tracked.find(t => t.path === 'src/feature/own.ts')).toBeUndefined();
     // The directory mapping itself is the SOURCE entry.
@@ -105,7 +105,7 @@ describe('collectTrackedFiles — references', () => {
       { id: 'b', name: 'B', reviewer: { type: 'llm' }, artifacts: [{ filename: 'content.md', content: '' }, { filename: 'yg-aspect.yaml', content: '' }], references: [{ path: 'docs/shared.md' }] },
     ];
     const { graph, node } = makeMinimalGraph({ nodePath: 'svc', nodeAspects: ['a', 'b'], aspects });
-    const tracked = collectTrackedFiles(node, graph);
+    const { trackedFiles: tracked } = collectTrackedFiles(node, graph);
     const matches = tracked.filter(t => t.path === 'docs/shared.md');
     expect(matches.length).toBe(1);
   });
@@ -116,7 +116,7 @@ describe('collectTrackedFiles — references', () => {
       artifacts: [{ filename: 'content.md', content: '' }, { filename: 'yg-aspect.yaml', content: '' }],
     };
     const { graph, node } = makeMinimalGraph({ nodePath: 'svc', nodeAspects: ['a'], aspects: [aspect] });
-    const tracked = collectTrackedFiles(node, graph);
+    const { trackedFiles: tracked } = collectTrackedFiles(node, graph);
     expect(tracked.find(t => t.category === 'graph' && t.layer === 'aspects' && t.path.startsWith('docs/'))).toBeUndefined();
   });
 
@@ -137,7 +137,7 @@ describe('collectTrackedFiles — references', () => {
       },
     ];
     const { graph, node } = makeMinimalGraph({ nodePath: 'svc', nodeAspects: ['a', 'b'], aspects });
-    const tracked = collectTrackedFiles(node, graph);
+    const { trackedFiles: tracked } = collectTrackedFiles(node, graph);
     const aEntry = tracked.find(t => t.path === 'docs/a.md');
     const bEntry = tracked.find(t => t.path === 'docs/b.md');
     // Both declared paths appear as separate entries — dedup is by declared string, not realpath
@@ -177,8 +177,8 @@ describe('collectTrackedFiles — references', () => {
       schemas: [],
     } as unknown as Graph;
 
-    const trackedX = collectTrackedFiles(nodeX, graph);
-    const trackedY = collectTrackedFiles(nodeY, graph);
+    const { trackedFiles: trackedX } = collectTrackedFiles(nodeX, graph);
+    const { trackedFiles: trackedY } = collectTrackedFiles(nodeY, graph);
 
     const xEntry = trackedX.find(t => t.path === 'src/y.ts');
     const yEntry = trackedY.find(t => t.path === 'src/y.ts');

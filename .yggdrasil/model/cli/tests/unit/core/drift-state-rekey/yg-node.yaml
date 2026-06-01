@@ -1,0 +1,7 @@
+name: Drift State Re-key Tests
+type: test-suite
+description: "Unit tests for rekeyDriftBaseline — the pure, lossless transform from a flat synthetic-key drift baseline into the typed DriftNodeState. Covers each legacy synthetic key kind, checkTouched reconstruction, pre-verdict aspectVerdicts synthesis, and canonical-hash recomputation matching a fresh computation over the same inputs."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/core/drift-state-rekey.test.ts

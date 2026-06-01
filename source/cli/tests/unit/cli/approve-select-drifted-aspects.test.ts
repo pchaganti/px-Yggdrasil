@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { selectDriftedAspects } from '../../../src/cli/approve.js';
 import { computeEffectiveAspects } from '../../../src/core/graph/aspects.js';
 import type { Graph, GraphNode, AspectDef } from '../../../src/model/graph.js';
-import type { ApproveResult, DriftNodeState, AnnotatedChange } from '../../../src/model/drift.js';
+import type { ApproveResult, DriftNodeState, AnnotatedChange, IdentityCause } from '../../../src/model/drift.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../../src/model/drift.js';
 
 // ── Fixture ──────────────────────────────────────────────────
 //
@@ -47,13 +48,20 @@ function upstream(...paths: string[]): AnnotatedChange[] {
   return paths.map(p => ({ filePath: p, annotation: 'x' }));
 }
 
+/** A typed identity-cause upstream change (the typed replacement for synthetic keys). */
+function upstreamIdentity(cause: IdentityCause): AnnotatedChange[] {
+  return [{ filePath: 'identity-token', annotation: 'x', identity: cause }];
+}
+
 function approveResult(over: Partial<ApproveResult>): ApproveResult {
   return { action: 'no-change', currentHash: 'h', ...over };
 }
 
 const STORED: DriftNodeState = {
+  schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
   hash: 'h',
   files: {},
+  identity: { ownSubset: 'o', ports: {}, aspects: {} },
   aspectVerdicts: {
     det: { verdict: 'approved' },
     llmA: { verdict: 'approved' },
@@ -94,10 +102,10 @@ describe('selectDriftedAspects', () => {
     );
   });
 
-  it('attributes a synthetic tier-identity key to its aspect (llmA)', () => {
+  it('attributes a typed tier identity change to its aspect (llmA)', () => {
     const { graph } = makeGraph(['det', 'llmA', 'llmB'], aspects);
     const result = approveResult({
-      changedUpstream: upstream('tier-identity:llmA'),
+      changedUpstream: upstreamIdentity({ kind: 'tier', aspectId: 'llmA' }),
     });
     expect(selectDriftedAspects(graph, NODE_PATH, result, STORED, '.yggdrasil')).toEqual(
       new Set(['llmA']),
@@ -135,16 +143,16 @@ describe('selectDriftedAspects', () => {
   // NOT undefined, NOT the llm aspects (which carry forward).
   it('attributes a check-touched cross-node path to its deterministic aspect (det)', () => {
     const { graph } = makeGraph(['det', 'llmA', 'llmB'], aspects);
-    const storedWithTouched: DriftNodeState = {
-      ...STORED,
-      checkTouchedFiles: {
-        det: { 'source/cli/src/other/reader.ts': 'deadbeef' },
-      },
-    };
+    // The change carries the typed attribution (set by classifyDrift/approveNode
+    // from the baseline's identity.aspects[det].checkTouched).
     const result = approveResult({
-      changedUpstream: upstream('source/cli/src/other/reader.ts'),
+      changedUpstream: [{
+        filePath: 'source/cli/src/other/reader.ts',
+        annotation: 'x',
+        attributedAspectIds: ['det'],
+      }],
     });
-    expect(selectDriftedAspects(graph, NODE_PATH, result, storedWithTouched, '.yggdrasil')).toEqual(
+    expect(selectDriftedAspects(graph, NODE_PATH, result, STORED, '.yggdrasil')).toEqual(
       new Set(['det']),
     );
   });
@@ -157,13 +165,23 @@ describe('selectDriftedAspects', () => {
     expect(selectDriftedAspects(graph, NODE_PATH, result, undefined, '.yggdrasil')).toBeUndefined();
   });
 
-  it('returns undefined when storedEntry.aspectVerdicts is undefined (back-compat)', () => {
+  it('with an EMPTY aspectVerdicts baseline, an attributed change still selects its aspect', () => {
+    // aspectVerdicts is always present (may be {}); a verdict-less baseline is no
+    // longer special-cased to a node-global re-run. det is attributed, and the
+    // verdict-less llmA/llmB are also re-run as newly-attached (no prior verdict).
     const { graph } = makeGraph(['det', 'llmA', 'llmB'], aspects);
     const result = approveResult({
       changedUpstream: upstream('.yggdrasil/aspects/det/yg-aspect.yaml'),
     });
-    const noVerdicts: DriftNodeState = { hash: 'h', files: {} };
-    expect(selectDriftedAspects(graph, NODE_PATH, result, noVerdicts, '.yggdrasil')).toBeUndefined();
+    const emptyVerdicts: DriftNodeState = {
+      schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
+      hash: 'h', files: {},
+      identity: { ownSubset: 'o', ports: {}, aspects: {} },
+      aspectVerdicts: {},
+    };
+    expect(selectDriftedAspects(graph, NODE_PATH, result, emptyVerdicts, '.yggdrasil')).toEqual(
+      new Set(['det', 'llmA', 'llmB']),
+    );
   });
 
   it('always re-runs a newly-attached aspect with no prior verdict (llmC) alongside the attributed one', () => {
@@ -197,7 +215,7 @@ describe('selectDriftedAspects', () => {
     const cases: ApproveResult[] = [
       approveResult({ changedUpstream: upstream('.yggdrasil/aspects/det/yg-aspect.yaml') }),
       approveResult({ changedUpstream: upstream('.yggdrasil/aspects/llmA/content.md') }),
-      approveResult({ changedUpstream: upstream('tier-identity:llmA') }),
+      approveResult({ changedUpstream: upstreamIdentity({ kind: 'tier', aspectId: 'llmA' }) }),
       approveResult({}),
     ];
     for (const result of cases) {

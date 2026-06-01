@@ -5,7 +5,9 @@ import { cp, mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { loadGraph } from '../../src/core/graph-loader.js';
 import { approveNode, commitApproval } from '../../src/core/approve.js';
+import { commitApprovedBaseline } from '../unit/helpers/seed-baseline.js';
 import { writeNodeDriftState } from '../../src/io/drift-state-store.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../src/model/drift.js';
 import { buildIssueMessage } from '../../src/formatters/message-builder.js';
 const refuseMsg = (r: { refuseReasonData?: Parameters<typeof buildIssueMessage>[0] }) =>
   r.refuseReasonData ? buildIssueMessage(r.refuseReasonData) : '';
@@ -62,7 +64,7 @@ describe('approve-pipeline', () => {
     expect(init.previousHash).toBeUndefined();
     expect(init.currentHash).toBeTruthy();
     expect(init.currentHash.length).toBeGreaterThan(8);
-    await commitApproval(yggRoot, init);
+    await commitApprovedBaseline(graph, nodePath, yggRoot, init);
 
     // Step 2: No changes → no-change
     const graph2 = await loadGraph(root);
@@ -81,7 +83,7 @@ describe('approve-pipeline', () => {
     expect(approved.changedSource!.length).toBeGreaterThan(0);
     expect(approved.previousHash).toBe(init.currentHash);
     expect(approved.currentHash).not.toBe(init.currentHash);
-    await commitApproval(yggRoot, approved);
+    await commitApprovedBaseline(graph, nodePath, yggRoot, approved);
 
     // Step 4: No more changes → no-change
     const graph4 = await loadGraph(root);
@@ -101,7 +103,7 @@ describe('approve-pipeline', () => {
 
     // Establish baseline
     const baseline = await approveNode(graph, nodePath);
-    await commitApproval(yggRoot, baseline);
+    await commitApprovedBaseline(graph, nodePath, yggRoot, baseline);
 
     // Modify source only → approved (binary model)
     const srcFile = path.join(root, 'src', 'orders', 'order.service.ts');
@@ -111,7 +113,7 @@ describe('approve-pipeline', () => {
     const approved = await approveNode(graph2, nodePath);
     expect(approved.action).toBe('approved');
     expect(approved.changedSource!.length).toBeGreaterThan(0);
-    await commitApproval(yggRoot, approved);
+    await commitApprovedBaseline(graph, nodePath, yggRoot, approved);
 
     // After approve, next run → no-change
     const graph3 = await loadGraph(root);
@@ -130,7 +132,7 @@ describe('approve-pipeline', () => {
     const graph = await loadGraph(root);
     const init = await approveNode(graph, nodePath);
     expect(init.action).toBe('initial');
-    await commitApproval(yggRoot, init);
+    await commitApprovedBaseline(graph, nodePath, yggRoot, init);
 
     // Modify source + aspect file
     const srcFile = path.join(root, 'src', 'auth', 'auth.controller.ts');
@@ -142,7 +144,7 @@ describe('approve-pipeline', () => {
     const graph2 = await loadGraph(root);
     const approved = await approveNode(graph2, nodePath);
     expect(approved.action).toBe('approved');
-    await commitApproval(yggRoot, approved);
+    await commitApprovedBaseline(graph, nodePath, yggRoot, approved);
 
     // All drift cleared
     const graph3 = await loadGraph(root);
@@ -194,8 +196,11 @@ describe('approve-pipeline', () => {
     // Write a drift state entry for a nonexistent node (ghost)
     // Uses writeNodeDriftState which writes to .drift-state/<nodePath>.json
     await writeNodeDriftState(yggRoot, 'ghost/nonexistent-node', {
+      schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
       hash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       files: {},
+      identity: { ownSubset: '', ports: {}, aspects: {} },
+      aspectVerdicts: {},
     });
 
     const graph = await loadGraph(root);

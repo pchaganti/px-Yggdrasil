@@ -11,6 +11,7 @@ import { hashTrackedFiles } from '../../../src/io/hash.js';
 import { collectTrackedFiles } from '../../../src/core/graph/files.js';
 import type { LlmProvider } from '../../../src/llm/types.js';
 import type { DriftNodeState } from '../../../src/model/drift.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../../src/model/drift.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -139,15 +140,17 @@ describe('runApproveWithReviewer — reReviewAspectIds (Option 1)', () => {
   async function recordBaselineWithVerdicts(tmpDir: string): Promise<void> {
     const graph = await loadGraph(tmpDir);
     const node = graph.nodes.get('svc/my-service')!;
-    const trackedFiles = collectTrackedFiles(node, graph);
+    const { trackedFiles, identity } = collectTrackedFiles(node, graph);
     const projectRoot = path.dirname(graph.rootPath);
     const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
-      projectRoot, trackedFiles, undefined, [],
+      projectRoot, trackedFiles, undefined, [], identity,
     );
     await writeNodeDriftState(graph.rootPath, 'svc/my-service', {
+      schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
       hash: canonicalHash,
       files: fileHashes,
       mtimes: fileMtimes,
+      identity,
       aspectVerdicts: {
         det: { verdict: 'approved' },
         llm: { verdict: 'approved' },
@@ -395,34 +398,34 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
     const graph = await loadGraph(tmpDir);
     const node = graph.nodes.get('svc/my-service')!;
     const projectRoot = path.dirname(graph.rootPath);
-    // When checkTouchedFiles is part of the baseline, fold it into the
-    // tracked-file set so the recorded canonical hash and fileHashes include the
-    // synthetic `check-touched:<id>` key — exactly as a real prior approve
-    // would have recorded it. Otherwise approveNode (which collects WITH the
-    // baseline) would see a fresh synthetic key and mis-classify a genuine
-    // no-change as upstream drift.
-    const baselineForCollect = checkTouchedFiles
-      ? ({ hash: '', files: {}, checkTouchedFiles } as DriftNodeState)
-      : undefined;
-    const trackedFiles = collectTrackedFiles(node, graph, baselineForCollect);
+    // Compute the fresh identity, then inject any seeded checkTouched into it so
+    // the recorded canonical hash includes the per-aspect read-set — exactly as a
+    // real prior approve would have recorded it. Otherwise approveNode (which
+    // recomputes WITH the baseline) would see a fresh read-set and mis-classify a
+    // genuine no-change as upstream drift.
+    const { trackedFiles, identity } = collectTrackedFiles(node, graph);
+    for (const [aspectId, map] of Object.entries(checkTouchedFiles ?? {})) {
+      if (identity.aspects[aspectId]) identity.aspects[aspectId].checkTouched = map;
+    }
     const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
-      projectRoot, trackedFiles, undefined, [],
+      projectRoot, trackedFiles, undefined, [], identity,
     );
     // Capture the production-computed log baseline by running approveNode once
     // against this fresh project (no baseline yet → 'initial' with a populated
     // pendingDriftState.state.log). Recording it here makes logChanged false on
     // the subsequent no-change approve, so approveNode takes the branch that
-    // clones the full prior baseline (including checkTouchedFiles) rather
-    // than the log-update branch that drops it.
+    // clones the full prior baseline (including identity) rather than the
+    // log-update branch.
     const initial = await approveNode(graph, 'svc/my-service');
     const log = initial.pendingDriftState?.state.log;
     await writeNodeDriftState(graph.rootPath, 'svc/my-service', {
+      schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
       hash: canonicalHash,
       files: fileHashes,
       mtimes: fileMtimes,
+      identity,
       ...(log ? { log } : {}),
       aspectVerdicts,
-      ...(checkTouchedFiles ? { checkTouchedFiles } : {}),
     });
   }
 
@@ -554,13 +557,15 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
     // be left untouched, then evicted by the draft cleanup (not by a reviewer).
     const graph0 = await loadGraph(tmpDir);
     const node0 = graph0.nodes.get('svc/my-service')!;
-    const trackedFiles0 = collectTrackedFiles(node0, graph0);
+    const { trackedFiles: trackedFiles0, identity: identity0 } = collectTrackedFiles(node0, graph0);
     const projectRoot0 = path.dirname(graph0.rootPath);
-    const h0 = await hashTrackedFiles(projectRoot0, trackedFiles0, undefined, []);
+    const h0 = await hashTrackedFiles(projectRoot0, trackedFiles0, undefined, [], identity0);
     await writeNodeDriftState(graph0.rootPath, 'svc/my-service', {
+      schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
       hash: h0.canonicalHash,
       files: h0.fileHashes,
       mtimes: h0.fileMtimes,
+      identity: identity0,
       aspectVerdicts: {
         det: { verdict: 'approved' },
         llm: { verdict: 'approved' },
@@ -624,9 +629,14 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
 
     const graph = await loadGraph(tmpDir);
     const coreResult = await approveNode(graph, 'svc/my-service');
-    // Confirm the migration shape: upstream-only, attributable to det via aspect-meta:det.
+    // Confirm the migration shape: upstream-only, attributable to det via a typed
+    // aspectMeta identity cause.
     expect(coreResult.changedSource).toBeUndefined();
-    expect(coreResult.changedUpstream?.map(c => c.filePath)).toContain('aspect-meta:det');
+    expect(
+      coreResult.changedUpstream?.some(
+        c => c.identity?.kind === 'aspectMeta' && c.identity.aspectId === 'det',
+      ),
+    ).toBe(true);
 
     let verifyCallCount = 0;
     mockCreateLlmProvider.mockReturnValue(makeMockProvider({
@@ -729,7 +739,7 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
     expect(coreResult.changedSource).toBeUndefined();
     expect(coreResult.changedUpstream).toBeUndefined();
     // approveNode clones the prior baseline into pendingDriftState for no-change.
-    expect(coreResult.pendingDriftState?.state.checkTouchedFiles).toEqual(PRIOR_STF);
+    expect(coreResult.pendingDriftState?.state.identity.aspects['det']?.checkTouched).toEqual(PRIOR_STF.det);
 
     let verifyCallCount = 0;
     mockCreateLlmProvider.mockReturnValue(makeMockProvider({
@@ -744,16 +754,16 @@ describe('runApproveWithReviewer — Option 1 end-to-end invariants', () => {
     expect(verifyCallCount).toBe(0);
     expect(mockCreateLlmProvider).not.toHaveBeenCalled();
     expect(result.aspectResults).toBeUndefined();
-    // The no-dispatch path must NOT wipe checkTouchedFiles — it is byte-identical.
-    expect(result.pendingDriftState?.state.checkTouchedFiles).toEqual(PRIOR_STF);
+    // The no-dispatch path must NOT wipe checkTouched — it is byte-identical.
+    expect(result.pendingDriftState?.state.identity.aspects['det']?.checkTouched).toEqual(PRIOR_STF.det);
     // And the committed verdicts equal the full prior baseline.
     expect(result.pendingDriftState?.state.aspectVerdicts).toEqual({
       det: { verdict: 'approved' },
       llm: { verdict: 'approved' },
     });
-    // The on-disk baseline retains the prior checkTouchedFiles too.
+    // The on-disk baseline retains the prior checkTouched too.
     const stored = await readNodeDriftState(graph.rootPath, 'svc/my-service');
-    expect(stored?.checkTouchedFiles).toEqual(PRIOR_STF);
+    expect(stored?.identity.aspects['det']?.checkTouched).toEqual(PRIOR_STF.det);
     await rm(tmpDir, { recursive: true, force: true });
   });
 });

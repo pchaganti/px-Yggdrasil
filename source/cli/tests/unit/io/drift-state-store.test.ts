@@ -8,11 +8,27 @@ import {
   readNodeDriftState,
   writeNodeDriftState,
   garbageCollectDriftState,
+  OutdatedDriftBaselineError,
 } from '../../../src/io/drift-state-store.js';
-import type { DriftState } from '../../../src/model/drift.js';
+import type { DriftState, DriftNodeState, DriftIdentity } from '../../../src/model/drift.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../../src/model/drift.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = path.join(__dirname, '../../fixtures');
+
+const EMPTY_IDENTITY: DriftIdentity = { ownSubset: 'h-own', ports: {}, aspects: {} };
+
+/** Build a complete typed DriftNodeState for tests. */
+function makeState(over: Partial<DriftNodeState> = {}): DriftNodeState {
+  return {
+    schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
+    hash: 'abc123',
+    files: {},
+    identity: EMPTY_IDENTITY,
+    aspectVerdicts: {},
+    ...over,
+  };
+}
 
 afterEach(async () => {
   const entries = await readdir(FIXTURES_DIR).catch(() => []);
@@ -29,23 +45,16 @@ describe('drift-state-store', () => {
     await rm(tmpDir, { recursive: true, force: true });
     await mkdir(tmpDir, { recursive: true });
 
-    // Write per-node JSON files
     const state: DriftState = {
-      'orders/order-service': { hash: 'abc123def456', files: { 'src/orders/order.service.ts': 'abc123def456' } },
-      'auth/auth-api': { hash: 'fff789', files: { 'src/auth/auth.controller.ts': 'fff789' } },
+      'orders/order-service': makeState({ hash: 'abc123def456', files: { 'src/orders/order.service.ts': 'abc123def456' } }),
+      'auth/auth-api': makeState({ hash: 'fff789', files: { 'src/auth/auth.controller.ts': 'fff789' } }),
     };
     await writeDriftState(tmpDir, state);
 
     const result = await readDriftState(tmpDir);
 
-    expect(result['orders/order-service']).toEqual({
-      hash: 'abc123def456',
-      files: { 'src/orders/order.service.ts': 'abc123def456' },
-    });
-    expect(result['auth/auth-api']).toEqual({
-      hash: 'fff789',
-      files: { 'src/auth/auth.controller.ts': 'fff789' },
-    });
+    expect(result['orders/order-service']).toEqual(state['orders/order-service']);
+    expect(result['auth/auth-api']).toEqual(state['auth/auth-api']);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -66,50 +75,79 @@ describe('drift-state-store', () => {
     await mkdir(tmpDir, { recursive: true });
 
     const state: DriftState = {
-      'test/node': { hash: 'abc123', files: { 'src/test.ts': 'abc123' } },
+      'test/node': makeState({ hash: 'abc123', files: { 'src/test.ts': 'abc123' } }),
     };
 
     await writeDriftState(tmpDir, state);
 
-    // Per-node file should exist
     const content = await readFile(path.join(tmpDir, '.drift-state', 'test', 'node.json'), 'utf-8');
     expect(content).toContain('abc123');
+    expect(content).toContain('"schemaVersion": 1');
 
     const readBack = await readDriftState(tmpDir);
-    expect(readBack['test/node']).toEqual({ hash: 'abc123', files: { 'src/test.ts': 'abc123' } });
+    expect(readBack['test/node']).toEqual(state['test/node']);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('handles drift state with empty object', async () => {
-    const tmpDir = path.join(__dirname, '../../fixtures/tmp-drift-empty');
+  it('round-trips a fully-populated typed baseline', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-drift-typed-roundtrip');
     await mkdir(tmpDir, { recursive: true });
-    await writeFile(path.join(tmpDir, '.drift-state'), '{}\n', 'utf-8');
 
-    const state = await readDriftState(tmpDir);
-    expect(Object.keys(state)).toHaveLength(0);
+    const state = makeState({
+      hash: 'canon',
+      files: { 'src/a.ts': 'ha' },
+      mtimes: { 'src/a.ts': 1717000000000 },
+      identity: {
+        ownSubset: 'h-own',
+        ports: { 'pay/svc': 'h-port' },
+        aspects: {
+          'my-aspect': { meta: 'h-meta', tier: 'h-tier' },
+          'det-aspect': { meta: 'h-det', checkTouched: { 'src/x.ts': 'h-x' } },
+        },
+      },
+      aspectVerdicts: {
+        'my-aspect': { verdict: 'approved' },
+        'det-aspect': { verdict: 'refused', reason: 'r', errorSource: 'codeViolation' },
+      },
+      log: { last_entry_datetime: '2026-05-11T14:23:00.123Z', prefix_hash: 'h-log' },
+    });
+
+    await writeNodeDriftState(tmpDir, 'svc', state);
+    const readBack = await readNodeDriftState(tmpDir, 'svc');
+    expect(readBack).toEqual(state);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('handles drift-state file with no entries key', async () => {
-    const tmpDir = path.join(__dirname, '../../fixtures/tmp-drift-no-entries');
-    await mkdir(tmpDir, { recursive: true });
-    await writeFile(path.join(tmpDir, '.drift-state'), 'some_other_field: true\n', 'utf-8');
+  it('rejects a baseline with an unknown schemaVersion (99) pointing at --upgrade', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-drift-bad-version');
+    const driftDir = path.join(tmpDir, '.drift-state');
+    await mkdir(driftDir, { recursive: true });
+    await writeFile(
+      path.join(driftDir, 'svc.json'),
+      JSON.stringify({ schemaVersion: 99, hash: 'x', files: {}, identity: EMPTY_IDENTITY, aspectVerdicts: {} }),
+      'utf-8',
+    );
 
-    const state = await readDriftState(tmpDir);
-    expect(Object.keys(state)).toHaveLength(0);
+    await expect(readNodeDriftState(tmpDir, 'svc')).rejects.toThrow(OutdatedDriftBaselineError);
+    await expect(readNodeDriftState(tmpDir, 'svc')).rejects.toThrow(/yg init --upgrade/);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('handles completely empty drift-state file', async () => {
-    const tmpDir = path.join(__dirname, '../../fixtures/tmp-drift-empty-file');
-    await mkdir(tmpDir, { recursive: true });
-    await writeFile(path.join(tmpDir, '.drift-state'), '', 'utf-8');
+  it('rejects a baseline with an absent schemaVersion (predates the typed format)', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-drift-no-version');
+    const driftDir = path.join(tmpDir, '.drift-state');
+    await mkdir(driftDir, { recursive: true });
+    // Old flat baseline — no schemaVersion.
+    await writeFile(
+      path.join(driftDir, 'svc.json'),
+      JSON.stringify({ hash: 'x', files: { 'src/a.ts': 'ha' } }),
+      'utf-8',
+    );
 
-    const state = await readDriftState(tmpDir);
-    expect(Object.keys(state)).toHaveLength(0);
+    await expect(readNodeDriftState(tmpDir, 'svc')).rejects.toThrow(OutdatedDriftBaselineError);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -117,15 +155,7 @@ describe('drift-state-store', () => {
   it('returns empty when .drift-state is a file instead of directory', async () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-drift-file-fallback');
     await mkdir(tmpDir, { recursive: true });
-    await writeFile(
-      path.join(tmpDir, '.drift-state'),
-      `orders/order-service:
-  hash: 28f3c41611792a2e0cc8a4fdffc9b2294aa49d46
-  files:
-    src/orders/order.service.ts: 28f3c41611792a2e0cc8a4fdffc9b2294aa49d46
-`,
-      'utf-8',
-    );
+    await writeFile(path.join(tmpDir, '.drift-state'), 'orders/order-service:\n  hash: x\n', 'utf-8');
 
     const state = await readDriftState(tmpDir);
     expect(Object.keys(state)).toHaveLength(0);
@@ -138,20 +168,14 @@ describe('drift-state-store', () => {
     await mkdir(tmpDir, { recursive: true });
 
     const state: DriftState = {
-      'multi/svc': { hash: 'sha256abc123', files: { 'src/multi.ts': 'sha256abc123' } },
-      'other/node': { hash: 'sha256def456', files: { 'src/other.ts': 'sha256def456' } },
+      'multi/svc': makeState({ hash: 'sha256abc123', files: { 'src/multi.ts': 'sha256abc123' } }),
+      'other/node': makeState({ hash: 'sha256def456', files: { 'src/other.ts': 'sha256def456' } }),
     };
 
     await writeDriftState(tmpDir, state);
     const readBack = await readDriftState(tmpDir);
-    expect(readBack['multi/svc']).toEqual({
-      hash: 'sha256abc123',
-      files: { 'src/multi.ts': 'sha256abc123' },
-    });
-    expect(readBack['other/node']).toEqual({
-      hash: 'sha256def456',
-      files: { 'src/other.ts': 'sha256def456' },
-    });
+    expect(readBack['multi/svc']).toEqual(state['multi/svc']);
+    expect(readBack['other/node']).toEqual(state['other/node']);
 
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -162,7 +186,7 @@ describe('drift-state-store', () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-drift-per-node-write');
     await mkdir(tmpDir, { recursive: true });
 
-    const nodeState = { hash: 'abc123', files: { 'src/test.ts': 'abc123' } };
+    const nodeState = makeState({ hash: 'abc123', files: { 'src/test.ts': 'abc123' } });
     await writeNodeDriftState(tmpDir, 'cli/commands/aspects', nodeState);
 
     const content = await readFile(
@@ -180,7 +204,7 @@ describe('drift-state-store', () => {
     const stateDir = path.join(tmpDir, '.drift-state', 'cli', 'commands');
     await mkdir(stateDir, { recursive: true });
 
-    const nodeState = { hash: 'def456', files: { 'src/cmd.ts': 'def456' }, mtimes: { 'src/cmd.ts': 1234567890 } };
+    const nodeState = makeState({ hash: 'def456', files: { 'src/cmd.ts': 'def456' }, mtimes: { 'src/cmd.ts': 1234567890 } });
     await writeFile(path.join(stateDir, 'aspects.json'), JSON.stringify(nodeState), 'utf-8');
 
     const result = await readNodeDriftState(tmpDir, 'cli/commands/aspects');
@@ -206,8 +230,8 @@ describe('drift-state-store', () => {
     await mkdir(dir1, { recursive: true });
     await mkdir(dir2, { recursive: true });
 
-    const state1 = { hash: 'aaa', files: { 'src/a.ts': 'aaa' } };
-    const state2 = { hash: 'bbb', files: { 'src/b.ts': 'bbb' } };
+    const state1 = makeState({ hash: 'aaa', files: { 'src/a.ts': 'aaa' } });
+    const state2 = makeState({ hash: 'bbb', files: { 'src/b.ts': 'bbb' } });
     await writeFile(path.join(dir1, 'aspects.json'), JSON.stringify(state1), 'utf-8');
     await writeFile(path.join(dir2, 'loader.json'), JSON.stringify(state2), 'utf-8');
 
@@ -222,18 +246,15 @@ describe('drift-state-store', () => {
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-drift-per-node-pretty');
     await mkdir(tmpDir, { recursive: true });
 
-    const nodeState = { hash: 'abc123', files: { 'src/test.ts': 'abc123' } };
+    const nodeState = makeState({ hash: 'abc123', files: { 'src/test.ts': 'abc123' } });
     await writeNodeDriftState(tmpDir, 'test/node', nodeState);
 
     const content = await readFile(
       path.join(tmpDir, '.drift-state', 'test', 'node.json'),
       'utf-8',
     );
-    // Pretty-printed JSON contains newlines
     expect(content).toContain('\n');
-    // Ends with trailing newline
     expect(content.endsWith('\n')).toBe(true);
-    // 2-space indentation
     expect(content).toContain('  "hash"');
 
     await rm(tmpDir, { recursive: true, force: true });
@@ -246,22 +267,21 @@ describe('drift-state-store', () => {
     await mkdir(dir1, { recursive: true });
     await mkdir(dir2, { recursive: true });
 
-    await writeFile(path.join(dir1, 'aspects.json'), '{"hash":"a","files":{}}', 'utf-8');
-    await writeFile(path.join(dir1, 'orphan.json'), '{"hash":"b","files":{}}', 'utf-8');
-    await writeFile(path.join(dir2, 'loader.json'), '{"hash":"c","files":{}}', 'utf-8');
+    const s = JSON.stringify(makeState());
+    await writeFile(path.join(dir1, 'aspects.json'), s, 'utf-8');
+    await writeFile(path.join(dir1, 'orphan.json'), s, 'utf-8');
+    await writeFile(path.join(dir2, 'loader.json'), s, 'utf-8');
 
     const validPaths = new Set(['cli/commands/aspects', 'cli/core/loader']);
     const removed = await garbageCollectDriftState(tmpDir, validPaths);
 
     expect(removed).toEqual(['cli/commands/orphan']);
 
-    // Valid files still exist
     const kept1 = await readFile(path.join(dir1, 'aspects.json'), 'utf-8');
     expect(kept1).toBeTruthy();
     const kept2 = await readFile(path.join(dir2, 'loader.json'), 'utf-8');
     expect(kept2).toBeTruthy();
 
-    // Orphaned file removed
     await expect(readFile(path.join(dir1, 'orphan.json'), 'utf-8')).rejects.toThrow();
 
     await rm(tmpDir, { recursive: true, force: true });
@@ -274,20 +294,19 @@ describe('drift-state-store', () => {
     await mkdir(orphanDir, { recursive: true });
     await mkdir(validDir, { recursive: true });
 
-    await writeFile(path.join(orphanDir, 'node.json'), '{"hash":"x","files":{}}', 'utf-8');
-    await writeFile(path.join(validDir, 'node.json'), '{"hash":"y","files":{}}', 'utf-8');
+    const s = JSON.stringify(makeState());
+    await writeFile(path.join(orphanDir, 'node.json'), s, 'utf-8');
+    await writeFile(path.join(validDir, 'node.json'), s, 'utf-8');
 
     const validPaths = new Set(['valid/node']);
     const removed = await garbageCollectDriftState(tmpDir, validPaths);
 
     expect(removed).toEqual(['orphan/deep/node']);
 
-    // The orphan/deep directory and orphan directory should be removed
     const { stat: fsStat } = await import('node:fs/promises');
     await expect(fsStat(orphanDir)).rejects.toThrow();
     await expect(fsStat(path.join(tmpDir, '.drift-state', 'orphan'))).rejects.toThrow();
 
-    // The valid directory should still exist
     const validStat = await fsStat(validDir);
     expect(validStat.isDirectory()).toBe(true);
 
@@ -300,8 +319,7 @@ describe('drift-state-store', () => {
     await rm(tmpDir, { recursive: true, force: true });
     await mkdir(driftDir, { recursive: true });
 
-    // Write a .json file (should be read) and a non-.json file (should be skipped)
-    await writeFile(path.join(driftDir, 'valid-node.json'), '{"hash":"aaa","files":{}}', 'utf-8');
+    await writeFile(path.join(driftDir, 'valid-node.json'), JSON.stringify(makeState()), 'utf-8');
     await writeFile(path.join(driftDir, 'readme.txt'), 'not a drift state file', 'utf-8');
 
     const result = await readDriftState(tmpDir);
@@ -316,15 +334,13 @@ describe('drift-state-store', () => {
     await rm(tmpDir, { recursive: true, force: true });
     await mkdir(driftDir, { recursive: true });
 
-    // Write a corrupt JSON file
+    // Unparseable JSON → skipped (returns undefined), not a thrown error.
     await writeFile(path.join(driftDir, 'corrupt-node.json'), 'not valid json{{{', 'utf-8');
-    // Write a valid JSON file
-    await writeFile(path.join(driftDir, 'good-node.json'), '{"hash":"bbb","files":{}}', 'utf-8');
+    await writeFile(path.join(driftDir, 'good-node.json'), JSON.stringify(makeState({ hash: 'bbb' })), 'utf-8');
 
     const result = await readDriftState(tmpDir);
-    // Corrupt file should be skipped (readNodeDriftState returns undefined)
     expect(result['corrupt-node']).toBeUndefined();
-    expect(result['good-node']).toEqual({ hash: 'bbb', files: {} });
+    expect(result['good-node']).toEqual(makeState({ hash: 'bbb' }));
 
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -347,8 +363,8 @@ describe('garbageCollectDriftState — shouldKeep predicate', () => {
     await rm(tmpDir, { recursive: true, force: true });
     await mkdir(tmpDir, { recursive: true });
 
-    await writeNodeDriftState(tmpDir, 'a', { hash: 'h', files: {}, mtimes: {} });
-    await writeNodeDriftState(tmpDir, 'b', { hash: 'h', files: {}, mtimes: {} });
+    await writeNodeDriftState(tmpDir, 'a', makeState({ hash: 'h' }));
+    await writeNodeDriftState(tmpDir, 'b', makeState({ hash: 'h' }));
 
     const removed = await garbageCollectDriftState(
       tmpDir,

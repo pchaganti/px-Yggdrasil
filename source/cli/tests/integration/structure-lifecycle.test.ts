@@ -103,12 +103,12 @@ describe.skipIf(!distExists)('structure aspect lifecycle', () => {
     const approveResult = run(['approve', '--node', 'N'], root);
     expect(approveResult.status).toBe(0);
 
-    // 3. Read baseline, assert checkTouchedFiles populated for touches-a
+    // 3. Read baseline, assert identity.aspects[touches-a].checkTouched populated
     const baseline = readBaseline(root, 'N');
-    const stf = (baseline.checkTouchedFiles as Record<string, Record<string, string>> | undefined);
-    expect(stf).toBeDefined();
-    expect(stf!['touches-a']).toBeDefined();
-    expect(Object.keys(stf!['touches-a'])).toContain('src/a.ts');
+    const aspects = (baseline.identity as { aspects: Record<string, { checkTouched?: Record<string, string> }> }).aspects;
+    const ct = aspects['touches-a']?.checkTouched;
+    expect(ct).toBeDefined();
+    expect(Object.keys(ct!)).toContain('src/a.ts');
 
     // 4. Modify src/a.ts to trigger drift
     writeFileSync(path.join(root, 'src', 'a.ts'), 'export const x = 2;\n');

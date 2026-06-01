@@ -1,5 +1,6 @@
 {
-  "hash": "2b758c5f1317f7f2b65c2c9dc43e57680d8d454d7b421f0aed7f5a6aa4337033",
+  "schemaVersion": 1,
+  "hash": "9c41e243089bb3775da432707e5cd3f725595000d7813bc1394bc6240c39cff9",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -7,13 +8,10 @@
     ".yggdrasil/model/cli/tests/integration/pipeline/yg-node.yaml": "9c95586349f19434f8d14b7854eb7f61828fbb251166776f22febf14185193b7",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/integration/approve-batch-with-missing-reference.test.ts": "10f89b2bdd5492b2cc5cc4975f5103865ecc9ff3cdbd1351c3537bb76d3dc578",
-    "source/cli/tests/integration/approve-pipeline.test.ts": "953ce1f37d658edd7c29e8a7de53703745979ed1b08557667682d90326a8ba4f",
-    "source/cli/tests/integration/approve-with-references.test.ts": "02a3c84e70ba5fb5aa39ced38b7ccf4a157f61f3c36476f9c79c4bc4cb26f916",
     "source/cli/tests/integration/approve-dry-run-references.test.ts": "2c1d3c46392adda05cab1f0f1628e81164984c16a01b8d3b909b70767bbdf6cb",
+    "source/cli/tests/integration/approve-with-references.test.ts": "02a3c84e70ba5fb5aa39ced38b7ccf4a157f61f3c36476f9c79c4bc4cb26f916",
     "source/cli/tests/integration/deterministic-tier-gating.test.ts": "3e04a9470db76252d50313d3224d917e1e82bc10888da9dea1e2bc158e19839d",
-    "own-subset:cli/tests/integration/pipeline/approve": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+    "source/cli/tests/integration/approve-pipeline.test.ts": "5e99c95ecae3a81a28c63ca5cb93a1bb91aa44fb3e582aef07e0a7ac5619c27b"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -23,17 +21,27 @@
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/integration/approve-batch-with-missing-reference.test.ts": 1779962471949.9426,
     "source/cli/tests/integration/approve-dry-run-references.test.ts": 1780163641524.7854,
-    "source/cli/tests/integration/approve-pipeline.test.ts": 1780068799857.1973,
+    "source/cli/tests/integration/approve-pipeline.test.ts": 1780293674268.6035,
     "source/cli/tests/integration/approve-with-references.test.ts": 1780058289467.0676,
     "source/cli/tests/integration/deterministic-tier-gating.test.ts": 1780163017148.6274
   },
-  "log": {
-    "last_entry_datetime": "2026-05-30T18:08:11.136Z",
-    "prefix_hash": "6aa680cb38f6fd9a322c871e057a1eb2b73bc9680aa50b9267b2d3c858815f71"
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
   },
   "aspectVerdicts": {
     "test-deterministic": {
       "verdict": "approved"
     }
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-30T18:08:11.136Z",
+    "prefix_hash": "6aa680cb38f6fd9a322c871e057a1eb2b73bc9680aa50b9267b2d3c858815f71"
   }
 }

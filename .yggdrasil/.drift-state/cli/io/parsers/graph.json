@@ -1,17 +1,7 @@
 {
-  "hash": "6f39aeb6527e5c498b8b2f8ee82a5e3bb795e668a69c55e220d18434a52ddc58",
+  "schemaVersion": 1,
+  "hash": "b605a8d3b34cb90baa516c3d6d10b8dc5683495749918210b6970ac94a79accb",
   "files": {
-    "own-subset:cli/io/parsers/graph": "49eba5656163800b5213d51e9c6969831d387f9252bafe1e854a9e84e7bebf9e",
-    "aspect-meta:parser-contract": "4b5c209acb0455ca7a0069237b8d4cfa22e36c15ea935b9f2b603a7b49036ab2",
-    "tier-identity:parser-contract": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "aspect-meta:silent-missing-files": "26f99ba1035a190cdfd242b984d3f502355ab6b39f0d5390aaf8ca34c5090218",
-    "tier-identity:silent-missing-files": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "aspect-meta:posix-paths-source": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
-    "aspect-meta:read-or-default-via-helper": "e35435ede6ebbe015c8a0de76081e6c72acbcc193efd5c066beeea8541b99811",
-    "aspect-meta:parser-yaml-guard": "7c266c1c65ce5fa8a871c5411f0c911921b911111f874ebcf2ba8145542926cb",
-    "check-touched:posix-paths-source": "3d767d3d09b81a3223a07fc94b78291572b7ec9d01ce7036dd077e02b9006721",
-    "check-touched:read-or-default-via-helper": "3d767d3d09b81a3223a07fc94b78291572b7ec9d01ce7036dd077e02b9006721",
-    "check-touched:parser-yaml-guard": "3d767d3d09b81a3223a07fc94b78291572b7ec9d01ce7036dd077e02b9006721",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
     ".yggdrasil/model/cli/io/parsers/yg-node.yaml": "3a22ea35f02e26ba06eb0c63a6150d99119a9748fb8d862974ac5b8736029be1",
@@ -26,6 +16,64 @@
     "source/cli/src/io/node-parser.ts": "c4a6de3d1d0aec12dbb0fadf4ecdec26d399c889b7b603be630ee6444fce63d9",
     "source/cli/src/io/flow-parser.ts": "a2c294305aee0c1bce0d8d2e330837fbb1e62c3e5e730c452131a0c0be88b6db",
     "source/cli/src/io/aspect-parser.ts": "441e7b9938db1511640fb80bca5f321bd41c17de59fdac00b675190bc42cf96e"
+  },
+  "identity": {
+    "ownSubset": "49eba5656163800b5213d51e9c6969831d387f9252bafe1e854a9e84e7bebf9e",
+    "ports": {},
+    "aspects": {
+      "parser-contract": {
+        "meta": "4b5c209acb0455ca7a0069237b8d4cfa22e36c15ea935b9f2b603a7b49036ab2",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      },
+      "silent-missing-files": {
+        "meta": "26f99ba1035a190cdfd242b984d3f502355ab6b39f0d5390aaf8ca34c5090218",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      },
+      "posix-paths-source": {
+        "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
+        "checkTouched": {
+          "source/cli/src/io/architecture-parser.ts": "73689dadda84182f98a1fc2625f982f8a239f431d00c5f14ad094ad807579b92",
+          "source/cli/src/io/aspect-parser.ts": "441e7b9938db1511640fb80bca5f321bd41c17de59fdac00b675190bc42cf96e",
+          "source/cli/src/io/node-parser.ts": "c4a6de3d1d0aec12dbb0fadf4ecdec26d399c889b7b603be630ee6444fce63d9",
+          "source/cli/src/io/flow-parser.ts": "a2c294305aee0c1bce0d8d2e330837fbb1e62c3e5e730c452131a0c0be88b6db"
+        }
+      },
+      "read-or-default-via-helper": {
+        "meta": "e35435ede6ebbe015c8a0de76081e6c72acbcc193efd5c066beeea8541b99811",
+        "checkTouched": {
+          "source/cli/src/io/architecture-parser.ts": "73689dadda84182f98a1fc2625f982f8a239f431d00c5f14ad094ad807579b92",
+          "source/cli/src/io/aspect-parser.ts": "441e7b9938db1511640fb80bca5f321bd41c17de59fdac00b675190bc42cf96e",
+          "source/cli/src/io/node-parser.ts": "c4a6de3d1d0aec12dbb0fadf4ecdec26d399c889b7b603be630ee6444fce63d9",
+          "source/cli/src/io/flow-parser.ts": "a2c294305aee0c1bce0d8d2e330837fbb1e62c3e5e730c452131a0c0be88b6db"
+        }
+      },
+      "parser-yaml-guard": {
+        "meta": "7c266c1c65ce5fa8a871c5411f0c911921b911111f874ebcf2ba8145542926cb",
+        "checkTouched": {
+          "source/cli/src/io/architecture-parser.ts": "73689dadda84182f98a1fc2625f982f8a239f431d00c5f14ad094ad807579b92",
+          "source/cli/src/io/aspect-parser.ts": "441e7b9938db1511640fb80bca5f321bd41c17de59fdac00b675190bc42cf96e",
+          "source/cli/src/io/node-parser.ts": "c4a6de3d1d0aec12dbb0fadf4ecdec26d399c889b7b603be630ee6444fce63d9",
+          "source/cli/src/io/flow-parser.ts": "a2c294305aee0c1bce0d8d2e330837fbb1e62c3e5e730c452131a0c0be88b6db"
+        }
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "parser-contract": {
+      "verdict": "approved"
+    },
+    "silent-missing-files": {
+      "verdict": "approved"
+    },
+    "posix-paths-source": {
+      "verdict": "approved"
+    },
+    "read-or-default-via-helper": {
+      "verdict": "approved"
+    },
+    "parser-yaml-guard": {
+      "verdict": "approved"
+    }
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -46,42 +94,5 @@
   "log": {
     "last_entry_datetime": "2026-05-31T21:54:02.356Z",
     "prefix_hash": "539b28d6ab3355ec31a937c6134d28f3681acd27a8a79c51043916ca0eaee5d6"
-  },
-  "checkTouchedFiles": {
-    "posix-paths-source": {
-      "source/cli/src/io/architecture-parser.ts": "73689dadda84182f98a1fc2625f982f8a239f431d00c5f14ad094ad807579b92",
-      "source/cli/src/io/aspect-parser.ts": "441e7b9938db1511640fb80bca5f321bd41c17de59fdac00b675190bc42cf96e",
-      "source/cli/src/io/node-parser.ts": "c4a6de3d1d0aec12dbb0fadf4ecdec26d399c889b7b603be630ee6444fce63d9",
-      "source/cli/src/io/flow-parser.ts": "a2c294305aee0c1bce0d8d2e330837fbb1e62c3e5e730c452131a0c0be88b6db"
-    },
-    "read-or-default-via-helper": {
-      "source/cli/src/io/architecture-parser.ts": "73689dadda84182f98a1fc2625f982f8a239f431d00c5f14ad094ad807579b92",
-      "source/cli/src/io/aspect-parser.ts": "441e7b9938db1511640fb80bca5f321bd41c17de59fdac00b675190bc42cf96e",
-      "source/cli/src/io/node-parser.ts": "c4a6de3d1d0aec12dbb0fadf4ecdec26d399c889b7b603be630ee6444fce63d9",
-      "source/cli/src/io/flow-parser.ts": "a2c294305aee0c1bce0d8d2e330837fbb1e62c3e5e730c452131a0c0be88b6db"
-    },
-    "parser-yaml-guard": {
-      "source/cli/src/io/architecture-parser.ts": "73689dadda84182f98a1fc2625f982f8a239f431d00c5f14ad094ad807579b92",
-      "source/cli/src/io/aspect-parser.ts": "441e7b9938db1511640fb80bca5f321bd41c17de59fdac00b675190bc42cf96e",
-      "source/cli/src/io/node-parser.ts": "c4a6de3d1d0aec12dbb0fadf4ecdec26d399c889b7b603be630ee6444fce63d9",
-      "source/cli/src/io/flow-parser.ts": "a2c294305aee0c1bce0d8d2e330837fbb1e62c3e5e730c452131a0c0be88b6db"
-    }
-  },
-  "aspectVerdicts": {
-    "parser-contract": {
-      "verdict": "approved"
-    },
-    "silent-missing-files": {
-      "verdict": "approved"
-    },
-    "posix-paths-source": {
-      "verdict": "approved"
-    },
-    "read-or-default-via-helper": {
-      "verdict": "approved"
-    },
-    "parser-yaml-guard": {
-      "verdict": "approved"
-    }
   }
 }

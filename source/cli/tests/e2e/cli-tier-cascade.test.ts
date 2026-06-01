@@ -155,11 +155,11 @@ describe.skipIf(!distExists)('CLI E2E — tier-identity cascade (LLM aspect reso
       const baseline = baselinePath(dir, 'services/orders');
       expect(existsSync(baseline)).toBe(true);
       const state = JSON.parse(readFileSync(baseline, 'utf-8')) as {
-        files: Record<string, string>;
+        identity: { aspects: Record<string, { tier?: string }> };
       };
-      // The synthetic tier-identity entry for the enforced LLM aspect is present
-      // in the recorded drift hash set — this is what a tier edit will perturb.
-      expect(Object.keys(state.files)).toContain('tier-identity:has-doc-comment');
+      // The typed tier identity for the enforced LLM aspect is present in the
+      // recorded baseline — this is what a tier edit will perturb.
+      expect(state.identity.aspects['has-doc-comment']?.tier).toBeDefined();
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });

@@ -1,9 +1,7 @@
 {
-  "hash": "41d07fcdfcbe2a0f15ada071c803708e6b6a4e0865a03e9b62f9bd19be7f4415",
+  "schemaVersion": 1,
+  "hash": "591d30ad22065c7e85603f4f44347aa3729f9de11e709bf7781a793c1181db47",
   "files": {
-    "own-subset:cli/tests/unit/llm/providers": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
@@ -15,6 +13,21 @@
     "source/cli/tests/unit/llm/cli-providers.test.ts": "a57dd1c8dea3c3de2da6824f2e6d51ff93b788da6cf0987a259a95cc2c251529",
     "source/cli/tests/unit/llm/openai.test.ts": "054a154dc0ec6a93d602d736e03a51b50260bcd70bcf25d56ac397c9464d6467",
     "source/cli/tests/unit/llm/google.test.ts": "7c6b2d8deddf5b572c8625c3d8f115638fc323a24a3f48c96fe77c813c2a5063"
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -28,10 +41,5 @@
     "source/cli/tests/unit/llm/cli-providers.test.ts": 1776177846290.8035,
     "source/cli/tests/unit/llm/google.test.ts": 1780237597851.1848,
     "source/cli/tests/unit/llm/openai.test.ts": 1779963744066.013
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
   }
 }

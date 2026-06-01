@@ -1,6 +1,6 @@
 // yg-suppress(deterministic) approve-reviewer must invoke the configured LLM provider for verification; non-determinism is intentional and inherent to this engine's purpose
 import type { Graph, GraphNode, AspectDef, LlmConfig, ReviewerConfig, AspectStatus } from '../model/graph.js';
-import type { ApproveResult, AspectVerificationResult, DriftNodeState } from '../model/drift.js';
+import type { ApproveResult, AspectVerificationResult, DriftNodeState, DriftIdentity } from '../model/drift.js';
 import type { IssueMessage } from '../model/validation.js';
 import { verifyAspects } from '../llm/aspect-verifier.js';
 import { resolveMaxTokens } from '../llm/api-utils.js';
@@ -23,6 +23,11 @@ import { toPosixPath } from '../utils/posix.js';
 
 /** A failed aspect: a code violation, a provider error, or a deterministic runtime error. */
 type AspectViolation = { aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'checkRuntime' };
+
+/** True when any effective aspect in the identity recorded a checkTouched set. */
+function hasAnyCheckTouched(identity: DriftIdentity): boolean {
+  return Object.values(identity.aspects).some((a) => a.checkTouched && Object.keys(a.checkTouched).length > 0);
+}
 
 /**
  * Run every deterministic aspect in the plan — former-ast and structure aspects
@@ -61,12 +66,12 @@ async function dispatchStructureAspects(
         continue;
       }
 
-      // Persist touched files into the pending drift state. Normalize each
-      // path to forward-slash separators before using it as a drift-state key,
-      // matching every other path written at this output boundary (projectRoot,
-      // yggPrefix, sourceFilePaths, normalizedNodePath). runStructureAspect may
-      // return backslash-separated paths on Windows; storing them verbatim
-      // would violate the posix-paths-output contract for drift-state files.
+      // Persist touched files into the pending drift state's typed identity.
+      // Normalize each path to forward-slash separators before using it as a
+      // drift-state key, matching every other path written at this output
+      // boundary (projectRoot, yggPrefix, sourceFilePaths, normalizedNodePath).
+      // runStructureAspect may return backslash-separated paths on Windows;
+      // storing them verbatim would violate posix-paths-output for drift-state.
       const sourceFileHashes: Record<string, string> = {};
       for (const raw of new Set(structResult.touchedFiles)) {
         const p = toPosixPath(raw);
@@ -76,8 +81,8 @@ async function dispatchStructureAspects(
         // disk, but DO NOT inject it into state.files: state.files is the
         // canonical own source/graph map, and check.ts's deleted-file detector
         // walks it — a cross-node path there would be reported as a phantom
-        // "(deleted)". Such paths live ONLY in checkTouchedFiles and
-        // re-enter the canonical hash via the check-touched recompute below.
+        // "(deleted)". Such paths live ONLY in identity.aspects[id].checkTouched
+        // and re-enter the canonical hash via the recompute below.
         if (!hash) {
           const abs = path.resolve(projectRoot, p);
           try {
@@ -97,9 +102,13 @@ async function dispatchStructureAspects(
           `caller must guarantee pendingDriftState is populated before reviewer dispatch.`,
         );
       }
-      const stf = result.pendingDriftState.state.checkTouchedFiles ?? {};
-      stf[aspect.id] = sourceFileHashes;
-      result.pendingDriftState.state.checkTouchedFiles = stf;
+      // Record this aspect's touched set under its typed identity. The aspect
+      // entry exists when the aspect is effective on this node (collectTrackedFiles
+      // creates it); if missing (defensive), seed a minimal one.
+      const aspects = result.pendingDriftState.state.identity.aspects;
+      const current = aspects[aspect.id] ?? { meta: '' };
+      current.checkTouched = sourceFileHashes;
+      aspects[aspect.id] = current;
 
       const violated = structResult.violations.length > 0;
       const reason = violated
@@ -404,7 +413,7 @@ export async function runApproveWithReviewer(
 
   // Load source files
   const projectRoot = toPosixPath(path.dirname(rootPath));
-  const trackedFiles = collectTrackedFiles(node, graph);
+  const { trackedFiles } = collectTrackedFiles(node, graph);
   const { fileHashes } = await hashTrackedFiles(projectRoot, trackedFiles, undefined, []);
   const yggPrefix = toPosixPath(path.relative(projectRoot, rootPath));
   const sourceFilePaths = Object.keys(fileHashes)
@@ -445,10 +454,10 @@ export async function runApproveWithReviewer(
   const astParseCache: ParseCache = new Map();
   await dispatchStructureAspects(plan, node, graph, result, projectRoot, astParseCache, allAspectResults, aspectViolations);
 
-  // Preserve checkTouchedFiles for deterministic aspects that were NOT
-  // freshly evaluated this run. Both former-ast and structure aspects now run
-  // through the structure runner and write a checkTouchedFiles entry, so
-  // both must be carried forward. Two cases collapse into one pass:
+  // Preserve checkTouched for deterministic aspects that were NOT freshly
+  // evaluated this run. Both former-ast and structure aspects now run through
+  // the structure runner and write a checkTouched entry, so both must be
+  // carried forward. Two cases collapse into one pass:
   //   - draft-skipped: a deterministic aspect toggled to draft retains its prior
   //     entry so a later enforced→draft→enforced cycle does not cascade drift.
   //   - filter-excluded: a filtered approve (`yg approve --aspect X`) runs only
@@ -457,62 +466,51 @@ export async function runApproveWithReviewer(
   //     out of the node's drift identity and impact blast-radius.
   // An aspect was "freshly evaluated" iff it survived the draft + filter passes
   // (i.e. it is in `filtered`); only those produce a new entry this run.
-  if (storedEntry?.checkTouchedFiles && result.pendingDriftState) {
-    const stf = result.pendingDriftState.state.checkTouchedFiles ?? {};
+  if (storedEntry && result.pendingDriftState) {
+    const aspectsState = result.pendingDriftState.state.identity.aspects;
     const aspectById = new Map<string, AspectDef>();
     for (const a of allAspects) aspectById.set(a.id, a);
     const freshlyEvaluated = new Set(filtered.map(a => a.id));
     let preserved = 0;
-    for (const [id, prior] of Object.entries(storedEntry.checkTouchedFiles)) {
+    for (const [id, prior] of Object.entries(storedEntry.identity.aspects)) {
+      if (!prior.checkTouched) continue;
       if (freshlyEvaluated.has(id)) continue; // a fresh entry was produced this run
-      if (id in stf) continue;                // already carried (defensive)
       const aspect = aspectById.get(id);
-      // Only deterministic aspects produce stf entries.
+      // Only deterministic aspects produce checkTouched entries.
       if (aspect?.reviewer.type !== 'deterministic') continue;
-      stf[id] = prior;
+      const current = aspectsState[id];
+      if (!current) continue;                  // aspect no longer effective
+      if (current.checkTouched) continue;      // already carried (defensive)
+      current.checkTouched = prior.checkTouched;
       preserved += 1;
     }
     if (preserved > 0) {
-      debugWrite(`[d8.3] preserved checkTouchedFiles for ${preserved} non-evaluated deterministic aspect(s) on node ${node.path}`);
+      debugWrite(`[d8.3] preserved checkTouched for ${preserved} non-evaluated deterministic aspect(s) on node ${node.path}`);
     }
-    result.pendingDriftState.state.checkTouchedFiles = stf;
   }
 
-  // Recompute the canonical drift hash to fold in the check-touched layer.
+  // Recompute the canonical drift hash to fold in the deterministic read-sets.
   // approveNode computed state.hash BEFORE the structure runner ran, so on a
-  // NEW baseline (action initial/approved) the cross-node files just recorded
-  // in checkTouchedFiles are not yet part of the node's drift identity.
-  // Re-collect WITH the now-populated baseline so collectTrackedFiles emits the
-  // check-touched entries, re-hash, and adopt the canonical hash. Skip on
-  // no-change/refused: those do not write a fresh baseline.
+  // NEW baseline (action initial/approved) the cross-node files just recorded in
+  // identity.aspects[id].checkTouched are not yet part of the node's drift
+  // identity. Re-collect WITH the now-populated baseline so collectTrackedFiles
+  // carries the checkTouched maps into a fresh identity, re-hash with that
+  // identity, and adopt BOTH the canonical hash and the recomputed identity (so
+  // a later `yg check` recomputes the same identity from the same baseline and
+  // sees no drift). Skip on no-change/refused: those do not write a fresh baseline.
   if (
     result.pendingDriftState &&
     (result.action === 'initial' || result.action === 'approved') &&
-    result.pendingDriftState.state.checkTouchedFiles &&
-    Object.keys(result.pendingDriftState.state.checkTouchedFiles).length > 0
+    hasAnyCheckTouched(result.pendingDriftState.state.identity)
   ) {
-    const recomputeTracked = collectTrackedFiles(node, graph, result.pendingDriftState.state);
+    const { trackedFiles: recomputeTracked, identity: recomputeIdentity } =
+      collectTrackedFiles(node, graph, result.pendingDriftState.state);
     const recomputeExclusions = getChildMappingExclusions(graph, node.path);
-    const { canonicalHash, fileHashes: recomputeHashes } =
-      await hashTrackedFiles(projectRoot, recomputeTracked, undefined, recomputeExclusions);
+    const { canonicalHash } =
+      await hashTrackedFiles(projectRoot, recomputeTracked, undefined, recomputeExclusions, recomputeIdentity);
+    result.pendingDriftState.state.identity = recomputeIdentity;
     result.pendingDriftState.state.hash = canonicalHash;
     result.currentHash = canonicalHash;
-    // Fold the SYNTHETIC per-aspect check-touched:<id> set-hash keys into
-    // state.files as well, so this baseline is FULLY SETTLED in one approve.
-    // Otherwise state.files (the per-file drift-cause map) would lack these keys
-    // while state.hash already includes them: the node still passes a clean
-    // `yg check` (hashes match), but the FIRST later drift for any other reason
-    // would enumerate them as spurious "the set of files read by deterministic
-    // aspect '<id>' changed" causes — and a redundant second approve was needed
-    // to settle. Cross-node REAL file paths are still kept OUT of state.files
-    // (they would trip the deleted-file detector — see the touched-files loop
-    // above); only the synthetic `check-touched:` keys are added here. This does
-    // not change state.hash, so it introduces no drift on existing baselines.
-    for (const [k, v] of Object.entries(recomputeHashes)) {
-      if (k.startsWith('check-touched:')) {
-        result.pendingDriftState.state.files[k] = v;
-      }
-    }
   }
 
   // AST/structure short-circuit refusal. Refuse early (skipping LLM dispatch)

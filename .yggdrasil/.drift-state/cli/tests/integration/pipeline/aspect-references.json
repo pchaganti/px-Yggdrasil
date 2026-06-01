@@ -1,5 +1,6 @@
 {
-  "hash": "cf0e2c8a94d2c46c958cf92a832d2f9ada8fb240073e9e26fc3954166d8d4174",
+  "schemaVersion": 1,
+  "hash": "e3db17803528e20551d67b9dbb6680ccb3833a547ad801264e6b835691c22e37",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -10,10 +11,22 @@
     "source/cli/tests/integration/aspect-references-drift.test.ts": "d5d1df14ae1052689182b462516166995d9920051c0d60aa8aca9db1d474cd4e",
     "source/cli/tests/integration/aspect-references-impact.test.ts": "5cafa4e50ad453d976a3c5ae56f43370d7fbce6ef2f9d68bc4dd13e57bfef8e5",
     "source/cli/tests/integration/aspect-references-validation.test.ts": "b4446689491295e037b88931efd77cabf72814c08869a4151f409f5822b73893",
-    "source/cli/tests/integration/aspect-references-when-implies.test.ts": "406b88eebffb860b7d56cb229a7c5e3889526633ea7aed2fb64128f543b7d5d3",
-    "own-subset:cli/tests/integration/pipeline/aspect-references": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+    "source/cli/tests/integration/aspect-references-when-implies.test.ts": "406b88eebffb860b7d56cb229a7c5e3889526633ea7aed2fb64128f543b7d5d3"
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -30,10 +43,5 @@
   "log": {
     "last_entry_datetime": "2026-05-30T20:06:31.037Z",
     "prefix_hash": "8b8cff2c6ce830ddfdc4d7a2e6936f6659a76d29c65ee7a4c857e5cebed95893"
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
   }
 }

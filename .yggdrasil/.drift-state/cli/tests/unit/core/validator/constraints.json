@@ -1,5 +1,6 @@
 {
-  "hash": "92a8e476a7fc94c6cf6cafb0b5cc21c4111c9c8fcb48f8b3af1395b4c60afeaf",
+  "schemaVersion": 1,
+  "hash": "88e9956aefbed4c89f6b3a81ea08880c1dd0eba8144481c2dedd52a59c38abd3",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -8,10 +9,22 @@
     ".yggdrasil/model/cli/tests/unit/core/validator/yg-node.yaml": "7a868ba82079f08604e51117454c275bd72095f3be2fb41da38b5769858aed36",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/core/validator-aspect-status.test.ts": "06fd79119fac2057fb89c3e7d1dbf80a12e9161fcfedc3a272e8e600e2736688",
-    "source/cli/tests/unit/core/validator-constraints.test.ts": "b61377a3c653950641b3be1f8ca36486d5ab2a87ba8fc7fe83f1dfeeefef3370",
-    "own-subset:cli/tests/unit/core/validator/constraints": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+    "source/cli/tests/unit/core/validator-constraints.test.ts": "b61377a3c653950641b3be1f8ca36486d5ab2a87ba8fc7fe83f1dfeeefef3370"
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -22,10 +35,5 @@
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/core/validator-constraints.test.ts": 1780134686782.2097,
     "source/cli/tests/unit/core/validator-aspect-status.test.ts": 1780064765040.2395
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
   }
 }

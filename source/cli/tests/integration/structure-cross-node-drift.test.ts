@@ -118,13 +118,13 @@ describe.skipIf(!distExists)('structure aspect cross-node drift + impact', () =>
     const approveN = run(['approve', '--node', 'N'], root);
     expect(approveN.status).toBe(0);
 
-    // N's baseline must record src/b.ts under checkTouchedFiles[reads-b] —
-    // proof the cross-node read participates in N's drift identity.
+    // N's baseline must record src/b.ts under identity.aspects[reads-b].checkTouched
+    // — proof the cross-node read participates in N's drift identity.
     const baselineN = readBaseline(root, 'N');
-    const stf = baselineN.checkTouchedFiles as Record<string, Record<string, string>> | undefined;
-    expect(stf).toBeDefined();
-    expect(stf!['reads-b']).toBeDefined();
-    expect(Object.keys(stf!['reads-b'])).toContain('src/b.ts');
+    const aspects = (baselineN.identity as { aspects: Record<string, { checkTouched?: Record<string, string> }> }).aspects;
+    const ct = aspects['reads-b']?.checkTouched;
+    expect(ct).toBeDefined();
+    expect(Object.keys(ct!)).toContain('src/b.ts');
     // src/b.ts must NOT appear in N's own files map (it is cross-node, owned by B).
     const nFiles = baselineN.files as Record<string, string>;
     expect(nFiles['src/b.ts']).toBeUndefined();

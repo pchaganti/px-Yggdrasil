@@ -9,6 +9,8 @@ import { runLlmVerification } from '../../../src/cli/approve.js';
 import { writeNodeDriftState, readNodeDriftState } from '../../../src/io/drift-state-store.js';
 import { hashTrackedFiles } from '../../../src/io/hash.js';
 import { collectTrackedFiles } from '../../../src/core/graph/files.js';
+import { recordBaselineForAllMappedNodes } from '../helpers/seed-baseline.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../../src/model/drift.js';
 import type { LlmProvider } from '../../../src/llm/types.js';
 import type { AspectDef, ReviewerConfig } from '../../../src/model/graph.js';
 
@@ -91,19 +93,7 @@ async function createTmpProject(name: string, opts: {
 
 async function recordBaseline(tmpDir: string) {
   const graph = await loadGraph(tmpDir);
-  for (const [nodePath, node] of graph.nodes) {
-    if (!node.meta.mapping) continue;
-    const trackedFiles = collectTrackedFiles(node, graph);
-    const projectRoot = path.dirname(graph.rootPath);
-    const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
-      projectRoot, trackedFiles, undefined, [],
-    );
-    await writeNodeDriftState(graph.rootPath, nodePath, {
-      hash: canonicalHash,
-      files: fileHashes,
-      mtimes: fileMtimes,
-    });
-  }
+  await recordBaselineForAllMappedNodes(graph);
 }
 
 function makeMockProvider(overrides: Partial<LlmProvider> = {}): LlmProvider {

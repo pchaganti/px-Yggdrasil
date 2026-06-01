@@ -12,6 +12,8 @@ import {
 } from '../../utils/git-introspect.js';
 import { readNodeDriftState, writeNodeDriftState } from '../../io/drift-state-store.js';
 import type { DriftNodeState } from '../../model/drift.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../model/drift.js';
+import { emptyIdentity } from '../graph/files.js';
 import { readTextFile } from '../../io/graph-fs.js';
 import { debugWrite } from '../../utils/debug-log.js';
 import { toPosix } from '../../utils/posix.js';
@@ -178,7 +180,14 @@ export async function logMergeResolve(input: LogMergeResolveInput): Promise<LogM
   };
   const newState: DriftNodeState = stored
     ? { ...stored, log: newLogBaseline }
-    : { hash: '', files: {}, log: newLogBaseline };
+    : {
+        schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
+        hash: '',
+        files: {},
+        identity: emptyIdentity(),
+        aspectVerdicts: {},
+        log: newLogBaseline,
+      };
   await writeNodeDriftState(yggRoot, nodePath, newState);
 
   return { ok: true, nodePath };

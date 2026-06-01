@@ -115,24 +115,9 @@ async function createProject(name: string) {
 
 async function setupBaseline(tmpDir: string) {
   const { loadGraph } = await import('../../src/core/graph-loader.js');
-  const { collectTrackedFiles } = await import('../../src/core/graph/files.js');
-  const { hashTrackedFiles } = await import('../../src/io/hash.js');
-  const { writeNodeDriftState } = await import('../../src/io/drift-state-store.js');
-
+  const { recordBaselineForAllMappedNodes } = await import('../unit/helpers/seed-baseline.js');
   const graph = await loadGraph(tmpDir);
-  const projectRoot = path.dirname(graph.rootPath);
-  for (const [nodePath, node] of graph.nodes) {
-    if (!node.meta.mapping) continue;
-    const trackedFiles = collectTrackedFiles(node, graph);
-    const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
-      projectRoot, trackedFiles, undefined, [],
-    );
-    await writeNodeDriftState(graph.rootPath, nodePath, {
-      hash: canonicalHash,
-      files: fileHashes,
-      mtimes: fileMtimes,
-    });
-  }
+  await recordBaselineForAllMappedNodes(graph);
 }
 
 // ---------------------------------------------------------------------------

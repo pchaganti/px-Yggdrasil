@@ -1,5 +1,6 @@
 {
-  "hash": "6ff9cdd5c9c1a098400a8e06e4ac0a8937f30cd08a55b7a33b0a7fe0bf1d4ac2",
+  "schemaVersion": 1,
+  "hash": "23a33dd7ed8d7fc109385eef2b4a76255aa7be31dc6d5f98d04e92043169ac96",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -9,10 +10,22 @@
     "source/cli/tests/unit/core/file-content-cache.test.ts": "5306e182213c9bd3a1a4e2898d0ffd4acd33ec6b0f93d098b8ddbc346ca2e686",
     "source/cli/tests/unit/core/when-evaluator.test.ts": "28372d21604e60091407447ec613c7e3e9efe0e983279784c3d1f021a9ef8894",
     "source/cli/tests/unit/core/type-classifier.test.ts": "3f5010e2903145e4452a7278c5ce74aae187d565a6761817df9c7b8299a5d2eb",
-    "source/cli/tests/unit/core/file-when-evaluator.test.ts": "5a572219cf8124f1428d95758f7a70817d56e44ad640b07082a2736e8895975d",
-    "own-subset:cli/tests/unit/core/infra": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+    "source/cli/tests/unit/core/file-when-evaluator.test.ts": "5a572219cf8124f1428d95758f7a70817d56e44ad640b07082a2736e8895975d"
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -28,10 +41,5 @@
   "log": {
     "last_entry_datetime": "2026-05-28T19:52:54.115Z",
     "prefix_hash": "258b0a4833107c8cad539de1b97d9dd3368f3cf72f2ecef95258e6f86da1bfed"
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
   }
 }

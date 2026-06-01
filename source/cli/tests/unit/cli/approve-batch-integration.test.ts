@@ -7,7 +7,7 @@ import { classifyDrift } from '../../../src/core/check.js';
 import { approveNode } from '../../../src/core/approve.js';
 import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
 import { hashTrackedFiles } from '../../../src/io/hash.js';
-import { collectTrackedFiles } from '../../../src/core/graph/files.js';
+import { recordBaselineForAllMappedNodes } from '../helpers/seed-baseline.js';
 import { filterCascadeNodes } from '../../../src/cli/approve.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -54,19 +54,7 @@ async function createBatchProject(name: string) {
 
 async function recordAllBaselines(tmpDir: string) {
   const graph = await loadGraph(tmpDir);
-  for (const [nodePath, node] of graph.nodes) {
-    if (!node.meta.mapping) continue;
-    const trackedFiles = collectTrackedFiles(node, graph);
-    const projectRoot = path.dirname(graph.rootPath);
-    const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
-      projectRoot, trackedFiles, undefined, [],
-    );
-    await writeNodeDriftState(graph.rootPath, nodePath, {
-      hash: canonicalHash,
-      files: fileHashes,
-      mtimes: fileMtimes,
-    });
-  }
+  await recordBaselineForAllMappedNodes(graph);
 }
 
 describe('Batch approve integration', () => {

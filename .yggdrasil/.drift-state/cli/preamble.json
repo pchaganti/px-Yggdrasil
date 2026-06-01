@@ -1,15 +1,30 @@
 {
-  "hash": "a07b15f67e1f7732eeb38639bbee2249b5c4fb950c8a365c600d66e1b57b7ab9",
+  "schemaVersion": 1,
+  "hash": "79d2908c380b9684fe6eefc595bf9dc3206678f5be6d710c120b90684c221030",
   "files": {
-    "own-subset:cli/preamble": "77236a94a057d553889b19c679cad83621cb79a32522d3e155aa6c7b5b36d75a",
-    "aspect-meta:posix-paths-source": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
-    "check-touched:posix-paths-source": "94e08b32cb48ba6a226fc07804e7d3b69e2f37d60e10df37451f2ec59246ff8c",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
     ".yggdrasil/model/cli/core/loader/yg-node.yaml": "6efbbf493727f08d46a4a3f16acce62b942bc8950a81e15896713a018961b46d",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
     ".yggdrasil/model/cli/formatters/yg-node.yaml": "dbb65e1e73064a8d94c694869754eca68997d3baefe4beb2a88c3fd5ea576507",
     "source/cli/src/cli/preamble.ts": "c289cb9302f37b2d3e2bcfe9336dedcbf24778824cbda236394841eb6d9d6eb8"
+  },
+  "identity": {
+    "ownSubset": "77236a94a057d553889b19c679cad83621cb79a32522d3e155aa6c7b5b36d75a",
+    "ports": {},
+    "aspects": {
+      "posix-paths-source": {
+        "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
+        "checkTouched": {
+          "source/cli/src/cli/preamble.ts": "c289cb9302f37b2d3e2bcfe9336dedcbf24778824cbda236394841eb6d9d6eb8"
+        }
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "posix-paths-source": {
+      "verdict": "approved"
+    }
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -22,15 +37,5 @@
   "log": {
     "last_entry_datetime": "2026-05-31T21:41:47.529Z",
     "prefix_hash": "ce1c787944aaed54d57da1f310df541551532dcf9d06a26dd01bd46c6b8495ad"
-  },
-  "checkTouchedFiles": {
-    "posix-paths-source": {
-      "source/cli/src/cli/preamble.ts": "c289cb9302f37b2d3e2bcfe9336dedcbf24778824cbda236394841eb6d9d6eb8"
-    }
-  },
-  "aspectVerdicts": {
-    "posix-paths-source": {
-      "verdict": "approved"
-    }
   }
 }

@@ -37,7 +37,7 @@ describe('collectTrackedFiles (source layer) âŠ† collectAllowedReadsForAspect â€
     for (const inputNode of nodes) {
       const allowed = collectAllowedReadsForAspect(inputNode.path, g);
       const node = g.nodes.get(inputNode.path)!;
-      const trackedSourcePaths = collectTrackedFiles(node, g)
+      const trackedSourcePaths = collectTrackedFiles(node, g).trackedFiles
         .filter(t => t.category === 'source')
         .map(t => t.path);
       for (const trackedPath of trackedSourcePaths) {

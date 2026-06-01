@@ -7,6 +7,8 @@ import { approveNode } from '../../../src/core/approve.js';
 import { writeNodeDriftState, readNodeDriftState } from '../../../src/io/drift-state-store.js';
 import { hashTrackedFiles } from '../../../src/io/hash.js';
 import { collectTrackedFiles } from '../../../src/core/graph/files.js';
+import { recordBaselineForAllMappedNodes } from '../helpers/seed-baseline.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../../src/model/drift.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -92,19 +94,7 @@ async function createTmpProject(name: string, opts: {
 /** Record baseline for all mapped nodes */
 async function recordBaseline(tmpDir: string) {
   const graph = await loadGraph(tmpDir);
-  for (const [nodePath, node] of graph.nodes) {
-    if (!node.meta.mapping) continue;
-    const trackedFiles = collectTrackedFiles(node, graph);
-    const projectRoot = path.dirname(graph.rootPath);
-    const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
-      projectRoot, trackedFiles, undefined, [],
-    );
-    await writeNodeDriftState(graph.rootPath, nodePath, {
-      hash: canonicalHash,
-      files: fileHashes,
-      mtimes: fileMtimes,
-    });
-  }
+  await recordBaselineForAllMappedNodes(graph);
 }
 
 describe('approveNode — proper nodes', () => {
@@ -337,8 +327,11 @@ describe('approveNode — GC and recording', () => {
     await recordBaseline(tmpDir);
     // Create orphaned drift state
     await writeNodeDriftState(yggRoot, 'deleted/service', {
+      schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
       hash: 'orphan',
       files: {},
+      identity: { ownSubset: '', ports: {}, aspects: {} },
+      aspectVerdicts: {},
     });
     const graph = await loadGraph(tmpDir);
     const result = await approveNode(graph, 'svc/my-service');
@@ -464,7 +457,7 @@ describe('resolveAspects', () => {
 });
 
 describe('approveNode — corrupted baseline (missing files map)', () => {
-  it('does not crash when the stored baseline has no files field (cold-start)', async () => {
+  it('the store REJECTS a typed baseline missing its files map (shape-check, points at --upgrade)', async () => {
     const { tmpDir, yggRoot } = await createTmpProject('missing-files-baseline', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - testing\nmapping:\n  - src/svc/\n',
@@ -476,19 +469,21 @@ describe('approveNode — corrupted baseline (missing files map)', () => {
       path.join(yggRoot, 'model', 'svc', 'my-service', 'log.md'),
       '## [2026-05-11T10:00:00.000Z]\nChange rationale.\n',
     );
-    // Hand-edited / corrupted baseline that dropped its `files` map. The store
-    // does no runtime shape validation, so this reads back with files=undefined.
-    await writeNodeDriftState(yggRoot, 'svc/my-service', {
-      hash: 'some-stale-hash',
-    } as unknown as Parameters<typeof writeNodeDriftState>[2]);
+    // Hand-corrupted schemaVersion-1 baseline that dropped its required `files`
+    // map. The store shape-checks at the read boundary and rejects it — single-
+    // format runtime never tolerates a malformed baseline.
+    const { writeFile: wf, mkdir } = await import('node:fs/promises');
+    await mkdir(path.join(yggRoot, '.drift-state', 'svc'), { recursive: true });
+    await wf(
+      path.join(yggRoot, '.drift-state', 'svc', 'my-service.json'),
+      JSON.stringify({ schemaVersion: 1, hash: 'some-stale-hash' }),
+      'utf-8',
+    );
 
     const graph = await loadGraph(tmpDir);
-    // Must treat all current files as new/changed and proceed — never throw
-    // "Cannot convert undefined or null to object".
-    const result = await approveNode(graph, 'svc/my-service');
-    expect(result.action).toBe('approved');
-    expect(result.changedSource).toBeDefined();
-    expect(result.changedSource).toContain('src/svc/index.ts');
+    // approveNode reads the baseline via the store, which throws an
+    // upgrade-pointing OutdatedDriftBaselineError on the malformed shape.
+    await expect(approveNode(graph, 'svc/my-service')).rejects.toThrow(/yg init --upgrade/);
     await rm(tmpDir, { recursive: true, force: true });
   });
 });
@@ -509,9 +504,12 @@ describe('approveNode — zero effective aspects drift cleanup', () => {
       '## [2026-05-11T10:00:00.000Z]\nInitial.\n',
     );
     await writeNodeDriftState(yggRoot, 'svc/my-service', {
+      schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
       hash: 'stale-hash',
       files: { 'src/svc.ts': 'stale-hash' },
       mtimes: { 'src/svc.ts': 0 },
+      identity: { ownSubset: '', ports: {}, aspects: {} },
+      aspectVerdicts: {},
     });
 
     const graph = await loadGraph(tmpDir);

@@ -4,12 +4,14 @@ import { fileURLToPath } from 'node:url';
 import { cp, mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { loadGraph } from '../../src/core/graph-loader.js';
+import { recordBaselineForAllMappedNodes } from '../unit/helpers/seed-baseline.js';
 import { approveNode, commitApproval } from '../../src/core/approve.js';
 import { runApproveWithReviewer } from '../../src/core/approve-reviewer.js';
 import { runCheck } from '../../src/core/check.js';
 import { writeNodeDriftState } from '../../src/io/drift-state-store.js';
 import { hashTrackedFiles } from '../../src/io/hash.js';
 import { collectTrackedFiles } from '../../src/core/graph/files.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../src/model/drift.js';
 import type { LlmProvider } from '../../src/llm/types.js';
 import type { LlmConfig } from '../../src/model/graph.js';
 
@@ -40,19 +42,7 @@ async function setupRepo(): Promise<string> {
 
 async function recordBaseline(root: string): Promise<void> {
   const graph = await loadGraph(root);
-  for (const [nodePath, node] of graph.nodes) {
-    if (!node.meta.mapping) continue;
-    const trackedFiles = collectTrackedFiles(node, graph);
-    const projectRoot = path.dirname(graph.rootPath);
-    const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
-      projectRoot, trackedFiles, undefined, [],
-    );
-    await writeNodeDriftState(graph.rootPath, nodePath, {
-      hash: canonicalHash,
-      files: fileHashes,
-      mtimes: fileMtimes,
-    });
-  }
+  await recordBaselineForAllMappedNodes(graph);
 }
 
 describe('multi-tier approve', () => {

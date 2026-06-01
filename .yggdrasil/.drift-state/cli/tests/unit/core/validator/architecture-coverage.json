@@ -1,9 +1,7 @@
 {
-  "hash": "4d9b3e7da5692d0741236b3583c73344fc08afd23a6c6fe6dd350c2f43913795",
+  "schemaVersion": 1,
+  "hash": "b753262bd5d5545565c34d6c028862ff9ed1624547bbdb36bc506b2e96ccde7a",
   "files": {
-    "own-subset:cli/tests/unit/core/validator/architecture-coverage": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
@@ -11,6 +9,21 @@
     ".yggdrasil/model/cli/tests/unit/core/validator/yg-node.yaml": "7a868ba82079f08604e51117454c275bd72095f3be2fb41da38b5769858aed36",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/core/validator-architecture.test.ts": "c2ca507ab2fad6c338cb9279ad99fedd1c8a4920258830c0c3b07ce6051a8204"
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -20,10 +33,5 @@
     ".yggdrasil/model/cli/tests/unit/core/validator/yg-node.yaml": 1780103492871.9792,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/core/validator-architecture.test.ts": 1780262504804.9714
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
   }
 }

@@ -1,9 +1,7 @@
 {
-  "hash": "da6196abae8b939d5e59f8f75010fa51c9d8002ec62e85067865235ef287dba8",
+  "schemaVersion": 1,
+  "hash": "710bdb342e73cf0d9e48e65e872915c4819cea7c783748dac13e267fa6584e2a",
   "files": {
-    "own-subset:cli/tests/unit/core/context": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
@@ -11,6 +9,21 @@
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/core/context-builder.test.ts": "5aab2d8a43866b6fae53f0b7cd3bd5610b7673a812fa054def357584299b0bcd",
     "source/cli/tests/unit/core/graph-loader.test.ts": "3ecfe35c16100f736b18485b567fed91d0d572684f89cba5a51b903a40672117"
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -24,10 +37,5 @@
   "log": {
     "last_entry_datetime": "2026-05-31T21:42:03.007Z",
     "prefix_hash": "829ec1d9117d7821c6d351419c90f4ee838cc539b71e20d0a4d5b3e47eda4fb5"
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
   }
 }

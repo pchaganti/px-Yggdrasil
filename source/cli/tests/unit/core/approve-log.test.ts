@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import { approveNode, commitApproval } from '../../../src/core/approve.js';
 import { writeNodeDriftState, readNodeDriftState } from '../../../src/io/drift-state-store.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../../src/model/drift.js';
 import { buildIssueMessage } from '../../../src/formatters/message-builder.js';
 const refuseMsg = (r: { refuseReasonData?: Parameters<typeof buildIssueMessage>[0] }) =>
   r.refuseReasonData ? buildIssueMessage(r.refuseReasonData) : '';
@@ -53,6 +54,7 @@ async function setup(opts: {
   }
   if (opts.initialBaseline !== undefined || opts.initialSourceHash !== undefined) {
     await writeNodeDriftState(yggRoot, 'svc', {
+      schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
       hash: opts.initialSourceHash ?? 'h',
       files:
         opts.initialSourceHash !== undefined
@@ -62,6 +64,8 @@ async function setup(opts: {
               '.yggdrasil/aspects/a1/content.md': 'h-asp',
             }
           : {},
+      identity: { ownSubset: 'o', ports: {}, aspects: {} },
+      aspectVerdicts: {},
       log: opts.initialBaseline,
     });
   }
@@ -177,13 +181,18 @@ describe('approveNode — log integration', () => {
     });
     const yggRoot = path.join(projectRoot, '.yggdrasil');
     const srcHash = sha('export const x = 1;\n');
+    // Source files match current (no source drift), but the typed identity is
+    // stale (ownSubset hash wrong) → upstream drift only. Hash 'h' won't match
+    // the fresh canonical hash, so approve proceeds.
     await writeNodeDriftState(yggRoot, nodePath, {
+      schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
       hash: 'h',
       files: {
         'src/svc.ts': srcHash,
-        '.yggdrasil/model/svc/yg-node.yaml': 'h-stale-yaml',
         '.yggdrasil/aspects/a1/content.md': sha('rule.\n'),
       },
+      identity: { ownSubset: 'h-stale-own', ports: {}, aspects: {} },
+      aspectVerdicts: {},
       log: baseline,
     });
     const graph = await loadGraph(projectRoot);

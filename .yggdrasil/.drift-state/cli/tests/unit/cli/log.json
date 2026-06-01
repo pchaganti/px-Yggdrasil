@@ -1,9 +1,7 @@
 {
-  "hash": "8f2140dfcf032f2beae72cfab872bc70871bf9a67c941449d749c2bc1ee76a44",
+  "schemaVersion": 1,
+  "hash": "5735303af1a95664cff89db8629df1f20a3d2fa0cc974bc54b707fac9b5e79ec",
   "files": {
-    "own-subset:cli/tests/unit/cli/log": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
@@ -12,7 +10,7 @@
     "source/cli/tests/unit/cli/log.test.ts": "aac1123869b0ba6c09e583ece9b90aa2a0a9a80b61a8c2391123852cb6bdb92a",
     "source/cli/tests/unit/cli/log-add.test.ts": "ddde6752778f2f88a83e0f1f342a950bdbb0eb47c6348e38bdae24e78b563a5a",
     "source/cli/tests/unit/cli/log-read.test.ts": "2e3ef47655294dd15809d4ef072429ca69a18678a3f3b7f9ea271d9b8a70869b",
-    "source/cli/tests/unit/cli/log-merge-resolve.test.ts": "671a240f298b0754cc4fc55190ef01f76472844ae15ff9db1975b35d1849cb68"
+    "source/cli/tests/unit/cli/log-merge-resolve.test.ts": "3287b0a3ba7adbdaee390b5b9b831444012e1d2e3ab12ed363e26ae3d5e8bcaa"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -20,10 +18,20 @@
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
     ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": 1780048240858.293,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/cli/log.test.ts": 1778576246947.8298,
-    "source/cli/tests/unit/cli/log-add.test.ts": 1778875979620.2903,
-    "source/cli/tests/unit/cli/log-read.test.ts": 1778862015537.9375,
-    "source/cli/tests/unit/cli/log-merge-resolve.test.ts": 1780239035814.9297
+    "source/cli/tests/unit/cli/log.test.ts": 1780293527051.0557,
+    "source/cli/tests/unit/cli/log-add.test.ts": 1780293527049.5095,
+    "source/cli/tests/unit/cli/log-read.test.ts": 1780293527050.5159,
+    "source/cli/tests/unit/cli/log-merge-resolve.test.ts": 1780293527050.0789
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
   },
   "aspectVerdicts": {
     "test-deterministic": {

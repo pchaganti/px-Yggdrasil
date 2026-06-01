@@ -1,23 +1,7 @@
 {
-  "hash": "f2ad425904dba33097509b717514e7eafe357882d0b1bb0a4ad0aae08866ce01",
+  "schemaVersion": 1,
+  "hash": "6dd74fc9614d447983f88032e8752b03f74fe76ff7189a70217a0d4dd77d22ca",
   "files": {
-    "own-subset:cli/core/context": "f024c01db6a22a541747c0be08271eb81721e0870a5fae237bcf3068e1a3db3b",
-    "aspect-meta:deterministic": "c519ac2565dbb22b41029f6e95a238b3345ef3d3b3a433b0e4c13c684969ca2c",
-    "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "aspect-meta:no-nondeterminism-direct": "6e2986f1175fc284d63accb9209518c0d99994114f1ad9d30f91df11498a75ca",
-    "aspect-meta:no-direct-fs": "85008a60917fc599d6fbfcfb2af8e0d4e563f4eaeff9c8da8a5722aef696b948",
-    "aspect-meta:no-direct-console": "84cef429198884b3dcc2076061e164d50d97b011724d2f357350ede01f4fa975",
-    "aspect-meta:posix-paths-source": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
-    "aspect-meta:single-source-graph-queries": "b1dd772529ca4799de41809e1e615c58ab58fba6b861920dd646786ff43ad9c2",
-    "aspect-meta:posix-paths-output": "0616e83dea174e69b84be8d3bc43a180a8f33aa8e4f1df8473419c0b9897bd03",
-    "tier-identity:posix-paths-output": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "aspect-meta:what-why-next": "1b09853973f277b1f6e8f02db3d9a1b5611e69b04f25b40dca5873730e17b037",
-    "tier-identity:what-why-next": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "check-touched:no-nondeterminism-direct": "c7df3b8979e40590506c231dfb536ebfea26467438f6ce0df1d547047f0bf50a",
-    "check-touched:no-direct-fs": "c7df3b8979e40590506c231dfb536ebfea26467438f6ce0df1d547047f0bf50a",
-    "check-touched:no-direct-console": "c7df3b8979e40590506c231dfb536ebfea26467438f6ce0df1d547047f0bf50a",
-    "check-touched:posix-paths-source": "c7df3b8979e40590506c231dfb536ebfea26467438f6ce0df1d547047f0bf50a",
-    "check-touched:single-source-graph-queries": "c7df3b8979e40590506c231dfb536ebfea26467438f6ce0df1d547047f0bf50a",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
@@ -35,43 +19,52 @@
     "source/cli/src/core/context-builder.ts": "cc194034a59350ae3efb8871d18a72aea325a0a4b585d76102888eaeb2e219a1",
     ".yggdrasil/model/cli/utils/yg-node.yaml": "f1d878eaf5cede8dcbac77340ad2bd1a75125b963e9190d33d408dde5ce78b78"
   },
-  "mtimes": {
-    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
-    ".yggdrasil/model/cli/core/yg-node.yaml": 1776177846202.0774,
-    ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
-    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": 1779794513933.2222,
-    ".yggdrasil/aspects/no-direct-fs/check.mjs": 1779794513932.871,
-    ".yggdrasil/aspects/no-direct-console/check.mjs": 1779794513932.3838,
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1779794513934.5745,
-    ".yggdrasil/aspects/single-source-graph-queries/check.mjs": 1779794513935.7961,
-    ".yggdrasil/aspects/posix-paths-output/content.md": 1778912983383.063,
-    ".yggdrasil/aspects/what-why-next/content.md": 1780050256245.0933,
-    ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
-    ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    ".yggdrasil/model/cli/model/context/yg-node.yaml": 1776177846203.256,
-    ".yggdrasil/model/cli/model/drift/yg-node.yaml": 1776177846203.4216,
-    ".yggdrasil/model/cli/utils/yg-node.yaml": 1780246223022.0115,
-    "source/cli/src/core/context-builder.ts": 1780244056094.3472
-  },
-  "log": {
-    "last_entry_datetime": "2026-05-31T16:03:33.202Z",
-    "prefix_hash": "5519f89381ee754c171626a9c0654f57d1aef913709f860d40a08e86c73cb24f"
-  },
-  "checkTouchedFiles": {
-    "no-nondeterminism-direct": {
-      "source/cli/src/core/context-builder.ts": "cc194034a59350ae3efb8871d18a72aea325a0a4b585d76102888eaeb2e219a1"
-    },
-    "no-direct-fs": {
-      "source/cli/src/core/context-builder.ts": "cc194034a59350ae3efb8871d18a72aea325a0a4b585d76102888eaeb2e219a1"
-    },
-    "no-direct-console": {
-      "source/cli/src/core/context-builder.ts": "cc194034a59350ae3efb8871d18a72aea325a0a4b585d76102888eaeb2e219a1"
-    },
-    "posix-paths-source": {
-      "source/cli/src/core/context-builder.ts": "cc194034a59350ae3efb8871d18a72aea325a0a4b585d76102888eaeb2e219a1"
-    },
-    "single-source-graph-queries": {
-      "source/cli/src/core/context-builder.ts": "cc194034a59350ae3efb8871d18a72aea325a0a4b585d76102888eaeb2e219a1"
+  "identity": {
+    "ownSubset": "f024c01db6a22a541747c0be08271eb81721e0870a5fae237bcf3068e1a3db3b",
+    "ports": {},
+    "aspects": {
+      "deterministic": {
+        "meta": "c519ac2565dbb22b41029f6e95a238b3345ef3d3b3a433b0e4c13c684969ca2c",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      },
+      "no-nondeterminism-direct": {
+        "meta": "6e2986f1175fc284d63accb9209518c0d99994114f1ad9d30f91df11498a75ca",
+        "checkTouched": {
+          "source/cli/src/core/context-builder.ts": "cc194034a59350ae3efb8871d18a72aea325a0a4b585d76102888eaeb2e219a1"
+        }
+      },
+      "no-direct-fs": {
+        "meta": "85008a60917fc599d6fbfcfb2af8e0d4e563f4eaeff9c8da8a5722aef696b948",
+        "checkTouched": {
+          "source/cli/src/core/context-builder.ts": "cc194034a59350ae3efb8871d18a72aea325a0a4b585d76102888eaeb2e219a1"
+        }
+      },
+      "no-direct-console": {
+        "meta": "84cef429198884b3dcc2076061e164d50d97b011724d2f357350ede01f4fa975",
+        "checkTouched": {
+          "source/cli/src/core/context-builder.ts": "cc194034a59350ae3efb8871d18a72aea325a0a4b585d76102888eaeb2e219a1"
+        }
+      },
+      "posix-paths-source": {
+        "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
+        "checkTouched": {
+          "source/cli/src/core/context-builder.ts": "cc194034a59350ae3efb8871d18a72aea325a0a4b585d76102888eaeb2e219a1"
+        }
+      },
+      "single-source-graph-queries": {
+        "meta": "b1dd772529ca4799de41809e1e615c58ab58fba6b861920dd646786ff43ad9c2",
+        "checkTouched": {
+          "source/cli/src/core/context-builder.ts": "cc194034a59350ae3efb8871d18a72aea325a0a4b585d76102888eaeb2e219a1"
+        }
+      },
+      "posix-paths-output": {
+        "meta": "0616e83dea174e69b84be8d3bc43a180a8f33aa8e4f1df8473419c0b9897bd03",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      },
+      "what-why-next": {
+        "meta": "1b09853973f277b1f6e8f02db3d9a1b5611e69b04f25b40dca5873730e17b037",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
     }
   },
   "aspectVerdicts": {
@@ -99,5 +92,27 @@
     "what-why-next": {
       "verdict": "approved"
     }
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/core/yg-node.yaml": 1776177846202.0774,
+    ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
+    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": 1779794513933.2222,
+    ".yggdrasil/aspects/no-direct-fs/check.mjs": 1779794513932.871,
+    ".yggdrasil/aspects/no-direct-console/check.mjs": 1779794513932.3838,
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1779794513934.5745,
+    ".yggdrasil/aspects/single-source-graph-queries/check.mjs": 1779794513935.7961,
+    ".yggdrasil/aspects/posix-paths-output/content.md": 1778912983383.063,
+    ".yggdrasil/aspects/what-why-next/content.md": 1780050256245.0933,
+    ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
+    ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
+    ".yggdrasil/model/cli/model/context/yg-node.yaml": 1776177846203.256,
+    ".yggdrasil/model/cli/model/drift/yg-node.yaml": 1776177846203.4216,
+    ".yggdrasil/model/cli/utils/yg-node.yaml": 1780246223022.0115,
+    "source/cli/src/core/context-builder.ts": 1780244056094.3472
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-31T16:03:33.202Z",
+    "prefix_hash": "5519f89381ee754c171626a9c0654f57d1aef913709f860d40a08e86c73cb24f"
   }
 }

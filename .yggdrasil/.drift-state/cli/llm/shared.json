@@ -1,13 +1,7 @@
 {
-  "hash": "4f085ce47266a79b05257a5f2a37f1ddc7a7be0eac54e66e27f95c7fe4366525",
+  "schemaVersion": 1,
+  "hash": "106acc9cd6771aaf576cf14cb78f409d9d092e73dfa0acfde3e202029dfe445c",
   "files": {
-    "own-subset:cli/llm/shared": "78c235f3cf8c38ab5f01ff2d70f00cda29b714ffa1adaf5dad7ac84c6a7a0146",
-    "aspect-meta:diagnostic-logging": "cb27ac03d47e1fa03836aa7b83141dfe5d245bf4fb6834acac6db4f16daae3e5",
-    "tier-identity:diagnostic-logging": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "aspect-meta:provider-retry-contract": "b1b88e61840c03cd476eee80cc224c06fac6aa8cbf51e70e44a878026cf884aa",
-    "tier-identity:provider-retry-contract": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "aspect-meta:what-why-next": "1b09853973f277b1f6e8f02db3d9a1b5611e69b04f25b40dca5873730e17b037",
-    "tier-identity:what-why-next": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/llm/yg-node.yaml": "eb86d7c0b81642af0c1d40cba6a1f5a780293a2304635bd100bd64677a4c8838",
     ".yggdrasil/aspects/diagnostic-logging/content.md": "861da9ccecc91d8c08168ba10fb297a729158f272fe8da5c136fd6a7e997fb41",
@@ -21,6 +15,35 @@
     "source/cli/src/llm/model-fetcher.ts": "0c986bd9b6bf33393e48ec1bee70481d8db3dbd42b2eb4c69200798cf777afc3",
     "source/cli/src/llm/xml-escape.ts": "fe137a7ad8acd1fae2d2ddc068881ac0eb2340a54fe24a5c149a7fa0c2800657",
     "source/cli/src/llm/aspect-verifier.ts": "0eb3e86defa5695d94f0584e8ec3658f404a8036e25408ffbc8344f7660b184b"
+  },
+  "identity": {
+    "ownSubset": "78c235f3cf8c38ab5f01ff2d70f00cda29b714ffa1adaf5dad7ac84c6a7a0146",
+    "ports": {},
+    "aspects": {
+      "diagnostic-logging": {
+        "meta": "cb27ac03d47e1fa03836aa7b83141dfe5d245bf4fb6834acac6db4f16daae3e5",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      },
+      "provider-retry-contract": {
+        "meta": "b1b88e61840c03cd476eee80cc224c06fac6aa8cbf51e70e44a878026cf884aa",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      },
+      "what-why-next": {
+        "meta": "1b09853973f277b1f6e8f02db3d9a1b5611e69b04f25b40dca5873730e17b037",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "diagnostic-logging": {
+      "verdict": "approved"
+    },
+    "provider-retry-contract": {
+      "verdict": "approved"
+    },
+    "what-why-next": {
+      "verdict": "approved"
+    }
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -40,16 +63,5 @@
   "log": {
     "last_entry_datetime": "2026-05-31T14:36:48.731Z",
     "prefix_hash": "e6967c6fd914ffe0e90f90a2df3e5559d383ed89e196b848fae934a5e9abbd65"
-  },
-  "aspectVerdicts": {
-    "diagnostic-logging": {
-      "verdict": "approved"
-    },
-    "provider-retry-contract": {
-      "verdict": "approved"
-    },
-    "what-why-next": {
-      "verdict": "approved"
-    }
   }
 }

@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import { logMergeResolve } from '../../../src/core/log/log-merge-resolve.js';
 import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../../src/model/drift.js';
 
 const dirs: string[] = [];
 
@@ -57,8 +58,11 @@ describe('logMergeResolve (core)', () => {
     const yggRoot = path.join(projectRoot, '.yggdrasil');
     const prefixHash = createHash('sha256').update(Buffer.from(ANCESTOR_LOG, 'utf-8')).digest('hex');
     await writeNodeDriftState(yggRoot, nodePath, {
+      schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
       hash: 'h',
       files: {},
+      identity: { ownSubset: 'o', ports: {}, aspects: {} },
+      aspectVerdicts: {},
       log: { last_entry_datetime: '2026-05-11T10:00:00.000Z', prefix_hash: prefixHash },
     });
     const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });

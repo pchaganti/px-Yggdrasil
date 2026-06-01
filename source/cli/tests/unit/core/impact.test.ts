@@ -11,6 +11,7 @@ import {
 } from '../../../src/core/graph/impact-graph.js';
 import { computeEffectiveAspects } from '../../../src/core/graph/aspects.js';
 import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../../src/model/drift.js';
 import type { Graph, GraphNode, AspectDef } from '../../../src/model/graph.js';
 
 function makeNode(nodePath: string, overrides: Partial<GraphNode> = {}): GraphNode {
@@ -655,11 +656,15 @@ describe('collectStructureCascade', () => {
       // Baseline records that the neighbour's structure aspect read the owner's
       // file cross-node — collectTrackedFiles emits it under 'check-touched'.
       await writeNodeDriftState(yggRoot, 'neighbour', {
+        schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
         hash: 'h',
         files: {},
-        checkTouchedFiles: {
-          shape: { 'src/owner.ts': 'sha-of-owner' },
+        identity: {
+          ownSubset: 'o',
+          ports: {},
+          aspects: { shape: { meta: 'm', checkTouched: { 'src/owner.ts': 'sha-of-owner' } } },
         },
+        aspectVerdicts: {},
       });
 
       const result = await collectStructureCascade(graph, 'src/owner.ts', 'owner');

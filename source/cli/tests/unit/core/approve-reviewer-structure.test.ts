@@ -9,8 +9,19 @@ import { approveNode } from '../../../src/core/approve.js';
 import { writeNodeDriftState, readNodeDriftState } from '../../../src/io/drift-state-store.js';
 import { hashTrackedFiles } from '../../../src/io/hash.js';
 import { collectTrackedFiles } from '../../../src/core/graph/files.js';
+import { recordBaselineForAllMappedNodes } from '../helpers/seed-baseline.js';
+import { DRIFT_STATE_SCHEMA_VERSION, type DriftNodeState } from '../../../src/model/drift.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+/** Derive the legacy { aspectId → touchedMap } view from the typed identity. */
+function stfOf(state: DriftNodeState | undefined): Record<string, Record<string, string>> {
+  const out: Record<string, Record<string, string>> = {};
+  for (const [id, ai] of Object.entries(state?.identity.aspects ?? {})) {
+    if (ai.checkTouched) out[id] = ai.checkTouched;
+  }
+  return out;
+}
 
 describe('resolveExecutionPlan — structure branch', () => {
   const reviewer: ReviewerConfig = {
@@ -161,19 +172,7 @@ async function createStructureProject(name: string, opts: {
 
 async function recordBaseline(tmpDir: string) {
   const graph = await loadGraph(tmpDir);
-  for (const [nodePath, node] of graph.nodes) {
-    if (!node.meta.mapping) continue;
-    const trackedFiles = collectTrackedFiles(node, graph);
-    const projectRoot = path.dirname(graph.rootPath);
-    const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
-      projectRoot, trackedFiles, undefined, [],
-    );
-    await writeNodeDriftState(graph.rootPath, nodePath, {
-      hash: canonicalHash,
-      files: fileHashes,
-      mtimes: fileMtimes,
-    });
-  }
+  await recordBaselineForAllMappedNodes(graph);
 }
 
 describe('runApproveWithReviewer — structure dispatch', () => {
@@ -279,7 +278,7 @@ describe('runApproveWithReviewer — structure dispatch', () => {
 
     // The cross-node touched path is recorded under checkTouchedFiles with a
     // real disk hash (proving the `if (!hash)` branch ran)...
-    const stf = result.pendingDriftState?.state.checkTouchedFiles?.['reads-dep'];
+    const stf = stfOf(result.pendingDriftState?.state)['reads-dep'];
     expect(stf).toBeDefined();
     expect(stf!['src/dep.ts']).toMatch(/^[a-f0-9]+$/);
     // ...but it must NOT leak into this node's canonical own-source map.
@@ -355,7 +354,7 @@ export function check(ctx) {
     // Run still completes — the missing cross-node path was skipped, not fatal.
     expect(result.action).toBe('approved');
     expect(result.aspectResults?.['reads-dep']?.satisfied).toBe(true);
-    const stf = result.pendingDriftState?.state.checkTouchedFiles?.['reads-dep'];
+    const stf = stfOf(result.pendingDriftState?.state)['reads-dep'];
     expect(stf).toBeDefined();
     // The deleted cross-node path is absent from recorded hashes (catch → continue).
     expect(stf!['src/dep.ts']).toBeUndefined();
@@ -658,7 +657,7 @@ export function check(ctx) {
     // Structure aspect ran successfully on a no-change node — action stays 'no-change'
     expect(result.action).toBe('no-change');
     expect(result.aspectResults?.['shape-check']?.satisfied).toBe(true);
-    expect(result.pendingDriftState?.state.checkTouchedFiles?.['shape-check']).toBeDefined();
+    expect(stfOf(result.pendingDriftState?.state)['shape-check']).toBeDefined();
 
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -696,32 +695,34 @@ describe('D8.3 — checkTouchedFiles carry-forward for draft-skipped structure a
       ],
     });
 
-    // Record baseline — with seeded checkTouchedFiles for BOTH aspects (A and B).
+    // Record baseline — with seeded checkTouched for BOTH aspects (A and B).
     await recordBaseline(tmpDir);
     const graph0 = await loadGraph(tmpDir);
     for (const [nodePath, node] of graph0.nodes) {
       if (!node.meta.mapping) continue;
-      const trackedFiles = collectTrackedFiles(node, graph0);
+      const { trackedFiles, identity } = collectTrackedFiles(node, graph0);
       const projectRoot = path.dirname(graph0.rootPath);
+      // Inject checkTouched for both aspects into the freshly-computed identity —
+      // simulating a prior enforce-both approve. Aspects not present are skipped.
+      if (identity.aspects['shape-a']) identity.aspects['shape-a'].checkTouched = { 'src/svc.ts': 'aaa111' };
+      if (identity.aspects['shape-b']) identity.aspects['shape-b'].checkTouched = { 'src/svc.ts': 'bbb222' };
       const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
-        projectRoot, trackedFiles, undefined, [],
+        projectRoot, trackedFiles, undefined, [], identity,
       );
       await writeNodeDriftState(graph0.rootPath, nodePath, {
+        schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
         hash: canonicalHash,
         files: fileHashes,
         mtimes: fileMtimes,
-        // Seed checkTouchedFiles for both aspects — simulating a prior enforce-both approve
-        checkTouchedFiles: {
-          'shape-a': { 'src/svc.ts': 'aaa111' },
-          'shape-b': { 'src/svc.ts': 'bbb222' },
-        },
+        identity,
+        aspectVerdicts: {},
       });
     }
 
-    // Read the baseline BEFORE modifying source (this is the entry with shape-b stf)
+    // Read the baseline BEFORE modifying source (this is the entry with shape-b checkTouched)
     const { readNodeDriftState } = await import('../../../src/io/drift-state-store.js');
     const seededBaseline = await readNodeDriftState(yggRoot, 'svc/my-service');
-    expect(seededBaseline?.checkTouchedFiles?.['shape-b']).toMatchObject({ 'src/svc.ts': 'bbb222' });
+    expect(seededBaseline?.identity.aspects['shape-b']?.checkTouched).toMatchObject({ 'src/svc.ts': 'bbb222' });
 
     // Modify source so approve runs (approved, not no-change)
     await writeFile(path.join(tmpDir, 'src/svc.ts'), 'export const x = 2;\n');
@@ -740,7 +741,7 @@ describe('D8.3 — checkTouchedFiles carry-forward for draft-skipped structure a
     });
 
     // shape-b was skipped (draft) — its prior checkTouchedFiles entry must be preserved
-    const stf = result.pendingDriftState?.state.checkTouchedFiles;
+    const stf = stfOf(result.pendingDriftState?.state);
     expect(stf).toBeDefined();
     // shape-a ran and may update its entry
     expect(stf!['shape-a']).toBeDefined();
@@ -783,14 +784,12 @@ describe('D8.3 — checkTouchedFiles carry-forward for draft-skipped structure a
     });
 
     await recordBaseline(tmpDir);
-    // Seed baseline with checkTouchedFiles (only for shape-a, llm-draft has none)
+    // Seed baseline with checkTouched (only for shape-a, llm-draft has none)
     const { readNodeDriftState: rds, writeNodeDriftState: wds } = await import('../../../src/io/drift-state-store.js');
     const priorState = await rds(path.join(tmpDir, '.yggdrasil'), 'svc/my-service');
-    if (priorState) {
-      await wds(path.join(tmpDir, '.yggdrasil'), 'svc/my-service', {
-        ...priorState,
-        checkTouchedFiles: { 'shape-a': { 'src/svc.ts': 'aaa111' } },
-      });
+    if (priorState && priorState.identity.aspects['shape-a']) {
+      priorState.identity.aspects['shape-a'].checkTouched = { 'src/svc.ts': 'aaa111' };
+      await wds(path.join(tmpDir, '.yggdrasil'), 'svc/my-service', priorState);
     }
 
     await writeFile(path.join(tmpDir, 'src/svc.ts'), 'export const x = 2;\n');
@@ -811,7 +810,7 @@ describe('D8.3 — checkTouchedFiles carry-forward for draft-skipped structure a
     expect(result.action).toBe('approved');
     // shape-a ran (structure, enforced) — stf updated
     // llm-draft was skipped — D8.3 loop hit continue (type !== 'deterministic'), no crash
-    const stf = result.pendingDriftState?.state.checkTouchedFiles;
+    const stf = stfOf(result.pendingDriftState?.state);
     expect(stf?.['shape-a']).toBeDefined();
     // llm-draft has no checkTouchedFiles entry (it is not structure type)
     expect(stf?.['llm-draft']).toBeUndefined();
@@ -852,30 +851,31 @@ describe('D8.3 — checkTouchedFiles carry-forward for draft-skipped structure a
       ],
     });
 
-    // Record baseline, then seed checkTouchedFiles for BOTH enforced aspects.
+    // Record baseline, then seed checkTouched for BOTH enforced aspects.
     await recordBaseline(tmpDir);
     const graph0 = await loadGraph(tmpDir);
     for (const [nodePath, node] of graph0.nodes) {
       if (!node.meta.mapping) continue;
-      const trackedFiles = collectTrackedFiles(node, graph0);
+      const { trackedFiles, identity } = collectTrackedFiles(node, graph0);
       const projectRoot = path.dirname(graph0.rootPath);
+      if (identity.aspects['shape-a']) identity.aspects['shape-a'].checkTouched = { 'src/svc.ts': 'aaa111' };
+      if (identity.aspects['shape-b']) identity.aspects['shape-b'].checkTouched = { 'src/other.ts': 'bbb222' };
       const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
-        projectRoot, trackedFiles, undefined, [],
+        projectRoot, trackedFiles, undefined, [], identity,
       );
       await writeNodeDriftState(graph0.rootPath, nodePath, {
+        schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
         hash: canonicalHash,
         files: fileHashes,
         mtimes: fileMtimes,
-        checkTouchedFiles: {
-          'shape-a': { 'src/svc.ts': 'aaa111' },
-          'shape-b': { 'src/other.ts': 'bbb222' },
-        },
+        identity,
+        aspectVerdicts: {},
       });
     }
 
     const { readNodeDriftState } = await import('../../../src/io/drift-state-store.js');
     const seededBaseline = await readNodeDriftState(yggRoot, 'svc/my-service');
-    expect(seededBaseline?.checkTouchedFiles?.['shape-b']).toMatchObject({ 'src/other.ts': 'bbb222' });
+    expect(seededBaseline?.identity.aspects['shape-b']?.checkTouched).toMatchObject({ 'src/other.ts': 'bbb222' });
 
     // Modify source so approve runs (approved, not no-change).
     await writeFile(path.join(tmpDir, 'src/svc.ts'), 'export const x = 2;\n');
@@ -895,7 +895,7 @@ describe('D8.3 — checkTouchedFiles carry-forward for draft-skipped structure a
       filterAspectId: 'shape-a',
     });
 
-    const stf = result.pendingDriftState?.state.checkTouchedFiles;
+    const stf = stfOf(result.pendingDriftState?.state);
     expect(stf).toBeDefined();
     // shape-a ran this run — its entry is present (freshly evaluated).
     expect(stf!['shape-a']).toBeDefined();

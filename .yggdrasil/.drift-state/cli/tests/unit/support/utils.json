@@ -1,5 +1,6 @@
 {
-  "hash": "feb95b36faaeeb094d5491d9751def67f61a969962832e50ff2800efedbb2ca3",
+  "schemaVersion": 1,
+  "hash": "bdc8699bb5475a8698521f24962e9c41b206b2c87f42624dea21bbba9f9b314b",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -11,10 +12,22 @@
     "source/cli/tests/unit/utils/node-path-validator.test.ts": "e169d6f1cdb9f70169f7705a401b625991b84a9837cf287d4386325e37e47cb3",
     "source/cli/tests/unit/utils/mapping-path.test.ts": "42136edf61599ff73e421cc93006da247e46cd1d3c5187697e03955899badd23",
     "source/cli/tests/unit/utils/paths.test.ts": "572c93a02cfc2a7433eaac1a06066e23003fcb02a0a59df70b3518407b6faf30",
-    "source/cli/tests/unit/utils/validate-check-module.test.ts": "9e0158b36e54b319f868ea975fee70839484d83a24160ad1bd2e9dcaeb76ea2a",
-    "own-subset:cli/tests/unit/support/utils": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+    "source/cli/tests/unit/utils/validate-check-module.test.ts": "9e0158b36e54b319f868ea975fee70839484d83a24160ad1bd2e9dcaeb76ea2a"
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -28,10 +41,5 @@
     "source/cli/tests/unit/utils/node-path-validator.test.ts": 1778572617116.5535,
     "source/cli/tests/unit/utils/paths.test.ts": 1780124779967.1313,
     "source/cli/tests/unit/utils/validate-check-module.test.ts": 1780124570681.2737
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
   }
 }

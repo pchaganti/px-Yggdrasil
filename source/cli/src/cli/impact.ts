@@ -356,8 +356,8 @@ export function registerImpactCommand(program: Command): void {
             for (const [nodePath, node] of graph.nodes) {
               // Skip the structural owner — it's handled separately
               if (ownerResult.nodePath && nodePath === ownerResult.nodePath) continue;
-              const tracked = collectTrackedFiles(node, graph);
-              const hasRef = tracked.some(
+              const { trackedFiles } = collectTrackedFiles(node, graph);
+              const hasRef = trackedFiles.some(
                 t => t.category === 'graph' && t.layer === 'aspects' && t.path === repoRelative,
               );
               if (hasRef) refCascadeNodes.push(nodePath);

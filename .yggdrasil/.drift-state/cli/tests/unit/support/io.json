@@ -1,9 +1,7 @@
 {
-  "hash": "2ceccbe7f7acbebe75c6afcc9f970839518a353311ea12a33ec721cf8a585533",
+  "schemaVersion": 1,
+  "hash": "52e2b988669d703c56a8221293c42eea91fd9b55caaff341468f402beb0b2af8",
   "files": {
-    "own-subset:cli/tests/unit/support/io": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
@@ -14,6 +12,21 @@
     "source/cli/tests/unit/io/secrets-parser.test.ts": "3a961411c40d2a0b7809d90fc21792e87b780322e0a3de1112a6acc8dec4ce2d",
     "source/cli/tests/unit/io/read-or-default.test.ts": "47ad2f845e3fb2524db10049dfc1babc8db4d036875e99ddc004a2c91e953ad6",
     "source/cli/tests/unit/io/find-index.test.ts": "39e7ed641123770a5af8734470b0c97b2f5fdb75e5445b55975c4b728fe467f2"
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -30,10 +43,5 @@
   "log": {
     "last_entry_datetime": "2026-05-30T18:08:14.271Z",
     "prefix_hash": "ec18a8d54a3acbaad49490e9deb250bc2ab44384cf3d8716a3f2722c4841ea0a"
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
   }
 }

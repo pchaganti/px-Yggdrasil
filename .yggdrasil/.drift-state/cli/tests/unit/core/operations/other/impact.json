@@ -1,5 +1,6 @@
 {
-  "hash": "a59e7d452f00c37c895c2df88eb999688e1a1de3e4659d5a3b65b1cb035bdc01",
+  "schemaVersion": 1,
+  "hash": "5e6af770166d0f71c9fcfe3588c55315a0d217b5b6ee9e676316d45d9a7db182",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -8,10 +9,7 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": "a5408f7e331d1e28996ceaf2b67c4fada5e52ee3909db85a7904aae88cd55146",
     ".yggdrasil/model/cli/tests/unit/core/operations/other/yg-node.yaml": "764c78dcfd86eee612baaffb6eade923e7b52a3098194e7c192121c39edc86cb",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/core/impact.test.ts": "e497c57f6d21d027015708097c028b1a04ad4805a6888f25d1691579e3a9d726",
-    "own-subset:cli/tests/unit/core/operations/other/impact": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+    "source/cli/tests/unit/core/impact.test.ts": "254c4014c00c0cec55595a70f561a0a5912cfac450415b97385ecd434b805fff"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -21,15 +19,25 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": 1779996108975.9385,
     ".yggdrasil/model/cli/tests/unit/core/operations/other/yg-node.yaml": 1780103152680.9028,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/impact.test.ts": 1780207999741.7014
+    "source/cli/tests/unit/core/impact.test.ts": 1780293527030.309
   },
-  "log": {
-    "last_entry_datetime": "2026-05-31T06:24:48.323Z",
-    "prefix_hash": "0f4d3d1acbdd81b0d5d808c36babe2dca6752e5ff8b34427998cde2e4e6b83b1"
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
   },
   "aspectVerdicts": {
     "test-deterministic": {
       "verdict": "approved"
     }
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-31T06:24:48.323Z",
+    "prefix_hash": "0f4d3d1acbdd81b0d5d808c36babe2dca6752e5ff8b34427998cde2e4e6b83b1"
   }
 }

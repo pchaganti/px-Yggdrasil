@@ -10,12 +10,19 @@ import {
   perFileHashes,
   hashTrackedFiles,
   expandMappingPaths,
+  computeCanonicalHash,
+  serializeIdentity,
 } from '../../../src/io/hash.js';
 import type { TrackedFile } from '../../../src/core/graph/files.js';
+import type { DriftIdentity } from '../../../src/model/drift.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const HASH_TMP_PREFIXES = ['tmp-hash', 'tmp-expand', 'tmp-htf', 'tmp-perfile', 'tmp-hashpath'];
+
+// The empty identity computeCanonicalHash folds when no identity is supplied —
+// ownSubset is the empty-string digest, matching hash.ts's EMPTY_IDENTITY.
+const EMPTY_TEST_IDENTITY: DriftIdentity = { ownSubset: hashString(''), ports: {}, aspects: {} };
 
 describe('hash', () => {
   afterEach(async () => {
@@ -376,8 +383,11 @@ describe('hash', () => {
         const expectedFileHash = hashString('hello world');
         expect(fileHashes).toEqual({ [relPath]: expectedFileHash });
 
-        // Canonical hash is sha256 of "path:hash"
-        expect(canonicalHash).toBe(hashString(`${relPath}:${expectedFileHash}`));
+        // Canonical hash folds the files digest + an empty identity via the
+        // single-source-of-truth computeCanonicalHash.
+        expect(canonicalHash).toBe(
+          computeCanonicalHash({ [relPath]: expectedFileHash }, EMPTY_TEST_IDENTITY),
+        );
         expect(canonicalHash).toMatch(/^[a-f0-9]{64}$/);
       } finally {
         await rm(tmpDir, { recursive: true, force: true });
@@ -438,8 +448,8 @@ describe('hash', () => {
         const { canonicalHash, fileHashes } = await hashTrackedFiles(tmpDir, []);
 
         expect(fileHashes).toEqual({});
-        // Canonical hash of empty input: hashString('') — deterministic
-        expect(canonicalHash).toBe(hashString(''));
+        // Canonical hash of empty files + empty identity — deterministic.
+        expect(canonicalHash).toBe(computeCanonicalHash({}, EMPTY_TEST_IDENTITY));
         expect(canonicalHash).toMatch(/^[a-f0-9]{64}$/);
       } finally {
         await rm(tmpDir, { recursive: true, force: true });
@@ -631,20 +641,34 @@ describe('hash', () => {
     });
   });
 
-  describe('hashTrackedFiles — synthetic hashes and exclusions', () => {
-    it('uses synthetic hash when provided in TrackedFile', async () => {
-      const tmpDir = path.join(__dirname, '../../fixtures/tmp-htf-synthetic');
+  describe('hashTrackedFiles — identity fold and exclusions', () => {
+    it('folds the typed identity into the canonical hash; reordering identity is stable', async () => {
+      const tmpDir = path.join(__dirname, '../../fixtures/tmp-htf-identity');
       await mkdir(tmpDir, { recursive: true });
       try {
-        await writeFile(path.join(tmpDir, 'file.txt'), 'content', 'utf-8');
+        await writeFile(path.join(tmpDir, 'a.txt'), 'A', 'utf-8');
+        const trackedFiles: TrackedFile[] = [{ path: 'a.txt', category: 'source', layer: 'source' }];
 
-        const syntheticHash = 'abc123def456abc123def456abc123def456abc123def456abc123def456';
-        const trackedFiles: TrackedFile[] = [
-          { path: 'synthetic-entry', category: 'graph', syntheticHash, layer: 'hierarchy' },
-        ];
-        const { fileHashes } = await hashTrackedFiles(tmpDir, trackedFiles);
+        const identA: DriftIdentity = {
+          ownSubset: 'own',
+          ports: { 'x/y': 'p1', 'a/b': 'p2' },
+          aspects: { beta: { meta: 'mb', tier: 'tb' }, alpha: { meta: 'ma' } },
+        };
+        const identB: DriftIdentity = {
+          ownSubset: 'own',
+          ports: { 'a/b': 'p2', 'x/y': 'p1' },
+          aspects: { alpha: { meta: 'ma' }, beta: { tier: 'tb', meta: 'mb' } },
+        };
 
-        expect(fileHashes['synthetic-entry']).toBe(syntheticHash);
+        const r1 = await hashTrackedFiles(tmpDir, trackedFiles, undefined, [], identA);
+        const r2 = await hashTrackedFiles(tmpDir, trackedFiles, undefined, [], identB);
+        // Reordering ports/aspects/fields must not change the canonical hash.
+        expect(r1.canonicalHash).toBe(r2.canonicalHash);
+
+        // A different identity changes the hash; files are unchanged.
+        const identChanged: DriftIdentity = { ...identA, ownSubset: 'own2' };
+        const r3 = await hashTrackedFiles(tmpDir, trackedFiles, undefined, [], identChanged);
+        expect(r3.canonicalHash).not.toBe(r1.canonicalHash);
       } finally {
         await rm(tmpDir, { recursive: true, force: true });
       }
@@ -764,6 +788,49 @@ describe('hash', () => {
       } finally {
         await rm(tmpDir, { recursive: true, force: true });
       }
+    });
+  });
+
+  describe('computeCanonicalHash / serializeIdentity — determinism', () => {
+    const ident: DriftIdentity = {
+      ownSubset: 'own',
+      ports: { 'p/two': 'h2', 'p/one': 'h1' },
+      aspects: {
+        zeta: { meta: 'mz', tier: 'tz' },
+        alpha: { meta: 'ma', checkTouched: { 'src/b.ts': 'hb', 'src/a.ts': 'ha' } },
+      },
+    };
+
+    it('is order-independent over files, ports, aspects, and checkTouched', () => {
+      const filesA = { 'src/z.ts': 'hz', 'src/a.ts': 'ha' };
+      const filesB = { 'src/a.ts': 'ha', 'src/z.ts': 'hz' };
+      const identReordered: DriftIdentity = {
+        ownSubset: 'own',
+        ports: { 'p/one': 'h1', 'p/two': 'h2' },
+        aspects: {
+          alpha: { checkTouched: { 'src/a.ts': 'ha', 'src/b.ts': 'hb' }, meta: 'ma' },
+          zeta: { tier: 'tz', meta: 'mz' },
+        },
+      };
+      expect(computeCanonicalHash(filesA, ident)).toBe(computeCanonicalHash(filesB, identReordered));
+    });
+
+    it('changes when any identity element changes', () => {
+      const base = computeCanonicalHash({}, ident);
+      expect(computeCanonicalHash({}, { ...ident, ownSubset: 'own2' })).not.toBe(base);
+      expect(computeCanonicalHash({}, { ...ident, ports: { 'p/one': 'h1' } })).not.toBe(base);
+    });
+
+    it('serializeIdentity is stable across reordering', () => {
+      const a: DriftIdentity = { ownSubset: 'o', ports: { b: '2', a: '1' }, aspects: { y: { meta: 'y' }, x: { meta: 'x' } } };
+      const b: DriftIdentity = { ownSubset: 'o', ports: { a: '1', b: '2' }, aspects: { x: { meta: 'x' }, y: { meta: 'y' } } };
+      expect(serializeIdentity(a)).toBe(serializeIdentity(b));
+    });
+
+    it('a tier change is detectable; absent tier differs from present tier', () => {
+      const withTier: DriftIdentity = { ownSubset: 'o', ports: {}, aspects: { a: { meta: 'm', tier: 't' } } };
+      const noTier: DriftIdentity = { ownSubset: 'o', ports: {}, aspects: { a: { meta: 'm' } } };
+      expect(computeCanonicalHash({}, withTier)).not.toBe(computeCanonicalHash({}, noTier));
     });
   });
 });

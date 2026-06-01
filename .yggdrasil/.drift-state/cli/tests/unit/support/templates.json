@@ -1,5 +1,6 @@
 {
-  "hash": "ceffafea735ec8150d7de05105ff0d52c0e0a055e0b08c4558aafecd8bdb2bfb",
+  "schemaVersion": 1,
+  "hash": "94683200a351712799a9c00c3e49a6bc8cb39974f8595e9d67efdf0dedd9b059",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -11,10 +12,22 @@
     "source/cli/tests/unit/templates/platform.test.ts": "dc837d48e5e11e3983fc14a7c6a831b3941df91906da0447566c67d9756220ab",
     "source/cli/tests/unit/templates/rules.test.ts": "b768fae3b015c0eb3e56898661b63eefba31e6d9cedb6bb0a465ee4fb3730aae",
     "source/cli/tests/unit/templates/knowledge.test.ts": "d612e1071b25acde83fdc37bf7f870f5d3b98c20cf9bef38aed75440c37c17bd",
-    "source/cli/tests/unit/templates/rules-sections.test.ts": "28058e8afffbdcb33b530a1b3d5e9d3e92d43e95efbc5b2527cb53f22821f1c0",
-    "own-subset:cli/tests/unit/support/templates": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+    "source/cli/tests/unit/templates/rules-sections.test.ts": "28058e8afffbdcb33b530a1b3d5e9d3e92d43e95efbc5b2527cb53f22821f1c0"
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -32,10 +45,5 @@
   "log": {
     "last_entry_datetime": "2026-05-30T20:06:21.887Z",
     "prefix_hash": "6ae44eee849793da36817162c7aed8712a3714cbd9489ab018861f58e4e34231"
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
   }
 }

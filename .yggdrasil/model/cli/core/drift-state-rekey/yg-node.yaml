@@ -1,0 +1,11 @@
+name: Drift State Re-key
+type: engine
+description: "Pure, lossless re-key of a pre-typed (flat synthetic-key) drift-state baseline into the typed DriftNodeState format. Parses the legacy own-subset:/aspect-meta:/tier-identity:/check-touched:/port-aspects: synthetic keys out of the flat file map into the typed identity block, reconstructs per-aspect checkTouched maps, synthesizes an empty aspectVerdicts for pre-verdict baselines, and recomputes the canonical hash over the same logical inputs. No I/O; lives in core/ (not migrations/) so it stays a plain pure helper that the to-5.0.0 migration wires in."
+aspects: []
+relations:
+  - target: cli/model/drift
+    type: uses
+  - target: cli/io/stores
+    type: calls
+mapping:
+  - source/cli/src/core/drift-state-rekey.ts

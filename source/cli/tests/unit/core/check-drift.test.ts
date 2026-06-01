@@ -7,13 +7,18 @@ import { buildIssueMessage } from '../../../src/formatters/message-builder.js';
 const msgOf = (i: { messageData: Parameters<typeof buildIssueMessage>[0] }) => buildIssueMessage(i.messageData);
 import {
   classifyDrift,
-  describeCascadeCause,
   runCheck,
 } from '../../../src/core/check.js';
+import {
+  describeCascadeCause,
+  describeIdentityCause,
+} from '../../../src/core/drift-cause.js';
 import type { Graph, AspectDef } from '../../../src/model/graph.js';
 import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
 import { hashTrackedFiles } from '../../../src/io/hash.js';
 import { collectTrackedFiles } from '../../../src/core/graph/files.js';
+import { recordBaselineForAllMappedNodes } from '../helpers/seed-baseline.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../../src/model/drift.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -98,19 +103,7 @@ async function createTmpProject(name: string, opts: {
 
 async function recordBaseline(tmpDir: string) {
   const graph = await loadGraph(tmpDir);
-  for (const [nodePath, node] of graph.nodes) {
-    if (!node.meta.mapping) continue;
-    const trackedFiles = collectTrackedFiles(node, graph);
-    const projectRoot = path.dirname(graph.rootPath);
-    const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
-      projectRoot, trackedFiles, undefined, [],
-    );
-    await writeNodeDriftState(graph.rootPath, nodePath, {
-      hash: canonicalHash,
-      files: fileHashes,
-      mtimes: fileMtimes,
-    });
-  }
+  await recordBaselineForAllMappedNodes(graph);
 }
 
 
@@ -479,18 +472,21 @@ describe('classifyDrift', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('check-touched cascade names the owning deterministic aspect (not "unknown aspect")', async () => {
-    // A deterministic aspect `det` recorded a set of cross-node files it read,
-    // captured in checkTouchedFiles. When the SET MEMBERSHIP changes, the
-    // synthetic `check-touched:det` key (tracked on the 'aspects' layer)
-    // drifts. The rendered cascade message must name the owning aspect — the
-    // synthetic key is not a real file under .yggdrasil/aspects/, so without
-    // special handling it would fall into the reference-file fallback and render
-    // "declared by unknown aspect".
+  it('cross-node check-touched content change names the owning deterministic aspect (not "unknown aspect")', async () => {
+    // A deterministic aspect `det` recorded a CROSS-node file it read, captured
+    // in identity.aspects[det].checkTouched. The path is a REAL file owned by
+    // another node; collectTrackedFiles re-adds it as a 'check-touched' layer
+    // tracked file. When its CONTENT changes, the real-file hash drifts and the
+    // rendered cascade message must name the owning aspect via attributedAspectIds
+    // — not fall into the reference-file fallback "declared by unknown aspect".
     const { tmpDir } = await createTmpProject('check-touched-cause', {
       nodePath: 'svc/my-service',
       nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - det\nmapping:\n  - src/svc/\n',
-      mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
+      mappingFiles: {
+        'src/svc/index.ts': 'export default 42;\n',
+        // Cross-node file the deterministic aspect reads.
+        'src/related/a.ts': 'export const a = 1;\n',
+      },
       aspects: [{
         id: 'det',
         yaml: 'name: Det\ndescription: structural shape\nreviewer:\n  type: deterministic\n',
@@ -500,30 +496,34 @@ describe('classifyDrift', () => {
     const graph0 = await loadGraph(tmpDir);
     const node0 = graph0.nodes.get('svc/my-service')!;
     const projectRoot0 = path.dirname(graph0.rootPath);
-    // Record the baseline's tracked-file hashes computed from the OLD touched set
-    // (a single cross-node member path that is never created on disk, so it is
-    // skipped from `files` and only the synthetic `check-touched:det` key
-    // captures the set). The member paths themselves never exist on disk, so the
-    // only thing that can drift is the synthetic set-membership key.
-    const oldSet = { det: { 'src/related/a.ts': 'h1' } };
-    const trackedOld = collectTrackedFiles(node0, graph0, { hash: '', files: {}, checkTouchedFiles: oldSet });
-    const hOld = await hashTrackedFiles(projectRoot0, trackedOld, undefined, []);
-    // Store the baseline with the OLD set's per-file hashes but a NEW (grown) set
-    // in checkTouchedFiles. At check time collectTrackedFiles recomputes the
-    // synthetic key from this NEW set, mismatching the recorded OLD-set hash.
-    const newSet = { det: { 'src/related/a.ts': 'h1', 'src/related/b.ts': 'h2' } };
-    await writeNodeDriftState(graph0.rootPath, 'svc/my-service', {
-      hash: hOld.canonicalHash,
-      files: hOld.fileHashes,
-      mtimes: hOld.fileMtimes,
-      checkTouchedFiles: newSet,
+    // Baseline records det's checkTouched pointing at the cross-node file. The
+    // baseline's files map captures the file's ORIGINAL disk hash.
+    const { trackedFiles, identity } = collectTrackedFiles(node0, graph0, {
+      schemaVersion: DRIFT_STATE_SCHEMA_VERSION, hash: '', files: {},
+      identity: { ownSubset: 'o', ports: {}, aspects: { det: { meta: 'm', checkTouched: { 'src/related/a.ts': 'orig' } } } },
+      aspectVerdicts: {},
     });
+    if (identity.aspects['det']) identity.aspects['det'].checkTouched = { 'src/related/a.ts': 'orig' };
+    const h = await hashTrackedFiles(projectRoot0, trackedFiles, undefined, [], identity);
+    await writeNodeDriftState(graph0.rootPath, 'svc/my-service', {
+      schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
+      hash: h.canonicalHash,
+      files: h.fileHashes,
+      mtimes: h.fileMtimes,
+      identity,
+      aspectVerdicts: {},
+    });
+    // Now CHANGE the cross-node file's content → its real-file hash drifts.
+    await writeFile(path.join(tmpDir, 'src/related/a.ts'), 'export const a = 2;\n');
     const graph = await loadGraph(tmpDir);
     const result = await classifyDrift(graph);
     const upstreamDrift = result.filter(i => i.code === 'upstream-drift' && i.nodePath === 'svc/my-service');
     expect(upstreamDrift).toHaveLength(1);
     const rendered = msgOf(upstreamDrift[0]);
-    expect(rendered).toContain("the set of files read by deterministic aspect 'det'");
+    // The cross-node file content changed vs the stale baseline hash → its
+    // owning aspect is named.
+    const causes = upstreamDrift[0].cascadeCauses!;
+    expect(causes.some(c => c.layer === 'check-touched' && c.attributedAspectIds?.includes('det'))).toBe(true);
     expect(rendered).not.toContain('unknown aspect');
     await rm(tmpDir, { recursive: true, force: true });
   });
@@ -626,8 +626,11 @@ describe('classifyDrift', () => {
     const storedState = await import('../../../src/io/drift-state-store.js');
     const existing = await storedState.readNodeDriftState(yggRoot, 'svc/my-service');
     await storedState.writeNodeDriftState(yggRoot, 'svc/my-service', {
+      schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
       hash: existing!.hash,
       files: existing!.files,
+      identity: existing!.identity,
+      aspectVerdicts: existing!.aspectVerdicts,
       // no mtimes field
     });
     // Modify source to trigger drift
@@ -728,14 +731,19 @@ describe('describeCascadeCause', () => {
     expect(out).toContain("aspect 'my-aspect' changed");
   });
 
-  it('aspects layer, check-touched synthetic key → names the deterministic aspect', () => {
-    const out = describeCascadeCause('check-touched:det-x', 'aspects', graph);
+  it('identity cause: checkTouchedSet → names the deterministic aspect read-set', () => {
+    const out = describeIdentityCause({ kind: 'checkTouchedSet', aspectId: 'det-x' }, graph);
     expect(out).toContain("the set of files read by deterministic aspect 'det-x'");
   });
 
-  it('aspects layer, tier-identity synthetic key → names the aspect tier', () => {
-    const out = describeCascadeCause('tier-identity:llm-x', 'aspects', graph);
+  it('identity cause: tier → names the aspect tier', () => {
+    const out = describeIdentityCause({ kind: 'tier', aspectId: 'llm-x' }, graph);
     expect(out).toContain("the resolved reviewer tier for aspect 'llm-x'");
+  });
+
+  it('identity cause: aspectMeta → names the aspect definition', () => {
+    const out = describeIdentityCause({ kind: 'aspectMeta', aspectId: 'm-x' }, graph);
+    expect(out).toContain("the definition of aspect 'm-x' changed");
   });
 
   it('aspects layer, reference file declared by exactly one aspect', () => {
@@ -768,8 +776,8 @@ describe('describeCascadeCause', () => {
     expect(out).toContain("parent node 'unknown' metadata changed");
   });
 
-  it('hierarchy layer, own-subset synthetic key → node own metadata changed (not "unknown")', () => {
-    const out = describeCascadeCause('own-subset:services/orders', 'hierarchy', graph);
+  it('identity cause: ownSubset → node own metadata changed (not "unknown")', () => {
+    const out = describeIdentityCause({ kind: 'ownSubset', nodePath: 'services/orders' }, graph);
     expect(out).toContain("node 'services/orders' own metadata changed");
     expect(out).not.toContain("'unknown'");
     expect(out).not.toContain('parent node');
@@ -790,8 +798,8 @@ describe('describeCascadeCause', () => {
     expect(out).toContain("dependency 'unknown'");
   });
 
-  it('relational layer, port-aspects synthetic key → dependency port aspects changed (not "unknown")', () => {
-    const out = describeCascadeCause('port-aspects:services/payments', 'relational', graph);
+  it('identity cause: port → dependency port aspects changed (not "unknown")', () => {
+    const out = describeIdentityCause({ kind: 'port', targetPath: 'services/payments' }, graph);
     expect(out).toContain("dependency 'services/payments' port aspects changed");
     expect(out).not.toContain("'unknown'");
   });

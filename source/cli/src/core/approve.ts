@@ -4,13 +4,24 @@ import type {
   AnnotatedChange,
   TrackedFileLayer,
 } from '../model/drift.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../model/drift.js';
 import {
   readNodeDriftState,
   writeNodeDriftState,
   garbageCollectDriftState,
 } from '../io/drift-state-store.js';
 import { hashTrackedFiles } from '../io/hash.js';
-import { collectTrackedFiles, buildLayerResolver, yggPrefixOf } from './graph/files.js';
+import {
+  collectTrackedFiles,
+  buildLayerResolver,
+  yggPrefixOf,
+  emptyIdentity,
+} from './graph/files.js';
+import {
+  diffIdentity,
+  identityCauseToken,
+  identityCauseLayer,
+} from './drift-cause.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import { computeEffectiveAspects, computeEffectiveAspectStatuses, hasNonDraftEffectiveAspects } from './graph/aspects.js';
 import { readTextFile, lstatFile } from '../io/graph-fs.js';
@@ -149,7 +160,7 @@ export async function approveNode(
         ? 'no-change'
         : 'approved';
     const pendingDriftState = baseline && action !== 'no-change'
-      ? { nodePath, state: { hash: '', files: {}, log: baseline } }
+      ? { nodePath, state: { schemaVersion: DRIFT_STATE_SCHEMA_VERSION, hash: '', files: {}, identity: emptyIdentity(), aspectVerdicts: {}, log: baseline } }
       : undefined;
     return { action, currentHash: '', previousHash: storedEntry?.hash, gcPaths, pendingDriftState };
   }
@@ -177,14 +188,14 @@ export async function approveNode(
         ? 'no-change'
         : 'approved';
     const pendingDriftState = baseline && action !== 'no-change'
-      ? { nodePath, state: { hash: '', files: {}, log: baseline } }
+      ? { nodePath, state: { schemaVersion: DRIFT_STATE_SCHEMA_VERSION, hash: '', files: {}, identity: emptyIdentity(), aspectVerdicts: {}, log: baseline } }
       : undefined;
     return { action, currentHash: '', previousHash: storedEntry?.hash, gcPaths, pendingDriftState };
   }
 
   // ── First approve (no baseline) ──────────────────────────
   if (!storedEntry) {
-    const trackedFiles = collectTrackedFiles(node, graph);
+    const { trackedFiles, identity } = collectTrackedFiles(node, graph);
 
     // Mandatory entry check: first approve with source files requires a log
     // entry. With no baseline, "fresh entry" reduces to "any entry exists".
@@ -201,6 +212,7 @@ export async function approveNode(
       trackedFiles,
       undefined,
       excludePrefixes,
+      identity,
     );
 
     const gcPaths = await runGC(graph);
@@ -214,9 +226,12 @@ export async function approveNode(
       pendingDriftState: {
         nodePath,
         state: {
+          schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
           hash: canonicalHash,
           files: fileHashes,
           mtimes: fileMtimes,
+          identity,
+          aspectVerdicts: {},
           ...(logBaseline ? { log: logBaseline } : {}),
         },
       },
@@ -224,23 +239,18 @@ export async function approveNode(
   }
 
   // ── Existing baseline — compute changes ───────────────
-  // Pass the stored baseline so the check-touched layer (cross-node files
-  // read by a deterministic aspect) participates in drift detection here too.
-  const trackedFiles = collectTrackedFiles(node, graph, storedEntry);
+  // Pass the stored baseline so the per-aspect checkTouched set (cross-node
+  // files read by a deterministic aspect) participates in drift detection here.
+  const { trackedFiles, identity } = collectTrackedFiles(node, graph, storedEntry);
   const excludePrefixes = getChildMappingExclusions(graph, nodePath);
-  // A corrupted/hand-edited baseline may drop `files` entirely (the store does
-  // no runtime shape validation). Treat a missing map as "no previously-tracked
-  // files" so every current file reads as new/changed (correct cold-start),
-  // rather than crashing on undefined access below.
-  const storedFiles = storedEntry.files ?? {};
-  const storedFileData = storedEntry.files
-    ? { hashes: storedEntry.files, mtimes: storedEntry.mtimes ?? {} }
-    : undefined;
+  const storedFiles = storedEntry.files;
+  const storedFileData = { hashes: storedEntry.files, mtimes: storedEntry.mtimes ?? {} };
   const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
     projectRoot,
     trackedFiles,
     storedFileData,
     excludePrefixes,
+    identity,
   );
 
   // Resolve each changed file's drift layer (source vs upstream cascade),
@@ -252,6 +262,30 @@ export async function approveNode(
   // Classify changed files into two categories
   const changedSource: string[] = [];
   const changedUpstream: AnnotatedChange[] = [];
+
+  // Typed identity changes → upstream, carrying the typed cause for per-aspect
+  // re-review attribution (selectDriftedAspects).
+  for (const cause of diffIdentity(nodePath, storedEntry.identity, identity)) {
+    changedUpstream.push({
+      filePath: identityCauseToken(cause),
+      annotation: annotateUpstreamChange(identityCauseToken(cause), identityCauseLayer(cause)),
+      identity: cause,
+    });
+  }
+
+  // cross-node touched POSIX path → owning deterministic aspect id(s), from the
+  // stored typed identity. Attributes a check-touched real-file content change
+  // to its owning aspect without a baseline re-read.
+  const checkTouchedOwners = new Map<string, string[]>();
+  for (const [aspectId, ai] of Object.entries(storedEntry.identity.aspects)) {
+    if (!ai.checkTouched) continue;
+    for (const p of Object.keys(ai.checkTouched)) {
+      const norm = toPosixPath(p);
+      const list = checkTouchedOwners.get(norm) ?? [];
+      list.push(aspectId);
+      checkTouchedOwners.set(norm, list);
+    }
+  }
 
   // Check current vs stored
   for (const [filePath, hash] of Object.entries(fileHashes)) {
@@ -274,10 +308,12 @@ export async function approveNode(
     if (layer === 'source' || (!isGraph && !layer)) {
       changedSource.push(normalizedFilePath);
     } else if (layer) {
-      // hierarchy, aspects, relational, flows = upstream
+      // hierarchy, aspects, relational, flows, check-touched = upstream
+      const owners = layer === 'check-touched' ? checkTouchedOwners.get(normalizedFilePath) : undefined;
       changedUpstream.push({
         filePath: normalizedFilePath,
         annotation: annotateUpstreamChange(filePath, layer),
+        ...(owners ? { attributedAspectIds: owners } : {}),
       });
     } else if (isGraph) {
       /* v8 ignore start -- defensive */
@@ -307,10 +343,11 @@ export async function approveNode(
   // so hash-based drift detection alone would miss it and report "No changes" —
   // leaving the now-active aspect without a reviewer verdict and yg check
   // permanently red (aspect-newly-active). Detect it exactly as check.ts does:
-  // an effective non-draft aspect with no recorded verdict in a non-legacy
-  // baseline. Such a node must re-approve so the reviewer records the verdict.
+  // an effective non-draft aspect with no recorded verdict in the baseline. Such
+  // a node must re-approve so the reviewer records the verdict. aspectVerdicts is
+  // always present in the typed baseline (may be {}), so no guard is needed.
   const newlyActiveAspects: string[] = [];
-  if (storedEntry.aspectVerdicts !== undefined) {
+  {
     const statuses = computeEffectiveAspectStatuses(node, graph);
     for (const [aspectId, status] of statuses) {
       if (status === 'draft') continue;
@@ -336,9 +373,15 @@ export async function approveNode(
     ? {
         nodePath,
         state: {
+          schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
           hash: canonicalHash,
           files: fileHashes,
           mtimes: fileMtimes,
+          // New typed identity. aspectVerdicts carries the prior set forward
+          // here; the reviewer (applyAspectVerdictsToResult) overwrites the
+          // re-evaluated subset before commit.
+          identity,
+          aspectVerdicts: storedEntry.aspectVerdicts,
           ...(logBaseline ? { log: logBaseline } : {}),
         },
       }
@@ -346,15 +389,18 @@ export async function approveNode(
     ? {
         nodePath,
         state: {
+          schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
           hash: storedEntry.hash,
           files: storedEntry.files,
           ...(storedEntry.mtimes ? { mtimes: storedEntry.mtimes } : {}),
+          identity: storedEntry.identity,
+          aspectVerdicts: storedEntry.aspectVerdicts,
           log: logBaseline,
         },
       }
     : {
         // no-change, no log update — populate from baseline so structure dispatch
-        // can run and update checkTouchedFiles without violating the
+        // can run and update checkTouched without violating the
         // pendingDriftState-exists contract.
         nodePath,
         state: structuredClone(storedEntry),
@@ -449,14 +495,11 @@ async function sourceFilesChanged(
   projectRoot: string,
   storedEntry: { files: Record<string, string>; mtimes?: Record<string, number> } | undefined,
 ): Promise<string[]> {
-  const trackedFiles = collectTrackedFiles(node, graph);
+  const { trackedFiles } = collectTrackedFiles(node, graph);
   const sourceTracked = trackedFiles.filter((tf) => tf.layer === 'source');
   if (sourceTracked.length === 0) return [];
 
   const excludePrefixes = getChildMappingExclusions(graph, node.path);
-  // A corrupted/hand-edited baseline may drop `files` entirely; treat a missing
-  // map as "no previously-tracked files" to match the cold-start guard used in
-  // the main approve body, rather than crashing on undefined access below.
   const storedFiles = storedEntry?.files ?? {};
   const { fileHashes } = await hashTrackedFiles(
     projectRoot,

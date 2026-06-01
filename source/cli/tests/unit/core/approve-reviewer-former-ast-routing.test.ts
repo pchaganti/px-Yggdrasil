@@ -9,6 +9,8 @@ import { approveNode } from '../../../src/core/approve.js';
 import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
 import { hashTrackedFiles } from '../../../src/io/hash.js';
 import { collectTrackedFiles } from '../../../src/core/graph/files.js';
+import { recordBaselineForAllMappedNodes } from '../helpers/seed-baseline.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../../src/model/drift.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -102,19 +104,7 @@ async function createProject(name: string, opts: {
 
 async function recordBaseline(tmpDir: string) {
   const graph = await loadGraph(tmpDir);
-  for (const [nodePath, node] of graph.nodes) {
-    if (!node.meta.mapping) continue;
-    const trackedFiles = collectTrackedFiles(node, graph);
-    const projectRoot = path.dirname(graph.rootPath);
-    const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
-      projectRoot, trackedFiles, undefined, [],
-    );
-    await writeNodeDriftState(graph.rootPath, nodePath, {
-      hash: canonicalHash,
-      files: fileHashes,
-      mtimes: fileMtimes,
-    });
-  }
+  await recordBaselineForAllMappedNodes(graph);
 }
 
 const AST_ASPECT_YAML = 'name: NoX\ndescription: forbids x\nreviewer:\n  type: deterministic\nlanguage:\n  - typescript\n';
@@ -184,7 +174,7 @@ describe('runApproveWithReviewer — former-ast aspect routed through the struct
     expect(v!.errorSource).toBe('codeViolation');
     expect(v!.reason).toMatch(/src\/svc\.ts:2: bad found/);
     // structure runner records own-file footprint for the former-ast aspect.
-    expect(result.pendingDriftState?.state.checkTouchedFiles?.['no-x']).toBeDefined();
+    expect(result.pendingDriftState?.state.identity.aspects['no-x']?.checkTouched).toBeDefined();
 
     await rm(tmpDir, { recursive: true, force: true });
   });

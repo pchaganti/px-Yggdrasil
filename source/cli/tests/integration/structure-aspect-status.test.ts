@@ -121,11 +121,11 @@ describe.skipIf(!distExists)('structure aspect-status integration', () => {
     if (!existsSync(jsonPath)) return;
 
     const b = readBaseline(root);
-    // Draft aspects never produce a verdict or checkTouchedFiles entry
+    // Draft aspects never produce a verdict or checkTouched entry
     const verdicts = b.aspectVerdicts as Record<string, unknown> | undefined;
     expect(verdicts?.['has-readme']).toBeUndefined();
-    const stf = b.checkTouchedFiles as Record<string, unknown> | undefined;
-    expect(stf?.['has-readme']).toBeUndefined();
+    const aspects = (b.identity as { aspects?: Record<string, { checkTouched?: unknown }> } | undefined)?.aspects;
+    expect(aspects?.['has-readme']?.checkTouched).toBeUndefined();
   });
 
   it('advisory: violation renders as warning, yg check exits 0', () => {
@@ -182,8 +182,10 @@ describe.skipIf(!distExists)('structure aspect-status integration', () => {
     );
     run(['approve', '--node', 'N'], root);
 
+    const ctOf = (b: Record<string, unknown>): unknown =>
+      (b.identity as { aspects?: Record<string, { checkTouched?: unknown }> } | undefined)?.aspects?.['has-readme']?.checkTouched;
     const baselineBefore = readBaseline(root);
-    const stfBefore = (baselineBefore.checkTouchedFiles as Record<string, unknown> | undefined)?.['has-readme'];
+    const stfBefore = ctOf(baselineBefore);
     expect(stfBefore).toBeDefined();
 
     // Toggle aspect to draft, approve
@@ -193,8 +195,8 @@ describe.skipIf(!distExists)('structure aspect-status integration', () => {
     run(['approve', '--node', 'N'], root);
 
     const baselineAfter = readBaseline(root);
-    const stfAfter = (baselineAfter.checkTouchedFiles as Record<string, unknown> | undefined)?.['has-readme'];
-    // D8.3 carry-forward: draft-skipped structure aspects retain their prior checkTouchedFiles entry
+    const stfAfter = ctOf(baselineAfter);
+    // D8.3 carry-forward: draft-skipped structure aspects retain their prior checkTouched entry
     expect(stfAfter).toEqual(stfBefore);
   });
 });

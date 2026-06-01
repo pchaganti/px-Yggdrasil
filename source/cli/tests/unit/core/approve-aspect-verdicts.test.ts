@@ -14,6 +14,7 @@ import type {
   AspectVerificationResult,
   DriftNodeState,
 } from '../../../src/model/drift.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../../src/model/drift.js';
 import { buildTestGraph } from '../helpers/build-test-graph.js';
 
 describe('DriftNodeState.aspectVerdicts persistence', () => {
@@ -23,8 +24,10 @@ describe('DriftNodeState.aspectVerdicts persistence', () => {
       const driftDir = join(dir, '.yggdrasil');
       await mkdir(driftDir, { recursive: true });
       const state: DriftNodeState = {
+        schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
         hash: 'abc',
         files: { 'a.ts': 'sha1' },
+        identity: { ownSubset: 'o', ports: {}, aspects: {} },
         aspectVerdicts: {
           'audit-log': { verdict: 'approved' },
           'diagnostic-logging': { verdict: 'refused', reason: 'no diagnostic-id', errorSource: 'codeViolation' },

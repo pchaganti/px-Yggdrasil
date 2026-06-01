@@ -299,7 +299,7 @@ export async function runDryRunForNode(params: {
   const aspects = resolveAspects(node, graph);
   const statuses = computeEffectiveAspectStatuses(node, graph);
   const projectRoot = path.dirname(graph.rootPath);
-  const trackedFiles = collectTrackedFiles(node, graph);
+  const { trackedFiles } = collectTrackedFiles(node, graph);
   const { fileHashes } = await hashTrackedFiles(projectRoot, trackedFiles, undefined, []);
   const sourceFilePaths = Object.keys(fileHashes).filter(f => {
     const normalized = toPosixPath(f);

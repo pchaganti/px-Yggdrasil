@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import { classifyDrift, runCheck } from '../../../src/core/check.js';
 import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../../src/model/drift.js';
 import { buildIssueMessage } from '../../../src/formatters/message-builder.js';
 const msgOf = (i: { messageData: Parameters<typeof buildIssueMessage>[0] }) => buildIssueMessage(i.messageData);
 
@@ -40,12 +41,14 @@ async function setup(opts: {
   if (opts.log !== undefined) await writeFile(path.join(nodeDir, 'log.md'), opts.log);
   if (opts.baseline !== undefined) {
     await writeNodeDriftState(yggRoot, 'svc', {
+      schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
       hash: 'h',
       files: {
         'src/svc.ts': sha('x\n'),
         '.yggdrasil/aspects/a1/content.md': sha('r.\n'),
-        '.yggdrasil/model/svc/yg-node.yaml': sha(yaml),
       },
+      identity: { ownSubset: sha(yaml), ports: {}, aspects: {} },
+      aspectVerdicts: {},
       log: opts.baseline,
     });
   }

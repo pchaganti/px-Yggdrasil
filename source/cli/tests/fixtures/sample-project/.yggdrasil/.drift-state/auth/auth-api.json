@@ -1,12 +1,21 @@
 {
-  "hash": "a2eb7b76ae118cbdc298b76bc3a9fdc1d3762a6eb91bfa9b2ebacc83dc5d3024",
+  "schemaVersion": 1,
+  "hash": "ae83dc5013368e29df487ed51428d7396f7935d1b189a14fc85f71cb96bd5cf2",
   "files": {
-    ".yggdrasil/model/auth/auth-api/yg-node.yaml": "3d098d77d943adbd7f5c4bc4e706fa1af240478000e134a9b2915bc90872b073",
     ".yggdrasil/model/auth/yg-node.yaml": "014a364b08a9cb75f573fa0bf6dfbf81599bce937127bc3d1bd642950b4e26ce",
-    ".yggdrasil/aspects/requires-logging/yg-aspect.yaml": "08dd592c74f6889713e09c899e003badf00430c7d25a74768449eb0d7fb7beb0",
     ".yggdrasil/aspects/requires-logging/content.md": "13fff2681612d392624588850569f287bb450307e2ee9750987b281279dd64f3",
-    ".yggdrasil/flows/checkout-flow/yg-flow.yaml": "6541aeb6cea1ad1047151018ce2869b4dcae297728573b9cc1bef76b50cb2c34",
-    "src/auth/auth.controller.ts": "5386573056ba5e059eb98f3615d57c3680dc888f003b197584805429d6df3521",
-    "src/auth/login.service.ts": "5d5bbfd0dc749783000cff2f27ca31212044629a99746a8508d32b3f8ec7c344"
-  }
+    "src/auth/auth.controller.ts": "6d19edda2984d72e2d454df1a53acda176f549d5eedf98e1b93135e5f34388b2",
+    "src/auth/login.service.ts": "7179f91c6339b52259b97871cb647892e523e7563296e6f11d3801567bbd8780"
+  },
+  "identity": {
+    "ownSubset": "b0e5f587801d32ffa9de835e4db9ed81f89fc49f173c3ad8df62e20b229fb7f7",
+    "ports": {},
+    "aspects": {
+      "requires-logging": {
+        "meta": "2d72749c72fa2ff351542bbe8373815689cbe308dbabaff1a9c0ef8c47898291",
+        "tier": "4834ee6abb0cbd94fcb580b901a4bf0d6d28fb55acd34d99ec67975e11ba9d1c"
+      }
+    }
+  },
+  "aspectVerdicts": {}
 }

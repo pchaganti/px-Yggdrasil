@@ -1,15 +1,7 @@
 {
-  "hash": "6b5fc2e6a8ada7dc60ae6d4159021f61e8065a8f031cfee92fdf66dd04c870d0",
+  "schemaVersion": 1,
+  "hash": "a9b43fca701bc5ab427785958e391084b103cec344a7fd4f8955e9a1882648e2",
   "files": {
-    "own-subset:cli/utils": "047452c0e9d0c021ebe08b3cefa811217b797ebf91b324240b9687d94c9187dd",
-    "aspect-meta:posix-paths-output": "0616e83dea174e69b84be8d3bc43a180a8f33aa8e4f1df8473419c0b9897bd03",
-    "tier-identity:posix-paths-output": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "aspect-meta:no-side-effects-on-import": "583f3171d84bb90e12b74e2b3e8993deafd7ef8bf84e245c2d0d44de1abb65cb",
-    "aspect-meta:no-direct-fs": "85008a60917fc599d6fbfcfb2af8e0d4e563f4eaeff9c8da8a5722aef696b948",
-    "aspect-meta:posix-paths-source": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
-    "check-touched:no-side-effects-on-import": "03758fd0cbe35987ac5c6a1d6128888561678db805a16e2745fff40219fabdd9",
-    "check-touched:no-direct-fs": "03758fd0cbe35987ac5c6a1d6128888561678db805a16e2745fff40219fabdd9",
-    "check-touched:posix-paths-source": "03758fd0cbe35987ac5c6a1d6128888561678db805a16e2745fff40219fabdd9",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/posix-paths-output/content.md": "2659859dc13a8efe32e098b0c220d24c9ecddff26b42a4f22e3135d8b750bc13",
     ".yggdrasil/aspects/no-side-effects-on-import/check.mjs": "6fd704ccd0fc3190db1298450ce84d94369d85ea20499e9535198d592b874387",
@@ -26,6 +18,78 @@
     "source/cli/src/utils/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b",
     "source/cli/src/utils/when-parser.ts": "83e2cfa996cf107b9bd11cebccc971915335744cd80ac3fb594a04b54c188442",
     "source/cli/src/utils/file-when-parser.ts": "d0646278913b73c9d3c42c86da2dd250682a79580bd134f000bd7a38bf0dd224"
+  },
+  "identity": {
+    "ownSubset": "047452c0e9d0c021ebe08b3cefa811217b797ebf91b324240b9687d94c9187dd",
+    "ports": {},
+    "aspects": {
+      "posix-paths-output": {
+        "meta": "0616e83dea174e69b84be8d3bc43a180a8f33aa8e4f1df8473419c0b9897bd03",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      },
+      "no-side-effects-on-import": {
+        "meta": "583f3171d84bb90e12b74e2b3e8993deafd7ef8bf84e245c2d0d44de1abb65cb",
+        "checkTouched": {
+          "source/cli/src/utils/debug-log.ts": "d810ae1edbdb1c7dd3cb1a0dee630e73675560dd8d06803c8eecf73dcf6771b6",
+          "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
+          "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
+          "source/cli/src/utils/known-providers.ts": "35b652475e4a9e70286c1192238f14585e5d6b880b9c3296eae0aefae6917919",
+          "source/cli/src/utils/mapping-path.ts": "d99b092234c896e400b79659eb9885d8075f8608c6a04d7b0c441fe5a7d96d6f",
+          "source/cli/src/utils/node-path-validator.ts": "8bc8025e2edaddea1560453968976e880cf11365782255b4d9a1cab28a7da65d",
+          "source/cli/src/utils/posix.ts": "5461584fc6cd34504aea7b812997818208f020507832eb9bd220e4643ab81cd9",
+          "source/cli/src/utils/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b",
+          "source/cli/src/utils/when-parser.ts": "83e2cfa996cf107b9bd11cebccc971915335744cd80ac3fb594a04b54c188442",
+          "source/cli/src/utils/file-when-parser.ts": "d0646278913b73c9d3c42c86da2dd250682a79580bd134f000bd7a38bf0dd224",
+          "source/cli/src/utils/validate-check-module.ts": "b4fd46d469dc6ad17afa9d709fa625d381b8b9134592c8de88efdbdd88a53fb1"
+        }
+      },
+      "no-direct-fs": {
+        "meta": "85008a60917fc599d6fbfcfb2af8e0d4e563f4eaeff9c8da8a5722aef696b948",
+        "checkTouched": {
+          "source/cli/src/utils/debug-log.ts": "d810ae1edbdb1c7dd3cb1a0dee630e73675560dd8d06803c8eecf73dcf6771b6",
+          "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
+          "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
+          "source/cli/src/utils/known-providers.ts": "35b652475e4a9e70286c1192238f14585e5d6b880b9c3296eae0aefae6917919",
+          "source/cli/src/utils/mapping-path.ts": "d99b092234c896e400b79659eb9885d8075f8608c6a04d7b0c441fe5a7d96d6f",
+          "source/cli/src/utils/node-path-validator.ts": "8bc8025e2edaddea1560453968976e880cf11365782255b4d9a1cab28a7da65d",
+          "source/cli/src/utils/posix.ts": "5461584fc6cd34504aea7b812997818208f020507832eb9bd220e4643ab81cd9",
+          "source/cli/src/utils/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b",
+          "source/cli/src/utils/when-parser.ts": "83e2cfa996cf107b9bd11cebccc971915335744cd80ac3fb594a04b54c188442",
+          "source/cli/src/utils/file-when-parser.ts": "d0646278913b73c9d3c42c86da2dd250682a79580bd134f000bd7a38bf0dd224",
+          "source/cli/src/utils/validate-check-module.ts": "b4fd46d469dc6ad17afa9d709fa625d381b8b9134592c8de88efdbdd88a53fb1"
+        }
+      },
+      "posix-paths-source": {
+        "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
+        "checkTouched": {
+          "source/cli/src/utils/debug-log.ts": "d810ae1edbdb1c7dd3cb1a0dee630e73675560dd8d06803c8eecf73dcf6771b6",
+          "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
+          "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
+          "source/cli/src/utils/known-providers.ts": "35b652475e4a9e70286c1192238f14585e5d6b880b9c3296eae0aefae6917919",
+          "source/cli/src/utils/mapping-path.ts": "d99b092234c896e400b79659eb9885d8075f8608c6a04d7b0c441fe5a7d96d6f",
+          "source/cli/src/utils/node-path-validator.ts": "8bc8025e2edaddea1560453968976e880cf11365782255b4d9a1cab28a7da65d",
+          "source/cli/src/utils/posix.ts": "5461584fc6cd34504aea7b812997818208f020507832eb9bd220e4643ab81cd9",
+          "source/cli/src/utils/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b",
+          "source/cli/src/utils/when-parser.ts": "83e2cfa996cf107b9bd11cebccc971915335744cd80ac3fb594a04b54c188442",
+          "source/cli/src/utils/file-when-parser.ts": "d0646278913b73c9d3c42c86da2dd250682a79580bd134f000bd7a38bf0dd224",
+          "source/cli/src/utils/validate-check-module.ts": "b4fd46d469dc6ad17afa9d709fa625d381b8b9134592c8de88efdbdd88a53fb1"
+        }
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "posix-paths-output": {
+      "verdict": "approved"
+    },
+    "no-side-effects-on-import": {
+      "verdict": "approved"
+    },
+    "no-direct-fs": {
+      "verdict": "approved"
+    },
+    "posix-paths-source": {
+      "verdict": "approved"
+    }
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -48,60 +112,5 @@
   "log": {
     "last_entry_datetime": "2026-05-31T16:51:20.857Z",
     "prefix_hash": "b7ebaff02aaed31f066398083da543986494326867ee58bec0242bf56950ff07"
-  },
-  "checkTouchedFiles": {
-    "no-side-effects-on-import": {
-      "source/cli/src/utils/debug-log.ts": "d810ae1edbdb1c7dd3cb1a0dee630e73675560dd8d06803c8eecf73dcf6771b6",
-      "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
-      "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
-      "source/cli/src/utils/known-providers.ts": "35b652475e4a9e70286c1192238f14585e5d6b880b9c3296eae0aefae6917919",
-      "source/cli/src/utils/mapping-path.ts": "d99b092234c896e400b79659eb9885d8075f8608c6a04d7b0c441fe5a7d96d6f",
-      "source/cli/src/utils/node-path-validator.ts": "8bc8025e2edaddea1560453968976e880cf11365782255b4d9a1cab28a7da65d",
-      "source/cli/src/utils/posix.ts": "5461584fc6cd34504aea7b812997818208f020507832eb9bd220e4643ab81cd9",
-      "source/cli/src/utils/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b",
-      "source/cli/src/utils/when-parser.ts": "83e2cfa996cf107b9bd11cebccc971915335744cd80ac3fb594a04b54c188442",
-      "source/cli/src/utils/file-when-parser.ts": "d0646278913b73c9d3c42c86da2dd250682a79580bd134f000bd7a38bf0dd224",
-      "source/cli/src/utils/validate-check-module.ts": "b4fd46d469dc6ad17afa9d709fa625d381b8b9134592c8de88efdbdd88a53fb1"
-    },
-    "no-direct-fs": {
-      "source/cli/src/utils/debug-log.ts": "d810ae1edbdb1c7dd3cb1a0dee630e73675560dd8d06803c8eecf73dcf6771b6",
-      "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
-      "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
-      "source/cli/src/utils/known-providers.ts": "35b652475e4a9e70286c1192238f14585e5d6b880b9c3296eae0aefae6917919",
-      "source/cli/src/utils/mapping-path.ts": "d99b092234c896e400b79659eb9885d8075f8608c6a04d7b0c441fe5a7d96d6f",
-      "source/cli/src/utils/node-path-validator.ts": "8bc8025e2edaddea1560453968976e880cf11365782255b4d9a1cab28a7da65d",
-      "source/cli/src/utils/posix.ts": "5461584fc6cd34504aea7b812997818208f020507832eb9bd220e4643ab81cd9",
-      "source/cli/src/utils/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b",
-      "source/cli/src/utils/when-parser.ts": "83e2cfa996cf107b9bd11cebccc971915335744cd80ac3fb594a04b54c188442",
-      "source/cli/src/utils/file-when-parser.ts": "d0646278913b73c9d3c42c86da2dd250682a79580bd134f000bd7a38bf0dd224",
-      "source/cli/src/utils/validate-check-module.ts": "b4fd46d469dc6ad17afa9d709fa625d381b8b9134592c8de88efdbdd88a53fb1"
-    },
-    "posix-paths-source": {
-      "source/cli/src/utils/debug-log.ts": "d810ae1edbdb1c7dd3cb1a0dee630e73675560dd8d06803c8eecf73dcf6771b6",
-      "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
-      "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
-      "source/cli/src/utils/known-providers.ts": "35b652475e4a9e70286c1192238f14585e5d6b880b9c3296eae0aefae6917919",
-      "source/cli/src/utils/mapping-path.ts": "d99b092234c896e400b79659eb9885d8075f8608c6a04d7b0c441fe5a7d96d6f",
-      "source/cli/src/utils/node-path-validator.ts": "8bc8025e2edaddea1560453968976e880cf11365782255b4d9a1cab28a7da65d",
-      "source/cli/src/utils/posix.ts": "5461584fc6cd34504aea7b812997818208f020507832eb9bd220e4643ab81cd9",
-      "source/cli/src/utils/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b",
-      "source/cli/src/utils/when-parser.ts": "83e2cfa996cf107b9bd11cebccc971915335744cd80ac3fb594a04b54c188442",
-      "source/cli/src/utils/file-when-parser.ts": "d0646278913b73c9d3c42c86da2dd250682a79580bd134f000bd7a38bf0dd224",
-      "source/cli/src/utils/validate-check-module.ts": "b4fd46d469dc6ad17afa9d709fa625d381b8b9134592c8de88efdbdd88a53fb1"
-    }
-  },
-  "aspectVerdicts": {
-    "posix-paths-output": {
-      "verdict": "approved"
-    },
-    "no-side-effects-on-import": {
-      "verdict": "approved"
-    },
-    "no-direct-fs": {
-      "verdict": "approved"
-    },
-    "posix-paths-source": {
-      "verdict": "approved"
-    }
   }
 }

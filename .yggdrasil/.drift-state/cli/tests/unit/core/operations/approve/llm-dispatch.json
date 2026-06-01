@@ -1,9 +1,7 @@
 {
-  "hash": "10d413b3c412995442afa0a6d8e6a2ad16a4137bcf43446a65ffec6dc4f10832",
+  "schemaVersion": 1,
+  "hash": "54c11d8ba44c4879954afe4a6e5f9e15a071f716452b7574bcad30ec63363af8",
   "files": {
-    "own-subset:cli/tests/unit/core/operations/approve/llm-dispatch": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
@@ -11,7 +9,7 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": "a5408f7e331d1e28996ceaf2b67c4fada5e52ee3909db85a7904aae88cd55146",
     ".yggdrasil/model/cli/tests/unit/core/operations/approve/yg-node.yaml": "03e8e97452ea62eeca43edd2f87c500f7124dff455227599dd3f00227cb558fc",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/core/approve-llm.test.ts": "7d0dafa2dcea10fec797c2681621050eb9555cdf39bd937e9d47b9952d948a2b"
+    "source/cli/tests/unit/core/approve-llm.test.ts": "21ced027f6bac5ec20ca3fcaea9f8dc84a737c846ce9ac9507267eb09bbefb79"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -21,15 +19,25 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": 1779996108975.9385,
     ".yggdrasil/model/cli/tests/unit/core/operations/approve/yg-node.yaml": 1780103162436.2014,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/approve-llm.test.ts": 1780262504789.1318
+    "source/cli/tests/unit/core/approve-llm.test.ts": 1780293527017.4583
   },
-  "log": {
-    "last_entry_datetime": "2026-05-30T21:54:05.249Z",
-    "prefix_hash": "2289ae47f4d3dc0a0c3166fdcb32fea6b7736c66e1719ee57c2272c7e18eb79a"
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
   },
   "aspectVerdicts": {
     "test-deterministic": {
       "verdict": "approved"
     }
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-30T21:54:05.249Z",
+    "prefix_hash": "2289ae47f4d3dc0a0c3166fdcb32fea6b7736c66e1719ee57c2272c7e18eb79a"
   }
 }

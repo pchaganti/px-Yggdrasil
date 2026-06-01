@@ -3,7 +3,8 @@ import path from 'node:path';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { loadGraph } from '../../src/core/graph-loader.js';
-import { approveNode, commitApproval } from '../../src/core/approve.js';
+import { approveNode } from '../../src/core/approve.js';
+import { commitApprovedBaseline } from '../unit/helpers/seed-baseline.js';
 import { logAdd } from '../../src/core/log/log-add.js';
 import { buildIssueMessage } from '../../src/formatters/message-builder.js';
 const refuseMsg = (r: { refuseReasonData?: Parameters<typeof buildIssueMessage>[0] }) =>
@@ -58,7 +59,7 @@ async function bootstrapApprove(projectRoot: string, nodePath: string): Promise<
   await logAddCmd(nodePath, 'Bootstrap.', projectRoot);
   const graph = await loadGraph(projectRoot);
   const result = await approveNode(graph, nodePath);
-  await commitApproval(path.join(projectRoot, '.yggdrasil'), result);
+  await commitApprovedBaseline(graph, nodePath, path.join(projectRoot, '.yggdrasil'), result);
 }
 
 describe('log workflow integration', () => {

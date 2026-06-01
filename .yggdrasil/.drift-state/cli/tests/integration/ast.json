@@ -1,9 +1,7 @@
 {
-  "hash": "3c29567944270b3d44f6bb9ee2069d492cb6d98d2a8b148882a98aee2c0064a1",
+  "schemaVersion": 1,
+  "hash": "62b9e3310cb324977971c5d700f167eec3ff594bbc88758f387ea8557be48eae",
   "files": {
-    "own-subset:cli/tests/integration/ast": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": "f6203e633f0cb0b6bc84c3337606df49a00920a414f6557fe2f3f91bfd034442",
@@ -11,6 +9,21 @@
     "source/cli/tests/integration/deterministic-test-cli.test.ts": "27d15347e85ddae2cefa60c24b148c9a4107bf27fa58bf9a60d1da3f87a8b24a",
     "source/cli/tests/integration/impact-ast.test.ts": "4cf9db9f63ad639dd8af0bdf1f62877530db7e3646ee6ad9f2daf9a0bbf16572",
     "source/cli/tests/integration/ast-runner.test.ts": "1bdfff2117914dd544badd8edfd56e4d9ed98ce4060e30ebaaca6fbe56b51888"
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -24,10 +37,5 @@
   "log": {
     "last_entry_datetime": "2026-05-30T20:06:22.202Z",
     "prefix_hash": "e3a0239fa088e5b67dd6f661a4f8794f57a6a91a08366421a7c23c14be73393f"
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
   }
 }

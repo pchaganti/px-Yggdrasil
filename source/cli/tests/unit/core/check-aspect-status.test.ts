@@ -21,6 +21,7 @@ import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
 import { hashTrackedFiles } from '../../../src/io/hash.js';
 import { collectTrackedFiles } from '../../../src/core/graph/files.js';
 import type { DriftNodeState } from '../../../src/model/drift.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../../src/model/drift.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -104,34 +105,18 @@ async function recordBaselineWithVerdicts(
   const graph = await loadGraph(tmpDir);
   const node = graph.nodes.get(nodePath);
   if (!node) throw new Error(`node ${nodePath} not found in graph after load`);
-  const trackedFiles = collectTrackedFiles(node, graph);
+  const { trackedFiles, identity } = collectTrackedFiles(node, graph);
   const projectRoot = path.dirname(graph.rootPath);
   const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
-    projectRoot, trackedFiles, undefined, [],
+    projectRoot, trackedFiles, undefined, [], identity,
   );
   await writeNodeDriftState(graph.rootPath, nodePath, {
+    schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
     hash: canonicalHash,
     files: fileHashes,
     mtimes: fileMtimes,
+    identity,
     aspectVerdicts,
-  });
-}
-
-/** Record baseline WITHOUT aspectVerdicts (legacy pre-status baseline). */
-async function recordLegacyBaseline(tmpDir: string, nodePath: string): Promise<void> {
-  const graph = await loadGraph(tmpDir);
-  const node = graph.nodes.get(nodePath);
-  if (!node) throw new Error(`node ${nodePath} not found in graph after load`);
-  const trackedFiles = collectTrackedFiles(node, graph);
-  const projectRoot = path.dirname(graph.rootPath);
-  const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
-    projectRoot, trackedFiles, undefined, [],
-  );
-  await writeNodeDriftState(graph.rootPath, nodePath, {
-    hash: canonicalHash,
-    files: fileHashes,
-    mtimes: fileMtimes,
-    // no aspectVerdicts -- simulates pre-5.x baseline
   });
 }
 
@@ -286,25 +271,6 @@ describe('classifyDrift — silent paths', () => {
     expect(statusFindings).toHaveLength(0);
   });
 
-  it('legacy baseline (no aspectVerdicts field) does NOT trigger aspect-newly-active', async () => {
-    const { tmpDir } = await createTmpProject('legacy-baseline', {
-      nodePath: 'svc/my-service',
-      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - enforced-rule\nmapping:\n  - src/svc/\n',
-      mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
-      aspects: [{
-        id: 'enforced-rule',
-        yaml: 'name: Enforced\ndescription: test\nreviewer:\n  type: llm\nstatus: enforced\n',
-        files: { 'content.md': 'Enforced rule.\n' },
-      }],
-    });
-    // Baseline written WITHOUT aspectVerdicts -- pre-5.x state.
-    await recordLegacyBaseline(tmpDir, 'svc/my-service');
-
-    const graph = await loadGraph(tmpDir);
-    const result = await classifyDrift(graph);
-    const newly = result.filter(i => i.code === 'aspect-newly-active');
-    expect(newly).toHaveLength(0);
-  });
 });
 
 describe('runCheck — summary counts and suggestedNext', () => {

@@ -1,21 +1,7 @@
 {
-  "hash": "e7f6b1c50731d422fcf9054157fdd955050f8a2db87b41a42845ca24738bef37",
+  "schemaVersion": 1,
+  "hash": "8862dfe912be73d6a3c7f7bc17d1d169bb393d9ad0056fb43b7e031248ee9e24",
   "files": {
-    "own-subset:cli/core/log": "c207eac4fb79e9918608111fb641f0579541fde01cbb91d10dee6af679c939d9",
-    "aspect-meta:what-why-next": "1b09853973f277b1f6e8f02db3d9a1b5611e69b04f25b40dca5873730e17b037",
-    "tier-identity:what-why-next": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "aspect-meta:posix-paths-output": "0616e83dea174e69b84be8d3bc43a180a8f33aa8e4f1df8473419c0b9897bd03",
-    "tier-identity:posix-paths-output": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "aspect-meta:diagnostic-logging": "cb27ac03d47e1fa03836aa7b83141dfe5d245bf4fb6834acac6db4f16daae3e5",
-    "tier-identity:diagnostic-logging": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "aspect-meta:deterministic": "c519ac2565dbb22b41029f6e95a238b3345ef3d3b3a433b0e4c13c684969ca2c",
-    "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "aspect-meta:no-nondeterminism-direct": "6e2986f1175fc284d63accb9209518c0d99994114f1ad9d30f91df11498a75ca",
-    "aspect-meta:no-direct-fs": "85008a60917fc599d6fbfcfb2af8e0d4e563f4eaeff9c8da8a5722aef696b948",
-    "aspect-meta:no-direct-console": "84cef429198884b3dcc2076061e164d50d97b011724d2f357350ede01f4fa975",
-    "aspect-meta:posix-paths-source": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
-    "aspect-meta:single-source-graph-queries": "b1dd772529ca4799de41809e1e615c58ab58fba6b861920dd646786ff43ad9c2",
-    "check-touched:posix-paths-source": "f13c5c0344df045ddb39f1cb780ff4e508ef25b7c13dfd12d223e18673ad2cda",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
     ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
@@ -32,11 +18,7 @@
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
     "source/cli/src/core/log/log-add.ts": "02f13a5b492d3e5ad7caf3dc4d910ef31ee5969905f3217d6d1ab2d4df4670f2",
     "source/cli/src/core/log/log-read.ts": "8fe04398f4d218b2342f75691da3f26e7ef9eb96d986153d664a018d3e5cc3e4",
-    "source/cli/src/core/log/log-merge-resolve.ts": "92599928b255a198c5d7adfed573986c4dab29cb54572d0b16b76bda28cc956f",
-    "check-touched:no-nondeterminism-direct": "f13c5c0344df045ddb39f1cb780ff4e508ef25b7c13dfd12d223e18673ad2cda",
-    "check-touched:no-direct-fs": "f13c5c0344df045ddb39f1cb780ff4e508ef25b7c13dfd12d223e18673ad2cda",
-    "check-touched:no-direct-console": "f13c5c0344df045ddb39f1cb780ff4e508ef25b7c13dfd12d223e18673ad2cda",
-    "check-touched:single-source-graph-queries": "f13c5c0344df045ddb39f1cb780ff4e508ef25b7c13dfd12d223e18673ad2cda"
+    "source/cli/src/core/log/log-merge-resolve.ts": "b8778ae7da688c33b4157523a8b38101f71a029644e440079e0a9ecfd8090139"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -55,37 +37,68 @@
     ".yggdrasil/model/cli/io/yg-node.yaml": 1778865790703.1045,
     "source/cli/src/core/log/log-add.ts": 1780243067929.305,
     "source/cli/src/core/log/log-read.ts": 1780243067927.2456,
-    "source/cli/src/core/log/log-merge-resolve.ts": 1780243067928.424
+    "source/cli/src/core/log/log-merge-resolve.ts": 1780291836338.7742
   },
-  "log": {
-    "last_entry_datetime": "2026-05-31T16:03:33.698Z",
-    "prefix_hash": "cea7cce06129b0851c386d4f2208b55dede736c054390e81218c83518dcb49f2"
-  },
-  "checkTouchedFiles": {
-    "no-nondeterminism-direct": {
-      "source/cli/src/core/log/log-add.ts": "02f13a5b492d3e5ad7caf3dc4d910ef31ee5969905f3217d6d1ab2d4df4670f2",
-      "source/cli/src/core/log/log-read.ts": "8fe04398f4d218b2342f75691da3f26e7ef9eb96d986153d664a018d3e5cc3e4",
-      "source/cli/src/core/log/log-merge-resolve.ts": "92599928b255a198c5d7adfed573986c4dab29cb54572d0b16b76bda28cc956f"
-    },
-    "no-direct-fs": {
-      "source/cli/src/core/log/log-add.ts": "02f13a5b492d3e5ad7caf3dc4d910ef31ee5969905f3217d6d1ab2d4df4670f2",
-      "source/cli/src/core/log/log-read.ts": "8fe04398f4d218b2342f75691da3f26e7ef9eb96d986153d664a018d3e5cc3e4",
-      "source/cli/src/core/log/log-merge-resolve.ts": "92599928b255a198c5d7adfed573986c4dab29cb54572d0b16b76bda28cc956f"
-    },
-    "no-direct-console": {
-      "source/cli/src/core/log/log-add.ts": "02f13a5b492d3e5ad7caf3dc4d910ef31ee5969905f3217d6d1ab2d4df4670f2",
-      "source/cli/src/core/log/log-read.ts": "8fe04398f4d218b2342f75691da3f26e7ef9eb96d986153d664a018d3e5cc3e4",
-      "source/cli/src/core/log/log-merge-resolve.ts": "92599928b255a198c5d7adfed573986c4dab29cb54572d0b16b76bda28cc956f"
-    },
-    "posix-paths-source": {
-      "source/cli/src/core/log/log-add.ts": "02f13a5b492d3e5ad7caf3dc4d910ef31ee5969905f3217d6d1ab2d4df4670f2",
-      "source/cli/src/core/log/log-read.ts": "8fe04398f4d218b2342f75691da3f26e7ef9eb96d986153d664a018d3e5cc3e4",
-      "source/cli/src/core/log/log-merge-resolve.ts": "92599928b255a198c5d7adfed573986c4dab29cb54572d0b16b76bda28cc956f"
-    },
-    "single-source-graph-queries": {
-      "source/cli/src/core/log/log-add.ts": "02f13a5b492d3e5ad7caf3dc4d910ef31ee5969905f3217d6d1ab2d4df4670f2",
-      "source/cli/src/core/log/log-read.ts": "8fe04398f4d218b2342f75691da3f26e7ef9eb96d986153d664a018d3e5cc3e4",
-      "source/cli/src/core/log/log-merge-resolve.ts": "92599928b255a198c5d7adfed573986c4dab29cb54572d0b16b76bda28cc956f"
+  "identity": {
+    "ownSubset": "c207eac4fb79e9918608111fb641f0579541fde01cbb91d10dee6af679c939d9",
+    "ports": {},
+    "aspects": {
+      "what-why-next": {
+        "meta": "1b09853973f277b1f6e8f02db3d9a1b5611e69b04f25b40dca5873730e17b037",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      },
+      "posix-paths-output": {
+        "meta": "0616e83dea174e69b84be8d3bc43a180a8f33aa8e4f1df8473419c0b9897bd03",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      },
+      "diagnostic-logging": {
+        "meta": "cb27ac03d47e1fa03836aa7b83141dfe5d245bf4fb6834acac6db4f16daae3e5",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      },
+      "deterministic": {
+        "meta": "c519ac2565dbb22b41029f6e95a238b3345ef3d3b3a433b0e4c13c684969ca2c",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      },
+      "no-nondeterminism-direct": {
+        "meta": "6e2986f1175fc284d63accb9209518c0d99994114f1ad9d30f91df11498a75ca",
+        "checkTouched": {
+          "source/cli/src/core/log/log-add.ts": "02f13a5b492d3e5ad7caf3dc4d910ef31ee5969905f3217d6d1ab2d4df4670f2",
+          "source/cli/src/core/log/log-read.ts": "8fe04398f4d218b2342f75691da3f26e7ef9eb96d986153d664a018d3e5cc3e4",
+          "source/cli/src/core/log/log-merge-resolve.ts": "b8778ae7da688c33b4157523a8b38101f71a029644e440079e0a9ecfd8090139"
+        }
+      },
+      "no-direct-fs": {
+        "meta": "85008a60917fc599d6fbfcfb2af8e0d4e563f4eaeff9c8da8a5722aef696b948",
+        "checkTouched": {
+          "source/cli/src/core/log/log-add.ts": "02f13a5b492d3e5ad7caf3dc4d910ef31ee5969905f3217d6d1ab2d4df4670f2",
+          "source/cli/src/core/log/log-read.ts": "8fe04398f4d218b2342f75691da3f26e7ef9eb96d986153d664a018d3e5cc3e4",
+          "source/cli/src/core/log/log-merge-resolve.ts": "b8778ae7da688c33b4157523a8b38101f71a029644e440079e0a9ecfd8090139"
+        }
+      },
+      "no-direct-console": {
+        "meta": "84cef429198884b3dcc2076061e164d50d97b011724d2f357350ede01f4fa975",
+        "checkTouched": {
+          "source/cli/src/core/log/log-add.ts": "02f13a5b492d3e5ad7caf3dc4d910ef31ee5969905f3217d6d1ab2d4df4670f2",
+          "source/cli/src/core/log/log-read.ts": "8fe04398f4d218b2342f75691da3f26e7ef9eb96d986153d664a018d3e5cc3e4",
+          "source/cli/src/core/log/log-merge-resolve.ts": "b8778ae7da688c33b4157523a8b38101f71a029644e440079e0a9ecfd8090139"
+        }
+      },
+      "posix-paths-source": {
+        "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
+        "checkTouched": {
+          "source/cli/src/core/log/log-add.ts": "02f13a5b492d3e5ad7caf3dc4d910ef31ee5969905f3217d6d1ab2d4df4670f2",
+          "source/cli/src/core/log/log-read.ts": "8fe04398f4d218b2342f75691da3f26e7ef9eb96d986153d664a018d3e5cc3e4",
+          "source/cli/src/core/log/log-merge-resolve.ts": "b8778ae7da688c33b4157523a8b38101f71a029644e440079e0a9ecfd8090139"
+        }
+      },
+      "single-source-graph-queries": {
+        "meta": "b1dd772529ca4799de41809e1e615c58ab58fba6b861920dd646786ff43ad9c2",
+        "checkTouched": {
+          "source/cli/src/core/log/log-add.ts": "02f13a5b492d3e5ad7caf3dc4d910ef31ee5969905f3217d6d1ab2d4df4670f2",
+          "source/cli/src/core/log/log-read.ts": "8fe04398f4d218b2342f75691da3f26e7ef9eb96d986153d664a018d3e5cc3e4",
+          "source/cli/src/core/log/log-merge-resolve.ts": "b8778ae7da688c33b4157523a8b38101f71a029644e440079e0a9ecfd8090139"
+        }
+      }
     }
   },
   "aspectVerdicts": {
@@ -116,5 +129,9 @@
     "single-source-graph-queries": {
       "verdict": "approved"
     }
+  },
+  "log": {
+    "last_entry_datetime": "2026-06-01T06:21:23.722Z",
+    "prefix_hash": "fd302ea643ca74746f02bbf83f6596c8c2f2477deb206ddd68ba173bc149e09a"
   }
 }

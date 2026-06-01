@@ -1,9 +1,7 @@
 {
-  "hash": "92d6549ae055450f396a59b5bf3634d66abb4fb0e3728b519ca57bb7fe276f43",
+  "schemaVersion": 1,
+  "hash": "b3824f94bc083e02e2a4612a63158a48c6e4d4c48d73c3bcfadc2015076a9708",
   "files": {
-    "own-subset:cli/tests/unit/support/formatters": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
@@ -13,6 +11,21 @@
     "source/cli/tests/unit/formatters/context-node.test.ts": "ea97bbb7763e2c1016ab4b890dcf154dffa13cacf59c1be0419508a0e8bf3459",
     "source/cli/tests/unit/formatters/context-references.test.ts": "ce314d44224f461803dc9aae04cd1b45967767ae0a4344e51d5dbcbc4f5d4298",
     "source/cli/tests/unit/formatters/cli-preamble.test.ts": "ddc52cc1348edb3dc777752e0ecbdf39df3ca16bc0f444fd7d74787f80b71e30"
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -28,10 +41,5 @@
   "log": {
     "last_entry_datetime": "2026-05-31T06:24:50.666Z",
     "prefix_hash": "a650beda0143df29b04a9c6f4bc5258050344d7da98e62c3f18244b83a8f252f"
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
   }
 }

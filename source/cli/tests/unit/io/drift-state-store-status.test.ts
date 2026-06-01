@@ -8,8 +8,20 @@ import {
   clearDraftAspectsFromDriftState,
 } from '../../../src/io/drift-state-store.js';
 import type { DriftNodeState } from '../../../src/model/drift.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../../src/model/drift.js';
 
 const tmpDirs: string[] = [];
+
+function makeState(over: Partial<DriftNodeState> = {}): DriftNodeState {
+  return {
+    schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
+    hash: 'abc',
+    files: {},
+    identity: { ownSubset: 'o', ports: {}, aspects: {} },
+    aspectVerdicts: {},
+    ...over,
+  };
+}
 
 async function makeTmp(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), 'drift-'));
@@ -29,14 +41,12 @@ describe('clearDraftAspectsFromDriftState', () => {
     const dir = await makeTmp();
     const yggRoot = join(dir, '.yggdrasil');
     await mkdir(yggRoot, { recursive: true });
-    const state: DriftNodeState = {
-      hash: 'abc',
-      files: {},
+    const state = makeState({
       aspectVerdicts: {
         'audit-log': { verdict: 'approved' },
         'old-experimental': { verdict: 'refused', reason: 'x', errorSource: 'codeViolation' },
       },
-    };
+    });
     await writeNodeDriftState(yggRoot, 'orders/handler', state);
     await clearDraftAspectsFromDriftState(yggRoot, 'orders/handler', new Set(['old-experimental']));
     const after = await readNodeDriftState(yggRoot, 'orders/handler');
@@ -47,40 +57,31 @@ describe('clearDraftAspectsFromDriftState', () => {
     const dir = await makeTmp();
     const yggRoot = join(dir, '.yggdrasil');
     await mkdir(yggRoot, { recursive: true });
-    const state: DriftNodeState = {
-      hash: 'abc',
-      files: {},
-      aspectVerdicts: { 'a': { verdict: 'approved' } },
-    };
+    const state = makeState({ aspectVerdicts: { a: { verdict: 'approved' } } });
     await writeNodeDriftState(yggRoot, 'n', state);
     await clearDraftAspectsFromDriftState(yggRoot, 'n', new Set(['nonexistent']));
     const after = await readNodeDriftState(yggRoot, 'n');
     expect(Object.keys(after?.aspectVerdicts ?? {})).toEqual(['a']);
   });
 
-  it('no-op when stored state has no aspectVerdicts', async () => {
+  it('no-op when stored aspectVerdicts is already empty', async () => {
     const dir = await makeTmp();
     const yggRoot = join(dir, '.yggdrasil');
     await mkdir(yggRoot, { recursive: true });
-    const state: DriftNodeState = { hash: 'abc', files: {} };
-    await writeNodeDriftState(yggRoot, 'n', state);
+    await writeNodeDriftState(yggRoot, 'n', makeState());
     await clearDraftAspectsFromDriftState(yggRoot, 'n', new Set(['anything']));
     const after = await readNodeDriftState(yggRoot, 'n');
-    expect(after?.aspectVerdicts).toBeUndefined();
+    expect(after?.aspectVerdicts).toEqual({});
   });
 
-  it('drops aspectVerdicts field entirely if all entries removed', async () => {
+  it('retains an empty aspectVerdicts map (required field) when all entries removed', async () => {
     const dir = await makeTmp();
     const yggRoot = join(dir, '.yggdrasil');
     await mkdir(yggRoot, { recursive: true });
-    const state: DriftNodeState = {
-      hash: 'abc',
-      files: {},
-      aspectVerdicts: { 'a': { verdict: 'approved' } },
-    };
+    const state = makeState({ aspectVerdicts: { a: { verdict: 'approved' } } });
     await writeNodeDriftState(yggRoot, 'n', state);
     await clearDraftAspectsFromDriftState(yggRoot, 'n', new Set(['a']));
     const after = await readNodeDriftState(yggRoot, 'n');
-    expect(after?.aspectVerdicts).toBeUndefined();
+    expect(after?.aspectVerdicts).toEqual({});
   });
 });

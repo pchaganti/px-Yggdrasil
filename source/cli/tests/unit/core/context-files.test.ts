@@ -9,35 +9,34 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_PROJECT = path.join(__dirname, '../../fixtures/sample-project');
 
 describe('collectTrackedFiles', () => {
-  it('includes own yg-node.yaml', async () => {
+  it('records own metadata in the typed identity (ownSubset hash)', async () => {
     const graph = await loadGraph(FIXTURE_PROJECT);
     const node = graph.nodes.get('orders/order-service')!;
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
+    const { identity } = collectTrackedFiles(node, graph);
 
-    // Own yg-node.yaml is tracked as synthetic hash, not as file path
-    expect(paths).toContain('own-subset:orders/order-service');
+    // Own yg-node.yaml subset is tracked as the identity.ownSubset hash, not a file.
+    expect(identity.ownSubset).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it('includes parent yg-node.yaml', async () => {
     const graph = await loadGraph(FIXTURE_PROJECT);
     const node = graph.nodes.get('orders/order-service')!;
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
+    const { trackedFiles } = collectTrackedFiles(node, graph);
+    const paths = trackedFiles.map((f) => f.path);
 
     expect(paths).toContain('.yggdrasil/model/orders/yg-node.yaml');
   });
 
-  it('includes aspect files', async () => {
+  it('records aspect meta in identity and tracks the content.md artifact', async () => {
     const graph = await loadGraph(FIXTURE_PROJECT);
     const node = graph.nodes.get('orders/order-service')!;
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
+    const { trackedFiles, identity } = collectTrackedFiles(node, graph);
+    const paths = trackedFiles.map((f) => f.path);
 
-    // orders/order-service has requires-audit aspect. Its definition metadata is
-    // tracked as a status-stripped synthetic (aspect-meta:<id>), not the raw
-    // yg-aspect.yaml file; the content.md artifact is tracked as a file.
-    expect(paths).toContain('aspect-meta:requires-audit');
+    // requires-audit aspect: definition metadata (status-stripped) lives in
+    // identity.aspects[id].meta, NOT as a tracked file; the content.md artifact
+    // IS a tracked file; the raw yg-aspect.yaml is not.
+    expect(identity.aspects['requires-audit']?.meta).toMatch(/^[a-f0-9]{64}$/);
     expect(paths).not.toContain('.yggdrasil/aspects/requires-audit/yg-aspect.yaml');
     expect(paths).toContain('.yggdrasil/aspects/requires-audit/content.md');
   });
@@ -45,28 +44,27 @@ describe('collectTrackedFiles', () => {
   it('includes source files from mapping', async () => {
     const graph = await loadGraph(FIXTURE_PROJECT);
     const node = graph.nodes.get('orders/order-service')!;
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
+    const { trackedFiles } = collectTrackedFiles(node, graph);
+    const paths = trackedFiles.map((f) => f.path);
 
     expect(paths).toContain('src/orders/order.service.ts');
   });
 
-  it('categorizes files as source or graph', async () => {
+  it('categorizes tracked files as source or graph (real paths only)', async () => {
     const graph = await loadGraph(FIXTURE_PROJECT);
     const node = graph.nodes.get('orders/order-service')!;
-    const files = collectTrackedFiles(node, graph);
+    const { trackedFiles } = collectTrackedFiles(node, graph);
 
-    const sourceFiles = files.filter((f) => f.category === 'source');
-    const graphFiles = files.filter((f) => f.category === 'graph');
+    const sourceFiles = trackedFiles.filter((f) => f.category === 'source');
+    const graphFiles = trackedFiles.filter((f) => f.category === 'graph');
 
     // Source files should not start with .yggdrasil/
     for (const f of sourceFiles) {
       expect(f.path).not.toMatch(/^\.yggdrasil\//);
     }
-
-    // Graph files should start with .yggdrasil/ or be synthetic hash entries
+    // Graph files are REAL files under .yggdrasil/ — no synthetic keys remain.
     for (const f of graphFiles) {
-      expect(f.path).toMatch(/^(\.yggdrasil\/|own-subset:|port-aspects:|tier-identity:|aspect-meta:|check-touched:)/);
+      expect(f.path).toMatch(/^\.yggdrasil\//);
     }
 
     expect(sourceFiles.length).toBeGreaterThan(0);
@@ -76,74 +74,58 @@ describe('collectTrackedFiles', () => {
   it('assigns correct layer to each tracked file', async () => {
     const graph = await loadGraph(FIXTURE_PROJECT);
     const node = graph.nodes.get('orders/order-service')!;
-    const files = collectTrackedFiles(node, graph);
-
-    // Own yg-node.yaml tracked as synthetic hash (not file path)
-    const ownSubset = files.find((f) => f.path === 'own-subset:orders/order-service');
-    expect(ownSubset).toBeDefined();
-    expect(ownSubset?.layer).toBe('hierarchy');
+    const { trackedFiles } = collectTrackedFiles(node, graph);
 
     // Hierarchy layer: parent node files
-    const hierarchyNodeYaml = files.find((f) => f.path === '.yggdrasil/model/orders/yg-node.yaml');
+    const hierarchyNodeYaml = trackedFiles.find((f) => f.path === '.yggdrasil/model/orders/yg-node.yaml');
     expect(hierarchyNodeYaml).toBeDefined();
     expect(hierarchyNodeYaml?.layer).toBe('hierarchy');
 
-    // Aspects layer: the aspect's definition metadata (status-stripped synthetic)
-    const aspectMeta = files.find((f) => f.path === 'aspect-meta:requires-audit');
-    expect(aspectMeta).toBeDefined();
-    expect(aspectMeta?.layer).toBe('aspects');
-    expect(aspectMeta?.syntheticHash).toBeDefined();
-
-    const aspectContent = files.find((f) => f.path === '.yggdrasil/aspects/requires-audit/content.md');
+    // Aspects layer: the aspect's content.md artifact
+    const aspectContent = trackedFiles.find((f) => f.path === '.yggdrasil/aspects/requires-audit/content.md');
     expect(aspectContent).toBeDefined();
     expect(aspectContent?.layer).toBe('aspects');
 
     // Source layer: mapped source files
-    const sourceFile = files.find((f) => f.path === 'src/orders/order.service.ts');
+    const sourceFile = trackedFiles.find((f) => f.path === 'src/orders/order.service.ts');
     expect(sourceFile).toBeDefined();
     expect(sourceFile?.layer).toBe('source');
     expect(sourceFile?.category).toBe('source');
 
     // Relational layer: dependency yg-node.yaml
-    const relationalFile = files.find((f) => f.path === '.yggdrasil/model/auth/auth-api/yg-node.yaml');
+    const relationalFile = trackedFiles.find((f) => f.path === '.yggdrasil/model/auth/auth-api/yg-node.yaml');
     expect(relationalFile).toBeDefined();
     expect(relationalFile?.layer).toBe('relational');
   });
 
-  it('no duplicate paths', async () => {
+  it('no duplicate tracked-file paths', async () => {
     const graph = await loadGraph(FIXTURE_PROJECT);
     const node = graph.nodes.get('orders/order-service')!;
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
+    const { trackedFiles } = collectTrackedFiles(node, graph);
+    const paths = trackedFiles.map((f) => f.path);
 
     expect(new Set(paths).size).toBe(paths.length);
   });
 
-  it('returns empty source files for nodes without mapping', async () => {
+  it('returns empty source files for nodes without mapping; still records own identity', async () => {
     const graph = await loadGraph(FIXTURE_PROJECT);
     // 'orders' is a module node with no mapping
     const node = graph.nodes.get('orders')!;
-    const files = collectTrackedFiles(node, graph);
+    const { trackedFiles, identity } = collectTrackedFiles(node, graph);
 
-    const sourceFiles = files.filter((f) => f.category === 'source');
-    const graphFiles = files.filter((f) => f.category === 'graph');
+    const sourceFiles = trackedFiles.filter((f) => f.category === 'source');
 
     expect(sourceFiles).toHaveLength(0);
-    expect(graphFiles.length).toBeGreaterThan(0);
-
-    // Should still have its own yg-node.yaml (as synthetic hash)
-    const paths = files.map((f) => f.path);
-    expect(paths).toContain('own-subset:orders');
+    // Still records its own metadata hash in identity.
+    expect(identity.ownSubset).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it('includes relational dependency yg-node.yaml', async () => {
     const graph = await loadGraph(FIXTURE_PROJECT);
     const node = graph.nodes.get('orders/order-service')!;
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
+    const { trackedFiles } = collectTrackedFiles(node, graph);
+    const paths = trackedFiles.map((f) => f.path);
 
-    // order-service uses auth/auth-api and users/user-repo
-    // Only yg-node.yaml is tracked for relational deps
     expect(paths).toContain('.yggdrasil/model/auth/auth-api/yg-node.yaml');
     expect(paths).toContain('.yggdrasil/model/users/user-repo/yg-node.yaml');
   });
@@ -178,10 +160,9 @@ describe('collectTrackedFiles', () => {
       rootPath: '/project/.yggdrasil',
     };
 
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
+    const { trackedFiles } = collectTrackedFiles(node, graph);
+    const paths = trackedFiles.map((f) => f.path);
 
-    // Only yg-node.yaml is tracked for relational deps
     expect(paths).toContain('.yggdrasil/model/dep/svc/yg-node.yaml');
   });
 
@@ -189,12 +170,11 @@ describe('collectTrackedFiles', () => {
     const graph = await loadGraph(FIXTURE_PROJECT);
     // 'users' module has no aspects
     const node = graph.nodes.get('users')!;
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
+    const { trackedFiles, identity } = collectTrackedFiles(node, graph);
+    const paths = trackedFiles.map((f) => f.path);
 
-    // Should still have node files
-    expect(paths).toContain('own-subset:users');
-    // Should not have aspect files
+    expect(identity.ownSubset).toMatch(/^[a-f0-9]{64}$/);
+    expect(Object.keys(identity.aspects)).toHaveLength(0);
     const aspectPaths = paths.filter((p) => p.includes('/aspects/'));
     expect(aspectPaths).toHaveLength(0);
   });
@@ -203,12 +183,11 @@ describe('collectTrackedFiles', () => {
     const graph = await loadGraph(FIXTURE_PROJECT);
     // 'users' module has no relations
     const node = graph.nodes.get('users')!;
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
+    const { trackedFiles, identity } = collectTrackedFiles(node, graph);
+    const paths = trackedFiles.map((f) => f.path);
 
-    // Should have own files but no dep metadata from other nodes
-    expect(paths).toContain('own-subset:users');
-    // Should not have auth or order node files (those are only via relations)
+    expect(identity.ownSubset).toMatch(/^[a-f0-9]{64}$/);
+    expect(Object.keys(identity.ports)).toHaveLength(0);
     const otherModelPaths = paths.filter(
       (p) => p.startsWith('.yggdrasil/model/') && !p.startsWith('.yggdrasil/model/users'),
     );
@@ -245,47 +224,9 @@ describe('collectTrackedFiles', () => {
       rootPath: '/project/.yggdrasil',
     };
 
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
+    const { trackedFiles } = collectTrackedFiles(node, graph);
+    const paths = trackedFiles.map((f) => f.path);
 
-    // Event relations should include target yg-node.yaml
-    expect(paths).toContain('.yggdrasil/model/events/bus/yg-node.yaml');
-  });
-
-  it('tracks event relation target yg-node.yaml', () => {
-    const target: GraphNode = {
-      path: 'events/bus',
-      meta: { name: 'EventBus', type: 'service' },
-      children: [],
-      parent: null,
-    };
-    const node: GraphNode = {
-      path: 'my/svc',
-      meta: {
-        name: 'MySvc',
-        type: 'service',
-        relations: [{ target: 'events/bus', type: 'emits' }],
-      },
-      children: [],
-      parent: null,
-    };
-    const graph: Graph = {
-      config: {},
-      architecture: { node_types: {} },
-      nodes: new Map([
-        ['my/svc', node],
-        ['events/bus', target],
-      ]),
-      aspects: [],
-      flows: [],
-      schemas: [],
-      rootPath: '/project/.yggdrasil',
-    };
-
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
-
-    // Event relation includes target yg-node.yaml
     expect(paths).toContain('.yggdrasil/model/events/bus/yg-node.yaml');
   });
 
@@ -310,12 +251,12 @@ describe('collectTrackedFiles', () => {
       rootPath: '/project/.yggdrasil',
     };
 
-    // Should not throw, just skip the broken relation
-    const files = collectTrackedFiles(node, graph);
-    expect(files.length).toBeGreaterThan(0);
+    // Should not throw, just skip the broken relation.
+    const { identity } = collectTrackedFiles(node, graph);
+    expect(identity.ownSubset).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it('tracks target ports hash when dependency has ports', () => {
+  it('records target ports hash in identity.ports when dependency has ports', () => {
     const target: GraphNode = {
       path: 'dep/svc',
       meta: {
@@ -349,24 +290,18 @@ describe('collectTrackedFiles', () => {
       rootPath: '/project/.yggdrasil',
     };
 
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
+    const { trackedFiles, identity } = collectTrackedFiles(node, graph);
+    const paths = trackedFiles.map((f) => f.path);
 
-    // Target with ports should have a synthetic hash entry
-    expect(paths).toContain('port-aspects:dep/svc');
+    // Target with ports → identity.ports[targetPath] hash; yg-node.yaml still tracked.
+    expect(identity.ports['dep/svc']).toMatch(/^[a-f0-9]{64}$/);
     expect(paths).toContain('.yggdrasil/model/dep/svc/yg-node.yaml');
-    const tracked = files.find(f => f.path === 'port-aspects:dep/svc');
-    expect(tracked?.layer).toBe('relational');
-    expect(tracked?.syntheticHash).toBeDefined();
   });
 
-  it('does NOT track target ports hash when dependency has no ports', () => {
+  it('does NOT record target ports hash when dependency has no ports', () => {
     const target: GraphNode = {
       path: 'dep/svc',
-      meta: {
-        name: 'DepSvc',
-        type: 'service',
-      },
+      meta: { name: 'DepSvc', type: 'service' },
       children: [],
       parent: null,
     };
@@ -393,11 +328,10 @@ describe('collectTrackedFiles', () => {
       rootPath: '/project/.yggdrasil',
     };
 
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
+    const { trackedFiles, identity } = collectTrackedFiles(node, graph);
+    const paths = trackedFiles.map((f) => f.path);
 
-    expect(paths).not.toContain('port-aspects:dep/svc');
-    // yg-node.yaml is still tracked for deps even without ports
+    expect(identity.ports['dep/svc']).toBeUndefined();
     expect(paths).toContain('.yggdrasil/model/dep/svc/yg-node.yaml');
   });
 
@@ -435,24 +369,23 @@ describe('collectTrackedFiles', () => {
       rootPath: '/project/.yggdrasil',
     };
 
-    const files = collectTrackedFiles(child, graph);
-    const paths = files.map((f) => f.path);
+    const { trackedFiles, identity } = collectTrackedFiles(child, graph);
+    const paths = trackedFiles.map((f) => f.path);
 
-    // requires-audit appears in both parent and child aspects,
-    // but aspect files should only appear once
+    // requires-audit appears via both parent and child aspects, but its content.md
+    // artifact is tracked once, and its identity slice is keyed once.
     const auditPaths = paths.filter((p) => p.includes('requires-audit'));
-    expect(auditPaths).toHaveLength(3); // aspect-meta: synthetic + content.md + tier-identity: synthetic
+    expect(auditPaths).toHaveLength(1); // content.md only
     expect(new Set(paths).size).toBe(paths.length);
+    expect(Object.keys(identity.aspects)).toContain('requires-audit');
   });
 
   it('includes dependency ancestor yg-node.yaml files', async () => {
     const graph = await loadGraph(FIXTURE_PROJECT);
     const node = graph.nodes.get('orders/order-service')!;
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
+    const { trackedFiles } = collectTrackedFiles(node, graph);
+    const paths = trackedFiles.map((f) => f.path);
 
-    // order-service depends on auth/auth-api. auth-api's parent is auth/.
-    // auth/ should have its yg-node.yaml tracked as a dependency ancestor.
     const authParentFiles = paths.filter((p) => p.includes('model/auth/') && !p.includes('auth-api'));
     expect(authParentFiles.length).toBeGreaterThan(0);
   });
@@ -466,20 +399,17 @@ describe('collectTrackedFiles', () => {
       { type: 'emits', target: 'auth/auth-api', event_name: 'order.created' },
     ];
 
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
+    const { trackedFiles } = collectTrackedFiles(node, graph);
+    const paths = trackedFiles.map((f) => f.path);
 
-    // auth/auth-api's metadata should be tracked (event relation target)
     const authApiFiles = paths.filter(p => p.includes('model/auth/auth-api/'));
     expect(authApiFiles.length).toBeGreaterThan(0);
 
-    // auth/ ancestor should also be tracked
     const authParentFiles = paths.filter(p =>
       p.includes('model/auth/') && !p.includes('auth-api') && !p.includes('auth-service')
     );
     expect(authParentFiles.length).toBeGreaterThan(0);
 
-    // Restore original relations
     node.meta.relations = originalRelations;
   });
 
@@ -513,15 +443,13 @@ describe('collectTrackedFiles', () => {
       rootPath: '/project/.yggdrasil',
     };
 
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
+    const { trackedFiles } = collectTrackedFiles(node, graph);
+    const paths = trackedFiles.map((f) => f.path);
 
-    // Only yg-node.yaml is tracked for deps — no .md content files
     expect(paths).toContain('.yggdrasil/model/dep/svc/yg-node.yaml');
   });
 
-  it('skips aspect that is not found in graph.aspects (line 106)', () => {
-    // Node references an aspect ID that doesn't exist in graph.aspects
+  it('skips aspect that is not found in graph.aspects', () => {
     const node: GraphNode = {
       path: 'my/svc',
       meta: {
@@ -542,17 +470,15 @@ describe('collectTrackedFiles', () => {
       rootPath: '/project/.yggdrasil',
     };
 
-    // Should not throw; just skip the missing aspect
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
-    // No aspect files should be present
+    const { trackedFiles, identity } = collectTrackedFiles(node, graph);
+    const paths = trackedFiles.map((f) => f.path);
     const aspectPaths = paths.filter((p) => p.includes('/aspects/'));
     expect(aspectPaths).toHaveLength(0);
-    // But own-subset should still be there
-    expect(paths).toContain('own-subset:my/svc');
+    expect(Object.keys(identity.aspects)).toHaveLength(0);
+    expect(identity.ownSubset).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it('skips event relation with missing target (line 146)', () => {
+  it('skips event relation with missing target', () => {
     const node: GraphNode = {
       path: 'my/svc',
       meta: {
@@ -573,18 +499,15 @@ describe('collectTrackedFiles', () => {
       rootPath: '/project/.yggdrasil',
     };
 
-    // Should not throw; just skip the broken event relation
-    const files = collectTrackedFiles(node, graph);
-    const paths = files.map((f) => f.path);
-    // Should not include the nonexistent target
+    const { trackedFiles, identity } = collectTrackedFiles(node, graph);
+    const paths = trackedFiles.map((f) => f.path);
     expect(paths).not.toContain('.yggdrasil/model/nonexistent/bus/yg-node.yaml');
-    // But own-subset should still be there
-    expect(paths).toContain('own-subset:my/svc');
+    expect(identity.ownSubset).toMatch(/^[a-f0-9]{64}$/);
   });
 });
 
-describe('Task 33 — drift hash uses check.mjs for AST aspects', () => {
-  it('AST aspect artifact check.mjs appears in tracked files', () => {
+describe('drift hash uses check.mjs for deterministic aspects', () => {
+  it('deterministic aspect artifact check.mjs appears in tracked files', () => {
     const svcNode: GraphNode = {
       path: 'svc',
       meta: {
@@ -613,8 +536,8 @@ describe('Task 33 — drift hash uses check.mjs for AST aspects', () => {
       rootPath: '/project/.yggdrasil',
     };
 
-    const files = collectTrackedFiles(svcNode, graph);
-    const paths = files.map((f) => f.path);
+    const { trackedFiles } = collectTrackedFiles(svcNode, graph);
+    const paths = trackedFiles.map((f) => f.path);
 
     expect(paths).toContain('.yggdrasil/aspects/async-fs/check.mjs');
     expect(paths).not.toContain('.yggdrasil/aspects/async-fs/content.md');
@@ -648,8 +571,8 @@ describe('Task 33 — drift hash uses check.mjs for AST aspects', () => {
       rootPath: '/project/.yggdrasil',
     };
 
-    const files = collectTrackedFiles(svcNode, graph);
-    const paths = files.map((f) => f.path);
+    const { trackedFiles } = collectTrackedFiles(svcNode, graph);
+    const paths = trackedFiles.map((f) => f.path);
 
     expect(paths).toContain('.yggdrasil/aspects/my-rule/content.md');
     expect(paths).not.toContain('.yggdrasil/aspects/my-rule/check.mjs');

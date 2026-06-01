@@ -1,7 +1,13 @@
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import type { Graph, GraphNode } from '../../model/graph.js';
-import type { DriftCategory, DriftNodeState, TrackedFileLayer } from '../../model/drift.js';
+import type {
+  DriftCategory,
+  DriftNodeState,
+  DriftIdentity,
+  AspectIdentity,
+  TrackedFileLayer,
+} from '../../model/drift.js';
 import { normalizeMappingPaths } from '../../io/paths.js';
 import { collectAncestors } from './traversal.js';
 import { computeEffectiveAspects } from './aspects.js';
@@ -10,23 +16,30 @@ import { canonicalTierJson } from '../tier-identity.js';
 import { toPosixPath } from '../../utils/posix.js';
 
 export interface TrackedFile {
-  path: string;           // relative to project root
+  path: string;           // relative to project root — REAL source/graph file
   category: DriftCategory;  // 'source' or 'graph'
   layer: TrackedFileLayer;  // which context layer brought this file into tracking
-  syntheticHash?: string; // when present, use this hash instead of reading from disk
+}
+
+/** Real files tracked for drift PLUS the node's typed upstream identity. */
+export interface TrackedContext {
+  trackedFiles: TrackedFile[];
+  identity: DriftIdentity;
 }
 
 const STRUCTURAL_RELATION_TYPES = new Set(['uses', 'calls', 'extends', 'implements']);
 
-// Synthetic-key builders — the SINGLE source of truth for the per-aspect drift
-// identity keys. These are produced here (in collectTrackedFiles via
-// addSyntheticHash) and consumed by the cascade-attribution helpers in
-// cli/approve.ts (filterAspectCascadeNodes, selectDriftedAspects). The produced
-// STRINGS are part of every recorded baseline's drift hashes — changing them
-// would invalidate all baselines and trigger a mass cascade. Keep byte-identical.
-export const tierIdentityKey = (aspectId: string): string => `tier-identity:${aspectId}`;
-export const checkTouchedKey = (aspectId: string): string => `check-touched:${aspectId}`;
-export const aspectMetaKey = (aspectId: string): string => `aspect-meta:${aspectId}`;
+const sha256Hex = (content: string): string => createHash('sha256').update(content).digest('hex');
+
+/**
+ * The identity of a node with nothing to track (no aspects, no relations, no
+ * own subset of interest). Used for log-only baselines on mapping-less or
+ * all-draft nodes where there is no upstream identity to fold. `ownSubset` is
+ * the empty-string digest so the value is stable.
+ */
+export function emptyIdentity(): DriftIdentity {
+  return { ownSubset: sha256Hex(''), ports: {}, aspects: {} };
+}
 
 /**
  * Repo-relative POSIX path to the .yggdrasil/ graph root (e.g. ".yggdrasil").
@@ -43,19 +56,21 @@ export function yggPrefixOf(graph: { rootPath: string }): string {
 }
 
 /**
- * Collect all files tracked by a node's context package.
- * Mirrors the traversal of build-context but returns file paths
- * instead of rendered content. This is the core function for
+ * Collect all files tracked by a node's context package, plus its typed
+ * upstream identity. Mirrors the traversal of build-context but returns file
+ * paths (not rendered content) and identity hashes instead of stuffing
+ * synthetic string keys into the file list. This is the core function for
  * bidirectional drift detection.
  *
  * Synchronous — no I/O needed; all data comes from the loaded Graph.
  *
- * @param baseline Optional stored drift state for the node. When provided,
- *   checkTouchedFiles entries are included as 'check-touched'
- *   layer entries so drift fires when the set of files touched by a
- *   deterministic aspect changes between runs.
+ * @param baseline Optional stored drift state for the node. When provided, the
+ *   per-aspect `identity.aspects[id].checkTouched` map is carried into the
+ *   returned identity (so drift fires when the set/content of files a
+ *   deterministic aspect read changes), and CROSS-node touched paths are added
+ *   as real 'check-touched' tracked files (they otherwise have no entry).
  */
-export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: DriftNodeState): TrackedFile[] {
+export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: DriftNodeState): TrackedContext {
   const seen = new Set<string>();
   const result: TrackedFile[] = [];
 
@@ -66,42 +81,27 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
   // Normalize to forward slashes for consistency
   const yggPrefixNormalized = toPosixPath(yggPrefix);
 
+  const identityAspects: Record<string, AspectIdentity> = {};
+  const identityPorts: Record<string, string> = {};
+
   function addFile(filePath: string, category: DriftCategory, layer: TrackedFileLayer): void {
     if (seen.has(filePath)) return;
     seen.add(filePath);
     result.push({ path: filePath, category, layer });
   }
 
-  function addSyntheticHash(
-    key: string,
-    content: string,
-    category: DriftCategory,
-    layer: TrackedFileLayer,
-  ): void {
-    if (seen.has(key)) return;
-    seen.add(key);
-    const hash = createHash('sha256').update(content).digest('hex');
-    result.push({ path: key, category, layer, syntheticHash: hash });
-  }
-
   function graphPath(...segments: string[]): string {
     return [yggPrefixNormalized, ...segments].join('/');
   }
 
-  // 1. OWN — synthetic hash of aspect-relevant yg-node.yaml subset (type, aspects, relations, ports)
+  // 1. OWN — hash of aspect-relevant yg-node.yaml subset (type, aspects, relations, ports).
   // Only the subset is tracked — description-only changes do NOT trigger upstream drift.
-  const ownSubset = {
+  const ownSubsetHash = sha256Hex(JSON.stringify({
     type: node.meta.type,
     aspects: node.meta.aspects,
     relations: node.meta.relations,
     ports: node.meta.ports,
-  };
-  addSyntheticHash(
-    `own-subset:${node.path}`,
-    JSON.stringify(ownSubset),
-    'graph',
-    'hierarchy',
-  );
+  }));
 
   // 2. HIERARCHICAL — ancestors from root to parent (yg-node.yaml only)
   const ancestors = collectAncestors(node);
@@ -124,37 +124,35 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
   for (const aspectId of allAspectIds) {
     const aspect = graph.aspects.find(a => a.id === aspectId);
     if (!aspect) continue;
-    // Track the aspect's DEFINITION metadata EXCLUDING `status` (not the raw
-    // yg-aspect.yaml, whose bytes include status), so an advisory<->enforced flip is
-    // NOT drift — the canonical hash stays stable, the verdict carries forward. A
-    // draft<->non-draft transition is still surfaced via aspect-newly-active; a
-    // rule-content change still cascades via the artifacts/references tracked below.
-    const aspectMeta = {
-      id: aspect.id,
-      name: aspect.name,
-      description: aspect.description,
-      reviewer: aspect.reviewer,
-      implies: aspect.implies,
-      impliesWhens: aspect.impliesWhens,
-      impliesStatusInherit: aspect.impliesStatusInherit,
-      when: aspect.when,
-      references: aspect.references,
+    // Hash the aspect's DEFINITION metadata EXCLUDING `status`, so an
+    // advisory<->enforced flip is NOT drift — the canonical hash stays stable,
+    // the verdict carries forward. A draft<->non-draft transition is still
+    // surfaced via aspect-newly-active; a rule-content change still cascades via
+    // the artifacts/references tracked below.
+    const aspectIdentity: AspectIdentity = {
+      meta: sha256Hex(JSON.stringify({
+        id: aspect.id,
+        name: aspect.name,
+        description: aspect.description,
+        reviewer: aspect.reviewer,
+        implies: aspect.implies,
+        impliesWhens: aspect.impliesWhens,
+        impliesStatusInherit: aspect.impliesStatusInherit,
+        when: aspect.when,
+        references: aspect.references,
+      })),
     };
-    addSyntheticHash(aspectMetaKey(aspect.id), JSON.stringify(aspectMeta), 'graph', 'aspects');
     for (const art of aspect.artifacts) {
       addFile(graphPath('aspects', aspect.id, art.filename), 'graph', 'aspects');
     }
-    // tier-identity synthetic hash — drift when the resolved tier config changes
+    // tier identity — drift when the resolved tier config changes. LLM only.
     if (aspect.reviewer.type === 'llm') {
       if (!graph.config.reviewer) {
-        addSyntheticHash(tierIdentityKey(aspect.id), 'reviewer-config-missing', 'graph', 'aspects');
+        aspectIdentity.tier = sha256Hex('reviewer-config-missing');
       } else {
         const selResult = selectTierForAspect(aspect, graph.config.reviewer);
-        addSyntheticHash(
-          tierIdentityKey(aspect.id),
+        aspectIdentity.tier = sha256Hex(
           selResult.ok ? canonicalTierJson(selResult.tier, selResult.tierName) : 'unresolved',
-          'graph',
-          'aspects',
         );
       }
       // references — LLM only; skip paths owned by this node's mapping (the SOURCE
@@ -165,32 +163,34 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
       }
     }
 
-    // Deterministic aspects carry NO extra synthetic identity hash beyond the
-    // aspect-meta above — their identity is the meta + the check.mjs artifact + the
-    // node's mapping files + the per-aspectId checkTouchedFiles set hash (below).
+    // Deterministic aspects carry NO tier — their identity is the meta + the
+    // check.mjs artifact + the node's mapping files + the per-aspect
+    // checkTouched set (folded below from the baseline).
+    identityAspects[aspect.id] = aspectIdentity;
   }
 
-  // check-touched: inject entries from baseline's checkTouchedFiles so
-  // drift fires when the set (or content) of files touched by a deterministic aspect changes.
+  // check-touched: carry the baseline's per-aspect touched-file map into the
+  // typed identity so drift fires when the set (or content) of files a
+  // deterministic aspect read changes between runs. Only effective aspects on
+  // this node receive a checkTouched entry (a prior entry for an aspect no
+  // longer effective drops out — it is no longer part of the identity).
   //
-  // A touched path in this node's OWN mapping is skipped here (the SOURCE step
-  // tracks it under 'source' = source-drift; addFile is first-writer-wins). Only
-  // CROSS-node touched paths (owned by a related node) are added as 'check-touched'
-  // — they otherwise have no tracking entry. The synthetic per-aspect hash still
-  // summarizes the FULL set, so set-membership changes drift regardless.
-  if (baseline?.checkTouchedFiles) {
-    for (const [aspectId, pathMap] of Object.entries(baseline.checkTouchedFiles)) {
+  // A touched path in this node's OWN mapping is NOT added as a tracked file
+  // (the SOURCE step tracks it under 'source' = source-drift). Only CROSS-node
+  // touched paths (owned by a related node) are added as real 'check-touched'
+  // tracked files — they otherwise have no tracking entry. The checkTouched map
+  // in identity still summarizes the FULL set, so membership changes drift.
+  if (baseline?.identity?.aspects) {
+    for (const [aspectId, prior] of Object.entries(baseline.identity.aspects)) {
+      const pathMap = prior.checkTouched;
+      if (!pathMap) continue;
+      const current = identityAspects[aspectId];
+      if (!current) continue; // aspect no longer effective — drop its checkTouched
       for (const p of Object.keys(pathMap)) {
         if (isOwnedByMapping(p)) continue;
         addFile(p, 'source', 'check-touched');
       }
-      const sorted = Object.keys(pathMap).sort();
-      addSyntheticHash(
-        checkTouchedKey(aspectId),
-        sorted.join('\n'),
-        'graph',
-        'aspects',
-      );
+      current.checkTouched = pathMap;
     }
   }
 
@@ -203,17 +203,11 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
     // Track dependency yg-node.yaml only
     addFile(graphPath('model', target.path, 'yg-node.yaml'), 'graph', 'relational');
 
-    // Track ports hash only (not full yg-node.yaml) — scoped cascade
-    // This ensures only port aspect changes cascade to dependents,
-    // not unrelated target metadata changes (description, relations, mapping)
+    // Track ports hash only (not full yg-node.yaml) — scoped cascade.
+    // This ensures only port aspect changes cascade to dependents, not
+    // unrelated target metadata changes (description, relations, mapping).
     if (target.meta.ports && Object.keys(target.meta.ports).length > 0) {
-      const portsJson = JSON.stringify(target.meta.ports);
-      addSyntheticHash(
-        `port-aspects:${target.path}`,
-        portsJson,
-        'graph',
-        'relational',
-      );
+      identityPorts[target.path] = sha256Hex(JSON.stringify(target.meta.ports));
     }
 
     // Track dependency ancestor yg-node.yaml files
@@ -244,7 +238,10 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
     addFile(p, 'source', 'source');
   }
 
-  return result;
+  return {
+    trackedFiles: result,
+    identity: { ownSubset: ownSubsetHash, ports: identityPorts, aspects: identityAspects },
+  };
 }
 
 /**
@@ -279,4 +276,5 @@ export function buildLayerResolver(
     return undefined;
   };
 }
+
 

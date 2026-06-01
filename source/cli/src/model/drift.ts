@@ -58,10 +58,82 @@ export interface DriftFileChange {
 
 export type NodeLifecycleState = 'ok' | 'missing' | 'unapproved';
 
+/**
+ * The current on-disk drift-state format version. Stamped on every baseline at
+ * write time and validated at read time (io/drift-state-store.ts). A baseline
+ * with an absent or unrecognized schemaVersion predates this format and is NOT
+ * parsed by the single-format runtime — it is the migration's job to re-key it
+ * losslessly (core/drift-state-rekey.ts). The read store rejects such baselines
+ * with an upgrade-pointing error (the second net behind the graph-loader
+ * version gate).
+ */
+export const DRIFT_STATE_SCHEMA_VERSION = 1 as const;
+
+/**
+ * Per-aspect identity captured in the typed baseline. Each field is a sha256
+ * hex digest of a canonically-serialized aspect-definition slice. Folded into
+ * the node's canonical drift hash so a change to any of them cascades.
+ */
+export interface AspectIdentity {
+  /**
+   * Aspect-definition hash — EXCLUDES `status`, so an advisory↔enforced flip
+   * does NOT drift (the verdict carries forward); a draft↔non-draft transition
+   * is surfaced separately via aspect-newly-active.
+   */
+  meta: string;
+  /**
+   * Resolved reviewer-tier identity hash. Present for LLM aspects only.
+   * EXCLUDES `api_key` (a secret, not part of the reviewer config identity).
+   */
+  tier?: string;
+  /**
+   * Per-deterministic-aspect touched files captured at the last
+   * enforced/advisory approve. OPTIONAL — this is legitimate DOMAIN
+   * optionality, NOT backward-compat:
+   *   - absent = no deterministic aspect recorded a touched-file set (cold start)
+   *   - preserved across draft toggle (clearDraftAspectsFromDriftState does NOT clear it)
+   * Schema: { [repoRelPosixPath]: sha256Hex }
+   */
+  checkTouched?: Record<string, string>;
+}
+
+/**
+ * A typed identity-element change (a piece of the node's upstream identity that
+ * is folded into the canonical hash but is NOT a real file on disk). Replaces
+ * the former synthetic `<kind>:<id>` string keys. Carried on a CascadeCause so
+ * attribution (`--aspect` batch selection, per-aspect re-review) is typed
+ * rather than parsed out of a path string.
+ */
+export type IdentityCause =
+  | { kind: 'ownSubset'; nodePath: string }
+  | { kind: 'aspectMeta'; aspectId: string }
+  | { kind: 'tier'; aspectId: string }
+  | { kind: 'checkTouchedSet'; aspectId: string }
+  | { kind: 'port'; targetPath: string };
+
+/**
+ * Typed upstream-identity slice of a baseline. Replaces the former synthetic
+ * string keys (own-subset:/aspect-meta:/tier-identity:/check-touched:/
+ * port-aspects:) that used to be stuffed into `files`. Folded into the
+ * canonical drift hash via a stable, sorted serialization.
+ */
+export interface DriftIdentity {
+  /** Hash of the node's own aspect-relevant yg-node.yaml subset (type/aspects/relations/ports). */
+  ownSubset: string;
+  /** Per-dependency scoped port-aspect set hashes (channel 6). Keyed by target node path. */
+  ports: Record<string, string>;
+  /** Per-effective-aspect identity. Keyed by aspect id. */
+  aspects: Record<string, AspectIdentity>;
+}
+
 export interface DriftNodeState {
+  /** On-disk format version. Always DRIFT_STATE_SCHEMA_VERSION for baselines written by this CLI. */
+  schemaVersion: typeof DRIFT_STATE_SCHEMA_VERSION;
   hash: string;
-  files: Record<string, string>;  // path → sha256 hex — now required, not optional
-  mtimes?: Record<string, number>; // path → mtime in ms — for mtime-based drift optimization
+  files: Record<string, string>;  // REAL source/graph file paths → sha256 hex — NO synthetic keys
+  mtimes?: Record<string, number>; // path → mtime in ms — perf fast-path; NEVER folded into the canonical hash
+  /** Typed upstream identity — folded into the canonical hash. */
+  identity: DriftIdentity;
   /**
    * Log baseline — present only when log.md exists and last successful approve
    * captured at least one entry. Drives append-only integrity verification.
@@ -73,24 +145,13 @@ export interface DriftNodeState {
     prefix_hash: string;
   };
   /**
-   * Per-aspect verdicts at last approve time.
+   * Per-aspect verdicts at last approve time. REQUIRED (may be `{}`).
    *
    * Recorded for every non-draft effective aspect that the reviewer evaluated.
    * Persisted on BOTH approved and refused branches so `yg check` can render
    * per-aspect refused state without re-running the reviewer.
-   *
-   * Optional for backward compatibility with baselines written before this
-   * field existed.
    */
-  aspectVerdicts?: Record<string, AspectVerdict>;
-  /**
-   * Per-deterministic-aspect touched files captured at the last
-   * enforced/advisory approve. Optional for backward compat:
-   *   - missing = pre-feature baseline → cold start
-   *   - preserved across draft toggle (clearDraftAspectsFromDriftState does NOT clear it)
-   * Schema: { [aspectId]: { [repoRelPosixPath]: sha256Hex } }
-   */
-  checkTouchedFiles?: Record<string, Record<string, string>>;
+  aspectVerdicts: Record<string, AspectVerdict>;
 }
 
 /** Upstream change with type annotation for CLI messages */
@@ -98,6 +159,19 @@ export interface AnnotatedChange {
   filePath: string;
   /** Human-readable annotation, e.g. "aspect content", "dependency metadata", "flow description", "parent metadata" */
   annotation: string;
+  /**
+   * Present when this upstream change is a typed identity-element change (not a
+   * real file). Carried so per-aspect re-review selection (selectDriftedAspects)
+   * can attribute the change to its owning aspect by typed kind rather than by
+   * parsing the filePath display token.
+   */
+  identity?: IdentityCause;
+  /**
+   * For a CROSS-node check-touched real-file content change: the deterministic
+   * aspect(s) whose stored read-set contains this path. Set from the stored
+   * typed identity so per-aspect attribution needs no baseline re-read.
+   */
+  attributedAspectIds?: string[];
 }
 
 /** Result of approveNode() — what happened and why */

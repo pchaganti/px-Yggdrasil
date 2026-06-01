@@ -7,8 +7,8 @@ import type { LlmConfig } from '../model/graph.js';
  * not change the reviewer's judgment, so it must not invalidate baselines;
  * including it made tuning the timeout cascade drift across every node).
  *
- * Used by core/graph/files.ts to compute the synthetic
- * `tier-identity:<aspectId>` content for drift detection.
+ * Used by core/graph/files.ts to compute the per-aspect
+ * `identity.aspects[id].tier` hash content for drift detection.
  */
 export function canonicalTierJson(tier: LlmConfig, tierName: string): string {
   /* eslint-disable @typescript-eslint/no-unused-vars */

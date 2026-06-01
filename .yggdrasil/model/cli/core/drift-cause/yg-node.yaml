@@ -1,0 +1,11 @@
+name: Drift Cause
+type: engine
+description: "Pure drift-cause helpers — diff a node's typed upstream identity (diffIdentity) and describe why a cascade fired (describeCascadeCause, describeIdentityCause, identity-cause tokens/layers). Extracted from the check engine and core graph queries so each parent stays under the per-node reviewer budget. No I/O; transforms loaded graph + identity data only."
+aspects: []
+relations:
+  - target: cli/model/graph
+    type: uses
+  - target: cli/model/drift
+    type: uses
+mapping:
+  - source/cli/src/core/drift-cause.ts

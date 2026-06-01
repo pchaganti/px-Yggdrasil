@@ -1,9 +1,7 @@
 {
-  "hash": "8dc4130b0b6c0fb21a5cd2f00bb9bc8daead1ce25d373be825dfedf7370d0c56",
+  "schemaVersion": 1,
+  "hash": "717d23e61c06a7365e5bfb0aa3bb768c6b9e53e0f07e04274220ddda5666b30a",
   "files": {
-    "own-subset:cli/tests/unit/cli/approve": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
@@ -12,11 +10,11 @@
     "source/cli/tests/unit/cli/approve.test.ts": "4948af8d177a0238753379046dae9a453f9ebe4de20161470c41e5d386bf3ef0",
     "source/cli/tests/unit/cli/approve-action-guards.test.ts": "2d35faaa68aa1ec0bec632298a63c467d99895cb3bb3bf133f10d90a0df2481a",
     "source/cli/tests/unit/cli/approve-batch.test.ts": "c59619ad846ed53db20f63cf8c5f1e55d720963e056cff106a758331e4f514a3",
-    "source/cli/tests/unit/cli/approve-aspect-cascade.test.ts": "7b4d857e2bf68f90f804eb0a3232f04631873be906e7800d29462f92dfe16848",
+    "source/cli/tests/unit/cli/approve-batch-integration.test.ts": "eb6ea38bca9fbb91e693074d845cd6954b1b2f2c9c8078680c9713dbcd7ae42a",
+    "source/cli/tests/unit/cli/approve-aspect-cascade.test.ts": "2d364fe0260cb0ebc71da1441b29a149aeda4b78afd21af87a4964de4ddfbef1",
     "source/cli/tests/unit/cli/approve-flow-cascade.test.ts": "d50617acf37f5956941405edaca68f907c4d2c698b1db9b82d52d4f5e52b73c7",
-    "source/cli/tests/unit/cli/approve-select-drifted-aspects.test.ts": "ba759f1a1a060c4addc2333a6ba22caa454d58cf2477933efb6e92df71635a18",
-    "source/cli/tests/unit/cli/run-batch.test.ts": "15dcfa3052af8f7adef71fbc1ce9865f6640d745ca0300a56d519aa921c32887",
-    "source/cli/tests/unit/cli/approve-batch-integration.test.ts": "7b9a0308069e74d67cfc0bf8c5e9096f1c73649d6cd7b9f76695e0d4aa15c31d"
+    "source/cli/tests/unit/cli/approve-select-drifted-aspects.test.ts": "66c7f173c97b0c7aaa59cc8e490e1cbb769f1ef1dcb133d1b89aebea0ef88222",
+    "source/cli/tests/unit/cli/run-batch.test.ts": "15dcfa3052af8f7adef71fbc1ce9865f6640d745ca0300a56d519aa921c32887"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -24,22 +22,32 @@
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
     ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": 1780048240858.293,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/cli/approve.test.ts": 1780226288894.991,
-    "source/cli/tests/unit/cli/approve-action-guards.test.ts": 1780179959902.3354,
-    "source/cli/tests/unit/cli/approve-batch.test.ts": 1778854589347.4822,
-    "source/cli/tests/unit/cli/approve-batch-integration.test.ts": 1780262504838.7585,
-    "source/cli/tests/unit/cli/approve-aspect-cascade.test.ts": 1780207999738.858,
-    "source/cli/tests/unit/cli/approve-flow-cascade.test.ts": 1780133272222.319,
-    "source/cli/tests/unit/cli/approve-select-drifted-aspects.test.ts": 1780207999739.2107,
-    "source/cli/tests/unit/cli/run-batch.test.ts": 1778917038514.553
+    "source/cli/tests/unit/cli/approve.test.ts": 1780293527043.0466,
+    "source/cli/tests/unit/cli/approve-action-guards.test.ts": 1780293527040.3699,
+    "source/cli/tests/unit/cli/approve-batch.test.ts": 1780293527041.4646,
+    "source/cli/tests/unit/cli/approve-batch-integration.test.ts": 1780293527041.1587,
+    "source/cli/tests/unit/cli/approve-aspect-cascade.test.ts": 1780293527040.8022,
+    "source/cli/tests/unit/cli/approve-flow-cascade.test.ts": 1780293527042.0105,
+    "source/cli/tests/unit/cli/approve-select-drifted-aspects.test.ts": 1780293527042.5242,
+    "source/cli/tests/unit/cli/run-batch.test.ts": 1780293527051.9392
   },
-  "log": {
-    "last_entry_datetime": "2026-05-31T06:24:47.172Z",
-    "prefix_hash": "4f3db86611dacc7542c267f96df4a4e38118934cf4f658980a0af606ae490e90"
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
   },
   "aspectVerdicts": {
     "test-deterministic": {
       "verdict": "approved"
     }
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-31T06:24:47.172Z",
+    "prefix_hash": "4f3db86611dacc7542c267f96df4a4e38118934cf4f658980a0af606ae490e90"
   }
 }

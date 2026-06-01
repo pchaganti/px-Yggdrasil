@@ -18,6 +18,8 @@ import { approveNode } from '../../../src/core/approve.js';
 import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
 import { hashTrackedFiles } from '../../../src/io/hash.js';
 import { collectTrackedFiles } from '../../../src/core/graph/files.js';
+import { recordBaselineForAllMappedNodes } from '../helpers/seed-baseline.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../../src/model/drift.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -73,17 +75,7 @@ async function createProject(name: string) {
 
 async function recordBaseline(tmpDir: string) {
   const graph = await loadGraph(tmpDir);
-  for (const [nodePath, node] of graph.nodes) {
-    if (!node.meta.mapping) continue;
-    const trackedFiles = collectTrackedFiles(node, graph);
-    const projectRoot = path.dirname(graph.rootPath);
-    const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
-      projectRoot, trackedFiles, undefined, [],
-    );
-    await writeNodeDriftState(graph.rootPath, nodePath, {
-      hash: canonicalHash, files: fileHashes, mtimes: fileMtimes,
-    });
-  }
+  await recordBaselineForAllMappedNodes(graph);
 }
 
 beforeEach(() => { vi.clearAllMocks(); });
@@ -112,7 +104,7 @@ describe('runApproveWithReviewer — structure touched-file paths normalized to 
     });
 
     expect(result.action).toBe('approved');
-    const stf = result.pendingDriftState?.state.checkTouchedFiles?.['shape-check'] ?? {};
+    const stf = result.pendingDriftState?.state.identity.aspects['shape-check']?.checkTouched ?? {};
     const keys = Object.keys(stf);
     // The key is normalized to POSIX; no backslash survives into the baseline.
     expect(keys).toContain('src/svc.ts');

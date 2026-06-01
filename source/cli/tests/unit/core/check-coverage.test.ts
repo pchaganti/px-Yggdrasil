@@ -15,6 +15,8 @@ import {
 import { writeNodeDriftState } from '../../../src/io/drift-state-store.js';
 import { hashTrackedFiles } from '../../../src/io/hash.js';
 import { collectTrackedFiles } from '../../../src/core/graph/files.js';
+import { recordBaselineForAllMappedNodes } from '../helpers/seed-baseline.js';
+import { DRIFT_STATE_SCHEMA_VERSION } from '../../../src/model/drift.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -99,19 +101,7 @@ async function createTmpProject(name: string, opts: {
 
 async function recordBaseline(tmpDir: string) {
   const graph = await loadGraph(tmpDir);
-  for (const [nodePath, node] of graph.nodes) {
-    if (!node.meta.mapping) continue;
-    const trackedFiles = collectTrackedFiles(node, graph);
-    const projectRoot = path.dirname(graph.rootPath);
-    const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
-      projectRoot, trackedFiles, undefined, [],
-    );
-    await writeNodeDriftState(graph.rootPath, nodePath, {
-      hash: canonicalHash,
-      files: fileHashes,
-      mtimes: fileMtimes,
-    });
-  }
+  await recordBaselineForAllMappedNodes(graph);
 }
 
 
@@ -233,7 +223,8 @@ describe('detectOrphanedDriftState', () => {
     });
     // Write drift state for a node that doesn't exist
     await writeNodeDriftState(yggRoot, 'ghost/deleted-service', {
-      hash: 'aaaa', files: {},
+      schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
+      hash: 'aaaa', files: {}, identity: { ownSubset: '', ports: {}, aspects: {} }, aspectVerdicts: {},
     });
     const graph = await loadGraph(tmpDir);
     const orphaned = await detectOrphanedDriftState(graph);
@@ -409,7 +400,8 @@ describe('runCheck', () => {
     await recordBaseline(tmpDir);
     // Write orphaned drift state
     await writeNodeDriftState(yggRoot, 'ghost/deleted', {
-      hash: 'aaaa', files: {},
+      schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
+      hash: 'aaaa', files: {}, identity: { ownSubset: '', ports: {}, aspects: {} }, aspectVerdicts: {},
     });
     const graph = await loadGraph(tmpDir);
     const result = await runCheck(graph, ['src/svc/index.ts']);

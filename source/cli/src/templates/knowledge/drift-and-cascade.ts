@@ -90,11 +90,28 @@ deterministic re-approves with no LLM call.
 Use \`yg impact\` before every graph change to see the call count.
 An aspect touching 20 nodes that each have 3 effective aspects = 60 calls.
 
+### What the baseline records
+
+The per-node baseline stores the hashes of the node's real source and graph
+files, a typed \`identity\` block holding the node's upstream identity (its own
+aspect-relevant metadata, a per-aspect identity for every effective aspect, and
+per-dependency port-aspect hashes), and a per-aspect verdict map recording the
+reviewer's last judgment for each non-draft aspect. The canonical drift hash is
+computed over the real-file hashes together with that typed identity, so any
+upstream identity change cascades exactly like a source change.
+
+Aspect \`status\` is deliberately NOT part of the identity: flipping an aspect
+between \`advisory\` and \`enforced\` does not drift the node (the recorded verdict
+carries forward) — it only changes how that verdict renders. A \`draft\` ↔
+non-draft transition is surfaced separately as a newly-active aspect, because a
+draft aspect has no recorded verdict yet.
+
 ### Tier identity is part of the per-node drift hash
 
-Each LLM aspect contributes a \`tier-identity:<aspectId>\` synthetic entry
-into the per-node canonical hash. Anything that changes the resolved tier
-triggers re-approve on every node using that aspect:
+Each LLM aspect carries a reviewer-tier identity hash in its per-aspect slice of
+the typed \`identity\` block, folded into the per-node canonical hash. Anything
+that changes the resolved tier triggers re-approve on every node using that
+aspect:
 
 - Editing \`reviewer.tier:\` on the aspect (or removing it to fall back to default).
 - Editing \`reviewer.default\` in \`yg-config.yaml\` (cascades to every aspect that
@@ -111,11 +128,11 @@ before swapping the tier on a widely-used aspect.
 
 ### Check-touched is part of the per-node drift hash
 
-Each deterministic aspect contributes a \`check-touched:<aspectId>\`
-synthetic entry recording the set of files its \`check.mjs\` actually read at
-approve time. Changing that set — adding or removing a touched file, or editing
-a cross-node file the check reads — triggers re-approve on every node using that
-aspect, at zero LLM cost.
+Each deterministic aspect records, in its per-aspect slice of the typed
+\`identity\` block, the set of files its \`check.mjs\` actually read at approve time
+(a map of path to content hash). Changing that set — adding or removing a
+touched file, or editing a cross-node file the check reads — triggers re-approve
+on every node using that aspect, at zero LLM cost.
 
 ## Approve workflow
 

@@ -3,9 +3,19 @@ import type {
   DriftCategory,
   DriftFileChange,
   DriftNodeState,
+  IdentityCause,
   NodeLifecycleState,
   TrackedFileLayer,
 } from '../model/drift.js';
+import {
+  diffIdentity,
+  identityCauseToken,
+  identityCauseLayer as identityCauseLayerOf,
+  describeCascadeCause,
+  describeIdentityCause,
+  categorizeFile,
+  buildCheckTouchedOwnerMap,
+} from './drift-cause.js';
 import type { ValidationIssue } from '../model/validation.js';
 import { readDriftState, readNodeDriftState, garbageCollectDriftState } from '../io/drift-state-store.js';
 import { hashTrackedFiles } from '../io/hash.js';
@@ -44,13 +54,33 @@ export interface CheckIssue extends Omit<ValidationIssue, 'code'> {
   aspectId?: string;
 }
 
+export type { IdentityCause };
+
 export interface CascadeCause {
-  /** Changed file path */
+  /**
+   * Changed file path. For a real file this is its repo-relative POSIX path;
+   * for an identity-element change (`identity` set) it is a stable display
+   * token, NOT a path on disk — never resolve it against the filesystem.
+   */
   file: string;
   /** Which layer the changed file belongs to */
   layer: TrackedFileLayer;
   /** Human-readable description, e.g. "aspect 'audit-logging' rules changed" */
   description: string;
+  /**
+   * Present when this cause is a typed identity-element change rather than a
+   * real-file change. Attribution helpers match on this instead of parsing
+   * `file`.
+   */
+  identity?: IdentityCause;
+  /**
+   * For a CROSS-node `check-touched` real-file change (the content of a file a
+   * deterministic aspect on this node reads changed): the deterministic
+   * aspect(s) whose stored read-set contains this path. Set by classifyDrift
+   * from the stored typed identity, so cascade attribution does not re-read the
+   * baseline. Empty/absent for non-check-touched causes.
+   */
+  attributedAspectIds?: string[];
 }
 
 export interface CheckResult {
@@ -178,21 +208,18 @@ async function classifyNodeDrift(
     // emitting its warning every `yg check` even when no file changed.
     emitPerAspectIssues(node, graph, storedEntry, issues);
 
-    // Collect tracked files WITH layer info. Pass the stored baseline so the
-    // check-touched layer (cross-node files read by a deterministic aspect,
-    // recorded in checkTouchedFiles) participates in drift identity —
-    // editing such a file must drift this dependent node.
-    const trackedFiles = collectTrackedFiles(node, graph, storedEntry);
+    // Collect tracked files + typed identity. Pass the stored baseline so the
+    // per-aspect checkTouched set (cross-node files a deterministic aspect read)
+    // participates in drift identity — editing such a file must drift this node.
+    const { trackedFiles, identity } = collectTrackedFiles(node, graph, storedEntry);
 
     // Compute child mapping exclusions (child-wins model)
     const excludePrefixes = getChildMappingExclusions(graph, nodePath);
 
-    // Hash and compare
-    const storedFileData = storedEntry.files
-      ? { hashes: storedEntry.files, mtimes: storedEntry.mtimes ?? {} }
-      : /* v8 ignore next */ undefined;
+    // Hash and compare — fold the typed identity into the canonical hash.
+    const storedFileData = { hashes: storedEntry.files, mtimes: storedEntry.mtimes ?? {} };
     const { canonicalHash, fileHashes } = await hashTrackedFiles(
-      projectRoot, trackedFiles, storedFileData, excludePrefixes,
+      projectRoot, trackedFiles, storedFileData, excludePrefixes, identity,
     );
 
     if (canonicalHash === storedEntry.hash) return; // No drift
@@ -204,6 +231,22 @@ async function classifyNodeDrift(
     // Find changed files
     const directChanges: DriftFileChange[] = [];
     const cascadeCauses: CascadeCause[] = [];
+
+    // path → owning deterministic aspect id(s), from the stored typed identity's
+    // per-aspect checkTouched maps. Lets a cross-node check-touched real-file
+    // content change attribute to its owning aspect without a baseline re-read.
+    const checkTouchedOwners = buildCheckTouchedOwnerMap(storedEntry.identity);
+
+    // Typed identity changes (own metadata, aspect meta/tier, port aspects,
+    // deterministic read-sets) — diffed against the stored typed identity.
+    for (const cause of diffIdentity(nodePath, storedEntry.identity, identity)) {
+      cascadeCauses.push({
+        file: identityCauseToken(cause),
+        layer: identityCauseLayerOf(cause),
+        description: describeIdentityCause(cause, graph),
+        identity: cause,
+      });
+    }
 
     // Current files vs stored
     for (const [rawFilePath, hash] of Object.entries(fileHashes)) {
@@ -221,6 +264,9 @@ async function classifyNodeDrift(
           file: filePath,
           layer,
           description: describeCascadeCause(filePath, layer, graph),
+          ...(layer === 'check-touched' && checkTouchedOwners.get(filePath)
+            ? { attributedAspectIds: checkTouchedOwners.get(filePath) }
+            : {}),
         });
       }
     }
@@ -597,13 +643,11 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
  * Emit per-aspect findings for one node based on the effective-status map and
  * the persisted aspectVerdicts in the baseline:
  *
- *  - non-draft status + no verdict + non-legacy baseline → aspect-newly-active (error)
- *  - refused verdict + enforced status                   → aspect-violation-enforced (error)
- *  - refused verdict + advisory status                   → aspect-violation-advisory (warning)
+ *  - non-draft status + no verdict → aspect-newly-active (error)
+ *  - refused verdict + enforced status → aspect-violation-enforced (error)
+ *  - refused verdict + advisory status → aspect-violation-advisory (warning)
  *
- * Legacy baselines (written before aspectVerdicts existed) are treated as
- * "every effective aspect implicitly approved" so an upgrade does not flood
- * the user with aspect-newly-active findings.
+ * aspectVerdicts is always present in the typed baseline (may be `{}`).
  */
 function emitPerAspectIssues(
   node: GraphNode,
@@ -612,16 +656,11 @@ function emitPerAspectIssues(
   issues: CheckIssue[],
 ): void {
   const statuses = computeEffectiveAspectStatuses(node, graph);
-  // A pre-status DriftNodeState has `hash` but no `aspectVerdicts` field.
-  // Treat that as "all aspects approved at last hash match" rather than firing
-  // aspect-newly-active for every effective aspect on first 5.x check.
-  const isLegacyBaseline = baseline.aspectVerdicts === undefined;
-  const storedVerdicts = baseline.aspectVerdicts ?? {};
+  const storedVerdicts = baseline.aspectVerdicts;
   for (const [aspectId, status] of statuses) {
     if (status === 'draft') continue;
     const verdict = storedVerdicts[aspectId];
     if (!verdict) {
-      if (isLegacyBaseline) continue;
       const md = aspectNewlyActiveMessage({
         aspectId,
         nodePath: node.path,
@@ -675,91 +714,6 @@ function countDraftAspectsAcrossGraph(graph: Graph): number {
     if ((aspect.status ?? 'enforced') === 'draft') n++;
   }
   return n;
-}
-
-function categorizeFile(filePath: string, rootPath: string, projectRoot: string): DriftCategory {
-  const yggPrefix = toPosixPath(path.relative(projectRoot, rootPath));
-  const normalized = toPosixPath(filePath);
-  return normalized.startsWith(yggPrefix) ? 'graph' : 'source';
-}
-
-/**
- * Describe why a cascade fired AND provide the cause-specific review instruction.
- * Each cause type has a distinct message per the CLI messages spec.
- */
-export function describeCascadeCause(filePath: string, layer: TrackedFileLayer, graph: Graph): string {
-  const normalized = toPosixPath(filePath);
-  const yggPrefix = toPosixPath(path.relative(path.dirname(graph.rootPath), graph.rootPath));
-  const escPrefix = yggPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-  if (layer === 'aspects') {
-    const match = normalized.match(new RegExp(`${escPrefix}/aspects/([^/]+(?:/[^/]+)*)/`));
-    if (match) {
-      const aspectId = match[1];
-      const filename = normalized.split('/').pop() ?? '';
-      const label = filename === 'yg-aspect.yaml' ? '' : filename.replace('.md', '') + ' ';
-      return `aspect '${aspectId}' ${label}changed\n       (${normalized})`;
-    }
-    // Synthetic per-aspect identity keys live on the 'aspects' layer but are not
-    // real files under .yggdrasil/aspects/. Name the aspect they belong to.
-    const synth = normalized.match(/^(check-touched|tier-identity|aspect-meta):(.+)$/);
-    if (synth) {
-      const [, kind, aspectId] = synth;
-      const what = kind === 'check-touched'
-        ? `the set of files read by deterministic aspect '${aspectId}'`
-        : kind === 'tier-identity'
-          ? `the resolved reviewer tier for aspect '${aspectId}'`
-          : `the definition of aspect '${aspectId}'`;
-      return `${what} changed\n       (${normalized})`;
-    }
-    // Path is not under .yggdrasil/aspects/ but is tracked under the 'aspects' layer —
-    // this is a reference file declared in some aspect's `references:` list.
-    const declaringAspects = graph.aspects
-      .filter(a => a.reviewer.type === 'llm' && a.references?.some(r => r.path === normalized))
-      .map(a => a.id);
-    const declaredBy = declaringAspects.length === 0
-      ? 'unknown aspect'
-      : declaringAspects.length === 1
-        ? `aspect '${declaringAspects[0]}'`
-        : `aspects ${declaringAspects.map(id => `'${id}'`).join(', ')}`;
-    return `reference file '${normalized}' (declared by ${declaredBy}) changed\n       (${normalized})`;
-  }
-
-  if (layer === 'hierarchy') {
-    // Synthetic key for a node's OWN definition subset (type/aspects/relations/ports).
-    // Not a parent change — it is the node re-deriving its own effective aspects.
-    const own = normalized.match(/^own-subset:(.+)$/);
-    if (own) {
-      return `node '${own[1]}' own metadata changed\n       (${normalized})`;
-    }
-    const match = normalized.match(new RegExp(`${escPrefix}/model/(.+)/[^/]+$`));
-    const ancestorPath = match ? match[1] : 'unknown';
-    return `parent node '${ancestorPath}' metadata changed\n       (${normalized})`;
-  }
-
-  if (layer === 'relational') {
-    // Synthetic key for a dependency's scoped port-aspect set (channel 6).
-    const portAspects = normalized.match(/^port-aspects:(.+)$/);
-    if (portAspects) {
-      return `dependency '${portAspects[1]}' port aspects changed\n       (${normalized})`;
-    }
-    const match = normalized.match(new RegExp(`${escPrefix}/model/(.+)/([^/]+)$`));
-    const depPath = match ? match[1] : 'unknown';
-    const filename = match ? match[2] : '';
-    const artifactLabel = filename === 'yg-node.yaml' ? 'metadata'
-      : filename.replace('.md', '');
-    return `dependency '${depPath}' ${artifactLabel} changed\n       (${normalized})`;
-  }
-
-  if (layer === 'check-touched') {
-    // A real file (owned by another node) that a deterministic aspect's check reads.
-    // The owning aspect is named by the synthetic 'check-touched:<id>' key on the
-    // 'aspects' layer when the read SET changes; on a content edit we have only the
-    // path, so name the cause generically but accurately.
-    return `a file read by a deterministic aspect changed\n       (${normalized})`;
-  }
-
-  return `tracked file changed\n       (${normalized})`;
 }
 
 /**

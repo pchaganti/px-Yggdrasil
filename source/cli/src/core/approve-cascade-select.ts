@@ -3,8 +3,6 @@ import type { Graph } from '../model/graph.js';
 import type { ApproveResult, DriftNodeState } from '../model/drift.js';
 import { collectParticipatingFlows } from './graph/flows.js';
 import { computeEffectiveAspects, computeEffectiveAspectStatuses } from './graph/aspects.js';
-import { tierIdentityKey, checkTouchedKey, aspectMetaKey } from './graph/files.js';
-import { readNodeDriftState } from '../io/drift-state-store.js';
 import { toPosix } from '../utils/posix.js';
 
 /**
@@ -62,71 +60,64 @@ export function filterFlowCascadeNodes(
 }
 
 /**
- * Single source of truth for the drift-cause paths attributable to one aspect:
- * its `aspects/<id>/` prefix plus the synthetic identity keys and reference-file
- * paths that `collectTrackedFiles` emits for it. The synthetic keys come from the
- * key-builders in core/graph/files.js (the producers), so this stays in lockstep
- * with how the keys are written into baselines. Both cascade-attribution helpers
- * below (filterAspectCascadeNodes, selectDriftedAspects) match a cause path with
- * `file.startsWith(prefix) || keys.has(file)`.
- *
- * When given the node's `checkTouchedFiles` (the baseline's per-aspect map of
- * actual cross-node paths a graph-aware deterministic aspect read), the keys also
- * include those raw paths for this aspect. A change to one of them then resolves to
- * the owning deterministic aspect instead of being un-attributable and forcing a
- * node-global re-run. Omit the argument to keep the synthetic-key-only behavior.
+ * Decide whether a single cascade cause is attributable to one aspect. A cause
+ * attributes to aspect `id` when ANY of:
+ *   - it is a typed identity change for that aspect (aspectMeta/tier/checkTouchedSet);
+ *   - it is a real file under `aspects/<id>/` (the aspect's artifacts);
+ *   - it is a real file matching one of the aspect's `references:` paths;
+ *   - it is a cross-node check-touched real file whose attributed owner set
+ *     (set by classifyDrift from the stored typed identity) includes this aspect.
+ * This is the typed replacement for the former synthetic-key string matching;
+ * it consults only the cause's own typed fields — no baseline re-read.
  */
-function aspectDependencyKeys(
+function causeAttributesToAspect(
+  cause: CascadeCause,
+  aspectId: string,
+  prefix: string,
+  refPaths: Set<string>,
+): boolean {
+  if (cause.identity) {
+    const c = cause.identity;
+    return (c.kind === 'aspectMeta' || c.kind === 'tier' || c.kind === 'checkTouchedSet')
+      && c.aspectId === aspectId;
+  }
+  if (cause.attributedAspectIds?.includes(aspectId)) return true;
+  const f = toPosix(cause.file);
+  return f.startsWith(prefix) || refPaths.has(f);
+}
+
+/** The `aspects/<id>/` prefix + the aspect's reference paths, for real-file matching. */
+function aspectFilePrefixAndRefs(
   aspectId: string,
   yggPrefix: string,
   graph: Graph,
-  checkTouchedFiles?: Record<string, Record<string, string>>,
-): { prefix: string; keys: Set<string> } {
+): { prefix: string; refPaths: Set<string> } {
   const aspect = graph.aspects.find(a => a.id === aspectId);
-  const touched = checkTouchedFiles?.[aspectId];
   return {
     prefix: `${yggPrefix}/aspects/${aspectId}/`,
-    keys: new Set<string>([
-      tierIdentityKey(aspectId),
-      checkTouchedKey(aspectId),
-      aspectMetaKey(aspectId),
-      ...(aspect?.references ?? []).map(r => toPosix(r.path)),
-      ...(touched ? Object.keys(touched).map(p => toPosix(p)) : []),
-    ]),
+    refPaths: new Set<string>((aspect?.references ?? []).map(r => toPosix(r.path))),
   };
 }
 
 /**
  * Select nodes for `yg approve --aspect <id>`: nodes with cascade drift caused
- * by this aspect. Not every cause for an aspect lives under `aspects/<id>/` — an
- * aspect's reference files and the synthetic per-aspect identity keys also count
- * (see aspectDependencyKeys). Match the prefix OR any of those.
+ * by this aspect. Attribution is typed (causeAttributesToAspect) — identity
+ * causes carry their owning aspect id, real-file causes match the aspect's
+ * artifact prefix / reference paths / attributed check-touched owners. No
+ * baseline re-read is needed.
  */
-export async function filterAspectCascadeNodes(
+export function filterAspectCascadeNodes(
   issues: CheckIssue[],
   graph: Graph,
   aspectId: string,
   yggPrefix: string,
-): Promise<string[]> {
+): string[] {
   const matched: string[] = [];
+  const { prefix, refPaths } = aspectFilePrefixAndRefs(aspectId, yggPrefix, graph);
   for (const issue of issues) {
     if (issue.code !== 'upstream-drift' || !issue.nodePath || !issue.cascadeCauses) continue;
-    // Attribute cross-node check-touched paths by consulting THIS node's stored
-    // baseline: the raw file path a graph-aware deterministic aspect read (not a
-    // synthetic key) only resolves to its owning aspect via the baseline's
-    // per-aspect checkTouchedFiles map. A missing or corrupt baseline reads as
-    // undefined → fall back to the synthetic-key / prefix match only.
-    const storedEntry = await readNodeDriftState(graph.rootPath, issue.nodePath);
-    const { prefix, keys } = aspectDependencyKeys(
-      aspectId,
-      yggPrefix,
-      graph,
-      storedEntry?.checkTouchedFiles,
-    );
-    const hit = issue.cascadeCauses.some((c: CascadeCause) => {
-      const f = toPosix(c.file);
-      return f.startsWith(prefix) || keys.has(f);
-    });
+    const hit = issue.cascadeCauses.some((c: CascadeCause) =>
+      causeAttributesToAspect(c, aspectId, prefix, refPaths));
     if (hit) matched.push(issue.nodePath);
   }
   return matched;
@@ -136,9 +127,8 @@ export async function filterAspectCascadeNodes(
  * Option 1: choose which effective non-draft aspects must be re-verified on an
  * approve where filterAspectId is undefined (--node, --flow cascade, parent-redirect).
  * Returns the subset of aspect ids to re-run, or `undefined` to re-run ALL
- * (node-global drift, or back-compat baseline without per-aspect verdicts).
- * Conservative: any source change, or any upstream change not attributable to a
- * specific aspect, forces a full re-run.
+ * (node-global drift). Conservative: any source change, or any upstream change
+ * not attributable to a specific aspect, forces a full re-run.
  */
 export function selectDriftedAspects(
   graph: Graph,
@@ -147,7 +137,7 @@ export function selectDriftedAspects(
   storedEntry: DriftNodeState | undefined,
   yggPrefix: string,
 ): Set<string> | undefined {
-  if (!storedEntry?.aspectVerdicts) return undefined;
+  if (!storedEntry) return undefined;
   if (result.changedSource && result.changedSource.length > 0) return undefined;
 
   const node = graph.nodes.get(nodePath);
@@ -155,14 +145,26 @@ export function selectDriftedAspects(
   const effective = computeEffectiveAspects(node, graph);
   const statuses = computeEffectiveAspectStatuses(node, graph);
 
+  // Precompute each non-draft aspect's file prefix + reference paths once.
+  const prefixByAspect = new Map<string, { prefix: string; refPaths: Set<string> }>();
+  for (const id of effective) {
+    if (statuses.get(id) === 'draft') continue;
+    prefixByAspect.set(id, aspectFilePrefixAndRefs(id, yggPrefix, graph));
+  }
+
   const subset = new Set<string>();
   for (const change of result.changedUpstream ?? []) {
-    const file = toPosix(change.filePath);
+    const cause: CascadeCause = {
+      file: change.filePath,
+      // layer is unused by causeAttributesToAspect; a placeholder keeps the type.
+      layer: 'aspects',
+      description: '',
+      identity: change.identity,
+      attributedAspectIds: change.attributedAspectIds,
+    };
     const owners: string[] = [];
-    for (const id of effective) {
-      if (statuses.get(id) === 'draft') continue;
-      const { prefix, keys } = aspectDependencyKeys(id, yggPrefix, graph, storedEntry.checkTouchedFiles);
-      if (file.startsWith(prefix) || keys.has(file)) owners.push(id);
+    for (const [id, { prefix, refPaths }] of prefixByAspect) {
+      if (causeAttributesToAspect(cause, id, prefix, refPaths)) owners.push(id);
     }
     if (owners.length === 0) return undefined; // un-attributable upstream → node-global
     for (const id of owners) subset.add(id);

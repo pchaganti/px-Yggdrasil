@@ -107,12 +107,13 @@ describe.skipIf(!distExists)('structure cold start + baseline migration', () => 
     expect(result.stdout).toContain('N');
   });
 
-  it('pre-feature baseline (no checkTouchedFiles field) is treated as cold start — no crash', () => {
-    // Pre-seed a baseline JSON without checkTouchedFiles, simulating a baseline
-    // written by an older CLI version before the structure-aspect feature was added.
-    // After attaching a structure aspect, yg check must not crash on missing field —
-    // it should surface drift (aspect-newly-active or source-drift) directing the user
-    // to run yg approve. It must NOT throw or produce an unformatted stack trace.
+  it('typed baseline with no checkTouched (cold start for the structure aspect) — no crash', () => {
+    // Pre-seed a TYPED baseline (schemaVersion present) whose identity records no
+    // per-aspect checkTouched set — the legitimate cold-start case for a newly
+    // attached deterministic aspect. After attaching the aspect, yg check must
+    // not crash on the absent read-set; it surfaces drift (aspect-newly-active or
+    // source-drift) directing the user to run yg approve. It must NOT throw or
+    // produce an unformatted stack trace.
     layoutBase(root);
     const ygg = path.join(root, '.yggdrasil');
 
@@ -122,15 +123,18 @@ describe.skipIf(!distExists)('structure cold start + baseline migration', () => 
       `name: N\ntype: service\ndescription: test\nmapping:\n  - src/a.ts\naspects: []\n`,
     );
 
-    // Pre-seed a "legacy" baseline without checkTouchedFiles
+    // Pre-seed a typed baseline whose identity has no aspect read-sets.
     mkdirSync(path.join(ygg, '.drift-state'), { recursive: true });
-    const legacyBaseline = {
+    const baseline = {
+      schemaVersion: 1,
       hash: 'cafebabe',
       files: { 'src/a.ts': 'deadbeef' },
+      identity: { ownSubset: 'o', ports: {}, aspects: {} },
+      aspectVerdicts: {},
     };
     writeFileSync(
       path.join(ygg, '.drift-state', 'N.json'),
-      JSON.stringify(legacyBaseline, null, 2),
+      JSON.stringify(baseline, null, 2),
     );
 
     // Now attach a structure aspect — simulates adding a structure aspect after the

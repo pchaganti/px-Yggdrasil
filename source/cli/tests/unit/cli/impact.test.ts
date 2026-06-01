@@ -200,8 +200,10 @@ describe('impact command', () => {
         await writeFile(
           path.join(driftDir, 'order-service.json'),
           JSON.stringify({
+            schemaVersion: 1,
             hash: 'fake-hash',
             files: {},
+            identity: { ownSubset: 'o', ports: {}, aspects: {} },
             aspectVerdicts: {
               'requires-audit': { verdict: 'refused', reason: 'mock', errorSource: 'codeViolation' },
             },
@@ -227,8 +229,10 @@ describe('impact command', () => {
         await writeFile(
           path.join(driftDir, 'order-service.json'),
           JSON.stringify({
+            schemaVersion: 1,
             hash: 'fake-hash',
             files: {},
+            identity: { ownSubset: 'o', ports: {}, aspects: {} },
             aspectVerdicts: { 'requires-audit': { verdict: 'approved' } },
           }),
           'utf-8',

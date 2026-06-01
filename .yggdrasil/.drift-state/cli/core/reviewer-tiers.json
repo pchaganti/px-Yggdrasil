@@ -1,15 +1,7 @@
 {
-  "hash": "6cf97ed84614aff6fcf3f38242ddc7c33aedaf4ff003204f9b2b983fea973b16",
+  "schemaVersion": 1,
+  "hash": "f8af1d05da601fa6d4b226f4c1b7a7fae428d22b76a6af2c0b50b64e3116d851",
   "files": {
-    "own-subset:cli/core/reviewer-tiers": "017d50656501e8b443151a1fb73d7403f5b0a9279ac7e31e3d3029b12ad7399f",
-    "aspect-meta:deterministic": "c519ac2565dbb22b41029f6e95a238b3345ef3d3b3a433b0e4c13c684969ca2c",
-    "tier-identity:deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1",
-    "aspect-meta:no-nondeterminism-direct": "6e2986f1175fc284d63accb9209518c0d99994114f1ad9d30f91df11498a75ca",
-    "aspect-meta:no-direct-fs": "85008a60917fc599d6fbfcfb2af8e0d4e563f4eaeff9c8da8a5722aef696b948",
-    "aspect-meta:no-direct-console": "84cef429198884b3dcc2076061e164d50d97b011724d2f357350ede01f4fa975",
-    "aspect-meta:posix-paths-source": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
-    "aspect-meta:single-source-graph-queries": "b1dd772529ca4799de41809e1e615c58ab58fba6b861920dd646786ff43ad9c2",
-    "check-touched:posix-paths-source": "290e521c2dee500b7df8b086cfbec9cb0d62aeec3dbf2492b83e9e6e26490552",
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
@@ -20,8 +12,8 @@
     ".yggdrasil/aspects/single-source-graph-queries/check.mjs": "8364b0c42413e7b467a22b493543f882d77cc3b65616af93127c07c76c212361",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
-    "source/cli/src/core/tier-identity.ts": "259b71f3e76041e8f333179e4b5ecbba08120051180b9867b346ff4e9682d6bb",
-    "source/cli/src/core/tier-selection.ts": "0599794d52c0453d1ffbb9ebda8dbf0f6abf4ae40ec8b3d52bb40408762cc615"
+    "source/cli/src/core/tier-selection.ts": "0599794d52c0453d1ffbb9ebda8dbf0f6abf4ae40ec8b3d52bb40408762cc615",
+    "source/cli/src/core/tier-identity.ts": "7713b5376307bae3c03fe53c879e5282b83f3b92891dcbbee48b3c01aada5ddb"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -34,23 +26,55 @@
     ".yggdrasil/aspects/single-source-graph-queries/check.mjs": 1779794513935.7961,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    "source/cli/src/core/tier-identity.ts": 1780086640149.6316,
+    "source/cli/src/core/tier-identity.ts": 1780291205813.637,
     "source/cli/src/core/tier-selection.ts": 1779867496237.0525
   },
-  "log": {
-    "last_entry_datetime": "2026-05-29T20:38:46.685Z",
-    "prefix_hash": "9acbbbd9ef4e13f9fe366e749552e31f276daa9f20af472ead2c3de608d934e6"
-  },
-  "checkTouchedFiles": {
-    "posix-paths-source": {
-      "source/cli/src/core/tier-identity.ts": "259b71f3e76041e8f333179e4b5ecbba08120051180b9867b346ff4e9682d6bb",
-      "source/cli/src/core/tier-selection.ts": "0599794d52c0453d1ffbb9ebda8dbf0f6abf4ae40ec8b3d52bb40408762cc615"
+  "identity": {
+    "ownSubset": "017d50656501e8b443151a1fb73d7403f5b0a9279ac7e31e3d3029b12ad7399f",
+    "ports": {},
+    "aspects": {
+      "deterministic": {
+        "meta": "c519ac2565dbb22b41029f6e95a238b3345ef3d3b3a433b0e4c13c684969ca2c",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      },
+      "no-nondeterminism-direct": {
+        "meta": "6e2986f1175fc284d63accb9209518c0d99994114f1ad9d30f91df11498a75ca",
+        "checkTouched": {
+          "source/cli/src/core/tier-identity.ts": "7713b5376307bae3c03fe53c879e5282b83f3b92891dcbbee48b3c01aada5ddb",
+          "source/cli/src/core/tier-selection.ts": "0599794d52c0453d1ffbb9ebda8dbf0f6abf4ae40ec8b3d52bb40408762cc615"
+        }
+      },
+      "no-direct-fs": {
+        "meta": "85008a60917fc599d6fbfcfb2af8e0d4e563f4eaeff9c8da8a5722aef696b948",
+        "checkTouched": {
+          "source/cli/src/core/tier-identity.ts": "7713b5376307bae3c03fe53c879e5282b83f3b92891dcbbee48b3c01aada5ddb",
+          "source/cli/src/core/tier-selection.ts": "0599794d52c0453d1ffbb9ebda8dbf0f6abf4ae40ec8b3d52bb40408762cc615"
+        }
+      },
+      "no-direct-console": {
+        "meta": "84cef429198884b3dcc2076061e164d50d97b011724d2f357350ede01f4fa975",
+        "checkTouched": {
+          "source/cli/src/core/tier-identity.ts": "7713b5376307bae3c03fe53c879e5282b83f3b92891dcbbee48b3c01aada5ddb",
+          "source/cli/src/core/tier-selection.ts": "0599794d52c0453d1ffbb9ebda8dbf0f6abf4ae40ec8b3d52bb40408762cc615"
+        }
+      },
+      "posix-paths-source": {
+        "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
+        "checkTouched": {
+          "source/cli/src/core/tier-identity.ts": "7713b5376307bae3c03fe53c879e5282b83f3b92891dcbbee48b3c01aada5ddb",
+          "source/cli/src/core/tier-selection.ts": "0599794d52c0453d1ffbb9ebda8dbf0f6abf4ae40ec8b3d52bb40408762cc615"
+        }
+      },
+      "single-source-graph-queries": {
+        "meta": "b1dd772529ca4799de41809e1e615c58ab58fba6b861920dd646786ff43ad9c2",
+        "checkTouched": {
+          "source/cli/src/core/tier-identity.ts": "7713b5376307bae3c03fe53c879e5282b83f3b92891dcbbee48b3c01aada5ddb",
+          "source/cli/src/core/tier-selection.ts": "0599794d52c0453d1ffbb9ebda8dbf0f6abf4ae40ec8b3d52bb40408762cc615"
+        }
+      }
     }
   },
   "aspectVerdicts": {
-    "posix-paths-source": {
-      "verdict": "approved"
-    },
     "deterministic": {
       "verdict": "approved"
     },
@@ -63,8 +87,15 @@
     "no-nondeterminism-direct": {
       "verdict": "approved"
     },
+    "posix-paths-source": {
+      "verdict": "approved"
+    },
     "single-source-graph-queries": {
       "verdict": "approved"
     }
+  },
+  "log": {
+    "last_entry_datetime": "2026-06-01T06:21:23.907Z",
+    "prefix_hash": "b6db62f02e884a4cf3f89e7a0247955bc630ee214c519d46fefa2ae79816c675"
   }
 }

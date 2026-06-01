@@ -1,5 +1,6 @@
 {
-  "hash": "38696ca78ff7d89d68382a8f8ef9ad754459497fd4f2dd5b63e613301e6d8037",
+  "schemaVersion": 1,
+  "hash": "d47e180a5fa1e187d480a97917e643af62dd3127abb2b83b36c3ffa8db050ad2",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -8,10 +9,22 @@
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/llm/provider.test.ts": "ff86be1fd6d9f07f2c553ea1aec1af6f236b2926e0e6edb0dd65160c21b56704",
     "source/cli/tests/unit/llm/xml-escape.test.ts": "d0bfb0142c4b5cafc82f11a1436d72940ce70a335ad68d3e75e79c621872e7ae",
-    "source/cli/tests/unit/llm/aspect-verifier-references.test.ts": "07fb7ab9e6609fca2f9784d674bd09ce9e54047f9999ee341811310a1a92bf73",
-    "own-subset:cli/tests/unit/llm/verifier": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "aspect-meta:test-deterministic": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-    "tier-identity:test-deterministic": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+    "source/cli/tests/unit/llm/aspect-verifier-references.test.ts": "07fb7ab9e6609fca2f9784d674bd09ce9e54047f9999ee341811310a1a92bf73"
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -22,10 +35,5 @@
     "source/cli/tests/unit/llm/provider.test.ts": 1776177846291.3774,
     "source/cli/tests/unit/llm/xml-escape.test.ts": 1779962414128.6423,
     "source/cli/tests/unit/llm/aspect-verifier-references.test.ts": 1779964643681.8257
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
   }
 }
