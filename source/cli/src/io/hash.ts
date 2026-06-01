@@ -40,8 +40,8 @@ export async function hashPath(targetPath: string, options: HashPathOptions = {}
       gitignoreStack,
     });
     const digestInput = fileHashes
-      .sort((a, b) => a.path.localeCompare(b.path))
       .map((entry) => `${entry.path}:${entry.hash}`)
+      .sort()
       .join('\n');
     return hashString(digestInput);
   }
@@ -141,9 +141,10 @@ export function computeCanonicalHash(
   fileHashes: Record<string, string>,
   identity: DriftIdentity,
 ): string {
+  // Code-unit `.sort()`, NOT localeCompare — keeps the drift hash locale-stable.
   const filesDigest = Object.entries(fileHashes)
-    .sort(([a], [b]) => a.localeCompare(b))
     .map(([p, h]) => `${p}:${h}`)
+    .sort()
     .join('\n');
   return hashString(`files:\n${filesDigest}\nidentity:\n${serializeIdentity(identity)}`);
 }
@@ -205,8 +206,8 @@ export async function hashForMapping(
   }
 
   const digestInput = pairs
-    .sort((a, b) => a.path.localeCompare(b.path))
     .map((e) => `${e.path}:${e.hash}`)
+    .sort()
     .join('\n');
   return createHash('sha256').update(digestInput).digest('hex');
 }

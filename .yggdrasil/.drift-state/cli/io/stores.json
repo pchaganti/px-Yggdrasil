@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "52df818e55b2bcd163f0a8fe456f4bad749d1e16fe8312d75c6a60355c537723",
+  "hash": "6da3d612d11b509ee1e2049cb0957620c214fb6c6cd98aa456987eeb7dcb9914",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
@@ -14,14 +14,14 @@
     ".yggdrasil/model/cli/io/atomic-write/yg-node.yaml": "1fa7b72090e7b8a5017b2f6358087886f4f3118f0da90c318fb4e744f2734df1",
     "source/cli/src/io/artifact-reader.ts": "88ceb67755c0725962910cf0bc31e756dd50ffa64127d09c47a79dc43935c5cc",
     "source/cli/src/io/debug-log-writer.ts": "ba34244ed4decc481b0bf40046742667e34a4aaabdfa5a03b402d35b7685c361",
+    "source/cli/src/io/drift-state-store.ts": "e073e7db338779021fa142e10cd74dba7e3f5c1dc394ee156fb4b8e66de215f8",
     "source/cli/src/io/find-index.ts": "6d68236071d1656f4c5261fa3a66e3665a8d3ff69a1561200ec775919b2b3f1b",
     "source/cli/src/io/graph-fs.ts": "b216722295d1e2e3c53811ee610421c58ed44024a0cd96f7aa95cdff38145d82",
-    "source/cli/src/io/hash.ts": "cbd755f20bae94e4875c78d465f81552371c82d231c33c5791d5df35b678d3c2",
     "source/cli/src/io/log-store.ts": "9d041c96b3e3b1e58a0123014b5704e038bfe97f394f12cd9129c2e93d9cf054",
     "source/cli/src/io/paths.ts": "8f4fd761bddddb87b07f78d3da82e42e7ada3637dfdffe21ce354dd0f5de30aa",
     "source/cli/src/io/read-or-default.ts": "14ae9ceb3b56e9b3d433ef9cd217a84ca71a90264e438b2fa186455f7906b393",
     "source/cli/src/io/repo-scanner.ts": "ab2f8f748c3745a6f82117ddbf09ffbb7995bf245484b4cd0f0a11a72137b52a",
-    "source/cli/src/io/drift-state-store.ts": "e073e7db338779021fa142e10cd74dba7e3f5c1dc394ee156fb4b8e66de215f8"
+    "source/cli/src/io/hash.ts": "afa0f413a618be5e57d53fbe5e8d73fe3920dad77219aa51f195e4c9cf67f446"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -39,7 +39,7 @@
     "source/cli/src/io/drift-state-store.ts": 1780306639181.9553,
     "source/cli/src/io/find-index.ts": 1780163098696.067,
     "source/cli/src/io/graph-fs.ts": 1778910103922.5334,
-    "source/cli/src/io/hash.ts": 1780291118494.6802,
+    "source/cli/src/io/hash.ts": 1780310707771.3032,
     "source/cli/src/io/log-store.ts": 1778951521870.846,
     "source/cli/src/io/paths.ts": 1780256101029.9587,
     "source/cli/src/io/read-or-default.ts": 1778951510467.789,
@@ -63,7 +63,7 @@
           "source/cli/src/io/drift-state-store.ts": "e073e7db338779021fa142e10cd74dba7e3f5c1dc394ee156fb4b8e66de215f8",
           "source/cli/src/io/find-index.ts": "6d68236071d1656f4c5261fa3a66e3665a8d3ff69a1561200ec775919b2b3f1b",
           "source/cli/src/io/graph-fs.ts": "b216722295d1e2e3c53811ee610421c58ed44024a0cd96f7aa95cdff38145d82",
-          "source/cli/src/io/hash.ts": "cbd755f20bae94e4875c78d465f81552371c82d231c33c5791d5df35b678d3c2",
+          "source/cli/src/io/hash.ts": "afa0f413a618be5e57d53fbe5e8d73fe3920dad77219aa51f195e4c9cf67f446",
           "source/cli/src/io/log-store.ts": "9d041c96b3e3b1e58a0123014b5704e038bfe97f394f12cd9129c2e93d9cf054",
           "source/cli/src/io/paths.ts": "8f4fd761bddddb87b07f78d3da82e42e7ada3637dfdffe21ce354dd0f5de30aa",
           "source/cli/src/io/read-or-default.ts": "14ae9ceb3b56e9b3d433ef9cd217a84ca71a90264e438b2fa186455f7906b393",
@@ -78,7 +78,7 @@
           "source/cli/src/io/drift-state-store.ts": "e073e7db338779021fa142e10cd74dba7e3f5c1dc394ee156fb4b8e66de215f8",
           "source/cli/src/io/find-index.ts": "6d68236071d1656f4c5261fa3a66e3665a8d3ff69a1561200ec775919b2b3f1b",
           "source/cli/src/io/graph-fs.ts": "b216722295d1e2e3c53811ee610421c58ed44024a0cd96f7aa95cdff38145d82",
-          "source/cli/src/io/hash.ts": "cbd755f20bae94e4875c78d465f81552371c82d231c33c5791d5df35b678d3c2",
+          "source/cli/src/io/hash.ts": "afa0f413a618be5e57d53fbe5e8d73fe3920dad77219aa51f195e4c9cf67f446",
           "source/cli/src/io/log-store.ts": "9d041c96b3e3b1e58a0123014b5704e038bfe97f394f12cd9129c2e93d9cf054",
           "source/cli/src/io/paths.ts": "8f4fd761bddddb87b07f78d3da82e42e7ada3637dfdffe21ce354dd0f5de30aa",
           "source/cli/src/io/read-or-default.ts": "14ae9ceb3b56e9b3d433ef9cd217a84ca71a90264e438b2fa186455f7906b393",
@@ -93,7 +93,7 @@
           "source/cli/src/io/drift-state-store.ts": "e073e7db338779021fa142e10cd74dba7e3f5c1dc394ee156fb4b8e66de215f8",
           "source/cli/src/io/find-index.ts": "6d68236071d1656f4c5261fa3a66e3665a8d3ff69a1561200ec775919b2b3f1b",
           "source/cli/src/io/graph-fs.ts": "b216722295d1e2e3c53811ee610421c58ed44024a0cd96f7aa95cdff38145d82",
-          "source/cli/src/io/hash.ts": "cbd755f20bae94e4875c78d465f81552371c82d231c33c5791d5df35b678d3c2",
+          "source/cli/src/io/hash.ts": "afa0f413a618be5e57d53fbe5e8d73fe3920dad77219aa51f195e4c9cf67f446",
           "source/cli/src/io/log-store.ts": "9d041c96b3e3b1e58a0123014b5704e038bfe97f394f12cd9129c2e93d9cf054",
           "source/cli/src/io/paths.ts": "8f4fd761bddddb87b07f78d3da82e42e7ada3637dfdffe21ce354dd0f5de30aa",
           "source/cli/src/io/read-or-default.ts": "14ae9ceb3b56e9b3d433ef9cd217a84ca71a90264e438b2fa186455f7906b393",
@@ -117,7 +117,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-01T09:41:49.966Z",
-    "prefix_hash": "625e0f7e096bdf9eba537ef104458ad2e6e4e7cfe4c9141b90871e89bd2e5705"
+    "last_entry_datetime": "2026-06-01T10:45:44.847Z",
+    "prefix_hash": "5ecdfa0a29c6d76f98194010fd5b5d53b27e72508be6456fce9ec7856f649f4c"
   }
 }
