@@ -273,4 +273,145 @@ describe.skipIf(!distExists)('CLI E2E — schema migrations (v4 → v5 config/as
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  // --- 6. Drift-state baseline migration (flat synthetic-key shape → typed) ---
+  //
+  // The unit suite (to-5.0.0-drift-state.test.ts) exercises migrateTo50's
+  // drift-state logic directly. These prove the COMMAND wiring: `yg init
+  // --upgrade` actually walks .drift-state/, re-keys each baseline on disk,
+  // and gates the version bump on the outcome.
+
+  /** Plant a raw drift-state baseline file under <dir>/.yggdrasil/.drift-state/<nodePath>.json. */
+  function writeBaseline(dir: string, nodePath: string, raw: string): void {
+    const file = path.join(dir, '.yggdrasil', '.drift-state', `${nodePath}.json`);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, raw, 'utf-8');
+  }
+  const readBaseline = (dir: string, nodePath: string): Record<string, unknown> =>
+    JSON.parse(readFileSync(path.join(dir, '.yggdrasil', '.drift-state', `${nodePath}.json`), 'utf-8'));
+
+  it('M6: a flat pre-verdict baseline (nested path, synthetic keys) is re-keyed to typed with approved-synthesis', () => {
+    const dir = makeV4Layout(
+      'm6',
+      ['version: "4.3.0"', 'reviewer:', '  ollama:', '    model: q', '    endpoint: http://x', ''].join('\n'),
+    );
+    try {
+      // Old flat shape: real file + the synthetic identity keys, NO aspectVerdicts.
+      writeBaseline(dir, 'svc/handler', JSON.stringify({
+        hash: 'OLD_HASH',
+        files: {
+          'src/foo.ts': 'h-foo',
+          'own-subset:svc/handler': 'h-own',
+          'aspect-meta:alpha': 'h-alpha',
+          'tier-identity:alpha': 'h-tier',
+        },
+      }));
+
+      const { status } = run(['init', '--upgrade', '--platform', 'generic'], dir);
+      expect(status).toBe(0);
+      // Config bumped — the drift-state pass succeeded, so the runner advanced the version.
+      expect(readFileSync(configPath(dir), 'utf-8')).toContain('version: "5.0.0"');
+
+      const typed = readBaseline(dir, 'svc/handler') as {
+        schemaVersion: number;
+        files: Record<string, string>;
+        identity: { ownSubset: string; ports: Record<string, string>; aspects: Record<string, unknown> };
+        aspectVerdicts: Record<string, unknown>;
+        hash: string;
+      };
+      expect(typed.schemaVersion).toBe(1);
+      // Synthetic keys are lifted out of `files`; only the real file remains.
+      expect(typed.files).toEqual({ 'src/foo.ts': 'h-foo' });
+      // Typed identity reconstructed from the synthetic kinds.
+      expect(typed.identity.ownSubset).toBe('h-own');
+      expect(typed.identity.aspects.alpha).toEqual({ meta: 'h-alpha', tier: 'h-tier' });
+      // Pre-verdict baseline → each identity aspect recorded as approved (carries the
+      // last-approve state forward instead of flooding the first check with newly-active).
+      expect(typed.aspectVerdicts).toEqual({ alpha: { verdict: 'approved' } });
+      // Hash recomputed (lossless) — no longer the placeholder.
+      expect(typed.hash).not.toBe('OLD_HASH');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('M7: a baseline that already carries aspectVerdicts has them preserved verbatim (no approved-synthesis)', () => {
+    const dir = makeV4Layout(
+      'm7',
+      ['version: "4.3.0"', 'reviewer:', '  ollama:', '    model: q', '    endpoint: http://x', ''].join('\n'),
+    );
+    try {
+      writeBaseline(dir, 'svc', JSON.stringify({
+        hash: 'x',
+        files: { 'src/a.ts': 'h-a', 'aspect-meta:alpha': 'h-alpha' },
+        aspectVerdicts: { alpha: { verdict: 'refused', reason: 'bad', errorSource: 'codeViolation' } },
+      }));
+
+      const { status } = run(['init', '--upgrade', '--platform', 'generic'], dir);
+      expect(status).toBe(0);
+
+      const typed = readBaseline(dir, 'svc') as { aspectVerdicts: Record<string, unknown> };
+      // A recorded refusal must NOT be silently upgraded to approved by the migration.
+      expect(typed.aspectVerdicts).toEqual({
+        alpha: { verdict: 'refused', reason: 'bad', errorSource: 'codeViolation' },
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('M8: an unparseable baseline is deleted, withholds the version bump (exit 1), and a re-run then succeeds', () => {
+    const dir = makeV4Layout(
+      'm8',
+      ['version: "4.3.0"', 'reviewer:', '  ollama:', '    model: q', '    endpoint: http://x', ''].join('\n'),
+    );
+    try {
+      writeBaseline(dir, 'broken', '{ this is not valid json');
+
+      // First run: the corrupt baseline cannot be re-keyed, so the runner withholds
+      // the version bump and surfaces the deletion — exit 1, version untouched.
+      const first = run(['init', '--upgrade', '--platform', 'generic'], dir);
+      expect(first.status).toBe(1);
+      expect(first.all).toContain('Migration withheld');
+      expect(first.all).toContain('the version bump was NOT applied');
+      expect(first.all).toContain('.drift-state/broken.json');
+      expect(first.all).toContain('could not be parsed');
+      // The bump is withheld — the version is NOT advanced to 5.0.0 on this run.
+      expect(readFileSync(configPath(dir), 'utf-8')).not.toContain('5.0.0');
+      // The unsalvageable baseline was removed (the node will surface as drift).
+      expect(existsSync(path.join(dir, '.yggdrasil', '.drift-state', 'broken.json'))).toBe(false);
+
+      // Recovery: with the corrupt file gone, a second upgrade completes the bump.
+      const second = run(['init', '--upgrade', '--platform', 'generic'], dir);
+      expect(second.status).toBe(0);
+      expect(readFileSync(configPath(dir), 'utf-8')).toContain('version: "5.0.0"');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('M9: re-keying is idempotent — upgrading an already-typed baseline twice leaves it byte-identical', () => {
+    const dir = makeV4Layout(
+      'm9',
+      ['version: "4.3.0"', 'reviewer:', '  ollama:', '    model: q', '    endpoint: http://x', ''].join('\n'),
+    );
+    const baselineFile = path.join(dir, '.yggdrasil', '.drift-state', 'svc.json');
+    try {
+      writeBaseline(dir, 'svc', JSON.stringify({
+        hash: 'x',
+        files: { 'src/a.ts': 'h-a', 'own-subset:svc': 'h-own', 'aspect-meta:alpha': 'h-alpha' },
+      }));
+
+      // First upgrade re-keys flat → typed.
+      expect(run(['init', '--upgrade', '--platform', 'generic'], dir).status).toBe(0);
+      const afterFirst = readFileSync(baselineFile, 'utf-8');
+      expect(afterFirst).toContain('"schemaVersion": 1');
+
+      // Second upgrade: the baseline is already typed → skipped untouched.
+      expect(run(['init', '--upgrade', '--platform', 'generic'], dir).status).toBe(0);
+      expect(readFileSync(baselineFile, 'utf-8')).toBe(afterFirst);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
