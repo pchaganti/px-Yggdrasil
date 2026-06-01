@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Fail-closed lower schema-version gate.** `loadGraph` now throws `OutdatedSchemaVersionError` when the on-disk graph version is older than the CLI's supported version (5.0.0). Previously, graphs with a version field below 5.0.0 were silently parsed; now the CLI refuses immediately with a structured what/why/next message and exits 1, directing users to `yg init --upgrade`. This is the symmetric lower bound to the existing upper-bound refusal (`UnsupportedSchemaVersionError`). The gate is caught in `preamble.loadGraphOrAbort` and rendered via `buildIssueMessage`; it does not crash with a generic stack trace.
+- **E2E coverage for the typed drift-state format gate.** A subprocess suite (`cli-drift-state-format.test.ts`) spawns the compiled binary against a baseline with an absent, wrong, or current-but-corrupt `schemaVersion` (and per-required-field omission, wrong-typed fields, and a JSON-primitive baseline), asserting the exact refusal message, exit code, and that the gate fires identically from both `yg check` and `yg approve`.
+
+### Fixed
+
+- **A corrupt or outdated drift-state baseline now reports as a recoverable state problem, not an internal CLI bug.** When a baseline file (`.yggdrasil/.drift-state/<node>.json`) is hand-edited, written by incompatible tooling, or predates the typed format, the CLI previously surfaced the failure through the generic unclassified-error path — prefixed "Unexpected error while …" and suffixed "This is a bug — please file an issue." A malformed baseline is an expected, recoverable state condition with concrete next steps, so it is now rendered directly as a what/why/next message and exits 1 (fail-closed) without the bug-report framing. This is handled centrally, so every command that reads baselines (`check`, `approve`, and the rest) is consistent.
+- **The corrupt-baseline recovery commands now name the real node.** The restore-or-delete advice for a current-version-but-corrupt baseline interpolated a literal `${nodePath}` placeholder into its `git checkout` and `yg approve` commands, making them un-runnable; they now substitute the actual node path so the suggested commands are copy-pasteable.
 
 ## [5.0.0-alpha.1] - 2026-05-31
 

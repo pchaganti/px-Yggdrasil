@@ -1,0 +1,7 @@
+name: E2E Tests — Drift-State Format Gate
+type: test-suite
+description: "Subprocess E2E for the v5 single-format drift-state read boundary — a baseline with an absent or non-current schemaVersion is refused with the init --upgrade migration hint, a current-version baseline missing or wrong-typing any required field (hash/files/identity/aspectVerdicts) is refused with restore-or-delete advice that interpolates the real node path, a JSON-primitive baseline is refused via the outdated gate, and all of these render as recoverable state errors (never an unclassified CLI bug) fail-closed with exit 1 from both check and approve."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-drift-state-format.test.ts

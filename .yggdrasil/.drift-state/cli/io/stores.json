@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "4a5a3d851bdea11eea94f2c232309aca53f897aaa8ae77bb8e14e403cb494956",
+  "hash": "52df818e55b2bcd163f0a8fe456f4bad749d1e16fe8312d75c6a60355c537723",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
@@ -21,7 +21,7 @@
     "source/cli/src/io/paths.ts": "8f4fd761bddddb87b07f78d3da82e42e7ada3637dfdffe21ce354dd0f5de30aa",
     "source/cli/src/io/read-or-default.ts": "14ae9ceb3b56e9b3d433ef9cd217a84ca71a90264e438b2fa186455f7906b393",
     "source/cli/src/io/repo-scanner.ts": "ab2f8f748c3745a6f82117ddbf09ffbb7995bf245484b4cd0f0a11a72137b52a",
-    "source/cli/src/io/drift-state-store.ts": "fbfbd9c92bbbff37dbf9cc4ee557dbbfe665759a1a985fe0a5f5ffafbacbbe98"
+    "source/cli/src/io/drift-state-store.ts": "e073e7db338779021fa142e10cd74dba7e3f5c1dc394ee156fb4b8e66de215f8"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -36,7 +36,7 @@
     ".yggdrasil/model/cli/io/atomic-write/yg-node.yaml": 1778919314141.992,
     "source/cli/src/io/artifact-reader.ts": 1776177846230.4192,
     "source/cli/src/io/debug-log-writer.ts": 1778910277504.241,
-    "source/cli/src/io/drift-state-store.ts": 1780297211958.5295,
+    "source/cli/src/io/drift-state-store.ts": 1780306639181.9553,
     "source/cli/src/io/find-index.ts": 1780163098696.067,
     "source/cli/src/io/graph-fs.ts": 1778910103922.5334,
     "source/cli/src/io/hash.ts": 1780291118494.6802,
@@ -60,7 +60,7 @@
         "checkTouched": {
           "source/cli/src/io/artifact-reader.ts": "88ceb67755c0725962910cf0bc31e756dd50ffa64127d09c47a79dc43935c5cc",
           "source/cli/src/io/debug-log-writer.ts": "ba34244ed4decc481b0bf40046742667e34a4aaabdfa5a03b402d35b7685c361",
-          "source/cli/src/io/drift-state-store.ts": "fbfbd9c92bbbff37dbf9cc4ee557dbbfe665759a1a985fe0a5f5ffafbacbbe98",
+          "source/cli/src/io/drift-state-store.ts": "e073e7db338779021fa142e10cd74dba7e3f5c1dc394ee156fb4b8e66de215f8",
           "source/cli/src/io/find-index.ts": "6d68236071d1656f4c5261fa3a66e3665a8d3ff69a1561200ec775919b2b3f1b",
           "source/cli/src/io/graph-fs.ts": "b216722295d1e2e3c53811ee610421c58ed44024a0cd96f7aa95cdff38145d82",
           "source/cli/src/io/hash.ts": "cbd755f20bae94e4875c78d465f81552371c82d231c33c5791d5df35b678d3c2",
@@ -75,7 +75,7 @@
         "checkTouched": {
           "source/cli/src/io/artifact-reader.ts": "88ceb67755c0725962910cf0bc31e756dd50ffa64127d09c47a79dc43935c5cc",
           "source/cli/src/io/debug-log-writer.ts": "ba34244ed4decc481b0bf40046742667e34a4aaabdfa5a03b402d35b7685c361",
-          "source/cli/src/io/drift-state-store.ts": "fbfbd9c92bbbff37dbf9cc4ee557dbbfe665759a1a985fe0a5f5ffafbacbbe98",
+          "source/cli/src/io/drift-state-store.ts": "e073e7db338779021fa142e10cd74dba7e3f5c1dc394ee156fb4b8e66de215f8",
           "source/cli/src/io/find-index.ts": "6d68236071d1656f4c5261fa3a66e3665a8d3ff69a1561200ec775919b2b3f1b",
           "source/cli/src/io/graph-fs.ts": "b216722295d1e2e3c53811ee610421c58ed44024a0cd96f7aa95cdff38145d82",
           "source/cli/src/io/hash.ts": "cbd755f20bae94e4875c78d465f81552371c82d231c33c5791d5df35b678d3c2",
@@ -90,7 +90,7 @@
         "checkTouched": {
           "source/cli/src/io/artifact-reader.ts": "88ceb67755c0725962910cf0bc31e756dd50ffa64127d09c47a79dc43935c5cc",
           "source/cli/src/io/debug-log-writer.ts": "ba34244ed4decc481b0bf40046742667e34a4aaabdfa5a03b402d35b7685c361",
-          "source/cli/src/io/drift-state-store.ts": "fbfbd9c92bbbff37dbf9cc4ee557dbbfe665759a1a985fe0a5f5ffafbacbbe98",
+          "source/cli/src/io/drift-state-store.ts": "e073e7db338779021fa142e10cd74dba7e3f5c1dc394ee156fb4b8e66de215f8",
           "source/cli/src/io/find-index.ts": "6d68236071d1656f4c5261fa3a66e3665a8d3ff69a1561200ec775919b2b3f1b",
           "source/cli/src/io/graph-fs.ts": "b216722295d1e2e3c53811ee610421c58ed44024a0cd96f7aa95cdff38145d82",
           "source/cli/src/io/hash.ts": "cbd755f20bae94e4875c78d465f81552371c82d231c33c5791d5df35b678d3c2",
@@ -117,7 +117,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-01T07:03:47.739Z",
-    "prefix_hash": "92681904a489d0406c19de39beeb6a85df790a5c1375f7d1cec32dd696b1fd7d"
+    "last_entry_datetime": "2026-06-01T09:41:49.966Z",
+    "prefix_hash": "625e0f7e096bdf9eba537ef104458ad2e6e4e7cfe4c9141b90871e89bd2e5705"
   }
 }

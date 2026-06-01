@@ -10,11 +10,9 @@ import { buildIssueMessage } from '../formatters/message-builder.js';
 const DRIFT_STATE_DIR = '.drift-state';
 
 /**
- * Thrown when a baseline on disk lacks the current schemaVersion. Such a
- * baseline predates the typed drift-state format and must be re-keyed by the
- * migration (core/drift-state-rekey.ts via `yg init --upgrade`) — the
- * single-format runtime never parses an old baseline. This is the second net
- * behind the graph-loader version gate, scoped to baselines specifically.
+ * Baseline on disk lacks the current schemaVersion — it predates the typed
+ * format and is re-keyed by the migration (`yg init --upgrade`); the
+ * single-format runtime never parses an old baseline. A recoverable STATE error.
  */
 export class OutdatedDriftBaselineError extends Error {
   constructor(nodePath: string, found: unknown) {
@@ -26,6 +24,24 @@ export class OutdatedDriftBaselineError extends Error {
       }),
     );
     this.name = 'OutdatedDriftBaselineError';
+  }
+}
+
+/**
+ * Current-version baseline missing required typed fields — corrupt
+ * (hand-edited or foreign-written), NOT an upgrade case. Like
+ * OutdatedDriftBaselineError it is a recoverable STATE error, not a CLI bug.
+ */
+export class CorruptDriftBaselineError extends Error {
+  constructor(nodePath: string) {
+    super(
+      buildIssueMessage({
+        what: `the drift-state baseline for node '${nodePath}' has schemaVersion ${DRIFT_STATE_SCHEMA_VERSION} but is missing required fields — the file may have been hand-edited or written by incompatible tooling`,
+        why: 'a corrupt baseline cannot be read; allowing it would let the runtime crash on undefined access or silently skip enforcement',
+        next: `restore the baseline from git (\`git checkout HEAD -- .yggdrasil/.drift-state/${nodePath}.json\`), or delete it and re-run \`yg approve --node ${nodePath}\` to rebuild it from scratch`,
+      }),
+    );
+    this.name = 'CorruptDriftBaselineError';
   }
 }
 
@@ -42,12 +58,8 @@ function validateBaselineShape(nodePath: string, parsed: unknown): DriftNodeStat
   if (obj.schemaVersion !== DRIFT_STATE_SCHEMA_VERSION) {
     throw new OutdatedDriftBaselineError(nodePath, obj.schemaVersion);
   }
-  // A schemaVersion-1 baseline MUST carry the required typed fields. A missing
-  // field means the file was hand-corrupted (or written by buggy/foreign code);
-  // reject it rather than letting runtime crash on undefined access.
-  // NOTE: this is NOT an upgrade scenario — the schema version is current, but
-  // the file contents are corrupt. Recovery is to restore from git or delete
-  // the baseline and re-approve, NOT to run `yg init --upgrade`.
+  // A current-version baseline MUST carry the required typed fields; a missing
+  // one means the file was hand-corrupted (see CorruptDriftBaselineError).
   const isRecord = (v: unknown): boolean => v !== null && typeof v === 'object' && !Array.isArray(v);
   if (
     typeof obj.hash !== 'string' ||
@@ -55,13 +67,7 @@ function validateBaselineShape(nodePath: string, parsed: unknown): DriftNodeStat
     !isRecord(obj.identity) ||
     !isRecord(obj.aspectVerdicts)
   ) {
-    throw new Error(
-      buildIssueMessage({
-        what: `the drift-state baseline for node '${nodePath}' has schemaVersion ${DRIFT_STATE_SCHEMA_VERSION} but is missing required fields — the file may have been hand-edited or written by incompatible tooling`,
-        why: 'a corrupt baseline cannot be read; allowing it would let the runtime crash on undefined access or silently skip enforcement',
-        next: 'restore the baseline from git (`git checkout HEAD -- .yggdrasil/.drift-state/${nodePath}.json`), or delete it and re-run `yg approve --node ${nodePath}` to rebuild it from scratch',
-      }),
-    );
+    throw new CorruptDriftBaselineError(nodePath);
   }
   return parsed as DriftNodeState;
 }

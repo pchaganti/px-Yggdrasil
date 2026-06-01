@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { loadGraph, UnsupportedSchemaVersionError, OutdatedSchemaVersionError } from '../core/graph-loader.js';
+import { OutdatedDriftBaselineError, CorruptDriftBaselineError } from '../io/drift-state-store.js';
 import type { Graph } from '../model/graph.js';
 
 /**
@@ -10,6 +11,14 @@ import type { Graph } from '../model/graph.js';
  * being attempted, so the message reads "Unexpected error while <context>".
  */
 export function abortOnUnexpectedError(error: unknown, context: string): never {
+  // Recoverable drift-state errors are an expected STATE problem (corrupt or
+  // outdated baseline), not an unclassified CLI bug. They already carry a
+  // fully-formed what/why/next message with concrete recovery steps — render
+  // it directly instead of wrapping it as "Unexpected error ... file an issue".
+  if (error instanceof OutdatedDriftBaselineError || error instanceof CorruptDriftBaselineError) {
+    process.stderr.write(chalk.red(`Error: ${error.message}\n`));
+    process.exit(1);
+  }
   const message = error instanceof Error ? error.message : String(error);
   const formatted = buildIssueMessage({
     what: `Unexpected error while ${context}: ${message}`,
