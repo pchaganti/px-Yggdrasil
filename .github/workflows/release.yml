@@ -68,3 +68,5 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           generate_release_notes: true
+          # Flag prerelease versions (X.Y.Z-<id>) so they don't show as Latest.
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
