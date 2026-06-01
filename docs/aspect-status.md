@@ -15,8 +15,8 @@ silent, gather signal, then enforce.
 
 `draft` aspects are dormant — `yg approve` prints a skip line and never
 calls the reviewer. `advisory` aspects pay the full reviewer cost but
-their refusals surface as warnings only. `enforced` is the default and
-matches pre-5.0 behavior: refusals block CI.
+their refusals surface as warnings only. `enforced` is the default:
+refusals block CI.
 
 ## When to use each
 

@@ -44,9 +44,7 @@ The architecture lives in a graph next to the code, under `.yggdrasil/`. It has 
 Every aspect declares a reviewer type:
 
 - **LLM aspects** are plain Markdown (`content.md`). A separate LLM call — one model verifying another — reads the rule and the node's source, then returns SATISFIED or NOT SATISFIED.
-- **Script aspects** ship a `check.mjs` that the CLI runs locally at zero LLM cost. Today these walk a tree-sitter parse tree (TypeScript/JavaScript) — declared as `reviewer: ast` and run with `yg ast-test`. A `check.mjs` and `content.md` are mutually exclusive — an aspect is one or the other.
-
-> **New in 5.0 (in development).** The script-aspect surface is being reworked: the `reviewer:` field moves to the object form `reviewer: { type: deterministic | llm }`, deterministic aspects gain a second *graph-aware* style (language-agnostic, operating on the node, its files, the file system, and the full graph topology) alongside the existing single-file tree-sitter checks, and `yg ast-test` is renamed `yg deterministic-test`. The current published package (`@chrisdudek/yg`, see the npm badge above) ships the 4.x surface described in the bullets above — use `reviewer: ast` and `yg ast-test` until 5.0 is released. These notes are tracked under `[Unreleased]` in the CHANGELOG.
+- **Deterministic aspects** ship a `check.mjs` that the CLI runs locally at zero LLM cost. Declared as `reviewer: { type: deterministic }` and exercised with `yg deterministic-test`. Two styles: single-file (tree-sitter parse tree, any of 16 built-in grammars) and graph-aware (cross-node, file system, and graph topology). A `check.mjs` and `content.md` are mutually exclusive — an aspect is one or the other.
 
 Before the agent edits a file, `yg context` returns the aspects that touch it (as `read:` pointers the agent opens individually, not an inline dump). The agent writes code that targets them. After editing, `yg approve` records a new baseline: LLM aspects go to the reviewer, script aspects run locally. If anything fails, the agent gets specific feedback, fixes, and re-verifies. This is code review while the agent is working, not after.
 
@@ -68,8 +66,6 @@ How aspects reach a node is itself a graph computation. An aspect can arrive thr
 
 ### Status: draft, advisory, enforced
 
-> **New in 5.0 (in development).** The draft / advisory / enforced status lifecycle described in this section is not in the current published package — it is tracked under `[Unreleased]` in the CHANGELOG. In the 4.x package the npm badge points at, there is no status field: every aspect is reviewed and blocks `yg check`, equivalent to `enforced` below.
-
 Every aspect has a status that controls whether the reviewer runs and how a refusal surfaces:
 
 | Status | Reviewer runs? | Refusal | Blocks `yg check` / CI |
@@ -83,7 +79,7 @@ A typical lifecycle is draft while you author the rule, advisory for a sprint or
 ### When you need finer control
 
 - **Conditional aspects.** A `when` predicate filters applicability per node, deterministically, before the reviewer is ever invoked — over relations, descendants, ports, and node type. If it evaluates false, the aspect is invisible on that node: no cost, no display, no verdict.
-- **Tiers and consensus.** *New in 5.0 (in development; tracked under `[Unreleased]`).* LLM aspects pick a named tier in `yg-config.yaml` that pins a provider, model, temperature, and endpoint. A tier can set `consensus` to a positive odd number to run the reviewer N times and take the majority vote for high-stakes rules (cost multiplies accordingly). Script aspects must not set a tier. The current 4.x package configures the reviewer through the flat `reviewer.active` shape rather than named tiers.
+- **Tiers and consensus.** LLM aspects pick a named tier in `yg-config.yaml` that pins a provider, model, temperature, and endpoint. A tier can set `consensus` to a positive odd number to run the reviewer N times and take the majority vote for high-stakes rules (cost multiplies accordingly). Deterministic aspects must not set a tier.
 
 Each node also has an append-only `log.md` under its model directory (next to `yg-node.yaml`). The agent records *why* a change happened via `yg log add` and reads prior entries with `yg log read` — when a node's type requires it (the default), `yg approve` won't record a baseline until a fresh log entry exists for the change. The log carries intent between sessions. The reviewer doesn't see it. The next agent does.
 
@@ -168,7 +164,7 @@ Works with any AI coding agent. `yg init` sets up the rules file your agent expe
 - `yg log add | read | merge-resolve` — the per-node decision log.
 - `yg impact`, `yg tree`, `yg find`, `yg aspects`, `yg flows`, `yg owner`, `yg type-suggest` — navigate and query the graph.
 - `yg knowledge list | read <name>` — the built-in reference topics (aspects, ports, flows, script checks, and more).
-- `yg ast-test` — run a `check.mjs` against specific files without attaching it to the graph. (Renamed `yg deterministic-test` in the upcoming 5.0 release.)
+- `yg deterministic-test` — run a `check.mjs` against specific files or a named node without attaching a baseline.
 
 ## FAQ
 

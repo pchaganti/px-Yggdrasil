@@ -166,7 +166,7 @@ Bootstrap or refresh \`.yggdrasil/\` setup.
 
 \`\`\`bash
 yg init                        # initial setup
-yg init --upgrade              # migrate config + regenerate platform files
+yg init --upgrade              # migrate graph (config, aspects, drift-state) + refresh rules/schemas/platform files
 yg init --upgrade --platform claude-code   # regenerate for specific platform
 \`\`\`
 

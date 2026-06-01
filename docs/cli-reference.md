@@ -306,5 +306,6 @@ Interactive wizard. On a new project: walks you through platform selection and
 reviewer setup. On an existing project: offers upgrade, reviewer reconfiguration,
 or platform change.
 
-Non-interactive mode: `--upgrade --platform <name>` refreshes rules and schemas
-without prompts. Useful in scripts and CI.
+Non-interactive mode: `--upgrade --platform <name>` migrates the graph to the current
+version (config, aspects, drift-state baselines) and refreshes rules, schemas, and platform
+files — without prompts. Useful in scripts and CI.

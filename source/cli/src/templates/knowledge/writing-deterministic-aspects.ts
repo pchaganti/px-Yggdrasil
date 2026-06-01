@@ -164,24 +164,24 @@ export function check(ctx) {
 }
 \`\`\`
 
-## Migration table — removed helpers → raw tree-sitter
+## Quick reference — raw tree-sitter API
 
-The old \`ast.*\` namespace helpers were removed. Use direct tree-sitter API:
+Common patterns using the direct tree-sitter API:
 
-| Removed | Replacement |
+| Pattern | Code |
 |---|---|
-| \`ast.call(node, { object: 'fs', method: 'readFileSync' })\` | \`walk(rootNode, n => n.type === 'call_expression')\` + \`n.childForFieldName('function')\` |
-| \`ast.imports(rootNode)\` | \`walk(rootNode, n => n.type === 'import_statement')\` |
-| \`ast.exports(rootNode)\` | \`walk(rootNode, n => n.type === 'export_statement')\` |
-| \`ast.decoratorsOf(node)\` | \`node.childForFieldName('decorators')?.namedChildren ?? []\` |
-| \`ast.modifiersOf(node)\` | inspect leading children for modifier keywords |
-| \`ast.jsxElements(rootNode)\` | \`walk(rootNode, n => n.type === 'jsx_element' \\|\\| n.type === 'jsx_self_closing_element')\` |
-| \`ast.casing.pascal(name)\` | \`/^[A-Z][a-zA-Z0-9]*$/.test(name)\` |
-| \`ast.nameOf(node)\` | \`node.childForFieldName('name')?.text\` |
-| \`ast.within(parent, type, opts)\` | \`walk(parent, n => { if (n.type === type) ...; if (!opts.crossFunctions && isFunction(n)) return false; })\` |
-| \`ast.closest(node, types)\` | \`closest(node, types)\` — RETAINED in minimal API |
-| \`ast.inFile(file, '<string>')\` | \`inFile(file, { glob \\| regex \\| contains })\` |
-| violation shape: \`{ file, line, message }\` | \`{ file, line, column, message }\` — NEW \`column\` field |
+| Call expression | \`walk(rootNode, n => n.type === 'call_expression')\` + \`n.childForFieldName('function')\` |
+| Import statements | \`walk(rootNode, n => n.type === 'import_statement')\` |
+| Export statements | \`walk(rootNode, n => n.type === 'export_statement')\` |
+| Decorators on node | \`node.childForFieldName('decorators')?.namedChildren ?? []\` |
+| Modifier keywords | inspect leading children for modifier keyword nodes |
+| JSX elements | \`walk(rootNode, n => n.type === 'jsx_element' \\|\\| n.type === 'jsx_self_closing_element')\` |
+| PascalCase check | \`/^[A-Z][a-zA-Z0-9]*$/.test(name)\` |
+| Node name | \`node.childForFieldName('name')?.text\` |
+| Walk with function boundary | \`walk(parent, n => { if (n.type === type) ...; if (isFunction(n)) return false; })\` |
+| Nearest ancestor | \`closest(node, types)\` — available in minimal API |
+| File-path test | \`inFile(file, { glob \\| regex \\| contains })\` |
+| Violation shape | \`{ file, line, column, message }\` — \`column\` is 0-based |
 
 ---
 

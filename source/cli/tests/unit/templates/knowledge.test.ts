@@ -57,7 +57,7 @@ describe('KNOWLEDGE_TOPICS', () => {
     'writing-deterministic-aspects': [
       '## Runtime contract',
       '## Minimal API — imports from `@chrisdudek/yg/ast`',
-      '## Migration table — removed helpers → raw tree-sitter',
+      '## Quick reference — raw tree-sitter API',
       '## The ctx surface',
       '## parseAst is synchronous',
       '## Allowed reads set (D9=A)',

@@ -448,7 +448,7 @@ The drift model is similar across both reviewer types:
 
 **Imports inside `check.mjs`.** Yggdrasil hashes only `check.mjs` itself. If your check imports a helper from `node_modules`, changes to that helper do **not** trigger drift — Yggdrasil does not know about transitive dependencies. Guidance: keep all rule logic inside `check.mjs`. If you import a helper, consciously accept that bumping the helper version requires a manual `yg approve --aspect <id>` to refresh baselines.
 
-**CLI version pinning.** Tree-sitter grammar versions and helper implementations live inside `@chrisdudek/yg`. A CLI upgrade can shift AST node shapes or helper behavior. v1 does not include the CLI version in the drift baseline. After a CLI upgrade that changes AST behavior (announced in CHANGELOG), re-approve manually:
+**CLI version pinning.** Tree-sitter grammar versions and helper implementations live inside `@chrisdudek/yg`. A CLI upgrade can shift parse-tree node shapes or helper behavior. The drift-state baseline tracks the hash of `check.mjs` but does not include the CLI version itself. After a CLI upgrade that changes tree-sitter grammar behavior (announced in CHANGELOG), re-approve manually:
 
 ```bash
 yg approve --aspect <id>   # re-approve all nodes affected by this aspect

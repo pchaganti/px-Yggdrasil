@@ -5,7 +5,8 @@ title: Configuration
 Config file: `.yggdrasil/yg-config.yaml`
 
 `yg init` creates this file and configures the reviewer interactively.
-`yg init --upgrade` applies migrations when moving to a newer version.
+`yg init --upgrade` migrates the graph (config, aspects, drift-state baselines) to
+the current version and refreshes the rules, schemas, and platform files.
 
 ---
 
@@ -13,7 +14,7 @@ Config file: `.yggdrasil/yg-config.yaml`
 
 ### Required
 
-- **version** — Schema version set by the CLI. Run `yg init --upgrade` to migrate.
+- **version** — Schema version managed by the CLI. Do not edit manually. Run `yg init --upgrade` to upgrade.
 - **reviewer** — Reviewer configuration; must contain `tiers` with at least one entry. Configured during `yg init`; see [Reviewer tiers](#reviewer-tiers) below.
 
 ### Optional
@@ -187,10 +188,11 @@ per-node with `sizeExempt: { reason: "<why it cannot be split>" }`.
 yg init --upgrade
 ```
 
-Reads the existing `yg-config.yaml`, applies registered migrations, and writes the updated
-version. The legacy single-section reviewer format (flat provider keys + `reviewer.active`) is
-migrated to `reviewer.tiers` automatically. Run from the repository root only. Review the diff
-before committing.
+Migrates the graph to the current version: applies registered migrations to `yg-config.yaml`,
+all `yg-aspect.yaml` files, and drift-state baselines (losslessly re-keyed to the typed format),
+then refreshes the rules, schemas, and platform files. The legacy single-section reviewer format
+(flat provider keys + `reviewer.active`) is migrated to `reviewer.tiers` automatically. Run from
+the repository root only. Review the diff before committing.
 
 ---
 
