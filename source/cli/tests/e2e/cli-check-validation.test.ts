@@ -430,4 +430,66 @@ describe.skipIf(!distExists)('CLI E2E — yg check surfaces blocking validation 
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  // --- file-duplicate-mapping: one source file owned by two nodes ---
+
+  it('a source file mapped by two nodes is rejected (file-duplicate-mapping, exit 1)', () => {
+    const dir = minimalGraph('dup-map', (ygRoot) => {
+      const root = path.dirname(ygRoot);
+      mkdirSync(path.join(root, 'src'), { recursive: true });
+      // The file must exist, else mapping-path-missing would add noise.
+      writeFileSync(path.join(root, 'src', 'shared.ts'), 'export const x = 1;\n', 'utf-8');
+      writeNode(
+        ygRoot,
+        'alpha',
+        ['name: Alpha', 'description: Alpha node', 'type: service', 'mapping:', '  - src/shared.ts', ''].join('\n'),
+      );
+      writeNode(
+        ygRoot,
+        'beta',
+        ['name: Beta', 'description: Beta node', 'type: service', 'mapping:', '  - src/shared.ts', ''].join('\n'),
+      );
+    });
+    try {
+      const { status, all } = run(['check'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain('file-duplicate-mapping');
+      expect(all).toContain('src/shared.ts');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // --- orphaned-drift-state: a baseline whose node left the graph (non-blocking) ---
+
+  it('a baseline for a node no longer in the graph surfaces as a non-blocking warning (exit 0)', () => {
+    const dir = minimalGraph('orphan-drift', (ygRoot) => {
+      const root = path.dirname(ygRoot);
+      mkdirSync(path.join(root, 'src'), { recursive: true });
+      writeFileSync(path.join(root, 'src', 'a.ts'), 'export const x = 1;\n', 'utf-8');
+      // An aspect-free node never drifts, so the orphan is the only finding.
+      writeNode(
+        ygRoot,
+        'live',
+        ['name: Live', 'description: Live node', 'type: service', 'aspects: []', 'mapping:', '  - src/a.ts', ''].join('\n'),
+      );
+      // A structurally-valid typed baseline whose node path is absent from the graph.
+      mkdirSync(path.join(ygRoot, '.drift-state'), { recursive: true });
+      writeFileSync(
+        path.join(ygRoot, '.drift-state', 'ghost.json'),
+        JSON.stringify({ schemaVersion: 1, hash: 'x', files: {}, identity: {}, aspectVerdicts: {} }),
+        'utf-8',
+      );
+    });
+    try {
+      const { status, all } = run(['check'], dir);
+      // Orphaned drift state is a WARNING — `yg check` still passes (exit 0).
+      expect(status).toBe(0);
+      expect(all).toContain('orphaned-drift-state');
+      expect(all).toContain('ghost');
+      expect(all).toContain('no longer in the graph');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
