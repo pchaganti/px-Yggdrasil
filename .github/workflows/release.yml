@@ -48,17 +48,21 @@ jobs:
         with:
           node-version-file: .nvmrc
           registry-url: 'https://registry.npmjs.org'
+      # OIDC trusted publishing needs npm >= 11.5.1; Node 22 ships npm 10.x.
+      - name: Use OIDC-capable npm
+        if: steps.npm-check.outputs.published == 'false'
+        run: npm install -g npm@latest
       - run: npm ci
         if: steps.npm-check.outputs.published == 'false'
         working-directory: source/cli
       - run: npm run build
         if: steps.npm-check.outputs.published == 'false'
         working-directory: source/cli
+      # No NODE_AUTH_TOKEN: authentication is via OIDC trusted publishing
+      # (permissions.id-token: write above). Provenance is generated automatically.
       - run: npm publish --provenance --access public --tag ${{ steps.version.outputs.disttag }}
         if: steps.npm-check.outputs.published == 'false'
         working-directory: source/cli
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - uses: softprops/action-gh-release@v3
         if: steps.npm-check.outputs.published == 'false'
         with:
