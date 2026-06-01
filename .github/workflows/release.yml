@@ -26,6 +26,14 @@ jobs:
           VERSION=$(jq -r '.version' source/cli/package.json)
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+          # dist-tag: a prerelease (X.Y.Z-<id>.N) publishes under its <id>
+          # (alpha/beta/rc); a stable X.Y.Z publishes under 'latest'.
+          if [[ "${VERSION}" == *-* ]]; then
+            PRE="${VERSION#*-}"
+            echo "disttag=${PRE%%.*}" >> $GITHUB_OUTPUT
+          else
+            echo "disttag=latest" >> $GITHUB_OUTPUT
+          fi
       - name: Check npm for existing version
         id: npm-check
         run: |
@@ -46,7 +54,7 @@ jobs:
       - run: npm run build
         if: steps.npm-check.outputs.published == 'false'
         working-directory: source/cli
-      - run: npm publish --provenance --access public
+      - run: npm publish --provenance --access public --tag ${{ steps.version.outputs.disttag }}
         if: steps.npm-check.outputs.published == 'false'
         working-directory: source/cli
         env:
