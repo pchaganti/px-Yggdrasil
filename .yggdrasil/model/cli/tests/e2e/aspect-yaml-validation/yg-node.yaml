@@ -1,0 +1,7 @@
+name: E2E Tests — Aspect YAML Validation
+type: test-suite
+description: "Subprocess E2E for yg-aspect.yaml field and reviewer-block validation — a standalone aspect with a missing name, an out-of-vocabulary status, a non-array implies, an invalid implies status_inherit, a scalar (non-mapping) reviewer, a reviewer mapping without type, an unknown reviewer key, or an empty/non-string reviewer tier each blocks yg check with its specific structural code and exit 1."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-aspect-yaml-validation.test.ts
