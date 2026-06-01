@@ -1,13 +1,8 @@
-# .plans/artifacts/yg-architecture-phase1.yaml
+# yg-architecture.yaml — live architecture vocabulary for this repository.
 #
-# Phase 1 target — architecture skeleton after Phase 0 code restructuring.
-# Contains: node_types, when predicates, parents, default aspects, log_required.
-# NOT included: enforce: strict (Phase 8), relations (Phase 3).
-#
-# Source of truth: design doc §4.1–§4.3
-# Companion: yg-architecture-final.yaml (full end-state)
-#
-# To install: copy to .yggdrasil/yg-architecture.yaml at start of Phase 1.
+# Defines node types: their when-predicate (which source files belong to this type),
+# enforce: strict (forward + backward classification), default aspects, allowed
+# parent types, allowed relation targets, and log_required overrides.
 
 node_types:
 
@@ -21,7 +16,7 @@ node_types:
     description: "Domain grouping — organizes children under shared domain responsibility."
     parents: [project, module]
 
-  # ── Classifying types (have when — Phase 8 adds enforce: strict to all except example) ──
+  # ── Classifying types (have when; most enforce: strict) ──
 
   entry-point:
     description: "Executable entry point — the bin.ts dispatcher. Singleton; wraps all CLI commands and top-level error handling."
@@ -111,7 +106,7 @@ node_types:
       uses: [types]
 
   parser-adapter:
-    description: "File-reading parser adapter — reads a file from disk and returns a typed model object. After R0.6, only true file-reading parsers remain here; in-memory parsers live in engine."
+    description: "File-reading parser adapters: read a file from disk and return a typed model object. In-memory parsers live in engine."
     enforce: strict
     when:
       all_of:
@@ -130,7 +125,7 @@ node_types:
       uses: [types]
 
   persistence-adapter:
-    description: "Persistence adapter — file-system read/write helpers: stores, caches, scanners, graph I/O, atomic writes. After R0.3/R0.4/R0.5 every file-touching helper lives here."
+    description: "Every filesystem-touching helper lives here: stores, caches, scanners, graph I/O, atomic writes."
     enforce: strict
     when:
       any_of:
@@ -252,7 +247,7 @@ node_types:
     parents: [module]
 
   utility:
-    description: "Pure helper utilities — no I/O, no side effects on import, no direct filesystem access. After R0.3 all fs-touching helpers are in persistence-adapter."
+    description: "Pure helper utilities — no I/O, no side effects on import, no direct filesystem access (fs-touching helpers live in persistence-adapter)."
     enforce: strict
     when:
       all_of:
