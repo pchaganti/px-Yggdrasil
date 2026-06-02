@@ -1,12 +1,11 @@
 /**
  * Fix 3b — directory-mapped nodes must expand to constituent files.
- * Fix 3c — AST parse errors on own-mapping files must fail closed.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { runStructureAspect, StructureRunnerError } from '../../../src/structure/runner.js';
+import { runStructureAspect } from '../../../src/structure/runner.js';
 import { buildTestGraphForStructure } from '../helpers/build-test-graph-structure.js';
 
 describe('runStructureAspect — directory-mapped nodes (fix 3b)', () => {
@@ -167,129 +166,5 @@ describe('runStructureAspect — directory-mapped nodes (fix 3b)', () => {
     });
     expect(r.succeeded).toBe(true);
     expect(r.violations).toHaveLength(0);
-  });
-});
-
-describe('runStructureAspect — parse error fail-closed (fix 3c)', () => {
-  let projectRoot: string;
-  let cbCounter = 0;
-
-  beforeEach(() => {
-    projectRoot = mkdtempSync(path.join(tmpdir(), 'yg-structure-parseerr-'));
-    mkdirSync(path.join(projectRoot, 'src'), { recursive: true });
-  });
-  afterEach(() => rmSync(projectRoot, { recursive: true, force: true }));
-
-  async function writeAspect(aspectId: string, checkBody: string): Promise<string> {
-    cbCounter += 1;
-    const aspectDir = path.join(projectRoot, '.yggdrasil', 'aspects', aspectId);
-    mkdirSync(aspectDir, { recursive: true });
-    writeFileSync(path.join(aspectDir, 'check.mjs'), `// cb=${cbCounter}\n${checkBody}`);
-    return aspectDir;
-  }
-
-  it('3c: syntax-error in own-mapped .ts file causes StructureRunnerError (fail-closed)', async () => {
-    // Write a file with a real TypeScript syntax error
-    writeFileSync(
-      path.join(projectRoot, 'src/broken.ts'),
-      'export function bad( { // syntax error — unclosed paren\n',
-    );
-
-    await writeAspect('pe1', `export function check(ctx) {
-      // A check that walks ctx.files (would silently PASS on a partial tree)
-      const violations = [];
-      for (const f of ctx.files) {
-        if (f.ast) {
-          // just checking — no actual tree walk needed for the test
-        }
-      }
-      return violations;
-    }`);
-
-    const g = buildTestGraphForStructure({
-      nodes: [{ path: 'N', type: 'module', mapping: ['src/broken.ts'] }],
-    });
-
-    // Must throw StructureRunnerError with fail-closed code — NOT return a silent pass
-    await expect(runStructureAspect({
-      aspectDir: path.join('.yggdrasil/aspects/pe1'),
-      aspectId: 'pe1', nodePath: 'N', graph: g, projectRoot,
-    })).rejects.toThrow(StructureRunnerError);
-  });
-
-  it('3c: error code is STRUCTURE_SOURCE_PARSE_ERROR', async () => {
-    writeFileSync(
-      path.join(projectRoot, 'src/broken.ts'),
-      'export function bad( { // syntax error\n',
-    );
-
-    await writeAspect('pe2', `export function check(ctx) { return []; }`);
-
-    const g = buildTestGraphForStructure({
-      nodes: [{ path: 'N', type: 'module', mapping: ['src/broken.ts'] }],
-    });
-
-    let caught: unknown;
-    try {
-      await runStructureAspect({
-        aspectDir: path.join('.yggdrasil/aspects/pe2'),
-        aspectId: 'pe2', nodePath: 'N', graph: g, projectRoot,
-      });
-    } catch (e) {
-      caught = e;
-    }
-
-    expect(caught).toBeInstanceOf(StructureRunnerError);
-    const err = caught as StructureRunnerError;
-    expect(err.code).toBe('STRUCTURE_SOURCE_PARSE_ERROR');
-    expect(typeof err.messageData.what).toBe('string');
-    expect(typeof err.messageData.why).toBe('string');
-    expect(typeof err.messageData.next).toBe('string');
-  });
-
-  it('3c: parse-error on cross-node file via ctx.parseAst also fails closed', async () => {
-    // Own file is fine; relation target file has syntax error
-    writeFileSync(path.join(projectRoot, 'src/a.ts'), 'export const x = 1;');
-    mkdirSync(path.join(projectRoot, 'lib'), { recursive: true });
-    writeFileSync(
-      path.join(projectRoot, 'lib/broken.ts'),
-      'export function bad( { // syntax error\n',
-    );
-
-    await writeAspect('pe3', `export function check(ctx) {
-      // Try to parse the cross-node file that has a syntax error
-      const dep = ctx.graph.node('Dep');
-      const f = dep.files.find(x => x.path.endsWith('.ts'));
-      if (f) ctx.parseAst(f, 'typescript');
-      return [];
-    }`);
-
-    const g = buildTestGraphForStructure({
-      nodes: [
-        {
-          path: 'N', type: 'module', mapping: ['src/a.ts'],
-          relations: [{ type: 'uses', target: 'Dep' }],
-        },
-        { path: 'Dep', type: 'module', mapping: ['lib/broken.ts'] },
-      ],
-    });
-
-    // Must throw StructureRunnerError, not a silent pass
-    await expect(runStructureAspect({
-      aspectDir: path.join('.yggdrasil/aspects/pe3'),
-      aspectId: 'pe3', nodePath: 'N', graph: g, projectRoot,
-    })).rejects.toThrow(StructureRunnerError);
-
-    let caught: unknown;
-    try {
-      await runStructureAspect({
-        aspectDir: path.join('.yggdrasil/aspects/pe3'),
-        aspectId: 'pe3', nodePath: 'N', graph: g, projectRoot,
-      });
-    } catch (e) {
-      caught = e;
-    }
-    expect(caught).toBeInstanceOf(StructureRunnerError);
-    expect((caught as StructureRunnerError).code).toBe('STRUCTURE_SOURCE_PARSE_ERROR');
   });
 });

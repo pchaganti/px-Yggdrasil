@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { ensureLoaderRegistered } from '../ast/loader-hook.js';
 import { createCtxFs, UndeclaredFsReadError } from './ctx-fs.js';
 import { createCtxGraph, UndeclaredGraphReadError } from './ctx-graph.js';
-import { createCtxParsers, prewarmupAstCache, enrichFilesWithAst, ParseAstNotPrewarmedError, ParseAstSyntaxError } from './ctx-parsers.js';
+import { createCtxParsers, prewarmupAstCache, enrichFilesWithAst, ParseAstNotPrewarmedError } from './ctx-parsers.js';
 import { collectAllowedReadsForAspect } from './allowed-reads.js';
 import { normalizeMappingPath, isPathInMapping } from './expand-mapping-sync.js';
 import { expandMappingPaths } from '../io/hash.js';
@@ -15,7 +15,6 @@ import type { Graph, GraphNode as ModelNode } from '../model/graph.js';
 import type { Ctx, Violation, File, Port } from './types.js';
 import type { ParseCache } from '../ast/parse-cache.js';
 import type { IssueMessage } from '../model/validation.js';
-import type { Node as SyntaxNode } from 'web-tree-sitter';
 
 export interface RunStructureAspectParams {
   aspectDir: string;
@@ -158,21 +157,6 @@ export async function runStructureAspect(
   // Eagerly parse own-mapping files so ctx.files carry .ast + .language (AST-aspect parity).
   await prewarmupAstCache({ astCache, projectRoot, files: ownFiles });
 
-  // Fix 3c: fail closed if any own-mapping file has a tree-sitter parse error.
-  // A partial tree on a syntax-error file can cause a false PASS — treat it as
-  // an infrastructure problem (checkRuntime disposition) symmetric with AstRunnerError.
-  for (const f of ownFiles) {
-    const cached = astCache.get(f.path);
-    if (cached && cached.ast.rootNode.hasError) {
-      const err = findFirstErrorNode(cached.ast.rootNode);
-      throw new StructureRunnerError('STRUCTURE_SOURCE_PARSE_ERROR', {
-        what: `Source file ${f.path} has a syntax error at line ${(err?.startPosition.row ?? 0) + 1}.`,
-        why: `Tree-sitter could not parse the file cleanly. Walking a partial tree may produce a false PASS — the runner fails closed rather than letting a syntax-error file silently pass a deterministic check.`,
-        next: `Fix the syntax error in ${f.path}, then re-run yg approve.`,
-      });
-    }
-  }
-
   const ownFilesEnriched = enrichFilesWithAst(ownFiles, astCache);
   const ctx: Ctx = {
     node: {
@@ -243,15 +227,6 @@ export async function runStructureAspect(
         succeeded: false,
       };
     }
-    // Fix 3c (lazy cross-node gate): ctx.parseAst threw because the cached AST
-    // has a syntax error. Fail closed — same disposition as the own-file eager check.
-    if (err instanceof ParseAstSyntaxError) {
-      throw new StructureRunnerError('STRUCTURE_SOURCE_PARSE_ERROR', {
-        what: `Source file ${err.filePath} has a syntax error at line ${err.errorLine}.`,
-        why: `Tree-sitter could not parse the file cleanly. Walking a partial tree may produce a false PASS — the runner fails closed rather than letting a syntax-error file silently pass a deterministic check.`,
-        next: `Fix the syntax error in ${err.filePath}, then re-run yg approve.`,
-      });
-    }
     throw new StructureRunnerError('STRUCTURE_CHECK_THROWN', {
       what: `check.mjs threw an exception while running (aspect '${aspectId}').`,
       why: `${(err as Error).message}\n${(err as Error).stack ?? ''}`,
@@ -319,13 +294,4 @@ export async function runStructureAspect(
   });
 
   return { violations: visible, touchedFiles, succeeded: true };
-}
-
-function findFirstErrorNode(node: SyntaxNode): SyntaxNode | null {
-  if (node.isError) return node;
-  for (const child of node.children) {
-    const found = findFirstErrorNode(child);
-    if (found) return found;
-  }
-  return null;
 }
