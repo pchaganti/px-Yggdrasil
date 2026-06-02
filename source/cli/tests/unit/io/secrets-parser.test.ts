@@ -40,7 +40,6 @@ reviewer:
       model: 'llama3.1:8b',
       temperature: 0,
       consensus: 1,
-      max_tokens: 'auto' as const,
     };
     const merged = mergeLlmConfig(baseConfig, secrets!);
     expect(merged.api_key).toBe('sk-test-123');
@@ -61,7 +60,6 @@ reviewer:
       model: 'llama3.1:8b',
       temperature: 0,
       consensus: 1,
-      max_tokens: 'auto' as const,
     };
     const secretsOverrides = {
       provider: 'claude-code' as const,

@@ -113,7 +113,7 @@ describe('resolveExecutionPlan — former-ast and structure collapse to a single
   const reviewer: ReviewerConfig = {
     default: 'default',
     tiers: {
-      default: { provider: 'ollama', model: 'x', temperature: 0, consensus: 1, max_tokens: 'auto' },
+      default: { provider: 'ollama', model: 'x', temperature: 0, consensus: 1 },
     },
   } as unknown as ReviewerConfig;
 

@@ -26,7 +26,6 @@ reviewer:
         model: qwen3              # Model identifier for this provider
         temperature: 0            # Sampling temperature (0 = deterministic)
         endpoint: http://localhost:11434   # Required for ollama and openai-compatible
-        max_tokens: auto          # Response budget: 'auto' or positive integer
       # references:                         # optional caps on aspect reference files
       #   max_bytes_per_file: 65536         # default: 64 KiB per reference file
       #   max_total_bytes_per_aspect: 262144  # default: 256 KiB total per aspect
@@ -101,7 +100,6 @@ Provider-specific options passed to the LLM client:
 | \`model\` | string | Required. Provider-specific model identifier. |
 | \`temperature\` | number | Defaults to 0. Higher = more varied responses. |
 | \`endpoint\` | string | Required for \`ollama\` and \`openai-compatible\`. |
-| \`max_tokens\` | number\\|'auto' | Response budget. 'auto' queries the provider. |
 | \`context_length_field\` | string | Ollama: field name in model info for context length. |
 | \`timeout\` | number | Timeout in seconds. Default 300. Applies to CLI providers only — non-CLI/API providers ignore it. |
 

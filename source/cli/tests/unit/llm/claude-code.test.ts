@@ -15,12 +15,6 @@ describe('ClaudeCodeProvider', () => {
     expect(typeof result).toBe('boolean');
   });
 
-  it('getContextWindowSize returns undefined (not supported)', async () => {
-    const provider = new ClaudeCodeProvider({ model: 'haiku' });
-    const size = await provider.getContextWindowSize();
-    expect(size).toBeUndefined();
-  });
-
   it('verifyAspect returns result with expected shape', async () => {
     const provider = new ClaudeCodeProvider({ model: 'haiku' });
     const result = await provider.verifyAspect('Is this code correct? const x = 1;');

@@ -309,7 +309,7 @@ reviewer:
       expect(cfg.reviewer?.tiers.deep.consensus).toBe(3);
     });
 
-    it('v5 single tier with temperature + max_tokens', async () => {
+    it('v5 single tier with temperature (max_tokens no longer a recognized field — silently ignored)', async () => {
       const tmpDir = path.join(FIXTURES_DIR, 'tmp-v5-ollama-tier');
       await mkdir(tmpDir, { recursive: true });
       const configPath = path.join(tmpDir, 'yg-config.yaml');
@@ -326,9 +326,10 @@ reviewer:
         max_tokens: 4096
 `, 'utf-8');
 
+      // max_tokens is now a removed field — silently ignored; temperature still parses
       const cfg = await parseConfig(configPath);
       expect(cfg.reviewer?.tiers.main.temperature).toBe(0.2);
-      expect(cfg.reviewer?.tiers.main.max_tokens).toBe(4096);
+      expect((cfg.reviewer?.tiers.main as unknown as Record<string, unknown>)['max_tokens']).toBeUndefined();
     });
 
     it('v5 model defaults — claude-code without explicit model in config', async () => {
@@ -495,8 +496,10 @@ reviewer:
 `)).rejects.toMatchObject({ code: 'config-tier-unknown-key' });
     });
 
-    it('config-tier-config-invalid when max_tokens is zero', async () => {
-      await expect(parseWithYaml(`reviewer:
+    it('max_tokens in config is silently ignored (no longer a recognized field)', async () => {
+      // max_tokens was removed; it is now an unrecognized key in config: and must
+      // not cause a parse error regardless of its value.
+      const cfg = await parseWithYaml(`reviewer:
   tiers:
     main:
       provider: claude-code
@@ -504,19 +507,9 @@ reviewer:
       config:
         model: haiku
         max_tokens: 0
-`)).rejects.toMatchObject({ code: 'config-tier-config-invalid' });
-    });
-
-    it('config-tier-config-invalid when max_tokens is a string', async () => {
-      await expect(parseWithYaml(`reviewer:
-  tiers:
-    main:
-      provider: claude-code
-      consensus: 1
-      config:
-        model: haiku
-        max_tokens: "4096"
-`)).rejects.toMatchObject({ code: 'config-tier-config-invalid' });
+`);
+      expect(cfg.reviewer?.tiers.main).toBeDefined();
+      expect((cfg.reviewer?.tiers.main as unknown as Record<string, unknown>)['max_tokens']).toBeUndefined();
     });
   });
 

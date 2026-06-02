@@ -35,15 +35,17 @@ function pointReviewer(dir: string, endpoint: string): void {
 const ALWAYS_OK: () => ChatReply = () => ({ satisfied: true, reason: 'ok' });
 
 describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via mock (extended)', () => {
-  it('1: a node whose source exceeds the token budget is split into multiple reviewer calls (chunking)', async () => {
-    const dir = fixture('chunk');
-    // A small context window (no config max_tokens → getContextWindowSize wins)
-    // floors the chunk budget at ~2000 chars, so big files split into separate calls.
-    const mock = await startMockReviewer({ respond: ALWAYS_OK, contextWindow: 1000 });
+  it('1: a large node with multiple source files sends exactly ONE reviewer call per LLM aspect (no chunking)', async () => {
+    const dir = fixture('no-chunk');
+    // Chunking has been removed. The size gate (max_node_chars) is the sole
+    // guarantee a node fits one prompt — no matter the total source size below
+    // that gate, the reviewer is called exactly once per LLM aspect.
+    const mock = await startMockReviewer({ respond: ALWAYS_OK });
     try {
       pointReviewer(dir, mock.endpoint);
-      // Map two additional large source files into the orders node so the source
-      // spans multiple chunks. ~4000 chars each (~1000 tokens) guarantees a split.
+      // Add two large source files (~4000 chars each, still well under the
+      // 40000-char max_node_chars gate) so the former chunking logic would
+      // have produced multiple calls — verifying that it no longer does.
       const big = (tag: string) => `// ${tag}\nexport const ${tag} = ${JSON.stringify('x'.repeat(4000))};\n`;
       writeFileSync(path.join(dir, 'src', 'services', 'big1.ts'), big('big1'), 'utf-8');
       writeFileSync(path.join(dir, 'src', 'services', 'big2.ts'), big('big2'), 'utf-8');
@@ -63,13 +65,12 @@ describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via mock (exten
       );
       const r = await runAsync(['approve', '--node', 'services/orders'], dir);
       expect(r.status).toBe(0);
-      // One LLM aspect (has-doc-comment) at consensus 1, but the source spans
-      // multiple chunks → one chat call per chunk.
-      expect(mock.chatCount()).toBeGreaterThan(1);
-      // Each chunk's prompt carries its own file content.
-      const prompts = mock.chatRequests.map((c) => c.prompt).join('\n@@@\n');
-      expect(prompts).toContain('big1');
-      expect(prompts).toContain('big2');
+      // One LLM aspect (has-doc-comment) at consensus 1 → exactly ONE reviewer call.
+      expect(mock.chatCount()).toBe(1);
+      // The single prompt contains ALL source files.
+      const prompt = mock.chatRequests[0].prompt;
+      expect(prompt).toContain('big1');
+      expect(prompt).toContain('big2');
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });

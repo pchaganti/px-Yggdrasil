@@ -45,7 +45,6 @@ export class AnthropicProvider implements LlmProvider {
   }
 
   async isAvailable(): Promise<boolean> { return !!this.apiKey; }
-  async getContextWindowSize(): Promise<number | undefined> { return undefined; }
 }
 
 registerProvider('anthropic', (c) => new AnthropicProvider(c));

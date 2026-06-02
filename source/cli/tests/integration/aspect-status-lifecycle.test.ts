@@ -26,7 +26,6 @@ function makeApproveProvider(): LlmProvider {
   return {
     verifyAspect: async () => ({ satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }),
     isAvailable: async () => true,
-    getContextWindowSize: async () => 8192,
   };
 }
 
@@ -38,7 +37,6 @@ function makeRefuseProvider(): LlmProvider {
       errorSource: 'codeViolation' as const,
     }),
     isAvailable: async () => true,
-    getContextWindowSize: async () => 8192,
   };
 }
 

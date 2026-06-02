@@ -1,5 +1,4 @@
 import type { LlmConfig } from '../model/graph.js';
-import type { LlmProvider } from './types.js';
 import { debugWrite } from '../utils/debug-log.js';
 
 const ENV_VAR_MAP: Record<string, string> = {
@@ -13,12 +12,6 @@ export function resolveApiKey(config: LlmConfig): string | undefined {
   if (config.api_key) return config.api_key;
   const envVar = ENV_VAR_MAP[config.provider];
   return envVar ? process.env[envVar] : undefined;
-}
-
-export async function resolveMaxTokens(config: LlmConfig, provider: LlmProvider): Promise<number> {
-  if (typeof config.max_tokens === 'number') return config.max_tokens;
-  const detected = await provider.getContextWindowSize();
-  return detected ?? 8192;
 }
 
 /** Retry-aware fetch. Retries once on 429 with 2s backoff. */

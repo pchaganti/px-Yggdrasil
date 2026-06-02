@@ -3,7 +3,6 @@ import type { Graph, GraphNode, AspectDef, LlmConfig, ReviewerConfig, AspectStat
 import type { ApproveResult, AspectVerificationResult, DriftNodeState, DriftIdentity } from '../model/drift.js';
 import type { IssueMessage } from '../model/validation.js';
 import { verifyAspects } from '../llm/aspect-verifier.js';
-import { resolveMaxTokens } from '../llm/api-utils.js';
 import { createLlmProvider } from '../llm/index.js';
 import { commitApproval, loadSourceFiles, getChildMappingExclusions } from './approve.js';
 import { computeEffectiveAspects, computeEffectiveAspectStatuses } from './graph/aspects.js';
@@ -616,10 +615,6 @@ export async function runApproveWithReviewer(
       }, true);
     }
 
-    const maxTokens = merged.max_tokens === 'auto'
-      ? await resolveMaxTokens(merged, provider)
-      : (merged.max_tokens as number);
-
     // Load references per-aspect with failure isolation
     const aspectsForTier: Array<{
       id: string;
@@ -657,7 +652,6 @@ export async function runApproveWithReviewer(
       nodePath,
       nodeDescription,
       consensus: merged.consensus,
-      maxTokens,
     });
 
     for (const [aspectId, res] of Object.entries(llmResults)) {

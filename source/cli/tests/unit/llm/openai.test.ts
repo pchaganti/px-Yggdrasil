@@ -4,7 +4,7 @@ import type { LlmConfig } from '../../../src/model/graph.js';
 
 const baseCfg: LlmConfig = {
   provider: 'openai', model: 'gpt-4.1-mini', temperature: 0,
-  consensus: 1, max_tokens: 'auto',
+  consensus: 1,
 };
 
 describe('OpenAIProvider', () => {
@@ -32,10 +32,7 @@ describe('OpenAIProvider', () => {
     expect(result.satisfied).toBe(false);
   });
 
-  it('getContextWindowSize returns undefined', async () => {
-    const provider = new OpenAIProvider({ ...baseCfg, api_key: 'sk-test' });
-    expect(await provider.getContextWindowSize()).toBeUndefined();
-  });
+
 });
 
 describe('OpenAI-compatible (dual registration)', () => {

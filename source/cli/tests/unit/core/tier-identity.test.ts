@@ -7,7 +7,6 @@ const base: LlmConfig = {
   model: 'sonnet',
   temperature: 0,
   consensus: 1,
-  max_tokens: 'auto',
 };
 
 describe('canonicalTierJson', () => {

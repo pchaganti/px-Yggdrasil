@@ -114,10 +114,6 @@ export abstract class CliAgentProvider implements LlmProvider {
     }
   }
 
-  async getContextWindowSize(): Promise<number | undefined> {
-    return undefined;
-  }
-
   async verifyAspect(prompt: string): Promise<AspectResponse> {
     const fallback: AspectResponse = { satisfied: false, reason: 'Reviewer unavailable', errorSource: 'provider' };
 

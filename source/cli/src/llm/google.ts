@@ -52,7 +52,6 @@ export class GoogleProvider implements LlmProvider {
   }
 
   async isAvailable(): Promise<boolean> { return !!this.apiKey; }
-  async getContextWindowSize(): Promise<number | undefined> { return undefined; }
 }
 
 registerProvider('google', (c) => new GoogleProvider(c));

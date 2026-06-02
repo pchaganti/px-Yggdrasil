@@ -91,7 +91,6 @@ function makeMockProvider(overrides: Partial<LlmProvider> = {}): LlmProvider {
   return {
     verifyAspect: async () => ({ satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }),
     isAvailable: async () => true,
-    getContextWindowSize: async () => 8192,
     ...overrides,
   };
 }

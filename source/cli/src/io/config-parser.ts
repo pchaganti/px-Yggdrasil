@@ -285,15 +285,6 @@ function parseTier(name: string, raw: unknown, filename: string): LlmConfig {
     }
   }
 
-  const maxTokens = c.max_tokens ?? 'auto';
-  if (maxTokens !== 'auto' && (typeof maxTokens !== 'number' || (maxTokens as number) < 1)) {
-    throw new ConfigParseError({
-      what: `${filename}: tier '${name}' config.max_tokens must be 'auto' or a positive number`,
-      why: 'max_tokens controls the LLM response budget; invalid values cause runtime errors',
-      next: "set to 'auto' or a positive integer (e.g. 4096)",
-    }, 'config-tier-config-invalid');
-  }
-
   // references: optional sub-mapping with per-tier source-file size limits
   let references: { max_bytes_per_file?: number; max_total_bytes_per_aspect?: number } | undefined;
   if (t.references !== undefined) {
@@ -350,7 +341,6 @@ function parseTier(name: string, raw: unknown, filename: string): LlmConfig {
     endpoint: typeof c.endpoint === 'string' ? c.endpoint : undefined,
     temperature: typeof c.temperature === 'number' ? c.temperature : 0,
     consensus: consensusRaw as number,
-    max_tokens: maxTokens,
     context_length_field: typeof c.context_length_field === 'string' ? c.context_length_field : undefined,
     timeout: typeof c.timeout === 'number' ? c.timeout * 1000 : undefined,
     ...(references !== undefined ? { references } : {}),

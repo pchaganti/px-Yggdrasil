@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { verifyAspects, chunkSourceFiles, buildPrompt } from '../../../src/llm/aspect-verifier.js';
+import { verifyAspects, buildPrompt } from '../../../src/llm/aspect-verifier.js';
 import type { LlmProvider, AspectResponse } from '../../../src/llm/types.js';
 
 function mockProvider(responses: Array<{ satisfied: boolean; reason: string }>): LlmProvider {
@@ -10,7 +10,6 @@ function mockProvider(responses: Array<{ satisfied: boolean; reason: string }>):
       return { ...r, errorSource: 'codeViolation' };
     }),
     isAvailable: vi.fn(async () => true),
-    getContextWindowSize: vi.fn(async () => 8192),
   };
 }
 
@@ -61,44 +60,6 @@ describe('buildPrompt', () => {
   });
 });
 
-describe('chunkSourceFiles', () => {
-  it('returns single chunk for small files', () => {
-    const files = [{ path: 'a.ts', content: 'x' }];
-    const chunks = chunkSourceFiles(files, 8192);
-    expect(chunks).toHaveLength(1);
-    expect(chunks[0]).toHaveLength(1);
-  });
-
-  it('splits into multiple chunks when exceeding budget', () => {
-    const bigContent = 'x'.repeat(10000);
-    const files = [
-      { path: 'a.ts', content: bigContent },
-      { path: 'b.ts', content: bigContent },
-    ];
-    const chunks = chunkSourceFiles(files, 2000);
-    expect(chunks.length).toBeGreaterThan(1);
-  });
-
-  it('truncates single oversized file', () => {
-    const files = [{ path: 'huge.ts', content: 'x'.repeat(100000) }];
-    const chunks = chunkSourceFiles(files, 1000);
-    expect(chunks).toHaveLength(1);
-    expect(chunks[0][0].content).toContain('[... truncated]');
-  });
-
-  it('returns empty array wrapper for empty input', () => {
-    const chunks = chunkSourceFiles([], 8192);
-    expect(chunks).toEqual([[]]);
-  });
-
-  it('clamps min token budget to 1000', () => {
-    const files = [{ path: 'a.ts', content: 'short' }];
-    const chunks = chunkSourceFiles(files, 100);
-    expect(chunks).toHaveLength(1);
-    expect(chunks[0][0].content).toBe('short');
-  });
-});
-
 describe('verifyAspects', () => {
   it('returns satisfied for passing aspect', async () => {
     const provider = mockProvider([{ satisfied: true, reason: 'ok' }]);
@@ -109,7 +70,7 @@ describe('verifyAspects', () => {
       nodeDescription: 'Test node',
       nodePath: 'test/node',
     });
-    expect(results['test']).toEqual({ satisfied: true, reason: expect.stringContaining('satisfied'), errorSource: 'codeViolation' });
+    expect(results['test']).toMatchObject({ satisfied: true, errorSource: 'codeViolation' });
   });
 
   it('returns not satisfied for failing aspect', async () => {
@@ -124,24 +85,12 @@ describe('verifyAspects', () => {
     expect(results['test']).toEqual({ satisfied: false, reason: 'Missing X', errorSource: 'codeViolation' });
   });
 
-  it('skips verification for empty source files', async () => {
-    const provider = mockProvider([]);
-    const results = await verifyAspects({
-      provider,
-      aspects: [{ id: 'test', description: 'Test', content: 'content' }],
-      sourceFiles: [],
-      nodeDescription: 'Test node',
-      nodePath: 'test/node',
-    });
-    expect(results['test'].satisfied).toBe(true);
-    expect(provider.verifyAspect).not.toHaveBeenCalled();
-  });
-
-  it('fail-fast: stops on first failing chunk', async () => {
-    const provider = mockProvider([
-      { satisfied: false, reason: 'chunk 1 fails' },
-    ]);
-    const bigContent = 'x'.repeat(10000);
+  it('sends exactly ONE prompt per aspect regardless of total source size (~39000 chars)', async () => {
+    // Previously the 8192 token budget chunked at ~30768 chars, so a ~39000-char
+    // node below the 40000 max_node_chars gate would still be split into 2 chunks
+    // and the aspect would be verified twice. After removing chunking it must be 1.
+    const bigContent = 'x'.repeat(19000);
+    const provider = mockProvider([{ satisfied: true, reason: 'ok' }]);
     const results = await verifyAspects({
       provider,
       aspects: [{ id: 'test', description: 'Test', content: 'content' }],
@@ -151,9 +100,9 @@ describe('verifyAspects', () => {
       ],
       nodeDescription: 'Test node',
       nodePath: 'test/node',
-      maxTokens: 2000,
     });
-    expect(results['test'].satisfied).toBe(false);
+    expect(results['test'].satisfied).toBe(true);
+    // Must be exactly 1 call, not 2 (as the old chunking code would produce)
     expect(provider.verifyAspect).toHaveBeenCalledTimes(1);
   });
 
@@ -202,5 +151,25 @@ describe('verifyAspects', () => {
       nodePath: 'test/node',
     });
     expect(provider.verifyAspect).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls provider once per aspect for multiple aspects', async () => {
+    const provider = mockProvider([
+      { satisfied: true, reason: 'ok1' },
+      { satisfied: true, reason: 'ok2' },
+    ]);
+    const results = await verifyAspects({
+      provider,
+      aspects: [
+        { id: 'aspect1', description: 'First', content: 'Rule 1' },
+        { id: 'aspect2', description: 'Second', content: 'Rule 2' },
+      ],
+      sourceFiles: [{ path: 'test.ts', content: 'code' }],
+      nodeDescription: 'Test',
+      nodePath: 'test/node',
+    });
+    expect(provider.verifyAspect).toHaveBeenCalledTimes(2);
+    expect(results['aspect1'].satisfied).toBe(true);
+    expect(results['aspect2'].satisfied).toBe(true);
   });
 });

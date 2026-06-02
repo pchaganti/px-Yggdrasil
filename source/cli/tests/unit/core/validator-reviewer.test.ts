@@ -110,7 +110,6 @@ describe('config-reviewer-missing (Task 36b)', () => {
             'default-tier': {
               provider: 'claude-code' as const,
               consensus: 1,
-              max_tokens: 'auto' as const,
               temperature: 0,
               model: 'haiku',
             },
@@ -146,7 +145,6 @@ describe('aspect-tier-unknown (Task 37)', () => {
             'default-tier': {
               provider: 'claude-code' as const,
               consensus: 1,
-              max_tokens: 'auto' as const,
               temperature: 0,
               model: 'haiku',
             },
@@ -174,7 +172,6 @@ describe('aspect-tier-unknown (Task 37)', () => {
             'default-tier': {
               provider: 'claude-code' as const,
               consensus: 1,
-              max_tokens: 'auto' as const,
               temperature: 0,
               model: 'haiku',
             },
@@ -209,7 +206,6 @@ describe('aspect-tier-unknown (Task 37)', () => {
             'default-tier': {
               provider: 'claude-code' as const,
               consensus: 1,
-              max_tokens: 'auto' as const,
               temperature: 0,
               model: 'haiku',
             },

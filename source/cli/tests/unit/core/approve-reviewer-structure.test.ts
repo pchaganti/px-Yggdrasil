@@ -32,7 +32,6 @@ describe('resolveExecutionPlan — structure branch', () => {
         model: 'x',
         temperature: 0,
         consensus: 1,
-        max_tokens: 'auto',
       },
     },
   };

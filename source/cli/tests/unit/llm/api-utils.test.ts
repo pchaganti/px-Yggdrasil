@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { resolveApiKey, resolveMaxTokens, apiFetch } from '../../../src/llm/api-utils.js';
+import { resolveApiKey, apiFetch } from '../../../src/llm/api-utils.js';
 import type { LlmConfig } from '../../../src/model/graph.js';
-import type { LlmProvider } from '../../../src/llm/types.js';
 
 const baseCfg: LlmConfig = {
   provider: 'openai', model: 'gpt-4.1-mini', temperature: 0,
-  consensus: 1, max_tokens: 'auto',
+  consensus: 1,
 };
 
 describe('resolveApiKey', () => {
@@ -23,23 +22,6 @@ describe('resolveApiKey', () => {
 
   it('returns undefined when no key available', () => {
     expect(resolveApiKey(baseCfg)).toBeUndefined();
-  });
-});
-
-describe('resolveMaxTokens', () => {
-  it('returns explicit number from config', async () => {
-    const provider = { getContextWindowSize: vi.fn(async () => 128000) } as unknown as LlmProvider;
-    expect(await resolveMaxTokens({ ...baseCfg, max_tokens: 4096 }, provider)).toBe(4096);
-  });
-
-  it('auto-detects from provider', async () => {
-    const provider = { getContextWindowSize: vi.fn(async () => 32000) } as unknown as LlmProvider;
-    expect(await resolveMaxTokens(baseCfg, provider)).toBe(32000);
-  });
-
-  it('falls back to 8192 when provider returns undefined', async () => {
-    const provider = { getContextWindowSize: vi.fn(async () => undefined) } as unknown as LlmProvider;
-    expect(await resolveMaxTokens(baseCfg, provider)).toBe(8192);
   });
 });
 

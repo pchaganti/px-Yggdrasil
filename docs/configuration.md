@@ -44,7 +44,6 @@ reviewer:
         model: qwen3
         endpoint: http://localhost:11434
         temperature: 0
-        max_tokens: auto
 
 quality:
   max_direct_relations: 10
@@ -122,7 +121,6 @@ reviewer:
 | `config.model` | yes | Provider-specific model identifier |
 | `config.temperature` | no | Sampling temperature. Defaults to `0`. |
 | `config.endpoint` | required for `ollama`, `openai-compatible` | API endpoint URL |
-| `config.max_tokens` | no | Response budget. `auto` queries the provider. |
 | `config.timeout` | no | Per-call timeout in seconds. Defaults to `300`. Applies to CLI providers only (non-CLI/API providers ignore it). |
 | `config.context_length_field` | no | Ollama: model info field override for context length |
 

@@ -120,7 +120,6 @@ aspects:
         return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const };
       }),
       isAvailable: async () => true,
-      getContextWindowSize: async () => 8192,
     };
     mockCreate.mockReturnValue(spyProvider);
 

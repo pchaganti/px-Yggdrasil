@@ -46,7 +46,7 @@ export interface TestTypeInput {
 
 const EMPTY_CONFIG: YggConfig = {
   version: '5.0.0',
-  reviewer: { tiers: { default: { provider: 'ollama', model: 'test', temperature: 0, consensus: 1, max_tokens: 'auto' } }, default: 'default' },
+  reviewer: { tiers: { default: { provider: 'ollama', model: 'test', temperature: 0, consensus: 1 } }, default: 'default' },
 };
 
 export function buildTestGraph(input: {

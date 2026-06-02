@@ -113,7 +113,6 @@ export interface LlmConfig {
   api_key?: string;
   temperature: number;
   consensus: number;
-  max_tokens: number | 'auto';
   /** Ollama model_info key for context length (e.g. "qwen35.context_length"). Auto-detected if omitted. */
   context_length_field?: string;
   /** CLI providers: subprocess timeout in ms. Default: 120_000. */

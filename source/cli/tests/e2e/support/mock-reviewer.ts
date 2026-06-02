@@ -40,7 +40,7 @@ export type ChatReply =
 export interface MockReviewerOptions {
   /** Decide the reply per /api/chat call (receives the request and its 0-based index). Default: always satisfied. */
   respond?: (req: ChatRequest, callIndex: number) => ChatReply;
-  /** context_length returned by /api/show — drives chunking when the config sets no max_tokens. Default 32768. */
+  /** context_length returned by /api/show (legacy; no longer used for chunking). Default 32768. */
   contextWindow?: number;
   /** Whether /api/tags reports the model available. Default true. */
   available?: boolean;

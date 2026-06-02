@@ -120,7 +120,6 @@ describe('validator — reference size limits', () => {
           endpoint: 'http://x',
           temperature: 0,
           consensus: 1,
-          max_tokens: 'auto',
           references: refs,
         },
       },
@@ -189,7 +188,6 @@ describe('validator — reference size limits', () => {
           endpoint: 'http://x',
           temperature: 0,
           consensus: 1,
-          max_tokens: 'auto',
           // no references field → defaults apply
         },
       },

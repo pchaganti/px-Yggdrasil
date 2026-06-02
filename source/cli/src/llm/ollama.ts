@@ -9,13 +9,11 @@ export class OllamaProvider implements LlmProvider {
   private endpoint: string;
   private model: string;
   private temperature: number;
-  private contextLengthField?: string;
 
   constructor(config: LlmConfig) {
     this.endpoint = config.endpoint ?? 'http://localhost:11434';
     this.model = config.model;
     this.temperature = config.temperature;
-    this.contextLengthField = config.context_length_field;
   }
 
   async isAvailable(): Promise<boolean> {
@@ -25,27 +23,6 @@ export class OllamaProvider implements LlmProvider {
     } catch (err) {
       debugWrite(`[ollama] isAvailable: ${(err as Error).message}`);
       return false;
-    }
-  }
-
-  async getContextWindowSize(): Promise<number | undefined> {
-    try {
-      const res = await apiFetch(`${this.endpoint}/api/show`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: this.model }),
-      }, 'ollama', 5000);
-      if (!res.ok) return undefined;
-      const data = await res.json() as Record<string, unknown>;
-      const params = data.model_info as Record<string, unknown> | undefined;
-      if (!params) return undefined;
-      const key = this.contextLengthField
-        ?? Object.keys(params).find(k => k === 'context_length' || k.endsWith('.context_length'));
-      const ctxLength = key ? params[key] as number | undefined : undefined;
-      return ctxLength ?? undefined;
-    } catch (err) {
-      debugWrite(`[ollama] getContextWindowSize: ${(err as Error).message}`);
-      return undefined;
     }
   }
 

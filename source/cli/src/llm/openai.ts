@@ -44,7 +44,6 @@ export class OpenAIProvider implements LlmProvider {
   }
 
   async isAvailable(): Promise<boolean> { return !!this.apiKey; }
-  async getContextWindowSize(): Promise<number | undefined> { return undefined; }
 }
 
 registerProvider('openai', (c) => new OpenAIProvider(c));

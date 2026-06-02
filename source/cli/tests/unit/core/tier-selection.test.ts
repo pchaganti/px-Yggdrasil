@@ -7,14 +7,12 @@ const tierA: LlmConfig = {
   model: 'sonnet',
   temperature: 0,
   consensus: 1,
-  max_tokens: 'auto',
 };
 const tierB: LlmConfig = {
   provider: 'claude-code',
   model: 'opus',
   temperature: 0,
   consensus: 3,
-  max_tokens: 'auto',
 };
 
 function aspect(reviewer: { type: 'llm' | 'deterministic'; tier?: string }): AspectDef {

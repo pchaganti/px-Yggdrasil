@@ -4,9 +4,6 @@ export interface LlmProvider {
 
   /** Check if provider is available (binary on PATH / endpoint reachable) */
   isAvailable(): Promise<boolean>;
-
-  /** Query model context window size. Returns undefined if unknown. */
-  getContextWindowSize(): Promise<number | undefined>;
 }
 
 export interface AspectResponse {

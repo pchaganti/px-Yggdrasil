@@ -25,7 +25,6 @@ function captureProvider(captured: string[]): LlmProvider {
       return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const };
     }),
     isAvailable: async () => true,
-    getContextWindowSize: async () => 8192,
   } as unknown as LlmProvider;
 }
 

@@ -26,7 +26,7 @@ reviewer:                         # required — aspect verification configurati
         model: sonnet             # model id, provider-specific
         # endpoint: ""            # optional override
         # temperature: 0          # default 0
-        # max_tokens: auto        # 'auto' resolves via provider.getContextWindowSize()
+
         # timeout: 60             # optional, CLI providers
         # context_length_field: "" # optional, provider-specific
     deep:                         # second tier example
