@@ -17,11 +17,46 @@ export function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
 
   for (const aspect of graph.aspects) {
     const reviewer = aspect.reviewer.type;
-    if (reviewer !== 'deterministic' && reviewer !== 'llm') continue; // covered by enum check
 
     const aspectDir = path.join(projectRoot, '.yggdrasil', 'aspects', aspect.id);
     const hasContentMd = fileExistsSync(path.join(aspectDir, 'content.md'));
     const hasCheckMjs = fileExistsSync(path.join(aspectDir, 'check.mjs'));
+
+    // Aggregating aspect: ships NEITHER content.md NOR check.mjs and only bundles
+    // implied aspects. It carries no own reviewer or verdict.
+    if (reviewer === 'aggregate') {
+      if (hasContentMd || hasCheckMjs) {
+        const present = [hasContentMd ? 'content.md' : null, hasCheckMjs ? 'check.mjs' : null]
+          .filter((f): f is string => f !== null)
+          .join(' and ');
+        issues.push({
+          severity: 'error',
+          code: 'aspect-unexpected-rule-source',
+          rule: 'aspect-rule-sources',
+          ...issueMsg({
+            what: `Aspect '${aspect.id}' is an aggregating aspect (no reviewer.type declared, only implies) but ships ${present}.`,
+            why: `Aggregating aspects bundle implied aspects and have no own reviewer; a rule source here is never read.`,
+            next: `Remove .yggdrasil/aspects/${aspect.id}/${present} to keep it aggregating, or declare reviewer.type explicitly to make it an LLM/deterministic aspect.`,
+          }),
+        });
+      }
+      // An aggregate must actually bundle something — otherwise it does nothing.
+      if (!aspect.implies || aspect.implies.length === 0) {
+        issues.push({
+          severity: 'error',
+          code: 'aspect-empty',
+          rule: 'aspect-rule-sources',
+          ...issueMsg({
+            what: `Aspect '${aspect.id}' has no content.md, no check.mjs, and no implies — it does nothing.`,
+            why: `An aspect must ship a rule source (content.md or check.mjs) or aggregate others via implies; an empty aspect can never produce a verdict.`,
+            next: `Add a content.md (llm) or check.mjs (deterministic), or add 'implies:' to .yggdrasil/aspects/${aspect.id}/yg-aspect.yaml to bundle existing aspects.`,
+          }),
+        });
+      }
+      continue;
+    }
+
+    if (reviewer !== 'deterministic' && reviewer !== 'llm') continue; // covered by enum check
 
     if (hasContentMd && hasCheckMjs) {
       issues.push({

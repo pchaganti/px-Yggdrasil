@@ -24,7 +24,7 @@ import {
   buildCheckTouchedOwnerMap,
 } from './drift-cause.js';
 import { normalizeMappingPaths } from '../io/paths.js';
-import { computeEffectiveAspects, computeEffectiveAspectStatuses, hasNonDraftEffectiveAspects } from './graph/aspects.js';
+import { computeEffectiveAspects, computeEffectiveAspectStatuses, hasNonDraftEffectiveAspects, isAggregateAspect } from './graph/aspects.js';
 import { readTextFile, lstatFile } from '../io/graph-fs.js';
 import { createHash } from 'node:crypto';
 import { debugWrite } from '../utils/debug-log.js';
@@ -343,6 +343,10 @@ export async function approveNode(
     const statuses = computeEffectiveAspectStatuses(node, graph);
     for (const [aspectId, status] of statuses) {
       if (status === 'draft') continue;
+      // Aggregating aspects expect no verdict — exclude them exactly as
+      // check.ts does, so a verdict-less bundle is not mistaken for a
+      // newly-active aspect that needs re-approval.
+      if (isAggregateAspect(graph, aspectId)) continue;
       if (!storedEntry.aspectVerdicts[aspectId]) newlyActiveAspects.push(aspectId);
     }
   }

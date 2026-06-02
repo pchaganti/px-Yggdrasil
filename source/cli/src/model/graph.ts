@@ -176,7 +176,17 @@ export interface Artifact {
 // ============================================================
 
 export interface AspectReviewerSpec {
-  type: 'llm' | 'deterministic';
+  /**
+   * Reviewer kind. Inferred at parse time from rule-file presence and always
+   * populated on the in-memory model:
+   *   - 'llm'           — ships content.md (LLM reviewer reads it)
+   *   - 'deterministic' — ships check.mjs (local runner executes it)
+   *   - 'aggregate'     — ships neither; a content-less, check-less bundle that
+   *                       only `implies` other aspects. No own reviewer, no own
+   *                       verdict — downstream verdict-expecting paths must
+   *                       exclude it.
+   */
+  type: 'llm' | 'deterministic' | 'aggregate';
   /** Tier reference into ReviewerConfig.tiers; valid only when type === 'llm' */
   tier?: string;
 }

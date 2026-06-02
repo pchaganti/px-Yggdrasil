@@ -22,7 +22,7 @@ import { hashTrackedFiles } from '../io/hash.js';
 import { collectTrackedFiles, buildLayerResolver } from './graph/files.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import { validate } from './validator.js';
-import { computeEffectiveAspectStatuses, hasNonDraftEffectiveAspects, ImpliesCycleError } from './graph/aspects.js';
+import { computeEffectiveAspectStatuses, hasNonDraftEffectiveAspects, isAggregateAspect, ImpliesCycleError } from './graph/aspects.js';
 import { readTextFile, fileAccess } from '../io/graph-fs.js';
 import path from 'node:path';
 import { validateAppendOnly } from './log-integrity.js';
@@ -659,6 +659,10 @@ function emitPerAspectIssues(
   const storedVerdicts = baseline.aspectVerdicts;
   for (const [aspectId, status] of statuses) {
     if (status === 'draft') continue;
+    // Aggregating aspects carry no own verdict — they only bundle implied
+    // children (which appear in `statuses` on their own and are checked here).
+    // Skip so a verdict-less aggregate never surfaces as aspect-newly-active.
+    if (isAggregateAspect(graph, aspectId)) continue;
     const verdict = storedVerdicts[aspectId];
     if (!verdict) {
       const md = aspectNewlyActiveMessage({

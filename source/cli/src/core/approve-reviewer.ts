@@ -334,8 +334,14 @@ export async function runApproveWithReviewer(
 
   // Filter out effective-draft aspects before reviewer dispatch.
   // Draft aspects are dormant: no baseline, no drift, no reviewer call.
+  // Aggregating aspects (reviewer.type: aggregate) are ALSO excluded from
+  // dispatch — they ship neither content.md nor check.mjs, so there is nothing
+  // to send to a reviewer or run locally. Their implied children are already in
+  // `allAspects` (expanded via channel 7) and dispatch on their own.
   const statuses = computeEffectiveAspectStatuses(node, graph);
-  const nonDraft = allAspects.filter(a => statuses.get(a.id) !== 'draft');
+  const nonDraft = allAspects.filter(
+    a => statuses.get(a.id) !== 'draft' && a.reviewer.type !== 'aggregate',
+  );
   const skippedDraftAspects: string[] = allAspects
     .filter(a => statuses.get(a.id) === 'draft')
     .map(a => a.id);

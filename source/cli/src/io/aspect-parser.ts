@@ -1,5 +1,7 @@
 import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import { fileExistsSync } from './graph-fs.js';
 import type { AspectDef, AspectReviewerSpec, AspectStatus, StatusInherit } from '../model/graph.js';
 import { ASPECT_STATUS_VALUES } from '../model/graph.js';
 import type { IssueMessage } from '../model/validation.js';
@@ -86,7 +88,16 @@ export async function parseAspect(
 
   const description = typeof raw.description === 'string' ? raw.description.trim() : undefined;
 
-  const reviewerResult = parseReviewer(raw.reviewer, idTrimmed);
+  // Rule-file presence drives kind inference when `reviewer:` is absent. The
+  // parser knows the aspect directory, so it can detect sibling content.md /
+  // check.mjs. `hasImplies` is a coarse check (non-empty array) — the full
+  // implies parse happens later; here we only need it to recognize an
+  // aggregating aspect (neither file + implies).
+  const hasContentMd = fileExistsSync(path.join(aspectDir, 'content.md'));
+  const hasCheckMjs = fileExistsSync(path.join(aspectDir, 'check.mjs'));
+  const hasImplies = Array.isArray(raw.implies) && raw.implies.length > 0;
+
+  const reviewerResult = parseReviewer(raw.reviewer, idTrimmed, { hasContentMd, hasCheckMjs, hasImplies });
   if (!reviewerResult.ok) {
     return { ok: false, aspectId: idTrimmed, errors: reviewerResult.errors };
   }
@@ -208,6 +219,21 @@ export async function parseAspect(
             what: `Aspect '${idTrimmed}' declares 'references:' but reviewer.type is 'deterministic'.`,
             why: 'reference files are passed to the LLM reviewer in the prompt. Deterministic aspects run a local check.mjs and ignore them.',
             next: `remove 'references:' from .yggdrasil/aspects/${idTrimmed}/yg-aspect.yaml, or embed lookup tables in check.mjs directly, or change reviewer.type to 'llm'.`,
+          },
+        }],
+      };
+    }
+    // An aggregating aspect has no LLM reviewer prompt, so references go nowhere.
+    if (reviewer.type === 'aggregate') {
+      return {
+        ok: false,
+        aspectId: idTrimmed,
+        errors: [{
+          code: 'aspect-references-on-aggregate',
+          messageData: {
+            what: `Aspect '${idTrimmed}' declares 'references:' but it is an aggregating aspect (no content.md, no check.mjs).`,
+            why: 'reference files are passed to the LLM reviewer in the prompt. An aggregating aspect has no own reviewer — it only bundles implied aspects, so references would never be read.',
+            next: `remove 'references:' from .yggdrasil/aspects/${idTrimmed}/yg-aspect.yaml, or add a content.md and move the references onto that LLM aspect.`,
           },
         }],
       };
@@ -338,23 +364,50 @@ export async function parseAspect(
   };
 }
 
+interface RuleFileFacts {
+  hasContentMd: boolean;
+  hasCheckMjs: boolean;
+  hasImplies: boolean;
+}
+
 function parseReviewer(
   raw: unknown,
   aspectId: string,
+  files: RuleFileFacts,
 ):
   | { ok: true; value: AspectReviewerSpec }
   | { ok: false; errors: Array<{ code: string; messageData: IssueMessage }> }
 {
-  // Step 1: structural — return on first (these mean file is fundamentally wrong)
+  // Step 1: structural — when `reviewer:` is absent or null, INFER the kind from
+  // rule-file presence. This is the single inference point; the validator
+  // (checkAspectRuleSources) is the authority on file/type agreement once an
+  // aspect carries a populated reviewer.type.
+  //   - content.md present (no check.mjs)  → llm
+  //   - check.mjs present (no content.md)  → deterministic
+  //   - neither file, has implies          → aggregate (no own reviewer/verdict)
+  //   - neither file, no implies           → error (an aspect that does nothing)
+  //   - both files                         → cannot infer intent; defer the
+  //                                           mutual-exclusion verdict to the
+  //                                           validator, but error here because
+  //                                           the parser cannot pick a type.
   if (raw === undefined || raw === null) {
+    if (files.hasContentMd && !files.hasCheckMjs) {
+      return { ok: true, value: { type: 'llm' } };
+    }
+    if (files.hasCheckMjs && !files.hasContentMd) {
+      return { ok: true, value: { type: 'deterministic' } };
+    }
+    if (!files.hasContentMd && !files.hasCheckMjs && files.hasImplies) {
+      return { ok: true, value: { type: 'aggregate' } };
+    }
     return {
       ok: false,
       errors: [{
         code: 'aspect-reviewer-missing',
         messageData: {
-          what: `aspect '${aspectId}' has no reviewer: block (field absent or null)`,
-          why: 'every aspect must declare its reviewer explicitly (no implicit default)',
-          next: 'add `reviewer:\\n  type: llm` or `reviewer:\\n  type: deterministic`',
+          what: `aspect '${aspectId}' has no reviewer: block and no rule source to infer one from`,
+          why: 'an aspect must ship content.md (llm), check.mjs (deterministic), or declare implies (aggregating bundle); otherwise it does nothing',
+          next: 'add `reviewer:\\n  type: llm` with a content.md, add a check.mjs, or add `implies:` to make this an aggregating aspect',
         },
       }],
     };

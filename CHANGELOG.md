@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Aggregating aspect kind.** An aspect that ships neither `content.md` nor `check.mjs` but declares `implies:` is now a valid third kind — a content-less, check-less named bundle with no own reviewer and no own verdict. The reviewer kind is INFERRED from rule-file presence and normalized onto the in-memory model so `reviewer.type` is always one of `llm` / `deterministic` / `aggregate`: `content.md` ⇒ `llm`, `check.mjs` ⇒ `deterministic`, neither-file-with-`implies` ⇒ `aggregate`. An explicit `reviewer.type` (where present) still wins and must agree with the files (enforced by the validator). An aspect with neither file and no `implies` is rejected (`aspect-reviewer-missing` at parse, `aspect-empty` at validation) since it can never produce a verdict; an aggregate that ships a rule source is rejected (`aspect-unexpected-rule-source`); `references:` on an aggregate is rejected (`aspect-references-on-aggregate`). An aggregating aspect is effective on a node (so its implied children expand via the implies channel) but is excluded from every verdict-expecting path — it is never dispatched to a reviewer, never carried forward, and never surfaces as `aspect-newly-active`. This keeps individual aspects atomic (one `content.md` = one rule = one clean binary verdict) while letting a multi-rule contract decompose into one aggregating parent plus N atomic children.
+
 ## [5.0.0-alpha.1] - 2026-06-01
 
 First public prerelease of the 5.0.0 line. Published under the `alpha` dist-tag — `npm i @chrisdudek/yg` continues to resolve the stable release; this build is only installed by an explicit `@chrisdudek/yg@alpha` / `@5.0.0-alpha.1`.

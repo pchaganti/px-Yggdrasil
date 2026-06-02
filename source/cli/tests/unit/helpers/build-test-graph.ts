@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type {
   Graph, GraphNode, AspectDef, FlowDef, YggConfig, ArchitectureDef,
-  ArchitectureNodeType, AspectStatus, StatusInherit,
+  ArchitectureNodeType, AspectStatus, StatusInherit, AspectReviewerSpec,
 } from '../../../src/model/graph.js';
 
 // Tracks tmpdirs created by buildTestGraph so test suites can clean up via
@@ -23,6 +23,8 @@ export interface TestAspectInput {
   status?: AspectStatus;
   implies?: string[];
   impliesStatusInherit?: Record<string, StatusInherit>;
+  /** Override the reviewer spec. Defaults to { type: 'llm' }. Use { type: 'aggregate' } for bundle aspects. */
+  reviewer?: AspectReviewerSpec;
 }
 export interface TestNodeInput {
   path: string;
@@ -57,11 +59,18 @@ export function buildTestGraph(input: {
   config?: YggConfig;
   rootPath?: string;
 }): Graph {
-  const aspects: AspectDef[] = (input.aspects ?? []).map(a => ({
-    id: a.id, name: a.id, reviewer: { type: 'llm' },
-    artifacts: [{ filename: 'content.md', content: 'rule' }],
-    status: a.status, implies: a.implies, impliesStatusInherit: a.impliesStatusInherit,
-  } as AspectDef));
+  const aspects: AspectDef[] = (input.aspects ?? []).map(a => {
+    const reviewer: AspectReviewerSpec = a.reviewer ?? { type: 'llm' };
+    // Aggregate aspects ship neither content.md nor check.mjs.
+    const artifacts = reviewer.type === 'aggregate'
+      ? []
+      : [{ filename: 'content.md', content: 'rule' }];
+    return {
+      id: a.id, name: a.id, reviewer,
+      artifacts,
+      status: a.status, implies: a.implies, impliesStatusInherit: a.impliesStatusInherit,
+    } as AspectDef;
+  });
 
   const nodeByPath = new Map<string, GraphNode>();
   for (const n of input.nodes ?? []) {

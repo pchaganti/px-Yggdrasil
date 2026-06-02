@@ -1,6 +1,6 @@
 import type { Graph, GraphNode } from '../model/graph.js';
 import type { ApproveResult, AspectVerdict, AspectVerificationResult } from '../model/drift.js';
-import { computeEffectiveAspectStatuses } from './graph/aspects.js';
+import { computeEffectiveAspectStatuses, isAggregateAspect } from './graph/aspects.js';
 
 /**
  * Build per-aspect verdicts from reviewer results.
@@ -24,6 +24,10 @@ export function buildAspectVerdicts(
   const carryForward: string[] = [];
   for (const [aspectId, status] of statuses) {
     if (status === 'draft') continue;
+    // Aggregating aspects have no own reviewer/verdict — they only bundle
+    // implied children (already in `statuses` via channel 7). Skip so the
+    // aggregate never lands in carryForward nor self-reports as newly-active.
+    if (isAggregateAspect(graph, aspectId)) continue;
     const res = allAspectResults[aspectId];
     if (res === undefined) {
       // Effective non-draft aspect with no reviewer result this run.
@@ -56,8 +60,12 @@ export function reviewerAborted(
 ): boolean {
   if (Object.keys(allAspectResults).length > 0) return false;
   const statuses = computeEffectiveAspectStatuses(node, graph);
-  for (const s of statuses.values()) {
-    if (s !== 'draft') return true;
+  for (const [aspectId, s] of statuses) {
+    if (s === 'draft') continue;
+    // Aggregating aspects expect no reviewer result, so their presence does not
+    // imply the reviewer aborted.
+    if (isAggregateAspect(graph, aspectId)) continue;
+    return true;
   }
   return false;
 }

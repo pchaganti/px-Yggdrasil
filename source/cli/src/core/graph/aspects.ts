@@ -367,8 +367,23 @@ function attachmentMachineOrigin(att: Attachment, node: GraphNode): string {
  */
 export function hasNonDraftEffectiveAspects(node: GraphNode, graph: Graph): boolean {
   const statuses = computeEffectiveAspectStatuses(node, graph);
-  for (const s of statuses.values()) {
-    if (s !== 'draft') return true;
+  for (const [aspectId, s] of statuses) {
+    if (s === 'draft') continue;
+    if (isAggregateAspect(graph, aspectId)) continue;
+    return true;
   }
   return false;
+}
+
+/**
+ * An aggregating aspect (`reviewer.type === 'aggregate'`) is a content-less,
+ * check-less bundle that only `implies` other aspects. It is EFFECTIVE on a node
+ * (so its implied children expand via channel 7) but has NO own reviewer and NO
+ * own verdict. Every verdict-expecting path — buildAspectVerdicts, the
+ * newly-active detection in approve, and the per-aspect emission in check — must
+ * exclude it; otherwise, being effective + non-draft with no reviewer result, it
+ * would be carried forward or flagged as aspect-newly-active and block CI.
+ */
+export function isAggregateAspect(graph: Graph, aspectId: string): boolean {
+  return graph.aspects.find(a => a.id === aspectId)?.reviewer.type === 'aggregate';
 }
