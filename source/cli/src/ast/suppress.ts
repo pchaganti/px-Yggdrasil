@@ -124,3 +124,62 @@ export function isLineSuppressed(ranges: SuppressedRange[], aspectId: string, li
     return r.isWildcard || r.aspectIds.has(aspectId);
   });
 }
+
+// ── Raw line scanner (no tree-sitter) ────────────────────────
+
+export interface SuppressionMarkerInfo {
+  line: number;       // 1-based
+  aspectId: string;   // single aspect id (one entry per aspect per marker)
+  kind: 'single' | 'disable' | 'enable';
+  wildcard: boolean;
+  reason: string;
+}
+
+/**
+ * Language-agnostic raw-line scan for yg-suppress markers.
+ * Reuses the existing regex constants — no tree-sitter required.
+ * Emits one SuppressionMarkerInfo entry per (line × aspectId) combination.
+ * Skips lines where no marker regex matches.
+ */
+export function scanSuppressionMarkers(text: string): SuppressionMarkerInfo[] {
+  const lines = text.split('\n');
+  const result: SuppressionMarkerInfo[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const lineNum = i + 1;
+    const raw = lines[i];
+
+    let m: RegExpMatchArray | null;
+
+    m = raw.match(RE_DISABLE);
+    if (m) {
+      const ids = splitAspectList(m[1]);
+      const reason = (m[2] ?? '').trim();
+      for (const id of ids) {
+        result.push({ line: lineNum, aspectId: id, kind: 'disable', wildcard: id === '*', reason });
+      }
+      continue;
+    }
+
+    m = raw.match(RE_ENABLE);
+    if (m) {
+      const ids = splitAspectList(m[1]);
+      for (const id of ids) {
+        result.push({ line: lineNum, aspectId: id, kind: 'enable', wildcard: id === '*', reason: '' });
+      }
+      continue;
+    }
+
+    m = raw.match(RE_SINGLE);
+    if (m) {
+      const ids = splitAspectList(m[1]);
+      const reason = (m[2] ?? '').trim();
+      for (const id of ids) {
+        result.push({ line: lineNum, aspectId: id, kind: 'single', wildcard: id === '*', reason });
+      }
+      continue;
+    }
+  }
+
+  return result;
+}
