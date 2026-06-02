@@ -763,6 +763,97 @@ describe('runApproveWithReviewer — AST error paths', () => {
   });
 });
 
+// ── Fail-closed on zero readable source files (fix 1c) ──────────────────────
+//
+// FAIL-CLOSED (#2c): when a node has at least one effective non-draft LLM
+// aspect but the resolved source-file set is empty, approve must refuse
+// (infra, no baseline written). Deterministic-only or zero-aspect nodes
+// with no files are unaffected and still approve.
+
+describe('runApproveWithReviewer — zero source files with LLM aspect', () => {
+  it('fails closed (infra, no baseline) when an LLM aspect is effective but no source files exist', async () => {
+    // Node has a mapping pattern but NO files on disk — sourceFilePaths will be empty.
+    const { tmpDir } = await createTmpProject('zero-src-llm', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - deterministic\nmapping:\n  - src/svc/\n',
+      // NO mappingFiles — the src/svc/ directory will not exist
+      aspects: [{
+        id: 'deterministic',
+        yaml: ASPECT_YAML,
+        files: { 'content.md': 'Code must be deterministic.\n' },
+      }],
+    });
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    // coreResult must be non-refused for the reviewer to be reached
+    expect(coreResult.action).not.toBe('refused');
+
+    // No baseline exists before this call
+    const baselineBefore = await readNodeDriftState(graph.rootPath, 'svc/my-service');
+    expect(baselineBefore).toBeUndefined();
+
+    const result = await runApproveWithReviewer({
+      graph,
+      nodePath: 'svc/my-service',
+      result: coreResult,
+      rootPath: graph.rootPath,
+      secretsByProvider: new Map(),
+    });
+
+    // Must refuse (infra) — reviewer never saw the code
+    expect(result.action).toBe('refused');
+    // The llmSkipped flag signals infrastructure, not a code violation
+    expect(result.llmSkipped).toBe('unavailable');
+    // refuseReasonData must be present and infra-style (what/why/next)
+    expect(result.refuseReasonData).toBeDefined();
+    expect(result.refuseReasonData!.what).toBeTruthy();
+    expect(result.refuseReasonData!.why).toBeTruthy();
+    expect(result.refuseReasonData!.next).toBeTruthy();
+
+    // Fail-closed: NO baseline must have been written
+    const storedAfter = await readNodeDriftState(graph.rootPath, 'svc/my-service');
+    expect(storedAfter).toBeUndefined();
+
+    // The LLM provider must never have been constructed
+    expect(mockCreateLlmProvider).not.toHaveBeenCalled();
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('approves cleanly when a deterministic-only node has no source files', async () => {
+    const DET_ASPECT_YAML = 'name: StructCheck\ndescription: Structure check\nreviewer:\n  type: deterministic\n';
+    const { tmpDir } = await createTmpProject('zero-src-det', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\naspects:\n  - struct-check\nmapping:\n  - src/svc/\n',
+      // NO mappingFiles — src/svc/ directory will not exist
+      aspects: [{
+        id: 'struct-check',
+        yaml: DET_ASPECT_YAML,
+        files: { 'check.mjs': 'export function check(ctx) { return []; }' },
+      }],
+    });
+
+    const graph = await loadGraph(tmpDir);
+    const coreResult = await approveNode(graph, 'svc/my-service');
+    expect(coreResult.action).not.toBe('refused');
+
+    const result = await runApproveWithReviewer({
+      graph,
+      nodePath: 'svc/my-service',
+      result: coreResult,
+      rootPath: graph.rootPath,
+      secretsByProvider: new Map(),
+    });
+
+    // Deterministic-only: must NOT be blocked by the zero-source guard
+    expect(result.action).not.toBe('refused');
+    expect(mockCreateLlmProvider).not.toHaveBeenCalled();
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+});
+
 describe('runApproveWithReviewer — additional coverage', () => {
   // FAIL-CLOSED (#2): a configured reviewer whose availability check fails is an
   // infrastructure failure, not a code PASS. It must refuse and leave the prior

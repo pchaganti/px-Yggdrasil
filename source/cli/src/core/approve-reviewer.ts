@@ -420,6 +420,26 @@ export async function runApproveWithReviewer(
     .filter(f => !f.startsWith(yggPrefix));
   const sourceFiles = await loadSourceFiles(sourceFilePaths, projectRoot);
 
+  // FAIL-CLOSED (#2c): LLM aspects require readable source files — the reviewer
+  // must see the code it is verifying. When the resolved source-file set is empty
+  // but the node has at least one effective non-draft LLM aspect, approving would
+  // record a verdict over code the reviewer never saw. Refuse (infra, no commit)
+  // so drift stays visible. Deterministic aspects legitimately operate on graph
+  // shape, so this guard is conditioned on LLM aspects only.
+  if (hasLlmAspects && sourceFilePaths.length === 0) {
+    const llmIds = filtered.filter(a => a.reviewer.type === 'llm').map(a => a.id).join(', ');
+    const normalizedNodePath = toPosixPath(nodePath);
+    return finalizeAndReturn({
+      action: 'refused',
+      llmSkipped: 'unavailable',
+      refuseReasonData: {
+        what: `No readable source files found for node '${normalizedNodePath}', but it has effective non-draft LLM aspect(s): ${llmIds}.`,
+        why: 'An LLM aspect needs source files to verify — approving with no files would record a verdict over code the reviewer never saw.',
+        next: `Add source files that satisfy the node mapping, or remove the LLM aspect(s), then re-run: yg approve --node ${normalizedNodePath}`,
+      },
+    }, true);
+  }
+
   const nodeDescription = node.meta.description ?? '';
 
   // Resolve execution plan. With no reviewer configured, only the deterministic
