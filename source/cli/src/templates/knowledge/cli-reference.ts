@@ -143,6 +143,24 @@ Use \`--reason-file <path>\` instead of \`--reason\` to supply multi-line entry
 content from a file. On \`yg log read\`, \`--top\` and \`--all\` are mutually
 exclusive — you cannot combine them.
 
+## yg suppressions
+
+Read-only inventory of all active \`yg-suppress\` markers in the repository's
+source files. Lists each marker's aspect path, location, reason, and kind
+(single-line, bracket, or wildcard). Exits 0 always — it is a read-only
+inspection tool.
+
+\`\`\`bash
+yg suppressions
+\`\`\`
+
+Emits non-blocking warnings for:
+- **Unknown aspect-id** — the aspect path in the marker does not match any known aspect.
+- **Wildcard suppress** (\`*\`) — suppresses all aspects in range; any aspect added later is also silently waived.
+- **Unbounded range** — a \`yg-suppress-disable\` marker with no matching \`yg-suppress-enable\`; the suppression extends to end of file.
+
+Use \`yg suppressions\` to audit accumulated waivers before a release or a new aspect rollout. It does not affect \`yg check\` or any baseline.
+
 ## yg type-suggest
 
 Suggest which node_type a file fits based on architecture \`when\` predicates.

@@ -1,11 +1,12 @@
 # Aspect Reviewers
 
-Aspects are verified by reviewers. Yggdrasil ships two reviewer types — both operate on the same aspect-node-flow graph; the `reviewer` field in `yg-aspect.yaml` selects which one runs.
+Aspects are verified by reviewers. Yggdrasil ships three reviewer kinds — all operate on the same aspect-node-flow graph; the kind is inferred from which rule source file is present in the aspect directory.
 
-- **LLM reviewer** (`reviewer: { type: llm }`): ships a `content.md` rule file. An LLM reads the rule and the node's source code, then accepts or rejects.
-- **Deterministic reviewer** (`reviewer: { type: deterministic }`): ships a `check.mjs` module run by a deterministic runner at zero LLM cost. The check returns a `Violation[]` — no LLM, no nondeterminism, no per-call cost. It can inspect a single file's tree-sitter parse tree (`file.ast`) for per-file syntactic rules, or read the graph (the node's own files, related nodes' files, the file system, and graph metadata) for cross-node and structural rules a single-file check cannot express. See `yg knowledge read writing-deterministic-aspects`.
+- **LLM reviewer** (inferred when `content.md` is present): ships a `content.md` rule file. An LLM reads the rule and the node's source code, then accepts or rejects.
+- **Deterministic reviewer** (inferred when `check.mjs` is present): ships a `check.mjs` module run by a deterministic runner at zero LLM cost. The check returns a `Violation[]` — no LLM, no nondeterminism, no per-call cost. It can inspect a single file's tree-sitter parse tree (`file.ast`) for per-file syntactic rules, or read the graph (the node's own files, related nodes' files, the file system, and graph metadata) for cross-node and structural rules a single-file check cannot express. See `yg knowledge read writing-deterministic-aspects`.
+- **Aggregating aspect** (inferred when neither rule source is present but `implies:` is declared): a content-less, check-less named bundle. It has no own reviewer and produces no own verdict. When effective on a node, it expands its `implies:` list and each implied aspect is verified individually. Use it to attach a multi-rule contract as one named entry point backed by N atomic child aspects.
 
-A `content.md` (LLM) and a `check.mjs` (deterministic) are mutually exclusive — exactly one must be present per aspect, and `reviewer.type` selects which runner consumes the `check.mjs`. `yg check` enforces this. Deterministic aspects run locally at zero LLM cost.
+The `reviewer:` block in `yg-aspect.yaml` is **optional** — kind is inferred automatically. If present, an explicit `reviewer.type` must agree with the inferred kind; `yg check` enforces this. A `content.md` and a `check.mjs` are mutually exclusive on the same aspect. An aspect with neither rule source and no `implies:` is rejected. Deterministic aspects run locally at zero LLM cost.
 
 ---
 
@@ -18,13 +19,13 @@ A `content.md` (LLM) and a `check.mjs` (deterministic) are mutually exclusive �
 
 If a programmatic check can decide the rule — a regex or AST traversal over a single file, or a graph-aware check spanning multiple files and the file system — use the deterministic reviewer. If a human reviewer would need to read surrounding context to decide, use LLM. The deterministic reviewer runs locally at zero LLM cost; only the LLM reviewer makes paid calls.
 
-`reviewer.type` is **required** on every aspect — there is no implicit default. LLM aspects may also declare `reviewer.tier:` to opt into a specific tier from `yg-config.yaml` — see [Reviewer tiers](./configuration.md#reviewer-tiers) for tier configuration.
+The `reviewer:` block is **optional** — reviewer kind is inferred from rule-file presence (`content.md` → LLM, `check.mjs` → deterministic, neither + `implies:` → aggregate). Declare a `reviewer:` block only when you need to set `reviewer.tier:` on an LLM aspect. If you do declare a `reviewer.type`, it must agree with the inferred kind. LLM aspects may declare `reviewer.tier:` to opt into a specific tier from `yg-config.yaml` — see [Reviewer tiers](./configuration.md#reviewer-tiers) for tier configuration.
 
 ---
 
 ## LLM reviewer
 
-The LLM reviewer is a separate LLM call from the coding agent — one LLM verifying the work of another. `yg approve` sends each aspect's `content.md` plus the relevant source files to the reviewer. The LLM reviewer also receives any reference files declared on the aspect, presented as authoritative context (not under review). The reviewer responds with SATISFIED or NOT SATISFIED per aspect. Each effective non-draft LLM aspect on a node costs at least one reviewer call during `yg approve`, multiplied by the tier's consensus count and by the number of prompt chunks.
+The LLM reviewer is a separate LLM call from the coding agent — one LLM verifying the work of another. `yg approve` sends each aspect's `content.md` plus all source files of the node to the reviewer in a single prompt. The LLM reviewer also receives any reference files declared on the aspect, presented as authoritative context (not under review). The reviewer responds with SATISFIED or NOT SATISFIED per aspect. Each effective non-draft LLM aspect on a node costs at least one reviewer call during `yg approve`, multiplied by the tier's consensus count.
 
 **Effective-draft aspects are skipped before dispatch.** When an aspect's effective status on a node is `draft`, `yg approve` prints a skip line and never sends the rule to the reviewer — zero cost, zero verdict. Aspects with effective status `advisory` or `enforced` go through the reviewer normally; the level only changes how a refused verdict surfaces in `yg check` (warning vs. error). See [Aspect Status](/aspect-status) for the lifecycle.
 

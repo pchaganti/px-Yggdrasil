@@ -15,16 +15,35 @@ name: CrossCuttingRequirementName  # required — display name
 description: "Short description"   # required — shown in yg aspects output and context packages.
                                    # Validator emits description-missing if absent.
 
-reviewer:                          # required — which reviewer verifies this aspect
-  type: llm                        #   required: 'llm' or 'deterministic'
-                                   #     llm           — aspect ships content.md; an LLM reads it and judges the code.
-                                   #     deterministic — aspect ships check.mjs; the structure runner executes it
-                                   #                     locally with graph-aware ctx (files, fs, graph, parsers).
-                                   #                     Language-agnostic. No LLM call, zero token cost.
-  # tier: deep                     #   optional, only when type: llm.
+# reviewer:                        # OPTIONAL — reviewer kind is inferred from rule-file presence:
+                                   #
+                                   #   content.md present          → llm
+                                   #   check.mjs present           → deterministic
+                                   #   neither + implies declared  → aggregate
+                                   #
+                                   # The reviewer: block is only required when you need to declare
+                                   # reviewer.tier: for an LLM aspect. When present, an explicit
+                                   # reviewer.type must agree with the inferred kind (validator
+                                   # error otherwise).
+                                   #
+                                   # Three kinds:
+                                   #   llm           — aspect ships content.md; an LLM reads it and
+                                   #                   judges the code against the rule.
+                                   #   deterministic — aspect ships check.mjs; the runner executes it
+                                   #                   locally with graph-aware ctx (files, fs, graph,
+                                   #                   parsers). Language-agnostic. No LLM call, zero
+                                   #                   token cost.
+                                   #   aggregate     — aspect ships neither rule source but declares
+                                   #                   implies:. A named bundle — expands its implied
+                                   #                   aspects onto every node where effective. Has no
+                                   #                   own reviewer and produces no own verdict. An
+                                   #                   aspect with neither rule source and no implies:
+                                   #                   is rejected (aspect-empty).
+  # type: llm                      #   optional; must be 'llm', 'deterministic', or 'aggregate' if set.
+  # tier: deep                     #   optional, only when type: llm (or inferred llm).
                                    #     If omitted, the aspect uses reviewer.default from yg-config.yaml.
                                    #     If present, must reference a key under reviewer.tiers in the config.
-                                   #     Forbidden when type is 'deterministic'.
+                                   #     Forbidden when type is 'deterministic' or 'aggregate'.
 
 status: enforced                   # optional — aspect-level default. enum: draft | advisory | enforced.
                                    # Absent → 'enforced'.

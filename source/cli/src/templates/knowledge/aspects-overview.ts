@@ -1,4 +1,4 @@
-export const summary = 'What aspects are, when to create, LLM vs deterministic reviewer choice, cost model';
+export const summary = 'What aspects are, when to create, LLM vs deterministic vs aggregating reviewer choice, cost model';
 
 export const content = `# Aspects overview
 
@@ -38,12 +38,33 @@ While the rule is still being authored or is unclear, give the aspect
 \`status: draft\` — a draft aspect is WIP, so the reviewer never runs on it
 and it costs zero.
 
-## LLM vs deterministic
+## Three reviewer kinds
 
-Two reviewer types exist: LLM and deterministic. The deterministic reviewer runs
-\`check.mjs\` locally — it covers both per-file syntactic rules
-(single-file style) and cross-node graph-shape rules (graph-aware style), all in
-one reviewer. LLM and deterministic each have a distinct sweet spot.
+Three reviewer kinds exist: LLM, deterministic, and aggregating. The kind is
+**inferred** from which rule source file is present in the aspect directory:
+\`content.md\` → LLM; \`check.mjs\` → deterministic; neither file but \`implies:\`
+declared → aggregating. The \`reviewer:\` block in \`yg-aspect.yaml\` is optional;
+if present, an explicit \`reviewer.type\` must agree with the inferred kind.
+
+### Aggregating aspects
+
+An aggregating aspect ships neither \`content.md\` nor \`check.mjs\`. It exists
+purely to bundle other aspects under one named attach point. When an aggregating
+aspect is effective on a node, all aspects in its \`implies:\` list are expanded
+and verified individually. The aggregate itself has no own reviewer and produces
+no own verdict. It never dispatches to an LLM and never runs \`check.mjs\`.
+
+Use aggregating aspects to decompose a multi-rule contract: attach the aggregate
+once (per node, per flow, per architecture type) and let each implied child carry
+one concrete, independently-verdicted rule. An aspect with neither rule source
+and no \`implies:\` is rejected by the validator.
+
+### LLM and deterministic sweet spots
+
+The deterministic reviewer runs \`check.mjs\` locally — it covers both per-file
+syntactic rules (single-file style) and cross-node graph-shape rules
+(graph-aware style), all in one reviewer. LLM and deterministic each have a
+distinct sweet spot.
 
 \`check.mjs\` runs in the main Node process with full privileges — there is no
 security sandbox. The graph-aware allow-list (below) is a read *discipline* that
@@ -110,10 +131,12 @@ To author a \`check.mjs\` (both single-file and graph-aware styles):
 ## Cost model
 
 Every effective non-draft LLM aspect on a node = at least one reviewer call
-during \`yg approve\`, multiplied by the tier's consensus count AND by the
-number of prompt chunks. Deterministic aspects run locally at zero LLM
-cost. A node with 5 LLM aspects = at least 5 reviewer calls. An LLM aspect
-touching 20 nodes = at least 20 calls when you run \`yg approve --aspect <id>\`.
+during \`yg approve\`, multiplied by the tier's consensus count. The reviewer
+always sends the full node in a single prompt — there is no chunking.
+Deterministic aspects run locally at zero LLM cost. Aggregating aspects have no
+own reviewer call. A node with 5 LLM aspects = at least 5 reviewer calls. An LLM
+aspect touching 20 nodes = at least 20 calls when you run
+\`yg approve --aspect <id>\`.
 
 Use \`yg impact --aspect <id>\` before creating or modifying a widely-used
 aspect to assess the re-approval cost.
