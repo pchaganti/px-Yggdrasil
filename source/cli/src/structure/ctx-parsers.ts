@@ -8,6 +8,7 @@ import type { ParseCache } from '../ast/parse-cache.js';
 import { getLanguageForExtension } from '../core/graph/language-registry.js';
 import { resolveAllowedReadPath } from './ctx-fs.js';
 import type { File } from './types.js';
+import type { Node as SyntaxNode } from 'web-tree-sitter';
 
 export interface CtxParsersParams {
   allowedSet: Set<string>;
@@ -35,6 +36,21 @@ export class ParseAstNotPrewarmedError extends Error {
   }
 }
 
+/**
+ * Thrown by ctx.parseAst when the requested file's AST has a syntax error
+ * (rootNode.hasError). The runner converts this to a StructureRunnerError
+ * (fail-closed / checkRuntime disposition) — symmetric with the AST runner.
+ */
+export class ParseAstSyntaxError extends Error {
+  constructor(
+    public readonly filePath: string,
+    public readonly errorLine: number,
+  ) {
+    super(`structure-aspect-parseast-syntax-error: ${filePath} has a syntax error at line ${errorLine}.`);
+    this.name = 'ParseAstSyntaxError';
+  }
+}
+
 export function createCtxParsers(params: CtxParsersParams): CtxParsers {
   const { allowedSet, projectRoot, touchedFiles, astCache } = params;
 
@@ -55,7 +71,17 @@ export function createCtxParsers(params: CtxParsersParams): CtxParsers {
       void language;
       const f = asFile(file);
       const cached = astCache.get(f.path);
-      if (cached && cached.content === f.content) return cached.ast;
+      if (cached && cached.content === f.content) {
+        // Fix 3c: fail closed on parse errors — a partial tree on a syntax-error
+        // file can cause a false PASS, which is worse than a false FAIL. Throw
+        // ParseAstSyntaxError so the runner converts it to a StructureRunnerError
+        // (checkRuntime / fail-closed disposition) — symmetric with AstRunnerError.
+        if (cached.ast.rootNode.hasError) {
+          const err = findFirstErrorNodeInTree(cached.ast.rootNode);
+          throw new ParseAstSyntaxError(f.path, (err?.startPosition.row ?? 0) + 1);
+        }
+        return cached.ast;
+      }
       throw new ParseAstNotPrewarmedError(f.path);
     },
     parseYaml(file) { return parseYaml(asFile(file).content); },
@@ -98,4 +124,13 @@ export function enrichFilesWithAst(files: File[], astCache: ParseCache): File[] 
     const ast = cached && cached.content === f.content ? cached.ast : undefined;
     return { ...f, ast, language };
   });
+}
+
+function findFirstErrorNodeInTree(node: SyntaxNode): SyntaxNode | null {
+  if (node.isError) return node;
+  for (const child of node.children) {
+    const found = findFirstErrorNodeInTree(child);
+    if (found) return found;
+  }
+  return null;
 }

@@ -4,9 +4,10 @@ import { pathToFileURL } from 'node:url';
 import { ensureLoaderRegistered } from '../ast/loader-hook.js';
 import { createCtxFs, UndeclaredFsReadError } from './ctx-fs.js';
 import { createCtxGraph, UndeclaredGraphReadError } from './ctx-graph.js';
-import { createCtxParsers, prewarmupAstCache, enrichFilesWithAst, ParseAstNotPrewarmedError } from './ctx-parsers.js';
+import { createCtxParsers, prewarmupAstCache, enrichFilesWithAst, ParseAstNotPrewarmedError, ParseAstSyntaxError } from './ctx-parsers.js';
 import { collectAllowedReadsForAspect } from './allowed-reads.js';
-import { normalizeMappingPath } from './expand-mapping-sync.js';
+import { normalizeMappingPath, isPathInMapping } from './expand-mapping-sync.js';
+import { expandMappingPaths } from '../io/hash.js';
 import { collectSuppressions, isLineSuppressed } from '../ast/suppress.js';
 import type { SuppressedRange } from '../ast/suppress.js';
 import { validateCheckModuleExport } from '../utils/validate-check-module.js';
@@ -14,6 +15,7 @@ import type { Graph, GraphNode as ModelNode } from '../model/graph.js';
 import type { Ctx, Violation, File, Port } from './types.js';
 import type { ParseCache } from '../ast/parse-cache.js';
 import type { IssueMessage } from '../model/validation.js';
+import type { Node as SyntaxNode } from 'web-tree-sitter';
 
 export interface RunStructureAspectParams {
   aspectDir: string;
@@ -42,75 +44,69 @@ export class StructureRunnerError extends Error {
   }
 }
 
-function buildOwnFiles(node: ModelNode, projectRoot: string, touchedFiles: string[]): File[] {
-  const childMappings = new Set<string>();
+/** Binary extensions whose content is never meaningful to a deterministic check. */
+const BINARY_EXTENSIONS = new Set([
+  '.gif', '.png', '.jpg', '.jpeg', '.webp', '.bmp', '.ico', '.svgz',
+  '.woff', '.woff2', '.ttf', '.otf', '.eot',
+  '.zip', '.gz', '.tgz', '.tar', '.bz2', '.7z',
+  '.pdf', '.mp4', '.mov', '.webm', '.mp3', '.wav', '.wasm', '.bin',
+]);
+
+/**
+ * Expand the node's own mapping to a flat list of readable text files.
+ * Directory entries are expanded recursively via the gitignore-aware
+ * expandMappingPaths helper (same function used by the node-size budget and
+ * build-context), so ctx.files exactly matches what the LLM path sees.
+ * Files owned by descendant (child) nodes are carved out so a child's
+ * aspects apply to those files, not the parent's.
+ * Binary files (by extension) and unreadable files are silently skipped.
+ */
+async function buildOwnFiles(node: ModelNode, projectRoot: string, touchedFiles: string[]): Promise<File[]> {
+  // Collect all mapping entries from child nodes — we exclude any file that falls
+  // under a child's mapping (file-or-directory) to preserve the child-wins model.
+  const childMappingEntries: string[] = [];
   for (const child of node.children) {
     for (const raw of child.meta.mapping ?? []) {
       const p = normalizeMappingPath(raw);
-      if (p) childMappings.add(p);
+      if (p) childMappingEntries.push(p);
     }
   }
+
+  const rawMapping = (node.meta.mapping ?? [])
+    .map(normalizeMappingPath)
+    .filter((p): p is string => p !== '');
+
+  // Expand directories to constituent files (gitignore-aware).
+  const expanded = await expandMappingPaths(projectRoot, rawMapping);
+
   const result: File[] = [];
-  for (const raw of node.meta.mapping ?? []) {
-    const p = normalizeMappingPath(raw);
-    if (!p || childMappings.has(p)) continue;
+  for (const p of expanded) {
+    // Carve out files owned by descendant nodes.
+    if (childMappingEntries.length > 0 && isPathInMapping(p, childMappingEntries)) continue;
+    // Skip binary files by extension.
+    if (BINARY_EXTENSIONS.has(path.extname(p).toLowerCase())) continue;
     const abs = path.resolve(projectRoot, p);
+    let content: string;
     try {
-      const stat = fs.statSync(abs);
-      // Materializes ONLY explicit-file mapping entries; DIRECTORY mappings
-      // yield no own-files, so a deterministic aspect on a directory-only-mapped
-      // node sees an empty ctx.files — map explicit files, or a future phase may
-      // add directory expansion via enumerateMappedFilesSync/walkDirSync (already
-      // used for AST prewarming).
-      if (stat.isFile()) {
-        const content = fs.readFileSync(abs, 'utf8');
-        result.push({ path: p, content });
-        touchedFiles.push(p);
-      }
-    } catch {/* skip */}
+      content = fs.readFileSync(abs, 'utf8');
+    } catch {
+      continue; // unreadable — skip
+    }
+    result.push({ path: p, content });
+    touchedFiles.push(p);
   }
   return result;
 }
 
 /**
- * Sync mapping path enumeration for prewarmup. Reads from the filesystem.
- * Mapping entries may be files or directories; for a directory entry, we
- * walk it recursively to collect all files.
+ * Async mapping path enumeration for prewarmup. Mapping entries may be files
+ * or directories; directories are expanded via expandMappingPaths (gitignore-aware).
  */
-function enumerateMappedFilesSync(mappingPaths: string[], projectRoot: string): string[] {
-  const out: string[] = [];
-  for (const raw of mappingPaths) {
-    const rel = normalizeMappingPath(raw);
-    if (!rel) continue;
-    const abs = path.resolve(projectRoot, rel);
-    try {
-      const stat = fs.statSync(abs);
-      if (stat.isFile()) {
-        out.push(rel);
-      } else if (stat.isDirectory()) {
-        for (const sub of walkDirSync(abs)) {
-          // Convert absolute back to repo-relative POSIX
-          const relSub = path.relative(projectRoot, sub).split(/[\\/]/).join('/');
-          out.push(relSub);
-        }
-      }
-    } catch {/* skip missing */}
-  }
-  return out;
-}
-
-function* walkDirSync(dir: string): Generator<string> {
-  let entries: fs.Dirent[];
-  try {
-    entries = fs.readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const e of entries) {
-    const child = path.join(dir, e.name);
-    if (e.isDirectory()) yield* walkDirSync(child);
-    else if (e.isFile()) yield child;
-  }
+async function enumerateMappedFilesAsync(mappingPaths: string[], projectRoot: string): Promise<string[]> {
+  const normalized = mappingPaths
+    .map(normalizeMappingPath)
+    .filter((p): p is string => p !== '');
+  return expandMappingPaths(projectRoot, normalized);
 }
 
 export async function runStructureAspect(
@@ -158,9 +154,25 @@ export async function runStructureAspect(
   const ctxGraph = createCtxGraph({ currentNodePath: nodePath, graph, projectRoot, touchedFiles });
   const parsers = createCtxParsers({ allowedSet, projectRoot, touchedFiles, astCache });
 
-  const ownFiles = buildOwnFiles(node, projectRoot, touchedFiles);
+  const ownFiles = await buildOwnFiles(node, projectRoot, touchedFiles);
   // Eagerly parse own-mapping files so ctx.files carry .ast + .language (AST-aspect parity).
   await prewarmupAstCache({ astCache, projectRoot, files: ownFiles });
+
+  // Fix 3c: fail closed if any own-mapping file has a tree-sitter parse error.
+  // A partial tree on a syntax-error file can cause a false PASS — treat it as
+  // an infrastructure problem (checkRuntime disposition) symmetric with AstRunnerError.
+  for (const f of ownFiles) {
+    const cached = astCache.get(f.path);
+    if (cached && cached.ast.rootNode.hasError) {
+      const err = findFirstErrorNode(cached.ast.rootNode);
+      throw new StructureRunnerError('STRUCTURE_SOURCE_PARSE_ERROR', {
+        what: `Source file ${f.path} has a syntax error at line ${(err?.startPosition.row ?? 0) + 1}.`,
+        why: `Tree-sitter could not parse the file cleanly. Walking a partial tree may produce a false PASS — the runner fails closed rather than letting a syntax-error file silently pass a deterministic check.`,
+        next: `Fix the syntax error in ${f.path}, then re-run yg approve.`,
+      });
+    }
+  }
+
   const ownFilesEnriched = enrichFilesWithAst(ownFiles, astCache);
   const ctx: Ctx = {
     node: {
@@ -184,7 +196,7 @@ export async function runStructureAspect(
   for (const rel of (node.meta.relations ?? [])) {
     const target = graph.nodes.get(rel.target);
     if (!target) continue;
-    for (const p of enumerateMappedFilesSync(target.meta.mapping ?? [], projectRoot)) {
+    for (const p of await enumerateMappedFilesAsync(target.meta.mapping ?? [], projectRoot)) {
       const abs = path.resolve(projectRoot, p);
       try {
         const content = fs.readFileSync(abs, 'utf8');
@@ -230,6 +242,15 @@ export async function runStructureAspect(
         touchedFiles: [],
         succeeded: false,
       };
+    }
+    // Fix 3c (lazy cross-node gate): ctx.parseAst threw because the cached AST
+    // has a syntax error. Fail closed — same disposition as the own-file eager check.
+    if (err instanceof ParseAstSyntaxError) {
+      throw new StructureRunnerError('STRUCTURE_SOURCE_PARSE_ERROR', {
+        what: `Source file ${err.filePath} has a syntax error at line ${err.errorLine}.`,
+        why: `Tree-sitter could not parse the file cleanly. Walking a partial tree may produce a false PASS — the runner fails closed rather than letting a syntax-error file silently pass a deterministic check.`,
+        next: `Fix the syntax error in ${err.filePath}, then re-run yg approve.`,
+      });
     }
     throw new StructureRunnerError('STRUCTURE_CHECK_THROWN', {
       what: `check.mjs threw an exception while running (aspect '${aspectId}').`,
@@ -298,4 +319,13 @@ export async function runStructureAspect(
   });
 
   return { violations: visible, touchedFiles, succeeded: true };
+}
+
+function findFirstErrorNode(node: SyntaxNode): SyntaxNode | null {
+  if (node.isError) return node;
+  for (const child of node.children) {
+    const found = findFirstErrorNode(child);
+    if (found) return found;
+  }
+  return null;
 }
