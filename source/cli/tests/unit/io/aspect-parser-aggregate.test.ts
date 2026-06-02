@@ -63,4 +63,28 @@ describe('aspect-parser — aggregating aspect (inferred kind)', () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.errors.some(e => e.code === 'aspect-reviewer-missing')).toBe(true);
   });
+
+  it('rejects an explicit reviewer.type: aggregate (only inference may yield aggregate)', async () => {
+    // An author who writes `reviewer:\n  type: aggregate` explicitly is
+    // making an error: aggregate is an inferred kind, not a declarable type.
+    // The parser must reject it with aspect-reviewer-type-invalid.
+    writeFileSync(
+      yamlPath,
+      'name: Bundle\ndescription: x\nimplies:\n  - rule-a\nreviewer:\n  type: aggregate\n',
+    );
+    const r = await parseAspect(aspectDir, yamlPath, 'bundle');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.some(e => e.code === 'aspect-reviewer-type-invalid')).toBe(true);
+  });
+
+  it('errors with aspect-references-on-aggregate when an inferred aggregate declares references', async () => {
+    // An aggregate has no LLM reviewer, so references are meaningless.
+    writeFileSync(
+      yamlPath,
+      'name: Bundle\ndescription: x\nimplies:\n  - rule-a\nreferences:\n  - some/lookup.md\n',
+    );
+    const r = await parseAspect(aspectDir, yamlPath, 'bundle');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.some(e => e.code === 'aspect-references-on-aggregate')).toBe(true);
+  });
 });

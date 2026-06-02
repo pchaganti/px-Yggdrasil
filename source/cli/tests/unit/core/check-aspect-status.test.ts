@@ -271,6 +271,43 @@ describe('classifyDrift — silent paths', () => {
     expect(statusFindings).toHaveLength(0);
   });
 
+  it('aggregate aspect does NOT emit aspect-newly-active even when it is enforced and has no verdict', async () => {
+    // An aggregate aspect (no content.md, no check.mjs, only implies) has no
+    // own reviewer. emitPerAspectIssues must skip it — the aggregate itself
+    // never needs a verdict, only its implied children do.
+    const { tmpDir } = await createTmpProject('aggregate-no-newly-active', {
+      nodePath: 'svc/my-service',
+      nodeYaml:
+        'name: MyService\ntype: service\ndescription: test\n'
+        + 'aspects:\n  - bundle-aspect\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/index.ts': 'export default 42;\n' },
+      aspects: [
+        {
+          // aggregate: no content.md, no check.mjs — parser infers type: aggregate
+          id: 'bundle-aspect',
+          yaml: 'name: Bundle\ndescription: groups rules\nimplies:\n  - child-rule\nstatus: enforced\n',
+          files: {},
+        },
+        {
+          id: 'child-rule',
+          yaml: 'name: Child\ndescription: real rule\nreviewer:\n  type: llm\nstatus: enforced\n',
+          files: { 'content.md': 'Child rule.\n' },
+        },
+      ],
+    });
+    // Baseline exists with the child approved; no verdict for the aggregate
+    // (aggregates never accumulate verdicts).
+    await recordBaselineWithVerdicts(tmpDir, 'svc/my-service', {
+      'child-rule': { verdict: 'approved' },
+    });
+
+    const graph = await loadGraph(tmpDir);
+    const result = await classifyDrift(graph);
+    // The aggregate must NOT produce aspect-newly-active.
+    const newlyActive = result.filter(i => i.code === 'aspect-newly-active');
+    expect(newlyActive).toHaveLength(0);
+  });
+
 });
 
 describe('runCheck — summary counts and suggestedNext', () => {

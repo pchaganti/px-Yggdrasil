@@ -226,8 +226,10 @@ export function resolveExecutionPlan(
   const errors: IssueMessage[] = [];
 
   for (const aspect of aspects) {
-    // Deterministic aspects run locally through the structure runner (no LLM
-    // call). The reviewer.type enum is { llm, deterministic }.
+    // Aggregating aspects (reviewer.type: aggregate) are pre-filtered out of
+    // the dispatch set by the caller — this loop never receives one. The
+    // reviewer.type enum is { llm, deterministic, aggregate }.
+    // Deterministic aspects run locally through the structure runner (no LLM call).
     if (aspect.reviewer.type === 'deterministic') {
       resolved.push({ kind: 'deterministic', aspect });
       continue;
