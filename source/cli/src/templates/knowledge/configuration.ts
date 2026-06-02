@@ -100,7 +100,6 @@ Provider-specific options passed to the LLM client:
 | \`model\` | string | Required. Provider-specific model identifier. |
 | \`temperature\` | number | Defaults to 0. Higher = more varied responses. |
 | \`endpoint\` | string | Required for \`ollama\` and \`openai-compatible\`. |
-| \`context_length_field\` | string | Ollama: field name in model info for context length. |
 | \`timeout\` | number | Timeout in seconds. Default 300. Applies to CLI providers only — non-CLI/API providers ignore it. |
 
 API keys do NOT live here — they belong in \`yg-secrets.yaml\` (api_key only).

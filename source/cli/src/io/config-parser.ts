@@ -341,7 +341,6 @@ function parseTier(name: string, raw: unknown, filename: string): LlmConfig {
     endpoint: typeof c.endpoint === 'string' ? c.endpoint : undefined,
     temperature: typeof c.temperature === 'number' ? c.temperature : 0,
     consensus: consensusRaw as number,
-    context_length_field: typeof c.context_length_field === 'string' ? c.context_length_field : undefined,
     timeout: typeof c.timeout === 'number' ? c.timeout * 1000 : undefined,
     ...(references !== undefined ? { references } : {}),
   };
