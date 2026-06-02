@@ -54,7 +54,16 @@ try {
     ? readdirSync(path.join(pkgDir, 'dist/grammars')).filter((f) => f.endsWith('.wasm'))
     : [];
   if (grammars.length === 0) fail('no WASM grammars in tarball (dist/grammars/*.wasm)');
-  log(`tarball OK — bin+exports present, ${grammars.length} grammar(s): ${grammars.join(', ')}`);
+  const nodeTypeFiles = existsSync(path.join(pkgDir, 'dist/grammars'))
+    ? readdirSync(path.join(pkgDir, 'dist/grammars')).filter((f) => f.endsWith('.node-types.json'))
+    : [];
+  if (nodeTypeFiles.length === 0) fail('no node-types.json files in tarball (dist/grammars/*.node-types.json)');
+  // Every shipped .wasm should have a matching .node-types.json (base name parity)
+  for (const wasm of grammars) {
+    const expected = wasm.replace(/\.wasm$/, '.node-types.json');
+    if (!nodeTypeFiles.includes(expected)) fail(`missing node-types.json for grammar: ${expected}`);
+  }
+  log(`tarball OK — bin+exports present, ${grammars.length} grammar(s), ${nodeTypeFiles.length} node-types.json file(s)`);
 
   // 4. Install PROD deps only (no devDeps → no tree-sitter-* fallback)
   log('npm install --omit=dev…');

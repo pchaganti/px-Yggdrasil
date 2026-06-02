@@ -10,6 +10,7 @@
     "dist/**/*.js",
     "dist/**/*.d.ts",
     "dist/**/*.wasm",
+    "dist/**/*.node-types.json",
     "graph-schemas/"
   ],
   "engines": {

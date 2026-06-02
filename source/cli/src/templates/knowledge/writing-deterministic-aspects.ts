@@ -138,12 +138,18 @@ Each \`node\` object from the AST exposes:
 ### Reading node-types.json
 
 To learn the grammar's node types and field names, inspect the
-\`node-types.json\` shipped by the tree-sitter grammar package:
+\`node-types.json\` files shipped inside the installed package under
+\`dist/grammars/\`.  Each file is named after its grammar:
 
 \`\`\`
-node_modules/tree-sitter-typescript/typescript/node-types.json
-node_modules/tree-sitter-javascript/node-types.json
+<yg install>/dist/grammars/tree-sitter-typescript.node-types.json
+<yg install>/dist/grammars/tree-sitter-tsx.node-types.json
+<yg install>/dist/grammars/tree-sitter-javascript.node-types.json
+<yg install>/dist/grammars/tree-sitter-python.node-types.json
 \`\`\`
+
+(and so on for every other shipped grammar — one \`.node-types.json\`
+per \`.wasm\` file in the same directory.)
 
 Each entry lists its \`type\`, whether it is \`named\`, and the \`fields\`
 object whose keys are the field names usable with \`childForFieldName\`.
