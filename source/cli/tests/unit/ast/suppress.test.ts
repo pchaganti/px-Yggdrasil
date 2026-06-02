@@ -2,6 +2,46 @@ import { describe, it, expect } from 'vitest';
 import { collectSuppressions, isLineSuppressed, SuppressMarkerError } from '../../../src/ast/suppress.js';
 import { parseFile } from '../../../src/ast/parser.js';
 
+describe('suppress: language-aware comment resolution', () => {
+  it('Rust: yg-suppress on line_comment is detected', async () => {
+    const code = `fn foo() {}\n// yg-suppress(my-aspect) reason here\nfn bar() {}`;
+    const tree = await parseFile('a.rs', code);
+    const n = code.split('\n').length;
+    const ranges = collectSuppressions(tree, 'a.rs', n);
+    expect(isLineSuppressed(ranges, 'my-aspect', 3)).toBe(true);
+    expect(isLineSuppressed(ranges, 'my-aspect', 1)).toBe(false);
+  });
+
+  it('Java: yg-suppress on line_comment is detected', async () => {
+    const code = `class A {}\n// yg-suppress(my-aspect) reason here\nclass B {}`;
+    const tree = await parseFile('A.java', code);
+    const n = code.split('\n').length;
+    const ranges = collectSuppressions(tree, 'A.java', n);
+    expect(isLineSuppressed(ranges, 'my-aspect', 3)).toBe(true);
+    expect(isLineSuppressed(ranges, 'my-aspect', 1)).toBe(false);
+  });
+
+  it('Kotlin: yg-suppress on line_comment is detected', async () => {
+    const code = `fun foo() {}\n// yg-suppress(my-aspect) reason here\nfun bar() {}`;
+    const tree = await parseFile('a.kt', code);
+    const n = code.split('\n').length;
+    const ranges = collectSuppressions(tree, 'a.kt', n);
+    expect(isLineSuppressed(ranges, 'my-aspect', 3)).toBe(true);
+    expect(isLineSuppressed(ranges, 'my-aspect', 1)).toBe(false);
+  });
+
+  it('unknown extension returns empty suppressions (no throw)', async () => {
+    // We cannot parse an unknown extension with parseFile (it would throw),
+    // so we use a TypeScript tree but pass an unknown file path — simulating
+    // what happens when collectSuppressions receives a tree for an unrecognised file.
+    const code = `const x = 1;\n// yg-suppress(my-aspect) reason\nconst y = 2;`;
+    const tree = await parseFile('x.ts', code);
+    // Pass a file path with an unknown extension
+    const ranges = collectSuppressions(tree, 'file.unknownext', 3);
+    expect(ranges).toEqual([]);
+  });
+});
+
 describe('suppress: single-line form', () => {
   it('yg-suppress applies to immediately following line', async () => {
     const code = `const x = 1;\n// yg-suppress(async-fs) refactor planned\nfs.readFileSync('a');\nfs.readFileSync('b');`;

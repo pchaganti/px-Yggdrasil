@@ -1,4 +1,7 @@
+import { extname } from 'node:path';
 import type { Tree } from 'web-tree-sitter';
+import { findComments } from './find-comments.js';
+import { getLanguageForExtension } from '../core/graph/language-registry.js';
 
 export interface SuppressedRange {
   aspectIds: Set<string>;
@@ -63,7 +66,12 @@ function parseMarker(commentText: string, line: number, file: string): ParsedMar
 }
 
 export function collectSuppressions(tree: Tree, file: string, totalLines: number): SuppressedRange[] {
-  const comments = tree.rootNode.descendantsOfType('comment');
+  // Guard: if the file extension has no known language, we cannot resolve
+  // comment node types — return empty rather than throwing.
+  if (getLanguageForExtension(extname(file)) === null) {
+    return [];
+  }
+  const comments = findComments({ path: file, ast: tree });
   const markers: ParsedMarker[] = [];
   for (const c of comments) {
     const m = parseMarker(c.text, c.startPosition.row + 1, file);
