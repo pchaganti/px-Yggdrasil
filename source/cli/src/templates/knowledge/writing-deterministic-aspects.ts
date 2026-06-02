@@ -84,9 +84,9 @@ The runner raises typed runtime errors when the contract is broken:
 
 ## Iterating over the files
 
-Today every mapped file (TypeScript/JavaScript family) arrives in a single
-\`check.mjs\` invocation via \`ctx.files\`. Iterate the array and inspect each
-file's AST:
+A node's mapping may include non-parseable files (e.g. \`.md\`, \`.sh\`,
+\`.json\`). For those files \`file.ast\` is \`undefined\`. **Always guard
+before touching \`file.ast\`**:
 
 \`\`\`javascript
 import { walk, report, inFile, closest } from '@chrisdudek/yg/ast';
@@ -94,6 +94,7 @@ import { walk, report, inFile, closest } from '@chrisdudek/yg/ast';
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
+    if (!file.ast) continue;  // skip non-parseable files (no tree-sitter AST)
     walk(file.ast.rootNode, node => {
       // ... inspect node, push report(file, node, ...) on a hit ...
     });
@@ -101,6 +102,10 @@ export function check(ctx) {
   return violations;
 }
 \`\`\`
+
+Content/regex checks that only use \`file.content\` (and never touch
+\`file.ast\`) do **not** need this guard — they should iterate all files
+including non-parseable ones.
 
 If a rule should apply only to a subset of files, filter on \`file.path\`
 (for example with \`inFile(file, { glob: 'src/api/**' })\`) — there is no
@@ -151,6 +156,7 @@ import { walk, report, inFile } from '@chrisdudek/yg/ast';
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
+    if (!file.ast) continue;  // skip non-parseable files (no tree-sitter AST)
     if (!inFile(file, { glob: 'src/api/**' })) continue;
     walk(file.ast.rootNode, node => {
       if (node.type !== 'import_statement') return;

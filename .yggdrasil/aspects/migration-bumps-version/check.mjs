@@ -4,6 +4,7 @@ import path from 'node:path';
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
+    if (!file.ast) continue;
     const base = path.basename(file.path, '.ts');
     // Only check files named to-X.Y.Z.ts
     const versionMatch = base.match(/^to-(\d+\.\d+\.\d+)$/);

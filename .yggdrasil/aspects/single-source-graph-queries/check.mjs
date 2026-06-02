@@ -15,6 +15,7 @@ const RESERVED_NAMES = new Set([
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
+    if (!file.ast) continue;
     // The canonical module is the only allowed definition site.
     if (inFile(file, { glob: '**/core/graph/**/*.ts' })) continue;
     // Only engine files (under src/core/).

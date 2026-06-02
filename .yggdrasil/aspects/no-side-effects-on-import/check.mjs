@@ -3,6 +3,7 @@ import { report } from '@chrisdudek/yg/ast';
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
+    if (!file.ast) continue;
     for (const child of file.ast.rootNode.children) {
       if (child.type !== 'expression_statement') continue;
       const expr = child.childForFieldName('expression') ?? child.children[0];

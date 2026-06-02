@@ -42,6 +42,7 @@ function findRegisterExports(rootNode) {
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
+    if (!file.ast) continue;
     if (!inFile(file, { glob: '**/src/cli/*.ts' })) continue;
 
     const registerExports = findRegisterExports(file.ast.rootNode);

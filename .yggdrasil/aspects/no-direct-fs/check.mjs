@@ -5,6 +5,7 @@ const FS_MODULES = new Set(['node:fs', 'node:fs/promises', 'fs', 'fs/promises'])
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
+    if (!file.ast) continue;
     walk(file.ast.rootNode, (node) => {
       if (node.type !== 'import_statement') return;
       const sourceNode = node.childForFieldName('source');

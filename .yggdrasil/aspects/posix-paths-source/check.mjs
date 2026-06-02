@@ -3,6 +3,7 @@ import { walk, report, inFile } from '@chrisdudek/yg/ast';
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
+    if (!file.ast) continue;
     // Skip test files
     if (inFile(file, { glob: '**/*.test.ts' })) continue;
 

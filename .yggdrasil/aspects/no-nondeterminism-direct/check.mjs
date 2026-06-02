@@ -6,6 +6,7 @@ const NONDETERMINISM_CALLS = new Set(['Date.now', 'Math.random']);
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
+    if (!file.ast) continue;
     // Only check engine files (core/)
     if (!inFile(file, { glob: '**/src/core/**/*.ts' })) continue;
 

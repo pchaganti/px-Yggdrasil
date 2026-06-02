@@ -26,6 +26,7 @@ function isInsideRedactCall(node) {
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
+    if (!file.ast) continue;
     if (!inFile(file, { glob: '**/src/llm/*.ts' })) continue;
 
     walk(file.ast.rootNode, (node) => {

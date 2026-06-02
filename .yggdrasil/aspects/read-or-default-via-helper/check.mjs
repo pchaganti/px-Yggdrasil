@@ -11,6 +11,7 @@ import { walk, report, inFile } from '@chrisdudek/yg/ast';
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
+    if (!file.ast) continue;
     if (inFile(file, { glob: '**/read-or-default.ts' })) continue;
     if (!inFile(file, { glob: '**/src/io/*.ts' })) continue;
 

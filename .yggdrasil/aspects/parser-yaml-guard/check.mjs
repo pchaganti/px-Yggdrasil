@@ -9,6 +9,7 @@ import { report, inFile } from '@chrisdudek/yg/ast';
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
+    if (!file.ast) continue;
     if (!inFile(file, { glob: '**/src/io/*-parser.ts' })) continue;
 
     const text = file.ast.rootNode.text;

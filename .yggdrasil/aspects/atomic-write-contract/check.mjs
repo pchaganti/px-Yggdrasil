@@ -8,6 +8,7 @@ const FS_MODULES = new Set(['node:fs', 'node:fs/promises', 'fs', 'fs/promises'])
 export function check(ctx) {
   const violations = [];
   for (const file of ctx.files) {
+    if (!file.ast) continue;
     // atomic-write.ts itself is the implementation — exempt
     if (inFile(file, { glob: '**/atomic-write.ts' })) continue;
     // debug-log-writer.ts uses append semantics, not atomic-write semantics — exempt
