@@ -62,8 +62,10 @@ describe('rekeyDriftBaseline', () => {
     expect(typed.mtimes).toEqual({ 'src/foo.ts': 1717000000000 });
     expect(typed.log).toEqual({ last_entry_datetime: '2026-05-11T14:23:00.123Z', prefix_hash: 'h-log' });
 
-    // Hash recomputed with the NEW scheme over the SAME logical inputs.
-    expect(typed.hash).toBe(computeCanonicalHash(typed.files, typed.identity));
+    // Hash recomputed with the NEW scheme over the SAME logical inputs —
+    // files + typed identity + the preserved per-aspect verdicts (folded so a
+    // tampered verdict in a migrated baseline is caught by yg check).
+    expect(typed.hash).toBe(computeCanonicalHash(typed.files, typed.identity, typed.aspectVerdicts));
     expect(typed.hash).not.toBe('OLD_HASH_IGNORED');
   });
 

@@ -1,6 +1,6 @@
 // yg-suppress(deterministic) approve-reviewer must invoke the configured LLM provider for verification; non-determinism is intentional and inherent to this engine's purpose
 import type { Graph, GraphNode, AspectDef, LlmConfig, ReviewerConfig, AspectStatus } from '../model/graph.js';
-import type { ApproveResult, AspectVerificationResult, DriftNodeState, DriftIdentity } from '../model/drift.js';
+import type { ApproveResult, AspectVerificationResult, DriftNodeState } from '../model/drift.js';
 import type { IssueMessage } from '../model/validation.js';
 import { verifyAspects } from '../llm/aspect-verifier.js';
 import { createLlmProvider } from '../llm/index.js';
@@ -22,11 +22,6 @@ import { toPosixPath } from '../utils/posix.js';
 
 /** A failed aspect: a code violation, a provider error, or a deterministic runtime error. */
 type AspectViolation = { aspectId: string; reason: string; errorSource: 'codeViolation' | 'provider' | 'checkRuntime' };
-
-/** True when any effective aspect in the identity recorded a checkTouched set. */
-function hasAnyCheckTouched(identity: DriftIdentity): boolean {
-  return Object.values(identity.aspects).some((a) => a.checkTouched && Object.keys(a.checkTouched).length > 0);
-}
 
 /**
  * Run every deterministic aspect in the plan — former-ast and structure aspects
@@ -160,6 +155,58 @@ async function commitApprovalAndCleanDrafts(
   if (draftIds.size > 0) {
     await clearDraftAspectsFromDriftState(rootPath, node.path, draftIds);
   }
+}
+
+/**
+ * Recompute the canonical drift hash over the FINAL baseline state — the
+ * verdicts just applied by applyAspectVerdictsToResult AND the identity
+ * (including any deterministic read-sets recorded into
+ * identity.aspects[id].checkTouched by dispatchStructureAspects). Mutates
+ * result.pendingDriftState.state.hash, .identity, and result.currentHash in
+ * place. No-op unless there is a fresh approved-family baseline to write.
+ *
+ * Why this runs at finalize time (after verdicts) for every initial/approved:
+ *   - VERDICTS — approveNode set state.hash with aspectVerdicts EMPTY (initial)
+ *     or carried-forward (approved), BEFORE the reviewer ran. The canonical hash
+ *     now folds verdicts (io/hash.ts), so the stored hash MUST be recomputed over
+ *     the FINAL state.aspectVerdicts. Otherwise approve stores a hash over the
+ *     wrong verdict set while `yg check` recomputes over the real stored verdicts
+ *     → permanent false drift on every node. This is why it runs unconditionally
+ *     for initial/approved (the former hasAnyCheckTouched gate skipped nodes with
+ *     no deterministic read-set, leaving their verdict fold unprotected).
+ *   - CHECK-TOUCHED — re-collecting WITH the now-populated baseline carries the
+ *     checkTouched maps into a fresh identity. When no deterministic aspect ran,
+ *     the recomputed identity equals the stored one, so only the verdict fold
+ *     changes the hash. A later `yg check` recomputes the same identity + verdict
+ *     fold from the same baseline and sees no drift.
+ *
+ * Skipped on no-change/refused-without-baseline (no pendingDriftState change to
+ * write). A committed refused verdict (action stays approved/initial, anyRefused
+ * true) still flows through here, so its hash advances over the refused verdict
+ * and stays red.
+ */
+async function recomputeFinalHash(
+  result: ApproveResult,
+  node: GraphNode,
+  graph: Graph,
+  projectRoot: string,
+): Promise<void> {
+  if (!result.pendingDriftState) return;
+  if (result.action !== 'initial' && result.action !== 'approved') return;
+  const { trackedFiles: recomputeTracked, identity: recomputeIdentity } =
+    collectTrackedFiles(node, graph, result.pendingDriftState.state);
+  const recomputeExclusions = getChildMappingExclusions(graph, node.path);
+  const { canonicalHash } = await hashTrackedFiles(
+    projectRoot,
+    recomputeTracked,
+    undefined,
+    recomputeExclusions,
+    recomputeIdentity,
+    result.pendingDriftState.state.aspectVerdicts,
+  );
+  result.pendingDriftState.state.identity = recomputeIdentity;
+  result.pendingDriftState.state.hash = canonicalHash;
+  result.currentHash = canonicalHash;
 }
 
 export interface LlmApproveResult extends ApproveResult {
@@ -364,9 +411,15 @@ export async function runApproveWithReviewer(
   const allAspectResults: Record<string, AspectVerificationResult> = {};
   const referencesCache = new Map<string, string>();
 
+  // Hoisted above finalizeAndReturn so the final-hash recompute (which it calls)
+  // can run from EVERY terminal branch, including the early-return ones before the
+  // source-file load below. Depends only on rootPath, available from the start.
+  const projectRoot = toPosixPath(path.dirname(rootPath));
+
   // Every terminal branch funnels through here: record per-aspect verdicts,
-  // commit the baseline, and return with branch-specific extras plus the always-
-  // attached skippedDraftAspects. Closes over the per-run state above.
+  // recompute the canonical hash over the FINAL verdicts + identity, commit the
+  // baseline, and return with branch-specific extras plus the always-attached
+  // skippedDraftAspects. Closes over the per-run state above.
   const finalizeAndReturn = async (extras: Partial<LlmApproveResult>, infra = false): Promise<LlmApproveResult> => {
     const { verdicts, carryForward } = buildAspectVerdicts(node, graph, allAspectResults);
     applyAspectVerdictsToResult(result, verdicts, carryForward, storedEntry?.aspectVerdicts, filterAspectId, reviewerAborted(node, graph, allAspectResults));
@@ -390,6 +443,11 @@ export async function runApproveWithReviewer(
           delete result.pendingDriftState.state.log;
         }
       }
+      // Recompute the stored hash over the FINAL verdict set (just applied) plus
+      // the (checkTouched-populated) identity, so the persisted hash matches what
+      // `yg check` recomputes from the stored verdicts. Runs for every committed
+      // initial/approved baseline — see recomputeFinalHash for the full rationale.
+      await recomputeFinalHash(result, node, graph, projectRoot);
       await commitApprovalAndCleanDrafts(rootPath, result, node, graph);
     }
     const out: LlmApproveResult = { ...result, ...extras, skippedDraftAspects };
@@ -418,8 +476,7 @@ export async function runApproveWithReviewer(
     }, true);
   }
 
-  // Load source files
-  const projectRoot = toPosixPath(path.dirname(rootPath));
+  // Load source files (projectRoot is hoisted above finalizeAndReturn).
   const { trackedFiles } = collectTrackedFiles(node, graph);
   const { fileHashes } = await hashTrackedFiles(projectRoot, trackedFiles, undefined, []);
   const yggPrefix = toPosixPath(path.relative(projectRoot, rootPath));
@@ -516,29 +573,11 @@ export async function runApproveWithReviewer(
     }
   }
 
-  // Recompute the canonical drift hash to fold in the deterministic read-sets.
-  // approveNode computed state.hash BEFORE the structure runner ran, so on a
-  // NEW baseline (action initial/approved) the cross-node files just recorded in
-  // identity.aspects[id].checkTouched are not yet part of the node's drift
-  // identity. Re-collect WITH the now-populated baseline so collectTrackedFiles
-  // carries the checkTouched maps into a fresh identity, re-hash with that
-  // identity, and adopt BOTH the canonical hash and the recomputed identity (so
-  // a later `yg check` recomputes the same identity from the same baseline and
-  // sees no drift). Skip on no-change/refused: those do not write a fresh baseline.
-  if (
-    result.pendingDriftState &&
-    (result.action === 'initial' || result.action === 'approved') &&
-    hasAnyCheckTouched(result.pendingDriftState.state.identity)
-  ) {
-    const { trackedFiles: recomputeTracked, identity: recomputeIdentity } =
-      collectTrackedFiles(node, graph, result.pendingDriftState.state);
-    const recomputeExclusions = getChildMappingExclusions(graph, node.path);
-    const { canonicalHash } =
-      await hashTrackedFiles(projectRoot, recomputeTracked, undefined, recomputeExclusions, recomputeIdentity);
-    result.pendingDriftState.state.identity = recomputeIdentity;
-    result.pendingDriftState.state.hash = canonicalHash;
-    result.currentHash = canonicalHash;
-  }
+  // The canonical drift hash is recomputed AFTER verdicts are applied — inside
+  // finalizeAndReturn, which is the single point where applyAspectVerdictsToResult
+  // writes the final state.aspectVerdicts and the baseline is committed. The
+  // recompute folds BOTH the deterministic read-sets (checkTouched, populated by
+  // dispatchStructureAspects above) and the final verdicts. See recomputeFinalHash.
 
   // AST/structure short-circuit refusal. Refuse early (skipping LLM dispatch)
   // ONLY when something here MUST block: an infrastructure crash (checkRuntime)

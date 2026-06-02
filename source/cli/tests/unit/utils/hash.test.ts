@@ -14,7 +14,7 @@ import {
   serializeIdentity,
 } from '../../../src/io/hash.js';
 import type { TrackedFile } from '../../../src/core/graph/files.js';
-import type { DriftIdentity } from '../../../src/model/drift.js';
+import type { DriftIdentity, AspectVerdict } from '../../../src/model/drift.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -831,6 +831,65 @@ describe('hash', () => {
       const withTier: DriftIdentity = { ownSubset: 'o', ports: {}, aspects: { a: { meta: 'm', tier: 't' } } };
       const noTier: DriftIdentity = { ownSubset: 'o', ports: {}, aspects: { a: { meta: 'm' } } };
       expect(computeCanonicalHash({}, withTier)).not.toBe(computeCanonicalHash({}, noTier));
+    });
+  });
+
+  describe('computeCanonicalHash — verdict fold (tamper protection)', () => {
+    const ident: DriftIdentity = { ownSubset: 'o', ports: {}, aspects: {} };
+    const files = { 'src/a.ts': 'ha' };
+
+    it('a flipped verdict (refused -> approved) changes the hash', () => {
+      const refused: Record<string, AspectVerdict> = { a: { verdict: 'refused' } };
+      const approved: Record<string, AspectVerdict> = { a: { verdict: 'approved' } };
+      expect(computeCanonicalHash(files, ident, refused)).not.toBe(
+        computeCanonicalHash(files, ident, approved),
+      );
+    });
+
+    it('an empty verdict set differs from a non-empty one', () => {
+      const none: Record<string, AspectVerdict> = {};
+      const some: Record<string, AspectVerdict> = { a: { verdict: 'approved' } };
+      expect(computeCanonicalHash(files, ident, none)).not.toBe(
+        computeCanonicalHash(files, ident, some),
+      );
+    });
+
+    it('default (omitted) verdicts equals an explicit empty verdict set', () => {
+      expect(computeCanonicalHash(files, ident)).toBe(computeCanonicalHash(files, ident, {}));
+    });
+
+    it('is order-independent over verdict aspect ids (sorted fold)', () => {
+      const a: Record<string, AspectVerdict> = {
+        zeta: { verdict: 'approved' },
+        alpha: { verdict: 'refused', errorSource: 'codeViolation' },
+      };
+      const b: Record<string, AspectVerdict> = {
+        alpha: { verdict: 'refused', errorSource: 'codeViolation' },
+        zeta: { verdict: 'approved' },
+      };
+      expect(computeCanonicalHash(files, ident, a)).toBe(computeCanonicalHash(files, ident, b));
+    });
+
+    it('errorSource is folded — a changed errorSource changes the hash', () => {
+      const codeViolation: Record<string, AspectVerdict> = {
+        a: { verdict: 'refused', errorSource: 'codeViolation' },
+      };
+      const provider: Record<string, AspectVerdict> = {
+        a: { verdict: 'refused', errorSource: 'provider' },
+      };
+      expect(computeCanonicalHash(files, ident, codeViolation)).not.toBe(
+        computeCanonicalHash(files, ident, provider),
+      );
+    });
+
+    it('the free-text reason is NOT folded — two refusals with different reasons hash equal', () => {
+      const r1: Record<string, AspectVerdict> = {
+        a: { verdict: 'refused', reason: 'first reason', errorSource: 'codeViolation' },
+      };
+      const r2: Record<string, AspectVerdict> = {
+        a: { verdict: 'refused', reason: 'a totally different reason', errorSource: 'codeViolation' },
+      };
+      expect(computeCanonicalHash(files, ident, r1)).toBe(computeCanonicalHash(files, ident, r2));
     });
   });
 });

@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { type Ignore, type Options as IgnoreOptions } from 'ignore';
 import type { TrackedFile } from '../core/graph/files.js';
-import type { DriftIdentity, AspectIdentity } from '../model/drift.js';
+import type { DriftIdentity, AspectIdentity, AspectVerdict } from '../model/drift.js';
 import { toPosix, toPosixPath } from '../utils/posix.js';
 
 export { loadRootGitignoreStack, isIgnoredByStack, walkRepoFiles } from '../io/repo-scanner.js';
@@ -128,10 +128,42 @@ export function serializeIdentity(identity: DriftIdentity): string {
 }
 
 /**
- * Compute the canonical drift hash for a baseline from its real-file hashes and
- * typed identity. Deterministic: `files` fold as sorted `path:hash`, `identity`
- * folds via serializeIdentity (sorted at every level). Reordering files,
- * aspects, or ports does not change the result. `mtimes` is never an input.
+ * Stable, sorted serialization of the per-aspect verdict set folded into the
+ * canonical drift hash. Aspect ids are sorted by code-unit `.sort()` (matching
+ * the files/identity convention), and each line emits the verdict plus its
+ * errorSource discriminator. The free-text `reason` is INTENTIONALLY excluded:
+ * it is human-facing prose that varies harmlessly across reviewer runs and is
+ * not part of the red/green outcome the hash must protect — only the verdict
+ * and its error source are integrity-relevant.
+ *
+ * Folding the verdict closes a tamper hole: a committed `.drift-state/*.json`
+ * whose stored verdict is hand-edited (e.g. `refused` -> `approved`) now yields
+ * a different canonical hash than the stored one, so `yg check` reports drift.
+ */
+function serializeVerdicts(verdicts: Record<string, AspectVerdict>): string {
+  // Code-unit `.sort()`, NOT localeCompare — keeps the drift hash locale-stable.
+  return Object.keys(verdicts)
+    .sort()
+    .map((id) => {
+      const v = verdicts[id];
+      return `id=${id}|verdict=${v.verdict}|errorSource=${v.errorSource ?? ''}`;
+    })
+    .join('\n');
+}
+
+/**
+ * Compute the canonical drift hash for a baseline from its real-file hashes,
+ * typed identity, and per-aspect verdicts. Deterministic: `files` fold as sorted
+ * `path:hash`, `identity` folds via serializeIdentity (sorted at every level),
+ * and `verdicts` fold via serializeVerdicts (sorted by aspect id). Reordering
+ * files, aspects, ports, or verdict ids does not change the result. `mtimes` is
+ * never an input.
+ *
+ * `verdicts` defaults to `{}` — an empty, well-defined section that is always
+ * present in the hashed string, so a baseline with no verdicts, a re-keyed
+ * baseline, a fresh `yg check`, and a freshly approved baseline all agree on the
+ * fold. Callers that store a hash MUST pass the SAME verdict set they persist to
+ * `state.aspectVerdicts`, or approve and check will disagree (false drift).
  *
  * The single source of truth for the canonical hash scheme — both the runtime
  * (hashTrackedFiles) and the re-key transform (drift-state-rekey) call this so
@@ -140,13 +172,16 @@ export function serializeIdentity(identity: DriftIdentity): string {
 export function computeCanonicalHash(
   fileHashes: Record<string, string>,
   identity: DriftIdentity,
+  verdicts: Record<string, AspectVerdict> = {},
 ): string {
   // Code-unit `.sort()`, NOT localeCompare — keeps the drift hash locale-stable.
   const filesDigest = Object.entries(fileHashes)
     .map(([p, h]) => `${p}:${h}`)
     .sort()
     .join('\n');
-  return hashString(`files:\n${filesDigest}\nidentity:\n${serializeIdentity(identity)}`);
+  return hashString(
+    `files:\n${filesDigest}\nidentity:\n${serializeIdentity(identity)}\nverdicts:\n${serializeVerdicts(verdicts)}`,
+  );
 }
 
 /** Compute per-file hashes for a mapping. Used for diagnostics (which files changed). */
@@ -234,7 +269,10 @@ const EMPTY_IDENTITY: DriftIdentity = { ownSubset: hashString(''), ports: {}, as
  * `identity` is folded into the canonical hash via computeCanonicalHash. Pass
  * the node's typed identity when computing a baseline-comparable hash; omit it
  * (e.g. when only the per-file source map is needed) to fold an empty identity.
- * `mtimes` is never part of the canonical hash.
+ * `verdicts` is likewise folded into the canonical hash; pass the per-aspect
+ * verdict set that will be (or is) stored in the baseline so a later `yg check`
+ * recompute matches. Omit it (default `{}`) when only the per-file source map is
+ * needed. `mtimes` is never part of the canonical hash.
  */
 export async function hashTrackedFiles(
   projectRoot: string,
@@ -242,6 +280,7 @@ export async function hashTrackedFiles(
   storedFileData?: StoredFileData,
   excludePrefixes?: string[],
   identity?: DriftIdentity,
+  verdicts?: Record<string, AspectVerdict>,
 ): Promise<{ canonicalHash: string; fileHashes: Record<string, string>; fileMtimes: Record<string, number> }> {
   const fileHashes: Record<string, string> = {};
   const fileMtimes: Record<string, number> = {};
@@ -305,8 +344,9 @@ export async function hashTrackedFiles(
     }
   }
 
-  // Canonical hash: real-file digest + typed identity, via the single-source-of-truth fold.
-  const canonicalHash = computeCanonicalHash(fileHashes, identity ?? EMPTY_IDENTITY);
+  // Canonical hash: real-file digest + typed identity + verdicts, via the
+  // single-source-of-truth fold. verdicts defaults to {} (empty section).
+  const canonicalHash = computeCanonicalHash(fileHashes, identity ?? EMPTY_IDENTITY, verdicts ?? {});
 
   return { canonicalHash, fileHashes, fileMtimes };
 }

@@ -216,10 +216,14 @@ async function classifyNodeDrift(
     // Compute child mapping exclusions (child-wins model)
     const excludePrefixes = getChildMappingExclusions(graph, nodePath);
 
-    // Hash and compare — fold the typed identity into the canonical hash.
+    // Hash and compare — fold the typed identity AND the stored per-aspect
+    // verdicts into the canonical hash. Folding the stored verdicts here is what
+    // makes a tampered verdict (e.g. a hand-edited refused->approved in the
+    // committed .drift-state/*.json) drift: the recompute over the stored
+    // verdicts no longer matches the stored hash.
     const storedFileData = { hashes: storedEntry.files, mtimes: storedEntry.mtimes ?? {} };
     const { canonicalHash, fileHashes } = await hashTrackedFiles(
-      projectRoot, trackedFiles, storedFileData, excludePrefixes, identity,
+      projectRoot, trackedFiles, storedFileData, excludePrefixes, identity, storedEntry.aspectVerdicts,
     );
 
     if (canonicalHash === storedEntry.hash) return; // No drift

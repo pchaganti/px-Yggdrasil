@@ -113,8 +113,12 @@ describe('migrateTo50 drift-state', () => {
     });
     expect(typed.mtimes).toEqual({ 'src/foo.ts': 1717000000000 });
     expect(typed.log).toEqual({ last_entry_datetime: '2026-05-11T14:23:00.123Z', prefix_hash: 'h-log' });
-    // Hash recomputed losslessly — matches a fresh canonical computation.
-    expect(typed.hash).toBe(computeCanonicalHash(typed.files, typed.identity as never));
+    // Hash recomputed losslessly — matches a fresh canonical computation over
+    // files + typed identity + the preserved per-aspect verdicts (now folded so
+    // a tampered verdict in a migrated baseline is caught by yg check).
+    expect(typed.hash).toBe(
+      computeCanonicalHash(typed.files, typed.identity as never, typed.aspectVerdicts as never),
+    );
     expect(typed.hash).not.toBe('OLD_HASH');
   });
 

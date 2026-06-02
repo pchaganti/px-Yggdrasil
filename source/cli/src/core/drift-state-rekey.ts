@@ -115,8 +115,11 @@ export function rekeyDriftBaseline(oldFlat: FlatDriftBaseline): DriftNodeState {
 
   const state: DriftNodeState = {
     schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
-    // Recompute with the NEW canonical scheme over the SAME logical inputs.
-    hash: computeCanonicalHash(realFiles, identity),
+    // Recompute with the NEW canonical scheme over the SAME logical inputs:
+    // files + typed identity + the (possibly synthesized-empty) verdict set that
+    // is also stored below. The verdict fold must use the SAME aspectVerdicts the
+    // baseline persists, so a fresh `yg check` over unchanged source sees no drift.
+    hash: computeCanonicalHash(realFiles, identity, aspectVerdicts),
     files: realFiles,
     identity,
     aspectVerdicts,
