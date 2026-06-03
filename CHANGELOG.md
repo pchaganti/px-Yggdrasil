@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0-alpha.2] - 2026-06-03
+
 ### Removed
 
 - **`max_tokens` config field and prompt chunking.** The `max_tokens` field has been removed from reviewer tier configuration and the chunking/truncation mechanism that split large nodes across multiple reviewer calls has been removed. The reviewer now always sends a node's source files in a single prompt; the per-node character budget (`quality.max_node_chars`) is the sole gate preventing oversized contexts. Adopters who had `max_tokens` in their `yg-config.yaml` should remove the field; `yg init --upgrade` will strip it automatically.
