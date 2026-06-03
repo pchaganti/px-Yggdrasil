@@ -1,9 +1,7 @@
 {
-  "hash": "a05c71fc9f53113547fa4cd13272784105ca71bd8301ee9dc5d777f143b72742",
+  "schemaVersion": 1,
+  "hash": "2d534dadba20d4d289de1032ffa6cc0866f54ea69c13b6579b795b1da41e7a2a",
   "files": {
-    "own-subset:payments": "71bb8989027816e44f27f641238826dfff2f9209e95323f5fe567360ba0f2317",
-    "aspect-meta:requires-audit": "2083df52357d01a05ad7fdb5401559768005c0d796699affd519cb80dd999ee8",
-    "tier-identity:requires-audit": "af4e7a50fcc60af5fafb3b09e8cfedf6b2d985639aad2161f40f6bef5a4a0b96",
     ".yggdrasil/aspects/requires-audit/content.md": "365d3b07531dc6ca31bdbf832743c5b48e1cd47a85fbe167f4967b0b9982c3ed",
     "src/payments.ts": "b06d60ef769ee357b3337ddb26fab2924460224c5e4785fbfa3a7e3d10856038",
     "src/audit.ts": "150f7f8a73a427a97b0011d6261f0afe7c6d83cc2f626133cb858d16830860c8"
@@ -13,9 +11,23 @@
     "src/payments.ts": 1776177846223.8997,
     "src/audit.ts": 1776177846223.7527
   },
+  "identity": {
+    "ownSubset": "71bb8989027816e44f27f641238826dfff2f9209e95323f5fe567360ba0f2317",
+    "ports": {},
+    "aspects": {
+      "requires-audit": {
+        "meta": "2083df52357d01a05ad7fdb5401559768005c0d796699affd519cb80dd999ee8",
+        "tier": "2bd95f546431765feeb4b63ee243753074cf485baf3feb634600f98f2175a4fe"
+      }
+    }
+  },
   "aspectVerdicts": {
     "requires-audit": {
       "verdict": "approved"
     }
+  },
+  "log": {
+    "last_entry_datetime": "2026-06-03T11:37:45.233Z",
+    "prefix_hash": "61283a0c70b8902e38f8e29405e9b32f1e0097277b3fcc16b3533bb12ecb46bd"
   }
 }
