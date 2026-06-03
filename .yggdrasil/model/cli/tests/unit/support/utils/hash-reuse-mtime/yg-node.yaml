@@ -1,0 +1,7 @@
+name: Hash reuseByMtime Security Tests
+type: test-suite
+description: "Unit tests verifying that the yg check gate always re-hashes content from disk (reuseByMtime=false), closing the touch-mtime exploit where a content change that preserves the stored mtime would otherwise pass the gate undetected"
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/utils/hash-reuse-mtime.test.ts

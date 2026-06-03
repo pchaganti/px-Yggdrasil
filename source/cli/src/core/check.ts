@@ -224,6 +224,7 @@ async function classifyNodeDrift(
     const storedFileData = { hashes: storedEntry.files, mtimes: storedEntry.mtimes ?? {} };
     const { canonicalHash, fileHashes } = await hashTrackedFiles(
       projectRoot, trackedFiles, storedFileData, excludePrefixes, identity, storedEntry.aspectVerdicts,
+      false, // never reuse stored hashes by mtime in the check gate — always re-hash content
     );
 
     if (canonicalHash === storedEntry.hash) return; // No drift

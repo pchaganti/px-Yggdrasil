@@ -64,3 +64,5 @@ Moved the drift-cause description and identity-diff helpers out of this node int
 Removed the now-unnecessary second argument (graph) from the call to describeIdentityCause after the function signature was simplified to take only the cause. The function never used graph; the parameter existed as a speculative placeholder and was removed per YAGNI. The call site is the only caller in production code and required only the argument-count update.
 ## [2026-06-03T07:05:08.274Z]
 Check now surfaces the new aggregating-aspect kind and the zero-source fail-closed condition alongside existing drift and coverage reporting, so an aggregate attach point and an LLM node that can never be verified are both visible in the gate rather than passing silently.
+## [2026-06-03T07:49:05.037Z]
+yg check now passes reuseByMtime=false to hashTrackedFiles so the gate always re-reads content from disk. Previously, a stored mtime match caused the stored hash to be reused without verifying the file's actual content, allowing a content edit followed by touch -r to restore the mtime and pass the gate undetected.

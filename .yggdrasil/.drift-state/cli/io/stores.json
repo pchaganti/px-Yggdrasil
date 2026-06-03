@@ -1,11 +1,13 @@
 {
   "schemaVersion": 1,
-  "hash": "87266be7671a9db7e2c7f9dff9fb461ecec244e98e37d1eb5e8b0b28348086c9",
+  "hash": "f0d67bd0031af96c931f1b5e9ad7db8c0158ee133feb010ca0aacb766d5e8092",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
     ".yggdrasil/aspects/silent-missing-files/content.md": "fe5f8f88a4e6a49f20fba61836d04c3796f5c97c3a7c1c366582f16cd4ec93b7",
-    "source/cli/src/io/drift-state-store.ts": "e073e7db338779021fa142e10cd74dba7e3f5c1dc394ee156fb4b8e66de215f8",
+    ".yggdrasil/aspects/atomic-write-contract/check.mjs": "5d995a40d8965c003d603c7c7627bae1d09125021d4fe48560ec18efe5e101a0",
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
+    ".yggdrasil/aspects/read-or-default-via-helper/check.mjs": "0a1f55908a341a54f6e218723bcc1eb3029ca19457b99be8fc4edfcc92d34d8f",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
     ".yggdrasil/model/cli/model/drift/yg-node.yaml": "8818cf691e94ebf918022c7af9ff4f200a3d9cdf4a95a0e10f7e3c476e12320e",
@@ -18,10 +20,7 @@
     "source/cli/src/io/paths.ts": "8f4fd761bddddb87b07f78d3da82e42e7ada3637dfdffe21ce354dd0f5de30aa",
     "source/cli/src/io/read-or-default.ts": "14ae9ceb3b56e9b3d433ef9cd217a84ca71a90264e438b2fa186455f7906b393",
     "source/cli/src/io/repo-scanner.ts": "ab2f8f748c3745a6f82117ddbf09ffbb7995bf245484b4cd0f0a11a72137b52a",
-    ".yggdrasil/aspects/atomic-write-contract/check.mjs": "5d995a40d8965c003d603c7c7627bae1d09125021d4fe48560ec18efe5e101a0",
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
-    ".yggdrasil/aspects/read-or-default-via-helper/check.mjs": "0a1f55908a341a54f6e218723bcc1eb3029ca19457b99be8fc4edfcc92d34d8f",
-    "source/cli/src/io/hash.ts": "2091e8e9549fbfd27647408a6c9cfda1783209d29717b87be8187a907f586a2f"
+    "source/cli/src/io/hash.ts": "0cd5ad957bfff3f19b820122a6597547ee89972d739d286ada40f02d2c6f019e"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -30,7 +29,6 @@
     ".yggdrasil/aspects/atomic-write-contract/check.mjs": 1780410832991.1228,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780410812801.22,
     ".yggdrasil/aspects/read-or-default-via-helper/check.mjs": 1780410856795.1453,
-    "source/cli/src/io/drift-state-store.ts": 1780306639181.9553,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     ".yggdrasil/model/cli/model/drift/yg-node.yaml": 1776177846203.4216,
@@ -39,7 +37,7 @@
     "source/cli/src/io/debug-log-writer.ts": 1778910277504.241,
     "source/cli/src/io/find-index.ts": 1780163098696.067,
     "source/cli/src/io/graph-fs.ts": 1778910103922.5334,
-    "source/cli/src/io/hash.ts": 1780412459625.0115,
+    "source/cli/src/io/hash.ts": 1780472780459.0056,
     "source/cli/src/io/log-store.ts": 1778951521870.846,
     "source/cli/src/io/paths.ts": 1780256101029.9587,
     "source/cli/src/io/read-or-default.ts": 1778951510467.789,
@@ -62,7 +60,7 @@
           "source/cli/src/io/debug-log-writer.ts": "ba34244ed4decc481b0bf40046742667e34a4aaabdfa5a03b402d35b7685c361",
           "source/cli/src/io/find-index.ts": "6d68236071d1656f4c5261fa3a66e3665a8d3ff69a1561200ec775919b2b3f1b",
           "source/cli/src/io/graph-fs.ts": "b216722295d1e2e3c53811ee610421c58ed44024a0cd96f7aa95cdff38145d82",
-          "source/cli/src/io/hash.ts": "2091e8e9549fbfd27647408a6c9cfda1783209d29717b87be8187a907f586a2f",
+          "source/cli/src/io/hash.ts": "0cd5ad957bfff3f19b820122a6597547ee89972d739d286ada40f02d2c6f019e",
           "source/cli/src/io/log-store.ts": "9d041c96b3e3b1e58a0123014b5704e038bfe97f394f12cd9129c2e93d9cf054",
           "source/cli/src/io/paths.ts": "8f4fd761bddddb87b07f78d3da82e42e7ada3637dfdffe21ce354dd0f5de30aa",
           "source/cli/src/io/read-or-default.ts": "14ae9ceb3b56e9b3d433ef9cd217a84ca71a90264e438b2fa186455f7906b393",
@@ -76,7 +74,7 @@
           "source/cli/src/io/debug-log-writer.ts": "ba34244ed4decc481b0bf40046742667e34a4aaabdfa5a03b402d35b7685c361",
           "source/cli/src/io/find-index.ts": "6d68236071d1656f4c5261fa3a66e3665a8d3ff69a1561200ec775919b2b3f1b",
           "source/cli/src/io/graph-fs.ts": "b216722295d1e2e3c53811ee610421c58ed44024a0cd96f7aa95cdff38145d82",
-          "source/cli/src/io/hash.ts": "2091e8e9549fbfd27647408a6c9cfda1783209d29717b87be8187a907f586a2f",
+          "source/cli/src/io/hash.ts": "0cd5ad957bfff3f19b820122a6597547ee89972d739d286ada40f02d2c6f019e",
           "source/cli/src/io/log-store.ts": "9d041c96b3e3b1e58a0123014b5704e038bfe97f394f12cd9129c2e93d9cf054",
           "source/cli/src/io/paths.ts": "8f4fd761bddddb87b07f78d3da82e42e7ada3637dfdffe21ce354dd0f5de30aa",
           "source/cli/src/io/read-or-default.ts": "14ae9ceb3b56e9b3d433ef9cd217a84ca71a90264e438b2fa186455f7906b393",
@@ -90,7 +88,7 @@
           "source/cli/src/io/debug-log-writer.ts": "ba34244ed4decc481b0bf40046742667e34a4aaabdfa5a03b402d35b7685c361",
           "source/cli/src/io/find-index.ts": "6d68236071d1656f4c5261fa3a66e3665a8d3ff69a1561200ec775919b2b3f1b",
           "source/cli/src/io/graph-fs.ts": "b216722295d1e2e3c53811ee610421c58ed44024a0cd96f7aa95cdff38145d82",
-          "source/cli/src/io/hash.ts": "2091e8e9549fbfd27647408a6c9cfda1783209d29717b87be8187a907f586a2f",
+          "source/cli/src/io/hash.ts": "0cd5ad957bfff3f19b820122a6597547ee89972d739d286ada40f02d2c6f019e",
           "source/cli/src/io/log-store.ts": "9d041c96b3e3b1e58a0123014b5704e038bfe97f394f12cd9129c2e93d9cf054",
           "source/cli/src/io/paths.ts": "8f4fd761bddddb87b07f78d3da82e42e7ada3637dfdffe21ce354dd0f5de30aa",
           "source/cli/src/io/read-or-default.ts": "14ae9ceb3b56e9b3d433ef9cd217a84ca71a90264e438b2fa186455f7906b393",
@@ -114,7 +112,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-03T07:05:22.616Z",
-    "prefix_hash": "2e92da40a0639248eb81403771dcf584e12ff628968cc7a52e641e9bccd30efe"
+    "last_entry_datetime": "2026-06-03T07:48:59.910Z",
+    "prefix_hash": "bf3aa5f01c5f37289a840590986d5c357226c413075c997b761418baae99f96c"
   }
 }

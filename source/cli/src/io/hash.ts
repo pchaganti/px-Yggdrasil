@@ -273,6 +273,12 @@ const EMPTY_IDENTITY: DriftIdentity = { ownSubset: hashString(''), ports: {}, as
  * verdict set that will be (or is) stored in the baseline so a later `yg check`
  * recompute matches. Omit it (default `{}`) when only the per-file source map is
  * needed. `mtimes` is never part of the canonical hash.
+ *
+ * `reuseByMtime` (default `true`) controls the mtime-based optimization. When
+ * `false`, stored hashes are NEVER reused — every file is always re-read from
+ * disk. Pass `false` from the `yg check` gate so that a content change that
+ * preserves the mtime (e.g. `touch -r`) is always detected. The approve-time
+ * path may keep `true` because approve is the trusted write operation.
  */
 export async function hashTrackedFiles(
   projectRoot: string,
@@ -281,6 +287,7 @@ export async function hashTrackedFiles(
   excludePrefixes?: string[],
   identity?: DriftIdentity,
   verdicts?: Record<string, AspectVerdict>,
+  reuseByMtime: boolean = true,
 ): Promise<{ canonicalHash: string; fileHashes: Record<string, string>; fileMtimes: Record<string, number> }> {
   const fileHashes: Record<string, string> = {};
   const fileMtimes: Record<string, number> = {};
@@ -326,7 +333,12 @@ export async function hashTrackedFiles(
   for (const entry of filtered) {
     const storedMtime = storedFileData?.mtimes[entry.relPath];
     const storedHash = storedFileData?.hashes[entry.relPath];
-    if (storedMtime !== undefined && storedHash !== undefined && entry.mtimeMs === storedMtime) {
+    if (
+      reuseByMtime &&
+      storedMtime !== undefined &&
+      storedHash !== undefined &&
+      entry.mtimeMs === storedMtime
+    ) {
       fileHashes[entry.relPath] = storedHash;
     } else {
       dirty.push(entry);
