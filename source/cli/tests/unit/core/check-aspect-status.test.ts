@@ -107,8 +107,13 @@ async function recordBaselineWithVerdicts(
   if (!node) throw new Error(`node ${nodePath} not found in graph after load`);
   const { trackedFiles, identity } = collectTrackedFiles(node, graph);
   const projectRoot = path.dirname(graph.rootPath);
+  // Fold the SAME verdicts we persist into the canonical hash — mirroring
+  // production approve (recomputeFinalHash). The check gate recomputes the hash
+  // over the stored verdicts; folding a different set here (e.g. the empty set
+  // while persisting non-empty verdicts) makes the recompute diverge with no
+  // file/identity cause → a spurious baseline-integrity error.
   const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
-    projectRoot, trackedFiles, undefined, [], identity,
+    projectRoot, trackedFiles, undefined, [], identity, aspectVerdicts,
   );
   await writeNodeDriftState(graph.rootPath, nodePath, {
     schemaVersion: DRIFT_STATE_SCHEMA_VERSION,

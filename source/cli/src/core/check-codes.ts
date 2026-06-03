@@ -51,6 +51,12 @@ export const STRUCTURAL_CODES = new Set<string>([
   'aspect-reference-duplicate',
   'aspect-tier-unknown',
   'mapping-escapes-repo',
+  // Drift-state integrity: the recorded baseline hash for a node does not match
+  // a recompute over its files, typed identity, and stored verdicts, yet no file
+  // or identity change explains the divergence (the stored verdicts were tampered
+  // or the baseline predates a hash-scheme change). Structural because it blocks
+  // CI regardless of source-file drift — the baseline itself is untrustworthy.
+  'baseline-integrity',
 ]);
 
 /** Completeness codes — non-blocking metadata gaps surfaced in the summary. */

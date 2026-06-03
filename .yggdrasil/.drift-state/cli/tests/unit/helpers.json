@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
-  "hash": "cd8f6266e2a264d62ab43f9ab7e77d081d8aaa63e2347e2dd6b2d3801d5f0c0b",
+  "hash": "10c825d7962f45e77e97bf0646bc5681176c304744f3a4552f25c1e4fe548fcb",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
+    "source/cli/tests/unit/helpers/build-test-graph.ts": "0f4c28045890818b59d525429f7375eb0c76de4ffe058dcb3720411e3d0fb7e7",
     "source/cli/tests/unit/helpers/build-test-graph-structure.ts": "ddcd62da1c8dd23c667850770ae1f0b7673bdea3175eaf8e36d90c4d6051e22a",
     "source/cli/tests/unit/helpers/build-test-graph-structure.test.ts": "121c0d08806a68f53aa4cad47cfd3fa2962041fae275697319195714e1cdb896",
-    "source/cli/tests/unit/helpers/seed-baseline.ts": "e2c2c93c2686c614a4de528a52928b2035bd9f09bc8e6f895bfa0a7dc8a68306",
-    "source/cli/tests/unit/helpers/build-test-graph.ts": "0f4c28045890818b59d525429f7375eb0c76de4ffe058dcb3720411e3d0fb7e7"
+    "source/cli/tests/unit/helpers/seed-baseline.ts": "8fea3fe18f4590cad4d4f3faa7ca7b5ca31dd73c4392be7f7d8199854b5c92af"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -19,7 +19,7 @@
     "source/cli/tests/unit/helpers/build-test-graph.ts": 1780407050674.455,
     "source/cli/tests/unit/helpers/build-test-graph-structure.ts": 1780030262743.7183,
     "source/cli/tests/unit/helpers/build-test-graph-structure.test.ts": 1780029974723.867,
-    "source/cli/tests/unit/helpers/seed-baseline.ts": 1780293646510.5044
+    "source/cli/tests/unit/helpers/seed-baseline.ts": 1780474579845.4822
   },
   "identity": {
     "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
@@ -37,7 +37,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-05-29T04:51:27.989Z",
-    "prefix_hash": "b3e80d8c26f33ae976a52dec0166d65de8d1d7bce923c72ef07bfde0e5ef43c8"
+    "last_entry_datetime": "2026-06-03T08:20:28.695Z",
+    "prefix_hash": "26cdff9c922265b68660aa317c2b7697e214c3d3f3f50183ee330f63beb0d3f6"
   }
 }

@@ -311,6 +311,34 @@ async function classifyNodeDrift(
       }
     }
 
+    // Unattributable hash divergence (baseline integrity). We are past the
+    // `=== storedEntry.hash` early-return, so the recompute over this node's
+    // files + typed identity + stored verdicts differs from the recorded hash —
+    // yet neither a file change (directChanges) nor an identity change
+    // (cascadeCauses) was found to explain it. The only remaining input to the
+    // canonical fold is the stored per-aspect verdicts: a divergence with no
+    // file/identity cause means the committed drift-state was hand-edited (e.g. a
+    // refused->approved verdict flip leaving `hash` untouched) or predates a
+    // hash-scheme change. Either way the baseline can no longer be trusted, so
+    // this MUST block — never silently swallow the divergence (doing so let a
+    // tampered verdict pass the gate). Both causes resolve the same way: re-approve
+    // to re-establish the baseline, or restore the drift-state from git.
+    if (directChanges.length === 0 && cascadeCauses.length === 0) {
+      const baselineIntegrityMd = {
+        what: `Recorded baseline hash for '${nodePath}' does not match a recompute over its files, identity, and verdicts.`,
+        why: 'The drift-state was edited or is stale (a stored verdict may have been tampered, or the baseline predates a hash-scheme change). The recorded hash can no longer be trusted.',
+        next: `yg approve --node ${nodePath} to re-establish the baseline, or restore it from git: git checkout HEAD -- .yggdrasil/.drift-state/${nodePath}.json`,
+      };
+      issues.push({
+        severity: 'error',
+        code: 'baseline-integrity',
+        rule: 'baseline-integrity',
+        messageData: baselineIntegrityMd,
+        nodePath,
+      });
+      return;
+    }
+
     // Emit source-drift for direct changes (source files changed)
     if (directChanges.length > 0) {
       const sourceFiles = directChanges.filter(f => f.category === 'source').map(f => f.filePath);

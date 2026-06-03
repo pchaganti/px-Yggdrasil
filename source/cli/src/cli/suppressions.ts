@@ -39,6 +39,54 @@ function isBinaryContent(buf: Buffer): boolean {
   return false;
 }
 
+// ── Scan scope ────────────────────────────────────────────
+
+/**
+ * A real `yg-suppress` waiver lives in a SOURCE file that an aspect verifies —
+ * the reviewer honors the marker there. Generated rules mirrors, per-node logs,
+ * and prose docs only ever MENTION the marker syntax (the rules block documents
+ * it, a log entry explains a past waiver, the changelog records a fix). Scanning
+ * those reports phantom "active waivers" that are pure noise and never affect any
+ * verdict. Exclude them so the inventory lists only genuine code-side waivers.
+ *
+ * Excluded:
+ *  - everything under `.yggdrasil/` — the generated `agent-rules.md` rules block,
+ *    every node's `log.md`, aspect `content.md`, and `yg-node.yaml` examples.
+ *  - generated rules mirrors written by `yg init` for other agents
+ *    (`.cursor/...`, `.windsurfrules`, `.clinerules`, `.github/copilot-*`).
+ *  - any `log.md` anywhere (per-node history is prose, never a waiver site).
+ *  - prose/doc files (`.md`, `.mdc`, `.markdown`, `.txt`) — documentation and
+ *    changelogs describe markers; they are not code an aspect checks.
+ */
+function isNoiseFile(relFile: string): boolean {
+  const p = toPosixPath(relFile);
+
+  // .yggdrasil/ — generated rules, logs, aspect content, node yaml.
+  if (p === '.yggdrasil' || p.startsWith('.yggdrasil/')) return true;
+
+  // Generated rules mirrors for other agents (written by `yg init`).
+  if (p.startsWith('.cursor/')) return true;
+  if (p.startsWith('.github/copilot')) return true;
+  const base = p.includes('/') ? p.slice(p.lastIndexOf('/') + 1) : p;
+  if (base === '.windsurfrules' || base === '.clinerules') return true;
+
+  // Per-node history is prose, never a real waiver site.
+  if (base === 'log.md') return true;
+
+  // Prose / documentation — describes marker syntax, not aspect-checked code.
+  const lower = base.toLowerCase();
+  if (
+    lower.endsWith('.md') ||
+    lower.endsWith('.mdc') ||
+    lower.endsWith('.markdown') ||
+    lower.endsWith('.txt')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 // ── Core scan ─────────────────────────────────────────────
 
 export function runSuppressionsScan(
@@ -55,6 +103,10 @@ export function runSuppressionsScan(
   const openDisables = new Map<string, Map<string, number[]>>();
 
   for (const relFile of gitTrackedFiles) {
+    // Skip generated rules mirrors, per-node logs, and prose docs — they only
+    // MENTION the marker syntax and never carry a real, reviewer-honored waiver.
+    if (isNoiseFile(relFile)) continue;
+
     const absFile = path.join(projectRoot, relFile);
     if (!existsSync(absFile)) continue;
 

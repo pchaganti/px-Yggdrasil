@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "c4b5065400ec9298755e40304453d6ad177f24dff62ae207415a0899b9ced092",
+  "hash": "5b4429d9186edd3258f127dee89ed6286b9b2c4acdbe01fb41ca003de3492034",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/commands/yg-node.yaml": "4d929734cf56d8fbf3adfdbb908be64075a4a3322a892656ad00ea07bb026ab4",
@@ -11,13 +11,6 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
     ".yggdrasil/aspects/command-error-via-buildissuemessage/check.mjs": "f885e50d8a3f5fba39e70976f55b660ef3ea276296d80bc0fd842dc097a21dd1",
     ".yggdrasil/aspects/sibling-test-file/check.mjs": "cc6668feef2b552fae34d335bae2800df37ff15ca3483a6a5afbc9484c5cc483",
-    ".yggdrasil/model/cli/ast/runtime/yg-node.yaml": "e44d7566852b5e975ed868ae20fd67a63c668e5a9012a1356ac6abe82f8b3f94",
-    ".yggdrasil/model/cli/ast/yg-node.yaml": "8f03e5b210cb99fc306e6bcb5219da9c8ef146227715d956d36b60c6e69c4010",
-    ".yggdrasil/model/cli/core/loader/yg-node.yaml": "6efbbf493727f08d46a4a3f16acce62b942bc8950a81e15896713a018961b46d",
-    ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
-    ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": "d51c269d4b45bd597645a6c918e820c67762877ac22d64f861c53421b67a4fbd",
-    ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
-    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
     "source/cli/tests/unit/cli/approve.test.ts": "4948af8d177a0238753379046dae9a453f9ebe4de20161470c41e5d386bf3ef0",
     "source/cli/tests/unit/cli/approve-action-guards.test.ts": "2d35faaa68aa1ec0bec632298a63c467d99895cb3bb3bf133f10d90a0df2481a",
     "source/cli/tests/unit/cli/approve-batch.test.ts": "c59619ad846ed53db20f63cf8c5f1e55d720963e056cff106a758331e4f514a3",
@@ -47,7 +40,14 @@
     "source/cli/tests/unit/cli/log-add.test.ts": "ddde6752778f2f88a83e0f1f342a950bdbb0eb47c6348e38bdae24e78b563a5a",
     "source/cli/tests/unit/cli/log-read.test.ts": "2e3ef47655294dd15809d4ef072429ca69a18678a3f3b7f9ea271d9b8a70869b",
     "source/cli/tests/unit/cli/log-merge-resolve.test.ts": "3287b0a3ba7adbdaee390b5b9b831444012e1d2e3ab12ed363e26ae3d5e8bcaa",
-    "source/cli/src/cli/suppressions.ts": "74b0cca376fcf848ffa7828c21bbc09edb7161ea2716a727d775e364d8969552"
+    ".yggdrasil/model/cli/ast/runtime/yg-node.yaml": "e44d7566852b5e975ed868ae20fd67a63c668e5a9012a1356ac6abe82f8b3f94",
+    ".yggdrasil/model/cli/ast/yg-node.yaml": "8f03e5b210cb99fc306e6bcb5219da9c8ef146227715d956d36b60c6e69c4010",
+    ".yggdrasil/model/cli/core/loader/yg-node.yaml": "6efbbf493727f08d46a4a3f16acce62b942bc8950a81e15896713a018961b46d",
+    ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
+    ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": "d51c269d4b45bd597645a6c918e820c67762877ac22d64f861c53421b67a4fbd",
+    ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
+    ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
+    "source/cli/src/cli/suppressions.ts": "4e7589b0d8a816964d73ba84eb6f911e7a03756f32076b744909241d8323c832"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -95,7 +95,7 @@
     ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": 1780048240858.293,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
-    "source/cli/src/cli/suppressions.ts": 1780470448512.4434
+    "source/cli/src/cli/suppressions.ts": 1780474579844.0476
   },
   "identity": {
     "ownSubset": "4aee140012ad2be08cd6c83bea6c3457581049bf067554a8a462de877913b9fc",
@@ -108,7 +108,7 @@
       "command-exit-codes": {
         "meta": "0d18dc5ca40719edd817aa599af154ff0624f18d4b5ca4db58988e882d40d217",
         "checkTouched": {
-          "source/cli/src/cli/suppressions.ts": "74b0cca376fcf848ffa7828c21bbc09edb7161ea2716a727d775e364d8969552"
+          "source/cli/src/cli/suppressions.ts": "4e7589b0d8a816964d73ba84eb6f911e7a03756f32076b744909241d8323c832"
         }
       },
       "diagnostic-logging": {
@@ -118,25 +118,25 @@
       "command-contract-shape": {
         "meta": "2fd7b311748429afffb579e42650c7439ed61ef73e5bd840852c1f1b02864c40",
         "checkTouched": {
-          "source/cli/src/cli/suppressions.ts": "74b0cca376fcf848ffa7828c21bbc09edb7161ea2716a727d775e364d8969552"
+          "source/cli/src/cli/suppressions.ts": "4e7589b0d8a816964d73ba84eb6f911e7a03756f32076b744909241d8323c832"
         }
       },
       "posix-paths-source": {
         "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
         "checkTouched": {
-          "source/cli/src/cli/suppressions.ts": "74b0cca376fcf848ffa7828c21bbc09edb7161ea2716a727d775e364d8969552"
+          "source/cli/src/cli/suppressions.ts": "4e7589b0d8a816964d73ba84eb6f911e7a03756f32076b744909241d8323c832"
         }
       },
       "command-error-via-buildissuemessage": {
         "meta": "9f37cec0e200f0bd5c3d66be312376596fcab3af758f6dc02a161c0f285e761f",
         "checkTouched": {
-          "source/cli/src/cli/suppressions.ts": "74b0cca376fcf848ffa7828c21bbc09edb7161ea2716a727d775e364d8969552"
+          "source/cli/src/cli/suppressions.ts": "4e7589b0d8a816964d73ba84eb6f911e7a03756f32076b744909241d8323c832"
         }
       },
       "sibling-test-file": {
         "meta": "9e5167b876cb263053202c3f3d9465ae5f7fede306ab6ac585e58671964ee49c",
         "checkTouched": {
-          "source/cli/src/cli/suppressions.ts": "74b0cca376fcf848ffa7828c21bbc09edb7161ea2716a727d775e364d8969552",
+          "source/cli/src/cli/suppressions.ts": "4e7589b0d8a816964d73ba84eb6f911e7a03756f32076b744909241d8323c832",
           "source/cli/tests/unit/cli/approve.test.ts": "4948af8d177a0238753379046dae9a453f9ebe4de20161470c41e5d386bf3ef0",
           "source/cli/tests/unit/cli/approve-action-guards.test.ts": "2d35faaa68aa1ec0bec632298a63c467d99895cb3bb3bf133f10d90a0df2481a",
           "source/cli/tests/unit/cli/approve-batch.test.ts": "c59619ad846ed53db20f63cf8c5f1e55d720963e056cff106a758331e4f514a3",
@@ -194,7 +194,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-03T07:05:36.774Z",
-    "prefix_hash": "7a05652794cb384653f397ffcc5089eb5588342bfe2f51a3188221de72423612"
+    "last_entry_datetime": "2026-06-03T08:20:19.894Z",
+    "prefix_hash": "e8234cef24afa8f760776d27f8d9addcff5f96d2cca1b8a32080ce409471c261"
   }
 }

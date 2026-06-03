@@ -49,15 +49,20 @@ export async function recordBaselineForAllMappedNodes(graph: Graph): Promise<voi
     if (!node.meta.mapping) continue;
     const { trackedFiles, identity } = collectTrackedFiles(node, graph);
     const excl = getChildMappingExclusions(graph, nodePath);
-    const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
-      projectRoot, trackedFiles, undefined, excl, identity,
-    );
+    // Compute the persisted verdicts FIRST so the canonical hash folds the exact
+    // same verdict set we write to aspectVerdicts — mirroring production approve
+    // (recomputeFinalHash). The check gate recomputes over the stored verdicts;
+    // folding a different set here (e.g. the empty set) would make every seeded
+    // node fail the baseline-integrity check on the next `yg check`.
     const statuses = computeEffectiveAspectStatuses(node, graph);
     const aspectVerdicts: Record<string, AspectVerdict> = {};
     for (const id of computeEffectiveAspects(node, graph)) {
       if (statuses.get(id) === 'draft') continue;
       aspectVerdicts[id] = { verdict: 'approved' };
     }
+    const { canonicalHash, fileHashes, fileMtimes } = await hashTrackedFiles(
+      projectRoot, trackedFiles, undefined, excl, identity, aspectVerdicts,
+    );
     const state: DriftNodeState = {
       schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
       hash: canonicalHash,

@@ -4,3 +4,5 @@ This unit is the single home for the issue-code category sets — the structural
 Removed config-reviewer-legacy-format and config-reviewer-mixed-format from STRUCTURAL_CODES. These codes were emitted by runtime branches that have been deleted; retaining them in the set would silently allow callers to reference codes the parser no longer generates, risking confusion in error-grouping and summary tallies.
 ## [2026-06-03T07:05:08.466Z]
 Registered the error codes for the aggregating-aspect kind and related aspect-contract validation so the new conditions render with stable, documented codes in the gate output instead of generic messages.
+## [2026-06-03T08:20:15.797Z]
+Registered a new structural issue code for drift-state baseline integrity. It is classified as structural because it must block the gate regardless of whether any source file drifted: the baseline itself is untrustworthy when its recorded hash cannot be reproduced from the node's files, identity, and verdicts. Grouping it with the other always-blocking graph-shape codes keeps the summary tally and the rendered error grouping in agreement and feeds the suggested-next computation.

@@ -5,6 +5,7 @@ import { mkdir, writeFile, appendFile, rm, utimes } from 'node:fs/promises';
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import { approveNode } from '../../../src/core/approve.js';
 import { runApproveWithReviewer } from '../../../src/core/approve-reviewer.js';
+import { runCheck } from '../../../src/core/check.js';
 import {
   readNodeDriftState,
   writeNodeDriftState,
@@ -71,6 +72,17 @@ async function createTmpProject(name: string): Promise<string> {
 function makeMockProvider(): LlmProvider {
   return {
     verifyAspect: async () => ({ satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }),
+    isAvailable: async () => true,
+  };
+}
+
+/**
+ * A provider that REFUSES the LLM aspect (code violation). Used to record an
+ * HONEST `refused` verdict in the baseline whose hash correctly folds `refused`.
+ */
+function makeRefusingProvider(): LlmProvider {
+  return {
+    verifyAspect: async () => ({ satisfied: false, reason: 'code violates the rule', errorSource: 'codeViolation' as const }),
     isAvailable: async () => true,
   };
 }
@@ -211,6 +223,60 @@ describe('verdict-fold hash round-trip (approve stores == check recomputes)', ()
     // The stored hash (unchanged) no longer matches the recompute over the
     // tampered verdicts → check detects drift.
     expect(await checkPathHash(tmpDir, reread!)).not.toBe(reread!.hash);
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+});
+
+// True end-to-end gate regression. The roundtrip cases above only assert a
+// recompute disagrees with the stored hash; they never run the real `yg check`
+// gate, so they would pass even if `classifyNodeDrift` silently dropped an
+// unattributable divergence (the defect this guards). Here we drive the
+// security-relevant refused→approved tamper through `runCheck` and assert the
+// gate BLOCKS — a flipped verdict must never produce a clean check.
+describe('verdict tamper reaches the yg check gate (refused->approved blocks)', () => {
+  it('flipping a stored refused verdict to approved emits a blocking baseline-integrity error', async () => {
+    const tmpDir = await createTmpProject('gate-tamper');
+
+    // ADVISORY so an honest refusal still COMMITS a baseline: an advisory code
+    // violation records the refused verdict (and a hash folding `refused`)
+    // without aborting approve. The recorded hash is honest — the only later
+    // change is the hand-edited verdict.
+    await writeFile(
+      path.join(tmpDir, '.yggdrasil/aspects/llm/yg-aspect.yaml'),
+      'name: Llm\ndescription: must be deterministic\nstatus: advisory\nreviewer:\n  type: llm\n',
+    );
+
+    // Honest approve where the reviewer REFUSES the llm aspect.
+    mockCreateLlmProvider.mockReturnValue(makeRefusingProvider());
+    const { state: stored } = await approveFull(tmpDir);
+    expect(stored.aspectVerdicts['llm']).toMatchObject({ verdict: 'refused' });
+    expect(await checkPathHash(tmpDir, stored)).toBe(stored.hash);
+
+    // Untampered tree is clean at the gate.
+    const cleanGraph = await loadGraph(tmpDir);
+    const cleanResult = await runCheck(cleanGraph, null);
+    expect(cleanResult.issues.filter(i => i.code === 'baseline-integrity')).toHaveLength(0);
+
+    // Tamper: hand-flip the stored verdict refused→approved leaving `hash`
+    // untouched — a malicious edit trying to turn a red node green.
+    const tampered: DriftNodeState = {
+      ...stored,
+      aspectVerdicts: { ...stored.aspectVerdicts, llm: { verdict: 'approved' } },
+    };
+    await writeNodeDriftState(cleanGraph.rootPath, NODE_PATH, tampered);
+
+    // No file or identity changed, so the divergence is unattributable and MUST
+    // surface as a blocking baseline-integrity error.
+    const tamperedGraph = await loadGraph(tmpDir);
+    const result = await runCheck(tamperedGraph, null);
+
+    const integrity = result.issues.filter(i => i.code === 'baseline-integrity');
+    expect(integrity).toHaveLength(1);
+    expect(integrity[0].severity).toBe('error');
+    expect(integrity[0].nodePath).toBe(NODE_PATH);
+    expect(result.issues.some(i => i.severity === 'error')).toBe(true);
+    expect(result.suggestedNext).toBeTruthy();
+
     await rm(tmpDir, { recursive: true, force: true });
   });
 });

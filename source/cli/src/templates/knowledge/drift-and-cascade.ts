@@ -97,8 +97,13 @@ files, a typed \`identity\` block holding the node's upstream identity (its own
 aspect-relevant metadata, a per-aspect identity for every effective aspect, and
 per-dependency port-aspect hashes), and a per-aspect verdict map recording the
 reviewer's last judgment for each non-draft aspect. The canonical drift hash is
-computed over the real-file hashes together with that typed identity, so any
-upstream identity change cascades exactly like a source change.
+computed over the real-file hashes, that typed identity, AND the per-aspect
+verdict map, so any upstream identity change cascades exactly like a source
+change — and a hand-edited verdict in \`.drift-state/*.json\` (e.g. flipping a
+committed \`refused\` to \`approved\`) changes the recomputed hash too. \`yg check\`
+blocks on any such divergence it cannot attribute to a file or identity change,
+reporting a \`baseline-integrity\` error; the fix is to re-approve the node (or
+restore the drift-state from git).
 
 Aspect \`status\` is deliberately NOT part of the identity: flipping an aspect
 between \`advisory\` and \`enforced\` does not drift the node (the recorded verdict
