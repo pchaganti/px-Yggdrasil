@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "0504af333b7d376fab183c741359e13e0f4b85bc96d92da774b7d1651d0e5f29",
+  "hash": "de164ecbe86fe9cc93ba1877f273e8b498deca2db1733da44ef2963c9f6c9328",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -10,21 +10,6 @@
     "source/cli/tests/integration/migration-4.2-to-4.3.test.ts": "10fccaa51b6156ea33fe7d5ecd1ee50b238cc011aae4796bd95710ee68cb26e8",
     "source/cli/tests/integration/migration-4.3-to-5.0.test.ts": "c7015009ecc560173603c8ddd45a47bb47e94ad5418485782ebc2d00b9e99dcc"
   },
-  "identity": {
-    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "ports": {},
-    "aspects": {
-      "test-deterministic": {
-        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
-      }
-    }
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
-  },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
@@ -33,6 +18,21 @@
     "source/cli/tests/integration/migration-framework.test.ts": 1779944862866.1992,
     "source/cli/tests/integration/migration-4.2-to-4.3.test.ts": 1780262645223.0715,
     "source/cli/tests/integration/migration-4.3-to-5.0.test.ts": 1780262684026.2004
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "8bf090db1961f6a59cef79b3e8f45aa31be675074fa6daebf2f74730c8c6dda6"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   },
   "log": {
     "last_entry_datetime": "2026-05-31T06:24:48.965Z",

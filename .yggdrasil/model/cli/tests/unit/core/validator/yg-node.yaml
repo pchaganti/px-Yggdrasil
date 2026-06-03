@@ -6,3 +6,4 @@ relations: []
 mapping:
   - source/cli/tests/unit/core/validator-core.test.ts
   - source/cli/tests/unit/core/validator-structure.test.ts
+  - source/cli/tests/unit/core/validator-aspect-aggregate.test.ts

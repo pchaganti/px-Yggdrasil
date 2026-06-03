@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "hash": "46d0c9e5923f0970769cf8cba397cebc7a43dbd5830de89fde51e259d1b31246",
+  "hash": "de1f9767ad47f59ca3d4bb2acc333b03a5917f2685048c2c68efdabfc273755c",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": "f6203e633f0cb0b6bc84c3337606df49a00920a414f6557fe2f3f91bfd034442",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/integration/structure-implies.test.ts": "d1d4224feef5e3c3e2c88d6afed1c4a6539179425b490a835218c2e5d214a962",
     "source/cli/tests/integration/structure-lifecycle.test.ts": "46b912154b9d359e6b54ff8fb887586be05edd8c358a476ba527df51249ae46f",
-    "source/cli/tests/integration/structure-aspect-status.test.ts": "4c04fb113e7f48598ba869bfaa727a4c976ace2e859b88a8aec05e4f836be5c7"
+    "source/cli/tests/integration/structure-aspect-status.test.ts": "4c04fb113e7f48598ba869bfaa727a4c976ace2e859b88a8aec05e4f836be5c7",
+    "source/cli/tests/integration/structure-implies.test.ts": "d1d4224feef5e3c3e2c88d6afed1c4a6539179425b490a835218c2e5d214a962"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -25,7 +25,7 @@
     "aspects": {
       "test-deterministic": {
         "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+        "tier": "8bf090db1961f6a59cef79b3e8f45aa31be675074fa6daebf2f74730c8c6dda6"
       }
     }
   },

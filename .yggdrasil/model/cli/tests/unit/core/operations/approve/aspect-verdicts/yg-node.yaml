@@ -5,3 +5,4 @@ aspects: []
 relations: []
 mapping:
   - source/cli/tests/unit/core/approve-aspect-verdicts.test.ts
+  - source/cli/tests/unit/core/aggregate-aspect-verdicts.test.ts

@@ -4,7 +4,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { loadGraphOrAbort, abortOnUnexpectedError } from './preamble.js';
-import { initDebugLog } from '../utils/debug-log.js';
+import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { scanSuppressionMarkers } from '../ast/suppress.js';
 import type { SuppressionMarkerInfo } from '../ast/suppress.js';
@@ -61,7 +61,8 @@ export function runSuppressionsScan(
     let buf: Buffer;
     try {
       buf = readFileSync(absFile);
-    } catch {
+    } catch (error) {
+      debugWrite(`[suppressions] read fallback: ${relFile}: ${error instanceof Error ? error.message : String(error)}`);
       continue;
     }
 
@@ -208,8 +209,9 @@ export function registerSuppressionsCommand(program: Command): void {
             stdio: ['pipe', 'pipe', 'pipe'],
           });
           gitFiles = output.trim().split('\n').filter(f => f.length > 0);
-        } catch {
+        } catch (error) {
           // Not a git repo or git unavailable — proceed with empty list
+          debugWrite(`[suppressions] git ls-files fallback: ${error instanceof Error ? error.message : String(error)}`);
         }
 
         const knownAspectIds = new Set(graph.aspects.map(a => a.id));

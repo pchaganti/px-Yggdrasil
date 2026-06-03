@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "1935346dc840d8f1a998bb90311cf17e56f9f386ec789bd6fb0bde6307eb4cba",
+  "hash": "8329b5bc95fbc58cf827649f6ff0ac30241f32908701bc44cffd3d7df81f1217",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -12,21 +12,6 @@
     "source/cli/tests/unit/core/log-format.test.ts": "bb52340c7c6cbc08dad98efbb81aa8fe9f7888c2a81d9e684f9602a96d4b592f",
     "source/cli/tests/unit/core/log-integrity.test.ts": "aa2ee7eb50e2dc30ea0afafe1ce36ef48ad6cec59ec85a136cee3748c46e9b21"
   },
-  "identity": {
-    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "ports": {},
-    "aspects": {
-      "test-deterministic": {
-        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
-      }
-    }
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
-  },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
@@ -35,7 +20,22 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": 1779996108975.9385,
     ".yggdrasil/model/cli/tests/unit/core/operations/other/yg-node.yaml": 1780103152680.9028,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/log-format.test.ts": 1778573444835.2947,
-    "source/cli/tests/unit/core/log-integrity.test.ts": 1778573590477.678
+    "source/cli/tests/unit/core/log-format.test.ts": 1780293527031.3071,
+    "source/cli/tests/unit/core/log-integrity.test.ts": 1780293527032.0403
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "8bf090db1961f6a59cef79b3e8f45aa31be675074fa6daebf2f74730c8c6dda6"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   }
 }

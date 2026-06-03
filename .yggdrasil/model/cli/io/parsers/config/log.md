@@ -12,3 +12,5 @@ The per-node size guard changed from limiting the raw count of mapped source fil
 Added validation that the per-node character budget is a positive integer. A zero, negative, or fractional value is now a clear configuration error rather than silently producing a size gate that would flag every node or no node.
 ## [2026-05-31T21:53:57.148Z]
 Removed legacy-shape detection branches (isLegacyConfigFormat, isMixedConfigFormat) from config-parser.ts. The runtime parser now assumes the current 5.0 format — a reviewer mapping that lacks a tiers: key falls through to parseReviewer which emits config-tiers-missing, giving a clear actionable error without duplicating migration logic in the parser. The fail-closed version gate (Task 1) ensures the graph is already at 5.0 before any parser runs, making this safe.
+## [2026-06-03T07:05:22.228Z]
+Removed the dead context-length configuration field and the max-tokens reviewer setting from config parsing. These tuned a prompt-chunking and truncation path that no longer exists now that each node is reviewed whole, so keeping the knobs would imply a capability the reviewer no longer has.

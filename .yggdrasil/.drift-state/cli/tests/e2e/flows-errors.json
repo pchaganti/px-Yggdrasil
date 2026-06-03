@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "e86ac13b4e70953829425470cc6e716fa3d9d4534725e8215ce3ade534c72cd8",
+  "hash": "3f627fbc5c044925881c454e4cfa960d5be0b2592382e9cefcc379c80fc3afda",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -8,13 +8,20 @@
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/e2e/cli-flows-errors.test.ts": "c1d3557072d03260fc5146e06b973fc04da822e042c6cceab0a8788e758cd64e"
   },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
+    ".yggdrasil/model/cli/tests/e2e/yg-node.yaml": 1780104092868.105,
+    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
+    "source/cli/tests/e2e/cli-flows-errors.test.ts": 1780223086852.71
+  },
   "identity": {
     "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "ports": {},
     "aspects": {
       "test-deterministic": {
         "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+        "tier": "8bf090db1961f6a59cef79b3e8f45aa31be675074fa6daebf2f74730c8c6dda6"
       }
     }
   },
@@ -22,13 +29,6 @@
     "test-deterministic": {
       "verdict": "approved"
     }
-  },
-  "mtimes": {
-    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
-    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
-    ".yggdrasil/model/cli/tests/e2e/yg-node.yaml": 1780104092868.105,
-    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/e2e/cli-flows-errors.test.ts": 1780223086852.71
   },
   "log": {
     "last_entry_datetime": "2026-05-31T10:32:07.147Z",

@@ -1,29 +1,14 @@
 {
   "schemaVersion": 1,
-  "hash": "acd1df4471ff1daea02fa2f945b9ae22a863ed3613679091c849bd05e5df139c",
+  "hash": "e11dc2734b7e40b8108485a31604124911e12855f5b901072a5fe61368627bb7",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": "de00f518b04112cb692d73d15acfd232c3f1874b163d22d482f0b8e5a7163f48",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/core/tier-identity.test.ts": "773dc51daf4bb50be226479299221aaf4da71538144376b3b1596bd51003e4e6",
-    "source/cli/tests/unit/core/tier-selection.test.ts": "76a78b626938a359141dc9038cf77e1e603bef324d1b3a2b0a5b21e2813505fa"
-  },
-  "identity": {
-    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "ports": {},
-    "aspects": {
-      "test-deterministic": {
-        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
-      }
-    }
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
+    "source/cli/tests/unit/core/tier-identity.test.ts": "4ed762cb33fcce93a0e284b80fd18d8a125d3f91eb0445dc1db7ddaed1f9be30",
+    "source/cli/tests/unit/core/tier-selection.test.ts": "9d6200c34dca46224ea6c773bdfb86a311ed103c097e5897d5f09a7313c78257"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -31,8 +16,23 @@
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": 1778866543616.299,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/tier-identity.test.ts": 1779867596251.395,
-    "source/cli/tests/unit/core/tier-selection.test.ts": 1780163610490.3142
+    "source/cli/tests/unit/core/tier-identity.test.ts": 1780405932280.946,
+    "source/cli/tests/unit/core/tier-selection.test.ts": 1780405935125.5283
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "8bf090db1961f6a59cef79b3e8f45aa31be675074fa6daebf2f74730c8c6dda6"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   },
   "log": {
     "last_entry_datetime": "2026-05-31T21:54:26.699Z",

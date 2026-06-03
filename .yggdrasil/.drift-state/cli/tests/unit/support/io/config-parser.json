@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "337a976d9802d5a3c1178a929c865c869e34fc1293dc6dd5566c719e772faf94",
+  "hash": "1580f50c2343c7aa633784d942974a7b5346841c3c915d8c43f100f7caa9aefa",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -9,22 +9,7 @@
     ".yggdrasil/model/cli/tests/unit/support/io/yg-node.yaml": "24199834e04bff9d1ce415cdfcfc5c8fb7c61080b040732d46f509e66cd4819d",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/io/config-parser-references.test.ts": "8889934061970205eddd2f7ff6f7b38e20870090539427e0e6f1fe0861414423",
-    "source/cli/tests/unit/io/config-parser.test.ts": "b6ec2f32730b9e5a1b845b10b8ffaa3866eda7119c36e34db4c87351f84cc894"
-  },
-  "identity": {
-    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "ports": {},
-    "aspects": {
-      "test-deterministic": {
-        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
-      }
-    }
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
+    "source/cli/tests/unit/io/config-parser.test.ts": "0e3390bb19942bd86e50beb4e1deb1b5dd8510f7f7826f3fc6772b4f6d4e97cd"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -33,8 +18,23 @@
     ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": 1778866544645.0125,
     ".yggdrasil/model/cli/tests/unit/support/io/yg-node.yaml": 1780103612866.827,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/io/config-parser.test.ts": 1780264303106.4263,
+    "source/cli/tests/unit/io/config-parser.test.ts": 1780406065404.9146,
     "source/cli/tests/unit/io/config-parser-references.test.ts": 1779954901900.481
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "8bf090db1961f6a59cef79b3e8f45aa31be675074fa6daebf2f74730c8c6dda6"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   },
   "log": {
     "last_entry_datetime": "2026-05-31T21:54:30.854Z",

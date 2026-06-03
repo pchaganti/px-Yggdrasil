@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "253112860f3785ea6bccc19b791871f154aedb16842ae6bc97c3a2fd25c21d96",
+  "hash": "9abcdb65e73888af70bd3b9d740648a63eb9c2b0c269d05d369cf1c0a9149a84",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -10,21 +10,6 @@
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/core/language-registry.test.ts": "29611086f3f3340059c303c72f85039ac308aeeb6d7b4055e7d78fbe2ec01065"
   },
-  "identity": {
-    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "ports": {},
-    "aspects": {
-      "test-deterministic": {
-        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
-      }
-    }
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
-  },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
@@ -32,7 +17,22 @@
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": 1778866543616.299,
     ".yggdrasil/model/cli/tests/unit/core/graph/yg-node.yaml": 1780122508647.7935,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/language-registry.test.ts": 1780235200517.3328
+    "source/cli/tests/unit/core/language-registry.test.ts": 1780293527030.6594
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "8bf090db1961f6a59cef79b3e8f45aa31be675074fa6daebf2f74730c8c6dda6"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   },
   "log": {
     "last_entry_datetime": "2026-05-30T14:09:02.375Z",

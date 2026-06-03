@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "4e4f22e24820fa22e7f4eefe5a7b15a0c8b715c7c071d98deeb8af396cd8b36c",
+  "hash": "71d34d8e2cd61a8b9fa59c29ff771d553eda3d3339a8a4e94d5a736dfd6be35f",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -8,13 +8,20 @@
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/e2e/cli-architecture-classification.test.ts": "ade13019f1ad61f73808c2405f978bd4287ac28f75d063de07179c2f6f2c23fc"
   },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
+    ".yggdrasil/model/cli/tests/e2e/yg-node.yaml": 1780104092868.105,
+    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
+    "source/cli/tests/e2e/cli-architecture-classification.test.ts": 1780216287706.808
+  },
   "identity": {
     "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
     "ports": {},
     "aspects": {
       "test-deterministic": {
         "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+        "tier": "8bf090db1961f6a59cef79b3e8f45aa31be675074fa6daebf2f74730c8c6dda6"
       }
     }
   },
@@ -22,13 +29,6 @@
     "test-deterministic": {
       "verdict": "approved"
     }
-  },
-  "mtimes": {
-    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
-    ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
-    ".yggdrasil/model/cli/tests/e2e/yg-node.yaml": 1780104092868.105,
-    ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/e2e/cli-architecture-classification.test.ts": 1780216287706.808
   },
   "log": {
     "last_entry_datetime": "2026-05-31T08:36:51.917Z",

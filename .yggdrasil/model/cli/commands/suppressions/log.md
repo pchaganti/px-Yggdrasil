@@ -1,0 +1,2 @@
+## [2026-06-03T07:05:36.774Z]
+New read-only command that inventories every active yg-suppress marker across git-tracked text files and warns on three footguns: a marker naming an aspect id that no longer exists in the graph, a wildcard that silences all current and future checks, and an unbounded disable with no matching enable that leaks suppression to the end of the file. It records no baseline and always exits zero because it is informational, not a gate.

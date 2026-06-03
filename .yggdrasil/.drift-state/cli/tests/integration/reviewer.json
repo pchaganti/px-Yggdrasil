@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
-  "hash": "8e587fd1b05be90cc339868275d36fa79f5e710b5f63dbad2533e9ee91eb9cb6",
+  "hash": "a675fa8b4a57a147d1cd1514e452052dac131b639a34f25a5ae9f3a72d1f733f",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": "f6203e633f0cb0b6bc84c3337606df49a00920a414f6557fe2f3f91bfd034442",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/integration/ollama-reviewer.external.test.ts": "2a07d56495326b845a9fb46e8dffdd7b28606651afd430bc70ef635dd56f9a4c",
-    "source/cli/tests/integration/multi-tier-approve.test.ts": "281f0bb6abeebf45633d60ce045d1d7fc1b5a025d4b5289c720f114383905757"
+    "source/cli/tests/integration/multi-tier-approve.test.ts": "b6329db230b16088ad35908446833fc3efdc9a990e114b14d4a029ddde0f67e2",
+    "source/cli/tests/integration/ollama-reviewer.external.test.ts": "fbe2e7b3df0f1e74821f09e9ebe5eb0895cdc1601563a1411951710d791a31bb"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": 1778923836291.2395,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/integration/multi-tier-approve.test.ts": 1780293462495.46,
-    "source/cli/tests/integration/ollama-reviewer.external.test.ts": 1776177846281.6396
+    "source/cli/tests/integration/multi-tier-approve.test.ts": 1780406028934.4973,
+    "source/cli/tests/integration/ollama-reviewer.external.test.ts": 1780406036419.2454
   },
   "identity": {
     "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
@@ -23,7 +23,7 @@
     "aspects": {
       "test-deterministic": {
         "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+        "tier": "8bf090db1961f6a59cef79b3e8f45aa31be675074fa6daebf2f74730c8c6dda6"
       }
     }
   },

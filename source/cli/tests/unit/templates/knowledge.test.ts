@@ -44,7 +44,7 @@ describe('KNOWLEDGE_TOPICS', () => {
     'aspects-overview': [
       '## What an aspect is',
       '## When to create an aspect',
-      '## LLM vs deterministic',
+      '## Three reviewer kinds',
       '## Cost model',
       '## Aspect status',
     ],

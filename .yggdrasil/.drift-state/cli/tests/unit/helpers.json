@@ -1,22 +1,22 @@
 {
   "schemaVersion": 1,
-  "hash": "9df9bcb542149cc3d621dc9cbb0042ae67b646cf01787b7d86fb2a7b20c14932",
+  "hash": "cd8f6266e2a264d62ab43f9ab7e77d081d8aaa63e2347e2dd6b2d3801d5f0c0b",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/helpers/build-test-graph.ts": "74b5bd676d165419f545a258e6c1f8697b33e57d79c531ab486b70696ee66363",
     "source/cli/tests/unit/helpers/build-test-graph-structure.ts": "ddcd62da1c8dd23c667850770ae1f0b7673bdea3175eaf8e36d90c4d6051e22a",
     "source/cli/tests/unit/helpers/build-test-graph-structure.test.ts": "121c0d08806a68f53aa4cad47cfd3fa2962041fae275697319195714e1cdb896",
-    "source/cli/tests/unit/helpers/seed-baseline.ts": "e2c2c93c2686c614a4de528a52928b2035bd9f09bc8e6f895bfa0a7dc8a68306"
+    "source/cli/tests/unit/helpers/seed-baseline.ts": "e2c2c93c2686c614a4de528a52928b2035bd9f09bc8e6f895bfa0a7dc8a68306",
+    "source/cli/tests/unit/helpers/build-test-graph.ts": "0f4c28045890818b59d525429f7375eb0c76de4ffe058dcb3720411e3d0fb7e7"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/helpers/build-test-graph.ts": 1779970993475.7493,
+    "source/cli/tests/unit/helpers/build-test-graph.ts": 1780407050674.455,
     "source/cli/tests/unit/helpers/build-test-graph-structure.ts": 1780030262743.7183,
     "source/cli/tests/unit/helpers/build-test-graph-structure.test.ts": 1780029974723.867,
     "source/cli/tests/unit/helpers/seed-baseline.ts": 1780293646510.5044
@@ -27,7 +27,7 @@
     "aspects": {
       "test-deterministic": {
         "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+        "tier": "8bf090db1961f6a59cef79b3e8f45aa31be675074fa6daebf2f74730c8c6dda6"
       }
     }
   },

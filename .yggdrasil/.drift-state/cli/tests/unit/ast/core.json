@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "ece4ff7a42d151556e6eef96151a62921fdecf58def99486e2dfb49c336b0437",
+  "hash": "d2d688c8c99aa0445ff7e74af6e429ac372d3d9faf1900af3127b0d57b384eaf",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -9,25 +9,10 @@
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/ast/find-comments.test.ts": "e4e43c846a4dee66ed759297390d27b62f8d5f87b21945965093ec373fe5a223",
     "source/cli/tests/unit/ast/index-exports.test.ts": "4c832a31bf52ba3afb001179e4276552ed83d83614a32fac20d8987517e59019",
+    "source/cli/tests/unit/ast/parser.test.ts": "b0ba27e16df9e6df3c63a3005ca66553c27d4e10473b791ffed04595c16ba636",
     "source/cli/tests/unit/ast/report.test.ts": "bcbb06ced69ddadba34cf12f13237081edf2fe2502f765836b9a130580cd48e0",
-    "source/cli/tests/unit/ast/suppress.test.ts": "f560963024164316556d2458f628ecac5c905d551269a04bd96778203c3cbdaf",
     "source/cli/tests/unit/ast/walk.test.ts": "2ebdc4a0555b01eab30d544b961292f986f2a7be436664eb4e7009cd42341b8e",
-    "source/cli/tests/unit/ast/parser.test.ts": "b0ba27e16df9e6df3c63a3005ca66553c27d4e10473b791ffed04595c16ba636"
-  },
-  "identity": {
-    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "ports": {},
-    "aspects": {
-      "test-deterministic": {
-        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
-      }
-    }
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
+    "source/cli/tests/unit/ast/suppress.test.ts": "d8e133deb106f59d6535bcfcb735e054482e18265b9568428d2b5ae30ed32c9d"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -39,8 +24,23 @@
     "source/cli/tests/unit/ast/index-exports.test.ts": 1779794513952.9321,
     "source/cli/tests/unit/ast/parser.test.ts": 1780235188242.2422,
     "source/cli/tests/unit/ast/report.test.ts": 1779794513953.0547,
-    "source/cli/tests/unit/ast/suppress.test.ts": 1778434023375.9478,
+    "source/cli/tests/unit/ast/suppress.test.ts": 1780408121379.218,
     "source/cli/tests/unit/ast/walk.test.ts": 1779794513953.282
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "8bf090db1961f6a59cef79b3e8f45aa31be675074fa6daebf2f74730c8c6dda6"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   },
   "log": {
     "last_entry_datetime": "2026-05-26T09:48:28.518Z",

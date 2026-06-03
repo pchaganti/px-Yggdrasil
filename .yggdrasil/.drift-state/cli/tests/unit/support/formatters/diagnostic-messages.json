@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "9b262784ab2727374bb5ca70ea435c82bbcfc17dc0c4abf0f5787f8967303caf",
+  "hash": "a688a427420c617f1e681bfe2c7f53d4dc8cba0f37d8c78731372ef9353476a1",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -13,21 +13,6 @@
     "source/cli/tests/unit/formatters/message-builder.test.ts": "dae4e20ba6f4bc07f48c3f5ebf07b057d9503e21dbd67dd94f6288d83afded97",
     "source/cli/tests/unit/formatters/predicate-trace.test.ts": "d9ec5fe6351e5ecfb8b5903bcb5d1b3a170d67dd1a94e585eb3181b482b3eba2"
   },
-  "identity": {
-    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "ports": {},
-    "aspects": {
-      "test-deterministic": {
-        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
-      }
-    }
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
-  },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
@@ -39,5 +24,20 @@
     "source/cli/tests/unit/formatters/__snapshots__/issue-message-snapshots.test.ts.snap": 1779983261697.277,
     "source/cli/tests/unit/formatters/message-builder.test.ts": 1776177846287.37,
     "source/cli/tests/unit/formatters/predicate-trace.test.ts": 1778650989394.8916
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "8bf090db1961f6a59cef79b3e8f45aa31be675074fa6daebf2f74730c8c6dda6"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   }
 }

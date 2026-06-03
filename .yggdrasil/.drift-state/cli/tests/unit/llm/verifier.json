@@ -1,30 +1,15 @@
 {
   "schemaVersion": 1,
-  "hash": "d47e180a5fa1e187d480a97917e643af62dd3127abb2b83b36c3ffa8db050ad2",
+  "hash": "11eda4addf364a09d13bf7d835b2527ea8bb09a04e3acaa727f2e5d662c8235a",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
     ".yggdrasil/model/cli/tests/unit/llm/yg-node.yaml": "ebb2390d4948b19d17bc6d83ec67d1ecf47ef911ced14f91e22b606cd4c7d8cd",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/llm/provider.test.ts": "ff86be1fd6d9f07f2c553ea1aec1af6f236b2926e0e6edb0dd65160c21b56704",
     "source/cli/tests/unit/llm/xml-escape.test.ts": "d0bfb0142c4b5cafc82f11a1436d72940ce70a335ad68d3e75e79c621872e7ae",
-    "source/cli/tests/unit/llm/aspect-verifier-references.test.ts": "07fb7ab9e6609fca2f9784d674bd09ce9e54047f9999ee341811310a1a92bf73"
-  },
-  "identity": {
-    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
-    "ports": {},
-    "aspects": {
-      "test-deterministic": {
-        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
-      }
-    }
-  },
-  "aspectVerdicts": {
-    "test-deterministic": {
-      "verdict": "approved"
-    }
+    "source/cli/tests/unit/llm/aspect-verifier-references.test.ts": "07fb7ab9e6609fca2f9784d674bd09ce9e54047f9999ee341811310a1a92bf73",
+    "source/cli/tests/unit/llm/provider.test.ts": "931f08e875e454a0bc25d97a10a0a9d47502091f38f4f87bb90565baa4ccf0bc"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -32,8 +17,23 @@
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
     ".yggdrasil/model/cli/tests/unit/llm/yg-node.yaml": 1779996133713.766,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/llm/provider.test.ts": 1776177846291.3774,
+    "source/cli/tests/unit/llm/provider.test.ts": 1780405917493.764,
     "source/cli/tests/unit/llm/xml-escape.test.ts": 1779962414128.6423,
     "source/cli/tests/unit/llm/aspect-verifier-references.test.ts": 1779964643681.8257
+  },
+  "identity": {
+    "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
+    "ports": {},
+    "aspects": {
+      "test-deterministic": {
+        "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
+        "tier": "8bf090db1961f6a59cef79b3e8f45aa31be675074fa6daebf2f74730c8c6dda6"
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "test-deterministic": {
+      "verdict": "approved"
+    }
   }
 }

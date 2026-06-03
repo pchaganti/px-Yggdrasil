@@ -1,37 +1,37 @@
 {
   "schemaVersion": 1,
-  "hash": "2127a5ea1468010c9bafdb85b7e4d0872958c624820cddbdae51915ce94a1a14",
+  "hash": "65b9d7aacae9fb9da9830a84f97776eb597961b986a696c95da135f051c8d978",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
-    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": "28d4910031027fc82e9b1b745930f0a22280d1cf5fc8d021bca54c3172990ccb",
-    ".yggdrasil/aspects/no-direct-fs/check.mjs": "6e0c398a74ee1909a324c7b9658e2159a5c3976799bdc2ed88caeefe4428fdf7",
-    ".yggdrasil/aspects/no-direct-console/check.mjs": "03800a8adef35989d60bfcb5677a72b4c0dfedc3f7eb50aed8249421c4e24f44",
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": "39fd7e238e2ea2ae890115ce1f18baf6e376c481c0c0fb9289ee8fcf57375df5",
-    ".yggdrasil/aspects/single-source-graph-queries/check.mjs": "8364b0c42413e7b467a22b493543f882d77cc3b65616af93127c07c76c212361",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
-    "source/cli/src/core/graph/aspects.ts": "1a7e85c742f69285fd7ac88f5d219c6af62ce05a3a272322429c8f292f550082",
     "source/cli/src/core/graph/dependencies.ts": "ef894f905b8a3b48edae8ca053c1a93f1d85b6e6ab8ad852e3d8fb8021334966",
     "source/cli/src/core/graph/files.ts": "6932bfe1289e6077d6af86f121f6b7e3d6c174d187c5e93cf785926807aa17c9",
     "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
+    "source/cli/src/core/graph/impact-graph.ts": "ad0277cd2d6f9091092eb5f5bf21b634b8d94428c5eb079328994bfd62d489cb",
     "source/cli/src/core/graph/index.ts": "62d2ed23b266a97b721bd6eff7e1d69e716793fb901ad9480ebc2cfbaaf21ced",
     "source/cli/src/core/graph/traversal.ts": "c8bfc34728a628a6cad780dd81ffd2e786354e46b099921f5ab3c8c47c440a4b",
-    "source/cli/src/core/graph/impact-graph.ts": "ad0277cd2d6f9091092eb5f5bf21b634b8d94428c5eb079328994bfd62d489cb"
+    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": "fcda40a731fc3a7df0faf659a39c2d0fb8d716e62a4b4dc93d0c0793cc2183ef",
+    ".yggdrasil/aspects/no-direct-fs/check.mjs": "518ab025ec1f08970e99941570c3ee1d028f31298c937ae1c16411b8c6426c01",
+    ".yggdrasil/aspects/no-direct-console/check.mjs": "4f5265a17d14845ba77de70e486c3922c2234a9beed5da5e1f7fb3c4f714bbd1",
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
+    ".yggdrasil/aspects/single-source-graph-queries/check.mjs": "f78f8fd52ed16c74eec53aff5b33b39bc9acb5b93caa89bf09a4ca43fceadeed",
+    "source/cli/src/core/graph/aspects.ts": "5c3cbe7bcb52a3379c2791500c99ed6bb85d3519da625c7008c4ce300ef8b4c1"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/core/yg-node.yaml": 1776177846202.0774,
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
-    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": 1779794513933.2222,
-    ".yggdrasil/aspects/no-direct-fs/check.mjs": 1779794513932.871,
-    ".yggdrasil/aspects/no-direct-console/check.mjs": 1779794513932.3838,
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1779794513934.5745,
-    ".yggdrasil/aspects/single-source-graph-queries/check.mjs": 1779794513935.7961,
+    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": 1780410808860.6436,
+    ".yggdrasil/aspects/no-direct-fs/check.mjs": 1780410788073.9387,
+    ".yggdrasil/aspects/no-direct-console/check.mjs": 1780410794287.1396,
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780410812801.22,
+    ".yggdrasil/aspects/single-source-graph-queries/check.mjs": 1780410851274.8843,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    "source/cli/src/core/graph/aspects.ts": 1780217998081.6018,
+    "source/cli/src/core/graph/aspects.ts": 1780407155480.542,
     "source/cli/src/core/graph/dependencies.ts": 1778959819575.0183,
     "source/cli/src/core/graph/files.ts": 1780294477729.8113,
     "source/cli/src/core/graph/flows.ts": 1778958982525.8142,
@@ -45,12 +45,12 @@
     "aspects": {
       "deterministic": {
         "meta": "c519ac2565dbb22b41029f6e95a238b3345ef3d3b3a433b0e4c13c684969ca2c",
-        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+        "tier": "8bf090db1961f6a59cef79b3e8f45aa31be675074fa6daebf2f74730c8c6dda6"
       },
       "no-nondeterminism-direct": {
         "meta": "6e2986f1175fc284d63accb9209518c0d99994114f1ad9d30f91df11498a75ca",
         "checkTouched": {
-          "source/cli/src/core/graph/aspects.ts": "1a7e85c742f69285fd7ac88f5d219c6af62ce05a3a272322429c8f292f550082",
+          "source/cli/src/core/graph/aspects.ts": "5c3cbe7bcb52a3379c2791500c99ed6bb85d3519da625c7008c4ce300ef8b4c1",
           "source/cli/src/core/graph/dependencies.ts": "ef894f905b8a3b48edae8ca053c1a93f1d85b6e6ab8ad852e3d8fb8021334966",
           "source/cli/src/core/graph/files.ts": "6932bfe1289e6077d6af86f121f6b7e3d6c174d187c5e93cf785926807aa17c9",
           "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
@@ -62,7 +62,7 @@
       "no-direct-fs": {
         "meta": "85008a60917fc599d6fbfcfb2af8e0d4e563f4eaeff9c8da8a5722aef696b948",
         "checkTouched": {
-          "source/cli/src/core/graph/aspects.ts": "1a7e85c742f69285fd7ac88f5d219c6af62ce05a3a272322429c8f292f550082",
+          "source/cli/src/core/graph/aspects.ts": "5c3cbe7bcb52a3379c2791500c99ed6bb85d3519da625c7008c4ce300ef8b4c1",
           "source/cli/src/core/graph/dependencies.ts": "ef894f905b8a3b48edae8ca053c1a93f1d85b6e6ab8ad852e3d8fb8021334966",
           "source/cli/src/core/graph/files.ts": "6932bfe1289e6077d6af86f121f6b7e3d6c174d187c5e93cf785926807aa17c9",
           "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
@@ -74,7 +74,7 @@
       "no-direct-console": {
         "meta": "84cef429198884b3dcc2076061e164d50d97b011724d2f357350ede01f4fa975",
         "checkTouched": {
-          "source/cli/src/core/graph/aspects.ts": "1a7e85c742f69285fd7ac88f5d219c6af62ce05a3a272322429c8f292f550082",
+          "source/cli/src/core/graph/aspects.ts": "5c3cbe7bcb52a3379c2791500c99ed6bb85d3519da625c7008c4ce300ef8b4c1",
           "source/cli/src/core/graph/dependencies.ts": "ef894f905b8a3b48edae8ca053c1a93f1d85b6e6ab8ad852e3d8fb8021334966",
           "source/cli/src/core/graph/files.ts": "6932bfe1289e6077d6af86f121f6b7e3d6c174d187c5e93cf785926807aa17c9",
           "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
@@ -86,7 +86,7 @@
       "posix-paths-source": {
         "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
         "checkTouched": {
-          "source/cli/src/core/graph/aspects.ts": "1a7e85c742f69285fd7ac88f5d219c6af62ce05a3a272322429c8f292f550082",
+          "source/cli/src/core/graph/aspects.ts": "5c3cbe7bcb52a3379c2791500c99ed6bb85d3519da625c7008c4ce300ef8b4c1",
           "source/cli/src/core/graph/dependencies.ts": "ef894f905b8a3b48edae8ca053c1a93f1d85b6e6ab8ad852e3d8fb8021334966",
           "source/cli/src/core/graph/files.ts": "6932bfe1289e6077d6af86f121f6b7e3d6c174d187c5e93cf785926807aa17c9",
           "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
@@ -98,7 +98,7 @@
       "single-source-graph-queries": {
         "meta": "b1dd772529ca4799de41809e1e615c58ab58fba6b861920dd646786ff43ad9c2",
         "checkTouched": {
-          "source/cli/src/core/graph/aspects.ts": "1a7e85c742f69285fd7ac88f5d219c6af62ce05a3a272322429c8f292f550082",
+          "source/cli/src/core/graph/aspects.ts": "5c3cbe7bcb52a3379c2791500c99ed6bb85d3519da625c7008c4ce300ef8b4c1",
           "source/cli/src/core/graph/dependencies.ts": "ef894f905b8a3b48edae8ca053c1a93f1d85b6e6ab8ad852e3d8fb8021334966",
           "source/cli/src/core/graph/files.ts": "6932bfe1289e6077d6af86f121f6b7e3d6c174d187c5e93cf785926807aa17c9",
           "source/cli/src/core/graph/flows.ts": "1e253de8cf7d1a8444354069b0116e99b29f0f846d14007022f5dc7012b1c084",
@@ -130,7 +130,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-01T07:03:40.471Z",
-    "prefix_hash": "a8050ed305d47227977b8ee9fcbe2829697c625374434ce93584f32e0fce1608"
+    "last_entry_datetime": "2026-06-03T07:05:21.855Z",
+    "prefix_hash": "c1b58f32926e256261304bd7a7037ace683607e0051a0ee79e243fc305811834"
   }
 }

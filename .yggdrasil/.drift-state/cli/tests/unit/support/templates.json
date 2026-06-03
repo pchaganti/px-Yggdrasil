@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "bee5c97e33c38ed81514ae05260974efa03e65423dd76b8e9b055a6f1142e2a8",
+  "hash": "f2fc32c6cbfe487fe03607d49012aa4f65af9b782992301cd3aa636a4b23fec3",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -12,7 +12,7 @@
     "source/cli/tests/unit/templates/platform.test.ts": "dc837d48e5e11e3983fc14a7c6a831b3941df91906da0447566c67d9756220ab",
     "source/cli/tests/unit/templates/rules-sections.test.ts": "28058e8afffbdcb33b530a1b3d5e9d3e92d43e95efbc5b2527cb53f22821f1c0",
     "source/cli/tests/unit/templates/rules.test.ts": "b768fae3b015c0eb3e56898661b63eefba31e6d9cedb6bb0a465ee4fb3730aae",
-    "source/cli/tests/unit/templates/knowledge.test.ts": "8b6bffb64918b6906099d20e82625de19ad1de9596f9aae484fbbdb1096a9c7a"
+    "source/cli/tests/unit/templates/knowledge.test.ts": "68b7a31020a9b32975b801832fad069728f3cf22a996668def8ebea2b6c7ea5d"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -22,7 +22,7 @@
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/templates/commands.test.ts": 1771702372076.214,
     "source/cli/tests/unit/templates/default-config.test.ts": 1779885521795.7646,
-    "source/cli/tests/unit/templates/knowledge.test.ts": 1780302606200.9204,
+    "source/cli/tests/unit/templates/knowledge.test.ts": 1780472337074.2217,
     "source/cli/tests/unit/templates/platform.test.ts": 1776179066148.0842,
     "source/cli/tests/unit/templates/rules-sections.test.ts": 1780170623614.5786,
     "source/cli/tests/unit/templates/rules.test.ts": 1776349121518.1729
@@ -33,7 +33,7 @@
     "aspects": {
       "test-deterministic": {
         "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+        "tier": "8bf090db1961f6a59cef79b3e8f45aa31be675074fa6daebf2f74730c8c6dda6"
       }
     }
   },

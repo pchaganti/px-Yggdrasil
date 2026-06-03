@@ -27,7 +27,7 @@ export function checkDanglingAspectRefs(graph: Graph): ValidationIssue[] {
           ...issueMsg({
             what: `Aspect '${aspectId}' is referenced by this node but not defined in aspects/.`,
             why: `Node declares an aspect that does not exist — aspect requirements cannot be verified.`,
-            next: `Create aspects/${aspectId}/ with yg-aspect.yaml and content.md.`,
+            next: `Create the aspects/${aspectId} directory with yg-aspect.yaml and content.md.`,
           }),
         });
       }
@@ -45,7 +45,7 @@ export function checkDanglingAspectRefs(graph: Graph): ValidationIssue[] {
               ...issueMsg({
                 what: `Aspect '${aspectId}' is referenced by port '${portName}' but not defined in aspects/.`,
                 why: `Port declares a required aspect that does not exist — port contracts cannot be enforced.`,
-                next: `Create aspects/${aspectId}/ with yg-aspect.yaml and content.md.`,
+                next: `Create the aspects/${aspectId} directory with yg-aspect.yaml and content.md.`,
               }),
             });
           }
@@ -65,7 +65,7 @@ export function checkDanglingAspectRefs(graph: Graph): ValidationIssue[] {
           ...issueMsg({
             what: `Aspect '${aspectId}' is referenced by architecture type '${typeId}' but not defined in aspects/.`,
             why: `Architecture declares a required aspect that does not exist.`,
-            next: `Create aspects/${aspectId}/ with yg-aspect.yaml and content.md.`,
+            next: `Create the aspects/${aspectId} directory with yg-aspect.yaml and content.md.`,
           }),
         });
       }
@@ -83,7 +83,7 @@ export function checkDanglingAspectRefs(graph: Graph): ValidationIssue[] {
           ...issueMsg({
             what: `Aspect '${aspectId}' is referenced by flow '${flow.name}' but not defined in aspects/.`,
             why: `Flow declares an aspect that does not exist — flow requirements cannot propagate.`,
-            next: `Create aspects/${aspectId}/ with yg-aspect.yaml and content.md.`,
+            next: `Create the aspects/${aspectId} directory with yg-aspect.yaml and content.md.`,
           }),
         });
       }

@@ -1,0 +1,14 @@
+name: IO Drift State Store
+type: persistence-adapter
+description: Filesystem persistence for per-node drift baselines — reads, writes, and garbage-collects the .drift-state/ store, routing every write through the atomic-write port so a crash or signal never leaves a partial baseline.
+relations:
+  - target: cli/model/drift
+    type: uses
+  - target: cli/utils
+    type: calls
+  - target: cli/io/atomic-write
+    type: calls
+    consumes:
+      - write-atomic
+mapping:
+  - source/cli/src/io/drift-state-store.ts

@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "hash": "9c41e243089bb3775da432707e5cd3f725595000d7813bc1394bc6240c39cff9",
+  "hash": "41ea6e90c2fae30c9df9d322f6b493facc314a8f342e361b1228ad819bc66b46",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": "f6203e633f0cb0b6bc84c3337606df49a00920a414f6557fe2f3f91bfd034442",
     ".yggdrasil/model/cli/tests/integration/pipeline/yg-node.yaml": "9c95586349f19434f8d14b7854eb7f61828fbb251166776f22febf14185193b7",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/integration/approve-batch-with-missing-reference.test.ts": "10f89b2bdd5492b2cc5cc4975f5103865ecc9ff3cdbd1351c3537bb76d3dc578",
     "source/cli/tests/integration/approve-dry-run-references.test.ts": "2c1d3c46392adda05cab1f0f1628e81164984c16a01b8d3b909b70767bbdf6cb",
-    "source/cli/tests/integration/approve-with-references.test.ts": "02a3c84e70ba5fb5aa39ced38b7ccf4a157f61f3c36476f9c79c4bc4cb26f916",
+    "source/cli/tests/integration/approve-pipeline.test.ts": "5e99c95ecae3a81a28c63ca5cb93a1bb91aa44fb3e582aef07e0a7ac5619c27b",
     "source/cli/tests/integration/deterministic-tier-gating.test.ts": "3e04a9470db76252d50313d3224d917e1e82bc10888da9dea1e2bc158e19839d",
-    "source/cli/tests/integration/approve-pipeline.test.ts": "5e99c95ecae3a81a28c63ca5cb93a1bb91aa44fb3e582aef07e0a7ac5619c27b"
+    "source/cli/tests/integration/approve-batch-with-missing-reference.test.ts": "8ea1f0df80a133827dc6930911b01c208aafe10065f4ee82d0dd0efa4acd8090",
+    "source/cli/tests/integration/approve-with-references.test.ts": "bfb9e72d2ec40433f35ab81057eead62aeab0cfd0ae1a0750a92389b76426010"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -19,10 +19,10 @@
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": 1778923836291.2395,
     ".yggdrasil/model/cli/tests/integration/pipeline/yg-node.yaml": 1779996040953.1306,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/integration/approve-batch-with-missing-reference.test.ts": 1779962471949.9426,
+    "source/cli/tests/integration/approve-batch-with-missing-reference.test.ts": 1780405998146.2925,
     "source/cli/tests/integration/approve-dry-run-references.test.ts": 1780163641524.7854,
     "source/cli/tests/integration/approve-pipeline.test.ts": 1780293674268.6035,
-    "source/cli/tests/integration/approve-with-references.test.ts": 1780058289467.0676,
+    "source/cli/tests/integration/approve-with-references.test.ts": 1780406004381.1724,
     "source/cli/tests/integration/deterministic-tier-gating.test.ts": 1780163017148.6274
   },
   "identity": {
@@ -31,7 +31,7 @@
     "aspects": {
       "test-deterministic": {
         "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+        "tier": "8bf090db1961f6a59cef79b3e8f45aa31be675074fa6daebf2f74730c8c6dda6"
       }
     }
   },

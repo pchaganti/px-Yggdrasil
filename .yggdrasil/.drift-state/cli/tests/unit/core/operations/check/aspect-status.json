@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "db6c76391399519008276dc64ca139a7e911f09b1bcb00d676cfe6e6da6ec5ce",
+  "hash": "232d20888a378c5f209b96e32574a227e223ab557f05952234d38ac913f1b7dd",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -9,7 +9,7 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": "a5408f7e331d1e28996ceaf2b67c4fada5e52ee3909db85a7904aae88cd55146",
     ".yggdrasil/model/cli/tests/unit/core/operations/check/yg-node.yaml": "fba56faf121115c2958ee4c3938134fc6b06836a8029621ff833305ff601c4c2",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/core/check-aspect-status.test.ts": "d94bc587052981ec35c9a409d96caf1011f67e51a2a2c74d36aa61c92a31e78d"
+    "source/cli/tests/unit/core/check-aspect-status.test.ts": "d50347843c097bdfe248dba6988a9405bc74276c0e6b15e5e2a698c974d7c437"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -19,7 +19,7 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": 1779996108975.9385,
     ".yggdrasil/model/cli/tests/unit/core/operations/check/yg-node.yaml": 1780176890660.4705,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/check-aspect-status.test.ts": 1780293527023.1152
+    "source/cli/tests/unit/core/check-aspect-status.test.ts": 1780408007556.868
   },
   "identity": {
     "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
@@ -27,7 +27,7 @@
     "aspects": {
       "test-deterministic": {
         "meta": "763169b4d18d0bc33f1381f190497c49980f49fc0a07adb7bef061fa14227414",
-        "tier": "c4fbbbaed7bf0c4742e161bef87511d70ee2a38208f77a83381baea93a8584c1"
+        "tier": "8bf090db1961f6a59cef79b3e8f45aa31be675074fa6daebf2f74730c8c6dda6"
       }
     }
   },
