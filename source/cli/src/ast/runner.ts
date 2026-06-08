@@ -6,8 +6,9 @@ import { parseFile } from './parser.js';
 import type { IssueMessage } from '../model/validation.js';
 import { collectSuppressions, isLineSuppressed, SuppressMarkerError } from './suppress.js';
 import { validateCheckModuleExport } from '../utils/validate-check-module.js';
-import type { Node } from 'web-tree-sitter';
-import type { CheckContext, Violation } from './types.js';
+import { getLanguageForExtension } from '../core/graph/language-registry.js';
+import type { Node, Tree } from 'web-tree-sitter';
+import type { CheckContext, SourceFile, Violation } from './types.js';
 import type { ParseCache } from './parse-cache.js';
 
 export { type ParseCache } from './parse-cache.js';
@@ -67,7 +68,7 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
   // previously provided this narrowing).
   const checkFn = mod.check as (...args: unknown[]) => unknown;
 
-  const sourceFiles = [];
+  const sourceFiles: SourceFile[] = [];
   for (const f of params.files) {
     const cached = params.parseCache?.get(f.path);
     if (cached !== undefined) {
@@ -75,18 +76,21 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
       continue;
     }
     const content = await readFile(path.resolve(params.projectRoot, f.path), 'utf-8');
-    let ast;
+    // A file whose extension has no registered grammar is non-parseable: deliver
+    // it to check() with ast === undefined so content/regex rules can still
+    // iterate it (parity with the graph-aware structure runner and the documented
+    // contract). Only files with a registered grammar are parsed and AST-cached.
+    if (getLanguageForExtension(path.extname(f.path).toLowerCase()) === null) {
+      sourceFiles.push({ path: f.path, content, ast: undefined });
+      continue;
+    }
+    let ast: Tree;
     try {
       ast = await parseFile(f.path, content);
     } catch (e: unknown) {
       const msg = (e as Error).message ?? String(e);
-      if (msg.startsWith('no parser for extension')) {
-        throw new AstRunnerError('AST_NO_PARSER_FOR_EXTENSION', {
-          what: msg + ` (file: ${f.path})`,
-          why: `v1 supports only .ts/.tsx/.js/.mjs/.cjs/.jsx.`,
-          next: `Remove ${f.path} from the node's mapping.`,
-        });
-      }
+      // The extension is registered (checked above), so a failure here is a real
+      // grammar-load infrastructure error — fail closed.
       throw new AstRunnerError('AST_GRAMMAR_LOAD_FAILED', {
         what: `Failed to load tree-sitter grammar for ${f.path}: ${msg}`,
         why: `The bundled WASM grammar could not be loaded.`,
@@ -105,11 +109,12 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
     sourceFiles.push({ path: f.path, content, ast });
   }
 
-  // Collect suppressions BEFORE invoking check
+  // Collect suppressions BEFORE invoking check. Non-parseable files (ast
+  // undefined) carry no AST-derived comments, so they contribute no ranges.
   const rangesPerFile = new Map<string, ReturnType<typeof collectSuppressions>>();
   for (const f of sourceFiles) {
     const totalLines = f.content.split('\n').length;
-    rangesPerFile.set(f.path, collectSuppressions(f.ast, f.path, totalLines));
+    rangesPerFile.set(f.path, f.ast ? collectSuppressions(f.ast, f.path, totalLines) : []);
   }
 
   const ctx: CheckContext = { files: sourceFiles };

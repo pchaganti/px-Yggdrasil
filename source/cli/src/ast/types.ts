@@ -5,8 +5,13 @@ export interface SourceFile {
   path: string;
   /** Raw source code */
   content: string;
-  /** Parsed tree-sitter Tree */
-  ast: Tree;
+  /**
+   * Parsed tree-sitter Tree, or `undefined` for a file whose extension has no
+   * registered grammar (e.g. `.md`, `.sh`, `.json`). Such files are still
+   * delivered to `check()` so content/regex rules can iterate them; rules that
+   * touch `file.ast` must guard with `if (!file.ast) continue;`.
+   */
+  ast?: Tree;
 }
 
 export interface CheckContext {

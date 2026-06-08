@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
-  "hash": "96d17573d527d390fc32d8c4a6d24f6fd5c3e5e75c659cee8c78843c6e918a3f",
+  "hash": "c023f4396a9efe4d29415cae6172f7e97e18df3f14360db81ade9bf84f36f5f7",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": "f6203e633f0cb0b6bc84c3337606df49a00920a414f6557fe2f3f91bfd034442",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/integration/ast-runner.test.ts": "1bdfff2117914dd544badd8edfd56e4d9ed98ce4060e30ebaaca6fbe56b51888",
     "source/cli/tests/integration/deterministic-test-cli.test.ts": "27d15347e85ddae2cefa60c24b148c9a4107bf27fa58bf9a60d1da3f87a8b24a",
-    "source/cli/tests/integration/impact-ast.test.ts": "4cf9db9f63ad639dd8af0bdf1f62877530db7e3646ee6ad9f2daf9a0bbf16572"
+    "source/cli/tests/integration/impact-ast.test.ts": "4cf9db9f63ad639dd8af0bdf1f62877530db7e3646ee6ad9f2daf9a0bbf16572",
+    "source/cli/tests/integration/ast-runner.test.ts": "38bd272ae781d7d4336e52e53048e1ed04bb1861b68a2b0e5d036c58a2f07810"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/integration/yg-node.yaml": 1778923836291.2395,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/integration/ast-runner.test.ts": 1780235371625.695,
+    "source/cli/tests/integration/ast-runner.test.ts": 1780948525470.9292,
     "source/cli/tests/integration/deterministic-test-cli.test.ts": 1780169546893.0508,
     "source/cli/tests/integration/impact-ast.test.ts": 1780163279214.109
   },

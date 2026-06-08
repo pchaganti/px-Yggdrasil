@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "4a34eaa895df0771ffe8ef2111d313205fe200cf6af9aa4a7090098c0c2be318",
+  "hash": "715e15dd54641123690bb3597b197425aef7218af4fb7d130d469ebb93cb1145",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/ast/yg-node.yaml": "8f03e5b210cb99fc306e6bcb5219da9c8ef146227715d956d36b60c6e69c4010",
@@ -12,8 +12,8 @@
     "source/cli/src/ast/loader-hook.ts": "e34275e1bbf8e5197db94706a589266bc31d6dd0879b6e8428d3f7191155f72b",
     "source/cli/src/ast/parse-cache.ts": "52800ae952c7ca15cebce230de462d7e88f710e049b2e80872a0868bd6fd2b0e",
     "source/cli/src/ast/parser.ts": "442ac4af6ff2ee445080ffe3f29f1f420caed133b71021a5ef0de6cae3181d77",
-    "source/cli/src/ast/runner.ts": "4e885ab6b0a68fc27759d576e13b7d632ed263feb1dc00e7a96366325eb646a5",
-    "source/cli/src/ast/suppress.ts": "2bcf686152aba3f619fcd8456accb4c756e3b00df4164513643736495da1589c"
+    "source/cli/src/ast/suppress.ts": "2bcf686152aba3f619fcd8456accb4c756e3b00df4164513643736495da1589c",
+    "source/cli/src/ast/runner.ts": "a8edeb97c7be0d97c8e845713b93ff6ad087f0f1456736abd0208a1f2d6cc773"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -26,7 +26,7 @@
     "source/cli/src/ast/loader-hook.ts": 1778440677113.9885,
     "source/cli/src/ast/parse-cache.ts": 1780036707610.353,
     "source/cli/src/ast/parser.ts": 1780224258215.441,
-    "source/cli/src/ast/runner.ts": 1780945699267.1094,
+    "source/cli/src/ast/runner.ts": 1780948383846.419,
     "source/cli/src/ast/suppress.ts": 1780945309150.3228
   },
   "identity": {
@@ -44,7 +44,7 @@
           "source/cli/src/ast/loader-hook.ts": "e34275e1bbf8e5197db94706a589266bc31d6dd0879b6e8428d3f7191155f72b",
           "source/cli/src/ast/parse-cache.ts": "52800ae952c7ca15cebce230de462d7e88f710e049b2e80872a0868bd6fd2b0e",
           "source/cli/src/ast/parser.ts": "442ac4af6ff2ee445080ffe3f29f1f420caed133b71021a5ef0de6cae3181d77",
-          "source/cli/src/ast/runner.ts": "4e885ab6b0a68fc27759d576e13b7d632ed263feb1dc00e7a96366325eb646a5",
+          "source/cli/src/ast/runner.ts": "a8edeb97c7be0d97c8e845713b93ff6ad087f0f1456736abd0208a1f2d6cc773",
           "source/cli/src/ast/suppress.ts": "2bcf686152aba3f619fcd8456accb4c756e3b00df4164513643736495da1589c"
         }
       },
@@ -55,7 +55,7 @@
           "source/cli/src/ast/loader-hook.ts": "e34275e1bbf8e5197db94706a589266bc31d6dd0879b6e8428d3f7191155f72b",
           "source/cli/src/ast/parse-cache.ts": "52800ae952c7ca15cebce230de462d7e88f710e049b2e80872a0868bd6fd2b0e",
           "source/cli/src/ast/parser.ts": "442ac4af6ff2ee445080ffe3f29f1f420caed133b71021a5ef0de6cae3181d77",
-          "source/cli/src/ast/runner.ts": "4e885ab6b0a68fc27759d576e13b7d632ed263feb1dc00e7a96366325eb646a5",
+          "source/cli/src/ast/runner.ts": "a8edeb97c7be0d97c8e845713b93ff6ad087f0f1456736abd0208a1f2d6cc773",
           "source/cli/src/ast/suppress.ts": "2bcf686152aba3f619fcd8456accb4c756e3b00df4164513643736495da1589c"
         }
       },
@@ -80,7 +80,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-08T19:22:20.137Z",
-    "prefix_hash": "e694da92299a5c34a34adbba7ff7f5f993a0b5588471811fc59baaafa9188b6f"
+    "last_entry_datetime": "2026-06-08T19:56:24.041Z",
+    "prefix_hash": "fac51065f68d0646c69f9ab233d2804ac0040b8cbbdf5805d0cff49b65cd2de9"
   }
 }

@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "hash": "44f983a0a7073571726f491bd3a0712d4b01c9c702cb7aff8a144d4e06c3a9d8",
+  "hash": "5f20c88bb1d5c2f4d73c7ace0a656ae1d66edff946f614fdc16b32b070380e16",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/ast/yg-node.yaml": "8f03e5b210cb99fc306e6bcb5219da9c8ef146227715d956d36b60c6e69c4010",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
+    "source/cli/src/ast/file-path.ts": "b4a582c8101a6f2e87691e774335949974cfa7e592a18ff6bf33aa54239dab46",
     "source/cli/src/ast/find-comments.ts": "b4be25cd015af2b55e2d72a1bd1f9604408664bfc6377d6e18c466cb20edf85d",
     "source/cli/src/ast/index.ts": "fdfb122a2fdb8cfe5b44b0edc9a7a9e526026783abd6685c84c8ee69dc2f5a3d",
     "source/cli/src/ast/report.ts": "420d5bb586f406696052698f2b45f91de75e873ccb8a08cd76031ae07fc639ce",
-    "source/cli/src/ast/types.ts": "e9a8c2ad458969690bf9a682a1b8507c1e6b3ff86de3fbed8cc1166b68cb8d18",
     "source/cli/src/ast/walk.ts": "41671e266d656b2ec96bee5788ecd412e0e1b371d8d33cf9185f63ae3a2a09bd",
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
-    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
-    "source/cli/src/ast/file-path.ts": "b4a582c8101a6f2e87691e774335949974cfa7e592a18ff6bf33aa54239dab46"
+    "source/cli/src/ast/types.ts": "8c5705e9aa28ba2f456ebd9997d6c4f808a47afc432d2b65353a96fcd96d519c"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -24,7 +24,7 @@
     "source/cli/src/ast/find-comments.ts": 1780133951402.9832,
     "source/cli/src/ast/index.ts": 1779794513947.147,
     "source/cli/src/ast/report.ts": 1779794513947.2622,
-    "source/cli/src/ast/types.ts": 1779794513947.6184,
+    "source/cli/src/ast/types.ts": 1780948351870.3503,
     "source/cli/src/ast/walk.ts": 1779794513947.914
   },
   "identity": {
@@ -42,7 +42,7 @@
           "source/cli/src/ast/find-comments.ts": "b4be25cd015af2b55e2d72a1bd1f9604408664bfc6377d6e18c466cb20edf85d",
           "source/cli/src/ast/index.ts": "fdfb122a2fdb8cfe5b44b0edc9a7a9e526026783abd6685c84c8ee69dc2f5a3d",
           "source/cli/src/ast/report.ts": "420d5bb586f406696052698f2b45f91de75e873ccb8a08cd76031ae07fc639ce",
-          "source/cli/src/ast/types.ts": "e9a8c2ad458969690bf9a682a1b8507c1e6b3ff86de3fbed8cc1166b68cb8d18",
+          "source/cli/src/ast/types.ts": "8c5705e9aa28ba2f456ebd9997d6c4f808a47afc432d2b65353a96fcd96d519c",
           "source/cli/src/ast/walk.ts": "41671e266d656b2ec96bee5788ecd412e0e1b371d8d33cf9185f63ae3a2a09bd"
         }
       },
@@ -53,7 +53,7 @@
           "source/cli/src/ast/find-comments.ts": "b4be25cd015af2b55e2d72a1bd1f9604408664bfc6377d6e18c466cb20edf85d",
           "source/cli/src/ast/index.ts": "fdfb122a2fdb8cfe5b44b0edc9a7a9e526026783abd6685c84c8ee69dc2f5a3d",
           "source/cli/src/ast/report.ts": "420d5bb586f406696052698f2b45f91de75e873ccb8a08cd76031ae07fc639ce",
-          "source/cli/src/ast/types.ts": "e9a8c2ad458969690bf9a682a1b8507c1e6b3ff86de3fbed8cc1166b68cb8d18",
+          "source/cli/src/ast/types.ts": "8c5705e9aa28ba2f456ebd9997d6c4f808a47afc432d2b65353a96fcd96d519c",
           "source/cli/src/ast/walk.ts": "41671e266d656b2ec96bee5788ecd412e0e1b371d8d33cf9185f63ae3a2a09bd"
         }
       }
@@ -71,7 +71,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-08T16:05:31.707Z",
-    "prefix_hash": "3bd91fbb8fc99b963e092954309fbc9ba5729095195b6fd393c37fe349d12a10"
+    "last_entry_datetime": "2026-06-08T19:56:29.501Z",
+    "prefix_hash": "6726dc32495c3e8d7b8f7d37de0904430161168455bdc3f4e8f4941352072f11"
   }
 }

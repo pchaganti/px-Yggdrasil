@@ -183,16 +183,21 @@ export function check(ctx) {
     ).rejects.toMatchObject({ code: 'AST_CHECK_NOT_FUNCTION' });
   });
 
-  it('AST_NO_PARSER_FOR_EXTENSION for unsupported file extension', async () => {
+  it('delivers a non-parseable file to check() with ast undefined (content rules still run)', async () => {
     const { mkdtempSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
     const dir = mkdtempSync(path.join(tmpdir(), 'yg-test-')); tmpDirs.push(dir);
-    writeFileSync(path.join(dir, 'check.mjs'), 'export function check(ctx) { return []; }');
-    const tmpFile = path.join(dir, 'data.swift');
+    // A content-only check: flags any delivered file that has no AST yet whose
+    // content is still readable — proving the non-parseable file reached check().
+    writeFileSync(
+      path.join(dir, 'check.mjs'),
+      'export function check(ctx) { return ctx.files.filter(f => f.ast === undefined && f.content.includes("let x")).map(f => ({ file: f.path, line: 1, column: 0, message: "non-parseable file delivered" })); }',
+    );
+    const tmpFile = path.join(dir, 'data.swift'); // .swift has no registered grammar
     writeFileSync(tmpFile, 'let x = 1\n');
-    await expect(
-      runAstAspect({ aspectDir: dir, aspectId: 'test', files: [{ path: tmpFile }], projectRoot: '/' }),
-    ).rejects.toMatchObject({ code: 'AST_NO_PARSER_FOR_EXTENSION' });
+    const result = await runAstAspect({ aspectDir: dir, aspectId: 'test', files: [{ path: tmpFile }], projectRoot: '/' });
+    expect(result.violations).toHaveLength(1);
+    expect(result.violations[0]).toMatchObject({ file: tmpFile, message: 'non-parseable file delivered' });
   });
 
   it('re-throws raw error when check.mjs has a JS syntax error (not MODULE_NOT_FOUND)', async () => {
