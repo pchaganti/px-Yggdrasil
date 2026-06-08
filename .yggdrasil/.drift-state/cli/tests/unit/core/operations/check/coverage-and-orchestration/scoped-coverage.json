@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "e54fd55bf6b4c45d5a85d9f0ee4c56e27d8fddeb5ce9de908a5442e604853db0",
+  "hash": "ed27643a80932c6e88f9ccdfc99f3f5f0b39f263a9491673d4f007e550422746",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -8,8 +8,10 @@
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": "de00f518b04112cb692d73d15acfd232c3f1874b163d22d482f0b8e5a7163f48",
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": "a5408f7e331d1e28996ceaf2b67c4fada5e52ee3909db85a7904aae88cd55146",
     ".yggdrasil/model/cli/tests/unit/core/operations/check/yg-node.yaml": "fba56faf121115c2958ee4c3938134fc6b06836a8029621ff833305ff601c4c2",
+    ".yggdrasil/model/cli/tests/unit/core/operations/check/coverage-and-orchestration/yg-node.yaml": "c3e33786288e5200fa47724f38e3cdf666788aa23f4a4ee57bdf335eb11ce8dc",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/core/check-coverage.test.ts": "504857adb4a2611182f37bbae20106ee650f7e5765fc88cf96a75b4c8cecf7c2"
+    "source/cli/tests/unit/core/check-coverage-tiers.test.ts": "0a3db87ee30e945336f9508ba914a54951786ee9cc5568ccf8e5691e26e63e46",
+    "source/cli/tests/unit/core/check-coverage-glob.test.ts": "9871c11985f8f726e61df47dd64e40efa2e494c78b8a7bc33de0634cf4f7cdc2"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -18,8 +20,10 @@
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": 1778866543616.299,
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": 1779996108975.9385,
     ".yggdrasil/model/cli/tests/unit/core/operations/check/yg-node.yaml": 1780176890660.4705,
+    ".yggdrasil/model/cli/tests/unit/core/operations/check/coverage-and-orchestration/yg-node.yaml": 1780932096180.9353,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/check-coverage.test.ts": 1780915332329.815
+    "source/cli/tests/unit/core/check-coverage-tiers.test.ts": 1780929940082.521,
+    "source/cli/tests/unit/core/check-coverage-glob.test.ts": 1780930817959.2207
   },
   "identity": {
     "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
@@ -35,9 +39,5 @@
     "test-deterministic": {
       "verdict": "approved"
     }
-  },
-  "log": {
-    "last_entry_datetime": "2026-06-08T08:36:22.991Z",
-    "prefix_hash": "a4e38ce5f49ef647234aca1fb58922e086da986d6ab0bbe1cfadc16e60c2132b"
   }
 }

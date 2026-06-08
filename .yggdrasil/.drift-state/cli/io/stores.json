@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "6f0d8afecd3066bf07dff26332794a4d0af2b2fcb43c80cea1bd8c88f9eea223",
+  "hash": "0f817562f4cd47c61eebf1493f841fc4b3e8f0146c466f7a6b3b561463a7c9b1",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
@@ -16,10 +16,10 @@
     "source/cli/src/io/debug-log-writer.ts": "ba34244ed4decc481b0bf40046742667e34a4aaabdfa5a03b402d35b7685c361",
     "source/cli/src/io/find-index.ts": "6d68236071d1656f4c5261fa3a66e3665a8d3ff69a1561200ec775919b2b3f1b",
     "source/cli/src/io/graph-fs.ts": "b216722295d1e2e3c53811ee610421c58ed44024a0cd96f7aa95cdff38145d82",
-    "source/cli/src/io/hash.ts": "0cd5ad957bfff3f19b820122a6597547ee89972d739d286ada40f02d2c6f019e",
     "source/cli/src/io/log-store.ts": "9d041c96b3e3b1e58a0123014b5704e038bfe97f394f12cd9129c2e93d9cf054",
     "source/cli/src/io/paths.ts": "8f4fd761bddddb87b07f78d3da82e42e7ada3637dfdffe21ce354dd0f5de30aa",
     "source/cli/src/io/read-or-default.ts": "14ae9ceb3b56e9b3d433ef9cd217a84ca71a90264e438b2fa186455f7906b393",
+    "source/cli/src/io/hash.ts": "78b49738aef006ae358f8c388af30322b600327232def0fe9b600acb2d2e6b6d",
     "source/cli/src/io/repo-scanner.ts": "669e260bb296a8272953a624501e25a5f0da79e5edd3ce1614662358c9d4c98e"
   },
   "mtimes": {
@@ -37,11 +37,11 @@
     "source/cli/src/io/debug-log-writer.ts": 1778910277504.241,
     "source/cli/src/io/find-index.ts": 1780163098696.067,
     "source/cli/src/io/graph-fs.ts": 1778910103922.5334,
-    "source/cli/src/io/hash.ts": 1780488505059.7793,
+    "source/cli/src/io/hash.ts": 1780930730519.5947,
     "source/cli/src/io/log-store.ts": 1778951521870.846,
     "source/cli/src/io/paths.ts": 1780256101029.9587,
     "source/cli/src/io/read-or-default.ts": 1778951510467.789,
-    "source/cli/src/io/repo-scanner.ts": 1780906234321.3662
+    "source/cli/src/io/repo-scanner.ts": 1780915332326.137
   },
   "identity": {
     "ownSubset": "a62120e7f439a113e58095db1ee1804268da2e859a558c5ea86ced189d5eec9a",
@@ -60,7 +60,7 @@
           "source/cli/src/io/debug-log-writer.ts": "ba34244ed4decc481b0bf40046742667e34a4aaabdfa5a03b402d35b7685c361",
           "source/cli/src/io/find-index.ts": "6d68236071d1656f4c5261fa3a66e3665a8d3ff69a1561200ec775919b2b3f1b",
           "source/cli/src/io/graph-fs.ts": "b216722295d1e2e3c53811ee610421c58ed44024a0cd96f7aa95cdff38145d82",
-          "source/cli/src/io/hash.ts": "0cd5ad957bfff3f19b820122a6597547ee89972d739d286ada40f02d2c6f019e",
+          "source/cli/src/io/hash.ts": "78b49738aef006ae358f8c388af30322b600327232def0fe9b600acb2d2e6b6d",
           "source/cli/src/io/log-store.ts": "9d041c96b3e3b1e58a0123014b5704e038bfe97f394f12cd9129c2e93d9cf054",
           "source/cli/src/io/paths.ts": "8f4fd761bddddb87b07f78d3da82e42e7ada3637dfdffe21ce354dd0f5de30aa",
           "source/cli/src/io/read-or-default.ts": "14ae9ceb3b56e9b3d433ef9cd217a84ca71a90264e438b2fa186455f7906b393",
@@ -74,7 +74,7 @@
           "source/cli/src/io/debug-log-writer.ts": "ba34244ed4decc481b0bf40046742667e34a4aaabdfa5a03b402d35b7685c361",
           "source/cli/src/io/find-index.ts": "6d68236071d1656f4c5261fa3a66e3665a8d3ff69a1561200ec775919b2b3f1b",
           "source/cli/src/io/graph-fs.ts": "b216722295d1e2e3c53811ee610421c58ed44024a0cd96f7aa95cdff38145d82",
-          "source/cli/src/io/hash.ts": "0cd5ad957bfff3f19b820122a6597547ee89972d739d286ada40f02d2c6f019e",
+          "source/cli/src/io/hash.ts": "78b49738aef006ae358f8c388af30322b600327232def0fe9b600acb2d2e6b6d",
           "source/cli/src/io/log-store.ts": "9d041c96b3e3b1e58a0123014b5704e038bfe97f394f12cd9129c2e93d9cf054",
           "source/cli/src/io/paths.ts": "8f4fd761bddddb87b07f78d3da82e42e7ada3637dfdffe21ce354dd0f5de30aa",
           "source/cli/src/io/read-or-default.ts": "14ae9ceb3b56e9b3d433ef9cd217a84ca71a90264e438b2fa186455f7906b393",
@@ -88,7 +88,7 @@
           "source/cli/src/io/debug-log-writer.ts": "ba34244ed4decc481b0bf40046742667e34a4aaabdfa5a03b402d35b7685c361",
           "source/cli/src/io/find-index.ts": "6d68236071d1656f4c5261fa3a66e3665a8d3ff69a1561200ec775919b2b3f1b",
           "source/cli/src/io/graph-fs.ts": "b216722295d1e2e3c53811ee610421c58ed44024a0cd96f7aa95cdff38145d82",
-          "source/cli/src/io/hash.ts": "0cd5ad957bfff3f19b820122a6597547ee89972d739d286ada40f02d2c6f019e",
+          "source/cli/src/io/hash.ts": "78b49738aef006ae358f8c388af30322b600327232def0fe9b600acb2d2e6b6d",
           "source/cli/src/io/log-store.ts": "9d041c96b3e3b1e58a0123014b5704e038bfe97f394f12cd9129c2e93d9cf054",
           "source/cli/src/io/paths.ts": "8f4fd761bddddb87b07f78d3da82e42e7ada3637dfdffe21ce354dd0f5de30aa",
           "source/cli/src/io/read-or-default.ts": "14ae9ceb3b56e9b3d433ef9cd217a84ca71a90264e438b2fa186455f7906b393",
@@ -112,7 +112,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-08T08:11:32.927Z",
-    "prefix_hash": "3891f34b982c1d888e1df2c2882be12963f9b4d3e67a2b1574b075b971e59c2f"
+    "last_entry_datetime": "2026-06-08T15:11:09.870Z",
+    "prefix_hash": "1793693f357b075d867a6df86c7ff3ee9945a40c4a46cded6a81455571888f29"
   }
 }

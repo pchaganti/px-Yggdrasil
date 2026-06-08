@@ -14,7 +14,7 @@
 // to keep existing structure-module callers importing from a single sibling
 // path. (A bare `export { x } from` re-export would not create the local
 // binding isPathInMapping needs.)
-import { normalizeMappingPath } from '../utils/mapping-path.js';
+import { normalizeMappingPath, mappingEntryMatchesFile } from '../utils/mapping-path.js';
 export { normalizeMappingPath };
 
 /**
@@ -28,11 +28,5 @@ export { normalizeMappingPath };
 export function isPathInMapping(candidate: string, mapping: string[]): boolean {
   const c = normalizeMappingPath(candidate);
   if (c === '') return false;
-  for (const raw of mapping) {
-    const n = normalizeMappingPath(raw);
-    if (n === '') continue;
-    if (c === n) return true;
-    if (c.startsWith(n + '/')) return true; // c is descendant of dir n
-  }
-  return false;
+  return mapping.some((raw) => mappingEntryMatchesFile(raw, c));
 }

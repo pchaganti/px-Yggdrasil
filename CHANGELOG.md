@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.0.0-alpha.4] - 2026-06-08
 
+### Added
+
+- **Glob patterns in node `mapping:` and architecture `when.path`.** Both accept [minimatch](https://github.com/isaacs/minimatch) glob syntax: `*` matches any characters within a single path segment (does not cross `/`), `**` matches across segments. For example `Source/Database/*Repository.cs` maps only the repository files directly inside that directory (not `Helper.cs`, not subdirectory files), and `src/**/*.ts` maps every TypeScript file at any depth under `src/`. This applies uniformly across ownership resolution, coverage scanning, file expansion (for hashing and the deterministic runner), `enforce: strict` backward coverage, and `mapping-path-missing` validation (a glob that currently matches no files is the error condition). Plain (non-glob) entries are unchanged: an exact file path or a directory prefix that covers all files beneath it.
+
 ### Changed
 
 - **`coverage.required: []` is now allowed and means "require nothing".** An explicit empty `required` list opts a repo into pure-advisory coverage: every uncovered file outside `excluded`/nested subtrees surfaces as a non-blocking `uncovered-advisory` warning and nothing blocks CI. Previously an empty `required` was rejected as a config error. This is intentional and visible (the full uncovered surface still shows as warnings) — not a silent disabling of enforcement. The absent-block default remains `["/"]` (require the whole repo); only an explicitly-written `[]` enables require-nothing.

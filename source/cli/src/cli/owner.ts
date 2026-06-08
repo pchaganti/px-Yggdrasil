@@ -8,6 +8,7 @@ import { buildIssueMessage } from '../formatters/message-builder.js';
 import type { Graph, OwnerResult } from '../model/graph.js';
 import { normalizeMappingPaths, normalizeProjectRelativePath, projectRootFromGraph, resolveFileArg } from '../io/paths.js';
 import { toPosixPath } from '../utils/posix.js';
+import { mappingEntryMatchesFile, isGlobPattern } from '../utils/mapping-path.js';
 
 function normalizeForMatch(inputPath: string): string {
   return toPosixPath(inputPath.trim());
@@ -23,19 +24,28 @@ export function findOwner(graph: Graph, projectRoot: string, rawPath: string): O
       .filter((mappingPath) => mappingPath.length > 0);
 
     for (const mappingPath of mappingPaths) {
-      if (file === mappingPath) {
-        return { file, nodePath, mappingPath, direct: true };
-      }
-      if (file.startsWith(mappingPath + '/')) {
-        if (!best || (best && mappingPath.length > best.mappingPath.length)) {
-          best = { nodePath, mappingPath, exact: false };
+      if (isGlobPattern(mappingPath)) {
+        if (mappingEntryMatchesFile(mappingPath, file)) {
+          // Glob match: treat as direct (the pattern names the file explicitly)
+          if (!best || mappingPath.length > best.mappingPath.length) {
+            best = { nodePath, mappingPath, exact: true };
+          }
+        }
+      } else {
+        if (file === mappingPath) {
+          return { file, nodePath, mappingPath, direct: true };
+        }
+        if (file.startsWith(mappingPath + '/')) {
+          if (!best || mappingPath.length > best.mappingPath.length) {
+            best = { nodePath, mappingPath, exact: false };
+          }
         }
       }
     }
   }
 
   return best
-    ? { file, nodePath: best.nodePath, mappingPath: best.mappingPath, direct: false }
+    ? { file, nodePath: best.nodePath, mappingPath: best.mappingPath, direct: best.exact }
     : { file, nodePath: null };
 }
 
@@ -58,9 +68,21 @@ export function registerOwnerCommand(program: Command): void {
           let exists = true;
           try { await access(absPath); } catch (e: unknown) { debugWrite(`[owner] access check failed: ${e instanceof Error ? e.message : String(e)}`); exists = false; }
           if (exists) {
-            process.stdout.write(`${result.file} -> no graph coverage\n`);
+            process.stdout.write(
+              buildIssueMessage({
+                what: `${result.file} -> no graph coverage`,
+                why: 'This file exists but no graph node maps it, so its code is not verified against any aspect.',
+                next: `Add '${result.file}' to a node's mapping in yg-node.yaml, or create a node for it.`,
+              }) + '\n',
+            );
           } else {
-            process.stdout.write(`${result.file} -> no graph coverage (file not found)\n`);
+            process.stdout.write(
+              buildIssueMessage({
+                what: `${result.file} -> no graph coverage (file not found)`,
+                why: 'This path does not exist on disk and is not mapped by any graph node.',
+                next: `Check the path for typos; once the file exists, add it to a node's mapping in yg-node.yaml.`,
+              }) + '\n',
+            );
           }
         } else {
           process.stdout.write(`${result.file} -> ${result.nodePath}\n`);

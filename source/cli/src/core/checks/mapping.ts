@@ -3,6 +3,7 @@ import type { Graph, AspectStatus } from '../../model/graph.js';
 import type { ValidationIssue } from '../../model/validation.js';
 import { normalizeMappingPaths } from '../../io/paths.js';
 import { expandMappingPaths } from '../../io/hash.js';
+import { mappingEntryMatchesFile, isGlobPattern } from '../../utils/mapping-path.js';
 import { readSortedDir, statPath, fileAccess } from '../../io/graph-fs.js';
 import { walkRepoFiles } from '../../io/repo-scanner.js';
 import { computeEffectiveAspects, computeEffectiveAspectStatuses } from '../graph/aspects.js';
@@ -51,14 +52,6 @@ export async function checkStrictBackwardCoverage(
   if (strictTypes.length === 0) return { issues: [], unreadable: [] };
 
   const projectRoot = path.dirname(graph.rootPath);
-
-  // Build file → first owner map
-  const fileToOwner = new Map<string, { nodePath: string; nodeType: string }>();
-  for (const [nodePath, node] of graph.nodes) {
-    for (const relPath of node.meta.mapping ?? []) {
-      if (!fileToOwner.has(relPath)) fileToOwner.set(relPath, { nodePath, nodeType: node.meta.type });
-    }
-  }
 
   const repoFiles = await walkRepoFiles(projectRoot);
   const issues: ValidationIssue[] = [];
@@ -131,7 +124,16 @@ export async function checkStrictBackwardCoverage(
     if (matchingTypes.length === 0) continue;
 
     const { typeId, trace } = matchingTypes[0];
-    const owner = fileToOwner.get(relPath);
+    // Glob-aware owner resolution: first node (graph insertion order = first-owner-wins)
+    // whose mapping has an entry matching this file.
+    let owner: { nodePath: string; nodeType: string } | undefined;
+    for (const [nodePath, node] of graph.nodes) {
+      const entries = node.meta.mapping ?? [];
+      if (entries.some((entry) => mappingEntryMatchesFile(entry, relPath))) {
+        owner = { nodePath, nodeType: node.meta.type };
+        break;
+      }
+    }
     if (owner === undefined) {
       issues.push({
         severity: 'error',
@@ -242,21 +244,39 @@ export async function checkMappingPathsExist(graph: Graph): Promise<ValidationIs
   for (const [nodePath, node] of graph.nodes) {
     const mappingPaths = normalizeMappingPaths(node.meta.mapping).map(normalizePathForCompare);
     for (const mp of mappingPaths) {
-      const absPath = path.join(projectRoot, mp);
-      try {
-        await fileAccess(absPath);
-      } catch {
-        issues.push({
-          severity: 'error',
-          code: 'mapping-path-missing',
-          rule: 'mapping-path-missing',
-          ...issueMsg({
-            what: `Mapping path '${mp}' does not exist on disk.`,
-            why: `Node maps a file that was deleted or moved.`,
-            next: `Update mapping in yg-node.yaml: fix the path or remove the entry.`,
-          }),
-          nodePath,
-        });
+      if (isGlobPattern(mp)) {
+        // For glob entries: verify that at least one file matches.
+        const matched = await expandMappingPaths(projectRoot, [mp]);
+        if (matched.length === 0) {
+          issues.push({
+            severity: 'error',
+            code: 'mapping-path-missing',
+            rule: 'mapping-path-missing',
+            ...issueMsg({
+              what: `Glob '${mp}' matches no files on disk.`,
+              why: `Node maps a glob pattern that currently resolves to no files — possibly all matching files were deleted or the pattern is wrong.`,
+              next: `Update mapping in yg-node.yaml: fix the glob or remove the entry.`,
+            }),
+            nodePath,
+          });
+        }
+      } else {
+        const absPath = path.join(projectRoot, mp);
+        try {
+          await fileAccess(absPath);
+        } catch {
+          issues.push({
+            severity: 'error',
+            code: 'mapping-path-missing',
+            rule: 'mapping-path-missing',
+            ...issueMsg({
+              what: `Mapping path '${mp}' does not exist on disk.`,
+              why: `Node maps a file that was deleted or moved.`,
+              next: `Update mapping in yg-node.yaml: fix the path or remove the entry.`,
+            }),
+            nodePath,
+          });
+        }
       }
     }
   }

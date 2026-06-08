@@ -82,3 +82,5 @@ Relocated the typed-identity diff and cause-token/layer helpers out of the file-
 Updated stale comments in impact-graph.ts that referred to the old flat checkTouchedFiles field. The comments now reference identity.aspects[id].checkTouched, which is the actual location in the typed drift-state schema. No behavior changed; this is a documentation-only fix to keep comments consistent with the data structure.
 ## [2026-06-03T07:05:21.855Z]
 Effective-aspect computation now expands an aggregating aspect by attaching its implied children onto every node where the aggregate is effective, while the aggregate itself contributes no own reviewer and no own verdict. This lets one named attach point stand for a multi-rule contract backed by atomic child aspects.
+## [2026-06-08T15:11:09.676Z]
+Graph-level file ownership now matches mapping entries by glob pattern in addition to exact path and directory prefix. A node can therefore own precisely the files matching a naming pattern within a directory, which is needed when a rule should apply to only some files in a folder (for example repository classes but not co-located helpers) rather than the whole folder.

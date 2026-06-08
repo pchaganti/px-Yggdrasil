@@ -9,6 +9,7 @@ import type {
   TrackedFileLayer,
 } from '../../model/drift.js';
 import { normalizeMappingPaths } from '../../io/paths.js';
+import { mappingEntryMatchesFile } from '../../utils/mapping-path.js';
 import { collectAncestors } from './traversal.js';
 import { computeEffectiveAspects } from './aspects.js';
 import { selectTierForAspect } from '../tier-selection.js';
@@ -114,12 +115,10 @@ export function collectTrackedFiles(node: GraphNode, graph: Graph, baseline?: Dr
 
   // Compute mapping paths once — used by the SOURCE step and the ownership guards below.
   const mappingPathsList = normalizeMappingPaths(node.meta.mapping);
-  const mappingPathsSet = new Set(mappingPathsList);
-  // Owned = equals a mapping entry OR sits under a directory mapping entry. Exact-set
-  // membership alone misses files under a directory mapping, misclassifying an own-file
-  // edit as an upstream cascade. mappingPathsList is normalized (no trailing slash).
+  // Owned = matches a mapping entry (exact file, directory-prefix, or glob pattern).
+  // Uses the shared matcher so glob entries work correctly.
   const isOwnedByMapping = (p: string): boolean =>
-    mappingPathsSet.has(p) || mappingPathsList.some((m) => p.startsWith(m + '/'));
+    mappingPathsList.some((m) => mappingEntryMatchesFile(m, p));
 
   for (const aspectId of allAspectIds) {
     const aspect = graph.aspects.find(a => a.id === aspectId);

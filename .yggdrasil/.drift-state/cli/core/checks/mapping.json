@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "9c61d1888d27183c3d917b8b64e66f705c930df5c1a64a4e74b040b0cd675d4d",
+  "hash": "1d7040b8eb8c5db4b8821224d795015987c0e78336ae85d8a059820f3ba01e46",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
@@ -8,13 +8,13 @@
     ".yggdrasil/aspects/posix-paths-output/content.md": "2659859dc13a8efe32e098b0c220d24c9ecddff26b42a4f22e3135d8b750bc13",
     ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
-    ".yggdrasil/aspects/silent-missing-files/content.md": "fe5f8f88a4e6a49f20fba61836d04c3796f5c97c3a7c1c366582f16cd4ec93b7",
     ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": "fcda40a731fc3a7df0faf659a39c2d0fb8d716e62a4b4dc93d0c0793cc2183ef",
     ".yggdrasil/aspects/no-direct-fs/check.mjs": "518ab025ec1f08970e99941570c3ee1d028f31298c937ae1c16411b8c6426c01",
     ".yggdrasil/aspects/no-direct-console/check.mjs": "4f5265a17d14845ba77de70e486c3922c2234a9beed5da5e1f7fb3c4f714bbd1",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
     ".yggdrasil/aspects/single-source-graph-queries/check.mjs": "f78f8fd52ed16c74eec53aff5b33b39bc9acb5b93caa89bf09a4ca43fceadeed",
-    "source/cli/src/core/checks/mapping.ts": "98e979584ef7423cac4c57f5bb3868ba9fef9d4921be8c8b2225bcc788f374c0"
+    ".yggdrasil/aspects/silent-missing-files/content.md": "fe5f8f88a4e6a49f20fba61836d04c3796f5c97c3a7c1c366582f16cd4ec93b7",
+    "source/cli/src/core/checks/mapping.ts": "b211d04e84403fcbecd909ed2141240bcf184a5a263ed9c2cb9195c796438356"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -29,7 +29,7 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780488505036.1836,
     ".yggdrasil/aspects/single-source-graph-queries/check.mjs": 1780488505036.8464,
     ".yggdrasil/aspects/silent-missing-files/content.md": 1776494731302.076,
-    "source/cli/src/core/checks/mapping.ts": 1780927896787.7776
+    "source/cli/src/core/checks/mapping.ts": 1780930743706.183
   },
   "identity": {
     "ownSubset": "86c22f89f6d15db5e4e7e157b099f07769e39a72dd01eb168a261ba81ad07d6c",
@@ -50,31 +50,31 @@
       "no-nondeterminism-direct": {
         "meta": "6e2986f1175fc284d63accb9209518c0d99994114f1ad9d30f91df11498a75ca",
         "checkTouched": {
-          "source/cli/src/core/checks/mapping.ts": "98e979584ef7423cac4c57f5bb3868ba9fef9d4921be8c8b2225bcc788f374c0"
+          "source/cli/src/core/checks/mapping.ts": "b211d04e84403fcbecd909ed2141240bcf184a5a263ed9c2cb9195c796438356"
         }
       },
       "no-direct-fs": {
         "meta": "85008a60917fc599d6fbfcfb2af8e0d4e563f4eaeff9c8da8a5722aef696b948",
         "checkTouched": {
-          "source/cli/src/core/checks/mapping.ts": "98e979584ef7423cac4c57f5bb3868ba9fef9d4921be8c8b2225bcc788f374c0"
+          "source/cli/src/core/checks/mapping.ts": "b211d04e84403fcbecd909ed2141240bcf184a5a263ed9c2cb9195c796438356"
         }
       },
       "no-direct-console": {
         "meta": "84cef429198884b3dcc2076061e164d50d97b011724d2f357350ede01f4fa975",
         "checkTouched": {
-          "source/cli/src/core/checks/mapping.ts": "98e979584ef7423cac4c57f5bb3868ba9fef9d4921be8c8b2225bcc788f374c0"
+          "source/cli/src/core/checks/mapping.ts": "b211d04e84403fcbecd909ed2141240bcf184a5a263ed9c2cb9195c796438356"
         }
       },
       "posix-paths-source": {
         "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
         "checkTouched": {
-          "source/cli/src/core/checks/mapping.ts": "98e979584ef7423cac4c57f5bb3868ba9fef9d4921be8c8b2225bcc788f374c0"
+          "source/cli/src/core/checks/mapping.ts": "b211d04e84403fcbecd909ed2141240bcf184a5a263ed9c2cb9195c796438356"
         }
       },
       "single-source-graph-queries": {
         "meta": "b1dd772529ca4799de41809e1e615c58ab58fba6b861920dd646786ff43ad9c2",
         "checkTouched": {
-          "source/cli/src/core/checks/mapping.ts": "98e979584ef7423cac4c57f5bb3868ba9fef9d4921be8c8b2225bcc788f374c0"
+          "source/cli/src/core/checks/mapping.ts": "b211d04e84403fcbecd909ed2141240bcf184a5a263ed9c2cb9195c796438356"
         }
       },
       "silent-missing-files": {
@@ -113,7 +113,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-08T14:21:59.377Z",
-    "prefix_hash": "c94697046f803601ae77d9de762a5488375347e6056f9e26d7cec2327100c156"
+    "last_entry_datetime": "2026-06-08T15:11:09.489Z",
+    "prefix_hash": "fbfd63ad243d62c7ca4c6314b1fc0c401b5313744a628759750b7aa584de67ac"
   }
 }

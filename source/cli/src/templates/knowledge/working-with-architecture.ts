@@ -105,6 +105,20 @@ predicate satisfaction fraction, or edge-case messages for files inside
 Run this whenever you add or modify a type's \`when\` predicate and want
 to verify that existing files are classified as expected.
 
+## Glob patterns in mapping and when.path
+
+Both node \`mapping:\` entries and architecture \`when.path\` predicates accept
+minimatch glob patterns. \`*\` matches any characters within a single path
+segment (does not cross \`/\`); \`**\` matches across path segments.
+
+Examples:
+- \`src/db/*Repository.cs\` — owns only files matching \`*Repository.cs\` directly
+  inside \`src/db/\`, not subdirectory files or non-matching files like \`Helper.cs\`.
+- \`src/**/*.ts\` — owns all \`.ts\` files anywhere under \`src/\` at any depth.
+
+Plain (non-glob) entries remain unchanged: an exact file path or a directory
+prefix (e.g. \`src/handlers\`) covers that file or all files beneath it.
+
 ## Aspect status in architecture default aspects
 
 Architecture-level default aspects (channel 3) may declare \`status:\` to

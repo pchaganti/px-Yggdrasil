@@ -2,10 +2,12 @@ import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
+import { minimatch } from 'minimatch';
 import { type Ignore, type Options as IgnoreOptions } from 'ignore';
 import type { TrackedFile } from '../core/graph/files.js';
 import type { DriftIdentity, AspectIdentity, AspectVerdict } from '../model/drift.js';
 import { toPosix, toPosixPath } from '../utils/posix.js';
+import { isGlobPattern } from '../utils/mapping-path.js';
 
 export { loadRootGitignoreStack, isIgnoredByStack, walkRepoFiles } from '../io/repo-scanner.js';
 export type { GitignoreEntry } from '../io/repo-scanner.js';
@@ -422,6 +424,8 @@ async function collectDirectoryFilePaths(
  * Expand mapping paths to individual file paths.
  * Directories are recursively expanded (respecting .gitignore).
  * Files are returned as-is. Missing paths are silently skipped.
+ * Glob entries (containing * ? [ ] { }) are expanded via minimatch against
+ * files under the glob's base directory.
  *
  * Returns relative paths (forward-slash normalized) suitable for display.
  */
@@ -433,23 +437,51 @@ export async function expandMappingPaths(
   const result: string[] = [];
 
   for (const mp of mappingPaths) {
-    const absPath = path.join(projectRoot, mp);
-    try {
-      const st = await stat(absPath);
-      if (st.isDirectory()) {
-        const dirEntries = await collectDirectoryFilePaths(absPath, absPath, {
+    if (isGlobPattern(mp)) {
+      // Derive the base directory: the leading path segments BEFORE the first
+      // segment containing a glob metachar. If the first segment already has a
+      // glob, base = projectRoot.
+      const segments = mp.split('/');
+      const firstGlobIdx = segments.findIndex((s) => isGlobPattern(s));
+      const baseSegments = firstGlobIdx > 0 ? segments.slice(0, firstGlobIdx) : [];
+      const baseDir = baseSegments.length > 0
+        ? path.join(projectRoot, ...baseSegments)
+        : projectRoot;
+
+      try {
+        const dirEntries = await collectDirectoryFilePaths(baseDir, projectRoot, {
           projectRoot,
           gitignoreStack,
         });
         for (const entry of dirEntries) {
-          result.push(toPosixPath(path.join(mp, entry.relPath)));
+          // entry.relPath is relative to projectRoot
+          if (minimatch(entry.relPath, mp, { dot: true })) {
+            result.push(toPosixPath(entry.relPath));
+          }
         }
-      } else {
-        result.push(toPosixPath(mp));
+      } catch {
+        // Base dir missing — skip
+        continue;
       }
-    } catch {
-      // Missing path — skip
-      continue;
+    } else {
+      const absPath = path.join(projectRoot, mp);
+      try {
+        const st = await stat(absPath);
+        if (st.isDirectory()) {
+          const dirEntries = await collectDirectoryFilePaths(absPath, absPath, {
+            projectRoot,
+            gitignoreStack,
+          });
+          for (const entry of dirEntries) {
+            result.push(toPosixPath(path.join(mp, entry.relPath)));
+          }
+        } else {
+          result.push(toPosixPath(mp));
+        }
+      } catch {
+        // Missing path — skip
+        continue;
+      }
     }
   }
 

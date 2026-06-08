@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "43fe8bfcfe852498e646456708f9477b9ef77c9b9f35716766142a1fc60d2dda",
+  "hash": "e27640037a57c1e7f08de6724043fab68865f630b070ebd28b0bf3672759de00",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/posix-paths-output/content.md": "2659859dc13a8efe32e098b0c220d24c9ecddff26b42a4f22e3135d8b750bc13",
@@ -8,7 +8,6 @@
     "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
     "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
     "source/cli/src/utils/known-providers.ts": "35b652475e4a9e70286c1192238f14585e5d6b880b9c3296eae0aefae6917919",
-    "source/cli/src/utils/mapping-path.ts": "d99b092234c896e400b79659eb9885d8075f8608c6a04d7b0c441fe5a7d96d6f",
     "source/cli/src/utils/node-path-validator.ts": "8bc8025e2edaddea1560453968976e880cf11365782255b4d9a1cab28a7da65d",
     "source/cli/src/utils/posix.ts": "5461584fc6cd34504aea7b812997818208f020507832eb9bd220e4643ab81cd9",
     "source/cli/src/utils/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b",
@@ -17,19 +16,20 @@
     "source/cli/src/utils/validate-check-module.ts": "b4fd46d469dc6ad17afa9d709fa625d381b8b9134592c8de88efdbdd88a53fb1",
     ".yggdrasil/aspects/no-side-effects-on-import/check.mjs": "9d2405c4b784ddea07734cd67330d685026c23e4daba8aadb14d20b92cc19b3a",
     ".yggdrasil/aspects/no-direct-fs/check.mjs": "518ab025ec1f08970e99941570c3ee1d028f31298c937ae1c16411b8c6426c01",
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc"
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
+    "source/cli/src/utils/mapping-path.ts": "7ae48fcf92d9ad4de7bada931b0fce1ea6f82f7875e0554abcb6883282d297f5"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/aspects/posix-paths-output/content.md": 1778912983383.063,
-    ".yggdrasil/aspects/no-side-effects-on-import/check.mjs": 1780410801255.5273,
-    ".yggdrasil/aspects/no-direct-fs/check.mjs": 1780410788073.9387,
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780410812801.22,
+    ".yggdrasil/aspects/no-side-effects-on-import/check.mjs": 1780488505035.7532,
+    ".yggdrasil/aspects/no-direct-fs/check.mjs": 1780488505035.3284,
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780488505036.1836,
     "source/cli/src/utils/debug-log.ts": 1780243230260.73,
     "source/cli/src/utils/git-introspect.ts": 1778573699364.3071,
     "source/cli/src/utils/git.ts": 1780243067941.036,
     "source/cli/src/utils/known-providers.ts": 1779888780071.5884,
-    "source/cli/src/utils/mapping-path.ts": 1780124580708.66,
+    "source/cli/src/utils/mapping-path.ts": 1780930618087.2532,
     "source/cli/src/utils/node-path-validator.ts": 1780243067939.8792,
     "source/cli/src/utils/posix.ts": 1780243032127.385,
     "source/cli/src/utils/predicate-boolean.ts": 1780246154121.9595,
@@ -52,7 +52,7 @@
           "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
           "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
           "source/cli/src/utils/known-providers.ts": "35b652475e4a9e70286c1192238f14585e5d6b880b9c3296eae0aefae6917919",
-          "source/cli/src/utils/mapping-path.ts": "d99b092234c896e400b79659eb9885d8075f8608c6a04d7b0c441fe5a7d96d6f",
+          "source/cli/src/utils/mapping-path.ts": "7ae48fcf92d9ad4de7bada931b0fce1ea6f82f7875e0554abcb6883282d297f5",
           "source/cli/src/utils/node-path-validator.ts": "8bc8025e2edaddea1560453968976e880cf11365782255b4d9a1cab28a7da65d",
           "source/cli/src/utils/posix.ts": "5461584fc6cd34504aea7b812997818208f020507832eb9bd220e4643ab81cd9",
           "source/cli/src/utils/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b",
@@ -68,7 +68,7 @@
           "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
           "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
           "source/cli/src/utils/known-providers.ts": "35b652475e4a9e70286c1192238f14585e5d6b880b9c3296eae0aefae6917919",
-          "source/cli/src/utils/mapping-path.ts": "d99b092234c896e400b79659eb9885d8075f8608c6a04d7b0c441fe5a7d96d6f",
+          "source/cli/src/utils/mapping-path.ts": "7ae48fcf92d9ad4de7bada931b0fce1ea6f82f7875e0554abcb6883282d297f5",
           "source/cli/src/utils/node-path-validator.ts": "8bc8025e2edaddea1560453968976e880cf11365782255b4d9a1cab28a7da65d",
           "source/cli/src/utils/posix.ts": "5461584fc6cd34504aea7b812997818208f020507832eb9bd220e4643ab81cd9",
           "source/cli/src/utils/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b",
@@ -84,7 +84,7 @@
           "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
           "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
           "source/cli/src/utils/known-providers.ts": "35b652475e4a9e70286c1192238f14585e5d6b880b9c3296eae0aefae6917919",
-          "source/cli/src/utils/mapping-path.ts": "d99b092234c896e400b79659eb9885d8075f8608c6a04d7b0c441fe5a7d96d6f",
+          "source/cli/src/utils/mapping-path.ts": "7ae48fcf92d9ad4de7bada931b0fce1ea6f82f7875e0554abcb6883282d297f5",
           "source/cli/src/utils/node-path-validator.ts": "8bc8025e2edaddea1560453968976e880cf11365782255b4d9a1cab28a7da65d",
           "source/cli/src/utils/posix.ts": "5461584fc6cd34504aea7b812997818208f020507832eb9bd220e4643ab81cd9",
           "source/cli/src/utils/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b",
@@ -110,7 +110,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-05-31T16:51:20.857Z",
-    "prefix_hash": "b7ebaff02aaed31f066398083da543986494326867ee58bec0242bf56950ff07"
+    "last_entry_datetime": "2026-06-08T15:11:08.903Z",
+    "prefix_hash": "50d3390b5c90397a4e4d3c6fd933c3f0231d08b5bbe86a36ca2033b1839f1a3f"
   }
 }

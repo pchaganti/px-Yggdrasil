@@ -71,7 +71,12 @@ mapping:
 - **relations** — outgoing dependencies to other nodes (see [Relations](#relations)
   below)
 - **mapping** — source files and directories this node owns (paths relative to
-  repo root)
+  repo root). Entries accept minimatch glob patterns: `*` matches within a single
+  path segment, `**` matches across segments. For example,
+  `src/db/*Repository.cs` maps only files matching that pattern in `src/db/`;
+  `src/**/*.ts` maps all TypeScript files anywhere under `src/`. Plain entries
+  (no glob metacharacters) behave as before: an exact file or a directory prefix
+  that covers all files beneath it.
 
 Nodes can be nested. Children inherit parent aspects automatically.
 

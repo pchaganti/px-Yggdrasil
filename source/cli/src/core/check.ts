@@ -31,6 +31,7 @@ import { STRUCTURAL_CODES, COMPLETENESS_CODES } from './check-codes.js';
 import { validateFormat } from './log-format.js';
 import { toPosixPath } from '../utils/posix.js';
 import { excludeNestedGraphSubtrees } from '../io/repo-scanner.js';
+import { mappingEntryMatchesFile } from '../utils/mapping-path.js';
 import {
   aspectNewlyActiveMessage,
   aspectViolationEnforcedMessage,
@@ -504,15 +505,7 @@ export function scanUncoveredFiles(graph: Graph, gitTrackedFiles: string[]): str
     if (normalized.startsWith(yggPrefix + '/') || normalized === yggPrefix) continue;
 
     // Check if covered by any mapping
-    let covered = false;
-    for (const rawMp of allMappings) {
-      // Normalize: strip trailing slash to avoid double-slash in startsWith check
-      const mp = toPosixPath(rawMp);
-      if (normalized === mp || normalized.startsWith(mp + '/')) {
-        covered = true;
-        break;
-      }
-    }
+    const covered = allMappings.some((mp) => mappingEntryMatchesFile(mp, normalized));
 
     if (!covered) {
       uncovered.push(normalized);

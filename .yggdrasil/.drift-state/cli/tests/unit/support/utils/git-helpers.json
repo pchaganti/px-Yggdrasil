@@ -1,23 +1,23 @@
 {
   "schemaVersion": 1,
-  "hash": "5deb371a4ba07d010e121ee822d391561529ed415d05060f6023ed8a533aa7b8",
+  "hash": "36614bdd33324a10a2cb6892949cd348259fb43ce7201f7ab3865bb4f7137b03",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
     ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": "e00d9fa0fe37a252b92888b2e217811de7fa6df420f60cdbc3e692833a16be4d",
-    ".yggdrasil/model/cli/tests/unit/support/utils/yg-node.yaml": "3dee8970ecf35ec3e591fe9b864e9de2b7bbd5b018dd45fd8c586dd5e503b65a",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/utils/git.test.ts": "9dc5a7232bca34cf538fb04ed621d9872151f23d9c775ba169b0275f25981f8b",
     "source/cli/tests/unit/utils/git-introspect.test.ts": "73afa6fcc2aa069006d141dc649a470c5b383ed686b2629d75e4709d6ba95e0f",
-    "source/cli/tests/unit/utils/repo-scan.test.ts": "09112784157befca20f197651c620d9138bb3e2b0d1eee121817463d142baed9"
+    "source/cli/tests/unit/utils/repo-scan.test.ts": "09112784157befca20f197651c620d9138bb3e2b0d1eee121817463d142baed9",
+    ".yggdrasil/model/cli/tests/unit/support/utils/yg-node.yaml": "99e0f9c1eb2bf36a0449c16e71334b871196ac783724293b2d03f96730737ba6"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
     ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": 1778866544645.0125,
-    ".yggdrasil/model/cli/tests/unit/support/utils/yg-node.yaml": 1780124629654.7378,
+    ".yggdrasil/model/cli/tests/unit/support/utils/yg-node.yaml": 1780931251128.8533,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/unit/utils/git.test.ts": 1778571030354.725,
     "source/cli/tests/unit/utils/git-introspect.test.ts": 1778573732088.5134,
