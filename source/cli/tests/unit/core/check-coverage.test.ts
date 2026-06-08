@@ -9,6 +9,7 @@ import {
   classifyDrift,
   scanUncoveredFiles,
   buildCoverageIssue,
+  buildCoverageAdvisoryIssue,
   detectOrphanedDriftState,
   runCheck,
 } from '../../../src/core/check.js';
@@ -225,6 +226,32 @@ describe('buildCoverageIssue', () => {
     expect(msgOf(issue!)).toContain('1 source file not covered');
     // Should NOT say "files" (plural)
     expect(msgOf(issue!)).not.toContain('1 source files');
+  });
+});
+
+// ── buildCoverageAdvisoryIssue ────────────────────────────
+
+describe('buildCoverageAdvisoryIssue', () => {
+  it('returns null for empty list', () => {
+    expect(buildCoverageAdvisoryIssue([])).toBeNull();
+  });
+  it('is a non-blocking warning with the uncovered-advisory code', () => {
+    const issue = buildCoverageAdvisoryIssue(['a.ts', 'b.ts']);
+    expect(issue).not.toBeNull();
+    expect(issue!.severity).toBe('warning');
+    expect(issue!.code).toBe('uncovered-advisory');
+    expect(issue!.uncoveredCount).toBe(2);
+    expect(issue!.uncoveredFiles).toEqual(['a.ts', 'b.ts']);
+  });
+  it('uses singular wording for exactly 1 file', () => {
+    const issue = buildCoverageAdvisoryIssue(['lonely.ts']);
+    expect(issue!.messageData.what).toContain('1 tracked file ');
+    expect(issue!.messageData.what).not.toContain('1 tracked files');
+  });
+  it('truncates with "... and N more" beyond 5 files', () => {
+    const files = Array.from({ length: 8 }, (_, i) => `f${i}.ts`);
+    const issue = buildCoverageAdvisoryIssue(files);
+    expect(issue!.messageData.what).toContain('... and 3 more');
   });
 });
 
@@ -666,6 +693,47 @@ describe('runCheck', () => {
         expect(result.suggestedNext).toBeNull();
       }
     }
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+});
+
+// ── runCheck coverage tiers ───────────────────────────────────
+
+describe('runCheck coverage tiers', () => {
+  it('default config: every uncovered file is an unmapped-files error, no advisory', async () => {
+    const { tmpDir } = await createTmpProject('cov-default', {
+      nodePath: 'svc/s',
+      nodeYaml: 'name: S\ntype: service\ndescription: t\nmapping:\n  - src/svc/\n',
+      mappingFiles: { 'src/svc/i.ts': '' },
+    });
+    await recordBaseline(tmpDir);
+    const graph = await loadGraph(tmpDir);
+    const result = await runCheck(graph, ['src/svc/i.ts', 'lib/u.ts']);
+    expect(result.issues.filter(i => i.code === 'unmapped-files')).toHaveLength(1);
+    expect(result.issues.filter(i => i.code === 'uncovered-advisory')).toHaveLength(0);
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('scoped config: required-uncovered errors, others warn (non-blocking)', async () => {
+    // Node maps only src/svc/i.ts explicitly so src/svc/extra.ts is uncovered.
+    // coverage.required: [src/svc/] → src/svc/extra.ts is in the error tier.
+    // lib/u.ts has no match → advisory warning tier. vendor/v.ts is excluded → silent.
+    const { tmpDir } = await createTmpProject('cov-scoped', {
+      nodePath: 'svc/s',
+      nodeYaml: 'name: S\ntype: service\ndescription: t\nmapping:\n  - src/svc/i.ts\n',
+      mappingFiles: { 'src/svc/i.ts': '' },
+      configYaml: 'version: "5.0.0"\ncoverage:\n  required:\n    - src/svc/\n  excluded:\n    - vendor/\n',
+    });
+    await recordBaseline(tmpDir);
+    const graph = await loadGraph(tmpDir);
+    const result = await runCheck(graph, ['src/svc/i.ts', 'src/svc/extra.ts', 'lib/u.ts', 'vendor/v.ts']);
+    const errors = result.issues.filter(i => i.code === 'unmapped-files');
+    const warns = result.issues.filter(i => i.code === 'uncovered-advisory');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].uncoveredFiles).toEqual(['src/svc/extra.ts']);
+    expect(warns).toHaveLength(1);
+    expect(warns[0].severity).toBe('warning');
+    expect(warns[0].uncoveredFiles).toEqual(['lib/u.ts']);
     await rm(tmpDir, { recursive: true, force: true });
   });
 });

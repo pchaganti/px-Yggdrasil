@@ -196,9 +196,15 @@ function renderErrorSection(errors: CheckIssue[]): string {
 
 function renderWarningSection(warnings: CheckIssue[]): string {
   const lines: string[] = [chalk.yellow(`Warnings (${warnings.length}):`)];
-  for (const issue of sortByNodePath(warnings)) {
+  const coverage = warnings.filter(i => i.code === 'uncovered-advisory');
+  const rest = warnings.filter(i => i.code !== 'uncovered-advisory');
+  for (const issue of sortByNodePath(rest)) {
     lines.push('');
     renderIssueBlock(issue, lines, 'warning');
+  }
+  for (const issue of coverage) {
+    lines.push('');
+    renderUnmappedBlock(issue, lines, 'uncovered');
   }
   return lines.join('\n');
 }
@@ -234,12 +240,12 @@ function renderIssueBlock(issue: CheckIssue, lines: string[], mode: 'error' | 'w
 }
 
 /**
- * Render unmapped-files error as a compact block with file list.
+ * Render unmapped-files error (or uncovered-advisory warning) as a compact block with file list.
  * Derives all rendered content from issue.messageData (what/why/next) as required
  * by the what-why-next aspect. The terse format uses the count from messageData.what
  * and lists files from issue.uncoveredFiles (the structured data parallel to what).
  */
-function renderUnmappedBlock(issue: CheckIssue, lines: string[]): void {
+function renderUnmappedBlock(issue: CheckIssue, lines: string[], label = 'unmapped'): void {
   const md = issue.messageData;
   const files = issue.uncoveredFiles ?? [];
   // Derive count from messageData.what first line — the structured source.
@@ -247,7 +253,7 @@ function renderUnmappedBlock(issue: CheckIssue, lines: string[]): void {
   const countMatch = whatFirstLine.match(/^(\d[\d,]*)/);
   const count = issue.uncoveredCount ?? files.length;
   const countLabel = countMatch ? countMatch[1] : String(count);
-  lines.push(`  unmapped (${countLabel})`);
+  lines.push(`  ${label} (${countLabel})`);
   // Show file list derived from messageData.what body lines (same data as uncoveredFiles).
   const shown = files.slice(0, 10);
   for (const f of shown) {

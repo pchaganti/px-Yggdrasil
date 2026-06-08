@@ -24,7 +24,7 @@ const DEFAULT_QUALITY: QualityConfig = {
   max_node_chars: 40000,
 };
 
-const DEFAULT_COVERAGE: CoverageConfig = { required: ['/'], excluded: [] };
+export const DEFAULT_COVERAGE: CoverageConfig = { required: ['/'], excluded: [] };
 
 function parseStringArray(raw: unknown, field: string, filename: string): string[] {
   if (raw === undefined) return [];

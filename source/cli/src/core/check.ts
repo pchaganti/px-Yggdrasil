@@ -18,6 +18,7 @@ import {
 } from './drift-cause.js';
 import type { ValidationIssue } from '../model/validation.js';
 import { readDriftState, readNodeDriftState, garbageCollectDriftState } from '../io/drift-state-store.js';
+import { DEFAULT_COVERAGE } from '../io/config-parser.js';
 import { hashTrackedFiles } from '../io/hash.js';
 import { collectTrackedFiles, buildLayerResolver } from './graph/files.js';
 import { normalizeMappingPaths } from '../io/paths.js';
@@ -466,7 +467,14 @@ async function classifyLogState(
 
 // ── Coverage scan (unmapped-files) ────────────────────────
 
-export { normalizeRoot, matchesRoot, partitionByCoverageTier } from './check-coverage-tiers.js';
+export {
+  normalizeRoot,
+  matchesRoot,
+  partitionByCoverageTier,
+  buildCoverageIssue,
+  buildCoverageAdvisoryIssue,
+} from './check-coverage-tiers.js';
+import { partitionByCoverageTier, buildCoverageIssue, buildCoverageAdvisoryIssue } from './check-coverage-tiers.js';
 
 /**
  * Find git-tracked files not covered by any node mapping.
@@ -514,52 +522,6 @@ export function scanUncoveredFiles(graph: Graph, gitTrackedFiles: string[]): str
   return uncovered.sort();
 }
 
-/**
- * Build the unmapped-files CheckIssue from uncovered files.
- * Aggregates into one error with count + sample.
- */
-export function buildCoverageIssue(uncoveredFiles: string[], totalGitFiles: number): CheckIssue | null {
-  if (uncoveredFiles.length === 0) return null;
-
-  const sampleSize = 5;
-  const sample = uncoveredFiles.slice(0, sampleSize);
-  const remaining = uncoveredFiles.length - sample.length;
-
-  // Learning tip for cold start
-  const coveragePct = totalGitFiles > 0
-    ? ((totalGitFiles - uncoveredFiles.length) / totalGitFiles) * 100
-    : 100;
-
-  let coverageMd;
-  if (uncoveredFiles.length <= sampleSize) {
-    // Small count: files listed directly, guidance after
-    coverageMd = {
-      what: `${uncoveredFiles.length} source file${uncoveredFiles.length === 1 ? '' : 's'} not covered by any node.\n${sample.map(f => '  ' + f).join('\n')}`,
-      why: 'Files without graph coverage cannot be modified under the protocol.',
-      next: `Check ownership candidates: yg context --file <path>\nThen: add to existing node mapping, or create a new node.`,
-    };
-  } else {
-    // Large count: guidance BEFORE examples (per CLI messages spec)
-    const guidance = coveragePct < 50
-      ? 'Establish coverage: create nodes for active areas first, expand coverage incrementally.'
-      : 'Add to an existing node mapping, or create a new node.';
-    coverageMd = {
-      what: `${uncoveredFiles.length} source files have no graph coverage.\nExamples:\n${sample.map(f => '  ' + f).join('\n')}\n... and ${remaining} more`,
-      why: 'Files without graph coverage cannot be modified under the protocol.',
-      next: `${guidance}\nCheck ownership candidates: yg context --file <path>`,
-    };
-  }
-
-  return {
-    severity: 'error',
-    code: 'unmapped-files',
-    rule: 'unmapped-file',
-    messageData: coverageMd,
-    uncoveredFiles,
-    uncoveredCount: uncoveredFiles.length,
-  };
-}
-
 // ── Orphaned drift state ──────────────────────────────────
 
 /**
@@ -592,8 +554,8 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
   // 2. Drift classification (source-drift/upstream-drift)
   const driftIssues = await classifyDrift(graph);
 
-  // 3. Coverage scan (unmapped-files)
-  let coverageIssue: CheckIssue | null = null;
+  // 3. Coverage scan (unmapped-files / uncovered-advisory)
+  let coverageIssues: CheckIssue[] = [];
   let coveredFiles = 0;
   let totalFiles = 0;
   if (gitTrackedFiles !== null) {
@@ -608,7 +570,12 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
     // scanUncoveredFiles applies excludeNestedGraphSubtrees internally (idempotent).
     const uncovered = scanUncoveredFiles(graph, gitTrackedFiles);
     coveredFiles = totalFiles - uncovered.length;
-    coverageIssue = buildCoverageIssue(uncovered, totalFiles);
+    const coverage = graph.config.coverage ?? DEFAULT_COVERAGE;
+    const tiers = partitionByCoverageTier(uncovered, coverage);
+    coverageIssues = [
+      buildCoverageIssue(tiers.required, totalFiles),
+      buildCoverageAdvisoryIssue(tiers.middle),
+    ].filter((x): x is CheckIssue => x !== null);
   }
 
   // 4. Orphaned drift state — detect BEFORE cleanup so orphans are still visible
@@ -646,7 +613,7 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
   const allIssues: CheckIssue[] = [
     ...driftIssues,
     ...validationIssues,
-    ...(coverageIssue ? [coverageIssue] : []),
+    ...coverageIssues,
     ...orphanWarnings,
   ];
 
@@ -658,6 +625,8 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
   }
 
   const suggestedNext = computeSuggestedNext(allIssues, graph);
+  // Counts aspect-status advisories only — NOT the coverage `uncovered-advisory` warning,
+  // which is surfaced in the general Warnings(N) tally, not this aspect-advisory footer.
   const advisoryWarnings = allIssues.filter(i => i.code === 'aspect-violation-advisory').length;
   const draftSkipped = countDraftAspectsAcrossGraph(graph);
 
