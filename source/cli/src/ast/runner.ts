@@ -109,12 +109,13 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
     sourceFiles.push({ path: f.path, content, ast });
   }
 
-  // Collect suppressions BEFORE invoking check. Non-parseable files (ast
-  // undefined) carry no AST-derived comments, so they contribute no ranges.
+  // Collect suppressions BEFORE invoking check. Parseable files use their AST
+  // comments; non-parseable files (ast undefined) fall back to a raw-line scan
+  // of their content, so a yg-suppress marker is honored in any language.
   const rangesPerFile = new Map<string, ReturnType<typeof collectSuppressions>>();
   for (const f of sourceFiles) {
     const totalLines = f.content.split('\n').length;
-    rangesPerFile.set(f.path, f.ast ? collectSuppressions(f.ast, f.path, totalLines) : []);
+    rangesPerFile.set(f.path, collectSuppressions(f.ast, f.path, totalLines, f.content));
   }
 
   const ctx: CheckContext = { files: sourceFiles };

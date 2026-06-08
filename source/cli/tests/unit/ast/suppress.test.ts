@@ -30,15 +30,61 @@ describe('suppress: language-aware comment resolution', () => {
     expect(isLineSuppressed(ranges, 'my-aspect', 1)).toBe(false);
   });
 
-  it('unknown extension returns empty suppressions (no throw)', async () => {
-    // We cannot parse an unknown extension with parseFile (it would throw),
-    // so we use a TypeScript tree but pass an unknown file path — simulating
-    // what happens when collectSuppressions receives a tree for an unrecognised file.
+  it('unknown extension with no content arg returns empty suppressions (no throw)', async () => {
+    // An unrecognised extension has no grammar, so there are no comment nodes to
+    // walk. With no `content` supplied there is nothing to scan either, so the
+    // result is empty (rather than throwing).
     const code = `const x = 1;\n// yg-suppress(my-aspect) reason\nconst y = 2;`;
     const tree = await parseFile('x.ts', code);
-    // Pass a file path with an unknown extension
+    // Pass a file path with an unknown extension and omit content.
     const ranges = collectSuppressions(tree, 'file.unknownext', 3);
     expect(ranges).toEqual([]);
+  });
+});
+
+describe('suppress: non-AST languages (raw-line text scan)', () => {
+  // A file whose extension has no registered grammar (.sql, .sh, …) cannot be
+  // parsed, so markers are found by scanning the raw `content` lines. This is
+  // what lets a content-only deterministic check waive a violation in such a file.
+  it('SQL: single-line marker (-- comment) suppresses the following line', () => {
+    const code = `SELECT 1;\n-- yg-suppress(no-select-star) legacy report, columns are stable\nSELECT * FROM t;`;
+    const ranges = collectSuppressions(undefined, 'q.sql', code.split('\n').length, code);
+    expect(isLineSuppressed(ranges, 'no-select-star', 3)).toBe(true);
+    expect(isLineSuppressed(ranges, 'no-select-star', 1)).toBe(false);
+  });
+
+  it('Shell: # comment marker is recognised regardless of comment syntax', () => {
+    const code = `echo start\n# yg-suppress(no-pipe-to-shell) vendored installer, reviewed\ncurl https://x | sh`;
+    const ranges = collectSuppressions(undefined, 'install.sh', code.split('\n').length, code);
+    expect(isLineSuppressed(ranges, 'no-pipe-to-shell', 3)).toBe(true);
+  });
+
+  it('SQL: disable/enable range scanned from raw lines', () => {
+    const code = [
+      '-- yg-suppress-disable(no-select-star) bulk migration block',
+      'SELECT * FROM a;',
+      'SELECT * FROM b;',
+      '-- yg-suppress-enable(no-select-star)',
+      'SELECT * FROM c;',
+    ].join('\n');
+    const ranges = collectSuppressions(undefined, 'm.sql', code.split('\n').length, code);
+    expect(isLineSuppressed(ranges, 'no-select-star', 2)).toBe(true);
+    expect(isLineSuppressed(ranges, 'no-select-star', 3)).toBe(true);
+    // line 5 is past the enable marker — not suppressed.
+    expect(isLineSuppressed(ranges, 'no-select-star', 5)).toBe(false);
+  });
+
+  it('multi-aspect marker in a non-AST file applies to every listed aspect', () => {
+    const code = `SELECT 1;\n-- yg-suppress(rule-a, rule-b) shared waiver\nSELECT * FROM t;`;
+    const ranges = collectSuppressions(undefined, 'q.sql', code.split('\n').length, code);
+    expect(isLineSuppressed(ranges, 'rule-a', 3)).toBe(true);
+    expect(isLineSuppressed(ranges, 'rule-b', 3)).toBe(true);
+    expect(isLineSuppressed(ranges, 'rule-c', 3)).toBe(false);
+  });
+
+  it('a marker with no reason in a non-AST file still throws', () => {
+    const code = `-- yg-suppress(no-select-star)\nSELECT * FROM t;`;
+    expect(() => collectSuppressions(undefined, 'q.sql', 2, code)).toThrow(SuppressMarkerError);
   });
 });
 

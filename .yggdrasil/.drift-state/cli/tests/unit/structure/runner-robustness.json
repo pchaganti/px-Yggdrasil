@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "cb8e6fca018b0869ab058d9ea0a029f85a48d4b9d312d7db0de9ab0ff3a2c890",
+  "hash": "d5a35c6f938e77ae3c16fd31a2ead687f4c4f537f4171ba0d6a9ecbc2ef9ff49",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -8,7 +8,7 @@
     ".yggdrasil/model/cli/tests/unit/structure/yg-node.yaml": "948a9b8cfdb3dd949b969d26aefa698f1698145d9c6b09ee7dd74b4fad9e44ac",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/structure/runner-dir-mapping.test.ts": "925d2c0a10de6be5d7f851028cbefc3aa1caaead462540adfc0e01047f250374",
-    "source/cli/tests/unit/structure/runner-non-ast-files.test.ts": "c8c9a65565715700ce3bcb2622192593aa99215e1dc9ed68130d8e95b8f82131"
+    "source/cli/tests/unit/structure/runner-non-ast-files.test.ts": "70718ea25c8708faf3e289685d3f3ed5876cf4f18592ac43b781d8405bba8fcf"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -16,8 +16,8 @@
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
     ".yggdrasil/model/cli/tests/unit/structure/yg-node.yaml": 1780103153564.5188,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/structure/runner-dir-mapping.test.ts": 1780410465191.9668,
-    "source/cli/tests/unit/structure/runner-non-ast-files.test.ts": 1780410977092.0833
+    "source/cli/tests/unit/structure/runner-dir-mapping.test.ts": 1780488505081.5889,
+    "source/cli/tests/unit/structure/runner-non-ast-files.test.ts": 1780950232082.8801
   },
   "identity": {
     "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",

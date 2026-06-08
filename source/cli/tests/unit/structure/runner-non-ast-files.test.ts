@@ -176,4 +176,52 @@ describe('runStructureAspect — non-AST files in mapping (fix 3d)', () => {
     expect(r.violations).toHaveLength(1);
     expect(r.violations[0].file).toMatch(/README\.md$/);
   });
+
+  it('#12: a yg-suppress marker in a non-AST file (.sql) waives a content-check violation', async () => {
+    // Two SQL files (no registered grammar, so no parse tree). One carries a
+    // suppress marker on the line before the offending statement; the other does
+    // not. Suppression is found by scanning the raw file content, so only the
+    // unmarked file is flagged.
+    writeFileSync(
+      path.join(projectRoot, 'src/report.sql'),
+      '-- yg-suppress(no-select-star) legacy report, column set is frozen\nSELECT * FROM orders;\n',
+    );
+    writeFileSync(
+      path.join(projectRoot, 'src/ad_hoc.sql'),
+      'SELECT * FROM customers;\n',
+    );
+
+    // Content-only check: flags any line containing `SELECT *`. Never touches file.ast.
+    await writeAspect(
+      'no-select-star',
+      `export function check(ctx) {
+  const violations = [];
+  for (const file of ctx.files) {
+    const lines = file.content.split('\\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].includes('SELECT *')) {
+        violations.push({ message: 'SELECT * banned', file: file.path, line: i + 1, column: 0 });
+      }
+    }
+  }
+  return violations;
+}`,
+    );
+
+    const g = buildTestGraphForStructure({
+      nodes: [{ path: 'N', type: 'module', mapping: ['src'] }],
+    });
+    const r = await runStructureAspect({
+      aspectDir: path.join('.yggdrasil/aspects/no-select-star'),
+      aspectId: 'no-select-star',
+      nodePath: 'N',
+      graph: g,
+      projectRoot,
+    });
+
+    expect(r.succeeded).toBe(true);
+    // report.sql's violation is suppressed by its marker; ad_hoc.sql's is not.
+    expect(r.violations).toHaveLength(1);
+    expect(r.violations[0].file).toMatch(/ad_hoc\.sql$/);
+  });
 });

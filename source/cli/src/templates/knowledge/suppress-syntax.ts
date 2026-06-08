@@ -100,6 +100,21 @@ For generated files where the entire file is exempt, place the marker at
 the file level (outside any function or class). At file level, the
 contextual scope is the whole file.
 
+## Language support
+
+Markers are recognized in any source language, using whichever comment syntax
+the language provides — \`//\` and \`/* */\` (C-family), \`#\` (shell, Python),
+\`--\` (SQL), and so on. The marker token \`yg-suppress(...)\` is what is matched,
+not a specific comment style.
+
+For a file whose extension has a registered grammar, markers are read from the
+file's comments, so a \`yg-suppress(...)\` that merely appears inside a string
+literal is NOT treated as a marker. For a file whose extension has no registered
+grammar (e.g. \`.sql\`, \`.md\`, \`.sh\`), there is no parse tree, so markers are
+found by scanning the raw lines — which is what lets a content-only deterministic
+check waive a violation in such a file. (In that raw-scan mode a marker token
+sitting inside a string literal would also match, so keep markers in comments.)
+
 ## Reason text
 
 The reason text after the aspect-id is permanent. Future maintainers and

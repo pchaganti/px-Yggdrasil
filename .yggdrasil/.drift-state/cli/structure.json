@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "c3c552473be528d820babc2eb4490d60a46030d8ace689b0f31c1e4fa6ec3a92",
+  "hash": "f6d7fed1a26ca15c3d574289f779d48e30ed6a6d2ebe05d5565bd3a108e44833",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
@@ -11,9 +11,9 @@
     "source/cli/src/structure/allowed-reads.ts": "9356276775f1bffa4d02b0f9c126aeb3ef3c3005b36a0488f97621a81618b2bc",
     "source/cli/src/structure/types.ts": "62c088d33e826a58c193e2a9012eb5c406e5472cc352bcf69397db7112e6d5f6",
     "source/cli/src/structure/ctx-fs.ts": "b9697d91f00f7bfda24cbba414161e11248abf091ea7a6b9047bf726d1ad33a8",
-    "source/cli/src/structure/ctx-parsers.ts": "aaaa977d9781a3211b437b8fc435e260bfe279e5a3e287e1176fac905be1769d",
     "source/cli/src/structure/ctx-graph.ts": "ff043dd6ee2717c16d20f970d3340e011f23ed61b95cf82dfbaef39ded19b767",
-    "source/cli/src/structure/runner.ts": "a36f5676888a751c1a1bf7008794584cf3a9753d8ad074c57c005feb3ccccef4"
+    "source/cli/src/structure/ctx-parsers.ts": "aaaa977d9781a3211b437b8fc435e260bfe279e5a3e287e1176fac905be1769d",
+    "source/cli/src/structure/runner.ts": "7f73eb963fd38370004678868f45eabfc4a8ebf1abbb4a74b9969699a4d224e8"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -27,7 +27,7 @@
     "source/cli/src/structure/ctx-fs.ts": 1780934473915.9763,
     "source/cli/src/structure/ctx-graph.ts": 1780936490703.879,
     "source/cli/src/structure/ctx-parsers.ts": 1780410430026.3264,
-    "source/cli/src/structure/runner.ts": 1780936505740.4866
+    "source/cli/src/structure/runner.ts": 1780949885889.9268
   },
   "identity": {
     "ownSubset": "204bb5c981df191b1ce7c90b917c430e5813e7219cb7a2f740e2c87bcc605709",
@@ -47,7 +47,7 @@
           "source/cli/src/structure/ctx-fs.ts": "b9697d91f00f7bfda24cbba414161e11248abf091ea7a6b9047bf726d1ad33a8",
           "source/cli/src/structure/ctx-graph.ts": "ff043dd6ee2717c16d20f970d3340e011f23ed61b95cf82dfbaef39ded19b767",
           "source/cli/src/structure/ctx-parsers.ts": "aaaa977d9781a3211b437b8fc435e260bfe279e5a3e287e1176fac905be1769d",
-          "source/cli/src/structure/runner.ts": "a36f5676888a751c1a1bf7008794584cf3a9753d8ad074c57c005feb3ccccef4"
+          "source/cli/src/structure/runner.ts": "7f73eb963fd38370004678868f45eabfc4a8ebf1abbb4a74b9969699a4d224e8"
         }
       },
       "no-direct-minimatch": {
@@ -60,7 +60,7 @@
           "source/cli/src/structure/ctx-fs.ts": "b9697d91f00f7bfda24cbba414161e11248abf091ea7a6b9047bf726d1ad33a8",
           "source/cli/src/structure/ctx-graph.ts": "ff043dd6ee2717c16d20f970d3340e011f23ed61b95cf82dfbaef39ded19b767",
           "source/cli/src/structure/ctx-parsers.ts": "aaaa977d9781a3211b437b8fc435e260bfe279e5a3e287e1176fac905be1769d",
-          "source/cli/src/structure/runner.ts": "a36f5676888a751c1a1bf7008794584cf3a9753d8ad074c57c005feb3ccccef4"
+          "source/cli/src/structure/runner.ts": "7f73eb963fd38370004678868f45eabfc4a8ebf1abbb4a74b9969699a4d224e8"
         }
       }
     }
@@ -77,7 +77,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-08T16:40:58.005Z",
-    "prefix_hash": "b613f532f33ea554f4b6cf656d4e5d2d5e0d5d71f8c01d74d7ce917ae8b461f8"
+    "last_entry_datetime": "2026-06-08T20:29:25.807Z",
+    "prefix_hash": "9997927537697d95bec2f7505bc37493b02b47cdef95eb409394d7afab9cd4d5"
   }
 }

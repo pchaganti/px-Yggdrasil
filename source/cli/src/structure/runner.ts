@@ -281,17 +281,31 @@ export async function runStructureAspect(
     violations.push(vv);
   }
 
-  // Filter suppressed violations. Ranges come from each file's parsed tree in the
-  // astCache (own files are eagerly parsed; cross-node files the check parsed are cached).
-  // A violation with no file/line, or in a file with no parsed tree, is not suppressible.
+  // Filter suppressed violations. Ranges for a parseable file come from its
+  // parsed tree in the astCache (own files are eagerly parsed; cross-node files
+  // the check parsed are cached). A non-parseable file (no registered grammar)
+  // is not in the astCache, so its ranges come from a raw-line scan of its
+  // content, sourced here from the own/related file sets the runner already read.
+  // A violation with no file/line, or in a file with neither tree nor content,
+  // is not suppressible.
+  const contentByPath = new Map<string, string>();
+  for (const f of [...ownFiles, ...astInputSet]) {
+    contentByPath.set(normalizeMappingPath(f.path), f.content);
+  }
   const rangesByFile = new Map<string, SuppressedRange[] | null>();
   function rangesFor(filePath: string): SuppressedRange[] | null {
     const existing = rangesByFile.get(filePath);
     if (existing !== undefined) return existing;
     const cached = astCache.get(filePath);
-    const ranges = cached
-      ? collectSuppressions(cached.ast, filePath, cached.content.split('\n').length)
-      : null;
+    let ranges: SuppressedRange[] | null;
+    if (cached) {
+      ranges = collectSuppressions(cached.ast, filePath, cached.content.split('\n').length, cached.content);
+    } else {
+      const content = contentByPath.get(filePath);
+      ranges = content !== undefined
+        ? collectSuppressions(undefined, filePath, content.split('\n').length, content)
+        : null;
+    }
     rangesByFile.set(filePath, ranges);
     return ranges;
   }

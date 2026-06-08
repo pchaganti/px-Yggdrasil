@@ -70,17 +70,49 @@ function parseMarker(commentText: string, line: number, file: string): ParsedMar
   return null;
 }
 
-export function collectSuppressions(tree: Tree, file: string, totalLines: number): SuppressedRange[] {
-  // Guard: if the file extension has no known language, we cannot resolve
-  // comment node types — return empty rather than throwing.
-  if (getLanguageForExtension(extname(file)) === null) {
-    return [];
-  }
-  const comments = findComments({ path: file, ast: tree });
+/**
+ * Build the suppressed-line ranges for a file.
+ *
+ * Two collection strategies, chosen by whether the file's extension has a
+ * registered tree-sitter grammar:
+ *
+ * - AST path (registered grammar + a parsed `tree`): markers are read from the
+ *   file's comment nodes, so a `yg-suppress(...)` that merely appears inside a
+ *   string literal is never mistaken for a real marker.
+ * - Text path (no registered grammar, e.g. `.sql`/`.md`/`.sh`): the parse tree
+ *   cannot be produced, so markers are found by scanning the raw lines of
+ *   `content`. This is what lets a content-only deterministic check suppress a
+ *   violation in a non-AST-language file. Requires `content` to be supplied; if
+ *   it is omitted for such a file, no ranges are produced (nothing to scan).
+ *
+ * The range-building logic below is identical for both strategies.
+ */
+export function collectSuppressions(
+  tree: Tree | undefined,
+  file: string,
+  totalLines: number,
+  content?: string,
+): SuppressedRange[] {
+  const hasGrammar = getLanguageForExtension(extname(file)) !== null;
   const markers: ParsedMarker[] = [];
-  for (const c of comments) {
-    const m = parseMarker(c.text, c.startPosition.row + 1, file);
-    if (m) markers.push(m);
+  if (hasGrammar && tree) {
+    const comments = findComments({ path: file, ast: tree });
+    for (const c of comments) {
+      const m = parseMarker(c.text, c.startPosition.row + 1, file);
+      if (m) markers.push(m);
+    }
+  } else if (content !== undefined) {
+    // No grammar (or no tree): scan raw lines. parseMarker tolerates a leading
+    // comment delimiter (`--`, `#`, `;` …) because the marker regexes anchor on
+    // the distinctive `yg-suppress` token, not on comment syntax.
+    const lines = content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const m = parseMarker(lines[i], i + 1, file);
+      if (m) markers.push(m);
+    }
+  } else {
+    // A non-AST file with no content to scan — nothing is suppressible.
+    return [];
   }
   markers.sort((a, b) => a.line - b.line);
 
