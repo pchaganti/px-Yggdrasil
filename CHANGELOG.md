@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0-alpha.4] - 2026-06-08
+
+### Changed
+
+- **`coverage.required: []` is now allowed and means "require nothing".** An explicit empty `required` list opts a repo into pure-advisory coverage: every uncovered file outside `excluded`/nested subtrees surfaces as a non-blocking `uncovered-advisory` warning and nothing blocks CI. Previously an empty `required` was rejected as a config error. This is intentional and visible (the full uncovered surface still shows as warnings) — not a silent disabling of enforcement. The absent-block default remains `["/"]` (require the whole repo); only an explicitly-written `[]` enables require-nothing.
+- **The per-node character budget (`oversized-node`) now applies only to LLM-reviewed nodes.** The budget exists to protect the LLM reviewer's context window (a node's files are concatenated into one prompt). It now fires only for nodes with at least one non-draft LLM aspect; nodes reviewed solely by deterministic `check.mjs` aspects, and aspect-less nodes, are no longer bounded by `max_node_chars` (a deterministic check reads files programmatically, with no window). Consequence: `oversized-node` is now cascade-sensitive — adding an LLM aspect via a type default, flow, port, or `implies` can newly bring a previously-unbounded node under the budget.
+
 ## [5.0.0-alpha.3] - 2026-06-08
 
 ### Added

@@ -31,6 +31,16 @@ describe('partitionByCoverageTier', () => {
     expect(r.required.sort()).toEqual(['lib/b.ts', 'src/a.ts']);
     expect(r.middle).toEqual([]);
   });
+  it('empty required ("require nothing") → every uncovered file is a non-blocking warning', () => {
+    const r = partitionByCoverageTier(['src/a.ts', 'lib/b.ts'], { required: [], excluded: [] });
+    expect(r.required).toEqual([]); // nothing blocks
+    expect(r.middle.sort()).toEqual(['lib/b.ts', 'src/a.ts']); // all surface as advisory
+  });
+  it('empty required with excluded → excluded silent, the rest warn', () => {
+    const r = partitionByCoverageTier(['src/a.ts', 'vendor/c.ts'], { required: [], excluded: ['vendor/'] });
+    expect(r.required).toEqual([]);
+    expect(r.middle).toEqual(['src/a.ts']); // vendor/c.ts dropped (silent)
+  });
   it('files outside required fall to middle (warning), excluded are dropped', () => {
     const r = partitionByCoverageTier(
       ['services/a.ts', 'lib/b.ts', 'vendor/c.ts'],

@@ -1,11 +1,11 @@
 import path from 'node:path';
-import type { Graph } from '../../model/graph.js';
+import type { Graph, AspectStatus } from '../../model/graph.js';
 import type { ValidationIssue } from '../../model/validation.js';
 import { normalizeMappingPaths } from '../../io/paths.js';
 import { expandMappingPaths } from '../../io/hash.js';
 import { readSortedDir, statPath, fileAccess } from '../../io/graph-fs.js';
 import { walkRepoFiles } from '../../io/repo-scanner.js';
-import { computeEffectiveAspects } from '../graph/aspects.js';
+import { computeEffectiveAspects, computeEffectiveAspectStatuses } from '../graph/aspects.js';
 import { FileContentCache } from '../../io/file-content-cache.js';
 import { evaluateFileWhen } from '../file-when-evaluator.js';
 import { renderTrace } from '../../formatters/predicate-trace.js';
@@ -317,8 +317,15 @@ const BINARY_EXTENSIONS = new Set([
  * This is a blocking error: the node must be split (or, for an unsplittable
  * generated/binary artifact, carry a documented `sizeExempt` opt-out).
  *
- * The count is uniform across all node types (it does not depend on aspect
- * presence), so granularity is enforced even on nodes with no LLM aspect.
+ * The budget applies ONLY to nodes that are actually sent to an LLM reviewer —
+ * i.e. a node with at least one effective LLM aspect whose effective status is
+ * non-draft (advisory/enforced). That is the only place a node's files are
+ * concatenated into a single context-window-bounded prompt. Deterministic
+ * aspects (`check.mjs`) read files programmatically with no window, and
+ * aspect-less / draft-only nodes are never reviewed, so none of them is bounded
+ * — the budget would be a false constraint there. Note this makes the gate
+ * cascade-sensitive: adding an LLM aspect via a type default / flow / port /
+ * implies can newly bring a previously-unbounded node under the budget.
  * Binary files contribute nothing.
  */
 export async function checkOversizedNodes(
@@ -336,6 +343,7 @@ export async function checkOversizedNodes(
       refsByAspect.set(aspect.id, aspect.references.map((r) => r.path));
     }
   }
+  const aspectById = new Map(graph.aspects.map((a) => [a.id, a]));
 
   async function charsOf(repoRelPath: string): Promise<number> {
     if (BINARY_EXTENSIONS.has(path.extname(repoRelPath).toLowerCase())) return 0;
@@ -367,13 +375,29 @@ export async function checkOversizedNodes(
     // aspect-implies cycle makes computeEffectiveAspects throw; that cycle is
     // reported by checkImpliesNoCycles, so skip the reference contribution here
     // rather than crash the whole validation run with a raw stack trace.
-    const refPaths = new Set<string>();
     let effectiveAspects: Set<string>;
     try {
       effectiveAspects = computeEffectiveAspects(node, graph);
     } catch {
       effectiveAspects = new Set();
     }
+
+    // Budget applies only to LLM-reviewed nodes (see fn docstring): at least one
+    // effective LLM aspect with a non-draft effective status. Otherwise no prompt
+    // is built from this node's files, so there is no context window to protect.
+    let statuses: Map<string, AspectStatus>;
+    try {
+      statuses = computeEffectiveAspectStatuses(node, graph);
+    } catch {
+      statuses = new Map();
+    }
+    const isLlmReviewed = [...effectiveAspects].some((id) => {
+      const def = aspectById.get(id);
+      return def?.reviewer.type === 'llm' && (statuses.get(id) ?? 'enforced') !== 'draft';
+    });
+    if (!isLlmReviewed) continue;
+
+    const refPaths = new Set<string>();
     for (const aspectId of effectiveAspects) {
       for (const rp of refsByAspect.get(aspectId) ?? []) refPaths.add(rp);
     }

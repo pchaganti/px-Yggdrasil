@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "hash": "6217e804ec39a5f0d1a93359bf5a423c55fc71603ed5b8932b3a03df1f263267",
+  "hash": "99fd1f504951f95f8f3b20918d7ce9c54a391a501d1b8de2293b2021bd0d7971",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": "de00f518b04112cb692d73d15acfd232c3f1874b163d22d482f0b8e5a7163f48",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/core/validator-core.test.ts": "691deeeb73a33e6645975494921ccb597bc972ba2373209bf85234d80cfb77c4",
     "source/cli/tests/unit/core/validator-structure.test.ts": "8d00d67c1415a7f825da43bdddbcf0a561b196c9248cfba948c1f15b898c6551",
+    "source/cli/tests/unit/core/validator-core.test.ts": "4669537bb710127a4b1330a3e06df53e2bbd177c01f80a464b5e0012a52e0136",
     "source/cli/tests/unit/core/validator-aspect-aggregate.test.ts": "7755c7bfebf084e1c2351de7480ec2a935ff0b106f97b395ae59f543d1c32096"
   },
   "mtimes": {
@@ -17,9 +17,9 @@
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": 1778866543616.299,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/validator-core.test.ts": 1780293527037.4524,
+    "source/cli/tests/unit/core/validator-core.test.ts": 1780929186449.0544,
     "source/cli/tests/unit/core/validator-structure.test.ts": 1780293527039.3464,
-    "source/cli/tests/unit/core/validator-aspect-aggregate.test.ts": 1780407015212.0774
+    "source/cli/tests/unit/core/validator-aspect-aggregate.test.ts": 1780488505075.1968
   },
   "identity": {
     "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",

@@ -14,6 +14,12 @@ parallel: 1                       # optional — concurrency limit for batch app
 debug: false                      # optional — when true, appends all command output to .yggdrasil/.debug.log
                                   # Default: false (off). Log is append-only; rotate or delete manually.
 
+coverage:                         # optional — scopes the unmapped-files gate. Absent = whole repo required (today's behavior).
+  required: ["/"]                 #   roots where an uncovered tracked file is an ERROR (blocks). "/" = whole repo.
+  excluded: []                    #   roots where an uncovered file is SILENT (no warning).
+                                  # Files outside required and excluded are a non-blocking WARNING.
+                                  # Subtrees containing their own nested .yggdrasil/ are auto-skipped by every check.
+
 reviewer:                         # required — aspect verification during yg approve
   default: standard               # required when more than one tier is configured; optional with exactly one tier.
                                   #   Must reference one of the keys under reviewer.tiers.

@@ -182,7 +182,7 @@ coverage:
 
 Controls which git-tracked files must be mapped to a node in `yg check`.
 
-- **`required`** — List of path roots. Files under a required root that are not mapped to any node produce an `unmapped-files` error (blocks CI). Default: `["/"]` (the whole repo — reproduces the previous always-map-everything behavior).
+- **`required`** — List of path roots. Files under a required root that are not mapped to any node produce an `unmapped-files` error (blocks CI). Default: `["/"]` (the whole repo — reproduces the previous always-map-everything behavior). An explicit empty list `[]` means **require nothing** — every uncovered file (outside `excluded`/nested) becomes a non-blocking `uncovered-advisory` warning and nothing blocks (pure-advisory adoption: you still see the full uncovered surface, but CI stays green on coverage). The empty list only takes effect when written explicitly; omitting the whole `coverage` block keeps the `["/"]` default.
 - **`excluded`** — List of path roots. Files under an excluded root are silently ignored regardless of other rules.
 - Files that match neither a required nor an excluded root produce a non-blocking `uncovered-advisory` warning.
 - Subtrees that contain their own nested `.yggdrasil/` are auto-skipped by all repo-walking checks — they are governed by their own graph, not the root graph.
@@ -201,7 +201,10 @@ quality:
 
 `max_direct_relations` fires a warning when exceeded. `max_node_chars` is a blocking
 error: a node whose mapped source plus aspect reference files exceed it (binary files
-do not count) must be split into children. For a node mapping a single unsplittable
+do not count) must be split into children. The budget applies **only to nodes an LLM
+reviewer actually reads** — those with at least one non-draft LLM aspect; nodes
+reviewed only by deterministic `check.mjs` aspects, and aspect-less nodes, are not
+bounded (they never become a context-window-limited prompt). For a node mapping a single unsplittable
 generated or binary artifact (a lockfile, an append-only changelog, an image), opt out
 per-node with `sizeExempt: { reason: "<why it cannot be split>" }`.
 

@@ -542,12 +542,15 @@ reviewer:
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('Fix 2: throws config-invalid when coverage.required is an explicit empty list', async () => {
+  it('accepts an explicit empty coverage.required as "require nothing" (pure-advisory)', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'yg-cov-empty-req-'));
     try {
       const p = path.join(dir, 'yg-config.yaml');
       await writeFile(p, 'version: "5.0.0"\ncoverage:\n  required: []\n', 'utf-8');
-      await expect(parseConfig(p)).rejects.toMatchObject({ code: 'config-invalid' });
+      const config = await parseConfig(p);
+      // Explicit [] is permitted (not an error) and means require nothing — the
+      // absent-block default of ['/'] only applies when coverage.required is omitted.
+      expect(config.coverage).toEqual({ required: [], excluded: [] });
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

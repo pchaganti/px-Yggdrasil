@@ -639,6 +639,7 @@ describe('validator', () => {
       files: Record<string, string>;
       nodeYaml: string;
       config?: string;
+      llmAspect?: boolean;
     }) {
       const dir = await mkdtemp(path.join(tmpdir(), 'yg-oversized-'));
       const yggRoot = path.join(dir, '.yggdrasil');
@@ -649,7 +650,17 @@ describe('validator', () => {
         await writeFile(abs, content);
       }
       await writeFile(path.join(yggRoot, 'yg-config.yaml'), opts.config ?? 'version: "5.0.0"');
-      await writeFile(path.join(yggRoot, 'model', 'n', 'yg-node.yaml'), opts.nodeYaml);
+      // The per-node char budget applies only to LLM-reviewed nodes, so by default
+      // attach a non-draft LLM aspect to node 'n' so these cases exercise the gate.
+      // Pass llmAspect: false to model a node the budget must NOT bound.
+      let nodeYaml = opts.nodeYaml;
+      if (opts.llmAspect !== false) {
+        await mkdir(path.join(yggRoot, 'aspects', 'budget-llm'), { recursive: true });
+        await writeFile(path.join(yggRoot, 'aspects', 'budget-llm', 'yg-aspect.yaml'), 'name: BudgetLlm\ndescription: x\nreviewer:\n  type: llm\n');
+        await writeFile(path.join(yggRoot, 'aspects', 'budget-llm', 'content.md'), 'Rule.\n');
+        nodeYaml = nodeYaml.replace('description: x\n', 'description: x\naspects:\n  - budget-llm\n');
+      }
+      await writeFile(path.join(yggRoot, 'model', 'n', 'yg-node.yaml'), nodeYaml);
       try {
         const result = await validate(await loadGraph(dir));
         return result.issues.filter((i) => i.rule === 'oversized-node');
@@ -669,10 +680,19 @@ describe('validator', () => {
       expect(msgOf(issues[0])).toMatch(/characters \(max: 40000\)/);
     });
 
-    it('does not error when under the budget — uniform, applies even with no aspects', async () => {
+    it('does not error when an LLM-reviewed node is under the budget', async () => {
       const issues = await oversizedIssues({
         files: { 'src/a.ts': big(5000), 'src/b.ts': big(5000) }, // ~10006
         nodeYaml: 'name: N\ntype: service\ndescription: x\nmapping:\n  - src/a.ts\n  - src/b.ts',
+      });
+      expect(issues).toHaveLength(0);
+    });
+
+    it('does NOT bound a node with no LLM aspect, even far over the budget (budget is LLM-only)', async () => {
+      const issues = await oversizedIssues({
+        files: { 'src/a.ts': big(20000), 'src/b.ts': big(25000) }, // ~45006, well over 40000
+        nodeYaml: 'name: N\ntype: service\ndescription: x\nmapping:\n  - src/a.ts\n  - src/b.ts',
+        llmAspect: false, // no LLM aspect → never sent to a reviewer → no context window to protect
       });
       expect(issues).toHaveLength(0);
     });

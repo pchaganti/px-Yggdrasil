@@ -37,7 +37,7 @@ coverage:                           # Optional — controls which files must be 
 
 quality:
   max_direct_relations: 10        # Max out-edges per node before high-fan-out warning
-  max_node_chars: 40000           # Per-node character budget (source + aspect refs) before oversized-node error
+  max_node_chars: 40000           # Per-node char budget (source + aspect refs); oversized-node error — LLM-reviewed nodes only
 
 parallel: 1                       # Concurrent aspect verifications across nodes (default: 1)
 
@@ -182,7 +182,7 @@ coverage:
 
 Controls which git-tracked files must be mapped to a node.
 
-- \`required\` — path roots where unmapped files are a blocking \`unmapped-files\` error. Default: \`["/"]\` (whole repo — the previous always-map-everything behavior).
+- \`required\` — path roots where unmapped files are a blocking \`unmapped-files\` error. Default: \`["/"]\` (whole repo — the previous always-map-everything behavior). An explicit empty list \`[]\` means require nothing: every uncovered file (outside \`excluded\`/nested) becomes a non-blocking \`uncovered-advisory\` warning and nothing blocks (pure-advisory adoption). Empty only counts when written explicitly; omitting the \`coverage\` block keeps the \`["/"]\` default.
 - \`excluded\` — path roots that are silently ignored. Default: \`[]\`.
 - Files that match neither a required nor an excluded root produce a non-blocking \`uncovered-advisory\` warning.
 - Subtrees containing their own nested \`.yggdrasil/\` are auto-skipped by all repo-walking checks (they are governed by their own graph).
@@ -199,6 +199,9 @@ quality:
 \`max_direct_relations\` fires a warning when exceeded. \`max_node_chars\` is a
 blocking error: a node whose mapped source plus aspect reference files exceed it
 (binary files do not count) must be split into children to stay under the budget.
+The budget applies only to nodes an LLM reviewer actually reads — those with at
+least one non-draft LLM aspect; deterministic-only and aspect-less nodes are not
+bounded (a check.mjs reads files programmatically, with no context window).
 For a node mapping a single unsplittable generated or binary artifact (a lockfile,
 an append-only changelog, an image), opt out per-node with
 \`sizeExempt: { reason: "<why it cannot be split>" }\`.

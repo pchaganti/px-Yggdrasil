@@ -13,8 +13,9 @@ Unified gate — runs all validators in sequence.
 yg check
 \`\`\`
 
-Detects: drift (source + cascade), validation errors, coverage gaps,
-\`unmapped-files\`, type-when mismatches, strict orphans/misplaced files.
+Detects: drift (source + cascade), validation errors, coverage gaps
+(\`unmapped-files\` errors under required roots, \`uncovered-advisory\` warnings
+outside them), type-when mismatches, strict orphans/misplaced files.
 
 Exit 0 = clean. Exit 1 = errors found. CI blocks on exit 1.
 

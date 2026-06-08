@@ -51,15 +51,12 @@ function parseCoverage(raw: unknown, filename: string): CoverageConfig {
   const required = cov.required === undefined ? ['/'] : parseStringArray(cov.required, 'coverage.required', filename);
   const excluded = parseStringArray(cov.excluded, 'coverage.excluded', filename);
 
-  // An explicit empty required list silently turns every unmapped file into a
-  // non-blocking warning, disabling coverage enforcement entirely.
-  if (required.length === 0) {
-    throw new ConfigParseError({
-      what: `${filename}: coverage.required must list at least one root.`,
-      why: 'An empty required list silently turns every unmapped file into a non-blocking warning, disabling coverage enforcement.',
-      next: 'Omit the coverage block to require the whole repo, or list real roots (e.g. - services/).',
-    }, 'config-invalid');
-  }
+  // An explicit empty `required: []` is permitted and means "require nothing":
+  // every uncovered file (outside excluded/nested) surfaces as a non-blocking
+  // uncovered-advisory warning, so nothing blocks. This is intentional
+  // pure-advisory adoption — visible (you still see every uncovered file as a
+  // warning), not silent. (The ABSENT-block default remains ['/'] above, which
+  // requires the whole repo; only an explicit [] opts into require-nothing.)
 
   // Coverage roots are repo-relative prefixes; ".." never matches a git-tracked
   // path and silently mis-scopes coverage enforcement.

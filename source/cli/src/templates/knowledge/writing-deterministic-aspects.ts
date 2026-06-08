@@ -6,7 +6,11 @@ export const content = `# Writing deterministic aspects
 A deterministic aspect declares \`reviewer: { type: deterministic }\` and ships
 a \`check.mjs\` file. The check runs locally at zero LLM cost and returns a
 \`Violation[]\`. Deterministic aspects do not use reviewer tiers —
-\`reviewer.tier:\` is rejected together with \`type: deterministic\`.
+\`reviewer.tier:\` is rejected together with \`type: deterministic\`. Because the
+check reads files programmatically (no LLM prompt), the per-node character budget
+(\`quality.max_node_chars\` / \`oversized-node\`) does NOT apply to a node whose
+only effective aspects are deterministic — such a node may map an arbitrarily
+large area.
 
 There are two ways to scope a deterministic aspect:
 

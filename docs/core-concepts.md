@@ -77,11 +77,14 @@ Nodes can be nested. Children inherit parent aspects automatically.
 
 ### Node size budget
 
-The reviewer sees all of a node's mapped source (plus any aspect reference
-files) at once, so a node has a character budget: `quality.max_node_chars`
+The LLM reviewer sends all of a node's mapped source (plus any aspect reference
+files) in one prompt, so a node has a character budget: `quality.max_node_chars`
 in `yg-config.yaml`, default 40000. A node that exceeds it produces an
 `oversized-node` error in `yg check` — split it into children or trim its
-mapping. Binary files (images, fonts, archives, etc.) count 0 toward the
+mapping. The budget applies **only to nodes an LLM reviewer actually reads** —
+those with at least one non-draft LLM aspect. Nodes reviewed only by
+deterministic aspects (`check.mjs` reads files programmatically, with no context
+window) and aspect-less nodes are never bounded. Binary files (images, fonts, archives, etc.) count 0 toward the
 budget automatically. For a large unsplittable text artifact — a generated
 lockfile, for example — opt the node out with `sizeExempt: { reason: "..." }`.
 

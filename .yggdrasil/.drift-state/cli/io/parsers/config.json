@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "a1207e90c32b3524512152cd64f78bb518809a716633943a56844dbcb4a05161",
+  "hash": "b628028ce8c1c06cb6dcfd4b0a8aab84142797e98318b6f970b3b745ddc1d997",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
@@ -14,7 +14,7 @@
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
     "source/cli/src/io/secrets-parser.ts": "2e3b4fd24443e2c1bf7c7148dd47f871108c38f491b69fa8e5a75fd06755b397",
     "source/cli/src/io/schema-parser.ts": "a1563e6d7eaaf4c17f1e8b7f5e680dfdde78647bee243339a29eca9d702d9470",
-    "source/cli/src/io/config-parser.ts": "cabde4f98be5e54b7b239585c22811e2617b823e045e0bca268ee5e1b9c2ff28"
+    "source/cli/src/io/config-parser.ts": "a5a16525c432b9e7260497e126706dc82e06528effa3a530d85e82642cd37b1a"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -27,7 +27,7 @@
     ".yggdrasil/aspects/parser-yaml-guard/check.mjs": 1780488505035.959,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    "source/cli/src/io/config-parser.ts": 1780912437472.1777,
+    "source/cli/src/io/config-parser.ts": 1780927483132.6316,
     "source/cli/src/io/secrets-parser.ts": 1780070396954.3076,
     "source/cli/src/io/schema-parser.ts": 1778867887343.4338
   },
@@ -46,7 +46,7 @@
       "posix-paths-source": {
         "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
         "checkTouched": {
-          "source/cli/src/io/config-parser.ts": "cabde4f98be5e54b7b239585c22811e2617b823e045e0bca268ee5e1b9c2ff28",
+          "source/cli/src/io/config-parser.ts": "a5a16525c432b9e7260497e126706dc82e06528effa3a530d85e82642cd37b1a",
           "source/cli/src/io/secrets-parser.ts": "2e3b4fd24443e2c1bf7c7148dd47f871108c38f491b69fa8e5a75fd06755b397",
           "source/cli/src/io/schema-parser.ts": "a1563e6d7eaaf4c17f1e8b7f5e680dfdde78647bee243339a29eca9d702d9470"
         }
@@ -54,7 +54,7 @@
       "read-or-default-via-helper": {
         "meta": "e35435ede6ebbe015c8a0de76081e6c72acbcc193efd5c066beeea8541b99811",
         "checkTouched": {
-          "source/cli/src/io/config-parser.ts": "cabde4f98be5e54b7b239585c22811e2617b823e045e0bca268ee5e1b9c2ff28",
+          "source/cli/src/io/config-parser.ts": "a5a16525c432b9e7260497e126706dc82e06528effa3a530d85e82642cd37b1a",
           "source/cli/src/io/secrets-parser.ts": "2e3b4fd24443e2c1bf7c7148dd47f871108c38f491b69fa8e5a75fd06755b397",
           "source/cli/src/io/schema-parser.ts": "a1563e6d7eaaf4c17f1e8b7f5e680dfdde78647bee243339a29eca9d702d9470"
         }
@@ -62,7 +62,7 @@
       "parser-yaml-guard": {
         "meta": "7c266c1c65ce5fa8a871c5411f0c911921b911111f874ebcf2ba8145542926cb",
         "checkTouched": {
-          "source/cli/src/io/config-parser.ts": "cabde4f98be5e54b7b239585c22811e2617b823e045e0bca268ee5e1b9c2ff28",
+          "source/cli/src/io/config-parser.ts": "a5a16525c432b9e7260497e126706dc82e06528effa3a530d85e82642cd37b1a",
           "source/cli/src/io/secrets-parser.ts": "2e3b4fd24443e2c1bf7c7148dd47f871108c38f491b69fa8e5a75fd06755b397",
           "source/cli/src/io/schema-parser.ts": "a1563e6d7eaaf4c17f1e8b7f5e680dfdde78647bee243339a29eca9d702d9470"
         }
@@ -87,7 +87,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-08T09:59:49.732Z",
-    "prefix_hash": "9ef1261dc507ed3fa8b27847ad2325fc87f0dc0899e43a191aba9dfdbb78e14a"
+    "last_entry_datetime": "2026-06-08T14:21:59.565Z",
+    "prefix_hash": "88c6374b217d533fa02036e1ce55ff965e9249a2e6089a88647d38f5125fd94d"
   }
 }

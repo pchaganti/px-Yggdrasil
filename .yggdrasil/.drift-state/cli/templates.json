@@ -1,19 +1,19 @@
 {
   "schemaVersion": 1,
-  "hash": "18c9f7b9affaea1438f29c31839e11282d32697e8aedf89619bd993cb5dd92af",
+  "hash": "c7846230595823f446d2b9ba16df5b354e4d82022b363142e62100d3953f5f78",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
     ".yggdrasil/aspects/posix-paths-output/content.md": "2659859dc13a8efe32e098b0c220d24c9ecddff26b42a4f22e3135d8b750bc13",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
-    "source/cli/src/templates/rules.ts": "2d72a9653baa3f983cf54d75348fd3fc4efe67c5da4c0c3f360ea5ca1e535866"
+    "source/cli/src/templates/rules.ts": "9b2629d059f48332e5118432fc5fa3b8b85960d3936f95bc4d04de5197b4ff23"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/aspects/what-why-next/content.md": 1780050256245.0933,
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780410812801.22,
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780488505036.1836,
     ".yggdrasil/aspects/posix-paths-output/content.md": 1778912983383.063,
-    "source/cli/src/templates/rules.ts": 1780413809614.981
+    "source/cli/src/templates/rules.ts": 1780928160444.851
   },
   "identity": {
     "ownSubset": "f68bcd5143fd11da71f121095f5b7b88f309ccecd0a1190a8d557b7eeeda9f51",
@@ -26,7 +26,7 @@
       "posix-paths-source": {
         "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
         "checkTouched": {
-          "source/cli/src/templates/rules.ts": "2d72a9653baa3f983cf54d75348fd3fc4efe67c5da4c0c3f360ea5ca1e535866"
+          "source/cli/src/templates/rules.ts": "9b2629d059f48332e5118432fc5fa3b8b85960d3936f95bc4d04de5197b4ff23"
         }
       },
       "posix-paths-output": {
@@ -47,7 +47,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-03T07:22:56.675Z",
-    "prefix_hash": "71292fbc1e713d9d489b4748bcb8ab6d1f0737a688361563b2843ab9b3e04f70"
+    "last_entry_datetime": "2026-06-08T14:21:59.772Z",
+    "prefix_hash": "10b7da934ea1e6726d0b73ab7252fc47cbb42c9a67db68722e8d0c234e97931d"
   }
 }
