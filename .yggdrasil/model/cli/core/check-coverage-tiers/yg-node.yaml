@@ -1,0 +1,9 @@
+name: Check Coverage Tiers
+type: engine
+description: Pure coverage-tier helpers — normalizeRoot, matchesRoot, and partitionByCoverageTier. Splits uncovered files into required (error) and middle (warning) tiers based on a CoverageConfig; excluded files are silently dropped. No I/O; longest-match-wins algorithm with excluded winning equal-length ties.
+aspects: []
+relations:
+  - target: cli/model/graph
+    type: uses
+mapping:
+  - source/cli/src/core/check-coverage-tiers.ts

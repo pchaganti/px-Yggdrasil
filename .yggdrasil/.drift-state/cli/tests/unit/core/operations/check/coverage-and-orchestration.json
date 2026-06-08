@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "dcb96fe1508097abf4876b2baeb7933703cfec692f40deee56da4fd2d48a6b47",
+  "hash": "4d545ad46bc63a57153248170a23406faccd37423d2322cfcd701af675495dc6",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -9,7 +9,8 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": "a5408f7e331d1e28996ceaf2b67c4fada5e52ee3909db85a7904aae88cd55146",
     ".yggdrasil/model/cli/tests/unit/core/operations/check/yg-node.yaml": "fba56faf121115c2958ee4c3938134fc6b06836a8029621ff833305ff601c4c2",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/core/check-coverage.test.ts": "4e6b44d776ee6f58698a160283bc03517d157e8d09ec893250b6e99b030a2614"
+    "source/cli/tests/unit/core/check-coverage.test.ts": "4e6b44d776ee6f58698a160283bc03517d157e8d09ec893250b6e99b030a2614",
+    "source/cli/tests/unit/core/check-coverage-tiers.test.ts": "151a96def0125485db1f60ff01dc9c990ad35f540aa9ec97be714cd6544a0cf9"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -19,7 +20,8 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": 1779996108975.9385,
     ".yggdrasil/model/cli/tests/unit/core/operations/check/yg-node.yaml": 1780176890660.4705,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/check-coverage.test.ts": 1780293527023.7559
+    "source/cli/tests/unit/core/check-coverage.test.ts": 1780293527023.7559,
+    "source/cli/tests/unit/core/check-coverage-tiers.test.ts": 1780903926489.1877
   },
   "identity": {
     "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",

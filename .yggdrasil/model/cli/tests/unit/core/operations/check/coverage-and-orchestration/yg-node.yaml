@@ -5,3 +5,4 @@ aspects: []
 relations: []
 mapping:
   - source/cli/tests/unit/core/check-coverage.test.ts
+  - source/cli/tests/unit/core/check-coverage-tiers.test.ts

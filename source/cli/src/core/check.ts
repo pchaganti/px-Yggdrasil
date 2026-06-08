@@ -465,6 +465,8 @@ async function classifyLogState(
 
 // ── Coverage scan (unmapped-files) ────────────────────────
 
+export { normalizeRoot, matchesRoot, partitionByCoverageTier } from './check-coverage-tiers.js';
+
 /**
  * Find git-tracked files not covered by any node mapping.
  * Accepts gitTrackedFiles as parameter for testability (CLI layer calls `git ls-files`).
