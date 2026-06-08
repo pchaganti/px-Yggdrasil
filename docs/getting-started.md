@@ -126,9 +126,15 @@ accepted), promote to `status: enforced`. See
 
 ## 4) Existing codebase (brownfield)
 
-`yg check` requires 100% file coverage. Every git-tracked source file must
-belong to some node. On a fresh repo with 200 files and 0 nodes, check fails
+By default, `yg check` requires every git-tracked source file to belong to
+some node. On a fresh repo with 200 files and 0 nodes, check fails
 immediately.
+
+You can relax this with a `coverage` block in `yg-config.yaml`. Files under
+`coverage.required` roots remain blocking errors; files outside required (and
+not excluded) become non-blocking warnings; files under `coverage.excluded`
+are silent. Subtrees with their own nested `.yggdrasil/` are auto-skipped.
+See [Configuration](/configuration) for details.
 
 The fast path: **minimal nodes (no aspects) for everything you're not working
 on, proper nodes with aspects for what you are.**

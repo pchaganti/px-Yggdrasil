@@ -6,5 +6,6 @@ relations: []
 mapping:
   - source/cli/tests/integration/build-pipeline.test.ts
   - source/cli/tests/integration/check-pipeline.test.ts
+  - source/cli/tests/integration/coverage-modes.test.ts
   - source/cli/tests/integration/validation-pipeline.test.ts
   - source/cli/tests/setup.ts

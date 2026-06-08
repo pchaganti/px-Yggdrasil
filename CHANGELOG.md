@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Scoped coverage adoption (`coverage.required` / `coverage.excluded`).** `yg check` no longer forces every tracked file to be mapped. A new optional `coverage` block in `yg-config.yaml` declares which roots must be fully covered (`required` → error), which are ignored (`excluded` → silent), with everything else a non-blocking warning. Subtrees that contain their own nested `.yggdrasil/` are auto-skipped by every repo-walking check, so a monorepo overlay (`apps/.yggdrasil`) is governed by its own graph without the root graph complaining about it. The default (`required: ["/"]`) reproduces the previous always-map-everything behavior.
+
 ## [5.0.0-alpha.2] - 2026-06-03
 
 ### Removed

@@ -30,6 +30,11 @@ reviewer:
       #   max_bytes_per_file: 65536         # default: 64 KiB per reference file
       #   max_total_bytes_per_aspect: 262144  # default: 256 KiB total per aspect
 
+coverage:                           # Optional — controls which files must be mapped
+  required:                         # Unmapped files under these roots are a blocking error
+    - "/"                           # Default: whole repo (previous always-map-everything behavior)
+  excluded: []                      # Files under these roots are silently ignored
+
 quality:
   max_direct_relations: 10        # Max out-edges per node before high-fan-out warning
   max_node_chars: 40000           # Per-node character budget (source + aspect refs) before oversized-node error
@@ -164,6 +169,24 @@ the provider's standard \`*_API_KEY\`) as a fallback when not present in
 
 \`yg-config.yaml\` itself must never contain credentials. Commit it to the
 repository — it is safe to share.
+
+## Coverage config
+
+\`\`\`yaml
+coverage:
+  required:
+    - src/       # unmapped files under src/ are a blocking error
+  excluded:
+    - vendor/    # silently ignored
+\`\`\`
+
+Controls which git-tracked files must be mapped to a node.
+
+- \`required\` — path roots where unmapped files are a blocking \`unmapped-files\` error. Default: \`["/"]\` (whole repo — the previous always-map-everything behavior).
+- \`excluded\` — path roots that are silently ignored. Default: \`[]\`.
+- Files that match neither a required nor an excluded root produce a non-blocking \`uncovered-advisory\` warning.
+- Subtrees containing their own nested \`.yggdrasil/\` are auto-skipped by all repo-walking checks (they are governed by their own graph).
+- Longest-match wins; on a tie between required and excluded, excluded wins.
 
 ## Quality thresholds
 

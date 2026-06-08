@@ -20,6 +20,7 @@ the current version and refreshes the rules, schemas, and platform files.
 ### Optional
 
 - **reviewer.default** — Tier name aspects fall back to when they don't declare one. Required when `reviewer.tiers` has more than one entry; optional with exactly one tier.
+- **coverage** — Controls which files must be mapped to a node (see [Coverage config](#coverage-config) below).
 - **quality** — Quality thresholds (see [Quality config](#quality-config) below).
 - **parallel** — Concurrent aspect verifications across nodes (positive integer).
 - **debug** — Set `true` to append all CLI output to `.yggdrasil/.debug.log`.
@@ -44,6 +45,11 @@ reviewer:
         model: qwen3
         endpoint: http://localhost:11434
         temperature: 0
+
+coverage:                             # Optional — controls which files must be mapped
+  required:                           # Unmapped files under these roots are a blocking error
+    - "/"                             # Default: whole repo (previous always-map-everything behavior)
+  excluded: []                        # Files under these roots are silently ignored
 
 quality:
   max_direct_relations: 10
@@ -161,6 +167,27 @@ API providers also check environment variables: `ANTHROPIC_API_KEY`, `OPENAI_API
 `GOOGLE_API_KEY`. If the env var is set, `yg-secrets.yaml` is not required.
 
 `yg-config.yaml` itself must never contain credentials. Commit it to the repository.
+
+---
+
+## Coverage config
+
+```yaml
+coverage:
+  required:
+    - src/             # files under src/ must be mapped — unmapped is a blocking error
+  excluded:
+    - vendor/          # files under vendor/ are silently ignored
+```
+
+Controls which git-tracked files must be mapped to a node in `yg check`.
+
+- **`required`** — List of path roots. Files under a required root that are not mapped to any node produce an `unmapped-files` error (blocks CI). Default: `["/"]` (the whole repo — reproduces the previous always-map-everything behavior).
+- **`excluded`** — List of path roots. Files under an excluded root are silently ignored regardless of other rules.
+- Files that match neither a required nor an excluded root produce a non-blocking `uncovered-advisory` warning.
+- Subtrees that contain their own nested `.yggdrasil/` are auto-skipped by all repo-walking checks — they are governed by their own graph, not the root graph.
+
+Each file is scored against all roots independently; the longest matching root wins, and on an equal-length tie between a required and an excluded root, excluded wins.
 
 ---
 
