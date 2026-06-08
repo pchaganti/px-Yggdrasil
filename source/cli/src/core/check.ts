@@ -29,6 +29,7 @@ import { validateAppendOnly } from './log-integrity.js';
 import { STRUCTURAL_CODES, COMPLETENESS_CODES } from './check-codes.js';
 import { validateFormat } from './log-format.js';
 import { toPosixPath } from '../utils/posix.js';
+import { excludeNestedGraphSubtrees } from '../io/repo-scanner.js';
 import {
   aspectNewlyActiveMessage,
   aspectViolationEnforcedMessage,
@@ -470,7 +471,8 @@ export { normalizeRoot, matchesRoot, partitionByCoverageTier } from './check-cov
 /**
  * Find git-tracked files not covered by any node mapping.
  * Accepts gitTrackedFiles as parameter for testability (CLI layer calls `git ls-files`).
- * Excludes files under .yggdrasil/.
+ * Excludes files under the bound graph's own .yggdrasil/ and under any nested-graph
+ * subtree (a directory that contains its own .yggdrasil/).
  */
 export function scanUncoveredFiles(graph: Graph, gitTrackedFiles: string[]): string[] {
   // Build list of all mapping paths (normalized)
@@ -486,7 +488,8 @@ export function scanUncoveredFiles(graph: Graph, gitTrackedFiles: string[]): str
 
   const uncovered: string[] = [];
 
-  for (const file of gitTrackedFiles) {
+  const tracked = excludeNestedGraphSubtrees(gitTrackedFiles);
+  for (const file of tracked) {
     const normalized = toPosixPath(file.trim());
 
     // Exclude .yggdrasil/ files
@@ -594,14 +597,15 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
   let coveredFiles = 0;
   let totalFiles = 0;
   if (gitTrackedFiles !== null) {
-    // Exclude .yggdrasil/ files from total count
+    // Exclude .yggdrasil/ files and nested-graph subtrees from total count
     const projectRoot = path.dirname(graph.rootPath);
     const yggPrefix = toPosixPath(path.relative(projectRoot, graph.rootPath));
-    const sourceFiles = gitTrackedFiles.filter(f => {
+    const sourceFiles = excludeNestedGraphSubtrees(gitTrackedFiles).filter(f => {
       const normalized = toPosixPath(f.trim());
       return !normalized.startsWith(yggPrefix + '/') && normalized !== yggPrefix;
     });
     totalFiles = sourceFiles.length;
+    // scanUncoveredFiles applies excludeNestedGraphSubtrees internally (idempotent).
     const uncovered = scanUncoveredFiles(graph, gitTrackedFiles);
     coveredFiles = totalFiles - uncovered.length;
     coverageIssue = buildCoverageIssue(uncovered, totalFiles);

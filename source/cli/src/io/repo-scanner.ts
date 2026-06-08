@@ -73,10 +73,37 @@ async function collectFiles(
 }
 
 /**
+ * Drop every file under a nested-graph subtree — a directory (below the repo root)
+ * that contains its own `.yggdrasil/`. Such a subtree is governed by that graph, so
+ * the parent graph's checks must ignore it. The top-level `.yggdrasil/` is NOT a
+ * nested root (its paths start with `.yggdrasil/`, with no leading-slash segment).
+ */
+export function excludeNestedGraphSubtrees(relPaths: string[]): string[] {
+  // A nested graph always has files under its own `.yggdrasil/`, so a `/.yggdrasil/`
+  // segment (with a non-empty prefix — idx > 0) is the complete, correct signal. The
+  // top-level `.yggdrasil/` has no leading-slash segment, so it is never a nested root.
+  const seg = `/${YGGDRASIL_DIRNAME}/`;
+  const nestedRoots = new Set<string>();
+  for (const p of relPaths) {
+    const idx = p.indexOf(seg);
+    if (idx > 0) nestedRoots.add(p.slice(0, idx));
+  }
+  if (nestedRoots.size === 0) return relPaths;
+  return relPaths.filter((p) => {
+    for (const root of nestedRoots) {
+      if (p === root || p.startsWith(root + '/')) return false;
+    }
+    return true;
+  });
+}
+
+/**
  * Walk all files in the repo, returning repo-relative POSIX paths.
  * Excludes `.yggdrasil/`, `.git/`, symlinks, and gitignore-matched files.
+ * Excludes subtrees that contain their own nested `.yggdrasil/` directory.
  */
 export async function walkRepoFiles(projectRoot: string): Promise<string[]> {
   const stack = await loadRootGitignoreStack(projectRoot);
-  return collectFiles(projectRoot, projectRoot, stack);
+  const files = await collectFiles(projectRoot, projectRoot, stack);
+  return excludeNestedGraphSubtrees(files);
 }

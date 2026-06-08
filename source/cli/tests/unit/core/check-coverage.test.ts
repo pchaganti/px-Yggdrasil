@@ -161,6 +161,23 @@ describe('scanUncoveredFiles', () => {
     expect(uncovered).toHaveLength(0);
     await rm(tmpDir, { recursive: true, force: true });
   });
+
+  it('skips files under a nested .yggdrasil subtree', async () => {
+    const { tmpDir } = await createTmpProject('nested-skip', {
+      nodePath: 'svc/my-service',
+      nodeYaml: 'name: MyService\ntype: service\ndescription: test\nmapping:\n  - src/\n',
+      mappingFiles: { 'src/index.ts': '' },
+    });
+    const graph = await loadGraph(tmpDir);
+    const uncovered = scanUncoveredFiles(graph, [
+      'src/index.ts',
+      'apps/.yggdrasil/yg-config.yaml',
+      'apps/web/main.ts',
+    ]);
+    expect(uncovered).not.toContain('apps/web/main.ts');
+    expect(uncovered).not.toContain('apps/.yggdrasil/yg-config.yaml');
+    await rm(tmpDir, { recursive: true, force: true });
+  });
 });
 
 // ── buildCoverageIssue ────────────────────────────────────
