@@ -248,11 +248,10 @@ function renderIssueBlock(issue: CheckIssue, lines: string[], mode: 'error' | 'w
 function renderUnmappedBlock(issue: CheckIssue, lines: string[], label = 'unmapped'): void {
   const md = issue.messageData;
   const files = issue.uncoveredFiles ?? [];
-  // Derive count from messageData.what first line — the structured source.
-  const whatFirstLine = md.what.split('\n')[0];
-  const countMatch = whatFirstLine.match(/^(\d[\d,]*)/);
+  // Use the authoritative structured count; fall back to file list length only
+  // if uncoveredCount was never set (should not happen in practice).
   const count = issue.uncoveredCount ?? files.length;
-  const countLabel = countMatch ? countMatch[1] : String(count);
+  const countLabel = String(count);
   lines.push(`  ${label} (${countLabel})`);
   // Show file list derived from messageData.what body lines (same data as uncoveredFiles).
   const shown = files.slice(0, 10);

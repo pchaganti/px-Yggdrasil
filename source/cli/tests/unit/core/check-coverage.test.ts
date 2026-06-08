@@ -736,4 +736,26 @@ describe('runCheck coverage tiers', () => {
     expect(warns[0].uncoveredFiles).toEqual(['lib/u.ts']);
     await rm(tmpDir, { recursive: true, force: true });
   });
+
+  it('Fix 1: coveredFiles excludes silent (excluded-tier) files from the depressed ratio', async () => {
+    // 4 git files: src/svc/i.ts (covered), src/svc/extra.ts (required error),
+    //              lib/u.ts (middle warning), vendor/v.ts (excluded — silent).
+    // coveredFiles must be totalFiles - required.length - middle.length = 4 - 1 - 1 = 2,
+    // NOT 4 - 3 = 1 (the buggy pre-fix formula that subtracted all uncovered files).
+    const { tmpDir } = await createTmpProject('cov-fix1', {
+      nodePath: 'svc/s',
+      nodeYaml: 'name: S\ntype: service\ndescription: t\nmapping:\n  - src/svc/i.ts\n',
+      mappingFiles: { 'src/svc/i.ts': '' },
+      configYaml: 'version: "5.0.0"\ncoverage:\n  required:\n    - src/svc/\n  excluded:\n    - vendor/\n',
+    });
+    await recordBaseline(tmpDir);
+    const graph = await loadGraph(tmpDir);
+    const result = await runCheck(graph, ['src/svc/i.ts', 'src/svc/extra.ts', 'lib/u.ts', 'vendor/v.ts']);
+    // totalFiles = 4 (all 4 git-tracked non-.yggdrasil files)
+    // required tier: src/svc/extra.ts (1), middle tier: lib/u.ts (1), excluded: vendor/v.ts (silent)
+    // coveredFiles = 4 - 1 - 1 = 2  (vendor/v.ts must NOT depress the ratio)
+    expect(result.totalFiles).toBe(4);
+    expect(result.coveredFiles).toBe(result.totalFiles - 2);
+    await rm(tmpDir, { recursive: true, force: true });
+  });
 });

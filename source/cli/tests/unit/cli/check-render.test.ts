@@ -378,6 +378,60 @@ describe('draft count', () => {
   });
 });
 
+// ── Fix 7a. Advisory coverage block rendering ─────────────────
+
+describe('Fix 7a: uncovered-advisory warning block rendering', () => {
+  it('renders uncovered (N) label with file list in Warnings section', () => {
+    const issue: CheckIssue = {
+      severity: 'warning',
+      code: 'uncovered-advisory',
+      rule: 'uncovered-advisory',
+      messageData: {
+        what: '2 tracked files outside any required coverage root.\n  lib/a.ts\n  lib/b.ts',
+        why: 'Not under a coverage.required root — visible but non-blocking.',
+        next: 'Map these files to a node, or add their root to coverage.required.',
+      },
+      uncoveredFiles: ['lib/a.ts', 'lib/b.ts'],
+      uncoveredCount: 2,
+    };
+    const out = formatOutput(makeResult({ issues: [issue], coveredFiles: 463, totalFiles: 465 }));
+    // Advisory → PASS with warnings
+    expect(out).toContain('yg check: PASS');
+    expect(out).toContain('Warnings (1)');
+    // The uncovered block must render with the label 'uncovered' and the count
+    expect(out).toContain('uncovered (2)');
+    // File list must appear
+    expect(out).toContain('lib/a.ts');
+    expect(out).toContain('lib/b.ts');
+    // No error section
+    expect(out).not.toContain('Errors (');
+  });
+
+  it('advisory-only result exits cleanly (no error issues)', () => {
+    // Guards the exit contract: a CheckResult whose only issues are severity:'warning'
+    // must produce hasErrors === false → exit 0.
+    const issue: CheckIssue = {
+      severity: 'warning',
+      code: 'uncovered-advisory',
+      rule: 'uncovered-advisory',
+      messageData: {
+        what: '1 tracked file outside any required coverage root.\n  lib/x.ts',
+        why: 'Not under a coverage.required root.',
+        next: 'Map this file to a node.',
+      },
+      uncoveredFiles: ['lib/x.ts'],
+      uncoveredCount: 1,
+    };
+    const result = makeResult({ issues: [issue], coveredFiles: 99, totalFiles: 100 });
+    const hasErrors = result.issues.some(i => i.severity === 'error');
+    expect(hasErrors).toBe(false);
+    // Ensure the header says PASS (not FAIL)
+    const out = formatOutput(result);
+    expect(out).toContain('yg check: PASS');
+    expect(out).not.toContain('yg check: FAIL');
+  });
+});
+
 // ── 9. Metrics ordering ───────────────────────────────────────
 
 describe('metrics ordering', () => {

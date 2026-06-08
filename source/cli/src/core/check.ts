@@ -569,9 +569,11 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
     totalFiles = sourceFiles.length;
     // scanUncoveredFiles applies excludeNestedGraphSubtrees internally (idempotent).
     const uncovered = scanUncoveredFiles(graph, gitTrackedFiles);
-    coveredFiles = totalFiles - uncovered.length;
     const coverage = graph.config.coverage ?? DEFAULT_COVERAGE;
     const tiers = partitionByCoverageTier(uncovered, coverage);
+    // Only required-tier errors and middle-tier warnings count against coverage%;
+    // excluded files are intentionally silent and must not depress the ratio.
+    coveredFiles = totalFiles - (tiers.required.length + tiers.middle.length);
     coverageIssues = [
       buildCoverageIssue(tiers.required, totalFiles),
       buildCoverageAdvisoryIssue(tiers.middle),

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "8d7e7a73601a3e4daad1dd0a9cb7f0056b8ade78aa794c5df284d9139e50b48f",
+  "hash": "87345f4d274a4ea9a1b95f048ea6035c3fa0a4c793319e784e72686a65d7cf71",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -11,7 +11,7 @@
     "source/cli/tests/integration/check-pipeline.test.ts": "ca3009a773fdbc0e9418764012b7ee24138f0c806af2222ec4797ecaaee6dab8",
     "source/cli/tests/integration/validation-pipeline.test.ts": "1cfc150458fe5fdc3db62caf4fae35c1d7d8768c4b20f396c9396b990d026122",
     "source/cli/tests/setup.ts": "1a5c111c22e5faf263043c7844a0c844e50428cc7225cf47eac7ca23d15b220d",
-    "source/cli/tests/integration/coverage-modes.test.ts": "89714e9cd2336165db41f6bfdcda639cd08a8ec4e13d6a089eee214899ea43d7"
+    "source/cli/tests/integration/coverage-modes.test.ts": "6b2a68fcf72abfbd45cede32b3bb7bc709c89ef9161d34b768be58d6e5664927"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -21,7 +21,7 @@
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
     "source/cli/tests/integration/build-pipeline.test.ts": 1780113452827.3909,
     "source/cli/tests/integration/check-pipeline.test.ts": 1776177846281.1602,
-    "source/cli/tests/integration/coverage-modes.test.ts": 1780909730017.1292,
+    "source/cli/tests/integration/coverage-modes.test.ts": 1780913744267.0483,
     "source/cli/tests/integration/validation-pipeline.test.ts": 1778854351492.1548,
     "source/cli/tests/setup.ts": 1778838384333.1035
   },

@@ -3,9 +3,9 @@ import { toPosixPath } from '../utils/posix.js';
 // type-only import — erased at runtime, no circular runtime dependency
 import type { CheckIssue } from './check.js';
 
-/** Normalize a coverage root: POSIX, no leading/trailing slash. "/" → "" (whole repo). */
+/** Normalize a coverage root: POSIX, no leading/trailing slash, collapse internal double-slashes. "/" → "" (whole repo). */
 export function normalizeRoot(root: string): string {
-  return toPosixPath(root.trim()).replace(/^\/+/, '').replace(/\/+$/, '');
+  return toPosixPath(root.trim()).replace(/^\/+/, '').replace(/\/+$/, '').replace(/\/{2,}/g, '/');
 }
 
 /** A normalized root R matches file F iff R is "" (whole repo), or F === R, or F is under R/. */

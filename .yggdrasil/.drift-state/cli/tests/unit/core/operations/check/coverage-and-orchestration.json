@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "810738771ff0dd2549ff56ea44e2669ca3d80a80e2581f73d58df6048280d02a",
+  "hash": "7a26103004a23e172b6b78ed6d9575fd480cccad1b64d0c8ca0b566a14525369",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -9,8 +9,8 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": "a5408f7e331d1e28996ceaf2b67c4fada5e52ee3909db85a7904aae88cd55146",
     ".yggdrasil/model/cli/tests/unit/core/operations/check/yg-node.yaml": "fba56faf121115c2958ee4c3938134fc6b06836a8029621ff833305ff601c4c2",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/core/check-coverage-tiers.test.ts": "151a96def0125485db1f60ff01dc9c990ad35f540aa9ec97be714cd6544a0cf9",
-    "source/cli/tests/unit/core/check-coverage.test.ts": "b32c6e45f4361e5ad809648b4782c76622657601bdf2580718b04065439299d5"
+    "source/cli/tests/unit/core/check-coverage.test.ts": "504857adb4a2611182f37bbae20106ee650f7e5765fc88cf96a75b4c8cecf7c2",
+    "source/cli/tests/unit/core/check-coverage-tiers.test.ts": "47402702c86008efefb932d27586658c792207f0170ea56da5f0dad3f1b3c679"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -20,8 +20,8 @@
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": 1779996108975.9385,
     ".yggdrasil/model/cli/tests/unit/core/operations/check/yg-node.yaml": 1780176890660.4705,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/check-coverage.test.ts": 1780907733512.8884,
-    "source/cli/tests/unit/core/check-coverage-tiers.test.ts": 1780906215825.381
+    "source/cli/tests/unit/core/check-coverage.test.ts": 1780912490563.85,
+    "source/cli/tests/unit/core/check-coverage-tiers.test.ts": 1780912466609.382
   },
   "identity": {
     "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",

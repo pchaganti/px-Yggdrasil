@@ -48,10 +48,32 @@ function parseCoverage(raw: unknown, filename: string): CoverageConfig {
     }, 'config-invalid');
   }
   const cov = raw as Record<string, unknown>;
-  return {
-    required: cov.required === undefined ? ['/'] : parseStringArray(cov.required, 'coverage.required', filename),
-    excluded: parseStringArray(cov.excluded, 'coverage.excluded', filename),
-  };
+  const required = cov.required === undefined ? ['/'] : parseStringArray(cov.required, 'coverage.required', filename);
+  const excluded = parseStringArray(cov.excluded, 'coverage.excluded', filename);
+
+  // An explicit empty required list silently turns every unmapped file into a
+  // non-blocking warning, disabling coverage enforcement entirely.
+  if (required.length === 0) {
+    throw new ConfigParseError({
+      what: `${filename}: coverage.required must list at least one root.`,
+      why: 'An empty required list silently turns every unmapped file into a non-blocking warning, disabling coverage enforcement.',
+      next: 'Omit the coverage block to require the whole repo, or list real roots (e.g. - services/).',
+    }, 'config-invalid');
+  }
+
+  // Coverage roots are repo-relative prefixes; ".." never matches a git-tracked
+  // path and silently mis-scopes coverage enforcement.
+  for (const root of [...required, ...excluded]) {
+    if (root.split('/').includes('..')) {
+      throw new ConfigParseError({
+        what: `${filename}: coverage root '${root}' contains a '..' segment.`,
+        why: "'..' is not a valid repo-relative prefix and will never match any git-tracked path, silently mis-scoping coverage enforcement.",
+        next: 'Use a repo-relative path prefix without any ".." segments (e.g. - services/ instead of - services/../other/).',
+      }, 'config-invalid');
+    }
+  }
+
+  return { required, excluded };
 }
 
 /**

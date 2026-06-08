@@ -542,6 +542,61 @@ reviewer:
     await rm(tmpDir, { recursive: true, force: true });
   });
 
+  it('Fix 2: throws config-invalid when coverage.required is an explicit empty list', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'yg-cov-empty-req-'));
+    try {
+      const p = path.join(dir, 'yg-config.yaml');
+      await writeFile(p, 'version: "5.0.0"\ncoverage:\n  required: []\n', 'utf-8');
+      await expect(parseConfig(p)).rejects.toMatchObject({ code: 'config-invalid' });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('Fix 4: throws config-invalid when a coverage.required root contains ".." segment', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'yg-cov-dotdot-'));
+    try {
+      const p = path.join(dir, 'yg-config.yaml');
+      await writeFile(p, 'version: "5.0.0"\ncoverage:\n  required:\n    - services/../other/\n', 'utf-8');
+      await expect(parseConfig(p)).rejects.toMatchObject({ code: 'config-invalid' });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('Fix 8b: throws when coverage.required is a number (not an array)', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'yg-cov-num-'));
+    try {
+      const p = path.join(dir, 'yg-config.yaml');
+      await writeFile(p, 'version: "5.0.0"\ncoverage:\n  required: 42\n', 'utf-8');
+      await expect(parseConfig(p)).rejects.toThrow(ConfigParseError);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('Fix 8b: throws when coverage.required contains a non-string element', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'yg-cov-nonstr-'));
+    try {
+      const p = path.join(dir, 'yg-config.yaml');
+      await writeFile(p, 'version: "5.0.0"\ncoverage:\n  required:\n    - services/\n    - 42\n', 'utf-8');
+      await expect(parseConfig(p)).rejects.toThrow(ConfigParseError);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('Fix 8b: throws when coverage itself is a string (not a mapping)', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'yg-cov-str-'));
+    try {
+      const p = path.join(dir, 'yg-config.yaml');
+      await writeFile(p, 'version: "5.0.0"\ncoverage: "all"\n', 'utf-8');
+      await expect(parseConfig(p)).rejects.toThrow(ConfigParseError);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   describe('timeout seconds→ms conversion', () => {
     async function parseWithYaml(yaml: string): Promise<YggConfig> {
       const dir = await mkdtemp(path.join(tmpdir(), 'yg-timeout-'));
