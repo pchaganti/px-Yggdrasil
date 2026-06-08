@@ -24,11 +24,26 @@ export function isGlobPattern(entry: string): boolean {
 }
 
 /**
+ * The single glob-matching primitive for the whole CLI — the ONLY site that
+ * calls minimatch. Every glob match (node mapping, coverage roots, architecture
+ * when.path, the AST file-pattern DSL) routes through here so glob semantics
+ * live in exactly one place. `{ dot: true }` so a leading-dot segment matches
+ * like any other. This primitive matches the given strings verbatim; callers
+ * that need normalization apply it first.
+ *
+ * Enforced by the deterministic aspect `no-direct-minimatch`: no other source
+ * file may import minimatch.
+ */
+export function globMatch(file: string, pattern: string): boolean {
+  return minimatch(file, pattern, { dot: true });
+}
+
+/**
  * Does a mapping ENTRY match a repo-relative FILE path?
  *
- * - Glob entry (contains glob metachars): minimatch with { dot: true } — the
- *   same segment-aware semantics as architecture when.path (`*` does not cross
- *   `/`, `**` does).
+ * - Glob entry (contains glob metachars): segment-aware glob via globMatch —
+ *   the same semantics as architecture when.path (`*` does not cross `/`, `**`
+ *   does).
  * - Plain entry: exact file match OR directory-prefix (entry/...), exactly as
  *   before.
  *
@@ -38,6 +53,6 @@ export function mappingEntryMatchesFile(entry: string, file: string): boolean {
   const e = normalizeMappingPath(entry);
   const f = normalizeMappingPath(file);
   if (e === '') return false;
-  if (isGlobPattern(e)) return minimatch(f, e, { dot: true });
+  if (isGlobPattern(e)) return globMatch(f, e);
   return f === e || f.startsWith(e + '/');
 }

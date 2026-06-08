@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "hash": "b6b11c9bb2499ecaa56a1f31735dbfb0e355f83b51d58ed87042db39fe8dd48a",
+  "files": {
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
+    "source/cli/src/templates/knowledge/conditional-aspects.ts": "925c027d06267c28e7e5d7bdccc0048d1b2257bd3473b28ebad498fce23da65f",
+    "source/cli/src/templates/knowledge/writing-deterministic-aspects.ts": "0bbea77ce52b5de29cf865ad8e44395cf025a0c631864ffdfa85ed24525ac50d",
+    "source/cli/src/templates/knowledge/writing-llm-aspects.ts": "005aea664f8f50904a798c8f0f5bfcb2706af0f3ebce4325643d0bdd1b301ea7"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780933853473.8323,
+    "source/cli/src/templates/knowledge/conditional-aspects.ts": 1780181694546.0955,
+    "source/cli/src/templates/knowledge/writing-deterministic-aspects.ts": 1780929940081.6611,
+    "source/cli/src/templates/knowledge/writing-llm-aspects.ts": 1780181658511.9224
+  },
+  "identity": {
+    "ownSubset": "aaea5541beeee903dd93c233042c7bfeaba5f4396fade2033d86d81cc5450a31",
+    "ports": {},
+    "aspects": {
+      "no-direct-minimatch": {
+        "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
+        "checkTouched": {
+          "source/cli/src/templates/knowledge/conditional-aspects.ts": "925c027d06267c28e7e5d7bdccc0048d1b2257bd3473b28ebad498fce23da65f",
+          "source/cli/src/templates/knowledge/writing-deterministic-aspects.ts": "0bbea77ce52b5de29cf865ad8e44395cf025a0c631864ffdfa85ed24525ac50d",
+          "source/cli/src/templates/knowledge/writing-llm-aspects.ts": "005aea664f8f50904a798c8f0f5bfcb2706af0f3ebce4325643d0bdd1b301ea7"
+        }
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "no-direct-minimatch": {
+      "verdict": "approved"
+    }
+  }
+}

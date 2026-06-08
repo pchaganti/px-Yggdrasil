@@ -1,19 +1,21 @@
 {
   "schemaVersion": 1,
-  "hash": "8756e7e131b31c67762f9071613c71c8b15d6b6af01fb2cb23009901b2c3f3b4",
+  "hash": "d88039f8c3c9295d063576570bd781e714b2d29e69545c7dbea9212fe29785f5",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/llm/yg-node.yaml": "eb86d7c0b81642af0c1d40cba6a1f5a780293a2304635bd100bd64677a4c8838",
     ".yggdrasil/aspects/provider-redaction/check.mjs": "0837acaffaa7837ae2989ab18a148a7b125042e1ba30302079b374d8306ec0b5",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
     "source/cli/src/llm/cli-base.ts": "b878b008434f73a6bf9c7f8f3a559ac931f227acd29caafd8883e462ad4dffc1"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/llm/yg-node.yaml": 1778866396180.118,
-    ".yggdrasil/aspects/provider-redaction/check.mjs": 1780410838662.3352,
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780410812801.22,
-    "source/cli/src/llm/cli-base.ts": 1780405771007.4563
+    ".yggdrasil/aspects/provider-redaction/check.mjs": 1780488505036.3982,
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780488505036.1836,
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780933853473.8323,
+    "source/cli/src/llm/cli-base.ts": 1780488505061.406
   },
   "identity": {
     "ownSubset": "58d4431f67f75bb5974ed7e8297871e037858fd029ed93aa54cca2a64422a507",
@@ -30,6 +32,12 @@
         "checkTouched": {
           "source/cli/src/llm/cli-base.ts": "b878b008434f73a6bf9c7f8f3a559ac931f227acd29caafd8883e462ad4dffc1"
         }
+      },
+      "no-direct-minimatch": {
+        "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
+        "checkTouched": {
+          "source/cli/src/llm/cli-base.ts": "b878b008434f73a6bf9c7f8f3a559ac931f227acd29caafd8883e462ad4dffc1"
+        }
       }
     }
   },
@@ -38,6 +46,9 @@
       "verdict": "approved"
     },
     "posix-paths-source": {
+      "verdict": "approved"
+    },
+    "no-direct-minimatch": {
       "verdict": "approved"
     }
   },

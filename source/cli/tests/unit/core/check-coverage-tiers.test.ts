@@ -80,3 +80,39 @@ describe('partitionByCoverageTier', () => {
     expect(r.middle).toEqual([]);
   });
 });
+
+describe('matchesRoot — glob roots', () => {
+  it('a ** glob root matches files at any depth', () => {
+    expect(matchesRoot('a/b/c.generated.ts', '**/*.generated.ts')).toBe(true);
+    expect(matchesRoot('x.generated.ts', '**/*.generated.ts')).toBe(true);
+  });
+  it('a single-star glob root stays within one segment', () => {
+    expect(matchesRoot('src/foo.ts', 'src/*.ts')).toBe(true);
+    expect(matchesRoot('src/sub/foo.ts', 'src/*.ts')).toBe(false);
+  });
+  it('plain roots keep exact / directory-prefix semantics (backward compat)', () => {
+    expect(matchesRoot('services', 'services')).toBe(true);
+    expect(matchesRoot('services/a.ts', 'services')).toBe(true);
+    expect(matchesRoot('services2/a.ts', 'services')).toBe(false);
+  });
+});
+
+describe('partitionByCoverageTier — glob roots', () => {
+  it('excluded glob drops generated files anywhere; the rest stay in their tier', () => {
+    const r = partitionByCoverageTier(
+      ['src/a.ts', 'src/x.generated.ts', 'lib/y.generated.ts'],
+      { required: ['/'], excluded: ['**/*.generated.ts'] },
+    );
+    expect(r.required).toEqual(['src/a.ts']); // generated files dropped (silent)
+    expect(r.middle).toEqual([]);
+  });
+
+  it('required glob scopes the blocking tier; non-matching files fall to warning', () => {
+    const r = partitionByCoverageTier(
+      ['services/auth/api/h.ts', 'services/auth/internal/x.ts'],
+      { required: ['services/*/api/**'], excluded: [] },
+    );
+    expect(r.required).toEqual(['services/auth/api/h.ts']);
+    expect(r.middle).toEqual(['services/auth/internal/x.ts']);
+  });
+});

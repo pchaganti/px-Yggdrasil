@@ -1,5 +1,6 @@
 import type { CoverageConfig } from '../model/graph.js';
 import { toPosixPath } from '../utils/posix.js';
+import { mappingEntryMatchesFile } from '../utils/mapping-path.js';
 // type-only import — erased at runtime, no circular runtime dependency
 import type { CheckIssue } from './check.js';
 
@@ -8,9 +9,17 @@ export function normalizeRoot(root: string): string {
   return toPosixPath(root.trim()).replace(/^\/+/, '').replace(/\/+$/, '').replace(/\/{2,}/g, '/');
 }
 
-/** A normalized root R matches file F iff R is "" (whole repo), or F === R, or F is under R/. */
+/**
+ * A normalized root R matches file F iff R is "" (whole repo), or R covers F.
+ * "Covers" uses the same semantics as a node mapping entry: a plain root is an
+ * exact file match or a directory prefix (F === R or F under R/); a glob root
+ * (one containing glob metacharacters) matches via minimatch — a single star
+ * stays within one path segment, a double star spans segments. So an excluded
+ * glob root can drop generated files anywhere in the tree, and a required glob
+ * root can scope the blocking tier to a pattern rather than a whole directory.
+ */
 export function matchesRoot(file: string, normRoot: string): boolean {
-  return normRoot === '' || file === normRoot || file.startsWith(normRoot + '/');
+  return normRoot === '' || mappingEntryMatchesFile(normRoot, file);
 }
 
 /**

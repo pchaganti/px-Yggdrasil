@@ -27,6 +27,7 @@ node_types:
       - top-level-error-handler
       - command-exit-codes
       - posix-paths-source
+      - no-direct-minimatch
     parents: [module]
     relations:
       calls: [command]
@@ -45,6 +46,7 @@ node_types:
       - diagnostic-logging
       - command-contract-shape
       - posix-paths-source
+      - no-direct-minimatch
       - command-error-via-buildissuemessage
       - sibling-test-file
     parents: [module]
@@ -64,6 +66,7 @@ node_types:
             content: "export\\s+function\\s+register[A-Z]\\w*Command\\("
     aspects:
       - posix-paths-source
+      - no-direct-minimatch
       - command-error-via-buildissuemessage
     parents: [module]
     relations:
@@ -84,6 +87,7 @@ node_types:
       - no-direct-console
       - no-nondeterminism-direct
       - posix-paths-source
+      - no-direct-minimatch
       - single-source-graph-queries
     parents: [module]
     relations:
@@ -100,6 +104,7 @@ node_types:
       - migration-bumps-version
       - schema-bump-bookkeeping
       - posix-paths-source
+      - no-direct-minimatch
     parents: [module]
     relations:
       calls: [engine, parser-adapter, persistence-adapter, utility]
@@ -117,6 +122,7 @@ node_types:
       - parser-contract
       - silent-missing-files
       - posix-paths-source
+      - no-direct-minimatch
       - read-or-default-via-helper
       - parser-yaml-guard
     parents: [module]
@@ -145,6 +151,7 @@ node_types:
       - silent-missing-files
       - atomic-write-contract
       - posix-paths-source
+      - no-direct-minimatch
       - read-or-default-via-helper
     parents: [module]
     relations:
@@ -162,6 +169,7 @@ node_types:
     aspects:
       - deterministic
       - posix-paths-source
+      - no-direct-minimatch
     parents: [module]
     relations:
       calls: [utility, llm-shared]
@@ -178,6 +186,7 @@ node_types:
     aspects:
       - deterministic
       - posix-paths-source
+      - no-direct-minimatch
     parents: [module]
     relations:
       calls: [utility, ast-adapter]
@@ -192,6 +201,7 @@ node_types:
       - provider-retry-contract
       - provider-redaction
       - posix-paths-source
+      - no-direct-minimatch
     parents: [module]
     relations:
       calls: [llm-shared, llm-subprocess-base, utility]
@@ -207,6 +217,8 @@ node_types:
             path: "source/cli/src/llm/{anthropic,claude-code,codex,gemini-cli,google,ollama,openai,cli-base}.ts"
         - not:
             path: "**/*.test.ts"
+    aspects:
+      - no-direct-minimatch
     parents: [module]
     relations:
       calls: [llm-provider, utility]
@@ -220,6 +232,7 @@ node_types:
     aspects:
       - provider-redaction
       - posix-paths-source
+      - no-direct-minimatch
     parents: [module]
     relations:
       calls: [utility]
@@ -233,6 +246,7 @@ node_types:
     aspects:
       - what-why-next
       - posix-paths-source
+      - no-direct-minimatch
     parents: [module]
     relations:
       calls: [utility]
@@ -243,6 +257,8 @@ node_types:
     enforce: strict
     when:
       path: "source/cli/src/model/*.ts"
+    aspects:
+      - no-direct-minimatch
     log_required: false
     parents: [module]
 
@@ -258,6 +274,7 @@ node_types:
       - no-side-effects-on-import
       - no-direct-fs
       - posix-paths-source
+      - no-direct-minimatch
     parents: [module]
     relations:
       calls: [utility]
@@ -271,6 +288,7 @@ node_types:
     aspects:
       - what-why-next
       - posix-paths-source
+      - no-direct-minimatch
     parents: [module]
     relations:
       calls: [utility]
@@ -281,6 +299,8 @@ node_types:
     enforce: strict
     when:
       path: "source/cli/src/templates/knowledge/*.ts"
+    aspects:
+      - no-direct-minimatch
     log_required: false
     parents: [module]
 

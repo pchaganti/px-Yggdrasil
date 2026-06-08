@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "4db5c3b576d445919ff43279e5b5bfe55adcce782484a4fd2315b129f2892abd",
+  "hash": "0617499f092a5d37288139f3aff3733818eae40daca36869e417044a5071c692",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/commands/yg-node.yaml": "4d929734cf56d8fbf3adfdbb908be64075a4a3322a892656ad00ea07bb026ab4",
@@ -36,6 +36,7 @@
     "source/cli/tests/unit/cli/deterministic-test.test.ts": "55b1ad8740d486ca77569b8fa6cdd5b77e5182cb421292d2c5ef18f35e6d2282",
     "source/cli/tests/unit/cli/tree.test.ts": "c9bd1acb644778b95fae9c0b91ea7cf08fca23890f264b6b3d1569d2d1e3b197",
     "source/cli/tests/unit/cli/type-suggest.test.ts": "fe8d85617c56149abc628d3b5b8a0f09004078f6d5d2ee6467c0191fb0ad8cea",
+    "source/cli/tests/unit/cli/suppressions.test.ts": "c48f6bfe26c19bb85efa53764fdddb3cde139c0110ba8c7f873014b3b91ac9a6",
     "source/cli/tests/unit/cli/log.test.ts": "aac1123869b0ba6c09e583ece9b90aa2a0a9a80b61a8c2391123852cb6bdb92a",
     "source/cli/tests/unit/cli/log-add.test.ts": "ddde6752778f2f88a83e0f1f342a950bdbb0eb47c6348e38bdae24e78b563a5a",
     "source/cli/tests/unit/cli/log-read.test.ts": "2e3ef47655294dd15809d4ef072429ca69a18678a3f3b7f9ea271d9b8a70869b",
@@ -46,8 +47,8 @@
     ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": "d51c269d4b45bd597645a6c918e820c67762877ac22d64f861c53421b67a4fbd",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
     "source/cli/tests/unit/cli/check-render.test.ts": "9cc237397e1e7688251c55ca6bbca3582c0a7d51272f993571ff6714e5e2cb6d",
-    "source/cli/tests/unit/cli/suppressions.test.ts": "c48f6bfe26c19bb85efa53764fdddb3cde139c0110ba8c7f873014b3b91ac9a6",
     "source/cli/src/cli/check.ts": "c4521a88438031cef0fbdef6d8d37f3820f0d6d0cb4fdbfc1d62a4fc42493a23"
   },
   "mtimes": {
@@ -58,6 +59,7 @@
     ".yggdrasil/aspects/diagnostic-logging/content.md": 1776177846197.264,
     ".yggdrasil/aspects/command-contract-shape/check.mjs": 1780488505034.1184,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780488505036.1836,
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780933853473.8323,
     ".yggdrasil/aspects/command-error-via-buildissuemessage/check.mjs": 1780488505034.343,
     ".yggdrasil/aspects/sibling-test-file/check.mjs": 1780047108901.342,
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
@@ -73,7 +75,7 @@
     "source/cli/tests/unit/cli/build-command.test.ts": 1780293527043.995,
     "source/cli/tests/unit/cli/build-context.test.ts": 1780293527044.733,
     "source/cli/tests/unit/cli/check.test.ts": 1780293527045.5852,
-    "source/cli/tests/unit/cli/check-render.test.ts": 1780912523394.1433,
+    "source/cli/tests/unit/cli/check-render.test.ts": 1780915332329.094,
     "source/cli/tests/unit/cli/init.test.ts": 1780293527048.781,
     "source/cli/tests/unit/cli/init-upgrade.test.ts": 1780293527048.2463,
     "source/cli/tests/unit/cli/aspects.test.ts": 1780293527043.483,
@@ -97,7 +99,7 @@
     ".yggdrasil/model/cli/tests/unit/cli/yg-node.yaml": 1780048240858.293,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
-    "source/cli/src/cli/check.ts": 1780912447056.9377
+    "source/cli/src/cli/check.ts": 1780915332323.9692
   },
   "identity": {
     "ownSubset": "1f400dccd7cc60a12be0d76911387dee3bdbbb35f1d93a4e5010b03019437aff",
@@ -125,6 +127,12 @@
       },
       "posix-paths-source": {
         "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
+        "checkTouched": {
+          "source/cli/src/cli/check.ts": "c4521a88438031cef0fbdef6d8d37f3820f0d6d0cb4fdbfc1d62a4fc42493a23"
+        }
+      },
+      "no-direct-minimatch": {
+        "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
         "checkTouched": {
           "source/cli/src/cli/check.ts": "c4521a88438031cef0fbdef6d8d37f3820f0d6d0cb4fdbfc1d62a4fc42493a23"
         }
@@ -206,6 +214,9 @@
       "verdict": "approved"
     },
     "command-exit-codes": {
+      "verdict": "approved"
+    },
+    "no-direct-minimatch": {
       "verdict": "approved"
     }
   },

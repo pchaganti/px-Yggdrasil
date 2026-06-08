@@ -1,17 +1,19 @@
 {
   "schemaVersion": 1,
-  "hash": "40a3892e88a5a00b378e86ea363be384fcad3257422c15430584dc39765555f8",
+  "hash": "34a4576cdefc3b1e9ee37727b72618a83ec39f6ca50df9a91d05071a9e4817f0",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
     "source/cli/src/templates/default-config.ts": "d24d0e1a4b64b1931113b4658e338ac39c1b653212960f389baf2995a9ba6a46",
     "source/cli/src/templates/platform.ts": "5e81002ff5fc93fd3494ef869f0fc1aa50843b7e66fa9cf0932138e4d9543cc7",
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc"
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/aspects/what-why-next/content.md": 1780050256245.0933,
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780410812801.22,
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780488505036.1836,
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780933853473.8323,
     "source/cli/src/templates/default-config.ts": 1780107340286.6384,
     "source/cli/src/templates/platform.ts": 1780243067957.7449
   },
@@ -29,6 +31,13 @@
           "source/cli/src/templates/default-config.ts": "d24d0e1a4b64b1931113b4658e338ac39c1b653212960f389baf2995a9ba6a46",
           "source/cli/src/templates/platform.ts": "5e81002ff5fc93fd3494ef869f0fc1aa50843b7e66fa9cf0932138e4d9543cc7"
         }
+      },
+      "no-direct-minimatch": {
+        "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
+        "checkTouched": {
+          "source/cli/src/templates/default-config.ts": "d24d0e1a4b64b1931113b4658e338ac39c1b653212960f389baf2995a9ba6a46",
+          "source/cli/src/templates/platform.ts": "5e81002ff5fc93fd3494ef869f0fc1aa50843b7e66fa9cf0932138e4d9543cc7"
+        }
       }
     }
   },
@@ -37,6 +46,9 @@
       "verdict": "approved"
     },
     "posix-paths-source": {
+      "verdict": "approved"
+    },
+    "no-direct-minimatch": {
       "verdict": "approved"
     }
   },

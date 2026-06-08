@@ -2,12 +2,11 @@ import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { minimatch } from 'minimatch';
 import { type Ignore, type Options as IgnoreOptions } from 'ignore';
 import type { TrackedFile } from '../core/graph/files.js';
 import type { DriftIdentity, AspectIdentity, AspectVerdict } from '../model/drift.js';
 import { toPosix, toPosixPath } from '../utils/posix.js';
-import { isGlobPattern } from '../utils/mapping-path.js';
+import { isGlobPattern, mappingEntryMatchesFile, globMatch } from '../utils/mapping-path.js';
 
 export { loadRootGitignoreStack, isIgnoredByStack, walkRepoFiles } from '../io/repo-scanner.js';
 export type { GitignoreEntry } from '../io/repo-scanner.js';
@@ -300,6 +299,17 @@ export async function hashTrackedFiles(
   const allFiles: FileEntry[] = [];
 
   for (const tf of trackedFiles) {
+    // Glob mapping entry: expand to the concrete files it matches (same
+    // expansion as expandMappingPaths). Without this a glob entry would fail
+    // stat() below and silently contribute zero files — the drift baseline and
+    // the reviewer's source list (Object.keys(fileHashes)) would never see the
+    // globbed files, so edits to them would not drift and the reviewer would
+    // never re-verify them.
+    if (isGlobPattern(tf.path)) {
+      const entries = await expandGlobEntry(projectRoot, tf.path, gitignoreStack);
+      for (const entry of entries) allFiles.push(entry);
+      continue;
+    }
     const absPath = path.join(projectRoot, tf.path);
     try {
       const st = await stat(absPath);
@@ -323,11 +333,13 @@ export async function hashTrackedFiles(
     }
   }
 
-  // Exclude files owned by descendant nodes (child-wins model)
+  // Exclude files owned by descendant nodes (child-wins model). A descendant
+  // mapping entry may be a glob, so match via the shared matcher rather than a
+  // literal prefix compare — a glob exclusion prefix would otherwise never
+  // match a real file path and the parent would double-count the child's files.
   const filtered = excludePrefixes?.length
     ? allFiles.filter((entry) =>
-        !excludePrefixes.some((prefix) =>
-          entry.relPath === prefix || entry.relPath.startsWith(prefix + '/')))
+        !excludePrefixes.some((prefix) => mappingEntryMatchesFile(prefix, entry.relPath)))
     : allFiles;
 
   // Separate files into cached (mtime match) and dirty (need hashing)
@@ -421,6 +433,47 @@ async function collectDirectoryFilePaths(
 }
 
 /**
+ * Expand a single glob mapping entry into the concrete files it matches.
+ *
+ * Walks from the glob's base directory — the leading path segments BEFORE the
+ * first segment containing a glob metachar (if the first segment is already a
+ * glob, the base is projectRoot) — and keeps the entries matching the full
+ * pattern (minimatch, { dot: true }, segment-aware). Honors .gitignore via the
+ * supplied stack. Returns { relPath (POSIX, relative to projectRoot), absPath,
+ * mtimeMs } so callers can both display paths and reuse the mtime without an
+ * extra stat. A missing base directory yields an empty list (silent skip).
+ *
+ * Single source of truth for glob expansion, shared by expandMappingPaths
+ * (display/validation) and hashTrackedFiles (drift baseline + reviewer source).
+ */
+async function expandGlobEntry(
+  projectRoot: string,
+  glob: string,
+  gitignoreStack: GitignoreEntry[],
+): Promise<Array<{ relPath: string; absPath: string; mtimeMs: number }>> {
+  const segments = glob.split('/');
+  const firstGlobIdx = segments.findIndex((s) => isGlobPattern(s));
+  const baseSegments = firstGlobIdx > 0 ? segments.slice(0, firstGlobIdx) : [];
+  const baseDir = baseSegments.length > 0 ? path.join(projectRoot, ...baseSegments) : projectRoot;
+  try {
+    const dirEntries = await collectDirectoryFilePaths(baseDir, projectRoot, {
+      projectRoot,
+      gitignoreStack,
+    });
+    return dirEntries
+      .filter((entry) => globMatch(entry.relPath, glob))
+      .map((entry) => ({
+        relPath: toPosixPath(entry.relPath),
+        absPath: entry.absPath,
+        mtimeMs: entry.mtimeMs,
+      }));
+  } catch {
+    // Base dir missing — skip
+    return [];
+  }
+}
+
+/**
  * Expand mapping paths to individual file paths.
  * Directories are recursively expanded (respecting .gitignore).
  * Files are returned as-is. Missing paths are silently skipped.
@@ -438,31 +491,8 @@ export async function expandMappingPaths(
 
   for (const mp of mappingPaths) {
     if (isGlobPattern(mp)) {
-      // Derive the base directory: the leading path segments BEFORE the first
-      // segment containing a glob metachar. If the first segment already has a
-      // glob, base = projectRoot.
-      const segments = mp.split('/');
-      const firstGlobIdx = segments.findIndex((s) => isGlobPattern(s));
-      const baseSegments = firstGlobIdx > 0 ? segments.slice(0, firstGlobIdx) : [];
-      const baseDir = baseSegments.length > 0
-        ? path.join(projectRoot, ...baseSegments)
-        : projectRoot;
-
-      try {
-        const dirEntries = await collectDirectoryFilePaths(baseDir, projectRoot, {
-          projectRoot,
-          gitignoreStack,
-        });
-        for (const entry of dirEntries) {
-          // entry.relPath is relative to projectRoot
-          if (minimatch(entry.relPath, mp, { dot: true })) {
-            result.push(toPosixPath(entry.relPath));
-          }
-        }
-      } catch {
-        // Base dir missing — skip
-        continue;
-      }
+      const entries = await expandGlobEntry(projectRoot, mp, gitignoreStack);
+      for (const entry of entries) result.push(entry.relPath);
     } else {
       const absPath = path.join(projectRoot, mp);
       try {

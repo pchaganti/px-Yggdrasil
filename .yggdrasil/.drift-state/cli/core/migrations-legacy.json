@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "9a1c8d1ecb052c4880304c7c559c23ee2530ca82d930daa8247c6e8c56fb8339",
+  "hash": "7e59991081251718ca3a37858bcf986b1d53320fbb87e245923ae09effce2c94",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
@@ -12,7 +12,8 @@
     "source/cli/src/migrations/to-4.0.0.ts": "f0c1d49de5a0deefef11c66755dcbc11ae05ccacf094133794353bafa19f242c",
     "source/cli/src/migrations/to-4.3.0.ts": "824356cfcccb53d01b38760de8aa4f70aa832553521ded7bf43c4e1caec9eec3",
     ".yggdrasil/aspects/migration-bumps-version/check.mjs": "dc5c31170985aba32b8702e7f1421f4ed30883d1f9bee7bb34eb522462edf033",
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc"
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -20,9 +21,10 @@
     ".yggdrasil/aspects/posix-paths-output/content.md": 1778912983383.063,
     ".yggdrasil/aspects/migration-idempotent/content.md": 1778914163601.665,
     "source/cli/src/core/migrator.ts": 1780243067903.0798,
-    ".yggdrasil/aspects/migration-bumps-version/check.mjs": 1780410844210.4395,
+    ".yggdrasil/aspects/migration-bumps-version/check.mjs": 1780488505034.8013,
     ".yggdrasil/aspects/schema-bump-bookkeeping/content.md": 1780300434859.3533,
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780410812801.22,
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780488505036.1836,
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780933853473.8323,
     ".yggdrasil/model/cli/core/migrator/yg-node.yaml": 1778912998928.313,
     "source/cli/src/migrations/to-4.0.0.ts": 1780300396313.2258,
     "source/cli/src/migrations/to-4.3.0.ts": 1780300409691.0627
@@ -56,6 +58,13 @@
           "source/cli/src/migrations/to-4.0.0.ts": "f0c1d49de5a0deefef11c66755dcbc11ae05ccacf094133794353bafa19f242c",
           "source/cli/src/migrations/to-4.3.0.ts": "824356cfcccb53d01b38760de8aa4f70aa832553521ded7bf43c4e1caec9eec3"
         }
+      },
+      "no-direct-minimatch": {
+        "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
+        "checkTouched": {
+          "source/cli/src/migrations/to-4.0.0.ts": "f0c1d49de5a0deefef11c66755dcbc11ae05ccacf094133794353bafa19f242c",
+          "source/cli/src/migrations/to-4.3.0.ts": "824356cfcccb53d01b38760de8aa4f70aa832553521ded7bf43c4e1caec9eec3"
+        }
       }
     }
   },
@@ -73,6 +82,9 @@
       "verdict": "approved"
     },
     "posix-paths-source": {
+      "verdict": "approved"
+    },
+    "no-direct-minimatch": {
       "verdict": "approved"
     }
   },

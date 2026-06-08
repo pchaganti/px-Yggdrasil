@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { FsEntry } from './types.js';
-import { normalizeMappingPath } from '../utils/mapping-path.js';
+import { normalizeMappingPath, mappingEntryMatchesFile } from '../utils/mapping-path.js';
 import { toPosix } from '../utils/posix.js';
 
 export interface CtxFsParams {
@@ -28,9 +28,15 @@ function isAllowed(p: string, set: Set<string>): boolean {
   if (p === '') return false;
   if (set.has(p)) return true;
   for (const a of set) {
-    if (a === p) return true;
-    if (a.startsWith(p + '/')) return true; // p is ancestor dir of allowed file
-    if (p.startsWith(a + '/')) return true; // p is descendant of allowed dir/file
+    // p is an ancestor directory of allowed entry a — permits exists()/list() on
+    // the parent dirs of allowed files. Works for a glob entry too via its
+    // literal leading prefix (the part before the first metachar).
+    if (a.startsWith(p + '/')) return true;
+    // p == a, p is under directory a, or p matches glob entry a. The shared
+    // matcher handles plain entries (exact / dir-prefix) and glob entries
+    // identically, so an allowed-set entry stored as a glob (e.g. a glob node
+    // mapping) correctly admits the files it matches.
+    if (mappingEntryMatchesFile(a, p)) return true;
   }
   return false;
 }

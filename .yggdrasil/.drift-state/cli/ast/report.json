@@ -1,24 +1,26 @@
 {
   "schemaVersion": 1,
-  "hash": "230ca0011c6d62e30ddffdd947aab525768effb6aea265dd8df8efa425cd9d52",
+  "hash": "44f983a0a7073571726f491bd3a0712d4b01c9c702cb7aff8a144d4e06c3a9d8",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/ast/yg-node.yaml": "8f03e5b210cb99fc306e6bcb5219da9c8ef146227715d956d36b60c6e69c4010",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
-    "source/cli/src/ast/file-path.ts": "60f3f76473e9135fdd2ed773ae351688dda7fe9b635816427ab09c968a147eab",
     "source/cli/src/ast/find-comments.ts": "b4be25cd015af2b55e2d72a1bd1f9604408664bfc6377d6e18c466cb20edf85d",
     "source/cli/src/ast/index.ts": "fdfb122a2fdb8cfe5b44b0edc9a7a9e526026783abd6685c84c8ee69dc2f5a3d",
     "source/cli/src/ast/report.ts": "420d5bb586f406696052698f2b45f91de75e873ccb8a08cd76031ae07fc639ce",
     "source/cli/src/ast/types.ts": "e9a8c2ad458969690bf9a682a1b8507c1e6b3ff86de3fbed8cc1166b68cb8d18",
     "source/cli/src/ast/walk.ts": "41671e266d656b2ec96bee5788ecd412e0e1b371d8d33cf9185f63ae3a2a09bd",
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc"
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
+    "source/cli/src/ast/file-path.ts": "b4a582c8101a6f2e87691e774335949974cfa7e592a18ff6bf33aa54239dab46"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/ast/yg-node.yaml": 1779794513937.4592,
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780410812801.22,
-    "source/cli/src/ast/file-path.ts": 1779794513946.8381,
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780488505036.1836,
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780933853473.8323,
+    "source/cli/src/ast/file-path.ts": 1780933819267.219,
     "source/cli/src/ast/find-comments.ts": 1780133951402.9832,
     "source/cli/src/ast/index.ts": 1779794513947.147,
     "source/cli/src/ast/report.ts": 1779794513947.2622,
@@ -36,7 +38,18 @@
       "posix-paths-source": {
         "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
         "checkTouched": {
-          "source/cli/src/ast/file-path.ts": "60f3f76473e9135fdd2ed773ae351688dda7fe9b635816427ab09c968a147eab",
+          "source/cli/src/ast/file-path.ts": "b4a582c8101a6f2e87691e774335949974cfa7e592a18ff6bf33aa54239dab46",
+          "source/cli/src/ast/find-comments.ts": "b4be25cd015af2b55e2d72a1bd1f9604408664bfc6377d6e18c466cb20edf85d",
+          "source/cli/src/ast/index.ts": "fdfb122a2fdb8cfe5b44b0edc9a7a9e526026783abd6685c84c8ee69dc2f5a3d",
+          "source/cli/src/ast/report.ts": "420d5bb586f406696052698f2b45f91de75e873ccb8a08cd76031ae07fc639ce",
+          "source/cli/src/ast/types.ts": "e9a8c2ad458969690bf9a682a1b8507c1e6b3ff86de3fbed8cc1166b68cb8d18",
+          "source/cli/src/ast/walk.ts": "41671e266d656b2ec96bee5788ecd412e0e1b371d8d33cf9185f63ae3a2a09bd"
+        }
+      },
+      "no-direct-minimatch": {
+        "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
+        "checkTouched": {
+          "source/cli/src/ast/file-path.ts": "b4a582c8101a6f2e87691e774335949974cfa7e592a18ff6bf33aa54239dab46",
           "source/cli/src/ast/find-comments.ts": "b4be25cd015af2b55e2d72a1bd1f9604408664bfc6377d6e18c466cb20edf85d",
           "source/cli/src/ast/index.ts": "fdfb122a2fdb8cfe5b44b0edc9a7a9e526026783abd6685c84c8ee69dc2f5a3d",
           "source/cli/src/ast/report.ts": "420d5bb586f406696052698f2b45f91de75e873ccb8a08cd76031ae07fc639ce",
@@ -52,10 +65,13 @@
     },
     "posix-paths-source": {
       "verdict": "approved"
+    },
+    "no-direct-minimatch": {
+      "verdict": "approved"
     }
   },
   "log": {
-    "last_entry_datetime": "2026-05-30T10:05:16.581Z",
-    "prefix_hash": "2e7d42c2b6d356b56521fb629d908c9126b3546d37dbce7de91654cb5061c055"
+    "last_entry_datetime": "2026-06-08T16:05:31.707Z",
+    "prefix_hash": "3bd91fbb8fc99b963e092954309fbc9ba5729095195b6fd393c37fe349d12a10"
   }
 }

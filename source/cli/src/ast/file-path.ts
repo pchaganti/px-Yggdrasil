@@ -1,4 +1,4 @@
-import { minimatch } from 'minimatch';
+import { globMatch } from '../utils/mapping-path.js';
 import type { SourceFile } from './types.js';
 
 export type InFilePattern =
@@ -7,7 +7,7 @@ export type InFilePattern =
   | { contains: string };
 
 export function inFile(file: SourceFile, pattern: InFilePattern): boolean {
-  if ('glob' in pattern) return minimatch(file.path, pattern.glob);
+  if ('glob' in pattern) return globMatch(file.path, pattern.glob);
   if ('regex' in pattern) return pattern.regex.test(file.path);
   if ('contains' in pattern) return file.path.includes(pattern.contains);
   return false;

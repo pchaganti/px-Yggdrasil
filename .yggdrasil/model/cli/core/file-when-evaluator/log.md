@@ -8,3 +8,5 @@ How to apply: recursive evaluator over all_of/any_of/not/atomic. Implicit all_of
 R0.4: file-content-cache import path updated from ./file-content-cache to ../io/file-content-cache
 ## [2026-05-28T19:52:53.661Z]
 Strip dangling design/plan section references from JSDoc and test descriptions. The design doc lives in .plans/ which is gitignored and will be deleted; references like 'spec §7', 'design §12.1', 'Task 14' become stale pointers to non-existent files. Replaced with self-contained prose. No behavior change.
+## [2026-06-08T16:05:31.304Z]
+File classification by path predicate now routes its glob match through the shared single glob primitive instead of calling the glob library directly, so architecture file classification and node-mapping ownership use identical glob semantics and cannot drift apart.

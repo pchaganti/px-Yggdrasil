@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "hash": "5d46e2348b5660c060308f114581e05d1d0de6ea44d2cf508770190012e996cc",
+  "files": {
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
+    "source/cli/src/model/when.ts": "fa7f2346cd1e2fb041b817675bde20d2461dde52206dff5235f4fb4188b9f88b"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780933853473.8323,
+    "source/cli/src/model/when.ts": 1776494731312.4055
+  },
+  "identity": {
+    "ownSubset": "c2c7535003ae90e810235bb79352fcc16007ba2fb55f13650470acfc681a975d",
+    "ports": {},
+    "aspects": {
+      "no-direct-minimatch": {
+        "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
+        "checkTouched": {
+          "source/cli/src/model/when.ts": "fa7f2346cd1e2fb041b817675bde20d2461dde52206dff5235f4fb4188b9f88b"
+        }
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "no-direct-minimatch": {
+      "verdict": "approved"
+    }
+  }
+}

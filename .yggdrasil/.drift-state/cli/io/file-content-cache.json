@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "c29fe53b771af15182da944e302b547baf5cb4d560a2ecbd8bcc655a6687f400",
+  "hash": "34d975b27089b04ff2588e0ebd7f1b5ae913f9b52175a870f9cb061ef3701e26",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
@@ -8,15 +8,17 @@
     "source/cli/src/io/file-content-cache.ts": "2ff027936d2b3139a594d10df85bb6805f977e506bf181ec81cf87b4eeec84a0",
     ".yggdrasil/aspects/atomic-write-contract/check.mjs": "5d995a40d8965c003d603c7c7627bae1d09125021d4fe48560ec18efe5e101a0",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
     ".yggdrasil/aspects/read-or-default-via-helper/check.mjs": "0a1f55908a341a54f6e218723bcc1eb3029ca19457b99be8fc4edfcc92d34d8f"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/io/yg-node.yaml": 1778865790703.1045,
     ".yggdrasil/aspects/silent-missing-files/content.md": 1776494731302.076,
-    ".yggdrasil/aspects/atomic-write-contract/check.mjs": 1780410832991.1228,
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780410812801.22,
-    ".yggdrasil/aspects/read-or-default-via-helper/check.mjs": 1780410856795.1453,
+    ".yggdrasil/aspects/atomic-write-contract/check.mjs": 1780488505033.8943,
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780488505036.1836,
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780933853473.8323,
+    ".yggdrasil/aspects/read-or-default-via-helper/check.mjs": 1780488505036.627,
     "source/cli/src/io/file-content-cache.ts": 1778650662038.9546
   },
   "identity": {
@@ -35,6 +37,12 @@
       },
       "posix-paths-source": {
         "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
+        "checkTouched": {
+          "source/cli/src/io/file-content-cache.ts": "2ff027936d2b3139a594d10df85bb6805f977e506bf181ec81cf87b4eeec84a0"
+        }
+      },
+      "no-direct-minimatch": {
+        "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
         "checkTouched": {
           "source/cli/src/io/file-content-cache.ts": "2ff027936d2b3139a594d10df85bb6805f977e506bf181ec81cf87b4eeec84a0"
         }
@@ -58,6 +66,9 @@
       "verdict": "approved"
     },
     "read-or-default-via-helper": {
+      "verdict": "approved"
+    },
+    "no-direct-minimatch": {
       "verdict": "approved"
     }
   },

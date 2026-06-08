@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "hash": "9d3b58df0f70b0d6bf22f871c201a5d8620a22ee7f63097f7eefd83c283b5683",
+  "files": {
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
+    "source/cli/src/model/drift.ts": "a4b632d1319c8274432dc876100bd7f8121c5e6260e18328c366f48cbbc25369"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780933853473.8323,
+    "source/cli/src/model/drift.ts": 1780291592872.4531
+  },
+  "identity": {
+    "ownSubset": "c2c7535003ae90e810235bb79352fcc16007ba2fb55f13650470acfc681a975d",
+    "ports": {},
+    "aspects": {
+      "no-direct-minimatch": {
+        "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
+        "checkTouched": {
+          "source/cli/src/model/drift.ts": "a4b632d1319c8274432dc876100bd7f8121c5e6260e18328c366f48cbbc25369"
+        }
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "no-direct-minimatch": {
+      "verdict": "approved"
+    }
+  },
+  "log": {
+    "last_entry_datetime": "2026-05-29T07:15:28.478Z",
+    "prefix_hash": "e29227e2c58d8b6bebb63dd55c11ca5f48cdbd7468b3480d92a86301c6fdee76"
+  }
+}

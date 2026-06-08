@@ -8,3 +8,5 @@ Export new API (walk, report, inFile, findComments, closest) as named exports wh
 Mapping extended to absorb walk.ts, file-path.ts, find-comments.ts after deletion of helpers-syntactic and helpers-naming nodes. Public API surface now lives under one node.
 ## [2026-05-30T10:05:16.581Z]
 The comment-finding helper can now be called with a source-file object directly, deriving the programming language from the file's extension. Previously it required an explicit language argument and raised an unrecognized-language error when handed the file object that rule scripts actually receive, which made the documented call form unusable in practice. An unknown extension now produces a clear, explicit error instead of a confusing one.
+## [2026-06-08T16:05:31.707Z]
+The AST file-pattern helper that deterministic check authors use to scope a rule to certain files now matches through the shared single glob primitive rather than calling the glob library directly, so a check author glob and the system mapping globs share one semantics. A dot-prefixed path segment now matches a bare star, consistent with the rest of the system.

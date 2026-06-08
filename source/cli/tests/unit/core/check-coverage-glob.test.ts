@@ -7,11 +7,13 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdir, writeFile, rm, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import { scanUncoveredFiles } from '../../../src/core/check.js';
-import { expandMappingPaths } from '../../../src/io/hash.js';
+import { expandMappingPaths, hashTrackedFiles } from '../../../src/io/hash.js';
 import { checkMappingPathsExist } from '../../../src/core/checks/mapping.js';
+import type { TrackedFile } from '../../../src/core/graph/files.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -244,6 +246,75 @@ describe('checkMappingPathsExist — glob entries', () => {
       const graph = await loadGraph(tmpDir);
       const issues = await checkMappingPathsExist(graph);
       expect(issues.filter((i) => i.code === 'mapping-path-missing')).toHaveLength(0);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
+// ── hashTrackedFiles — glob entries participate in the drift baseline ─────────
+// Regression: a glob mapping entry must expand to its concrete files in the
+// drift hash. Otherwise the baseline (and the reviewer's source list, which is
+// Object.keys(fileHashes)) silently omits glob-mapped files: edits would not
+// drift and the reviewer would never re-verify them.
+
+describe('hashTrackedFiles — glob mapping entries', () => {
+  const src = (name: string): TrackedFile => ({ path: name, category: 'source', layer: 'source' });
+
+  it('expands a glob entry into its matching files in the drift hash', async () => {
+    const tmpDir = await mkdtemp(path.join(tmpdir(), 'ygg-hash-glob-'));
+    const repo = path.join(tmpDir, 'src', 'repo');
+    await mkdir(repo, { recursive: true });
+    try {
+      await writeFile(path.join(repo, 'FooRepository.cs'), 'class Foo {}');
+      await writeFile(path.join(repo, 'BarRepository.cs'), 'class Bar {}');
+      await writeFile(path.join(repo, 'Helper.cs'), 'class Helper {}');
+
+      const { fileHashes } = await hashTrackedFiles(tmpDir, [src('src/repo/*Repository.cs')]);
+      const tracked = Object.keys(fileHashes).sort();
+      expect(tracked).toEqual(['src/repo/BarRepository.cs', 'src/repo/FooRepository.cs']);
+      expect(tracked).not.toContain('src/repo/Helper.cs');
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('editing a glob-mapped file changes the canonical hash (drift is detected)', async () => {
+    const tmpDir = await mkdtemp(path.join(tmpdir(), 'ygg-hash-glob-drift-'));
+    const repo = path.join(tmpDir, 'src', 'repo');
+    await mkdir(repo, { recursive: true });
+    try {
+      const foo = path.join(repo, 'FooRepository.cs');
+      await writeFile(foo, 'class Foo {}');
+      const before = await hashTrackedFiles(tmpDir, [src('src/repo/*Repository.cs')]);
+
+      await writeFile(foo, 'class Foo { void Added() {} }');
+      const after = await hashTrackedFiles(tmpDir, [src('src/repo/*Repository.cs')], undefined, undefined, undefined, undefined, false);
+
+      expect(after.canonicalHash).not.toBe(before.canonicalHash);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('child-wins: a glob excludePrefix removes the descendant-owned files from the parent set', async () => {
+    const tmpDir = await mkdtemp(path.join(tmpdir(), 'ygg-hash-glob-childwins-'));
+    const repo = path.join(tmpDir, 'src', 'repo');
+    await mkdir(repo, { recursive: true });
+    try {
+      await writeFile(path.join(repo, 'FooRepository.cs'), 'class Foo {}');
+      await writeFile(path.join(repo, 'Helper.cs'), 'class Helper {}');
+
+      // Parent maps the whole dir; a child node owns *Repository.cs via a glob.
+      const { fileHashes } = await hashTrackedFiles(
+        tmpDir,
+        [src('src/repo')],
+        undefined,
+        ['src/repo/*Repository.cs'], // excludePrefixes (child-wins)
+      );
+      const tracked = Object.keys(fileHashes);
+      expect(tracked).toContain('src/repo/Helper.cs');
+      expect(tracked).not.toContain('src/repo/FooRepository.cs');
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }

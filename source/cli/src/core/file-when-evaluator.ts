@@ -1,4 +1,4 @@
-import { minimatch } from 'minimatch';
+import { globMatch } from '../utils/mapping-path.js';
 import type {
   FileWhenPredicate,
   PredicateTrace,
@@ -125,7 +125,7 @@ async function evaluateAtomic(
   }
 
   if (predicate.path !== undefined) {
-    const matches = minimatch(ctx.repoRelPath, predicate.path, { dot: true });
+    const matches = globMatch(ctx.repoRelPath, predicate.path);
     return {
       result: matches,
       trace: { kind: 'atom-path', pattern: predicate.path, result: matches },

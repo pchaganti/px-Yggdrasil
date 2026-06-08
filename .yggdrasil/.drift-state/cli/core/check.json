@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "4cf40f539651602408f0b226c3f3f6f3db62f5d5ecc4297877e308bf059a492d",
+  "hash": "90b1f8e0da3089b7fdaf7a3c3fd2c192a2c94d85eabd0117edd41a2c00d8eebe",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
@@ -18,6 +18,7 @@
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
     ".yggdrasil/model/cli/model/drift/yg-node.yaml": "8818cf691e94ebf918022c7af9ff4f200a3d9cdf4a95a0e10f7e3c476e12320e",
     ".yggdrasil/model/cli/model/validation/yg-node.yaml": "0a96c3bcb0c32f24e4978d1350be8f91e4284aa323734801e7abcc2ed014120f",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
     "source/cli/src/core/check.ts": "ed1e07daeb5d139af72166b0e9b9ba5aa4f1a4b92bdfac599ddfd36f0cde13cb"
   },
   "mtimes": {
@@ -30,6 +31,7 @@
     ".yggdrasil/aspects/no-direct-fs/check.mjs": 1780488505035.3284,
     ".yggdrasil/aspects/no-direct-console/check.mjs": 1780488505035.126,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780488505036.1836,
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780933853473.8323,
     ".yggdrasil/aspects/single-source-graph-queries/check.mjs": 1780488505036.8464,
     ".yggdrasil/model/cli/core/validator/yg-node.yaml": 1778959881779.8936,
     ".yggdrasil/model/cli/core/context/yg-node.yaml": 1778960658963.9556,
@@ -37,7 +39,7 @@
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     ".yggdrasil/model/cli/model/drift/yg-node.yaml": 1776177846203.4216,
     ".yggdrasil/model/cli/model/validation/yg-node.yaml": 1776177846203.675,
-    "source/cli/src/core/check.ts": 1780930652282.2268
+    "source/cli/src/core/check.ts": 1780932356009.0823
   },
   "identity": {
     "ownSubset": "93cb99183b0720c8426edb8b0f7c98ef5bfe89ac00a4971eb326f3db25cb71bd",
@@ -79,6 +81,12 @@
           "source/cli/src/core/check.ts": "ed1e07daeb5d139af72166b0e9b9ba5aa4f1a4b92bdfac599ddfd36f0cde13cb"
         }
       },
+      "no-direct-minimatch": {
+        "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
+        "checkTouched": {
+          "source/cli/src/core/check.ts": "ed1e07daeb5d139af72166b0e9b9ba5aa4f1a4b92bdfac599ddfd36f0cde13cb"
+        }
+      },
       "single-source-graph-queries": {
         "meta": "b1dd772529ca4799de41809e1e615c58ab58fba6b861920dd646786ff43ad9c2",
         "checkTouched": {
@@ -110,6 +118,9 @@
       "verdict": "approved"
     },
     "single-source-graph-queries": {
+      "verdict": "approved"
+    },
+    "no-direct-minimatch": {
       "verdict": "approved"
     }
   },

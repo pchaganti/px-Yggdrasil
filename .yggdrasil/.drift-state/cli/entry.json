@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "2a1ac8a42c09a3b8ec705cb866b1b37fd51e3c0228cc79eab93dd54529875be2",
+  "hash": "b4d8886861b5793762ea9d3e2bc461b5dfad7749105b596bff77df6e126ac90a",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/top-level-error-handler/content.md": "83041eb2e1f1da613f13a8ea9755d8eb9cf1e16992baa97cc84616d209ac6f5b",
@@ -15,13 +15,15 @@
     ".yggdrasil/model/cli/commands/check/yg-node.yaml": "4467c35778726a95958f2177ecbb6b2746f004ada5754e54c72a8a8fcff97ae7",
     ".yggdrasil/aspects/command-exit-codes/check.mjs": "a536adffaff4ea2b2d56b7a2d524a2f8956576b29dd71fe312a9e393da151e3f",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
     "source/cli/src/bin.ts": "83c1352e4c509bd2063416b5d5659e7127a4c3fb9f1a37764748531064859b8d"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/aspects/top-level-error-handler/content.md": 1778913571175.6917,
-    ".yggdrasil/aspects/command-exit-codes/check.mjs": 1780410797820.8818,
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780410812801.22,
+    ".yggdrasil/aspects/command-exit-codes/check.mjs": 1780488505034.5806,
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780488505036.1836,
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780933853473.8323,
     ".yggdrasil/model/cli/commands/init/yg-node.yaml": 1780044871396.8037,
     ".yggdrasil/model/cli/commands/yg-node.yaml": 1776177846200.1738,
     ".yggdrasil/model/cli/commands/build-context/yg-node.yaml": 1780044871395.407,
@@ -31,7 +33,7 @@
     ".yggdrasil/model/cli/commands/aspects/yg-node.yaml": 1780044871394.8506,
     ".yggdrasil/model/cli/commands/flows/yg-node.yaml": 1780044871396.2397,
     ".yggdrasil/model/cli/commands/check/yg-node.yaml": 1780044871395.6797,
-    "source/cli/src/bin.ts": 1780412151512.05
+    "source/cli/src/bin.ts": 1780488505054.3462
   },
   "identity": {
     "ownSubset": "429b97c933068b63c478ba54cae9aa5f90bba001107db52b2626d4706e154398",
@@ -52,6 +54,12 @@
         "checkTouched": {
           "source/cli/src/bin.ts": "83c1352e4c509bd2063416b5d5659e7127a4c3fb9f1a37764748531064859b8d"
         }
+      },
+      "no-direct-minimatch": {
+        "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
+        "checkTouched": {
+          "source/cli/src/bin.ts": "83c1352e4c509bd2063416b5d5659e7127a4c3fb9f1a37764748531064859b8d"
+        }
       }
     }
   },
@@ -63,6 +71,9 @@
       "verdict": "approved"
     },
     "posix-paths-source": {
+      "verdict": "approved"
+    },
+    "no-direct-minimatch": {
       "verdict": "approved"
     }
   },

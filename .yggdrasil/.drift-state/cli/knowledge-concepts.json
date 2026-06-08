@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "hash": "ac13a6d24ecd67a7166ec6b3659e3647cb963ab50fa807728b519a0cd33533ea",
+  "files": {
+    ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
+    "source/cli/src/templates/knowledge/aspects-overview.ts": "88e413b807f431c8d1a07e24b9ea6080373616d253feea5c98669fa182745bc2",
+    "source/cli/src/templates/knowledge/configuration.ts": "7658db116965bd52e02053d5df261a2db284764c47e4785ddabac60887c49db1",
+    "source/cli/src/templates/knowledge/drift-and-cascade.ts": "fef8822f272e19dc4f6b91428e72d14d96d994c314bf1949a94d8a5d79984821",
+    "source/cli/src/templates/knowledge/index.ts": "905ac82918dd54d710207bb8921ce8924e02e9c433320937448640c36afe8c54"
+  },
+  "mtimes": {
+    ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780933853473.8323,
+    "source/cli/src/templates/knowledge/aspects-overview.ts": 1780488505063.7043,
+    "source/cli/src/templates/knowledge/configuration.ts": 1780934532543.187,
+    "source/cli/src/templates/knowledge/drift-and-cascade.ts": 1780488505064.9565,
+    "source/cli/src/templates/knowledge/index.ts": 1780170092123.1135
+  },
+  "identity": {
+    "ownSubset": "aaea5541beeee903dd93c233042c7bfeaba5f4396fade2033d86d81cc5450a31",
+    "ports": {},
+    "aspects": {
+      "no-direct-minimatch": {
+        "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
+        "checkTouched": {
+          "source/cli/src/templates/knowledge/aspects-overview.ts": "88e413b807f431c8d1a07e24b9ea6080373616d253feea5c98669fa182745bc2",
+          "source/cli/src/templates/knowledge/configuration.ts": "7658db116965bd52e02053d5df261a2db284764c47e4785ddabac60887c49db1",
+          "source/cli/src/templates/knowledge/drift-and-cascade.ts": "fef8822f272e19dc4f6b91428e72d14d96d994c314bf1949a94d8a5d79984821",
+          "source/cli/src/templates/knowledge/index.ts": "905ac82918dd54d710207bb8921ce8924e02e9c433320937448640c36afe8c54"
+        }
+      }
+    }
+  },
+  "aspectVerdicts": {
+    "no-direct-minimatch": {
+      "verdict": "approved"
+    }
+  }
+}

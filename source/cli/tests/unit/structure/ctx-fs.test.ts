@@ -127,4 +127,21 @@ describe('ctx.fs', () => {
     const fs = createCtxFs({ allowedSet: new Set(['src/lib']), projectRoot: root, touchedFiles: touched });
     expect(fs.read('src/lib/alias.ts')).toBe('foo-content');
   });
+
+  // Glob allowed-set entries: when a node's mapping is a glob, the allowed-reads
+  // set holds the glob pattern, so the fs-gate must admit the files it matches
+  // (and reject those it does not) via the shared matcher.
+  it('admits a file matching a glob allowed-set entry, rejects a non-matching sibling', () => {
+    writeFileSync(path.join(root, 'src/lib/FooRepository.ts'), 'repo');
+    writeFileSync(path.join(root, 'src/lib/Helper.ts'), 'helper');
+    const fs = createCtxFs({ allowedSet: new Set(['src/lib/*Repository.ts']), projectRoot: root, touchedFiles: touched });
+    expect(fs.read('src/lib/FooRepository.ts')).toBe('repo');
+    expect(() => fs.read('src/lib/Helper.ts')).toThrow(UndeclaredFsReadError);
+  });
+
+  it('admits the literal-prefix dir of a glob entry for exists()/list()', () => {
+    const fs = createCtxFs({ allowedSet: new Set(['src/lib/*Repository.ts']), projectRoot: root, touchedFiles: touched });
+    // 'src/lib' is the glob's literal leading prefix — a directory the check may probe.
+    expect(fs.exists('src/lib')).toBe('dir');
+  });
 });

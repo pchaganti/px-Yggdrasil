@@ -175,19 +175,21 @@ API providers also check environment variables: `ANTHROPIC_API_KEY`, `OPENAI_API
 ```yaml
 coverage:
   required:
-    - src/             # files under src/ must be mapped — unmapped is a blocking error
+    - src/                  # files under src/ must be mapped — unmapped is a blocking error
   excluded:
-    - vendor/          # files under vendor/ are silently ignored
+    - vendor/               # files under vendor/ are silently ignored
+    - "**/*.generated.ts"   # glob: generated files anywhere are ignored
 ```
 
 Controls which git-tracked files must be mapped to a node in `yg check`.
 
-- **`required`** — List of path roots. Files under a required root that are not mapped to any node produce an `unmapped-files` error (blocks CI). Default: `["/"]` (the whole repo — reproduces the previous always-map-everything behavior). An explicit empty list `[]` means **require nothing** — every uncovered file (outside `excluded`/nested) becomes a non-blocking `uncovered-advisory` warning and nothing blocks (pure-advisory adoption: you still see the full uncovered surface, but CI stays green on coverage). The empty list only takes effect when written explicitly; omitting the whole `coverage` block keeps the `["/"]` default.
-- **`excluded`** — List of path roots. Files under an excluded root are silently ignored regardless of other rules.
+- **`required`** — List of roots. Files under a required root that are not mapped to any node produce an `unmapped-files` error (blocks CI). Default: `["/"]` (the whole repo — reproduces the previous always-map-everything behavior). An explicit empty list `[]` means **require nothing** — every uncovered file (outside `excluded`/nested) becomes a non-blocking `uncovered-advisory` warning and nothing blocks (pure-advisory adoption: you still see the full uncovered surface, but CI stays green on coverage). The empty list only takes effect when written explicitly; omitting the whole `coverage` block keeps the `["/"]` default.
+- **`excluded`** — List of roots. Files under an excluded root are silently ignored regardless of other rules.
+- **Roots accept the same forms as a node `mapping:` entry** — an exact file, a directory prefix (e.g. `src/`), or a [minimatch](https://github.com/isaacs/minimatch) glob (`*` within a path segment, `**` across segments). So `excluded: ["**/*.generated.ts"]` ignores generated files anywhere, and `required: ["services/*/api/**"]` scopes the blocking tier to a pattern. `/` still means the whole repo.
 - Files that match neither a required nor an excluded root produce a non-blocking `uncovered-advisory` warning.
 - Subtrees that contain their own nested `.yggdrasil/` are auto-skipped by all repo-walking checks — they are governed by their own graph, not the root graph.
 
-Each file is scored against all roots independently; the longest matching root wins, and on an equal-length tie between a required and an excluded root, excluded wins.
+Each file is scored against all roots independently; the longest matching root (or pattern, by length) wins, and on an equal-length tie between a required and an excluded root, excluded wins.
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "9e01ea77a679f0ab4d688b80c7dddd025dde9a6fa0cd0e1e981228bcf0ca416b",
+  "hash": "056adc9970aef043dae72dffc36f662f1bed0bb6d2e8fe04e79d4825e9019fcd",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/llm/yg-node.yaml": "eb86d7c0b81642af0c1d40cba6a1f5a780293a2304635bd100bd64677a4c8838",
@@ -12,6 +12,7 @@
     "source/cli/src/llm/reviewer-test.ts": "05c8a5b09320643bb76df54e8abe221e252686e08e8152be3a26e3b4089e001d",
     "source/cli/src/llm/model-fetcher.ts": "0c986bd9b6bf33393e48ec1bee70481d8db3dbd42b2eb4c69200798cf777afc3",
     "source/cli/src/llm/xml-escape.ts": "fe137a7ad8acd1fae2d2ddc068881ac0eb2340a54fe24a5c149a7fa0c2800657",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
     "source/cli/src/llm/types.ts": "15d0d7ac79aecc33e92684236eb9658df4236645edbc0b583458cdbda9381169",
     "source/cli/src/llm/api-utils.ts": "4b81c4d7d1dff9018e5517ec5814949fc7d6e51d42192d3b86a81450ad97a3bd",
     "source/cli/src/llm/aspect-verifier.ts": "f5697cd76e4b7e431a1ffd265a46f18cef6d2e4ee2ea15b64645e8e181dbba2f"
@@ -20,13 +21,14 @@
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/llm/yg-node.yaml": 1778866396180.118,
     ".yggdrasil/aspects/diagnostic-logging/content.md": 1776177846197.264,
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780933853473.8323,
     ".yggdrasil/aspects/provider-retry-contract/content.md": 1778914752602.5513,
     ".yggdrasil/aspects/what-why-next/content.md": 1780050256245.0933,
-    "source/cli/src/llm/types.ts": 1780405757492.471,
+    "source/cli/src/llm/types.ts": 1780488505062.3918,
     "source/cli/src/llm/provider.ts": 1776177846233.5361,
     "source/cli/src/llm/index.ts": 1776177846232.9993,
-    "source/cli/src/llm/api-utils.ts": 1780405749983.0176,
-    "source/cli/src/llm/aspect-verifier.ts": 1780405737931.3562,
+    "source/cli/src/llm/api-utils.ts": 1780488505060.5034,
+    "source/cli/src/llm/aspect-verifier.ts": 1780488505061.027,
     "source/cli/src/llm/reviewer-test.ts": 1776177846233.7026,
     "source/cli/src/llm/model-fetcher.ts": 1776177846233.1375,
     "source/cli/src/llm/xml-escape.ts": 1779962407193.0742
@@ -38,6 +40,19 @@
       "diagnostic-logging": {
         "meta": "cb27ac03d47e1fa03836aa7b83141dfe5d245bf4fb6834acac6db4f16daae3e5",
         "tier": "8bf090db1961f6a59cef79b3e8f45aa31be675074fa6daebf2f74730c8c6dda6"
+      },
+      "no-direct-minimatch": {
+        "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
+        "checkTouched": {
+          "source/cli/src/llm/types.ts": "15d0d7ac79aecc33e92684236eb9658df4236645edbc0b583458cdbda9381169",
+          "source/cli/src/llm/provider.ts": "9639bef6c74ad697525f3b68b144c2a8864f03f5fd9715fe193eaab3809bb139",
+          "source/cli/src/llm/index.ts": "2d506311c3ae23d8855f043cd95c1b243b942920b75c70e5efc43eb13cc67a09",
+          "source/cli/src/llm/api-utils.ts": "4b81c4d7d1dff9018e5517ec5814949fc7d6e51d42192d3b86a81450ad97a3bd",
+          "source/cli/src/llm/aspect-verifier.ts": "f5697cd76e4b7e431a1ffd265a46f18cef6d2e4ee2ea15b64645e8e181dbba2f",
+          "source/cli/src/llm/reviewer-test.ts": "05c8a5b09320643bb76df54e8abe221e252686e08e8152be3a26e3b4089e001d",
+          "source/cli/src/llm/model-fetcher.ts": "0c986bd9b6bf33393e48ec1bee70481d8db3dbd42b2eb4c69200798cf777afc3",
+          "source/cli/src/llm/xml-escape.ts": "fe137a7ad8acd1fae2d2ddc068881ac0eb2340a54fe24a5c149a7fa0c2800657"
+        }
       },
       "provider-retry-contract": {
         "meta": "b1b88e61840c03cd476eee80cc224c06fac6aa8cbf51e70e44a878026cf884aa",
@@ -57,6 +72,9 @@
       "verdict": "approved"
     },
     "what-why-next": {
+      "verdict": "approved"
+    },
+    "no-direct-minimatch": {
       "verdict": "approved"
     }
   },
