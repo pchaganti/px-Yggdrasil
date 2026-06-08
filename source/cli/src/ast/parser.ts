@@ -17,13 +17,24 @@ const GRAMMAR_DIRS = [
   path.resolve(__dirname, '..', 'grammars'),
 ];
 
-let initialized = false;
-const langCache = new Map<string, Language>();
+// Both the one-time WASM runtime init and each grammar load are memoized as
+// PROMISES (not resolved values), set SYNCHRONOUSLY before the first await.
+// Under a parallel `yg approve`, many deterministic checks call getParser() at
+// once. If the flag/value were only set AFTER the await, concurrent callers
+// would each re-run Parser.init() / re-load the same grammar, and one could
+// observe a half-initialized Language — web-tree-sitter then throws
+// `Incompatible language version 0`. Memoizing the in-flight promise makes every
+// concurrent caller await the same single init/load. A rejected promise is
+// evicted so a later call can retry rather than inheriting a cached failure.
+let initPromise: Promise<void> | null = null;
+const langCache = new Map<string, Promise<Language>>();
 
-async function init(): Promise<void> {
-  if (initialized) return;
-  await Parser.init();
-  initialized = true;
+function init(): Promise<void> {
+  if (initPromise === null) {
+    initPromise = Parser.init();
+    initPromise.catch(() => { initPromise = null; });
+  }
+  return initPromise;
 }
 
 function resolveWasm(filename: string, pkg: string): string {
@@ -53,12 +64,15 @@ export async function getParser(extension: string): Promise<Parser> {
     throw new Error(`no parser for extension '${extension}'`);
   }
   const cacheKey = info.wasmFile;
-  let lang = langCache.get(cacheKey);
-  if (!lang) {
+  let langP = langCache.get(cacheKey);
+  if (langP === undefined) {
     const wasmPath = resolveWasm(info.wasmFile, info.wasmPackage);
-    lang = await Language.load(wasmPath);
-    langCache.set(cacheKey, lang);
+    langP = Language.load(wasmPath);
+    langCache.set(cacheKey, langP);
+    // Evict a failed load so the next caller retries instead of inheriting it.
+    langP.catch(() => { if (langCache.get(cacheKey) === langP) langCache.delete(cacheKey); });
   }
+  const lang = await langP;
   const parser = new Parser();
   parser.setLanguage(lang);
   return parser;
