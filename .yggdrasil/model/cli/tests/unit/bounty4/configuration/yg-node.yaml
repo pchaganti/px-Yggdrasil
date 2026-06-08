@@ -1,0 +1,7 @@
+name: bounty4 configuration
+type: test-suite
+description: "Bug-bounty suites: configuration (~31363 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty4/configuration.test.ts

@@ -25,8 +25,13 @@ interface ParsedMarker {
   line: number; // 1-based
 }
 
-const RE_SINGLE  = /\byg-suppress\(\s*([^)]+?)\s*\)\s*(.+)?$/;
-const RE_DISABLE = /\byg-suppress-disable\(\s*([^)]+?)\s*\)\s*(.+)?$/;
+// `m` flag: a marker may ride inside a multi-line `/* ... */` block comment whose
+// body keeps its inner newlines. Without `m`, `$` anchors to end-of-string and the
+// reason group `(.+)?` cannot cross a newline, so a single-line marker on the first
+// line of a multi-line block matched nothing and the waiver was silently lost. With
+// `m`, `$` matches end-of-line and the reason is captured on the marker's own line.
+const RE_SINGLE  = /\byg-suppress\(\s*([^)]+?)\s*\)\s*(.+)?$/m;
+const RE_DISABLE = /\byg-suppress-disable\(\s*([^)]+?)\s*\)\s*(.+)?$/m;
 const RE_ENABLE  = /\byg-suppress-enable\(\s*([^)]+?)\s*\)/;
 
 function commentBody(text: string): string {

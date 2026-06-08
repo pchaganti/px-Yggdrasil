@@ -1,19 +1,19 @@
 {
   "schemaVersion": 1,
-  "hash": "2adcb7cb875c196b3555ad56e8df7886f6ee71aaeec8f5ee3584dd21dce0f368",
+  "hash": "4a34eaa895df0771ffe8ef2111d313205fe200cf6af9aa4a7090098c0c2be318",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/ast/yg-node.yaml": "8f03e5b210cb99fc306e6bcb5219da9c8ef146227715d956d36b60c6e69c4010",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
     ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
     "source/cli/src/ast/loader-hook-impl.ts": "7f184721c2121038768e06ea66b2661e99460e336151d2649e0fecdbe8459f37",
     "source/cli/src/ast/loader-hook.ts": "e34275e1bbf8e5197db94706a589266bc31d6dd0879b6e8428d3f7191155f72b",
     "source/cli/src/ast/parse-cache.ts": "52800ae952c7ca15cebce230de462d7e88f710e049b2e80872a0868bd6fd2b0e",
     "source/cli/src/ast/parser.ts": "442ac4af6ff2ee445080ffe3f29f1f420caed133b71021a5ef0de6cae3181d77",
     "source/cli/src/ast/runner.ts": "4e885ab6b0a68fc27759d576e13b7d632ed263feb1dc00e7a96366325eb646a5",
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
-    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
-    "source/cli/src/ast/suppress.ts": "431b5d9aad72b7c3652902b06e2dce89c079277dac9dff022f4bcfca4ac8bda5"
+    "source/cli/src/ast/suppress.ts": "2bcf686152aba3f619fcd8456accb4c756e3b00df4164513643736495da1589c"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -26,8 +26,8 @@
     "source/cli/src/ast/loader-hook.ts": 1778440677113.9885,
     "source/cli/src/ast/parse-cache.ts": 1780036707610.353,
     "source/cli/src/ast/parser.ts": 1780224258215.441,
-    "source/cli/src/ast/runner.ts": 1780124996326.9353,
-    "source/cli/src/ast/suppress.ts": 1780488505054.0308
+    "source/cli/src/ast/runner.ts": 1780945699267.1094,
+    "source/cli/src/ast/suppress.ts": 1780945309150.3228
   },
   "identity": {
     "ownSubset": "81c446303e7f0f81e4442926d9268b200464da4ffadf167ab4d6c49a0da2a341",
@@ -45,7 +45,7 @@
           "source/cli/src/ast/parse-cache.ts": "52800ae952c7ca15cebce230de462d7e88f710e049b2e80872a0868bd6fd2b0e",
           "source/cli/src/ast/parser.ts": "442ac4af6ff2ee445080ffe3f29f1f420caed133b71021a5ef0de6cae3181d77",
           "source/cli/src/ast/runner.ts": "4e885ab6b0a68fc27759d576e13b7d632ed263feb1dc00e7a96366325eb646a5",
-          "source/cli/src/ast/suppress.ts": "431b5d9aad72b7c3652902b06e2dce89c079277dac9dff022f4bcfca4ac8bda5"
+          "source/cli/src/ast/suppress.ts": "2bcf686152aba3f619fcd8456accb4c756e3b00df4164513643736495da1589c"
         }
       },
       "no-direct-minimatch": {
@@ -56,7 +56,7 @@
           "source/cli/src/ast/parse-cache.ts": "52800ae952c7ca15cebce230de462d7e88f710e049b2e80872a0868bd6fd2b0e",
           "source/cli/src/ast/parser.ts": "442ac4af6ff2ee445080ffe3f29f1f420caed133b71021a5ef0de6cae3181d77",
           "source/cli/src/ast/runner.ts": "4e885ab6b0a68fc27759d576e13b7d632ed263feb1dc00e7a96366325eb646a5",
-          "source/cli/src/ast/suppress.ts": "431b5d9aad72b7c3652902b06e2dce89c079277dac9dff022f4bcfca4ac8bda5"
+          "source/cli/src/ast/suppress.ts": "2bcf686152aba3f619fcd8456accb4c756e3b00df4164513643736495da1589c"
         }
       },
       "what-why-next": {
@@ -72,15 +72,15 @@
     "posix-paths-source": {
       "verdict": "approved"
     },
-    "what-why-next": {
+    "no-direct-minimatch": {
       "verdict": "approved"
     },
-    "no-direct-minimatch": {
+    "what-why-next": {
       "verdict": "approved"
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-03T07:05:07.509Z",
-    "prefix_hash": "463e471aabdd930a89d53a134caafc2e2488fa20ae444acff0749f913f5ca7ac"
+    "last_entry_datetime": "2026-06-08T19:22:20.137Z",
+    "prefix_hash": "e694da92299a5c34a34adbba7ff7f5f993a0b5588471811fc59baaafa9188b6f"
   }
 }

@@ -360,13 +360,17 @@ export function checkAspectStatusDowngrade(graph: Graph): ValidationIssue[] {
       for (const source of sources) {
         if (!sourceIsExplicit(source, node, aspectId, graph)) continue;
 
+        // The anchor is what the effective status would be WITHOUT this source's
+        // explicit declaration: the max over every OTHER channel's declared
+        // status AND the aspect-level default. The default is a permanent member
+        // of the anchor — dropping it once a second channel declares would let
+        // two channels collude on the same sub-default value (e.g. both advisory
+        // under an enforced default) and silently downgrade with no error.
         const otherDeclared = sources.filter(s => s !== source).map(s => s.declared);
-        const anchor: AspectStatus = otherDeclared.length === 0
-          ? aspectDefault
-          : otherDeclared.reduce<AspectStatus>(
-              (acc, cur) => (STATUS_ORDER[cur] > STATUS_ORDER[acc] ? cur : acc),
-              'draft',
-            );
+        const anchor: AspectStatus = [...otherDeclared, aspectDefault].reduce<AspectStatus>(
+          (acc, cur) => (STATUS_ORDER[cur] > STATUS_ORDER[acc] ? cur : acc),
+          'draft',
+        );
 
         if (STATUS_ORDER[source.declared] < STATUS_ORDER[anchor]) {
           const msgData = aspectStatusDowngradeMessage({

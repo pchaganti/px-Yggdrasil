@@ -123,7 +123,7 @@ arrives in the one \`check.mjs\` invocation.
 | \`walk(node, visitor)\` | \`(node, (n) => boolean|void) => void\` | DFS traversal; visitor returning \`false\` skips descent into that subtree |
 | \`report(file, node, message)\` | \`(file, TreeNode, string) => Violation\` | Build a \`{ file, line, column, message }\` — \`line\` 1-based, \`column\` 0-based |
 | \`inFile(file, pattern)\` | \`(file, { glob } | { regex } | { contains }) => boolean\` | Path filter (discriminated object form) |
-| \`findComments(target)\` | \`(file | node) => TreeNode[]\` | Returns comment nodes within the file or subtree |
+| \`findComments(target)\` | \`(file) => TreeNode[]\` | Returns comment nodes within a file (language derived from its path) |
 | \`closest(node, types)\` | \`(TreeNode, string[]) => TreeNode | null\` | Nearest ancestor whose \`type\` is in \`types\` |
 
 ## tree-sitter node API
@@ -382,7 +382,7 @@ parsed AST trees via \`ctx.parseAst\`:
 | \`closest(node, types)\` | \`(TreeNode, string[]) => TreeNode | null\` | Nearest ancestor of one of the given types |
 | \`report(file, node, message)\` | \`(file, TreeNode, string) => Violation\` | Build \`{ file, line, column, message }\` — line 1-based, column 0-based |
 | \`inFile(file, pattern)\` | \`(file, { glob } | { regex } | { contains }) => boolean\` | Path filter |
-| \`findComments(target)\` | \`(file | node) => TreeNode[]\` | Returns comment nodes |
+| \`findComments(target)\` | \`(file) => TreeNode[]\` | Returns comment nodes |
 
 These helpers are optional — most graph-aware checks work purely with \`ctx.graph\`
 and \`ctx.fs\` without parsing AST trees at all.

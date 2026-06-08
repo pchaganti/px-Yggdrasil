@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`aspect-status-downgrade` now compares against the aspect's own default status.** The guard that rejects an attach site declaring a weaker enforcement level than an aspect already guarantees previously folded only the *other* attach sites into its baseline, omitting the aspect's declared default `status:`. A lone attach site naming a level below the aspect default therefore escaped detection and silently weakened enforcement. The baseline now always includes the aspect default, matching the effective-status rule (`max()` across every channel including the default), so any downgrade below the guaranteed level is blocked.
+
+- **`when` predicates keyed on a bare consumed port are validated against real ports.** A conditional-applicability predicate referencing a port that exists nowhere in the graph is a graph error, but the check only fired for the paired relation-and-port shape; the bare `consumes_port` shape slipped through unvalidated. Both shapes now resolve against the full set of declared ports and report an unknown port (`when-unknown-port`) regardless of how the predicate is spelled.
+
+- **`openai-compatible` tier without an `endpoint` is now a config error instead of a silent fallback to the public OpenAI host.** A tier using the generic `openai-compatible` provider with no `endpoint` previously fell back to `https://api.openai.com/v1` — a surprising and potentially data-leaking destination. It now fails `yg check` with `config-tier-endpoint-missing`. Providers that ship a safe default host (e.g. `ollama` → `http://localhost:11434`) are unaffected and still need no explicit endpoint.
+
+- **Inline `yg-suppress` markers are detected inside multi-line comment blocks.** The marker-matching expressions anchored end-of-text without multi-line semantics, so a marker on any line other than the last of a multi-line comment was silently ignored — the documented multi-line and bracket-disable placement forms did not take effect. Matching is now line-aware and finds a marker on whichever line it appears.
+
+- **A relation's `consumes` must be a list.** A scalar or mapping in the `consumes` position of a relation is malformed and previously slipped through parsing to confuse downstream port-consumption logic. It is now rejected at parse time with a clear message.
+
+- **`quality.max_direct_relations` is validated as a positive integer.** A zero, negative, or fractional value is meaningless as a fan-out count; it is now rejected at parse time with a clear message, matching the existing guard on `max_node_chars`.
+
+- **Port-contract and relation-target codes are classified as structural.** `port-missing-consumes`, `port-undefined`, `port-missing-aspect`, `consumes-without-ports`, and `relation-target-forbidden` are graph-integrity failures but were not listed among the structural codes, so they did not group and block consistently with their peers. They are now included.
+
+- **An explicit `reviewer.type: aggregate` is accepted when it agrees with the inferred kind.** An aspect that only `implies` others (no `content.md`, no `check.mjs`) has inferred kind `aggregate`; spelling that kind out explicitly previously failed parsing because only `llm` and `deterministic` were valid `reviewer.type` strings. The parser now treats an explicit `aggregate` as valid alongside the other two, provided it agrees with the inference — consistent with how an explicit `llm`/`deterministic` must agree with file presence.
+
+- **Bundled knowledge and schema docs corrected to match runtime behavior.** Several shipped docs diverged from what the CLI actually does: the `yg-architecture.yaml` schema now states that a missing type `when` predicate is a fatal architecture-invalid error (the whole type system is rejected); the `ports-and-relations` knowledge topic now distinguishes the unconditional `aspect-undefined` reference-integrity check from the consumption-gated `port-missing-aspect`, and describes the missing-port-contract error in what/why/next prose instead of quoting a stale literal block; the `configuration` topic clarifies that `endpoint` is required only for `openai-compatible` (no default host) while `ollama` defaults to `http://localhost:11434`; and the `writing-deterministic-aspects` topic corrects the `findComments` helper signature to `(file) => TreeNode[]` (it operates on a single file, with language derived from the file path).
+
 ## [5.0.0-alpha.4] - 2026-06-08
 
 ### Added

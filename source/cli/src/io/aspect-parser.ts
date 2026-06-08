@@ -441,13 +441,13 @@ function parseReviewer(
         next: 'add `type: llm` or `type: deterministic` under reviewer:',
       },
     });
-  } else if (obj.type !== 'llm' && obj.type !== 'deterministic') {
+  } else if (obj.type !== 'llm' && obj.type !== 'deterministic' && obj.type !== 'aggregate') {
     errors.push({
       code: 'aspect-reviewer-type-invalid',
       messageData: {
         what: `aspect '${aspectId}' has invalid reviewer.type: '${String(obj.type)}'`,
-        why: 'only "llm" and "deterministic" are valid',
-        next: 'change to type: llm or type: deterministic',
+        why: 'only "llm", "deterministic", or "aggregate" are valid',
+        next: 'change to type: llm, type: deterministic, or type: aggregate',
       },
     });
   } else {

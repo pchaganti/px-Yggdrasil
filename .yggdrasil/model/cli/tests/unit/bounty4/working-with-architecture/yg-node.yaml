@@ -1,0 +1,7 @@
+name: bounty4 working-with-architecture
+type: test-suite
+description: "Bug-bounty suites: working-with-architecture (~34107 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty4/working-with-architecture.test.ts

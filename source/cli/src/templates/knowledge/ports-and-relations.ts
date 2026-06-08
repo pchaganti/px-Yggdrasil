@@ -53,8 +53,10 @@ ports:                                  # map keyed by port name (NOT a list)
 \`\`\`
 
 Every aspect id listed in a port's \`aspects\` must be defined under
-\`aspects/\`; a missing one emits a blocking error (code
-\`port-missing-aspect\`).
+\`aspects/\`. An undefined id is caught unconditionally by the
+reference-integrity check (code \`aspect-undefined\`); when the port is
+actually consumed, the missing aspect additionally surfaces as
+\`port-missing-aspect\`.
 
 A consumer references the port via the relation's \`consumes\`. In
 \`yg-node.yaml\`, \`relations:\` is a flat list and each entry carries its own
@@ -99,12 +101,11 @@ a blocking error on the missing port contract, surfacing the gap.
 
 If a target node declares ports and the consumer's relation does NOT
 declare \`consumes\`, \`yg check\` emits a blocking error (code
-\`port-missing-consumes\`) that fails the architecture gate:
-
-\`\`\`
-Missing port contract: <consumer> → <target> has ports [<list>],
-consumer must declare consumes: [<port-name>].
-\`\`\`
+\`port-missing-consumes\`) that fails the architecture gate. Like every
+diagnostic, it is rendered in the what/why/next form: it names the
+relation, explains that the target's port-required aspects won't be
+verified without a \`consumes\` declaration, and tells you to add
+\`consumes: [<port-names>]\` to the relation.
 
 There is no "accept the gap" mechanism. Resolve it one of two ways:
 declare which port(s) you consume on the relation, or remove the ports

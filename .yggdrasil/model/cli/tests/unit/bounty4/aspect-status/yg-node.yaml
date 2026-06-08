@@ -1,0 +1,7 @@
+name: bounty4 aspect-status
+type: test-suite
+description: "Bug-bounty suites: aspect-status (~34658 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty4/aspect-status.test.ts

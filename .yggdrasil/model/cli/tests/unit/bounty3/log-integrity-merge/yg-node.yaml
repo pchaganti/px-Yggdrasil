@@ -1,0 +1,7 @@
+name: bounty3 log-integrity-merge
+type: test-suite
+description: "Bug-bounty suites: log-integrity-merge (~23106 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty3/log-integrity-merge.test.ts

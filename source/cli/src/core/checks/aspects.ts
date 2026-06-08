@@ -334,6 +334,27 @@ export function checkWhenReferences(graph: Graph): ValidationIssue[] {
             }),
           });
         }
+      } else if (match.consumes_port !== undefined) {
+        // Bare consumes_port (no target) — the documented primary idiom. The spec
+        // promises an unknown consumes_port raises when-unknown-port UNCONDITIONALLY,
+        // so validate the port name is declared on SOME node; a name no node defines
+        // can never match (otherwise a typo is a silent false-negative).
+        const port = match.consumes_port;
+        const known = [...graph.nodes.values()].some(
+          (n) => n.meta.ports !== undefined && port in n.meta.ports,
+        );
+        if (!known) {
+          issues.push({
+            severity: 'error',
+            code: 'when-unknown-port',
+            rule: 'when-unknown-port',
+            ...issueMsg({
+              what: `Port '${port}' in when at ${ctx}/${relType}.consumes_port is not declared on any node.`,
+              why: 'The predicate references a port that no node defines, so it can never match.',
+              next: `Fix the port name, or declare it under ports: on the node(s) this relation targets.`,
+            }),
+          });
+        }
       }
     }
   };

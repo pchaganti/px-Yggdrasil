@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "e9805ba94fdcc564ea30cb8b431e119e4701f172748654249173c4d006a00954",
+  "hash": "e0e988193b07dedf6ac92fabe58c36ee331322057a9bb4adf2871b64a21f9cdb",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
@@ -11,7 +11,7 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
     ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
     ".yggdrasil/aspects/single-source-graph-queries/check.mjs": "f78f8fd52ed16c74eec53aff5b33b39bc9acb5b93caa89bf09a4ca43fceadeed",
-    "source/cli/src/core/check-codes.ts": "11b811e18627dc9a96af636b50a0552aefc9baffc2579e2d1f546546b47afb41"
+    "source/cli/src/core/check-codes.ts": "1e4dabd869d8ad9a9ed648808cfdfd57a049cbe54dccb39bd8dbab9b5f90b066"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -23,7 +23,7 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780488505036.1836,
     ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780933853473.8323,
     ".yggdrasil/aspects/single-source-graph-queries/check.mjs": 1780488505036.8464,
-    "source/cli/src/core/check-codes.ts": 1780488505056.437
+    "source/cli/src/core/check-codes.ts": 1780945883764.5688
   },
   "identity": {
     "ownSubset": "a49cf2924407eddb6b82dd268c3457d7fbb94d39effce9299bdb403a98ab4aad",
@@ -36,37 +36,37 @@
       "no-nondeterminism-direct": {
         "meta": "6e2986f1175fc284d63accb9209518c0d99994114f1ad9d30f91df11498a75ca",
         "checkTouched": {
-          "source/cli/src/core/check-codes.ts": "11b811e18627dc9a96af636b50a0552aefc9baffc2579e2d1f546546b47afb41"
+          "source/cli/src/core/check-codes.ts": "1e4dabd869d8ad9a9ed648808cfdfd57a049cbe54dccb39bd8dbab9b5f90b066"
         }
       },
       "no-direct-fs": {
         "meta": "85008a60917fc599d6fbfcfb2af8e0d4e563f4eaeff9c8da8a5722aef696b948",
         "checkTouched": {
-          "source/cli/src/core/check-codes.ts": "11b811e18627dc9a96af636b50a0552aefc9baffc2579e2d1f546546b47afb41"
+          "source/cli/src/core/check-codes.ts": "1e4dabd869d8ad9a9ed648808cfdfd57a049cbe54dccb39bd8dbab9b5f90b066"
         }
       },
       "no-direct-console": {
         "meta": "84cef429198884b3dcc2076061e164d50d97b011724d2f357350ede01f4fa975",
         "checkTouched": {
-          "source/cli/src/core/check-codes.ts": "11b811e18627dc9a96af636b50a0552aefc9baffc2579e2d1f546546b47afb41"
+          "source/cli/src/core/check-codes.ts": "1e4dabd869d8ad9a9ed648808cfdfd57a049cbe54dccb39bd8dbab9b5f90b066"
         }
       },
       "posix-paths-source": {
         "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
         "checkTouched": {
-          "source/cli/src/core/check-codes.ts": "11b811e18627dc9a96af636b50a0552aefc9baffc2579e2d1f546546b47afb41"
+          "source/cli/src/core/check-codes.ts": "1e4dabd869d8ad9a9ed648808cfdfd57a049cbe54dccb39bd8dbab9b5f90b066"
         }
       },
       "no-direct-minimatch": {
         "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
         "checkTouched": {
-          "source/cli/src/core/check-codes.ts": "11b811e18627dc9a96af636b50a0552aefc9baffc2579e2d1f546546b47afb41"
+          "source/cli/src/core/check-codes.ts": "1e4dabd869d8ad9a9ed648808cfdfd57a049cbe54dccb39bd8dbab9b5f90b066"
         }
       },
       "single-source-graph-queries": {
         "meta": "b1dd772529ca4799de41809e1e615c58ab58fba6b861920dd646786ff43ad9c2",
         "checkTouched": {
-          "source/cli/src/core/check-codes.ts": "11b811e18627dc9a96af636b50a0552aefc9baffc2579e2d1f546546b47afb41"
+          "source/cli/src/core/check-codes.ts": "1e4dabd869d8ad9a9ed648808cfdfd57a049cbe54dccb39bd8dbab9b5f90b066"
         }
       }
     }
@@ -87,15 +87,15 @@
     "posix-paths-source": {
       "verdict": "approved"
     },
-    "single-source-graph-queries": {
+    "no-direct-minimatch": {
       "verdict": "approved"
     },
-    "no-direct-minimatch": {
+    "single-source-graph-queries": {
       "verdict": "approved"
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-03T08:20:15.797Z",
-    "prefix_hash": "6d393556da6b368091b88b991be0464b47270b32a8cf26547cb1fcc00560b852"
+    "last_entry_datetime": "2026-06-08T19:22:27.597Z",
+    "prefix_hash": "4c6bf74f14af44486d33cac0f5319f285a1a11df1642da4379c7a3603474e8d4"
   }
 }

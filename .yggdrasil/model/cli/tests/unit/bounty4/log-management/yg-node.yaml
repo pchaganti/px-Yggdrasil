@@ -1,0 +1,7 @@
+name: bounty4 log-management
+type: test-suite
+description: "Bug-bounty suites: log-management (~30493 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty4/log-management.test.ts

@@ -91,6 +91,19 @@ function parseMaxNodeChars(raw: unknown, filename: string): number {
   return raw;
 }
 
+/** Validate the optional quality.max_direct_relations (positive integer, like max_node_chars). */
+function parseMaxDirectRelations(raw: unknown, filename: string): number {
+  if (raw === undefined) return DEFAULT_QUALITY.max_direct_relations ?? 10;
+  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw <= 0) {
+    throw new ConfigParseError({
+      what: `${filename}: quality.max_direct_relations must be a positive integer (got ${JSON.stringify(raw)}).`,
+      why: 'It is the per-node relation-count budget; a zero, negative, or fractional value makes the threshold nonsensical.',
+      next: 'Set quality.max_direct_relations to a positive integer (default 10), or remove it to use the default.',
+    }, 'config-invalid');
+  }
+  return raw;
+}
+
 const PROVIDER_DEFAULTS: Record<string, Partial<LlmConfig>> = {
   'claude-code': { model: 'haiku' },
   'codex': { model: 'o4-mini' },
@@ -123,10 +136,7 @@ export async function parseConfig(filePath: string): Promise<YggConfig> {
   const qualityMap = qualityRaw as Record<string, unknown> | undefined;
   const quality: QualityConfig = qualityMap
     ? {
-        max_direct_relations:
-          typeof qualityMap.max_direct_relations === 'number'
-            ? qualityMap.max_direct_relations
-            : DEFAULT_QUALITY.max_direct_relations,
+        max_direct_relations: parseMaxDirectRelations(qualityMap.max_direct_relations, filename),
         max_node_chars: parseMaxNodeChars(qualityMap.max_node_chars, filename),
       }
     : DEFAULT_QUALITY;
@@ -322,6 +332,18 @@ function parseTier(name: string, raw: unknown, filename: string): LlmConfig {
       why: 'every tier requires a model id',
       next: 'add `model: <model-name>` under config:',
     }, 'config-tier-config-missing');
+  }
+
+  // `openai-compatible` has NO safe default host — OpenAIProvider falls back to
+  // the PUBLIC OpenAI API (https://api.openai.com/v1) when no endpoint is given,
+  // silently routing a "compatible" tier to OpenAI. Require an explicit endpoint.
+  // (`ollama` is exempt: it safely defaults to http://localhost:11434.)
+  if (t.provider === 'openai-compatible' && (typeof c.endpoint !== 'string' || !c.endpoint.trim())) {
+    throw new ConfigParseError({
+      what: `${filename}: tier '${name}' (provider 'openai-compatible') is missing config.endpoint`,
+      why: `'openai-compatible' has no default host — without an explicit endpoint it silently falls back to the public OpenAI API (api.openai.com).`,
+      next: 'add `endpoint: <url>` under config: pointing at your compatible server.',
+    }, 'config-tier-endpoint-missing');
   }
 
   // Unknown-key check AFTER structural checks

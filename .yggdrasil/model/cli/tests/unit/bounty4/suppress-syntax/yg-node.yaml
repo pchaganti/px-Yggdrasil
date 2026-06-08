@@ -1,0 +1,7 @@
+name: bounty4 suppress-syntax
+type: test-suite
+description: "Bug-bounty suites: suppress-syntax (~26873 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty4/suppress-syntax.test.ts

@@ -25,7 +25,7 @@ reviewer:
       config:
         model: qwen3              # Model identifier for this provider
         temperature: 0            # Sampling temperature (0 = deterministic)
-        endpoint: http://localhost:11434   # Required for ollama and openai-compatible
+        endpoint: http://localhost:11434   # Required for openai-compatible (no default host); ollama defaults to localhost:11434
       # references:                         # optional caps on aspect reference files
       #   max_bytes_per_file: 65536         # default: 64 KiB per reference file
       #   max_total_bytes_per_aspect: 262144  # default: 256 KiB total per aspect
@@ -104,7 +104,7 @@ Provider-specific options passed to the LLM client:
 |---|---|---|
 | \`model\` | string | Required. Provider-specific model identifier. |
 | \`temperature\` | number | Defaults to 0. Higher = more varied responses. |
-| \`endpoint\` | string | Required for \`ollama\` and \`openai-compatible\`. |
+| \`endpoint\` | string | Required for \`openai-compatible\` (no default host — else falls back to api.openai.com); \`ollama\` defaults to http://localhost:11434. |
 | \`timeout\` | number | Timeout in seconds. Default 300. Applies to CLI providers only — non-CLI/API providers ignore it. |
 
 API keys do NOT live here — they belong in \`yg-secrets.yaml\` (api_key only).

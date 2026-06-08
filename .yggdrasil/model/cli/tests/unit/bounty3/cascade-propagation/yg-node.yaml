@@ -1,0 +1,7 @@
+name: bounty3 cascade-propagation
+type: test-suite
+description: "Bug-bounty suites: cascade-propagation (~28445 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty3/cascade-propagation.test.ts

@@ -1,0 +1,7 @@
+name: bounty4 flows
+type: test-suite
+description: "Bug-bounty suites: flows (~27223 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty4/flows.test.ts

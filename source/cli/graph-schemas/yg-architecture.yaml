@@ -10,7 +10,7 @@
 node_types:
   <type-id>:
     description: <string>                    # required — what this type is for, when to use it.
-                                             # Validator emits description-missing if absent.
+                                             # absence is a FATAL architecture-invalid error (the whole type system is rejected).
 
     when: <file-predicate>                   # optional — per-file classification.
                                              # Types WITH `when` are file-classifying: every file in

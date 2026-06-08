@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "89fa197bdad77f7d46704d9b8db0ef8f639684a264ee2b6af43646ede1bf1684",
+  "hash": "74a76e05145a9dcc4d62d09790cd4929de4dae98925bf7e5d25097c559cbf23e",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
@@ -8,9 +8,9 @@
     "source/cli/src/templates/knowledge/cli-reference.ts": "a7167d6100f996f584eff24dc78d9f2908c40fb7bd10295bb222e39868e6e420",
     "source/cli/src/templates/knowledge/flows.ts": "f9b9dca4ce6e2047a69a868bcfcfc973867b8082efeaf82255338949ae049118",
     "source/cli/src/templates/knowledge/log-management.ts": "05067a9505d06e32ed646dad3ac26413470d0e974ac88992b261af8f01f153ae",
-    "source/cli/src/templates/knowledge/ports-and-relations.ts": "a24991f058c9b913b30cf096e4f94b621274bfeaf3aa2c7c6f34760e7727b0c0",
     "source/cli/src/templates/knowledge/suppress-syntax.ts": "0a3d109d29d5344e731c2967712d1e246a8dc030a4f98ad05867cb5f48e7f14c",
-    "source/cli/src/templates/knowledge/working-with-architecture.ts": "8eee580963489ce2e322e644a427590b3e358d1e828cf452756f9b681d521880"
+    "source/cli/src/templates/knowledge/working-with-architecture.ts": "8eee580963489ce2e322e644a427590b3e358d1e828cf452756f9b681d521880",
+    "source/cli/src/templates/knowledge/ports-and-relations.ts": "b2be9788ff75ee69282b7582df1e6c24657ff786dfd21dee91e0484d3799c00b"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -19,7 +19,7 @@
     "source/cli/src/templates/knowledge/cli-reference.ts": 1780929940081.1,
     "source/cli/src/templates/knowledge/flows.ts": 1780129908102.6953,
     "source/cli/src/templates/knowledge/log-management.ts": 1780240388129.235,
-    "source/cli/src/templates/knowledge/ports-and-relations.ts": 1780181685657.476,
+    "source/cli/src/templates/knowledge/ports-and-relations.ts": 1780946066284.8364,
     "source/cli/src/templates/knowledge/suppress-syntax.ts": 1780129916679.6438,
     "source/cli/src/templates/knowledge/working-with-architecture.ts": 1780932356010.357
   },
@@ -34,7 +34,7 @@
           "source/cli/src/templates/knowledge/cli-reference.ts": "a7167d6100f996f584eff24dc78d9f2908c40fb7bd10295bb222e39868e6e420",
           "source/cli/src/templates/knowledge/flows.ts": "f9b9dca4ce6e2047a69a868bcfcfc973867b8082efeaf82255338949ae049118",
           "source/cli/src/templates/knowledge/log-management.ts": "05067a9505d06e32ed646dad3ac26413470d0e974ac88992b261af8f01f153ae",
-          "source/cli/src/templates/knowledge/ports-and-relations.ts": "a24991f058c9b913b30cf096e4f94b621274bfeaf3aa2c7c6f34760e7727b0c0",
+          "source/cli/src/templates/knowledge/ports-and-relations.ts": "b2be9788ff75ee69282b7582df1e6c24657ff786dfd21dee91e0484d3799c00b",
           "source/cli/src/templates/knowledge/suppress-syntax.ts": "0a3d109d29d5344e731c2967712d1e246a8dc030a4f98ad05867cb5f48e7f14c",
           "source/cli/src/templates/knowledge/working-with-architecture.ts": "8eee580963489ce2e322e644a427590b3e358d1e828cf452756f9b681d521880"
         }

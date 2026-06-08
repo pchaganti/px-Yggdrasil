@@ -1,0 +1,7 @@
+name: bounty3 approve-modes-batch
+type: test-suite
+description: "Bug-bounty suites: approve-modes-batch (~33931 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty3/approve-modes-batch.test.ts

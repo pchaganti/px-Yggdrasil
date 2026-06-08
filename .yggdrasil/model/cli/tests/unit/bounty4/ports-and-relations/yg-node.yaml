@@ -1,0 +1,7 @@
+name: bounty4 ports-and-relations
+type: test-suite
+description: "Bug-bounty suites: ports-and-relations (~30425 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty4/ports-and-relations.test.ts

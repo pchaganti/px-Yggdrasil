@@ -1,0 +1,7 @@
+name: bounty4 writing-deterministic-aspects
+type: test-suite
+description: "Bug-bounty suites: writing-deterministic-aspects (~37443 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty4/writing-deterministic-aspects.test.ts

@@ -36,6 +36,13 @@ export const STRUCTURAL_CODES = new Set<string>([
   'when-unknown-type',
   'when-unknown-node',
   'when-unknown-port',
+  // Port-contract codes — blocking architecture-gate errors (documented in the
+  // ports-and-relations knowledge topic); belong in the single-source structural set.
+  'port-missing-consumes',
+  'port-undefined',
+  'port-missing-aspect',
+  'consumes-without-ports',
+  'relation-target-forbidden',
   'aspect-unexpected-rule-source',
   'aspect-missing-rule-source',
   'aspect-empty',

@@ -1,0 +1,7 @@
+name: bounty4 schema-arch-flow-config
+type: test-suite
+description: "Bug-bounty suites: schema-arch-flow-config (~24961 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty4/schema-arch-flow-config.test.ts

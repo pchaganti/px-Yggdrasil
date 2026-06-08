@@ -158,6 +158,15 @@ function parseRelations(raw: unknown, filePath: string): Relation[] {
         );
       }
       rel.consumes = consumesArr as string[];
+    } else if (obj.consumes !== undefined) {
+      // A scalar / non-array consumes was silently ignored, so a consumed port's
+      // aspects would not be enforced (channel 6 quietly disabled). Reject loudly,
+      // mirroring the non-string-entry guard above.
+      throw new Error(
+        `yg-node.yaml at ${filePath}: relations[${index}].consumes must be an array of string port names (got ${Array.isArray(obj.consumes) ? 'array' : typeof obj.consumes}). ` +
+          `A scalar value is silently ignored, so the consumed port's required aspects would not be enforced. ` +
+          `Use consumes: [<port-name>].`,
+      );
     }
     if (typeof obj.event_name === 'string' && obj.event_name.trim()) {
       rel.event_name = obj.event_name.trim();
