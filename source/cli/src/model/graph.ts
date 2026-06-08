@@ -28,6 +28,13 @@ export interface ReviewerConfig {
 // Config
 // ============================================================
 
+export interface CoverageConfig {
+  /** Roots (POSIX, from repo root; "/" = whole repo) where an uncovered file is an error. */
+  required: string[];
+  /** Roots where an uncovered file is silent (no issue). */
+  excluded: string[];
+}
+
 export interface YggConfig {
   version?: string;
   quality?: QualityConfig;
@@ -37,6 +44,8 @@ export interface YggConfig {
   reviewer?: ReviewerConfig;
   parallel?: number;
   debug?: boolean;
+  /** Coverage scope. Absent ⇒ DEFAULT_COVERAGE (whole repo required = today's behavior). */
+  coverage?: CoverageConfig;
 }
 
 // ============================================================

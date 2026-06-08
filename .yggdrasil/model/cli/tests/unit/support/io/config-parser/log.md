@@ -1,2 +1,4 @@
 ## [2026-05-31T21:54:30.854Z]
 Removed the 'v4 to legacy errors' describe block and three legacy/mixed code cases from config-parser.test.ts. These tests asserted codes (config-reviewer-legacy-format, config-reviewer-mixed-format) that the parser no longer emits after legacy detection was relocated to migration-only. The remaining tests cover the current 5.0 format validation paths.
+## [2026-06-08T07:21:56.412Z]
+Added three unit tests for the new optional coverage config block: one verifying the default (whole-repo required) when coverage is absent, one verifying correct parsing of required and excluded root lists, and one verifying that a non-array value for coverage.required throws a ConfigParseError. Each test creates and removes its own isolated temporary directory to remain deterministic across runs.

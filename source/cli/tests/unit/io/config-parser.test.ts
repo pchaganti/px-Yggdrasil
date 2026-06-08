@@ -513,6 +513,35 @@ reviewer:
     });
   });
 
+  it('defaults coverage to whole-repo required when absent', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-config-cov-default');
+    await mkdir(tmpDir, { recursive: true });
+    const p = path.join(tmpDir, 'yg-config.yaml');
+    await writeFile(p, 'version: "5.0.0"\n', 'utf-8');
+    const config = await parseConfig(p);
+    expect(config.coverage).toEqual({ required: ['/'], excluded: [] });
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('parses coverage.required and coverage.excluded', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-config-cov-lists');
+    await mkdir(tmpDir, { recursive: true });
+    const p = path.join(tmpDir, 'yg-config.yaml');
+    await writeFile(p, 'version: "5.0.0"\ncoverage:\n  required:\n    - services/\n  excluded:\n    - vendor/\n', 'utf-8');
+    const config = await parseConfig(p);
+    expect(config.coverage).toEqual({ required: ['services/'], excluded: ['vendor/'] });
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('throws when coverage.required is not an array of strings', async () => {
+    const tmpDir = path.join(__dirname, '../../fixtures/tmp-config-cov-bad');
+    await mkdir(tmpDir, { recursive: true });
+    const p = path.join(tmpDir, 'yg-config.yaml');
+    await writeFile(p, 'version: "5.0.0"\ncoverage:\n  required: services\n', 'utf-8');
+    await expect(parseConfig(p)).rejects.toThrow(ConfigParseError);
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
   describe('timeout seconds→ms conversion', () => {
     async function parseWithYaml(yaml: string): Promise<YggConfig> {
       const dir = await mkdtemp(path.join(tmpdir(), 'yg-timeout-'));

@@ -6,6 +6,7 @@ import type {
   QualityConfig,
   LlmConfig,
   ReviewerConfig,
+  CoverageConfig,
 } from '../model/graph.js';
 import type { IssueMessage } from '../model/validation.js';
 import { KNOWN_PROVIDERS } from '../utils/known-providers.js';
@@ -22,6 +23,36 @@ const DEFAULT_QUALITY: QualityConfig = {
   max_direct_relations: 10,
   max_node_chars: 40000,
 };
+
+const DEFAULT_COVERAGE: CoverageConfig = { required: ['/'], excluded: [] };
+
+function parseStringArray(raw: unknown, field: string, filename: string): string[] {
+  if (raw === undefined) return [];
+  if (!Array.isArray(raw) || raw.some((x) => typeof x !== 'string')) {
+    throw new ConfigParseError({
+      what: `${filename}: ${field} must be a list of strings (got ${JSON.stringify(raw)}).`,
+      why: 'Coverage roots are repo-relative path prefixes; a non-list value cannot be matched against files.',
+      next: `Set ${field} to a YAML list, e.g.\n  ${field.split('.').pop()}:\n    - services/`,
+    }, 'config-invalid');
+  }
+  return raw as string[];
+}
+
+function parseCoverage(raw: unknown, filename: string): CoverageConfig {
+  if (raw === undefined) return DEFAULT_COVERAGE;
+  if (typeof raw !== 'object' || Array.isArray(raw) || raw === null) {
+    throw new ConfigParseError({
+      what: `${filename}: coverage must be a mapping`,
+      why: 'coverage holds the required/excluded root lists',
+      next: 'replace with `coverage: { required: ["/"], excluded: [] }`',
+    }, 'config-invalid');
+  }
+  const cov = raw as Record<string, unknown>;
+  return {
+    required: cov.required === undefined ? ['/'] : parseStringArray(cov.required, 'coverage.required', filename),
+    excluded: parseStringArray(cov.excluded, 'coverage.excluded', filename),
+  };
+}
 
 /**
  * Validate the optional quality.max_node_chars (the per-node character budget).
@@ -126,6 +157,7 @@ export async function parseConfig(filePath: string): Promise<YggConfig> {
     reviewer,
     parallel,
     debug,
+    coverage: parseCoverage(raw.coverage, filename),
   };
 }
 

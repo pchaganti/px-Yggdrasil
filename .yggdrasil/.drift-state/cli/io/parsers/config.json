@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "89f5e450723a202cc4d9a2fd7b54065b90e83dc55d06d00fecbed47f2f2b171a",
+  "hash": "abd921a26d5292b46412bf7ae67cb34513667d638b8fb1c91ee68c73d89626c1",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
@@ -14,7 +14,7 @@
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
     ".yggdrasil/aspects/read-or-default-via-helper/check.mjs": "0a1f55908a341a54f6e218723bcc1eb3029ca19457b99be8fc4edfcc92d34d8f",
     ".yggdrasil/aspects/parser-yaml-guard/check.mjs": "704459261e8442a1f875e11465602691085160022083d856b7f4ce75d0184be6",
-    "source/cli/src/io/config-parser.ts": "ba8b5ec0c13b31f23ff932dc332464d1d3534ef2bf2f22143e8579cb2f8e7825"
+    "source/cli/src/io/config-parser.ts": "4d67a1d3db7f8093723070603abc7639d252a3c9f8a6b0061c32c764879ccd94"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -22,12 +22,12 @@
     ".yggdrasil/model/cli/io/parsers/yg-node.yaml": 1779954099808.295,
     ".yggdrasil/aspects/parser-contract/content.md": 1779869468768.71,
     ".yggdrasil/aspects/silent-missing-files/content.md": 1776494731302.076,
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780410812801.22,
-    ".yggdrasil/aspects/read-or-default-via-helper/check.mjs": 1780410856795.1453,
-    ".yggdrasil/aspects/parser-yaml-guard/check.mjs": 1780410817776.9124,
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780488505036.1836,
+    ".yggdrasil/aspects/read-or-default-via-helper/check.mjs": 1780488505036.627,
+    ".yggdrasil/aspects/parser-yaml-guard/check.mjs": 1780488505035.959,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    "source/cli/src/io/config-parser.ts": 1780406484831.3032,
+    "source/cli/src/io/config-parser.ts": 1780903271317.394,
     "source/cli/src/io/secrets-parser.ts": 1780070396954.3076,
     "source/cli/src/io/schema-parser.ts": 1778867887343.4338
   },
@@ -46,7 +46,7 @@
       "posix-paths-source": {
         "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
         "checkTouched": {
-          "source/cli/src/io/config-parser.ts": "ba8b5ec0c13b31f23ff932dc332464d1d3534ef2bf2f22143e8579cb2f8e7825",
+          "source/cli/src/io/config-parser.ts": "4d67a1d3db7f8093723070603abc7639d252a3c9f8a6b0061c32c764879ccd94",
           "source/cli/src/io/secrets-parser.ts": "2e3b4fd24443e2c1bf7c7148dd47f871108c38f491b69fa8e5a75fd06755b397",
           "source/cli/src/io/schema-parser.ts": "a1563e6d7eaaf4c17f1e8b7f5e680dfdde78647bee243339a29eca9d702d9470"
         }
@@ -54,7 +54,7 @@
       "read-or-default-via-helper": {
         "meta": "e35435ede6ebbe015c8a0de76081e6c72acbcc193efd5c066beeea8541b99811",
         "checkTouched": {
-          "source/cli/src/io/config-parser.ts": "ba8b5ec0c13b31f23ff932dc332464d1d3534ef2bf2f22143e8579cb2f8e7825",
+          "source/cli/src/io/config-parser.ts": "4d67a1d3db7f8093723070603abc7639d252a3c9f8a6b0061c32c764879ccd94",
           "source/cli/src/io/secrets-parser.ts": "2e3b4fd24443e2c1bf7c7148dd47f871108c38f491b69fa8e5a75fd06755b397",
           "source/cli/src/io/schema-parser.ts": "a1563e6d7eaaf4c17f1e8b7f5e680dfdde78647bee243339a29eca9d702d9470"
         }
@@ -62,7 +62,7 @@
       "parser-yaml-guard": {
         "meta": "7c266c1c65ce5fa8a871c5411f0c911921b911111f874ebcf2ba8145542926cb",
         "checkTouched": {
-          "source/cli/src/io/config-parser.ts": "ba8b5ec0c13b31f23ff932dc332464d1d3534ef2bf2f22143e8579cb2f8e7825",
+          "source/cli/src/io/config-parser.ts": "4d67a1d3db7f8093723070603abc7639d252a3c9f8a6b0061c32c764879ccd94",
           "source/cli/src/io/secrets-parser.ts": "2e3b4fd24443e2c1bf7c7148dd47f871108c38f491b69fa8e5a75fd06755b397",
           "source/cli/src/io/schema-parser.ts": "a1563e6d7eaaf4c17f1e8b7f5e680dfdde78647bee243339a29eca9d702d9470"
         }
@@ -87,7 +87,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-03T07:05:22.228Z",
-    "prefix_hash": "6b1c2a41abab554b1ef8564f92d9dc71076c7a948c6a60d130d5dcdd09a0d16a"
+    "last_entry_datetime": "2026-06-08T07:21:51.399Z",
+    "prefix_hash": "c50fa650eeee85dd088afeebcf369389091b0316302053f9da4c75f48af82a7d"
   }
 }
