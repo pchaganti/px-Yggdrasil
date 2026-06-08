@@ -169,7 +169,19 @@ async function evaluateAtomic(
         },
       };
     }
-    const regex = new RegExp(predicate.content);
+    let regex: RegExp;
+    try {
+      regex = new RegExp(predicate.content);
+    } catch {
+      // Defense-in-depth: a malformed content regex is rejected by the parser
+      // (when-predicate-invalid) before evaluation, so this is normally
+      // unreachable. If a caller bypasses the parser, fail closed (no match)
+      // rather than throwing an uncaught SyntaxError into validation.
+      return {
+        result: false,
+        trace: { kind: 'atom-content', pattern: predicate.content, result: false, detail: 'invalid content regex' },
+      };
+    }
     const { match: matches } = safeRegexTest(regex, fileContent.content!);
     return {
       result: matches,

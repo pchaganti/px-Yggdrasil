@@ -1,0 +1,7 @@
+name: Bounty eff-implies
+type: test-suite
+description: "Bug-bounty branch-coverage suites: eff-implies (~26981 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty/eff-implies.test.ts

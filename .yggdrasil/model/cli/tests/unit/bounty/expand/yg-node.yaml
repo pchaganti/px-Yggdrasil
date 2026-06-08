@@ -1,0 +1,7 @@
+name: Bounty expand
+type: test-suite
+description: "Bug-bounty branch-coverage suites: expand (~20400 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty2/expand.test.ts

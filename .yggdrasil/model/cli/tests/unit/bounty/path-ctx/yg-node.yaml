@@ -1,0 +1,7 @@
+name: Bounty path-ctx
+type: test-suite
+description: "Bug-bounty branch-coverage suites: path-ctx (~26320 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty/path-ctx.test.ts

@@ -1,0 +1,7 @@
+name: Bounty matcher
+type: test-suite
+description: "Bug-bounty branch-coverage suites: matcher (~20826 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty2/matcher.test.ts

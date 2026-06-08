@@ -8,14 +8,14 @@ describe('isGlobPattern', () => {
   it('returns true for ** wildcard', () => {
     expect(isGlobPattern('src/**/*.ts')).toBe(true);
   });
-  it('returns true for ? wildcard', () => {
-    expect(isGlobPattern('src/a?.ts')).toBe(true);
+  it('returns false for ? (not a glob — only * triggers glob)', () => {
+    expect(isGlobPattern('src/a?.ts')).toBe(false);
   });
-  it('returns true for bracket pattern', () => {
-    expect(isGlobPattern('src/[abc].ts')).toBe(true);
+  it('returns false for a bracket name (literal, e.g. Next.js route)', () => {
+    expect(isGlobPattern('app/[id]/page.tsx')).toBe(false);
   });
-  it('returns true for brace pattern', () => {
-    expect(isGlobPattern('src/{a,b}.ts')).toBe(true);
+  it('returns false for a brace name (literal)', () => {
+    expect(isGlobPattern('src/{a,b}.ts')).toBe(false);
   });
   it('returns false for plain file path', () => {
     expect(isGlobPattern('src/index.ts')).toBe(false);
@@ -92,5 +92,14 @@ describe('mappingEntryMatchesFile — plain entries (backward compat)', () => {
 
   it('normalizes leading ./ in file', () => {
     expect(mappingEntryMatchesFile('src/index.ts', './src/index.ts')).toBe(true);
+  });
+
+  it('a bracket filename matches literally (not as a glob char class)', () => {
+    // Next.js / SvelteKit dynamic route: the brackets are part of the real name.
+    expect(mappingEntryMatchesFile('app/[id]/page.tsx', 'app/[id]/page.tsx')).toBe(true);
+    // and a directory with a bracket segment covers its children
+    expect(mappingEntryMatchesFile('app/[id]', 'app/[id]/page.tsx')).toBe(true);
+    // it must NOT behave like a char class (would have matched 'app/i/page.tsx')
+    expect(mappingEntryMatchesFile('app/[id]/page.tsx', 'app/i/page.tsx')).toBe(false);
   });
 });

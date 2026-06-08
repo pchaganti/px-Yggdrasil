@@ -1,0 +1,7 @@
+name: Bounty owner
+type: test-suite
+description: "Bug-bounty branch-coverage suites: owner (~26245 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty2/owner.test.ts

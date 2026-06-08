@@ -5,6 +5,9 @@ import { FileContentCache } from '../../io/file-content-cache.js';
 import { evaluateFileWhen } from '../file-when-evaluator.js';
 import { renderTrace } from '../../formatters/predicate-trace.js';
 import { issueMsg } from './shared.js';
+import { expandMappingPaths } from '../../io/hash.js';
+import { isGlobPattern } from '../../utils/mapping-path.js';
+import { toPosixPath } from '../../utils/posix.js';
 
 export function checkTypeUnknownParent(graph: Graph): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
@@ -167,8 +170,24 @@ export async function checkTypeWhenMismatch(
   for (const [nodePath, node] of graph.nodes) {
     const typeDef = graph.architecture.node_types[node.meta.type];
     if (typeDef === undefined || typeDef.when === undefined) continue;
+    // A glob mapping entry is satisfied by the FILES it matches, not by the
+    // literal pattern string — expand globs to their matched files before the
+    // when-check (a glob matching nothing yields no files here; the empty match
+    // is reported by checkMappingPathsExist). Non-glob entries (exact file or
+    // directory) are checked as-is, exactly as before.
     const mapping = node.meta.mapping ?? [];
-    for (const relPath of mapping) {
+    const pathsToCheck: string[] = [];
+    for (const entry of mapping) {
+      if (isGlobPattern(entry)) {
+        // expandMappingPaths returns filesystem-derived paths; normalize to
+        // POSIX at this boundary so every relPath written into a diagnostic
+        // below is provably forward-slash with no trailing slash.
+        pathsToCheck.push(...(await expandMappingPaths(projectRoot, [entry])).map(toPosixPath));
+      } else {
+        pathsToCheck.push(entry);
+      }
+    }
+    for (const relPath of pathsToCheck) {
       const absPath = path.join(projectRoot, relPath);
       const result = await evaluateFileWhen(typeDef.when, {
         absPath,

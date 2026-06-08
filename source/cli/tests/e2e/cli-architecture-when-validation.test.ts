@@ -848,5 +848,80 @@ describe.skipIf(!distExists)(
         rmSync(dir, { recursive: true, force: true });
       }
     });
+
+    // -----------------------------------------------------------------------
+    // Finding H — type-when classification must evaluate the FILES a glob
+    // mapping matches, not the literal glob string. orders owns its .ts file
+    // via an extension-less glob; the file satisfies the .ts when, but the
+    // literal pattern string does not — so the validator must NOT false-error.
+    // -----------------------------------------------------------------------
+
+    it('H: a glob mapping whose matched files satisfy when does NOT raise type-when-mismatch', () => {
+      const dir = copyFixture('glob-when');
+      try {
+        // Tighten the service when to require a .ts extension.
+        replaceServiceWhen(dir, '    when:\n      path: "src/services/**/*.ts"');
+        // orders owns its .ts file via an extension-less GLOB.
+        const y = readFileSync(ordersNodePath(dir), 'utf-8').replace(
+          'src/services/orders.ts',
+          'src/services/order*',
+        );
+        writeFileSync(ordersNodePath(dir), y, 'utf-8');
+
+        const { stdout } = run(['check'], dir);
+        // The matched file (orders.ts) satisfies the .ts when, so no mismatch.
+        expect(stdout).not.toContain('type-when-mismatch');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // Finding I — source-existence (drift) must expand a glob mapping. A node
+    // mapped only by a glob whose files exist must NOT report "source files
+    // never created" (the literal pattern string never exists on disk).
+    // -----------------------------------------------------------------------
+
+    it('I: a glob-only node whose files exist does NOT report "never created"', () => {
+      const dir = copyFixture('glob-source');
+      try {
+        // orders owns its existing .ts file via a glob (default when keeps matching).
+        const y = readFileSync(ordersNodePath(dir), 'utf-8').replace(
+          'src/services/orders.ts',
+          'src/services/order*.ts',
+        );
+        writeFileSync(ordersNodePath(dir), y, 'utf-8');
+
+        const { stdout } = run(['check'], dir);
+        expect(stdout).not.toContain('never created');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // Finding D — one file = one node, including globs. Two non-hierarchical
+    // sibling nodes claim the same file (one via a glob), which the literal
+    // string overlap check misses. The file-level check must flag it.
+    // -----------------------------------------------------------------------
+
+    it('D: two sibling nodes claiming the same file via a glob raise overlapping-mapping', () => {
+      const dir = copyFixture('glob-overlap');
+      try {
+        // orders globs ALL service .ts files — which includes payments.ts, already
+        // owned (exactly) by the sibling payments node. payments.ts now has two
+        // non-hierarchical owners.
+        const y = readFileSync(ordersNodePath(dir), 'utf-8').replace(
+          'src/services/orders.ts',
+          'src/services/*.ts',
+        );
+        writeFileSync(ordersNodePath(dir), y, 'utf-8');
+
+        const { all } = run(['check'], dir);
+        expect(all).toContain('overlapping-mapping');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
   },
 );

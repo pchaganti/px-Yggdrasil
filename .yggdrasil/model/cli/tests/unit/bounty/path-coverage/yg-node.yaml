@@ -1,0 +1,7 @@
+name: Bounty path-coverage
+type: test-suite
+description: "Bug-bounty branch-coverage suites: path-coverage (~26569 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty/path-coverage.test.ts

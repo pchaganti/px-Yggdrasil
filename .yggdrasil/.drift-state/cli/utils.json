@@ -1,12 +1,13 @@
 {
   "schemaVersion": 1,
-  "hash": "4098bab9d7b5ef98418a7e1e0892901c9456e69f467c6942d22ea37823e54ef6",
+  "hash": "4fcf5d23d33dc2b2d43232029e54c9f9196eb8b888b796dd533c286a3e318576",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/posix-paths-output/content.md": "2659859dc13a8efe32e098b0c220d24c9ecddff26b42a4f22e3135d8b750bc13",
     ".yggdrasil/aspects/no-side-effects-on-import/check.mjs": "9d2405c4b784ddea07734cd67330d685026c23e4daba8aadb14d20b92cc19b3a",
     ".yggdrasil/aspects/no-direct-fs/check.mjs": "518ab025ec1f08970e99941570c3ee1d028f31298c937ae1c16411b8c6426c01",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
     "source/cli/src/utils/debug-log.ts": "d810ae1edbdb1c7dd3cb1a0dee630e73675560dd8d06803c8eecf73dcf6771b6",
     "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
     "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
@@ -17,8 +18,7 @@
     "source/cli/src/utils/when-parser.ts": "83e2cfa996cf107b9bd11cebccc971915335744cd80ac3fb594a04b54c188442",
     "source/cli/src/utils/file-when-parser.ts": "d0646278913b73c9d3c42c86da2dd250682a79580bd134f000bd7a38bf0dd224",
     "source/cli/src/utils/validate-check-module.ts": "b4fd46d469dc6ad17afa9d709fa625d381b8b9134592c8de88efdbdd88a53fb1",
-    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
-    "source/cli/src/utils/mapping-path.ts": "b1a9f0332184dbde4800b06b2fcef4bcb80ddd62a1d94378f17ad79dcfa10b84"
+    "source/cli/src/utils/mapping-path.ts": "91211fa86b22595c3e0fc1cd262ba02365d3152012697433db6240eeb81fea54"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -31,7 +31,7 @@
     "source/cli/src/utils/git-introspect.ts": 1778573699364.3071,
     "source/cli/src/utils/git.ts": 1780243067941.036,
     "source/cli/src/utils/known-providers.ts": 1779888780071.5884,
-    "source/cli/src/utils/mapping-path.ts": 1780933770907.5083,
+    "source/cli/src/utils/mapping-path.ts": 1780936276735.2373,
     "source/cli/src/utils/node-path-validator.ts": 1780243067939.8792,
     "source/cli/src/utils/posix.ts": 1780243032127.385,
     "source/cli/src/utils/predicate-boolean.ts": 1780246154121.9595,
@@ -54,7 +54,7 @@
           "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
           "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
           "source/cli/src/utils/known-providers.ts": "35b652475e4a9e70286c1192238f14585e5d6b880b9c3296eae0aefae6917919",
-          "source/cli/src/utils/mapping-path.ts": "b1a9f0332184dbde4800b06b2fcef4bcb80ddd62a1d94378f17ad79dcfa10b84",
+          "source/cli/src/utils/mapping-path.ts": "91211fa86b22595c3e0fc1cd262ba02365d3152012697433db6240eeb81fea54",
           "source/cli/src/utils/node-path-validator.ts": "8bc8025e2edaddea1560453968976e880cf11365782255b4d9a1cab28a7da65d",
           "source/cli/src/utils/posix.ts": "5461584fc6cd34504aea7b812997818208f020507832eb9bd220e4643ab81cd9",
           "source/cli/src/utils/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b",
@@ -70,7 +70,7 @@
           "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
           "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
           "source/cli/src/utils/known-providers.ts": "35b652475e4a9e70286c1192238f14585e5d6b880b9c3296eae0aefae6917919",
-          "source/cli/src/utils/mapping-path.ts": "b1a9f0332184dbde4800b06b2fcef4bcb80ddd62a1d94378f17ad79dcfa10b84",
+          "source/cli/src/utils/mapping-path.ts": "91211fa86b22595c3e0fc1cd262ba02365d3152012697433db6240eeb81fea54",
           "source/cli/src/utils/node-path-validator.ts": "8bc8025e2edaddea1560453968976e880cf11365782255b4d9a1cab28a7da65d",
           "source/cli/src/utils/posix.ts": "5461584fc6cd34504aea7b812997818208f020507832eb9bd220e4643ab81cd9",
           "source/cli/src/utils/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b",
@@ -86,7 +86,7 @@
           "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
           "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
           "source/cli/src/utils/known-providers.ts": "35b652475e4a9e70286c1192238f14585e5d6b880b9c3296eae0aefae6917919",
-          "source/cli/src/utils/mapping-path.ts": "b1a9f0332184dbde4800b06b2fcef4bcb80ddd62a1d94378f17ad79dcfa10b84",
+          "source/cli/src/utils/mapping-path.ts": "91211fa86b22595c3e0fc1cd262ba02365d3152012697433db6240eeb81fea54",
           "source/cli/src/utils/node-path-validator.ts": "8bc8025e2edaddea1560453968976e880cf11365782255b4d9a1cab28a7da65d",
           "source/cli/src/utils/posix.ts": "5461584fc6cd34504aea7b812997818208f020507832eb9bd220e4643ab81cd9",
           "source/cli/src/utils/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b",
@@ -102,7 +102,7 @@
           "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
           "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
           "source/cli/src/utils/known-providers.ts": "35b652475e4a9e70286c1192238f14585e5d6b880b9c3296eae0aefae6917919",
-          "source/cli/src/utils/mapping-path.ts": "b1a9f0332184dbde4800b06b2fcef4bcb80ddd62a1d94378f17ad79dcfa10b84",
+          "source/cli/src/utils/mapping-path.ts": "91211fa86b22595c3e0fc1cd262ba02365d3152012697433db6240eeb81fea54",
           "source/cli/src/utils/node-path-validator.ts": "8bc8025e2edaddea1560453968976e880cf11365782255b4d9a1cab28a7da65d",
           "source/cli/src/utils/posix.ts": "5461584fc6cd34504aea7b812997818208f020507832eb9bd220e4643ab81cd9",
           "source/cli/src/utils/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b",
@@ -131,7 +131,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-08T16:05:30.880Z",
-    "prefix_hash": "a98b4f34681c5ea9ffbf8aaecdebb9e851f29db8eb434e74af915de270f26e79"
+    "last_entry_datetime": "2026-06-08T16:40:57.064Z",
+    "prefix_hash": "2978769123910ed0d95772842c90bd6709f64d807c2dad2eccb9fb86a7912370"
   }
 }

@@ -163,7 +163,7 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   issues.push(...checkSchemas(graph));
   issues.push(...checkRelationTargets(graph));
   issues.push(...checkNoCycles(graph));
-  issues.push(...checkMappingOverlap(graph));
+  issues.push(...(await checkMappingOverlap(graph)));
   issues.push(...checkMappingEscapesRepo(graph));
   issues.push(...(await checkMappingPathsExist(graph)));
   issues.push(...checkBrokenFlowRefs(graph));

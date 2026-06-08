@@ -257,6 +257,17 @@ function aspectDefaultStatus(graph: Graph, aspectId: string): AspectStatus {
  * Returns a Map keyed by aspect id; only contains entries reachable via at
  * least one channel after `when` filtering.
  *
+ * NOTE — this fix-point intentionally does NOT throw on an implies cycle. The
+ * iteration is monotone (max over a finite 3-level lattice), so on a cyclic
+ * graph it SATURATES and returns rather than diverging. It must not abort,
+ * because validation-path checks (e.g. aspect-contract checks) call it BEFORE
+ * the authoritative cycle detector `checkImpliesNoCycles` runs — a throw here
+ * would pre-empt the clean, blocking `aspect-implies-cycle` error. A cyclic
+ * graph is rejected by that validator. The parallel computeEffectiveAspects
+ * DOES throw ImpliesCycleError (via its DFS in expandImpliesFiltered), but that
+ * path is only reached during drift/approve, where callers wrap it. The two
+ * functions therefore diverge on a structurally-invalid graph BY DESIGN.
+ *
  * @see computeEffectiveAspects for the parallel id-only set
  */
 export function computeEffectiveAspectStatuses(node: GraphNode, graph: Graph): Map<string, AspectStatus> {
@@ -268,17 +279,23 @@ export function computeEffectiveAspectStatuses(node: GraphNode, graph: Graph): M
     result.set(att.aspectId, maxStatus(result.get(att.aspectId), effective));
   }
 
-  // Implies fix-point. Monotone (max only) → terminates in
-  // O(aspects × max-depth). Draft aspects do not propagate.
+  // Implies fix-point. Monotone (max only) over a finite 3-level lattice, so it
+  // ALWAYS converges — it saturates rather than diverging on a cyclic graph.
+  // Cycle DETECTION is not done here (see the note above); it is the global
+  // validator's job. Draft aspects do not propagate.
   const idToAspect = new Map<string, AspectDef>();
   for (const a of graph.aspects) idToAspect.set(a.id, a as AspectDef);
 
   let changed = true;
   let iterations = 0;
-  const maxIterations = graph.aspects.length + 1;
+  const maxIterations = graph.aspects.length + 2;
   while (changed) {
     if (++iterations > maxIterations) {
-      throw new ImpliesCycleError(`implies fix-point did not converge after ${maxIterations} iterations (cycle suspected)`);
+      // Unreachable for a monotone fix-point (it provably converges); a pure
+      // defensive backstop against a future bug in the loop body. This is NOT a
+      // cycle detector — a cycle saturates and converges; cycles are rejected by
+      // the global validator (checkImpliesNoCycles).
+      throw new ImpliesCycleError('implies fix-point exceeded its iteration bound (internal invariant violated)');
     }
     changed = false;
     const currentIds = [...result.keys()];

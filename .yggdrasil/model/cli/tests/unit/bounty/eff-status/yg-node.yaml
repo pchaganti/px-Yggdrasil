@@ -1,0 +1,7 @@
+name: Bounty eff-status
+type: test-suite
+description: "Bug-bounty branch-coverage suites: eff-status (~31190 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty/eff-status.test.ts

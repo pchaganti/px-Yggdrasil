@@ -177,7 +177,7 @@ function isAncestorNode(possibleAncestor: string, possibleDescendant: string): b
   return possibleDescendant.startsWith(possibleAncestor + '/');
 }
 
-export function checkMappingOverlap(graph: Graph): ValidationIssue[] {
+export async function checkMappingOverlap(graph: Graph): Promise<ValidationIssue[]> {
   const issues: ValidationIssue[] = [];
   const ownership: Array<{ nodePath: string; mappingPath: string }> = [];
 
@@ -229,6 +229,56 @@ export function checkMappingOverlap(graph: Graph): ValidationIssue[] {
           next: `Keep one owner mapping and model other concerns via relations.`,
         }),
         nodePath: candidate.nodePath,
+      });
+    }
+  }
+
+  // Glob-aware file-level overlap: the pairwise string check above compares
+  // mapping ENTRIES literally, so it cannot see that a glob entry in one node
+  // and any entry in another resolve to the SAME file. Resolve every node's
+  // mappings to concrete files and flag any file owned by two non-hierarchical
+  // nodes (child-wins still allows an ancestor↔descendant pair). Gated on the
+  // presence of at least one glob entry so glob-free graphs pay nothing here and
+  // their plain↔plain overlaps stay solely on the (already-tested) string pass.
+  const anyGlob = [...graph.nodes.values()].some((n) =>
+    (n.meta.mapping ?? []).some((e) => isGlobPattern(e)),
+  );
+  if (anyGlob) {
+    const projectRoot = path.dirname(graph.rootPath);
+    const repoFiles = await walkRepoFiles(projectRoot);
+    const reported = new Set<string>();
+    for (const rawRel of repoFiles) {
+      const relPath = normalizePathForCompare(rawRel);
+      const owners: string[] = [];
+      let viaGlob = false;
+      for (const [nodePath, node] of graph.nodes) {
+        let matched = false;
+        for (const entry of node.meta.mapping ?? []) {
+          if (!mappingEntryMatchesFile(entry, relPath)) continue;
+          matched = true;
+          if (isGlobPattern(entry)) viaGlob = true;
+        }
+        if (matched) owners.push(nodePath);
+      }
+      // Only the glob pass's job: plain↔plain overlaps are handled above.
+      if (owners.length < 2 || !viaGlob || reported.has(relPath)) continue;
+      // Child-wins: drop owners that are an ancestor of another owner; an
+      // ambiguous file is one with two or more remaining (sibling/unrelated) owners.
+      const leaves = owners.filter(
+        (o) => !owners.some((other) => other !== o && isAncestorNode(o, other)),
+      );
+      if (leaves.length < 2) continue;
+      reported.add(relPath);
+      issues.push({
+        severity: 'error',
+        code: 'overlapping-mapping',
+        rule: 'overlapping-mapping',
+        ...issueMsg({
+          what: `File '${relPath}' is owned by multiple non-hierarchical nodes:\n${leaves.map((n) => '  ' + n).join('\n')}`,
+          why: `Each source file must have exactly one owner node. A glob mapping in one node resolves to a file also claimed by another node.`,
+          next: `Narrow the glob, or remove the file from one node's mapping and model the dependency via a relation.`,
+        }),
+        nodePath: leaves[0],
       });
     }
   }

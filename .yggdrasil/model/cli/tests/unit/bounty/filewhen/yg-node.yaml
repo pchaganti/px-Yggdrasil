@@ -1,0 +1,7 @@
+name: Bounty filewhen
+type: test-suite
+description: "Bug-bounty branch-coverage suites: filewhen (~33165 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty2/filewhen.test.ts

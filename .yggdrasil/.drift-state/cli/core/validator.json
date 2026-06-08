@@ -1,25 +1,25 @@
 {
   "schemaVersion": 1,
-  "hash": "c6c3015027e6c442e00bf4094e9425dffee39b7a36356d9a111ef2a5395ccbc4",
+  "hash": "f1220ffa367e6a283601a8b05cd548b14962189f5067912333f4da8b762e8481",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
     ".yggdrasil/aspects/posix-paths-output/content.md": "2659859dc13a8efe32e098b0c220d24c9ecddff26b42a4f22e3135d8b750bc13",
     ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
+    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": "fcda40a731fc3a7df0faf659a39c2d0fb8d716e62a4b4dc93d0c0793cc2183ef",
+    ".yggdrasil/aspects/no-direct-fs/check.mjs": "518ab025ec1f08970e99941570c3ee1d028f31298c937ae1c16411b8c6426c01",
+    ".yggdrasil/aspects/no-direct-console/check.mjs": "4f5265a17d14845ba77de70e486c3922c2234a9beed5da5e1f7fb3c4f714bbd1",
+    ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
+    ".yggdrasil/aspects/single-source-graph-queries/check.mjs": "f78f8fd52ed16c74eec53aff5b33b39bc9acb5b93caa89bf09a4ca43fceadeed",
     ".yggdrasil/aspects/silent-missing-files/content.md": "fe5f8f88a4e6a49f20fba61836d04c3796f5c97c3a7c1c366582f16cd4ec93b7",
     ".yggdrasil/model/cli/core/context/yg-node.yaml": "86433bef2f4269797748a5fdf7a013b26671ab34fe7d35ceac2124818b5e1138",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
     ".yggdrasil/model/cli/model/validation/yg-node.yaml": "0a96c3bcb0c32f24e4978d1350be8f91e4284aa323734801e7abcc2ed014120f",
     ".yggdrasil/model/cli/utils/yg-node.yaml": "f1d878eaf5cede8dcbac77340ad2bd1a75125b963e9190d33d408dde5ce78b78",
-    "source/cli/src/core/validator.ts": "d396dd0b27538c5b393608e1639098d59086ef82ab52a5d409b03e21539a28b2",
-    ".yggdrasil/aspects/no-nondeterminism-direct/check.mjs": "fcda40a731fc3a7df0faf659a39c2d0fb8d716e62a4b4dc93d0c0793cc2183ef",
-    ".yggdrasil/aspects/no-direct-fs/check.mjs": "518ab025ec1f08970e99941570c3ee1d028f31298c937ae1c16411b8c6426c01",
-    ".yggdrasil/aspects/no-direct-console/check.mjs": "4f5265a17d14845ba77de70e486c3922c2234a9beed5da5e1f7fb3c4f714bbd1",
-    ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
-    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
-    ".yggdrasil/aspects/single-source-graph-queries/check.mjs": "f78f8fd52ed16c74eec53aff5b33b39bc9acb5b93caa89bf09a4ca43fceadeed"
+    "source/cli/src/core/validator.ts": "c4b32db2ef3ec1bffbf697d56342b3762e6fbae13b69eed0cb1f7ea6baaafbc0"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -39,7 +39,7 @@
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     ".yggdrasil/model/cli/model/validation/yg-node.yaml": 1776177846203.675,
     ".yggdrasil/model/cli/utils/yg-node.yaml": 1780246223022.0115,
-    "source/cli/src/core/validator.ts": 1780244806542.2478
+    "source/cli/src/core/validator.ts": 1780936760952.2957
   },
   "identity": {
     "ownSubset": "f04e9afa70b43415b41953af5fc9ae0bb90117a0ccc5c26dcfa35f7789fe053a",
@@ -60,37 +60,37 @@
       "no-nondeterminism-direct": {
         "meta": "6e2986f1175fc284d63accb9209518c0d99994114f1ad9d30f91df11498a75ca",
         "checkTouched": {
-          "source/cli/src/core/validator.ts": "d396dd0b27538c5b393608e1639098d59086ef82ab52a5d409b03e21539a28b2"
+          "source/cli/src/core/validator.ts": "c4b32db2ef3ec1bffbf697d56342b3762e6fbae13b69eed0cb1f7ea6baaafbc0"
         }
       },
       "no-direct-fs": {
         "meta": "85008a60917fc599d6fbfcfb2af8e0d4e563f4eaeff9c8da8a5722aef696b948",
         "checkTouched": {
-          "source/cli/src/core/validator.ts": "d396dd0b27538c5b393608e1639098d59086ef82ab52a5d409b03e21539a28b2"
+          "source/cli/src/core/validator.ts": "c4b32db2ef3ec1bffbf697d56342b3762e6fbae13b69eed0cb1f7ea6baaafbc0"
         }
       },
       "no-direct-console": {
         "meta": "84cef429198884b3dcc2076061e164d50d97b011724d2f357350ede01f4fa975",
         "checkTouched": {
-          "source/cli/src/core/validator.ts": "d396dd0b27538c5b393608e1639098d59086ef82ab52a5d409b03e21539a28b2"
+          "source/cli/src/core/validator.ts": "c4b32db2ef3ec1bffbf697d56342b3762e6fbae13b69eed0cb1f7ea6baaafbc0"
         }
       },
       "posix-paths-source": {
         "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
         "checkTouched": {
-          "source/cli/src/core/validator.ts": "d396dd0b27538c5b393608e1639098d59086ef82ab52a5d409b03e21539a28b2"
+          "source/cli/src/core/validator.ts": "c4b32db2ef3ec1bffbf697d56342b3762e6fbae13b69eed0cb1f7ea6baaafbc0"
         }
       },
       "no-direct-minimatch": {
         "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
         "checkTouched": {
-          "source/cli/src/core/validator.ts": "d396dd0b27538c5b393608e1639098d59086ef82ab52a5d409b03e21539a28b2"
+          "source/cli/src/core/validator.ts": "c4b32db2ef3ec1bffbf697d56342b3762e6fbae13b69eed0cb1f7ea6baaafbc0"
         }
       },
       "single-source-graph-queries": {
         "meta": "b1dd772529ca4799de41809e1e615c58ab58fba6b861920dd646786ff43ad9c2",
         "checkTouched": {
-          "source/cli/src/core/validator.ts": "d396dd0b27538c5b393608e1639098d59086ef82ab52a5d409b03e21539a28b2"
+          "source/cli/src/core/validator.ts": "c4b32db2ef3ec1bffbf697d56342b3762e6fbae13b69eed0cb1f7ea6baaafbc0"
         }
       },
       "silent-missing-files": {
@@ -121,18 +121,18 @@
     "posix-paths-source": {
       "verdict": "approved"
     },
+    "no-direct-minimatch": {
+      "verdict": "approved"
+    },
     "single-source-graph-queries": {
       "verdict": "approved"
     },
     "silent-missing-files": {
       "verdict": "approved"
-    },
-    "no-direct-minimatch": {
-      "verdict": "approved"
     }
   },
   "log": {
-    "last_entry_datetime": "2026-05-31T16:28:49.067Z",
-    "prefix_hash": "a6a4510300f1245b1a33f20e907667eeb05205123deb974dfb750992a9e05972"
+    "last_entry_datetime": "2026-06-08T16:40:57.823Z",
+    "prefix_hash": "4b85ec1d81047eb790a5789dc03d8e71941d5ce096c02f5eb4f4eec71947ad51"
   }
 }

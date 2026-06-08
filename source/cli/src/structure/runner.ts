@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ensureLoaderRegistered } from '../ast/loader-hook.js';
 import { createCtxFs, UndeclaredFsReadError } from './ctx-fs.js';
-import { createCtxGraph, UndeclaredGraphReadError } from './ctx-graph.js';
+import { createCtxGraph, UndeclaredGraphReadError, computeAllowedNodePaths } from './ctx-graph.js';
 import { createCtxParsers, prewarmupAstCache, enrichFilesWithAst, ParseAstNotPrewarmedError } from './ctx-parsers.js';
 import { collectAllowedReadsForAspect } from './allowed-reads.js';
 import { normalizeMappingPath, isPathInMapping } from './expand-mapping-sync.js';
@@ -150,7 +150,16 @@ export async function runStructureAspect(
 
   const allowedSet = collectAllowedReadsForAspect(nodePath, graph);
   const ctxFs = createCtxFs({ allowedSet, projectRoot, touchedFiles });
-  const ctxGraph = createCtxGraph({ currentNodePath: nodePath, graph, projectRoot, touchedFiles });
+  // Pre-expand each graph-readable node's mapping to concrete files (directory
+  // and glob entries resolved here in the async layer) so ctx.graph.node().files
+  // sees a glob-mapped node's real files. Content is read lazily inside ctx.graph
+  // so touchedFiles still reflects only what the check actually accessed.
+  const expandedFilesByNode = new Map<string, string[]>();
+  for (const id of computeAllowedNodePaths(nodePath, graph)) {
+    const m = graph.nodes.get(id);
+    if (m) expandedFilesByNode.set(id, await enumerateMappedFilesAsync(m.meta.mapping ?? [], projectRoot));
+  }
+  const ctxGraph = createCtxGraph({ currentNodePath: nodePath, graph, projectRoot, touchedFiles, expandedFilesByNode });
   const parsers = createCtxParsers({ allowedSet, projectRoot, touchedFiles, astCache });
 
   const ownFiles = await buildOwnFiles(node, projectRoot, touchedFiles);

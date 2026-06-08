@@ -1,0 +1,8 @@
+name: Bounty path-drift-hash
+type: test-suite
+description: "Bug-bounty branch-coverage suites: path-drift-hash, path-matcher (~37625 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty/path-drift-hash.test.ts
+  - source/cli/tests/unit/bounty/path-matcher.test.ts

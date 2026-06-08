@@ -18,9 +18,20 @@ export function normalizeMappingPath(p: string): string {
     .replace(/\/+$/, '');
 }
 
-/** True if a mapping/when path entry contains glob metacharacters. */
+/**
+ * True if a mapping/when path entry is a glob — i.e. contains a `*` wildcard
+ * (`*` matches within a path segment, `**` across segments).
+ *
+ * ONLY `*` triggers glob interpretation. Other minimatch metacharacters
+ * (`?`, `[ ]`, `{ }`) are treated as literal path characters, so a file whose
+ * real name contains them — e.g. a Next.js / SvelteKit route like
+ * `app/[id]/page.tsx` — maps literally instead of being misread as a pattern
+ * (and `normalizeMappingPath` strips backslashes, so such names could not be
+ * escaped anyway). A `*`-glob that also contains `[ ]` / `{ }` still has them
+ * interpreted by minimatch — opting into glob via `*` opts into the rest.
+ */
 export function isGlobPattern(entry: string): boolean {
-  return /[*?[\]{}]/.test(entry);
+  return entry.includes('*');
 }
 
 /**

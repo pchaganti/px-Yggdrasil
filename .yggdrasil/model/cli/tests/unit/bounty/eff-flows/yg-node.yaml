@@ -1,0 +1,7 @@
+name: Bounty eff-flows
+type: test-suite
+description: "Bug-bounty branch-coverage suites: eff-flows (~30451 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty/eff-flows.test.ts

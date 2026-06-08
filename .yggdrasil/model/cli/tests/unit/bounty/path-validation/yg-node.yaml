@@ -1,0 +1,7 @@
+name: Bounty path-validation
+type: test-suite
+description: "Bug-bounty branch-coverage suites: path-validation (~28573 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty/path-validation.test.ts

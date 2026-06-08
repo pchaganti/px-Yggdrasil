@@ -1,0 +1,3 @@
+name: Bounty Test Suites
+type: module
+description: "Exhaustive bug-bounty test suites: effective-aspect computation (7 channels) and file/path matching across all schema contexts (mapping, when, coverage roots, gitignore, ctx gates) at branch level."

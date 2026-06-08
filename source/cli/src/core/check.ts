@@ -19,7 +19,7 @@ import {
 import type { ValidationIssue } from '../model/validation.js';
 import { readDriftState, readNodeDriftState, garbageCollectDriftState } from '../io/drift-state-store.js';
 import { DEFAULT_COVERAGE } from '../io/config-parser.js';
-import { hashTrackedFiles } from '../io/hash.js';
+import { hashTrackedFiles, expandMappingPaths } from '../io/hash.js';
 import { collectTrackedFiles, buildLayerResolver } from './graph/files.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import { validate } from './validator.js';
@@ -31,7 +31,7 @@ import { STRUCTURAL_CODES, COMPLETENESS_CODES } from './check-codes.js';
 import { validateFormat } from './log-format.js';
 import { toPosixPath } from '../utils/posix.js';
 import { excludeNestedGraphSubtrees } from '../io/repo-scanner.js';
-import { mappingEntryMatchesFile } from '../utils/mapping-path.js';
+import { mappingEntryMatchesFile, isGlobPattern } from '../utils/mapping-path.js';
 import {
   aspectNewlyActiveMessage,
   aspectViolationEnforcedMessage,
@@ -122,8 +122,10 @@ export async function classifyDrift(graph: Graph): Promise<CheckIssue[]> {
     // before drift) already emits the blocking, structured `aspect-implies-cycle`
     // error, so the graph is invalid and per-node drift is moot. Skip this node
     // rather than letting the cycle throw escape to the generic top-level
-    // "file an issue" handler. Both `hasNonDraftEffectiveAspects` (status
-    // fix-point) and `collectTrackedFiles` (implies DFS) below can raise it.
+    // "file an issue" handler. `collectTrackedFiles` (which calls
+    // computeEffectiveAspects -> implies DFS) raises ImpliesCycleError on a
+    // cyclic graph; `hasNonDraftEffectiveAspects` does NOT (its status fix-point
+    // converges/saturates on a cycle by design — see computeEffectiveAspectStatuses).
     try {
       await classifyNodeDrift(graph, projectRoot, nodePath, node, mappingPaths, issues);
     } catch (err) {
@@ -759,10 +761,17 @@ function getChildMappingExclusions(graph: Graph, nodePath: string): string[] {
 
 async function allPathsMissing(projectRoot: string, mappingPaths: string[]): Promise<boolean> {
   for (const mp of mappingPaths) {
-    try {
-      await fileAccess(path.join(projectRoot, mp));
-      return false;
-    } catch { /* missing */ }
+    if (isGlobPattern(mp)) {
+      // A glob "exists" when it currently matches at least one file. Probing the
+      // literal pattern string with fileAccess would always miss.
+      const matched = await expandMappingPaths(projectRoot, [mp]);
+      if (matched.length > 0) return false;
+    } else {
+      try {
+        await fileAccess(path.join(projectRoot, mp));
+        return false;
+      } catch { /* missing */ }
+    }
   }
   return true;
 }
@@ -893,7 +902,7 @@ function computeSuggestedNext(issues: CheckIssue[], graph?: Graph): string | nul
     const first = structuralErrors[0];
     addRemaining(coverageErrors.length > 0 ? (coverageErrors[0].uncoveredCount ?? 0) : 0, 'files need coverage');
     const then = remaining.length > 0 ? `\n  Then: ${remaining.join(', ')}` : '';
-    return `Fix ${first.code} in ${first.nodePath ?? '.yggdrasil/'}\n  1 of ${structuralErrors.length} structural error${structuralErrors.length === 1 ? '' : 's'}${then}`;
+    return `Fix ${first.code} in ${first.nodePath ?? '.yggdrasil'}\n  1 of ${structuralErrors.length} structural error${structuralErrors.length === 1 ? '' : 's'}${then}`;
   }
 
   if (coverageErrors.length > 0) {

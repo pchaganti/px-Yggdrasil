@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "59db02da94f0506998406914744dd62007539e0116305188648396be67d57125",
+  "hash": "1429eeb4db1b62b7092f7c28abb049e67eed0370a81290dac34ebe414052d3c9",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/core/yg-node.yaml": "b91232b50d88570fc1c6b0ddaed7f50936202fde075e4194e2f4f676ca6af391",
@@ -12,10 +12,10 @@
     ".yggdrasil/aspects/no-direct-fs/check.mjs": "518ab025ec1f08970e99941570c3ee1d028f31298c937ae1c16411b8c6426c01",
     ".yggdrasil/aspects/no-direct-console/check.mjs": "4f5265a17d14845ba77de70e486c3922c2234a9beed5da5e1f7fb3c4f714bbd1",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
     ".yggdrasil/aspects/single-source-graph-queries/check.mjs": "f78f8fd52ed16c74eec53aff5b33b39bc9acb5b93caa89bf09a4ca43fceadeed",
     ".yggdrasil/aspects/silent-missing-files/content.md": "fe5f8f88a4e6a49f20fba61836d04c3796f5c97c3a7c1c366582f16cd4ec93b7",
-    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
-    "source/cli/src/core/checks/mapping.ts": "b211d04e84403fcbecd909ed2141240bcf184a5a263ed9c2cb9195c796438356"
+    "source/cli/src/core/checks/mapping.ts": "1052a5234b400d8bd4bb852dbdae72fe56bc111e1201244eafcc7b8aee272dd0"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -31,7 +31,7 @@
     ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780933853473.8323,
     ".yggdrasil/aspects/single-source-graph-queries/check.mjs": 1780488505036.8464,
     ".yggdrasil/aspects/silent-missing-files/content.md": 1776494731302.076,
-    "source/cli/src/core/checks/mapping.ts": 1780932356009.357
+    "source/cli/src/core/checks/mapping.ts": 1780936752361.5574
   },
   "identity": {
     "ownSubset": "86c22f89f6d15db5e4e7e157b099f07769e39a72dd01eb168a261ba81ad07d6c",
@@ -52,37 +52,37 @@
       "no-nondeterminism-direct": {
         "meta": "6e2986f1175fc284d63accb9209518c0d99994114f1ad9d30f91df11498a75ca",
         "checkTouched": {
-          "source/cli/src/core/checks/mapping.ts": "b211d04e84403fcbecd909ed2141240bcf184a5a263ed9c2cb9195c796438356"
+          "source/cli/src/core/checks/mapping.ts": "1052a5234b400d8bd4bb852dbdae72fe56bc111e1201244eafcc7b8aee272dd0"
         }
       },
       "no-direct-fs": {
         "meta": "85008a60917fc599d6fbfcfb2af8e0d4e563f4eaeff9c8da8a5722aef696b948",
         "checkTouched": {
-          "source/cli/src/core/checks/mapping.ts": "b211d04e84403fcbecd909ed2141240bcf184a5a263ed9c2cb9195c796438356"
+          "source/cli/src/core/checks/mapping.ts": "1052a5234b400d8bd4bb852dbdae72fe56bc111e1201244eafcc7b8aee272dd0"
         }
       },
       "no-direct-console": {
         "meta": "84cef429198884b3dcc2076061e164d50d97b011724d2f357350ede01f4fa975",
         "checkTouched": {
-          "source/cli/src/core/checks/mapping.ts": "b211d04e84403fcbecd909ed2141240bcf184a5a263ed9c2cb9195c796438356"
+          "source/cli/src/core/checks/mapping.ts": "1052a5234b400d8bd4bb852dbdae72fe56bc111e1201244eafcc7b8aee272dd0"
         }
       },
       "posix-paths-source": {
         "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
         "checkTouched": {
-          "source/cli/src/core/checks/mapping.ts": "b211d04e84403fcbecd909ed2141240bcf184a5a263ed9c2cb9195c796438356"
+          "source/cli/src/core/checks/mapping.ts": "1052a5234b400d8bd4bb852dbdae72fe56bc111e1201244eafcc7b8aee272dd0"
         }
       },
       "no-direct-minimatch": {
         "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
         "checkTouched": {
-          "source/cli/src/core/checks/mapping.ts": "b211d04e84403fcbecd909ed2141240bcf184a5a263ed9c2cb9195c796438356"
+          "source/cli/src/core/checks/mapping.ts": "1052a5234b400d8bd4bb852dbdae72fe56bc111e1201244eafcc7b8aee272dd0"
         }
       },
       "single-source-graph-queries": {
         "meta": "b1dd772529ca4799de41809e1e615c58ab58fba6b861920dd646786ff43ad9c2",
         "checkTouched": {
-          "source/cli/src/core/checks/mapping.ts": "b211d04e84403fcbecd909ed2141240bcf184a5a263ed9c2cb9195c796438356"
+          "source/cli/src/core/checks/mapping.ts": "1052a5234b400d8bd4bb852dbdae72fe56bc111e1201244eafcc7b8aee272dd0"
         }
       },
       "silent-missing-files": {
@@ -113,18 +113,18 @@
     "posix-paths-source": {
       "verdict": "approved"
     },
+    "no-direct-minimatch": {
+      "verdict": "approved"
+    },
     "single-source-graph-queries": {
       "verdict": "approved"
     },
     "silent-missing-files": {
       "verdict": "approved"
-    },
-    "no-direct-minimatch": {
-      "verdict": "approved"
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-08T15:11:09.489Z",
-    "prefix_hash": "fbfd63ad243d62c7ca4c6314b1fc0c401b5313744a628759750b7aa584de67ac"
+    "last_entry_datetime": "2026-06-08T16:40:57.446Z",
+    "prefix_hash": "8abd36c26fbc169af8278aa0bc1290cd5575f2c6f80ea3239bf1d9d88abbe97d"
   }
 }

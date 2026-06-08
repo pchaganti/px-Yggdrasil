@@ -1,0 +1,7 @@
+name: Bounty eff-type-defaults
+type: test-suite
+description: "Bug-bounty branch-coverage suites: eff-type-defaults (~33492 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty/eff-type-defaults.test.ts

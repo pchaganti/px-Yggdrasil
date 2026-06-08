@@ -223,6 +223,26 @@ export function check(ctx) {
 }
 `;
 
+// Finding G: ctx.graph.node(id).files must expose a glob-mapped node's files.
+// Reads the node's OWN files two ways — via ctx.files (glob-expanded) and via
+// ctx.graph.node(ctx.node.id).files — and flags a mismatch. A glob mapping that
+// ctx.graph fails to expand makes the second count 0 while the first is N.
+const GLOB_GRAPH_FILES_CHECK = `export function check(ctx) {
+  const self = ctx.graph.node(ctx.node.id);
+  const viaGraph = self ? self.files.length : 0;
+  const viaOwn = ctx.files.length;
+  if (viaGraph !== viaOwn) {
+    return [{
+      file: ctx.files[0] ? ctx.files[0].path : ctx.node.id,
+      line: 1,
+      column: 0,
+      message: \`ctx.graph exposed \${viaGraph} files but the node owns \${viaOwn} (glob mapping not expanded in ctx.graph).\`,
+    }];
+  }
+  return [];
+}
+`;
+
 describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface + deterministic-test', () => {
   // -------------------------------------------------------------------------
   // Scenario 1: GRAPH-AWARE check passes/refuses through yg approve.
@@ -494,6 +514,30 @@ describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface 
       const test = run(['deterministic-test', '--aspect', 'no-todo-comments'], dir);
       expect(test.status).toBe(1);
       expect(test.all).toContain('Neither --node nor --files was provided');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // Finding G: a glob-mapped node's files must be visible through ctx.graph.
+  // -------------------------------------------------------------------------
+
+  it('G: ctx.graph exposes a glob-mapped node\'s files (matches ctx.files)', () => {
+    const dir = deterministicFixture('glob-graph');
+    try {
+      // orders owns its source file via a GLOB instead of the exact path.
+      const ordersYaml = path.join(dir, '.yggdrasil', 'model', 'services', 'orders', 'yg-node.yaml');
+      const y = readFileSync(ordersYaml, 'utf-8').replace('src/services/orders.ts', 'src/services/order*.ts');
+      writeFileSync(ordersYaml, y, 'utf-8');
+
+      writeAspect(dir, 'glob-graph-files', 'ctx.graph must expose the same files a node owns.', GLOB_GRAPH_FILES_CHECK);
+      attachAspectToNode(dir, 'services/orders', 'glob-graph-files');
+
+      const test = run(['deterministic-test', '--aspect', 'glob-graph-files', '--node', 'services/orders'], dir);
+      // Post-fix: ctx.graph expands the glob, so it sees the same file ctx.files does.
+      expect(test.all).toContain('No violations');
+      expect(test.all).not.toContain('glob mapping not expanded');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

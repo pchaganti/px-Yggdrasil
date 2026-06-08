@@ -17,6 +17,14 @@ export interface CtxGraphParams {
   projectRoot: string;
   /** mutable touched files list */
   touchedFiles: string[];
+  /**
+   * Per-node concrete file paths (repo-relative, POSIX), pre-expanded by the
+   * async runner so directory and glob mapping entries resolve to real files.
+   * Keyed by node path. When absent for a node, toPublicNode falls back to the
+   * raw mapping entries (file-only, no glob/dir expansion). Content is still
+   * read lazily per node so touchedFiles reflects only what the check accessed.
+   */
+  expandedFilesByNode?: Map<string, string[]>;
 }
 
 export interface CtxGraph {
@@ -28,7 +36,7 @@ export interface CtxGraph {
   flowParticipants(flowName: string): GraphNode[];
 }
 
-function computeAllowedNodePaths(currentPath: string, graph: Graph): Set<string> {
+export function computeAllowedNodePaths(currentPath: string, graph: Graph): Set<string> {
   const allowed = new Set<string>([currentPath]);
   const current = graph.nodes.get(currentPath);
   if (!current) return allowed;
@@ -58,7 +66,7 @@ function computeAllowedNodePaths(currentPath: string, graph: Graph): Set<string>
 }
 
 export function createCtxGraph(params: CtxGraphParams): CtxGraph {
-  const { currentNodePath, graph, projectRoot, touchedFiles } = params;
+  const { currentNodePath, graph, projectRoot, touchedFiles, expandedFilesByNode } = params;
   const allowed = computeAllowedNodePaths(currentNodePath, graph);
 
   function assertAllowed(id: string): void {
@@ -67,8 +75,12 @@ export function createCtxGraph(params: CtxGraphParams): CtxGraph {
 
   function toPublicNode(m: ModelNode): GraphNode {
     const files: File[] = [];
-    for (const raw of m.meta.mapping ?? []) {
-      const p = normalizeMappingPath(raw);
+    // Prefer the runner's pre-expanded concrete file list (directory and glob
+    // entries already resolved to real files). Fall back to the raw mapping
+    // entries when no expansion was supplied (file-only, as before).
+    const preExpanded = expandedFilesByNode?.get(m.path);
+    const candidatePaths = preExpanded ?? (m.meta.mapping ?? []).map(normalizeMappingPath);
+    for (const p of candidatePaths) {
       if (!p) continue;
       const abs = path.resolve(projectRoot, p);
       try {

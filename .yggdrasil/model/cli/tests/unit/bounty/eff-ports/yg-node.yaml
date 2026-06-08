@@ -1,0 +1,7 @@
+name: Bounty eff-ports
+type: test-suite
+description: "Bug-bounty branch-coverage suites: eff-ports (~37279 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty/eff-ports.test.ts

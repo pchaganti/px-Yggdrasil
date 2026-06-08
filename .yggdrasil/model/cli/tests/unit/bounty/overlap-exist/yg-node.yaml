@@ -1,0 +1,7 @@
+name: Bounty overlap-exist
+type: test-suite
+description: "Bug-bounty branch-coverage suites: overlap-exist (~27323 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty2/overlap-exist.test.ts

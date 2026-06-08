@@ -10,3 +10,5 @@ R0.4: file-content-cache import path updated from ./file-content-cache to ../io/
 Strip dangling design/plan section references from JSDoc and test descriptions. The design doc lives in .plans/ which is gitignored and will be deleted; references like 'spec §7', 'design §12.1', 'Task 14' become stale pointers to non-existent files. Replaced with self-contained prose. No behavior change.
 ## [2026-06-08T16:05:31.304Z]
 File classification by path predicate now routes its glob match through the shared single glob primitive instead of calling the glob library directly, so architecture file classification and node-mapping ownership use identical glob semantics and cannot drift apart.
+## [2026-06-08T17:36:20.132Z]
+Content-predicate matching now fails closed when its regular expression cannot be constructed, instead of letting a construction error escape as an uncaught exception. Malformed content patterns are already rejected before evaluation, so this is defense-in-depth; if a malformed pattern ever reaches the evaluator it is treated as a non-match, consistent with the evaluator other graceful branches (unreadable, binary, oversized file).
