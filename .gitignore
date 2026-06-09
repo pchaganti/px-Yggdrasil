@@ -3,7 +3,8 @@ node_modules/
 dist/
 build/
 *.tgz
-coverage/
+source/cli/coverage/
+/coverage/
 *.log
 
 # Environment

@@ -1,0 +1,7 @@
+name: Bounty coverage
+type: test-suite
+description: "Bug-bounty branch-coverage suites: coverage (~20417 chars)."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/bounty2/coverage.test.ts
