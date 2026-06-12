@@ -59,6 +59,15 @@ export interface DetHashInput extends CommonHashInput {
  *   - null and primitives: standard JSON.stringify
  *   - arrays: elements in their existing order (callers sort before passing)
  *   - objects: keys sorted by code-point, undefined values omitted
+ *
+ * Notes for callers:
+ *   (a) Key ordering is UTF-16 code-unit order (standard JS string comparison).
+ *       Astral-plane keys (code points > U+FFFF) are out of scope — all real
+ *       keys in this codebase are ASCII.
+ *   (b) Callers must pass finite numbers only — NaN and Infinity stringify to
+ *       null in JSON.stringify and will silently produce the wrong hash.
+ *   (c) undefined values are dropped from objects; array elements must never
+ *       be undefined (JSON.stringify converts them to null, breaking the hash).
  */
 export function codePointCanonicalJson(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
@@ -106,8 +115,7 @@ function buildCommonCanonical(input: CommonHashInput): Record<string, unknown> {
   // Sort files by path (code-point order); POSIX-normalize all paths.
   const files = [...input.files]
     .map(([p, h]) => [toPosix(p), h] as [string, string])
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([p, h]) => [p, h]);
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 
   return {
     aspect: input.aspectId,
@@ -140,8 +148,7 @@ export function computeLlmInputHash(input: LlmHashInput): string {
   // Sort references by path; POSIX-normalize paths.
   const references = [...input.references]
     .map(([p, h, d]) => [toPosix(p), h, d] as [string, string, string])
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([p, h, d]) => [p, h, d]);
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 
   const canonical: Record<string, unknown> = {
     ...common,

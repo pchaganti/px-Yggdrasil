@@ -381,16 +381,19 @@ describe('scope.files fold', () => {
   it('is deterministic across calls with key-insertion-order-shuffled predicate objects', () => {
     // Build two predicate objects with the same logical content but different
     // key-insertion order to verify codePointCanonicalJson normalizes them.
+    // Use a two-key atom ({ path, content }) so insertion order can actually differ.
     const scopeA = {
       per: 'node' as const,
-      files: { all_of: [{ path: 'src/**/*.ts' }, { not: { path: '**/*.test.ts' } }] },
+      files: { all_of: [{ path: 'src/**/*.ts', content: 'register' }] },
     };
     const scopeB = {
       per: 'node' as const,
-      // Swap the 'not' object key order — 'path' is the only key but this
-      // exercises the code path for any future multi-key predicate object.
-      files: { all_of: [{ path: 'src/**/*.ts' }, { not: { path: '**/*.test.ts' } }] },
+      // Same atom but keys inserted in reverse order: content first, then path.
+      files: { all_of: [{ content: 'register', path: 'src/**/*.ts' }] },
     };
+    // Non-vacuity guard: raw JSON.stringify preserves insertion order, so the
+    // two objects must produce different raw strings before canonicalization.
+    expect(JSON.stringify(scopeA.files)).not.toBe(JSON.stringify(scopeB.files));
     const hash1 = computeLlmInputHash({ ...BASE_LLM_INPUT, scope: scopeA });
     const hash2 = computeLlmInputHash({ ...BASE_LLM_INPUT, scope: scopeB });
     expect(hash1).toBe(hash2);
@@ -428,5 +431,14 @@ describe('references sort comparator', () => {
       references: [ref2, ref1], // reversed insertion order
     });
     expect(unsortedHash).toBe(sortedHash);
+  });
+
+  it("reference description (3rd tuple element) folds into the hash", () => {
+    const baseHash = computeLlmInputHash({ ...BASE_LLM_INPUT });
+    const changedDescHash = computeLlmInputHash({
+      ...BASE_LLM_INPUT,
+      references: [['docs/validation-catalogue.md', 'd'.repeat(64), 'Changed description']],
+    });
+    expect(changedDescHash).not.toBe(baseHash);
   });
 });
