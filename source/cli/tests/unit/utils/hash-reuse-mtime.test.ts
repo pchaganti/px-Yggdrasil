@@ -7,27 +7,12 @@
  * result. The approve-time path (reuseByMtime=true default) retains the
  * mtime optimization for performance.
  */
-import { describe, it, expect, afterEach } from 'vitest';
-import { writeFile, mkdir, rm, stat } from 'node:fs/promises';
+import { describe, it, expect } from 'vitest';
+import { writeFile, mkdir, rm, stat, mkdtemp } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { hashTrackedFiles, hashString } from '../../../src/io/hash.js';
 import type { TrackedFile } from '../../../src/core/graph/files.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TMP_PREFIX = 'tmp-htf-mtime-security';
-
-afterEach(async () => {
-  // Clean up any leftover tmp dirs from this test file
-  const fixturesDir = path.join(__dirname, '../../fixtures');
-  const { readdir } = await import('node:fs/promises');
-  const entries = await readdir(fixturesDir).catch(() => [] as string[]);
-  await Promise.all(
-    entries
-      .filter((e) => e.startsWith(TMP_PREFIX))
-      .map((e) => rm(path.join(fixturesDir, e), { recursive: true, force: true })),
-  );
-});
 
 describe('hashTrackedFiles — reuseByMtime security', () => {
   it('reuseByMtime=false detects tampered content when mtime is restored to stored value', async () => {
@@ -40,7 +25,7 @@ describe('hashTrackedFiles — reuseByMtime security', () => {
     //
     // With reuseByMtime=false the check gate always reads disk content,
     // so the new hash H' != H → drift is detected regardless of mtime.
-    const tmpDir = path.join(__dirname, `../../fixtures/${TMP_PREFIX}-exploit`);
+    const tmpDir = await mkdtemp(path.join(os.tmpdir(), `yg-mtime-exploit-${process.pid}-`));
     await mkdir(tmpDir, { recursive: true });
     try {
       const filePath = path.join(tmpDir, 'source.ts');
@@ -84,7 +69,7 @@ describe('hashTrackedFiles — reuseByMtime security', () => {
   it('reuseByMtime=false still produces correct canonical hash for unchanged content', async () => {
     // Regression guard: disabling the mtime optimization must NOT change the
     // hash when content is genuinely unchanged (same content → same hash).
-    const tmpDir = path.join(__dirname, `../../fixtures/${TMP_PREFIX}-unchanged`);
+    const tmpDir = await mkdtemp(path.join(os.tmpdir(), `yg-mtime-unchanged-${process.pid}-`));
     await mkdir(tmpDir, { recursive: true });
     try {
       const filePath = path.join(tmpDir, 'clean.ts');
