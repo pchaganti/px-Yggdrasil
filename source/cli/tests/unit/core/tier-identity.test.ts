@@ -53,4 +53,18 @@ describe('canonicalTierJson', () => {
     const json = canonicalTierJson(withArray, 't');
     expect(json).toContain('["a","b"]');
   });
+
+  it('excludes max_prompt_chars — present vs absent yields IDENTICAL canonicalTierJson', () => {
+    // max_prompt_chars is a quality gate, not a reviewer identity field.
+    // Changing or removing it must never cascade re-approval.
+    const withCap: LlmConfig = { ...base, max_prompt_chars: 200000 };
+    const withoutCap = base;
+    expect(canonicalTierJson(withCap, 't')).toBe(canonicalTierJson(withoutCap, 't'));
+  });
+
+  it('excludes max_prompt_chars regardless of value', () => {
+    const with1: LlmConfig = { ...base, max_prompt_chars: 50000 };
+    const with2: LlmConfig = { ...base, max_prompt_chars: 999999 };
+    expect(canonicalTierJson(with1, 't')).toBe(canonicalTierJson(with2, 't'));
+  });
 });

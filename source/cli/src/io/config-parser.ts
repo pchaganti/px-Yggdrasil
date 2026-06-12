@@ -347,12 +347,12 @@ function parseTier(name: string, raw: unknown, filename: string): LlmConfig {
   }
 
   // Unknown-key check AFTER structural checks
-  const allowed = new Set(['provider', 'consensus', 'config', 'references']);
+  const allowed = new Set(['provider', 'consensus', 'config', 'references', 'max_prompt_chars']);
   for (const k of Object.keys(t)) {
     if (!allowed.has(k)) {
       throw new ConfigParseError({
         what: `${filename}: tier '${name}' has unknown key '${k}'`,
-        why: 'tier accepts only `provider`, `consensus`, `config`, `references`',
+        why: 'tier accepts only `provider`, `consensus`, `config`, `references`, `max_prompt_chars`',
         next: "move to config: if it's a provider setting, or remove",
       }, 'config-tier-unknown-key');
     }
@@ -408,6 +408,20 @@ function parseTier(name: string, raw: unknown, filename: string): LlmConfig {
     }
   }
 
+  // max_prompt_chars: optional per-tier assembled-prompt character cap
+  let max_prompt_chars: number | undefined;
+  if (t.max_prompt_chars !== undefined) {
+    const v = t.max_prompt_chars;
+    if (typeof v !== 'number' || !Number.isInteger(v) || v <= 0) {
+      throw new ConfigParseError({
+        what: `${filename}: tier '${name}' has invalid max_prompt_chars: ${JSON.stringify(v)}`,
+        why: 'max_prompt_chars is the assembled reviewer-prompt character cap; a zero, negative, or fractional value makes the gate nonsensical',
+        next: `set 'max_prompt_chars' to a positive integer like 100000, or remove the key to allow unlimited prompt size`,
+      }, 'config-tier-prompt-chars-invalid');
+    }
+    max_prompt_chars = v;
+  }
+
   return {
     provider: t.provider as LlmConfig['provider'],
     model,
@@ -415,6 +429,7 @@ function parseTier(name: string, raw: unknown, filename: string): LlmConfig {
     temperature: typeof c.temperature === 'number' ? c.temperature : 0,
     consensus: consensusRaw as number,
     timeout: typeof c.timeout === 'number' ? c.timeout * 1000 : undefined,
+    ...(max_prompt_chars !== undefined ? { max_prompt_chars } : {}),
     ...(references !== undefined ? { references } : {}),
   };
 }

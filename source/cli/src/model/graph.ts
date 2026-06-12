@@ -124,6 +124,13 @@ export interface LlmConfig {
   consensus: number;
   /** CLI providers: subprocess timeout in ms. Default: 120_000. */
   timeout?: number;
+  /**
+   * Optional per-tier cap on assembled reviewer-prompt length in characters.
+   * Absent = unlimited. This is a GATE checked deterministically before the LLM
+   * call — it never participates in verdict identity or hash computation (excluded
+   * from canonicalTierJson like api_key and timeout).
+   */
+  max_prompt_chars?: number;
   /** Optional caps on reference files for aspects resolving to this tier. */
   references?: {
     /** Max bytes per single reference file. Default 65536 (64 KiB). */

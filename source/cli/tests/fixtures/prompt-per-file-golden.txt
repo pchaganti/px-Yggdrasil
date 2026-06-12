@@ -1,0 +1,48 @@
+<task>
+You verify whether source code satisfies a requirement.
+
+Below is a node (component) with its source files and one aspect (rule set).
+Check every rule in the aspect against the source code.
+
+If source code contains a comment with the marker yg-suppress(<aspect-id>) where
+<aspect-id> matches the aspect you are checking, treat the suppressed code as satisfied.
+The marker must include a reason after the closing parenthesis. Do not validate the
+reason — accept it as-is. The marker applies contextually to the surrounding code
+(function, class, or block where it appears). If placed at file level, it applies to
+the entire file.
+
+A bracket form also exists: yg-suppress-disable(<aspect-id>) <reason> placed before a
+block, and yg-suppress-enable(<aspect-id>) placed after it, suppresses all code between
+the two markers. Honor the bracket form the same way as the single-line form.
+
+You are reviewing ONE file of a larger component. Other files of the component are not shown; the absence of sibling context is NOT a violation by itself. Judge only what this file must satisfy on its own.
+
+Respond with EXACTLY this JSON, nothing else:
+{"satisfied": true|false, "reason": "explanation with file:line references"}
+</task>
+
+<node path="billing/order-handler" description="A component that handles &lt;orders&gt; &amp; &quot;payments&quot;" />
+
+<aspect id="test-aspect" description="A &quot;quoted&quot; description with &lt;xml&gt; &amp; ampersand">
+# Rules
+
+Must do X.
+
+- Rule 1
+- Rule 2
+</aspect>
+
+<references>
+  <reference path="docs/codes.md" description="Error codes catalog">
+ERR001: bad request
+ERR002: not found
+  </reference>
+</references>
+
+<source-files>
+<file path="src/billing/handler.ts">
+export function handleOrder(x: string) {
+  return x;
+}
+</file>
+</source-files>

@@ -1,22 +1,22 @@
 {
   "schemaVersion": 1,
-  "hash": "da5cfb077d34edbf7312793754def12da0c6e2705394185e92149478c68be541",
+  "hash": "7c477358ce695755289d4eb2daa7650bbb1bdf0f6460feae51c601705f6594ac",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/llm/yg-node.yaml": "eb86d7c0b81642af0c1d40cba6a1f5a780293a2304635bd100bd64677a4c8838",
     ".yggdrasil/aspects/provider-retry-contract/content.md": "338028c6781d98a7c42f63d1a0cbfedd037721d86f5a7853113ac9793087530d",
-    ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
-    ".yggdrasil/model/cli/llm/shared/yg-node.yaml": "74f188e3b990026e1d3a29edf6672909bdde0d4b7d91ced32cf34f211530f9c6",
-    "source/cli/src/llm/claude-code.ts": "fa1fa53507f8359c40eb74e6d28af3eec755ede927efe4ca0ec5224f19f55118",
-    "source/cli/src/llm/codex.ts": "cdb8f0acf6f797c6efa5f69a659eed1830f9c35a128d75fa72d26c12e5cf9771",
-    "source/cli/src/llm/gemini-cli.ts": "a13ad7858c81e040ab32a4a229e59c64e75cef38d9da600efd9ef95c931362b2",
     ".yggdrasil/aspects/provider-redaction/check.mjs": "0837acaffaa7837ae2989ab18a148a7b125042e1ba30302079b374d8306ec0b5",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
-    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
+    ".yggdrasil/aspects/what-why-next/content.md": "0b2ca7517343ad05e84c234dca23a24589a3d4df62b98491ffbe727ce169a994",
     "source/cli/src/llm/anthropic.ts": "68470c7fcad7cfc6bf51361cd9f70356e79ea4ecf3c8c1f363fe8c5ef2794fd5",
     "source/cli/src/llm/openai.ts": "10bae85a7d84bf931a7e15a7d3b50c6ded03c804ae8baa6d470f6709595897e8",
     "source/cli/src/llm/google.ts": "8359615c2857159a97bc5862e4c11d87d7a3eda91ced78e161b3a1601b417885",
-    "source/cli/src/llm/ollama.ts": "addb715d3471d8ce730b95b6a7e8a5820b07ed6ea12e323188dfd8689a4fcac0"
+    "source/cli/src/llm/ollama.ts": "addb715d3471d8ce730b95b6a7e8a5820b07ed6ea12e323188dfd8689a4fcac0",
+    "source/cli/src/llm/claude-code.ts": "fa1fa53507f8359c40eb74e6d28af3eec755ede927efe4ca0ec5224f19f55118",
+    "source/cli/src/llm/codex.ts": "cdb8f0acf6f797c6efa5f69a659eed1830f9c35a128d75fa72d26c12e5cf9771",
+    "source/cli/src/llm/gemini-cli.ts": "a13ad7858c81e040ab32a4a229e59c64e75cef38d9da600efd9ef95c931362b2",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
+    ".yggdrasil/model/cli/llm/shared/yg-node.yaml": "49d82881ff97e0a4b591028966278c5bae2b2451f36eb370172c81f589cb097e"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -24,9 +24,9 @@
     ".yggdrasil/aspects/provider-retry-contract/content.md": 1778914752602.5513,
     ".yggdrasil/aspects/provider-redaction/check.mjs": 1780488505036.3982,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780488505036.1836,
-    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780933853473.8323,
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780979447477.9553,
     ".yggdrasil/aspects/what-why-next/content.md": 1780050256245.0933,
-    ".yggdrasil/model/cli/llm/shared/yg-node.yaml": 1779956720879.04,
+    ".yggdrasil/model/cli/llm/shared/yg-node.yaml": 1781273806707.3345,
     "source/cli/src/llm/anthropic.ts": 1780488505060.1482,
     "source/cli/src/llm/openai.ts": 1780488505062.1506,
     "source/cli/src/llm/google.ts": 1780488505061.6433,
@@ -95,10 +95,10 @@
     "posix-paths-source": {
       "verdict": "approved"
     },
-    "what-why-next": {
+    "no-direct-minimatch": {
       "verdict": "approved"
     },
-    "no-direct-minimatch": {
+    "what-why-next": {
       "verdict": "approved"
     }
   },

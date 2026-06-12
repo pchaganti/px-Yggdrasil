@@ -1,15 +1,16 @@
 {
   "schemaVersion": 1,
-  "hash": "a3e83117384d6ce57cb41695c2db8edf0131c641c3fa34bd9b18997df23fe6a3",
+  "hash": "b36902ee59257a567798820bbe0c83904efcdf07a23ee1cf1f1d152f54f04651",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
     ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": "e00d9fa0fe37a252b92888b2e217811de7fa6df420f60cdbc3e692833a16be4d",
+    ".yggdrasil/model/cli/tests/unit/support/io/yg-node.yaml": "f519c59409d1d4784bbb9f7d2b712ec981397b430828c06605c16e9f1b4c9842",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
     "source/cli/tests/unit/io/config-parser-references.test.ts": "8889934061970205eddd2f7ff6f7b38e20870090539427e0e6f1fe0861414423",
-    ".yggdrasil/model/cli/tests/unit/support/io/yg-node.yaml": "f519c59409d1d4784bbb9f7d2b712ec981397b430828c06605c16e9f1b4c9842",
-    "source/cli/tests/unit/io/config-parser.test.ts": "d43e0918148b8c99a4bedd4c50eadd47ce6bf531d7f3a01289e1eb1cd09749c2"
+    "source/cli/tests/unit/io/config-parser.test.ts": "d43e0918148b8c99a4bedd4c50eadd47ce6bf531d7f3a01289e1eb1cd09749c2",
+    "source/cli/tests/unit/io/config-parser-prompt-chars.test.ts": "712b9344a01af3e8d6e842fc10b26983df63079deaebec8f78b9b92cdcb07703"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -18,8 +19,9 @@
     ".yggdrasil/model/cli/tests/unit/support/yg-node.yaml": 1778866544645.0125,
     ".yggdrasil/model/cli/tests/unit/support/io/yg-node.yaml": 1780915332318.0642,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/io/config-parser.test.ts": 1780927504183.528,
-    "source/cli/tests/unit/io/config-parser-references.test.ts": 1779954901900.481
+    "source/cli/tests/unit/io/config-parser.test.ts": 1780929940083.0557,
+    "source/cli/tests/unit/io/config-parser-references.test.ts": 1779954901900.481,
+    "source/cli/tests/unit/io/config-parser-prompt-chars.test.ts": 1781273734301.036
   },
   "identity": {
     "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",

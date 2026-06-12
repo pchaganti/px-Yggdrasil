@@ -6,3 +6,4 @@ relations: []
 mapping:
   - source/cli/tests/unit/io/config-parser.test.ts
   - source/cli/tests/unit/io/config-parser-references.test.ts
+  - source/cli/tests/unit/io/config-parser-prompt-chars.test.ts

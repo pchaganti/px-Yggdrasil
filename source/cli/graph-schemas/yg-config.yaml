@@ -35,6 +35,12 @@ reviewer:                         # required — aspect verification during yg a
         max_tokens: auto          #       auto = query provider, or explicit positive integer
         context_length_field: ""  #       ollama: model_info key for context window size
         # timeout: 300            #       Per-call timeout in SECONDS (default 300). Only CLI providers.
+      # max_prompt_chars: 200000  # optional — assembled reviewer-prompt character cap (positive integer).
+                                  #   Checked deterministically before the LLM call. Absent = unlimited.
+                                  #   Exceeding this limit renders a blocking error naming remedies
+                                  #   (split the node, shorten references, or raise the cap).
+                                  #   Never participates in verdict identity — tuning it does not
+                                  #   invalidate recorded baselines.
       # references:                # optional — limits on aspect reference files for aspects resolving to this tier
       #   max_bytes_per_file: 65536          # positive integer; default 65536 (64 KiB)
       #   max_total_bytes_per_aspect: 262144 # positive integer; default 262144 (256 KiB)

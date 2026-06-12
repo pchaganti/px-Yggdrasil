@@ -12,7 +12,10 @@ import type { LlmConfig } from '../model/graph.js';
  */
 export function canonicalTierJson(tier: LlmConfig, tierName: string): string {
   /* eslint-disable @typescript-eslint/no-unused-vars */
-  const { api_key: _api_key, timeout: _timeout, ...rest } = tier;
+  // Excluded fields: api_key (rotated independently), timeout (operational knob —
+  // does not change reviewer judgment), max_prompt_chars (a quality gate checked
+  // before the LLM call — tuning it must never invalidate recorded baselines).
+  const { api_key: _api_key, timeout: _timeout, max_prompt_chars: _max_prompt_chars, ...rest } = tier;
   /* eslint-enable @typescript-eslint/no-unused-vars */
   return canonicalJson({ tierName, ...rest });
 }

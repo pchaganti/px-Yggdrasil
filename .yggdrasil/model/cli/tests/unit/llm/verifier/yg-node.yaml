@@ -7,3 +7,4 @@ mapping:
   - source/cli/tests/unit/llm/provider.test.ts
   - source/cli/tests/unit/llm/xml-escape.test.ts
   - source/cli/tests/unit/llm/aspect-verifier-references.test.ts
+  - source/cli/tests/unit/llm/prompt.test.ts

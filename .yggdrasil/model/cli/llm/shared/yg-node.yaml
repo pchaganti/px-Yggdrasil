@@ -9,6 +9,7 @@ mapping:
   - source/cli/src/llm/index.ts
   - source/cli/src/llm/api-utils.ts
   - source/cli/src/llm/aspect-verifier.ts
+  - source/cli/src/llm/prompt.ts
   - source/cli/src/llm/reviewer-test.ts
   - source/cli/src/llm/model-fetcher.ts
   - source/cli/src/llm/xml-escape.ts
