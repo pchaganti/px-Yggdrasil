@@ -344,4 +344,137 @@ describe('runStructureAspect — observation recording', () => {
     expect(fileHash).not.toBe(falseHash);
     expect(dirHash).not.toBe(falseHash);
   });
+
+  it('relationsFrom → graph: observation for the queried node', async () => {
+    // A check that calls ctx.graph.relationsFrom(ctx.node) must record a graph:
+    // observation for that node — its yg-node.yaml is an input to the result.
+    await writeAspect('obs-relations-from', `
+      export function check(ctx) {
+        ctx.graph.relationsFrom(ctx.node);
+        return [];
+      }
+    `);
+    const modelDir = path.join(projectRoot, '.yggdrasil', 'model', 'N');
+    mkdirSync(modelDir, { recursive: true });
+    const nodeYaml = 'name: N\ntype: module\nmapping:\n  - src/a.ts\n';
+    writeFileSync(path.join(modelDir, 'yg-node.yaml'), nodeYaml);
+
+    const g = buildTestGraphForStructure({
+      nodes: [
+        { path: 'N', type: 'module', mapping: ['src/a.ts'], relations: [{ type: 'uses', target: 'Dep' }] },
+        { path: 'Dep', type: 'module', mapping: ['src/b.ts'] },
+      ],
+    });
+    const r = await runStructureAspect({
+      aspectDir: path.join('.yggdrasil/aspects/obs-relations-from'),
+      aspectId: 'obs-relations-from', nodePath: 'N', graph: g, projectRoot,
+    });
+    const graphKey = observationKey('graph', 'N');
+    const entry = r.observations.find(([k]) => k === graphKey);
+    expect(entry).toBeDefined();
+    expect(entry![1]).toBe(hashReadObservation(Buffer.from(nodeYaml)));
+    expect(r.observationsTainted).toBe(false);
+  });
+
+  it('relationsTo → graph: observations for every scanned node', async () => {
+    // A check that calls ctx.graph.relationsTo(ctx.node) must record graph:
+    // observations for every node in the allowed set that was scanned — including
+    // nodes that have NO relation to the current node (their absence is an input).
+    //
+    // Setup: N → Dep (puts Dep in the allowed set). Dep → N (so relationsTo(N)
+    // finds a result). Both N and Dep are scanned; both must get graph: observations.
+    await writeAspect('obs-relations-to', `
+      export function check(ctx) {
+        ctx.graph.relationsTo(ctx.node);
+        return [];
+      }
+    `);
+    const modelDirN = path.join(projectRoot, '.yggdrasil', 'model', 'N');
+    const modelDirDep = path.join(projectRoot, '.yggdrasil', 'model', 'Dep');
+    mkdirSync(modelDirN, { recursive: true });
+    mkdirSync(modelDirDep, { recursive: true });
+    const nodeYamlN = 'name: N\ntype: module\nmapping:\n  - src/a.ts\n';
+    const nodeYamlDep = 'name: Dep\ntype: module\nmapping:\n  - src/b.ts\nrelations:\n  - type: uses\n    target: N\n';
+    writeFileSync(path.join(modelDirN, 'yg-node.yaml'), nodeYamlN);
+    writeFileSync(path.join(modelDirDep, 'yg-node.yaml'), nodeYamlDep);
+
+    // N has a relation to Dep (adds Dep to allowed), and Dep has a relation back to N
+    // (so relationsTo(N) returns a result from Dep).
+    const g = buildTestGraphForStructure({
+      nodes: [
+        { path: 'N', type: 'module', mapping: ['src/a.ts'], relations: [{ type: 'uses', target: 'Dep' }] },
+        { path: 'Dep', type: 'module', mapping: ['src/b.ts'], relations: [{ type: 'uses', target: 'N' }] },
+      ],
+    });
+    const r = await runStructureAspect({
+      aspectDir: path.join('.yggdrasil/aspects/obs-relations-to'),
+      aspectId: 'obs-relations-to', nodePath: 'N', graph: g, projectRoot,
+    });
+    const graphObs = r.observations.filter(([k]) => k.startsWith('graph:'));
+    const keys = graphObs.map(([k]) => k);
+    // Both nodes are in the allowed set; both should have graph: observations.
+    expect(keys).toContain(observationKey('graph', 'N'));
+    expect(keys).toContain(observationKey('graph', 'Dep'));
+    expect(r.observationsTainted).toBe(false);
+  });
+
+  it('relationsTo: editing related yg-node.yaml changes its graph: hash', async () => {
+    // After editing Dep's yg-node.yaml (adding a relation back to N), a fresh run
+    // of relationsTo must produce a different graph: hash for Dep — proving the
+    // relation declarations of scanned nodes are captured in the observation baseline.
+    //
+    // Setup: N → Dep always (puts Dep in allowed). Before: Dep has no relation to N.
+    // After: Dep gains a relation to N. The graph: hash for Dep must change.
+    await writeAspect('obs-relations-to-hash-change', `
+      export function check(ctx) {
+        ctx.graph.relationsTo(ctx.node);
+        return [];
+      }
+    `);
+    const modelDirDep = path.join(projectRoot, '.yggdrasil', 'model', 'Dep');
+    mkdirSync(path.join(projectRoot, '.yggdrasil', 'model', 'N'), { recursive: true });
+    mkdirSync(modelDirDep, { recursive: true });
+    writeFileSync(
+      path.join(projectRoot, '.yggdrasil', 'model', 'N', 'yg-node.yaml'),
+      'name: N\ntype: module\nmapping:\n  - src/a.ts\n',
+    );
+    // Before: Dep has no relation to N
+    const nodeYamlDepBefore = 'name: Dep\ntype: module\nmapping:\n  - src/b.ts\n';
+    fsWriteFileSync(path.join(modelDirDep, 'yg-node.yaml'), nodeYamlDepBefore);
+
+    // N → Dep (puts Dep in allowed); Dep has no back-relation yet.
+    const g = buildTestGraphForStructure({
+      nodes: [
+        { path: 'N', type: 'module', mapping: ['src/a.ts'], relations: [{ type: 'uses', target: 'Dep' }] },
+        { path: 'Dep', type: 'module', mapping: ['src/b.ts'] },
+      ],
+    });
+    const r1 = await runStructureAspect({
+      aspectDir: path.join('.yggdrasil/aspects/obs-relations-to-hash-change'),
+      aspectId: 'obs-relations-to-hash-change', nodePath: 'N', graph: g, projectRoot,
+    });
+    const depKey = observationKey('graph', 'Dep');
+    const entry1 = r1.observations.find(([k]) => k === depKey);
+    expect(entry1).toBeDefined();
+
+    // After: Dep gains a relation to N (yg-node.yaml changes on disk)
+    const nodeYamlDepAfter = 'name: Dep\ntype: module\nmapping:\n  - src/b.ts\nrelations:\n  - type: uses\n    target: N\n';
+    fsWriteFileSync(path.join(modelDirDep, 'yg-node.yaml'), nodeYamlDepAfter);
+
+    // Rebuild graph with the updated relation to reflect the new state.
+    const g2 = buildTestGraphForStructure({
+      nodes: [
+        { path: 'N', type: 'module', mapping: ['src/a.ts'], relations: [{ type: 'uses', target: 'Dep' }] },
+        { path: 'Dep', type: 'module', mapping: ['src/b.ts'], relations: [{ type: 'uses', target: 'N' }] },
+      ],
+    });
+    const r2 = await runStructureAspect({
+      aspectDir: path.join('.yggdrasil/aspects/obs-relations-to-hash-change'),
+      aspectId: 'obs-relations-to-hash-change', nodePath: 'N', graph: g2, projectRoot,
+    });
+    const entry2 = r2.observations.find(([k]) => k === depKey);
+    expect(entry2).toBeDefined();
+    // Hash must have changed because Dep's yg-node.yaml content changed.
+    expect(entry1![1]).not.toBe(entry2![1]);
+  });
 });

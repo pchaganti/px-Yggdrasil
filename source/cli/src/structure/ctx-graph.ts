@@ -165,6 +165,7 @@ export function createCtxGraph(params: CtxGraphParams): CtxGraph {
     relationsFrom(node) {
       assertAllowed(node.id);
       const m = graph.nodes.get(node.id);
+      if (m) recordGraphNode(m);
       return (m?.meta.relations ?? []) as Relation[];
     },
     relationsTo(node) {
@@ -172,6 +173,9 @@ export function createCtxGraph(params: CtxGraphParams): CtxGraph {
       for (const id of allowed) {
         const m = graph.nodes.get(id);
         if (!m) continue;
+        // Record every scanned node — its relation declarations (including the
+        // absence of a relation to `node`) are inputs to the result.
+        recordGraphNode(m);
         for (const rel of m.meta.relations ?? []) {
           if (rel.target === node.id) out.push(rel as Relation);
         }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "14bd097026f3ff0263b08839e6def5aefcd31c2a4937dac778e973d11949155a",
+  "hash": "e37c36ed9d6c72a6177a5c99ce6a7f263e571933363f4d8915cc8e590f1e08f1",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
@@ -10,23 +10,21 @@
     "source/cli/src/structure/expand-mapping-sync.ts": "fff473fed47cd15a042e6cb81ed6bc644f9279cb95aedc8f9291aa39c070c1d6",
     "source/cli/src/structure/allowed-reads.ts": "9356276775f1bffa4d02b0f9c126aeb3ef3c3005b36a0488f97621a81618b2bc",
     "source/cli/src/structure/types.ts": "62c088d33e826a58c193e2a9012eb5c406e5472cc352bcf69397db7112e6d5f6",
-    "source/cli/src/structure/runner.ts": "adefa9c472d5ca56b1c1c153f012734c3661654cadaa907739837506384286b9",
     "source/cli/src/structure/ctx-fs.ts": "d733308e92a118c43ce6e1b979496a5fb2f0562ce9b002fb0782b6fbf0f61410",
-    "source/cli/src/structure/ctx-graph.ts": "8f6c6c94b5b82b281fa993af9c3aa6748c55b1486d6cb283562f0cf5af6a124a",
-    "source/cli/src/structure/ctx-parsers.ts": "7c3c145b9e3ba8cbb02474fcc84b2dd7619fd5c5660bac0c6e3810334ea5badb"
+    "source/cli/src/structure/ctx-parsers.ts": "7c3c145b9e3ba8cbb02474fcc84b2dd7619fd5c5660bac0c6e3810334ea5badb",
+    "source/cli/src/structure/ctx-graph.ts": "1e46e9bdd247257ada5e42aded908358054e57728af775a98691f8fed20ba0f3"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780488505036.1836,
     ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780979447477.9553,
-    "source/cli/src/structure/runner.ts": 1781275920364.497,
     "source/cli/src/structure/index.ts": 1780038029653.0693,
     "source/cli/src/structure/expand-mapping-sync.ts": 1780932356010.096,
     "source/cli/src/structure/allowed-reads.ts": 1780116976692.7002,
     "source/cli/src/structure/types.ts": 1780149146994.7927,
     "source/cli/src/structure/ctx-fs.ts": 1781275779525.7559,
-    "source/cli/src/structure/ctx-graph.ts": 1781275834477.7744,
+    "source/cli/src/structure/ctx-graph.ts": 1781277149805.5493,
     "source/cli/src/structure/ctx-parsers.ts": 1781275859818.1367
   },
   "identity": {
@@ -45,7 +43,7 @@
           "source/cli/src/structure/allowed-reads.ts": "9356276775f1bffa4d02b0f9c126aeb3ef3c3005b36a0488f97621a81618b2bc",
           "source/cli/src/structure/types.ts": "62c088d33e826a58c193e2a9012eb5c406e5472cc352bcf69397db7112e6d5f6",
           "source/cli/src/structure/ctx-fs.ts": "d733308e92a118c43ce6e1b979496a5fb2f0562ce9b002fb0782b6fbf0f61410",
-          "source/cli/src/structure/ctx-graph.ts": "8f6c6c94b5b82b281fa993af9c3aa6748c55b1486d6cb283562f0cf5af6a124a",
+          "source/cli/src/structure/ctx-graph.ts": "1e46e9bdd247257ada5e42aded908358054e57728af775a98691f8fed20ba0f3",
           "source/cli/src/structure/ctx-parsers.ts": "7c3c145b9e3ba8cbb02474fcc84b2dd7619fd5c5660bac0c6e3810334ea5badb"
         }
       },
@@ -57,7 +55,7 @@
           "source/cli/src/structure/allowed-reads.ts": "9356276775f1bffa4d02b0f9c126aeb3ef3c3005b36a0488f97621a81618b2bc",
           "source/cli/src/structure/types.ts": "62c088d33e826a58c193e2a9012eb5c406e5472cc352bcf69397db7112e6d5f6",
           "source/cli/src/structure/ctx-fs.ts": "d733308e92a118c43ce6e1b979496a5fb2f0562ce9b002fb0782b6fbf0f61410",
-          "source/cli/src/structure/ctx-graph.ts": "8f6c6c94b5b82b281fa993af9c3aa6748c55b1486d6cb283562f0cf5af6a124a",
+          "source/cli/src/structure/ctx-graph.ts": "1e46e9bdd247257ada5e42aded908358054e57728af775a98691f8fed20ba0f3",
           "source/cli/src/structure/ctx-parsers.ts": "7c3c145b9e3ba8cbb02474fcc84b2dd7619fd5c5660bac0c6e3810334ea5badb"
         }
       }
@@ -75,7 +73,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-12T14:57:53.645Z",
-    "prefix_hash": "2fb3d16ad4cee85359c286f8fde0d2b0a44be8374bd5c244644baab8a375e5a1"
+    "last_entry_datetime": "2026-06-12T15:14:29.533Z",
+    "prefix_hash": "c2181602b054eeff4853b3398be34d4298962fd1132cab8f5361a306bc477b6c"
   }
 }
