@@ -54,7 +54,9 @@ export function readLock(yggRoot: string): LockFile {
   }
 
   // Detect git conflict markers before attempting JSON parse.
-  if (raw.includes('<<<<<<<')) {
+  // Use a line-anchored regex: real git conflict markers start a line and are followed by a space.
+  // A bare substring check would falsely trigger on a verdict reason that quotes diff/conflict text.
+  if (/^<<<<<<< /m.test(raw)) {
     throw new LockInvalidError({
       what: `${LOCK_FILE_NAME} contains git conflict markers — the file was not resolved after a merge`,
       why: 'a conflict-markered lock file cannot be parsed; allowing partial content would let stale or wrong verdicts pass as valid, silently breaking enforcement',
@@ -194,6 +196,7 @@ function serializeEntry(entry: VerdictEntry): string {
   obj.verdict = entry.verdict;
   obj.hash = entry.hash;
   if (entry.reason !== undefined) obj.reason = entry.reason;
+  // Pre-sorting touched (and the observation-key order) is the PRODUCER's contract — the store serializes the array as given.
   if (entry.touched !== undefined) obj.touched = entry.touched;
 
   // Sort keys by code-point

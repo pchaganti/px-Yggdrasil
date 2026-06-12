@@ -177,6 +177,93 @@ describe('lock-store', () => {
     expect(next).toMatch(/re.verif/i);
   });
 
+  it('readLock does NOT throw when a reason string contains "<<<<<<< HEAD" inside JSON', async () => {
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-reason-lt7');
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true });
+    const lock: LockFile = {
+      version: LOCK_FORMAT_VERSION,
+      verdicts: {
+        'my-aspect': {
+          'node:billing/cancel': {
+            verdict: 'refused',
+            hash: 'abc123',
+            reason: 'reviewer quoted: <<<<<<< HEAD in source',
+          },
+        },
+      },
+      nodes: {},
+    };
+    // Write via writeLock — serializer must escape the angle brackets inside the JSON string.
+    await writeLock(tmpDir, lock);
+    // readLock must NOT throw — the line-anchored regex must not match inside JSON string content.
+    const result = readLock(tmpDir);
+    expect(result.verdicts['my-aspect']['node:billing/cancel'].reason).toBe(
+      'reviewer quoted: <<<<<<< HEAD in source',
+    );
+  });
+
+  it('serializer escaping: roundtrip a reason with quotes, newline, and backslash keeps each entry on a single line and returns the exact original string', async () => {
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-escape');
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true });
+    const tricky = 'has "quotes"\nand newline\t\\backslash';
+    const lock: LockFile = {
+      version: LOCK_FORMAT_VERSION,
+      verdicts: {
+        'my-aspect': {
+          'node:billing/cancel': {
+            verdict: 'refused',
+            hash: 'abc123',
+            reason: tricky,
+          },
+        },
+      },
+      nodes: {},
+    };
+    await writeLock(tmpDir, lock);
+    // (i) Each verdict entry must appear on a single line (no raw newline inside the entry line).
+    const serialized = serializeLock(lock);
+    // Find the line containing the entry for 'node:billing/cancel'
+    const entryLines = serialized
+      .split('\n')
+      .filter((l) => l.includes('"node:billing/cancel"'));
+    expect(entryLines).toHaveLength(1);
+    // (ii) readLock roundtrip returns the exact original string.
+    const result = readLock(tmpDir);
+    expect(result.verdicts['my-aspect']['node:billing/cancel'].reason).toBe(tricky);
+  });
+
+  it('unknown-field drop: extra properties on VerdictEntry are not serialized and roundtrip yields only known fields', async () => {
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-extra-field');
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true });
+    const entryWithExtra = {
+      verdict: 'approved' as const,
+      hash: 'abc123',
+      __extraField: 'should-be-dropped',
+    } as unknown as import('../../../src/model/lock.js').VerdictEntry;
+    const lock: LockFile = {
+      version: LOCK_FORMAT_VERSION,
+      verdicts: {
+        'my-aspect': {
+          'node:billing/cancel': entryWithExtra,
+        },
+      },
+      nodes: {},
+    };
+    const serialized = serializeLock(lock);
+    // The extra field must not appear in the serialized output.
+    expect(serialized).not.toContain('__extraField');
+    expect(serialized).not.toContain('should-be-dropped');
+    // Roundtrip via write+read yields only the known fields.
+    await writeLock(tmpDir, lock);
+    const result = readLock(tmpDir);
+    const entry = result.verdicts['my-aspect']['node:billing/cancel'];
+    expect(entry).toEqual({ verdict: 'approved', hash: 'abc123' });
+    expect(Object.keys(entry)).not.toContain('__extraField');
+  });
+
   it('writeLock writes atomically (temp + rename via the existing atomic write helper)', async () => {
     // We verify atomicity by confirming no .tmp file is left behind after write,
     // and that the lock can be read back correctly.

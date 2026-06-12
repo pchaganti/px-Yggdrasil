@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "db527a4c4b76ea5acfa456a6090d1965752b0ffdddc738ab0cf1916bc360b857",
+  "hash": "c80005267090091754a04cfe0cdcd4be147f923b784b36aa43dfc61cf039cb10",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
@@ -12,7 +12,7 @@
     ".yggdrasil/model/cli/model/lock/yg-node.yaml": "37ad411a59df7d886fcdde4e3cf80cd1707058a42c2d1aa622737b3ea60e839b",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
     ".yggdrasil/model/cli/io/atomic-write/yg-node.yaml": "1fa7b72090e7b8a5017b2f6358087886f4f3118f0da90c318fb4e744f2734df1",
-    "source/cli/src/io/lock-store.ts": "ab383c7912e3767c8e2e93f4d7e70fdd82df62d518642ddba785a692e38aa766"
+    "source/cli/src/io/lock-store.ts": "5b5bb4a9f43e089fc5fd10280751c2d6e76a29394d6b006d72712c10924a15cf"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -25,7 +25,7 @@
     ".yggdrasil/model/cli/model/lock/yg-node.yaml": 1781263940067.6943,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
     ".yggdrasil/model/cli/io/atomic-write/yg-node.yaml": 1778919314141.992,
-    "source/cli/src/io/lock-store.ts": 1781263901404.2527
+    "source/cli/src/io/lock-store.ts": 1781264719228.5056
   },
   "identity": {
     "ownSubset": "997cd31cbe20710d2f53331a9483636146f4dd4177d8140103aa49fc6feae7b7",
@@ -40,25 +40,25 @@
       "atomic-write-contract": {
         "meta": "f4f2b2bdab9ae504c991e79e2d307c66671b5445b06f1780690f61084e83117e",
         "checkTouched": {
-          "source/cli/src/io/lock-store.ts": "ab383c7912e3767c8e2e93f4d7e70fdd82df62d518642ddba785a692e38aa766"
+          "source/cli/src/io/lock-store.ts": "5b5bb4a9f43e089fc5fd10280751c2d6e76a29394d6b006d72712c10924a15cf"
         }
       },
       "posix-paths-source": {
         "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
         "checkTouched": {
-          "source/cli/src/io/lock-store.ts": "ab383c7912e3767c8e2e93f4d7e70fdd82df62d518642ddba785a692e38aa766"
+          "source/cli/src/io/lock-store.ts": "5b5bb4a9f43e089fc5fd10280751c2d6e76a29394d6b006d72712c10924a15cf"
         }
       },
       "no-direct-minimatch": {
         "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
         "checkTouched": {
-          "source/cli/src/io/lock-store.ts": "ab383c7912e3767c8e2e93f4d7e70fdd82df62d518642ddba785a692e38aa766"
+          "source/cli/src/io/lock-store.ts": "5b5bb4a9f43e089fc5fd10280751c2d6e76a29394d6b006d72712c10924a15cf"
         }
       },
       "read-or-default-via-helper": {
         "meta": "e35435ede6ebbe015c8a0de76081e6c72acbcc193efd5c066beeea8541b99811",
         "checkTouched": {
-          "source/cli/src/io/lock-store.ts": "ab383c7912e3767c8e2e93f4d7e70fdd82df62d518642ddba785a692e38aa766"
+          "source/cli/src/io/lock-store.ts": "5b5bb4a9f43e089fc5fd10280751c2d6e76a29394d6b006d72712c10924a15cf"
         }
       }
     }
@@ -81,7 +81,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-12T11:33:08.168Z",
-    "prefix_hash": "91d7c2315515a772a23a7e36996685a5a552ba1aa28804460aa361cb99576a28"
+    "last_entry_datetime": "2026-06-12T11:45:55.506Z",
+    "prefix_hash": "d1df59a40ce4ba5e9789df125bd601fc16963bf88d009d79e54b4603f40eee3e"
   }
 }
