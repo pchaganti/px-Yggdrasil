@@ -48,6 +48,8 @@ export const STRUCTURAL_CODES = new Set<string>([
   'aspect-empty',
   'file-unreadable',
   'aspect-references-on-deterministic',
+  'aspect-scope-invalid',
+  'aspect-scope-on-aggregate',
   'aspect-references-on-aggregate',
   'aspect-reference-broken',
   'aspect-reference-too-large',

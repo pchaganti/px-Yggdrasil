@@ -623,7 +623,7 @@ function parseScope(
   let files: ScopeDef['files'];
   if ('files' in obj && obj.files !== undefined) {
     try {
-      files = parseFileWhen(obj.files, `yg-aspect.yaml at ${aspectYamlPath}: scope.files`);
+      files = parseFileWhen(obj.files, `yg-aspect.yaml at ${aspectYamlPath}: scope.files`, 'scope.files');
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       // Augment: if the error is a WhenPredicateInvalidError whose message already carries

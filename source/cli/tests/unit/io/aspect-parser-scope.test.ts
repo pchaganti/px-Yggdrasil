@@ -284,6 +284,51 @@ describe('aspect-parser scope: error paths', () => {
     const errors = assertFail(await parseAspect(aspectDir, yamlPath, 'test'));
     expect(errors.some(e => e.code === 'aspect-scope-invalid')).toBe(true);
   });
+
+  it('per: "File" (capitalized) → aspect-scope-invalid', async () => {
+    const { aspectDir, yamlPath } = alloc('per-capitalized');
+    writeLlm(yamlPath, 'scope:\n  per: File\n');
+    const errors = assertFail(await parseAspect(aspectDir, yamlPath, 'test'));
+    expect(errors.some(e => e.code === 'aspect-scope-invalid')).toBe(true);
+  });
+
+  it('files: {} (empty mapping) → aspect-scope-invalid', async () => {
+    const { aspectDir, yamlPath } = alloc('files-empty-mapping');
+    writeLlm(yamlPath, 'scope:\n  per: file\n  files: {}\n');
+    const errors = assertFail(await parseAspect(aspectDir, yamlPath, 'test'));
+    expect(errors.some(e => e.code === 'aspect-scope-invalid')).toBe(true);
+  });
+
+  it('scope: null → aspect-scope-invalid', async () => {
+    const { aspectDir, yamlPath } = alloc('scope-null');
+    writeLlm(yamlPath, 'scope: ~\n');
+    const errors = assertFail(await parseAspect(aspectDir, yamlPath, 'test'));
+    expect(errors.some(e => e.code === 'aspect-scope-invalid')).toBe(true);
+  });
+
+  it('scope: [] (array) → aspect-scope-invalid', async () => {
+    const { aspectDir, yamlPath } = alloc('scope-array');
+    writeLlm(yamlPath, 'scope:\n  - per: file\n');
+    const errors = assertFail(await parseAspect(aspectDir, yamlPath, 'test'));
+    expect(errors.some(e => e.code === 'aspect-scope-invalid')).toBe(true);
+  });
+
+  it('nested node-family atom in all_of → aspect-scope-invalid with cross-hint', async () => {
+    const { aspectDir, yamlPath } = alloc('nested-node-in-all-of');
+    writeLlm(yamlPath, [
+      'scope:',
+      '  per: file',
+      '  files:',
+      '    all_of:',
+      '      - path: "src/**"',
+      '      - node:',
+      '          type: service',
+    ].join('\n') + '\n');
+    const errors = assertFail(await parseAspect(aspectDir, yamlPath, 'test'));
+    expect(errors.some(e => e.code === 'aspect-scope-invalid')).toBe(true);
+    const errMsg = JSON.stringify(errors.find(e => e.code === 'aspect-scope-invalid'));
+    expect(errMsg).toMatch(/node atom/);
+  });
 });
 
 describe('aspect-parser cross-hint B: path/content in aspect when:', () => {

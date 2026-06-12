@@ -63,11 +63,11 @@ describe('A. two grammars: operators shared, atoms disjoint', () => {
   });
 
   it('file-when rejects aspect-when atoms (node, relations, descendants)', () => {
-    expect(() => parseFileWhen({ node: { type: 'x' } }, 'ctx')).toThrow(/unknown when key 'node'/);
-    expect(() => parseFileWhen({ relations: { calls: { target: 'a' } } }, 'ctx')).toThrow(
+    expect(() => parseFileWhen({ node: { type: 'x' } }, 'ctx', 'scope.files')).toThrow(/unknown when key 'node'/);
+    expect(() => parseFileWhen({ relations: { calls: { target: 'a' } } }, 'ctx', 'scope.files')).toThrow(
       /unknown when key 'relations'/,
     );
-    expect(() => parseFileWhen({ descendants: { type: 'x' } }, 'ctx')).toThrow(
+    expect(() => parseFileWhen({ descendants: { type: 'x' } }, 'ctx', 'scope.files')).toThrow(
       /unknown when key 'descendants'/,
     );
   });
@@ -76,14 +76,14 @@ describe('A. two grammars: operators shared, atoms disjoint', () => {
     expect(parseWhen({ all_of: [{ node: { type: 'x' } }] }, 'ctx')).toHaveProperty('all_of');
     expect(parseWhen({ any_of: [{ node: { type: 'x' } }] }, 'ctx')).toHaveProperty('any_of');
     expect(parseWhen({ not: { node: { type: 'x' } } }, 'ctx')).toHaveProperty('not');
-    expect(parseFileWhen({ all_of: [{ path: 'a' }] }, 'ctx')).toHaveProperty('all_of');
-    expect(parseFileWhen({ any_of: [{ path: 'a' }] }, 'ctx')).toHaveProperty('any_of');
-    expect(parseFileWhen({ not: { path: 'a' } }, 'ctx')).toHaveProperty('not');
+    expect(parseFileWhen({ all_of: [{ path: 'a' }] }, 'ctx', 'scope.files')).toHaveProperty('all_of');
+    expect(parseFileWhen({ any_of: [{ path: 'a' }] }, 'ctx', 'scope.files')).toHaveProperty('any_of');
+    expect(parseFileWhen({ not: { path: 'a' } }, 'ctx', 'scope.files')).toHaveProperty('not');
   });
 
   it('file-when parser failures carry the when-predicate-invalid code', () => {
     try {
-      parseFileWhen({ node: { type: 'x' } }, 'ctx');
+      parseFileWhen({ node: { type: 'x' } }, 'ctx', 'scope.files');
       throw new Error('should have thrown');
     } catch (e) {
       expect(e).toBeInstanceOf(WhenPredicateInvalidError);
@@ -413,22 +413,22 @@ describe('E. file-when classification grammar', () => {
   });
 
   it('file-when parser rejects empty boolean arrays and empty mapping', () => {
-    expect(() => parseFileWhen({ all_of: [] }, 'ctx')).toThrow(/'all_of' array must not be empty/);
-    expect(() => parseFileWhen({ any_of: [] }, 'ctx')).toThrow(/'any_of' array must not be empty/);
-    expect(() => parseFileWhen({}, 'ctx')).toThrow(/when mapping must not be empty/);
+    expect(() => parseFileWhen({ all_of: [] }, 'ctx', 'scope.files')).toThrow(/'all_of' array must not be empty/);
+    expect(() => parseFileWhen({ any_of: [] }, 'ctx', 'scope.files')).toThrow(/'any_of' array must not be empty/);
+    expect(() => parseFileWhen({}, 'ctx', 'scope.files')).toThrow(/when mapping must not be empty/);
   });
 
   it('file-when parser rejects mixing boolean + atomic and >1 boolean operator', () => {
-    expect(() => parseFileWhen({ all_of: [{ path: 'a' }], path: 'b' }, 'ctx')).toThrow(
+    expect(() => parseFileWhen({ all_of: [{ path: 'a' }], path: 'b' }, 'ctx', 'scope.files')).toThrow(
       /cannot mix boolean operators with atomic clauses/,
     );
-    expect(() => parseFileWhen({ all_of: [{ path: 'a' }], any_of: [{ path: 'b' }] }, 'ctx')).toThrow(
+    expect(() => parseFileWhen({ all_of: [{ path: 'a' }], any_of: [{ path: 'b' }] }, 'ctx', 'scope.files')).toThrow(
       /at most one boolean operator/,
     );
   });
 
   it('file-when content atom validates the regex at parse time', () => {
-    expect(() => parseFileWhen({ content: '(' }, 'ctx')).toThrow(/Invalid regex in content/);
+    expect(() => parseFileWhen({ content: '(' }, 'ctx', 'scope.files')).toThrow(/Invalid regex in content/);
   });
 });
 

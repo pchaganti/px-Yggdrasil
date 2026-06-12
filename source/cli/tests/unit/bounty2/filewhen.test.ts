@@ -458,65 +458,65 @@ describe('file-when evaluator — branch coverage', () => {
 describe('parseFileWhen — branch coverage', () => {
   // --- top-level shape guards ---
   it('rejects null', () => {
-    expect(() => parseFileWhen(null, 'C')).toThrow(/when must be a YAML mapping/);
+    expect(() => parseFileWhen(null, 'C', 'scope.files')).toThrow(/when must be a YAML mapping/);
   });
   it('rejects a non-object (string)', () => {
-    expect(() => parseFileWhen('hello', 'C')).toThrow(/when must be a YAML mapping/);
+    expect(() => parseFileWhen('hello', 'C', 'scope.files')).toThrow(/when must be a YAML mapping/);
   });
   it('rejects an array', () => {
-    expect(() => parseFileWhen([{ path: 'a' }], 'C')).toThrow(/when must be a YAML mapping/);
+    expect(() => parseFileWhen([{ path: 'a' }], 'C', 'scope.files')).toThrow(/when must be a YAML mapping/);
   });
   it('rejects an empty mapping', () => {
-    expect(() => parseFileWhen({}, 'C')).toThrow(/when mapping must not be empty/);
+    expect(() => parseFileWhen({}, 'C', 'scope.files')).toThrow(/when mapping must not be empty/);
   });
 
   // --- unknown key ---
   it('rejects an unknown key and names the allowed set', () => {
-    expect(() => parseFileWhen({ foo: 'bar' }, 'C')).toThrow(
+    expect(() => parseFileWhen({ foo: 'bar' }, 'C', 'scope.files')).toThrow(
       /unknown when key 'foo' \(expected one of: all_of, any_of, not, path, content\)/,
     );
   });
   it('reports the FIRST unknown key when several are present', () => {
     // keys() order is insertion order for string keys.
-    expect(() => parseFileWhen({ zzz: 1, qqq: 2 }, 'C')).toThrow(/unknown when key 'zzz'/);
+    expect(() => parseFileWhen({ zzz: 1, qqq: 2 }, 'C', 'scope.files')).toThrow(/unknown when key 'zzz'/);
   });
 
   // --- mixing / multiplicity ---
   it('rejects mixing a boolean operator with an atomic clause', () => {
-    expect(() => parseFileWhen({ all_of: [{ path: 'a' }], path: 'b' }, 'C')).toThrow(
+    expect(() => parseFileWhen({ all_of: [{ path: 'a' }], path: 'b' }, 'C', 'scope.files')).toThrow(
       /cannot mix boolean operators with atomic clauses/,
     );
   });
   it('rejects two boolean operators at the same level', () => {
-    expect(() => parseFileWhen({ all_of: [{ path: 'a' }], any_of: [{ path: 'b' }] }, 'C')).toThrow(
+    expect(() => parseFileWhen({ all_of: [{ path: 'a' }], any_of: [{ path: 'b' }] }, 'C', 'scope.files')).toThrow(
       /at most one boolean operator at a level \(got: all_of, any_of\)/,
     );
   });
 
   // --- atomic accept + reject ---
   it('accepts a bare path atom', () => {
-    expect(parseFileWhen({ path: 'src/**' }, 'C')).toEqual({ path: 'src/**' });
+    expect(parseFileWhen({ path: 'src/**' }, 'C', 'scope.files')).toEqual({ path: 'src/**' });
   });
   it('accepts a bare content atom (valid regex)', () => {
-    expect(parseFileWhen({ content: 'foo\\d+' }, 'C')).toEqual({ content: 'foo\\d+' });
+    expect(parseFileWhen({ content: 'foo\\d+' }, 'C', 'scope.files')).toEqual({ content: 'foo\\d+' });
   });
   it('accepts path + content together (implicit all_of preserved as object)', () => {
-    expect(parseFileWhen({ path: 'a', content: 'b' }, 'C')).toEqual({ path: 'a', content: 'b' });
+    expect(parseFileWhen({ path: 'a', content: 'b' }, 'C', 'scope.files')).toEqual({ path: 'a', content: 'b' });
   });
   it('rejects a non-string path and reports its typeof', () => {
-    expect(() => parseFileWhen({ path: 123 }, 'C')).toThrow(/path must be a string \(got number\)/);
+    expect(() => parseFileWhen({ path: 123 }, 'C', 'scope.files')).toThrow(/path must be a string \(got number\)/);
   });
   it('rejects a non-string content and reports its typeof', () => {
-    expect(() => parseFileWhen({ content: [] }, 'C')).toThrow(
+    expect(() => parseFileWhen({ content: [] }, 'C', 'scope.files')).toThrow(
       /content must be a string \(got object\)/,
     );
   });
   it('rejects content with an invalid regex (the parser is the regex guard)', () => {
-    expect(() => parseFileWhen({ content: '(unclosed' }, 'C')).toThrow(/Invalid regex in content/);
+    expect(() => parseFileWhen({ content: '(unclosed' }, 'C', 'scope.files')).toThrow(/Invalid regex in content/);
   });
   it('throws WhenPredicateInvalidError carrying the when-predicate-invalid code', () => {
     try {
-      parseFileWhen({ foo: 1 }, 'C');
+      parseFileWhen({ foo: 1 }, 'C', 'scope.files');
       throw new Error('expected throw');
     } catch (e) {
       expect(e).toBeInstanceOf(WhenPredicateInvalidError);
@@ -526,48 +526,48 @@ describe('parseFileWhen — branch coverage', () => {
 
   // --- boolean accept ---
   it('accepts all_of with multiple children (recurses into each)', () => {
-    expect(parseFileWhen({ all_of: [{ path: 'a' }, { content: 'b' }] }, 'C')).toEqual({
+    expect(parseFileWhen({ all_of: [{ path: 'a' }, { content: 'b' }] }, 'C', 'scope.files')).toEqual({
       all_of: [{ path: 'a' }, { content: 'b' }],
     });
   });
   it('accepts any_of', () => {
-    expect(parseFileWhen({ any_of: [{ path: 'a' }] }, 'C')).toEqual({ any_of: [{ path: 'a' }] });
+    expect(parseFileWhen({ any_of: [{ path: 'a' }] }, 'C', 'scope.files')).toEqual({ any_of: [{ path: 'a' }] });
   });
   it('accepts not with a mapping child', () => {
-    expect(parseFileWhen({ not: { path: 'a' } }, 'C')).toEqual({ not: { path: 'a' } });
+    expect(parseFileWhen({ not: { path: 'a' } }, 'C', 'scope.files')).toEqual({ not: { path: 'a' } });
   });
   it('accepts nested operators (all_of containing a not)', () => {
-    expect(parseFileWhen({ all_of: [{ path: 'a' }, { not: { content: 'b' } }] }, 'C')).toEqual({
+    expect(parseFileWhen({ all_of: [{ path: 'a' }, { not: { content: 'b' } }] }, 'C', 'scope.files')).toEqual({
       all_of: [{ path: 'a' }, { not: { content: 'b' } }],
     });
   });
 
   // --- boolean reject ---
   it('rejects an empty all_of array', () => {
-    expect(() => parseFileWhen({ all_of: [] }, 'C')).toThrow(/'all_of' array must not be empty/);
+    expect(() => parseFileWhen({ all_of: [] }, 'C', 'scope.files')).toThrow(/'all_of' array must not be empty/);
   });
   it('rejects an empty any_of array', () => {
-    expect(() => parseFileWhen({ any_of: [] }, 'C')).toThrow(/'any_of' array must not be empty/);
+    expect(() => parseFileWhen({ any_of: [] }, 'C', 'scope.files')).toThrow(/'any_of' array must not be empty/);
   });
   it('rejects all_of whose value is not an array', () => {
-    expect(() => parseFileWhen({ all_of: 'x' }, 'C')).toThrow(/'all_of' must be an array/);
+    expect(() => parseFileWhen({ all_of: 'x' }, 'C', 'scope.files')).toThrow(/'all_of' must be an array/);
   });
   it('rejects any_of whose value is not an array', () => {
-    expect(() => parseFileWhen({ any_of: { path: 'a' } }, 'C')).toThrow(/'any_of' must be an array/);
+    expect(() => parseFileWhen({ any_of: { path: 'a' } }, 'C', 'scope.files')).toThrow(/'any_of' must be an array/);
   });
   it('rejects a not whose child is not a mapping (string)', () => {
-    expect(() => parseFileWhen({ not: 'src/**' }, 'C')).toThrow(/when must be a YAML mapping/);
+    expect(() => parseFileWhen({ not: 'src/**' }, 'C', 'scope.files')).toThrow(/when must be a YAML mapping/);
   });
   it('rejects a not whose child is null', () => {
-    expect(() => parseFileWhen({ not: null }, 'C')).toThrow(/when must be a YAML mapping/);
+    expect(() => parseFileWhen({ not: null }, 'C', 'scope.files')).toThrow(/when must be a YAML mapping/);
   });
   it('rejects an invalid child inside all_of (recursive failure surfaces)', () => {
-    expect(() => parseFileWhen({ all_of: [{ path: 'a' }, { bogus: 1 }] }, 'C')).toThrow(
+    expect(() => parseFileWhen({ all_of: [{ path: 'a' }, { bogus: 1 }] }, 'C', 'scope.files')).toThrow(
       /unknown when key 'bogus'/,
     );
   });
   it('error context propagates the path label into nested errors', () => {
-    expect(() => parseFileWhen({ all_of: [{ content: '(' }] }, 'TOP')).toThrow(
+    expect(() => parseFileWhen({ all_of: [{ content: '(' }] }, 'TOP', 'scope.files')).toThrow(
       /TOP\/all_of\[0\]: Invalid regex/,
     );
   });

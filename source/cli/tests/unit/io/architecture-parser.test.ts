@@ -419,4 +419,20 @@ describe('parseArchitecture — when and enforce', () => {
       await expect(parseArchitecture(fp)).rejects.toThrow(/unknown.*key.*foo/);
     });
   });
+
+  it('node: atom in node_types.X.when → error mentions "node_types.*.when" and not "scope.files"', async () => {
+    const yaml = `node_types:
+  command:
+    description: "CLI command"
+    when:
+      node:
+        type: service
+`;
+    await withArchYaml(yaml, async (fp) => {
+      const err = await parseArchitecture(fp).then(() => null, (e: Error) => e);
+      expect(err).toBeInstanceOf(Error);
+      expect(err?.message).toMatch(/node_types\.\*\.when/);
+      expect(err?.message).not.toContain('scope.files');
+    });
+  });
 });

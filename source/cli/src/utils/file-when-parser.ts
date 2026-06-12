@@ -21,11 +21,23 @@ export class WhenPredicateInvalidError extends Error {
 const ATOMIC_KEYS = new Set<string>(['path', 'content']);
 
 /**
- * Parse a raw YAML value into a FileWhenPredicate. `ctx` is a human-readable
- * description of where this predicate came from, used in error messages
- * (e.g. "type 'command' when").
+ * The call-site context for `parseFileWhen` — controls which cross-hint message
+ * is emitted when a node-family atom (`node`, `relations`, `descendants`) is used
+ * where only file atoms are valid.
+ *
+ * - `'scope.files'`   — called from aspect-parser when parsing `scope.files`
+ * - `'node-type-when'` — called from architecture-parser when parsing `node_types.*.when`
  */
-export function parseFileWhen(raw: unknown, ctx: string): FileWhenPredicate {
+export type FileWhenSite = 'scope.files' | 'node-type-when';
+
+/**
+ * Parse a raw YAML value into a FileWhenPredicate.
+ *
+ * `ctx`  — human-readable location for error messages (e.g. "type 'command' when").
+ * `site` — REQUIRED: which call site this parse originates from; controls the
+ *          cross-hint text emitted when a node-family atom is misused.
+ */
+export function parseFileWhen(raw: unknown, ctx: string, site: FileWhenSite): FileWhenPredicate {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new WhenPredicateInvalidError(`${ctx}: when must be a YAML mapping`);
   }
@@ -48,8 +60,12 @@ export function parseFileWhen(raw: unknown, ctx: string): FileWhenPredicate {
     // The message intentionally includes "unknown when key '<key>'" so that existing
     // callers pattern-matching on that prefix continue to work.
     if (badKey === 'node' || badKey === 'relations' || badKey === 'descendants') {
+      const hint =
+        site === 'scope.files'
+          ? `\`${badKey}\` is a node atom — not valid in scope.files; scope.files filters FILES (path/content atoms). Use when: to filter which NODES the aspect applies to.`
+          : `\`${badKey}\` is a node atom — not valid in node_types.*.when, which classifies FILES (path/content atoms only).`;
       throw new WhenPredicateInvalidError(
-        `${ctx}: unknown when key '${badKey}' — \`${badKey}\` is a node atom — not valid in scope.files; scope.files filters FILES (path/content atoms). Use when: to filter which NODES the aspect applies to.`,
+        `${ctx}: unknown when key '${badKey}' — ${hint}`,
       );
     }
     throw new WhenPredicateInvalidError(
@@ -70,14 +86,20 @@ export function parseFileWhen(raw: unknown, ctx: string): FileWhenPredicate {
   }
 
   if (booleanKeys.length === 1) {
-    return parseBoolean(obj, booleanKeys[0], ctx);
+    return parseBoolean(obj, booleanKeys[0], ctx, site);
   }
 
   return parseAtomic(obj, ctx);
 }
 
-function parseBoolean(raw: Record<string, unknown>, key: string, ctx: string): FileBooleanClause {
-  return parsePredicateBoolean<FileWhenPredicate>(raw, key, ctx, parseFileWhen, WhenPredicateInvalidError) as FileBooleanClause;
+function parseBoolean(raw: Record<string, unknown>, key: string, ctx: string, site: FileWhenSite): FileBooleanClause {
+  return parsePredicateBoolean<FileWhenPredicate>(
+    raw,
+    key,
+    ctx,
+    (r, c) => parseFileWhen(r, c, site),
+    WhenPredicateInvalidError,
+  ) as FileBooleanClause;
 }
 
 function parseAtomic(raw: Record<string, unknown>, ctx: string): FileAtomicClause {

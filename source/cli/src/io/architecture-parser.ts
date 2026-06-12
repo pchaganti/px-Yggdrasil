@@ -84,7 +84,7 @@ export async function parseArchitecture(filePath: string): Promise<ArchitectureD
 
     let when: FileWhenPredicate | undefined;
     if (entry.when !== undefined) {
-      when = parseFileWhen(entry.when, `yg-architecture.yaml: node_types.${typeName}.when`);
+      when = parseFileWhen(entry.when, `yg-architecture.yaml: node_types.${typeName}.when`, 'node-type-when');
     }
 
     let enforce: 'strict' | undefined;

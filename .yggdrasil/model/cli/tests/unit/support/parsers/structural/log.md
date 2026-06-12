@@ -1,2 +1,4 @@
 ## [2026-05-31T06:24:49.823Z]
 The parsers for array fields that name nodes, types, or targets (flow participants, node-type parents, relation targets, consumed port names) previously dropped any non-string entry silently, so a malformed entry in a mixed array vanished without a signal — and for a flow that silently removed a participant from aspect enforcement. They now fail loud: any non-string entry is a blocking validation error naming the field, the offending value, and its position. The motivation is that a silently-dropped reference can disable enforcement or hide a typo; a malformed list must be reported, never quietly trimmed.
+## [2026-06-12T13:14:26.169Z]
+Added a test to architecture-parser.test.ts: a node: atom in node_types.X.when must produce an error message containing 'node_types.*.when' and must not contain 'scope.files', verifying site-aware cross-hint routing in parseFileWhen.
