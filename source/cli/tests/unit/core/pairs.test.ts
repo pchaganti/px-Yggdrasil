@@ -7,7 +7,7 @@
  * TestNodeInput.mapping and TestAspectInput.scope additions below.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, chmodSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileUnit, nodeUnit } from '../../../src/model/lock.js';
@@ -346,6 +346,22 @@ describe('computeExpectedPairs', () => {
     const lockedAbs = path.join(tmpDir, 'src/locked.ts');
     chmodSync(lockedAbs, 0o000);
 
+    // Privileged-runtime guard: under root (CI or container), chmod 0o000 is ignored
+    // and readFileSync still succeeds. The EACCES branch is unreachable in that
+    // environment, so assertions that depend on it would fail for the wrong reason.
+    // Detect this by probing readability after locking and skip cleanly if privileged.
+    let privileged = false;
+    try {
+      readFileSync(lockedAbs);
+      privileged = true;
+    } catch {
+      // expected: EACCES in a normal (non-root) runtime
+    }
+    if (privileged) {
+      chmodSync(lockedAbs, 0o644);
+      return;
+    }
+
     const graph = buildPairsGraph(
       tmpDir,
       [{ path: 'svc', mapping: ['src/readable.ts', 'src/locked.ts'], aspects: ['fn-check'] }],
@@ -379,6 +395,22 @@ describe('computeExpectedPairs', () => {
     writeFile('src/locked.ts', 'export function secret() {}');
     const lockedAbs = path.join(tmpDir, 'src/locked.ts');
     chmodSync(lockedAbs, 0o000);
+
+    // Privileged-runtime guard: under root (CI or container), chmod 0o000 is ignored
+    // and readFileSync still succeeds. The EACCES branch is unreachable in that
+    // environment, so assertions that depend on it would fail for the wrong reason.
+    // Detect this by probing readability after locking and skip cleanly if privileged.
+    let privileged = false;
+    try {
+      readFileSync(lockedAbs);
+      privileged = true;
+    } catch {
+      // expected: EACCES in a normal (non-root) runtime
+    }
+    if (privileged) {
+      chmodSync(lockedAbs, 0o644);
+      return;
+    }
 
     const graph = buildPairsGraph(
       tmpDir,

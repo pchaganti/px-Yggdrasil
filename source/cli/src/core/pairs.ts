@@ -140,6 +140,12 @@ export function getChildMappingExclusions(graph: Graph, nodePath: string): strin
  *
  * Output `pairs` is sorted by aspectId, then unitKey for deterministic comparison.
  * Callers MUST surface a non-empty `unreadable` array as a blocking error.
+ *
+ * Note: files that disappear between mapping expansion (step 4) and scope
+ * evaluation (step 5) simply never enter the subject set — mapping expansion
+ * is a snapshot and missing paths are silently dropped at that stage. The
+ * explicit `unreadable` channel covers only content-filter read failures (EACCES
+ * or similar) on files that were successfully enumerated.
  */
 export async function computeExpectedPairs(
   graph: Graph,
@@ -157,6 +163,7 @@ export async function computeExpectedPairs(
     const rawMapping = normalizeMappingPaths(node.meta.mapping);
     if (rawMapping.length === 0) continue; // no mapping → no pairs for this node
 
+    // O(nodes²) with one FS walk per node — fine at current scale; if check latency grows, precompute a child-exclusion index per run.
     const excludePrefixes = getChildMappingExclusions(graph, nodePath);
     const allExpanded = await expandMappingPaths(projectRoot, rawMapping);
     const nodeFiles = excludePrefixes.length > 0
@@ -295,6 +302,15 @@ export async function computeExpectedPairs(
  * This is INDEPENDENT of scope filters — the fingerprint covers the full
  * mapping and is used to detect source drift, not to reproduce subject sets.
  * Binary files are included by their raw bytes (not their extension).
+ *
+ * TOCTOU asymmetry: a mapped file deleted between enumeration (step 1) and
+ * hashing (step 2) causes hashFile to throw, which propagates as a rejected
+ * promise — fail-closed for drift state. This is intentional: a vanished file
+ * must not silently produce the same fingerprint as the intact node, which
+ * would hide drift. By contrast, computeExpectedPairs treats files that
+ * disappear between enumeration and scope evaluation as silently absent (they
+ * never enter the subject set); only content-filter read failures surface via
+ * the explicit `unreadable` channel.
  */
 export async function computeSourceFingerprint(
   graph: Graph,

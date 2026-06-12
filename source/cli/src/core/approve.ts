@@ -25,6 +25,7 @@ import {
 } from './drift-cause.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import { getChildMappingExclusions } from './pairs.js';
+// Back-compat shim for approve-reviewer.ts; migrate that import to './pairs.js' and delete this re-export.
 export { getChildMappingExclusions } from './pairs.js';
 import { computeEffectiveAspects, computeEffectiveAspectStatuses, hasNonDraftEffectiveAspects, isAggregateAspect } from './graph/aspects.js';
 import { readTextFile, lstatFile } from '../io/graph-fs.js';
