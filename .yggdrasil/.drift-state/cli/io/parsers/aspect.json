@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "b7db30abb804cfa7712b5620565778ee4c9dbf98fd515adc83672dd0bea09f32",
+  "hash": "4679a1f982411f6bb65fb020cfc0e2d18d5003dc01773a309b96e83ccbd4ccc7",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/io/yg-node.yaml": "14588fae2df90b1be0d911f4c0ee41f6b74e148af307ea77698986f7f3c77b1e",
@@ -8,15 +8,13 @@
     ".yggdrasil/aspects/parser-contract/content.md": "e7eba1c4c8540d46e57a5b8092241ca8a2525c6e771f85e8da17162889b4436c",
     ".yggdrasil/aspects/silent-missing-files/content.md": "fe5f8f88a4e6a49f20fba61836d04c3796f5c97c3a7c1c366582f16cd4ec93b7",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
     ".yggdrasil/aspects/read-or-default-via-helper/check.mjs": "0a1f55908a341a54f6e218723bcc1eb3029ca19457b99be8fc4edfcc92d34d8f",
     ".yggdrasil/aspects/parser-yaml-guard/check.mjs": "704459261e8442a1f875e11465602691085160022083d856b7f4ce75d0184be6",
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": "59d6cc41f1da574213d95ab37d6992416e4a79131f57d440e50de0c91a3bf8a5",
     ".yggdrasil/model/cli/model/yg-node.yaml": "786d7a0de56123efa1d46ee25813cdab19dffb17b614581d1c8e142d2f4ba939",
-    "source/cli/src/io/architecture-parser.ts": "73689dadda84182f98a1fc2625f982f8a239f431d00c5f14ad094ad807579b92",
-    "source/cli/src/io/flow-parser.ts": "a2c294305aee0c1bce0d8d2e330837fbb1e62c3e5e730c452131a0c0be88b6db",
-    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
-    "source/cli/src/io/aspect-parser.ts": "9dcb72076a2449b6113b19348e046a5ee9f89ffe228bb9ea2d8c7cd726be049b",
-    "source/cli/src/io/node-parser.ts": "357e978d46ebc7da263e645aaae69745f9bca8adf92a1067f47262b987d1a807"
+    ".yggdrasil/model/cli/utils/yg-node.yaml": "f1d878eaf5cede8dcbac77340ad2bd1a75125b963e9190d33d408dde5ce78b78",
+    "source/cli/src/io/aspect-parser.ts": "9dcb72076a2449b6113b19348e046a5ee9f89ffe228bb9ea2d8c7cd726be049b"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -28,15 +26,13 @@
     ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780979447477.9553,
     ".yggdrasil/aspects/read-or-default-via-helper/check.mjs": 1780488505036.627,
     ".yggdrasil/aspects/parser-yaml-guard/check.mjs": 1780488505035.959,
-    "source/cli/src/io/aspect-parser.ts": 1781267057589.5642,
     ".yggdrasil/model/cli/model/graph/yg-node.yaml": 1776177846203.5532,
     ".yggdrasil/model/cli/model/yg-node.yaml": 1776177846203.7856,
-    "source/cli/src/io/architecture-parser.ts": 1780246154124.4106,
-    "source/cli/src/io/node-parser.ts": 1780979447501.2864,
-    "source/cli/src/io/flow-parser.ts": 1780246154124.7722
+    ".yggdrasil/model/cli/utils/yg-node.yaml": 1780246223022.0115,
+    "source/cli/src/io/aspect-parser.ts": 1781267057589.5642
   },
   "identity": {
-    "ownSubset": "49eba5656163800b5213d51e9c6969831d387f9252bafe1e854a9e84e7bebf9e",
+    "ownSubset": "b3bc660776405c3597985a9c20bbd845bbf48f132b6642e62be61929662f2180",
     "ports": {},
     "aspects": {
       "parser-contract": {
@@ -50,38 +46,36 @@
       "posix-paths-source": {
         "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
         "checkTouched": {
-          "source/cli/src/io/architecture-parser.ts": "73689dadda84182f98a1fc2625f982f8a239f431d00c5f14ad094ad807579b92",
-          "source/cli/src/io/node-parser.ts": "357e978d46ebc7da263e645aaae69745f9bca8adf92a1067f47262b987d1a807",
-          "source/cli/src/io/flow-parser.ts": "a2c294305aee0c1bce0d8d2e330837fbb1e62c3e5e730c452131a0c0be88b6db"
+          "source/cli/src/io/aspect-parser.ts": "9dcb72076a2449b6113b19348e046a5ee9f89ffe228bb9ea2d8c7cd726be049b"
         }
       },
       "no-direct-minimatch": {
         "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
         "checkTouched": {
-          "source/cli/src/io/architecture-parser.ts": "73689dadda84182f98a1fc2625f982f8a239f431d00c5f14ad094ad807579b92",
-          "source/cli/src/io/node-parser.ts": "357e978d46ebc7da263e645aaae69745f9bca8adf92a1067f47262b987d1a807",
-          "source/cli/src/io/flow-parser.ts": "a2c294305aee0c1bce0d8d2e330837fbb1e62c3e5e730c452131a0c0be88b6db"
+          "source/cli/src/io/aspect-parser.ts": "9dcb72076a2449b6113b19348e046a5ee9f89ffe228bb9ea2d8c7cd726be049b"
         }
       },
       "read-or-default-via-helper": {
         "meta": "e35435ede6ebbe015c8a0de76081e6c72acbcc193efd5c066beeea8541b99811",
         "checkTouched": {
-          "source/cli/src/io/architecture-parser.ts": "73689dadda84182f98a1fc2625f982f8a239f431d00c5f14ad094ad807579b92",
-          "source/cli/src/io/node-parser.ts": "357e978d46ebc7da263e645aaae69745f9bca8adf92a1067f47262b987d1a807",
-          "source/cli/src/io/flow-parser.ts": "a2c294305aee0c1bce0d8d2e330837fbb1e62c3e5e730c452131a0c0be88b6db"
+          "source/cli/src/io/aspect-parser.ts": "9dcb72076a2449b6113b19348e046a5ee9f89ffe228bb9ea2d8c7cd726be049b"
         }
       },
       "parser-yaml-guard": {
         "meta": "7c266c1c65ce5fa8a871c5411f0c911921b911111f874ebcf2ba8145542926cb",
         "checkTouched": {
-          "source/cli/src/io/architecture-parser.ts": "73689dadda84182f98a1fc2625f982f8a239f431d00c5f14ad094ad807579b92",
-          "source/cli/src/io/node-parser.ts": "357e978d46ebc7da263e645aaae69745f9bca8adf92a1067f47262b987d1a807",
-          "source/cli/src/io/flow-parser.ts": "a2c294305aee0c1bce0d8d2e330837fbb1e62c3e5e730c452131a0c0be88b6db"
+          "source/cli/src/io/aspect-parser.ts": "9dcb72076a2449b6113b19348e046a5ee9f89ffe228bb9ea2d8c7cd726be049b"
         }
       }
     }
   },
   "aspectVerdicts": {
+    "parser-contract": {
+      "verdict": "approved"
+    },
+    "silent-missing-files": {
+      "verdict": "approved"
+    },
     "posix-paths-source": {
       "verdict": "approved"
     },
@@ -93,16 +87,10 @@
     },
     "parser-yaml-guard": {
       "verdict": "approved"
-    },
-    "parser-contract": {
-      "verdict": "approved"
-    },
-    "silent-missing-files": {
-      "verdict": "approved"
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-08T19:22:52.082Z",
-    "prefix_hash": "29251bbbc2842ca4cd82e9bf89a7c27b67bb215f54c15e80b7252c587a985a38"
+    "last_entry_datetime": "2026-06-12T12:30:51.302Z",
+    "prefix_hash": "f7a6d161bb161ea76eae44bbf65dea02fe79a9d1ec069c744b928cc7cce8a336"
   }
 }

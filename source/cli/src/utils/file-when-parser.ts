@@ -42,8 +42,18 @@ export function parseFileWhen(raw: unknown, ctx: string): FileWhenPredicate {
   const unknownKeys = keys.filter((k) => !BOOLEAN_KEYS.has(k) && !ATOMIC_KEYS.has(k));
 
   if (unknownKeys.length > 0) {
+    const badKey = unknownKeys[0];
+    // Cross-hint: node-family atoms (node, relations, descendants) are valid in
+    // aspect when: (which filters NODES) but not here, where the subject is a FILE.
+    // The message intentionally includes "unknown when key '<key>'" so that existing
+    // callers pattern-matching on that prefix continue to work.
+    if (badKey === 'node' || badKey === 'relations' || badKey === 'descendants') {
+      throw new WhenPredicateInvalidError(
+        `${ctx}: unknown when key '${badKey}' — \`${badKey}\` is a node atom — not valid in scope.files; scope.files filters FILES (path/content atoms). Use when: to filter which NODES the aspect applies to.`,
+      );
+    }
     throw new WhenPredicateInvalidError(
-      `${ctx}: unknown when key '${unknownKeys[0]}' (expected one of: all_of, any_of, not, path, content)`,
+      `${ctx}: unknown when key '${badKey}' (expected one of: all_of, any_of, not, path, content)`,
     );
   }
 

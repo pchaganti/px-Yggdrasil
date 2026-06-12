@@ -2,12 +2,13 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { fileExistsSync } from './graph-fs.js';
-import type { AspectDef, AspectReviewerSpec, AspectStatus, StatusInherit } from '../model/graph.js';
+import type { AspectDef, AspectReviewerSpec, AspectStatus, StatusInherit, ScopeDef } from '../model/graph.js';
 import { ASPECT_STATUS_VALUES } from '../model/graph.js';
 import type { IssueMessage } from '../model/validation.js';
 import type { WhenPredicate } from '../model/when.js';
 import { readArtifacts } from './artifact-reader.js';
 import { parseWhen, parseAspectAttachment } from '../utils/when-parser.js';
+import { parseFileWhen, WhenPredicateInvalidError } from '../utils/file-when-parser.js';
 import { aspectStatusInvalidMessage, impliesStatusInheritInvalidMessage } from '../formatters/aspect-status-messages.js';
 import { toPosixPath } from '../utils/posix.js';
 
@@ -346,6 +347,16 @@ export async function parseAspect(
     }
   }
 
+  // scope: — optional review granularity block
+  let scope: ScopeDef | undefined;
+  if (raw.scope !== undefined) {
+    const scopeResult = parseScope(raw.scope, idTrimmed, aspectYamlPath, reviewer.type);
+    if (!scopeResult.ok) {
+      return { ok: false, aspectId: idTrimmed, errors: scopeResult.errors };
+    }
+    scope = scopeResult.value;
+  }
+
   return {
     ok: true,
     aspect: {
@@ -360,6 +371,7 @@ export async function parseAspect(
       artifacts,
       ...(references && { references }),
       ...(status !== undefined && { status }),
+      ...(scope !== undefined && { scope }),
     },
   };
 }
@@ -505,4 +517,137 @@ function parseReviewer(
     return { ok: true, value: { type, tier: obj.tier as string } };
   }
   return { ok: true, value: { type } };
+}
+
+/**
+ * Parse the `scope:` block from a yg-aspect.yaml.
+ *
+ * Contract:
+ *   - Must be a YAML mapping.
+ *   - `per:` is REQUIRED — must be 'node' or 'file'. Any other value → aspect-scope-invalid.
+ *   - `files:` is optional — parsed via parseFileWhen (file-when grammar: path/content atoms).
+ *     A WhenPredicateInvalidError (or any parse failure) surfaces as aspect-scope-invalid.
+ *   - Unknown keys → aspect-scope-invalid.
+ *   - scope on an aggregate aspect → aspect-scope-on-aggregate.
+ */
+function parseScope(
+  rawScope: unknown,
+  aspectId: string,
+  aspectYamlPath: string,
+  reviewerType: 'llm' | 'deterministic' | 'aggregate',
+):
+  | { ok: true; value: ScopeDef }
+  | { ok: false; errors: Array<{ code: string; messageData: IssueMessage }> }
+{
+  // scope on aggregate is forbidden — checked before any structural parsing
+  if (reviewerType === 'aggregate') {
+    return {
+      ok: false,
+      errors: [{
+        code: 'aspect-scope-on-aggregate',
+        messageData: {
+          what: `Aspect '${aspectId}' declares 'scope:' but it is an aggregating aspect (no content.md, no check.mjs).`,
+          why: 'Aggregating aspects have no own rule source and produce no own verdict — scope controls review granularity for a rule source, so it has no meaning here.',
+          next: `Remove 'scope:' from .yggdrasil/aspects/${aspectId}/yg-aspect.yaml, or add content.md / check.mjs to make this a non-aggregating aspect.`,
+        },
+      }],
+    };
+  }
+
+  // scope must be a mapping
+  if (rawScope === null || typeof rawScope !== 'object' || Array.isArray(rawScope)) {
+    return {
+      ok: false,
+      errors: [{
+        code: 'aspect-scope-invalid',
+        messageData: {
+          what: `yg-aspect.yaml at ${aspectYamlPath}: 'scope' must be a YAML mapping`,
+          why: "scope controls review granularity — it must be an object with 'per:' and optional 'files:'",
+          next: "use 'scope:\\n  per: node' or 'scope:\\n  per: file' (optionally add files: filter)",
+        },
+      }],
+    };
+  }
+
+  const obj = rawScope as Record<string, unknown>;
+
+  // Reject unknown keys (only 'per' and 'files' are allowed)
+  const ALLOWED_SCOPE_KEYS = new Set(['per', 'files']);
+  const unknownScopeKeys = Object.keys(obj).filter(k => !ALLOWED_SCOPE_KEYS.has(k));
+  if (unknownScopeKeys.length > 0) {
+    return {
+      ok: false,
+      errors: [{
+        code: 'aspect-scope-invalid',
+        messageData: {
+          what: `yg-aspect.yaml at ${aspectYamlPath}: unknown key '${unknownScopeKeys[0]}' in scope`,
+          why: "scope accepts only 'per' and 'files'",
+          next: `remove '${unknownScopeKeys[0]}' from the scope block`,
+        },
+      }],
+    };
+  }
+
+  // per: is REQUIRED
+  if (!('per' in obj)) {
+    return {
+      ok: false,
+      errors: [{
+        code: 'aspect-scope-invalid',
+        messageData: {
+          what: `yg-aspect.yaml at ${aspectYamlPath}: 'scope' block is missing required 'per:' field`,
+          why: "'per' determines review granularity — allowed values: node | file",
+          next: "add 'per: node' or 'per: file' under scope:",
+        },
+      }],
+    };
+  }
+
+  if (obj.per !== 'node' && obj.per !== 'file') {
+    return {
+      ok: false,
+      errors: [{
+        code: 'aspect-scope-invalid',
+        messageData: {
+          what: `yg-aspect.yaml at ${aspectYamlPath}: invalid scope.per value '${String(obj.per)}'`,
+          why: "allowed values for scope.per are: node | file",
+          next: "change scope.per to 'node' or 'file'",
+        },
+      }],
+    };
+  }
+
+  const per = obj.per as 'node' | 'file';
+
+  // files: is optional; parse via file-when grammar
+  let files: ScopeDef['files'];
+  if ('files' in obj && obj.files !== undefined) {
+    try {
+      files = parseFileWhen(obj.files, `yg-aspect.yaml at ${aspectYamlPath}: scope.files`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      // Augment: if the error is a WhenPredicateInvalidError whose message already carries
+      // the cross-hint text ("node atom"), surface it as-is so the hint text is preserved.
+      const isNodeAtomHint = err instanceof WhenPredicateInvalidError && message.includes('node atom');
+      return {
+        ok: false,
+        errors: [{
+          code: 'aspect-scope-invalid',
+          messageData: {
+            what: isNodeAtomHint
+              ? message
+              : `yg-aspect.yaml at ${aspectYamlPath}: scope.files predicate is invalid: ${message}`,
+            why: isNodeAtomHint
+              ? 'scope.files uses the file-predicate grammar (path/content atoms); node-family atoms belong in when:'
+              : 'scope.files must be a valid file predicate (path/content atoms and all_of/any_of/not combinators)',
+            next: isNodeAtomHint
+              ? 'move the node-family filter to the aspect-level when: field'
+              : 'correct the scope.files predicate — valid atoms: path (minimatch glob), content (JS regex)',
+          },
+        }],
+      };
+    }
+  }
+
+  return { ok: true, value: { per, ...(files !== undefined && { files }) } };
 }

@@ -245,6 +245,15 @@ export interface AspectDef {
   references?: Array<{ path: string; description?: string }>;
   /** Aspect-level default status. Absent → 'enforced'. Attach sites may override per the bump rule: bump up OK, downgrade is a validator error. */
   status?: AspectStatus;
+  /**
+   * Review scope: controls review granularity and the subject-file set.
+   *   per: node (default) — one review over all subject files.
+   *   per: file — one review per subject file.
+   *   files: optional FileWhenPredicate filter; subject set = mapped files ∩ filter.
+   * Absent → undefined (semantically equivalent to { per: 'node' }).
+   * Forbidden on aggregate aspects (no rule source to scope).
+   */
+  scope?: ScopeDef;
 }
 
 // ============================================================

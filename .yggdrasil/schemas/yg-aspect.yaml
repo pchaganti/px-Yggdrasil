@@ -116,6 +116,60 @@ status: enforced                   # optional — aspect-level default. enum: dr
                                    #       - relations: { calls: { target_type: service-client } }
                                    #       - descendants: { relations: { calls: { target_type: service-client } } }
 
+# scope:                            # optional — controls review granularity (applies to both LLM
+                                   # and deterministic aspects). Forbidden on aggregate aspects.
+                                   # Absent → equivalent to { per: node }.
+                                   #
+                                   # Fields:
+                                   #   per: node | file     REQUIRED. Default: node.
+                                   #     node — one review over the whole subject set.
+                                   #            LLM: one prompt with all subject files.
+                                   #            Deterministic: one check(ctx) invocation; ctx.files = subject set.
+                                   #     file — one review per subject file.
+                                   #            LLM: one prompt per file.
+                                   #            Deterministic: one check(ctx) invocation per file; ctx.files = [file].
+                                   #            WARNING: per: file is ONLY for file-local rules — a per-file
+                                   #            reviewer cannot see sibling files. Rules that need cross-file
+                                   #            context (e.g. "correlation ID propagates across calls") must
+                                   #            stay per: node. Before switching an aspect to per: file, verify
+                                   #            the rule can be judged from that single file alone.
+                                   #
+                                   #   files: <file-predicate>   OPTIONAL. Filters which mapped files enter
+                                   #     the subject set. Subject set = mapped files ∩ filter.
+                                   #     Absent → all mapped files.
+                                   #     Empty subject set after filtering → vacuous pass by design (no review,
+                                   #     no error). An aspect may legitimately exclude every file of a node it
+                                   #     lands on (e.g. a filter that matches only *.ts files landing on a
+                                   #     node with only *.py files).
+                                   #
+                                   #     File-predicate grammar — atoms:
+                                   #       path: "glob"        minimatch glob on repo-relative POSIX path
+                                   #       content: "regex"    JavaScript regex tested against file content
+                                   #     Boolean combinators (same as aspect when:):
+                                   #       all_of: [...]       AND
+                                   #       any_of: [...]       OR
+                                   #       not: <clause>       negation
+                                   #     Top-level path + content imply all_of.
+                                   #
+                                   #     NOTE: path/content are FILE atoms — they belong here in scope.files.
+                                   #     The aspect-level when: field uses NODE atoms (node, relations,
+                                   #     descendants) and filters which NODES the aspect applies to — do not
+                                   #     mix the two. The CLI will cross-hint you if you use an atom in the
+                                   #     wrong site.
+                                   #
+                                   # Cost note: editing scope: (per or files) changes the input hash for
+                                   # every pair of this aspect — every node using the aspect needs
+                                   # re-verification. Run `yg impact --aspect <id>` before widening or
+                                   # narrowing the filter.
+                                   #
+                                   # Example:
+                                   #   scope:
+                                   #     per: file
+                                   #     files:
+                                   #       all_of:
+                                   #         - path: "src/**/*.ts"
+                                   #         - not: { path: "**/*.test.ts" }
+
 # references:                      # optional — supporting files for the LLM reviewer.
                                    #   Permitted on LLM aspects ONLY (forbidden on deterministic).
                                    #   Each entry is a string (shorthand) OR an object { path, description? }.

@@ -42,7 +42,17 @@ export function parseWhen(raw: unknown, ctx: string): WhenPredicate {
   const unknownKeys = keys.filter(k => !BOOLEAN_KEYS.has(k) && !ATOMIC_KEYS.has(k));
 
   if (unknownKeys.length > 0) {
-    throw new Error(`${ctx}: unknown when operator '${unknownKeys[0]}' (expected one of: all_of, any_of, not, relations, descendants, node)`);
+    const badKey = unknownKeys[0];
+    // Cross-hint: file-family atoms (path, content) are valid in scope.files
+    // but not in aspect when:, which filters NODES not FILES. The message
+    // intentionally includes "unknown when operator '<key>'" so that existing
+    // callers pattern-matching on that prefix continue to work.
+    if (badKey === 'path' || badKey === 'content') {
+      throw new Error(
+        `${ctx}: unknown when operator '${badKey}' — \`${badKey}\` is a file atom — not valid in when:; when: filters which NODES the aspect applies to. To filter which FILES are reviewed, use scope.files:`,
+      );
+    }
+    throw new Error(`${ctx}: unknown when operator '${badKey}' (expected one of: all_of, any_of, not, relations, descendants, node)`);
   }
 
   if (booleanKeys.length > 0 && atomicKeys.length > 0) {
