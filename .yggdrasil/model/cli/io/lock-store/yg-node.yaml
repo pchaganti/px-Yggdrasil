@@ -1,0 +1,12 @@
+name: IO Lock Store
+type: persistence-adapter
+description: Filesystem persistence for the content-addressed verdict lock — reads, serializes, and writes the single yg-lock.json file, routing every write through the atomic-write port so a crash or signal never leaves a partial lock.
+relations:
+  - target: cli/model/lock
+    type: uses
+  - target: cli/io/atomic-write
+    type: calls
+    consumes:
+      - write-atomic
+mapping:
+  - source/cli/src/io/lock-store.ts

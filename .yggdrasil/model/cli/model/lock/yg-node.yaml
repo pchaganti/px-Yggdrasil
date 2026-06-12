@@ -1,0 +1,7 @@
+name: LockTypes
+type: types
+description: Content-addressed lock file types — LockFile, VerdictEntry, LockNodeEntry, and unit-key helpers for the single committed verdict store that replaces per-node drift-state baselines.
+aspects: []
+relations: []
+mapping:
+  - source/cli/src/model/lock.ts
