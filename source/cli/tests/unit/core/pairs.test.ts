@@ -7,7 +7,7 @@
  * TestNodeInput.mapping and TestAspectInput.scope additions below.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileUnit, nodeUnit } from '../../../src/model/lock.js';
@@ -136,7 +136,7 @@ describe('computeExpectedPairs', () => {
       [{ id: 'check-input', kind: 'llm' }],
     );
 
-    const pairs = await computeExpectedPairs(graph);
+    const { pairs } = await computeExpectedPairs(graph);
     expect(pairs).toHaveLength(1);
     const p = pairs[0];
     expect(p.aspectId).toBe('check-input');
@@ -161,7 +161,7 @@ describe('computeExpectedPairs', () => {
       [{ id: 'lint', kind: 'llm', scope: { per: 'file' } }],
     );
 
-    const pairs = await computeExpectedPairs(graph);
+    const { pairs } = await computeExpectedPairs(graph);
     expect(pairs).toHaveLength(3);
     for (const p of pairs) {
       expect(p.kind).toBe('llm');
@@ -183,7 +183,7 @@ describe('computeExpectedPairs', () => {
       [{ id: 'handler-only', kind: 'llm', scope: { per: 'node', files: { path: '**/*handler*' } } }],
     );
 
-    const pairs = await computeExpectedPairs(graph);
+    const { pairs } = await computeExpectedPairs(graph);
     expect(pairs).toHaveLength(1);
     expect(pairs[0].subjectFiles).toEqual(['src/handler.ts']);
   });
@@ -198,7 +198,7 @@ describe('computeExpectedPairs', () => {
       [{ id: 'fn-check', kind: 'llm', scope: { per: 'node', files: { content: 'export function' } } }],
     );
 
-    const pairs = await computeExpectedPairs(graph);
+    const { pairs } = await computeExpectedPairs(graph);
     expect(pairs).toHaveLength(1);
     expect(pairs[0].subjectFiles).toEqual(['src/alpha.ts']);
   });
@@ -217,7 +217,7 @@ describe('computeExpectedPairs', () => {
       ],
     );
 
-    const pairs = await computeExpectedPairs(graph);
+    const { pairs } = await computeExpectedPairs(graph);
     const llmPair = pairs.find((p) => p.aspectId === 'llm-check')!;
     const detPair = pairs.find((p) => p.aspectId === 'det-check')!;
 
@@ -236,7 +236,7 @@ describe('computeExpectedPairs', () => {
       [{ id: 'llm-check', kind: 'llm' }],
     );
 
-    const pairs = await computeExpectedPairs(graph);
+    const { pairs } = await computeExpectedPairs(graph);
     expect(pairs).toHaveLength(0);
   });
 
@@ -249,10 +249,10 @@ describe('computeExpectedPairs', () => {
       [{ id: 'wip', kind: 'llm', status: 'draft' }],
     );
 
-    const pairsDefault = await computeExpectedPairs(graph);
+    const { pairs: pairsDefault } = await computeExpectedPairs(graph);
     expect(pairsDefault).toHaveLength(0);
 
-    const pairsDraft = await computeExpectedPairs(graph, { includeDraft: true });
+    const { pairs: pairsDraft } = await computeExpectedPairs(graph, { includeDraft: true });
     expect(pairsDraft).toHaveLength(1);
     expect(pairsDraft[0].aspectId).toBe('wip');
     expect(pairsDraft[0].status).toBe('draft');
@@ -267,7 +267,7 @@ describe('computeExpectedPairs', () => {
       [{ id: 'bundle', kind: 'aggregate' }],
     );
 
-    const pairs = await computeExpectedPairs(graph);
+    const { pairs } = await computeExpectedPairs(graph);
     expect(pairs).toHaveLength(0);
   });
 
@@ -278,7 +278,7 @@ describe('computeExpectedPairs', () => {
       [{ id: 'check-input', kind: 'llm' }],
     );
 
-    const pairs = await computeExpectedPairs(graph);
+    const { pairs } = await computeExpectedPairs(graph);
     expect(pairs).toHaveLength(0);
   });
 
@@ -295,7 +295,7 @@ describe('computeExpectedPairs', () => {
       [{ id: 'check', kind: 'llm' }],
     );
 
-    const pairs = await computeExpectedPairs(graph);
+    const { pairs } = await computeExpectedPairs(graph);
     const parentPair = pairs.find((p) => p.nodePath === 'svc')!;
     expect(parentPair).toBeDefined();
     expect(parentPair.subjectFiles).not.toContain('src/child/child.ts');
@@ -315,7 +315,7 @@ describe('computeExpectedPairs', () => {
       ],
     );
 
-    const pairs = await computeExpectedPairs(graph);
+    const { pairs } = await computeExpectedPairs(graph);
     // 2 aspects × 2 files = 4 pairs; must be sorted by aspectId then unitKey
     expect(pairs).toHaveLength(4);
     const sortedExpected = [...pairs].sort((a, b) => {
@@ -325,6 +325,109 @@ describe('computeExpectedPairs', () => {
     expect(pairs.map((p) => `${p.aspectId}|${p.unitKey}`)).toEqual(
       sortedExpected.map((p) => `${p.aspectId}|${p.unitKey}`),
     );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Regression: unreadable subject files must be surfaced, never silently dropped
+  //
+  // Technique: chmod 0o000 makes the file exist on disk (so expandMappingPaths
+  // includes it) but unreadable by readFile (EACCES) → evaluateFileWhen reports
+  // unreadable: true. Each test restores permissions in afterEach via rmSync
+  // (which handles the restore implicitly via recursive:true + force:true).
+  // We keep an explicit restore array so cleanup works before rmSync is called.
+  // ---------------------------------------------------------------------------
+
+  it('content-filter aspect: unreadable file lands in unreadable[], readable sibling still produces a pair', async () => {
+    // src/readable.ts is readable and matches the content filter.
+    // src/locked.ts exists but chmod 0o000 → readFile EACCES → evaluateFileWhen
+    // reports unreadable: true — it must land in unreadable[], not be silently dropped.
+    writeFile('src/readable.ts', 'export function doThing() {}');
+    writeFile('src/locked.ts', 'export function secret() {}');
+    const lockedAbs = path.join(tmpDir, 'src/locked.ts');
+    chmodSync(lockedAbs, 0o000);
+
+    const graph = buildPairsGraph(
+      tmpDir,
+      [{ path: 'svc', mapping: ['src/readable.ts', 'src/locked.ts'], aspects: ['fn-check'] }],
+      [{ id: 'fn-check', kind: 'llm', scope: { per: 'node', files: { content: 'export function' } } }],
+    );
+
+    let pairs: Awaited<ReturnType<typeof computeExpectedPairs>>['pairs'];
+    let unreadable: Awaited<ReturnType<typeof computeExpectedPairs>>['unreadable'];
+    try {
+      ({ pairs, unreadable } = await computeExpectedPairs(graph));
+    } finally {
+      chmodSync(lockedAbs, 0o644); // restore so afterEach rmSync can remove the tree
+    }
+
+    // The readable, matching file still produces a pair.
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0].subjectFiles).toEqual(['src/readable.ts']);
+
+    // The unreadable file is recorded with correct metadata.
+    expect(unreadable).toHaveLength(1);
+    expect(unreadable[0].nodePath).toBe('svc');
+    expect(unreadable[0].aspectId).toBe('fn-check');
+    expect(unreadable[0].path).toBe('src/locked.ts');
+    expect(unreadable[0].reason).toMatch(/EACCES/i);
+  });
+
+  it('content-filter aspect: only matching file is unreadable → zero pairs AND non-empty unreadable (vacuous-green guard)', async () => {
+    // src/locked.ts is the only mapped file. chmod 0o000 makes it unreadable.
+    // Without the fix this produced zero pairs silently (vacuous green).
+    // With the fix: zero pairs AND non-empty unreadable surfaces the problem.
+    writeFile('src/locked.ts', 'export function secret() {}');
+    const lockedAbs = path.join(tmpDir, 'src/locked.ts');
+    chmodSync(lockedAbs, 0o000);
+
+    const graph = buildPairsGraph(
+      tmpDir,
+      [{ path: 'svc', mapping: ['src/locked.ts'], aspects: ['fn-check'] }],
+      [{ id: 'fn-check', kind: 'llm', scope: { per: 'node', files: { content: 'export function' } } }],
+    );
+
+    let pairs: Awaited<ReturnType<typeof computeExpectedPairs>>['pairs'];
+    let unreadable: Awaited<ReturnType<typeof computeExpectedPairs>>['unreadable'];
+    try {
+      ({ pairs, unreadable } = await computeExpectedPairs(graph));
+    } finally {
+      chmodSync(lockedAbs, 0o644);
+    }
+
+    expect(pairs).toHaveLength(0);
+    expect(unreadable).toHaveLength(1);
+    expect(unreadable[0].nodePath).toBe('svc');
+    expect(unreadable[0].aspectId).toBe('fn-check');
+    expect(unreadable[0].path).toBe('src/locked.ts');
+  });
+
+  it('pure path-filter aspect never produces unreadable records even for an unreadable file', async () => {
+    // A path-only filter evaluates only the file path glob — it never calls
+    // readFile — so unreadable can never fire even if the file is chmod 0o000.
+    writeFile('src/handler.ts', 'code');
+    writeFile('src/locked.ts', 'code');
+    const lockedAbs = path.join(tmpDir, 'src/locked.ts');
+    chmodSync(lockedAbs, 0o000);
+
+    const graph = buildPairsGraph(
+      tmpDir,
+      [{ path: 'svc', mapping: ['src/handler.ts', 'src/locked.ts'], aspects: ['path-only'] }],
+      [{ id: 'path-only', kind: 'llm', scope: { per: 'node', files: { path: '**/*.ts' } } }],
+    );
+
+    let pairs: Awaited<ReturnType<typeof computeExpectedPairs>>['pairs'];
+    let unreadable: Awaited<ReturnType<typeof computeExpectedPairs>>['unreadable'];
+    try {
+      ({ pairs, unreadable } = await computeExpectedPairs(graph));
+    } finally {
+      chmodSync(lockedAbs, 0o644);
+    }
+
+    // Path filter passes for both files (locked.ts matches **/*.ts by path).
+    // No content read → no unreadable.
+    expect(pairs).toHaveLength(1); // one per-node pair covering both subjects
+    expect(pairs[0].subjectFiles).toHaveLength(2);
+    expect(unreadable).toHaveLength(0);
   });
 });
 

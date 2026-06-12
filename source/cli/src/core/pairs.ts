@@ -52,6 +52,34 @@ export interface ExpectedPair {
   subjectFiles: string[];    // repo-relative POSIX, sorted
 }
 
+/**
+ * Represents a candidate subject file that could not be read during scope.files
+ * evaluation. The file is excluded from the subject set (it cannot be hashed or
+ * reviewed) and is surfaced here so callers can turn it into a blocking error.
+ *
+ * Callers MUST surface non-empty unreadable as a blocking error — a silently
+ * dropped file can turn an enforced rule into a vacuous pass.
+ */
+export interface UnreadableSubject {
+  nodePath: string;
+  aspectId: string;
+  path: string;     // repo-relative POSIX
+  reason: string;   // from evaluateFileWhen's unreadableReason (or a clear fallback)
+}
+
+/**
+ * Return shape of computeExpectedPairs.
+ *
+ * Callers MUST surface a non-empty `unreadable` array as a blocking error.
+ * Silently ignoring it means a file that failed the content filter is dropped
+ * from the review surface, which can turn an enforced rule into a vacuous pass
+ * (zero pairs = no reviewer invocation = implicit green).
+ */
+export interface PairComputation {
+  pairs: ExpectedPair[];
+  unreadable: UnreadableSubject[];
+}
+
 export interface ComputePairsOptions {
   /** When true, include draft aspects (used by GC universe). Default: false. */
   includeDraft?: boolean;
@@ -104,21 +132,25 @@ export function getChildMappingExclusions(graph: Graph, nodePath: string): strin
  *   3. Skip draft unless includeDraft.
  *   4. Expand mapping paths (child carve-out applied).
  *   5. Filter by scope.files predicate (evaluateFileWhen) — absent = all files.
+ *      Files where evaluateFileWhen reports unreadable: true are EXCLUDED from
+ *      the subject set and recorded in the returned `unreadable` array.
  *   6. For LLM aspects: additionally exclude binaries (by extension).
  *   7. Empty subject set → no pair.
  *   8. per: node → one pair; per: file → one pair per subject file.
  *
- * Output is sorted by aspectId, then unitKey for deterministic comparison.
+ * Output `pairs` is sorted by aspectId, then unitKey for deterministic comparison.
+ * Callers MUST surface a non-empty `unreadable` array as a blocking error.
  */
 export async function computeExpectedPairs(
   graph: Graph,
   opts?: ComputePairsOptions,
-): Promise<ExpectedPair[]> {
+): Promise<PairComputation> {
   const includeDraft = opts?.includeDraft ?? false;
   const projectRoot = path.dirname(graph.rootPath);
   const cache = new FileContentCache();
 
   const pairs: ExpectedPair[] = [];
+  const unreadableMap = new Map<string, UnreadableSubject>(); // key: nodePath+aspectId+path
 
   for (const [nodePath, node] of graph.nodes) {
     // Expand the node's mapped files (gitignore-aware, child carve-out applied).
@@ -173,6 +205,22 @@ export async function computeExpectedPairs(
             }),
           ),
         );
+        // Collect unreadable files so they can be surfaced as blocking errors.
+        // A silently dropped file can turn an enforced rule into a vacuous pass.
+        for (let i = 0; i < nodeFiles.length; i++) {
+          const r = results[i];
+          if (r.unreadable) {
+            const key = `${nodePath}\0${aspectId}\0${nodeFiles[i]}`;
+            if (!unreadableMap.has(key)) {
+              unreadableMap.set(key, {
+                nodePath,
+                aspectId,
+                path: nodeFiles[i],
+                reason: r.unreadableReason ?? 'unreadable',
+              });
+            }
+          }
+        }
         scopeFiltered = nodeFiles.filter((_, i) => results[i].result);
       }
 
@@ -225,7 +273,7 @@ export async function computeExpectedPairs(
     return 0;
   });
 
-  return pairs;
+  return { pairs, unreadable: Array.from(unreadableMap.values()) };
 }
 
 // ============================================================
