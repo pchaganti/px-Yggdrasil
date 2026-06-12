@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "ff0dd70b7cfa815f58493e39de1310d78174fe47ce66425b184a7872c7a82bdd",
+  "hash": "ba86e3ccead15297216bb49fcee5e220d27732c6e3a5d906be66d47bf6a8a1f1",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/posix-paths-output/content.md": "2659859dc13a8efe32e098b0c220d24c9ecddff26b42a4f22e3135d8b750bc13",
@@ -17,8 +17,9 @@
     "source/cli/src/utils/posix.ts": "5461584fc6cd34504aea7b812997818208f020507832eb9bd220e4643ab81cd9",
     "source/cli/src/utils/predicate-boolean.ts": "dfb98fc1efcf449bd7f9781833e842f376e257277b91421230e97932028d171b",
     "source/cli/src/utils/when-parser.ts": "561050abfd9c05e76a01348e0de09f72e5d62c7335331bb3b8df3c0c14d3be7d",
+    "source/cli/src/utils/file-when-parser.ts": "8c6f457389357eccce8e5031b74ab5eaa2e8a6ea5b010ff40e971d61a7ed0c2d",
     "source/cli/src/utils/validate-check-module.ts": "b4fd46d469dc6ad17afa9d709fa625d381b8b9134592c8de88efdbdd88a53fb1",
-    "source/cli/src/utils/file-when-parser.ts": "8c6f457389357eccce8e5031b74ab5eaa2e8a6ea5b010ff40e971d61a7ed0c2d"
+    "source/cli/src/utils/binary-extensions.ts": "180a1d9306132cb9fbe835289d51f94738241bab04a26c394bf76ced9be4803b"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -27,6 +28,7 @@
     ".yggdrasil/aspects/no-direct-fs/check.mjs": 1780488505035.3284,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780488505036.1836,
     ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780979447477.9553,
+    "source/cli/src/utils/binary-extensions.ts": 1781270662065.8198,
     "source/cli/src/utils/debug-log.ts": 1780243230260.73,
     "source/cli/src/utils/git-introspect.ts": 1778573699364.3071,
     "source/cli/src/utils/git.ts": 1780243067941.036,
@@ -50,6 +52,7 @@
       "no-side-effects-on-import": {
         "meta": "583f3171d84bb90e12b74e2b3e8993deafd7ef8bf84e245c2d0d44de1abb65cb",
         "checkTouched": {
+          "source/cli/src/utils/binary-extensions.ts": "180a1d9306132cb9fbe835289d51f94738241bab04a26c394bf76ced9be4803b",
           "source/cli/src/utils/debug-log.ts": "d810ae1edbdb1c7dd3cb1a0dee630e73675560dd8d06803c8eecf73dcf6771b6",
           "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
           "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
@@ -66,6 +69,7 @@
       "no-direct-fs": {
         "meta": "85008a60917fc599d6fbfcfb2af8e0d4e563f4eaeff9c8da8a5722aef696b948",
         "checkTouched": {
+          "source/cli/src/utils/binary-extensions.ts": "180a1d9306132cb9fbe835289d51f94738241bab04a26c394bf76ced9be4803b",
           "source/cli/src/utils/debug-log.ts": "d810ae1edbdb1c7dd3cb1a0dee630e73675560dd8d06803c8eecf73dcf6771b6",
           "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
           "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
@@ -82,6 +86,7 @@
       "posix-paths-source": {
         "meta": "b36efcbfee31b4fd5e70c0cb17f692039af46eb8fb01dfc7d40ed1fe76e82d9d",
         "checkTouched": {
+          "source/cli/src/utils/binary-extensions.ts": "180a1d9306132cb9fbe835289d51f94738241bab04a26c394bf76ced9be4803b",
           "source/cli/src/utils/debug-log.ts": "d810ae1edbdb1c7dd3cb1a0dee630e73675560dd8d06803c8eecf73dcf6771b6",
           "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
           "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
@@ -98,6 +103,7 @@
       "no-direct-minimatch": {
         "meta": "f33faae5705376f2096c52359b7c665a6d2c36250b67d6822bb64c7af6a7ceb6",
         "checkTouched": {
+          "source/cli/src/utils/binary-extensions.ts": "180a1d9306132cb9fbe835289d51f94738241bab04a26c394bf76ced9be4803b",
           "source/cli/src/utils/debug-log.ts": "d810ae1edbdb1c7dd3cb1a0dee630e73675560dd8d06803c8eecf73dcf6771b6",
           "source/cli/src/utils/git-introspect.ts": "b8d61f3bc12007df81ad9d7a7a638945ba3d75a75988c112c2e5e4dd7bd001cb",
           "source/cli/src/utils/git.ts": "5eac27017183cc3aee42bb0b005086ce8d3c073c4a12a5c6456b3e050eb1e5ca",
@@ -131,7 +137,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-12T13:13:59.395Z",
-    "prefix_hash": "479579761359d018e98bbfdc4061fcb43feef2bf538ecc810d898ed9d203c2fb"
+    "last_entry_datetime": "2026-06-12T13:31:52.779Z",
+    "prefix_hash": "27477b96795a81d13af681d2eec40cb5c75102e1b1a861c5961c97f61b2758ef"
   }
 }

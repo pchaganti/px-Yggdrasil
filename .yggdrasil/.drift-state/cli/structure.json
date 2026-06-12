@@ -1,33 +1,33 @@
 {
   "schemaVersion": 1,
-  "hash": "f6d7fed1a26ca15c3d574289f779d48e30ed6a6d2ebe05d5565bd3a108e44833",
+  "hash": "cb7800b123abb67d482c3815d8e0afc8a722672a0829ff327bd388c2826ae518",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/aspects/deterministic/content.md": "82a5311abc13d6000f906bbdbd04399b233692256c49819a9cb15f95f988250a",
     ".yggdrasil/aspects/posix-paths-source/check.mjs": "0059f9f9de61bae7441b7807295548b98083fdb843e75191dd98db2fda8e79fc",
-    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
     "source/cli/src/structure/index.ts": "a3d83b2e300b9a92baf8a5667e330f3a7ee8ff284453c7534d95292013762c84",
     "source/cli/src/structure/expand-mapping-sync.ts": "fff473fed47cd15a042e6cb81ed6bc644f9279cb95aedc8f9291aa39c070c1d6",
     "source/cli/src/structure/allowed-reads.ts": "9356276775f1bffa4d02b0f9c126aeb3ef3c3005b36a0488f97621a81618b2bc",
     "source/cli/src/structure/types.ts": "62c088d33e826a58c193e2a9012eb5c406e5472cc352bcf69397db7112e6d5f6",
+    "source/cli/src/structure/ctx-parsers.ts": "aaaa977d9781a3211b437b8fc435e260bfe279e5a3e287e1176fac905be1769d",
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": "0bdabed4a7540f3d11240433e96a75612d51d3041398dafeed7e97bbf46f2623",
     "source/cli/src/structure/ctx-fs.ts": "b9697d91f00f7bfda24cbba414161e11248abf091ea7a6b9047bf726d1ad33a8",
     "source/cli/src/structure/ctx-graph.ts": "ff043dd6ee2717c16d20f970d3340e011f23ed61b95cf82dfbaef39ded19b767",
-    "source/cli/src/structure/ctx-parsers.ts": "aaaa977d9781a3211b437b8fc435e260bfe279e5a3e287e1176fac905be1769d",
-    "source/cli/src/structure/runner.ts": "7f73eb963fd38370004678868f45eabfc4a8ebf1abbb4a74b9969699a4d224e8"
+    "source/cli/src/structure/runner.ts": "a0021690a49b830c91c72016779ff8fa6542d35ae213c47c6e8c590ec2b72c80"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/aspects/deterministic/content.md": 1776177846197.1199,
     ".yggdrasil/aspects/posix-paths-source/check.mjs": 1780488505036.1836,
-    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780933853473.8323,
+    ".yggdrasil/aspects/no-direct-minimatch/check.mjs": 1780979447477.9553,
     "source/cli/src/structure/index.ts": 1780038029653.0693,
     "source/cli/src/structure/expand-mapping-sync.ts": 1780932356010.096,
     "source/cli/src/structure/allowed-reads.ts": 1780116976692.7002,
     "source/cli/src/structure/types.ts": 1780149146994.7927,
-    "source/cli/src/structure/ctx-fs.ts": 1780934473915.9763,
-    "source/cli/src/structure/ctx-graph.ts": 1780936490703.879,
+    "source/cli/src/structure/ctx-fs.ts": 1780979447501.4558,
+    "source/cli/src/structure/ctx-graph.ts": 1780979447501.6316,
     "source/cli/src/structure/ctx-parsers.ts": 1780410430026.3264,
-    "source/cli/src/structure/runner.ts": 1780949885889.9268
+    "source/cli/src/structure/runner.ts": 1781270820275.9946
   },
   "identity": {
     "ownSubset": "204bb5c981df191b1ce7c90b917c430e5813e7219cb7a2f740e2c87bcc605709",
@@ -47,7 +47,7 @@
           "source/cli/src/structure/ctx-fs.ts": "b9697d91f00f7bfda24cbba414161e11248abf091ea7a6b9047bf726d1ad33a8",
           "source/cli/src/structure/ctx-graph.ts": "ff043dd6ee2717c16d20f970d3340e011f23ed61b95cf82dfbaef39ded19b767",
           "source/cli/src/structure/ctx-parsers.ts": "aaaa977d9781a3211b437b8fc435e260bfe279e5a3e287e1176fac905be1769d",
-          "source/cli/src/structure/runner.ts": "7f73eb963fd38370004678868f45eabfc4a8ebf1abbb4a74b9969699a4d224e8"
+          "source/cli/src/structure/runner.ts": "a0021690a49b830c91c72016779ff8fa6542d35ae213c47c6e8c590ec2b72c80"
         }
       },
       "no-direct-minimatch": {
@@ -60,7 +60,7 @@
           "source/cli/src/structure/ctx-fs.ts": "b9697d91f00f7bfda24cbba414161e11248abf091ea7a6b9047bf726d1ad33a8",
           "source/cli/src/structure/ctx-graph.ts": "ff043dd6ee2717c16d20f970d3340e011f23ed61b95cf82dfbaef39ded19b767",
           "source/cli/src/structure/ctx-parsers.ts": "aaaa977d9781a3211b437b8fc435e260bfe279e5a3e287e1176fac905be1769d",
-          "source/cli/src/structure/runner.ts": "7f73eb963fd38370004678868f45eabfc4a8ebf1abbb4a74b9969699a4d224e8"
+          "source/cli/src/structure/runner.ts": "a0021690a49b830c91c72016779ff8fa6542d35ae213c47c6e8c590ec2b72c80"
         }
       }
     }
@@ -77,7 +77,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-08T20:29:25.807Z",
-    "prefix_hash": "9997927537697d95bec2f7505bc37493b02b47cdef95eb409394d7afab9cd4d5"
+    "last_entry_datetime": "2026-06-12T13:31:43.347Z",
+    "prefix_hash": "b24a76b571fa650185bc2ceb5e2ffe07c373e0fee859bc74ede4d40545e00482"
   }
 }

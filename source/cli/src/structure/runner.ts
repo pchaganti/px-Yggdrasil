@@ -15,6 +15,7 @@ import type { Graph, GraphNode as ModelNode } from '../model/graph.js';
 import type { Ctx, Violation, File, Port } from './types.js';
 import type { ParseCache } from '../ast/parse-cache.js';
 import type { IssueMessage } from '../model/validation.js';
+import { BINARY_EXTENSIONS } from '../utils/binary-extensions.js';
 
 export interface RunStructureAspectParams {
   aspectDir: string;
@@ -42,14 +43,6 @@ export class StructureRunnerError extends Error {
     this.name = 'StructureRunnerError';
   }
 }
-
-/** Binary extensions whose content is never meaningful to a deterministic check. */
-const BINARY_EXTENSIONS = new Set([
-  '.gif', '.png', '.jpg', '.jpeg', '.webp', '.bmp', '.ico', '.svgz',
-  '.woff', '.woff2', '.ttf', '.otf', '.eot',
-  '.zip', '.gz', '.tgz', '.tar', '.bz2', '.7z',
-  '.pdf', '.mp4', '.mov', '.webm', '.mp3', '.wav', '.wasm', '.bin',
-]);
 
 /**
  * Expand the node's own mapping to a flat list of readable text files.

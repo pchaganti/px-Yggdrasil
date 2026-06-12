@@ -22,6 +22,7 @@ import { DEFAULT_COVERAGE } from '../io/config-parser.js';
 import { hashTrackedFiles, expandMappingPaths } from '../io/hash.js';
 import { collectTrackedFiles, buildLayerResolver } from './graph/files.js';
 import { normalizeMappingPaths } from '../io/paths.js';
+import { getChildMappingExclusions } from './pairs.js';
 import { validate } from './validator.js';
 import { computeEffectiveAspectStatuses, hasNonDraftEffectiveAspects, isAggregateAspect, ImpliesCycleError } from './graph/aspects.js';
 import { readTextFile, fileAccess } from '../io/graph-fs.js';
@@ -733,30 +734,6 @@ function extractCauseKey(cause: CascadeCause): string {
   // Group by layer + the entity identifier (aspect id, dep path, flow name, parent path)
   // Use the first path segment after the entity type directory
   return `${cause.layer}:${cause.description.split("'")[1] ?? cause.file}`;
-}
-
-/**
- * Compute mapping paths owned by descendant nodes (child-wins model).
- */
-function getChildMappingExclusions(graph: Graph, nodePath: string): string[] {
-  const node = graph.nodes.get(nodePath);
-  if (!node) return [];
-  const parentMappings = normalizeMappingPaths(node.meta.mapping);
-  if (parentMappings.length === 0) return [];
-
-  const exclusions: string[] = [];
-  for (const [childPath, childNode] of graph.nodes) {
-    if (childPath === nodePath || !childPath.startsWith(nodePath + '/')) continue;
-    const childMappings = normalizeMappingPaths(childNode.meta.mapping);
-    for (const cm of childMappings) {
-      for (const pm of parentMappings) {
-        if (cm === pm || cm.startsWith(pm + '/')) {
-          exclusions.push(cm);
-        }
-      }
-    }
-  }
-  return exclusions;
 }
 
 async function allPathsMissing(projectRoot: string, mappingPaths: string[]): Promise<boolean> {

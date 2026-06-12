@@ -12,6 +12,7 @@ import { evaluateFileWhen } from '../file-when-evaluator.js';
 import { renderTrace } from '../../formatters/predicate-trace.js';
 import { issueMsg } from './shared.js';
 import { toPosixPath } from '../../utils/posix.js';
+import { BINARY_EXTENSIONS } from '../../utils/binary-extensions.js';
 
 export async function checkFileMappingGitignored(graph: Graph): Promise<ValidationIssue[]> {
   const projectRoot = path.dirname(graph.rootPath);
@@ -369,15 +370,6 @@ export function checkMappingEscapesRepo(graph: Graph): ValidationIssue[] {
 }
 
 // --- oversized-node: Node maps more than the per-node character budget ---
-
-/** File extensions whose contents are binary and never enter a reviewer prompt
- *  — they do not count toward a node's character budget. */
-const BINARY_EXTENSIONS = new Set([
-  '.gif', '.png', '.jpg', '.jpeg', '.webp', '.bmp', '.ico', '.svgz',
-  '.woff', '.woff2', '.ttf', '.otf', '.eot',
-  '.zip', '.gz', '.tgz', '.tar', '.bz2', '.7z',
-  '.pdf', '.mp4', '.mov', '.webm', '.mp3', '.wav', '.wasm', '.bin',
-]);
 
 /**
  * A node's reviewer context is its mapped source files plus the reference files

@@ -24,6 +24,8 @@ import {
   buildCheckTouchedOwnerMap,
 } from './drift-cause.js';
 import { normalizeMappingPaths } from '../io/paths.js';
+import { getChildMappingExclusions } from './pairs.js';
+export { getChildMappingExclusions } from './pairs.js';
 import { computeEffectiveAspects, computeEffectiveAspectStatuses, hasNonDraftEffectiveAspects, isAggregateAspect } from './graph/aspects.js';
 import { readTextFile, lstatFile } from '../io/graph-fs.js';
 import { createHash } from 'node:crypto';
@@ -595,30 +597,6 @@ function classifyViolationZone(
 }
 
 // ── Helpers ────────────────────────────────────────────────
-
-/* v8 ignore start -- tested in check.ts */
-/** Compute child mapping exclusions (child-wins model) */
-export function getChildMappingExclusions(graph: Graph, nodePath: string): string[] {
-  const node = graph.nodes.get(nodePath);
-  if (!node) return [];
-  const parentMappings = normalizeMappingPaths(node.meta.mapping);
-  if (parentMappings.length === 0) return [];
-
-  const exclusions: string[] = [];
-  for (const [childPath, childNode] of graph.nodes) {
-    if (childPath === nodePath || !childPath.startsWith(nodePath + '/')) continue;
-    const childMappings = normalizeMappingPaths(childNode.meta.mapping);
-    for (const cm of childMappings) {
-      for (const pm of parentMappings) {
-        if (cm === pm || cm.startsWith(pm + '/')) {
-          exclusions.push(cm);
-        }
-      }
-    }
-  }
-  return exclusions;
-}
-/* v8 ignore stop */
 
 /** Annotate an upstream changed file with a human-readable category label. */
 export function annotateUpstreamChange(filePath: string, layer: TrackedFileLayer | undefined): string {

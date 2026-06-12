@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Expected-pair computation and source fingerprints (`core/pairs.ts`).** Introduced `computeExpectedPairs(graph)` — the read-side foundation for the verdict lock. It crosses each node's effective aspects (all 7 cascade channels, `when`-filtered) with each aspect's declared review scope (`per: node` / `per: file`, optional `scope.files` predicate) to produce the canonical set of `(aspect, unit)` pairs a lock must contain. LLM aspects exclude binary files (by extension) from their subject set; deterministic aspects keep them. An empty subject set after filtering produces no pair (vacuous pass). Aggregate and draft aspects are excluded by default; `{ includeDraft: true }` enables the full GC universe. Also introduced `computeSourceFingerprint(graph, nodePath)` — a sha256 fold over sorted `path:sha256(bytes)` pairs across a node's full mapped files (child carve-out applied, binaries included by raw bytes, scope-filter independent).
+
+### Changed
+
+- **`getChildMappingExclusions` consolidated into `core/pairs.ts` (single source of truth).** The function was previously duplicated between `core/approve.ts` (exported) and `core/check.ts` (private). Both copies had identical logic; `core/approve.ts` carried a `/* v8 ignore */` comment acknowledging that tests lived elsewhere. The function is now defined once in `pairs.ts`, re-exported from `approve.ts` for backward compatibility with `approve-reviewer.ts`.
+- **`BINARY_EXTENSIONS` consolidated into `utils/binary-extensions.ts` (single source of truth).** Two byte-for-byte-identical copies existed in `core/checks/mapping.ts` (oversized-node budget) and `structure/runner.ts` (deterministic check file expansion). Both sites now import from the shared constant. `core/pairs.ts` also imports it for LLM subject-file binary exclusion.
+
 ## [5.0.0-alpha.4] - 2026-06-08
 
 ### Added
