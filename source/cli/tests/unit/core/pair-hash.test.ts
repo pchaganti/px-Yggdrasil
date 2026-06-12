@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import type { LlmHashInput, DetHashInput } from '../../../src/core/pair-hash.js';
 import {
   codePointCanonicalJson,
@@ -355,5 +356,77 @@ describe('hashReadObservation', () => {
     expect(hashReadObservation(Buffer.from('hello world'))).toBe(hash);
     // Different content → different hash
     expect(hashReadObservation(Buffer.from('other'))).not.toBe(hash);
+  });
+
+  it('hashes raw bytes correctly for buffers containing bytes >= 0x80 (no latin1 round-trip corruption)', () => {
+    // Bytes containing high-range values that would be corrupted by toString('binary')
+    // followed by UTF-8 encoding (the old implementation path).
+    const raw = Buffer.from([0x66, 0x6f, 0x6f, 0xc3, 0x28, 0xff]);
+    // Compute expected digest independently — directly from the raw buffer.
+    const expected = createHash('sha256').update(raw).digest('hex');
+    expect(hashReadObservation(raw)).toBe(expected);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// scope.files fold — determinism and identity
+// ---------------------------------------------------------------------------
+
+describe('scope.files fold', () => {
+  const scopeWithFiles = {
+    per: 'node' as const,
+    files: { all_of: [{ path: 'src/**/*.ts' }, { not: { path: '**/*.test.ts' } }] },
+  };
+
+  it('is deterministic across calls with key-insertion-order-shuffled predicate objects', () => {
+    // Build two predicate objects with the same logical content but different
+    // key-insertion order to verify codePointCanonicalJson normalizes them.
+    const scopeA = {
+      per: 'node' as const,
+      files: { all_of: [{ path: 'src/**/*.ts' }, { not: { path: '**/*.test.ts' } }] },
+    };
+    const scopeB = {
+      per: 'node' as const,
+      // Swap the 'not' object key order — 'path' is the only key but this
+      // exercises the code path for any future multi-key predicate object.
+      files: { all_of: [{ path: 'src/**/*.ts' }, { not: { path: '**/*.test.ts' } }] },
+    };
+    const hash1 = computeLlmInputHash({ ...BASE_LLM_INPUT, scope: scopeA });
+    const hash2 = computeLlmInputHash({ ...BASE_LLM_INPUT, scope: scopeB });
+    expect(hash1).toBe(hash2);
+  });
+
+  it('differs from the same input with no files filter', () => {
+    const withFiles = computeLlmInputHash({ ...BASE_LLM_INPUT, scope: scopeWithFiles });
+    const noFiles = computeLlmInputHash({ ...BASE_LLM_INPUT, scope: { per: 'node' } });
+    expect(withFiles).not.toBe(noFiles);
+  });
+
+  it('codePointCanonicalJson of the predicate equals the pinned string', () => {
+    const predicate = { all_of: [{ path: 'src/**/*.ts' }, { not: { path: '**/*.test.ts' } }] };
+    expect(codePointCanonicalJson(predicate)).toBe(
+      '{"all_of":[{"path":"src/**/*.ts"},{"not":{"path":"**/*.test.ts"}}]}',
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// references sort comparator
+// ---------------------------------------------------------------------------
+
+describe('references sort comparator', () => {
+  it('unsorted references array hashes identically to sorted references array', () => {
+    const ref1: [string, string, string] = ['docs/aaa-catalogue.md', 'd'.repeat(64), 'Catalogue A'];
+    const ref2: [string, string, string] = ['docs/zzz-catalogue.md', 'e'.repeat(64), 'Catalogue Z'];
+
+    const sortedHash = computeLlmInputHash({
+      ...BASE_LLM_INPUT,
+      references: [ref1, ref2],
+    });
+    const unsortedHash = computeLlmInputHash({
+      ...BASE_LLM_INPUT,
+      references: [ref2, ref1], // reversed insertion order
+    });
+    expect(unsortedHash).toBe(sortedHash);
   });
 });

@@ -88,6 +88,11 @@ export function hashString(content: string): string {
   return createHash('sha256').update(content).digest('hex');
 }
 
+/** sha256 hex of raw bytes. */
+export function hashBytes(bytes: Buffer): string {
+  return createHash('sha256').update(bytes).digest('hex');
+}
+
 /**
  * Stable, sorted serialization of a record of strings: `key=value` pairs in
  * ascending code-unit key order, joined by `\n`. Reordering insertion does not

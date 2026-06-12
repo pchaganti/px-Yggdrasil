@@ -19,7 +19,7 @@
 
 import type { ScopeDef } from '../model/graph.js';
 import type { Verdict } from '../model/lock.js';
-import { hashString } from '../io/hash.js';
+import { hashString, hashBytes } from '../io/hash.js';
 
 // ============================================================
 // Public input types
@@ -214,7 +214,7 @@ export function observationKey(kind: 'read' | 'list' | 'exists' | 'graph', path:
  * Used by the runner to record 'read:<path>' entries in touched[].
  */
 export function hashReadObservation(bytes: Buffer): string {
-  return hashString(bytes.toString('binary'));
+  return hashBytes(bytes);
 }
 
 /**
