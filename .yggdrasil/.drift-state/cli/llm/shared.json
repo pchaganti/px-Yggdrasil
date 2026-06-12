@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "e32659a9bc04fc76cd369b6ec33292f8fedd071bd8aaf5f51eda19fa57623708",
+  "hash": "ee71776e3fb7fc554e022feba9f537bfb394541d22875edd5fa6a4ade12d01f2",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/llm/yg-node.yaml": "eb86d7c0b81642af0c1d40cba6a1f5a780293a2304635bd100bd64677a4c8838",
@@ -16,7 +16,7 @@
     "source/cli/src/llm/reviewer-test.ts": "05c8a5b09320643bb76df54e8abe221e252686e08e8152be3a26e3b4089e001d",
     "source/cli/src/llm/model-fetcher.ts": "0c986bd9b6bf33393e48ec1bee70481d8db3dbd42b2eb4c69200798cf777afc3",
     "source/cli/src/llm/xml-escape.ts": "fe137a7ad8acd1fae2d2ddc068881ac0eb2340a54fe24a5c149a7fa0c2800657",
-    "source/cli/src/llm/prompt.ts": "5885ca4d4ddbde2ca77d3673781de52292bdddd2a1dede732076561c505a0549"
+    "source/cli/src/llm/prompt.ts": "fc009bbba551519853a681616598f39b1f130dc42d7e660e478a70d85993e928"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -30,7 +30,7 @@
     "source/cli/src/llm/index.ts": 1776177846232.9993,
     "source/cli/src/llm/api-utils.ts": 1780488505060.5034,
     "source/cli/src/llm/aspect-verifier.ts": 1781273635912.4883,
-    "source/cli/src/llm/prompt.ts": 1781274216621.6516,
+    "source/cli/src/llm/prompt.ts": 1781276002711.427,
     "source/cli/src/llm/reviewer-test.ts": 1776177846233.7026,
     "source/cli/src/llm/model-fetcher.ts": 1776177846233.1375,
     "source/cli/src/llm/xml-escape.ts": 1779962407193.0742
@@ -51,7 +51,7 @@
           "source/cli/src/llm/index.ts": "2d506311c3ae23d8855f043cd95c1b243b942920b75c70e5efc43eb13cc67a09",
           "source/cli/src/llm/api-utils.ts": "4b81c4d7d1dff9018e5517ec5814949fc7d6e51d42192d3b86a81450ad97a3bd",
           "source/cli/src/llm/aspect-verifier.ts": "48e7b252e1afca17b955399d7c90728614e5fadf222031ea09de0dc0eddb4455",
-          "source/cli/src/llm/prompt.ts": "5885ca4d4ddbde2ca77d3673781de52292bdddd2a1dede732076561c505a0549",
+          "source/cli/src/llm/prompt.ts": "fc009bbba551519853a681616598f39b1f130dc42d7e660e478a70d85993e928",
           "source/cli/src/llm/reviewer-test.ts": "05c8a5b09320643bb76df54e8abe221e252686e08e8152be3a26e3b4089e001d",
           "source/cli/src/llm/model-fetcher.ts": "0c986bd9b6bf33393e48ec1bee70481d8db3dbd42b2eb4c69200798cf777afc3",
           "source/cli/src/llm/xml-escape.ts": "fe137a7ad8acd1fae2d2ddc068881ac0eb2340a54fe24a5c149a7fa0c2800657"
@@ -82,7 +82,7 @@
     }
   },
   "log": {
-    "last_entry_datetime": "2026-06-12T14:17:26.646Z",
-    "prefix_hash": "6e48732ade2267b553a92e9b72213be28c3c5b29541ae8c977ada40290c11b8a"
+    "last_entry_datetime": "2026-06-12T14:58:07.805Z",
+    "prefix_hash": "64e92db88cc0a9561bcc5c17ac2599c6db09657954eabe3118d360c202cd3e1a"
   }
 }

@@ -1,27 +1,21 @@
 {
   "schemaVersion": 1,
-  "hash": "4cae9031a0a61d6b7defcb6974c1a904147bdeaa319b9326a2079e679ba219ff",
+  "hash": "861b368c594b2cd9662da94c31a8cd7083496bf8f8796de2832b2c67ad44ab85",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": "1371584579ad0f2a15cbfa3c595cfe34214ed038517a93f334b970271b0441b2",
-    ".yggdrasil/model/cli/tests/unit/llm/yg-node.yaml": "ebb2390d4948b19d17bc6d83ec67d1ecf47ef911ced14f91e22b606cd4c7d8cd",
+    ".yggdrasil/model/cli/tests/unit/structure/yg-node.yaml": "948a9b8cfdb3dd949b969d26aefa698f1698145d9c6b09ee7dd74b4fad9e44ac",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/llm/provider.test.ts": "931f08e875e454a0bc25d97a10a0a9d47502091f38f4f87bb90565baa4ccf0bc",
-    "source/cli/tests/unit/llm/xml-escape.test.ts": "d0bfb0142c4b5cafc82f11a1436d72940ce70a335ad68d3e75e79c621872e7ae",
-    "source/cli/tests/unit/llm/aspect-verifier-references.test.ts": "07fb7ab9e6609fca2f9784d674bd09ce9e54047f9999ee341811310a1a92bf73",
-    "source/cli/tests/unit/llm/prompt.test.ts": "8685f90a1d2c0a5859881a217857a66118b0c0c2ad1d9a065fbb984f2a300997"
+    "source/cli/tests/unit/structure/observations.test.ts": "85c67eed36c98a0e86e920735250b785e3043a64060147b8b50dba582554c4cb"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
     ".yggdrasil/model/cli/tests/yg-node.yaml": 1776177846206.2712,
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
-    ".yggdrasil/model/cli/tests/unit/llm/yg-node.yaml": 1779996133713.766,
+    ".yggdrasil/model/cli/tests/unit/structure/yg-node.yaml": 1780103153564.5188,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/llm/provider.test.ts": 1780488505080.7744,
-    "source/cli/tests/unit/llm/xml-escape.test.ts": 1779962414128.6423,
-    "source/cli/tests/unit/llm/aspect-verifier-references.test.ts": 1779964643681.8257,
-    "source/cli/tests/unit/llm/prompt.test.ts": 1781276008551.2722
+    "source/cli/tests/unit/structure/observations.test.ts": 1781276053434.6843
   },
   "identity": {
     "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",

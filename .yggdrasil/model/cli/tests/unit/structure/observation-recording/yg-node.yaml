@@ -1,0 +1,7 @@
+name: Structure Observation Recording Tests
+type: test-suite
+description: "Unit tests for result-bearing observation recording in the structure-aspect runner: read/list/exists/graph observations, deduplication, taint detection, and subject-file skip."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/structure/observations.test.ts

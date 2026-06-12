@@ -91,6 +91,8 @@ describe('runApproveWithReviewer — structure touched-file paths normalized to 
       violations: [],
       touchedFiles: ['src\\svc.ts'],
       succeeded: true,
+      observations: [],
+      observationsTainted: false,
     });
 
     const graph = await loadGraph(tmpDir);

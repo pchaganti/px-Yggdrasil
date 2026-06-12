@@ -1,3 +1,7 @@
+// Goldens pin buildPairPrompt's exact bytes. Per-node output MUST stay byte-identical
+// to the legacy builder for equivalent inputs — any scaffold change that alters output
+// is a breaking change. To regenerate after an INTENTIONAL scaffold change:
+//   console.log(buildPairPrompt(inputN)) and overwrite the corresponding fixture file.
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

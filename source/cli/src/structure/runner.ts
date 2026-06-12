@@ -16,6 +16,7 @@ import type { Ctx, Violation, File, Port } from './types.js';
 import type { ParseCache } from '../ast/parse-cache.js';
 import type { IssueMessage } from '../model/validation.js';
 import { BINARY_EXTENSIONS } from '../utils/binary-extensions.js';
+import { ObservationRecorder } from './observations.js';
 
 export interface RunStructureAspectParams {
   aspectDir: string;
@@ -30,6 +31,11 @@ export interface RunStructureAspectResult {
   violations: Violation[];
   touchedFiles: string[];
   succeeded?: boolean;
+  /** Sorted [observationKey, observationHash] pairs recorded during this run. */
+  observations: Array<[string, string]>;
+  /** True when the same path was observed with different content during the run
+   *  (file changed mid-run) — a tainted result must never be cached. */
+  observationsTainted: boolean;
 }
 
 export class StructureRunnerError extends Error {
@@ -142,7 +148,22 @@ export async function runStructureAspect(
   const checkFn = mod.check as (...args: unknown[]) => unknown;
 
   const allowedSet = collectAllowedReadsForAspect(nodePath, graph);
-  const ctxFs = createCtxFs({ allowedSet, projectRoot, touchedFiles });
+
+  // Construct one ObservationRecorder per run — threaded into all ctx factories.
+  const recorder = new ObservationRecorder();
+
+  // Build the own files first (needed to compute subjectFiles set before creating ctxFs).
+  // We must know which paths are subject files so we can skip recording read: observations
+  // for them — they are hashed separately as subject inputs in the deterministic pair hash.
+  // We collect own file paths from the mapping before actually reading them so that the
+  // subject set is available when ctxFs/ctxGraph/parsers are created.
+  const ownFilesRaw = (node.meta.mapping ?? [])
+    .map(normalizeMappingPath)
+    .filter((p): p is string => p !== '');
+  const ownFilesExpanded = await expandMappingPaths(projectRoot, ownFilesRaw);
+  const subjectFiles = new Set<string>(ownFilesExpanded);
+
+  const ctxFs = createCtxFs({ allowedSet, projectRoot, touchedFiles, recorder, subjectFiles });
   // Pre-expand each graph-readable node's mapping to concrete files (directory
   // and glob entries resolved here in the async layer) so ctx.graph.node().files
   // sees a glob-mapped node's real files. Content is read lazily inside ctx.graph
@@ -152,8 +173,8 @@ export async function runStructureAspect(
     const m = graph.nodes.get(id);
     if (m) expandedFilesByNode.set(id, await enumerateMappedFilesAsync(m.meta.mapping ?? [], projectRoot));
   }
-  const ctxGraph = createCtxGraph({ currentNodePath: nodePath, graph, projectRoot, touchedFiles, expandedFilesByNode });
-  const parsers = createCtxParsers({ allowedSet, projectRoot, touchedFiles, astCache });
+  const ctxGraph = createCtxGraph({ currentNodePath: nodePath, graph, projectRoot, touchedFiles, expandedFilesByNode, recorder, subjectFiles });
+  const parsers = createCtxParsers({ allowedSet, projectRoot, touchedFiles, astCache, recorder, subjectFiles });
 
   const ownFiles = await buildOwnFiles(node, projectRoot, touchedFiles);
   // Eagerly parse own-mapping files so ctx.files carry .ast + .language (AST-aspect parity).
@@ -205,6 +226,8 @@ export async function runStructureAspect(
         }],
         touchedFiles: [],
         succeeded: false,
+        observations: recorder.snapshot(),
+        observationsTainted: recorder.tainted,
       };
     }
     if (err instanceof UndeclaredGraphReadError) {
@@ -216,6 +239,8 @@ export async function runStructureAspect(
         }],
         touchedFiles: [],
         succeeded: false,
+        observations: recorder.snapshot(),
+        observationsTainted: recorder.tainted,
       };
     }
     if (err instanceof ParseAstNotPrewarmedError) {
@@ -227,6 +252,8 @@ export async function runStructureAspect(
         }],
         touchedFiles: [],
         succeeded: false,
+        observations: recorder.snapshot(),
+        observationsTainted: recorder.tainted,
       };
     }
     throw new StructureRunnerError('STRUCTURE_CHECK_THROWN', {
@@ -309,5 +336,11 @@ export async function runStructureAspect(
     return !isLineSuppressed(ranges, aspectId, v.line);
   });
 
-  return { violations: visible, touchedFiles, succeeded: true };
+  return {
+    violations: visible,
+    touchedFiles,
+    succeeded: true,
+    observations: recorder.snapshot(),
+    observationsTainted: recorder.tainted,
+  };
 }

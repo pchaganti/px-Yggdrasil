@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "hash": "f4720d959e9d2a9be3d128d5047b28266bd06228c4befac91b55e602be7960c5",
+  "hash": "2c4019dd1e8e6851fb5063f4d0abc031e4a1db40571b835582a3cf4e63f8c373",
   "files": {
     ".yggdrasil/model/cli/yg-node.yaml": "4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611",
     ".yggdrasil/model/cli/tests/yg-node.yaml": "446c84032a5a3bff2dda57b898f18a428b983c6f59417d26959b752efa012d7d",
@@ -8,8 +8,8 @@
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": "de00f518b04112cb692d73d15acfd232c3f1874b163d22d482f0b8e5a7163f48",
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": "a5408f7e331d1e28996ceaf2b67c4fada5e52ee3909db85a7904aae88cd55146",
     ".yggdrasil/aspects/test-deterministic/content.md": "1fc65af34255a2639893030a2bc7f57eb82cfe2a21dd7620ef5d1abe9ce9574f",
-    "source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts": "b75b147aefa1c673e21ed667e237b55a28e4a15f2449ab3d68bd8d9881f29a2d",
-    ".yggdrasil/model/cli/tests/unit/core/operations/approve/yg-node.yaml": "5005a8935a06a3a16842705dfdea35d9e940e2aad3775dd58dfc8aaecc63eb86"
+    ".yggdrasil/model/cli/tests/unit/core/operations/approve/yg-node.yaml": "5005a8935a06a3a16842705dfdea35d9e940e2aad3775dd58dfc8aaecc63eb86",
+    "source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts": "b66c9d6c9e43a8ad9ef2eb7194d9c39f6f6c680ab3581070a645684ffc756887"
   },
   "mtimes": {
     ".yggdrasil/model/cli/yg-node.yaml": 1776177846206.541,
@@ -17,9 +17,9 @@
     ".yggdrasil/model/cli/tests/unit/yg-node.yaml": 1778866542462.8577,
     ".yggdrasil/model/cli/tests/unit/core/yg-node.yaml": 1778866543616.299,
     ".yggdrasil/model/cli/tests/unit/core/operations/yg-node.yaml": 1779996108975.9385,
-    ".yggdrasil/model/cli/tests/unit/core/operations/approve/yg-node.yaml": 1780469989960.0933,
+    ".yggdrasil/model/cli/tests/unit/core/operations/approve/yg-node.yaml": 1780488505045.4941,
     ".yggdrasil/aspects/test-deterministic/content.md": 1778916578768.1753,
-    "source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts": 1780293527020.4536
+    "source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts": 1781276789693.4094
   },
   "identity": {
     "ownSubset": "560488fa8ac51fec0a2ab5fcf26e784708fdc2099d3826eb88b807d3a8d2602b",
@@ -35,5 +35,9 @@
     "test-deterministic": {
       "verdict": "approved"
     }
+  },
+  "log": {
+    "last_entry_datetime": "2026-06-12T15:06:57.227Z",
+    "prefix_hash": "cf23ae5d3a5797b5b35f3dc335340f2c2ae917baa95d0a2b58780e0f34912487"
   }
 }

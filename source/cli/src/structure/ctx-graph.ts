@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import type { Graph, GraphNode as ModelNode } from '../model/graph.js';
 import type { GraphNode, Relation, File, Port } from './types.js';
 import { normalizeMappingPath } from './expand-mapping-sync.js';
+import type { ObservationRecorder } from './observations.js';
 
 export class UndeclaredGraphReadError extends Error {
   constructor(public readonly nodePath: string) {
@@ -25,6 +26,19 @@ export interface CtxGraphParams {
    * read lazily per node so touchedFiles reflects only what the check accessed.
    */
   expandedFilesByNode?: Map<string, string[]>;
+  /**
+   * Optional observation recorder. When provided, each node returned to the check
+   * records a graph: observation (keyed by node path, hashed from nodeYamlRaw).
+   * File reads inside toPublicNode additionally record read: observations for
+   * files NOT in `subjectFiles`.
+   */
+  recorder?: ObservationRecorder;
+  /**
+   * Set of repo-relative POSIX paths that are subject files for the current run.
+   * File reads of these paths inside toPublicNode are NOT recorded as read:
+   * observations (they are already hashed as subject inputs).
+   */
+  subjectFiles?: Set<string>;
 }
 
 export interface CtxGraph {
@@ -66,11 +80,34 @@ export function computeAllowedNodePaths(currentPath: string, graph: Graph): Set<
 }
 
 export function createCtxGraph(params: CtxGraphParams): CtxGraph {
-  const { currentNodePath, graph, projectRoot, touchedFiles, expandedFilesByNode } = params;
+  const { currentNodePath, graph, projectRoot, touchedFiles, expandedFilesByNode, recorder, subjectFiles } = params;
   const allowed = computeAllowedNodePaths(currentNodePath, graph);
 
   function assertAllowed(id: string): void {
     if (!allowed.has(id)) throw new UndeclaredGraphReadError(id);
+  }
+
+  function recordGraphNode(m: ModelNode): void {
+    if (!recorder) return;
+    // Hash using nodeYamlRaw from the in-memory model (the trusted source loaded
+    // at graph-load time). Fall back to reading the file from disk only when the
+    // in-memory field is absent (e.g. in tests that build minimal graph stubs).
+    let yamlBytes: Buffer;
+    if (m.nodeYamlRaw !== undefined) {
+      yamlBytes = Buffer.from(m.nodeYamlRaw, 'utf8');
+    } else {
+      // Derive yg-node.yaml path from the node path (model/<nodePath>/yg-node.yaml)
+      const ygNodePath = path.join(projectRoot, '.yggdrasil', 'model', m.path, 'yg-node.yaml');
+      try {
+        yamlBytes = fs.readFileSync(ygNodePath);
+      } catch {
+        // File absent — record an empty buffer so the observation key is still
+        // registered (the absence itself is information; a taint would fire if
+        // content later appears at a second observation of the same path).
+        yamlBytes = Buffer.alloc(0);
+      }
+    }
+    recorder.recordGraphNode(m.path, yamlBytes);
   }
 
   function toPublicNode(m: ModelNode): GraphNode {
@@ -86,14 +123,22 @@ export function createCtxGraph(params: CtxGraphParams): CtxGraph {
       try {
         const stat = fs.statSync(abs);
         if (stat.isFile()) {
-          const content = fs.readFileSync(abs, 'utf8');
+          const bytes = fs.readFileSync(abs);
+          const content = bytes.toString('utf8');
           files.push({ path: p, content });
           touchedFiles.push(p);
+          // Record a read: observation for non-subject files handed to the check.
+          if (recorder && !(subjectFiles?.has(p))) {
+            recorder.recordRead(p, bytes);
+          }
         }
       } catch {
         // missing path — skip silently
       }
     }
+    // Record graph: observation for this node — after materializing files so the
+    // observation is registered even if the node has no mapped files.
+    recordGraphNode(m);
     return {
       id: m.path,
       type: m.meta.type,

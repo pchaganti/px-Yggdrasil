@@ -21,6 +21,11 @@ const PER_FILE_FRAMING =
 /**
  * Assembles the reviewer prompt. Per-node output is BYTE-IDENTICAL to the legacy
  * buildPrompt for equivalent inputs (golden-pinned). Per-file adds the single-file framing.
+ *
+ * Contract for callers: with scope.per === 'file', callers MUST pass exactly one file in
+ * `input.files`. Passing multiple files would contradict the single-file framing sentence
+ * added by this function — the reviewer would see "you are reviewing ONE file" while
+ * receiving several. Enforcing this constraint is the caller's responsibility.
  */
 export function buildPairPrompt(input: PairPromptInput): string {
   const { aspect, references, nodePath, nodeDescription, files, scope } = input;

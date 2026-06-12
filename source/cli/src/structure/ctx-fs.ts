@@ -3,12 +3,25 @@ import * as path from 'node:path';
 import type { FsEntry } from './types.js';
 import { normalizeMappingPath, mappingEntryMatchesFile } from '../utils/mapping-path.js';
 import { toPosix } from '../utils/posix.js';
+import type { ObservationRecorder } from './observations.js';
 
 export interface CtxFsParams {
   allowedSet: Set<string>;
   projectRoot: string;
   /** mutable list — every fs operation appends the normalized path */
   touchedFiles: string[];
+  /**
+   * Optional observation recorder. When provided, every fs operation records a
+   * result-bearing observation (read: list: exists:) UNLESS the path is in
+   * `subjectFiles` (own-node files already hashed as subject inputs).
+   */
+  recorder?: ObservationRecorder;
+  /**
+   * Set of repo-relative POSIX paths that are subject files for this run.
+   * Reads of these paths are NOT recorded as observations — they are hashed
+   * separately as subject inputs in the deterministic pair hash.
+   */
+  subjectFiles?: Set<string>;
 }
 
 export interface CtxFs {
@@ -92,7 +105,7 @@ export function resolveAllowedReadPath(raw: string, allowedSet: Set<string>, pro
 }
 
 export function createCtxFs(params: CtxFsParams): CtxFs {
-  const { allowedSet, projectRoot, touchedFiles } = params;
+  const { allowedSet, projectRoot, touchedFiles, recorder, subjectFiles } = params;
 
   function assertAllowed(raw: string): string {
     const p = resolveAllowedReadPath(raw, allowedSet, projectRoot);
@@ -100,32 +113,49 @@ export function createCtxFs(params: CtxFsParams): CtxFs {
     return p;
   }
 
+  function isSubjectFile(p: string): boolean {
+    return subjectFiles !== undefined && subjectFiles.has(p);
+  }
+
   return {
     exists(raw) {
       const p = assertAllowed(raw);
       const abs = path.resolve(projectRoot, p);
+      let result: 'file' | 'dir' | false;
       try {
         const stat = fs.statSync(abs);
-        return stat.isDirectory() ? 'dir' : stat.isFile() ? 'file' : false;
+        result = stat.isDirectory() ? 'dir' : stat.isFile() ? 'file' : false;
       } catch {
-        return false;
+        result = false;
       }
+      if (recorder && !isSubjectFile(p)) {
+        recorder.recordExists(p, result);
+      }
+      return result;
     },
 
     read(raw) {
       const p = assertAllowed(raw);
       const abs = path.resolve(projectRoot, p);
-      return fs.readFileSync(abs, 'utf8');
+      const bytes = fs.readFileSync(abs);
+      if (recorder && !isSubjectFile(p)) {
+        recorder.recordRead(p, bytes);
+      }
+      return bytes.toString('utf8');
     },
 
     list(raw) {
       const p = assertAllowed(raw);
       const abs = path.resolve(projectRoot, p);
-      const entries = fs.readdirSync(abs, { withFileTypes: true });
-      return entries.map(e => ({
+      const dirents = fs.readdirSync(abs, { withFileTypes: true });
+      const entries = dirents.map(e => ({
         name: e.name,
         kind: e.isDirectory() ? ('dir' as const) : ('file' as const),
       }));
+      if (recorder && !isSubjectFile(p)) {
+        recorder.recordList(p, entries);
+      }
+      return entries;
     },
   };
 }

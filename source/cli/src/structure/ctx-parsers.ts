@@ -8,12 +8,25 @@ import type { ParseCache } from '../ast/parse-cache.js';
 import { getLanguageForExtension } from '../core/graph/language-registry.js';
 import { resolveAllowedReadPath } from './ctx-fs.js';
 import type { File } from './types.js';
+import type { ObservationRecorder } from './observations.js';
 
 export interface CtxParsersParams {
   allowedSet: Set<string>;
   projectRoot: string;
   touchedFiles: string[];
   astCache: ParseCache;
+  /**
+   * Optional observation recorder. When provided, parseYaml/parseJson/parseToml
+   * called with a string PATH (not a File object) record a read: observation for
+   * the resolved path. File-object calls are not recorded here — the content was
+   * already surfaced by ctx.graph or ctx.files and is covered by those observations.
+   */
+  recorder?: ObservationRecorder;
+  /**
+   * Set of repo-relative POSIX paths that are subject files for the current run.
+   * Reads of these paths via parsers are NOT recorded as observations.
+   */
+  subjectFiles?: Set<string>;
 }
 
 export interface CtxParsers {
@@ -36,7 +49,7 @@ export class ParseAstNotPrewarmedError extends Error {
 }
 
 export function createCtxParsers(params: CtxParsersParams): CtxParsers {
-  const { allowedSet, projectRoot, touchedFiles, astCache } = params;
+  const { allowedSet, projectRoot, touchedFiles, astCache, recorder, subjectFiles } = params;
 
   function asFile(input: File | string): File {
     if (typeof input !== 'string') {
@@ -45,8 +58,14 @@ export function createCtxParsers(params: CtxParsersParams): CtxParsers {
     }
     const p = resolveAllowedReadPath(input, allowedSet, projectRoot);
     const abs = path.resolve(projectRoot, p);
-    const content = fs.readFileSync(abs, 'utf8');
+    const bytes = fs.readFileSync(abs);
+    const content = bytes.toString('utf8');
     touchedFiles.push(p);
+    // Record a read: observation for path-based calls (the check passed a string
+    // path rather than a File object, so we performed a real disk read here).
+    if (recorder && !(subjectFiles?.has(p))) {
+      recorder.recordRead(p, bytes);
+    }
     return { path: p, content };
   }
 
