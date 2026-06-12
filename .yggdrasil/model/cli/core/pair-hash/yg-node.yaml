@@ -1,0 +1,13 @@
+name: Pair Hash
+type: engine
+description: "Frozen input-hash contract (spec §3.1) — codePointCanonicalJson serialization with code-point key ordering, computeLlmInputHash and computeDetInputHash for content-addressed verdict storage, and observation helpers (hashReadObservation, hashListObservation, hashExistsObservation, observationKey, tierHashView). Hash algorithm and serialization are frozen: changing them invalidates every stored verdict."
+aspects: []
+relations:
+  - target: cli/model/graph
+    type: uses
+  - target: cli/model/lock
+    type: uses
+  - target: cli/io/stores
+    type: calls
+mapping:
+  - source/cli/src/core/pair-hash.ts

@@ -223,6 +223,9 @@ export const STATUS_INHERIT_VALUES: readonly StatusInherit[] = ['strictest', 'ow
 // Aspect
 // ============================================================
 
+/** Review scope of an aspect: whole-node or per-file, with an optional file filter. */
+export interface ScopeDef { per: 'node' | 'file'; files?: FileWhenPredicate }
+
 export interface AspectDef {
   name: string;
   id: string;
