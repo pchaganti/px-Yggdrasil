@@ -2,11 +2,13 @@ import type { DependencyExtractor } from './types.js';
 import { typescriptExtractor } from './typescript.js';
 import { pythonExtractor } from './python.js';
 import { goExtractor } from './go.js';
+import { javaExtractor } from './java.js';
 
 const EXTRACTORS: DependencyExtractor[] = [
   typescriptExtractor, // TS / TSX / JS (Phase 1)
   pythonExtractor, // Python (Phase 2)
   goExtractor, // Go (Phase 3)
+  javaExtractor, // Java (Phase 4)
 ];
 
 const byLanguage = new Map<string, DependencyExtractor>();

@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { resolveTsPath } from './extractors/typescript-resolve.js';
 import { resolvePythonModule } from './extractors/python-resolve.js';
 import { resolveGoImport, type GoResolveDeps } from './extractors/go-resolve.js';
+import { resolveJavaFqn, type JavaResolveDeps } from './extractors/java-resolve.js';
 
 /** Production resolvePathToFile: dispatches by language to the per-language path resolver.
  *  Checks existence against the project's files on disk. Symbol-resolved languages (and
@@ -10,6 +11,7 @@ import { resolveGoImport, type GoResolveDeps } from './extractors/go-resolve.js'
 export function makeResolvePathToFile(projectRoot: string): (specifier: string, fromFile: string, language: string) => string | undefined {
   const exists = (repoRelPosix: string): boolean => existsSync(path.resolve(projectRoot, repoRelPosix));
   const goDeps = makeGoResolveDeps(projectRoot);
+  const javaDeps = makeJavaResolveDeps(projectRoot, exists);
   return (specifier, fromFile, language) => {
     if (language === 'typescript' || language === 'tsx' || language === 'javascript') {
       return resolveTsPath(specifier, fromFile, exists);
@@ -19,6 +21,9 @@ export function makeResolvePathToFile(projectRoot: string): (specifier: string, 
     }
     if (language === 'go') {
       return resolveGoImport(specifier, fromFile, goDeps);
+    }
+    if (language === 'java') {
+      return resolveJavaFqn(specifier, fromFile, javaDeps);
     }
     return undefined;
   };
@@ -107,6 +112,38 @@ function makeGoResolveDeps(projectRoot: string): GoResolveDeps {
   }
 
   return { modulePathFor, dirExists, goFilesIn };
+}
+
+/**
+ * Build the disk-backed Java resolution capabilities for a project root. Java
+ * resolution is pure file/directory existence (the package = directory convention),
+ * so `exists` is shared with the other resolvers; the only extra capability is
+ * listing a package directory's `.java` files for a wildcard import.
+ *
+ * NOTE: makeResolvePathToFile is also used by verify.ts (parse-free re-validation);
+ * readdirSync is fine there — it lists files, it does not parse.
+ */
+function makeJavaResolveDeps(
+  projectRoot: string,
+  exists: (repoRelPosix: string) => boolean,
+): JavaResolveDeps {
+  function javaFilesIn(repoRelDir: string): string[] {
+    const abs = path.resolve(projectRoot, repoRelDir);
+    let entries: import('node:fs').Dirent[];
+    try {
+      entries = readdirSync(abs, { withFileTypes: true });
+    } catch {
+      return [];
+    }
+    const out: string[] = [];
+    for (const e of entries) {
+      if (e.isFile() && e.name.endsWith('.java')) {
+        out.push(repoRelDir === '' ? e.name : path.posix.join(repoRelDir, e.name));
+      }
+    }
+    return out;
+  }
+  return { exists, javaFilesIn };
 }
 
 function toPosix(p: string): string {
