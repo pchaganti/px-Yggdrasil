@@ -4,6 +4,7 @@ import { pythonExtractor } from './python.js';
 import { goExtractor } from './go.js';
 import { javaExtractor } from './java.js';
 import { phpExtractor } from './php.js';
+import { kotlinExtractor } from './kotlin.js';
 
 const EXTRACTORS: DependencyExtractor[] = [
   typescriptExtractor, // TS / TSX / JS (Phase 1)
@@ -11,6 +12,7 @@ const EXTRACTORS: DependencyExtractor[] = [
   goExtractor, // Go (Phase 3)
   javaExtractor, // Java (Phase 4)
   phpExtractor, // PHP (Phase 5)
+  kotlinExtractor, // Kotlin (Phase 6) — resolves via the shared SymbolTable, not a path mapping
 ];
 
 const byLanguage = new Map<string, DependencyExtractor>();

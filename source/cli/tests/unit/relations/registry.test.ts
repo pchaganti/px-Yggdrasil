@@ -11,4 +11,7 @@ describe('extractor registry', () => {
     expect(extractorForLanguage('tsx')).toBeDefined();
     expect(extractorForLanguage('javascript')).toBeDefined();
   });
+  it('resolves the Kotlin extractor (Phase 6, symbol-table resolved)', () => {
+    expect(extractorForLanguage('kotlin')).toBeDefined();
+  });
 });
