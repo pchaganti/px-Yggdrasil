@@ -50,4 +50,13 @@ export type EvaluationResult = {
   unreadable?: boolean;
   /** OS error string (e.g. "EACCES (permission denied)") — present when `unreadable`. */
   unreadableReason?: string;
+  /**
+   * Why the file could not be evaluated, when `unreadable` is set:
+   *   - 'read'      → the file's bytes could not be read at all (EACCES, vanished, …).
+   *   - 'too-large' → the file is readable but exceeds the content-scan size limit,
+   *                   so a `content` filter could not be applied to it.
+   * Lets callers phrase an accurate diagnostic (a too-large file is readable, so
+   * "could not read" would be misleading). Defaults to 'read' when absent.
+   */
+  unreadableKind?: 'read' | 'too-large';
 };

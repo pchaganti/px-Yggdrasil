@@ -306,16 +306,26 @@ export async function computeExpectedPairs(
             if (!unreadableMap.has(key)) {
               const filePath = nodeFiles[i];
               const reason = r.unreadableReason ?? 'unreadable';
+              // A too-large file is readable but exceeds the content-scan limit, so
+              // "could not read" would be inaccurate — phrase it as a filter that
+              // could not be evaluated. An actual read failure (EACCES, vanished)
+              // keeps the "could not read" wording.
+              const tooLarge = r.unreadableKind === 'too-large';
+              const what = tooLarge
+                ? `Aspect '${aspectId}' on node '${toPosixPath(nodePath)}' could not evaluate the content filter on subject file '${toPosixPath(filePath)}': ${reason}.`
+                : `Aspect '${aspectId}' on node '${toPosixPath(nodePath)}' could not read subject file '${toPosixPath(filePath)}': ${reason}.`;
+              const why = tooLarge
+                ? 'The scope.files content filter must scan each mapped file to decide whether it is a review subject, but this file exceeds the scan limit, so the filter could not be applied and the file was dropped from the review subject set. A silently dropped file can turn an enforced rule into a vacuous pass.'
+                : 'A file the scope.files filter must evaluate could not be read, so it was dropped from the review subject set. A silently dropped file can turn an enforced rule into a vacuous pass.';
+              const next = tooLarge
+                ? `Split '${toPosixPath(filePath)}' below the 5MB scan limit, narrow the content filter so it no longer needs to scan this file, or remove it from the node mapping, then re-run yg check.`
+                : `Fix the file permissions or remove '${toPosixPath(filePath)}' from the node mapping, then re-run yg check.`;
               unreadableMap.set(key, {
                 nodePath,
                 aspectId,
                 path: filePath,
                 reason,
-                messageData: {
-                  what: `Aspect '${aspectId}' on node '${toPosixPath(nodePath)}' could not read subject file '${toPosixPath(filePath)}': ${reason}.`,
-                  why: 'A file the scope.files filter must evaluate could not be read, so it was dropped from the review subject set. A silently dropped file can turn an enforced rule into a vacuous pass.',
-                  next: `Fix the file permissions or remove '${toPosixPath(filePath)}' from the node mapping, then re-run yg check.`,
-                },
+                messageData: { what, why, next },
               });
             }
           }

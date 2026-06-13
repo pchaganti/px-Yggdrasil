@@ -49,11 +49,14 @@ describe('evaluateFileWhen', () => {
     expect(result.result).toBe(true);
   });
 
-  it('content atom returns false on binary file', async () => {
+  it('content atom returns false on binary file and is NOT flagged unreadable (legitimate non-match)', async () => {
+    // Deliberate asymmetry: a binary file has no text for a text content regex
+    // to match, so it is a legitimate non-match — excluded, never blocking.
     writeFileSync(join(tmpDir, 'bin'), Buffer.from([0x00, 0x01, 0x02]));
     const pred: FileWhenPredicate = { content: '.' };
     const result = await evaluateFileWhen(pred, ctx('bin'));
     expect(result.result).toBe(false);
+    expect(result.unreadable).toBeUndefined();
     expect((result.trace as { detail?: string }).detail).toMatch(/binary/i);
   });
 
@@ -150,12 +153,19 @@ describe('evaluateFileWhen', () => {
     expect(result.trace.kind).toBe('all_of');
   });
 
-  it('content predicate on file >5MB reports tooLarge in trace.detail', async () => {
+  it('content predicate on file >5MB is flagged unreadable (too-large) so the caller can block it', async () => {
+    // Deliberate asymmetry vs. binary: a too-large file CANNOT be scanned, so the
+    // filter is unevaluable — it must NOT be silently excluded (vacuous green).
+    // It signals unreadable: true (kind too-large) so the caller records it in the
+    // blocking unreadable[] channel, exactly like an EACCES read failure.
     writeFileSync(join(tmpDir, 'big.ts'), 'a'.repeat(5 * 1024 * 1024 + 1));
     const pred: FileWhenPredicate = { content: 'a' };
     const result = await evaluateFileWhen(pred, ctx('big.ts'));
     expect(result.result).toBe(false);
-    expect((result.trace as { detail?: string }).detail).toMatch(/>5MB/);
+    expect(result.unreadable).toBe(true);
+    expect(result.unreadableKind).toBe('too-large');
+    expect(result.unreadableReason).toMatch(/5MB/);
+    expect((result.trace as { detail?: string }).detail).toMatch(/5MB/);
   });
 
   it('any_of keeps the first unreadable reason when multiple children unreadable', async () => {

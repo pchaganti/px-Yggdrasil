@@ -433,6 +433,67 @@ describe('computeExpectedPairs', () => {
     expect(unreadable[0].path).toBe('src/locked.ts');
   });
 
+  // ---------------------------------------------------------------------------
+  // Regression (twin of the unreadable-by-permission guard above): a content
+  // filter cannot scan a file over the 5MB limit, so the filter is UNEVALUABLE.
+  // It must NOT be silently excluded (that would turn an enforced rule into a
+  // vacuous pass over source no reviewer saw) — it must surface in unreadable[].
+  // No privileged-runtime guard is needed: this is file size, not permissions.
+  // ---------------------------------------------------------------------------
+
+  it('content-filter aspect: only mapped file is >5MB → zero pairs AND non-empty unreadable (too-large vacuous-green guard)', async () => {
+    // src/big.ts is the only mapped file and exceeds the 5MB content-scan limit,
+    // so the content filter cannot be applied. Without the fix this produced zero
+    // pairs silently (vacuous green). With the fix: zero pairs AND a blocking
+    // unreadable record naming the file and the aspect.
+    writeFile('src/big.ts', 'a'.repeat(5 * 1024 * 1024 + 10));
+
+    const graph = buildPairsGraph(
+      tmpDir,
+      [{ path: 'svc', mapping: ['src/big.ts'], aspects: ['fn-check'] }],
+      [{ id: 'fn-check', kind: 'llm', scope: { per: 'node', files: { content: 'export function' } } }],
+    );
+
+    const { pairs, unreadable } = await computeExpectedPairs(graph);
+
+    expect(pairs).toHaveLength(0);
+    expect(unreadable).toHaveLength(1);
+    expect(unreadable[0].nodePath).toBe('svc');
+    expect(unreadable[0].aspectId).toBe('fn-check');
+    expect(unreadable[0].path).toBe('src/big.ts');
+    expect(unreadable[0].reason).toMatch(/5MB/);
+    // The diagnostic is phrased as a filter that could not be evaluated, NOT
+    // "could not read" (a too-large file is readable, just not scannable).
+    expect(unreadable[0].messageData.what).toMatch(/could not evaluate the content filter/);
+  });
+
+  it('content-filter aspect: a >5MB file blocks even when a readable sibling matches (never rescued into a pass)', async () => {
+    // The readable, matching sibling still produces a pair, but the run is still
+    // blocked on the too-large file — a sibling never rescues an unevaluable file
+    // into a vacuous pass.
+    writeFile('src/small.ts', 'export function doThing() {}');
+    writeFile('src/big.ts', 'a'.repeat(5 * 1024 * 1024 + 10));
+
+    const graph = buildPairsGraph(
+      tmpDir,
+      [{ path: 'svc', mapping: ['src/small.ts', 'src/big.ts'], aspects: ['fn-check'] }],
+      [{ id: 'fn-check', kind: 'llm', scope: { per: 'node', files: { content: 'export function' } } }],
+    );
+
+    const { pairs, unreadable } = await computeExpectedPairs(graph);
+
+    // The readable, matching file still produces a pair.
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0].subjectFiles).toEqual(['src/small.ts']);
+
+    // The too-large file is recorded with correct metadata.
+    expect(unreadable).toHaveLength(1);
+    expect(unreadable[0].nodePath).toBe('svc');
+    expect(unreadable[0].aspectId).toBe('fn-check');
+    expect(unreadable[0].path).toBe('src/big.ts');
+    expect(unreadable[0].reason).toMatch(/5MB/);
+  });
+
   it('path-filter aspect: an unreadable subject file IS flagged unreadable and excluded (a mapped file must be readable)', async () => {
     // A path-only filter never reads content, but readability is now probed for
     // EVERY subject file: a file written into the mapping must be readable, or it

@@ -64,6 +64,7 @@ async function evaluatePredicate(
     let allPass = true;
     let unreadable = false;
     let unreadableReason: string | undefined;
+    let unreadableKind: 'read' | 'too-large' | undefined;
     for (const child of predicate.all_of) {
       const r = await evaluatePredicate(child, ctx);
       children.push(r.trace);
@@ -71,11 +72,12 @@ async function evaluatePredicate(
       if (r.unreadable) {
         unreadable = true;
         unreadableReason ??= r.unreadableReason;
+        unreadableKind ??= r.unreadableKind;
       }
     }
     return {
       result: allPass,
-      ...(unreadable && { unreadable, unreadableReason }),
+      ...(unreadable && { unreadable, unreadableReason, unreadableKind }),
       trace: { kind: 'all_of', result: allPass, children },
     };
   }
@@ -85,6 +87,7 @@ async function evaluatePredicate(
     let anyPass = false;
     let unreadable = false;
     let unreadableReason: string | undefined;
+    let unreadableKind: 'read' | 'too-large' | undefined;
     for (const child of predicate.any_of) {
       const r = await evaluatePredicate(child, ctx);
       children.push(r.trace);
@@ -92,11 +95,12 @@ async function evaluatePredicate(
       if (r.unreadable) {
         unreadable = true;
         unreadableReason ??= r.unreadableReason;
+        unreadableKind ??= r.unreadableKind;
       }
     }
     return {
       result: anyPass,
-      ...(unreadable && !anyPass && { unreadable, unreadableReason }),
+      ...(unreadable && !anyPass && { unreadable, unreadableReason, unreadableKind }),
       trace: { kind: 'any_of', result: anyPass, children },
     };
   }
@@ -105,7 +109,7 @@ async function evaluatePredicate(
     const r = await evaluatePredicate(predicate.not, ctx);
     return {
       result: !r.result,
-      ...(r.unreadable && { unreadable: true, unreadableReason: r.unreadableReason }),
+      ...(r.unreadable && { unreadable: true, unreadableReason: r.unreadableReason, unreadableKind: r.unreadableKind }),
       trace: { kind: 'not', result: !r.result, child: r.trace },
     };
   }
@@ -139,6 +143,7 @@ async function evaluateAtomic(
         result: false,
         unreadable: true,
         unreadableReason: fileContent.unreadableReason ?? 'unreadable',
+        unreadableKind: 'read',
         trace: {
           kind: 'atom-content',
           pattern: predicate.content,
@@ -147,6 +152,15 @@ async function evaluateAtomic(
         },
       };
     }
+    // Deliberate asymmetry between the two non-readable content cases:
+    //   - binary  → a legitimate NON-MATCH (no text content for a text regex to
+    //               match; binaries are excluded from LLM subjects by design).
+    //               Excluded from the subject set, NEVER blocks.
+    //   - tooLarge → UNEVALUABLE. The filter could not be applied, so we must NOT
+    //               silently exclude the file (that would let an enforced rule pass
+    //               vacuously over source no reviewer saw). Signal `unreadable` so
+    //               the caller records it in the blocking unreadable[] channel,
+    //               exactly like an EACCES read failure above.
     if (fileContent.isBinary) {
       return {
         result: false,
@@ -161,11 +175,14 @@ async function evaluateAtomic(
     if (fileContent.tooLarge) {
       return {
         result: false,
+        unreadable: true,
+        unreadableReason: 'file exceeds the 5MB scan limit (content filter could not be evaluated)',
+        unreadableKind: 'too-large',
         trace: {
           kind: 'atom-content',
           pattern: predicate.content,
           result: false,
-          detail: 'file >5MB, content not scanned',
+          detail: 'file >5MB, content filter could not be evaluated',
         },
       };
     }

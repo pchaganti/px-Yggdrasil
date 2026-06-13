@@ -1,0 +1,7 @@
+name: E2E Tests — Too-Large Subject Fail-Closed
+type: test-suite
+description: "Subprocess E2E proving a content-filtered subject file over the 5MB scan limit is never silently dropped into a vacuous green: a content-filter aspect must scan each mapped file, so when one is too large to scan the spawned yg check exits 1 with a file-unreadable error and records no approved entry. The size twin of the unreadable-by-permission suite; no privileged-runtime guard is needed because the size limit is enforced identically for root and non-root."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-scope-toolarge.test.ts
