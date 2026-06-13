@@ -21,7 +21,7 @@ describe('lock-store v1→v2 migration', () => {
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
   it('reads a v2 lock with relation_verdicts intact', () => {
-    const dir = ygRoot(JSON.stringify({ version: 2, verdicts: {}, nodes: {}, relation_verdicts: { 'node:a': { verdict: 'refused', fingerprint: 'fp', reason: 'r' } } }));
+    const dir = ygRoot(JSON.stringify({ version: 2, verdicts: {}, nodes: {}, relation_verdicts: { 'node:a': { verdict: 'refused', fingerprint: 'fp', reason: 'r', evidence: { sources: [], relations: '', outcomes: [], grammarVersions: [], indexIdentity: '' } } } }));
     try { expect(readLock(dir).relation_verdicts['node:a'].verdict).toBe('refused'); }
     finally { rmSync(dir, { recursive: true, force: true }); }
   });
@@ -36,7 +36,8 @@ describe('lock-store v1→v2 migration', () => {
     finally { rmSync(dir, { recursive: true, force: true }); }
   });
   it('serializeLock round-trips relation_verdicts canonically (sorted keys, omits absent reason)', () => {
-    const out = serializeLock({ version: 2, verdicts: {}, nodes: {}, relation_verdicts: { 'node:b': { verdict: 'approved', fingerprint: 'f2' }, 'node:a': { verdict: 'refused', fingerprint: 'f1', reason: 'x' } } });
+    const ev = { sources: [] as Array<[string, string]>, relations: '', outcomes: [], grammarVersions: [] as Array<[string, string]>, indexIdentity: '' };
+    const out = serializeLock({ version: 2, verdicts: {}, nodes: {}, relation_verdicts: { 'node:b': { verdict: 'approved', fingerprint: 'f2', evidence: ev }, 'node:a': { verdict: 'refused', fingerprint: 'f1', reason: 'x', evidence: ev } } });
     expect(out.indexOf('"node:a"')).toBeLessThan(out.indexOf('"node:b"'));
     const parsed = JSON.parse(out);
     expect(parsed.relation_verdicts['node:a'].reason).toBe('x');

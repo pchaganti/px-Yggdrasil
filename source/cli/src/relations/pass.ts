@@ -6,7 +6,6 @@ import { parseFile } from '../ast/parser.js';
 import { getLanguageForExtension } from '../core/graph/language-registry.js';
 import { ensureLoaderRegistered } from '../ast/loader-hook.js';
 import { expandMappingPaths, hashString } from '../io/hash.js';
-import { codePointCanonicalJson } from '../core/pair-hash.js';
 
 import { buildOwnerIndex } from './owner-index.js';
 import {
@@ -20,8 +19,15 @@ import { verifyNodeDeps, type ResolvedDep, type RelationGraphView, type Violatio
 import {
   computeFingerprint,
   type DepOutcome,
+  type FingerprintInput,
   type Outcome,
 } from './fingerprint.js';
+import {
+  cmpFileHashPair,
+  computeBasis,
+  computeIndexIdentity,
+  hashRelations,
+} from './fingerprint-build.js';
 import type {
   DependencyExtractor,
   ParsedFile,
@@ -33,6 +39,10 @@ export interface NodeVerdict {
   fingerprint: string;
   reason?: string;
   violations: Violation[];
+  /** The exact fingerprint inputs this pass observed — stored as relation
+   *  evidence so plain `yg check` can re-validate without re-parsing. Its arrays
+   *  are pre-sorted canonically here so serialization is deterministic. */
+  evidence: FingerprintInput;
 }
 
 export interface RelationPassResult {
@@ -56,6 +66,18 @@ interface FileRecord {
 /** Stable identity for a detected dependency's hint — drives fingerprint outcome keys. */
 function stableHintKey(hint: TargetHint): string {
   return hint.kind === 'path' ? 'path:' + hint.specifier : 'symbol:' + hint.symbolKey;
+}
+
+/**
+ * Canonical order for stored outcomes: by `${fromFile}\0${line}\0${hintKey}`.
+ * Mirrors `cmpOutcome` folded into computeFingerprint, so the evidence stored on
+ * the verdict matches the order the fingerprint is computed over — and verify.ts
+ * reads them back already canonical.
+ */
+function cmpStoredOutcome(a: DepOutcome, b: DepOutcome): number {
+  const ka = `${a.fromFile}\0${a.line}\0${a.hintKey}`;
+  const kb = `${b.fromFile}\0${b.line}\0${b.hintKey}`;
+  return ka < kb ? -1 : ka > kb ? 1 : 0;
 }
 
 export async function runRelationPass(
@@ -167,10 +189,8 @@ export async function runRelationPass(
   }
 
   // 5. Index identity over the sorted (file,hash) set of all symbol-language files.
-  const sortedSymbolSources = [...allSymbolSources].sort((a, b) =>
-    a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0,
-  );
-  const indexIdentity = hashString(codePointCanonicalJson(sortedSymbolSources));
+  //    Shared with verify.ts via computeIndexIdentity so the two never drift.
+  const indexIdentity = computeIndexIdentity(allSymbolSources);
 
   // 6. Resolver composes owner index + symbol table + injected path resolution.
   const resolver = makeResolver({
@@ -227,17 +247,10 @@ export async function runRelationPass(
         let outcome: Outcome;
         if (resolved) {
           // basis = the declared-target that sanctioned this dep (self/ancestor),
-          // else 'unsanctioned' when it's an undeclared cross-node dependency.
+          // else 'none' when it's an undeclared cross-node dependency. Shared with
+          // verify.ts via computeBasis so the two never drift.
           const owner = resolved.ownerNode;
-          let basis: string;
-          if (declaredTargets.has(owner)) {
-            basis = owner;
-          } else {
-            const sanctioningAncestor = graphView
-              .parentChain(owner)
-              .find((anc) => declaredTargets.has(anc));
-            basis = sanctioningAncestor ?? 'none';
-          }
+          const basis = computeBasis(declaredTargets, owner);
           const targetRecord = recordByPath.get(resolved.resolvedFile);
           const resolvedFileHash = targetRecord
             ? targetRecord.hash
@@ -259,30 +272,34 @@ export async function runRelationPass(
     // 9. Verify undeclared cross-node dependencies.
     const violations = verifyNodeDeps(nodeId, resolvedDeps, graphView);
 
-    // 10. Content-addressed fingerprint for this node's verdict.
+    // 10. Content-addressed fingerprint for this node's verdict. The arrays are
+    //     pre-sorted canonically here so the evidence stored on the verdict
+    //     serializes deterministically and re-validates without re-sorting.
     const sources: Array<[string, string]> = records
       .map((r): [string, string] => [r.path, r.hash])
-      .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-    const relationsHash = hashString(codePointCanonicalJson(node.meta.relations ?? []));
+      .sort(cmpFileHashPair);
+    const relationsHash = hashRelations(node.meta.relations);
     const grammarVersions: Array<[string, string]> = [...languagesUsed]
       .sort()
       .map((lang): [string, string] => [lang, '1']);
-    const fingerprint = computeFingerprint({
+    const sortedOutcomes = [...outcomes].sort(cmpStoredOutcome);
+    const evidence: FingerprintInput = {
       sources,
       relations: relationsHash,
-      outcomes,
+      outcomes: sortedOutcomes,
       grammarVersions,
       indexIdentity,
-    });
+    };
+    const fingerprint = computeFingerprint(evidence);
 
     // 11. Verdict + human-readable reason for refusals.
     if (violations.length) {
       const reason = violations
         .map((v) => `${v.fromFile}:${v.line} → undeclared dependency on ${v.ownerNode}`)
         .join('\n');
-      verdicts.set(nodeId, { verdict: 'refused', fingerprint, reason, violations });
+      verdicts.set(nodeId, { verdict: 'refused', fingerprint, reason, violations, evidence });
     } else {
-      verdicts.set(nodeId, { verdict: 'approved', fingerprint, violations: [] });
+      verdicts.set(nodeId, { verdict: 'approved', fingerprint, violations: [], evidence });
     }
   }
 

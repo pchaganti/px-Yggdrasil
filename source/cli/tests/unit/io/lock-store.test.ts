@@ -6,8 +6,17 @@ import { mkdir, rm, writeFile, stat } from 'node:fs/promises';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = path.join(__dirname, '../../fixtures');
 
-import type { LockFile } from '../../../src/model/lock.js';
+import type { LockFile, RelationEvidence } from '../../../src/model/lock.js';
 import { LOCK_FORMAT_VERSION } from '../../../src/model/lock.js';
+
+/** Schema-valid empty relation evidence for verdict literals under test. */
+const EMPTY_EVIDENCE: RelationEvidence = {
+  sources: [],
+  relations: '',
+  outcomes: [],
+  grammarVersions: [],
+  indexIdentity: '',
+};
 import {
   readLock,
   writeLock,
@@ -86,8 +95,8 @@ describe('lock-store', () => {
         },
       },
       relation_verdicts: {
-        'node:z-unit': { verdict: 'approved', fingerprint: 'fp-z' },
-        'node:a-unit': { verdict: 'refused', fingerprint: 'fp-a', reason: 'undeclared dep' },
+        'node:z-unit': { verdict: 'approved', fingerprint: 'fp-z', evidence: EMPTY_EVIDENCE },
+        'node:a-unit': { verdict: 'refused', fingerprint: 'fp-a', reason: 'undeclared dep', evidence: EMPTY_EVIDENCE },
       },
     };
 
@@ -98,7 +107,8 @@ describe('lock-store', () => {
     // - each verdict entry on ONE line
     // - nodes entry on ONE line
     // - relation_verdicts: unit keys code-point sorted ("node:a-unit" < "node:z-unit");
-    //   entry fields sorted ("fingerprint" < "reason" < "verdict"); absent reason omitted
+    //   entry fields sorted ("evidence" < "fingerprint" < "reason" < "verdict"); absent reason omitted
+    const ev = '{"sources":[],"relations":"","outcomes":[],"grammarVersions":[],"indexIdentity":""}';
     const expected =
       '{\n' +
       '  "version": 2,\n' +
@@ -115,8 +125,8 @@ describe('lock-store', () => {
       '    "billing/cancel": {"source":"fp-billing"}\n' +
       '  },\n' +
       '  "relation_verdicts": {\n' +
-      '    "node:a-unit": {"fingerprint":"fp-a","reason":"undeclared dep","verdict":"refused"},\n' +
-      '    "node:z-unit": {"fingerprint":"fp-z","verdict":"approved"}\n' +
+      `    "node:a-unit": {"evidence":${ev},"fingerprint":"fp-a","reason":"undeclared dep","verdict":"refused"},\n` +
+      `    "node:z-unit": {"evidence":${ev},"fingerprint":"fp-z","verdict":"approved"}\n` +
       '  }\n' +
       '}\n';
 

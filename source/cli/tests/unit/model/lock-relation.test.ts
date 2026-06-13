@@ -6,7 +6,12 @@ describe('lock model — relation_verdicts', () => {
     expect(LOCK_FORMAT_VERSION).toBe(2);
   });
   it('LockFile carries a relation_verdicts map keyed by node unit', () => {
-    const v: RelationVerdict = { verdict: 'refused', fingerprint: 'abc', reason: 'x imports y' };
+    const v: RelationVerdict = {
+      verdict: 'refused',
+      fingerprint: 'abc',
+      reason: 'x imports y',
+      evidence: { sources: [], relations: '', outcomes: [], grammarVersions: [], indexIdentity: '' },
+    };
     const lock: LockFile = { version: 2, verdicts: {}, nodes: {}, relation_verdicts: { [nodeUnit('a/b')]: v } };
     expect(lock.relation_verdicts[nodeUnit('a/b')].verdict).toBe('refused');
   });

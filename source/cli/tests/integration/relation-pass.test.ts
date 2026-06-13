@@ -98,6 +98,10 @@ describe('runRelationPass (integration)', () => {
     expect(b!.verdict).toBe('approved');
     expect(b!.violations).toHaveLength(0);
 
+    // The refused node carries its fingerprint evidence — at least the one
+    // detected cross-node dependency that drove the refusal.
+    expect(a!.evidence.outcomes.length).toBeGreaterThanOrEqual(1);
+
     // Fingerprints are populated and distinct between the two nodes.
     expect(typeof a!.fingerprint).toBe('string');
     expect(a!.fingerprint.length).toBeGreaterThan(0);

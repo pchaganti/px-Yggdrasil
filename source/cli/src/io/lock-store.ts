@@ -252,14 +252,49 @@ function validateVerdictEntry(entry: unknown, at: string): void {
   }
 }
 
-/** Validate a single RelationVerdict (verdict + fingerprint required; reason optional). */
+/** Validate a single RelationVerdict (verdict + fingerprint + evidence required; reason optional). */
 function validateRelationVerdict(entry: unknown, at: string): void {
   if (!isPlainObject(entry)) throwMalformed(`"${at}" must be a JSON object (found ${describe(entry)})`);
-  const KEYS = new Set(['verdict', 'fingerprint', 'reason']);
-  for (const key of Object.keys(entry)) if (!KEYS.has(key)) throwMalformed(`"${at}" has unexpected key "${key}" (allowed: verdict, fingerprint, reason)`);
+  const KEYS = new Set(['verdict', 'fingerprint', 'reason', 'evidence']);
+  for (const key of Object.keys(entry)) if (!KEYS.has(key)) throwMalformed(`"${at}" has unexpected key "${key}" (allowed: verdict, fingerprint, reason, evidence)`);
   if (entry.verdict !== 'approved' && entry.verdict !== 'refused') throwMalformed(`"${at}.verdict" must be "approved" or "refused" (found ${describe(entry.verdict)})`);
   if (typeof entry.fingerprint !== 'string') throwMalformed(`"${at}.fingerprint" must be a string (found ${describe(entry.fingerprint)})`);
   if (entry.reason !== undefined && typeof entry.reason !== 'string') throwMalformed(`"${at}.reason" must be a string when present (found ${describe(entry.reason)})`);
+  validateRelationEvidence(entry.evidence, `${at}.evidence`);
+}
+
+/** Validate a RelationEvidence object (the stored fingerprint inputs). Strict-by-design. */
+function validateRelationEvidence(evidence: unknown, at: string): void {
+  if (!isPlainObject(evidence)) throwMalformed(`"${at}" must be a JSON object (found ${describe(evidence)})`);
+  const EV_KEYS = new Set(['sources', 'relations', 'outcomes', 'grammarVersions', 'indexIdentity']);
+  for (const key of Object.keys(evidence)) {
+    if (!EV_KEYS.has(key)) throwMalformed(`"${at}" has unexpected key "${key}" (allowed: sources, relations, outcomes, grammarVersions, indexIdentity)`);
+  }
+  validateStringPairArray(evidence.sources, `${at}.sources`);
+  if (typeof evidence.relations !== 'string') throwMalformed(`"${at}.relations" must be a string (found ${describe(evidence.relations)})`);
+  if (typeof evidence.indexIdentity !== 'string') throwMalformed(`"${at}.indexIdentity" must be a string (found ${describe(evidence.indexIdentity)})`);
+  validateStringPairArray(evidence.grammarVersions, `${at}.grammarVersions`);
+  if (!Array.isArray(evidence.outcomes)) throwMalformed(`"${at}.outcomes" must be an array (found ${describe(evidence.outcomes)})`);
+  for (let i = 0; i < evidence.outcomes.length; i++) {
+    const o = evidence.outcomes[i];
+    const oat = `${at}.outcomes[${i}]`;
+    if (!isPlainObject(o)) throwMalformed(`"${oat}" must be a JSON object (found ${describe(o)})`);
+    if (typeof o.fromFile !== 'string') throwMalformed(`"${oat}.fromFile" must be a string (found ${describe(o.fromFile)})`);
+    if (typeof o.line !== 'number') throwMalformed(`"${oat}.line" must be a number (found ${describe(o.line)})`);
+    if (typeof o.hintKey !== 'string') throwMalformed(`"${oat}.hintKey" must be a string (found ${describe(o.hintKey)})`);
+    if (!isPlainObject(o.outcome)) throwMalformed(`"${oat}.outcome" must be a JSON object (found ${describe(o.outcome)})`);
+  }
+}
+
+/** Validate an array of [string, string] pairs (used for sources / grammarVersions). */
+function validateStringPairArray(value: unknown, at: string): void {
+  if (!Array.isArray(value)) throwMalformed(`"${at}" must be an array (found ${describe(value)})`);
+  for (let i = 0; i < value.length; i++) {
+    const pair = value[i];
+    if (!Array.isArray(pair) || pair.length !== 2 || typeof pair[0] !== 'string' || typeof pair[1] !== 'string') {
+      throwMalformed(`"${at}[${i}]" must be a [string, string] pair (found ${describe(pair)})`);
+    }
+  }
 }
 
 /** Validate a single LockNodeEntry (source optional string; log optional {datetime, prefix_hash}). */
@@ -371,6 +406,9 @@ function serializeRelationVerdict(entry: RelationVerdict): string {
   obj.verdict = entry.verdict;
   obj.fingerprint = entry.fingerprint;
   if (entry.reason !== undefined) obj.reason = entry.reason;
+  // Pre-sorting the evidence arrays (sources, outcomes, grammarVersions) is the PRODUCER's
+  // contract — the store serializes evidence as given. JSON.stringify per key keeps it deterministic.
+  obj.evidence = entry.evidence;
   const sortedKeys = Object.keys(obj).sort();
   const pairs = sortedKeys.map((k) => `${JSON.stringify(k)}:${JSON.stringify(obj[k])}`);
   return `{${pairs.join(',')}}`;
