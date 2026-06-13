@@ -21,4 +21,7 @@ describe('extractor registry', () => {
     expect(extractorForLanguage('c')).toBeDefined();
     expect(extractorForLanguage('cpp')).toBeDefined();
   });
+  it('resolves the Ruby extractor (require_relative path + constant symbol-table)', () => {
+    expect(extractorForLanguage('ruby')).toBeDefined();
+  });
 });

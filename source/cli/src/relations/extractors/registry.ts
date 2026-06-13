@@ -9,6 +9,7 @@ import { rustExtractor } from './rust.js';
 import { cExtractor } from './c.js';
 import { cppExtractor } from './cpp.js';
 import { csharpExtractor } from './csharp.js';
+import { rubyExtractor } from './ruby.js';
 
 const EXTRACTORS: DependencyExtractor[] = [
   typescriptExtractor, // TS / TSX / JS (Phase 1)
@@ -21,6 +22,7 @@ const EXTRACTORS: DependencyExtractor[] = [
   cExtractor, // C (.c/.h) — resolves via quoted #include path relative to the includer
   cppExtractor, // C++ (.cpp/.hpp/.cc/.cxx/.hh/.hxx) — same quoted-#include resolver as C
   csharpExtractor, // C# (.cs) — namespace-spanning SymbolTable: using-scope + qualified/bare symbol use → FQN
+  rubyExtractor, // Ruby (.rb) — require_relative PATH + constant SymbolTable; mostly silent (reopening → ambiguous)
 ];
 
 const byLanguage = new Map<string, DependencyExtractor>();

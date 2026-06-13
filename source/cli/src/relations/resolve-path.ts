@@ -7,6 +7,7 @@ import { resolveJavaFqn, type JavaResolveDeps } from './extractors/java-resolve.
 import { resolvePhpFqn, parsePsr4, type PhpResolveDeps } from './extractors/php-resolve.js';
 import { resolveRustPath, type RustResolveDeps } from './extractors/rust-resolve.js';
 import { resolveIncludePath } from './extractors/include-resolve.js';
+import { resolveRubyRequireRelative } from './extractors/ruby-resolve.js';
 
 /** Production resolvePathToFile: dispatches by language to the per-language path resolver.
  *  Checks existence against the project's files on disk. Symbol-resolved languages (and
@@ -41,6 +42,12 @@ export function makeResolvePathToFile(projectRoot: string): (specifier: string, 
       // relative to the including file, then against common include roots. The header's
       // owning node is the dependency target (header/impl share a node).
       return resolveIncludePath(specifier, fromFile, exists);
+    }
+    if (language === 'ruby') {
+      // Ruby's ONLY path-precise link: `require_relative '<lit>'` resolves relative to the
+      // requiring file's directory (`.rb` appended). Constant references carry no path —
+      // they route through the SymbolTable, so they never reach this branch.
+      return resolveRubyRequireRelative(specifier, fromFile, exists);
     }
     return undefined;
   };
