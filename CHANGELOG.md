@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0-alpha.5] - 2026-06-13
+
 > **Breaking — verdict lock redesign.** This release replaces per-node drift
 > baselines with a single committed content-addressed lock and `yg check
 > --approve` with no migration path. One-time upgrade on an existing graph:
