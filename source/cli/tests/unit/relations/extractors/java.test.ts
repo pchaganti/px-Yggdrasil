@@ -51,6 +51,46 @@ describe('java extractor — uses()', () => {
     expect(specs(uses)).toContain('com.foo.Outer.Inner');
   });
 
+  it('emits the bare segment of a single-segment import (identifier child, not scoped_identifier)', async () => {
+    // `import Foo;` parses with an `identifier` child (no dots) — exercises the
+    // `identifier` arm of importFqn. The FQN is the bare segment itself.
+    const { uses } = await run('import Foo;\nclass C {}\n');
+    expect(specs(uses)).toContain('Foo');
+  });
+
+  it('emits NOTHING for a static import of a bare single segment (no type segment to keep)', async () => {
+    // `import static Foo;` is a static import whose FQN is a single segment — dropping
+    // the trailing member leaves nothing (dropLastSegment → undefined), so the emit
+    // guard discards it. No dependency edge.
+    const { uses } = await run('import static Foo;\nclass C {}\n');
+    expect(uses).toHaveLength(0);
+  });
+
+  it('emits NOTHING for an import with an empty FQN (empty-specifier guard)', async () => {
+    // `import ;` parses with an empty `identifier` (text ''), which the emit guard
+    // discards as an empty specifier. No dependency edge.
+    const { uses } = await run('import ;\nclass C {}\n');
+    expect(uses).toHaveLength(0);
+  });
+
+  it('emits the class FQN for a static-on-demand wildcard (asterisk wins over static)', async () => {
+    // `import static com.foo.*;` carries BOTH a `static` token and an `asterisk` child.
+    // The wildcard branch is checked first, so the scoped_identifier `com.foo` is
+    // emitted as-is — the trailing member is NOT dropped.
+    const { uses } = await run('import static com.foo.*;\nclass C {}\n');
+    const s = specs(uses);
+    expect(s).toContain('com.foo');
+    expect(s.every((x) => !x.includes('*'))).toBe(true);
+  });
+
+  it('deduplicates two identical imports that begin on the same line', async () => {
+    // Two `import a.B;` declarations on ONE line collide on the `<specifier> <line>`
+    // dedup key — only one edge is emitted (the seen-set true-arm).
+    const { uses } = await run('import a.B; import a.B;\nclass C {}\n');
+    const s = specs(uses);
+    expect(s).toEqual(['a.B']);
+  });
+
   it('collects every import in a multi-import file', async () => {
     const { uses } = await run(
       [

@@ -47,6 +47,16 @@ describe('resolvePythonModule — absolute', () => {
     expect(resolvePythonModule('nope.deep', 'src/a/c.py', exists)).toBeUndefined();
   });
 
+  it('returns undefined for an empty specifier (no module segments)', () => {
+    expect(resolvePythonModule('', 'src/a/c.py', exists)).toBeUndefined();
+  });
+
+  it('resolves a top-level module when the importing file sits at the repo root', () => {
+    // dirname('main.py') === '.', so the ancestor walk starts from the repo root.
+    const rootKnown = new Set(['top.py']);
+    expect(resolvePythonModule('top', 'main.py', (p) => rootKnown.has(p))).toBe('top.py');
+  });
+
   it('longest-match: `a.nope` falls back to package `a` __init__ (nope may be a symbol there)', () => {
     // Documented behaviour: `from a import nope` where `nope` is not a submodule
     // file resolves to the package a (src/a/__init__.py); the symbol lives inside.

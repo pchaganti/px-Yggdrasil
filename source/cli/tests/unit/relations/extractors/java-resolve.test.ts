@@ -50,6 +50,24 @@ describe('resolveJavaFqn — type FQN → file', () => {
   it('returns undefined for a single bare segment that maps to nothing', () => {
     expect(resolveJavaFqn('Nope', FROM, deps)).toBeUndefined();
   });
+
+  it('returns undefined for an empty / dots-only specifier (no segments)', () => {
+    // '' and '.' both reduce to zero non-empty segments → the segment-count guard
+    // returns undefined without probing the filesystem.
+    expect(resolveJavaFqn('', FROM, deps)).toBeUndefined();
+    expect(resolveJavaFqn('.', FROM, deps)).toBeUndefined();
+  });
+
+  it('resolves from a file at the repo root (dirname is "." → root ancestor)', () => {
+    // A fromFile with no directory yields dirname '.', which ancestorDirs maps to the
+    // repo root ''. The type FQN resolves against a file directly under the root.
+    const rootFiles = new Set(['com/foo/Bar.java']);
+    const rootDeps: JavaResolveDeps = {
+      exists: (p) => rootFiles.has(p),
+      javaFilesIn: () => [],
+    };
+    expect(resolveJavaFqn('com.foo.Bar', 'Main.java', rootDeps)).toBe('com/foo/Bar.java');
+  });
 });
 
 describe('resolveJavaFqn — wildcard package FQN → directory', () => {

@@ -130,6 +130,84 @@ describe('csharp extractor — uses() emits SYMBOL hints (never path hints)', ()
     expect(uses.length).toBeGreaterThan(0);
     expect(uses.every((u) => u.targetHint.kind === 'symbol')).toBe(true);
   });
+
+  it('honors `global using Foo.Bar;` as a plain namespace prefix for a bare base type', async () => {
+    // `global using` declared in THIS file is treated as a namespace import for this
+    // file's scope, so a bare base type qualifies via the prefix.
+    const { uses } = await run(['global using Foo.Bar;', 'class C : Baz { }', ''].join('\n'));
+    expect(symbolKeys(uses)).toContain('Foo.Bar.Baz');
+  });
+
+  it('honors `global using Foo.Bar;` as a prefix for a bare `new Baz()` too', async () => {
+    const { uses } = await run(
+      ['global using Foo.Bar;', 'class C { void M() { var x = new Baz(); } }', ''].join('\n'),
+    );
+    expect(symbolKeys(uses)).toContain('Foo.Bar.Baz');
+  });
+
+  it('resolves a bare name through a `global using Alias = Foo.Bar.IGateway;` alias', async () => {
+    const { uses } = await run(
+      ['global using Gw = Foo.Bar.IGateway;', 'class C { void M() { var x = new Gw(); } }', ''].join('\n'),
+    );
+    const keys = symbolKeys(uses);
+    expect(keys).toContain('Foo.Bar.IGateway');
+    expect(keys).not.toContain('Gw');
+  });
+
+  it('emits a QUALIFIED base type (`: Foo.Bar.Base`) even with NO using directive', async () => {
+    // A qualified_name in a base_list is emitted as-is (not via the bare prefix path).
+    const { uses } = await run(['class C : Foo.Bar.Base { }', ''].join('\n'));
+    expect(symbolKeys(uses)).toContain('Foo.Bar.Base');
+  });
+
+  it('SKIPS a GENERIC base type (`: List<int>`) — not a bare identifier, no candidate', async () => {
+    // A `generic_name` is neither a bare identifier nor a qualified_name, so bareTypeName
+    // returns undefined and emitBare is skipped.
+    const { uses } = await run(['using Foo.Bar;', 'class C : List<int> { }', ''].join('\n'));
+    expect(symbolKeys(uses)).toHaveLength(0);
+  });
+
+  it('handles a base_list with MULTIPLE entries (qualified bare base + bare interface)', async () => {
+    // Two base entries on one line: a bare base and a bare interface, each qualified by
+    // the using prefix; a third generic entry is skipped.
+    const { uses } = await run(
+      ['using N;', 'class C : MyBase, IFoo<int> { }', ''].join('\n'),
+    );
+    const keys = symbolKeys(uses);
+    expect(keys).toContain('N.MyBase'); // bare base qualified
+    expect(keys.every((k) => !k.includes('IFoo'))).toBe(true); // generic skipped
+  });
+
+  it('does NOT emit the namespace HEADER of a block `namespace Foo.Bar { }` as a use', async () => {
+    // The qualified_name `Foo.Bar` is the namespace declaration name, not a dependency.
+    const { uses, declarations } = await run(['namespace Foo.Bar { class C { } }', ''].join('\n'));
+    expect(symbolKeys(uses)).not.toContain('Foo.Bar');
+    expect(symbolKeys(uses)).toHaveLength(0);
+    // The type is still declared with the namespace prefix.
+    expect(declarations.map((d) => d.symbolKey)).toContain('Foo.Bar.C');
+  });
+
+  it('does NOT emit NESTED block namespace headers as uses (namespace A.B { namespace C.D { } })', async () => {
+    const { uses, declarations } = await run(
+      ['namespace A.B { namespace C.D { class X { } } }', ''].join('\n'),
+    );
+    expect(symbolKeys(uses)).toHaveLength(0);
+    expect(declarations.map((d) => d.symbolKey)).toContain('A.B.C.D.X');
+  });
+
+  it('DEDUPES the SAME qualified base type listed twice on one line (`: Foo.Bar, Foo.Bar`)', async () => {
+    // The same candidate FQN on the same line is emitted once — the second hit is
+    // suppressed by the symbol+line dedup key.
+    const { uses } = await run(['class C : Foo.Bar, Foo.Bar { }', ''].join('\n'));
+    expect(symbolKeys(uses).filter((k) => k === 'Foo.Bar')).toHaveLength(1);
+  });
+
+  it('DEDUPES a bare base type qualified by a DUPLICATE using prefix (one candidate, not two)', async () => {
+    // Two identical `using A;` directives yield the same prefix; the bare base `Baz`
+    // would produce `A.Baz` twice, but the dedup collapses it to one.
+    const { uses } = await run(['using A;', 'using A;', 'class C : Baz { }', ''].join('\n'));
+    expect(symbolKeys(uses).filter((k) => k === 'A.Baz')).toHaveLength(1);
+  });
 });
 
 describe('csharp SYMBOL-TABLE resolution — the half this language validates', () => {

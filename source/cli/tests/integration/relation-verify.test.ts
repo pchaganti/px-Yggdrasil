@@ -7,6 +7,8 @@ import { loadGraph } from '../../src/core/graph-loader.js';
 import { runRelationPass } from '../../src/relations/pass.js';
 import { verifyRelationConformance } from '../../src/relations/verify.js';
 import { nodeUnit, LOCK_FORMAT_VERSION, type LockFile } from '../../src/model/lock.js';
+import { extractorForLanguage } from '../../src/relations/extractors/registry.js';
+import { makeResolvePathToFile } from '../../src/relations/resolve-path.js';
 import * as parser from '../../src/ast/parser.js';
 import type {
   DependencyExtractor,
@@ -79,7 +81,7 @@ describe('verifyRelationConformance (integration, parse-free)', () => {
     mkdirSync(path.join(root, '.yggdrasil', 'model'), { recursive: true });
     writeFileSync(
       path.join(root, '.yggdrasil', 'yg-architecture.yaml'),
-      `node_types:\n  service:\n    description: 'unit'\n    log_required: false\n    when:\n      path: "**"\n`,
+      `node_types:\n  service:\n    description: 'unit'\n    log_required: false\n    when:\n      path: "**"\n  bag:\n    description: 'organizational (no mapping)'\n    log_required: false\n`,
       'utf-8',
     );
     writeFileSync(
@@ -167,5 +169,93 @@ describe('verifyRelationConformance (integration, parse-free)', () => {
     const states = await verifyRelationConformance(graph, lock, { extractorFor, resolvePathToFile });
     const byNode = new Map(states.map((s) => [s.nodeId, s]));
     expect(byNode.get('a')?.kind).toBe('unverified');
+  });
+
+  it('(f) skips an organizational node with no mapping, and re-derives a no-language path outcome as external', async () => {
+    const lock = await seedLock(root);
+
+    // Add an organizational node with NO mapping → verify must skip it (no verdict).
+    mkdirSync(path.join(root, '.yggdrasil', 'model', 'org'), { recursive: true });
+    writeFileSync(
+      path.join(root, '.yggdrasil', 'model', 'org', 'yg-node.yaml'),
+      `name: Org\ntype: bag\n`,
+      'utf-8',
+    );
+
+    // Replace a's stored outcomes with a single `path:` outcome whose fromFile has NO
+    // recognized language. On re-validation getLanguageForExtension returns null
+    // (the `lang ?? ''` fallback) and the path hint re-resolves to nothing (the
+    // file-undefined → external branch). Because the evidence is mutated the
+    // fingerprint diverges → a re-validates as unverified, but both branches run.
+    const e = lock.relation_verdicts[nodeUnit('a')];
+    lock.relation_verdicts[nodeUnit('a')] = {
+      ...e,
+      evidence: {
+        ...e.evidence,
+        outcomes: [
+          { fromFile: 'src/a/weird.unknownext', line: 1, hintKey: 'path:./nope', outcome: { external: true } },
+        ],
+      },
+    };
+
+    const graph = await loadGraph(root);
+    const states = await verifyRelationConformance(graph, lock, { extractorFor, resolvePathToFile });
+    const byNode = new Map(states.map((s) => [s.nodeId, s]));
+    // The organizational node produced no relation state.
+    expect(byNode.has('org')).toBe(false);
+    // a's no-language path outcome re-derived without throwing.
+    expect(byNode.get('a')).toBeDefined();
+  });
+
+  it('(g) re-derives a path outcome onto an owned-but-unenumerated (gitignored) target via hashOnDisk', async () => {
+    // A node-c source includes a header owned by node b but gitignored — so it is owned
+    // (the owner index matches the directory mapping) yet absent from the verify
+    // enumeration's currentHashByFile (which honors .gitignore). Re-deriving the stored
+    // `path:` outcome therefore falls back to hashOnDisk for the resolved-file hash.
+    // Build this fixture fresh and seed with the real C extractor + include resolver.
+    rmSync(path.join(root, '.yggdrasil', 'model', 'a'), { recursive: true, force: true });
+    rmSync(path.join(root, '.yggdrasil', 'model', 'b'), { recursive: true, force: true });
+    rmSync(path.join(root, 'src'), { recursive: true, force: true });
+
+    writeNode(root, 'ca', 'CA', 'src/ca');
+    writeNode(root, 'cb', 'CB', 'src/cb');
+    mkdirSync(path.join(root, 'src', 'ca'), { recursive: true });
+    mkdirSync(path.join(root, 'src', 'cb'), { recursive: true });
+    writeFileSync(path.join(root, 'src', 'ca', 'main.c'), '#include "../cb/helper.h"\n', 'utf-8');
+    writeFileSync(path.join(root, 'src', 'cb', 'helper.h'), '/* helper */\n', 'utf-8');
+    writeFileSync(path.join(root, '.gitignore'), 'src/cb/helper.h\n', 'utf-8');
+
+    const realDeps = {
+      extractorFor: extractorForLanguage,
+      resolvePathToFile: makeResolvePathToFile(root),
+    };
+
+    const seedGraph = await loadGraph(root);
+    const passResult = await runRelationPass(seedGraph, root, {
+      ...realDeps,
+      symbolIndexDir: path.join(root, '.yg-cache-gi'),
+    });
+    const lock: LockFile = {
+      version: LOCK_FORMAT_VERSION,
+      verdicts: {},
+      nodes: {},
+      relation_verdicts: {},
+    };
+    for (const [nodeId, v] of passResult.verdicts) {
+      lock.relation_verdicts[nodeUnit(nodeId)] = {
+        verdict: v.verdict,
+        fingerprint: v.fingerprint,
+        reason: v.reason,
+        evidence: v.evidence,
+      };
+    }
+
+    const graph = await loadGraph(root);
+    const states = await verifyRelationConformance(graph, lock, realDeps);
+    const ca = states.find((s) => s.nodeId === 'ca');
+    // ca depends on the gitignored header owned by cb → refused, and the stored
+    // outcome's resolved-file hash re-derives via hashOnDisk (the file is owned but not
+    // enumerated), so the fingerprint matches and the refusal re-validates.
+    expect(ca?.kind).toBe('refused');
   });
 });

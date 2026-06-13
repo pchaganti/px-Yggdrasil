@@ -60,6 +60,46 @@ describe('typescript extractor — uses()', () => {
     const { uses } = await run(`import x from './x';\nconst y = require('./y');`, '.js', 'javascript');
     expect(uses).toHaveLength(2);
   });
+  it('excludes a whole-statement namespace type import (`import type * as T from ...`)', async () => {
+    const { uses } = await run(`import type * as T from './t';\nimport { a } from './ab';`);
+    expect(uses.some((u) => u.targetHint.kind === 'path' && u.targetHint.specifier === './t')).toBe(
+      false,
+    );
+    expect(uses).toContainEqual(
+      expect.objectContaining({ targetHint: { kind: 'path', specifier: './ab' } }),
+    );
+  });
+  it('keeps an inline-type import that still has a runtime binding (`import { type A, b }`)', async () => {
+    // The `type` modifier sits inside the specifier, not as a statement-level token,
+    // so the statement is NOT a whole-statement type import and must be kept.
+    const { uses } = await run(`import { type A, b } from './m';`);
+    expect(uses).toContainEqual(
+      expect.objectContaining({ targetHint: { kind: 'path', specifier: './m' } }),
+    );
+  });
+  it('deduplicates two require() calls for the same module on one line', async () => {
+    const { uses } = await run(`const a = require('./a'); const b = require('./a');`);
+    expect(
+      uses.filter((u) => u.targetHint.kind === 'path' && u.targetHint.specifier === './a'),
+    ).toHaveLength(1);
+  });
+  it('ignores ordinary calls and member calls that merely take a string argument', async () => {
+    // `foo('./x')` (plain identifier callee, not `require`) and `obj.method('./x')`
+    // (member-expression callee) are neither dynamic import nor require → no edge.
+    const { uses } = await run(`foo('./x');\nobj.method('./y');`);
+    expect(uses).toHaveLength(0);
+  });
+  it('emits nothing for a dynamic import of the empty string literal', async () => {
+    // `import('')` yields an empty specifier (the string node has no string_fragment);
+    // the emit guard drops the empty / non-relative specifier.
+    const { uses } = await run(`const d = import('');`);
+    expect(uses).toHaveLength(0);
+  });
+  it('emits nothing for a require with no arguments', async () => {
+    // `require()` has an empty argument list → firstArgument is null → no edge.
+    const { uses } = await run(`const x = require();`);
+    expect(uses).toHaveLength(0);
+  });
 });
 
 describe('typescript extractor — declarations()', () => {
@@ -69,5 +109,17 @@ describe('typescript extractor — declarations()', () => {
     expect(keys).toContain('Foo');
     expect(keys).toContain('Bar');
     expect(keys).toContain('baz');
+  });
+  it('does NOT return a class nested inside a function body', async () => {
+    const { declarations } = await run(`function outer(){ class Inner {} }`);
+    const keys = declarations.map((d) => d.symbolKey);
+    expect(keys).toContain('outer');
+    expect(keys).not.toContain('Inner');
+  });
+  it('does NOT return a class exported inside a namespace block (not program top level)', async () => {
+    // The class is wrapped in an export_statement whose parent is the namespace body,
+    // not `program` — isTopLevel rejects it via the grandparent check.
+    const { declarations } = await run(`namespace N { export class Inner {} }`);
+    expect(declarations.map((d) => d.symbolKey)).not.toContain('Inner');
   });
 });

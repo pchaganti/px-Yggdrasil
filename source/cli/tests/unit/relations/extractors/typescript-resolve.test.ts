@@ -2,7 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { resolveTsPath } from '../../../../src/relations/extractors/typescript-resolve.js';
 
 // `exists` predicate over a fixed set of repo-relative POSIX files.
-const known = new Set(['src/io/graph-fs.ts', 'src/util/u.ts', 'src/util/index.ts', 'src/a/b.tsx', 'src/m/m.js']);
+const known = new Set([
+  'src/io/graph-fs.ts',
+  'src/util/u.ts',
+  'src/util/index.ts',
+  'src/a/b.tsx',
+  'src/m/m.js',
+  'src/comp/widget.tsx',
+]);
 const exists = (p: string) => known.has(p);
 
 describe('resolveTsPath', () => {
@@ -29,5 +36,11 @@ describe('resolveTsPath', () => {
   });
   it('normalizes .. segments correctly', () => {
     expect(resolveTsPath('./../util/u.js', 'src/core/x.ts', exists)).toBe('src/util/u.ts');
+  });
+  it('uses an explicit .ts extension as-is (no rewrite, no index fallback needed)', () => {
+    expect(resolveTsPath('../util/u.ts', 'src/core/x.ts', exists)).toBe('src/util/u.ts');
+  });
+  it('uses an explicit .tsx extension as-is', () => {
+    expect(resolveTsPath('../comp/widget.tsx', 'src/core/x.ts', exists)).toBe('src/comp/widget.tsx');
   });
 });

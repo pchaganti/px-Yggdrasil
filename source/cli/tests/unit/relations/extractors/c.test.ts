@@ -49,6 +49,22 @@ describe('C extractor — uses()', () => {
     const { uses } = await run('#include "shared.h"\n', '.h');
     expect(specs(uses)).toEqual(['shared.h']);
   });
+
+  it('emits nothing for an empty quoted include (#include "") — the bare "" yields no path', async () => {
+    // The `path` string_literal has no string_content child; the fallback strips the
+    // two quote chars to '' (c-cpp-shared text-length>=2 branch), which the emitter
+    // discards (headerPath === '').
+    const { uses } = await run('#include ""\n');
+    expect(specs(uses)).toHaveLength(0);
+  });
+
+  it('dedupes two identical includes that share the same source line', async () => {
+    // Two `#include "a.h"` directives on ONE physical line collide on the dedup key
+    // `<path> <line>` (same path, same line) → only the first is emitted (the
+    // seen-set hit branch in c-cpp-shared).
+    const { uses } = await run('#include "a.h" #include "a.h"\n');
+    expect(specs(uses)).toEqual(['a.h']);
+  });
 });
 
 describe('C extractor — declarations()', () => {
@@ -61,5 +77,17 @@ describe('C extractor — declarations()', () => {
     expect(keys).toContain('make'); // pointer-return function: name behind pointer_declarator
     expect(keys).toContain('Point');
     expect(keys).toContain('my_int');
+  });
+
+  it('emits no symbol for a function whose declarator never reaches a function_declarator', async () => {
+    // `int (void) { ... }` parses as a function_definition whose declarator chain is a
+    // parenthesized_declarator that drills to null before any function_declarator — so
+    // functionName() returns undefined (no name to emit) and a real, named neighbour is
+    // still captured. Exercises the declarator===null branch.
+    const { declarations } = await run('int (void) { return 0; }\nint named(void) { return 1; }\n');
+    const keys = declarations.map((d) => d.symbolKey);
+    expect(keys).toContain('named');
+    // The anonymous/abstract function produced no symbol of its own.
+    expect(keys).not.toContain('void');
   });
 });

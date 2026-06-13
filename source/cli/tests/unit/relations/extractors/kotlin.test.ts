@@ -65,6 +65,13 @@ describe('kotlin extractor — uses() emits SYMBOL hints (not path hints)', () =
     expect(keys).toContain('com.acme.b.Beta');
   });
 
+  it('deduplicates two identical imports that begin on the same line', async () => {
+    // Two `import a.B` statements on ONE line collide on the `<symbolKey> <line>` dedup
+    // key — only one symbol hint is emitted (the seen-set true-arm).
+    const { uses } = await run('import a.B;import a.B\nclass C\n');
+    expect(symbolKeys(uses)).toEqual(['a.B']);
+  });
+
   it('does NOT treat supertypes / by-delegation / qualified calls / type refs as edges (v1 = import only)', async () => {
     const { uses } = await run(
       [
@@ -112,6 +119,24 @@ describe('kotlin extractor — declarations() produce <package>.<Name> FQN keys'
     expect(keys).toContain('Foo');
     expect(keys).toContain('bar');
     expect(keys.every((k) => !k.startsWith('.'))).toBe(true);
+  });
+
+  it('indexes a modifier-prefixed property (skips the leading non-variable_declaration child)', async () => {
+    // `const val PI = 3` puts a `modifiers` node before the `variable_declaration`, so
+    // the property loop skips the first named child (it is not a variable_declaration)
+    // before finding the name. The FQN is still emitted.
+    const { declarations } = await run('package com.acme.app\nconst val PI = 3\n');
+    expect(declarations.map((d) => d.symbolKey)).toContain('com.acme.app.PI');
+  });
+
+  it('emits NO key for a destructuring property declaration (no single name)', async () => {
+    // `val (a, b) = pair` nests a `multi_variable_declaration`, not a
+    // `variable_declaration`; v1 indexes only the single-name form, so declarationName
+    // yields nothing and the declaration is skipped — no symbol key for a or b.
+    const { declarations } = await run('package com.acme.app\nval (a, b) = pair\n');
+    const keys = declarations.map((d) => d.symbolKey);
+    expect(keys).not.toContain('com.acme.app.a');
+    expect(keys).not.toContain('com.acme.app.b');
   });
 
   it('carries a 1-based line number for each declaration', async () => {

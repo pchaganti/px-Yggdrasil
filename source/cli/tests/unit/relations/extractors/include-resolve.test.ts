@@ -25,6 +25,13 @@ describe('resolveIncludePath via makeResolvePathToFile (disk-backed, C + C++)', 
     // and one via an ancestor `include/` dir (include/proj/widget.h at repo root).
     mkdirSync(path.join(root, 'include', 'proj'), { recursive: true });
     writeFileSync(path.join(root, 'include', 'proj', 'widget.h'), '/* widget */\n', 'utf-8');
+    // A header sitting bare at the repo root (no include/ dir), and a root-level
+    // source file — for the include-root walk and the root-directory (fromDir === '.')
+    // cases. cfg.h exists ONLY under <root>/include/, so a root-level includer misses
+    // the relative join and reaches the include-root walk with the root start dir.
+    writeFileSync(path.join(root, 'top.h'), '/* top */\n', 'utf-8');
+    writeFileSync(path.join(root, 'main.c'), '#include "cfg.h"\n', 'utf-8');
+    writeFileSync(path.join(root, 'include', 'cfg.h'), '/* cfg */\n', 'utf-8');
   });
 
   afterEach(() => {
@@ -57,5 +64,20 @@ describe('resolveIncludePath via makeResolvePathToFile (disk-backed, C + C++)', 
   it('returns undefined for an empty specifier', () => {
     const resolve = makeResolvePathToFile(root);
     expect(resolve('', 'src/a/foo.c', 'c')).toBeUndefined();
+  });
+
+  it('resolves an include/-only header for a source file at the repo root (fromDir === ".")', () => {
+    const resolve = makeResolvePathToFile(root);
+    // main.c lives at the repo root, so its directory is '.'. cfg.h is not relative to
+    // the root, so resolution falls through to the include-root walk, which starts at
+    // the root directory and probes <root>/include/cfg.h → match.
+    expect(resolve('cfg.h', 'main.c', 'c')).toBe('include/cfg.h');
+  });
+
+  it('resolves a header bare at an ancestor root (no include/ dir on that hop)', () => {
+    const resolve = makeResolvePathToFile(root);
+    // From src/a/foo.c, "top.h" is not relative and not under any include/ dir; walking
+    // up the ancestors the bare `<root>/top.h` probe matches before the include/ probe.
+    expect(resolve('top.h', 'src/a/foo.c', 'c')).toBe('top.h');
   });
 });

@@ -82,6 +82,51 @@ describe('php extractor — uses()', () => {
     expect(s).toContain('App\\B\\Beta');
   });
 
+  it('handles a multi-clause single use (`use A\\X as P, B\\Y as Q;`) — both FQNs, no aliases', async () => {
+    const { uses } = await run('<?php\nuse App\\A\\Alpha as X, App\\B\\Beta as Y;\nclass C {}\n');
+    const s = specs(uses);
+    expect(s).toContain('App\\A\\Alpha');
+    expect(s).toContain('App\\B\\Beta');
+    expect(s).not.toContain('App\\A\\X');
+    expect(s).not.toContain('App\\B\\Y');
+  });
+
+  it('resolves a nested qualified_name segment inside a grouped use (`{Inner\\Deep, Plain}`)', async () => {
+    const { uses } = await run('<?php\nuse App\\Sub\\{Inner\\Deep, Plain};\nclass C {}\n');
+    const s = specs(uses);
+    expect(s).toContain('App\\Sub\\Inner\\Deep');
+    expect(s).toContain('App\\Sub\\Plain');
+  });
+
+  it('skips a grouped function import (`use function Base\\{a, b};`)', async () => {
+    // The `function` token sits as a DIRECT child of the declaration here, not on
+    // the clause — the whole grouped declaration imports functions, not classes.
+    const { uses } = await run('<?php\nuse function App\\Util\\{format, trim};\nclass C {}\n');
+    expect(uses).toHaveLength(0);
+  });
+
+  it('deduplicates a class repeated in one grouped use on the same line (`{Foo, Foo}`)', async () => {
+    const { uses } = await run('<?php\nuse App\\Pkg\\{Foo, Foo};\nclass C {}\n');
+    // Same FQN, same line → one hint, not two.
+    expect(specs(uses).filter((x) => x === 'App\\Pkg\\Foo')).toHaveLength(1);
+  });
+
+  it('emits nothing for a use whose only name is a bare backslash (`use \\;`)', async () => {
+    // qualified_name text is "\\"; stripping the single leading backslash leaves the
+    // empty string, which the emit guard rejects.
+    const { uses } = await run('<?php\nuse \\;\nclass C {}\n');
+    expect(uses).toHaveLength(0);
+  });
+
+  it('skips a trailing-comma error clause in a grouped use, keeping the valid one', async () => {
+    // `use App\\{Foo, };` parses the dangling comma as an ERROR node that appears as a
+    // named child of the group alongside the real clause; the non-clause child is skipped.
+    const { uses } = await run('<?php\nuse App\\Grp\\{Foo, };\nclass C {}\n');
+    const s = specs(uses);
+    expect(s).toContain('App\\Grp\\Foo');
+    expect(s).toHaveLength(1);
+  });
+
   it('does NOT treat extends/implements/trait-use/new/static calls as edges (v1 = use-import only)', async () => {
     // No top-level `use` imports. extends, implements, in-body trait use, `new`, a
     // fully-qualified static call: all usage-site refinement, DEFERRED in v1.

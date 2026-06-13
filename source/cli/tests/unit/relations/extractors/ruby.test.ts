@@ -47,6 +47,25 @@ describe('ruby extractor — uses() emits PATH hints (require_relative)', () => 
     const { uses } = await run('require_relative "../#{name}"\nrequire_relative File.join("a", "b")\n');
     expect(pathSpecs(uses)).toHaveLength(0);
   });
+
+  it('SKIPS require_relative of an EMPTY string `\'\'` (no string_content → no literal)', async () => {
+    // An empty string literal has no `string_content` child, so literalStringArg
+    // returns undefined and no path hint is emitted.
+    const { uses } = await run("require_relative ''\n");
+    expect(pathSpecs(uses)).toHaveLength(0);
+  });
+
+  it('SKIPS a bare `require_relative` with NO argument (args field is null)', async () => {
+    const { uses } = await run('require_relative\n');
+    expect(pathSpecs(uses)).toHaveLength(0);
+    expect(uses).toHaveLength(0);
+  });
+
+  it('DEDUPES two identical require_relative on the SAME line (path symbol+line key)', async () => {
+    // `require_relative 'a'; require_relative 'a'` — same specifier, same line → one hint.
+    const { uses } = await run("require_relative 'a'; require_relative 'a'\n");
+    expect(pathSpecs(uses).filter((s) => s === 'a')).toHaveLength(1);
+  });
 });
 
 describe('ruby extractor — uses() emits SYMBOL hints (constants)', () => {
@@ -111,6 +130,49 @@ describe('ruby extractor — uses() emits SYMBOL hints (constants)', () => {
     expect(keys).not.toContain('A::B');
     expect(keys.filter((k) => k === 'A::B::C')).toHaveLength(1);
   });
+
+  it('a `class C` with NO superclass emits NO use (only its own definition)', async () => {
+    // The `superclass` field is null → the superclass branch is skipped entirely.
+    const { uses } = await run('class Foo\nend\n');
+    expect(symbolKeys(uses)).toHaveLength(0);
+    expect(uses).toHaveLength(0);
+  });
+
+  it('DEDUPES the same constant referenced twice on ONE line (symbol+line key)', async () => {
+    // `x = Helper; y = Helper` references `Helper` twice on the same line. The
+    // emit dedup key is symbol+line, so the second occurrence is suppressed.
+    const { uses } = await run('x = Helper; y = Helper\n');
+    const helpers = symbolKeys(uses).filter((k) => k === 'Helper');
+    expect(helpers).toHaveLength(1);
+  });
+
+  it('SKIPS an `include` whose argument is a method call (non-constant → constantKey undefined)', async () => {
+    // `include some_method` — the argument is an identifier/call, not a constant, so
+    // constantKey returns undefined and nothing is emitted.
+    const { uses } = await run('class C\n  include some_method\nend\n');
+    expect(symbolKeys(uses)).toHaveLength(0);
+  });
+
+  it('SKIPS an `include` whose argument is a string literal (non-constant)', async () => {
+    const { uses } = await run('class C\n  include "str"\nend\n');
+    expect(symbolKeys(uses)).toHaveLength(0);
+  });
+
+  it('does NOT emit the `name` field constant of a module declaration as a use', async () => {
+    // `module App` — the `App` constant is the module name (a definition), never a use.
+    const { uses, declarations } = await run('module App\nend\n');
+    expect(symbolKeys(uses)).not.toContain('App');
+    expect(symbolKeys(uses)).toHaveLength(0);
+    expect(declarations.map((d) => d.symbolKey)).toContain('App');
+  });
+
+  it('does NOT emit the scoped `name` of a `class A::B` declaration as a use', async () => {
+    // The class name is a scope_resolution (`A::B`); it is the name field, so skipped
+    // as a use while still recorded as a definition.
+    const { uses, declarations } = await run('class A::B\nend\n');
+    expect(symbolKeys(uses)).toHaveLength(0);
+    expect(declarations.map((d) => d.symbolKey)).toContain('A::B');
+  });
 });
 
 describe('ruby extractor — declarations() build FQNs from nesting', () => {
@@ -129,6 +191,24 @@ describe('ruby extractor — declarations() build FQNs from nesting', () => {
     const keys = declarations.map((d) => d.symbolKey);
     expect(keys).toContain('MAX');
     expect(keys).toContain('MyAlias');
+  });
+
+  it('qualifies a constant assignment NESTED in a module into a FQN (M::X)', async () => {
+    // `X = 1` inside `module M` is reached via generic descent under the module body
+    // with a non-empty nsStack, so it gets the FQN prefix.
+    const { declarations } = await run('module M\n  X = 1\nend\n');
+    const keys = declarations.map((d) => d.symbolKey);
+    expect(keys).toContain('M');
+    expect(keys).toContain('M::X');
+  });
+
+  it('does NOT record a SCOPED constant assignment (`Foo::BAR = 1`) as a definition', async () => {
+    // The `left` field is a scope_resolution, not a bare `constant`, so it is not indexed
+    // as a node-defining declaration (only bare top-level constants are).
+    const { declarations } = await run('Foo::BAR = 1\n');
+    const keys = declarations.map((d) => d.symbolKey);
+    expect(keys).not.toContain('Foo::BAR');
+    expect(keys).toHaveLength(0);
   });
 
   it('carries 1-based line numbers', async () => {

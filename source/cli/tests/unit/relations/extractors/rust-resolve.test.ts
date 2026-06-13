@@ -108,4 +108,56 @@ describe('resolveRustPath via makeResolvePathToFile (disk-backed)', () => {
     // From src/lib.rs (crate root module), super:: climbs above src → silence.
     expect(resolve('super::super::Thing', 'src/lib.rs', 'rust')).toBeUndefined();
   });
+
+  it('returns undefined for an empty specifier', () => {
+    // No path segments at all → nothing to resolve.
+    const resolve = makeResolvePathToFile(root);
+    expect(resolve('', 'src/lib.rs', 'rust')).toBeUndefined();
+  });
+
+  it('resolves a bare module path (no trailing item) via its mod.rs file', () => {
+    // `crate::orders` with no further segments → the module dir`s own file src/orders/mod.rs.
+    const resolve = makeResolvePathToFile(root);
+    expect(resolve('crate::orders', 'src/lib.rs', 'rust')).toBe('src/orders/mod.rs');
+  });
+
+  it('resolves a bare module path via its <dir>.rs file when there is no mod.rs', () => {
+    // `crate::a` with no further segments → src/a.rs (the file form of the empty tail).
+    const resolve = makeResolvePathToFile(root);
+    expect(resolve('crate::a', 'src/lib.rs', 'rust')).toBe('src/a.rs');
+  });
+
+  it('resolves a bare `self` to the importing file own module file', () => {
+    // `self` with an empty tail from src/a.rs (module crate::a) → the module`s own file src/a.rs.
+    const resolve = makeResolvePathToFile(root);
+    expect(resolve('self', 'src/a.rs', 'rust')).toBe('src/a.rs');
+  });
+
+  it('resolves a bare `self` from a mod.rs file to that mod.rs', () => {
+    // From src/orders/mod.rs (module crate::orders), bare `self` → src/orders/mod.rs.
+    const resolve = makeResolvePathToFile(root);
+    expect(resolve('self', 'src/orders/mod.rs', 'rust')).toBe('src/orders/mod.rs');
+  });
+
+  it('returns undefined for a bare module path with no mod.rs and no <dir>.rs', () => {
+    // `crate` alone resolves to the crate src dir`s own file — but there is no src/mod.rs
+    // and no src.rs at the crate root, so the empty-tail resolution finds nothing.
+    const resolve = makeResolvePathToFile(root);
+    expect(resolve('crate', 'src/lib.rs', 'rust')).toBeUndefined();
+  });
+
+  it('returns undefined for a super:: path when there is no Cargo.toml ancestor', () => {
+    // `super::`/`self::` resolution still needs a crate root to anchor `src/`; with no
+    // Cargo.toml ancestor the relative resolver yields silence.
+    const noCrate = mkdtempSync(path.join(tmpdir(), 'rust-nocrate-rel-'));
+    try {
+      mkdirSync(path.join(noCrate, 'src'), { recursive: true });
+      writeFileSync(path.join(noCrate, 'src', 'a.rs'), '// a\n', 'utf-8');
+      const resolve = makeResolvePathToFile(noCrate);
+      expect(resolve('super::Type', 'src/a.rs', 'rust')).toBeUndefined();
+      expect(resolve('self::x', 'src/a.rs', 'rust')).toBeUndefined();
+    } finally {
+      rmSync(noCrate, { recursive: true, force: true });
+    }
+  });
 });

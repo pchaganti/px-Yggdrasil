@@ -75,6 +75,36 @@ describe('python extractor — uses()', () => {
     // No `pkg.*` or enumerated-symbol candidates.
     expect(s.every((x) => !x.includes('*'))).toBe(true);
   });
+
+  it('deduplicates the same module repeated on one line (`import a.b, a.b`)', async () => {
+    const { uses } = await run('import a.b, a.b');
+    // Same specifier, same line → a single hint despite two clauses.
+    expect(specs(uses).filter((x) => x === 'a.b')).toHaveLength(1);
+  });
+
+  it('encodes bare-dot `from . import a, b` as `.a`, `.b`, and the package `.` itself', async () => {
+    const { uses } = await run('from . import a, b');
+    const s = specs(uses);
+    expect(s).toContain('.a');
+    expect(s).toContain('.b');
+    expect(s).toContain('.'); // bare-dots package fallback (its __init__)
+  });
+
+  it('encodes bare double-dot `from .. import x` as `..x` and the parent package `..`', async () => {
+    const { uses } = await run('from .. import x');
+    const s = specs(uses);
+    expect(s).toContain('..x');
+    expect(s).toContain('..');
+  });
+
+  it('uses the real symbol of an aliased name in `from a.b import c as d, e`', async () => {
+    const { uses } = await run('from a.b import c as d, e');
+    const s = specs(uses);
+    expect(s).toContain('a.b'); // module edge
+    expect(s).toContain('a.b.c'); // aliased symbol → real name, not the alias `d`
+    expect(s).toContain('a.b.e'); // plain symbol
+    expect(s).not.toContain('a.b.d');
+  });
 });
 
 describe('python extractor — declarations()', () => {
@@ -95,5 +125,19 @@ describe('python extractor — declarations()', () => {
     const keys = declarations.map((d) => d.symbolKey);
     expect(keys).toContain('Outer');
     expect(keys).not.toContain('method');
+  });
+
+  it('does NOT return a class nested under a non-module block (`if ...:` body)', async () => {
+    // The class_definition is parented by a `block`, not `module`, so isTopLevel
+    // rejects it — exercises the non-top-level rejection path.
+    const { declarations } = await run('if True:\n    class Cond:\n        pass\n');
+    expect(declarations.map((d) => d.symbolKey)).not.toContain('Cond');
+  });
+
+  it('does NOT return a function nested inside another function', async () => {
+    const { declarations } = await run('def outer():\n    def inner():\n        pass\n');
+    const keys = declarations.map((d) => d.symbolKey);
+    expect(keys).toContain('outer');
+    expect(keys).not.toContain('inner');
   });
 });

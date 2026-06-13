@@ -67,6 +67,25 @@ describe('go extractor — uses()', () => {
     const { uses } = await run('package main\n\nimport "fmt"\n');
     expect(uses[0]?.line).toBe(3);
   });
+
+  it('emits NOTHING for an empty double-quoted import path', async () => {
+    // `import ""` strips to '' — the emit guard discards an empty specifier. No edge.
+    const { uses } = await run('package main\nimport ""\n');
+    expect(uses).toHaveLength(0);
+  });
+
+  it('emits NOTHING for an empty backtick (raw-string) import path', async () => {
+    // `import `` ` strips to '' — same empty-specifier guard, no edge.
+    const { uses } = await run('package main\nimport ``\n');
+    expect(uses).toHaveLength(0);
+  });
+
+  it('deduplicates two identical import specs on the same line', async () => {
+    // Two `"a/b"` specs starting on ONE line collide on the `<specifier> <line>` dedup
+    // key — only one hint survives (the seen-set true-arm).
+    const { uses } = await run('package main\nimport "a/b"; import "a/b"\n');
+    expect(specs(uses)).toEqual(['a/b']);
+  });
 });
 
 describe('go extractor — declarations()', () => {

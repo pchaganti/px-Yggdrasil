@@ -63,6 +63,36 @@ describe('resolvePhpFqn — FQN → file via PSR-4', () => {
     const empty: PhpResolveDeps = { psr4For: () => new Map(), exists: () => true };
     expect(resolvePhpFqn('App\\Payment\\Gateway', FROM, empty)).toBeUndefined();
   });
+
+  it('returns undefined for a specifier that is only a leading backslash', () => {
+    // `\` strips to the empty string before any prefix lookup.
+    expect(resolvePhpFqn('\\', FROM, deps)).toBeUndefined();
+  });
+
+  it('resolves under a PSR-4 prefix whose base directory is the repo root ("")', () => {
+    // baseDir '' means the class file sits at the repo root sub-path directly.
+    const rootDeps: PhpResolveDeps = {
+      psr4For: () => new Map([['Root\\', ['']]]),
+      exists: (p) => p === 'Lib/Thing.php',
+    };
+    expect(resolvePhpFqn('Root\\Lib\\Thing', FROM, rootDeps)).toBe('Lib/Thing.php');
+  });
+
+  it('keeps the longest prefix even when a shorter one is encountered after it', () => {
+    // Iteration order puts the longer prefix first, then the shorter — the shorter
+    // must NOT overwrite the already-chosen longer best.
+    const ordered: PhpResolveDeps = {
+      psr4For: () =>
+        new Map([
+          ['App\\Tests\\', ['tests']],
+          ['App\\', ['src']],
+        ]),
+      exists: (p) => p === 'tests/Unit/GatewayTest.php',
+    };
+    expect(resolvePhpFqn('App\\Tests\\Unit\\GatewayTest', FROM, ordered)).toBe(
+      'tests/Unit/GatewayTest.php',
+    );
+  });
 });
 
 describe('parsePsr4', () => {
@@ -91,6 +121,52 @@ describe('parsePsr4', () => {
 
   it('returns an empty map for a classmap-only composer.json (no psr-4)', () => {
     expect(parsePsr4('{ "autoload": { "classmap": ["src/"] } }', '').size).toBe(0);
+  });
+
+  it('returns an empty map when the JSON is not an object (e.g. `null`)', () => {
+    expect(parsePsr4('null', '').size).toBe(0);
+    expect(parsePsr4('42', '').size).toBe(0);
+  });
+
+  it('skips an empty prefix key (PSR-4 forbids it)', () => {
+    expect(parsePsr4('{ "autoload": { "psr-4": { "": "src/" } } }', '').size).toBe(0);
+  });
+
+  it('skips a non-string directory value inside the array', () => {
+    const map = parsePsr4(
+      '{ "autoload": { "psr-4": { "App\\\\": ["src/", 123, null] } } }',
+      '',
+    );
+    expect(map.get('App\\')).toEqual(['src']);
+  });
+
+  it('unions directories across autoload and autoload-dev without duplicating', () => {
+    // The same prefix maps to "src/" in both sections — the result keeps one entry.
+    const map = parsePsr4(
+      '{ "autoload": { "psr-4": { "App\\\\": "src/" } }, "autoload-dev": { "psr-4": { "App\\\\": "src/" } } }',
+      '',
+    );
+    expect(map.get('App\\')).toEqual(['src']);
+  });
+
+  it('normalizes a "." directory to the composer dir itself', () => {
+    expect(parsePsr4('{ "autoload": { "psr-4": { "App\\\\": "." } } }', '').get('App\\')).toEqual([
+      '',
+    ]);
+    expect(
+      parsePsr4('{ "autoload": { "psr-4": { "App\\\\": "." } } }', 'packages/core').get('App\\'),
+    ).toEqual(['packages/core']);
+  });
+
+  it('normalizes a directory that resolves back to the composer dir to "" ', () => {
+    // "sub/.." normalizes to "." → the repo root, rendered as the empty string.
+    expect(parsePsr4('{ "autoload": { "psr-4": { "App\\\\": "sub/.." } } }', '').get('App\\')).toEqual(
+      [''],
+    );
+  });
+
+  it('ignores an autoload value that is not an object', () => {
+    expect(parsePsr4('{ "autoload": "nope" }', '').size).toBe(0);
   });
 });
 
