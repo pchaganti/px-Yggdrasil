@@ -23,6 +23,10 @@ import {
   detRefusedMessage,
   promptTooLargeMessage,
 } from '../formatters/lock-issue-messages.js';
+// ── Relation-conformance re-validation (parse-free) ───────────
+import { verifyRelationConformance } from '../relations/verify.js';
+import { extractorForLanguage } from '../relations/extractors/registry.js';
+import { relationRefusedMessage, relationUnverifiedMessage } from '../relations/messages.js';
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -420,6 +424,25 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
     // Per-pair issues (verified → none; refused / unverified / prompt-too-large).
     for (const vp of verification.pairs) {
       lockIssues.push(...emitPairIssue(vp));
+    }
+
+    // Relation-conformance re-validation (parse-free). A refused/unverified node
+    // blocks with a relation-undeclared-dependency error.
+    const relStates = await verifyRelationConformance(graph, lock, {
+      resolvePathToFile: () => undefined,   // Phase 0: no extractors → no path hints. Phase 1 injects the real resolver.
+      extractorFor: extractorForLanguage,
+    });
+    for (const s of relStates) {
+      if (s.kind === 'verified') continue;
+      lockIssues.push({
+        severity: 'error',
+        code: 'relation-undeclared-dependency',
+        rule: 'relation-undeclared-dependency',
+        nodePath: s.nodeId,
+        messageData: s.kind === 'refused'
+          ? relationRefusedMessage(s.nodeId, s.reason)
+          : relationUnverifiedMessage(s.nodeId),
+      });
     }
 
     // Log integrity reads its baseline from the lock (spec §9).
