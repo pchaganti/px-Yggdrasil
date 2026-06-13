@@ -26,6 +26,21 @@ function collectGitFiles(projectRoot: string): string[] | null {
   }
 }
 
+/**
+ * Exit after stdout has fully flushed. A large `formatOutput` string written to
+ * a PIPE (an agent capturing `yg check | grep`, or CI) is buffered by the kernel;
+ * a bare `process.exit()` terminates the process before that buffer drains and
+ * silently truncates the error list — exactly when it is longest. Waiting for the
+ * pending buffer to drain first preserves the force-exit semantics (no hang on a
+ * lingering handle) while guaranteeing the full report reaches the consumer.
+ */
+async function exitAfterFlush(code: number): Promise<never> {
+  if (process.stdout.writableLength > 0) {
+    await new Promise<void>((resolve) => process.stdout.once('drain', resolve));
+  }
+  process.exit(code);
+}
+
 export function registerCheckCommand(program: Command): void {
   program
     .command('check')
@@ -47,13 +62,13 @@ export function registerCheckCommand(program: Command): void {
             const fill = await runFill(graph, { gitTrackedFiles: gitFiles });
             process.stdout.write(formatOutput(fill.checkResult));
             const hasErrors = fill.checkResult.issues.some(i => i.severity === 'error');
-            if (hasErrors) process.exit(1);
+            if (hasErrors) await exitAfterFlush(1);
             return;
           } catch (err) {
             if (err instanceof FillGatingError) {
               // The structural gate already printed the gating details.
               debugWrite(`[check] fill aborted by structural gate: ${err instanceof Error ? err.message : String(err)}`);
-              process.exit(1);
+              await exitAfterFlush(1);
             }
             throw err;
           }
@@ -63,7 +78,7 @@ export function registerCheckCommand(program: Command): void {
         process.stdout.write(formatOutput(result));
 
         const hasErrors = result.issues.some(i => i.severity === 'error');
-        if (hasErrors) process.exit(1);
+        if (hasErrors) await exitAfterFlush(1);
       } catch (error) {
         debugWrite(`[check] error: ${(error as Error).message}`);
         abortOnUnexpectedError(error, 'running check');
