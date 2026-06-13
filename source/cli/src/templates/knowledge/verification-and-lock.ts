@@ -37,13 +37,14 @@ pairs on that node — a legitimate vacuous pass, no verdict, no entry.
 {
   "version": 1,                              // lock FORMAT version
   "verdicts": {
-    "<aspectId>": {                          // keys sorted at every level
-      "node:billing/cancel":   { "verdict": "approved", "hash": "<inputHash>" },
-      "file:src/billing/x.ts":  { "verdict": "refused",  "hash": "<inputHash>",
-                                  "reason": "<violation report>" },
-      "node:billing/notify":    { "verdict": "approved", "hash": "<inputHash>",
+    "<aspectId>": {                          // keys code-point-sorted at every level
+      "node:billing/cancel":   { "hash": "<inputHash>", "verdict": "approved" },
+      "file:src/billing/x.ts":  { "hash": "<inputHash>",
+                                  "reason": "<violation report>", "verdict": "refused" },
+      "node:billing/notify":    { "hash": "<inputHash>",
                                   "touched": [["read:src/shared/codes.ts", "<sha256>"],
-                                              ["list:src/billing", "<sha256>"]] }
+                                              ["list:src/billing", "<sha256>"]],
+                                  "verdict": "approved" }
     }
   },
   "nodes": {
@@ -62,7 +63,9 @@ pairs on that node — a legitimate vacuous pass, no verdict, no entry.
   or a deterministic check's recorded violations) so plain \`yg check\` renders the
   violation without re-running anything.
 - \`touched\` appears only on deterministic entries, recording observations OUTSIDE
-  the subject set (see the observation fold below).
+  the subject set (see the observation fold below). Every deterministic entry
+  carries it — possibly \`[]\` when the check observed nothing beyond its subject
+  files; LLM entries omit the key entirely.
 - \`nodes.<path>\` carries the source fingerprint (the log gate's contract,
   \`yg knowledge read log-management\`) and the append-only log integrity baseline.
 - Serialization is canonical: code-point-sorted keys, stable formatter, trailing

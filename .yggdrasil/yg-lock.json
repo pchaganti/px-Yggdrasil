@@ -285,9 +285,9 @@
       "node:cli/io/parsers/config": {"hash":"a883488ed3653e1e57909b9708649b9a088777cc2253cc31cf153d92d9ab69ee","touched":[],"verdict":"approved"},
       "node:cli/io/parsers/graph": {"hash":"73a342066cef6c19ca14bf30054a3defbd5fb8a1c70d990ef6cbb33bfef5d90c","touched":[],"verdict":"approved"},
       "node:cli/io/stores": {"hash":"f14d7981ff6b46d402f9d48778b91fb68646b80f12a5eea161101499f837af6f","touched":[],"verdict":"approved"},
-      "node:cli/knowledge": {"hash":"89336fef30ea8529887d18ea197950a092e9b7c704738bc5937ebbc19cf2d219","touched":[],"verdict":"approved"},
-      "node:cli/knowledge-authoring": {"hash":"b284d60dd8bf29af92d739049efcccac0e36b5246d8ea7e75b433e624483a7f9","touched":[],"verdict":"approved"},
-      "node:cli/knowledge-concepts": {"hash":"b255f5aebb5b1732bb917ecb4757d0d48343b283d921fdba908a5f7efc07d796","touched":[],"verdict":"approved"},
+      "node:cli/knowledge": {"hash":"9b708ed60387d4880e789c79f7b26756959cedc1aafb1f9cd9043e5cc5909c5a","touched":[],"verdict":"approved"},
+      "node:cli/knowledge-authoring": {"hash":"fc04e988e8d65b0dfc80c12c8f65625cb57fac4fb9b027c63aedcb202910b6ef","touched":[],"verdict":"approved"},
+      "node:cli/knowledge-concepts": {"hash":"f3107599ff3417da0b51b376179523d4383d4b1b94ec01755dd67434b72ecb4d","touched":[],"verdict":"approved"},
       "node:cli/llm/providers": {"hash":"ebb59494c5cbee99ada766f2b31049c550277ff27b3324b0706a086d2eb40792","touched":[],"verdict":"approved"},
       "node:cli/llm/shared": {"hash":"3c98fbcd79153b5e83a683295b8accc0fcbc7cd0e68aee33be79aab3053be2d6","touched":[],"verdict":"approved"},
       "node:cli/llm/subprocess-base": {"hash":"75521afec6deb3dd538738d242d99e7d997c8904287e969ea585aaad91a864fb","touched":[],"verdict":"approved"},
@@ -300,7 +300,7 @@
       "node:cli/preamble": {"hash":"29c092ef35b539d76d94fd57ad7e0a2100a9accc390eb4351abf758b23006a07","touched":[],"verdict":"approved"},
       "node:cli/structure": {"hash":"11702586a60468373012d0a348fe2f6f71da16be157ec78444eff0ccf7b4c8a0","touched":[],"verdict":"approved"},
       "node:cli/structure-runner": {"hash":"a8a276a6781724ce25cb3b8c75b8718f6920998833cae7673376358f20d37aae","touched":[],"verdict":"approved"},
-      "node:cli/templates": {"hash":"7e919fd05f6e4817601b5daab0836a21e396b63eee2781b67e2cc532431d15ae","touched":[],"verdict":"approved"},
+      "node:cli/templates": {"hash":"ca5e07588422fc140049cf57699f53565168381f32847812edd5e03c46e3d3f6","touched":[],"verdict":"approved"},
       "node:cli/templates-platform": {"hash":"6be1fab1a1654cdb29dd32967b55b9fa549b0fb5963361e009ae8701f684041d","touched":[],"verdict":"approved"},
       "node:cli/utils": {"hash":"666eea742300a2aac961c8e7fc775a6f8d682f0a564d7a3802a303aecd1b2a53","touched":[],"verdict":"approved"}
     },
@@ -367,7 +367,7 @@
       "node:cli/core/validator": {"hash":"b00595ba832dfaae22c3a78c8a45a532554da7c2ee122414b0e7524d3ae10f76","verdict":"approved"},
       "node:cli/core/verify-lock": {"hash":"d8665edfe205d8db91b8d78a8125786decb2154cf4eada142c9d3b2edb5bb6f9","verdict":"approved"},
       "node:cli/formatters": {"hash":"768d5e8c5d731cc09cb83589a07791c55906e26950ce3bfd09363dfbfa72ef32","verdict":"approved"},
-      "node:cli/templates": {"hash":"a19dc5ce8f67500d302b21d004d0517b38e8a5214784c3a88069fe00b32834f8","verdict":"approved"},
+      "node:cli/templates": {"hash":"6986db1088ac9beb6fde77a526dca77447401d38781ab0b84e5464eb8d71f587","verdict":"approved"},
       "node:cli/utils": {"hash":"fa77ba9f2a1ff50c81ca58286b3ca9be26c538c6403949735f01011d0edeee7c","verdict":"approved"}
     },
     "posix-paths-source": {
@@ -430,7 +430,7 @@
       "node:cli/preamble": {"hash":"981c0dff63a6233c9fdcd9806b27e029b932d004fccdbdbaa3b041512a1a4496","touched":[],"verdict":"approved"},
       "node:cli/structure": {"hash":"aa851afa8cb26ccc0e950a6211750b95fedc686e787f2fcc214d743d9e9afafe","touched":[],"verdict":"approved"},
       "node:cli/structure-runner": {"hash":"68afcb60c3b126d191bf3694b27be68f6973bb54132c517ff5227f1c991a9a50","touched":[],"verdict":"approved"},
-      "node:cli/templates": {"hash":"538c03556dbdb664c257c4721ec66afd28d8fef9148b7b38ed3ccafc8c5d7d10","touched":[],"verdict":"approved"},
+      "node:cli/templates": {"hash":"1602b23bd83f303af8f75a29c6e40b13341d0eb123980f22ff931014cd5a7d12","touched":[],"verdict":"approved"},
       "node:cli/templates-platform": {"hash":"8bc53dd055c62b64c99b35619b055fc0e08fc804f3f5e4260ab0770a8e020638","touched":[],"verdict":"approved"},
       "node:cli/utils": {"hash":"527f3023fab8d479726400e080fde06b156c58cda368f001a93f360b5f099670","touched":[],"verdict":"approved"}
     },
@@ -699,7 +699,7 @@
       "node:cli/core/validator": {"hash":"bc6fdcc15a35ae1e98b2fdb5171e44c42106d7b719926b6373565c71b91b1642","verdict":"approved"},
       "node:cli/core/verify-lock": {"hash":"eb9cc5550f978dd6441068082c78b6b891cfe5f5b4e95786493d4784d5d3c577","verdict":"approved"},
       "node:cli/formatters": {"hash":"d6fc79d01b5141f0261a174c85dfa6063ea1ac8870c7973406771fb75b07cab7","verdict":"approved"},
-      "node:cli/templates": {"hash":"dd7a89433ec2650618caf5c2e2b10200609a7041c622548b1c042c798e7aeb2c","verdict":"approved"},
+      "node:cli/templates": {"hash":"83a5b98ba7cb6fb9cd8ae9bfde22e44824342fb6daaed5d803e453097f2d653b","verdict":"approved"},
       "node:cli/templates-platform": {"hash":"1547fbfbee6192ff2126dc5df09c03631904f2a3a5765e70a28b821cdcf6818a","verdict":"approved"}
     }
   },
@@ -764,9 +764,9 @@
     "cli/io/parsers/config": {"log":{"last_entry_datetime":"2026-06-12T14:17:31.287Z","prefix_hash":"252e4dae5b3c3d5cb9c69d2cbafdac49c1dd87bbe86096377d00d8e56ff070a5"},"source":"0c1202e09ed1a2a4c8d01db1fc8ada9f5035b5c5a6194e5e228361db70cafb4f"},
     "cli/io/parsers/graph": {"log":{"last_entry_datetime":"2026-06-12T13:14:07.110Z","prefix_hash":"62bebd0cfae2edb5eb2ab1674d681665ded6f560f581bf8471c590d3dea82631"},"source":"36033d5a28b4d2cc06e7243657ebf535df12dab8d42b5677fdbb7c79a531e3f3"},
     "cli/io/stores": {"log":{"last_entry_datetime":"2026-06-13T07:02:18.515Z","prefix_hash":"1e8ca9f7acd8ff5abb8bbfe5e2b2638e2890996f89644e95525866d5cd009395"},"source":"f4785f4b337f9da6a17ea8b73f5bb9463b4cd39e4673ca31fc4764da3e5230f6"},
-    "cli/knowledge": {"log":{"last_entry_datetime":"2026-05-29T08:33:39.060Z","prefix_hash":"3552dea263b549d286032427d5bcdb04868b462ef253508b34411990fc432a73"},"source":"9f7f2d604fcc809a914a03fa21a6d7ae937b05e674efc158e53d617d7a5fb4c2"},
-    "cli/knowledge-authoring": {"source":"7944e3f57673fe2a07a9267672cc2a8cf72f8e083a95aea63293f1b5d3b4f92b"},
-    "cli/knowledge-concepts": {"log":{"last_entry_datetime":"2026-06-13T05:34:22.962Z","prefix_hash":"3b0c73d2106fb0660438da59ceaf03d23ba5ca976e352d9874f912e4dbb510f7"},"source":"95f5066750f54fd53ebf70d9fd08a66443665ac39434b9544158a220fbd5d2e1"},
+    "cli/knowledge": {"log":{"last_entry_datetime":"2026-05-29T08:33:39.060Z","prefix_hash":"3552dea263b549d286032427d5bcdb04868b462ef253508b34411990fc432a73"},"source":"c16dc294d2233c534dbe0cfc6d93f5d3c1693991ffb2a09988c5141c254574c2"},
+    "cli/knowledge-authoring": {"source":"189af091ccd0451005e96af26ff24fe96b9d892ebb628874d6a731d62c372630"},
+    "cli/knowledge-concepts": {"log":{"last_entry_datetime":"2026-06-13T05:34:22.962Z","prefix_hash":"3b0c73d2106fb0660438da59ceaf03d23ba5ca976e352d9874f912e4dbb510f7"},"source":"8b2a958d1871ffabb63ab03dfe01ad80d89e98318b17a3b87ecd221e32daaaf7"},
     "cli/llm/providers": {"log":{"last_entry_datetime":"2026-06-03T07:05:36.038Z","prefix_hash":"11e5274c532b98adcc63daf62edbceb9052b9b9473f2e7daba875d5832bcd2ab"},"source":"dfd21ba31b488c681a0e6593076b8046e2db7a31000358d3e602def68b3d50a8"},
     "cli/llm/shared": {"log":{"last_entry_datetime":"2026-06-12T14:58:07.805Z","prefix_hash":"64e92db88cc0a9561bcc5c17ac2599c6db09657954eabe3118d360c202cd3e1a"},"source":"a4c47424e7647bf07b24a7e22e9850893d5eee1584e4946b519cfc828d9887fc"},
     "cli/llm/subprocess-base": {"log":{"last_entry_datetime":"2026-06-03T07:05:36.403Z","prefix_hash":"c2b2b33fa42639b9e224a45c8ab8993e719d81a7998af940ae6601f3f2a9a633"},"source":"f2b1932bb7064c85bbf9eea380ab36a40cabd5876bd30f6bc8dd717b1a645060"},
@@ -779,7 +779,7 @@
     "cli/preamble": {"log":{"last_entry_datetime":"2026-06-01T09:41:50.140Z","prefix_hash":"1169a24ada6cc37b8c4ab80c099f2848f81d29922465318ab0a60021c675085a"},"source":"8879c137d46f04d4be64391ae09e55beeae2b1c35dfd4caeac0176d550f75283"},
     "cli/structure": {"log":{"last_entry_datetime":"2026-06-13T05:33:45.160Z","prefix_hash":"3e9b2a9a353d1df30eea860e350e3debf8c4328c2d6499b899d1a231296d3b18"},"source":"a73313ff87afffcbb921bc658384e3ebe93192be36bb22859588af2bbdf2e218"},
     "cli/structure-runner": {"log":{"last_entry_datetime":"2026-06-13T05:33:45.354Z","prefix_hash":"0d29896b0d456065f8cd0561480130800237ebed27620431799775b62ca817a3"},"source":"8e988fd331649a4f9a2ba3523fefa163fea5025849c15e18f2b724d71b47cfa9"},
-    "cli/templates": {"log":{"last_entry_datetime":"2026-06-08T15:11:10.245Z","prefix_hash":"ad3d6a03ffb0694d0e5fb4fb6b95cf01bd72ae382ef88237d54e4dea4149dc9f"},"source":"660eafc45205c0432578825748b6ee57d4003ade6449f1c1f0df9b28253f3f7c"},
+    "cli/templates": {"log":{"last_entry_datetime":"2026-06-13T11:30:25.618Z","prefix_hash":"2d9efda1fc3f4607be32fd244986e50bf838ba8fa3f81abf7736fb309cc31779"},"source":"b1d27e4e73c3dfd8f15d7cfc33bdc19032839f3291665c1762aadb4207e0c521"},
     "cli/templates-platform": {"log":{"last_entry_datetime":"2026-05-31T16:03:35.346Z","prefix_hash":"839ebcdb8c3a986d98c420d034c63eaf3de5239800ba4c612f0d54be1ee6a0ed"},"source":"f97e06dad6158ad31fd741d4a8d881508c1dc592f1450bf218dd687e7e4f052c"},
     "cli/tests/e2e": {"log":{"last_entry_datetime":"2026-05-29T10:07:14.145Z","prefix_hash":"3430d92d98ab483edd4b7634b4cc7ab0206fd50357790981561c2c7f961f11bc"},"source":"f73514688bc24217f66823b6566627c953abcea23c483bb168e05b0efddbf2bc"},
     "cli/tests/e2e/architecture-classification": {"log":{"last_entry_datetime":"2026-05-31T08:36:51.917Z","prefix_hash":"f74cf86bba384d5a7beb84899f073b94b1621ffcb28148bcd75b0b2d16eaa8ae"},"source":"4c3f4066ed07e6c6612994b81b34842dbcfb0b0d8a90aab9505bed41931329a1"},
@@ -948,7 +948,7 @@
     "examples": {"source":"8feec95c772d75352437289715b06438dc49bc073e6d3ffac9e4bb66ec2e8426"},
     "root": {"log":{"last_entry_datetime":"2026-05-15T11:05:58.272Z","prefix_hash":"3183f15df80dcc84c2e60d5b4bff7c641dd5f1b72a92a50c1ce78dff5d704db7"}},
     "root/ci": {"source":"6e5e90ab56bed3d93f0139381eb881547643a1c7d3f5e4acfa123f61d416fed8"},
-    "root/project-config": {"source":"4056643c5d8e5e4fb83cd5a17e8d9a14eeeb960221755e6fe1e83a9fc4cd01b9"},
+    "root/project-config": {"source":"88a7115ef705d6707ca10a7d2f8d09773ac374d2c9459453debe3517d6fa31dd"},
     "scripts": {"source":"0aa0ba70942c6cff3af0c4449bffb7edea2693edfe29749b348708f961dbd3da"},
     "tools": {"source":"1a030a5fbea70e0351c558ab44b886a81393348720327dd04a9af9b8f59d40cd"}
   }

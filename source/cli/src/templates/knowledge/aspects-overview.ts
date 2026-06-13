@@ -102,7 +102,8 @@ code satisfies a nuanced requirement. They are slower and cost per call.
 
 LLM aspects may declare \`reviewer.tier: <name>\` to opt into a specific reviewer
 tier configured in \`yg-config.yaml\` (a higher-capability model for critical
-aspects). If \`tier:\` is omitted, the aspect uses \`reviewer.default\`.
+aspects). If \`tier:\` is omitted, the aspect uses the tier named by
+\`reviewer.default\` (or the sole tier, if only one is configured).
 
 ### When to use deterministic
 

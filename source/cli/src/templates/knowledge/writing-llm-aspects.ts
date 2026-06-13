@@ -175,7 +175,8 @@ reviewer:
   tier: deep        # one of the keys under reviewer.tiers in yg-config.yaml
 \`\`\`
 
-When \`tier:\` is omitted, the aspect uses \`reviewer.default\`.
+When \`tier:\` is omitted, the aspect uses the tier named by \`reviewer.default\`
+(or the sole tier, if only one is configured).
 
 Use a higher-capability tier (e.g. \`deep\`) when the aspect interprets nuanced
 semantics, a false approval is much more costly than the higher per-call price,

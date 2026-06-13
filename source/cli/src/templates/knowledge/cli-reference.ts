@@ -35,7 +35,8 @@ yg check --approve
 
 Verification is repo-wide and all-or-nothing — there are no scoping flags. The
 order: a pre-dispatch header (\`Filling N unverified pairs across M nodes — D
-deterministic (no cost), K reviewer calls\`); the per-node log gate; deterministic
+deterministic (no cost), K reviewer calls (consensus included)\`); the per-node
+log gate; deterministic
 fills first (free); the deterministic gate (a node with an enforced deterministic
 refusal has its LLM fills skipped this run); then LLM fills. A real verdict
 (approved or refused) is written to the lock; every infra disposition writes
@@ -147,9 +148,12 @@ yg find "order cancellation"
 yg find "authentication middleware"
 \`\`\`
 
-Returns ranked candidates with score. Score >0.6: likely correct entry
-point. Score <0.3: weak match, verify. \`yg find\` indexes nodes and aspects
-only — not flows.
+Returns ranked candidates. Scores are RELATIVE — the top result is always
+\`1.00\` and the rest are its fraction, not an absolute confidence. A large
+gap from #1 to #2 (e.g. \`1.00\` then \`0.40\`) signals a confident winner;
+closely-clustered scores (\`1.00\`, \`0.95\`, \`0.90\`) mean the query is
+ambiguous — verify the top few with \`yg context\`. \`yg find\` indexes nodes
+and aspects only — not flows.
 
 ## yg log
 

@@ -104,7 +104,7 @@ A verdict is valid exactly while the inputs that produced it hash to the stored 
 
 If you modify code without reading the aspect content files (\`yg context --file\` → follow the \`read:\` paths), you will likely write code that violates rules you didn't know about. The reviewer will refuse it. You will have to read the aspects anyway, then rewrite. Double cost.
 
-Status governs blocking uniformly. An advisory pair never blocks \`yg check\` — whether it is refused OR unverified, it renders as a warning. An enforced pair always blocks when refused or unverified. Only \`draft\` removes a pair from the expected set, so flipping an aspect to advisory does NOT make an unverified enforced pair go green — the pair is still unverified, just now a warning; \`yg check --approve\` is what fills it. To park an aspect, use \`status: draft\`, never a \`when\` edit (a \`when\` edit drops the pairs and garbage-collection prunes their verdicts; a \`draft\` round-trip keeps them). When \`yg check\` emits both errors AND warnings, \`suggestedNext\` points at the first error. Fix errors before warnings.
+Status governs blocking uniformly. An advisory pair never blocks \`yg check\` — whether it is refused OR unverified, it renders as a warning. An enforced pair always blocks when refused or unverified. Only \`draft\` removes a pair from the expected set, so flipping an aspect to advisory does NOT make an unverified enforced pair go green — the pair is still unverified, just now a warning; \`yg check --approve\` is what fills it. To park an aspect, use \`status: draft\`, never a \`when\` edit (a \`when\` edit drops the pairs and garbage-collection prunes their verdicts; a \`draft\` round-trip keeps them). When \`yg check\` emits both errors AND warnings, \`suggestedNext\` points at the highest-priority error (a fixed priority cascade, not output order). Fix errors before warnings. When only warnings remain, it surfaces an advisory next-step so a warnings-only run still points somewhere.
 
 Full lock format, hash ingredients, caching policy, merge procedure, garbage-collection, and the revert recipe: \`yg knowledge read verification-and-lock\`.
 
@@ -116,7 +116,7 @@ Full lock format, hash ingredients, caching policy, merge procedure, garbage-col
 | \`yg check --approve\` | Fill every unverified pair (deterministic first, then LLM), then report. The only writer of verdicts. |
 | \`yg context --file <path>\` | Show owning node, effective aspects (\`read:\` paths), dependencies |
 | \`yg context --node <path>\` | Show node overview — aspects (with subject-file counts), flows, dependents, log state, source files |
-| \`yg aspect-test --aspect <id> --node <path>\` | Diagnostic — run a check/reviewer live without touching the lock (\`--dry-run\` previews an LLM prompt; \`--files\` for ad-hoc; \`--check-determinism\`) |
+| \`yg aspect-test --aspect <id> --node <path>\` | Diagnostic — run a check/reviewer live without touching the lock (\`--dry-run\` previews an LLM prompt; \`--files\` for ad-hoc and \`--check-determinism\`, both deterministic aspects only) |
 | \`yg impact --node\\|--file\\|--aspect\\|--flow\\|--type <x>\` | Blast radius — which pairs an edit would invalidate, before a change |
 | \`yg tree [--root <path>] [--depth <n>]\` | Browse graph structure |
 | \`yg find "<query>"\` | Locate entry-point nodes/aspects by natural-language query |
@@ -291,7 +291,8 @@ in \`yg context --node\`) to know whether an entry is required.
 A fresh log entry is required BEFORE \`yg check --approve\` whenever BOTH hold:
 the node's type has \`log_required: true\` AND the node's mapped source changed
 since its last positive closure (the moment all the node's enforced pairs last
-went green). The entry must be newer than the one recorded at that closure —
+went green), or this is the node's first verification and it owns source files.
+The entry must be newer than the one recorded at that closure —
 one fresh entry per closure cycle. This requirement is INDEPENDENT of aspect
 status. A cascade-only re-verification (an aspect edited, the node's source
 untouched) needs no new entry.
