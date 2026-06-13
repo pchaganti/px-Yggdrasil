@@ -18,6 +18,8 @@ import {
 
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import { runFill, FillGatingError } from '../../../src/core/fill.js';
+import { buildIssueMessage } from '../../../src/formatters/message-builder.js';
+import type { IssueMessage } from '../../../src/model/validation.js';
 import { readLock } from '../../../src/io/lock-store.js';
 import { verifyLock } from '../../../src/core/verify-lock.js';
 import type { LlmProvider } from '../../../src/llm/types.js';
@@ -156,9 +158,12 @@ async function setupProject(spec: ProjectSpec): Promise<{ projectRoot: string; y
 }
 
 /** Capture fill output as a string so exact strings can be asserted. */
-function makeWriter(): { write: (s: string) => void; text: () => string } {
+function makeWriter(): { write: (s: string) => void; emitIssue: (m: IssueMessage) => void; text: () => string } {
   let buf = '';
-  return { write: (s) => { buf += s; }, text: () => buf };
+  const write = (s: string) => { buf += s; };
+  // Mirror the CLI layer: render structured diagnostics into the same buffer so
+  // notice-text assertions hold (fill.ts itself no longer formats — it emits).
+  return { write, emitIssue: (m) => { write(buildIssueMessage(m) + '\n'); }, text: () => buf };
 }
 
 const DET_PASS = 'export function check(ctx) { void ctx; return []; }\n';
@@ -179,7 +184,7 @@ describe('header + summary strings (exact)', () => {
     const graph = await loadGraph(projectRoot);
     mockCreateLlmProvider.mockReturnValue(makeMockProvider());
     const w = makeWriter();
-    await runFill(graph, { gitTrackedFiles: null, write: w.write });
+    await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
     expect(w.text()).toContain(
       'Filling 2 unverified pairs across 1 nodes — 1 deterministic (no cost), 1 reviewer calls (consensus included)',
     );
@@ -195,7 +200,7 @@ describe('header + summary strings (exact)', () => {
     // Second fill: nothing unverified.
     graph = await loadGraph(projectRoot);
     const w = makeWriter();
-    await runFill(graph, { gitTrackedFiles: null, write: w.write });
+    await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
     expect(w.text()).toContain('0 reviewer calls made — all expected pairs hold valid verdicts');
   });
 });
@@ -248,7 +253,7 @@ describe('infra fail-closed', () => {
     const graph = await loadGraph(projectRoot);
     mockCreateLlmProvider.mockReturnValue(makeMockProvider({ isAvailable: async () => false }));
     const w = makeWriter();
-    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write });
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
 
     const lock = readLock(graph.rootPath);
     // The free det pair was filled (it does not need the provider).
@@ -296,7 +301,7 @@ describe('zero-calls summary gated on runtimeErrors === 0 (side-fix B3)', () => 
     // No LLM provider needed — this run is all deterministic.
     mockCreateLlmProvider.mockReturnValue(makeMockProvider());
     const w = makeWriter();
-    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write });
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
     // The check crashed → runtime error (no write, no reviewer call).
     expect(result.runtimeErrors).toBeGreaterThan(0);
     expect(result.reviewerCallsMade).toBe(0);
@@ -331,7 +336,7 @@ describe('consensus=3 majority-approve', () => {
     }));
 
     const w = makeWriter();
-    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write });
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
 
     // Header must show 3 reviewer calls (consensus included).
     expect(w.text()).toContain('3 reviewer calls (consensus included)');
@@ -407,7 +412,7 @@ describe('fill — fail-closed edge branches', () => {
       async verifyAspect() { return { satisfied: false, reason: 'rate limited', errorSource: 'provider' as const }; },
     }));
     const w = makeWriter();
-    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write });
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
 
     // No verdict written — a provider error never becomes a `refused` verdict.
     expect(readLock(graph.rootPath).verdicts['llm-a']?.['node:svc']).toBeUndefined();
@@ -437,7 +442,7 @@ describe('fill — fail-closed edge branches', () => {
       async isAvailable() { throw new Error('dns failure'); },
     }));
     const w = makeWriter();
-    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write });
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
     expect(readLock(graph.rootPath).verdicts['llm-a']?.['node:svc']).toBeUndefined();
     expect(result.infraFailures).toBeGreaterThan(0);
     expect(w.text()).toContain('is unreachable');
@@ -454,7 +459,7 @@ describe('fill — fail-closed edge branches', () => {
     });
     const graph = await loadGraph(projectRoot);
     const w = makeWriter();
-    await expect(runFill(graph, { gitTrackedFiles: null, write: w.write })).rejects.toBeInstanceOf(FillGatingError);
+    await expect(runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue })).rejects.toBeInstanceOf(FillGatingError);
     expect(w.text()).toContain('aborted — configuration errors block tier resolution');
     // No lock verdict was written.
     let lockHasEntry: boolean;
@@ -475,7 +480,7 @@ describe('fill — fail-closed edge branches', () => {
       observationsTainted: false,
     }));
     const w = makeWriter();
-    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write });
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
     expect(readLock(graph.rootPath).verdicts['det-a']?.['node:svc']).toBeUndefined();
     expect(result.runtimeErrors).toBeGreaterThan(0);
     expect(w.text()).toContain('aspect-check-runtime-error');
@@ -495,7 +500,7 @@ describe('fill — fail-closed edge branches', () => {
       observationsTainted: true,
     }));
     const w = makeWriter();
-    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write });
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
     expect(readLock(graph.rootPath).verdicts['det-a']?.['node:svc']).toBeUndefined();
     expect(result.runtimeErrors).toBeGreaterThan(0);
     expect(w.text()).toContain('aspect-check-runtime-error');
@@ -520,7 +525,7 @@ describe('fill — fail-closed edge branches', () => {
     const graph = await loadGraph(projectRoot);
     mockCreateLlmProvider.mockReturnValue(makeMockProvider({ isAvailable: async () => false }));
     const w = makeWriter();
-    await runFill(graph, { gitTrackedFiles: null, write: w.write });
+    await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
     // The summary's parenthetical id carries the provider / tier.
     expect(w.text()).toContain('ollama');
     expect(w.text()).toContain('standard');

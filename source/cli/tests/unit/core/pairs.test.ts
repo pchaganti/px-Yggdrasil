@@ -11,7 +11,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, chmodSync 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileUnit, nodeUnit } from '../../../src/model/lock.js';
-import { computeExpectedPairs, computeSourceFingerprint, getChildMappingExclusions } from '../../../src/core/pairs.js';
+import { computeExpectedPairs, computeSourceFingerprint, getChildMappingExclusions, FileUnreadableError } from '../../../src/core/pairs.js';
 import type { Graph, GraphNode, AspectDef, ScopeDef } from '../../../src/model/graph.js';
 
 // ---------------------------------------------------------------------------
@@ -433,13 +433,30 @@ describe('computeExpectedPairs', () => {
     expect(unreadable[0].path).toBe('src/locked.ts');
   });
 
-  it('pure path-filter aspect never produces unreadable records even for an unreadable file', async () => {
-    // A path-only filter evaluates only the file path glob — it never calls
-    // readFile — so unreadable can never fire even if the file is chmod 0o000.
+  it('path-filter aspect: an unreadable subject file IS flagged unreadable and excluded (a mapped file must be readable)', async () => {
+    // A path-only filter never reads content, but readability is now probed for
+    // EVERY subject file: a file written into the mapping must be readable, or it
+    // surfaces as a blocking unreadable record and is dropped from the subject
+    // set — never silently kept (which would let a check pass over content it
+    // could not read). The readable sibling still forms the pair.
     writeFile('src/handler.ts', 'code');
     writeFile('src/locked.ts', 'code');
     const lockedAbs = path.join(tmpDir, 'src/locked.ts');
     chmodSync(lockedAbs, 0o000);
+
+    // Privileged-runtime guard: under root (CI / container) chmod 0o000 is ignored
+    // and the read still succeeds — skip cleanly, mirroring the content-filter case.
+    let privileged = false;
+    try {
+      readFileSync(lockedAbs);
+      privileged = true;
+    } catch {
+      // expected: EACCES in a normal (non-root) runtime
+    }
+    if (privileged) {
+      chmodSync(lockedAbs, 0o644);
+      return;
+    }
 
     const graph = buildPairsGraph(
       tmpDir,
@@ -455,11 +472,14 @@ describe('computeExpectedPairs', () => {
       chmodSync(lockedAbs, 0o644);
     }
 
-    // Path filter passes for both files (locked.ts matches **/*.ts by path).
-    // No content read → no unreadable.
-    expect(pairs).toHaveLength(1); // one per-node pair covering both subjects
-    expect(pairs[0].subjectFiles).toHaveLength(2);
-    expect(unreadable).toHaveLength(0);
+    // The readable sibling forms the per:node pair; the unreadable file is
+    // excluded and surfaced as a blocking unreadable record.
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0].subjectFiles).toEqual(['src/handler.ts']);
+    expect(unreadable).toHaveLength(1);
+    expect(unreadable[0].nodePath).toBe('svc');
+    expect(unreadable[0].aspectId).toBe('path-only');
+    expect(unreadable[0].path).toBe('src/locked.ts');
   });
 });
 
@@ -578,6 +598,38 @@ describe('computeSourceFingerprint', () => {
 
     // With carve-out, parent fingerprint covers only src/parent.ts → different
     expect(parentFp).not.toBe(noCarveOutFp);
+  });
+
+  it('throws FileUnreadableError for an unreadable mapped file (no partial fold)', async () => {
+    writeFile('src/a.ts', 'readable');
+    writeFile('src/locked.ts', 'secret');
+    const lockedAbs = path.join(tmpDir, 'src/locked.ts');
+    chmodSync(lockedAbs, 0o000);
+
+    // Privileged-runtime guard: under root chmod 0o000 is ignored — skip cleanly.
+    let privileged = false;
+    try {
+      readFileSync(lockedAbs);
+      privileged = true;
+    } catch {
+      // expected: EACCES in a normal (non-root) runtime
+    }
+    if (privileged) {
+      chmodSync(lockedAbs, 0o644);
+      return;
+    }
+
+    const graph = buildPairsGraph(
+      tmpDir,
+      [{ path: 'svc', mapping: ['src/a.ts', 'src/locked.ts'] }],
+      [],
+    );
+
+    try {
+      await expect(computeSourceFingerprint(graph, 'svc')).rejects.toBeInstanceOf(FileUnreadableError);
+    } finally {
+      chmodSync(lockedAbs, 0o644);
+    }
   });
 });
 

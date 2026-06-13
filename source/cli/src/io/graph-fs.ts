@@ -1,5 +1,5 @@
 import { access, lstat, readdir, readFile, stat, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, constants as fsConstants } from 'node:fs';
 import type { Dirent, Stats } from 'node:fs';
 import { debugWrite } from '../utils/debug-log.js';
 
@@ -27,6 +27,20 @@ export async function writeTextFile(filePath: string, content: string): Promise<
 
 export async function fileAccess(filePath: string): Promise<void> {
   await access(filePath);
+}
+
+/**
+ * Probe whether a file is readable (R_OK). Returns null when readable, or the OS
+ * error message when not (EACCES, vanished, EISDIR, …). A permission probe, not
+ * a content read — cheap enough for the hot check path.
+ */
+export async function probeUnreadable(absPath: string): Promise<string | null> {
+  try {
+    await access(absPath, fsConstants.R_OK);
+    return null;
+  } catch (e) {
+    return e instanceof Error ? e.message : String(e);
+  }
 }
 
 export async function lstatFile(filePath: string): Promise<Stats> {

@@ -18,6 +18,8 @@ import {
 
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import { runFill } from '../../../src/core/fill.js';
+import { buildIssueMessage } from '../../../src/formatters/message-builder.js';
+import type { IssueMessage } from '../../../src/model/validation.js';
 import { readLock, writeLock } from '../../../src/io/lock-store.js';
 import { verifyLock } from '../../../src/core/verify-lock.js';
 import type { LlmProvider } from '../../../src/llm/types.js';
@@ -166,9 +168,12 @@ async function setupProject(spec: ProjectSpec): Promise<{ projectRoot: string; y
 }
 
 /** Capture fill output as a string so exact strings can be asserted. */
-function makeWriter(): { write: (s: string) => void; text: () => string } {
+function makeWriter(): { write: (s: string) => void; emitIssue: (m: IssueMessage) => void; text: () => string } {
   let buf = '';
-  return { write: (s) => { buf += s; }, text: () => buf };
+  const write = (s: string) => { buf += s; };
+  // Mirror the CLI layer: render structured diagnostics into the same buffer so
+  // notice-text assertions hold (fill.ts itself no longer formats — it emits).
+  return { write, emitIssue: (m) => { write(buildIssueMessage(m) + '\n'); }, text: () => buf };
 }
 
 const DET_PASS = 'export function check(ctx) { void ctx; return []; }\n';
@@ -193,7 +198,7 @@ describe('deterministic-first ordering + det gate', () => {
     }));
 
     const w = makeWriter();
-    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write });
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
 
     // The det check refused → the LLM reviewer was never asked.
     expect(verifyCalls).toBe(0);
@@ -403,7 +408,7 @@ describe('log gate (§9)', () => {
     await writeFile(path.join(projectRoot, 'src', 'svc.ts'), 'export const x = 2;\n');
     graph = await loadGraph(projectRoot);
     const w = makeWriter();
-    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write });
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
 
     // The gate blocks this node's pairs — the det pair is NOT re-filled, the
     // stale entry stays and the check shows it unverified.
@@ -462,7 +467,7 @@ describe('log gate (§9)', () => {
     );
     graph = await loadGraph(projectRoot);
     const w = makeWriter();
-    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write });
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
 
     expect(w.text()).not.toMatch(/no fresh log entry|mandatory/i);
     // The det pair re-verified (free) and the check is clean.
@@ -831,7 +836,7 @@ describe('tainted re-run-once → runtime-error fail-closed (unit-pinned)', () =
     mockRunStructureAspect.mockResolvedValue(taintedResult);
 
     const w = makeWriter();
-    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write });
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
 
     // The runner was called exactly twice for this pair (initial + re-run-once).
     expect(mockRunStructureAspect).toHaveBeenCalledTimes(2);

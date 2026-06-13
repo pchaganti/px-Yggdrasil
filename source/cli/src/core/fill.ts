@@ -48,6 +48,7 @@ import {
   computeSourceFingerprint,
   computeNodeMappedFiles,
   computeUncomputableNodes,
+  FileUnreadableError,
 } from './pairs.js';
 import type { ExpectedPair } from './pairs.js';
 import { verifyLock } from './verify-lock.js';
@@ -70,7 +71,7 @@ import {
   computeLogBaselineForNode,
   readLogContent,
 } from './log/log-gate.js';
-import { buildIssueMessage } from '../formatters/message-builder.js';
+import type { IssueMessage } from '../model/validation.js';
 import { debugWrite } from '../utils/debug-log.js';
 import { toPosixPath, toPosix } from '../utils/posix.js';
 import { isPathInMapping } from '../structure/expand-mapping-sync.js';
@@ -83,8 +84,14 @@ export interface RunFillOptions {
   /** Git-tracked files for the final coverage scan (mirrors plain check). Pass
    *  null to skip the unmapped-files check (no git available). */
   gitTrackedFiles: string[] | null;
-  /** Sink for agent-facing fill output. Defaults to process.stdout.write. */
+  /** Sink for agent-facing fill PROGRESS (plain status lines). Defaults to
+   *  process.stdout.write. */
   write?: (s: string) => void;
+  /** Sink for structured DIAGNOSTICS ({ what, why, next }). The CLI command
+   *  layer supplies the renderer — it owns formatting; this engine module only
+   *  emits structured data and never formats it. Defaults to a no-op, so a
+   *  caller that wants diagnostics surfaced must provide a sink. */
+  emitIssue?: (msg: IssueMessage) => void;
 }
 
 export interface RunFillResult {
@@ -112,6 +119,7 @@ export class FillGatingError extends Error {
 
 export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFillResult> {
   const write = opts.write ?? ((s: string) => { process.stdout.write(s); });
+  const emitIssue = opts.emitIssue ?? ((): void => {});
   const projectRoot = path.dirname(graph.rootPath);
 
   // ── Step 1: Structural gate. A gating code aborts the whole fill. ──────────
@@ -120,14 +128,12 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
     (i) => i.code !== undefined && APPROVE_GATING_CODES.has(i.code),
   );
   if (gating.length > 0) {
-    const details = gating.map((i) => buildIssueMessage(i.messageData)).join('\n\n');
-    write(
-      buildIssueMessage({
-        what: 'yg check --approve aborted — configuration errors block tier resolution.',
-        why: details,
-        next: 'Fix the errors above, then re-run: yg check --approve',
-      }) + '\n\n',
-    );
+    emitIssue({
+      what: 'yg check --approve aborted — configuration errors block tier resolution.',
+      why: 'One or more configuration errors must be resolved before any reviewer tier can be selected; the offending errors are listed below.',
+      next: 'Fix the errors below, then re-run: yg check --approve',
+    });
+    for (const i of gating) emitIssue(i.messageData);
     throw new FillGatingError(
       gating.map((i) => ({ code: i.code!, what: i.messageData.what, why: i.messageData.why, next: i.messageData.next })),
     );
@@ -186,7 +192,7 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
   for (const nodePath of nodeSet) {
     const node = graph.nodes.get(nodePath);
     if (!node) continue;
-    const blocked = await logGateBlocks(graph, projectRoot, node, lock, write);
+    const blocked = await logGateBlocks(graph, projectRoot, node, lock, emitIssue);
     if (blocked) blockedNodes.add(nodePath);
   }
 
@@ -212,7 +218,7 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
     if (blockedNodes.has(pair.nodePath)) continue;
     const aspect = aspectById.get(pair.aspectId);
     if (!aspect) continue;
-    const outcome = await fillDetPair(graph, projectRoot, pair, aspect, write);
+    const outcome = await fillDetPair(graph, projectRoot, pair, aspect, emitIssue);
     if (outcome.kind === 'runtime-error') {
       runtimeErrors += 1;
       // No write — pair stays unverified, reported as aspect-check-runtime-error.
@@ -220,7 +226,7 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
     }
     // Real verdict — write the entry.
     await setEntry(pair.aspectId, pair.unitKey, outcome.entry);
-    write(`  [det] ${pair.aspectId} on ${pair.unitKey} — ${outcome.entry.verdict}\n`);
+    write(`  [det] ${pair.aspectId} on ${toPosixPath(pair.unitKey)} — ${outcome.entry.verdict}\n`);
     if (outcome.entry.verdict === 'refused' && pair.status === 'enforced') {
       detEnforcedRefusedNodes.add(pair.nodePath);
     }
@@ -234,13 +240,11 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
     }
   }
   for (const nodePath of llmSkippedByDetGate) {
-    write(
-      buildIssueMessage({
-        what: `LLM fills for node '${toPosixPath(nodePath)}' skipped — an enforced deterministic check already refused it.`,
-        why: 'A free deterministic check rejects this node, so paying the reviewer to read the same code would be wasted. Fix the deterministic violations first.',
-        next: `Fix the deterministic violations on '${toPosixPath(nodePath)}', then re-run: yg check --approve`,
-      }) + '\n',
-    );
+    emitIssue({
+      what: `LLM fills for node '${toPosixPath(nodePath)}' skipped — an enforced deterministic check already refused it.`,
+      why: 'A free deterministic check rejects this node, so paying the reviewer to read the same code would be wasted. Fix the deterministic violations first.',
+      next: `Fix the deterministic violations on '${toPosixPath(nodePath)}', then re-run: yg check --approve`,
+    });
   }
 
   // ── Step 6: LLM fills — grouped by resolved tier; one provider per tier. ───
@@ -267,13 +271,11 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
       // No reviewer configured OR tier resolution failed — infra disposition.
       infraFailures += 1;
       infraReport.push({ tier: aspect.reviewer.tier });
-      write(
-        buildIssueMessage({
-          what: `Cannot resolve a reviewer tier for aspect '${pair.aspectId}' on ${pair.unitKey} — left unverified.`,
-          why: tierResult && !tierResult.ok ? tierResult.error.why : 'No reviewer is configured for an effective non-draft LLM aspect.',
-          next: tierResult && !tierResult.ok ? tierResult.error.next : 'Add a reviewer tier in .yggdrasil/yg-config.yaml, or set the aspect to status: draft.',
-        }) + '\n',
-      );
+      emitIssue({
+        what: `Cannot resolve a reviewer tier for aspect '${pair.aspectId}' on ${toPosixPath(pair.unitKey)} — left unverified.`,
+        why: tierResult && !tierResult.ok ? tierResult.error.why : 'No reviewer is configured for an effective non-draft LLM aspect.',
+        next: tierResult && !tierResult.ok ? tierResult.error.next : 'Add a reviewer tier in .yggdrasil/yg-config.yaml, or set the aspect to status: draft.',
+      });
       continue;
     }
     const list = byTier.get(tierResult.tierName) ?? [];
@@ -305,13 +307,11 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
     if (!available) {
       infraFailures += group.length;
       infraReport.push({ provider: merged.provider, tier: tierName });
-      write(
-        buildIssueMessage({
-          what: `Reviewer provider '${merged.provider}' (tier '${tierName}') is unreachable — ${group.length} pair(s) left unverified.`,
-          why: 'The configured reviewer endpoint did not respond (availability check failed) — an infrastructure problem, not a code violation. No verdict was written.',
-          next: `Check the provider endpoint, network, and credentials, then re-run: yg check --approve`,
-        }) + '\n',
-      );
+      emitIssue({
+        what: `Reviewer provider '${merged.provider}' (tier '${tierName}') is unreachable — ${group.length} pair(s) left unverified.`,
+        why: 'The configured reviewer endpoint did not respond (availability check failed) — an infrastructure problem, not a code violation. No verdict was written.',
+        next: `Check the provider endpoint, network, and credentials, then re-run: yg check --approve`,
+      });
       continue;
     }
 
@@ -327,17 +327,15 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
       if (outcome.kind === 'infra') {
         infraFailures += 1;
         infraReport.push({ provider: merged.provider, tier: tierName });
-        write(
-          buildIssueMessage({
-            what: `Reviewer could not verify aspect '${item.pair.aspectId}' on ${item.pair.unitKey} — left unverified.`,
-            why: outcome.why,
-            next: `Resolve the provider/config problem, then re-run: yg check --approve`,
-          }) + '\n',
-        );
+        emitIssue({
+          what: `Reviewer could not verify aspect '${item.pair.aspectId}' on ${toPosixPath(item.pair.unitKey)} — left unverified.`,
+          why: outcome.why,
+          next: `Resolve the provider/config problem, then re-run: yg check --approve`,
+        });
         continue;
       }
       await setEntry(item.pair.aspectId, item.pair.unitKey, outcome.entry);
-      write(`  [llm] ${item.pair.aspectId} on ${item.pair.unitKey} — ${outcome.entry.verdict}\n`);
+      write(`  [llm] ${item.pair.aspectId} on ${toPosixPath(item.pair.unitKey)} — ${outcome.entry.verdict}\n`);
     }
   }
 
@@ -364,22 +362,18 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
     const providers = [...new Set(infraReport.map((r) => r.provider).filter(Boolean))].join(', ');
     const tiers = [...new Set(infraReport.map((r) => r.tier).filter(Boolean))].join(', ');
     const ids = [providers, tiers].filter((s) => s.length > 0).join(' / ');
-    write(
-      buildIssueMessage({
-        what: `${infraFailures} pairs failed on provider/config errors — re-running will not help until the connection/config is fixed${ids ? ` (${ids})` : ''}.`,
-        why: 'These pairs hit an infrastructure disposition (provider unreachable, tier unresolved, reference unreadable, or an unparseable response). No verdict was written; the pairs stay unverified and the run ends red.',
-        next: 'Fix the reviewer connection/configuration, then re-run: yg check --approve. To unblock CI without a reviewer, set the affected aspect(s) to status: draft.',
-      }) + '\n',
-    );
+    emitIssue({
+      what: `${infraFailures} pairs failed on provider/config errors — re-running will not help until the connection/config is fixed${ids ? ` (${ids})` : ''}.`,
+      why: 'These pairs hit an infrastructure disposition (provider unreachable, tier unresolved, reference unreadable, or an unparseable response). No verdict was written; the pairs stay unverified and the run ends red.',
+      next: 'Fix the reviewer connection/configuration, then re-run: yg check --approve. To unblock CI without a reviewer, set the affected aspect(s) to status: draft.',
+    });
   }
   if (runtimeErrors > 0) {
-    write(
-      buildIssueMessage({
-        what: `${runtimeErrors} deterministic check(s) failed to run at fill time — left unverified (aspect-check-runtime-error).`,
-        why: 'A check.mjs crashed, returned an invalid result, or observed a file that changed mid-run. No verdict was written.',
-        next: 'Fix the failing check.mjs, then re-run: yg check --approve.',
-      }) + '\n',
-    );
+    emitIssue({
+      what: `${runtimeErrors} deterministic check(s) failed to run at fill time — left unverified (aspect-check-runtime-error).`,
+      why: 'A check.mjs crashed, returned an invalid result, or observed a file that changed mid-run. No verdict was written.',
+      next: 'Fix the failing check.mjs, then re-run: yg check --approve.',
+    });
   }
 
   // Make sure all queued writes have flushed before the final read.
@@ -418,7 +412,19 @@ async function logGateBlocksNode(
   const logRequired = archType?.log_required ?? false;
   if (!logRequired) return false;
 
-  const currentFingerprint = await computeSourceFingerprint(graph, node.path);
+  let currentFingerprint: string | undefined;
+  try {
+    currentFingerprint = await computeSourceFingerprint(graph, node.path);
+  } catch (e) {
+    // An unreadable mapped file makes the fingerprint uncomputable. The node is
+    // already surfaced as a blocking file-unreadable error; block it here too so
+    // its pairs are never filled/closed over an unreadable source.
+    if (e instanceof FileUnreadableError) {
+      debugWrite(`[fill] logGate fingerprint for ${node.path}: ${e.message}`);
+      return true;
+    }
+    throw e;
+  }
   // A mapping-less node has a constant (undefined) fingerprint — the gate never
   // fires for it (§9). A node with a non-empty mapping but no stored fingerprint
   // is a first verification (drifted = true).
@@ -440,18 +446,16 @@ async function logGateBlocks(
   projectRoot: string,
   node: GraphNode,
   lock: LockFile,
-  write: (s: string) => void,
+  emitIssue: (msg: IssueMessage) => void,
 ): Promise<boolean> {
   const blocked = await logGateBlocksNode(graph, projectRoot, node, lock);
   if (!blocked) return false;
 
-  write(
-    buildIssueMessage({
-      what: `No fresh log entry for node '${toPosixPath(node.path)}' — mandatory before --approve when source changed.`,
-      why: `Node type '${node.meta.type}' has log_required: true — every source change needs a justification entry capturing WHY. This node's pairs are skipped this run; other nodes proceed.`,
-      next: `yg log add --node ${toPosixPath(node.path)} --reason '<justification>', then re-run: yg check --approve`,
-    }) + '\n',
-  );
+  emitIssue({
+    what: `No fresh log entry for node '${toPosixPath(node.path)}' — mandatory before --approve when source changed.`,
+    why: `Node type '${node.meta.type}' has log_required: true — every source change needs a justification entry capturing WHY. This node's pairs are skipped this run; other nodes proceed.`,
+    next: `yg log add --node ${toPosixPath(node.path)} --reason '<justification>', then re-run: yg check --approve`,
+  });
   return true;
 }
 
@@ -493,7 +497,7 @@ async function fillDetPair(
   projectRoot: string,
   pair: ExpectedPair,
   aspect: AspectDef,
-  write: (s: string) => void,
+  emitIssue: (msg: IssueMessage) => void,
 ): Promise<DetFillOutcome> {
   const aspectDirAbs = path.join(projectRoot, '.yggdrasil', 'aspects', aspect.id);
   // The subject is narrowed iff it covers FEWER files than the node's full
@@ -527,12 +531,12 @@ async function fillDetPair(
   let run = await runOnce();
   // A6 carry-over (1): a result with succeeded === false is an infra disposition.
   if (!run.ok) {
-    write(detRuntimeNotice(aspect.id, pair.unitKey, run.rendered));
+    emitIssue(detRuntimeNotice(aspect.id, pair.unitKey, run.rendered));
     return { kind: 'runtime-error' };
   }
   if (run.result.succeeded === false) {
     const reason = run.result.violations.map((v) => v.message).join('\n') || 'check runtime error';
-    write(detRuntimeNotice(aspect.id, pair.unitKey, reason));
+    emitIssue(detRuntimeNotice(aspect.id, pair.unitKey, reason));
     return { kind: 'runtime-error' };
   }
   // A6 carry-over (2): a tainted observation set must never be cached — a file
@@ -540,11 +544,11 @@ async function fillDetPair(
   if (run.result.observationsTainted) {
     run = await runOnce();
     if (!run.ok) {
-      write(detRuntimeNotice(aspect.id, pair.unitKey, run.rendered));
+      emitIssue(detRuntimeNotice(aspect.id, pair.unitKey, run.rendered));
       return { kind: 'runtime-error' };
     }
     if (run.result.succeeded === false || run.result.observationsTainted) {
-      write(detRuntimeNotice(aspect.id, pair.unitKey, 'observations remained inconsistent across two runs (a file changed mid-check)'));
+      emitIssue(detRuntimeNotice(aspect.id, pair.unitKey, 'observations remained inconsistent across two runs (a file changed mid-check)'));
       return { kind: 'runtime-error' };
     }
   }
@@ -584,12 +588,12 @@ async function fillDetPair(
   return { kind: 'verdict', entry };
 }
 
-function detRuntimeNotice(aspectId: string, unitKey: string, reason: string): string {
-  return buildIssueMessage({
-    what: `Deterministic check '${aspectId}' failed to run on ${unitKey} — left unverified (aspect-check-runtime-error).`,
+function detRuntimeNotice(aspectId: string, unitKey: string, reason: string): IssueMessage {
+  return {
+    what: `Deterministic check '${aspectId}' failed to run on ${toPosixPath(unitKey)} — left unverified (aspect-check-runtime-error).`,
     why: `The check.mjs crashed, returned an invalid result, or its observations changed mid-run: ${reason}`,
     next: `Fix the check.mjs, then re-run: yg check --approve`,
-  }) + '\n';
+  };
 }
 
 // ============================================================
@@ -750,7 +754,19 @@ async function applyPositiveClosure(
 
   let mutated = false;
   for (const [nodePath, node] of graph.nodes) {
-    const currentFingerprint = await computeSourceFingerprint(graph, nodePath);
+    let currentFingerprint: string | undefined;
+    try {
+      currentFingerprint = await computeSourceFingerprint(graph, nodePath);
+    } catch (e) {
+      // An unreadable mapped file makes the fingerprint uncomputable. The node is
+      // a blocking file-unreadable error this run — never close over it (advancing
+      // the fingerprint/log baseline here would be a stale-green of the §9 gate).
+      if (e instanceof FileUnreadableError) {
+        debugWrite(`[fill] closure fingerprint for ${nodePath}: ${e.message}`);
+        continue;
+      }
+      throw e;
+    }
     if (currentFingerprint === undefined) {
       // Mapping-less node: no source fingerprint to record. Its log baseline is
       // still recorded at closure if a log.md exists (spec §9).

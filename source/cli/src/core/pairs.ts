@@ -30,6 +30,7 @@ import type { IssueMessage } from '../model/validation.js';
 import { toPosixPath } from '../utils/posix.js';
 import { nodeUnit, fileUnit } from '../model/lock.js';
 import { expandMappingPaths, hashFile, hashString } from '../io/hash.js';
+import { probeUnreadable } from '../io/graph-fs.js';
 import { normalizeMappingPaths } from '../io/paths.js';
 import {
   computeEffectiveAspects,
@@ -89,6 +90,25 @@ export interface PairComputation {
 export interface ComputePairsOptions {
   /** When true, include draft aspects (used by GC universe). Default: false. */
   includeDraft?: boolean;
+}
+
+/**
+ * Thrown by computeSourceFingerprint when a mapped file cannot be read. A file
+ * written into a node's mapping MUST be readable; an unreadable one cannot be
+ * hashed, so the fingerprint is undefined rather than silently computed over a
+ * partial set. Fill-side callers catch this and decline to advance the node's
+ * fingerprint / log baseline (the node is already surfaced as a blocking
+ * file-unreadable error by computeExpectedPairs).
+ */
+export class FileUnreadableError extends Error {
+  constructor(
+    readonly nodePath: string,
+    readonly filePath: string,
+    readonly reason: string,
+  ) {
+    super(`mapped file '${filePath}' on node '${nodePath}' is unreadable: ${reason}`);
+    this.name = 'FileUnreadableError';
+  }
 }
 
 // ============================================================
@@ -221,6 +241,7 @@ export async function computeExpectedPairs(
 
   const pairs: ExpectedPair[] = [];
   const unreadableMap = new Map<string, UnreadableSubject>(); // key: nodePath+aspectId+path
+  const readabilityCache = new Map<string, string | null>(); // absPath → unreadable reason | null
 
   for (const [nodePath, node] of graph.nodes) {
     // Expand the node's mapped files (gitignore-aware, child carve-out applied).
@@ -310,6 +331,43 @@ export async function computeExpectedPairs(
         );
       }
 
+      // ── Step 2.5: an unreadable subject file blocks (file-unreadable) ────
+      // A file written into the mapping MUST be readable. Records each
+      // unreadable subject in `unreadable[]` (surfaced as a blocking error) and
+      // drops it from the subject set, so a deterministic check can never run
+      // over a silently-shrunk subject and pass vacuously, and the LLM subject
+      // never excludes a file the reviewer was meant to see. This covers ALL
+      // aspects; the scope.files branch above already excluded+recorded files
+      // whose content predicate could not read them, so they never reach here.
+      const readableSubjects: string[] = [];
+      for (const filePath of subjectFiles) {
+        const absPath = path.resolve(projectRoot, filePath);
+        let reason = readabilityCache.get(absPath);
+        if (reason === undefined) {
+          reason = await probeUnreadable(absPath);
+          readabilityCache.set(absPath, reason);
+        }
+        if (reason === null) {
+          readableSubjects.push(filePath);
+          continue;
+        }
+        const key = `${nodePath}\0${aspectId}\0${filePath}`;
+        if (!unreadableMap.has(key)) {
+          unreadableMap.set(key, {
+            nodePath,
+            aspectId,
+            path: filePath,
+            reason,
+            messageData: {
+              what: `Aspect '${aspectId}' on node '${toPosixPath(nodePath)}' could not read subject file '${toPosixPath(filePath)}': ${reason}.`,
+              why: 'A file written into the node mapping could not be read, so it cannot be reviewed. A silently dropped subject can turn an enforced rule into a vacuous pass (zero subject = no real review = implicit green).',
+              next: `Fix the file permissions or remove '${toPosixPath(filePath)}' from the node mapping, then re-run yg check.`,
+            },
+          });
+        }
+      }
+      subjectFiles = readableSubjects;
+
       // Empty subject set → vacuous pass, no pair.
       if (subjectFiles.length === 0) continue;
 
@@ -374,14 +432,14 @@ export async function computeExpectedPairs(
  * mapping and is used to detect source drift, not to reproduce subject sets.
  * Binary files are included by their raw bytes (not their extension).
  *
- * TOCTOU asymmetry: a mapped file deleted between enumeration (step 1) and
- * hashing (step 2) causes hashFile to throw, which propagates as a rejected
- * promise — fail-closed for drift state. This is intentional: a vanished file
- * must not silently produce the same fingerprint as the intact node, which
- * would hide drift. By contrast, computeExpectedPairs treats files that
- * disappear between enumeration and scope evaluation as silently absent (they
- * never enter the subject set); only content-filter read failures surface via
- * the explicit `unreadable` channel.
+ * Unreadable mapped file: a file that cannot be read (EACCES, vanished
+ * mid-run, …) throws FileUnreadableError rather than producing a partial
+ * fingerprint. A file written into the mapping MUST be readable; the
+ * fingerprint is undefined, not silently computed over the readable subset.
+ * Fill-side callers catch this and decline to advance the node's fingerprint /
+ * log baseline — the node is already a blocking file-unreadable error via
+ * computeExpectedPairs, so this only prevents a stale-green closure, never
+ * adds a new failure.
  */
 export async function computeSourceFingerprint(
   graph: Graph,
@@ -402,10 +460,14 @@ export async function computeSourceFingerprint(
 
   if (nodeFiles.length === 0) return undefined;
 
-  // Hash all files (binaries included by bytes).
+  // Hash all files (binaries included by bytes). An unreadable mapped file
+  // throws FileUnreadableError — the fingerprint is undefined, never a partial
+  // fold over the readable subset (a file in the mapping must be readable).
   const pairs = await Promise.all(
     nodeFiles.map(async (p) => {
       const absPath = path.resolve(projectRoot, p);
+      const reason = await probeUnreadable(absPath);
+      if (reason !== null) throw new FileUnreadableError(nodePath, toPosixPath(p), reason);
       const hash = await hashFile(absPath);
       return `${p}:${hash}`;
     }),

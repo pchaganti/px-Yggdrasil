@@ -1,0 +1,7 @@
+name: E2E Tests — Per-Node Unreadable Mapped File Fail-Closed
+type: test-suite
+description: "Subprocess E2E proving a plain per:node aspect (no content filter) fails closed on an unreadable mapped file: both yg check and yg check --approve exit 1 with a file-unreadable error (never a vacuous approve, never a raw EACCES crash), no approved verdict is recorded, and a re-check stays red — so a chmod 000 subject can never become a false green. Includes a mixed readable+unreadable variant and a privileged-runtime guard that skips under root."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-unreadable-pernode.test.ts

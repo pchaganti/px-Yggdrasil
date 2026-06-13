@@ -1,20 +1,25 @@
 // =============================================================================
-// SCOPE / FAIL-CLOSED — an unreadable subject file is NEVER silently dropped into
-// a vacuous green; it surfaces as a BLOCKING file-unreadable error end-to-end.
+// FAIL-CLOSED — an unreadable mapped file under a PLAIN per:node aspect (NO
+// content filter) is NEVER silently dropped into a vacuous green. It blocks with
+// a file-unreadable error on BOTH `yg check` and `yg check --approve`, records no
+// approved verdict, and stays red across re-checks.
 //
-// Covers the verdict-lock bounty E2E gap: a content-filter (scope.files {content})
-// aspect MUST read each mapped file to evaluate the filter. When a mapped file is
-// unreadable (chmod 0o000 → EACCES), the spawned `yg check` must exit 1 with a
-// file-unreadable error — never drop the file and pass vacuously. Two variants:
-//   (4a) one of two mapped files unreadable → the readable sibling still produces
-//        a pair, but the run is still RED on the unreadable one (blocks, not drops).
-//   (4b) the only mapped+matching file is unreadable → exit 1 with file-unreadable
-//        AND the lock records NO approved entry for that aspect (no false green).
+// This is the sibling of cli-scope-unreadable.test.ts: that suite covers a
+// content-filter (scope.files {content}) aspect, whose evaluator already reads
+// every mapped file and so already detected the unreadable one. A plain per:node
+// aspect (no scope.files) does NOT read its subject files during pair
+// computation, so an unreadable mapped file was previously:
+//   (1) silently dropped from the deterministic subject set → vacuous "approved",
+//   (2) crashed `yg check --approve` with a raw, unclassified EACCES, and
+//   (3) left a bogus approved entry so the NEXT plain check returned PASS (exit 0)
+//       over a node whose source the check never read — a false green.
+// The contract: a file written into a node's mapping MUST be readable; if it is
+// not, the run fails closed with file-unreadable. No dropping, no vacuous pass.
 //
 // CRITICAL privileged-runtime guard: under root (CI / container) chmod 0o000 is
 // ignored and readFileSync still succeeds — the EACCES branch is unreachable, so
 // the test would fail for the wrong reason. We probe readability after locking and
-// skip cleanly (restoring mode) when privileged, mirroring tests/unit/core/pairs.test.ts.
+// skip cleanly (restoring mode) when privileged, mirroring cli-scope-unreadable.
 //
 // HERMETIC: fresh mkdtemp copy of e2e-lifecycle per test, perms restored in finally
 // BEFORE rmSync so the tree is removable. No fixed ports, no clock/random asserts.
@@ -44,22 +49,22 @@ function run(args: string[], cwd: string): { all: string; status: number | null 
 }
 
 function copyFixture(label: string): string {
-  const dir = mkdtempSync(path.join(tmpdir(), `yg-unreadable-${label}-`));
+  const dir = mkdtempSync(path.join(tmpdir(), `yg-unreadable-pn-${label}-`));
   cpSync(FIXTURE, dir, { recursive: true });
   return dir;
 }
 
 /**
- * Reduce the service type to a single deterministic content-filter aspect
- * (marker-rule) so the only effective rule on the orders node is the one whose
- * scope.files {content} filter MUST read every mapped file. Broaden the service
- * `when` to src/** so a directory-mapped node classifies.
+ * Reduce the service type to a single PLAIN per:node deterministic aspect (no
+ * scope.files) whose check reads ctx.files. Broaden the service `when` to src/**
+ * so a directory-mapped node classifies. The aspect refuses if any file contains
+ * 'FORBIDDEN' — proving the check would react to content it could actually read.
  */
-function installMarkerRule(dir: string): void {
+function installPlainRule(dir: string): void {
   let arch = readFileSync(archPath(dir), 'utf-8');
   arch = arch.replace(
     '    aspects:\n      - no-todo-comments\n      - requires-named-export\n      - has-doc-comment\n',
-    '    aspects:\n      - marker-rule\n',
+    '    aspects:\n      - plain-rule\n',
   );
   arch = arch.replace('path: "src/services/**"', 'path: "src/**"');
   writeFileSync(archPath(dir), arch, 'utf-8');
@@ -68,22 +73,20 @@ function installMarkerRule(dir: string): void {
   rmSync(path.join(dir, '.yggdrasil', 'aspects', 'requires-named-export'), { recursive: true, force: true });
   rmSync(path.join(dir, '.yggdrasil', 'aspects', 'has-doc-comment'), { recursive: true, force: true });
 
-  const mr = path.join(dir, '.yggdrasil', 'aspects', 'marker-rule');
-  mkdirSync(mr, { recursive: true });
+  const pr = path.join(dir, '.yggdrasil', 'aspects', 'plain-rule');
+  mkdirSync(pr, { recursive: true });
   writeFileSync(
-    path.join(mr, 'yg-aspect.yaml'),
-    ['name: MarkerRule', 'description: Files carrying the @reviewed marker are reviewed.', 'reviewer:', '  type: deterministic', 'status: enforced',
-      'scope:', '  per: node', '  files:', '    content: "@reviewed"', ''].join('\n'),
+    path.join(pr, 'yg-aspect.yaml'),
+    ['name: PlainRule', 'description: No file may contain the FORBIDDEN token.', 'reviewer:', '  type: deterministic', 'status: enforced', ''].join('\n'),
     'utf-8',
   );
   writeFileSync(
-    path.join(mr, 'check.mjs'),
-    ['export function check(ctx) {', '  void ctx;', '  return [];', '}', ''].join('\n'),
+    path.join(pr, 'check.mjs'),
+    ['export function check(ctx) {', '  for (const f of ctx.files) {', "    if (f.content.includes('FORBIDDEN')) return [{ file: f.path, message: 'contains FORBIDDEN' }];", '  }', '  return [];', '}', ''].join('\n'),
     'utf-8',
   );
 
-  // Drop the unused payments node so only orders is in play — including its flow
-  // participation entry (else a flow-node-broken error blocks for an unrelated reason).
+  // Drop the unused payments node so only orders is in play (incl. flow entry).
   rmSync(path.join(dir, '.yggdrasil', 'model', 'services', 'payments'), { recursive: true, force: true });
   rmSync(path.join(dir, 'src', 'services', 'payments.ts'), { force: true });
   writeFileSync(flowPath(dir), readFileSync(flowPath(dir), 'utf-8').replace('  - services/payments\n', ''), 'utf-8');
@@ -99,46 +102,66 @@ function isPrivileged(absPath: string): boolean {
   }
 }
 
-describe.skipIf(!distExists)('CLI E2E — scope fail-closed: unreadable subject file blocks (file-unreadable)', () => {
+describe.skipIf(!distExists)('CLI E2E — per:node fail-closed: unreadable mapped file blocks (no content filter)', () => {
   // ===========================================================================
-  // (4a) ONE OF TWO MAPPED FILES UNREADABLE
-  //   Content-filter aspect over a 2-file node; one file chmod 0o000. The run
-  //   must be RED (exit 1) with a file-unreadable error — the readable sibling
-  //   does not rescue it into a vacuous pass.
+  // The sole mapped file under a plain per:node deterministic aspect is
+  // unreadable. The contract holds across the whole lifecycle:
+  //   - plain `yg check` → exit 1, file-unreadable (not a vacuous "unverified"/pass)
+  //   - `yg check --approve` → exit 1, file-unreadable (NOT a raw EACCES crash),
+  //     and NO approved verdict is written for the aspect
+  //   - a second plain `yg check` → still exit 1 (no false green from a stale entry)
   // ===========================================================================
 
-  it('(4a) an unreadable mapped file blocks the run (file-unreadable, exit 1) — never a vacuous pass', () => {
-    const dir = copyFixture('mixed');
+  it('the sole mapped file unreadable → file-unreadable on check AND --approve, no false green', () => {
+    const dir = copyFixture('sole');
     let lockedAbs: string | undefined;
     try {
-      installMarkerRule(dir);
+      installPlainRule(dir);
 
       const base = path.join(dir, 'src', 'services', 'orders');
       mkdirSync(base, { recursive: true });
       rmSync(path.join(dir, 'src', 'services', 'orders.ts'), { force: true });
-      writeFileSync(path.join(base, 'readable.ts'), '// @reviewed\nexport const r = 1;\n');
-      writeFileSync(path.join(base, 'locked.ts'), '// @reviewed\nexport const l = 1;\n');
+      writeFileSync(path.join(base, 'svc.ts'), 'export const s = 1;\n');
       writeFileSync(
         nodeYaml(dir, 'services/orders'),
         ['name: OrdersService', 'description: Orders.', 'type: service', 'mapping:', '  - src/services/orders', ''].join('\n'),
         'utf-8',
       );
 
-      lockedAbs = path.join(base, 'locked.ts');
+      lockedAbs = path.join(base, 'svc.ts');
       chmodSync(lockedAbs, 0o000);
       if (isPrivileged(lockedAbs)) {
         chmodSync(lockedAbs, 0o644);
         return; // privileged runtime — EACCES unreachable; skip cleanly.
       }
 
-      const check = run(['check'], dir);
-      // FAIL-CLOSED: blocking error, NOT a silent vacuous pass.
-      expect(check.status).toBe(1);
-      expect(check.all).toContain('file-unreadable');
-      expect(check.all).toContain('could not read subject file');
-      expect(check.all).toContain('src/services/orders/locked.ts');
-      // The error names the marker-rule aspect (the content filter that had to read it).
-      expect(check.all).toContain('marker-rule');
+      // (1) plain check — blocking file-unreadable, exit 1, never a vacuous pass.
+      const check1 = run(['check'], dir);
+      expect(check1.status).toBe(1);
+      expect(check1.all).toContain('file-unreadable');
+      expect(check1.all).toContain('could not read subject file');
+      expect(check1.all).toContain('src/services/orders/svc.ts');
+      expect(check1.all).toContain('plain-rule');
+
+      // (2) --approve — blocking file-unreadable, exit 1, NOT a raw EACCES crash,
+      // and no approved verdict recorded for the aspect (no false green seed).
+      const approve = run(['check', '--approve'], dir);
+      expect(approve.status).toBe(1);
+      expect(approve.all).toContain('file-unreadable');
+      expect(approve.all).not.toContain('Unexpected error');
+      expect(approve.all).not.toContain('This is a bug');
+      if (existsSync(lockPath(dir))) {
+        const lock = JSON.parse(readFileSync(lockPath(dir), 'utf-8'));
+        const entry = lock.verdicts?.['plain-rule']?.['node:services/orders'];
+        if (entry) {
+          expect(entry.verdict).not.toBe('approved');
+        }
+      }
+
+      // (3) a second plain check stays RED — no stale approved entry turns green.
+      const check2 = run(['check'], dir);
+      expect(check2.status).toBe(1);
+      expect(check2.all).toContain('file-unreadable');
     } finally {
       if (lockedAbs) {
         try { chmodSync(lockedAbs, 0o644); } catch { /* already restored / privileged */ }
@@ -148,30 +171,22 @@ describe.skipIf(!distExists)('CLI E2E — scope fail-closed: unreadable subject 
   });
 
   // ===========================================================================
-  // (4b) THE ONLY MATCHING FILE IS UNREADABLE
-  //   Single mapped+matching file chmod 0o000 → plain `yg check` exits 1 with
-  //   file-unreadable (no vacuous pass) AND the lock records NO approved verdict
-  //   for the aspect (no false green over a dropped subject).
-  //
-  //   Both the PLAIN `yg check` path (core/check.ts surfaces
-  //   verification.unreadable as a blocking issue) AND the `yg check --approve`
-  //   (fill) path block cleanly: computeExpectedPairs excludes the unreadable
-  //   subject (so no pair is filled into a vacuous approve) and
-  //   computeSourceFingerprint throws a typed FileUnreadableError that positive
-  //   closure catches (no stale-green close), instead of the former raw EACCES
-  //   crash. The lock records NO approved verdict for the aspect.
+  // MIXED node: one readable + one unreadable file under a plain per:node aspect.
+  // The readable sibling does not rescue the run into a vacuous pass — the
+  // unreadable file still blocks with file-unreadable on both check and --approve.
   // ===========================================================================
 
-  it('(4b) the sole matching file unreadable → check AND --approve: file-unreadable, exit 1, NO approved verdict', () => {
-    const dir = copyFixture('sole');
+  it('one of two mapped files unreadable → still blocks (file-unreadable) on check and --approve', () => {
+    const dir = copyFixture('mixed');
     let lockedAbs: string | undefined;
     try {
-      installMarkerRule(dir);
+      installPlainRule(dir);
 
       const base = path.join(dir, 'src', 'services', 'orders');
       mkdirSync(base, { recursive: true });
       rmSync(path.join(dir, 'src', 'services', 'orders.ts'), { force: true });
-      writeFileSync(path.join(base, 'locked.ts'), '// @reviewed\nexport const l = 1;\n');
+      writeFileSync(path.join(base, 'readable.ts'), 'export const r = 1;\n');
+      writeFileSync(path.join(base, 'locked.ts'), 'export const l = 1;\n');
       writeFileSync(
         nodeYaml(dir, 'services/orders'),
         ['name: OrdersService', 'description: Orders.', 'type: service', 'mapping:', '  - src/services/orders', ''].join('\n'),
@@ -185,28 +200,15 @@ describe.skipIf(!distExists)('CLI E2E — scope fail-closed: unreadable subject 
         return; // privileged runtime — skip cleanly.
       }
 
-      // Plain check: blocking file-unreadable error, exit 1 — never a vacuous pass.
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
       expect(check.all).toContain('file-unreadable');
-      expect(check.all).toContain('could not read subject file');
       expect(check.all).toContain('src/services/orders/locked.ts');
 
-      // --approve blocks cleanly too (no raw EACCES crash) and writes no verdict.
       const approve = run(['check', '--approve'], dir);
       expect(approve.status).toBe(1);
       expect(approve.all).toContain('file-unreadable');
       expect(approve.all).not.toContain('Unexpected error');
-      expect(approve.all).not.toContain('This is a bug');
-
-      // No false green: no approved marker-rule verdict was written for this node.
-      if (existsSync(lockPath(dir))) {
-        const lock = JSON.parse(readFileSync(lockPath(dir), 'utf-8'));
-        const entry = lock.verdicts?.['marker-rule']?.['node:services/orders'];
-        if (entry) {
-          expect(entry.verdict).not.toBe('approved');
-        }
-      }
     } finally {
       if (lockedAbs) {
         try { chmodSync(lockedAbs, 0o644); } catch { /* already restored / privileged */ }

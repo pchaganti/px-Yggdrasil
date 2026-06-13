@@ -7,6 +7,7 @@ import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { runCheck } from '../core/check.js';
 import type { CheckIssue, CheckResult } from '../core/check.js';
 import { runFill, FillGatingError } from '../core/fill.js';
+import { buildIssueMessage } from '../formatters/message-builder.js';
 import { STRUCTURAL_CODES, COMPLETENESS_CODES } from '../core/check-codes.js';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
@@ -45,7 +46,12 @@ export function registerCheckCommand(program: Command): void {
         // reviewer or a deterministic check.
         if (opts.approve) {
           try {
-            const fill = await runFill(graph, { gitTrackedFiles: gitFiles });
+            // The CLI layer owns formatting: fill.ts (an engine module) emits
+            // structured diagnostics; we render them here via buildIssueMessage.
+            const fill = await runFill(graph, {
+              gitTrackedFiles: gitFiles,
+              emitIssue: (m) => { process.stdout.write(buildIssueMessage(m) + '\n'); },
+            });
             process.stdout.write(formatOutput(fill.checkResult));
             const hasErrors = fill.checkResult.issues.some(i => i.severity === 'error');
             if (hasErrors) await exitAfterFlush(1);

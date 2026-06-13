@@ -11,7 +11,7 @@ import { findOwner } from './owner.js';
 import { normalizeMappingPaths, projectRootFromGraph, resolveFileArg } from '../io/paths.js';
 import { expandMappingPaths } from '../io/hash.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
-import { computeExpectedPairs, computeSourceFingerprint } from '../core/pairs.js';
+import { computeExpectedPairs, computeSourceFingerprint, FileUnreadableError } from '../core/pairs.js';
 import { readLock } from '../io/lock-store.js';
 import { readLogContent, hasFreshLogEntry } from '../core/log/log-gate.js';
 import type { NodeContextData, NodeAspectSubjects, NodeLogState } from '../formatters/context-node.js';
@@ -122,7 +122,16 @@ async function attachLockObservability(
   let required = false;
   let freshPresent = false;
   if (logRequiredType) {
-    const currentFingerprint = await computeSourceFingerprint(graph, nodePath);
+    let currentFingerprint: string | undefined;
+    try {
+      currentFingerprint = await computeSourceFingerprint(graph, nodePath);
+    } catch (e) {
+      // An unreadable mapped file makes the fingerprint uncomputable; gate state
+      // cannot be honestly computed. Leave it false — the file-unreadable error
+      // surfaces in yg check, which is where the user acts on it.
+      if (!(e instanceof FileUnreadableError)) throw e;
+      debugWrite(`[build-context] source fingerprint for ${nodePath}: ${e.message}`);
+    }
     // Mapping-less nodes have an undefined fingerprint — the gate never fires.
     if (currentFingerprint !== undefined) {
       const storedFingerprint = lock.nodes[nodePath]?.source;
