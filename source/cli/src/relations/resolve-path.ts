@@ -6,6 +6,7 @@ import { resolveGoImport, type GoResolveDeps } from './extractors/go-resolve.js'
 import { resolveJavaFqn, type JavaResolveDeps } from './extractors/java-resolve.js';
 import { resolvePhpFqn, parsePsr4, type PhpResolveDeps } from './extractors/php-resolve.js';
 import { resolveRustPath, type RustResolveDeps } from './extractors/rust-resolve.js';
+import { resolveIncludePath } from './extractors/include-resolve.js';
 
 /** Production resolvePathToFile: dispatches by language to the per-language path resolver.
  *  Checks existence against the project's files on disk. Symbol-resolved languages (and
@@ -34,6 +35,12 @@ export function makeResolvePathToFile(projectRoot: string): (specifier: string, 
     }
     if (language === 'rust') {
       return resolveRustPath(specifier, fromFile, exists, rustDeps);
+    }
+    if (language === 'c' || language === 'cpp') {
+      // C and C++ share ONE include resolver: a quoted `#include "header"` resolves
+      // relative to the including file, then against common include roots. The header's
+      // owning node is the dependency target (header/impl share a node).
+      return resolveIncludePath(specifier, fromFile, exists);
     }
     return undefined;
   };

@@ -17,4 +17,8 @@ describe('extractor registry', () => {
   it('resolves the Rust extractor (Phase 7, crate module-tree resolved)', () => {
     expect(extractorForLanguage('rust')).toBeDefined();
   });
+  it('resolves the C extractor for c, and C++ for cpp (quoted #include resolved)', () => {
+    expect(extractorForLanguage('c')).toBeDefined();
+    expect(extractorForLanguage('cpp')).toBeDefined();
+  });
 });
