@@ -1,4 +1,4 @@
-export const LOCK_FORMAT_VERSION = 1;
+export const LOCK_FORMAT_VERSION = 2;
 export const LOCK_FILE_NAME = 'yg-lock.json';
 
 export type Verdict = 'approved' | 'refused';
@@ -22,10 +22,22 @@ export interface LockNodeEntry {
   log?: { last_entry_datetime: string; prefix_hash: string };
 }
 
+/** A relation-conformance verdict for one node. Lives in its own lock section,
+ *  NOT under `verdicts` (which is aspect-keyed). */
+export interface RelationVerdict {
+  verdict: Verdict;                 // 'approved' | 'refused'
+  /** Self-contained fingerprint hash (see relations/fingerprint.ts). */
+  fingerprint: string;
+  /** refused only: rendered list of undeclared dependencies (one line each). */
+  reason?: string;
+}
+
 export interface LockFile {
   version: number; // LOCK_FORMAT_VERSION
   verdicts: Record<string, Record<string, VerdictEntry>>; // aspectId → unitKey → entry
   nodes: Record<string, LockNodeEntry>; // nodePath → per-node facts
+  /** node unit key → relation verdict. */
+  relation_verdicts: Record<string, RelationVerdict>;
 }
 
 /** 'node:<model-relative path>' | 'file:<repo-relative POSIX path>' */
