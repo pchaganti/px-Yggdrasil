@@ -27,6 +27,7 @@ import {
 import { verifyRelationConformance } from '../relations/verify.js';
 import { extractorForLanguage } from '../relations/extractors/registry.js';
 import { relationRefusedMessage, relationUnverifiedMessage } from '../relations/messages.js';
+import { makeResolvePathToFile } from '../relations/resolve-path.js';
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -429,7 +430,7 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
     // Relation-conformance re-validation (parse-free). A refused/unverified node
     // blocks with a relation-undeclared-dependency error.
     const relStates = await verifyRelationConformance(graph, lock, {
-      resolvePathToFile: () => undefined,   // Phase 0: no extractors → no path hints. Phase 1 injects the real resolver.
+      resolvePathToFile: makeResolvePathToFile(projectRoot),
       extractorFor: extractorForLanguage,
     });
     for (const s of relStates) {

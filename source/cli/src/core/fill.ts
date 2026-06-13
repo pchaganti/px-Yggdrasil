@@ -43,6 +43,7 @@ import { LOCK_FORMAT_VERSION, nodeUnit } from '../model/lock.js';
 import { runRelationPass } from '../relations/pass.js';
 import { extractorForLanguage } from '../relations/extractors/registry.js';
 import { relationIndexDir } from '../relations/index-dir.js';
+import { makeResolvePathToFile } from '../relations/resolve-path.js';
 import type { CheckResult } from './check.js';
 import { runCheck } from './check.js';
 import { readLock, writeLock } from '../io/lock-store.js';
@@ -191,12 +192,12 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
   // ── Relation-conformance pass (sequential, full graph, before the pool). ──
   // Runs once over the whole graph BEFORE the parallel pair pool — never as a
   // parallel pair — so its single shared symbol-index build and the serialized
-  // lock writer never race the pool's per-pair writes. Phase 0: the extractor
-  // registry is empty, so no dependencies are detected and every mapped node
-  // gets an `approved` verdict.
+  // lock writer never race the pool's per-pair writes. TS/JS extraction is live:
+  // path hints are resolved against the project's files on disk via the real
+  // per-language resolver, so cross-node imports become declared-relation checks.
   const relResult = await runRelationPass(graph, projectRoot, {
     extractorFor: extractorForLanguage,
-    resolvePathToFile: () => undefined, // Phase 0: no extractors registered → no path hints → never called. Phase 1 injects the real per-language resolver.
+    resolvePathToFile: makeResolvePathToFile(projectRoot),
     symbolIndexDir: relationIndexDir(graph.rootPath),
   });
   for (const [nodeId, v] of relResult.verdicts) {
