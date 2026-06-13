@@ -4,6 +4,7 @@ import { resolveTsPath } from './extractors/typescript-resolve.js';
 import { resolvePythonModule } from './extractors/python-resolve.js';
 import { resolveGoImport, type GoResolveDeps } from './extractors/go-resolve.js';
 import { resolveJavaFqn, type JavaResolveDeps } from './extractors/java-resolve.js';
+import { resolvePhpFqn, parsePsr4, type PhpResolveDeps } from './extractors/php-resolve.js';
 
 /** Production resolvePathToFile: dispatches by language to the per-language path resolver.
  *  Checks existence against the project's files on disk. Symbol-resolved languages (and
@@ -12,6 +13,7 @@ export function makeResolvePathToFile(projectRoot: string): (specifier: string, 
   const exists = (repoRelPosix: string): boolean => existsSync(path.resolve(projectRoot, repoRelPosix));
   const goDeps = makeGoResolveDeps(projectRoot);
   const javaDeps = makeJavaResolveDeps(projectRoot, exists);
+  const phpDeps = makePhpResolveDeps(projectRoot, exists);
   return (specifier, fromFile, language) => {
     if (language === 'typescript' || language === 'tsx' || language === 'javascript') {
       return resolveTsPath(specifier, fromFile, exists);
@@ -24,6 +26,9 @@ export function makeResolvePathToFile(projectRoot: string): (specifier: string, 
     }
     if (language === 'java') {
       return resolveJavaFqn(specifier, fromFile, javaDeps);
+    }
+    if (language === 'php') {
+      return resolvePhpFqn(specifier, fromFile, phpDeps);
     }
     return undefined;
   };
@@ -144,6 +149,66 @@ function makeJavaResolveDeps(
     return out;
   }
   return { exists, javaFilesIn };
+}
+
+/**
+ * Build the disk-backed PHP resolution capabilities for a project root. PHP maps a
+ * class FQN to a file through composer's PSR-4 autoloading, so the only extra
+ * capability beyond `exists` is producing the PSR-4 prefix→directory map in effect for
+ * an importing file. That map comes from the NEAREST ancestor composer.json (a monorepo
+ * may have several); its `autoload.psr-4` / `autoload-dev.psr-4` are parsed once per
+ * composer.json directory and CACHED — composer.json is stable across a single factory
+ * instance, so each is read at most once.
+ *
+ * No composer.json found (or an unreadable / classmap-only one) yields an empty map,
+ * which the resolver treats as silence — it never guesses a source root.
+ *
+ * NOTE: makeResolvePathToFile is also used by verify.ts (parse-free re-validation);
+ * reading composer.json there is fine — it reads a file, it does not parse source.
+ */
+function makePhpResolveDeps(
+  projectRoot: string,
+  exists: (repoRelPosix: string) => boolean,
+): PhpResolveDeps {
+  // Cache: composer.json directory (repo-rel POSIX, '' = root) → parsed PSR-4 map.
+  const psr4ByDir = new Map<string, Map<string, string[]>>();
+
+  /** Parse the PSR-4 map from a composer.json at the given repo-rel dir, or empty. */
+  function readPsr4(repoRelDir: string): Map<string, string[]> {
+    const abs = path.join(projectRoot, repoRelDir, 'composer.json');
+    let text: string;
+    try {
+      text = readFileSync(abs, 'utf-8');
+    } catch {
+      return new Map();
+    }
+    return parsePsr4(text, repoRelDir);
+  }
+
+  /** Find the nearest ancestor directory of `fromFile` that has a composer.json, then
+   *  return its parsed PSR-4 map. Walks up to (and including) the project root. The
+   *  FIRST composer.json found wins — nested packages own their files. */
+  function psr4For(fromFile: string): ReadonlyMap<string, readonly string[]> {
+    let dir = path.posix.dirname(toPosix(fromFile));
+    if (dir === '.') dir = '';
+    for (;;) {
+      if (psr4ByDir.has(dir)) {
+        const cached = psr4ByDir.get(dir);
+        if (cached !== undefined && cached.size > 0) return cached;
+      } else if (existsSync(path.join(projectRoot, dir, 'composer.json'))) {
+        const map = readPsr4(dir);
+        psr4ByDir.set(dir, map);
+        if (map.size > 0) return map;
+      } else {
+        psr4ByDir.set(dir, new Map());
+      }
+      if (dir === '') return new Map(); // reached the root without a usable composer.json
+      const parent = path.posix.dirname(dir);
+      dir = parent === '.' ? '' : parent;
+    }
+  }
+
+  return { psr4For, exists };
 }
 
 function toPosix(p: string): string {
