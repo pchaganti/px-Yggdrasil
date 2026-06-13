@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { collectDescendants } from '../../../src/cli/impact.js';
+import { collectDescendants } from '../../../src/cli/impact-handlers.js';
 import {
   collectReverseDependents,
   buildTransitiveChains,

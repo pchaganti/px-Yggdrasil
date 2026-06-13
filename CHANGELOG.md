@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Split `impact.ts` into a command-support sibling with no behavior change: it now keeps only Commander registration and the inline node-impact path, while its aspect/flow/type blast-radius handlers and aspect re-fill cost helpers move to a new `impact-handlers.ts` (a pure relocation imported back into the command file). Smaller command files carry fewer AI-judged rules, so editing them re-reviews less.
 - Converted the `schema-bump-bookkeeping` and `top-level-error-handler` aspects from AI-reviewed to deterministic checks (mechanical, free, no flakiness).
 - **New deterministic `no-buildissuemessage-in-engine` layering check.** The engine/CLI rendering boundary — engine-layer modules (`core/`, `io/`, `ast/`) return structured `{what,why,next}` data and the CLI command layer renders it via `buildIssueMessage` — was previously enforced only as one clause of the AI-judged `what-why-next` aspect, where it was flaky, billable, and prone to a lenient pass. The mechanical half is now a deterministic AST check that flags any call to `buildIssueMessage` in an engine-layer file (self-scoped by path, so command-layer files that legitimately render are never flagged). It runs locally for free during `yg check --approve`, cascades onto every engine node, and is reliable; the AI `what-why-next` aspect is left unchanged as a backstop for the non-mechanical rules.
 
