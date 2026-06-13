@@ -33,9 +33,11 @@ import { fileURLToPath } from 'node:url';
 // HERMETIC: every test copies the committed e2e-lifecycle fixture into a fresh
 // mkdtemp, strips the LLM aspect (`has-doc-comment`), points the reviewer at a
 // guaranteed-dead loopback endpoint, mutates ONLY that copy, and rmSync's in a
-// finally. Every aspect exercised is a deterministic reviewer (zero LLM cost).
-// No network, no clock, no randomness in any assertion. Harness duplicated from
-// cli-deterministic-lifecycle.test.ts so the file is self-contained.
+// finally. Every aspect exercised is a deterministic reviewer (zero LLM cost),
+// so `yg check --approve` (repo-wide fill) makes no LLM call and plain spawnSync
+// is safe. No network, no clock, no randomness in any assertion. Harness
+// duplicated from cli-deterministic-lifecycle.test.ts so the file is
+// self-contained.
 // ---------------------------------------------------------------------------
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -244,19 +246,21 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       expect(ctx.stdout).toContain(EFFECTIVE('enforced'));
       expect(ctx.stdout).toContain("Source: inherited from parent 'services'");
 
-      // Enforcement follows: a clean approve passes, a BANNED token refuses.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      // Enforcement follows: a clean fill passes, a BANNED token refuses.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       plantBanned(ordersFile(dir));
-      const refused = run(['approve', '--node', 'services/orders'], dir);
+      const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.all).toContain('no-banned-word');
-      expect(refused.all).toContain('NOT SATISFIED');
+      expect(refused.all).toContain(
+        'is refused on node:services/orders by a deterministic check',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('A2: ch2 attach with `when: node.type=module` (FALSE on the service child) — aspect excluded, identical BANNED approves clean', () => {
+  it('A2: ch2 attach with `when: node.type=module` (FALSE on the service child) — aspect excluded, identical BANNED fills clean', () => {
     const dir = hermeticFixture('ch2-when-exclude');
     try {
       authorBannedAspect(dir, 'enforced');
@@ -273,13 +277,13 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       // Silently skipped: absent from the effective list entirely.
       expect(ctx.stdout).not.toContain('no-banned-word');
 
-      // The SAME BANNED token that refused in A1 now approves clean — the gate is
-      // real, not cosmetic.
+      // The SAME BANNED token that refused in A1 now fills clean — the gate is
+      // real, not cosmetic. No no-banned-word pair is filled or refused.
       plantBanned(ordersFile(dir));
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/orders');
-      expect(approve.all).not.toContain('no-banned-word');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('yg check: PASS');
+      expect(fill.all).not.toContain('no-banned-word');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -329,12 +333,14 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       expect(after.stdout).toContain("Source: inherited from parent 'services'");
 
       // And it now enforces: a BANNED token refuses.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       plantBanned(ordersFile(dir));
-      const refused = run(['approve', '--node', 'services/orders'], dir);
+      const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.all).toContain('no-banned-word');
-      expect(refused.all).toContain('NOT SATISFIED');
+      expect(refused.all).toContain(
+        'is refused on node:services/orders by a deterministic check',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -365,12 +371,14 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       expect(ctx.stdout).toContain(EFFECTIVE('enforced'));
       expect(ctx.stdout).toContain('Source: inherited from parent (type: module)');
 
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       plantBanned(ordersFile(dir));
-      const refused = run(['approve', '--node', 'services/orders'], dir);
+      const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.all).toContain('no-banned-word');
-      expect(refused.all).toContain('NOT SATISFIED');
+      expect(refused.all).toContain(
+        'is refused on node:services/orders by a deterministic check',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -443,12 +451,14 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
 
       // Enforced via the implies edge: a BANNED token refuses, while the implier
       // itself (no TODO present) is satisfied.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       plantBanned(ordersFile(dir));
-      const refused = run(['approve', '--node', 'services/orders'], dir);
+      const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.stdout).toContain('no-banned-word');
-      expect(refused.stdout).toContain('NOT SATISFIED');
+      expect(refused.stdout).toContain(
+        'is refused on node:services/orders by a deterministic check',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -484,13 +494,15 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       expect(ctx.stdout).toContain('Implies: no-banned-word');
       expect(ctx.stdout).not.toContain(EFFECTIVE('enforced'));
 
-      // A BANNED token approves clean — the implied aspect was filtered out.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      // A BANNED token fills clean — the implied aspect was filtered out.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       plantBanned(ordersFile(dir));
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/orders');
-      expect(approve.stdout).not.toContain('no-banned-word — NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('yg check: PASS');
+      expect(fill.stdout).not.toContain(
+        'no-banned-word\' is refused',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -555,21 +567,25 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       expect(onPayments.stdout).not.toContain('no-banned-word');
 
       // Enforcement follows applicability: the SAME BANNED token refuses on
-      // orders, passes on payments.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      // orders, passes on payments. A clean repo-wide fill records both
+      // baselines; planting BANNED in BOTH files then refuses ONLY orders (where
+      // the flow aspect is effective) — payments, gated out, holds no
+      // no-banned-word pair at all.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       plantBanned(ordersFile(dir));
       plantBanned(paymentsFile(dir));
 
-      const refused = run(['approve', '--node', 'services/orders'], dir);
-      expect(refused.status).toBe(1);
-      expect(refused.stdout).toContain('no-banned-word');
-      expect(refused.stdout).toContain('NOT SATISFIED');
-
-      const passed = run(['approve', '--node', 'services/payments'], dir);
-      expect(passed.status).toBe(0);
-      expect(passed.stdout).toContain('Approved: services/payments');
-      expect(passed.stdout).not.toContain('no-banned-word');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      expect(fill.stdout).toContain('no-banned-word');
+      expect(fill.stdout).toContain(
+        'is refused on node:services/orders by a deterministic check',
+      );
+      // payments is gated out of the flow aspect — no refusal names it for
+      // no-banned-word (the only no-banned-word refusal is orders').
+      expect(fill.stdout).not.toContain(
+        'no-banned-word\' is refused on node:services/payments',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -602,12 +618,14 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       expect(both.stdout).toContain(EFFECTIVE('enforced'));
 
       // It genuinely enforces (the surviving ch4 channel is enforced).
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       plantBanned(ordersFile(dir));
-      const refused = run(['approve', '--node', 'services/orders'], dir);
+      const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.all).toContain('no-banned-word');
-      expect(refused.all).toContain('NOT SATISFIED');
+      expect(refused.all).toContain(
+        'is refused on node:services/orders by a deterministic check',
+      );
 
       // Drop the ch4 default — now ONLY the gated-FALSE ch2 path remains, so the
       // aspect disappears from the effective set entirely. Proves ch4 was the
@@ -651,13 +669,15 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       const check = run(['check'], dir);
       expect(check.all).not.toContain('aspect-status-downgrade');
 
-      // Enforced at approve: clean passes, BANNED refuses (exit 1).
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      // Enforced at fill: clean passes, BANNED refuses (exit 1).
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       plantBanned(ordersFile(dir));
-      const refused = run(['approve', '--node', 'services/orders'], dir);
+      const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.stdout).toContain('no-banned-word');
-      expect(refused.stdout).toContain('NOT SATISFIED');
+      expect(refused.stdout).toContain(
+        'is refused on node:services/orders by a deterministic check',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

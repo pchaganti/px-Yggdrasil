@@ -21,9 +21,8 @@ const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle');
 const distExists = existsSync(BIN_PATH);
 
 // A dead loopback endpoint. Pointing the reviewer at this makes the LLM aspect
-// path unreachable, so `yg approve` never produces an environment-dependent LLM
-// verdict — port 1 never has a listener, on ANY machine, with no reliance on a
-// real endpoint being present or absent. Used by killReviewer().
+// path unreachable — port 1 never has a listener, on ANY machine, with no
+// reliance on a real endpoint being present or absent. Used by killReviewer().
 const DEAD_ENDPOINT = 'http://127.0.0.1:1';
 
 function run(
@@ -53,7 +52,7 @@ function copyFixture(label: string): string {
 
 /**
  * Copy the fixture and strip the LLM aspect (`has-doc-comment`) so the node's
- * effective aspects are purely deterministic. This makes the approve/check
+ * effective aspects are purely deterministic. This makes the check/fill
  * lifecycle hermetic: no network, no LLM verdict, fully reproducible — the
  * `no-todo-comments` (enforced), `requires-named-export` (advisory) and
  * `wip-rule` (draft) deterministic aspects drive every outcome.
@@ -76,9 +75,7 @@ function deterministicFixture(label: string): string {
 }
 
 /**
- * Repoint the reviewer endpoint at the dead loopback address. Rewrites whatever
- * `endpoint:` the fixture config carries to the guaranteed-dead port-1 address,
- * so the LLM reviewer is ALWAYS unreachable regardless of the machine. The
+ * Repoint the reviewer endpoint at the dead loopback address. The
  * deterministicFixture already removes the only LLM aspect, but killing the
  * endpoint as well guarantees no test in this suite can reach out over the
  * network even if a future fixture edit reintroduces an LLM aspect.
@@ -111,37 +108,51 @@ function hermeticFixture(label: string): string {
 // Status-flip drift/render semantics + suppress edge cases, exercised through
 // the REAL built binary against fresh per-test fixture copies. Fully hermetic:
 // no LLM, no network, no wall-clock or random sources in any assertion.
+//
+// Verdict-lock model: `yg approve` is gone — verification happens via
+// `yg check --approve` (fill), state lives in `.yggdrasil/yg-lock.json`, and the
+// states are verified/unverified/refused. A newly-effective non-draft pair with
+// no recorded verdict renders as `unverified` (error if enforced, warning if
+// advisory); `yg aspect-test` runs a check diagnostically without writing the
+// lock and reports per-line violations (used to pin which TODO a single-line
+// suppress waives).
 // ---------------------------------------------------------------------------
 
 describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + suppress edge cases', () => {
-  // --- 1. draft -> advisory makes the aspect newly active (no baseline -> drift) ---
+  // --- 1. draft -> enforced makes the aspect newly active (no verdict -> unverified) ---
+  //
+  // Re-anchored from the old draft->advisory case: in the verdict-lock model an
+  // advisory unverified pair is a non-blocking WARNING (exit 0). To preserve the
+  // original "newly-active BLOCKS check, then approve clears it" intent we
+  // promote to ENFORCED, whose newly-effective unverified pair is a blocking
+  // error (exit 1) that a fill clears.
 
-  it('1: flipping wip-rule draft->advisory makes check fail (newly-active, no baseline); approve clears it', () => {
+  it('1: flipping wip-rule draft->enforced makes check fail (unverified, no verdict); a fill clears it', () => {
     const dir = hermeticFixture('newly-active');
     try {
-      // Approve both nodes while wip-rule is still DRAFT (dormant, no verdict).
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      // Fill both nodes while wip-rule is still DRAFT (dormant, no verdict).
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       expect(run(['check'], dir).status).toBe(0);
 
-      // Promote wip-rule draft -> advisory. It is an OWN aspect of services/orders,
-      // so it becomes effective there with no reviewer baseline yet.
+      // Promote wip-rule draft -> enforced. It is an OWN aspect of services/orders,
+      // so it becomes effective there with no recorded verdict yet.
       const flipped = readFileSync(aspectYaml(dir, 'wip-rule'), 'utf-8').replace(
         /^status: draft$/m,
-        'status: advisory',
+        'status: enforced',
       );
       writeFileSync(aspectYaml(dir, 'wip-rule'), flipped, 'utf-8');
 
       const drifted = run(['check'], dir);
       expect(drifted.status).toBe(1);
-      // The newly-active aspect has no baseline — check reports it explicitly.
-      expect(drifted.stdout).toContain('aspect-newly-active');
+      // The newly-active aspect has no verdict — check reports it explicitly.
+      expect(drifted.stdout).toContain('unverified');
+      expect(drifted.stdout).toContain('wip-rule');
       expect(drifted.stdout).toContain('services/orders');
 
-      // Re-approving the node records the missing verdict and clears the drift.
-      const reapprove = run(['approve', '--node', 'services/orders'], dir);
-      expect(reapprove.status).toBe(0);
-      expect(reapprove.stdout).toContain('Approved: services/orders');
+      // A fill records the missing verdict and clears the drift.
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('[det] wip-rule on node:services/orders — approved');
 
       expect(run(['check'], dir).status).toBe(0);
     } finally {
@@ -151,13 +162,12 @@ describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + s
 
   // --- 2. advisory <-> enforced is a render flip, not a source change ---
 
-  it('2: flipping no-todo-comments enforced->advisory (check.mjs unchanged) re-approves clean; check passes', () => {
+  it('2: flipping no-todo-comments enforced->advisory (check.mjs unchanged) carries the verdict forward — check passes, re-fill is a no-op', () => {
     const dir = hermeticFixture('render-flip');
     try {
-      // Approve both nodes with no-todo-comments at its default ENFORCED status.
+      // Fill both nodes with no-todo-comments at its default ENFORCED status.
       // The source is clean (no TODO), so both approve.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       expect(run(['check'], dir).status).toBe(0);
 
       // Flip the aspect status ONLY — check.mjs is left byte-for-byte unchanged.
@@ -166,20 +176,19 @@ describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + s
       expect(after).not.toBe(before); // guard: the flip actually applied
       writeFileSync(aspectYaml(dir, 'no-todo-comments'), after, 'utf-8');
 
-      // advisory<->enforced is NOT a source change and NOT a cascade: the status
-      // is excluded from the canonical hash and the prior `approved` verdict
-      // carries forward (only the render severity flips). So re-approving each
-      // node is a clean NO-OP — exit 0, no refusal, "No changes". (Under the old
-      // check-touched "settle" wart this spuriously printed "Approved"; the
-      // verdict carry-forward makes "No changes" the correct outcome.)
-      const ordersApprove = run(['approve', '--node', 'services/orders'], dir);
-      expect(ordersApprove.status).toBe(0);
-      expect(ordersApprove.stdout).toContain('No changes: services/orders');
-      expect(ordersApprove.stdout).not.toContain('NOT SATISFIED');
+      // advisory<->enforced is NOT a source change and NOT drift: the status is
+      // excluded from the canonical verdict hash, so the prior `approved` verdict
+      // carries forward (only the render severity flips). check stays green and a
+      // re-fill finds every pair already valid — a clean no-op.
+      const check = run(['check'], dir);
+      expect(check.status).toBe(0);
+      expect(check.stdout).toContain('PASS');
 
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
-
-      expect(run(['check'], dir).status).toBe(0);
+      const refill = run(['check', '--approve'], dir);
+      expect(refill.status).toBe(0);
+      expect(refill.stdout).toContain('Filling 0 unverified pairs');
+      expect(refill.stdout).toContain('0 reviewer calls made — all expected pairs hold valid verdicts');
+      expect(refill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -222,11 +231,11 @@ describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + s
 
   // --- 4. bracket wildcard suppress waives every aspect within its range ---
 
-  it('4: a yg-suppress-disable(*)..enable(*) bracket waives a TODO inside the range; approve exits 0', () => {
+  it('4: a yg-suppress-disable(*)..enable(*) bracket waives a TODO inside the range; fill exits 0', () => {
     const dir = hermeticFixture('bracket-suppress');
     try {
-      // Baseline approve on the clean source.
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      // Baseline fill on the clean source.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // Append a block carrying a TODO (would trip enforced no-todo-comments) and
       // a non-exported helper, wrapped entirely in a wildcard bracket suppress.
@@ -245,11 +254,11 @@ describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + s
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/payments'], dir);
-      // Everything inside the bracket range is waived -> no refusal.
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/payments');
-      expect(approve.stdout).not.toContain('NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      // Everything inside the bracket range is waived -> the pair approves.
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/payments — approved');
+      expect(fill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -257,10 +266,10 @@ describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + s
 
   // --- 4b. control: the same TODO WITHOUT the bracket refuses (proves the bracket did the waiving) ---
 
-  it('4b: the identical TODO block WITHOUT bracket markers refuses approve (proves the suppress is what waived it)', () => {
+  it('4b: the identical TODO block WITHOUT bracket markers refuses the fill (proves the suppress is what waived it)', () => {
     const dir = hermeticFixture('bracket-control');
     try {
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // Same payload, but no suppress markers.
       appendFileSync(
@@ -276,10 +285,11 @@ describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + s
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/payments'], dir);
-      expect(approve.status).toBe(1);
-      expect(approve.stdout).toContain('no-todo-comments');
-      expect(approve.stdout).toContain('NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/payments — refused');
+      expect(fill.stdout).toContain('enforced');
+      expect(fill.stdout).toContain('no-todo-comments');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -287,10 +297,10 @@ describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + s
 
   // --- 5. single-line suppress is contextual: it covers only the next line ---
 
-  it('5: a single-line yg-suppress over ONE TODO leaves a second un-suppressed TODO flagged; approve exits 1', () => {
+  it('5: a single-line yg-suppress over ONE TODO leaves a second un-suppressed TODO flagged; fill exits 1', () => {
     const dir = hermeticFixture('single-line-suppress');
     try {
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // First TODO is suppressed (marker on the line immediately above it);
       // the second TODO is left bare.
@@ -306,23 +316,29 @@ describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + s
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(1);
-      expect(approve.stdout).toContain('no-todo-comments');
-      expect(approve.stdout).toContain('NOT SATISFIED');
-      // Exactly ONE TODO is reported — the un-suppressed second one. The single
-      // suppress covered only the line directly beneath it, not both TODOs.
-      const todoViolations = approve.stdout
-        .split('\n')
-        .filter((l) => l.includes('TODO comment found'));
-      expect(todoViolations.length).toBe(1);
-      // The lone reported violation is the second TODO. The appended block places
-      // the suppress marker on the original last line + 2, the first (suppressed)
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — refused');
+      expect(fill.stdout).toContain('enforced');
+
+      // aspect-test surfaces the per-line detail: exactly ONE TODO is reported —
+      // the un-suppressed second one. The single suppress covered only the line
+      // directly beneath it, not both TODOs. The appended block places the
+      // suppress marker on the original last line + 2, the first (suppressed)
       // TODO on +3 and the second (flagged) TODO on +4. The original file is 15
       // lines (a trailing newline keeps line 15 empty), so the flagged TODO lands
       // on line 18 — and the suppressed first TODO on line 17 is NOT reported.
-      expect(todoViolations[0]).toContain('orders.ts:18');
-      expect(approve.stdout).not.toContain('orders.ts:17');
+      const diag = run(
+        ['aspect-test', '--node', 'services/orders', '--aspect', 'no-todo-comments'],
+        dir,
+      );
+      expect(diag.status).toBe(1);
+      const todoViolations = diag.stdout
+        .split('\n')
+        .filter((l) => l.includes('TODO comment found'));
+      expect(todoViolations.length).toBe(1);
+      expect(diag.stdout).toContain('L18:');
+      expect(diag.stdout).not.toContain('L17:');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -330,10 +346,10 @@ describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + s
 
   // --- 6. suppressing a draft aspect is a no-op (the reviewer never runs it) ---
 
-  it('6: yg-suppress(wip-rule) near a WIP marker is inert while wip-rule is draft; approve exits 0 with no suppress error', () => {
+  it('6: yg-suppress(wip-rule) near a WIP marker is inert while wip-rule is draft; fill exits 0 with no suppress error', () => {
     const dir = hermeticFixture('draft-suppress-noop');
     try {
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // wip-rule (draft) would flag any line containing "WIP" if it were active.
       // Suppressing a draft aspect is documented as a no-op: the reviewer never
@@ -349,14 +365,14 @@ describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + s
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/orders');
-      // The draft aspect is skipped, not evaluated, regardless of the suppress.
-      expect(approve.stdout).toContain('wip-rule');
-      expect(approve.stdout).toContain('skipped');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      // The draft aspect is skipped, not evaluated — it never appears as a fill
+      // pair, regardless of the suppress marker.
+      expect(fill.stdout).not.toContain('wip-rule on node:services/orders');
       // No violation, and no error about the suppress marker itself.
-      expect(approve.stdout).not.toContain('NOT SATISFIED');
+      expect(fill.all).not.toContain('refused');
+      expect(fill.stdout).toContain('yg check: PASS');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

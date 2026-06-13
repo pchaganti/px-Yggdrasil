@@ -1,10 +1,8 @@
 name: IO Stores
 type: persistence-adapter
-description: Filesystem readers and writers for runtime state — find index, artifact reading, repository scanning, and low-level fs utilities (drift-state persistence lives in the cli/io/drift-state child node)
+description: Filesystem readers and writers for runtime state — find index, artifact reading, repository scanning, and low-level fs utilities (verdict-lock persistence lives in the cli/io/lock-store sibling node)
 relations:
   - target: cli/model/graph
-    type: uses
-  - target: cli/model/drift
     type: uses
   - target: cli/io/atomic-write
     type: calls

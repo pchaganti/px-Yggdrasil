@@ -18,8 +18,8 @@ import { fileURLToPath } from 'node:url';
 // ---------------------------------------------------------------------------
 // FLOW definition + filesystem ERROR paths (the uncovered FL-DEF / FL-ERR
 // cases). Everything is driven through the spawned dist binary (yg check / yg
-// flows / yg approve). This suite pins the flow-parser and flow-loader error
-// surfaces that the other flow suites do NOT reach:
+// flows / yg check --approve). This suite pins the flow-parser and flow-loader
+// error surfaces that the other flow suites do NOT reach:
 //
 //   N*  flow `name:` edges — EMPTY name ("") parse throw (cli-flows-extended P4
 //       pins MISSING name, not empty); plus the same throw surfacing via
@@ -39,10 +39,10 @@ import { fileURLToPath } from 'node:url';
 //   R   flow RENAME (directory + name field) with the participant/aspect set
 //       UNCHANGED does NOT cascade — check stays green (a flow's identity is
 //       cosmetic; only its effective aspect/participant set drives drift).
-//   P   flow batch PARTIAL-failure isolation — one participant refuses, the
-//       other still approves, exit 1 (cli-flow-channel5 test 3 pins a flow batch
-//       where the SINGLE drifted node refuses; this pins isolation across a
-//       2-node batch: one PASS + one FAIL in the same invocation).
+//   P   flow batch PARTIAL-failure isolation — one participant approves, the
+//       other still refuses, exit 1 (cli-flow-channel5 test 3 pins a fill where
+//       the cascaded aspect catches one drifted node; this pins isolation across
+//       a 2-node fill: one PASS + one FAIL in the same invocation).
 //
 // Two BUG findings are pinned to ACTUAL behavior (see the `BUG:` comments):
 //   * A flow directory with a MISSING yg-flow.yaml is mis-reported as
@@ -52,12 +52,15 @@ import { fileURLToPath } from 'node:url';
 //     an UNCLASSIFIED "Unexpected error ... This is a bug" abort rather than a
 //     structured flow finding.
 //
+// Verdict-lock model: `yg approve` is gone — verification happens via
+// `yg check --approve` (repo-wide fill), state lives in
+// `.yggdrasil/yg-lock.json`, and the states are verified/unverified/refused.
+//
 // HERMETIC: every test copies the committed e2e-lifecycle fixture into a fresh
 // mkdtemp, mutates ONLY that copy, and rmSync's it in `finally`. The LLM aspect
 // (`has-doc-comment`) is stripped so the reviewer endpoint is never contacted —
 // only deterministic check.mjs aspects drive every outcome. No network, no
-// clock, no randomness in any assertion. Harness (run / copyFixture / the
-// distExists guard) duplicated verbatim from cli-deterministic-lifecycle.test.ts.
+// clock, no randomness in any assertion.
 // ---------------------------------------------------------------------------
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -126,11 +129,9 @@ function writeFlowYaml(dir: string, lines: string[]): void {
   writeFileSync(flowYaml(dir), lines.join('\n') + '\n', 'utf-8');
 }
 
-/** Approve both committed participants so a later check sees only the flow finding. */
+/** Fill every unverified pair (repo-wide) so a later check sees only the flow finding. */
 function baselineParticipants(dir: string): void {
-  expect(
-    run(['approve', '--node', 'services/orders', '--node', 'services/payments'], dir).status,
-  ).toBe(0);
+  expect(run(['check', '--approve'], dir).status).toBe(0);
 }
 
 describe.skipIf(!distExists)('CLI E2E — flow definition + filesystem error paths', () => {
@@ -313,15 +314,15 @@ describe.skipIf(!distExists)('CLI E2E — flow definition + filesystem error pat
     }
   });
 
-  it('F2: a flow directory with a MISSING yg-flow.yaml also breaks `yg approve --node` the same way (exit 1)', () => {
+  it('F2: a flow directory with a MISSING yg-flow.yaml also breaks `yg check --approve` the same way (exit 1)', () => {
     const dir = deterministicFixture('f2');
     try {
       rmSync(flowYaml(dir), { force: true });
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(1);
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
       // BUG (same ENOENT misclassification): the graph cannot load at all, so an
-      // unrelated approve fails with the misleading not-initialized message.
-      expect(approve.all).toContain('No .yggdrasil/ directory found');
+      // unrelated fill fails with the misleading not-initialized message.
+      expect(fill.all).toContain('No .yggdrasil/ directory found');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -424,12 +425,12 @@ describe.skipIf(!distExists)('CLI E2E — flow definition + filesystem error pat
       const updated = readFileSync(yamlPath, 'utf-8').replace(/^name:.*/m, 'name: Fulfillment');
       writeFileSync(yamlPath, updated, 'utf-8');
 
-      // The participants' effective-aspect sets are unchanged → no drift.
+      // The participants' effective-aspect sets are unchanged → no drift, so no
+      // pair goes unverified and check stays green.
       const check = run(['check'], dir);
       expect(check.status).toBe(0);
       expect(check.stdout).toContain('PASS');
-      expect(check.stdout).not.toContain('cascade');
-      expect(check.stdout).not.toContain('aspect-newly-active');
+      expect(check.stdout).not.toContain('unverified');
 
       // The flow lists under its new name.
       const flows = run(['flows'], dir);
@@ -442,63 +443,65 @@ describe.skipIf(!distExists)('CLI E2E — flow definition + filesystem error pat
   });
 
   // =========================================================================
-  // P. flow batch PARTIAL-failure isolation.
+  // P. fill PARTIAL-failure isolation across flow participants.
   // =========================================================================
 
-  it('P1: a flow batch isolates failures — one participant approves, the other refuses, exit 1', () => {
+  it('P1: a fill isolates failures — one participant approves, the other refuses, exit 1', () => {
     const dir = deterministicFixture('p1');
     try {
       // Baseline both participants clean.
       baselineParticipants(dir);
 
-      // Cascade BOTH participants by a no-op edit to the flow aspect's
-      // implementation (an aspect change, not a source change) so the flow batch
-      // selects both for re-approval.
+      // Invalidate the flow aspect's verdict on BOTH participants by a no-op edit
+      // to its check.mjs (an aspect-input change, not a source change) so the
+      // next fill re-runs `no-todo-comments` on each participant.
       appendFileSync(noTodoCheckMjs(dir), '\n// cascade-trigger: trivial no-op comment\n');
 
-      // Then violate ONLY payments at the source. When the batch re-runs each
-      // node's FULL approve, orders is clean and payments refuses.
+      // Then violate ONLY payments at the source. The repo-wide fill re-runs each
+      // node's deterministic checks independently: orders is clean and payments
+      // refuses — one node's failure does not abort the clean node.
       appendFileSync(paymentsFile(dir), '\n// TODO: fix later\n');
 
-      const batch = run(['approve', '--flow', 'order-processing'], dir);
+      const batch = run(['check', '--approve'], dir);
       expect(batch.status).toBe(1);
       // One node passed, one failed — failures do not abort the clean node.
-      expect(batch.stdout).toContain('Approved: services/orders');
+      expect(batch.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
+      expect(batch.stdout).toContain('[det] no-todo-comments on node:services/payments — refused');
+      // The refusal renders as an enforced finding naming the violating node.
+      expect(batch.stdout).toContain('enforced');
       expect(batch.stdout).toContain('services/payments');
-      expect(batch.stdout).toContain('no-todo-comments — NOT SATISFIED');
-      expect(batch.stdout).toContain('1 approved, 1 failed');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('P2: the batch records the refusal — after the batch a re-run finds NO cascade, and the per-node fix (not --flow) clears it (exit 0)', () => {
+  it('P2: the fill records the refusal — a re-run finds nothing to do, and fixing the source clears it (exit 0)', () => {
     const dir = deterministicFixture('p2');
     try {
       baselineParticipants(dir);
       appendFileSync(noTodoCheckMjs(dir), '\n// cascade-trigger: trivial no-op comment\n');
 
-      // First pass: orders approves, payments refuses (exit 1). The batch RECORDS
-      // payments' refused enforced verdict and clears its cascade drift.
+      // First fill: orders approves, payments refuses (exit 1). The fill RECORDS
+      // payments' refused enforced verdict in the lock.
       const original = readFileSync(paymentsFile(dir), 'utf-8');
       appendFileSync(paymentsFile(dir), '\n// TODO: fix later\n');
-      expect(run(['approve', '--flow', 'order-processing'], dir).status).toBe(1);
+      expect(run(['check', '--approve'], dir).status).toBe(1);
 
-      // The cascade is now gone for BOTH nodes (the batch recorded a verdict on
-      // each), but the recorded enforced REFUSAL still blocks check.
+      // The recorded enforced REFUSAL still blocks check (cached — same inputs).
       const afterBatch = run(['check'], dir);
       expect(afterBatch.status).toBe(1);
       expect(afterBatch.stdout).toContain('enforced');
       expect(afterBatch.stdout).toContain('services/payments');
-      // A second flow batch finds nothing to do — the cascade was already cleared.
-      const second = run(['approve', '--flow', 'order-processing'], dir);
-      expect(second.status).toBe(0);
-      expect(second.stdout).toContain("No cascade drift found for flow 'order-processing'");
+      // A second fill finds nothing to do — every pair already holds a valid
+      // verdict (the refused verdict is cached against unchanged inputs).
+      const second = run(['check', '--approve'], dir);
+      expect(second.status).toBe(1);
+      expect(second.stdout).toContain('0 reviewer calls made — all expected pairs hold valid verdicts');
 
-      // Fixing the source is SOURCE drift, cleared by the per-node approve, not
-      // by --flow (which only re-approves cascade-drifted participants).
+      // Fixing the source changes the inputs → the pair goes unverified again →
+      // the next fill re-runs the now-clean check and approves it.
       writeFileSync(paymentsFile(dir), original, 'utf-8');
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       const cleared = run(['check'], dir);
       expect(cleared.status).toBe(0);

@@ -3,8 +3,6 @@ type: ci-config
 description: "TypeScript compilation and bundle configuration: tsconfig, package manifest"
 aspects: []
 relations: []
-sizeExempt:
-  reason: "Dominated by the npm-generated package-lock.json — a machine-generated lockfile that is never sent to a reviewer and cannot be split."
 mapping:
   - source/cli/tsconfig.json
   - source/cli/tsconfig.check.json

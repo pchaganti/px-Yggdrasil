@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   rmSync,
   cpSync,
+  readFileSync,
   writeFileSync,
   appendFileSync,
   mkdirSync,
@@ -205,22 +206,21 @@ mapping:
     }
   });
 
-  it('A2: the child (no effective aspect) needs no baseline — approve reports the all-draft/none skip and check passes', () => {
+  it('A2: the child (no effective aspect) contributes no verdict pair — a repo-wide fill records nothing for it and check passes', () => {
     const dir = copyFixture('a2-child-approve');
     try {
       setupChildGraph(dir);
-      // The parent carries the enforced port aspect and must be approved.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      // The parent carries the enforced port aspect and contributes a pair; the
+      // child has zero effective aspects and contributes none. One repo-wide
+      // fill resolves the parent and never records a verdict for the child.
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('[det] audit-required on node:services/orders — approved');
 
-      // The child has zero effective aspects — approve writes no baseline and
-      // exits 0 with the "reviewer skipped" message (nothing to verify).
-      const childApprove = run(['approve', '--node', 'services/orders/detail'], dir);
-      expect(childApprove.status).toBe(0);
-      expect(childApprove.stdout).toContain('Reviewer skipped');
-      // No drift-state baseline is written for the aspect-less child.
-      expect(
-        existsSync(at(dir, '.yggdrasil/.drift-state/services/orders/detail.json')),
-      ).toBe(false);
+      // No verdict entry is written for the aspect-less child anywhere in the
+      // lock (the verdict-lock model replaces the per-node .drift-state file).
+      const lock = readFileSync(at(dir, '.yggdrasil/yg-lock.json'), 'utf-8');
+      expect(lock).not.toContain('node:services/orders/detail');
 
       const check = run(['check'], dir);
       expect(check.status).toBe(0);
@@ -275,22 +275,28 @@ mapping:
     }
   });
 
-  it('B4: the port-implied aspect is ENFORCED — a violation of it refuses approve while the implier stays satisfied', () => {
+  it('B4: the port-implied aspect is ENFORCED — a violation of it refuses the fill while the implier stays satisfied', () => {
     const dir = copyFixture('b4-port-implies-enforce');
     try {
       setupPortImpliesGraph(dir);
-      // Clean baseline first.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      // Clean fill first.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // A NOLOG line violates ONLY the implied diagnostic-logging aspect.
       appendFileSync(ordersSrc(dir), '\n// NOLOG here\n');
-      const { status, stdout } = run(['approve', '--node', 'services/orders'], dir);
-      expect(status).toBe(1);
-      expect(stdout).toContain('diagnostic-logging');
-      expect(stdout).toContain('NOT SATISFIED');
-      expect(stdout).toContain('NOLOG token found.');
-      // The port aspect itself (the implier) is satisfied — only the implied one refuses.
-      expect(stdout).toContain('audit-required — SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      // Per-pair fill verdicts: the implier (channel 6) holds; the implied
+      // aspect (channel 7) refuses — proving the implied aspect is enforced.
+      expect(fill.stdout).toContain('[det] audit-required on node:services/orders — approved');
+      expect(fill.stdout).toContain('[det] diagnostic-logging on node:services/orders — refused');
+      // The enforced refusal renders for the implied aspect on the consumer.
+      expect(fill.stdout).toContain("Aspect 'diagnostic-logging' is refused on node:services/orders");
+
+      // The recorded Violation[] detail (file + message) surfaces through the
+      // diagnostic runner — yg check renders only the one-line headline.
+      const at2 = run(['aspect-test', '--aspect', 'diagnostic-logging', '--node', 'services/orders'], dir);
+      expect(at2.all).toContain('NOLOG token found.');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -378,12 +384,16 @@ mapping:
       expect(ctx.all).toContain('diag-advisory [advisory]');
 
       // A NOLOG violation of the advisory implied aspect is a non-blocking
-      // warning — approve still exits 0. (Under 'strictest' it would inherit
+      // warning — the fill still exits 0. (Under 'strictest' it would inherit
       // enforced and BLOCK with exit 1.)
       appendFileSync(ordersSrc(dir), '\n// NOLOG here\n');
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.all).toContain('diag-advisory');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      // The implied pair refuses but renders as a non-blocking advisory warning.
+      expect(fill.all).toContain('[det] diag-advisory on node:services/orders — refused');
+      expect(fill.all).toContain('PASS (1 warning)');
+      expect(fill.all).toContain('advisory');
+      expect(fill.all).toContain('diag-advisory');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -500,12 +510,16 @@ mapping:
     }
   });
 
-  it('C8: the relay chain is self-consistent — every node approves clean and yg check passes', () => {
+  it('C8: the relay chain is self-consistent — every node fills clean and yg check passes', () => {
     const dir = copyFixture('c8-relay-approve');
     try {
       setupRelayChain(dir);
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
-      expect(run(['approve', '--node', 'services/top'], dir).status).toBe(0);
+      // One repo-wide fill resolves both consumers: orders (charge port) and top
+      // (relay port). Both port aspects fill clean.
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('[det] audit-required on node:services/orders — approved');
+      expect(fill.stdout).toContain('[det] relay-tracked on node:services/top — approved');
       const check = run(['check'], dir);
       expect(check.status).toBe(0);
       expect(check.stdout).toContain('PASS');

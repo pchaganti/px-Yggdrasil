@@ -55,7 +55,7 @@ function run(
   };
 }
 
-describe.skipIf(!distExists)('structure aspect implies cascade', () => {
+describe.skipIf(!distExists)('deterministic aspect implies cascade', () => {
   let root: string;
 
   beforeEach(() => {
@@ -64,12 +64,12 @@ describe.skipIf(!distExists)('structure aspect implies cascade', () => {
 
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-  it('structure aspect implies AST aspect — drift on check-touched file forces re-approve of implied AST aspect', () => {
-    // Layout: structure aspect 'structural' implies AST aspect 'astrule'.
-    // Both applied to node N with src/a.ts in mapping.
-    // 'structural' reads src/a.ts via ctx.fs.read → tracked in checkTouchedFiles.
-    // After approve: mutate src/a.ts → check should detect drift (both aspects need re-approve).
-    // NOTE: using type:ast for the implied aspect (not LLM) for deterministic CI behaviour.
+  it('implier and implied are both effective pairs — editing the subject file invalidates both', () => {
+    // Layout: deterministic aspect 'structural' implies deterministic aspect
+    // 'astrule'. Both become effective on node N (astrule reaches N only via the
+    // implies edge). src/a.ts is N's mapped subject file for both pairs, so
+    // editing it folds into both inputHashes — both pairs degrade to unverified
+    // and need a re-fill.
     const ygg = path.join(root, '.yggdrasil');
     mkdirSync(path.join(ygg, 'schemas'), { recursive: true });
     mkdirSync(path.join(ygg, 'aspects', 'structural'), { recursive: true });
@@ -88,7 +88,7 @@ describe.skipIf(!distExists)('structure aspect implies cascade', () => {
       path.join(ygg, 'model', 'N', 'yg-node.yaml'),
       `name: N\ntype: service\ndescription: test\nmapping:\n  - src/a.ts\naspects:\n  - structural\n`,
     );
-    // structure aspect with implies: [astrule]
+    // deterministic aspect with implies: [astrule]
     writeFileSync(
       path.join(ygg, 'aspects', 'structural', 'yg-aspect.yaml'),
       `name: Structural\ndescription: structure rule that reads src/a.ts\nreviewer:\n  type: deterministic\nimplies:\n  - astrule\nstatus: enforced\n`,
@@ -97,32 +97,35 @@ describe.skipIf(!distExists)('structure aspect implies cascade', () => {
       path.join(ygg, 'aspects', 'structural', 'check.mjs'),
       `export function check(ctx) { ctx.fs.read('src/a.ts'); return []; }\n`,
     );
-    // implied AST aspect — trivially passes
+    // implied aspect — trivially passes
     writeFileSync(
       path.join(ygg, 'aspects', 'astrule', 'yg-aspect.yaml'),
-      `name: AstRule\ndescription: ast-judged rule that always passes\nreviewer:\n  type: deterministic\nlanguage:\n  - typescript\nstatus: enforced\n`,
+      `name: AstRule\ndescription: deterministic rule that always passes\nreviewer:\n  type: deterministic\nstatus: enforced\n`,
     );
     writeFileSync(
       path.join(ygg, 'aspects', 'astrule', 'check.mjs'),
       `export function check(_ctx) { return []; }\n`,
     );
 
-    // Initial approve — both aspects run
-    const approveResult = run(['approve', '--node', 'N'], root);
-    expect(approveResult.status).toBe(0);
+    // Initial fill — BOTH the implier and the implied pair are computed and filled.
+    const fill = run(['check', '--approve'], root);
+    expect(fill.status).toBe(0);
+    // The header reports 2 deterministic pairs (structural + the implied astrule).
+    expect(fill.stdout).toMatch(/2 deterministic/);
 
-    // Mutate the file the structure aspect tracked
+    // Mutate the subject file shared by both pairs.
     writeFileSync(path.join(root, 'src', 'a.ts'), 'export const x = 2;\n');
 
-    // yg check must detect drift because checkTouchedFiles[structural][src/a.ts] changed
+    // Plain check: both pairs recompute to a mismatching hash → unverified (exit 1).
     const checkResult = run(['check'], root);
     expect(checkResult.status).toBe(1);
-    // Output should reference drift and suggest approve
-    expect(checkResult.stdout.toLowerCase()).toMatch(/drift|approve/);
+    expect(checkResult.stdout.toLowerCase()).toContain('unverified');
+    expect(checkResult.stdout).toContain('structural');
+    expect(checkResult.stdout).toContain('astrule');
 
-    // Re-approve clears drift
-    const reApproveResult = run(['approve', '--node', 'N'], root);
-    expect(reApproveResult.status).toBe(0);
+    // Re-fill clears both (deterministic, free).
+    const reFill = run(['check', '--approve'], root);
+    expect(reFill.status).toBe(0);
 
     const checkClean = run(['check'], root);
     expect(checkClean.status).toBe(0);
@@ -132,7 +135,7 @@ describe.skipIf(!distExists)('structure aspect implies cascade', () => {
   // (source/cli/src/core/graph/aspects.ts). An enforced implier with
   // status_inherit: strictest promotes the implied aspect's effective status to
   // enforced even when the implied aspect's own default is advisory — so an
-  // implied-aspect violation BLOCKS (exit 1) instead of warning (exit 0).
+  // implied-aspect refusal BLOCKS (yg check exit 1) instead of warning (exit 0).
   // (Deterministic aspects on both sides for hermetic CI — no LLM.)
   it('aspect implies another with status_inherit: strictest — the implied aspect is promoted to enforced and blocks', () => {
     const ygg = path.join(root, '.yggdrasil');
@@ -173,10 +176,16 @@ describe.skipIf(!distExists)('structure aspect implies cascade', () => {
     expect(ctx.status).toBe(0);
     expect(ctx.stdout).toContain('child [enforced]');
 
-    // Because child is now ENFORCED (not advisory), its BANNED violation BLOCKS:
-    // approve refuses (exit 1) instead of recording a non-blocking advisory warning.
-    const approve = run(['approve', '--node', 'N'], root);
-    expect(approve.status).toBe(1);
-    expect(approve.stdout + approve.stderr).toContain('child');
+    // Because child is now ENFORCED (not advisory), its BANNED refusal BLOCKS:
+    // check --approve records the refused verdict and exits 1 instead of leaving
+    // a non-blocking advisory warning.
+    const fill = run(['check', '--approve'], root);
+    expect(fill.status).toBe(1);
+    expect(fill.stdout + fill.stderr).toContain('child');
+
+    // Plain check renders the cached enforced refusal and stays red (exit 1).
+    const check = run(['check'], root);
+    expect(check.status).toBe(1);
+    expect(check.stdout).toContain('child');
   });
 });

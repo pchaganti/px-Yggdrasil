@@ -11,5 +11,6 @@ reviewer:
     standard:
       provider: claude-code
       consensus: 1
+      max_prompt_chars: 50000
       config:
         model: sonnet

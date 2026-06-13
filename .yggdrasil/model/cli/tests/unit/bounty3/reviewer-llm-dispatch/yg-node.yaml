@@ -1,7 +1,0 @@
-name: bounty3 reviewer-llm-dispatch
-type: test-suite
-description: "Bug-bounty suites: reviewer-llm-dispatch (~25208 chars)."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/bounty3/reviewer-llm-dispatch.test.ts

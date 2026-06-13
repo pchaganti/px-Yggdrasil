@@ -16,11 +16,9 @@ import { fileURLToPath } from 'node:url';
 
 // ---------------------------------------------------------------------------
 // Advanced flow-aspect mechanics (channel 5). The basic channel-5 propagation
-// (flow aspect reaches participants + descendants, flow batch approve, the
-// `yg flows` listing) is already pinned by cli-flow-channel5.test.ts. The
-// cosmetic non-cascade of a flow-yaml COMMENT/description edit is already pinned
-// by cli-drift-cascade-variety.test.ts (its test 5). This suite covers what
-// those do NOT:
+// (flow aspect reaches participants + descendants, repo-wide fill, the
+// `yg flows` listing) is already pinned by cli-flow-channel5.test.ts. This suite
+// covers what those do NOT:
 //
 //   1. CONDITIONAL flow aspect — a flow-level aspect carrying a `when` predicate
 //      applies to only the SUBSET of participants matching the predicate, and is
@@ -29,35 +27,24 @@ import { fileURLToPath } from 'node:url';
 //      (yg check exit 0) and does NOT block, contrasted with an ENFORCED flow
 //      aspect violation that blocks (exit 1).
 //   3. DRAFT flow aspect — a flow-level draft aspect is skipped on every
-//      participant: no verdict, no block, no newly-active.
-//   4. FLOW-SET CASCADE — the documented-but-suspected gap. The cosmetic case
-//      (a flow-yaml comment) is known NOT to cascade. Here we probe the OTHER
-//      mutation the contract says SHOULD cascade: changing the flow's EFFECTIVE
-//      ASPECT SET (adding an aspect to `aspects:`) or its PARTICIPANT SET
-//      (adding a node to `nodes:`). The drift-and-cascade contract lists
-//      "Add node to a flow (or add an aspect to a flow)" as an upstream cause,
-//      and check.ts emits `aspect-newly-active` for any non-draft effective
-//      aspect lacking a baseline verdict. These tests assert the
-//      EXPECTED-correct outcome (newly-active fires, check blocks, the
-//      documented clearing command clears it). If the binary ever diverges by
-//      staying green, the assertion fails loudly rather than silently encoding
-//      a bug.
+//      participant: no verdict, no block, no fill pair.
+//   4. FLOW-SET CASCADE — changing the flow's EFFECTIVE ASPECT SET (adding an
+//      aspect to `aspects:`) or its PARTICIPANT SET (adding a node to `nodes:`)
+//      makes the new effective pair UNVERIFIED (blocking error, exit 1) on the
+//      affected participant(s), and a fill clears it.
 //
-// VERDICT (verified against the spawned dist binary): the flow-SET cascade
-// contract is HONORED. Adding an aspect to a flow's aspects: list, and adding a
-// participant to a flow's nodes: list, BOTH surface as `aspect-newly-active`
-// (blocking error, exit 1) on the affected participant(s), and both clear via
-// the documented `yg approve --flow` / `yg approve --node` path. No silent
-// cascade bug on either path. (The cosmetic flow-comment non-cascade — a
-// genuinely different mutation — remains as documented by the cascade-variety
-// suite.)
+// Verdict-lock model: `yg approve` is gone — verification happens via
+// `yg check --approve` (repo-wide fill), state lives in
+// `.yggdrasil/yg-lock.json`, and the states are verified/unverified/refused. A
+// newly-effective pair with no recorded verdict renders as `unverified` (the
+// old `aspect-newly-active` finding); a deterministic refusal renders as a
+// cached `enforced`/`advisory` finding.
 //
 // HERMETIC: every test copies the committed e2e-lifecycle fixture into a fresh
 // mkdtemp, mutates ONLY that copy, and rmSync's it in `finally`. The LLM aspect
 // (`has-doc-comment`) is stripped so the reviewer endpoint is never contacted —
 // only deterministic check.mjs aspects drive every outcome. No network, no
-// clock, no randomness in any assertion. Harness (run / copyFixture / the
-// distExists guard) duplicated from cli-deterministic-lifecycle.test.ts.
+// clock, no randomness in any assertion.
 // ---------------------------------------------------------------------------
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -99,12 +86,12 @@ function copyFixture(label: string): string {
  */
 function deterministicFixture(label: string): string {
   const dir = copyFixture(label);
-  const archPath = path.join(dir, '.yggdrasil', 'yg-architecture.yaml');
-  const arch = readFileSync(archPath, 'utf-8')
+  const archP = path.join(dir, '.yggdrasil', 'yg-architecture.yaml');
+  const arch = readFileSync(archP, 'utf-8')
     .split('\n')
     .filter((line) => line.trim() !== '- has-doc-comment')
     .join('\n');
-  writeFileSync(archPath, arch, 'utf-8');
+  writeFileSync(archP, arch, 'utf-8');
   rmSync(path.join(dir, '.yggdrasil', 'aspects', 'has-doc-comment'), {
     recursive: true,
     force: true,
@@ -124,7 +111,7 @@ const aspectDir = (dir: string, id: string) => path.join(dir, '.yggdrasil', 'asp
 /**
  * Write a tiny deterministic aspect that flags any line containing `token`. The
  * token is chosen so the committed fixture sources NEVER contain it — a fresh
- * approve passes until the test deliberately introduces the token.
+ * fill passes until the test deliberately introduces the token.
  */
 function writeTokenAspect(
   dir: string,
@@ -338,25 +325,25 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
     }
   });
 
-  it('CF2: with the SAME TODO on both, approve REFUSES the matching (service) participant but PASSES the non-matching (gateway) participant', () => {
+  it('CF2: with the SAME TODO on both, a fill REFUSES the matching (service) participant but the non-matching (gateway) participant is never judged', () => {
     const dir = conditionalFlowFixture('cf2');
     try {
       // Identical violation in both source files.
       appendFileSync(ordersFile(dir), '\n// TODO: refactor this later\n');
       appendFileSync(gatewayFile(dir), '\n// TODO: refactor this later\n');
 
+      const fill = run(['check', '--approve'], dir);
       // Service participant: predicate TRUE → enforced flow aspect applies → refuse.
-      const onService = run(['approve', '--node', 'services/orders'], dir);
-      expect(onService.status).toBe(1);
-      expect(onService.stdout).toContain('no-todo-comments');
-      expect(onService.stdout).toContain('NOT SATISFIED');
+      expect(fill.status).toBe(1);
+      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — refused');
+      expect(fill.stdout).toContain('enforced');
+      expect(fill.stdout).toContain('services/orders');
 
-      // Gateway participant: predicate FALSE → the aspect never reaches it → the
-      // identical TODO is not judged → approve succeeds.
-      const onGateway = run(['approve', '--node', 'gateways/api'], dir);
-      expect(onGateway.status).toBe(0);
-      expect(onGateway.stdout).toContain('Approved: gateways/api');
-      expect(onGateway.stdout).not.toContain('NOT SATISFIED');
+      // Gateway participant: predicate FALSE → no-todo-comments never reaches it,
+      // so there is NO such pair for the gateway — the identical TODO is not
+      // judged. The gateway's own requires-named-export still approves.
+      expect(fill.stdout).not.toContain('no-todo-comments on node:gateways/api');
+      expect(fill.stdout).toContain('[det] requires-named-export on node:gateways/api — approved');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -367,7 +354,7 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
   //    ENFORCED flow aspect violation that blocks.
   // =========================================================================
 
-  it('CF3: an ADVISORY flow-aspect violation does NOT block approve — exit 0 with a recorded, non-blocking line', () => {
+  it('CF3: an ADVISORY flow-aspect violation does NOT block the fill — exit 0 with a recorded, non-blocking warning', () => {
     const dir = deterministicFixture('cf3');
     try {
       // `no-flowwip` advisory aspect carried by the flow (alongside the enforced
@@ -382,17 +369,19 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
       // Violate ONLY the advisory flow aspect on payments (no TODO → enforced clean).
       appendFileSync(paymentsFile(dir), '\n// FLOWWIP marker\n');
 
-      const approve = run(['approve', '--node', 'services/payments'], dir);
-      expect(approve.status).toBe(0); // advisory does NOT block approve
-      expect(approve.stdout).toContain('advisory');
-      expect(approve.stdout).toContain('no-flowwip');
-      expect(approve.stdout).toContain('not blocking');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0); // advisory does NOT block the fill
+      expect(fill.stdout).toContain('[det] no-flowwip on node:services/payments — refused');
+      // Rendered as a non-blocking advisory warning.
+      expect(fill.stdout).toContain('advisory');
+      expect(fill.stdout).toContain('no-flowwip');
+      expect(fill.stdout).toContain('not blocking');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('CF4: yg check renders the advisory flow-aspect violation as a non-blocking WARNING — exit 0, aspect-violation-advisory', () => {
+  it('CF4: yg check renders the advisory flow-aspect violation as a non-blocking WARNING — exit 0, advisory', () => {
     const dir = deterministicFixture('cf4');
     try {
       writeTokenAspect(dir, 'no-flowwip', 'FLOWWIP', 'advisory');
@@ -403,9 +392,8 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
       );
 
       appendFileSync(paymentsFile(dir), '\n// FLOWWIP marker\n');
-      // Record the advisory refusal in the baseline, and approve the other node clean.
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      // Record every verdict (the advisory refusal among them) in the lock.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       const check = run(['check'], dir);
       expect(check.status).toBe(0); // advisory warning does NOT fail check
@@ -432,12 +420,12 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
       );
 
       // Establish a clean baseline on both flow participants.
-      expect(run(['approve', '--node', 'services/orders', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // Violate the enforced flow aspect on payments. The refused enforced
-      // verdict is recorded in the baseline even though approve exits 1.
+      // verdict is recorded in the lock even though the fill exits 1.
       appendFileSync(paymentsFile(dir), '\n// TODO: fix\n');
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(1);
+      expect(run(['check', '--approve'], dir).status).toBe(1);
 
       const check = run(['check'], dir);
       expect(check.status).toBe(1); // enforced violation BLOCKS check
@@ -455,11 +443,11 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
   // 3. DRAFT flow aspect — skipped on every participant.
   // =========================================================================
 
-  it('CF6: a DRAFT flow aspect is skipped at approve — its token violation is ignored and approve exits 0', () => {
+  it('CF6: a DRAFT flow aspect is skipped at fill — its token violation is ignored and the fill exits 0', () => {
     const dir = deterministicFixture('cf6');
     try {
       // Make the flow's `no-todo-comments` the sole source AND draft. A draft
-      // aspect is dormant: the reviewer never runs it.
+      // aspect is dormant: the reviewer never runs it and it gets no fill pair.
       dropNoTodoFromServiceDefault(dir);
       writeFileSync(
         path.join(aspectDir(dir, 'no-todo-comments'), 'yg-aspect.yaml'),
@@ -487,17 +475,17 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
 
       // A TODO on a participant must NOT be flagged — the draft aspect is skipped.
       appendFileSync(ordersFile(dir), '\n// TODO: fix\n');
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain("aspect 'no-todo-comments' skipped");
-      expect(approve.stdout).toContain('draft');
-      expect(approve.stdout).not.toContain('NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      // The draft aspect produces NO fill pair at all (it is never run).
+      expect(fill.stdout).not.toContain('no-todo-comments on node:services/orders');
+      expect(fill.stdout).toContain('yg check: PASS');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('CF7: a DRAFT flow aspect produces no newly-active and no block — yg check stays green', () => {
+  it('CF7: a DRAFT flow aspect produces no unverified pair and no block — yg check stays green', () => {
     const dir = deterministicFixture('cf7');
     try {
       dropNoTodoFromServiceDefault(dir);
@@ -519,36 +507,35 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
         ['  - no-todo-comments'],
       );
 
-      expect(run(['approve', '--node', 'services/orders', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       const check = run(['check'], dir);
       expect(check.status).toBe(0);
       expect(check.stdout).toContain('PASS');
-      // Draft flow aspect never becomes active → no newly-active finding.
-      expect(check.stdout).not.toContain('aspect-newly-active');
-      expect(check.stdout).not.toContain('newly active');
+      // Draft flow aspect never becomes active → no unverified finding for it.
+      expect(check.stdout).not.toContain('unverified');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
   // =========================================================================
-  // 4. FLOW-SET CASCADE — the documented gap, authoritatively verified.
-  //    Contract honored: changing the flow's effective ASPECT SET or
-  //    PARTICIPANT SET cascades as `aspect-newly-active` (NOT a silent no-op).
+  // 4. FLOW-SET CASCADE — changing the flow's effective ASPECT SET or
+  //    PARTICIPANT SET makes the new effective pair UNVERIFIED (NOT a silent
+  //    no-op). The old `aspect-newly-active` finding is now `unverified`.
   // =========================================================================
 
-  it('CF8: adding an aspect to a flow `aspects:` list makes it newly-active on every participant (blocking error, exit 1)', () => {
+  it('CF8: adding an aspect to a flow `aspects:` list makes it unverified on every participant (blocking error, exit 1)', () => {
     const dir = deterministicFixture('cf8');
     try {
       // Pre-create the new aspect definition so the ONLY mutation under test is
       // its addition to the flow's aspects: list (not a brand-new aspect file).
-      // The fixture sources satisfy it (no FLOWGUARD token), so a re-approve is
+      // The fixture sources satisfy it (no FLOWGUARD token), so a re-fill is
       // clean — the block is purely the missing baseline verdict.
       writeTokenAspect(dir, 'no-flowguard', 'FLOWGUARD', 'enforced');
 
       // Clean baseline for both participants — WITHOUT the new aspect on the flow.
-      expect(run(['approve', '--node', 'services/orders', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       expect(run(['check'], dir).status).toBe(0);
 
       // THE MUTATION: add `no-flowguard` to the flow's aspects: list.
@@ -559,12 +546,12 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
       );
 
       // Contract: the new flow aspect is now an effective aspect on each
-      // participant with no baseline verdict → aspect-newly-active on each.
+      // participant with no recorded verdict → unverified on each.
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
-      expect(check.stdout).toContain('aspect-newly-active');
+      expect(check.stdout).toContain('unverified');
       expect(check.stdout).toContain('no-flowguard');
-      // Both participants are named in the newly-active findings.
+      // Both participants are named in the unverified findings.
       expect(check.stdout).toContain('services/orders');
       expect(check.stdout).toContain('services/payments');
 
@@ -577,11 +564,11 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
     }
   });
 
-  it('CF9: yg approve --flow clears the flow-aspect-add cascade — yg check returns to green', () => {
+  it('CF9: a fill clears the flow-aspect-add cascade — yg check returns to green', () => {
     const dir = deterministicFixture('cf9');
     try {
       writeTokenAspect(dir, 'no-flowguard', 'FLOWGUARD', 'enforced');
-      expect(run(['approve', '--node', 'services/orders', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       writeFlow(
         dir,
@@ -591,23 +578,23 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
       // The cascade is present before clearing.
       expect(run(['check'], dir).status).toBe(1);
 
-      // Documented clearing path for a flow-scoped cascade.
-      const flowApprove = run(['approve', '--flow', 'order-processing'], dir);
-      expect(flowApprove.status).toBe(0);
-      expect(flowApprove.stdout).toContain('services/orders');
-      expect(flowApprove.stdout).toContain('services/payments');
+      // A repo-wide fill records the missing verdict on each participant.
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('[det] no-flowguard on node:services/orders — approved');
+      expect(fill.stdout).toContain('[det] no-flowguard on node:services/payments — approved');
 
-      // Cascade cleared: check is green and the newly-active finding is gone.
+      // Cascade cleared: check is green and the unverified finding is gone.
       const cleared = run(['check'], dir);
       expect(cleared.status).toBe(0);
       expect(cleared.stdout).toContain('PASS');
-      expect(cleared.stdout).not.toContain('aspect-newly-active');
+      expect(cleared.stdout).not.toContain('unverified');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('CF10: adding a participant to a flow `nodes:` list makes the flow aspect newly-active on the new participant only (exit 1)', () => {
+  it('CF10: adding a participant to a flow `nodes:` list makes the flow aspect unverified on the new participant only (exit 1)', () => {
     const dir = deterministicFixture('cf10');
     try {
       // Flow-only delivery of `no-todo-comments` so flow membership is the sole
@@ -648,9 +635,7 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
       );
 
       // Clean baseline for all three. inventory has NO no-todo-comments yet.
-      expect(
-        run(['approve', '--node', 'services/orders', '--node', 'services/payments', '--node', 'services/inventory'], dir).status,
-      ).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       const before = run(['context', '--node', 'services/inventory'], dir);
       expect(before.stdout).not.toContain('no-todo-comments');
       expect(run(['check'], dir).status).toBe(0);
@@ -662,14 +647,14 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
         ['  - no-todo-comments'],
       );
 
-      // Contract: the flow aspect now reaches inventory with no baseline verdict.
+      // Contract: the flow aspect now reaches inventory with no recorded verdict.
       const after = run(['context', '--node', 'services/inventory'], dir);
       expect(after.stdout).toContain('no-todo-comments');
       expect(after.stdout).toContain("flow 'order-processing'");
 
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
-      expect(check.stdout).toContain('aspect-newly-active');
+      expect(check.stdout).toContain('unverified');
       // The newly-added participant is the one that drifted (it gained the aspect).
       expect(check.stdout).toContain('services/inventory');
     } finally {
@@ -677,7 +662,7 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
     }
   });
 
-  it('CF11: approving the newly-added participant clears the participant-add cascade — yg check returns to green', () => {
+  it('CF11: a fill clears the participant-add cascade — yg check returns to green', () => {
     const dir = deterministicFixture('cf11');
     try {
       dropNoTodoFromServiceDefault(dir);
@@ -713,9 +698,7 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
         ].join('\n'),
         'utf-8',
       );
-      expect(
-        run(['approve', '--node', 'services/orders', '--node', 'services/payments', '--node', 'services/inventory'], dir).status,
-      ).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // Add inventory to the flow → cascade.
       writeFlow(
@@ -725,15 +708,15 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
       );
       expect(run(['check'], dir).status).toBe(1);
 
-      // Approving the affected node records the flow aspect's verdict → clears it.
-      const approve = run(['approve', '--node', 'services/inventory'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/inventory');
+      // A repo-wide fill records the flow aspect's verdict on the new participant.
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/inventory — approved');
 
       const cleared = run(['check'], dir);
       expect(cleared.status).toBe(0);
       expect(cleared.stdout).toContain('PASS');
-      expect(cleared.stdout).not.toContain('aspect-newly-active');
+      expect(cleared.stdout).not.toContain('unverified');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

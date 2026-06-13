@@ -1,6 +1,6 @@
 name: Check
 type: engine
-description: Unified check orchestrator — combines drift classification, coverage scan, orphaned drift state detection, validation issues, and suggested next command
+description: "Unified check orchestrator — runs validation, coverage, the prompt-size gate, and lock verification (read-only: every expected pair's stored verdict is re-hashed against current inputs and rendered as pass, cached refusal, or unverified), then log integrity, and computes the suggested next command. Write-free: the lock is produced only by the fill stage behind yg check --approve."
 aspects:
   - posix-paths-output
   - what-why-next
@@ -9,9 +9,13 @@ relations:
     type: calls
   - target: cli/core/context
     type: calls
+  - target: cli/core/verify-lock
+    type: calls
+  - target: cli/io/lock-store
+    type: calls
   - target: cli/model/graph
     type: uses
-  - target: cli/model/drift
+  - target: cli/model/lock
     type: uses
   - target: cli/model/validation
     type: uses

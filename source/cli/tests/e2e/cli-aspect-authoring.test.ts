@@ -16,9 +16,10 @@ import { fileURLToPath } from 'node:url';
 
 // Hermetic E2E — ASPECT AUTHORING & the DETERMINISTIC CHECK CONTRACT: rule-source
 // XOR validation, the check.mjs runtime contract (non-array/throw/async/file-write/
-// file-not-in-ctx) via approve and deterministic-test, directory aspect-reference-broken,
-// implies-edge when, when on relation/descendants atoms, and deterministic-test error
-// paths. Harness reused verbatim from cli-deterministic-lifecycle.test.ts; fully hermetic.
+// file-not-in-ctx) via the `yg check --approve` fill and `yg aspect-test`, directory
+// aspect-reference-broken, implies-edge when, when on relation/descendants atoms, and
+// aspect-test error paths. Harness reused verbatim from
+// cli-deterministic-fill-lifecycle.test.ts; fully hermetic.
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');
@@ -268,43 +269,45 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
   // =========================================================================
   // GROUP B — the deterministic check.mjs RUNTIME contract.
   //
-  // The runners (structure runner for --node/approve, AST runner for --files)
-  // guard the author-authored check against returning a non-array, throwing, and
-  // returning a Promise, and against synthesizing a violation for a file not in
-  // ctx. yg approve catches these and renders a refused (NOT SATISFIED) verdict
-  // with the runner code embedded in the reason. yg deterministic-test does NOT
-  // catch them — see the BUG note below.
+  // The runners (structure runner for --node, AST runner for --files) guard the
+  // author-authored check against returning a non-array, throwing, and returning
+  // a Promise, and against synthesizing a violation for a file not in ctx.
+  //
+  // Two surfaces are pinned:
+  //  * The ENFORCEMENT surface — `yg check --approve` (fill). A check that crashes
+  //    or returns an invalid result is NOT a code refusal: the fill classifies it
+  //    as `aspect-check-runtime-error` and LEAVES THE PAIR UNVERIFIED (no verdict
+  //    written), so the run ends red (exit 1) until the check.mjs is fixed.
+  //  * The DIAGNOSTIC surface — `yg aspect-test`. It surfaces the well-classified
+  //    runner error text (STRUCTURE_CHECK_*, AST_*) but through the GENERIC
+  //    abortOnUnexpectedError "file an issue" wrapper (a pinned BUG, not encoded as
+  //    correct; full detail in .temp/dogfood-report.md). Exit 1 + the runner's own
+  //    message text are still present, so those are what we pin.
   // =========================================================================
 
-  // BUG (pinned, not encoded as correct; full detail in .temp/dogfood-report.md):
-  // yg deterministic-test renders a well-classified runner error (STRUCTURE_CHECK_*,
-  // AST_*) through the GENERIC abortOnUnexpectedError "file an issue" wrapper rather
-  // than a clean what/why/next. Exit 1 + the runner's own message text still present,
-  // so those are what we pin.
-
-  it('B1: a check returning a NON-ARRAY refuses approve (NOT SATISFIED, STRUCTURE_CHECK_RETURN_SHAPE)', () => {
+  it('B1: a check returning a NON-ARRAY is an aspect-check-runtime-error at fill time — left unverified (exit 1)', () => {
     const dir = deterministicFixture('b1');
     try {
       writeDeterministicAspect(dir, 'ret-nonarray', 'enforced', 'export function check(ctx) { return { nope: true }; }\n');
       attachToOrders(dir, 'ret-nonarray');
-      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
+      const { status, all } = run(['check', '--approve'], dir);
       expect(status).toBe(1);
+      // The fill reports a runtime error and leaves the pair unverified (no verdict).
       expect(all).toContain('ret-nonarray');
-      expect(all).toContain('NOT SATISFIED');
-      // The runner code + message are carried into the refused reason.
-      expect(all).toContain('STRUCTURE_CHECK_RETURN_SHAPE');
+      expect(all).toContain('aspect-check-runtime-error');
       expect(all).toContain('check.mjs returned object, expected Violation[].');
+      expect(all).toContain("No valid verdict for aspect 'ret-nonarray' on node:services/orders.");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('B2: a check returning a NON-ARRAY fails deterministic-test --node (exit 1, STRUCTURE_CHECK_RETURN_SHAPE)', () => {
+  it('B2: a check returning a NON-ARRAY fails aspect-test --node (exit 1, STRUCTURE_CHECK_RETURN_SHAPE)', () => {
     const dir = deterministicFixture('b2');
     try {
       writeDeterministicAspect(dir, 'ret-nonarray', 'enforced', 'export function check(ctx) { return { nope: true }; }\n');
       attachToOrders(dir, 'ret-nonarray');
-      const { status, all } = run(['deterministic-test', '--aspect', 'ret-nonarray', '--node', 'services/orders'], dir);
+      const { status, all } = run(['aspect-test', '--aspect', 'ret-nonarray', '--node', 'services/orders'], dir);
       expect(status).toBe(1);
       expect(all).toContain('STRUCTURE_CHECK_RETURN_SHAPE');
       expect(all).toContain('check.mjs returned object, expected Violation[].');
@@ -315,29 +318,28 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
     }
   });
 
-  it('B3: a check that THROWS refuses approve (NOT SATISFIED, STRUCTURE_CHECK_THROWN, error message)', () => {
+  it('B3: a check that THROWS is an aspect-check-runtime-error at fill time — left unverified (exit 1, error message)', () => {
     const dir = deterministicFixture('b3');
     try {
       writeDeterministicAspect(dir, 'thrower', 'enforced', 'export function check(ctx) { throw new Error("boom in check"); }\n');
       attachToOrders(dir, 'thrower');
-      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
+      const { status, all } = run(['check', '--approve'], dir);
       expect(status).toBe(1);
       expect(all).toContain('thrower');
-      expect(all).toContain('NOT SATISFIED');
-      expect(all).toContain('STRUCTURE_CHECK_THROWN');
-      expect(all).toContain("check.mjs threw an exception while running (aspect 'thrower').");
+      expect(all).toContain('aspect-check-runtime-error');
       expect(all).toContain('boom in check');
+      expect(all).toContain("No valid verdict for aspect 'thrower' on node:services/orders.");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('B4: a check that THROWS fails deterministic-test --node (exit 1, STRUCTURE_CHECK_THROWN)', () => {
+  it('B4: a check that THROWS fails aspect-test --node (exit 1, STRUCTURE_CHECK_THROWN)', () => {
     const dir = deterministicFixture('b4');
     try {
       writeDeterministicAspect(dir, 'thrower', 'enforced', 'export function check(ctx) { throw new Error("boom in check"); }\n');
       attachToOrders(dir, 'thrower');
-      const { status, all } = run(['deterministic-test', '--aspect', 'thrower', '--node', 'services/orders'], dir);
+      const { status, all } = run(['aspect-test', '--aspect', 'thrower', '--node', 'services/orders'], dir);
       expect(status).toBe(1);
       expect(all).toContain('STRUCTURE_CHECK_THROWN');
       expect(all).toContain("check.mjs threw an exception while running (aspect 'thrower').");
@@ -347,13 +349,13 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
     }
   });
 
-  it('B5: a check that THROWS fails deterministic-test --files via the single-file runner (exit 1, AST_CHECK_THROWN message)', () => {
+  it('B5: a check that THROWS fails aspect-test --files via the single-file runner (exit 1, AST_CHECK_THROWN message)', () => {
     const dir = deterministicFixture('b5');
     try {
       // No node attachment needed for --files; the aspect just has to exist.
       writeDeterministicAspect(dir, 'thrower', 'enforced', 'export function check(ctx) { throw new Error("boom in check"); }\n');
       const { status, all } = run(
-        ['deterministic-test', '--aspect', 'thrower', '--files', 'src/services/orders.ts'],
+        ['aspect-test', '--aspect', 'thrower', '--files', 'src/services/orders.ts'],
         dir,
       );
       expect(status).toBe(1);
@@ -366,12 +368,12 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
     }
   });
 
-  it('B6: an ASYNC check fails deterministic-test --node (exit 1, STRUCTURE_CHECK_ASYNC)', () => {
+  it('B6: an ASYNC check fails aspect-test --node (exit 1, STRUCTURE_CHECK_ASYNC)', () => {
     const dir = deterministicFixture('b6');
     try {
       writeDeterministicAspect(dir, 'asyncer', 'enforced', 'export async function check(ctx) { return []; }\n');
       attachToOrders(dir, 'asyncer');
-      const { status, all } = run(['deterministic-test', '--aspect', 'asyncer', '--node', 'services/orders'], dir);
+      const { status, all } = run(['aspect-test', '--aspect', 'asyncer', '--node', 'services/orders'], dir);
       expect(status).toBe(1);
       expect(all).toContain('STRUCTURE_CHECK_ASYNC');
       expect(all).toContain('check.mjs returned a Promise; only synchronous returns are supported.');
@@ -380,12 +382,12 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
     }
   });
 
-  it('B7: an ASYNC check fails deterministic-test --files via the single-file runner (exit 1, async message)', () => {
+  it('B7: an ASYNC check fails aspect-test --files via the single-file runner (exit 1, async message)', () => {
     const dir = deterministicFixture('b7');
     try {
       writeDeterministicAspect(dir, 'asyncer', 'enforced', 'export async function check(ctx) { return []; }\n');
       const { status, all } = run(
-        ['deterministic-test', '--aspect', 'asyncer', '--files', 'src/services/orders.ts'],
+        ['aspect-test', '--aspect', 'asyncer', '--files', 'src/services/orders.ts'],
         dir,
       );
       expect(status).toBe(1);
@@ -431,7 +433,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
       );
       expect(existsSync(sentinel)).toBe(false);
       const { status, all } = run(
-        ['deterministic-test', '--aspect', 'writer', '--files', 'src/services/orders.ts'],
+        ['aspect-test', '--aspect', 'writer', '--files', 'src/services/orders.ts'],
         dir,
       );
       // Runner fails open: it reports no violations and the side effect happened.
@@ -443,7 +445,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
     }
   });
 
-  it('B9: a check synthesizing a violation for a file NOT in ctx fails deterministic-test --files (exit 1, AST_CHECK_FILE_NOT_IN_CONTEXT)', () => {
+  it('B9: a check synthesizing a violation for a file NOT in ctx fails aspect-test --files (exit 1, AST_CHECK_FILE_NOT_IN_CONTEXT)', () => {
     const dir = deterministicFixture('b9');
     try {
       // Return a violation referencing a file the single-file runner was not
@@ -460,7 +462,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
         ].join('\n'),
       );
       const { status, all } = run(
-        ['deterministic-test', '--aspect', 'badfile', '--files', 'src/services/orders.ts'],
+        ['aspect-test', '--aspect', 'badfile', '--files', 'src/services/orders.ts'],
         dir,
       );
       expect(status).toBe(1);
@@ -585,11 +587,13 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
       expect(ctx.stdout).not.toContain("implied by 'no-todo-comments'");
 
       // Enforcement follows: a BANNED line is NOT flagged (the aspect never reached
-      // the node), so a clean-but-for-BANNED approve succeeds.
+      // the node), so a clean-but-for-BANNED fill records no refusal and passes.
       appendFileSync(ordersFile(dir), '\n// this constant is BANNED here\n');
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/orders');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('yg check: PASS');
+      // no-banned-word never produced a pair, so it never appears in the fill.
+      expect(fill.stdout).not.toContain('no-banned-word');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -598,10 +602,10 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
   // A DRAFT implier is dormant for implies set-membership: it does NOT pull its
   // implied aspect into the effective set. computeEffectiveAspects and
   // computeEffectiveAspectStatuses agree (both skip draft impliers), so yg context
-  // omits the implied aspect and yg approve never evaluates it.
+  // omits the implied aspect and a fill never evaluates it.
   // (Contract: agent-rules "Reviewer" / knowledge read aspect-status — a draft
   // aspect is dormant; an implied aspect arrives only via a NON-draft channel.)
-  it('D3: a DRAFT implier does NOT propagate its implied aspect — context omits it and approve does not evaluate it (exit 0)', () => {
+  it('D3: a DRAFT implier does NOT propagate its implied aspect — context omits it and the fill does not evaluate it (exit 0)', () => {
     const dir = deterministicFixture('d3-draft-implier');
     try {
       // no-banned-word: own default DRAFT, attached NOWHERE except via the edge.
@@ -634,14 +638,15 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
       expect(ctx.stdout).not.toContain('no-banned-word [');
       expect(ctx.stdout).not.toContain("implied by 'draft-implier'");
 
-      // approve: the implied aspect is dormant, so a BANNED line is NOT evaluated.
+      // fill: the implied aspect is dormant, so a BANNED line is NOT evaluated and
+      // neither the draft implier nor its implied aspect produces a verifiable pair.
       appendFileSync(ordersFile(dir), '\n// this constant is BANNED here\n');
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).not.toContain('NOT SATISFIED');
-      // The draft implier itself is announced as skipped (draft).
-      expect(approve.stdout).toContain('draft-implier');
-      expect(approve.stdout).toContain('skipped');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('yg check: PASS');
+      // Neither the dormant implier nor the never-reached implied aspect is filled.
+      expect(fill.stdout).not.toContain('[det] draft-implier');
+      expect(fill.stdout).not.toContain('no-banned-word');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -763,15 +768,16 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
   });
 
   // =========================================================================
-  // GROUP F — yg deterministic-test error paths. (cli-deterministic-ctx covers
-  // the both-modes / neither-mode guards; these are the remaining argument /
-  // target errors and the tier-irrelevance confirmation.)
+  // GROUP F — yg aspect-test error paths. (cli-deterministic-ctx covers the
+  // both-modes / neither-mode guards; these are the remaining argument / target
+  // errors, the LLM-aspect-in-files-mode guard, and the tier-irrelevance
+  // confirmation for deterministic aspects.)
   // =========================================================================
 
-  it('F1: deterministic-test with an unknown --aspect id is rejected (exit 1)', () => {
+  it('F1: aspect-test with an unknown --aspect id is rejected (exit 1)', () => {
     const dir = deterministicFixture('f1');
     try {
-      const { status, all } = run(['deterministic-test', '--aspect', 'does-not-exist', '--node', 'services/orders'], dir);
+      const { status, all } = run(['aspect-test', '--aspect', 'does-not-exist', '--node', 'services/orders'], dir);
       expect(status).toBe(1);
       expect(all).toContain("Aspect 'does-not-exist' not found.");
     } finally {
@@ -779,10 +785,10 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
     }
   });
 
-  it('F2: deterministic-test --node on a nonexistent node is rejected (exit 1)', () => {
+  it('F2: aspect-test --node on a nonexistent node is rejected (exit 1)', () => {
     const dir = deterministicFixture('f2');
     try {
-      const { status, all } = run(['deterministic-test', '--aspect', 'no-todo-comments', '--node', 'no/such/node'], dir);
+      const { status, all } = run(['aspect-test', '--aspect', 'no-todo-comments', '--node', 'no/such/node'], dir);
       expect(status).toBe(1);
       expect(all).toContain("Node 'no/such/node' not found.");
     } finally {
@@ -795,11 +801,11 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
   // abortOnUnexpectedError wrapper as an unclassified ENOENT crash ("This is a
   // bug — please file an issue"), rather than a clean what/why/next telling the
   // user the file does not exist. We pin the actual ENOENT + exit 1.
-  it('F3: deterministic-test --files on a nonexistent path fails (exit 1, ENOENT)', () => {
+  it('F3: aspect-test --files on a nonexistent path fails (exit 1, ENOENT)', () => {
     const dir = deterministicFixture('f3');
     try {
       const { status, all } = run(
-        ['deterministic-test', '--aspect', 'no-todo-comments', '--files', 'src/services/MISSING.ts'],
+        ['aspect-test', '--aspect', 'no-todo-comments', '--files', 'src/services/MISSING.ts'],
         dir,
       );
       expect(status).toBe(1);
@@ -812,33 +818,38 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
     }
   });
 
-  it('F4: deterministic-test on an --aspect that is an LLM aspect is rejected (exit 1)', () => {
+  // aspect-test now ACCEPTS LLM aspects in --node mode (it runs the reviewer, or
+  // prints the prompt under --dry-run) — the old deterministic-only rejection is
+  // gone. The remaining kind guard is in --files (ad-hoc) mode: an LLM review
+  // needs graph context an ad-hoc file list cannot supply, so --files on an LLM
+  // aspect is rejected with a clear what/why/next.
+  it('F4: aspect-test --files on an LLM --aspect is rejected — LLM reviews need graph context (exit 1)', () => {
     // Keep the LLM aspect this time (do NOT strip it) so we can target it.
     const dir = copyFixture('f4');
     try {
-      const { status, all } = run(['deterministic-test', '--aspect', 'has-doc-comment', '--node', 'services/orders'], dir);
+      const { status, all } = run(['aspect-test', '--aspect', 'has-doc-comment', '--files', 'src/services/orders.ts'], dir);
       expect(status).toBe(1);
-      expect(all).toContain("Aspect 'has-doc-comment' has reviewer 'llm', not 'deterministic'.");
-      expect(all).toContain('yg deterministic-test only runs deterministic aspects');
+      expect(all).toContain("--files cannot be used with LLM aspect 'has-doc-comment'.");
+      expect(all).toContain('Use --node <node-path> instead, or switch to a deterministic aspect for --files mode.');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
   // Tier selection is irrelevant for a deterministic aspect: the fixture config
-  // declares a `standard` reviewer tier (an LLM concept), yet deterministic-test
-  // runs the check.mjs locally with zero LLM involvement and never dials the
-  // reviewer endpoint. (A tier declared ON a deterministic aspect is a separate
-  // validation error — aspect-tier-on-deterministic — already pinned in
-  // cli-validation-codes C4.) Here we confirm the run succeeds regardless of the
-  // configured tier and contacts no endpoint.
-  it('F5: tier is irrelevant for deterministic — deterministic-test runs the check locally and passes (exit 0), no endpoint dialed', () => {
+  // declares a `standard` reviewer tier (an LLM concept), yet aspect-test runs the
+  // check.mjs locally with zero LLM involvement and never dials the reviewer
+  // endpoint. (A tier declared ON a deterministic aspect is a separate validation
+  // error — aspect-tier-on-deterministic — already pinned in cli-validation-codes
+  // C4.) Here we confirm the run succeeds regardless of the configured tier and
+  // contacts no endpoint.
+  it('F5: tier is irrelevant for deterministic — aspect-test runs the check locally and passes (exit 0), no endpoint dialed', () => {
     const dir = deterministicFixture('f5');
     try {
       // Sanity: the config still carries a reviewer tier (the thing being ignored).
       const cfg = readFileSync(path.join(dir, '.yggdrasil', 'yg-config.yaml'), 'utf-8');
       expect(cfg).toContain('tiers:');
-      const { status, all } = run(['deterministic-test', '--aspect', 'no-todo-comments', '--node', 'services/orders'], dir);
+      const { status, all } = run(['aspect-test', '--aspect', 'no-todo-comments', '--node', 'services/orders'], dir);
       expect(status).toBe(0);
       expect(all).toContain('No violations.');
       // No reviewer/tier/endpoint chatter — the deterministic path bypasses it.

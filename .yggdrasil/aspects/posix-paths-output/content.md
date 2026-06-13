@@ -15,7 +15,7 @@ All paths written to stdout, stored in graph outputs, or returned from public AP
 path.replace(/\\/g, '/').replace(/\/+$/, '')
 ```
 
-This applies to: paths in CLI stdout messages, paths returned by context formatters, paths stored in drift-state files, and any path passed as a return value from a node's public functions.
+This applies to: paths in CLI stdout messages, paths returned by context formatters, paths stored in the verdict lock, and any path passed as a return value from a node's public functions.
 
 ## Related
 

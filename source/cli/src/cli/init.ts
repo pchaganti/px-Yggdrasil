@@ -13,6 +13,7 @@ import { testApiProvider, testCliProvider } from '../llm/reviewer-test.js';
 import type { ReviewerProvider } from '../model/graph.js';
 import { detectVersion } from '../core/migrator.js';
 import { runVersionUpgrade as coreRunVersionUpgrade } from '../core/migrator-runner.js';
+import { CLI_SUPPORTED_SCHEMA } from '../core/graph-loader.js';
 import { abortOnUnexpectedError } from './preamble.js';
 import { MIGRATIONS } from '../migrations/index.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
@@ -74,6 +75,46 @@ function assertNotCancelled<T>(value: T | symbol): asserts value is T {
 
 const GITIGNORE_CONTENT = `yg-secrets.yaml
 `;
+
+/** The exact .gitattributes line that marks the lock as generated for diff/review tools. */
+const GITATTRIBUTES_LOCK_LINE = '/.yggdrasil/yg-lock.json linguist-generated=true';
+
+/**
+ * Ensure the repo-root .gitattributes carries the lock's linguist-generated
+ * line (spec §8). The lock is committed but machine-written — marking it
+ * generated keeps it out of language stats and collapses it in review diffs.
+ *
+ * Idempotent: creates the file with the single line when absent; appends the
+ * line exactly once when the file exists without it (preserving other content
+ * and ensuring a separating newline); no-op when the line is already present.
+ * Run on fresh init AND every --upgrade so existing adopters pick it up.
+ */
+export async function ensureGitattributes(repoRoot: string): Promise<void> {
+  const gaPath = path.join(repoRoot, '.gitattributes');
+  let existing: string | undefined;
+  try {
+    existing = await readFile(gaPath, 'utf-8');
+  } catch (e: unknown) {
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+    debugWrite(`[init] ensureGitattributes: ${gaPath} not found (ENOENT), will create`);
+    existing = undefined;
+  }
+
+  if (existing === undefined) {
+    await writeFile(gaPath, `${GITATTRIBUTES_LOCK_LINE}\n`, 'utf-8');
+    return;
+  }
+
+  // Already present (anywhere, as a full line) → nothing to do.
+  const hasLine = existing
+    .split('\n')
+    .some((line) => line.trim() === GITATTRIBUTES_LOCK_LINE);
+  if (hasLine) return;
+
+  // Append once, guaranteeing a newline boundary before and after.
+  const sep = existing.length > 0 && !existing.endsWith('\n') ? '\n' : '';
+  await writeFile(gaPath, `${existing}${sep}${GITATTRIBUTES_LOCK_LINE}\n`, 'utf-8');
+}
 
 const API_PROVIDERS: ReviewerProvider[] = ['anthropic', 'openai', 'google', 'openai-compatible', 'ollama'];
 const CLI_PROVIDERS: ReviewerProvider[] = ['claude-code', 'codex', 'gemini-cli'];
@@ -326,6 +367,7 @@ async function writeReviewerConfig(
       standard: {
         provider: config.provider,
         consensus: 1,
+        max_prompt_chars: 50000,
         config: tierConfig,
       },
     },
@@ -415,6 +457,8 @@ async function freshInit(projectRoot: string): Promise<void> {
     await writeSecretsFile(yggRoot, reviewerConfig.provider, reviewerConfig.apiKey);
   }
 
+  await ensureGitattributes(projectRoot);
+
   p.outro(chalk.green('Yggdrasil initialized. Run yg check to get started.'));
 }
 
@@ -471,7 +515,7 @@ export async function runVersionUpgrade(
   platform: Platform,
 ): Promise<VersionUpgradeResult> {
   const { migrationActions, migrationWarnings, withheld } = await coreRunVersionUpgrade({
-    yggRoot, migrations: MIGRATIONS,
+    yggRoot, migrations: MIGRATIONS, targetVersion: CLI_SUPPORTED_SCHEMA,
   });
 
   await refreshSchemas(yggRoot);
@@ -486,6 +530,11 @@ export async function runVersionUpgrade(
 
   const rawRulesPath = await installRulesForPlatform(projectRoot, platform);
   const rulesPath = toPosixPath(rawRulesPath);
+
+  // Maintain the lock's .gitattributes line on every upgrade so existing
+  // adopters pick it up (both the interactive and non-interactive --upgrade
+  // paths route through here). Idempotent.
+  await ensureGitattributes(projectRoot);
 
   return { rulesPath, migrationActions, migrationWarnings, withheld };
 }
@@ -532,7 +581,7 @@ async function existingInit(projectRoot: string): Promise<void> {
     const landedVersion = (await detectVersion(yggRoot)) ?? currentVersion;
     p.log.step('Next steps:');
     p.log.info('1. Run yg check to verify graph integrity');
-    p.log.info('2. Run yg approve on all nodes to establish baselines');
+    p.log.info('2. Run yg check --approve to record verdicts for the graph');
     p.outro(
       chalk.green(
         `Migrated from ${currentVersion} to ${landedVersion}. Rules installed: ${toPosixPath(path.relative(projectRoot, result.rulesPath))}`,

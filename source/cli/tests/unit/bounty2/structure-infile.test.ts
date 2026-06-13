@@ -399,12 +399,12 @@ describe('buildOwnFiles via runStructureAspect — every branch', () => {
 
 // ===========================================================================
 // E2E CONFIRMATION — the same buildOwnFiles branches reachable through the
-// shipped binary (`yg deterministic-test --node`). One spawn exercises three
+// shipped binary (`yg aspect-test --node`). One spawn exercises three
 // branches at once: directory expansion (included), child carve-out
 // (isPathInMapping TRUE -> skip), and binary-extension skip.
 // Modeled on tests/e2e/cli-architecture-when-validation.test.ts.
 // ===========================================================================
-describe.skipIf(!distExists)('E2E — buildOwnFiles via yg deterministic-test --node', () => {
+describe.skipIf(!distExists)('E2E — buildOwnFiles via yg aspect-test --node', () => {
   function copyFixture(label: string): string {
     const dir = mkdtempSync(path.join(tmpdir(), `yg-bounty2-e2e-${label}-`));
     cpSync(FIXTURE, dir, { recursive: true });
@@ -495,7 +495,7 @@ describe.skipIf(!distExists)('E2E — buildOwnFiles via yg deterministic-test --
       // A binary file inside the mapped directory must be skipped.
       writeFileSync(path.join(dir, 'src', 'services', 'logo.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a]));
 
-      const { all, status } = run(['deterministic-test', '--aspect', 'list-files', '--node', 'bundle'], dir);
+      const { all, status } = run(['aspect-test', '--aspect', 'list-files', '--node', 'bundle'], dir);
 
       // payments.ts is present (directory expansion + included branch).
       expect(all).toContain('CTXFILE src/services/payments.ts');

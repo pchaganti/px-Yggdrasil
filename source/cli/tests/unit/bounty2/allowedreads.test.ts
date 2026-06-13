@@ -25,7 +25,7 @@ import { cleanupTestGraphs } from '../helpers/build-test-graph.js';
  *   - step 4: descendant entry carved-out / not
  *   - glob entries in mappings (own, relation, ancestor, descendant)
  *
- * E2E: the same gating is reachable through `yg deterministic-test --node`,
+ * E2E: the same gating is reachable through `yg aspect-test --node`,
  * because the allowed-reads set powers ctx.fs's read gate inside a structure
  * check.mjs. Spawn tests at the bottom confirm relation-target reads pass and
  * unrelated reads are blocked end-to-end.
@@ -450,7 +450,7 @@ describe('collectAllowedReadsForAspect — pure branch coverage', () => {
 // ---------------------------------------------------------------------------
 // E2E — allowed-reads gating observed through the spawned CLI.
 //
-// `yg deterministic-test --node <p> --aspect <id>` runs a structure check.mjs
+// `yg aspect-test --node <p> --aspect <id>` runs a structure check.mjs
 // whose ctx.fs read gate is built from collectAllowedReadsForAspect(p). A read
 // of a path inside the allowed set succeeds; a read outside throws
 // `structure-aspect-undeclared-fs-read`, which the check turns into a graph
@@ -499,7 +499,7 @@ function writeOrdersNode(dir: string, aspects: string[], relations: string): voi
   );
 }
 
-describe.skipIf(!distExists)('collectAllowedReadsForAspect — E2E via yg deterministic-test', () => {
+describe.skipIf(!distExists)('collectAllowedReadsForAspect — E2E via yg aspect-test', () => {
   // step 2 (relation targets) load-bearing E2E: WITH a relation to payments,
   // ctx.fs.read of the target's mapped file is permitted → no violation, exit 0.
   it('relation-target file is readable through ctx.fs when the relation exists', () => {
@@ -521,7 +521,7 @@ describe.skipIf(!distExists)('collectAllowedReadsForAspect — E2E via yg determ
         ['rel-read'],
         'relations:\n  - target: services/payments\n    type: uses\n',
       );
-      const res = run(['deterministic-test', '--node', 'services/orders', '--aspect', 'rel-read'], dir);
+      const res = run(['aspect-test', '--node', 'services/orders', '--aspect', 'rel-read'], dir);
       expect(res.all).toContain('No violations.');
       expect(res.status).toBe(0);
     } finally {
@@ -547,7 +547,7 @@ describe.skipIf(!distExists)('collectAllowedReadsForAspect — E2E via yg determ
       );
       // No relations block.
       writeOrdersNode(dir, ['no-rel'], '');
-      const res = run(['deterministic-test', '--node', 'services/orders', '--aspect', 'no-rel'], dir);
+      const res = run(['aspect-test', '--node', 'services/orders', '--aspect', 'no-rel'], dir);
       expect(res.all).toContain('structure-aspect-undeclared-fs-read');
       expect(res.all).toContain('src/services/payments.ts');
       expect(res.status).toBe(1);
@@ -573,7 +573,7 @@ describe.skipIf(!distExists)('collectAllowedReadsForAspect — E2E via yg determ
 `,
       );
       writeOrdersNode(dir, ['own-read'], '');
-      const res = run(['deterministic-test', '--node', 'services/orders', '--aspect', 'own-read'], dir);
+      const res = run(['aspect-test', '--node', 'services/orders', '--aspect', 'own-read'], dir);
       expect(res.all).toContain('No violations.');
       expect(res.status).toBe(0);
     } finally {
@@ -598,7 +598,7 @@ describe.skipIf(!distExists)('collectAllowedReadsForAspect — E2E via yg determ
 `,
       );
       writeOrdersNode(dir, ['deny-read'], '');
-      const res = run(['deterministic-test', '--node', 'services/orders', '--aspect', 'deny-read'], dir);
+      const res = run(['aspect-test', '--node', 'services/orders', '--aspect', 'deny-read'], dir);
       expect(res.all).toContain('structure-aspect-undeclared-fs-read');
       expect(res.all).not.toContain('UNEXPECTED read succeeded');
       expect(res.status).toBe(1);

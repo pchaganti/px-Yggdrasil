@@ -8,8 +8,8 @@
 
 /**
  * Structural validation codes — graph-shape and config errors that always block
- * `yg check` regardless of drift state. Both the summary tally and the rendered
- * grouping read this one set.
+ * `yg check` regardless of verification state. Both the summary tally and the
+ * rendered grouping read this one set.
  */
 export const STRUCTURAL_CODES = new Set<string>([
   'yaml-invalid',
@@ -52,21 +52,49 @@ export const STRUCTURAL_CODES = new Set<string>([
   'aspect-scope-on-aggregate',
   'aspect-references-on-aggregate',
   'aspect-reference-broken',
-  'aspect-reference-too-large',
-  'aspect-references-total-too-large',
   'aspect-reference-invalid-form',
   'aspect-reference-blank-path',
   'aspect-reference-escape',
   'aspect-reference-duplicate',
   'aspect-tier-unknown',
   'mapping-escapes-repo',
-  // Drift-state integrity: the recorded baseline hash for a node does not match
-  // a recompute over its files, typed identity, and stored verdicts, yet no file
-  // or identity change explains the divergence (the stored verdicts were tampered
-  // or the baseline predates a hash-scheme change). Structural because it blocks
-  // CI regardless of source-file drift — the baseline itself is untrustworthy.
-  'baseline-integrity',
+  // The lock file is unparseable, garbled, conflict-markered, or an unknown
+  // version. Fail closed — blocking, structural, independent of any pair state.
+  'lock-invalid',
 ]);
 
 /** Completeness codes — non-blocking metadata gaps surfaced in the summary. */
 export const COMPLETENESS_CODES = new Set<string>(['description-missing']);
+
+/**
+ * Gating codes — a structural validation failure that makes reviewer/tier
+ * resolution impossible. When any of these is present, the `--approve` fill
+ * stage ABORTS before dispatching any verification (no fills, no LLM calls):
+ * the graph is broken in a way that would make every verdict meaningless.
+ *
+ * Shared gating-code set consumed by the fill stage (core/fill.ts).
+ */
+export const APPROVE_GATING_CODES = new Set<string>([
+  'config-reviewer-missing',
+  'config-tiers-missing',
+  'config-tiers-empty',
+  'config-default-tier-missing',
+  'config-default-tier-unknown',
+  'config-tier-provider-missing',
+  'config-tier-provider-unknown',
+  'config-tier-config-missing',
+  'config-tier-config-not-mapping',
+  'config-tier-consensus-invalid',
+  'config-tier-name-invalid',
+  'config-tier-name-reserved',
+  'config-reviewer-unknown-key',
+  'config-tier-unknown-key',
+  'aspect-reviewer-missing',
+  'aspect-reviewer-not-mapping',
+  'aspect-reviewer-type-missing',
+  'aspect-reviewer-type-invalid',
+  'aspect-reviewer-unknown-key',
+  'aspect-tier-on-deterministic',
+  'aspect-tier-unknown',
+  'secrets-non-credential-field',
+]);

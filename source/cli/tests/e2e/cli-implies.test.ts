@@ -55,7 +55,7 @@ function copyFixture(label: string): string {
 
 /**
  * Copy the fixture and strip the LLM aspect (`has-doc-comment`) so the node's
- * effective aspects are purely deterministic. This makes the approve/check
+ * effective aspects are purely deterministic. This makes the fill/check
  * lifecycle hermetic: no network, no LLM verdict, fully reproducible.
  */
 function deterministicFixture(label: string): string {
@@ -190,7 +190,9 @@ function impliesFixture(label: string): string {
 
 // ---------------------------------------------------------------------------
 // IMPLIED ASPECTS — channel 7. Prove `implies` pulls an aspect into a node's
-// effective set transitively, enforced at approve, at zero LLM cost.
+// effective set transitively, enforced at fill (`yg check --approve`), at zero
+// LLM cost. Every aspect is deterministic, so the repo-wide fill makes no LLM
+// call and plain spawnSync is safe.
 // ---------------------------------------------------------------------------
 
 describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)', () => {
@@ -256,21 +258,25 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
   // --- 3. Enforcement of the implied aspect ------------------------------
   // A BANNED line violates no-banned-word, an aspect reachable ONLY via implies.
   // approve must refuse — proving implied aspects are enforced, not decorative.
-  it('3: a violation of the implied no-banned-word aspect refuses approve (exit 1)', () => {
+  it('3: a violation of the implied no-banned-word aspect refuses the fill (exit 1)', () => {
     const dir = impliesFixture('enf');
     try {
       // Clean baseline first.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       appendFileSync(ordersFile(dir), '\n// this constant is BANNED here\n');
-      const { status, stdout } = run(['approve', '--node', 'services/orders'], dir);
+      const { status, stdout } = run(['check', '--approve'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('no-banned-word');
-      expect(stdout).toContain('NOT SATISFIED');
-      expect(stdout).toContain('BANNED token found.');
-      // The implier itself (no-todo-comments) was satisfied — only the implied
-      // aspect refused.
-      expect(stdout).toContain('no-todo-comments — SATISFIED');
+      expect(stdout).toContain(
+        'is refused on node:services/orders by a deterministic check',
+      );
+      // The implied aspect's pair refused while the implier itself
+      // (no-todo-comments) was satisfied — its fill pair is approved. (The fill
+      // summary no longer echoes individual violation messages such as "BANNED
+      // token found." — that per-violation detail now lives in `yg aspect-test`.)
+      expect(stdout).toContain('[det] no-banned-word on node:services/orders — refused');
+      expect(stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -279,17 +285,22 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
   // --- 4. Recursive enforcement ------------------------------------------
   // A FIXME line violates no-fixme, reachable only via the 2-level implies
   // chain. approve must refuse on no-fixme.
-  it('4: a violation of the 2-level-deep no-fixme aspect refuses approve (exit 1)', () => {
+  it('4: a violation of the 2-level-deep no-fixme aspect refuses the fill (exit 1)', () => {
     const dir = impliesFixture('recenf');
     try {
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       appendFileSync(ordersFile(dir), '\n// FIXME: handle this case\n');
-      const { status, stdout } = run(['approve', '--node', 'services/orders'], dir);
+      const { status, stdout } = run(['check', '--approve'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('no-fixme');
-      expect(stdout).toContain('NOT SATISFIED');
-      expect(stdout).toContain('FIXME token found.');
+      expect(stdout).toContain(
+        "Aspect 'no-fixme' is refused on node:services/orders by a deterministic check",
+      );
+      // The 2-level-deep implied aspect's pair refused. (Per-violation message
+      // text "FIXME token found." moved to `yg aspect-test`; the fill summary
+      // reports the pair-level refusal only.)
+      expect(stdout).toContain('[det] no-fixme on node:services/orders — refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -305,10 +316,12 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
     try {
       // With the chain wired, a BANNED line refuses.
       appendFileSync(ordersFile(dir), '\n// this is BANNED\n');
-      const wired = run(['approve', '--node', 'services/orders'], dir);
+      const wired = run(['check', '--approve'], dir);
       expect(wired.status).toBe(1);
       expect(wired.stdout).toContain('no-banned-word');
-      expect(wired.stdout).toContain('NOT SATISFIED');
+      expect(wired.stdout).toContain(
+        'is refused on node:services/orders by a deterministic check',
+      );
 
       // Sever the chain at level 1: no-todo-comments no longer implies anything.
       setImplies(noTodoYamlPath(dir), NO_TODO_BASE, []);
@@ -320,10 +333,15 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
       expect(ctx.stdout).not.toContain('no-fixme');
       expect(ctx.stdout).not.toContain('implied by');
 
-      // The BANNED line is still in the source, but no aspect flags it now.
-      const cleared = run(['approve', '--node', 'services/orders'], dir);
+      // The BANNED line is still in the source, but no aspect flags it now — the
+      // fill is clean (no refusal) and `yg check` PASSES. (Severing the edge
+      // leaves no-banned-word/no-fixme orphaned, so their ids still surface as
+      // non-blocking orphaned-aspect warnings — hence assert on the absence of a
+      // REFUSAL rather than the absence of the id.)
+      const cleared = run(['check', '--approve'], dir);
       expect(cleared.status).toBe(0);
-      expect(cleared.stdout).toContain('Approved: services/orders');
+      expect(cleared.stdout).toContain('yg check: PASS');
+      expect(cleared.all).not.toContain('is refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -339,22 +357,23 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
   it('6: an enforced-implied aspect keeps enforced status and blocks check', () => {
     const dir = impliesFixture('status');
     try {
-      // Approve clean, then introduce a BANNED violation and let check see it.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      // Fill clean, then introduce a BANNED violation and let check see it.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // context renders the implied aspect at enforced status.
       const ctx = run(['context', '--node', 'services/orders'], dir);
       expect(ctx.stdout).toContain('no-banned-word [enforced]');
       expect(ctx.stdout).toContain('no-fixme [enforced]');
 
-      // A BANNED violation blocks approve (enforced → exit 1, error), confirming
+      // A BANNED violation blocks the fill (enforced → exit 1, error), confirming
       // the implied aspect is enforced rather than downgraded.
       appendFileSync(ordersFile(dir), '\n// BANNED token\n');
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(1); // enforced implied aspect blocks
-      expect(approve.stdout).toContain('no-banned-word');
-      expect(approve.stdout).toContain('NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1); // enforced implied aspect blocks
+      expect(fill.stdout).toContain('no-banned-word');
+      expect(fill.stdout).toContain(
+        'is refused on node:services/orders by a deterministic check',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -404,14 +423,14 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
       expect(ctx.stdout).toContain('no-banned-word [advisory]');
       expect(ctx.stdout).toContain("implied by 'no-todo-comments'");
 
-      // A BANNED violation is advisory → does not block approve or check.
+      // A BANNED violation is advisory → does not block the fill or check.
       appendFileSync(ordersFile(dir), '\n// BANNED token\n');
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
 
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0); // advisory does NOT block approve
-      expect(approve.stdout).toContain('no-banned-word');
-      expect(approve.stdout).toContain('advisory');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0); // advisory does NOT block the fill
+      expect(fill.stdout).toContain('no-banned-word');
+      expect(fill.stdout).toContain('advisory');
+      expect(fill.stdout).toContain('(advisory — not blocking)');
 
       const check = run(['check'], dir);
       expect(check.status).toBe(0); // advisory violation does NOT fail check
@@ -473,21 +492,21 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
     }
   });
 
-  // --- 9. implies cycle introduced after a baseline exists ---------------
-  // When an implies cycle is introduced AFTER a node already has an approved
-  // baseline, `yg check` runs drift computation (which walks the implies graph)
-  // before the validator's static aspect-implies-cycle issue is rendered. The
-  // implies cycle is raised as a recognizable ImpliesCycleError that
-  // classifyDrift catches per-node and skips — so the graph being structurally
-  // invalid no longer crashes check with an unclassified "file an issue"
-  // wrapper. The user sees the SAME structured `aspect-implies-cycle` error as
-  // the no-baseline case (test 8), regardless of whether a baseline exists.
-  it('9: cycle introduced post-baseline reports aspect-implies-cycle (exit 1), no crash', () => {
+  // --- 9. implies cycle introduced after the lock exists -----------------
+  // When an implies cycle is introduced AFTER the lock already holds verified
+  // verdicts, `yg check` walks the implies graph while resolving effective
+  // aspects before the validator's static aspect-implies-cycle issue is
+  // rendered. The implies cycle is raised as a recognizable ImpliesCycleError
+  // that resolution catches and surfaces as the structured issue — so the graph
+  // being structurally invalid no longer crashes check with an unclassified
+  // "file an issue" wrapper. The user sees the SAME structured
+  // `aspect-implies-cycle` error as the no-lock case (test 8), regardless of
+  // whether a lock exists.
+  it('9: cycle introduced post-lock reports aspect-implies-cycle (exit 1), no crash', () => {
     const dir = impliesFixture('cyclepostbaseline');
     try {
-      // Establish baselines while the chain is acyclic.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      // Establish the lock (verified verdicts) while the chain is acyclic.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // Close a cycle downstream: no-fixme → no-banned-word (already
       // no-banned-word → no-fixme), forming no-banned-word ↔ no-fixme.

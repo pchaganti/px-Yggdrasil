@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Harness reused verbatim from cli-deterministic-lifecycle.test.ts:
+// Harness reused verbatim from cli-deterministic-fill-lifecycle.test.ts:
 // run(args, cwd) spawnSync wrapper, BIN_PATH resolution, describe.skipIf,
 // copyFixture. Fully hermetic — each test builds its own temp dir and removes
 // it in a finally; no committed fixtures are mutated, no network, no clock.
@@ -75,80 +75,83 @@ describe.skipIf(!distExists)('CLI E2E — command surface: mutex, not-found, req
     }
   });
 
-  it('A2: approve --dry-run WITH --flow is rejected (exit 1) — dry-run only with --node', () => {
-    // cli-deterministic-lifecycle E11 pins --dry-run + --aspect; the --flow
-    // partner is pinned only here. order-processing is a real flow in the fixture.
+  // A2/A3 REMOVED — the `yg approve` command (and its --dry-run / --node /
+  // --aspect / --flow targeting and "No target specified" guards) is entirely
+  // gone in the verdict-lock model: verification now happens through the
+  // repo-wide `yg check --approve` fill, which has no scoping flags and no
+  // dry-run. The removed-surface contract is pinned by A2 below.
+
+  it('A2: the removed `yg approve` command is rejected as an unknown command (exit 1)', () => {
+    // `yg approve` no longer exists — fill is repo-wide via `yg check --approve`.
+    // Commander rejects the bare subcommand with "unknown command" on stderr.
     const dir = copyFixture('a2');
     try {
-      const { status, all } = run(['approve', '--flow', 'order-processing', '--dry-run'], dir);
+      const { status, stderr } = run(['approve', '--node', 'services/orders'], dir);
       expect(status).toBe(1);
-      expect(all).toContain('--dry-run is only supported with --node, not with --aspect or --flow.');
+      expect(stderr).toContain("unknown command 'approve'");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('A3: approve with NO target prints the exact "No target specified" message (exit 1)', () => {
-    // cli-lifecycle runs `yg approve` but only loosely asserts /required
-    // option|--node/. The actual structured message is pinned only here.
+  it('A3: `yg check --help` lists the --approve fill flag that replaced `yg approve`', () => {
+    // The replacement surface: fill is a flag on check, not its own command.
     const dir = copyFixture('a3');
     try {
-      const { status, all } = run(['approve'], dir);
-      expect(status).toBe(1);
-      expect(all).toContain('No target specified.');
-      expect(all).toContain('yg approve needs exactly one of --node, --aspect, or --flow.');
+      const { status, stdout } = run(['check', '--help'], dir);
+      expect(status).toBe(0);
+      expect(stdout).toContain('--approve');
+      expect(stdout).toContain('Fill every unverified pair');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  // === B. Resource-not-found paths ===
+  // === B. Resource-not-found paths & removed-command surface ===
 
-  it('B1: approve --aspect <unknown> reports aspect-does-not-exist (exit 1)', () => {
+  // B1/B2/B3 REMOVED — `approve --aspect <unknown>`, `approve --flow <unknown>`,
+  // and the `approve --aspect <draft-default>` no-op batch all targeted the
+  // removed `yg approve` batch-targeting modes. Fill has no per-aspect / per-flow
+  // scoping, so these resource-not-found-under-approve paths no longer exist.
+
+  it('B1: the removed `yg deterministic-test` command is rejected as an unknown command (exit 1)', () => {
+    // `yg deterministic-test` was renamed to `yg aspect-test`; the old name is gone.
     const dir = copyFixture('b1');
     try {
-      const { status, all } = run(['approve', '--aspect', 'no-such-aspect'], dir);
+      const { status, stderr } = run(
+        ['deterministic-test', '--aspect', 'no-todo-comments', '--node', 'services/orders'],
+        dir,
+      );
       expect(status).toBe(1);
-      expect(all).toContain("Aspect 'no-such-aspect' does not exist.");
-      expect(all).toContain('Run: yg aspects');
+      expect(stderr).toContain("unknown command 'deterministic-test'");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('B2: approve --flow <unknown> reports flow-does-not-exist (exit 1)', () => {
+  it('B2: `yg aspect-test --help` is present — the replacement for deterministic-test', () => {
     const dir = copyFixture('b2');
     try {
-      const { status, all } = run(['approve', '--flow', 'no-such-flow'], dir);
-      expect(status).toBe(1);
-      expect(all).toContain("Flow 'no-such-flow' does not exist.");
-      expect(all).toContain('Run: yg flows');
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('B3: approve --aspect <draft-default> is a no-op batch (exit 0, Scenario A message)', () => {
-    // wip-rule has default status `draft`; no node can raise it via cascade, so
-    // the whole batch is a friendly no-op that exits 0 without touching baselines.
-    const dir = copyFixture('b3');
-    try {
-      const { status, stdout } = run(['approve', '--aspect', 'wip-rule'], dir);
+      const { status, stdout } = run(['aspect-test', '--help'], dir);
       expect(status).toBe(0);
-      expect(stdout).toContain("Aspect 'wip-rule' has default status 'draft'");
-      expect(stdout).toContain('reviewer skipped on every node');
+      expect(stdout).toContain('Usage: yg aspect-test');
+      expect(stdout).toContain('--aspect');
+      expect(stdout).toContain('--node');
+      expect(stdout).toContain('--files');
+      expect(stdout).toContain('--check-determinism');
+      expect(stdout).toContain('--dry-run');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('B4: deterministic-test --node <unknown> reports node-not-found (exit 1)', () => {
-    // aspect-not-found, both-flags, neither-flags, and llm-aspect-type are pinned
-    // by other suites; the unknown-node branch of --node mode is pinned only here.
+  it('B4: aspect-test --node <unknown> reports node-not-found (exit 1)', () => {
+    // aspect-not-found, both-flags, neither-flags are pinned by other suites; the
+    // unknown-node branch of --node mode is pinned only here.
     const dir = copyFixture('b4');
     try {
       const { status, all } = run(
-        ['deterministic-test', '--aspect', 'no-todo-comments', '--node', 'services/ghost'],
+        ['aspect-test', '--aspect', 'no-todo-comments', '--node', 'services/ghost'],
         dir,
       );
       expect(status).toBe(1);
@@ -200,7 +203,7 @@ describe.skipIf(!distExists)('CLI E2E — command surface: mutex, not-found, req
   // === D. Numeric / query option validation ===
 
   it('D1: tree --depth with a NEGATIVE value is rejected (exit 1, non-negative integer)', () => {
-    // cli-deterministic-lifecycle E13 pins the non-numeric case; the negative
+    // cli-deterministic-fill-lifecycle E13 pins the non-numeric case; the negative
     // (parses to a number, but < 0) branch is pinned only here.
     const dir = copyFixture('d1');
     try {
@@ -241,10 +244,10 @@ describe.skipIf(!distExists)('CLI E2E — command surface: mutex, not-found, req
 
   // === E. No-.yggdrasil error path for commands that lack one elsewhere ===
 
-  it('E1: approve in a directory with no .yggdrasil/ aborts with the init hint (exit 1)', () => {
+  it('E1: check --approve (the fill that replaced approve) in a no-.yggdrasil/ dir aborts with the init hint (exit 1)', () => {
     const dir = emptyDir('e1');
     try {
-      const { status, stderr } = run(['approve', '--node', 'x'], dir);
+      const { status, stderr } = run(['check', '--approve'], dir);
       expect(status).toBe(1);
       expect(stderr).toContain('No .yggdrasil/ directory found');
       expect(stderr).toContain('yg init');
@@ -265,10 +268,10 @@ describe.skipIf(!distExists)('CLI E2E — command surface: mutex, not-found, req
     }
   });
 
-  it('E3: deterministic-test in a directory with no .yggdrasil/ aborts with the init hint (exit 1)', () => {
+  it('E3: aspect-test (the rename of deterministic-test) in a no-.yggdrasil/ dir aborts with the init hint (exit 1)', () => {
     const dir = emptyDir('e3');
     try {
-      const { status, stderr } = run(['deterministic-test', '--aspect', 'x', '--node', 'y'], dir);
+      const { status, stderr } = run(['aspect-test', '--aspect', 'x', '--node', 'y'], dir);
       expect(status).toBe(1);
       expect(stderr).toContain('No .yggdrasil/ directory found');
       expect(stderr).toContain('yg init');

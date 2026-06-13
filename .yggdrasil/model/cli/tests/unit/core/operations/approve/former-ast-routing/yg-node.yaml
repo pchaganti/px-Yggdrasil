@@ -1,7 +1,0 @@
-name: Approve Former-AST Routing Tests
-type: test-suite
-description: "Unit tests asserting former-ast aspects route through the deterministic (structure) runner — violation-shape pass-through, suppress filtering, child-mapping carve-out, and dry-run preview parity."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/core/approve-reviewer-former-ast-routing.test.ts

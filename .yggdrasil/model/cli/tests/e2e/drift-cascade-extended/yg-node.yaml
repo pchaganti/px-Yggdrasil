@@ -1,7 +1,0 @@
-name: E2E Tests — Drift Cascade Extended
-type: test-suite
-description: "Subprocess E2E proving the remaining drift and cascade paths — a cross-node check-touched cascade where a graph-aware deterministic aspect reads another node's file, batch approve partial-failure independence with exit 1 on any refusal, a cascade-only re-approve needing no fresh log entry, an all-draft node skipped, multiple simultaneous cascade causes cleared by one approve, partial mapping-deletion drift and recovery, and a no-change zero-call re-approve."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/e2e/cli-drift-cascade-extended.test.ts

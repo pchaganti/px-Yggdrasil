@@ -6,7 +6,6 @@ import {
   mkdirSync,
   rmSync,
   cpSync,
-  readFileSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -161,38 +160,22 @@ function writeFlow(ygRoot: string, dirName: string, yaml: string): void {
 // ---------------------------------------------------------------------------
 
 describe.skipIf(!distExists)('CLI E2E — yg check surfaces blocking validation codes', () => {
-  // --- 1. oversized-node -----------------------------------------------------
-  // Lower the per-node character budget far below a real source file and inflate
-  // a mapped file past it; the node's reviewer context exceeds the budget.
-  it('1: oversized-node fires when a mapped node exceeds quality.max_node_chars', () => {
-    const dir = copySampleProject('oversized');
-    try {
-      const cfgPath = path.join(dir, '.yggdrasil', 'yg-config.yaml');
-      const cfg = readFileSync(cfgPath, 'utf-8').replace(
-        'quality:\n  max_direct_relations: 10',
-        'quality:\n  max_direct_relations: 10\n  max_node_chars: 100',
-      );
-      writeFileSync(cfgPath, cfg, 'utf-8');
+  // --- 1. node-size budget ---------------------------------------------------
+  // DELETED: the `oversized-node` error and the `quality.max_node_chars` budget
+  // were removed in the verdict-lock redesign. The per-node character ceiling is
+  // gone; prompt size is now bounded per LLM tier by `max_prompt_chars`
+  // (surfaced as `prompt-too-large` at fill/check time on the assembled reviewer
+  // prompt, not on a node's mapped-file byte count). No `max_node_chars` value
+  // can fire any error anymore, so the original "oversized-node fires" assertion
+  // tests a surface that no longer exists. The two negative cases below are
+  // retained: they still prove the live property that a large deterministic-only
+  // or aspect-less node does NOT block `yg check`.
 
-      // orders/order-service maps src/orders/order.service.ts — inflate it well
-      // past the 100-char budget.
-      const srcPath = path.join(dir, 'src', 'orders', 'order.service.ts');
-      const padding = '// padding line to inflate this node past the budget\n'.repeat(60);
-      writeFileSync(srcPath, readFileSync(srcPath, 'utf-8') + padding, 'utf-8');
-
-      const { status, stdout } = run(['check'], dir);
-      expect(status).toBe(1);
-      expect(stdout).toContain('oversized-node');
-      expect(stdout).toContain('orders/order-service');
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('1b: oversized-node does NOT fire for a node whose only aspect is deterministic', () => {
-    // The budget protects the LLM reviewer's context window. A deterministic
-    // check.mjs reads files programmatically (no window), so a node way over the
-    // char budget but reviewed only deterministically must NOT be flagged.
+  it('1b: a large node whose only aspect is deterministic does NOT block check', () => {
+    // A deterministic check.mjs reads files programmatically (no context window),
+    // so a node with a large mapped file but reviewed only deterministically must
+    // not be flagged by any size constraint. `max_node_chars` is now an ignored
+    // (removed) key; this asserts the live no-block behavior regardless.
     const dir = minimalGraph('oversized-det', (ygRoot) => {
       const root = path.dirname(ygRoot);
       writeAspect(
@@ -203,15 +186,9 @@ describe.skipIf(!distExists)('CLI E2E — yg check surfaces blocking validation 
       );
       writeNode(ygRoot, 'big', 'name: Big\ntype: service\ndescription: x\naspects:\n  - no-fs\nmapping:\n  - src/big.ts\n');
       mkdirSync(path.join(root, 'src'), { recursive: true });
-      writeFileSync(path.join(root, 'src', 'big.ts'), '// pad line to blow a 100-char budget\n'.repeat(50), 'utf-8');
+      writeFileSync(path.join(root, 'src', 'big.ts'), '// large mapped source — no per-node byte ceiling exists anymore\n'.repeat(50), 'utf-8');
     });
     try {
-      const cfgPath = path.join(dir, '.yggdrasil', 'yg-config.yaml');
-      writeFileSync(
-        cfgPath,
-        readFileSync(cfgPath, 'utf-8').replace('quality:\n  max_direct_relations: 10', 'quality:\n  max_direct_relations: 10\n  max_node_chars: 100'),
-        'utf-8',
-      );
       const { stdout } = run(['check'], dir);
       expect(stdout).not.toContain('oversized-node');
     } finally {
@@ -219,24 +196,17 @@ describe.skipIf(!distExists)('CLI E2E — yg check surfaces blocking validation 
     }
   });
 
-  it('1c: oversized-node does NOT fire for an aspect-less node, and check passes (exit 0)', () => {
-    // An aspect-less node is never sent to a reviewer at all, so the budget is a
-    // pure false constraint there. Strong form: under the old blanket rule this
-    // node (way over 100 chars) would error with exit 1; under the LLM-only rule
-    // it passes cleanly.
+  it('1c: a large aspect-less node does NOT block check — it passes (exit 0)', () => {
+    // An aspect-less node is never sent to a reviewer at all and has no verdict to
+    // fill, so a large mapped file produces no error of any kind. Strong form:
+    // exit 0, no oversized-node (the removed code) anywhere in the output.
     const dir = minimalGraph('oversized-bare', (ygRoot) => {
       const root = path.dirname(ygRoot);
       writeNode(ygRoot, 'big', 'name: Big\ntype: service\ndescription: x\nmapping:\n  - src/big.ts\n');
       mkdirSync(path.join(root, 'src'), { recursive: true });
-      writeFileSync(path.join(root, 'src', 'big.ts'), '// pad line to blow a 100-char budget\n'.repeat(50), 'utf-8');
+      writeFileSync(path.join(root, 'src', 'big.ts'), '// large mapped source — no per-node byte ceiling exists anymore\n'.repeat(50), 'utf-8');
     });
     try {
-      const cfgPath = path.join(dir, '.yggdrasil', 'yg-config.yaml');
-      writeFileSync(
-        cfgPath,
-        readFileSync(cfgPath, 'utf-8').replace('quality:\n  max_direct_relations: 10', 'quality:\n  max_direct_relations: 10\n  max_node_chars: 100'),
-        'utf-8',
-      );
       const { status, stdout } = run(['check'], dir);
       expect(stdout).not.toContain('oversized-node');
       expect(status).toBe(0);
@@ -516,36 +486,12 @@ describe.skipIf(!distExists)('CLI E2E — yg check surfaces blocking validation 
     }
   });
 
-  // --- orphaned-drift-state: a baseline whose node left the graph (non-blocking) ---
-
-  it('a baseline for a node no longer in the graph surfaces as a non-blocking warning (exit 0)', () => {
-    const dir = minimalGraph('orphan-drift', (ygRoot) => {
-      const root = path.dirname(ygRoot);
-      mkdirSync(path.join(root, 'src'), { recursive: true });
-      writeFileSync(path.join(root, 'src', 'a.ts'), 'export const x = 1;\n', 'utf-8');
-      // An aspect-free node never drifts, so the orphan is the only finding.
-      writeNode(
-        ygRoot,
-        'live',
-        ['name: Live', 'description: Live node', 'type: service', 'aspects: []', 'mapping:', '  - src/a.ts', ''].join('\n'),
-      );
-      // A structurally-valid typed baseline whose node path is absent from the graph.
-      mkdirSync(path.join(ygRoot, '.drift-state'), { recursive: true });
-      writeFileSync(
-        path.join(ygRoot, '.drift-state', 'ghost.json'),
-        JSON.stringify({ schemaVersion: 1, hash: 'x', files: {}, identity: {}, aspectVerdicts: {} }),
-        'utf-8',
-      );
-    });
-    try {
-      const { status, all } = run(['check'], dir);
-      // Orphaned drift state is a WARNING — `yg check` still passes (exit 0).
-      expect(status).toBe(0);
-      expect(all).toContain('orphaned-drift-state');
-      expect(all).toContain('ghost');
-      expect(all).toContain('no longer in the graph');
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
+  // --- orphaned-drift-state: DELETED ---
+  // The `.drift-state/` directory and the per-node baseline file are gone in the
+  // verdict-lock redesign — state now lives in a single `.yggdrasil/yg-lock.json`.
+  // A verdict whose node has left the graph is no longer surfaced as an
+  // `orphaned-drift-state` warning; the next fill silently GC-prunes such stale
+  // lock entries (core/fill.ts: "Prune verdict entries whose pair is no longer in
+  // the expected universe"). There is no replacement warning to re-point to, so
+  // this test of the removed surface is deleted.
 });

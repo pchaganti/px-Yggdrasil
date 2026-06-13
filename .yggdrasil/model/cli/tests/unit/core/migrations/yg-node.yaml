@@ -5,6 +5,3 @@ aspects: []
 relations: []
 mapping:
   - source/cli/tests/unit/core/migrator.test.ts
-  - source/cli/tests/unit/migrations/to-4.0.0.test.ts
-  - source/cli/tests/unit/migrations/to-4.3.0.test.ts
-  - source/cli/tests/unit/migrations/format-detect.test.ts

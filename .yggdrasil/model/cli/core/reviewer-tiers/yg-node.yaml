@@ -1,10 +1,9 @@
 name: Reviewer Tiers
 type: engine
-description: "v5 reviewer-tiers logic — tier identity (canonical JSON for drift) and tier selection (aspect-to-tier resolution)"
+description: "v5 reviewer-tiers logic — tier selection (aspect-to-tier resolution)"
 aspects: []
 relations:
   - target: cli/model/graph
     type: uses
 mapping:
-  - source/cli/src/core/tier-identity.ts
   - source/cli/src/core/tier-selection.ts

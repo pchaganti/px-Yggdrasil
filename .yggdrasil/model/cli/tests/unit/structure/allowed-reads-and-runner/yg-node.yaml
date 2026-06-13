@@ -5,7 +5,6 @@ aspects: []
 relations: []
 mapping:
   - source/cli/tests/unit/structure/allowed-reads.test.ts
-  - source/cli/tests/unit/structure/allowed-reads-conformance.test.ts
   - source/cli/tests/unit/structure/runner.test.ts
   - source/cli/tests/unit/structure/enrich-files.test.ts
   - source/cli/tests/unit/structure/runner-eager-ast.test.ts

@@ -1,9 +1,14 @@
 // Hermetic E2E — further LLM REVIEWER mechanics via the in-process mock (see
 // support/mock-reviewer.ts and cli-llm-reviewer-mock.test.ts). Covers the paths the
-// first mock suite does not: prompt chunking by token budget, a node mixing a
-// deterministic and an LLM aspect (only the LLM one calls the reviewer), several LLM
-// aspects each consuming consensus calls, the 429 retry, and how a refused LLM verdict
-// renders in `yg check` (advisory warning vs enforced error). All deterministic, in CI.
+// first mock suite does not: a node with many source files sends ONE reviewer call per
+// LLM aspect (no chunking), a node mixing a deterministic and an LLM aspect (only the
+// LLM one calls the reviewer), several LLM aspects each consuming consensus calls, the
+// 429 retry, and how a refused LLM verdict renders in `yg check` (advisory warning vs
+// enforced error). All deterministic, in CI.
+//
+// Verification runs at FILL time via `yg check --approve` (repo-wide): one reviewer
+// call per LLM pair, ×consensus. The e2e-lifecycle fixture has the enforced LLM aspect
+// has-doc-comment on its TWO service nodes (orders, payments).
 
 import { describe, it, expect } from 'vitest';
 import { existsSync, mkdtempSync, rmSync, cpSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -32,20 +37,25 @@ function pointReviewer(dir: string, endpoint: string): void {
   writeFileSync(p, readFileSync(p, 'utf-8').replace(/endpoint:\s*["']?[^"'\n]+["']?/, `endpoint: "${endpoint}"`), 'utf-8');
 }
 
+function setAspectStatus(dir: string, status: 'draft' | 'advisory' | 'enforced'): void {
+  const p = path.join(dir, '.yggdrasil', 'aspects', 'has-doc-comment', 'yg-aspect.yaml');
+  writeFileSync(p, readFileSync(p, 'utf-8').replace(/status:\s*\w+/, `status: ${status}`), 'utf-8');
+}
+
 const ALWAYS_OK: () => ChatReply = () => ({ satisfied: true, reason: 'ok' });
 
 describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via mock (extended)', () => {
-  it('1: a large node with multiple source files sends exactly ONE reviewer call per LLM aspect (no chunking)', async () => {
+  it('1: a node with multiple large source files sends exactly ONE reviewer call per LLM aspect (no chunking)', async () => {
     const dir = fixture('no-chunk');
-    // Chunking has been removed. The size gate (max_node_chars) is the sole
-    // guarantee a node fits one prompt — no matter the total source size below
-    // that gate, the reviewer is called exactly once per LLM aspect.
+    // Chunking has been removed. The prompt-size gate (max_prompt_chars) is the
+    // sole guarantee a node fits one prompt — no matter the total source size
+    // below that gate, the reviewer is called exactly once per LLM aspect.
     const mock = await startMockReviewer({ respond: ALWAYS_OK });
     try {
       pointReviewer(dir, mock.endpoint);
-      // Add two large source files (~4000 chars each, still well under the
-      // 40000-char max_node_chars gate) so the former chunking logic would
-      // have produced multiple calls — verifying that it no longer does.
+      // Add two large source files (~4000 chars each, still well under any prompt
+      // gate) so the former chunking logic would have produced multiple calls —
+      // verifying that it no longer does.
       const big = (tag: string) => `// ${tag}\nexport const ${tag} = ${JSON.stringify('x'.repeat(4000))};\n`;
       writeFileSync(path.join(dir, 'src', 'services', 'big1.ts'), big('big1'), 'utf-8');
       writeFileSync(path.join(dir, 'src', 'services', 'big2.ts'), big('big2'), 'utf-8');
@@ -55,6 +65,8 @@ describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via mock (exten
           'name: OrdersService',
           'description: Creates and retrieves customer orders.',
           'type: service',
+          'aspects:',
+          '  - wip-rule',
           'mapping:',
           '  - src/services/orders.ts',
           '  - src/services/big1.ts',
@@ -63,14 +75,15 @@ describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via mock (exten
         ].join('\n'),
         'utf-8',
       );
-      const r = await runAsync(['approve', '--node', 'services/orders'], dir);
+      const r = await runAsync(['check', '--approve'], dir);
       expect(r.status).toBe(0);
-      // One LLM aspect (has-doc-comment) at consensus 1 → exactly ONE reviewer call.
-      expect(mock.chatCount()).toBe(1);
-      // The single prompt contains ALL source files.
-      const prompt = mock.chatRequests[0].prompt;
-      expect(prompt).toContain('big1');
-      expect(prompt).toContain('big2');
+      // One enforced LLM aspect (has-doc-comment) at consensus 1 across the TWO
+      // service nodes → exactly TWO reviewer calls, one per node (NOT one per file).
+      expect(mock.chatCount()).toBe(2);
+      // The orders prompt contains ALL of the orders node's source files.
+      const ordersPrompt = mock.chatRequests.find((c) => c.prompt.includes('services/orders'))!.prompt;
+      expect(ordersPrompt).toContain('big1');
+      expect(ordersPrompt).toContain('big2');
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
@@ -83,26 +96,33 @@ describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via mock (exten
     try {
       pointReviewer(dir, mock.endpoint);
       // The service type already carries deterministic aspects (no-todo-comments,
-      // requires-named-export) AND the LLM has-doc-comment. A clean approve runs the
-      // deterministic checks locally and issues exactly ONE reviewer call.
-      const r = await runAsync(['approve', '--node', 'services/orders'], dir);
+      // requires-named-export) AND the LLM has-doc-comment. A clean fill runs the
+      // deterministic checks locally (zero cost) and issues ONE reviewer call per
+      // LLM pair — two across the two service nodes.
+      const r = await runAsync(['check', '--approve'], dir);
       expect(r.status).toBe(0);
-      expect(mock.chatCount()).toBe(1);
-      // The single reviewer call is for the LLM aspect, not the deterministic ones.
-      expect(mock.chatRequests[0].prompt).toContain('has-doc-comment');
-      expect(mock.chatRequests[0].prompt).not.toContain('no-todo-comments');
+      expect(mock.chatCount()).toBe(2);
+      // The deterministic aspects fill locally — their fill lines are tagged [det]
+      // and never reach the reviewer.
+      expect(r.all).toContain('[det] no-todo-comments on node:services/orders — approved');
+      expect(r.all).toContain('[llm] has-doc-comment on node:services/orders — approved');
+      // The reviewer calls are for the LLM aspect only.
+      const prompts = mock.chatRequests.map((c) => c.prompt).join('\n');
+      expect(prompts).toContain('has-doc-comment');
+      expect(prompts).not.toContain('no-todo-comments');
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('3: two LLM aspects on one node each issue their own reviewer call', async () => {
+  it('3: two LLM aspects each issue their own reviewer call per node', async () => {
     const dir = fixture('two-llm');
     const mock = await startMockReviewer({ respond: ALWAYS_OK });
     try {
       pointReviewer(dir, mock.endpoint);
-      // Author a second LLM aspect and attach it to the orders node directly.
+      // Author a second LLM aspect and attach it to the orders node directly
+      // (keeping wip-rule so it does not become orphaned).
       const aspDir = path.join(dir, '.yggdrasil', 'aspects', 'second-llm');
       mkdirSync(aspDir, { recursive: true });
       writeFileSync(path.join(aspDir, 'yg-aspect.yaml'), 'name: SecondLlm\ndescription: A second LLM rule.\nreviewer:\n  type: llm\nstatus: enforced\n', 'utf-8');
@@ -114,6 +134,7 @@ describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via mock (exten
           'description: Creates and retrieves customer orders.',
           'type: service',
           'aspects:',
+          '  - wip-rule',
           '  - second-llm',
           'mapping:',
           '  - src/services/orders.ts',
@@ -121,31 +142,35 @@ describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via mock (exten
         ].join('\n'),
         'utf-8',
       );
-      const r = await runAsync(['approve', '--node', 'services/orders'], dir);
+      const r = await runAsync(['check', '--approve'], dir);
       expect(r.status).toBe(0);
-      // has-doc-comment (type default) + second-llm (own) = two LLM aspects, one call each.
-      expect(mock.chatCount()).toBe(2);
+      // has-doc-comment (type default) on BOTH service nodes = 2 calls; second-llm
+      // (own to orders) = 1 call. Three LLM pairs, one reviewer call each.
+      expect(mock.chatCount()).toBe(3);
       const prompts = mock.chatRequests.map((c) => c.prompt).join('\n');
       expect(prompts).toContain('has-doc-comment');
       expect(prompts).toContain('second-llm');
+      expect(r.all).toContain('[llm] second-llm on node:services/orders — approved');
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('4: a 429 is retried once and then succeeds (two requests, approve passes)', async () => {
+  it('4: a 429 is retried once and then succeeds (extra request, the fill passes)', async () => {
     const dir = fixture('retry');
-    // First chat call returns 429, the retry returns a verdict.
+    // The first chat call returns 429, every later call returns a verdict. The one
+    // retried call adds a single extra request on top of the two LLM pairs.
     const mock = await startMockReviewer({
       respond: (_r, i) => (i === 0 ? { httpStatus: 429 } : { satisfied: true, reason: 'ok after retry' }),
     });
     try {
       pointReviewer(dir, mock.endpoint);
-      const r = await runAsync(['approve', '--node', 'services/orders'], dir);
+      const r = await runAsync(['check', '--approve'], dir);
       expect(r.status).toBe(0);
-      // apiFetch retries once on 429 → two requests for the one consensus vote.
-      expect(mock.chatCount()).toBe(2);
+      // apiFetch retries once on 429 → the first pair makes 2 requests, the second
+      // makes 1 → three requests for two LLM pairs.
+      expect(mock.chatCount()).toBe(3);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
@@ -157,11 +182,11 @@ describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via mock (exten
     const mock = await startMockReviewer({ respond: () => ({ satisfied: false, reason: 'missing the file comment' }) });
     try {
       pointReviewer(dir, mock.endpoint);
-      // Approve BOTH service nodes (both carry the enforced LLM aspect) so the only
-      // check findings are the recorded verdicts, not an unapproved sibling.
-      const approve = await runAsync(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(1); // refused enforced verdict
-      await runAsync(['approve', '--node', 'services/payments'], dir);
+      // Fill the whole repo so the only check findings are the recorded refused
+      // verdicts (not an unverified pair).
+      const fill = await runAsync(['check', '--approve'], dir);
+      expect(fill.status).toBe(1); // refused enforced verdict
+      expect(fill.all).toContain('[llm] has-doc-comment on node:services/orders — refused');
       // yg check renders the stored refused enforced verdict as a blocking error
       // WITHOUT re-calling the reviewer.
       const before = mock.chatCount();
@@ -182,19 +207,17 @@ describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via mock (exten
     try {
       pointReviewer(dir, mock.endpoint);
       // Flip has-doc-comment to advisory.
-      const aspPath = path.join(dir, '.yggdrasil', 'aspects', 'has-doc-comment', 'yg-aspect.yaml');
-      writeFileSync(aspPath, readFileSync(aspPath, 'utf-8').replace(/status:\s*\w+/, 'status: advisory'), 'utf-8');
-      // Advisory refusal does not block approve (exit 0) but records the verdict.
-      // Approve both service nodes so no unapproved sibling forces a check failure.
-      const approve = await runAsync(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.all).toContain('not blocking');
-      await runAsync(['approve', '--node', 'services/payments'], dir);
+      setAspectStatus(dir, 'advisory');
+      // An advisory refusal does not block the fill (exit 0) but records the verdict.
+      const fill = await runAsync(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.all).toContain('[llm] has-doc-comment on node:services/orders — refused');
       // yg check renders the advisory violations as non-blocking warnings (exit 0).
       const check = await runAsync(['check'], dir);
       expect(check.status).toBe(0);
       expect(check.all).toContain('has-doc-comment');
       expect(check.all.toLowerCase()).toContain('advisory');
+      expect(check.all).toContain('not blocking');
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });

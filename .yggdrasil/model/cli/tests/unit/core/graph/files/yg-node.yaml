@@ -1,9 +1,0 @@
-name: Core Graph File-Tracking Unit Tests
-type: test-suite
-description: "Unit tests for collectTrackedFiles and buildLayerResolver — which files a node's context tracks (references, structure-aspect touched paths) and how each hashed path maps to a drift layer."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/core/graph/files-references.test.ts
-  - source/cli/tests/unit/core/files-structure.test.ts
-  - source/cli/tests/unit/core/graph/files-layer-resolver.test.ts

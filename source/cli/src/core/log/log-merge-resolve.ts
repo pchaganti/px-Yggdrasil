@@ -10,13 +10,11 @@ import {
   getMergeBase,
   getFileAtRef,
 } from '../../utils/git-introspect.js';
-import { readNodeDriftState, writeNodeDriftState } from '../../io/drift-state-store.js';
-import type { DriftNodeState } from '../../model/drift.js';
-import { DRIFT_STATE_SCHEMA_VERSION } from '../../model/drift.js';
-import { emptyIdentity } from '../graph/files.js';
 import { readTextFile } from '../../io/graph-fs.js';
 import { debugWrite } from '../../utils/debug-log.js';
 import { toPosix } from '../../utils/posix.js';
+import { readLock, writeLock, LockInvalidError } from '../../io/lock-store.js';
+import { computeLogBaselineFromContent } from './log-gate.js';
 
 export interface LogMergeResolveInput {
   graph: Graph;
@@ -172,23 +170,28 @@ export async function logMergeResolve(input: LogMergeResolveInput): Promise<LogM
     }
   }
 
-  const stored = await readNodeDriftState(yggRoot, nodePath);
-  const lastEntry = currentEntries.at(-1);
-  const newLogBaseline = {
-    last_entry_datetime: lastEntry?.datetime ?? '',
-    prefix_hash: createHash('sha256').update(currentBytes).digest('hex'),
-  };
-  const newState: DriftNodeState = stored
-    ? { ...stored, log: newLogBaseline }
-    : {
-        schemaVersion: DRIFT_STATE_SCHEMA_VERSION,
-        hash: '',
-        files: {},
-        identity: emptyIdentity(),
-        aspectVerdicts: {},
-        log: newLogBaseline,
-      };
-  await writeNodeDriftState(yggRoot, nodePath, newState);
+  // Record the reconciled append-only baseline into the lock's per-node `log`
+  // field (spec §9 — the lock is the only home for log integrity state). The
+  // prefix_hash covers bytes [0..newest.offsetEnd), matching the
+  // validateAppendOnly contract that `yg check` enforces — NOT the whole file.
+  // Read-modify-write through the lock store: only the `log` field of this node
+  // is touched; every other verdict and node fact survives untouched.
+  const baseline = computeLogBaselineFromContent(currentLog);
+  if (baseline) {
+    let lock;
+    try {
+      lock = readLock(yggRoot);
+    } catch (err) {
+      if (err instanceof LockInvalidError) {
+        return { ok: false, error: err.messageData };
+      }
+      throw err;
+    }
+    const entry = lock.nodes[nodePath] ?? {};
+    entry.log = baseline;
+    lock.nodes[nodePath] = entry;
+    await writeLock(yggRoot, lock);
+  }
 
   return { ok: true, nodePath };
 }

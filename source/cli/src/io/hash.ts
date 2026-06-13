@@ -3,8 +3,6 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { type Ignore, type Options as IgnoreOptions } from 'ignore';
-import type { TrackedFile } from '../core/graph/files.js';
-import type { DriftIdentity, AspectIdentity, AspectVerdict } from '../model/drift.js';
 import { toPosix, toPosixPath } from '../utils/posix.js';
 import { isGlobPattern, mappingEntryMatchesFile, globMatch } from '../utils/mapping-path.js';
 
@@ -93,103 +91,6 @@ export function hashBytes(bytes: Buffer): string {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
-/**
- * Stable, sorted serialization of a record of strings: `key=value` pairs in
- * ascending code-unit key order, joined by `\n`. Reordering insertion does not
- * change the output, so it folds order-independently into the canonical hash.
- */
-function serializeStringRecord(record: Record<string, string>): string {
-  return Object.keys(record)
-    .sort()
-    .map((k) => `${k}=${record[k]}`)
-    .join('\n');
-}
-
-/** Stable serialization of one aspect's identity slice (sorted, fixed field order). */
-function serializeAspectIdentity(id: string, ai: AspectIdentity): string {
-  const parts: string[] = [`id=${id}`, `meta=${ai.meta}`];
-  if (ai.tier !== undefined) parts.push(`tier=${ai.tier}`);
-  if (ai.checkTouched !== undefined) {
-    parts.push(`checkTouched={${serializeStringRecord(ai.checkTouched)}}`);
-  }
-  return parts.join('|');
-}
-
-/**
- * Stable, sorted serialization of the typed upstream identity. Aspects and
- * ports are sorted by id/target so reordering the maps yields an identical
- * string. `mtimes` and any other non-identity baseline field are NOT included.
- */
-export function serializeIdentity(identity: DriftIdentity): string {
-  const aspectLines = Object.keys(identity.aspects)
-    .sort()
-    .map((id) => serializeAspectIdentity(id, identity.aspects[id]))
-    .join('\n');
-  const portLines = serializeStringRecord(identity.ports);
-  return [
-    `ownSubset=${identity.ownSubset}`,
-    `ports={${portLines}}`,
-    `aspects={${aspectLines}}`,
-  ].join('\n');
-}
-
-/**
- * Stable, sorted serialization of the per-aspect verdict set folded into the
- * canonical drift hash. Aspect ids are sorted by code-unit `.sort()` (matching
- * the files/identity convention), and each line emits the verdict plus its
- * errorSource discriminator. The free-text `reason` is INTENTIONALLY excluded:
- * it is human-facing prose that varies harmlessly across reviewer runs and is
- * not part of the red/green outcome the hash must protect — only the verdict
- * and its error source are integrity-relevant.
- *
- * Folding the verdict closes a tamper hole: a committed `.drift-state/*.json`
- * whose stored verdict is hand-edited (e.g. `refused` -> `approved`) now yields
- * a different canonical hash than the stored one, so `yg check` reports drift.
- */
-function serializeVerdicts(verdicts: Record<string, AspectVerdict>): string {
-  // Code-unit `.sort()`, NOT localeCompare — keeps the drift hash locale-stable.
-  return Object.keys(verdicts)
-    .sort()
-    .map((id) => {
-      const v = verdicts[id];
-      return `id=${id}|verdict=${v.verdict}|errorSource=${v.errorSource ?? ''}`;
-    })
-    .join('\n');
-}
-
-/**
- * Compute the canonical drift hash for a baseline from its real-file hashes,
- * typed identity, and per-aspect verdicts. Deterministic: `files` fold as sorted
- * `path:hash`, `identity` folds via serializeIdentity (sorted at every level),
- * and `verdicts` fold via serializeVerdicts (sorted by aspect id). Reordering
- * files, aspects, ports, or verdict ids does not change the result. `mtimes` is
- * never an input.
- *
- * `verdicts` defaults to `{}` — an empty, well-defined section that is always
- * present in the hashed string, so a baseline with no verdicts, a re-keyed
- * baseline, a fresh `yg check`, and a freshly approved baseline all agree on the
- * fold. Callers that store a hash MUST pass the SAME verdict set they persist to
- * `state.aspectVerdicts`, or approve and check will disagree (false drift).
- *
- * The single source of truth for the canonical hash scheme — both the runtime
- * (hashTrackedFiles) and the re-key transform (drift-state-rekey) call this so
- * a re-keyed baseline over unchanged inputs matches a fresh computation.
- */
-export function computeCanonicalHash(
-  fileHashes: Record<string, string>,
-  identity: DriftIdentity,
-  verdicts: Record<string, AspectVerdict> = {},
-): string {
-  // Code-unit `.sort()`, NOT localeCompare — keeps the drift hash locale-stable.
-  const filesDigest = Object.entries(fileHashes)
-    .map(([p, h]) => `${p}:${h}`)
-    .sort()
-    .join('\n');
-  return hashString(
-    `files:\n${filesDigest}\nidentity:\n${serializeIdentity(identity)}\nverdicts:\n${serializeVerdicts(verdicts)}`,
-  );
-}
-
 /** Compute per-file hashes for a mapping. Used for diagnostics (which files changed). */
 export async function perFileHashes(
   projectRoot: string,
@@ -224,168 +125,9 @@ export async function perFileHashes(
   return result;
 }
 
-/** Compute drift hash for a node mapping. Returns hex. */
-export async function hashForMapping(
-  projectRoot: string,
-  mapping: { paths?: string[] },
-): Promise<string> {
-  const root = path.resolve(projectRoot);
-  const paths = mapping.paths ?? [];
-  if (paths.length === 0) throw new Error('Invalid mapping for hash: no paths');
-
-  const pairs: Array<{ path: string; hash: string }> = [];
-
-  for (const p of paths) {
-    const absPath = path.join(root, p);
-    const st = await stat(absPath);
-    if (st.isFile()) {
-      pairs.push({ path: toPosixPath(p), hash: await hashFile(absPath) });
-    } else if (st.isDirectory()) {
-      const dirHash = await hashPath(absPath, { projectRoot: root });
-      pairs.push({ path: toPosixPath(p), hash: dirHash });
-    }
-  }
-
-  const digestInput = pairs
-    .map((e) => `${e.path}:${e.hash}`)
-    .sort()
-    .join('\n');
-  return createHash('sha256').update(digestInput).digest('hex');
-}
-
-/** Stored file data for mtime-based drift optimization. */
-export interface StoredFileData {
-  hashes: Record<string, string>;
-  mtimes: Record<string, number>;
-}
-
-/** Empty identity — folded when a caller hashes files without an upstream identity. */
-const EMPTY_IDENTITY: DriftIdentity = { ownSubset: hashString(''), ports: {}, aspects: {} };
-
-/**
- * Hash all tracked files (source + graph) for bidirectional drift detection.
- * Directories in the tracked list are expanded to their contained files.
- * Returns a canonical hash (files digest + typed identity folded), per-file
- * hashes, and mtimes.
- *
- * When `storedFileData` is provided, files whose mtime has not changed since
- * the last sync will reuse the stored hash instead of re-reading and hashing.
- * This makes the common case (no changes) nearly instant even for large mappings.
- *
- * `identity` is folded into the canonical hash via computeCanonicalHash. Pass
- * the node's typed identity when computing a baseline-comparable hash; omit it
- * (e.g. when only the per-file source map is needed) to fold an empty identity.
- * `verdicts` is likewise folded into the canonical hash; pass the per-aspect
- * verdict set that will be (or is) stored in the baseline so a later `yg check`
- * recompute matches. Omit it (default `{}`) when only the per-file source map is
- * needed. `mtimes` is never part of the canonical hash.
- *
- * `reuseByMtime` (default `true`) controls the mtime-based optimization. When
- * `false`, stored hashes are NEVER reused — every file is always re-read from
- * disk. Pass `false` from the `yg check` gate so that a content change that
- * preserves the mtime (e.g. `touch -r`) is always detected. The approve-time
- * path may keep `true` because approve is the trusted write operation.
- */
-export async function hashTrackedFiles(
-  projectRoot: string,
-  trackedFiles: TrackedFile[],
-  storedFileData?: StoredFileData,
-  excludePrefixes?: string[],
-  identity?: DriftIdentity,
-  verdicts?: Record<string, AspectVerdict>,
-  reuseByMtime: boolean = true,
-): Promise<{ canonicalHash: string; fileHashes: Record<string, string>; fileMtimes: Record<string, number> }> {
-  const fileHashes: Record<string, string> = {};
-  const fileMtimes: Record<string, number> = {};
-  const gitignoreStack = await loadRootGitignoreStack(projectRoot);
-
-  // Collect all file entries (expanding directories) with their metadata
-  type FileEntry = { relPath: string; absPath: string; mtimeMs: number };
-  const allFiles: FileEntry[] = [];
-
-  for (const tf of trackedFiles) {
-    // Glob mapping entry: expand to the concrete files it matches (same
-    // expansion as expandMappingPaths). Without this a glob entry would fail
-    // stat() below and silently contribute zero files — the drift baseline and
-    // the reviewer's source list (Object.keys(fileHashes)) would never see the
-    // globbed files, so edits to them would not drift and the reviewer would
-    // never re-verify them.
-    if (isGlobPattern(tf.path)) {
-      const entries = await expandGlobEntry(projectRoot, tf.path, gitignoreStack);
-      for (const entry of entries) allFiles.push(entry);
-      continue;
-    }
-    const absPath = path.join(projectRoot, tf.path);
-    try {
-      const st = await stat(absPath);
-      if (st.isDirectory()) {
-        const dirEntries = await collectDirectoryFilePaths(absPath, absPath, {
-          projectRoot,
-          gitignoreStack,
-        });
-        for (const entry of dirEntries) {
-          allFiles.push({
-            relPath: toPosixPath(path.join(tf.path, entry.relPath)),
-            absPath: entry.absPath,
-            mtimeMs: entry.mtimeMs,
-          });
-        }
-      } else {
-        allFiles.push({ relPath: tf.path, absPath, mtimeMs: st.mtimeMs });
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  // Exclude files owned by descendant nodes (child-wins model). A descendant
-  // mapping entry may be a glob, so match via the shared matcher rather than a
-  // literal prefix compare — a glob exclusion prefix would otherwise never
-  // match a real file path and the parent would double-count the child's files.
-  const filtered = excludePrefixes?.length
-    ? allFiles.filter((entry) =>
-        !excludePrefixes.some((prefix) => mappingEntryMatchesFile(prefix, entry.relPath)))
-    : allFiles;
-
-  // Separate files into cached (mtime match) and dirty (need hashing)
-  const dirty: FileEntry[] = [];
-  for (const entry of filtered) {
-    const storedMtime = storedFileData?.mtimes[entry.relPath];
-    const storedHash = storedFileData?.hashes[entry.relPath];
-    if (
-      reuseByMtime &&
-      storedMtime !== undefined &&
-      storedHash !== undefined &&
-      entry.mtimeMs === storedMtime
-    ) {
-      fileHashes[entry.relPath] = storedHash;
-    } else {
-      dirty.push(entry);
-    }
-    fileMtimes[entry.relPath] = entry.mtimeMs;
-  }
-
-  // Hash dirty files in parallel batches to avoid overwhelming file descriptors
-  const BATCH_SIZE = 256;
-  for (let i = 0; i < dirty.length; i += BATCH_SIZE) {
-    const batch = dirty.slice(i, i + BATCH_SIZE);
-    const hashes = await Promise.all(batch.map((e) => hashFile(e.absPath)));
-    for (let j = 0; j < batch.length; j++) {
-      fileHashes[batch[j].relPath] = hashes[j];
-    }
-  }
-
-  // Canonical hash: real-file digest + typed identity + verdicts, via the
-  // single-source-of-truth fold. verdicts defaults to {} (empty section).
-  const canonicalHash = computeCanonicalHash(fileHashes, identity ?? EMPTY_IDENTITY, verdicts ?? {});
-
-  return { canonicalHash, fileHashes, fileMtimes };
-}
-
 /**
  * Collect file paths and mtimes from a directory without hashing.
- * Used by hashTrackedFiles to separate discovery from hashing,
- * enabling mtime-based optimization.
+ * Used by expandMappingPaths and pairs/fingerprint computation.
  *
  * Directory recursion and file stat() calls are parallelized for performance.
  */
@@ -449,7 +191,7 @@ async function collectDirectoryFilePaths(
  * extra stat. A missing base directory yields an empty list (silent skip).
  *
  * Single source of truth for glob expansion, shared by expandMappingPaths
- * (display/validation) and hashTrackedFiles (drift baseline + reviewer source).
+ * (display/validation) and pairs/fingerprint computation.
  */
 async function expandGlobEntry(
   projectRoot: string,
@@ -521,4 +263,20 @@ export async function expandMappingPaths(
   }
 
   return result;
+}
+
+/**
+ * Expand mapping paths to individual files, excluding paths matched by any
+ * child-mapping exclusion entry. Used by pairs/fingerprint computation.
+ */
+export async function expandMappingPathsExcluding(
+  projectRoot: string,
+  mappingPaths: string[],
+  excludePrefixes: string[],
+): Promise<string[]> {
+  const all = await expandMappingPaths(projectRoot, mappingPaths);
+  if (!excludePrefixes.length) return all;
+  return all.filter(
+    (p) => !excludePrefixes.some((prefix) => mappingEntryMatchesFile(prefix, p)),
+  );
 }

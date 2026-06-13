@@ -29,6 +29,14 @@ Two kinds of types coexist:
 
 ## Predicate grammar
 
+A type's \`when\` uses the FILE-atom family — \`path\` and \`content\` — with the
+shared boolean combinators \`all_of\` / \`any_of\` / \`not\`. This is one of the three
+sites of a single predicate grammar (the other file-atom site is an aspect's
+\`scope.files\`; node-atom \`when:\` filters which NODES an aspect applies to). The
+node atoms (\`node\`, \`relations\`, \`descendants\`) are NOT valid here — a type's
+\`when\` classifies a single file. (Cross-site overview:
+\`yg knowledge read conditional-aspects\`.)
+
 ### path atom
 \`\`\`yaml
 when:
@@ -118,6 +126,33 @@ Examples:
 
 Plain (non-glob) entries remain unchanged: an exact file path or a directory
 prefix (e.g. \`src/handlers\`) covers that file or all files beneath it.
+
+## log_required — when to enable the log gate
+
+Each node type may set \`log_required\` (default \`false\`). When \`true\`, a node of
+that type demands a fresh log entry before \`yg check --approve\` whenever its
+mapped source changed since the node's last positive closure (the log gate, see
+\`yg knowledge read log-management\`).
+
+Enable it on types whose changes carry business intent worth capturing —
+domain logic, command handlers, persistence adapters, anything where the WHY
+behind a change matters to the next agent. Leave it off (the default) for types
+whose changes carry no business decision worth forcing an entry for —
+configuration, generated artifacts, pure type definitions, test scaffolding.
+
+\`\`\`yaml
+node_types:
+  command:
+    description: "CLI command handler"
+    when:
+      path: "src/commands/**/*.ts"
+    log_required: true        # changes here carry intent — force an entry
+  types:
+    description: "Shared type definitions"
+    when:
+      path: "src/types/**/*.ts"
+    # log_required omitted → false: no entry forced
+\`\`\`
 
 ## Aspect status in architecture default aspects
 

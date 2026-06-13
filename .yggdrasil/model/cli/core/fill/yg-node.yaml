@@ -1,0 +1,31 @@
+name: Fill
+type: engine
+description: "Fill stage behind yg check --approve — the single producer of verdict-lock entries. Computes unverified pairs, runs the deterministic-first gate (det fills before LLM; a node's enforced det refusal skips its LLM fills), dispatches LLM reviewer calls per tier with a single fail-closed write chokepoint, enforces the mandatory-log gate, and on positive closure writes the source fingerprint and log baseline. GCs detached verdict entries and writes the lock canonically. No write ever happens on an infra disposition (provider unreachable, tier-resolution error, reference-load failure, unparseable response) or a tainted/failed deterministic result."
+aspects:
+  - deterministic
+  - posix-paths-output
+  - what-why-next
+  - diagnostic-logging
+relations:
+  - target: cli/core/check
+    type: calls
+  - target: cli/core/pairs
+    type: calls
+  - target: cli/core/verify-lock
+    type: calls
+  - target: cli/core/pair-inputs
+    type: calls
+  - target: cli/core/reviewer-tiers
+    type: calls
+  - target: cli/core/validator
+    type: calls
+  - target: cli/io/lock-store
+    type: calls
+  - target: cli/llm/shared
+    type: calls
+  - target: cli/model/graph
+    type: uses
+  - target: cli/model/lock
+    type: uses
+mapping:
+  - source/cli/src/core/fill.ts

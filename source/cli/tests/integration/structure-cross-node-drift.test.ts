@@ -51,10 +51,11 @@ function run(
 /**
  * Lay out a repo with two nodes:
  *   - B: owns src/b.ts (no aspects).
- *   - N: owns src/a.ts, declares `uses -> B`, carries an ENFORCED structure
+ *   - N: owns src/a.ts, declares `uses -> B`, carries an ENFORCED deterministic
  *     aspect `reads-b` that reaches B cross-node via ctx.graph.node('B') and
- *     reads B's mapped file. The cross-node read records src/b.ts in N's
- *     checkTouchedFiles baseline — so editing src/b.ts must drift N.
+ *     touches B's mapped file. The cross-node observation records src/b.ts in
+ *     the (reads-b, node:N) lock entry's `touched` map — so editing src/b.ts
+ *     invalidates N's verdict (it becomes unverified).
  */
 function layout(root: string): void {
   const ygg = path.join(root, '.yggdrasil');
@@ -85,22 +86,24 @@ function layout(root: string): void {
     path.join(ygg, 'aspects', 'reads-b', 'yg-aspect.yaml'),
     `name: ReadsB\ndescription: reads node B's file cross-node\nreviewer:\n  type: deterministic\nstatus: enforced\n`,
   );
-  // Reaching B via ctx.graph.node('B') reads B's mapped files (src/b.ts) and
-  // records them as touched — this is the cross-node read under test.
+  // Reaching B via ctx.graph.node('B') and accessing its files records both a
+  // graph:B observation (B's yg-node.yaml) and a read:src/b.ts observation
+  // (B's mapped file content) in N's lock entry's `touched` map — this is the
+  // cross-node observation under test.
   writeFileSync(
     path.join(ygg, 'aspects', 'reads-b', 'check.mjs'),
     `export function check(ctx) {\n  const b = ctx.graph.node('B');\n  if (b) { void b.files; }\n  return [];\n}\n`,
   );
 }
 
-function readBaseline(root: string, nodePath: string): Record<string, unknown> {
-  const stateDir = path.join(root, '.yggdrasil', '.drift-state');
-  const segments = nodePath.split('/');
-  const jsonPath = path.join(stateDir, ...segments.slice(0, -1), segments[segments.length - 1] + '.json');
-  return JSON.parse(readFileSync(jsonPath, 'utf-8')) as Record<string, unknown>;
+function readLock(root: string): {
+  verdicts: Record<string, Record<string, { verdict: string; hash: string; touched?: Array<[string, string]> }>>;
+} {
+  const lockPath = path.join(root, '.yggdrasil', 'yg-lock.json');
+  return JSON.parse(readFileSync(lockPath, 'utf-8')) as ReturnType<typeof readLock>;
 }
 
-describe.skipIf(!distExists)('structure aspect cross-node drift + impact', () => {
+describe.skipIf(!distExists)('deterministic aspect cross-node invalidation + impact', () => {
   let root: string;
 
   beforeEach(() => {
@@ -109,62 +112,57 @@ describe.skipIf(!distExists)('structure aspect cross-node drift + impact', () =>
 
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-  it('editing a cross-node file read by a structure aspect drifts the dependent node', () => {
+  it('editing a cross-node file observed by a deterministic aspect invalidates the dependent node', () => {
     layout(root);
 
-    // Approve both nodes (full repo).
-    const approveB = run(['approve', '--node', 'B'], root);
-    expect(approveB.status).toBe(0);
-    const approveN = run(['approve', '--node', 'N'], root);
-    expect(approveN.status).toBe(0);
+    // Fill the whole repo (deterministic, free).
+    const fill = run(['check', '--approve'], root);
+    expect(fill.status).toBe(0);
 
-    // N's baseline must record src/b.ts under identity.aspects[reads-b].checkTouched
-    // — proof the cross-node read participates in N's drift identity.
-    const baselineN = readBaseline(root, 'N');
-    const aspects = (baselineN.identity as { aspects: Record<string, { checkTouched?: Record<string, string> }> }).aspects;
-    const ct = aspects['reads-b']?.checkTouched;
-    expect(ct).toBeDefined();
-    expect(Object.keys(ct!)).toContain('src/b.ts');
-    // src/b.ts must NOT appear in N's own files map (it is cross-node, owned by B).
-    const nFiles = baselineN.files as Record<string, string>;
-    expect(nFiles['src/b.ts']).toBeUndefined();
+    // N's (reads-b) lock entry must record src/b.ts under `touched` as a
+    // read:src/b.ts observation — proof the cross-node read participates in N's
+    // verification inputs.
+    const lock = readLock(root);
+    const entry = lock.verdicts['reads-b']?.['node:N'];
+    expect(entry).toBeDefined();
+    expect(entry!.verdict).toBe('approved');
+    const touchedKeys = (entry!.touched ?? []).map(([k]) => k);
+    expect(touchedKeys).toContain('read:src/b.ts');
+    // src/b.ts is owned by B, not N — it is NOT a subject file of N, only an
+    // out-of-subject observation. (B's own entry, if any, would carry it as a
+    // subject; N carries it only as `touched`.)
 
-    // Clean check after approving both.
+    // Clean check after fill.
     const checkClean = run(['check'], root);
     expect(checkClean.status).toBe(0);
 
-    // Edit B's file — N reads it cross-node, so N must now drift.
+    // Edit B's file — N observes it cross-node, so N's verdict must invalidate.
     writeFileSync(path.join(root, 'src', 'b.ts'), 'export const b = 2;\n');
 
     const checkDrift = run(['check'], root);
-    // Before this fix, collectTrackedFiles was called without the baseline at the
-    // drift sites, so the check-touched layer was never emitted and editing a
-    // cross-node-read file did NOT drift N — check would exit 0 here.
     expect(checkDrift.status).toBe(1);
+    expect(checkDrift.stdout.toLowerCase()).toContain('unverified');
     expect(checkDrift.stdout).toContain('N');
-    // The changed cross-node file must NOT be misreported as a deleted file.
-    expect(checkDrift.stdout).not.toMatch(/src\/b\.ts.*\(deleted\)/);
 
-    // Re-approve N → clears the drift.
-    const reApproveN = run(['approve', '--node', 'N'], root);
-    expect(reApproveN.status).toBe(0);
+    // Re-fill → re-verifies N's deterministic pair (free) and clears it.
+    const reFill = run(['check', '--approve'], root);
+    expect(reFill.status).toBe(0);
 
     const checkAfter = run(['check'], root);
     expect(checkAfter.status).toBe(0);
   });
 
-  it('yg impact --file on a cross-node-read file names the dependent node', () => {
+  it('yg impact --file on a cross-node-observed file names the dependent node', () => {
     layout(root);
 
-    // Approve both so N's checkTouchedFiles baseline records src/b.ts (precise mode).
-    expect(run(['approve', '--node', 'B'], root).status).toBe(0);
-    expect(run(['approve', '--node', 'N'], root).status).toBe(0);
+    // Fill so N's lock entry records src/b.ts as a cross-node observation.
+    expect(run(['check', '--approve'], root).status).toBe(0);
 
     const impact = run(['impact', '--file', 'src/b.ts'], root);
-    // src/b.ts is owned by B AND read cross-node by N's structure aspect.
-    // The structure-cascade section must name N — not report "Blast radius: 0".
+    // src/b.ts is owned by B AND observed cross-node by N's deterministic aspect.
+    // The deterministic-observation section (sourced from the lock's `touched`
+    // maps) must name N — not report "Blast radius: 0".
     expect(impact.stdout).toContain('N');
-    expect(impact.stdout).toMatch(/structure aspects: 1 node/);
     expect(impact.stdout).not.toMatch(/Blast radius:\s*0\b/);
   });
 });

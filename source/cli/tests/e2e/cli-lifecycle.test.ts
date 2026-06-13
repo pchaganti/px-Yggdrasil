@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { startMockReviewer, runAsync } from './support/mock-reviewer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');
@@ -14,21 +13,6 @@ const PKG_VERSION = JSON.parse(readFileSync(path.join(CLI_ROOT, 'package.json'),
 const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'sample-project');
 
 const distExists = existsSync(BIN_PATH);
-
-/**
- * Repoint the fixture's reviewer endpoint at a live mock so LLM aspects are
- * genuinely verified (and approve can succeed). Without this, the configured
- * reviewer is unreachable and #2 fail-closed refuses — which is correct, but
- * these tests exercise the success path, so they need a reachable reviewer.
- */
-function pointReviewer(dir: string, endpoint: string): void {
-  const cfg = path.join(dir, '.yggdrasil', 'yg-config.yaml');
-  writeFileSync(
-    cfg,
-    readFileSync(cfg, 'utf-8').replace(/endpoint:\s*["']?[^"'\n]+["']?/, `endpoint: "${endpoint}"`),
-    'utf-8',
-  );
-}
 
 function run(
   args: string[],
@@ -49,50 +33,13 @@ function run(
   };
 }
 
-describe.skipIf(!distExists)('CLI E2E — lifecycle (approve, log, deterministic-test, platform, init)', () => {
-  // --- approve ---
-
-  it('yg approve --node records hash and clears drift', async () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-approve-'));
-    const mock = await startMockReviewer();
-    try {
-      cpSync(FIXTURE, tmpDir, { recursive: true });
-      pointReviewer(tmpDir, mock.endpoint);
-      // Remove the stored drift state to force the node to be (re-)approved
-      rmSync(path.join(tmpDir, '.yggdrasil', '.drift-state', 'orders', 'order-service.json'), {
-        force: true,
-      });
-      const { status: approveStatus, stdout } = await runAsync(
-        ['approve', '--node', 'orders/order-service'],
-        tmpDir,
-      );
-      expect(approveStatus).toBe(0);
-      expect(stdout).toMatch(/Approved: orders\/order-service/);
-
-      // After approving, check should not show source-drift for this node
-      const { stdout: checkOut } = await runAsync(['check'], tmpDir);
-      const driftLines = checkOut.split('\n').filter((l: string) =>
-        l.includes('source-drift') && l.includes('orders/order-service'),
-      );
-      expect(driftLines.length).toBe(0);
-    } finally {
-      await mock.close();
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  it('yg approve without --node returns exit 1', () => {
-    const { status, stderr } = run(['approve']);
-    expect(status).toBe(1);
-    expect(stderr).toMatch(/required option|--node/);
-  });
-
-  it('yg approve nonexistent node returns exit 1', () => {
-    const { status, stderr } = run(['approve', '--node', 'does/not/exist']);
-    expect(status).toBe(1);
-    expect(stderr).toContain("does not exist");
-  });
-
+// NOTE: the `yg approve` command and `.drift-state/` are removed surface in the
+// verdict-lock model — verification now happens via `yg check --approve` (fill)
+// against `.yggdrasil/yg-lock.json`. The mock-driven fill/verdict/consensus
+// behaviors live in cli-llm-reviewer-mock*.test.ts; this omnibus suite keeps the
+// surface that survived (log, platform install, init/upgrade, version) and
+// re-points the former `deterministic-test` diagnostics onto `yg aspect-test`.
+describe.skipIf(!distExists)('CLI E2E — lifecycle (log, aspect-test, platform, init)', () => {
   // --- platform installation (direct unit tests) ---
 
   it('installRulesForPlatform cursor creates .cursor/rules/yggdrasil.mdc', async () => {
@@ -228,7 +175,7 @@ describe.skipIf(!distExists)('CLI E2E — lifecycle (approve, log, deterministic
     }
   });
 
-  it('init --upgrade advances config version to the latest registered migration target', async () => {
+  it('init --upgrade advances config version to the CLI-supported schema version', async () => {
     const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-upgrade-version-'));
     const yggDir = path.join(tmpDir, '.yggdrasil');
     mkdirSync(path.join(yggDir, 'schemas'), { recursive: true });
@@ -237,13 +184,12 @@ describe.skipIf(!distExists)('CLI E2E — lifecycle (approve, log, deterministic
     try {
       const { status } = run(['init', '--upgrade', '--platform', 'generic'], tmpDir);
       expect(status).toBe(0);
-      // The on-disk version reflects each migration's `to` in order; the
-      // final landed value equals the highest registered migration target,
-      // not the CLI package.json version.
-      const { MIGRATIONS } = await import('../../src/migrations/index.js');
-      const latestTarget = [...MIGRATIONS].map(m => m.to).sort().pop()!;
+      // With no registered migrations, the runner lifts the on-disk version
+      // directly to the schema version this CLI supports (CLI_SUPPORTED_SCHEMA),
+      // which is independent of the CLI package.json version.
+      const { CLI_SUPPORTED_SCHEMA } = await import('../../src/core/graph-loader.js');
       const config = readFileSync(path.join(yggDir, 'yg-config.yaml'), 'utf-8');
-      expect(config).toContain(`version: "${latestTarget}"`);
+      expect(config).toContain(`version: "${CLI_SUPPORTED_SCHEMA}"`);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -319,98 +265,31 @@ describe.skipIf(!distExists)('CLI E2E — lifecycle (approve, log, deterministic
     expect(stderr).toContain('node');
   });
 
-  // --- deterministic-test ---
+  // --- aspect-test (replaces the removed `deterministic-test`) ---
 
-  it('yg deterministic-test with unknown aspect returns exit 1', () => {
-    const { status, stderr } = run(['deterministic-test', '--aspect', 'nonexistent-aspect-xyz']);
+  it('yg aspect-test with unknown aspect returns exit 1', () => {
+    const { status, stderr } = run(['aspect-test', '--aspect', 'nonexistent-aspect-xyz', '--node', 'orders/order-service']);
     expect(status).toBe(1);
     expect(stderr).toContain('not found');
   });
 
-  it('yg deterministic-test with LLM reviewer aspect returns exit 1 with reviewer error', () => {
-    const { status, stderr } = run(['deterministic-test', '--aspect', 'requires-audit']);
+  it('yg aspect-test on an LLM aspect with no reachable reviewer returns exit 1', () => {
+    // requires-audit is an LLM aspect; the sample-project reviewer endpoint is
+    // unreachable, so the diagnostic run fails closed.
+    const { status, stderr } = run(['aspect-test', '--aspect', 'requires-audit', '--node', 'orders/order-service']);
     expect(status).toBe(1);
-    expect(stderr).toContain('reviewer');
+    expect(stderr).toContain('unreachable');
   });
 
-  it('yg deterministic-test runs the check and reports no violations on clean code', () => {
+  it('yg aspect-test runs the check and reports no violations on clean code', () => {
     // Use the dogfood project which has real deterministic aspects and a proper node_modules tree
     const WORKSPACE_ROOT = path.resolve(CLI_ROOT, '../..');
     const { stdout, status } = run(
-      ['deterministic-test', '--aspect', 'no-direct-console', '--node', 'cli/formatters'],
+      ['aspect-test', '--aspect', 'no-direct-console', '--node', 'cli/formatters'],
       WORKSPACE_ROOT,
     );
     expect(status).toBe(0);
     expect(stdout).toContain('No violations');
-  });
-
-  // --- approve --dry-run ---
-
-  it('yg approve --dry-run shows reviewer prompt without making an LLM call', () => {
-    const { stdout, status } = run(['approve', '--node', 'orders/order-service', '--dry-run']);
-    expect(status).toBe(0);
-    expect(stdout).toContain('Dry run');
-    expect(stdout).toContain('orders/order-service');
-  });
-
-  it('yg approve --aspect exits 0 and runs batch approval', async () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-approve-aspect-'));
-    const mock = await startMockReviewer();
-    try {
-      cpSync(FIXTURE, tmpDir, { recursive: true });
-      pointReviewer(tmpDir, mock.endpoint);
-      const { stdout, status } = await runAsync(['approve', '--aspect', 'requires-audit'], tmpDir);
-      expect(status).toBe(0);
-      expect(stdout).toContain('requires-audit');
-    } finally {
-      await mock.close();
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  it('yg approve --flow exits 0 and runs batch approval', async () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-approve-flow-'));
-    const mock = await startMockReviewer();
-    try {
-      cpSync(FIXTURE, tmpDir, { recursive: true });
-      pointReviewer(tmpDir, mock.endpoint);
-      const { stdout, status } = await runAsync(['approve', '--flow', 'checkout-flow'], tmpDir);
-      expect(status).toBe(0);
-      expect(stdout).toContain('checkout-flow');
-    } finally {
-      await mock.close();
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  it('yg approve --node and --aspect together returns exit 1', () => {
-    const { status, stderr } = run(['approve', '--node', 'orders/order-service', '--aspect', 'requires-audit']);
-    expect(status).toBe(1);
-    expect(stderr).toContain('Multiple targets specified');
-  });
-
-  it('yg approve --node and --flow together returns exit 1', () => {
-    const { status, stderr } = run(['approve', '--node', 'orders/order-service', '--flow', 'checkout-flow']);
-    expect(status).toBe(1);
-    expect(stderr).toContain('Multiple targets specified');
-  });
-
-  it('yg approve --aspect and --flow together returns exit 1', () => {
-    const { status, stderr } = run(['approve', '--aspect', 'requires-audit', '--flow', 'checkout-flow']);
-    expect(status).toBe(1);
-    expect(stderr).toContain('Multiple targets specified');
-  });
-
-  it('yg approve multiple --node flags with --dry-run runs batch', () => {
-    const { stdout, status } = run([
-      'approve',
-      '--node', 'orders/order-service',
-      '--node', 'auth/auth-api',
-      '--dry-run',
-    ]);
-    expect(status).toBe(0);
-    expect(stdout).toContain('orders/order-service');
-    expect(stdout).toContain('auth/auth-api');
   });
 
   // --- init edge cases ---
@@ -510,29 +389,29 @@ describe.skipIf(!distExists)('CLI E2E — lifecycle (approve, log, deterministic
     expect(stdout + stderr).toContain('Usage: yg log');
   });
 
-  // --- deterministic-test extended ---
+  // --- aspect-test extended ---
 
-  it('yg deterministic-test without --aspect returns exit 1', () => {
-    const { status, stderr } = run(['deterministic-test']);
+  it('yg aspect-test without --aspect returns exit 1', () => {
+    const { status, stderr } = run(['aspect-test']);
     expect(status).toBe(1);
     expect(stderr).toContain('--aspect');
   });
 
-  it('yg deterministic-test with valid aspect but no --files or --node returns exit 1', () => {
+  it('yg aspect-test with valid aspect but no --files or --node returns exit 1', () => {
     const WORKSPACE_ROOT = path.resolve(CLI_ROOT, '../..');
     const { status, stderr } = run(
-      ['deterministic-test', '--aspect', 'no-direct-console'],
+      ['aspect-test', '--aspect', 'no-direct-console'],
       WORKSPACE_ROOT,
     );
     expect(status).toBe(1);
     expect(stderr).toContain('Neither --node nor --files');
   });
 
-  it('yg deterministic-test with --files runs check against specific files', () => {
+  it('yg aspect-test with --files runs check against specific files', () => {
     const WORKSPACE_ROOT = path.resolve(CLI_ROOT, '../..');
     const { stdout, status } = run(
       [
-        'deterministic-test',
+        'aspect-test',
         '--aspect', 'no-direct-console',
         '--files', 'source/cli/src/formatters/message-builder.ts',
       ],
@@ -542,7 +421,7 @@ describe.skipIf(!distExists)('CLI E2E — lifecycle (approve, log, deterministic
     expect(stdout).toContain('No violations');
   });
 
-  // --- v5 reviewer tiers ---
+  // --- legacy graph-version guard ---
 
   it('yg check rejects an outdated graph version with a migration hint', () => {
     const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-legacy-config-'));
@@ -562,37 +441,22 @@ describe.skipIf(!distExists)('CLI E2E — lifecycle (approve, log, deterministic
     }
   });
 
-  it('yg init --upgrade migrates v4 reviewer config to v5 tiers', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-migrate-v5-'));
-    const yggDir = path.join(tmpDir, '.yggdrasil');
-    mkdirSync(path.join(yggDir, 'schemas'), { recursive: true });
-    writeFileSync(
-      path.join(yggDir, 'yg-config.yaml'),
-      'version: "4.3.0"\nreviewer:\n  consensus: 1\n  ollama:\n    model: qwen3\n    endpoint: http://localhost:11434\n',
-      'utf-8',
-    );
-    try {
-      const { status } = run(['init', '--upgrade', '--platform', 'generic'], tmpDir);
-      expect(status).toBe(0);
-      const config = readFileSync(path.join(yggDir, 'yg-config.yaml'), 'utf-8');
-      expect(config).toContain('tiers:');
-      expect(config).toContain('provider: ollama');
-      expect(config).toContain('consensus: 1');
-    } finally {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  it('yg approve --dry-run with v5 tiers config shows tier info', () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-dryrun-v5-'));
-    try {
-      cpSync(FIXTURE, tmpDir, { recursive: true });
-      const { stdout, status } = run(['approve', '--node', 'orders/order-service', '--dry-run'], tmpDir);
-      expect(status).toBe(0);
-      expect(stdout).toContain('Dry run');
-    } finally {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
+  // DELETED (removed surface, verdict-lock redesign):
+  //   - every `yg approve` invocation test (`approve` with/without `--node`,
+  //     nonexistent node, `--aspect`, `--flow`, `--dry-run`, multi-target
+  //     "Multiple targets specified", batch `--node --node`): the `approve`
+  //     command and `.drift-state/` no longer exist — fill/verdict/consensus/
+  //     batch behavior is now covered by cli-llm-reviewer-mock*.test.ts via
+  //     `yg check --approve`.
+  //   - `yg deterministic-test` tests: command renamed to `yg aspect-test`
+  //     (re-pointed above; the unknown-aspect, clean-run, missing-flag, and
+  //     --files cases are preserved against the new command).
+  //   - `yg approve --dry-run` / `yg approve --dry-run with v5 tiers`: dry-run
+  //     prompt preview moved to `yg aspect-test --dry-run`, exercised in
+  //     cli-llm-reviewer-mock.test.ts (#11).
+  //   - `yg init --upgrade migrates v4 reviewer config to v5 tiers`: the v4→v5
+  //     reviewer-shape migration was removed in the B4 migration-deletion sweep
+  //     (MIGRATIONS is now empty). `init --upgrade` lifts the version directly;
+  //     that version-bump behavior is covered by the "advances config version"
+  //     test above.
 });

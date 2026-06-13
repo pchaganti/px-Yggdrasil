@@ -5,34 +5,58 @@ import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { runCheck } from '../core/check.js';
 import type { CheckIssue, CheckResult } from '../core/check.js';
+import { runFill, FillGatingError } from '../core/fill.js';
 import { STRUCTURAL_CODES, COMPLETENESS_CODES } from '../core/check-codes.js';
-import { buildIssueMessage } from '../formatters/message-builder.js';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
+
+/** Collect the repo's git-tracked files for the coverage scan (null if unavailable). */
+function collectGitFiles(projectRoot: string): string[] | null {
+  try {
+    const output = execFileSync('git', ['ls-files', '.'], {
+      cwd: projectRoot,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    return output.trim().split('\n').filter((f) => f.length > 0);
+  } catch (e: unknown) {
+    debugWrite(`[check] git ls-files failed: ${e instanceof Error ? e.message : String(e)}`);
+    // Not a git repo or git not available — skip unmapped-files check.
+    return null;
+  }
+}
 
 export function registerCheckCommand(program: Command): void {
   program
     .command('check')
-    .description('Unified graph gate — errors, drift, coverage, completeness')
-    .action(async () => {
+    .description('Unified graph gate — verification, coverage, completeness')
+    .option('--approve', 'Fill every unverified pair (deterministic first, then LLM), then report')
+    .action(async (opts: { approve?: boolean }) => {
       try {
         const cwd = process.cwd();
         const graph = await loadGraphOrAbort(cwd, { tolerateInvalidConfig: true });
         initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
+        const projectRoot = path.dirname(graph.rootPath);
+        const gitFiles = collectGitFiles(projectRoot);
 
-        // Get git-tracked files for unmapped-files check
-        let gitFiles: string[] | null = null;
-        try {
-          const projectRoot = path.dirname(graph.rootPath);
-          const output = execFileSync('git', ['ls-files', '.'], {
-            cwd: projectRoot,
-            encoding: 'utf-8',
-            stdio: ['pipe', 'pipe', 'pipe'],
-          });
-          gitFiles = output.trim().split('\n').filter(f => f.length > 0);
-        } catch (e: unknown) {
-          debugWrite(`[check] git ls-files failed: ${e instanceof Error ? e.message : String(e)}`);
-          // Not a git repo or git not available — skip unmapped-files check
+        // --approve fills every unverified pair (deterministic first, then LLM),
+        // then reports. Plain `yg check` is a pure read that never executes a
+        // reviewer or a deterministic check.
+        if (opts.approve) {
+          try {
+            const fill = await runFill(graph, { gitTrackedFiles: gitFiles });
+            process.stdout.write(formatOutput(fill.checkResult));
+            const hasErrors = fill.checkResult.issues.some(i => i.severity === 'error');
+            if (hasErrors) process.exit(1);
+            return;
+          } catch (err) {
+            if (err instanceof FillGatingError) {
+              // The structural gate already printed the gating details.
+              debugWrite(`[check] fill aborted by structural gate: ${err instanceof Error ? err.message : String(err)}`);
+              process.exit(1);
+            }
+            throw err;
+          }
         }
 
         const result = await runCheck(graph, gitFiles);
@@ -128,65 +152,35 @@ function renderHeader(result: CheckResult, errorCount: number, warningCount: num
 function renderErrorSection(errors: CheckIssue[]): string {
   const lines: string[] = [chalk.red(`Errors (${errors.length}):`)];
 
-  const cascade = errors.filter(i => i.code === 'upstream-drift');
-  const nonCascade = errors.filter(i => i.code !== 'upstream-drift');
+  // Verdict-lock codes (spec §6/§10): rendered individually as labelled blocks.
+  // `unverified` and `prompt-too-large` lead — they are the highest-priority
+  // remediations after lock-invalid. `lock-invalid` is in STRUCTURAL_CODES, so
+  // it renders in the structural group.
+  const verification = errors.filter(i => i.code === 'unverified' || i.code === 'prompt-too-large');
+  const unmapped = errors.filter(i => COVERAGE_CODES.has(i.code));
+  const structural = errors.filter(i => STRUCTURAL_CODES.has(i.code));
+  const architecture = errors.filter(i => ARCHITECTURE_CODES.has(i.code));
+  const completeness = errors.filter(i => COMPLETENESS_CODES.has(i.code));
+  const strict = errors.filter(i => STRICT_CODES.has(i.code));
+  const logErrors = errors.filter(i => i.code === 'log-integrity' || i.code === 'log-format');
+  const aspectErrors = errors.filter(i => i.code === 'aspect-violation-enforced');
+  const remaining = errors.filter(i =>
+    !verification.includes(i) && !unmapped.includes(i) && !structural.includes(i) &&
+    !architecture.includes(i) && !completeness.includes(i) && !strict.includes(i) &&
+    !logErrors.includes(i) && !aspectErrors.includes(i),
+  );
 
-  // Group cascade errors by upstream cause
-  if (cascade.length > 0) {
-    const groups = groupCascadeErrors(cascade);
-    for (const [causeKey, { causeDesc, nodeSet }] of groups) {
-      void causeKey; // used as map key only
-      const count = nodeSet.size;
-      const nodeList = formatNodeList([...nodeSet].sort(), 6);
-      // Determine the Fix command — if cause is an aspect, use --aspect flag
-      const aspectMatch = causeDesc.match(/^aspect '([^']+)'/);
-      const fixCmd = aspectMatch
-        ? `yg approve --aspect ${aspectMatch[1]}`
-        : `yg approve --node ${[...nodeSet].sort()[0]}`;
-      // Use buildIssueMessage to satisfy the what-why-next aspect requirement for CLI renderers.
-      const cascadeMsg = buildIssueMessage({
-        what: `cascade (${count})  ${causeDesc}`,
-        why: `${count} node${count === 1 ? '' : 's'} share this upstream cause`,
-        next: fixCmd,
-      });
-      // Render the cascade group as a compact block: cause on first line, → nodes, Fix.
-      // `cascadeMsg` (what/why/next concatenated) is the source; we present it with labels.
-      const [cascadeWhat] = cascadeMsg.split('\n');
+  for (const group of [verification, aspectErrors, structural, architecture, completeness, strict, logErrors, remaining]) {
+    for (const issue of sortByNodePath(group)) {
       lines.push('');
-      lines.push(`  ${cascadeWhat}`);
-      lines.push(`            → ${nodeList}`);
-      lines.push(`            Fix: ${fixCmd}`);
+      renderIssueBlock(issue, lines, 'error');
     }
   }
 
-  // Non-cascade errors: rendered individually
-  if (nonCascade.length > 0) {
-    const drift = nonCascade.filter(i => i.code === 'source-drift' || i.code === 'unapproved');
-    const unmapped = nonCascade.filter(i => COVERAGE_CODES.has(i.code));
-    const structural = nonCascade.filter(i => STRUCTURAL_CODES.has(i.code));
-    const architecture = nonCascade.filter(i => ARCHITECTURE_CODES.has(i.code));
-    const completeness = nonCascade.filter(i => COMPLETENESS_CODES.has(i.code));
-    const strict = nonCascade.filter(i => STRICT_CODES.has(i.code));
-    const logErrors = nonCascade.filter(i => i.code === 'log-integrity' || i.code === 'log-format');
-    const aspectErrors = nonCascade.filter(i => i.code === 'aspect-newly-active' || i.code === 'aspect-violation-enforced');
-    const remaining = nonCascade.filter(i =>
-      !drift.includes(i) && !unmapped.includes(i) && !structural.includes(i) &&
-      !architecture.includes(i) && !completeness.includes(i) && !strict.includes(i) &&
-      !logErrors.includes(i) && !aspectErrors.includes(i),
-    );
-
-    for (const group of [drift, structural, architecture, completeness, strict, logErrors, aspectErrors, remaining]) {
-      for (const issue of sortByNodePath(group)) {
-        lines.push('');
-        renderIssueBlock(issue, lines, 'error');
-      }
-    }
-
-    // Unmapped files — compact block with file list
-    for (const issue of unmapped) {
-      lines.push('');
-      renderUnmappedBlock(issue, lines);
-    }
+  // Unmapped files — compact block with file list
+  for (const issue of unmapped) {
+    lines.push('');
+    renderUnmappedBlock(issue, lines);
   }
 
   return lines.join('\n');
@@ -269,96 +263,15 @@ function renderUnmappedBlock(issue: CheckIssue, lines: string[], label = 'unmapp
   }
 }
 
-// ── Cascade grouping ───────────────────────────────────────
-
-interface CauseGroup {
-  causeDesc: string;
-  nodeSet: Set<string>;
-}
-
-/**
- * Group upstream-drift issues by their upstream cause.
- * Returns ordered map: causeKey → { causeDesc, nodeSet }.
- * Ordering: groups with most nodes first (so primary aspect change is prominent).
- */
-function groupCascadeErrors(cascade: CheckIssue[]): Map<string, CauseGroup> {
-  const groups = new Map<string, CauseGroup>();
-
-  for (const issue of cascade) {
-    for (const cause of issue.cascadeCauses ?? []) {
-      // Primary key: the first sentence of the description (before any parenthetical)
-      const key = cause.description.split('\n')[0].trim();
-      const existing = groups.get(key);
-      if (existing) {
-        if (issue.nodePath) existing.nodeSet.add(issue.nodePath);
-      } else {
-        const nodeSet = new Set<string>();
-        if (issue.nodePath) nodeSet.add(issue.nodePath);
-        groups.set(key, { causeDesc: key, nodeSet });
-      }
-    }
-  }
-
-  // Sort groups by node count descending
-  return new Map([...groups.entries()].sort((a, b) => b[1].nodeSet.size - a[1].nodeSet.size));
-}
-
-/**
- * Format a list of node paths compactly, showing path tails (last segment after final /).
- * Shows up to `max` names; if more exist, appends `... +N`.
- * Example: cli/commands/{approve, aspects, check, ... +9}
- */
-function formatNodeList(paths: string[], max: number): string {
-  if (paths.length === 0) return '{}';
-
-  // Determine common prefix for compact display
-  const tails = paths.map(p => {
-    const parts = p.split('/');
-    return parts[parts.length - 1];
-  });
-
-  const prefix = longestCommonPrefix(paths);
-  // Trim back to the last directory boundary: drop any trailing partial segment,
-  // then strip the trailing slash so re-appending '/' below yields exactly one
-  // separator (the common prefix often already ends in '/').
-  const trimmedPrefix = prefix.replace(/\/?[^/]+$/, '').replace(/\/+$/, '');
-
-  const shown = tails.slice(0, max);
-  const extra = paths.length - shown.length;
-
-  const nameList = extra > 0
-    ? `${shown.join(', ')}, ... +${extra}`
-    : shown.join(', ');
-
-  // If there's a meaningful common directory prefix, show it
-  if (trimmedPrefix.length > 3 && paths.length > 1) {
-    return `${trimmedPrefix}/{${nameList}}`;
-  }
-
-  return paths.length > 1 ? `{${nameList}}` : paths[0];
-}
-
-function longestCommonPrefix(strs: string[]): string {
-  if (strs.length === 0) return '';
-  let prefix = strs[0];
-  for (let i = 1; i < strs.length; i++) {
-    while (!strs[i].startsWith(prefix)) {
-      prefix = prefix.slice(0, -1);
-      if (!prefix) return '';
-    }
-  }
-  return prefix;
-}
-
 // ── Helpers ────────────────────────────────────────────────
 
 function getIssueLabel(issue: CheckIssue): string {
-  if (issue.code === 'source-drift') return 'drift';
-  if (issue.code === 'unapproved') return 'unapproved';
-  if (issue.code === 'upstream-drift') return 'cascade';
+  // Verdict-lock states (spec §10).
+  if (issue.code === 'unverified') return 'unverified';
+  if (issue.code === 'prompt-too-large') return 'prompt-too-large';
+  if (issue.code === 'lock-invalid') return 'lock-invalid';
   if (issue.code === 'aspect-violation-advisory') return 'advisory';
   if (issue.code === 'aspect-violation-enforced') return 'enforced';
-  if (issue.code === 'aspect-newly-active') return 'aspect-newly-active';
   if (issue.code === 'log-integrity') return 'log-integrity';
   if (issue.code === 'log-format') return 'log-format';
   if (STRUCTURAL_CODES.has(issue.code)) return issue.code;

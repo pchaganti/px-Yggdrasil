@@ -1,7 +1,0 @@
-name: Hash Computation Unit Tests
-type: test-suite
-description: "Unit tests for the hash computation utility module covering content hashing and digest behavior"
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/utils/hash.test.ts

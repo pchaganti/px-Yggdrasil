@@ -16,22 +16,22 @@ import { fileURLToPath } from 'node:url';
 
 // ---------------------------------------------------------------------------
 // FLOWS — remaining paths not covered by cli-flow-channel5 (basic propagation,
-// descendant, --flow batch, flows listing) or cli-flows-advanced (conditional /
-// advisory / draft flow aspect + flow-SET cascade via aspects:/nodes:). This
+// descendant, repo-wide fill, flows listing) or cli-flows-advanced (conditional
+// / advisory / draft flow aspect + flow-SET cascade via aspects:/nodes:). This
 // suite pins:
 //
 //   M*  MULTIPLE flow aspects propagating INDEPENDENTLY — two distinct flow
 //       aspects both reach BOTH participants and are each SEPARATELY
 //       enforceable (every other fixture/suite uses exactly one flow aspect).
-//   D*  yg approve --flow --dry-run — REJECTED (no batch preview mode); and the
-//       single-node --dry-run preview shows a flow-delivered aspect WITHOUT
-//       writing a baseline.
+//   D*  aspect-test --node diagnostic — previews a flow-delivered aspect on a
+//       node WITHOUT writing the lock (the verdict-lock successor to the old
+//       single-node approve --dry-run preview).
 //   C*  NEW CHILD of a participant auto-included AFTER a baseline exists — the
-//       flow aspect surfaces newly-active on the child (via parent), check
-//       reports it, approve enforces it.
+//       flow aspect surfaces unverified on the child (via parent), check
+//       reports it, fill enforces it.
 //   R*  PARTICIPANT REMOVAL — dropping a participant from nodes: drops the flow
-//       aspect from it (effective-aspect change asserted) and cascades a
-//       re-approve, which clears.
+//       aspect from it (effective-aspect change asserted) and invalidates its
+//       verdict, which a re-fill clears.
 //   P*  Flow YAML PARSE/validation errors via the spawned binary — empty nodes,
 //       missing nodes key, non-string node entry, missing name, missing
 //       description (the one that is a VALIDATION finding, not a parse throw).
@@ -40,12 +40,16 @@ import { fileURLToPath } from 'node:url';
 //   X   yg impact --node + --flow mutex (cli-impact pins --node/--aspect and
 //       --flow/--aspect, but NOT --node/--flow).
 //
+// Verdict-lock model: `yg approve` is gone — verification happens via
+// `yg check --approve` (repo-wide fill), state lives in
+// `.yggdrasil/yg-lock.json`, and `yg aspect-test` runs a check diagnostically
+// without ever writing the lock.
+//
 // HERMETIC: every test copies the committed e2e-lifecycle fixture into a fresh
 // mkdtemp, mutates ONLY that copy, and rmSync's it in `finally`. The LLM aspect
 // (`has-doc-comment`) is stripped so the reviewer endpoint is never contacted —
 // only deterministic check.mjs aspects drive every outcome. No network, no
-// clock, no randomness in any assertion. Harness (run / copyFixture / the
-// distExists guard) duplicated verbatim from cli-deterministic-lifecycle.test.ts.
+// clock, no randomness in any assertion.
 // ---------------------------------------------------------------------------
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -107,8 +111,7 @@ const flowPath = (dir: string) =>
 const ordersFile = (dir: string) => path.join(dir, 'src', 'services', 'orders.ts');
 const paymentsFile = (dir: string) => path.join(dir, 'src', 'services', 'payments.ts');
 const aspectDir = (dir: string, id: string) => path.join(dir, '.yggdrasil', 'aspects', id);
-const baselinePath = (dir: string, node: string) =>
-  path.join(dir, '.yggdrasil', '.drift-state', ...node.split('/')) + '.json';
+const lockPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-lock.json');
 
 /**
  * Strip `no-todo-comments` from the `service` architecture-type defaults so the
@@ -126,7 +129,7 @@ function dropNoTodoFromServiceDefault(dir: string): void {
 /**
  * Write a tiny deterministic aspect that flags any line containing `token`. The
  * token is chosen so the committed fixture sources NEVER contain it — a fresh
- * approve passes until the test deliberately introduces the token.
+ * fill passes until the test deliberately introduces the token.
  */
 function writeTokenAspect(dir: string, id: string, token: string): void {
   const d = aspectDir(dir, id);
@@ -305,39 +308,31 @@ describe.skipIf(!distExists)('CLI E2E — flows extended (multi-aspect / dry-run
       appendFileSync(ordersFile(dir), '\n// ALPHATKN here\n');
       appendFileSync(paymentsFile(dir), '\n// BETATKN here\n');
 
-      const onOrders = run(['approve', '--node', 'services/orders'], dir);
-      expect(onOrders.status).toBe(1);
-      expect(onOrders.stdout).toContain('flow-alpha — NOT SATISFIED');
-      expect(onOrders.stdout).toContain('flow-beta — SATISFIED');
-
-      const onPayments = run(['approve', '--node', 'services/payments'], dir);
-      expect(onPayments.status).toBe(1);
-      expect(onPayments.stdout).toContain('flow-beta — NOT SATISFIED');
-      expect(onPayments.stdout).toContain('flow-alpha — SATISFIED');
+      // One repo-wide fill records every pair's verdict independently.
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      // orders: alpha refused, beta approved.
+      expect(fill.stdout).toContain('[det] flow-alpha on node:services/orders — refused');
+      expect(fill.stdout).toContain('[det] flow-beta on node:services/orders — approved');
+      // payments: beta refused, alpha approved.
+      expect(fill.stdout).toContain('[det] flow-beta on node:services/payments — refused');
+      expect(fill.stdout).toContain('[det] flow-alpha on node:services/payments — approved');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
   // =========================================================================
-  // D. dry-run paths.
+  // D. aspect-test --node diagnostic (the verdict-lock successor to the old
+  //    single-node approve --dry-run preview).
   // =========================================================================
+  //
+  // The old D1 ("approve --flow --dry-run is rejected — batch has no preview
+  // mode") is DELETED: in the verdict-lock model there is no `approve` command
+  // and no batch/flow target, so the rejected-batch-preview surface no longer
+  // exists. The preview capability moved to `yg aspect-test`, exercised by D2.
 
-  it('D1: approve --flow --dry-run is REJECTED — batch has no preview mode (exit 1)', () => {
-    const dir = deterministicFixture('d1');
-    try {
-      const res = run(['approve', '--flow', 'order-processing', '--dry-run'], dir);
-      expect(res.status).toBe(1);
-      expect(res.all).toContain('--dry-run is only supported with --node, not with --aspect or --flow');
-      // No baseline is written by the rejected invocation.
-      expect(existsSync(baselinePath(dir, 'services/orders'))).toBe(false);
-      expect(existsSync(baselinePath(dir, 'services/payments'))).toBe(false);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('D2: approve --node --dry-run previews a flow-delivered aspect and writes NO baseline', () => {
+  it('D2: aspect-test --node previews a flow-delivered aspect and writes NO lock', () => {
     const dir = deterministicFixture('d2');
     try {
       // Flow is the SOLE source of no-todo-comments on the participant.
@@ -348,13 +343,18 @@ describe.skipIf(!distExists)('CLI E2E — flows extended (multi-aspect / dry-run
         ['  - no-todo-comments'],
       );
 
-      const preview = run(['approve', '--node', 'services/orders', '--dry-run'], dir);
+      // The flow-delivered aspect runs diagnostically against the node's source.
+      const preview = run(
+        ['aspect-test', '--node', 'services/orders', '--aspect', 'no-todo-comments'],
+        dir,
+      );
       expect(preview.status).toBe(0);
-      expect(preview.stdout).toContain('Dry run: services/orders');
-      // The flow-delivered aspect is part of the previewed aspect set.
-      expect(preview.stdout).toContain('no-todo-comments');
-      // Preview must not commit a baseline.
-      expect(existsSync(baselinePath(dir, 'services/orders'))).toBe(false);
+      // Clean source → no violations, and the diagnostic-only footer confirms
+      // the run never touched the lock.
+      expect(preview.stdout).toContain('No violations.');
+      expect(preview.stdout).toContain('diagnostic only — lock unchanged');
+      // Diagnostic preview must not commit a verdict — no lock file is written.
+      expect(existsSync(lockPath(dir))).toBe(false);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -364,14 +364,12 @@ describe.skipIf(!distExists)('CLI E2E — flows extended (multi-aspect / dry-run
   // C. NEW CHILD of a participant auto-included AFTER a baseline exists.
   // =========================================================================
 
-  it('C1: a child added under a participant AFTER baselines exist gains the flow aspect (via parent) and is reported unapproved by check', () => {
+  it('C1: a child added under a participant AFTER baselines exist gains the flow aspect (via parent) and is reported unverified by check', () => {
     const dir = deterministicFixture('c1');
     try {
       addRepoChildType(dir);
-      // Baseline the existing participants BEFORE the child exists.
-      expect(
-        run(['approve', '--node', 'services/orders', '--node', 'services/payments'], dir).status,
-      ).toBe(0);
+      // Fill the existing participants BEFORE the child exists.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       expect(run(['check'], dir).status).toBe(0);
 
       // Now create the child node under the participant services/orders.
@@ -383,32 +381,34 @@ describe.skipIf(!distExists)('CLI E2E — flows extended (multi-aspect / dry-run
       expect(ctx.stdout).toContain('no-todo-comments [enforced]');
       expect(ctx.stdout).toContain("flow 'order-processing' (via parent 'services/orders')");
 
-      // The brand-new node has no baseline → check blocks on it.
+      // The brand-new node has no verdict → check blocks on it as unverified.
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
       expect(check.stdout).toContain('services/orders/order-repo');
-      expect(check.stdout).toContain('unapproved');
+      expect(check.stdout).toContain('unverified');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('C2: the flow aspect is ENFORCED on the new child — clean approve passes, a TODO then refuses', () => {
+  it('C2: the flow aspect is ENFORCED on the new child — a clean fill passes, a TODO then refuses', () => {
     const dir = deterministicFixture('c2');
     try {
       addRepoChildType(dir);
       writeOrderRepoChild(dir);
 
-      // Clean child approves (the flow aspect is satisfied).
-      const clean = run(['approve', '--node', 'services/orders/order-repo'], dir);
+      // Clean child fills (the flow aspect is satisfied).
+      const clean = run(['check', '--approve'], dir);
       expect(clean.status).toBe(0);
-      expect(clean.stdout).toContain('Approved: services/orders/order-repo');
+      expect(clean.stdout).toContain('[det] no-todo-comments on node:services/orders/order-repo — approved');
 
       // Violate the flow-delivered enforced aspect on the child source.
       appendFileSync(orderRepoFile(dir), '\n// TODO: implement caching\n');
-      const refused = run(['approve', '--node', 'services/orders/order-repo'], dir);
+      const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
-      expect(refused.stdout).toContain('no-todo-comments — NOT SATISFIED');
+      expect(refused.stdout).toContain('[det] no-todo-comments on node:services/orders/order-repo — refused');
+      expect(refused.stdout).toContain('enforced');
+      expect(refused.stdout).toContain('services/orders/order-repo');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -448,31 +448,32 @@ describe.skipIf(!distExists)('CLI E2E — flows extended (multi-aspect / dry-run
     }
   });
 
-  it('R2: removing a baselined participant cascades drift on it (effective-aspect change) and a re-approve clears it', () => {
+  it('R2: removing a baselined participant DROPS the flow aspect from it cleanly — no drift, check stays green (exit 0)', () => {
     const dir = deterministicFixture('r2');
     try {
       dropNoTodoFromServiceDefault(dir);
-      // Baseline both with the flow aspect active on payments.
-      expect(
-        run(['approve', '--node', 'services/orders', '--node', 'services/payments'], dir).status,
-      ).toBe(0);
+      // Fill both with the flow aspect active on payments.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       expect(run(['check'], dir).status).toBe(0);
 
-      // Remove payments from the flow → its effective-aspect set changed.
+      // Remove payments from the flow → no-todo-comments stops being effective on
+      // payments. In the verdict-lock model REMOVING an effective aspect is not
+      // drift: the pair is simply no longer required, and the node's remaining
+      // pairs (requires-named-export) still hold valid verdicts. Re-anchored from
+      // the old cascade-on-removal behavior — the new model has no such cascade,
+      // so no re-fill is needed and the check stays green immediately.
       writeFlow(dir, ['  - services/orders'], ['  - no-todo-comments']);
 
-      const drifted = run(['check'], dir);
-      expect(drifted.status).toBe(1);
-      expect(drifted.stdout).toContain('cascade');
-      expect(drifted.stdout).toContain('services/payments');
+      const after = run(['check'], dir);
+      expect(after.status).toBe(0);
+      expect(after.stdout).toContain('PASS');
+      // payments did not become unverified — the dropped aspect carries no debt.
+      expect(after.stdout).not.toContain('unverified');
 
-      // The documented per-node clearing path resolves it.
-      const reapprove = run(['approve', '--node', 'services/payments'], dir);
-      expect(reapprove.status).toBe(0);
-
-      const cleared = run(['check'], dir);
-      expect(cleared.status).toBe(0);
-      expect(cleared.stdout).toContain('PASS');
+      // context confirms no-todo-comments is gone from payments' effective set.
+      const ctx = run(['context', '--node', 'services/payments'], dir);
+      expect(ctx.stdout).not.toContain('no-todo-comments');
+      expect(ctx.stdout).toContain('requires-named-export');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -578,10 +579,8 @@ describe.skipIf(!distExists)('CLI E2E — flows extended (multi-aspect / dry-run
   it('P5: a MISSING description (name + nodes present) is a VALIDATION finding, not a parse throw — description-missing blocks check (exit 1)', () => {
     const dir = deterministicFixture('p5');
     try {
-      // Approve participants first so the only remaining finding is the flow's.
-      expect(
-        run(['approve', '--node', 'services/orders', '--node', 'services/payments'], dir).status,
-      ).toBe(0);
+      // Fill participants first so the only remaining finding is the flow's.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       writeFileSync(
         flowPath(dir),
         [

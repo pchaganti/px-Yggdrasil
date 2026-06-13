@@ -1,7 +1,0 @@
-name: bounty4 drift-and-cascade
-type: test-suite
-description: "Bug-bounty suites: drift-and-cascade (~37810 chars)."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/bounty4/drift-and-cascade.test.ts

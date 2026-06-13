@@ -1,0 +1,16 @@
+name: Pair Inputs
+type: engine
+description: "Shared input-assembly helpers for the verdict lock's two directions (spec §3.1) — the single implementation of the non-IO parts of the hash fold so the producer (fill) and the verifier (verify-lock) cannot diverge. Provides ruleHashFor/contentFor over the graph-loaded rule-source bytes, tierHashViewFromTier (strips the non-judgment tier fields and delegates api_key/timeout stripping to pair-hash's tierHashView), and nodeDescriptionFor (the prompt garnish, not hashed). The differing missing-bytes IO policy stays at the call sites."
+aspects:
+  - deterministic
+  - posix-paths-output
+  - what-why-next
+relations:
+  - target: cli/core/pair-hash
+    type: calls
+  - target: cli/io/stores
+    type: calls
+  - target: cli/model/graph
+    type: uses
+mapping:
+  - source/cli/src/core/pair-inputs.ts

@@ -11,17 +11,23 @@ it deterministically before the reviewer is invoked. If the predicate is
 false for a node, the aspect is silently skipped on that node — no LLM
 call, no reviewer uncertainty.
 
-> **Two distinct uses of `when` — same operators, different operands.**
-> This page is about **aspect-level `when`**: it decides *node
-> applicability* — whether an aspect applies to a given node, operating on
-> that node's type, relations, ports, and descendants. A separate
-> **file-level `when`** lives in `yg-architecture.yaml` (`node_types.*.when`)
-> and does *architecture file classification* — it decides which source
-> files belong to a node type, operating on file paths and contents. Both
-> use the same predicate operators but evaluate over different operands; do
-> not confuse them. The grammar below is the aspect-level form. For the
-> file-classification form, see `schemas/yg-architecture.yaml` and
-> `yg knowledge read working-with-architecture`.
+> **One grammar, three sites — same operators, two atom families.**
+> Yggdrasil has a single predicate engine (`all_of` / `any_of` / `not`
+> combinators). The site you write it at determines which atoms are legal —
+> **node atoms** where the subject is a node, **file atoms** where the
+> subject is a file:
+>
+> | Site | What it filters | Atom family |
+> |---|---|---|
+> | aspect `when:` (this page) | which **nodes** an aspect applies to | `node`, `relations`, `descendants` |
+> | `yg-architecture.yaml` `node_types.*.when` | which **files** belong to a node type | `path`, `content` |
+> | aspect `scope.files` | which **files** of a node are reviewed | `path`, `content` |
+>
+> Writing a file atom (`path`/`content`) in a `when:` is an error — the
+> validator points you at `scope.files` instead, and vice versa. The grammar
+> below is the node-applicability (`when:`) form. For the file forms, see
+> `schemas/yg-architecture.yaml`, `yg knowledge read working-with-architecture`,
+> and the [scope section in Core Concepts](/core-concepts#aspect-scope-and-units).
 
 ## When to reach for `when`
 
@@ -110,8 +116,8 @@ Result:
   → aspect not effective → reviewer never invoked for it.
 
 Later, a developer adds `calls: payments/service` to `follow-ups/crud`.
-`yg check` reports a new effective aspect on the node and prompts
-`yg approve --node follow-ups/crud`.
+The predicate now passes, so a new pair is expected on the node; `yg check`
+reports it as unverified and prompts `yg check --approve`.
 
 ## What `when` is *not*
 
@@ -135,6 +141,8 @@ Later, a developer adds `calls: payments/service` to `follow-ups/crud`.
 
 `when=false` aspects are silently skipped. They do not appear in
 `yg context --node` or `yg context --file`, do not count in
-`yg impact --aspect <id>`, and never reach the reviewer. Flipping a
-predicate from `false → true` is classified as upstream drift and triggers
-a re-approval; flipping from `true → false` is cleanup (no reviewer call).
+`yg impact --aspect <id>`, and never reach the reviewer. Applicability is
+recomputed live on every run, so flipping a predicate from `false → true`
+adds the aspect's pairs to the expected set (they appear as unverified until
+`yg check --approve` fills them); flipping from `true → false` removes them
+(garbage-collected from the lock — no reviewer call).

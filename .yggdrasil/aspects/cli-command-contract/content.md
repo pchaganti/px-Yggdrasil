@@ -21,7 +21,7 @@ Every CLI command handler follows these conventions:
 ## Exit codes
 
 - `process.exit(1)` on failure (thrown error).
-- `process.exit(1)` on actionable state (drift found, validation errors).
+- `process.exit(1)` on actionable state (unverified pairs, aspect violations, validation errors).
 - Implicit exit 0 when no issues. Warnings alone do not trigger exit 1.
 
 ## Graph loading

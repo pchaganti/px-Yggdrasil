@@ -63,14 +63,14 @@ Aspects listed in \`aspects:\` on a flow apply to every participant via
 channel 5. Each participant must satisfy them in addition to its own,
 ancestor, type, port, and implied aspects.
 
-Adding a flow-level aspect cascades: every participant enters upstream
-drift. Before changing flow aspects:
+Adding a flow-level aspect cascades: it adds that aspect's pairs to every
+participant. Before changing flow aspects:
 
 \`\`\`bash
 yg impact --flow <name>
 \`\`\`
 
-This lists every participating node — that is the re-approve cost.
+This lists every participating node — that is the re-verification cost.
 
 ## When to create a flow
 
@@ -90,8 +90,10 @@ Do NOT create a flow for:
 \`\`\`bash
 yg flows                          # list all flows with participants and aspects
 yg impact --flow <name>           # all participating nodes (with descendants)
-yg approve --flow <name>          # batch-approve all participants
 \`\`\`
+
+A flow's pairs are filled like any other by \`yg check --approve\` (verification is
+repo-wide; there is no per-flow approve command).
 
 ## Renaming or splitting nodes
 

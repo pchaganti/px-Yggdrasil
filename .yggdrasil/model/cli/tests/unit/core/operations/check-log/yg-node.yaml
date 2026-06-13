@@ -1,7 +1,0 @@
-name: Check Operation Log Unit Tests
-type: test-suite
-description: "Unit tests for the check command's log handling."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/core/check-log.test.ts

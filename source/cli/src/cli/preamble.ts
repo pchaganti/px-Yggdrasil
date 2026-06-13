@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { loadGraph, UnsupportedSchemaVersionError, OutdatedSchemaVersionError } from '../core/graph-loader.js';
-import { OutdatedDriftBaselineError, CorruptDriftBaselineError } from '../io/drift-state-store.js';
+import { LockInvalidError } from '../io/lock-store.js';
 import type { Graph } from '../model/graph.js';
 
 /**
@@ -11,11 +11,12 @@ import type { Graph } from '../model/graph.js';
  * being attempted, so the message reads "Unexpected error while <context>".
  */
 export function abortOnUnexpectedError(error: unknown, context: string): never {
-  // Recoverable drift-state errors are an expected STATE problem (corrupt or
-  // outdated baseline), not an unclassified CLI bug. They already carry a
-  // fully-formed what/why/next message with concrete recovery steps — render
-  // it directly instead of wrapping it as "Unexpected error ... file an issue".
-  if (error instanceof OutdatedDriftBaselineError || error instanceof CorruptDriftBaselineError) {
+  // Recoverable STATE problems carry a fully-formed what/why/next message with
+  // concrete recovery steps — render it directly instead of wrapping it as
+  // "Unexpected error ... file an issue". The lock-invalid error (garbled /
+  // version / conflict-markered lock, fail-closed) is the verdict-lock engine's
+  // fail-closed gate for corrupted or unrecognized lock files.
+  if (error instanceof LockInvalidError) {
     process.stderr.write(chalk.red(`Error: ${error.message}\n`));
     process.exit(1);
   }

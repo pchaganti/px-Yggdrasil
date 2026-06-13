@@ -7,4 +7,3 @@ mapping:
   - source/cli/tests/unit/cli/log.test.ts
   - source/cli/tests/unit/cli/log-add.test.ts
   - source/cli/tests/unit/cli/log-read.test.ts
-  - source/cli/tests/unit/cli/log-merge-resolve.test.ts

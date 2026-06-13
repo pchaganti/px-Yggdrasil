@@ -1,7 +1,0 @@
-name: Approve LLM Zero-Source Fail-Closed Unit Tests
-type: test-suite
-description: "Unit tests for the approve reviewer's zero-source fail-closed guard — a node with an effective non-draft LLM aspect but an empty resolved source-file set must refuse as infrastructure failure and write no baseline, while a deterministic-only or zero-aspect node with no files still approves cleanly."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/core/approve-llm-zero-source.test.ts

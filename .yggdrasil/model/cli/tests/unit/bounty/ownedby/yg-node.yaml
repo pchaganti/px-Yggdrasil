@@ -1,7 +1,0 @@
-name: Bounty ownedby
-type: test-suite
-description: "Bug-bounty branch-coverage suites: ownedby (~24257 chars)."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/bounty2/ownedby.test.ts

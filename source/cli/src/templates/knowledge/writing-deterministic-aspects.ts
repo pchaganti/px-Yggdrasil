@@ -1,82 +1,66 @@
 export const summary =
-  'How to write check.mjs for the deterministic reviewer: single-file style (tree-sitter API, helpers, async-fs example) and graph-aware style (ctx surface, allowed reads, three cookbook examples).';
+  'How to write check.mjs: the one check(ctx) contract, the ctx surface, tree-sitter API, allowed reads, observation = invalidation surface, machine-independence, cached-at-fill model, cookbook.';
 
 export const content = `# Writing deterministic aspects
 
-A deterministic aspect declares \`reviewer: { type: deterministic }\` and ships
-a \`check.mjs\` file. The check runs locally at zero LLM cost and returns a
-\`Violation[]\`. Deterministic aspects do not use reviewer tiers —
-\`reviewer.tier:\` is rejected together with \`type: deterministic\`. Because the
-check reads files programmatically (no LLM prompt), the per-node character budget
-(\`quality.max_node_chars\` / \`oversized-node\`) does NOT apply to a node whose
-only effective aspects are deterministic — such a node may map an arbitrarily
-large area.
+A deterministic aspect ships a \`check.mjs\` file. The check runs locally at zero
+LLM cost and returns a \`Violation[]\`. Deterministic aspects do not use reviewer
+tiers — \`reviewer.tier:\` is rejected on them.
 
-There are two ways to scope a deterministic aspect:
+There is ONE \`check(ctx)\` contract. The function receives a \`ctx\` object exposing
+the unit's files, the file system, the graph, and parsers, and returns a
+synchronous \`Violation[]\`. A check that only inspects each file's syntax tree and
+a check that walks the graph topology are the same contract with different \`ctx\`
+usage — there are no separate "styles" to choose between.
 
-- **Single-file style** — scope the check to ad-hoc files and inspect each
-  file's parsed syntax tree (tree-sitter). Best for per-file syntactic rules:
-  forbidden imports, banned API calls, naming conventions, structural shape.
-- **Graph-aware style** — scope the check to a graph node and inspect the
-  node's files, the file system, and the graph topology through a \`ctx\`
-  surface. Best for cross-node consistency rules: file existence, directory
-  structure, multi-file consistency, relations between nodes.
+## When the lock executes a check
 
-Both styles share the same runtime contract: a named export \`check\`, returning
-a synchronous \`Violation[]\`. Choose the style that matches the rule's scope.
+\`check.mjs\` executes in exactly two places: the \`yg check --approve\` fill stage,
+and \`yg aspect-test\`. **Plain \`yg check\` never executes a deterministic check** —
+it validates the entry by hashing, exactly like an LLM entry. So CI executes no
+adopter code; check's cost is hashing only.
+
+The verdict is cached in the lock like every other verdict. It is reusable while
+its inputs are unchanged — the subject files AND every value the check observed
+through \`ctx\` (see "observation = invalidation surface" below). A cached
+deterministic refusal is final for unchanged inputs; a re-run would reproduce it
+by definition.
 
 ## The \`yg-aspect.yaml\`
-
-A deterministic aspect's \`yg-aspect.yaml\` declares the reviewer type; the
-runner detects each file's language from its extension:
 
 \`\`\`yaml
 # .yggdrasil/aspects/my-rule/yg-aspect.yaml
 name: MyRule
 description: What this rule enforces.
-reviewer:
-  type: deterministic
 \`\`\`
 
-The aspect's identity is its directory path under \`aspects/\` (here
-\`my-rule\`) — there is no \`id:\` field; \`name:\` and \`description:\` are
-required. There is no \`language:\` field to declare and no \`ctx.language\` —
-the runner is language-agnostic.
-
----
-
-# Single-file style
-
-Use the single-file style when the rule is structural and lives inside one
-file at a time:
-- Forbidden import paths ("never import from \`db/\` in \`ui/\`")
-- Forbidden API calls (\`fs.readFileSync\` banned in async code)
-- Naming conventions (exported classes must be PascalCase)
-- Structural shape (every exported function must be async)
-
-Use the LLM reviewer for semantic rules that require reading intent.
+The aspect's identity is its directory path under \`aspects/\` (here \`my-rule\`) —
+there is no \`id:\` field; \`name:\` and \`description:\` are required. The reviewer
+kind is inferred from the presence of \`check.mjs\`. The runner detects each file's
+language from its extension; there is no \`language:\` field and no \`ctx.language\`.
 
 ## Runtime contract
 
 \`\`\`javascript
 // check.mjs
 export function check(ctx) {
-  // ctx.files — array of { path, content, ast }
+  // ctx.files — the unit's subject files: { path, content, ast }
   //   path:    string source path
   //   content: string raw source text
-  //   ast:     tree-sitter Tree — reach the root via file.ast.rootNode
+  //   ast:     tree-sitter Tree (undefined for non-parseable files) — root via file.ast.rootNode
   const violations = [];
-  // ... inspect each file ...
+  // ... inspect ctx.files, reach ctx.fs / ctx.graph as the rule needs ...
   return violations;  // Violation[] — synchronous only
 }
 \`\`\`
 
 Rules:
 - Named export \`check\`, synchronous. No \`async\`, no \`Promise\`.
-- Return an array of \`{ file, line, column, message }\` objects (use \`report()\`).
+- Return an array of \`{ message, file?, line?, column?, kind? }\` objects (use
+  \`report()\` for AST-derived positions).
 - Do not write files, make network calls, or call \`process.exit\`.
-- Do not access \`ctx.files\` of a file not in \`ctx.files\` — runtime error
-  \`AST_CHECK_FILE_NOT_IN_CONTEXT\`.
+- Do not touch a file outside \`ctx.files\` directly — reach other files only
+  through \`ctx.fs\` / \`ctx.graph\` within the allowed reads set.
 
 The runner raises typed runtime errors when the contract is broken:
 
@@ -85,6 +69,11 @@ The runner raises typed runtime errors when the contract is broken:
 | \`AST_CHECK_FILE_NOT_IN_CONTEXT\` | \`check\` touched a file that is not in \`ctx.files\` |
 | \`AST_CHECK_ASYNC\` | \`check\` returned a thenable/Promise — it must be synchronous |
 | \`AST_CHECK_RETURN_SHAPE\` | \`check\` returned a non-array — it must return \`Violation[]\` |
+
+A runtime failure at fill time (import error, thrown exception, broken contract)
+is an infra disposition: NO entry is written, the pair stays unverified, and the
+\`yg check --approve\` summary reports it under \`aspect-check-runtime-error\`. Plain
+\`yg check\` sees such a pair simply as \`unverified\`.
 
 ## Iterating over the files
 
@@ -112,9 +101,7 @@ Content/regex checks that only use \`file.content\` (and never touch
 including non-parseable ones.
 
 If a rule should apply only to a subset of files, filter on \`file.path\`
-(for example with \`inFile(file, { glob: 'src/api/**' })\`) — there is no
-\`ctx.language\` and no per-language invocation today; every mapped file
-arrives in the one \`check.mjs\` invocation.
+(for example with \`inFile(file, { glob: 'src/api/**' })\`).
 
 ## Minimal API — imports from \`@chrisdudek/yg/ast\`
 
@@ -143,7 +130,7 @@ Each \`node\` object from the AST exposes:
 
 To learn the grammar's node types and field names, inspect the
 \`node-types.json\` files shipped inside the installed package under
-\`dist/grammars/\`.  Each file is named after its grammar:
+\`dist/grammars/\`. Each file is named after its grammar:
 
 \`\`\`
 <yg install>/dist/grammars/tree-sitter-typescript.node-types.json
@@ -199,55 +186,21 @@ Common patterns using the direct tree-sitter API:
 | File-path test | \`inFile(file, { glob \\| regex \\| contains })\` |
 | Violation shape | \`{ file, line, column, message }\` — \`column\` is 0-based |
 
----
-
-# Graph-aware style
-
-The graph-aware style checks **graph and file-system shape** — cross-node
-consistency rules that cannot be expressed as per-file syntax checks. The
-reviewer receives a graph-aware \`ctx\` object: the node's own files, the file
-system, the graph, and parsers (\`parseAst\`, \`parseYaml\`, \`parseJson\`,
-\`parseToml\`). It does not receive an LLM — all logic is author-written
-JavaScript. The runner does not enforce purity; \`check.mjs\` must not write
-files, make network calls, or call \`process.exit\` — respecting that is your
-responsibility.
-
-The graph-aware style is the right choice when:
-- The rule involves relations between nodes, not just code inside one file.
-- The rule checks for file existence, directory structure, or multi-file consistency.
-- The rule depends on the graph topology (children, ancestors, flow participants, relation targets).
-
-## Minimal example
-
-\`\`\`yaml
-# .yggdrasil/aspects/example/yg-aspect.yaml
-# (the aspect id is derived from the directory name — there is no 'id:' field)
-name: example
-description: "Always passes"
-reviewer:
-  type: deterministic
-\`\`\`
-
-\`\`\`javascript
-// .yggdrasil/aspects/example/check.mjs
-export function check(ctx) {
-  return [];
-}
-\`\`\`
-
-The runner invokes \`check.mjs\` once per affected node, regardless of file
-types. Adding \`reviewer.tier:\` is a validator error — tiers apply only to LLM
-aspects.
-
 ## The ctx surface
+
+When a rule reaches beyond the unit's own files — cross-node consistency, file
+existence, directory structure, graph topology — use the rest of \`ctx\`:
 
 \`\`\`typescript
 interface Ctx {
   // The node being reviewed
   node: GraphNode;
 
-  // Alias for node.files — own files with child carve-out applied
+  // The unit's subject files (scope-driven view; child carve-out applied)
   files: File[];
+
+  // node.files — always the FULL mapped set, unfiltered by scope
+  // (reach it via ctx.node.files)
 
   fs: {
     exists(path: string): 'file' | 'dir' | false;
@@ -264,7 +217,7 @@ interface Ctx {
     flowParticipants(flowName: string): GraphNode[];
   };
 
-  // Synchronous — pre-warmed by dispatcher (Decision A). Do NOT await.
+  // Synchronous — pre-warmed by the runner. Do NOT await.
   parseAst(file: File | string, language: string): unknown;
 
   parseYaml(file: File | string): unknown;
@@ -276,7 +229,7 @@ interface GraphNode {
   id: string;          // node path, e.g. 'billing/cancel'
   type: string;        // node_type id from yg-architecture.yaml
   mapping: string[];   // raw mapping entries from yg-node.yaml
-  files: File[];       // materialized files (child carve-out applied for own node)
+  files: File[];       // full mapped set (child carve-out applied for own node)
   ports: Record<string, { description: string; aspects: string[] }>;
 }
 
@@ -299,11 +252,15 @@ interface Violation {
 }
 \`\`\`
 
+Note \`ctx.files\` (the scope-driven subject view) vs \`ctx.node.files\` (always the
+full mapped set). Under \`scope.per: file\`, \`ctx.files\` is the single file; under
+\`per: node\` it is the whole subject set.
+
 ## parseAst is synchronous
 
 \`ctx.parseAst(file, language)\` returns the parsed tree synchronously. It does
-not return a Promise and must not be awaited. The dispatcher pre-warms the AST
-cache before invoking \`check(ctx)\`. This mirrors the single-file runner's approach.
+not return a Promise and must not be awaited. The runner pre-warms the AST
+cache before invoking \`check(ctx)\`.
 
 \`\`\`javascript
 // Correct:
@@ -315,21 +272,20 @@ const tree = ctx.parseAst(file, 'typescript');
 
 If \`parseAst\` is called on a file outside the pre-warmed set, the runtime throws
 a violation with \`kind: 'structure-aspect-parseast-not-prewarmed'\`. This means
-the file is not in the aspect's allowed reads set — see the section below.
-
-For structured data files, prefer \`ctx.parseYaml\`, \`ctx.parseJson\`, or
-\`ctx.parseToml\` — these are also synchronous without any pre-warming requirement.
+the file is not in the aspect's allowed reads set — see the section below. For
+structured data files, prefer \`ctx.parseYaml\`, \`ctx.parseJson\`, or
+\`ctx.parseToml\` — also synchronous, no pre-warming requirement.
 
 ## Allowed reads set (D9=A)
 
-The graph-aware runner enforces a strict read boundary. Attempting to read outside
-it throws a runtime violation instead of returning data.
+The runner enforces a strict read boundary. Attempting to read outside it throws
+a runtime violation instead of returning data.
 
 This boundary is a read **discipline**, not a security sandbox. \`check.mjs\` runs
 in the main Node process with full privileges — an adversarial check could still
 write files or open sockets; the runner does not prevent it. The allow-list scopes
-which files count as *tracked dependencies* for drift, not what the process is
-capable of. Only run aspects you trust.
+which files count as observed dependencies, not what the process is capable of.
+Only run aspects you trust.
 
 Paths in the allowed reads set for a node:
 
@@ -351,12 +307,30 @@ If your check needs to reach a node not currently in scope, add an explicit
 relation in \`yg-node.yaml\` pointing to that node. Relations are the contract
 that widens the allowed reads set.
 
-The allowed reads set is the access *boundary* — the maximum the check is
-permitted to touch. The **drift baseline** is narrower: it is the set of files
-the check actually touched (read) at this run, recorded at approve time. Only a
-later change to one of those actually-read files causes cascade drift and
-re-approval — not every file the boundary would have allowed. Keep checks
-focused: reading fewer files yields a tighter baseline and less spurious drift.
+## Observation = invalidation surface
+
+The verdict's reusability rests on the observation fold. The runner records every
+value the check observed through \`ctx\` beyond its subject files — file reads,
+directory listings (the sorted name+kind list), existence probes (including
+negative \`exists\` results), and graph-node accesses — and folds them into the
+pair's hash. A later change to ANY observed value invalidates the verdict and
+re-runs the check at the next \`yg check --approve\` (at zero LLM cost).
+
+The authoring edge: **every observation you make widens your invalidation
+surface.** Read (and probe) only what the rule actually needs. A check that lists
+a whole directory re-runs whenever any file is added to it; a check that reads one
+file re-runs only when that file changes. Fewer observations = the verdict
+survives longer between re-runs. (When in doubt the runner over-records: a
+spurious extra observation costs at worst one free re-run; a missed one would
+yield stale green.)
+
+## Machine-independence
+
+Your check runs on whatever machine fills the lock (a developer's machine for
+\`--approve\`, or \`aspect-test\`). It must be machine-independent: no local-only
+paths, OS path quirks, or line-ending assumptions — the same inputs must yield
+the same violations everywhere. Verify with
+\`yg aspect-test --aspect <id> --node <path> --check-determinism\`.
 
 ## Reserved violation kinds
 
@@ -372,9 +346,8 @@ Common runtime kinds (for reference, not for author use):
 
 ## Common helpers
 
-The same single-file helpers are re-exported from
-\`@chrisdudek/yg/structure\`. These are useful when your check also inspects
-parsed AST trees via \`ctx.parseAst\`:
+The same AST helpers are re-exported from \`@chrisdudek/yg/structure\`. These are
+useful when your check also inspects parsed AST trees via \`ctx.parseAst\`:
 
 | Export | Signature | Purpose |
 |---|---|---|
@@ -384,7 +357,7 @@ parsed AST trees via \`ctx.parseAst\`:
 | \`inFile(file, pattern)\` | \`(file, { glob } | { regex } | { contains }) => boolean\` | Path filter |
 | \`findComments(target)\` | \`(file) => TreeNode[]\` | Returns comment nodes |
 
-These helpers are optional — most graph-aware checks work purely with \`ctx.graph\`
+These helpers are optional — most graph-shape checks work purely with \`ctx.graph\`
 and \`ctx.fs\` without parsing AST trees at all.
 
 ## Cookbook
@@ -393,8 +366,8 @@ and \`ctx.fs\` without parsing AST trees at all.
 
 Every node of type \`command\` must have a sibling test in a separate test-suite
 node. The command node reaches that node through a declared relation — the
-cross-node lookup a single-file check cannot express. Declare it in
-the command node's \`yg-node.yaml\`: \`relations: [{ type: uses, target: tests/unit }]\`.
+cross-node lookup a per-file check cannot express. Declare it in the command
+node's \`yg-node.yaml\`: \`relations: [{ type: uses, target: tests/unit }]\`.
 
 \`\`\`javascript
 // .yggdrasil/aspects/sibling-test-file/check.mjs
@@ -423,7 +396,6 @@ export function check(ctx) {
   }
   if (!testSuite) return violations; // reachable but not present — nothing to check
 
-  // Walk the suite node and its child nodes; check the sibling test exists.
   const tests = collectFiles(testSuite, ctx);
   if (!tests.some(f => f.path.endsWith(expected))) {
     violations.push({
@@ -444,9 +416,7 @@ function collectFiles(node, ctx) {
 \`\`\`
 
 The relation is what makes the test-suite node reachable: \`ctx.graph\` exposes only
-this node, its ancestors, and nodes it declares a relation to. Reaching a sibling
-subtree (the test suite) therefore requires the explicit \`uses\` relation — that is
-the contract a graph-aware check enforces and a single-file check cannot.
+this node, its ancestors, and nodes it declares a relation to.
 
 ### Cookbook 2: knowledge-topic-consistency
 
@@ -477,8 +447,9 @@ export function check(ctx) {
 }
 \`\`\`
 
-Both the knowledge topic files and \`index.ts\` must be in the allowed reads set.
-Because they are all mapped to the same node, the own mapping channel covers them.
+Note: the \`ctx.fs.list(dir)\` call folds the directory's name list into the
+verdict's observation set, so adding or removing a topic file re-runs this check
+automatically — exactly the invalidation the rule wants.
 
 ### Cookbook 3: child-type composition
 
@@ -504,39 +475,36 @@ export function check(ctx) {
 Child nodes are always in the own descendant mappings channel — no additional
 relation declarations are required to access them via \`ctx.graph.children\`.
 
----
+## Testing with yg aspect-test
 
-## Testing with yg deterministic-test
-
-Run a deterministic aspect's \`check.mjs\` without recording a baseline or
-triggering drift. Scope it either to a graph node or to ad-hoc files:
+Run a deterministic aspect's \`check.mjs\` live, without writing the lock. Scope it
+either to a graph node or to ad-hoc files:
 
 \`\`\`bash
 # Graph-scoped: run the check against a named node
-yg deterministic-test --aspect sibling-test-file --node orders/handler
+yg aspect-test --aspect sibling-test-file --node orders/handler
 
 # Ad-hoc: run the check against specific files
-yg deterministic-test --aspect no-sync-fs --files src/orders/handler.ts src/other.ts
+yg aspect-test --aspect no-sync-fs --files src/orders/handler.ts src/other.ts
 
 # Verify the check is deterministic (same violations on every run)
-yg deterministic-test --aspect sibling-test-file --node orders/handler --check-determinism
+yg aspect-test --aspect sibling-test-file --node orders/handler --check-determinism
 \`\`\`
 
-Exits 1 if violations exist. Use during \`check.mjs\` development before
-attaching the aspect to nodes. Run against both compliant and non-compliant
-inputs to confirm no false positives and no false negatives.
-\`--check-determinism\` runs the check twice and fails if the violation sets
-differ, catching side effects in \`check.mjs\`.
+Every run ends with the footer \`diagnostic only — lock unchanged; yg check still
+reports the stored verdict\`. Exits 1 if violations exist. Use during \`check.mjs\`
+development, against both compliant and non-compliant inputs, to confirm no false
+positives and no false negatives. \`--check-determinism\` runs the check twice and
+fails if the violation sets differ, catching side effects.
 
 ## Purity rule
 
-The check function is deterministic and synchronous. Across the single-file and
-graph-aware styles the same purity requirements hold:
+The check function is deterministic and synchronous:
 
 - Named export \`check\`, synchronous. No \`async\`, no \`Promise\`.
 - Do not write files, make network calls, or call \`process.exit\`.
-- Read only within the allowed reads set (graph-aware) or \`ctx.files\`
-  (single-file) — reaching outside throws a runtime violation.
+- Read only within the allowed reads set — reaching outside throws a runtime
+  violation.
 
 Respecting purity keeps the check reproducible: the same inputs must always
 yield the same violations, which is what \`--check-determinism\` verifies.
@@ -562,13 +530,14 @@ Full delimiter table and multi-language bracket syntax: \`yg knowledge read supp
 
 Deterministic aspects follow the same three-level status as LLM aspects:
 
-- **draft** — \`check.mjs\` is never invoked. Zero cost. Use while authoring.
-- **advisory** — \`check.mjs\` runs; violations render as warnings. Does not block CI.
-- **enforced** — \`check.mjs\` runs; violations block \`yg check\`. Default.
+- **draft** — produces no expected pairs; \`check.mjs\` is never executed. Zero
+  cost. Use while authoring.
+- **advisory** — runs at fill time; violations render as warnings. Does not block CI.
+- **enforced** — runs at fill time; violations block \`yg check\`. Default.
 
-Recommended path: start at \`draft\`, iterate until the check returns correct
-violations on test inputs, promote to \`advisory\` to gather signal across the
-repo, then promote to \`enforced\` when the rule is confirmed stable.
+Recommended path: start at \`draft\`, iterate with \`yg aspect-test\` until the check
+returns correct violations on test inputs, promote to \`advisory\` to gather signal
+across the repo, then promote to \`enforced\` when the rule is confirmed stable.
 
 For full status mechanics: \`yg knowledge read aspect-status\`.
 `;

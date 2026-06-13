@@ -1,7 +1,0 @@
-name: Context Files Unit Tests
-type: test-suite
-description: "Unit tests for context file resolution: tracked-file collection and drift-hash computation (context-files)"
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/core/context-files.test.ts

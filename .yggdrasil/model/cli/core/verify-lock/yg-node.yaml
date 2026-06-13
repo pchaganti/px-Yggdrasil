@@ -1,0 +1,26 @@
+name: Verify Lock
+type: engine
+description: "Lock verification consumed by yg check — pure recomputation, no LLM calls and no writes. For every expected pair it re-derives the input hash from the current graph and source bytes (LLM pairs over subject + reference bytes and the tier hash view; deterministic pairs over the stored observation keys' current values) and classifies each as valid-approved, valid-refused (cached), or missing/stale (unverified). Missing reference/subject bytes fold as empty so a disappeared input surfaces as unverified rather than silently passing."
+aspects:
+  - deterministic
+  - posix-paths-output
+  - what-why-next
+relations:
+  - target: cli/core/pairs
+    type: calls
+  - target: cli/core/pair-hash
+    type: calls
+  - target: cli/core/pair-inputs
+    type: calls
+  - target: cli/core/reviewer-tiers
+    type: calls
+  - target: cli/io/stores
+    type: calls
+  - target: cli/llm/shared
+    type: calls
+  - target: cli/model/graph
+    type: uses
+  - target: cli/model/lock
+    type: uses
+mapping:
+  - source/cli/src/core/verify-lock.ts

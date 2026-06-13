@@ -1,2 +1,0 @@
-## [2026-05-30T21:35:22.387Z]
-This suite was created to hold the check command's log-handling unit tests, split out from the combined drift-and-log suite. The split was driven by the per-node reviewer-context size budget: the combined suite had grown large enough that its reviewer prompt risked truncation, which can cause unchanged code to be rejected near the cut. Separating the unrelated log-handling concern into its own suite keeps both suites focused and within budget. The motivation is reviewer reliability through bounded, cohesive context.

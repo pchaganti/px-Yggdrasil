@@ -83,38 +83,39 @@ my-project — 1 nodes, 1 aspects, 0 flows
 Coverage: 1/1 source files (100%)
 
 Errors (1):
-  unapproved payments — not yet approved
-       Node has never been approved (no baseline):
+  unverified payments / requires-audit — no valid verdict
+       This (aspect, node) pair has never been verified:
          src/payments/
-       Verify source, then: yg approve --node payments
+       Verify it, then: yg check --approve
 
-Result: FAIL (1 drift — 1 errors, 0 warnings)
+Result: FAIL (1 error, 0 warnings)
 ```
 
-Check detected that `src/payments.ts` is mapped but was never approved.
-The agent runs `yg approve --node payments` and the reviewer reads the source
+Check detected that the `requires-audit` rule on `src/payments/` has no recorded
+verdict. The agent runs `yg check --approve` and the reviewer reads the source
 code, checks it against the rules in `content.md`, and reports:
 
 ```text
-$ yg approve --node payments
+$ yg check --approve
 
-Approved: payments
-  Verified: 1 aspects satisfied.
+Filling 1 unverified pair across 1 node — 0 deterministic (no cost), 1 reviewer call.
 
-Aspect verification:
-  requires-audit — SATISFIED
+  payments / requires-audit — SATISFIED
+
+Result: PASS (verdict recorded in the lock)
 ```
 
 If the code didn't satisfy the aspect, the output would show:
 
 ```text
-ERROR: Reviewer found aspect violations.
-  requires-audit — chargeCard() does not emit an audit event.
+  payments / requires-audit — REFUSED
+    chargeCard() does not emit an audit event.
     No call to auditLog.emit() found in any mutation path.
-  Fix the violations and re-run: yg approve --node payments
+
+Result: FAIL — fix the violation, then re-run: yg check --approve
 ```
 
-The agent fixes the code and re-runs approve until all aspects pass.
+The agent fixes the code and re-runs `yg check --approve` until all aspects pass.
 
 **Tip — start new aspects at `status: advisory`.** A brand-new aspect on
 an existing codebase often surfaces violations across many files.
@@ -145,8 +146,8 @@ Tell your agent:
 > a proper node for src/payments/ with the requires-audit aspect."
 
 Nodes without aspects are cheap — just a `yg-node.yaml` with a directory
-mapping. No hashing, no LLM review. They auto-approve instantly and count
-as covered.
+mapping. They produce no pairs, so there is nothing to verify and nothing
+to record. They count as covered for free.
 
 When you start working on a covered area, add aspects to enforce rules.
 This is how coverage naturally expands into enforcement as you work.
@@ -155,14 +156,17 @@ Practical steps for a 200-file repo:
 
 1. Create 5-8 nodes without aspects for broad directory mappings
 2. Create 1-2 nodes with aspects for your active work area
-3. Run `yg approve` on all nodes (no-aspect = instant, with-aspect = reviewer)
+3. Run `yg check --approve` (aspect-less nodes produce no pairs, so the
+   only cost is the reviewer pairs on your active work area)
 4. `yg check` passes — CI is green
 5. Add aspects to more nodes as you touch more code
 
 ## 5) CI integration
 
-Add `yg check` to your CI pipeline. It compares file hashes — no LLM calls,
-runs instantly. Exit code 1 means source files changed without being approved.
+Add `yg check` to your CI pipeline. It recomputes the input hash of every
+expected pair and compares it against the verdict recorded in the lock — no
+LLM calls, no provider keys, runs instantly. Exit code 1 means a pair changed
+without being re-verified.
 
 **GitHub Actions:**
 
@@ -171,9 +175,9 @@ runs instantly. Exit code 1 means source files changed without being approved.
   run: npx @chrisdudek/yg check
 ```
 
-If check fails, it means source files changed without being approved.
-Tell the agent: "resolve all yg check issues" and it will run approve,
-fix violations, and re-approve until check passes.
+If check fails, it means a pair's inputs changed without being re-verified.
+Tell the agent: "resolve all yg check issues" and it will run `yg check
+--approve`, fix violations, and re-verify until check passes.
 
 ## 6) Core vs. advanced — what to learn when
 
@@ -185,10 +189,10 @@ productive. Learn the rest the day you actually need it.
 - **Node** — maps a set of source files (a `yg-node.yaml` with a `mapping:`).
 - **Aspect** — one enforceable rule (`content.md` for the LLM reviewer, or
   `check.mjs` for a deterministic one).
-- **`yg check`** — the gate. Hash-only, no LLM, runs in CI. Red until every
-  change is approved.
-- **`yg approve`** — runs the reviewer and records the verdict so check goes
-  green.
+- **`yg check`** — the gate. Hash-only, no LLM, no keys, runs in CI. Red
+  until every changed pair is re-verified.
+- **`yg check --approve`** — verifies the unverified pairs (deterministic for
+  free, then LLM) and records the verdicts in the lock so check goes green.
 
 Plus aspect **status** (`draft` → `advisory` → `enforced`) to control whether a
 rule blocks. That is enough to enforce real rules on a real codebase.

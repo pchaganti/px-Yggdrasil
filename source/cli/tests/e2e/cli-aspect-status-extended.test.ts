@@ -15,14 +15,26 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // ---------------------------------------------------------------------------
-// Harness — duplicated verbatim from cli-deterministic-lifecycle.test.ts so each
-// e2e file is self-contained. Every test runs the REAL dist/bin.js against a
-// fresh mkdtemp copy of the e2e-lifecycle fixture, mutates only that copy, and
-// rmSync's it in a finally block. Fully hermetic: no committed fixtures of its
-// own, no network, no wall-clock or random sources in any assertion. Every
-// aspect exercised is a deterministic reviewer (zero LLM cost); the reviewer
-// endpoint is additionally repointed at a dead loopback so no test can reach
-// the network even if a future fixture edit reintroduces an LLM aspect.
+// Harness — every test runs the REAL dist/bin.js against a fresh mkdtemp copy of
+// the e2e-lifecycle fixture, mutates only that copy, and rmSync's it in a finally
+// block. Fully hermetic: no committed fixtures of its own, no network, no
+// wall-clock or random sources in any assertion. Every aspect exercised is a
+// deterministic reviewer (zero LLM cost); the reviewer endpoint is additionally
+// repointed at a dead loopback so no test can reach the network even if a future
+// fixture edit reintroduces an LLM aspect.
+//
+// MODEL — `yg approve` / `.drift-state/` are GONE. Verification happens via
+// `yg check --approve` (fill); state lives in `.yggdrasil/yg-lock.json`. A
+// deterministic refusal renders (at `yg check` / fill time) as
+// `<status>  <node>  Aspect '<id>' is refused on <unitKey> by a deterministic
+// check.` with the per-pair fill line `[det] <id> on <unitKey> — approved|refused`.
+// Severity follows status: an ENFORCED refusal is an ERROR (exit 1); an ADVISORY
+// refusal is a WARNING (exit 0); a DRAFT aspect produces NO pair (skipped). A
+// bare advisory<->enforced status flip is NOT part of the canonical verdict hash,
+// so it does NOT invalidate a verdict (no re-fill; the cached verdict is reused).
+// A draft->non-draft activation surfaces as `unverified` (the pair simply has no
+// stored verdict yet), fixed by a single repo-wide `yg check --approve`. The
+// removed `aspect-newly-active` vocabulary maps to `unverified`.
 // ---------------------------------------------------------------------------
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -33,9 +45,8 @@ const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle');
 const distExists = existsSync(BIN_PATH);
 
 // A dead loopback endpoint. Pointing the reviewer at this makes the LLM aspect
-// path unreachable, so `yg approve` never produces an environment-dependent LLM
-// verdict — port 1 never has a listener, on ANY machine, with no reliance on a
-// real endpoint being present or absent. Used by killReviewer().
+// path unreachable, so a fill never produces an environment-dependent LLM
+// verdict — port 1 never has a listener, on ANY machine. Used by killReviewer().
 const DEAD_ENDPOINT = 'http://127.0.0.1:1';
 
 function run(
@@ -65,21 +76,19 @@ function copyFixture(label: string): string {
 
 /**
  * Copy the fixture and strip the LLM aspect (`has-doc-comment`) so the node's
- * effective aspects are purely deterministic. This makes the approve/check
- * lifecycle hermetic: no network, no LLM verdict, fully reproducible — the
+ * effective aspects are purely deterministic. This makes the fill lifecycle
+ * hermetic: no network, no LLM verdict, fully reproducible — the
  * `no-todo-comments` (enforced), `requires-named-export` (advisory) and
  * `wip-rule` (draft) deterministic aspects drive every outcome.
  */
 function deterministicFixture(label: string): string {
   const dir = copyFixture(label);
-  // Drop the LLM aspect from the `service` node type's default aspects.
   const archPath = path.join(dir, '.yggdrasil', 'yg-architecture.yaml');
   const arch = readFileSync(archPath, 'utf-8')
     .split('\n')
     .filter((line) => line.trim() !== '- has-doc-comment')
     .join('\n');
   writeFileSync(archPath, arch, 'utf-8');
-  // Remove the now-orphaned aspect definition so `yg check` is clean.
   rmSync(path.join(dir, '.yggdrasil', 'aspects', 'has-doc-comment'), {
     recursive: true,
     force: true,
@@ -87,14 +96,7 @@ function deterministicFixture(label: string): string {
   return dir;
 }
 
-/**
- * Repoint the reviewer endpoint at the dead loopback address. Rewrites whatever
- * `endpoint:` the fixture config carries to the guaranteed-dead port-1 address,
- * so the LLM reviewer is ALWAYS unreachable regardless of the machine. The
- * deterministicFixture already removes the only LLM aspect, but killing the
- * endpoint as well guarantees no test in this suite can reach out over the
- * network even if a future fixture edit reintroduces an LLM aspect.
- */
+/** Repoint the reviewer endpoint at the dead loopback address. */
 function killReviewer(dir: string): void {
   const cfgPath = path.join(dir, '.yggdrasil', 'yg-config.yaml');
   const cfg = readFileSync(cfgPath, 'utf-8').replace(
@@ -121,8 +123,32 @@ const ordersNodeYaml = (dir: string) =>
 const servicesNodeYaml = (dir: string) =>
   path.join(dir, '.yggdrasil', 'model', 'services', 'yg-node.yaml');
 
-const baselineFile = (dir: string, node: string) =>
-  path.join(dir, '.yggdrasil', '.drift-state', ...node.split('/')) + '.json';
+const lockPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-lock.json');
+
+interface LockFile {
+  version: number;
+  verdicts: Record<string, Record<string, { hash: string; reason?: string; touched?: string[]; verdict: string }>>;
+  nodes: Record<string, { source?: string; log?: { last_entry_datetime: string; prefix_hash: string } }>;
+}
+
+/** Parse the repo-wide lock. */
+function readLock(dir: string): LockFile {
+  return JSON.parse(readFileSync(lockPath(dir), 'utf-8')) as LockFile;
+}
+
+/** The per-node source fingerprint hash stored in the lock (undefined if absent). */
+function nodeSourceHash(dir: string, node: string): string | undefined {
+  return readLock(dir).nodes[node]?.source;
+}
+
+/** The persisted per-pair verdict entry for an aspect on a node (model-scoped). */
+function nodeVerdict(
+  dir: string,
+  node: string,
+  aspectId: string,
+): { hash: string; reason?: string; verdict: string } | undefined {
+  return readLock(dir).verdicts[aspectId]?.[`node:${node}`];
+}
 
 /**
  * Author a self-contained deterministic aspect that flags any line containing
@@ -172,29 +198,14 @@ function authorLiteralAspect(
   );
 }
 
-/** Read the persisted per-node canonical drift hash from its baseline. */
-function baselineHash(dir: string, node: string): string {
-  return JSON.parse(readFileSync(baselineFile(dir, node), 'utf-8')).hash as string;
-}
-
-/** Read the persisted per-aspect verdict object from a node baseline. */
-function aspectVerdict(
-  dir: string,
-  node: string,
-  aspectId: string,
-): { verdict: string; reason?: string; errorSource?: string } | undefined {
-  const base = JSON.parse(readFileSync(baselineFile(dir, node), 'utf-8'));
-  return base.aspectVerdicts?.[aspectId];
-}
-
 // ---------------------------------------------------------------------------
 // ASPECT-STATUS combinatorics — driven entirely through the real built binary.
 // Covers the under-tested corners: effective-status max() involving DRAFT,
-// default-to-enforced, multi-node status-flip cascade, hash (in)stability across
-// the advisory<->enforced flip, the persisted refused-enforced baseline, the
-// status_inherit chain, the draft-implier propagation path, and the all-draft
+// default-to-enforced, multi-node status-flip cascade, verdict-hash (in)stability
+// across the advisory<->enforced flip, the persisted refused-enforced verdict,
+// the status_inherit chain, the draft-implier propagation path, and the all-draft
 // skip. Each case asserts BOTH the `yg context` status tag AND the resulting
-// block/warn/skip behavior at approve/check.
+// block/warn/skip behavior at fill/check.
 // ---------------------------------------------------------------------------
 
 describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max(), flip cascade, defaults, persisted verdicts)', () => {
@@ -203,9 +214,9 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
   // A1: max(draft, advisory) = advisory.
   // no-banned-word default DRAFT, attached on the parent NODE (channel 2) with
   // an explicit status:advisory. max(draft, advisory) -> advisory: context tags
-  // it [advisory] and a violation is a NON-blocking warning (approve exits 0,
+  // it [advisory] and a violation is a NON-blocking warning (fill exits 0,
   // recorded but not blocking).
-  it('A1: max(draft default, advisory attach) = advisory — context tags [advisory] and a violation does NOT block approve', () => {
+  it('A1: max(draft default, advisory attach) = advisory — context tags [advisory] and a violation does NOT block (warning, exit 0)', () => {
     const dir = hermeticFixture('max-draft-advisory');
     try {
       authorLiteralAspect(dir, 'no-banned-word', 'BANNED', 'draft');
@@ -230,15 +241,14 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       expect(ctx.status).toBe(0);
       expect(ctx.stdout).toContain('no-banned-word [advisory]');
 
-      // Approve the other node clean so the final state has no unrelated drift.
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
-
       appendFileSync(ordersFile(dir), '\n// BANNED token here\n');
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0); // advisory does NOT block approve
-      expect(approve.stdout).toContain('no-banned-word');
-      expect(approve.stdout).toContain('advisory');
-      expect(approve.stdout).toContain('Approved: services/orders');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0); // advisory does NOT block
+      expect(fill.stdout).toContain('[det] no-banned-word on node:services/orders — refused');
+      // The refusal renders as an advisory warning.
+      expect(fill.stdout).toContain('advisory');
+      expect(fill.stdout).toContain("Aspect 'no-banned-word' is refused on node:services/orders");
+      expect(fill.stdout).toContain('yg check: PASS');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -247,8 +257,8 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
   // A2: max(draft, enforced) = enforced.
   // Same aspect default DRAFT, but the parent-node attach raises it to enforced.
   // max(draft, enforced) -> enforced: context tags [enforced] and a violation
-  // BLOCKS approve (exit 1, NOT SATISFIED).
-  it('A2: max(draft default, enforced attach) = enforced — context tags [enforced] and a violation BLOCKS approve (exit 1)', () => {
+  // BLOCKS (exit 1, refused).
+  it('A2: max(draft default, enforced attach) = enforced — context tags [enforced] and a violation BLOCKS (exit 1)', () => {
     const dir = hermeticFixture('max-draft-enforced');
     try {
       authorLiteralAspect(dir, 'no-banned-word', 'BANNED', 'draft');
@@ -270,14 +280,15 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       expect(ctx.status).toBe(0);
       expect(ctx.stdout).toContain('no-banned-word [enforced]');
 
-      // A clean approve passes (the now-enforced aspect is satisfied).
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      // A clean fill passes (the now-enforced aspect is satisfied).
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       appendFileSync(ordersFile(dir), '\n// BANNED token here\n');
-      const refused = run(['approve', '--node', 'services/orders'], dir);
+      const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1); // enforced blocks
-      expect(refused.stdout).toContain('no-banned-word');
-      expect(refused.stdout).toContain('NOT SATISFIED');
+      expect(refused.stdout).toContain('[det] no-banned-word on node:services/orders — refused');
+      expect(refused.stdout).toContain('enforced');
+      expect(refused.stdout).toContain("Aspect 'no-banned-word' is refused on node:services/orders");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -286,9 +297,8 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
   // === Group B: default-to-enforced when status is omitted ===
 
   // B3: an aspect with NO `status:` line in yg-aspect.yaml, attached with NO
-  // status at the attach site, resolves to ENFORCED. Every other status test
-  // assumes this default — here it is asserted explicitly: context tags
-  // [enforced] and a violation BLOCKS.
+  // status at the attach site, resolves to ENFORCED. context tags [enforced] and
+  // a violation BLOCKS.
   it('B3: status omitted on BOTH the aspect default and the attach site resolves to enforced and blocks', () => {
     const dir = hermeticFixture('default-enforced');
     try {
@@ -319,12 +329,12 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       expect(ctx.status).toBe(0);
       expect(ctx.stdout).toContain('no-marker [enforced]');
 
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       appendFileSync(ordersFile(dir), '\n// MARKER here\n');
-      const refused = run(['approve', '--node', 'services/orders'], dir);
+      const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
-      expect(refused.stdout).toContain('no-marker');
-      expect(refused.stdout).toContain('NOT SATISFIED');
+      expect(refused.stdout).toContain('[det] no-marker on node:services/orders — refused');
+      expect(refused.stdout).toContain("Aspect 'no-marker' is refused on node:services/orders");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -332,10 +342,10 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
 
   // === Group C: a node whose EVERY effective aspect resolves to draft ===
 
-  // C4: when every effective aspect on a node is draft, the reviewer is skipped
-  // entirely. approve prints the all-draft notice, writes NO baseline, tracks NO
-  // drift, and `yg check` PASSES (counting the node's aspects as draft).
-  it('C4: an all-draft node is skipped entirely — no baseline, no drift, approve exits 0 with the all-draft notice', () => {
+  // C4: when every effective aspect on a node is draft, the node produces NO fill
+  // pairs at all: the reviewer is skipped entirely, NO verdict is recorded, NO
+  // source fingerprint is written for it, and `yg check` PASSES.
+  it('C4: an all-draft node produces no pairs — no verdict, no source baseline, check PASSES', () => {
     const dir = hermeticFixture('all-draft');
     try {
       // Flip the two type-default aspects to draft. services/orders then has only
@@ -365,26 +375,22 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       expect(ctx.stdout).toContain('no-todo-comments [draft]');
       expect(ctx.stdout).toContain('requires-named-export [draft]');
 
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      // Distinctive all-draft notice, and the explicit "no baseline / no drift".
-      expect(approve.stdout).toContain(
-        "Every effective aspect on node 'services/orders' has status 'draft'. Reviewer skipped.",
-      );
-      expect(approve.stdout).toContain('no baseline written, no drift tracked');
-      // No baseline file is created for the all-draft node.
-      expect(existsSync(baselineFile(dir, 'services/orders'))).toBe(false);
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      // No pairs to fill across the whole graph (both nodes are all-draft now).
+      expect(fill.stdout).toContain('Filling 0 unverified pairs across 0 nodes');
+      // No VERDICT is recorded for any draft aspect — the lock's verdicts map is
+      // empty. (The fill still writes a per-node source fingerprint as routine
+      // bookkeeping, but no draft aspect contributes a verdict.)
+      expect(nodeVerdict(dir, 'services/orders', 'no-todo-comments')).toBeUndefined();
+      expect(nodeVerdict(dir, 'services/orders', 'requires-named-export')).toBeUndefined();
+      expect(nodeVerdict(dir, 'services/orders', 'wip-rule')).toBeUndefined();
 
-      // payments still has draft no-todo + draft requires-export -> it too is
-      // all-draft; approve it and confirm the whole graph check is clean (the
-      // draft node contributes no error, no warning, no newly-active drift).
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
       const check = run(['check'], dir);
       expect(check.status).toBe(0);
       expect(check.stdout).toContain('PASS');
-      // No draft node ever reports drift or a newly-active aspect.
-      expect(check.stdout).not.toContain('aspect-newly-active');
-      expect(check.stdout).not.toContain('drift');
+      // No draft node ever reports an unverified pair or a stale verdict.
+      expect(check.stdout).not.toContain('unverified');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -394,15 +400,16 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
 
   // D5: no-todo-comments is a type-default on `service`, so it is effective on
   // BOTH services/orders and services/payments. Flipping it draft -> enforced
-  // fires aspect-newly-active on EVERY node that has it effective (not just one);
-  // the `--aspect` batch re-approve records the missing verdict on both and
-  // clears the drift.
-  it('D5: flipping a SHARED aspect draft->enforced fires aspect-newly-active on EVERY effective node; per-node approve clears both', () => {
+  // leaves the pair WITHOUT a stored verdict on EVERY node that has it effective;
+  // `yg check` reports `unverified` on both, and a single repo-wide
+  // `yg check --approve` fills the missing verdict on both and clears it. (The
+  // removed `aspect-newly-active` vocabulary maps to `unverified`.)
+  it('D5: flipping a SHARED aspect draft->enforced leaves it unverified on EVERY effective node; one fill clears both', () => {
     const dir = hermeticFixture('flip-newly-active-multi');
     try {
       // Start with no-todo-comments DRAFT (dormant on both nodes). The advisory
       // requires-named-export keeps each node's effective set non-all-draft, so a
-      // real baseline is written for both.
+      // real verdict is written for both at the first fill.
       writeFileSync(
         aspectYaml(dir, 'no-todo-comments'),
         readFileSync(aspectYaml(dir, 'no-todo-comments'), 'utf-8').replace(
@@ -412,12 +419,12 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
         'utf-8',
       );
 
-      const initial = run(['approve', '--node', 'services/orders', '--node', 'services/payments'], dir);
+      const initial = run(['check', '--approve'], dir);
       expect(initial.status).toBe(0);
-      expect(initial.stdout).toContain('2 approved');
+      expect(initial.stdout).toContain('yg check: PASS');
       expect(run(['check'], dir).status).toBe(0);
 
-      // Flip draft -> enforced. no-todo-comments now has no baseline verdict on
+      // Flip draft -> enforced. no-todo-comments now has no stored verdict on
       // either node.
       writeFileSync(
         aspectYaml(dir, 'no-todo-comments'),
@@ -430,44 +437,39 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
 
       const drifted = run(['check'], dir);
       expect(drifted.status).toBe(1);
-      // aspect-newly-active fires on BOTH nodes — the flip is graph-wide, not
-      // local to a single node.
-      expect(drifted.stdout).toContain('aspect-newly-active');
-      const newlyActiveLines = drifted.stdout
+      // unverified fires on BOTH nodes — the flip is graph-wide, not local.
+      expect(drifted.stdout).toContain('unverified');
+      const unverifiedLines = drifted.stdout
         .split('\n')
-        .filter((l) => l.includes('aspect-newly-active'));
-      const namesOrders = newlyActiveLines.some((l) => l.includes('services/orders'));
-      const namesPayments = newlyActiveLines.some((l) => l.includes('services/payments'));
+        .filter((l) => l.includes('unverified'));
+      const namesOrders = unverifiedLines.some((l) => l.includes('services/orders'));
+      const namesPayments = unverifiedLines.some((l) => l.includes('services/payments'));
       expect(namesOrders).toBe(true);
       expect(namesPayments).toBe(true);
       // The newly-active aspect is named in the message.
-      expect(drifted.stdout).toContain("Aspect 'no-todo-comments'");
+      expect(drifted.stdout).toContain("aspect 'no-todo-comments'");
 
-      // A draft->non-draft activation surfaces as aspect-newly-active (not an
-      // aspect cascade — status is not part of the canonical hash), so the
-      // documented remediation is a per-node approve, which records the missing
-      // verdict on both nodes.
-      const reapprove = run(['approve', '--node', 'services/orders', '--node', 'services/payments'], dir);
-      expect(reapprove.status).toBe(0);
-      expect(reapprove.stdout).toContain('services/orders');
-      expect(reapprove.stdout).toContain('services/payments');
-      expect(reapprove.stdout).toContain('2 approved');
+      // A single repo-wide fill records the missing verdict on both nodes.
+      const refill = run(['check', '--approve'], dir);
+      expect(refill.status).toBe(0);
+      expect(refill.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
+      expect(refill.stdout).toContain('[det] no-todo-comments on node:services/payments — approved');
 
-      // Drift cleared on both nodes.
+      // Cleared on both nodes.
       const cleared = run(['check'], dir);
       expect(cleared.status).toBe(0);
-      expect(cleared.stdout).not.toContain('aspect-newly-active');
+      expect(cleared.stdout).not.toContain('unverified');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
   // D6: flipping the SAME shared aspect enforced -> advisory is a RENDER flip,
-  // not a refusal change in the code. With a refused (TODO) baseline on BOTH
-  // nodes, the flip turns the two BLOCKING errors into two NON-blocking warnings:
-  // `yg check` goes from FAIL (2 errors) to PASS (2 warnings) for both nodes at
-  // once. The recorded refused verdicts are carried forward unchanged — only
-  // their render severity flips.
+  // not a re-fill. With a refused (TODO) verdict on BOTH nodes, the flip turns the
+  // two BLOCKING errors into two NON-blocking warnings: `yg check` goes from FAIL
+  // (2 errors) to PASS (2 warnings). The recorded refused verdicts are carried
+  // forward unchanged (status is NOT in the verdict hash) — only their render
+  // severity flips, with NO reviewer re-run.
   it('D6: flipping a SHARED aspect enforced->advisory flips block->warn on EVERY node (check FAIL -> PASS)', () => {
     const dir = hermeticFixture('flip-render-multi');
     try {
@@ -475,17 +477,17 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       // both nodes -> two persisted refused verdicts.
       appendFileSync(ordersFile(dir), '\n// TODO: orders debt\n');
       appendFileSync(paymentsFile(dir), '\n// TODO: payments debt\n');
-      run(['approve', '--node', 'services/orders', '--node', 'services/payments'], dir);
+      run(['check', '--approve'], dir);
 
       // While enforced: check FAILS with both nodes as blocking errors.
       const enforcedCheck = run(['check'], dir);
       expect(enforcedCheck.status).toBe(1);
       expect(enforcedCheck.stdout).toContain('FAIL');
+      expect(enforcedCheck.stdout).toContain('enforced');
 
-      // Flip enforced -> advisory and re-approve (the aspect-yaml edit cascades;
-      // see the BUG note in E7). The persisted refused verdict is carried
-      // forward — re-approve re-runs the deterministic check and re-records the
-      // same refusal, now under advisory status.
+      // Flip enforced -> advisory. A bare status flip is NOT part of the verdict
+      // hash, so the persisted refused verdict is carried forward verbatim — no
+      // re-fill is needed; only the render severity flips.
       writeFileSync(
         aspectYaml(dir, 'no-todo-comments'),
         readFileSync(aspectYaml(dir, 'no-todo-comments'), 'utf-8').replace(
@@ -494,7 +496,6 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
         ),
         'utf-8',
       );
-      run(['approve', '--aspect', 'no-todo-comments'], dir);
 
       const advisoryCheck = run(['check'], dir);
       // Block -> warn on BOTH nodes: the gate now PASSES with two warnings.
@@ -503,37 +504,34 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       const warnLines = advisoryCheck.stdout.split('\n').filter((l) => l.includes('advisory'));
       expect(warnLines.some((l) => l.includes('services/orders'))).toBe(true);
       expect(warnLines.some((l) => l.includes('services/payments'))).toBe(true);
-      // The violation is still recorded (not erased) — it just renders as a warning.
-      expect(advisoryCheck.stdout).toContain('TODO comment found');
       expect(advisoryCheck.stdout).not.toContain('FAIL');
+      // The violation is still recorded (not erased) — the lock keeps the refused
+      // verdict with its reason; it just renders as a warning now.
+      expect(nodeVerdict(dir, 'services/orders', 'no-todo-comments')?.verdict).toBe('refused');
+      expect(nodeVerdict(dir, 'services/orders', 'no-todo-comments')?.reason).toContain('TODO comment found');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  // === Group E: hash (in)stability across the advisory<->enforced flip ===
+  // === Group E: verdict-hash (in)stability across the advisory<->enforced flip ===
 
-  // E7: the per-node canonical drift hash and the advisory<->enforced flip.
+  // E7: the per-pair canonical verdict hash and the advisory<->enforced flip.
   //
-  // BUG / CONTRACT DIVERGENCE — the per-node hash is NOT stable across the flip.
-  //
-  //   CONTRACT (knowledge read aspect-status / drift-and-cascade):
-  //     "Status is NOT part of the canonical drift hash. The hash stays stable
-  //      across advisory <-> enforced flips."
-  //
-  //   The drift tracker hashes the aspect's DEFINITION metadata EXCLUDING the
-  //   `status` field (core/graph/files.ts tracks an `aspect-meta:<id>` synthetic
-  //   instead of the raw yg-aspect.yaml whose bytes include `status:`). So a bare
+  //   CONTRACT: status is NOT part of the canonical verdict hash. A bare
   //   advisory<->enforced flip — check.mjs and source byte-for-byte unchanged —
-  //   does NOT change the node's canonical hash and does NOT cascade. (A
-  //   draft<->non-draft transition is still surfaced, but via aspect-newly-active,
-  //   covered by D5; the render-severity flip is covered by D6.)
-  it('E7: a bare enforced->advisory status flip does NOT cascade and the per-node canonical hash stays stable', () => {
+  //   does NOT invalidate the verdict, so the pair stays VALID, there is nothing
+  //   to re-fill, and both the per-pair verdict hash and the per-node source hash
+  //   stay stable. (A draft<->non-draft transition is still surfaced, but via
+  //   `unverified`, covered by D5; the render-severity flip is covered by D6.)
+  it('E7: a bare enforced->advisory status flip does NOT invalidate the verdict; the canonical hashes stay stable', () => {
     const dir = hermeticFixture('hash-flip-stable');
     try {
-      run(['approve', '--node', 'services/orders'], dir);
-      run(['approve', '--node', 'services/payments'], dir);
-      const before = baselineHash(dir, 'services/orders');
+      run(['check', '--approve'], dir);
+      const verdictBefore = nodeVerdict(dir, 'services/orders', 'no-todo-comments')?.hash;
+      const sourceBefore = nodeSourceHash(dir, 'services/orders');
+      expect(verdictBefore).toBeTruthy();
+      expect(sourceBefore).toBeTruthy();
 
       // Flip ONLY the status line — check.mjs and source are unchanged.
       writeFileSync(
@@ -545,61 +543,55 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
         'utf-8',
       );
 
-      // No cascade: status is not part of the canonical drift hash. The aspect
+      // No re-fill needed: status is not part of the verdict hash. The aspect
       // passes (orders.ts has no TODO), so advisory renders nothing → check clean.
       const drifted = run(['check'], dir);
       expect(drifted.status).toBe(0);
-      expect(drifted.stdout).not.toContain("aspect 'no-todo-comments' changed");
-      expect(drifted.stdout).not.toContain('Source files changed');
+      expect(drifted.stdout).not.toContain('unverified');
 
-      // The recorded canonical hash is unchanged — a status flip is not drift, so
-      // there is nothing to re-approve and the baseline is untouched.
-      const after = baselineHash(dir, 'services/orders');
-      expect(after).toBe(before);
+      // The recorded verdict hash AND source hash are unchanged — a status flip
+      // is not drift, so there is nothing to re-fill and the lock is untouched.
+      expect(nodeVerdict(dir, 'services/orders', 'no-todo-comments')?.hash).toBe(verdictBefore);
+      expect(nodeSourceHash(dir, 'services/orders')).toBe(sourceBefore);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  // === Group F: a REFUSED enforced verdict is PERSISTED in the baseline ===
+  // === Group F: a REFUSED enforced verdict is PERSISTED in the lock ===
 
-  // E8/F8: approving a node whose enforced aspect is violated writes a baseline
-  // that RECORDS the refused verdict (verdict:refused, errorSource:codeViolation).
-  // A SECOND `yg check` then renders the stored refusal as a blocking error
-  // WITHOUT re-running the reviewer — the source is unchanged, so there is no
-  // source drift; the verdict is read straight from the baseline.
-  it('F8: a refused ENFORCED verdict is persisted in the baseline and a second check renders it without re-running', () => {
+  // F8: filling a node whose enforced aspect is violated writes a lock entry that
+  // RECORDS the refused verdict (verdict:refused, reason naming the violation). A
+  // SECOND `yg check` then renders the stored refusal as a blocking error WITHOUT
+  // re-running the reviewer — the source is unchanged, so the verdict is read
+  // straight from the lock (cached).
+  it('F8: a refused ENFORCED verdict is persisted in the lock and a second check renders it without re-running', () => {
     const dir = hermeticFixture('refused-persisted');
     try {
-      // Approve payments clean so the only check error comes from the persisted
-      // orders refusal.
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
-
-      // Violate the enforced no-todo-comments and approve -> refused, exit 1.
+      // Violate the enforced no-todo-comments and fill -> refused, exit 1.
       appendFileSync(ordersFile(dir), '\n// TODO: persisted refusal\n');
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(1);
-      expect(approve.stdout).toContain('no-todo-comments');
-      expect(approve.stdout).toContain('NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — refused');
+      expect(fill.stdout).toContain('enforced');
+      expect(fill.stdout).toContain("Aspect 'no-todo-comments' is refused on node:services/orders");
 
-      // The baseline exists and records the REFUSED verdict (not merely absent).
-      expect(existsSync(baselineFile(dir, 'services/orders'))).toBe(true);
-      const verdict = aspectVerdict(dir, 'services/orders', 'no-todo-comments');
+      // The lock records the REFUSED verdict (not merely absent), with the reason.
+      const verdict = nodeVerdict(dir, 'services/orders', 'no-todo-comments');
       expect(verdict?.verdict).toBe('refused');
-      expect(verdict?.errorSource).toBe('codeViolation');
       expect(verdict?.reason).toContain('TODO comment found');
 
       // A second check renders the STORED refusal as a blocking enforced error.
-      // The source is unchanged since approve, so this is NOT source drift — the
-      // verdict comes straight from the persisted baseline.
+      // The source is unchanged since the fill, so this is NOT an unverified pair
+      // — the verdict comes straight from the persisted lock (cached, no re-run).
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
       expect(check.stdout).toContain('enforced');
       expect(check.stdout).toContain('services/orders');
-      expect(check.stdout).toContain("fails enforced aspect 'no-todo-comments'");
-      expect(check.stdout).toContain('TODO comment found');
-      // It is rendered from the baseline, not re-flagged as new source drift.
-      expect(check.stdout).not.toContain('Source files changed');
+      expect(check.stdout).toContain("Aspect 'no-todo-comments' is refused on node:services/orders by a deterministic check.");
+      expect(check.stdout).toContain('cached');
+      // It is rendered from the lock, not re-flagged as a new unverified pair.
+      expect(check.stdout).not.toContain('unverified');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -612,11 +604,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
   // type-default) strictest-implies impA (own default advisory); impA
   // strictest-implies impB (own default advisory). Each level takes
   // max(implier_effective, own_default), so both impA and impB are promoted to
-  // [enforced] transitively, and a violation of the deepest one BLOCKS approve.
-  //
-  // Distinct from cli-implies test 6 (single-level, both enforced) and test 7
-  // (single-level own-default) — this pins the TRANSITIVE strictest promotion of
-  // an advisory-default aspect across two levels.
+  // [enforced] transitively, and a violation of the deepest one BLOCKS the fill.
   it('G9: strictest status_inherit promotes advisory-default implied aspects to enforced TRANSITIVELY across a 2-level chain', () => {
     const dir = hermeticFixture('status-inherit-chain');
     try {
@@ -650,26 +638,24 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       expect(ctx.stdout).toContain("implied by 'no-todo-comments'");
       expect(ctx.stdout).toContain("implied by 'imp-a'");
 
-      // A violation of the DEEPEST (2-level) implied aspect blocks approve,
+      // A violation of the DEEPEST (2-level) implied aspect blocks the fill,
       // confirming the promotion to enforced is real (not cosmetic).
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       appendFileSync(ordersFile(dir), '\n// BBB token\n');
-      const refused = run(['approve', '--node', 'services/orders'], dir);
+      const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
-      expect(refused.stdout).toContain('imp-b');
-      expect(refused.stdout).toContain('NOT SATISFIED');
+      expect(refused.stdout).toContain('[det] imp-b on node:services/orders — refused');
+      expect(refused.stdout).toContain("Aspect 'imp-b' is refused on node:services/orders");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
   // G10: a DRAFT implier is dormant for implies SET membership — it does NOT pull
-  // its implied aspect into the node's effective set (knowledge read aspect-status,
-  // "Implies propagation": "If A's effective status on N is draft -> B is NOT
-  // propagated via implies; B may still arrive via another channel"). Both the
-  // effective-SET (expandImpliesFiltered) and the status MAP skip draft impliers,
-  // so the implied aspect is absent from context and never evaluated at approve.
-  it('G10: a DRAFT implier does NOT propagate its implied aspect (dormant); context omits it and approve does not block', () => {
+  // its implied aspect into the node's effective set. Both the effective-SET
+  // (expandImpliesFiltered) and the status MAP skip draft impliers, so the
+  // implied aspect is absent from context and never evaluated at fill.
+  it('G10: a DRAFT implier does NOT propagate its implied aspect (dormant); context omits it and the fill does not block', () => {
     const dir = hermeticFixture('draft-implier-dormant');
     try {
       // draft-implier: DRAFT. implied-by-draft: own default enforced, attached
@@ -717,29 +703,26 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       expect(ctx.stdout).not.toContain('implied-by-draft [');
       expect(ctx.stdout).not.toContain("implied by 'draft-implier'");
 
-      // Its violation does NOT block approve — the implied aspect is dormant.
+      // Its violation does NOT block the fill — the implied aspect is dormant.
       appendFileSync(ordersFile(dir), '\n// EEE token\n');
-      const result = run(['approve', '--node', 'services/orders'], dir);
+      const result = run(['check', '--approve'], dir);
       expect(result.status).toBe(0);
-      expect(result.stdout).not.toContain('NOT SATISFIED');
-      // The draft implier itself is announced as skipped.
-      expect(result.stdout).toContain('draft-implier');
-      expect(result.stdout).toContain('skipped');
+      expect(result.stdout).not.toContain("Aspect 'implied-by-draft' is refused");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  // === Group H: approve --aspect on a fully-draft aspect ===
+  // === Group H: a fully-draft aspect is dormant everywhere ===
 
-  // H11: `yg approve --aspect <id>` where the aspect's default status is draft
-  // (so it is skipped on every node) is a no-op: the CLI prints the all-draft
-  // notice for the aspect and exits 0 without writing any baseline.
-  it('H11: approve --aspect on a draft-default aspect skips every node and exits 0 with the all-draft notice', () => {
+  // H11: an aspect whose default status is draft is skipped on every node — it
+  // produces NO fill pair anywhere, so a repo-wide `yg check --approve` records no
+  // verdict for it and the run stays clean (exit 0). (The old `approve --aspect`
+  // batch target is gone; fill is repo-wide.)
+  it('H11: a draft-default aspect produces no pair on any node — fill records no verdict for it and exits 0', () => {
     const dir = hermeticFixture('approve-aspect-draft');
     try {
-      // Flip no-todo-comments to draft so `--aspect no-todo-comments` targets a
-      // fully-draft aspect.
+      // Flip no-todo-comments to draft so it is fully dormant.
       writeFileSync(
         aspectYaml(dir, 'no-todo-comments'),
         readFileSync(aspectYaml(dir, 'no-todo-comments'), 'utf-8').replace(
@@ -748,13 +731,17 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
         ),
         'utf-8',
       );
+      // Plant a TODO in both sources — a draft aspect must NOT flag it.
+      appendFileSync(ordersFile(dir), '\n// TODO: dormant draft debt\n');
+      appendFileSync(paymentsFile(dir), '\n// TODO: dormant draft debt\n');
 
-      const approve = run(['approve', '--aspect', 'no-todo-comments'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain(
-        "Aspect 'no-todo-comments' has default status 'draft' — reviewer skipped on every node.",
-      );
-      expect(approve.stdout).toContain('Draft aspects are dormant; no baseline written, no drift tracked.');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      // The draft aspect never appears as a fill pair on either node.
+      expect(fill.stdout).not.toContain('[det] no-todo-comments');
+      expect(fill.stdout).toContain('yg check: PASS');
+      // The lock records no verdict for the dormant draft aspect.
+      expect(readLock(dir).verdicts['no-todo-comments']).toBeUndefined();
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

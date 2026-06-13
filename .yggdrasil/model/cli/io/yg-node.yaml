@@ -4,5 +4,5 @@ description: Filesystem I/O layer — parent grouping for parsers (cli/io/parser
 relations:
   - target: cli/model/graph
     type: uses
-  - target: cli/model/drift
+  - target: cli/model/lock
     type: uses

@@ -1,7 +1,0 @@
-name: bounty4 schema-node-aspect
-type: test-suite
-description: "Bug-bounty suites: schema-node-aspect (~43263 chars)."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/bounty4/schema-node-aspect.test.ts

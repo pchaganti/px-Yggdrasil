@@ -21,7 +21,6 @@ export class ConfigParseError extends Error {
 
 const DEFAULT_QUALITY: QualityConfig = {
   max_direct_relations: 10,
-  max_node_chars: 40000,
 };
 
 export const DEFAULT_COVERAGE: CoverageConfig = { required: ['/'], excluded: [] };
@@ -73,25 +72,7 @@ function parseCoverage(raw: unknown, filename: string): CoverageConfig {
   return { required, excluded };
 }
 
-/**
- * Validate the optional quality.max_node_chars (the per-node character budget).
- * Absent → the default. Present but not a positive integer → a config error,
- * since a zero/negative/fractional budget makes the oversized-node gate
- * nonsensical (every node, or no node, would trip).
- */
-function parseMaxNodeChars(raw: unknown, filename: string): number {
-  if (raw === undefined) return DEFAULT_QUALITY.max_node_chars ?? 40000;
-  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw <= 0) {
-    throw new ConfigParseError({
-      what: `${filename}: quality.max_node_chars must be a positive integer (got ${JSON.stringify(raw)}).`,
-      why: 'It is the per-node character budget; a zero, negative, or fractional value makes the oversized-node gate nonsensical.',
-      next: 'Set quality.max_node_chars to a positive integer (default 40000), or remove it to use the default.',
-    }, 'config-invalid');
-  }
-  return raw;
-}
-
-/** Validate the optional quality.max_direct_relations (positive integer, like max_node_chars). */
+/** Validate the optional quality.max_direct_relations (positive integer). */
 function parseMaxDirectRelations(raw: unknown, filename: string): number {
   if (raw === undefined) return DEFAULT_QUALITY.max_direct_relations ?? 10;
   if (typeof raw !== 'number' || !Number.isInteger(raw) || raw <= 0) {
@@ -129,15 +110,14 @@ export async function parseConfig(filePath: string): Promise<YggConfig> {
   if (qualityRaw !== undefined && (typeof qualityRaw !== 'object' || Array.isArray(qualityRaw))) {
     throw new ConfigParseError({
       what: `${filename}: quality must be a mapping`,
-      why: 'quality holds named thresholds (max_direct_relations, max_node_chars)',
-      next: 'replace with `quality: { max_direct_relations: 10, max_node_chars: 40000 }`',
+      why: 'quality holds named thresholds (max_direct_relations)',
+      next: 'replace with `quality: { max_direct_relations: 10 }`',
     }, 'config-invalid');
   }
   const qualityMap = qualityRaw as Record<string, unknown> | undefined;
   const quality: QualityConfig = qualityMap
     ? {
         max_direct_relations: parseMaxDirectRelations(qualityMap.max_direct_relations, filename),
-        max_node_chars: parseMaxNodeChars(qualityMap.max_node_chars, filename),
       }
     : DEFAULT_QUALITY;
 
@@ -347,64 +327,14 @@ function parseTier(name: string, raw: unknown, filename: string): LlmConfig {
   }
 
   // Unknown-key check AFTER structural checks
-  const allowed = new Set(['provider', 'consensus', 'config', 'references', 'max_prompt_chars']);
+  const allowed = new Set(['provider', 'consensus', 'config', 'max_prompt_chars']);
   for (const k of Object.keys(t)) {
     if (!allowed.has(k)) {
       throw new ConfigParseError({
         what: `${filename}: tier '${name}' has unknown key '${k}'`,
-        why: 'tier accepts only `provider`, `consensus`, `config`, `references`, `max_prompt_chars`',
+        why: 'tier accepts only `provider`, `consensus`, `config`, `max_prompt_chars`',
         next: "move to config: if it's a provider setting, or remove",
       }, 'config-tier-unknown-key');
-    }
-  }
-
-  // references: optional sub-mapping with per-tier source-file size limits
-  let references: { max_bytes_per_file?: number; max_total_bytes_per_aspect?: number } | undefined;
-  if (t.references !== undefined) {
-    if (t.references === null || typeof t.references !== 'object' || Array.isArray(t.references)) {
-      throw new ConfigParseError({
-        what: `${filename}: tier '${name}' has 'references' that is not a YAML mapping`,
-        why: 'references accepts an object with max_bytes_per_file and/or max_total_bytes_per_aspect',
-        next: `replace with 'references: { max_bytes_per_file: 65536 }' or remove the field`,
-      }, 'tier-references-not-mapping');
-    } else {
-      const refsObj = t.references as Record<string, unknown>;
-      const allowedRefKeys = new Set(['max_bytes_per_file', 'max_total_bytes_per_aspect']);
-      for (const k of Object.keys(refsObj)) {
-        if (!allowedRefKeys.has(k)) {
-          throw new ConfigParseError({
-            what: `${filename}: tier '${name}' has unknown key 'references.${k}'`,
-            why: 'references accepts only max_bytes_per_file and max_total_bytes_per_aspect',
-            next: `remove 'references.${k}' from yg-config.yaml`,
-          }, 'tier-references-unknown-key');
-        }
-      }
-      const refs: { max_bytes_per_file?: number; max_total_bytes_per_aspect?: number } = {};
-      if (refsObj.max_bytes_per_file !== undefined) {
-        const v = refsObj.max_bytes_per_file;
-        if (typeof v !== 'number' || !Number.isInteger(v) || v <= 0) {
-          throw new ConfigParseError({
-            what: `${filename}: tier '${name}' has invalid references.max_bytes_per_file: ${JSON.stringify(v)}`,
-            why: 'must be a positive integer (bytes)',
-            next: `set 'references.max_bytes_per_file' to a positive integer like 65536`,
-          }, 'tier-references-max-bytes-per-file-invalid');
-        } else {
-          refs.max_bytes_per_file = v;
-        }
-      }
-      if (refsObj.max_total_bytes_per_aspect !== undefined) {
-        const v = refsObj.max_total_bytes_per_aspect;
-        if (typeof v !== 'number' || !Number.isInteger(v) || v <= 0) {
-          throw new ConfigParseError({
-            what: `${filename}: tier '${name}' has invalid references.max_total_bytes_per_aspect: ${JSON.stringify(v)}`,
-            why: 'must be a positive integer (bytes)',
-            next: `set 'references.max_total_bytes_per_aspect' to a positive integer like 262144`,
-          }, 'tier-references-max-total-bytes-invalid');
-        } else {
-          refs.max_total_bytes_per_aspect = v;
-        }
-      }
-      if (Object.keys(refs).length > 0) references = refs;
     }
   }
 
@@ -430,6 +360,5 @@ function parseTier(name: string, raw: unknown, filename: string): LlmConfig {
     consensus: consensusRaw as number,
     timeout: typeof c.timeout === 'number' ? c.timeout * 1000 : undefined,
     ...(max_prompt_chars !== undefined ? { max_prompt_chars } : {}),
-    ...(references !== undefined ? { references } : {}),
   };
 }

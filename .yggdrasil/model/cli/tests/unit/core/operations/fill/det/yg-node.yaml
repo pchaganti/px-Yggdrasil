@@ -1,0 +1,7 @@
+name: Fill Deterministic Unit Tests
+type: test-suite
+description: "Unit tests for deterministic fills — det-first ordering, det gate skipping LLM, positive closure, log gate, GC, incremental writeLock, taint/re-run-once, and per-file pair contract."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/core/fill-det.test.ts

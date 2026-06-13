@@ -30,7 +30,7 @@ import {
 // isAllowed and assertRealpathContained (both module-private). We drive every
 // branch through it (and through the createCtxFs facade, which calls it). One
 // E2E group spawns the real `yg` binary so the same matching is confirmed
-// end-to-end through `yg deterministic-test`.
+// end-to-end through `yg aspect-test`.
 //
 // Determinism: no random data (mkdtemp's suffix is OS-provided, not asserted
 // on); no wall-clock reads in assertions; every temp tree removed in finally.
@@ -502,7 +502,7 @@ describe('ctx-fs — assertRealpathContained (symlink-escape guard)', () => {
 
 // ===========================================================================
 // E2E — the SAME isAllowed / realpath matching reached through the real `yg`
-// binary via `yg deterministic-test --node <path> --aspect <id>`, which runs
+// binary via `yg aspect-test --node <path> --aspect <id>`, which runs
 // a graph-scoped check.mjs whose ctx.fs.read goes through resolveAllowedRead-
 // Path. We copy the e2e-lifecycle fixture into a temp dir, rewrite the dormant
 // `wip-rule` check.mjs to perform a specific read, and assert the surfaced
@@ -539,7 +539,7 @@ function setWipCheck(dir: string, body: string): void {
   );
 }
 
-describe.skipIf(!distExists)('ctx-fs — E2E through yg deterministic-test', () => {
+describe.skipIf(!distExists)('ctx-fs — E2E through yg aspect-test', () => {
   it("E1: ctx.fs.read of an ALLOWED own-mapping file → no violation (isAllowed true path)", () => {
     const dir = copyFixture('allowed');
     try {
@@ -555,7 +555,7 @@ describe.skipIf(!distExists)('ctx-fs — E2E through yg deterministic-test', () 
         ].join('\n'),
       );
       const { status, all } = run(
-        ['deterministic-test', '--node', 'services/orders', '--aspect', 'wip-rule'],
+        ['aspect-test', '--node', 'services/orders', '--aspect', 'wip-rule'],
         dir,
       );
       expect(status).toBe(0);
@@ -579,7 +579,7 @@ describe.skipIf(!distExists)('ctx-fs — E2E through yg deterministic-test', () 
         ].join('\n'),
       );
       const { status, all } = run(
-        ['deterministic-test', '--node', 'services/orders', '--aspect', 'wip-rule'],
+        ['aspect-test', '--node', 'services/orders', '--aspect', 'wip-rule'],
         dir,
       );
       expect(status).toBe(1);
@@ -605,7 +605,7 @@ describe.skipIf(!distExists)('ctx-fs — E2E through yg deterministic-test', () 
         ].join('\n'),
       );
       const { status, all } = run(
-        ['deterministic-test', '--node', 'services/orders', '--aspect', 'wip-rule'],
+        ['aspect-test', '--node', 'services/orders', '--aspect', 'wip-rule'],
         dir,
       );
       expect(status).toBe(1);
@@ -656,7 +656,7 @@ describe.skipIf(!distExists)('ctx-fs — E2E through yg deterministic-test', () 
         ].join('\n'),
       );
       const { status, all } = run(
-        ['deterministic-test', '--node', 'services/orders', '--aspect', 'wip-rule'],
+        ['aspect-test', '--node', 'services/orders', '--aspect', 'wip-rule'],
         dir,
       );
       expect(status).toBe(1);

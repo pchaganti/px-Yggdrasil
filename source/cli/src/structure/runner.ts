@@ -25,6 +25,20 @@ export interface RunStructureAspectParams {
   graph: Graph;
   projectRoot: string;
   parseCache?: ParseCache;
+  /**
+   * Subject-scope override for a `per: file` deterministic pair (spec §1, B2
+   * contract #8). When present, it overrides BOTH `ctx.files` (the check sees
+   * only these subject files) AND the observation-EXCLUSION set (a read of any
+   * OTHER node file folds as a recorded `read:` observation, since it is no
+   * longer hashed as a subject input). Repo-relative POSIX paths.
+   *
+   * `ctx.node.files` and the allow-set stay NODE-scoped regardless — the check
+   * may still reach the rest of the node, but those reaches become observations.
+   *
+   * Absent → byte-identical legacy behavior (the whole node mapping is both the
+   * subject set and the exclusion set; `per: node` and `yg aspect-test` paths).
+   */
+  subjectScope?: string[];
 }
 
 export interface RunStructureAspectResult {
@@ -111,7 +125,7 @@ export async function runStructureAspect(
   params: RunStructureAspectParams,
 ): Promise<RunStructureAspectResult> {
   ensureLoaderRegistered();
-  const { aspectDir, aspectId, nodePath, graph, projectRoot } = params;
+  const { aspectDir, aspectId, nodePath, graph, projectRoot, subjectScope } = params;
   const astCache: ParseCache = params.parseCache ?? new Map();
   const touchedFiles: string[] = [];
 
@@ -161,7 +175,13 @@ export async function runStructureAspect(
     .map(normalizeMappingPath)
     .filter((p): p is string => p !== '');
   const ownFilesExpanded = await expandMappingPaths(projectRoot, ownFilesRaw);
-  const subjectFiles = new Set<string>(ownFilesExpanded);
+  // The observation-EXCLUSION set: paths hashed as subject inputs are NOT
+  // double-recorded as observations. For a `per: file` pair (subjectScope set)
+  // this is exactly that file, so a sibling read folds as an observation
+  // (contract #8). Absent → the whole node mapping (legacy behavior).
+  const subjectFiles = subjectScope !== undefined
+    ? new Set<string>(subjectScope.map(normalizeMappingPath))
+    : new Set<string>(ownFilesExpanded);
 
   const ctxFs = createCtxFs({ allowedSet, projectRoot, touchedFiles, recorder, subjectFiles });
   // Pre-expand each graph-readable node's mapping to concrete files (directory
@@ -181,6 +201,14 @@ export async function runStructureAspect(
   await prewarmupAstCache({ astCache, projectRoot, files: ownFiles });
 
   const ownFilesEnriched = enrichFilesWithAst(ownFiles, astCache);
+  // ctx.node.files always exposes the FULL node mapping (node-scoped, §1).
+  // ctx.files is the scope-driven subject view: the whole node mapping for a
+  // per: node pair, or exactly the subjectScope files for a per: file pair
+  // (contract #8). Filtering the already-built+enriched array keeps ctx.files
+  // byte-identical to ctx.node.files when no scope is supplied.
+  const ctxFilesEnriched = subjectScope !== undefined
+    ? ownFilesEnriched.filter((f) => subjectFiles.has(normalizeMappingPath(f.path)))
+    : ownFilesEnriched;
   const ctx: Ctx = {
     node: {
       id: node.path,
@@ -189,7 +217,7 @@ export async function runStructureAspect(
       files: ownFilesEnriched,
       ports: (node.meta.ports ?? {}) as Record<string, Port>,
     },
-    files: ownFilesEnriched,
+    files: ctxFilesEnriched,
     fs: ctxFs,
     graph: ctxGraph,
     parseAst: parsers.parseAst,

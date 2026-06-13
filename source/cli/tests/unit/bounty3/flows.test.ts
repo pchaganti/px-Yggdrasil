@@ -3,7 +3,6 @@ import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdtempSync,
-  mkdirSync,
   rmSync,
   cpSync,
   readFileSync,
@@ -503,13 +502,12 @@ describe.skipIf(!distExists)('CLI E2E — flow structural validation (broken nod
     }
   });
 
-  it('E3: the committed (valid) flow does NOT trip either structural check — check passes after baselines (exit 0)', () => {
+  it('E3: the committed (valid) flow does NOT trip either structural check — check passes after the lock is filled (exit 0)', () => {
     const dir = deterministicFixture('e3');
     try {
-      // Establish baselines for the two committed participants, then check is clean.
-      expect(
-        run(['approve', '--node', 'services/orders', '--node', 'services/payments'], dir).status,
-      ).toBe(0);
+      // Fill the lock for the deterministic participants (free, no reviewer),
+      // then plain check is clean.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       const check = run(['check'], dir);
       expect(check.status).toBe(0);
       expect(check.stdout).toContain('PASS');

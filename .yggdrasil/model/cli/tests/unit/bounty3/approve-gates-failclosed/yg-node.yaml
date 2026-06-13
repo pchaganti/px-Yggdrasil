@@ -1,7 +1,0 @@
-name: bounty3 approve-gates-failclosed
-type: test-suite
-description: "Bug-bounty suites: approve-gates-failclosed (~30335 chars)."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/bounty3/approve-gates-failclosed.test.ts

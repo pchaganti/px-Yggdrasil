@@ -12,6 +12,26 @@ export interface NodeContextData {
   parentPath?: string;
   parentType?: string;
   parentReadPath?: string;
+  /** Per-aspect subject-file counts (spec §1/§8 observability). Keyed by aspect id. */
+  aspectSubjects?: Record<string, NodeAspectSubjects>;
+  /** Read-only log-gate state (spec §8/§9). */
+  logState?: NodeLogState;
+}
+
+/** Subject-file count for one aspect on this node (spec §1 vacuous-pass observability). */
+export interface NodeAspectSubjects {
+  /** Number of subject files (per: node) OR pairs (per: file) the aspect produces here. */
+  count: number;
+  /** True when the aspect is per: file (count is unit count, not file count). */
+  perFile: boolean;
+}
+
+/** Read-only log-gate state for the node (spec §9). */
+export interface NodeLogState {
+  /** Whether an entry is required before --approve when source changed. */
+  required: boolean;
+  /** Whether a fresh entry (newer than the recorded baseline) is present now. */
+  freshPresent: boolean;
 }
 
 export interface NodeContextAspect {
@@ -49,6 +69,18 @@ function posixPath(p: string): string {
   return toPosixPath(p);
 }
 
+/**
+ * Render an aspect's subject-file count (spec §1 vacuous-pass observability).
+ * per: node → "N files" (or "0 files — vacuous" when the scope excludes all of
+ * them); per: file → "N units (per-file)" so the reader knows each file is its
+ * own verification unit, not a single multi-file review.
+ */
+function formatSubjectCount(s: NodeAspectSubjects): string {
+  if (s.count === 0) return '0 files — vacuous';
+  if (s.perFile) return `${s.count} unit${s.count === 1 ? '' : 's'} (per-file)`;
+  return `${s.count} file${s.count === 1 ? '' : 's'}`;
+}
+
 export function formatNodeContext(data: NodeContextData): string {
   const lines: string[] = [];
 
@@ -72,6 +104,10 @@ export function formatNodeContext(data: NodeContextData): string {
       const status = aspect.status ?? 'enforced';
       lines.push(`  ${aspect.id} [${status}] — ${aspect.description}`);
       lines.push(`    Source: ${posixPath(aspect.source)}`);
+      const subjects = data.aspectSubjects?.[aspect.id];
+      if (subjects) {
+        lines.push(`    Subjects: ${formatSubjectCount(subjects)}`);
+      }
       if (status === 'draft') {
         lines.push('    (reviewer skipped; aspect is draft)');
         if (aspect.implies && aspect.implies.length > 0) {
@@ -154,8 +190,16 @@ export function formatNodeContext(data: NodeContextData): string {
     lines.push('');
   }
 
+  // Log-gate state (spec §8/§9) — read-only, computed from the fingerprint+lock.
+  if (data.logState) {
+    const req = data.logState.required ? 'yes' : 'no';
+    const fresh = data.logState.freshPresent ? 'yes' : 'no';
+    lines.push(`log entry required before --approve: ${req}; fresh entry present: ${fresh}`);
+    lines.push('');
+  }
+
   // Workflow footer
-  lines.push(`After modifying source files in this node: run yg check, then yg approve --node ${posixPath(data.path)}`);
+  lines.push(`After modifying source files in this node: run yg check, then yg check --approve`);
   lines.push('');
 
   return lines.join('\n');

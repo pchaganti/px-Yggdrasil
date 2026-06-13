@@ -1,5 +1,4 @@
-import type { LlmProvider, AspectResponse } from './types.js';
-import type { AspectVerificationResult } from '../model/drift.js';
+import type { LlmProvider, AspectResponse, AspectVerificationResult } from './types.js';
 import { buildPairPrompt } from './prompt.js';
 
 export type { PromptAspectInput, PromptReferenceInput, PromptFileInput, PairPromptInput } from './prompt.js';
@@ -37,7 +36,7 @@ export function buildPrompt(
 }
 
 
-async function verifyWithConsensus(
+export async function verifyWithConsensus(
   provider: LlmProvider,
   prompt: string,
   consensus: number,

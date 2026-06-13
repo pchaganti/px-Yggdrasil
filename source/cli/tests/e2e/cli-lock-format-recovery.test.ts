@@ -1,0 +1,255 @@
+// =============================================================================
+// THE LOCK MATRIX — part 4: prompt-too-large gate, lock merge recovery,
+// lock-invalid recovery, aspect-test diagnostic isolation.
+// MATRIX points (7), (9), (10), (12). Real spawned binary; mock reviewer for LLM
+// over runAsync (never spawnSync while the mock serves).
+//
+// HERMETIC: fresh mkdtemp copy of e2e-lifecycle per test, mutated in place,
+// rmSync'd in finally. No fixed ports, no clock/random assertions.
+// =============================================================================
+
+import { describe, it, expect } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, rmSync, cpSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { startMockReviewer, runAsync } from './support/mock-reviewer.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const CLI_ROOT = path.join(__dirname, '..', '..');
+const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
+const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle');
+const distExists = existsSync(BIN_PATH);
+
+const cfgPath = (d: string) => path.join(d, '.yggdrasil', 'yg-config.yaml');
+const archPath = (d: string) => path.join(d, '.yggdrasil', 'yg-architecture.yaml');
+const lockPath = (d: string) => path.join(d, '.yggdrasil', 'yg-lock.json');
+const readLock = (d: string) => JSON.parse(readFileSync(lockPath(d), 'utf-8'));
+
+function run(args: string[], cwd: string): { all: string; status: number | null } {
+  const r = spawnSync('node', [BIN_PATH, ...args], { cwd, encoding: 'utf-8' });
+  return { all: (r.stdout ?? '') + (r.stderr ?? ''), status: r.status };
+}
+function pointReviewer(dir: string, endpoint: string): void {
+  const p = cfgPath(dir);
+  writeFileSync(p, readFileSync(p, 'utf-8').replace(/endpoint:\s*["']?[^"'\n]+["']?/, `endpoint: "${endpoint}"`), 'utf-8');
+}
+/** Set (or replace) max_prompt_chars on the standard tier. */
+function setPromptLimit(dir: string, n: number): void {
+  const p = cfgPath(dir);
+  const stripped = readFileSync(p, 'utf-8').replace(/\n\s*max_prompt_chars: \d+/, '');
+  writeFileSync(p, stripped.replace(/consensus: 1/, `consensus: 1\n      max_prompt_chars: ${n}`), 'utf-8');
+}
+function copyFixture(label: string): string {
+  const dir = mkdtempSync(path.join(tmpdir(), `yg-lockfmt-${label}-`));
+  cpSync(FIXTURE, dir, { recursive: true });
+  return dir;
+}
+function deterministicFixture(label: string): string {
+  const dir = copyFixture(label);
+  writeFileSync(archPath(dir), readFileSync(archPath(dir), 'utf-8').split('\n').filter((l) => l.trim() !== '- has-doc-comment').join('\n'), 'utf-8');
+  rmSync(path.join(dir, '.yggdrasil', 'aspects', 'has-doc-comment'), { recursive: true, force: true });
+  return dir;
+}
+
+describe.skipIf(!distExists)('CLI E2E — lock matrix: prompt-too-large / merge / lock-invalid / aspect-test', () => {
+  // ===========================================================================
+  // MATRIX (7) — PROMPT-TOO-LARGE
+  //   tier max_prompt_chars tiny → check shows prompt-too-large (NOT unverified)
+  //   for the pair, exit 1; fill skips it (0 reviewer calls for that pair); raise
+  //   limit → fill verifies; THEN lower limit again → verdict stays valid AND the
+  //   gate error renders (both visible).
+  // ===========================================================================
+
+  it('(7) prompt-too-large: gate precedence, fill-skip, raise→verify, lower→verdict-survives + gate-renders', async () => {
+    const dir = copyFixture('ptl');
+    const mock = await startMockReviewer({ respond: () => ({ satisfied: true, reason: 'ok' }) });
+    try {
+      pointReviewer(dir, mock.endpoint);
+
+      // Tiny limit → the LLM pairs trip prompt-too-large.
+      setPromptLimit(dir, 50);
+      const check1 = run(['check'], dir);
+      expect(check1.status).toBe(1);
+      expect(check1.all).toContain('prompt-too-large');
+      expect(check1.all).toContain("Assembled reviewer prompt for aspect 'has-doc-comment' on node:services/orders");
+      expect(check1.all).toContain("tier limit of 50");
+      // GATE PRECEDENCE: the pair shows prompt-too-large, NOT a duplicate unverified.
+      expect(check1.all).not.toContain("No valid verdict for aspect 'has-doc-comment'");
+
+      // FILL skips the over-limit pairs → ZERO reviewer calls. Deterministic pairs still fill.
+      const fill1 = await runAsync(['check', '--approve'], dir);
+      expect(mock.chatCount()).toBe(0);
+      expect(fill1.status).toBe(1); // the skipped LLM pairs keep the run red (prompt-too-large)
+      expect(fill1.all).toContain('prompt-too-large');
+
+      // RAISE the limit → the LLM pairs now fit → fill verifies them.
+      setPromptLimit(dir, 100000);
+      const fill2 = await runAsync(['check', '--approve'], dir);
+      expect(fill2.status).toBe(0);
+      expect(mock.chatCount()).toBe(2); // both LLM pairs verified
+      expect(readLock(dir).verdicts['has-doc-comment']['node:services/orders'].verdict).toBe('approved');
+
+      // LOWER the limit AGAIN → the stored verdict STAYS valid (max_prompt_chars is
+      // a gate, not a hash input) AND the gate error renders. Both are visible; the
+      // gate never points at --approve (which would be a no-op).
+      setPromptLimit(dir, 50);
+      const check2 = run(['check'], dir);
+      expect(check2.status).toBe(1);
+      expect(check2.all).toContain('prompt-too-large');
+      // The verdict survived in the lock — lowering the limit did NOT invalidate it.
+      expect(readLock(dir).verdicts['has-doc-comment']['node:services/orders'].verdict).toBe('approved');
+      // And it is NOT rendered as unverified.
+      expect(check2.all).not.toContain("No valid verdict for aspect 'has-doc-comment'");
+    } finally {
+      await mock.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  // ===========================================================================
+  // MATRIX (9) — LOCK MERGE
+  //   simulate conflict resolution: take one side wholesale (which is missing
+  //   some pairs), run --approve → missing pairs re-verified, result green; no
+  //   hand-merge needed.
+  // ===========================================================================
+
+  it('(9) lock merge: take a side wholesale → --approve re-verifies the missing pairs → green', () => {
+    const dir = deterministicFixture('merge');
+    try {
+      // Reach green, then simulate "git checkout --ours" of a side whose lock only
+      // verified the orders node (payments entries absent — the other branch added them).
+      expect(run(['check', '--approve'], dir).status).toBe(0);
+      const lock = readLock(dir);
+      for (const aspectId of Object.keys(lock.verdicts)) {
+        for (const unitKey of Object.keys(lock.verdicts[aspectId])) {
+          if (unitKey.includes('payments')) delete lock.verdicts[aspectId][unitKey];
+        }
+      }
+      delete lock.nodes['services/payments'];
+      // Write the taken side in a NON-canonical shape (as a human/tool merge might);
+      // the self-validating entries make this safe — a wrong line cannot lie.
+      writeFileSync(lockPath(dir), JSON.stringify(lock, null, 2) + '\n', 'utf-8');
+
+      // The missing pairs surface as unverified.
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      expect(check.all).toContain("No valid verdict for aspect 'no-todo-comments' on node:services/payments.");
+
+      // --approve re-verifies ONLY the missing pairs → green. No hand-merge.
+      const refill = run(['check', '--approve'], dir);
+      expect(refill.status).toBe(0);
+      expect(refill.all).toContain('[det] no-todo-comments on node:services/payments — approved');
+      expect(run(['check'], dir).status).toBe(0);
+      // The kept (orders) entries were never re-verified — they carried forward.
+      expect(refill.all).not.toContain('node:services/orders — approved');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // ===========================================================================
+  // MATRIX (10) — LOCK-INVALID
+  //   garbled JSON / conflict markers / version 99 → check exits 1 with
+  //   lock-invalid + a recovery next:; delete lock → cold start works.
+  // ===========================================================================
+
+  it('(10) lock-invalid: garbled JSON, conflict markers, unknown version all fail closed with recovery', () => {
+    const dir = deterministicFixture('invalid');
+    try {
+      run(['check', '--approve'], dir); // establish a valid lock first
+
+      // (a) Garbled JSON.
+      writeFileSync(lockPath(dir), '{ this is not json', 'utf-8');
+      const garbled = run(['check'], dir);
+      expect(garbled.status).toBe(1);
+      expect(garbled.all).toContain('lock-invalid');
+      expect(garbled.all).toContain('unparseable JSON');
+      expect(garbled.all).toContain('git checkout HEAD -- .yggdrasil/yg-lock.json');
+
+      // (b) Git conflict markers.
+      writeFileSync(
+        lockPath(dir),
+        ['<<<<<<< HEAD', '{ "version": 1, "verdicts": {}, "nodes": {} }', '=======', '{ "version": 1, "verdicts": {}, "nodes": {} }', '>>>>>>> branch', ''].join('\n'),
+        'utf-8',
+      );
+      const conflict = run(['check'], dir);
+      expect(conflict.status).toBe(1);
+      expect(conflict.all).toContain('lock-invalid');
+      expect(conflict.all).toContain('git conflict markers');
+      expect(conflict.all).toContain('git checkout --ours');
+
+      // (c) Unknown version.
+      writeFileSync(lockPath(dir), JSON.stringify({ version: 99, verdicts: {}, nodes: {} }) + '\n', 'utf-8');
+      const badVersion = run(['check'], dir);
+      expect(badVersion.status).toBe(1);
+      expect(badVersion.all).toContain('lock-invalid');
+      expect(badVersion.all).toContain('unsupported version 99');
+
+      // (d) Delete the lock → cold start works again (all pairs unverified, fill recovers).
+      rmSync(lockPath(dir), { force: true });
+      const cold = run(['check'], dir);
+      expect(cold.status).toBe(1);
+      expect(cold.all).toContain('unverified');
+      expect(cold.all).not.toContain('lock-invalid');
+      expect(run(['check', '--approve'], dir).status).toBe(0);
+      expect(run(['check'], dir).status).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // ===========================================================================
+  // MATRIX (12) — ASPECT-TEST DIAGNOSTIC ISOLATION
+  //   LLM run + --dry-run → lock file byte-identical before/after; footer
+  //   present; det run likewise.
+  // ===========================================================================
+
+  it('(12a) aspect-test (deterministic) is diagnostic-only: lock byte-identical, footer present', () => {
+    const dir = deterministicFixture('at-det');
+    try {
+      run(['check', '--approve'], dir);
+      const before = readFileSync(lockPath(dir), 'utf-8');
+      const test = run(['aspect-test', '--aspect', 'no-todo-comments', '--node', 'services/orders'], dir);
+      expect(test.status).toBe(0);
+      expect(test.all).toContain('No violations.');
+      expect(test.all).toContain('diagnostic only — lock unchanged; yg check still reports the stored verdict');
+      // Byte-identical: aspect-test NEVER writes the lock.
+      expect(readFileSync(lockPath(dir), 'utf-8')).toBe(before);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('(12b) aspect-test --dry-run (LLM) prints the prompt, makes ZERO calls, lock byte-identical', async () => {
+    const dir = copyFixture('at-llm');
+    const mock = await startMockReviewer({ respond: () => ({ satisfied: true, reason: 'ok' }) });
+    try {
+      pointReviewer(dir, mock.endpoint);
+      // Establish a lock via a real fill first.
+      await runAsync(['check', '--approve'], dir);
+      const before = readFileSync(lockPath(dir), 'utf-8');
+      const callsBefore = mock.chatCount();
+
+      // --dry-run prints the assembled prompt and makes NO provider call.
+      const dry = await runAsync(['aspect-test', '--aspect', 'has-doc-comment', '--node', 'services/orders', '--dry-run'], dir);
+      expect(dry.status).toBe(0);
+      expect(dry.all).toContain('=== prompt for node:services/orders ===');
+      expect(dry.all).toContain('diagnostic only — lock unchanged; yg check still reports the stored verdict');
+      expect(mock.chatCount()).toBe(callsBefore); // ZERO new calls
+      // Byte-identical lock.
+      expect(readFileSync(lockPath(dir), 'utf-8')).toBe(before);
+
+      // A LIVE aspect-test (no --dry-run) DOES call the reviewer but STILL never
+      // writes the lock — it is a sanctioned diagnostic re-roll.
+      const live = await runAsync(['aspect-test', '--aspect', 'has-doc-comment', '--node', 'services/orders'], dir);
+      expect(live.all).toContain('diagnostic only — lock unchanged; yg check still reports the stored verdict');
+      expect(mock.chatCount()).toBeGreaterThan(callsBefore); // it did call the reviewer
+      expect(readFileSync(lockPath(dir), 'utf-8')).toBe(before); // but the lock is unchanged
+    } finally {
+      await mock.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 30000);
+});

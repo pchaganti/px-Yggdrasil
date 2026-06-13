@@ -1,9 +1,0 @@
-name: Approve Operation Core Algorithm Unit Tests
-type: test-suite
-description: "Unit tests for the core approve orchestration algorithm — proper/no-aspect/deleted-file node approval, GC and recording, aspect resolution, drift cleanup, upstream-change annotation, and the verdict-inclusive canonical drift hash round-trip recorded at approve time. LLM dispatch, log integration, references, aspect-status, verdict propagation, and reviewer-structure tests live in sibling child suites."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/core/approve.test.ts
-  - source/cli/tests/unit/core/approve-annotate.test.ts
-  - source/cli/tests/unit/core/approve-verdict-hash-roundtrip.test.ts

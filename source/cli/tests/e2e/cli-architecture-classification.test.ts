@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 // Hermetic E2E suite — ARCHITECTURE TYPE CLASSIFICATION.
 //
 // Every classification mechanic the architecture file controls, proved against
-// the real spawned binary (`yg check`, `yg type-suggest`, `yg approve`,
+// the real spawned binary (`yg check`, `yg type-suggest`, `yg check --approve`,
 // `yg context`):
 //   * forward classification    — type-when-mismatch (path / content / not atoms)
 //   * strict backward scan       — type-strict-misplaced, strict positive pass,
@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 //                                  type-without-when-with-mapping
 //   * type-default cascade        — channel 3 (own type) + channel 4 (ancestor
 //                                  type) reaching a `when`-classified node, with
-//                                  context attribution AND approve enforcement
+//                                  context attribution AND fill enforcement
 //   * yg type-suggest             — single / multiple / no-match(+closest ranking)
 //                                  / partial-score / path-only path-vs-content
 //                                  distinction / .yggdrasil auto-exempt /
@@ -36,7 +36,7 @@ import { fileURLToPath } from 'node:url';
 //     checkSchemas: it keys off schemaType, never content), so no fixture bytes
 //     are copied.
 //   - No network: the config's reviewer tier points at a loopback endpoint that
-//     `yg check`/`yg type-suggest` never dial; the approve-enforcement tests use
+//     `yg check`/`yg type-suggest` never dial; the fill-enforcement tests use
 //     only deterministic check.mjs aspects, so no LLM call and no endpoint is
 //     ever reached.
 //   - No wall-clock reads and no random sources inside any assertion.
@@ -518,7 +518,7 @@ describe.skipIf(!distExists)('CLI E2E — architecture type classification', () 
   // GROUP D — TYPE-DEFAULT cascade driven by classification (channels 3 + 4).
   // A FROM-SCRATCH `when`-classifying architecture: the child's own type
   // (channel 3) and its ancestor type (channel 4) each contribute a default
-  // deterministic aspect. Proves context attribution AND approve enforcement in
+  // deterministic aspect. Proves context attribution AND fill enforcement in
   // one graph — the classification→default-aspect linkage the channels suite
   // (which runs on the committed fixture) does not exercise.
   // =========================================================================
@@ -566,7 +566,7 @@ describe.skipIf(!distExists)('CLI E2E — architecture type classification', () 
     }
   });
 
-  it('D2: the own-type (CH3) default aspect ENFORCES at approve — its token refuses, naming the aspect (exit 1)', () => {
+  it('D2: the own-type (CH3) default aspect ENFORCES at fill — its token refuses, naming the aspect (exit 1)', () => {
     const architecture = [
       'node_types:',
       '  service:',
@@ -589,18 +589,20 @@ describe.skipIf(!distExists)('CLI E2E — architecture type classification', () 
       writeSource(projectRoot, 'src/services/handler.ts', 'export const h = 1;\nconst x = "FORBIDDEN_OWN";\n');
     });
     try {
-      run(['log', 'add', '--node', 'handler', '--reason', 'attach type-default aspect via classification'], dir);
-      const approve = run(['approve', '--node', 'handler'], dir);
-      expect(approve.status).toBe(1);
-      expect(approve.all).toContain('own-type-rule');
-      expect(approve.all).toContain('NOT SATISFIED');
-      expect(approve.all).toContain('own-type-rule: FORBIDDEN_OWN found.');
+      // Fill is repo-wide (no per-node scoping); the type-default deterministic
+      // aspect refuses on the planted token. The fill line names the [det] pair
+      // and `refused`; the post-fill render names the aspect + the refusal.
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      expect(fill.all).toContain('[det] own-type-rule on node:handler — refused');
+      expect(fill.all).toContain('own-type-rule');
+      expect(fill.all).toContain("Aspect 'own-type-rule' is refused on node:handler by a deterministic check.");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('D3: the ancestor-type (CH4) default aspect ENFORCES at approve on a descendant — its token refuses (exit 1)', () => {
+  it('D3: the ancestor-type (CH4) default aspect ENFORCES at fill on a descendant — its token refuses (exit 1)', () => {
     const architecture = [
       'node_types:',
       '  module:',
@@ -627,12 +629,13 @@ describe.skipIf(!distExists)('CLI E2E — architecture type classification', () 
       writeSource(projectRoot, 'src/services/handler.ts', 'export const h = 1;\nconst y = "FORBIDDEN_PARENT";\n');
     });
     try {
-      run(['log', 'add', '--node', 'svc/handler', '--reason', 'exercise ancestor-type default enforcement'], dir);
-      const approve = run(['approve', '--node', 'svc/handler'], dir);
-      expect(approve.status).toBe(1);
-      expect(approve.all).toContain('parent-type-rule');
-      expect(approve.all).toContain('NOT SATISFIED');
-      expect(approve.all).toContain('parent-type-rule: FORBIDDEN_PARENT found.');
+      // Fill is repo-wide; the ancestor-type default deterministic aspect refuses
+      // on the planted token at the nested descendant node:svc/handler.
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      expect(fill.all).toContain('[det] parent-type-rule on node:svc/handler — refused');
+      expect(fill.all).toContain('parent-type-rule');
+      expect(fill.all).toContain("Aspect 'parent-type-rule' is refused on node:svc/handler by a deterministic check.");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -40,3 +40,36 @@ export async function statPath(targetPath: string): Promise<Stats> {
 export function fileExistsSync(filePath: string): boolean {
   return existsSync(filePath);
 }
+
+export async function readFileBytes(filePath: string): Promise<Buffer | null> {
+  try {
+    return await readFile(filePath);
+  } catch {
+    return null;
+  }
+}
+
+export async function listDirEntries(
+  dirPath: string,
+): Promise<Array<{ name: string; kind: 'file' | 'dir' }> | null> {
+  let dirents;
+  try {
+    dirents = await readdir(dirPath, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+  return dirents.map((d) => ({
+    name: d.name,
+    kind: d.isDirectory() ? ('dir' as const) : ('file' as const),
+  }));
+}
+
+export async function statKind(targetPath: string): Promise<'file' | 'dir' | false> {
+  try {
+    const s = await stat(targetPath);
+    if (s.isDirectory()) return 'dir';
+    return 'file';
+  } catch {
+    return false;
+  }
+}

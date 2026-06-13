@@ -11,6 +11,10 @@ import { findOwner } from './owner.js';
 import { normalizeMappingPaths, projectRootFromGraph, resolveFileArg } from '../io/paths.js';
 import { expandMappingPaths } from '../io/hash.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
+import { computeExpectedPairs, computeSourceFingerprint } from '../core/pairs.js';
+import { readLock } from '../io/lock-store.js';
+import { readLogContent, hasFreshLogEntry } from '../core/log/log-gate.js';
+import type { NodeContextData, NodeAspectSubjects, NodeLogState } from '../formatters/context-node.js';
 import type { Graph } from '../model/graph.js';
 import { toPosixPath } from '../utils/posix.js';
 
@@ -66,6 +70,70 @@ function collectRelevantNodePaths(graph: Graph, nodePath: string): Set<string> {
   }
 
   return relevant;
+}
+
+/**
+ * Populate the node-view's read-only lock observability fields (spec §8):
+ *   - aspectSubjects: per-aspect subject-file count (or unit count for per:file),
+ *     so the reader sees vacuous (0-file) aspects and per-file fan-out at a glance.
+ *   - logState: whether a log entry is required before --approve (the type opts
+ *     into log_required AND the source fingerprint differs from the lock's stored
+ *     one) and whether a fresh entry is already present.
+ *
+ * Pure read: no LLM calls, no writes. A garbled lock surfaces as LockInvalidError
+ * (fail closed) — the caller's generic handler renders it.
+ */
+async function attachLockObservability(
+  graph: Graph,
+  nodePath: string,
+  data: NodeContextData,
+): Promise<void> {
+  // ── Per-aspect subject counts from the expected-pair set (this node only) ──
+  // includeDraft so draft aspects (also listed in the node view) get a count.
+  const { pairs } = await computeExpectedPairs(graph, { includeDraft: true });
+  const subjects: Record<string, NodeAspectSubjects> = {};
+  for (const aspect of data.aspects) {
+    const aspectPairs = pairs.filter((p) => p.nodePath === nodePath && p.aspectId === aspect.id);
+    if (aspectPairs.length === 0) {
+      // No pair → the aspect's subject set is empty here (vacuous), OR it is an
+      // aggregate (no own reviewer). Aggregates have no scope/subjects; only
+      // report a vacuous count for non-aggregate (rule-bearing) aspects.
+      const def = graph.aspects.find((a) => a.id === aspect.id);
+      if (def && def.reviewer.type !== 'aggregate') {
+        subjects[aspect.id] = { count: 0, perFile: false };
+      }
+      continue;
+    }
+    const perFile = aspectPairs[0].unitKey.startsWith('file:');
+    // per: node → one pair, count its subject files; per: file → count the pairs
+    // (one unit per file).
+    const count = perFile ? aspectPairs.length : aspectPairs[0].subjectFiles.length;
+    subjects[aspect.id] = { count, perFile };
+  }
+  if (Object.keys(subjects).length > 0) data.aspectSubjects = subjects;
+
+  // ── Log-gate state (read-only mirror of fill.ts §9 logic, without the gate) ──
+  // A garbled lock throws LockInvalidError, which propagates to the command's
+  // handler (fail closed) — context cannot honestly report gate state over an
+  // unreadable lock.
+  const lock = readLock(graph.rootPath);
+  const archType = graph.architecture.node_types[data.type];
+  const logRequiredType = archType?.log_required ?? false;
+  let required = false;
+  let freshPresent = false;
+  if (logRequiredType) {
+    const currentFingerprint = await computeSourceFingerprint(graph, nodePath);
+    // Mapping-less nodes have an undefined fingerprint — the gate never fires.
+    if (currentFingerprint !== undefined) {
+      const storedFingerprint = lock.nodes[nodePath]?.source;
+      required = currentFingerprint !== storedFingerprint;
+    }
+    const projectRoot = projectRootFromGraph(graph.rootPath);
+    const logContent = await readLogContent(projectRoot, nodePath);
+    freshPresent = hasFreshLogEntry(logContent, lock.nodes[nodePath]?.log);
+  }
+  const logState: NodeLogState = { required, freshPresent };
+  data.logState = logState;
 }
 
 export function registerBuildCommand(program: Command): void {
@@ -167,6 +235,7 @@ export function registerBuildCommand(program: Command): void {
           const data = buildNodeContextData(graph, nodePath);
           const projectRoot = projectRootFromGraph(graph.rootPath);
           data.sourceFiles = await expandMappingPaths(projectRoot, data.sourceFiles);
+          await attachLockObservability(graph, nodePath, data);
           process.stdout.write(formatNodeContext(data));
         }
       } catch (error) {

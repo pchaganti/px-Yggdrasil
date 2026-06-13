@@ -1,7 +1,0 @@
-name: Approve Aspect Status Unit Tests
-type: test-suite
-description: "Unit tests for approve aspect-status handling — all-draft node short-circuiting, mixed enforced+draft and per-node effective-draft scenarios, batch draft-skip tallies, and the CLI all-draft node path."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/core/approve-aspect-status.test.ts

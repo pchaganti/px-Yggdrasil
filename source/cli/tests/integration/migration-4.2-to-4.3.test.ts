@@ -1,22 +1,23 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync, readFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { runVersionUpgrade } from '../../src/core/migrator-runner.js';
-import { MIGRATIONS } from '../../src/migrations/index.js';
 import { loadGraph } from '../../src/core/graph-loader.js';
-import { validate } from '../../src/core/validator.js';
 
-const MIGRATION_TO_4_3 = MIGRATIONS.filter((m) => m.to === '4.3.0');
-const ALL_MIGRATIONS = MIGRATIONS;
+// NOTE: the original "4.2.0 → 4.3.0 migration end-to-end" test exercised a
+// REGISTERED 4.3.0 migration (and the rest of the chain to 5.0.0). The
+// verdict-lock redesign removed every legacy migration module — the registry is
+// now empty (design §13) — so there is no 4.3.0 migration to drive end-to-end.
+// The empty-registry version-lift contract is covered by
+// migration-framework.test.ts. What remains here is the loader's schema-version
+// gate, which is independent of any migration and still load-bearing.
 
-describe('4.2.0 → 4.3.0 migration end-to-end', () => {
+describe('schema-version load gate', () => {
   let repo: string;
 
   beforeEach(() => {
-    repo = mkdtempSync(join(tmpdir(), 'mig42-43-'));
+    repo = mkdtempSync(join(tmpdir(), 'mig-load-gate-'));
     mkdirSync(join(repo, '.yggdrasil', 'model', 'foo'), { recursive: true });
-    writeFileSync(join(repo, '.yggdrasil', 'yg-config.yaml'), 'version: "4.2.0"\nparallel: 1\n');
     writeFileSync(
       join(repo, '.yggdrasil', 'yg-architecture.yaml'),
       'node_types:\n  module:\n    description: "Grouping"\n',
@@ -33,33 +34,7 @@ describe('4.2.0 → 4.3.0 migration end-to-end', () => {
     rmSync(repo, { recursive: true, force: true });
   });
 
-  it('advances the version exactly one step to 4.3.0 and the validator emits type-without-when-with-mapping', async () => {
-    expect(MIGRATION_TO_4_3).toHaveLength(1);
-    const upgrade = await runVersionUpgrade({
-      yggRoot: join(repo, '.yggdrasil'),
-      migrations: MIGRATION_TO_4_3,
-    });
-    expect(upgrade.migrationActions.length).toBeGreaterThan(0);
-    const config = readFileSync(join(repo, '.yggdrasil', 'yg-config.yaml'), 'utf-8');
-    expect(config).toMatch(/version:\s*["']4\.3\.0["']/);
-    expect(config).not.toMatch(/version:\s*["']5\.0\.0["']/);
-
-    // Run the remaining migrations to reach 5.0.0 so loadGraph can succeed
-    // (the lower-bound version gate refuses to load graphs older than the CLI).
-    // The validator check for 'type-without-when-with-mapping' is a structural
-    // check that still fires on 5.0.0 graphs with types that have mappings but no when.
-    await runVersionUpgrade({
-      yggRoot: join(repo, '.yggdrasil'),
-      migrations: ALL_MIGRATIONS.filter((m) => m.to !== '4.3.0'),
-    });
-
-    const graph = await loadGraph(repo);
-    const result = await validate(graph);
-    const codes = new Set(result.issues.map((i) => i.code));
-    expect(codes.has('type-without-when-with-mapping')).toBe(true);
-  });
-
-  it('refuse-load triggers when config bumped above 5.0.0', async () => {
+  it('refuse-load triggers when config schema version is above what this CLI supports', async () => {
     writeFileSync(join(repo, '.yggdrasil', 'yg-config.yaml'), 'version: "6.0.0"\n');
     // A too-new schema version is an expected user error (upgrade the CLI), thrown as
     // UnsupportedSchemaVersionError; the "upgrade CLI" guidance now lives in the

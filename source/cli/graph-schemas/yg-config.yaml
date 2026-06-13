@@ -7,7 +7,6 @@ version: "5.0.0"                  # managed by CLI — do not edit manually. Tra
 
 quality:                          # optional — quality thresholds
   max_direct_relations: 10        #   maximum outgoing relations per node (warning if above)
-  max_node_chars: 40000           #   per-node character budget — mapped source + aspect reference files (error if above; binaries skipped; opt out per-node via sizeExempt)
 
 parallel: 1                       # optional — concurrency limit for batch approve (positive integer, default: 1)
 
@@ -41,9 +40,6 @@ reviewer:                         # required — aspect verification during yg a
                                   #   (split the node, shorten references, or raise the cap).
                                   #   Never participates in verdict identity — tuning it does not
                                   #   invalidate recorded baselines.
-      # references:                # optional — limits on aspect reference files for aspects resolving to this tier
-      #   max_bytes_per_file: 65536          # positive integer; default 65536 (64 KiB)
-      #   max_total_bytes_per_aspect: 262144 # positive integer; default 262144 (256 KiB)
     # Add more tiers as needed (e.g. a `deep` tier with a higher-capability model for critical aspects).
     # An aspect references a non-default tier via:
     #

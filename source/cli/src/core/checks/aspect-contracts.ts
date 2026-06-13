@@ -4,7 +4,6 @@ import { STATUS_ORDER } from '../../model/graph.js';
 import type { ValidationIssue, IssueMessage } from '../../model/validation.js';
 import { statPath, fileExistsSync } from '../../io/graph-fs.js';
 import { computeEffectiveAspectStatuses, getAspectStatusSources, type AttachSource } from '../graph/aspects.js';
-import { selectTierForAspect } from '../tier-selection.js';
 import { aspectStatusDowngradeMessage } from '../../formatters/aspect-status-messages.js';
 import { issueMsg } from './shared.js';
 import { toPosixPath } from '../../utils/posix.js';
@@ -192,15 +191,7 @@ export function checkAspectTierReferences(graph: Graph): ValidationIssue[] {
   return issues;
 }
 
-// --- aspect-reference-broken / aspect-reference-too-large / aspect-references-total-too-large ---
-
-const DEFAULT_MAX_PER_FILE = 65536;   // 64 KiB
-const DEFAULT_MAX_TOTAL = 262144;     // 256 KiB
-
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} bytes`;
-  return `${Math.round(n / 1024)} KiB`;
-}
+// --- aspect-reference-broken ---
 
 export async function checkAspectReferences(graph: Graph): Promise<ValidationIssue[]> {
   const projectRoot = path.dirname(graph.rootPath);
@@ -224,21 +215,6 @@ export async function checkAspectReferences(graph: Graph): Promise<ValidationIss
       continue;
     }
 
-    // Resolve tier caps; defaults used when tier selection fails or tier omits the field.
-    let maxPerFile = DEFAULT_MAX_PER_FILE;
-    let maxTotal = DEFAULT_MAX_TOTAL;
-    let tierName: string | undefined;
-    if (graph.config.reviewer) {
-      const sel = selectTierForAspect(aspect, graph.config.reviewer);
-      if (sel.ok) {
-        tierName = sel.tierName;
-        maxPerFile = sel.tier.references?.max_bytes_per_file ?? DEFAULT_MAX_PER_FILE;
-        maxTotal = sel.tier.references?.max_total_bytes_per_aspect ?? DEFAULT_MAX_TOTAL;
-      }
-    }
-    const tierLabel = tierName != null ? `for tier '${tierName}'` : 'for the resolved tier';
-
-    let totalBytes = 0;
     for (const ref of aspect.references) {
       const absPath = path.join(projectRoot, ref.path);
       // POSIX-normalize the reference path before embedding it in any output
@@ -251,7 +227,7 @@ export async function checkAspectReferences(graph: Graph): Promise<ValidationIss
       } catch {
         const msgData: IssueMessage = {
           what: `Aspect '${aspect.id}' references '${refPath}' but the file does not exist.`,
-          why: `reviewer cannot load missing reference files; approve would fail at runtime.`,
+          why: `reviewer cannot load missing reference files; fill would fail at runtime.`,
           next: `create the file, fix the path, or remove the reference entry in .yggdrasil/aspects/${aspect.id}/yg-aspect.yaml.`,
         };
         issues.push({
@@ -276,38 +252,7 @@ export async function checkAspectReferences(graph: Graph): Promise<ValidationIss
           ...issueMsg(msgData),
           messageData: msgData,
         });
-        continue;
       }
-      const size = stats.size;
-      if (size > maxPerFile) {
-        const msgData: IssueMessage = {
-          what: `Aspect '${aspect.id}' reference '${refPath}' is ${formatBytes(size)}, exceeding the per-file limit of ${formatBytes(maxPerFile)} ${tierLabel}.`,
-          why: `oversized references inflate prompt cost on every approve call across every node where this aspect is effective.`,
-          next: `split the reference into smaller files, raise references.max_bytes_per_file on the aspect's tier in .yggdrasil/yg-config.yaml, or move the aspect to a higher-context tier.`,
-        };
-        issues.push({
-          severity: 'error',
-          code: 'aspect-reference-too-large',
-          rule: 'aspect-reference-too-large',
-          ...issueMsg(msgData),
-          messageData: msgData,
-        });
-      }
-      totalBytes += size;
-    }
-    if (totalBytes > maxTotal) {
-      const msgData: IssueMessage = {
-        what: `Aspect '${aspect.id}' total reference size is ${formatBytes(totalBytes)}, exceeding the per-aspect limit of ${formatBytes(maxTotal)} ${tierLabel}.`,
-        why: `sum of reference bytes per aspect bounds the prompt cost across all nodes where this aspect is effective.`,
-        next: `reduce reference sizes, drop low-value references, or raise references.max_total_bytes_per_aspect on the aspect's tier in .yggdrasil/yg-config.yaml.`,
-      };
-      issues.push({
-        severity: 'error',
-        code: 'aspect-references-total-too-large',
-        rule: 'aspect-references-total-too-large',
-        ...issueMsg(msgData),
-        messageData: msgData,
-      });
     }
   }
   return issues;

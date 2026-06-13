@@ -37,7 +37,6 @@ import {
   checkMappingOverlap,
   checkMappingPathsExist,
   checkMappingEscapesRepo,
-  checkOversizedNodes,
   checkDirectoriesHaveNodeYaml,
 } from './checks/mapping.js';
 import {
@@ -168,7 +167,6 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
   issues.push(...(await checkMappingPathsExist(graph)));
   issues.push(...checkBrokenFlowRefs(graph));
   issues.push(...(await checkDirectoriesHaveNodeYaml(graph)));
-  issues.push(...(await checkOversizedNodes(graph, cache)));
   issues.push(...checkUnpairedEvents(graph));
   issues.push(...checkArchitectureConstraints(graph));
   issues.push(...checkPortAspectsDefined(graph));

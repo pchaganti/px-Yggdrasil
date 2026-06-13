@@ -44,44 +44,46 @@ The architecture lives in a graph next to the code, under `.yggdrasil/`. It has 
 Every aspect declares a reviewer type:
 
 - **LLM aspects** are plain Markdown (`content.md`). A separate LLM call — one model verifying another — reads the rule and the node's source, then returns SATISFIED or NOT SATISFIED.
-- **Deterministic aspects** ship a `check.mjs` that the CLI runs locally at zero LLM cost. Declared as `reviewer: { type: deterministic }` and exercised with `yg deterministic-test`. Two styles: single-file (tree-sitter parse tree, any of 16 built-in grammars) and graph-aware (cross-node, file system, and graph topology). A `check.mjs` and `content.md` are mutually exclusive — an aspect is one or the other.
+- **Deterministic aspects** ship a `check.mjs` that the CLI runs locally at zero LLM cost. There is one `check(ctx)` contract: the check receives the node, its subject files (each with a tree-sitter parse tree when the language has a grammar), the file system, and the graph topology, and returns a list of violations. Use `yg aspect-test` to run either kind on demand without recording anything. A `check.mjs` and `content.md` are mutually exclusive — an aspect is one or the other.
 
-Before the agent edits a file, `yg context` returns the aspects that touch it (as `read:` pointers the agent opens individually, not an inline dump). The agent writes code that targets them. After editing, `yg approve` records a new baseline: LLM aspects go to the reviewer, script aspects run locally. If anything fails, the agent gets specific feedback, fixes, and re-verifies. This is code review while the agent is working, not after.
+Every aspect also declares its **scope**: `per: node` (the default — one verification over the whole node) or `per: file` (one verification per file), with an optional `files:` filter that narrows which files are reviewed. The thing one verification covers is a **unit**; each `(aspect, unit)` is a **pair**, and a pair is the unit of work, cost, and caching.
+
+Before the agent edits a file, `yg context` returns the aspects that touch it (as `read:` pointers the agent opens individually, not an inline dump). The agent writes code that targets them. After editing, `yg check --approve` verifies every pair whose inputs changed: deterministic pairs run locally for free, LLM pairs go to the reviewer. Each verdict is recorded in a single committed lock file. If anything fails, the agent gets specific feedback, fixes, and re-verifies. This is code review while the agent is working, not after.
 
 ```
 agent about to edit a file
   → yg context: the aspects that touch this file
   → agent writes code that targets them
   → yg log add: record why this change happened
-  → yg approve: reviewer checks LLM aspects, check.mjs runs locally for script ones
+  → yg check --approve: deterministic checks run locally, LLM aspects go to the reviewer
   → reviewer: "audit logging missing in charge()"
-  → agent fixes, re-runs approve
-  → baseline recorded
-  → yg check in CI: PASS (hash comparison, no LLM calls)
+  → agent fixes, re-runs check --approve
+  → verdict recorded in the lock
+  → yg check in CI: PASS (recomputes input hashes, no LLM calls)
 ```
 
-Aspects are scoped. The agent only sees the ones that touch the file it's working on, not all 200. One aspect can cover dozens of files. Change an aspect and every file that should satisfy it gets flagged for re-verification.
+Aspects are scoped. The agent only sees the ones that touch the file it's working on, not all 200. One aspect can cover dozens of files. Change an aspect and every pair it produces gets flagged for re-verification.
 
 How aspects reach a node is itself a graph computation. An aspect can arrive through any of **seven channels** — declared on the node, inherited from an ancestor node, applied as an architecture default for the node's own type, applied as an architecture default for an ancestor's type, propagated from a flow, required by a consumed port, or pulled in by another aspect's recursive `implies` chain. The effective set is the union across all of them.
 
 ### Status: draft, advisory, enforced
 
-Every aspect has a status that controls whether the reviewer runs and how a refusal surfaces:
+Status is purely how a verdict renders. It never changes whether a verdict is computed or cached — it controls whether a pair is expected at all (`draft` removes it) and whether a problem blocks CI:
 
-| Status | Reviewer runs? | Refusal | Blocks `yg check` / CI |
+| Status | A refusal renders as | An unverified pair renders as | Blocks `yg check` / CI |
 |---|---|---|---|
-| `draft` | no | skipped, no verdict, no cost | no |
-| `advisory` | yes | warning | no |
-| `enforced` (default) | yes | error | yes |
+| `draft` | n/a — pair not expected | n/a — pair not expected | no |
+| `advisory` | warning | warning | no |
+| `enforced` (default) | error | error | yes |
 
-A typical lifecycle is draft while you author the rule, advisory for a sprint or two to gather signal without blocking anyone, then enforced once you trust it. Status can be declared at several attach sites (the aspect itself, a per-node entry, an architecture type, a flow, a port); the effective status is the strictest one — bumping up is allowed, downgrading is a validator error.
+A typical lifecycle is draft while you author the rule, advisory for a sprint or two to gather signal without blocking anyone, then enforced once you trust it. Verdicts survive status flips — moving an aspect from advisory to enforced and back never re-runs the reviewer. Status can be declared at several attach sites (the aspect itself, a per-node entry, an architecture type, a flow, a port); the effective status is the strictest one — bumping up is allowed, downgrading is a validator error.
 
 ### When you need finer control
 
 - **Conditional aspects.** A `when` predicate filters applicability per node, deterministically, before the reviewer is ever invoked — over relations, descendants, ports, and node type. If it evaluates false, the aspect is invisible on that node: no cost, no display, no verdict.
 - **Tiers and consensus.** LLM aspects pick a named tier in `yg-config.yaml` that pins a provider, model, temperature, and endpoint. A tier can set `consensus` to a positive odd number to run the reviewer N times and take the majority vote for high-stakes rules (cost multiplies accordingly). Deterministic aspects must not set a tier.
 
-Each node also has an append-only `log.md` under its model directory (next to `yg-node.yaml`). The agent records *why* a change happened via `yg log add` and reads prior entries with `yg log read` — when a node's type requires it (the default), `yg approve` won't record a baseline until a fresh log entry exists for the change. The log carries intent between sessions. The reviewer doesn't see it. The next agent does.
+Each node also has an append-only `log.md` under its model directory (next to `yg-node.yaml`). The log captures *why* a change happened — the intent behind it, which the diff never records. The agent writes entries via `yg log add` and reads prior ones with `yg log read`. A node type can opt in to requiring this: enable `log_required` on a type whose changes carry business intent worth capturing, and `yg check --approve` won't record a verdict for a source change on that node until a fresh log entry exists. The log carries intent between sessions. The reviewer doesn't see it. The next agent does.
 
 When a genuine exception is needed, an inline `yg-suppress(<aspect-path>) <reason>` waiver can exempt a specific location — used sparingly, and only with your explicit sign-off.
 
@@ -140,7 +142,7 @@ The agent verifies its own code as it works. When it violates a rule, it gets fe
 - run: npx @chrisdudek/yg check
 ```
 
-`yg check` is the deterministic gate: it makes no LLM calls. It compares file hashes against the recorded baseline and also validates structure, schema, coverage, and completeness. If code changed without being verified, it fails.
+`yg check` is the deterministic gate: it makes no LLM calls and needs no provider config or keys. It recomputes the input hash of every expected pair and compares it against the verdict recorded in the lock, and also validates structure, schema, coverage, and completeness. If code changed without being verified, the pair no longer matches its recorded hash and check fails.
 
 ## Supported platforms
 
@@ -159,12 +161,12 @@ Works with any AI coding agent. `yg init` sets up the rules file your agent expe
 `yg` is the single binary. The commands the agent (and you) use most:
 
 - `yg context --file <path>` / `--node <path>` — the aspects effective on a file or node, before editing.
-- `yg approve --node <path>` (repeatable) `[--aspect <id>] [--flow <name>] [--dry-run]` — review and record a baseline.
-- `yg check` — the deterministic CI gate (drift, structure, coverage, completeness; no LLM calls).
+- `yg check` — the deterministic CI gate (verifies recorded verdicts by hash, plus structure, coverage, completeness; no LLM calls, no keys).
+- `yg check --approve` — verify every unverified pair (deterministic first, for free; then LLM) and record the verdicts in the lock.
+- `yg aspect-test` — run an aspect of either kind against a node or files on demand, including an LLM `--dry-run` prompt preview; never writes the lock.
 - `yg log add | read | merge-resolve` — the per-node decision log.
-- `yg impact`, `yg tree`, `yg find`, `yg aspects`, `yg flows`, `yg owner`, `yg type-suggest` — navigate and query the graph.
-- `yg knowledge list | read <name>` — the built-in reference topics (aspects, ports, flows, script checks, and more).
-- `yg deterministic-test` — run a `check.mjs` against specific files or a named node without attaching a baseline.
+- `yg impact`, `yg tree`, `yg find`, `yg aspects`, `yg flows`, `yg owner`, `yg suppressions`, `yg type-suggest` — navigate and query the graph.
+- `yg knowledge list | read <name>` — the built-in reference topics (aspects, ports, flows, the lock, script checks, and more).
 
 ## FAQ
 
@@ -178,7 +180,7 @@ Linters check syntax and patterns. "Rate limiting required" isn't a lint rule. "
 PR review happens after the code is written. By then the agent has moved on, context is lost, and you're catching up. Yggdrasil reviews while the agent is working, so violations get fixed in the same session.
 
 **Does it work?**
-Locally, `yg approve` sends LLM aspects to the reviewer and runs script aspects on your machine, then records a baseline. `yg check` in CI makes no LLM calls — it compares file hashes against that baseline (and validates structure and coverage). If a PR has unverified changes, CI catches it.
+Locally, `yg check --approve` sends LLM aspects to the reviewer and runs script aspects on your machine, then records each verdict in a single committed lock file. `yg check` in CI makes no LLM calls — it recomputes the input hash of every expected pair and compares it against the verdict the lock recorded (and validates structure and coverage). If a PR has unverified changes, the hashes no longer match and CI catches it.
 
 **What if I want to stop?**
 Delete `.yggdrasil/` and the rules file. No runtime dependencies, no build hooks, nothing left behind.

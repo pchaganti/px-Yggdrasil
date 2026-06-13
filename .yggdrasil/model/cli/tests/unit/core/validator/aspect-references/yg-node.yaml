@@ -5,4 +5,3 @@ aspects: []
 relations: []
 mapping:
   - source/cli/tests/unit/core/validator-aspect-files.test.ts
-  - source/cli/tests/unit/core/validator-references.test.ts

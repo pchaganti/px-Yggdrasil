@@ -4,5 +4,4 @@ description: Subprocess-based end-to-end tests that spawn the compiled dist/bin.
 aspects: []
 relations: []
 mapping:
-  - source/cli/tests/e2e/cli-deterministic-lifecycle.test.ts
   - source/cli/tests/e2e/cli-ollama-reviewer.external.test.ts

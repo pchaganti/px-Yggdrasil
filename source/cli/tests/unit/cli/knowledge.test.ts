@@ -52,7 +52,7 @@ describe('listKnowledge', () => {
     expect(stdout).toContain('cli-reference');
     expect(stdout).toContain('conditional-aspects');
     expect(stdout).toContain('configuration');
-    expect(stdout).toContain('drift-and-cascade');
+    expect(stdout).toContain('verification-and-lock');
     expect(stdout).toContain('suppress-syntax');
     expect(stdout).toContain('writing-deterministic-aspects');
     expect(stdout).toContain('writing-llm-aspects');

@@ -3,7 +3,7 @@
 Aspects are verified by reviewers. Yggdrasil ships three reviewer kinds — all operate on the same aspect-node-flow graph; the kind is inferred from which rule source file is present in the aspect directory.
 
 - **LLM reviewer** (inferred when `content.md` is present): ships a `content.md` rule file. An LLM reads the rule and the node's source code, then accepts or rejects.
-- **Deterministic reviewer** (inferred when `check.mjs` is present): ships a `check.mjs` module run by a deterministic runner at zero LLM cost. The check returns a `Violation[]` — no LLM, no nondeterminism, no per-call cost. It can inspect a single file's tree-sitter parse tree (`file.ast`) for per-file syntactic rules, or read the graph (the node's own files, related nodes' files, the file system, and graph metadata) for cross-node and structural rules a single-file check cannot express. See `yg knowledge read writing-deterministic-aspects`.
+- **Deterministic reviewer** (inferred when `check.mjs` is present): ships a `check.mjs` module run by a deterministic runner at zero LLM cost. The check returns a `Violation[]` — no LLM, no nondeterminism, no per-call cost. There is one `check(ctx)` contract: the check receives the node, its subject files (each with a tree-sitter parse tree via `file.ast` when the language has a grammar), the file system, and the graph topology, and can use any of them — inspect a single file's parse tree for syntactic rules, or read related nodes and the file system for cross-node and structural rules. See `yg knowledge read writing-deterministic-aspects`.
 - **Aggregating aspect** (inferred when neither rule source is present but `implies:` is declared): a content-less, check-less named bundle. It has no own reviewer and produces no own verdict. When effective on a node, it expands its `implies:` list and each implied aspect is verified individually. Use it to attach a multi-rule contract as one named entry point backed by N atomic child aspects.
 
 The `reviewer:` block in `yg-aspect.yaml` is **optional** — kind is inferred automatically. If present, an explicit `reviewer.type` must agree with the inferred kind; `yg check` enforces this. A `content.md` and a `check.mjs` are mutually exclusive on the same aspect. An aspect with neither rule source and no `implies:` is rejected. Deterministic aspects run locally at zero LLM cost.
@@ -25,11 +25,11 @@ The `reviewer:` block is **optional** — reviewer kind is inferred from rule-fi
 
 ## LLM reviewer
 
-The LLM reviewer is a separate LLM call from the coding agent — one LLM verifying the work of another. `yg approve` sends each aspect's `content.md` plus all source files of the node to the reviewer in a single prompt. The LLM reviewer also receives any reference files declared on the aspect, presented as authoritative context (not under review). The reviewer responds with SATISFIED or NOT SATISFIED per aspect. Each effective non-draft LLM aspect on a node costs at least one reviewer call during `yg approve`, multiplied by the tier's consensus count.
+The LLM reviewer is a separate LLM call from the coding agent — one LLM verifying the work of another. `yg check --approve` assembles each unverified LLM pair into one prompt — the aspect's `content.md` plus the subject files for that pair (the whole node under `per: node`, a single file under `per: file`). The reviewer also receives any reference files declared on the aspect, presented as authoritative context (not under review). It responds with SATISFIED or NOT SATISFIED, and the verdict is recorded in the lock. Each unverified LLM pair costs one reviewer call, multiplied by the tier's consensus count.
 
-**Effective-draft aspects are skipped before dispatch.** When an aspect's effective status on a node is `draft`, `yg approve` prints a skip line and never sends the rule to the reviewer — zero cost, zero verdict. Aspects with effective status `advisory` or `enforced` go through the reviewer normally; the level only changes how a refused verdict surfaces in `yg check` (warning vs. error). See [Aspect Status](/aspect-status) for the lifecycle.
+**Draft aspects produce no pairs.** When an aspect's effective status on a node is `draft`, no pair is expected for it — there is nothing to verify and nothing to record. Aspects with effective status `advisory` or `enforced` are verified normally; the level only changes how a refused or unverified pair renders in `yg check` (warning vs. error). Verdicts survive status flips, including a `draft` round-trip — returning an aspect to enforced re-uses the recorded verdict for unchanged inputs. See [Aspect Status](/aspect-status) for the lifecycle.
 
-**LLM verdicts are not deterministic.** The same code against the same rule can come back SATISFIED on one run and NOT SATISFIED on another — most often on borderline rules, or when re-reviewing a file edited for an unrelated reason (the reviewer re-reads the whole file and may surface a latent issue it passed over before). This is inherent to LLM review and is a feature as much as a hazard: a fresh pair of eyes each time. Manage it by writing rules that are concrete and decidable rather than vague, by preferring a `deterministic` `check.mjs` whenever a rule is programmatically checkable (zero LLM cost, identical result every run), and by raising `consensus` on high-stakes or noisy aspects so a majority vote smooths out single-call variance. A one-off flip on an unchanged file is usually resolved by re-running `yg approve`.
+**LLM verdicts are not deterministic.** The same code against the same rule can come back SATISFIED on one run and NOT SATISFIED on another — most often on borderline rules. To avoid laundering a refusal into an approval, a recorded refusal is final for unchanged inputs: re-running `yg check --approve` does not re-roll it. The three honest ways out are fix the code, sharpen the rule (which re-verifies every pair of the aspect — check `yg impact --aspect` first), or add a `yg-suppress` marker with your sign-off. Manage variance up front by writing rules that are concrete and decidable rather than vague, by preferring a `deterministic` `check.mjs` whenever a rule is programmatically checkable (zero LLM cost, identical result every run), and by raising `consensus` on high-stakes or noisy aspects so a majority vote smooths out single-call variance. To explore whether the rule text is the problem, use `yg aspect-test` — a diagnostic re-run that never writes the lock.
 
 ### Directory structure
 
@@ -71,19 +71,20 @@ The reviewer compares text against code. Vague rules produce vague verdicts; spe
 ### Output and false positives
 
 ```text
-$ yg approve --node payments
+$ yg check --approve
 
-ERROR: Reviewer found aspect violations.
-  requires-audit — chargeCard() does not emit an audit event.
+  payments / requires-audit — REFUSED
+    chargeCard() does not emit an audit event.
     No call to auditLog.emit() found in any mutation path.
-  Fix the violations and re-run: yg approve --node payments
+
+Result: FAIL — fix the violation, then re-run: yg check --approve
 ```
 
-If the reviewer rejects compliant code, the fix is improving the aspect's `content.md` — make the rule clearer and more specific. The escape hatch is better rules, not bypassing enforcement.
+If the reviewer rejects compliant code, the fix is improving the aspect's `content.md` — make the rule clearer and more specific. Sharpening the rule re-verifies every pair of the aspect. The escape hatch is better rules, not bypassing enforcement.
 
 ### Cost
 
-A typical approve for a node with 3 aspects and 5 source files makes 3 LLM calls. Using a fast model (Haiku, GPT-4o-mini, Gemini Flash) keeps cost under a few cents per approval. For local review, Ollama runs on your machine with no API cost. See [Configuration](/configuration) for provider setup.
+Cost is counted per pair. A `per: node` aspect on a node with 5 source files is one pair — one LLM call (times consensus). A typical fill for a node with 3 `per: node` aspects makes 3 LLM calls. A `per: file` aspect over those 5 files is 5 pairs — 5 calls. Using a fast model (Haiku, GPT-4o-mini, Gemini Flash) keeps cost under a few cents per call. Deterministic pairs are free regardless of scope. For local review, Ollama runs on your machine with no API cost. See [Configuration](/configuration) for provider setup.
 
 ### Consensus
 
@@ -103,13 +104,13 @@ reviewer:
 
 ## Deterministic reviewer
 
-The deterministic reviewer ships a `check.mjs` module run locally at zero LLM cost. Whatever `Violation[]` your `check` function returns is the verdict — no LLM, no nondeterminism, no per-call cost. A check can scope to a **single file** — parsing it with tree-sitter and inspecting the parse tree (`file.ast`) — or to the **whole graph**, reading the node's own files, related nodes' files, the file system, and graph metadata for cross-node and structural rules. See `yg knowledge read writing-deterministic-aspects`.
+The deterministic reviewer ships a `check.mjs` module run locally at zero LLM cost. Whatever `Violation[]` your `check` function returns is the verdict — no LLM, no nondeterminism, no per-call cost. There is **one** `check(ctx)` contract. The `ctx` exposes everything a check might need: `ctx.node` and `ctx.files` (the subject files, each with a `file.ast` parse tree when the language has a grammar), `ctx.fs` (the file system, within an allowed-reads boundary), and `ctx.graph` (the graph topology). A check uses whichever it needs — inspect a single file's parse tree for a syntactic rule, or read related nodes and the file system for a cross-node structural rule. See `yg knowledge read writing-deterministic-aspects`.
 
-Both styles run through the same reviewer and the same `reviewer.type: deterministic` field. The two subsections below cover each: [Single-file checks](#single-file-checks) for per-file syntactic rules, and [Graph-aware checks](#graph-aware-checks) for rules spanning more than one node.
+The two subsections below illustrate each end of that range: [parse-tree checks](#parse-tree-checks) for per-file syntactic rules, and [graph-aware checks](#graph-aware-checks) for rules spanning more than one node — but both are the same `check.mjs` contract and the same `reviewer.type: deterministic` field.
 
-### Single-file checks
+### Parse-tree checks
 
-A single-file check parses each source file with tree-sitter and calls your `check(ctx)` function with the parse tree. Whatever `Violation[]` you return is the verdict.
+A parse-tree check reads each subject file's tree-sitter parse tree (`file.ast`) and calls your `check(ctx)` function with it. Whatever `Violation[]` you return is the verdict.
 
 #### Directory structure
 
@@ -276,17 +277,17 @@ walk(file.ast.rootNode, fn => {
 
 `check.mjs` must be pure: **no file writes, no network calls, no `process.exit`**. The runner does not sandbox or enforce this; respecting it is your responsibility. Impure checks produce non-deterministic results and can corrupt the project.
 
-#### Testing single-file checks
+#### Testing parse-tree checks
 
 ```bash
-# Verify an aspect against specific files (no graph attachment, no baseline)
-yg deterministic-test --aspect async-fs --files src/utils/config.ts
+# Run an aspect against specific files (diagnostic only — the lock is never written)
+yg aspect-test --aspect async-fs --files src/utils/config.ts
 
 # Use a node's mapping as the file list
-yg deterministic-test --aspect async-fs --node orders/order-service
+yg aspect-test --aspect async-fs --node orders/order-service
 ```
 
-`yg deterministic-test` exits 0 for clean, 1 for violations. Output:
+`yg aspect-test` exits 0 for clean, 1 for violations, and never writes the lock. Output:
 
 ```text
 src/utils/config.ts
@@ -295,7 +296,7 @@ src/utils/config.ts
 
 ### Graph-aware checks
 
-A graph-aware check is language-agnostic. Like a single-file check it ships one `check.mjs` module and runs locally at zero LLM cost, but instead of a single file's parse tree it receives a graph-aware `ctx` object — the node being reviewed, its files, the file system, and the graph topology. Use it for cross-node structural rules a single-file check cannot express: "every command node has a sibling test file", "every child of an engine node is of type engine-component", "every knowledge topic is registered in the index". See `yg knowledge read writing-deterministic-aspects`.
+A graph-aware check is language-agnostic. It is the same `check.mjs` contract, but instead of leaning on a single file's parse tree it reaches for `ctx.fs` and `ctx.graph` — reading the node, its files, related nodes, and the file system. Use it for cross-node structural rules a parse-tree check cannot express: "every command node has a sibling test file", "every child of an engine node is of type engine-component", "every knowledge topic is registered in the index". See `yg knowledge read writing-deterministic-aspects`.
 
 #### Directory structure
 
@@ -356,23 +357,29 @@ interface Violation {
 }
 ```
 
-The same helper exports available to single-file checks (`walk`, `report`, `inFile`, `closest`, `findComments`) are re-exported from `@chrisdudek/yg/structure` for checks that also inspect parsed trees via `ctx.parseAst`. Most graph-aware checks work purely with `ctx.graph` and `ctx.fs` without parsing any AST.
+The same helper exports available to parse-tree checks (`walk`, `report`, `inFile`, `closest`, `findComments`) are re-exported from `@chrisdudek/yg/structure` for checks that also inspect parsed trees via `ctx.parseAst`. Most graph-aware checks work purely with `ctx.graph` and `ctx.fs` without parsing any AST.
 
 #### Allowed reads
 
-The graph-aware runner enforces a strict read boundary — reading outside it throws a runtime violation instead of returning data. A node may read its own mapping files, its declared relation targets (and their descendants), its ancestor mappings, and its own descendant mappings. If a check needs to reach a node outside this set, add an explicit relation in `yg-node.yaml` pointing to it — relations are the contract that widens the allowed reads. The **drift baseline** is narrower than this boundary: it records only the files the check actually read at approve time, so only a later change to one of those files causes cascade re-approval.
+The graph-aware runner enforces a strict read boundary — reading outside it throws a runtime violation instead of returning data. A node may read its own mapping files, its declared relation targets (and their descendants), its ancestor mappings, and its own descendant mappings. If a check needs to reach a node outside this set, add an explicit relation in `yg-node.yaml` pointing to it — relations are the contract that widens the allowed reads. The boundary is a *discipline*, not a sandbox: `check.mjs` runs with full Node privileges, so keep it machine-independent (no local-only paths, no OS quirks, no line-ending assumptions).
+
+#### The observation model: what invalidates a deterministic verdict
+
+A deterministic verdict is reusable only while everything the check **observed** still hashes to the value it had when the verdict was recorded. As the check runs, the runner records every observation it makes beyond the subject files: each `ctx.fs.read` (with the content hash), each `ctx.fs.list` (with a hash of the directory's entry names), each `ctx.fs.exists` probe (including negative ones — a `false` result is an observation), and each `ctx.graph` access. These observations are folded into the pair's input hash, so a later change to any observed value re-verifies the pair — adding a file the check listed, making a probed path appear, or editing a related node all count.
+
+The practical consequence: **every observation widens your invalidation surface.** Read and probe only what the rule needs, and the verdict survives longer between re-runs.
 
 #### Testing graph-aware checks
 
 ```bash
-# Test the check against a specific node without wiring the aspect
-yg deterministic-test --aspect sibling-test-file --node orders/order-service
+# Test the check against a specific node — diagnostic only, the lock is never written
+yg aspect-test --aspect sibling-test-file --node orders/order-service
 
 # Verify the check is deterministic (same violations on every run)
-yg deterministic-test --aspect sibling-test-file --node orders/order-service --check-determinism
+yg aspect-test --aspect sibling-test-file --node orders/order-service --check-determinism
 ```
 
-`yg deterministic-test` exits 1 if violations exist. Run it against both compliant and non-compliant nodes to confirm no false positives and no false negatives.
+`yg aspect-test` exits 1 if violations exist and never writes the lock. Run it against both compliant and non-compliant nodes to confirm no false positives and no false negatives. `--check-determinism` runs the check twice and fails if the violation sets differ — your safeguard against machine-dependent or side-effecting checks.
 
 ---
 
@@ -425,15 +432,14 @@ Agents may propose adding a suppress marker but must **never** write one without
 
 ---
 
-## Drift and baseline — shared
+## Verdicts and the lock — shared
 
-The drift model is similar across both reviewer types:
+Both reviewer types record their results the same way: one content-addressed entry per `(aspect, unit)` pair in the committed `.yggdrasil/yg-lock.json`. Each entry stores the verdict and the hash of the inputs that produced it:
 
-- **LLM aspect:** baseline records the hash of `content.md`. Change → cascade re-approve.
-- **Deterministic aspect (single-file check):** baseline records the hash of `check.mjs`. Change → cascade re-approve.
-- **Deterministic aspect (graph-aware check):** baseline records the hash of `check.mjs` plus the files it touched (including cross-node files read through declared relations). A change to the check, or to any touched file, → cascade re-approve.
+- **LLM pair:** the hash folds `content.md`, the subject files, the aspect description, the reference files, and the resolved tier identity. Change any of them → the pair is unverified.
+- **Deterministic pair:** the hash folds `check.mjs`, the subject files, and the observation set — every `ctx.fs` read, listing, and existence probe and every `ctx.graph` access the check made beyond its subject files (see [the observation model](#the-observation-model-what-invalidates-a-deterministic-verdict) below). Change the check, a subject file, or any observed value → the pair is unverified.
 
-`yg check` compares file hashes — no LLM calls, runs instantly. Source drift on mapped files and upstream drift on aspect content both trigger re-approval through the same mechanism.
+`yg check` recomputes each pair's input hash and compares it to the lock — no LLM calls, no provider keys, runs instantly. A source edit and an aspect-content edit both surface the same way: the affected pairs no longer match their recorded hash, so check reports them as unverified until `yg check --approve` fills them again.
 
 ---
 
@@ -441,25 +447,21 @@ The drift model is similar across both reviewer types:
 
 ### LLM reviewer
 
-**Borderline rejections.** Compliant code can be rejected by an LLM that misread the rule. Fix: clarify `content.md`. The escape hatch is better rules, not `yg-suppress`.
+**Borderline rejections.** Compliant code can be rejected by an LLM that misread the rule. Fix: clarify `content.md`. The escape hatch is better rules, not `yg-suppress`. A recorded refusal is final for unchanged inputs — sharpening the rule is the way to overturn it (and it re-verifies every pair of the aspect).
 
-**Cost spikes on cascade.** A widely-used aspect changed → every dependent node re-approves → N LLM calls. Before changing such an aspect, run `yg impact --aspect <id>` to see scope. Consider `consensus: 1` for high-fan-out aspects.
+**Cost spikes when an aspect changes.** Editing a widely-used aspect's content invalidates every pair it produces → N LLM calls to refill. Before such an edit, run `yg impact --aspect <id>` to see the count. Consider `consensus: 1` for high-fan-out aspects.
 
 ### Deterministic reviewer
 
-**Imports inside `check.mjs`.** Yggdrasil hashes only `check.mjs` itself. If your check imports a helper from `node_modules`, changes to that helper do **not** trigger drift — Yggdrasil does not know about transitive dependencies. Guidance: keep all rule logic inside `check.mjs`. If you import a helper, consciously accept that bumping the helper version requires a manual `yg approve --aspect <id>` to refresh baselines.
+**Imports inside `check.mjs`.** Yggdrasil hashes only `check.mjs` itself. If your check imports a helper from `node_modules`, changes to that helper do **not** invalidate the pair — Yggdrasil does not know about transitive dependencies. Guidance: keep all rule logic inside `check.mjs`. If you import a helper, consciously accept that bumping the helper version does not re-verify on its own.
 
-**CLI version pinning.** Tree-sitter grammar versions and helper implementations live inside `@chrisdudek/yg`. A CLI upgrade can shift parse-tree node shapes or helper behavior. The drift-state baseline tracks the hash of `check.mjs` but does not include the CLI version itself. After a CLI upgrade that changes tree-sitter grammar behavior (announced in CHANGELOG), re-approve manually:
-
-```bash
-yg approve --aspect <id>   # re-approve all nodes affected by this aspect
-```
+**CLI version pinning.** Tree-sitter grammar versions and helper implementations live inside `@chrisdudek/yg`. A CLI upgrade can shift parse-tree node shapes or helper behavior. The input hash deliberately excludes the CLI version, so upgrading Yggdrasil does not invalidate verdicts. After a CLI upgrade that changes tree-sitter grammar behavior (announced in CHANGELOG), force a re-verification by touching the rule source, or accept that the recorded verdicts stand until their inputs change.
 
 ---
 
 ## See also
 
-- [Core Concepts](/core-concepts) — nodes, aspects, and the graph
-- [CLI Reference](/cli-reference) — `yg approve`, `yg deterministic-test`, `yg aspects`
+- [Core Concepts](/core-concepts) — nodes, aspects, the lock, and pairs
+- [CLI Reference](/cli-reference) — `yg check --approve`, `yg aspect-test`, `yg aspects`
 - [Configuration](/configuration) — reviewer provider setup
 - [Conditional Aspects](/conditional-aspects) — `when` predicates for selective aspect application

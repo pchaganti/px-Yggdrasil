@@ -1,7 +1,0 @@
-name: Migration to-5.0.0 Drift-State Tests
-type: test-suite
-description: Unit tests for the to-5.0.0 drift-state baseline pass — lossless re-key of flat synthetic-key baselines to the typed format, approved-synthesis for pre-verdict baselines, safe degradation (delete + warn) for corrupt baselines, and idempotency on already-typed baselines.
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/migrations/to-5.0.0-drift-state.test.ts

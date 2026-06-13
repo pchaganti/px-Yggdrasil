@@ -65,8 +65,91 @@ describe('formatNodeContext', () => {
     expect(output).toContain('Dependents (3):');
     // Parent
     expect(output).toContain('Parent: cli/core (module)');
-    // Workflow footer
-    expect(output).toContain('After modifying source files');
+    // Workflow footer — lock vocabulary, never the retired `yg approve`.
+    expect(output).toContain('After modifying source files in this node: run yg check, then yg check --approve');
+    expect(output).not.toContain('yg approve');
+  });
+
+  it('renders per-aspect subject counts (N files / vacuous / per-file units)', () => {
+    const output = formatNodeContext(makeNodeData({
+      aspects: [
+        {
+          id: 'per-node-rule',
+          name: 'Per node',
+          description: 'Whole-node rule',
+          source: 'own declaration',
+          verifiedAgainst: '.yggdrasil/aspects/per-node-rule/content.md',
+        },
+        {
+          id: 'vacuous-rule',
+          name: 'Vacuous',
+          description: 'Excludes every file here',
+          source: 'own declaration',
+          verifiedAgainst: '.yggdrasil/aspects/vacuous-rule/content.md',
+        },
+        {
+          id: 'per-file-rule',
+          name: 'Per file',
+          description: 'File-local rule',
+          source: 'own declaration',
+          verifiedAgainst: '.yggdrasil/aspects/per-file-rule/content.md',
+        },
+      ],
+      aspectSubjects: {
+        'per-node-rule': { count: 3, perFile: false },
+        'vacuous-rule': { count: 0, perFile: false },
+        'per-file-rule': { count: 2, perFile: true },
+      },
+    }));
+
+    expect(output).toContain('Subjects: 3 files');
+    expect(output).toContain('Subjects: 0 files — vacuous');
+    expect(output).toContain('Subjects: 2 units (per-file)');
+  });
+
+  it('uses singular file/unit wording for a count of 1', () => {
+    const output = formatNodeContext(makeNodeData({
+      aspects: [
+        {
+          id: 'one-file',
+          name: 'One file',
+          description: 'x',
+          source: 'own',
+          verifiedAgainst: '.yggdrasil/aspects/one-file/content.md',
+        },
+        {
+          id: 'one-unit',
+          name: 'One unit',
+          description: 'y',
+          source: 'own',
+          verifiedAgainst: '.yggdrasil/aspects/one-unit/content.md',
+        },
+      ],
+      aspectSubjects: {
+        'one-file': { count: 1, perFile: false },
+        'one-unit': { count: 1, perFile: true },
+      },
+    }));
+    expect(output).toContain('Subjects: 1 file');
+    expect(output).not.toContain('Subjects: 1 files');
+    expect(output).toContain('Subjects: 1 unit (per-file)');
+  });
+
+  it('renders the log-state line when logState is present', () => {
+    const requiredFresh = formatNodeContext(makeNodeData({
+      logState: { required: true, freshPresent: true },
+    }));
+    expect(requiredFresh).toContain('log entry required before --approve: yes; fresh entry present: yes');
+
+    const notRequired = formatNodeContext(makeNodeData({
+      logState: { required: false, freshPresent: false },
+    }));
+    expect(notRequired).toContain('log entry required before --approve: no; fresh entry present: no');
+  });
+
+  it('omits the log-state line when logState is absent', () => {
+    const output = formatNodeContext(makeNodeData({ logState: undefined }));
+    expect(output).not.toContain('log entry required before --approve');
   });
 
   it('shows consequence framing for 6+ dependents', () => {

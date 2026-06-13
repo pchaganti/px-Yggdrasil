@@ -22,8 +22,8 @@ const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle');
 const distExists = existsSync(BIN_PATH);
 
 // A dead loopback endpoint. Pointing the reviewer at this makes the LLM aspect
-// path unreachable, so `yg approve` never produces an environment-dependent LLM
-// verdict — port 1 never has a listener, on ANY machine, with no reliance on a
+// path unreachable, so `yg check --approve` never produces an environment-dependent
+// LLM verdict — port 1 never has a listener, on ANY machine, with no reliance on a
 // real endpoint being present or absent. Used by killReviewer().
 const DEAD_ENDPOINT = 'http://127.0.0.1:1';
 
@@ -54,10 +54,12 @@ function copyFixture(label: string): string {
 
 /**
  * Copy the fixture and strip the LLM aspect (`has-doc-comment`) so the node's
- * effective aspects are purely deterministic. This makes the approve/check
+ * effective aspects are purely deterministic. This makes the fill/check
  * lifecycle hermetic: no network, no LLM verdict, fully reproducible — the
  * deterministic aspects (`no-todo-comments`, `requires-named-export`, plus the
  * `no-banned-word` aspect this suite authors) drive every refuse/pass outcome.
+ * Because every aspect is deterministic, `yg check --approve` makes no LLM call,
+ * so plain spawnSync is safe (no mock-reviewer deadlock).
  */
 function deterministicFixture(label: string): string {
   const dir = copyFixture(label);
@@ -81,8 +83,8 @@ function deterministicFixture(label: string): string {
  * `endpoint:` the fixture config carries to the guaranteed-dead port-1 address,
  * so the LLM reviewer is ALWAYS unreachable regardless of the machine. The
  * deterministicFixture already removes the only LLM aspect, but killing the
- * endpoint as well guarantees no test in this suite can reach out over the
- * network even if a future fixture edit reintroduces an LLM aspect.
+ * endpoint as well guarantees no `yg check --approve` in this suite can reach
+ * out over the network even if a future fixture edit reintroduces an LLM aspect.
  */
 function killReviewer(dir: string): void {
   const cfgPath = path.join(dir, '.yggdrasil', 'yg-config.yaml');
@@ -202,10 +204,11 @@ function writeServicesNode(dir: string, aspectLines: string[]): void {
 // 7-channel aspect propagation — focus on the under-tested cascade channels:
 //   CH2 ancestor NODE attach, CH4 ancestor ARCH TYPE default, and the
 //   effective-status max() ACROSS channels. Asserts both yg context Source
-//   attribution AND approve/check enforcement. Fully hermetic: each test
-//   copies into a fresh mkdtemp, strips the LLM aspect, points the reviewer at
-//   a dead loopback endpoint, and rmSync's in finally. No network, no clock,
-//   no randomness in any assertion.
+//   attribution AND fill/check enforcement (`yg check --approve` fills verdicts
+//   into .yggdrasil/yg-lock.json; a violation refuses the pair). Fully hermetic:
+//   each test copies into a fresh mkdtemp, strips the LLM aspect, points the
+//   reviewer at a dead loopback endpoint, and rmSync's in finally. No network,
+//   no clock, no randomness in any assertion.
 // ---------------------------------------------------------------------------
 
 describe.skipIf(!distExists)('CLI E2E — 7-channel aspect propagation (ancestor node, ancestor type, status max)', () => {
@@ -224,15 +227,17 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel aspect propagation (ancestor
       expect(ctx.stdout).toContain('no-banned-word');
       expect(ctx.stdout).toContain("Source: inherited from parent 'services'");
 
-      // A clean approve succeeds (the inherited aspect is satisfied).
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      // A clean fill succeeds (the inherited aspect is satisfied) — exit 0.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // Planting the banned token trips the inherited ENFORCED aspect → refuse.
       plantBannedToken(dir);
-      const refused = run(['approve', '--node', 'services/orders'], dir);
+      const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.all).toContain('no-banned-word');
-      expect(refused.all).toContain('NOT SATISFIED');
+      expect(refused.all).toContain(
+        'is refused on node:services/orders by a deterministic check',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -255,14 +260,16 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel aspect propagation (ancestor
       expect(ctx.stdout).toContain('no-banned-word');
       expect(ctx.stdout).toContain('Source: inherited from parent (type: module)');
 
-      // Clean approve passes; planting a banned token trips the enforced
+      // Clean fill passes; planting a banned token trips the enforced
       // ancestor-type aspect.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       plantBannedToken(dir);
-      const refused = run(['approve', '--node', 'services/orders'], dir);
+      const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.all).toContain('no-banned-word');
-      expect(refused.all).toContain('NOT SATISFIED');
+      expect(refused.all).toContain(
+        'is refused on node:services/orders by a deterministic check',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -328,12 +335,22 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel aspect propagation (ancestor
       expect(ctx.stdout).toContain('no-banned-word [advisory]');
 
       plantBannedToken(dir);
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      // Advisory violation: recorded, NOT blocking → approve exits 0.
-      expect(approve.status).toBe(0);
-      expect(approve.all).toContain('advisory');
-      expect(approve.all).toContain('no-banned-word');
-      expect(approve.all).toContain('Approved: services/orders');
+      const fill = run(['check', '--approve'], dir);
+      // Advisory violation: recorded, NOT blocking → fill exits 0 and renders the
+      // refusal as a non-blocking warning ("Approved: services/orders" was the
+      // removed per-node approve banner; the new equivalent is the post-fill
+      // passing check with the advisory warning attached).
+      expect(fill.status).toBe(0);
+      expect(fill.all).toContain('advisory');
+      expect(fill.all).toContain('no-banned-word');
+      expect(fill.all).toContain('(advisory — not blocking)');
+
+      // `yg check` renders it as a non-blocking warning and PASSES.
+      const check = run(['check'], dir);
+      expect(check.status).toBe(0);
+      expect(check.stdout).toContain('PASS (1 warning)');
+      expect(check.all).toContain('advisory');
+      expect(check.all).toContain('no-banned-word');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -360,10 +377,12 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel aspect propagation (ancestor
       // The same banned token that was only a warning when both channels were
       // advisory (4a) now BLOCKS, because one channel raised it to enforced.
       plantBannedToken(dir);
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(1);
-      expect(approve.all).toContain('no-banned-word');
-      expect(approve.all).toContain('NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      expect(fill.all).toContain('no-banned-word');
+      expect(fill.all).toContain(
+        'is refused on node:services/orders by a deterministic check',
+      );
 
       // And `yg check` renders it as a blocking error, not a warning.
       const check = run(['check'], dir);
@@ -396,10 +415,12 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel aspect propagation (ancestor
 
       // Enforced (via the bump-up) blocks on a violation.
       plantBannedToken(dir);
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(1);
-      expect(approve.all).toContain('no-banned-word');
-      expect(approve.all).toContain('NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      expect(fill.all).toContain('no-banned-word');
+      expect(fill.all).toContain(
+        'is refused on node:services/orders by a deterministic check',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

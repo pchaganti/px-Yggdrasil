@@ -4,7 +4,7 @@ import * as writingLlmAspects from './writing-llm-aspects.js';
 import * as writingDeterministicAspects from './writing-deterministic-aspects.js';
 import * as conditionalAspects from './conditional-aspects.js';
 import * as suppressSyntax from './suppress-syntax.js';
-import * as driftAndCascade from './drift-and-cascade.js';
+import * as verificationAndLock from './verification-and-lock.js';
 import * as configuration from './configuration.js';
 import * as cliReference from './cli-reference.js';
 import * as logManagement from './log-management.js';
@@ -46,9 +46,9 @@ export const KNOWLEDGE_TOPICS: Record<string, KnowledgeTopic> = {
     summary: suppressSyntax.summary,
     content: suppressSyntax.content,
   },
-  'drift-and-cascade': {
-    summary: driftAndCascade.summary,
-    content: driftAndCascade.content,
+  'verification-and-lock': {
+    summary: verificationAndLock.summary,
+    content: verificationAndLock.content,
   },
   configuration: {
     summary: configuration.summary,

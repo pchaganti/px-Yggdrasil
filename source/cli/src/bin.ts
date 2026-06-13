@@ -2,14 +2,13 @@
 import { Command } from 'commander';
 import { registerInitCommand } from './cli/init.js';
 import { registerBuildCommand } from './cli/build-context.js';
-import { registerApproveCommand } from './cli/approve.js';
 import { registerTreeCommand } from './cli/tree.js';
 import { registerOwnerCommand } from './cli/owner.js';
 import { registerImpactCommand } from './cli/impact.js';
 import { registerAspectsCommand } from './cli/aspects.js';
 import { registerFlowsCommand } from './cli/flows.js';
 import { registerCheckCommand } from './cli/check.js';
-import { registerDeterministicTestCommand } from './cli/deterministic-test.js';
+import { registerAspectTestCommand } from './cli/aspect-test.js';
 import { registerLogCommand } from './cli/log.js';
 import { registerFindCommand } from './cli/find.js';
 import { registerTypeSuggestCommand } from './cli/type-suggest.js';
@@ -32,14 +31,13 @@ program
 
 registerInitCommand(program);
 registerBuildCommand(program);
-registerApproveCommand(program);
 registerTreeCommand(program);
 registerOwnerCommand(program);
 registerImpactCommand(program);
 registerAspectsCommand(program);
 registerFlowsCommand(program);
 registerCheckCommand(program);
-registerDeterministicTestCommand(program);
+registerAspectTestCommand(program);
 registerLogCommand(program);
 registerFindCommand(program);
 registerTypeSuggestCommand(program);

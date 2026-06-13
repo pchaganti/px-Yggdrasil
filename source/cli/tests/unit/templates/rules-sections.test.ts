@@ -31,8 +31,8 @@ describe('AGENT_RULES_CONTENT — required sections', () => {
     });
   }
 
-  it('mentions log_required default true', () => {
-    expect(AGENT_RULES_CONTENT).toMatch(/log_required:.*true.*default/s);
+  it('mentions log_required defaults to false (opt-in)', () => {
+    expect(AGENT_RULES_CONTENT).toMatch(/log_required.*default.*false/s);
   });
 
   it('mentions yg log merge-resolve narrative in rules.ts', () => {
@@ -62,7 +62,7 @@ describe('AGENT_RULES_CONTENT — required sections', () => {
     'yg knowledge read writing-deterministic-aspects',
     'yg knowledge read conditional-aspects',
     'yg knowledge read suppress-syntax',
-    'yg knowledge read drift-and-cascade',
+    'yg knowledge read verification-and-lock',
     'yg knowledge read configuration',
     'yg knowledge read cli-reference',
     'yg knowledge read log-management',

@@ -2,9 +2,10 @@
  * source/cli/src/utils/binary-extensions.ts
  *
  * Canonical set of file extensions whose content is binary and therefore:
- *   - never entered into a reviewer prompt (LLM aspects exclude them from subject files)
- *   - not counted toward a node's character budget (oversized-node check)
- *   - skipped by the deterministic structure runner (content is not meaningful text)
+ *   - excluded from LLM review subjects (never entered into a reviewer prompt)
+ *   - excluded from prompt character measurement (LLM subject sizing ignores them)
+ *   - skipped by the deterministic structure runner (content is not meaningful text;
+ *     deterministic subjects keep binary files out of their parsed input)
  *
  * Single source of truth — previously duplicated between:
  *   - core/checks/mapping.ts  (oversized-node budget)

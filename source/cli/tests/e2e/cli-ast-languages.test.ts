@@ -120,7 +120,7 @@ describe.skipIf(!distExists)('CLI E2E — multi-language AST parsing', () => {
   it('parses a real source file for each of the 16 built-in grammars and detects comments per language', () => {
     const dir = makeProject();
     try {
-      const out = run(['deterministic-test', '--aspect', 'ast-lang', '--node', 'code'], dir);
+      const out = run(['aspect-test', '--aspect', 'ast-lang', '--node', 'code'], dir);
       for (const l of LANGS) {
         const m = out.all.match(
           new RegExp(`LANGAST src/a\\.${l.ext} named=(\\d+) comment=(true|false)`),

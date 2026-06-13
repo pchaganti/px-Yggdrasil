@@ -1,0 +1,7 @@
+name: E2E Tests — Invalidation (Extended)
+type: test-suite
+description: "Subprocess E2E for extended invalidation scenarios — editing an aspect's content unverifies exactly its pairs, editing one subject file unverifies only the covering pairs, and a scope-excluded edit triggers no invalidation. Real spawned binary."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-invalidation-extended.test.ts

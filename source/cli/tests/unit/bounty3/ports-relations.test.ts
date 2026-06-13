@@ -726,12 +726,12 @@ function run(args: string[], cwd: string): { status: number | null; all: string 
 }
 
 describe.skipIf(!distExists)('E2E — ports/relations contract through the real binary', () => {
-  it('clean port contract: approve the consumer (deterministic, zero LLM) then check is green', () => {
+  it('clean port contract: fill the consumer (deterministic, zero LLM) then check is green', () => {
     const dir = copyPortsFixture('clean');
     // The consumer's only effective aspect is the deterministic charge-port
-    // aspect; approving records a baseline with no LLM call.
-    const approve = run(['approve', '--node', 'services/orders'], dir);
-    expect(approve.status).toBe(0);
+    // aspect; filling the lock records a verdict with no LLM call.
+    const fill = run(['check', '--approve'], dir);
+    expect(fill.status).toBe(0);
     const check = run(['check'], dir);
     expect(check.status).toBe(0);
     expect(check.all).toContain('PASS');

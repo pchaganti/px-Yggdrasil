@@ -26,6 +26,8 @@ import path from 'node:path';
 import type { Graph } from '../model/graph.js';
 import type { AspectStatus } from '../model/graph.js';
 import type { UnitKey } from '../model/lock.js';
+import type { IssueMessage } from '../model/validation.js';
+import { toPosixPath } from '../utils/posix.js';
 import { nodeUnit, fileUnit } from '../model/lock.js';
 import { expandMappingPaths, hashFile, hashString } from '../io/hash.js';
 import { normalizeMappingPaths } from '../io/paths.js';
@@ -59,12 +61,16 @@ export interface ExpectedPair {
  *
  * Callers MUST surface non-empty unreadable as a blocking error — a silently
  * dropped file can turn an enforced rule into a vacuous pass.
+ *
+ * `messageData` is pre-populated at creation so CLI command handlers can render
+ * the diagnostic directly without rebuilding the message from the raw fields.
  */
 export interface UnreadableSubject {
   nodePath: string;
   aspectId: string;
-  path: string;     // repo-relative POSIX
-  reason: string;   // from evaluateFileWhen's unreadableReason (or a clear fallback)
+  path: string;          // repo-relative POSIX
+  reason: string;        // from evaluateFileWhen's unreadableReason (or a clear fallback)
+  messageData: IssueMessage;
 }
 
 /**
@@ -219,11 +225,18 @@ export async function computeExpectedPairs(
           if (r.unreadable) {
             const key = `${nodePath}\0${aspectId}\0${nodeFiles[i]}`;
             if (!unreadableMap.has(key)) {
+              const filePath = nodeFiles[i];
+              const reason = r.unreadableReason ?? 'unreadable';
               unreadableMap.set(key, {
                 nodePath,
                 aspectId,
-                path: nodeFiles[i],
-                reason: r.unreadableReason ?? 'unreadable',
+                path: filePath,
+                reason,
+                messageData: {
+                  what: `Aspect '${aspectId}' on node '${toPosixPath(nodePath)}' could not read subject file '${toPosixPath(filePath)}': ${reason}.`,
+                  why: 'A file the scope.files filter must evaluate could not be read, so it was dropped from the review subject set. A silently dropped file can turn an enforced rule into a vacuous pass.',
+                  next: `Fix the file permissions or remove '${toPosixPath(filePath)}' from the node mapping, then re-run yg check.`,
+                },
               });
             }
           }

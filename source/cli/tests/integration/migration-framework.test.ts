@@ -226,12 +226,28 @@ describe('migration runner — incremental version bump contract', () => {
     expect(ran).toEqual([]);
   });
 
-  it('does nothing when the migrations array is empty', async () => {
+  it('runs no migration steps when the migrations array is empty', async () => {
+    // With an empty registry and the target pinned to the current version, there
+    // is nothing to do: no actions, no version change. (When the target is ABOVE
+    // the current version the runner performs an empty-registry version-lift —
+    // covered by the version-lift tests below.)
     const yggRoot = track(seedRepoAtVersion('4.0.0'));
-    const result = await runVersionUpgrade({ yggRoot, migrations: [] });
+    const result = await runVersionUpgrade({ yggRoot, migrations: [], targetVersion: '4.0.0' });
     expect(result.migrationActions).toEqual([]);
     expect(result.landedVersion).toBe('4.0.0');
     expect(readVersion(yggRoot)).toBe('4.0.0');
+  });
+
+  it('lifts the version to the supported schema when the registry is empty but the project is below it', async () => {
+    // No automated transformation exists for the gap, so the runner lifts the
+    // config version directly to the supported schema and records one
+    // informational action. yg check then flags any stale config fields.
+    const yggRoot = track(seedRepoAtVersion('4.0.0'));
+    const result = await runVersionUpgrade({ yggRoot, migrations: [], targetVersion: '5.0.0' });
+    expect(result.landedVersion).toBe('5.0.0');
+    expect(readVersion(yggRoot)).toBe('5.0.0');
+    expect(result.migrationActions.some((a) => a.includes('version updated to 5.0.0'))).toBe(true);
+    expect(result.withheld).toBe(false);
   });
 
   it('orders applicable migrations by semver `to` regardless of input order', async () => {
@@ -267,7 +283,9 @@ describe('migration runner — incremental version bump contract', () => {
       mockMigration('4.3.0' /* no bumpVersion key */),
     ];
 
-    await runVersionUpgrade({ yggRoot, migrations });
+    // Pin the target to the migration's own target so the empty-registry
+    // version-lift does not run past it — this isolates the bump-default contract.
+    await runVersionUpgrade({ yggRoot, migrations, targetVersion: '4.3.0' });
 
     expect(readVersion(yggRoot)).toBe('4.3.0');
   });
@@ -277,7 +295,9 @@ describe('migration runner — incremental version bump contract', () => {
     const before = await detectVersion(yggRoot);
     expect(before).toBe('4.0.0');
 
-    await runVersionUpgrade({ yggRoot, migrations: [mockMigration('4.3.0')] });
+    // Pin the target to 4.3.0 so the empty-registry lift does not advance past
+    // the migration's own target — this keeps the re-read assertion exact.
+    await runVersionUpgrade({ yggRoot, migrations: [mockMigration('4.3.0')], targetVersion: '4.3.0' });
     expect(await detectVersion(yggRoot)).toBe('4.3.0');
 
     // A re-run from the new on-disk version skips the already-applied step.
@@ -373,36 +393,12 @@ describe('migration runner — real registered migrations', () => {
     expect(readVersion(yggRoot)).toBe('5.0.0');
   });
 
-  it('seed 4.3.0 with a broken multi-provider reviewer config → chain stops, version stays at 4.3.0', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'yg-mig-broken-'));
-    dirsToCleanup.push(root);
-    const yggRoot = join(root, '.yggdrasil');
-    mkdirSync(yggRoot, { recursive: true });
-    mkdirSync(join(yggRoot, 'schemas'), { recursive: true });
-    mkdirSync(join(yggRoot, 'model'), { recursive: true });
-    writeFileSync(
-      join(yggRoot, 'yg-config.yaml'),
-      [
-        'version: "4.3.0"',
-        'reviewer:',
-        '  ollama:',
-        '    model: qwen3',
-        '  anthropic:',
-        '    model: claude-3',
-      ].join('\n') + '\n',
-    );
-    writeFileSync(
-      join(yggRoot, 'yg-architecture.yaml'),
-      'node_types:\n  module:\n    description: "Grouping"\n',
-    );
-    const { MIGRATIONS } = await import('../../src/migrations/index.js');
-
-    const result = await runVersionUpgrade({ yggRoot, migrations: MIGRATIONS });
-
-    expect(result.migrationWarnings.length).toBeGreaterThan(0);
-    expect(result.migrationWarnings.some((w) => w.includes('multiple providers'))).toBe(true);
-    // The 5.0.0 migration aborted with warnings — version did not advance.
-    expect(result.landedVersion).toBe('4.3.0');
-    expect(readVersion(yggRoot)).toBe('4.3.0');
-  });
+  // DELETED: 'seed 4.3.0 with a broken multi-provider reviewer config → chain
+  // stops'. Its subject was the old 4.3.0→5.0.0 migration that detected
+  // multi-provider reviewer blocks and aborted the chain with a warning. The
+  // verdict-lock redesign removed every legacy migration module (the registry is
+  // now empty — design §13), so no registered migration validates the reviewer
+  // config any more: a below-target project is simply version-lifted, and
+  // yg check flags any stale config fields with exact errors. The removed
+  // behavior has no replacement here.
 });

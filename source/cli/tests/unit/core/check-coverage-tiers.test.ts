@@ -1,5 +1,34 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeRoot, matchesRoot, partitionByCoverageTier } from '../../../src/core/check.js';
+import { normalizeRoot, matchesRoot, partitionByCoverageTier, buildCoverageIssue } from '../../../src/core/check.js';
+
+describe('buildCoverageIssue', () => {
+  it('returns null when nothing is uncovered', () => {
+    expect(buildCoverageIssue([], 10)).toBeNull();
+  });
+
+  it('small count (<= 5): lists the files directly, singular/plural correct', () => {
+    const one = buildCoverageIssue(['src/a.ts'], 10);
+    expect(one!.code).toBe('unmapped-files');
+    expect(one!.messageData.what).toContain('1 source file not covered');
+    expect(one!.messageData.what).toContain('src/a.ts');
+    const few = buildCoverageIssue(['src/a.ts', 'src/b.ts'], 10);
+    expect(few!.messageData.what).toContain('2 source files not covered');
+  });
+
+  it('large count (> 5) with LOW coverage (<50%) gives the cold-start guidance', () => {
+    const many = Array.from({ length: 8 }, (_, i) => `src/f${i}.ts`);
+    const issue = buildCoverageIssue(many, 10); // 2/10 covered → 20% < 50%
+    expect(issue!.messageData.what).toContain('8 source files have no graph coverage');
+    expect(issue!.messageData.what).toContain('... and 3 more'); // 8 - 5 sample
+    expect(issue!.messageData.next).toContain('Establish coverage');
+  });
+
+  it('large count (> 5) with HIGH coverage (>=50%) gives the incremental guidance', () => {
+    const many = Array.from({ length: 6 }, (_, i) => `src/f${i}.ts`);
+    const issue = buildCoverageIssue(many, 100); // 94/100 covered → high
+    expect(issue!.messageData.next).toContain('existing node mapping');
+  });
+});
 
 describe('normalizeRoot', () => {
   it('maps "/" to empty string and strips slashes', () => {

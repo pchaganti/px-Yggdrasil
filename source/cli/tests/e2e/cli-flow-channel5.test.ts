@@ -21,13 +21,6 @@ const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle');
 
 const distExists = existsSync(BIN_PATH);
 
-// A dead loopback endpoint. Pointing the reviewer at this makes the LLM aspect
-// path unreachable, so `yg approve` never produces an environment-dependent LLM
-// verdict — only the deterministic aspects drive every refuse/pass outcome.
-// Port 1 never has a listener on any machine, so the assertions are hermetic
-// without relying on any real endpoint being present or absent.
-const DEAD_ENDPOINT = 'http://127.0.0.1:1';
-
 function run(
   args: string[],
   cwd: string,
@@ -55,7 +48,7 @@ function copyFixture(label: string): string {
 
 /**
  * Copy the fixture and strip the LLM aspect (`has-doc-comment`) so the node's
- * effective aspects are purely deterministic. This makes the approve/check
+ * effective aspects are purely deterministic. This makes the check/fill
  * lifecycle hermetic: no network, no LLM verdict, fully reproducible — the
  * `no-todo-comments` (enforced) and `requires-named-export` (advisory)
  * deterministic aspects drive every refuse/pass outcome.
@@ -77,20 +70,6 @@ function deterministicFixture(label: string): string {
   return dir;
 }
 
-/**
- * Repoint the reviewer endpoint at the dead loopback address so the reviewer is
- * ALWAYS unreachable regardless of the machine — no reliance on any specific
- * external host being present or absent.
- */
-function killReviewer(dir: string): void {
-  const cfgPath = path.join(dir, '.yggdrasil', 'yg-config.yaml');
-  const cfg = readFileSync(cfgPath, 'utf-8').replace(
-    /endpoint:\s*["']?[^"'\n]+["']?/,
-    `endpoint: "${DEAD_ENDPOINT}"`,
-  );
-  writeFileSync(cfgPath, cfg, 'utf-8');
-}
-
 const paymentsFile = (dir: string) => path.join(dir, 'src', 'services', 'payments.ts');
 const noTodoCheckMjs = (dir: string) =>
   path.join(dir, '.yggdrasil', 'aspects', 'no-todo-comments', 'check.mjs');
@@ -110,7 +89,7 @@ const noTodoCheckMjs = (dir: string) =>
  * descendants of its participant `services/orders`. `yg context` confirms the
  * attribution: "Source: flow 'order-processing' (via parent 'services/orders')".
  *
- * The descendant maps a clean source file (no TODO) so a fresh approve passes.
+ * The descendant maps a clean source file (no TODO) so a fresh fill passes.
  */
 function descendantFixture(label: string): string {
   const dir = copyFixture(label);
@@ -199,7 +178,14 @@ const orderRepoFile = (dir: string) =>
 
 // ---------------------------------------------------------------------------
 // Channel 5 — flow aspects reach participants AND descendants, and are
-// ENFORCED at approve. Hermetic: no LLM, no network (killReviewer + dead port).
+// ENFORCED at fill. Hermetic: no LLM, no network (deterministicFixture /
+// descendantFixture strip the only LLM aspect, so `yg check --approve` fills
+// deterministic verdicts only and never contacts the reviewer endpoint).
+//
+// Verdict-lock model: verification happens via `yg check --approve` (fill),
+// state lives in `.yggdrasil/yg-lock.json`, and the states are
+// verified/unverified/refused. A deterministic refusal renders as a cached
+// `enforced` (or `advisory`) finding in `yg check`.
 // ---------------------------------------------------------------------------
 
 describe.skipIf(!distExists)('CLI E2E — channel 5: flow aspects reach participants and descendants', () => {
@@ -208,43 +194,44 @@ describe.skipIf(!distExists)('CLI E2E — channel 5: flow aspects reach particip
   it('1: the flow aspect cascades to a descendant of a participant and blocks check', () => {
     const dir = descendantFixture('descendant');
     try {
-      killReviewer(dir);
-
       // The descendant receives `no-todo-comments` SOLELY from the flow.
       const ctx = run(['context', '--node', 'services/orders/order-repo'], dir);
       expect(ctx.status).toBe(0);
       expect(ctx.stdout).toContain('no-todo-comments');
       expect(ctx.stdout).toContain("flow 'order-processing' (via parent 'services/orders')");
 
-      // Clean descendant approves cleanly.
-      const approve = run(['approve', '--node', 'services/orders/order-repo'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/orders/order-repo');
+      // Clean descendant fills cleanly (the flow-cascaded aspect is satisfied).
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders/order-repo — approved');
 
       // Now violate the flow aspect on the DESCENDANT's source file.
       appendFileSync(orderRepoFile(dir), '\n// TODO: implement caching\n');
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
-      // The descendant is the node that drifted because of the flow-cascaded
-      // aspect — proving the flow rule reaches the participant's descendant.
+      // The descendant is the node that became unverified because of the
+      // flow-cascaded aspect — proving the flow rule reaches the descendant.
       expect(check.stdout).toContain('services/orders/order-repo');
+      expect(check.stdout).toContain('no-todo-comments');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('1b: approving the descendant with the flow aspect violated REFUSES (enforced)', () => {
+  it('1b: filling the descendant with the flow aspect violated REFUSES (enforced)', () => {
     const dir = descendantFixture('descendant-refuse');
     try {
-      killReviewer(dir);
-      expect(run(['approve', '--node', 'services/orders/order-repo'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       appendFileSync(orderRepoFile(dir), '\n// TODO: implement caching\n');
-      const refused = run(['approve', '--node', 'services/orders/order-repo'], dir);
+      const refused = run(['check', '--approve'], dir);
       // The flow-attached enforced aspect rejects the descendant's TODO.
       expect(refused.status).toBe(1);
+      expect(refused.stdout).toContain('[det] no-todo-comments on node:services/orders/order-repo — refused');
+      // Rendered as an enforced cached refusal naming the descendant + aspect.
+      expect(refused.stdout).toContain('enforced');
+      expect(refused.stdout).toContain('services/orders/order-repo');
       expect(refused.stdout).toContain('no-todo-comments');
-      expect(refused.stdout).toContain('NOT SATISFIED');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -252,41 +239,48 @@ describe.skipIf(!distExists)('CLI E2E — channel 5: flow aspects reach particip
 
   // --- 2. Participant violation refuses ---
 
-  it('2: approving a participant with the flow aspect violated REFUSES (exit 1)', () => {
+  it('2: filling a participant with the flow aspect violated REFUSES (exit 1)', () => {
     const dir = deterministicFixture('participant-refuse');
     try {
-      killReviewer(dir);
       appendFileSync(paymentsFile(dir), '\n// TODO: fix\n');
-      const refused = run(['approve', '--node', 'services/payments'], dir);
+      const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
+      expect(refused.stdout).toContain('[det] no-todo-comments on node:services/payments — refused');
+      expect(refused.stdout).toContain('enforced');
       expect(refused.stdout).toContain('no-todo-comments');
-      expect(refused.stdout).toContain('NOT SATISFIED');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
   // --- 3. Flow batch names violators ---
+  //
+  // Fill is repo-wide (no `--flow` scoping in the verdict-lock model). After a
+  // clean baseline, a cascade on the flow participants (an aspect-implementation
+  // edit) plus a planted TODO in payments means the next fill re-verifies the
+  // cascaded `no-todo-comments` against current source on each participant —
+  // catching payments' TODO while orders re-approves clean.
 
-  it('3: a flow batch re-approve names the violating participant and the aspect (exit 1)', () => {
+  it('3: a fill after a flow-aspect cascade names the violating participant and the aspect (exit 1)', () => {
     const dir = deterministicFixture('flow-batch-violator');
     try {
-      killReviewer(dir);
       // Establish clean baselines for both participants.
-      expect(run(['approve', '--node', 'services/orders', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // Plant a TODO in payments, then trigger a CASCADE on the flow participants
-      // by editing the shared aspect's implementation. `yg approve --flow` targets
-      // CASCADE drift (a pure source change would be handled by --node), so the
-      // batch re-verifies the cascaded `no-todo-comments` aspect on each
-      // participant against current source — catching payments' TODO.
+      // by editing the shared aspect's implementation. Editing check.mjs changes
+      // the aspect inputs, so every pair using it goes unverified and the next
+      // fill re-runs `no-todo-comments` on each participant against current
+      // source — catching payments' TODO.
       appendFileSync(paymentsFile(dir), '\n// TODO: fix\n');
       appendFileSync(noTodoCheckMjs(dir), '\n// cascade-trigger: trivial no-op comment\n');
-      const batch = run(['approve', '--flow', 'order-processing'], dir);
+      const batch = run(['check', '--approve'], dir);
       expect(batch.status).toBe(1);
+      expect(batch.stdout).toContain('[det] no-todo-comments on node:services/payments — refused');
       expect(batch.stdout).toContain('services/payments');
       expect(batch.stdout).toContain('no-todo-comments');
-      expect(batch.stdout).toContain('NOT SATISFIED');
+      // Orders re-approves clean in the same invocation (isolation).
+      expect(batch.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -294,23 +288,22 @@ describe.skipIf(!distExists)('CLI E2E — channel 5: flow aspects reach particip
 
   // --- 4. Clean flow batch ---
 
-  it('4: a clean flow batch re-approve names BOTH participants and exits 0', () => {
+  it('4: a clean fill after a flow-aspect cascade re-approves BOTH participants and exits 0', () => {
     const dir = deterministicFixture('flow-batch-clean');
     try {
-      killReviewer(dir);
       // Establish baselines for both participants.
-      expect(run(['approve', '--node', 'services/orders', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
-      // A trivial no-op edit to the flow aspect's implementation creates a
-      // cascade drift across both participants WITHOUT touching any source file,
-      // so the flow batch re-approves both nodes cleanly.
+      // A trivial no-op edit to the flow aspect's implementation invalidates the
+      // cascaded verdict on both participants WITHOUT touching any source file,
+      // so the next fill re-approves both nodes cleanly.
       appendFileSync(noTodoCheckMjs(dir), '\n// cascade-trigger: trivial no-op comment\n');
 
-      const batch = run(['approve', '--flow', 'order-processing'], dir);
+      const batch = run(['check', '--approve'], dir);
       expect(batch.status).toBe(0);
-      expect(batch.stdout).toContain('services/orders');
-      expect(batch.stdout).toContain('services/payments');
-      expect(batch.stdout).toContain('2 approved');
+      expect(batch.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
+      expect(batch.stdout).toContain('[det] no-todo-comments on node:services/payments — approved');
+      expect(batch.stdout).toContain('yg check: PASS');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

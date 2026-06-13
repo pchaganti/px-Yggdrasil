@@ -22,9 +22,8 @@ const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle');
 const distExists = existsSync(BIN_PATH);
 
 // A dead loopback endpoint. Pointing the reviewer at this makes the LLM aspect
-// path unreachable, so `yg approve` never produces an environment-dependent LLM
-// verdict — port 1 never has a listener, on ANY machine, with no reliance on a
-// real endpoint being present or absent. Used by killReviewer().
+// path unreachable — port 1 never has a listener, on ANY machine, with no
+// reliance on a real endpoint being present or absent. Used by killReviewer().
 const DEAD_ENDPOINT = 'http://127.0.0.1:1';
 
 function run(
@@ -54,7 +53,7 @@ function copyFixture(label: string): string {
 
 /**
  * Copy the fixture and strip the LLM aspect (`has-doc-comment`) so the node's
- * effective aspects are purely deterministic. This makes the approve/check
+ * effective aspects are purely deterministic. This makes the check/fill
  * lifecycle hermetic: no network, no LLM verdict, fully reproducible — only the
  * deterministic check.mjs aspects drive every refuse/pass outcome.
  */
@@ -172,12 +171,18 @@ function setNodeAspects(
 // typo no-op, named bracket, graph-aware runner). This suite pins:
 //   * hierarchical aspect-id scoping (parent id does NOT waive a child id —
 //     the matcher is EXACT-id + wildcard only)
-//   * empty-reason rejection (SUPPRESS_MARKER_MISSING_REASON) for the
-//     single-line and bracket-disable forms, surfaced at approve
+//   * empty-reason rejection for the single-line and bracket-disable forms
 //   * the enable marker requiring NO reason
 //   * a draft->advisory flip turning a previously-inert suppress effective
 //   * multiple comma-separated ids in ONE single-line marker each waived
 //   * a block-comment (slash-star ... star-slash) marker honored
+//
+// Verdict-lock model: `yg approve` is gone — verification happens via
+// `yg check --approve` (repo-wide fill). A deterministic verdict renders per
+// pair as `[det] <aspectId> on <unitKey> — approved|refused`. A check.mjs that
+// THROWS (e.g. on an empty-reason suppress marker) leaves the pair UNVERIFIED
+// with an `aspect-check-runtime-error` line — it is not a refusal.
+//
 // Fully hermetic: each test builds its own graph in a fresh temp dir, uses only
 // deterministic check.mjs aspects, and makes no network/clock/random reads.
 // ---------------------------------------------------------------------------
@@ -204,7 +209,7 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
         'src/services/payments.ts',
         ['family/parent', 'family/child'],
       );
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // Suppress only the PARENT id over the offending line.
       appendFileSync(
@@ -218,12 +223,12 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/payments'], dir);
-      expect(approve.status).toBe(1);
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
       // The parent id IS waived by its exact-id marker; the child id is NOT —
       // a parent-id suppress provides no hierarchical cover for the child.
-      expect(approve.stdout).toContain('family/parent — SATISFIED');
-      expect(approve.stdout).toContain('family/child — NOT SATISFIED');
+      expect(fill.stdout).toContain('[det] family/parent on node:services/payments — approved');
+      expect(fill.stdout).toContain('[det] family/child on node:services/payments — refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -231,7 +236,7 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
 
   // --- 1b. positive control: the EXACT child id DOES waive the child violation ---
 
-  it('1b: yg-suppress(family/child) waives the family/child violation (exact hierarchical id matches); approve exits 0', () => {
+  it('1b: yg-suppress(family/child) waives the family/child violation (exact hierarchical id matches); fill exits 0', () => {
     const dir = hermeticFixture('hier-child-match');
     try {
       writeTokenAspect(dir, 'family/parent', 'HIERTOKEN');
@@ -243,7 +248,7 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
         'src/services/payments.ts',
         ['family/child'], // only the child aspect is effective here
       );
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       appendFileSync(
         paymentsFile(dir),
@@ -256,26 +261,28 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/payments'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/payments');
-      expect(approve.stdout).not.toContain('NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('[det] family/child on node:services/payments — approved');
+      expect(fill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  // --- 2. EMPTY-REASON single-line marker is rejected: SUPPRESS_MARKER_MISSING_REASON ---
+  // --- 2. EMPTY-REASON single-line marker is rejected at fill ---
   //
   // The empty-reason throw lives in collectSuppressions (src/ast/suppress.ts).
   // Under the structure runner it surfaces only while filtering a real
   // violation's file (ranges are collected lazily for files carrying a
   // violation), so the marker must sit on a file that ALSO violates the aspect.
+  // In the verdict-lock model the throw is caught at fill time and the pair is
+  // left UNVERIFIED with an `aspect-check-runtime-error` line (not a refusal).
 
-  it('2: a single-line yg-suppress(no-todo-comments) with NO reason is rejected with SUPPRESS_MARKER_MISSING_REASON (exit 1)', () => {
+  it('2: a single-line yg-suppress(no-todo-comments) with NO reason fails the check at fill (aspect-check-runtime-error, exit 1)', () => {
     const dir = hermeticFixture('empty-reason-single');
     try {
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // Marker has the aspect id but no reason text after the parens. A TODO on
       // the suppressed line gives the runner a violation to filter, which is what
@@ -291,11 +298,12 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(1);
-      expect(approve.stdout).toContain('SUPPRESS_MARKER_MISSING_REASON');
-      expect(approve.stdout).toContain('missing reason');
-      expect(approve.stdout).toContain('no-todo-comments — NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      expect(fill.stdout).toContain('aspect-check-runtime-error');
+      expect(fill.stdout).toContain('yg-suppress(no-todo-comments) missing reason');
+      // The throw leaves the pair unverified (no verdict written), not refused.
+      expect(fill.stdout).toContain('unverified');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -303,10 +311,10 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
 
   // --- 3. EMPTY-REASON bracket disable marker is rejected too ---
 
-  it('3: a bracket yg-suppress-disable(no-todo-comments) with NO reason is rejected with SUPPRESS_MARKER_MISSING_REASON (exit 1)', () => {
+  it('3: a bracket yg-suppress-disable(no-todo-comments) with NO reason fails the check at fill (aspect-check-runtime-error, exit 1)', () => {
     const dir = hermeticFixture('empty-reason-bracket');
     try {
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // disable() with no reason → reject. A matching enable closes the range; a
       // TODO inside it gives the runner a violation that forces range collection.
@@ -322,11 +330,11 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(1);
-      expect(approve.stdout).toContain('SUPPRESS_MARKER_MISSING_REASON');
-      expect(approve.stdout).toContain('yg-suppress-disable');
-      expect(approve.stdout).toContain('no-todo-comments — NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      expect(fill.stdout).toContain('aspect-check-runtime-error');
+      expect(fill.stdout).toContain('yg-suppress-disable(no-todo-comments) missing reason');
+      expect(fill.stdout).toContain('unverified');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -339,10 +347,10 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
   // id). A bare enable that closes a properly-reasoned disable must waive the
   // range cleanly — no missing-reason error.
 
-  it('4: a disable(reason)..enable(no reason) bracket waives a TODO in range; approve exits 0 with no suppress error', () => {
+  it('4: a disable(reason)..enable(no reason) bracket waives a TODO in range; fill exits 0 with no suppress error', () => {
     const dir = hermeticFixture('enable-no-reason');
     try {
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       appendFileSync(
         paymentsFile(dir),
@@ -359,12 +367,13 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/payments'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/payments');
-      expect(approve.stdout).not.toContain('NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/payments — approved');
+      expect(fill.all).not.toContain('refused');
       // The bare enable is valid syntax — no missing-reason rejection fired.
-      expect(approve.all).not.toContain('SUPPRESS_MARKER_MISSING_REASON');
+      expect(fill.all).not.toContain('missing reason');
+      expect(fill.all).not.toContain('aspect-check-runtime-error');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -375,12 +384,12 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
   // While the aspect is draft the reviewer never runs it, so the suppress is a
   // no-op AND there is no violation. After the flip to advisory the aspect is
   // live: the SAME unchanged suppress now actually waives the now-active
-  // violation, so the advisory aspect reports SATISFIED (not a warning).
+  // violation, so the advisory aspect approves (no warning).
 
   it('5: a yg-suppress over a draft aspect is inert; after draft->advisory the same marker waives the now-active violation', () => {
     const dir = hermeticFixture('flip-suppress-effective');
     try {
-      // banflip flags HIERTOKEN; start it DRAFT and attach to payments.
+      // banflip flags FLIPTOKEN; start it DRAFT and attach to payments.
       writeTokenAspect(dir, 'banflip', 'FLIPTOKEN', 'draft');
       setNodeAspects(
         paymentsNodeYaml(dir),
@@ -391,7 +400,7 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
       );
 
       // Offending line WITH a suppress for banflip. While banflip is draft the
-      // aspect is dormant: approve passes and the suppress does nothing.
+      // aspect is dormant: the fill never runs it (no fill pair) and passes.
       appendFileSync(
         paymentsFile(dir),
         [
@@ -403,10 +412,11 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
         'utf-8',
       );
 
-      const draftApprove = run(['approve', '--node', 'services/payments'], dir);
-      expect(draftApprove.status).toBe(0);
-      expect(draftApprove.stdout).toContain('skipped'); // draft aspect skipped
-      expect(draftApprove.stdout).not.toContain('NOT SATISFIED');
+      const draftFill = run(['check', '--approve'], dir);
+      expect(draftFill.status).toBe(0);
+      // The draft aspect is skipped — no fill pair, no refusal.
+      expect(draftFill.stdout).not.toContain('banflip on node:services/payments');
+      expect(draftFill.all).not.toContain('refused');
 
       // Promote banflip draft -> advisory. The aspect is now live; the SAME
       // suppress (unchanged) waives the violation it now produces.
@@ -416,19 +426,17 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
       );
       writeFileSync(aspectYaml(dir, 'banflip'), flipped, 'utf-8');
 
-      const advisoryApprove = run(['approve', '--node', 'services/payments'], dir);
-      expect(advisoryApprove.status).toBe(0);
-      expect(advisoryApprove.stdout).toContain('Approved: services/payments');
-      // The now-active aspect is waived by the suppress — no advisory warning,
-      // no refusal: the suppress that was inert under draft is now effective.
-      expect(advisoryApprove.stdout).not.toContain('NOT SATISFIED');
-      expect(advisoryApprove.stdout).not.toContain('banflip — NOT SATISFIED');
-      // Approve the other node clean (it never carried banflip) so the final
-      // check has no unrelated unapproved-node error, then confirm check is
-      // green — the waived advisory aspect leaks no warning.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      const advisoryFill = run(['check', '--approve'], dir);
+      expect(advisoryFill.status).toBe(0);
+      // The now-active aspect is waived by the suppress — it approves, with no
+      // advisory warning and no refusal: the suppress that was inert under draft
+      // is now effective.
+      expect(advisoryFill.stdout).toContain('[det] banflip on node:services/payments — approved');
+      expect(advisoryFill.all).not.toContain('refused');
+      // The final check is green — the waived advisory aspect leaks no warning.
       const check = run(['check'], dir);
       expect(check.status).toBe(0);
+      expect(check.stdout).toContain('PASS');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -436,7 +444,7 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
 
   // --- 5b. control: WITHOUT the suppress, after the flip the advisory aspect warns ---
 
-  it('5b: WITHOUT the suppress, after draft->advisory the violation surfaces as a non-blocking advisory warning (approve exits 0)', () => {
+  it('5b: WITHOUT the suppress, after draft->advisory the violation surfaces as a non-blocking advisory warning (fill exits 0)', () => {
     const dir = hermeticFixture('flip-no-suppress-control');
     try {
       writeTokenAspect(dir, 'banflip', 'FLIPTOKEN', 'draft');
@@ -451,7 +459,7 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
       // Same offending line, NO suppress marker.
       appendFileSync(paymentsFile(dir), '\nconst flipTag = "FLIPTOKEN";\n', 'utf-8');
 
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       const flipped = readFileSync(aspectYaml(dir, 'banflip'), 'utf-8').replace(
         /^status: draft$/m,
@@ -459,11 +467,13 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
       );
       writeFileSync(aspectYaml(dir, 'banflip'), flipped, 'utf-8');
 
-      const advisoryApprove = run(['approve', '--node', 'services/payments'], dir);
-      // Advisory violation does NOT block approve, but IS surfaced.
-      expect(advisoryApprove.status).toBe(0);
-      expect(advisoryApprove.all).toContain('advisory');
-      expect(advisoryApprove.all).toContain('banflip');
+      const advisoryFill = run(['check', '--approve'], dir);
+      // Advisory violation does NOT block the fill, but IS surfaced as refused +
+      // a non-blocking advisory warning.
+      expect(advisoryFill.status).toBe(0);
+      expect(advisoryFill.stdout).toContain('[det] banflip on node:services/payments — refused');
+      expect(advisoryFill.all).toContain('advisory');
+      expect(advisoryFill.all).toContain('banflip');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -475,7 +485,7 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
   // contains every listed id, so a line violating two distinct aspects is waived
   // by one marker listing both ids.
 
-  it('6: a single-line yg-suppress(ban-foo, ban-bar) waives BOTH aspects on the next line; approve exits 0', () => {
+  it('6: a single-line yg-suppress(ban-foo, ban-bar) waives BOTH aspects on the next line; fill exits 0', () => {
     const dir = hermeticFixture('multi-id-single-line');
     try {
       writeTokenAspect(dir, 'ban-foo', 'MULTITOKEN');
@@ -487,7 +497,7 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
         'src/services/payments.ts',
         ['ban-foo', 'ban-bar'],
       );
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // ONE marker listing BOTH ids, comma-separated, above the offending line.
       appendFileSync(
@@ -501,12 +511,11 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/payments'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/payments');
-      expect(approve.stdout).not.toContain('NOT SATISFIED');
-      expect(approve.stdout).not.toContain('ban-foo — NOT SATISFIED');
-      expect(approve.stdout).not.toContain('ban-bar — NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('[det] ban-foo on node:services/payments — approved');
+      expect(fill.stdout).toContain('[det] ban-bar on node:services/payments — approved');
+      expect(fill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -514,7 +523,7 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
 
   // --- 6b. control: a single-line marker naming only ONE of the two ids leaves the other flagged ---
 
-  it('6b: a single-line yg-suppress(ban-foo) leaves ban-bar flagged on the same line; approve exits 1', () => {
+  it('6b: a single-line yg-suppress(ban-foo) leaves ban-bar flagged on the same line; fill exits 1', () => {
     const dir = hermeticFixture('multi-id-partial');
     try {
       writeTokenAspect(dir, 'ban-foo', 'MULTITOKEN');
@@ -526,7 +535,7 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
         'src/services/payments.ts',
         ['ban-foo', 'ban-bar'],
       );
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       appendFileSync(
         paymentsFile(dir),
@@ -539,10 +548,10 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/payments'], dir);
-      expect(approve.status).toBe(1);
-      expect(approve.stdout).toContain('ban-foo — SATISFIED');
-      expect(approve.stdout).toContain('ban-bar — NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      expect(fill.stdout).toContain('[det] ban-foo on node:services/payments — approved');
+      expect(fill.stdout).toContain('[det] ban-bar on node:services/payments — refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -555,10 +564,10 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
   // still scopes to the line BELOW it (single-line semantics), so place the
   // violation there.
 
-  it('7: a block-comment slash-star yg-suppress(no-todo-comments) star-slash waives the TODO on the next line; approve exits 0', () => {
+  it('7: a block-comment slash-star yg-suppress(no-todo-comments) star-slash waives the TODO on the next line; fill exits 0', () => {
     const dir = hermeticFixture('block-comment-marker');
     try {
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       appendFileSync(
         ordersFile(dir),
@@ -571,10 +580,10 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/orders');
-      expect(approve.stdout).not.toContain('NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
+      expect(fill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -582,10 +591,10 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
 
   // --- 7b. control: the identical block-comment marker WITHOUT a matching id leaves the TODO flagged ---
 
-  it('7b: a block-comment marker with a WRONG id does NOT waive the TODO; approve exits 1 (parsed, but id mismatch)', () => {
+  it('7b: a block-comment marker with a WRONG id does NOT waive the TODO; fill exits 1 (parsed, but id mismatch)', () => {
     const dir = hermeticFixture('block-comment-wrong-id');
     try {
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       appendFileSync(
         ordersFile(dir),
@@ -598,12 +607,13 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(1);
-      expect(approve.stdout).toContain('no-todo-comments — NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — refused');
       // The block comment was parsed (no missing-reason error) — it simply did
       // not match the violated aspect id.
-      expect(approve.all).not.toContain('SUPPRESS_MARKER_MISSING_REASON');
+      expect(fill.all).not.toContain('missing reason');
+      expect(fill.all).not.toContain('aspect-check-runtime-error');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

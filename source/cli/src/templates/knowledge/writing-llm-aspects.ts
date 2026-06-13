@@ -1,10 +1,12 @@
-export const summary = 'How to write content.md for LLM reviewer: rule structure, what/why/how, common pitfalls';
+export const summary =
+  'How to write content.md for the LLM reviewer: rule structure, scope (per-file is file-local only), prompt limits, false-positive path with aspect-test as the sanctioned diagnostic';
 
 export const content = `# Writing LLM aspects
 
-LLM aspects declare \`reviewer: { type: llm }\` and ship a \`content.md\`
-describing the rules in prose. The reviewer receives \`content.md\` + all
-source files of the node and returns approved or refused.
+LLM aspects ship a \`content.md\` describing the rules in prose. The reviewer
+receives \`content.md\` + any reference files + the unit's subject files and
+returns approved or refused. The verdict is cached in the lock keyed by the
+\`(aspect, unit)\` pair.
 
 ## content.md format
 
@@ -63,12 +65,41 @@ rule applies across many nodes, extract it into a shared aspect and
 attach it to those nodes. A rule buried in one node's prose never reaches
 the others.
 
+## Choosing scope: per node vs per file
+
+An aspect declares \`scope.per: node\` (default) or \`scope.per: file\`, optionally
+narrowed by \`scope.files\`.
+
+\`per: file\` is correct ONLY for **file-local rules** — ones a reviewer can judge
+from a single file alone ("every handler validates its input"). Rules that need
+cross-file context — "correlation ID propagates across calls", "exactly one file
+exports X" — must stay \`per: node\`. A per-file reviewer cannot see the rest of
+the node and will produce false verdicts in both directions, silently. Cross-file
+rules against a **static shared contract** can use \`per: file\` + \`references:\`
+(the contract travels in every prompt).
+
+**Pre-flight ritual before switching an aspect to \`per: file\`:** generate one
+per-file prompt and read it —
+
+\`\`\`bash
+yg aspect-test --aspect <id> --node <representative> --dry-run
+\`\`\`
+
+If the rule cannot be judged from that single file plus references, it is not
+file-local; leave it \`per: node\`. This guidance is load-bearing and cannot be
+enforced deterministically.
+
+A \`scope\` edit (either \`per\` or \`files\`) invalidates EVERY pair of the aspect —
+it cascades like a \`content.md\` edit. Narrowing \`scope.files\` to exclude tests
+is still a full re-verification. Run \`yg impact --aspect <id>\` first.
+
 ## Cost considerations
 
-Each effective NON-DRAFT LLM aspect on a node = at least one reviewer call
-during \`yg approve\`, multiplied by the tier's consensus count AND by the
-number of prompt chunks. Deterministic aspects run locally and cost ZERO
-LLM calls. Draft aspects are skipped (zero cost, no verdict).
+Each effective non-draft LLM pair = at least one reviewer call during
+\`yg check --approve\`, multiplied by the tier's consensus count. With \`per: file\`,
+multiply again by the subject-file count, and references are loaded into every
+per-file prompt. Deterministic aspects cost ZERO LLM calls. Draft aspects produce
+no pairs (zero cost, no verdict).
 
 Before creating a new LLM aspect:
 1. Check if an existing aspect covers the rule (\`yg aspects\`)
@@ -76,12 +107,27 @@ Before creating a new LLM aspect:
    the scale of review calls this will generate
 3. Consider whether a deterministic aspect would serve the same purpose for free
 
-When an aspect touches many nodes, an approve cycle is expensive.
-Prefer narrow, precise aspects over broad catch-all ones.
+When an aspect touches many pairs, verification is expensive. Prefer narrow,
+precise aspects over broad catch-all ones.
+
+## Prompt-size gate
+
+Each tier may set \`max_prompt_chars\`. An assembled LLM prompt (scaffold +
+content.md + references + subject files + node descriptor) exceeding the resolved
+tier's limit is a blocking \`prompt-too-large\` error — checked deterministically
+at \`yg check\`, and the pair is skipped by \`--approve\`. Remedies, in safety order:
+
+1. Narrow \`scope.files\` — safe when the overflow is non-target payload (fixtures,
+   generated files, docs).
+2. Switch the aspect to \`per: file\` — ONLY if the rule is file-local (above).
+3. Split the node.
+4. Raise the limit or move the aspect to a higher-limit tier — a tier edit
+   cascades re-verification across every aspect resolving to that tier; confirm
+   with the user.
 
 ## False-positive mitigation
 
-LLM reviewers can produce false positives: rejecting code that is actually
+LLM reviewers can produce false positives: refusing code that is actually
 correct. Causes:
 - Rules stated ambiguously — reviewer interprets differently than intended
 - Rules that are too strict — no room for valid alternative implementations
@@ -90,12 +136,29 @@ correct. Causes:
 To reduce false positives:
 - Include "what passing looks like" examples in each rule section
 - Include "what a false positive looks like" notes when ambiguity is known
-- Test with \`yg approve --dry-run --node <path>\` to preview the prompt
-- If a reviewer consistently rejects correct code, sharpen the rule text
+- Preview the prompt with \`yg aspect-test --aspect <id> --node <path> --dry-run\`
+- If a reviewer consistently refuses correct code, sharpen the rule text —
+  knowing this re-verifies EVERY node using the aspect (run \`yg impact --aspect\`
+  first).
+
+A refusal in the lock is cached and final for unchanged inputs — re-running
+\`yg check --approve\` re-renders it, it does not re-roll. When you believe a
+refusal is a false positive, \`yg aspect-test\` is the sanctioned diagnostic: it
+runs the reviewer live WITHOUT writing the lock.
+
+\`\`\`bash
+yg aspect-test --aspect <id> --node <path>
+\`\`\`
+
+If aspect-test repeatedly approves what the lock refuses, the rule text is
+ambiguous for this reviewer. Two sanctioned exits: sharpen \`content.md\`
+(cascades — check \`yg impact\`), or propose a \`yg-suppress\` to the user. There is
+deliberately no verdict-drop command, and a cosmetic edit purely to force a
+re-roll is forbidden laundering.
 
 When a reviewer refuses code you believe is correct:
 1. Read the refusal carefully — it tells you exactly what rule it applied
-2. If the code is correct and the rule is wrong, update the rule text
+2. If the code is correct and the rule is wrong, update the rule text (cascades)
 3. If the rule is right and the code needs changing, fix the code
 4. Use \`yg-suppress\` only for intentional, documented exceptions with user approval
 
@@ -112,25 +175,18 @@ reviewer:
   tier: deep        # one of the keys under reviewer.tiers in yg-config.yaml
 \`\`\`
 
-When \`tier:\` is omitted, the aspect uses \`reviewer.default\` from the
-config (or the single configured tier if there is only one).
+When \`tier:\` is omitted, the aspect uses \`reviewer.default\`.
 
-Use a higher-capability tier (e.g., \`deep\`) when:
+Use a higher-capability tier (e.g. \`deep\`) when the aspect interprets nuanced
+semantics, a false approval is much more costly than the higher per-call price,
+or the rules are ambiguous enough that a cheaper model gives flaky judgments. Use
+the cheaper default tier for narrow, well-defined contracts.
 
-- The aspect interprets nuanced semantics (test quality, security-sensitive
-  rules, regulatory contracts).
-- A false approval is much more costly than the higher per-call price.
-- The rules are ambiguous enough that a cheaper model gives flaky judgments.
-
-Use the cheaper default tier when:
-
-- The aspect checks a narrow, well-defined contract (logging, naming).
-- Cost per re-approve matters more than precision at the margin.
-
-Tier identity is part of the per-node drift hash: changing \`reviewer.tier:\`
-on an aspect (or editing the referenced tier's config) triggers re-approve
-on every node that uses the aspect. Run \`yg impact --aspect <id>\` before
-swapping a tier.
+The resolved tier identity is folded into every LLM pair's hash: changing
+\`reviewer.tier:\` on an aspect, or editing the referenced tier's
+\`provider\`/\`consensus\`/\`config\`, invalidates every pair using it and re-verifies
+on the next \`yg check --approve\`. Run \`yg impact --aspect <id>\` before swapping
+a tier on a widely-used aspect.
 
 ## When to prefer a deterministic aspect over LLM
 
@@ -168,9 +224,9 @@ references:
     description: "Source of truth for error code constants."
 \`\`\`
 
-Two equivalent entry forms. Description (when present) helps both the
-agent and the reviewer understand the reference's role without opening
-the file.
+Two equivalent entry forms. The description (when present) helps both the agent
+and the reviewer understand the reference's role, and it is folded into the LLM
+pair's hash — editing it re-verifies.
 
 ### Composition with implies
 
@@ -183,38 +239,19 @@ in B", declare the same reference on A or move it onto A directly.
 
 If an aspect has a \`when\` predicate that filters it out on a particular node,
 its references are also filtered out on that node — references attach to the
-aspect's effective presence, not its declaration. A \`when\`-filtered aspect
-contributes neither aspect content nor references to the reviewer prompt on
-filtered nodes.
+aspect's effective presence, not its declaration.
 
-### Drift cost
+### Cost
 
-Editing a referenced file cascades to every node where the referring
-aspect is effective. Run \`yg impact --file <ref>\` before editing a
-widely-referenced file.
-
-### Size limits
-
-Each reviewer tier in yg-config.yaml may declare:
-
-\`\`\`yaml
-reviewer:
-  tiers:
-    standard:
-      references:
-        max_bytes_per_file: 65536
-        max_total_bytes_per_aspect: 262144
-\`\`\`
-
-Defaults (when omitted): 64 KiB per file, 256 KiB total per aspect.
-Oversized references are rejected by \`yg check\`.
+Editing a referenced file invalidates every pair where the referring aspect is
+effective. Run \`yg impact --file <ref>\` before editing a widely-referenced file.
+A reference's bytes count toward the prompt-size gate — there is no separate
+reference byte cap; the prompt limit bounds the whole payload.
 
 ## Aspect status
 
-LLM aspects declare \`status: draft | advisory | enforced\` (default
-\`enforced\`) in \`yg-aspect.yaml\`. Status controls whether the reviewer is
-invoked and how violations are rendered. Draft aspects cost zero LLM calls
-(reviewer is skipped). Advisory and enforced both invoke the reviewer at
-full cost but differ in how \`yg check\` renders refused verdicts. See:
-\`yg knowledge read aspect-status\`.
+LLM aspects declare \`status: draft | advisory | enforced\` (default \`enforced\`).
+Status is rendering only. Draft produces no pairs (zero cost). Advisory and
+enforced both verify; they differ only in how a refused or unverified pair
+renders. See: \`yg knowledge read aspect-status\`.
 `;

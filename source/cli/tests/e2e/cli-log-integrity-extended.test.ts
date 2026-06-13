@@ -27,26 +27,30 @@ const distExists = existsSync(BIN_PATH);
 // ---------------------------------------------------------------------------
 // HERMETICITY
 //
-// Every scenario here is LLM-independent and network-free. The approve/check
-// cases run on `deterministicFixture` (the LLM aspect `has-doc-comment` is
-// stripped from the service type, so `yg approve` records only deterministic
-// verdicts and never contacts a reviewer endpoint). The log add/read and
-// merge-resolve cases never invoke the reviewer at all. No real host/port is
-// dialed; no wall clock or random source is read in assertions (log-entry
-// timestamps are produced by the binary and read back, never compared to the
-// current time). Each test works inside a fresh mkdtemp dir and removes it in
-// a finally block; the committed fixture bytes are never mutated.
+// Every scenario here is LLM-independent and network-free. The fill cases run on
+// `deterministicFixture` (the LLM aspect `has-doc-comment` is stripped from the
+// service type, so `yg check --approve` records only deterministic verdicts and
+// never contacts a reviewer endpoint). The log add/read and merge-resolve cases
+// never invoke the reviewer at all. No real host/port is dialed; no wall clock
+// or random source is read in assertions (log-entry timestamps are produced by
+// the binary and read back, never compared to the current time). Each test
+// works inside a fresh mkdtemp dir and removes it in a finally block; the
+// committed fixture bytes are never mutated.
 //
-// SCOPE — this suite covers the REMAINING log-domain error paths NOT already
-// asserted by cli-log-integrity.test.ts. Cases SKIPPED here because they are
-// already covered there:
-//   - mandatory-log gate refusal + the log-add-then-approve pass that clears it
-//   - level-2 heading in a --reason rejected / level-3 accepted
-//   - log read --top 2 (newest-first bound) and --top 0 (non-positive reject)
-//   - merge-resolve happy path, non-merge HEAD, tampered ancestor prefix
-// cli-lifecycle.test.ts additionally covers the basic log add / read / read
-// --all / read --top 1 / reason-file happy path / missing --node / missing
-// --reason / nonexistent-node smoke cases — not duplicated here.
+// MODEL — `yg approve` / `.drift-state/` are GONE; state lives in
+// `.yggdrasil/yg-lock.json`. Append-only integrity surfaces as `log-integrity`
+// and format as `log-format`, BOTH at plain `yg check` time (pure reads). The
+// `yg check` rendering shows only the violation-CODE summary line
+// (`Log integrity broken (<reason>)` / `Log format invalid at <path>:`) plus a
+// generic Why/Fix; the per-line FORMAT reason detail (`out_of_order`,
+// `invalid_datetime`, …) is surfaced by `yg log read`, which runs the same
+// validateFormat before rendering. So each format case asserts the code via
+// `yg check` AND the detailed reason via `yg log read`. The restore-from-git
+// guidance now names `.yggdrasil/yg-lock.json` (the log baseline lives there,
+// in `nodes.<path>.log`), not the removed `.drift-state/` path.
+//
+// SCOPE — this suite covers the REMAINING log-domain error paths NOT asserted
+// by cli-log-integrity.test.ts.
 // ---------------------------------------------------------------------------
 
 function run(
@@ -76,8 +80,8 @@ function copyFixture(label: string): string {
 
 /**
  * Copy the fixture and strip the LLM aspect (`has-doc-comment`) so the node's
- * effective aspects are purely deterministic. This makes the approve/check
- * lifecycle hermetic: no network, no LLM verdict, fully reproducible.
+ * effective aspects are purely deterministic. This makes the fill lifecycle
+ * hermetic: no network, no LLM verdict, fully reproducible.
  */
 function deterministicFixture(label: string): string {
   const dir = copyFixture(label);
@@ -98,22 +102,32 @@ const ordersLogPath = (dir: string) =>
   path.join(dir, '.yggdrasil', 'model', 'services', 'orders', 'log.md');
 
 /**
- * Seed services/orders with one approved log baseline. After this the node's
- * drift-state carries a `log` baseline (last_entry_datetime + prefix_hash), so
- * the append-only integrity check engages on any later log.md mutation. The
- * single deterministic-aspect approve is hermetic (no reviewer call).
+ * Seed services/orders with a log baseline of TWO entries, filled. After this
+ * the lock carries a `log` baseline (last_entry_datetime + prefix_hash) under
+ * `nodes.services/orders.log`, whose boundary is the SECOND entry — so the FIRST
+ * entry lives strictly inside the hashed prefix and later post-baseline appends
+ * are validated by the format check. The single-entry case records no `log`
+ * baseline (no prior prefix to protect), so two entries are required to engage
+ * append-only integrity. Fill is hermetic (deterministic-only, no reviewer).
  */
-function approveWithLogBaseline(dir: string, reason: string): void {
+function seedTwoEntryLogBaseline(dir: string, first: string, second: string): void {
+  expect(run(['log', 'add', '--node', 'services/orders', '--reason', first], dir).status).toBe(0);
+  expect(run(['check', '--approve'], dir).status).toBe(0);
+  expect(run(['log', 'add', '--node', 'services/orders', '--reason', second], dir).status).toBe(0);
+  expect(run(['check', '--approve'], dir).status).toBe(0);
+}
+
+/** Seed a single-entry log + fill — enough for post-baseline FORMAT appends. */
+function seedOneEntryLogBaseline(dir: string, reason: string): void {
   expect(run(['log', 'add', '--node', 'services/orders', '--reason', reason], dir).status).toBe(0);
-  expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+  expect(run(['check', '--approve'], dir).status).toBe(0);
 }
 
 // ---------------------------------------------------------------------------
-// merge-resolve git-repo builder. Mirrors cli-log-integrity.test.ts: drives the
-// REAL binary against a copy of the e2e-lifecycle graph. git stdio is piped (not
-// inherited) so conflict notices never leak into test output; the conflicting
-// `git merge` returns non-zero, which is tolerated (the conflict is then
-// hand-resolved with `resolvedLog`).
+// merge-resolve git-repo builder. Drives the REAL binary against a copy of the
+// e2e-lifecycle graph. git stdio is piped so conflict notices never leak; the
+// conflicting `git merge` returns non-zero, which is tolerated (the conflict is
+// then hand-resolved with `resolvedLog`).
 // ---------------------------------------------------------------------------
 
 const ANCESTOR_LOG = '## [2026-05-11T10:00:00.000Z]\nbase.\n';
@@ -125,12 +139,6 @@ function git(repo: string, cmd: string): void {
   execSync(`git ${cmd}`, { cwd: repo, stdio: 'pipe' });
 }
 
-/**
- * Build a throwaway git repo in mkdtemp seeded with the e2e-lifecycle graph, an
- * ancestor log entry on services/orders, then two divergent branches each
- * adding one entry, merged with a conflict left for the caller to resolve by
- * writing `resolvedLog` into log.md and committing the merge.
- */
 function buildMergeRepo(label: string, resolvedLog: string): string {
   const repo = mkdtempSync(path.join(tmpdir(), `yg-logmrx-${label}-`));
   cpSync(FIXTURE, repo, { recursive: true });
@@ -171,59 +179,53 @@ function buildMergeRepo(label: string, resolvedLog: string): string {
 describe.skipIf(!distExists)('CLI E2E — log integrity (append-only), format validation, add/read error paths', () => {
   // =========================================================================
   // APPEND-ONLY INTEGRITY — modifying pre-baseline log content
+  //
+  // A node is filled with a TWO-entry log baseline (the boundary is the SECOND
+  // entry; the FIRST is pre-baseline, inside the hashed prefix). Editing the
+  // FIRST entry's body changes the hashed prefix → validateAppendOnly returns
+  // `prefix_modified`. `yg check` surfaces it as code `log-integrity` with
+  // restore-from-git guidance that names log.md AND yg-lock.json (the log
+  // baseline lives in the lock now).
   // =========================================================================
 
-  // A node is approved with a log baseline (two entries; the boundary is the
-  // SECOND entry). Editing the FIRST (pre-baseline) entry's body changes the
-  // hashed prefix → validateAppendOnly returns `prefix_modified`. Both approve
-  // and check must surface the integrity error with restore-from-git guidance.
-
-  it('1a: approve refuses (exit 1) when pre-baseline log content is modified — prefix_modified', () => {
-    const dir = deterministicFixture('appendonly-approve');
+  it('1a: check refuses (exit 1) when pre-baseline log content is modified — prefix_modified', () => {
+    const dir = deterministicFixture('appendonly-check-a');
     try {
-      // Two entries so the integrity boundary is the SECOND; the FIRST is
-      // pre-baseline (inside the hashed prefix).
-      expect(run(['log', 'add', '--node', 'services/orders', '--reason', 'first entry body'], dir).status).toBe(0);
-      expect(run(['log', 'add', '--node', 'services/orders', '--reason', 'second entry body'], dir).status).toBe(0);
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      seedTwoEntryLogBaseline(dir, 'first entry body', 'second entry body');
 
       // Tamper an EARLIER (pre-baseline) line in place.
       const log = readFileSync(ordersLogPath(dir), 'utf-8');
       expect(log).toContain('first entry body');
       writeFileSync(ordersLogPath(dir), log.replace('first entry body', 'TAMPERED HISTORY'), 'utf-8');
 
-      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
+      const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('Log integrity broken (prefix_modified)');
       expect(all).toContain('Historical (pre-baseline) log content was modified — append-only violated.');
-      // Restore-from-git guidance names both the log.md and the drift-state file.
+      // Restore-from-git guidance names both the log.md and the lock file.
       expect(all).toContain('git checkout HEAD -- .yggdrasil/model/services/orders/log.md');
-      expect(all).toContain('.yggdrasil/.drift-state/services/orders.json');
+      expect(all).toContain('.yggdrasil/yg-lock.json');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('1b: check surfaces the same prefix_modified integrity error (exit 1, code log-integrity)', () => {
-    const dir = deterministicFixture('appendonly-check');
+  it('1b: check renders the integrity code (log-integrity) plus the offending node path (exit 1)', () => {
+    const dir = deterministicFixture('appendonly-check-b');
     try {
-      approveWithLogBaseline(dir, 'baseline entry one');
-      // Add a second entry + approve so the boundary advances; then tamper the
-      // first entry which now lives strictly inside the hashed prefix.
-      expect(run(['log', 'add', '--node', 'services/orders', '--reason', 'baseline entry two'], dir).status).toBe(0);
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      seedTwoEntryLogBaseline(dir, 'baseline entry one', 'baseline entry two');
 
       const log = readFileSync(ordersLogPath(dir), 'utf-8');
       writeFileSync(ordersLogPath(dir), log.replace('baseline entry one', 'EDITED'), 'utf-8');
 
-      const { status, stdout, all } = run(['check'], dir);
+      const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       // check renders the validation code plus the offending node path.
       expect(stdout).toContain('log-integrity');
       expect(stdout).toContain('services/orders');
-      expect(all).toContain('Log integrity broken (prefix_modified)');
-      expect(all).toContain('append-only violated');
-      expect(all).toContain('git checkout HEAD --');
+      expect(stdout).toContain('Log integrity broken (prefix_modified)');
+      expect(stdout).toContain('append-only violated');
+      expect(stdout).toContain('git checkout HEAD --');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -232,7 +234,8 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (append-only), format va
   it('1c: deleting log.md after a log baseline exists is detected as boundary_missing (exit 1)', () => {
     const dir = deterministicFixture('appendonly-deleted');
     try {
-      approveWithLogBaseline(dir, 'only entry');
+      // Two entries so a `log` baseline (boundary entry) is recorded in the lock.
+      seedTwoEntryLogBaseline(dir, 'first only entry', 'second only entry');
       // Remove the file entirely — the baseline boundary entry can no longer be
       // found, which validateAppendOnly reports as boundary_missing.
       rmSync(ordersLogPath(dir), { force: true });
@@ -252,26 +255,29 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (append-only), format va
   //
   // Each violation is APPENDED after the integrity boundary (post-baseline) so
   // the append-only check passes and the FORMAT validator is the gate that
-  // fires. A pre-baseline format corruption would instead trip the integrity
-  // check first (it runs before the format check and any pre-baseline byte
-  // change alters the prefix hash), so the format validator's own
-  // "pre-baseline" classification is shadowed for in-prefix edits and is not
-  // asserted here.
+  // fires. `yg check` surfaces the violation as code `log-format` (summary line
+  // only); the per-line reason detail (out_of_order, invalid_datetime, …) is
+  // surfaced by `yg log read`, which runs the same validateFormat. Both are
+  // asserted: the code via check, the reason via read.
   // =========================================================================
 
   it('2a: an out-of-order (older) appended entry is rejected as out_of_order (exit 1, post-baseline)', () => {
     const dir = deterministicFixture('fmt-out-of-order');
     try {
-      approveWithLogBaseline(dir, 'base entry');
+      seedOneEntryLogBaseline(dir, 'base entry');
       // Append an entry whose datetime is OLDER than the existing one.
       appendFileSync(ordersLogPath(dir), '## [2020-01-01T00:00:00.000Z]\nolder than base\n');
 
-      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
-      expect(status).toBe(1);
-      expect(all).toContain('Log format invalid');
-      expect(all).toContain('out_of_order');
-      expect(all).toContain('is not strictly greater than previous');
-      expect(all).toContain('Post-baseline violation (editable)');
+      // check surfaces the format violation by code.
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      expect(check.all).toContain('log-format');
+      expect(check.all).toContain('Log format invalid at .yggdrasil/model/services/orders/log.md');
+      // read surfaces the per-line reason detail.
+      const read = run(['log', 'read', '--node', 'services/orders'], dir);
+      expect(read.status).toBe(1);
+      expect(read.all).toContain('out_of_order');
+      expect(read.all).toContain('is not strictly greater than previous');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -280,17 +286,18 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (append-only), format va
   it('2b: an entry whose datetime is parseable but non-strict is rejected as invalid_datetime (exit 1)', () => {
     const dir = deterministicFixture('fmt-invalid-datetime');
     try {
-      approveWithLogBaseline(dir, 'base entry');
+      seedOneEntryLogBaseline(dir, 'base entry');
       // 2027-06-01T10:00:00Z is parseable by Date.parse but lacks the required
-      // milliseconds, so the strict ISO check rejects it as invalid_datetime
-      // (distinct from invalid_header, which is for entirely unparseable text).
+      // milliseconds, so the strict ISO check rejects it as invalid_datetime.
       appendFileSync(ordersLogPath(dir), '## [2027-06-01T10:00:00Z]\nbody\n');
 
-      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
-      expect(status).toBe(1);
-      expect(all).toContain('Log format invalid');
-      expect(all).toContain('invalid_datetime');
-      expect(all).toContain('ISO 8601 UTC with milliseconds and Z suffix');
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      expect(check.all).toContain('log-format');
+      const read = run(['log', 'read', '--node', 'services/orders'], dir);
+      expect(read.status).toBe(1);
+      expect(read.all).toContain('invalid_datetime');
+      expect(read.all).toContain('ISO 8601 UTC with milliseconds and Z suffix');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -299,14 +306,16 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (append-only), format va
   it('2c: an entry header with entirely unparseable datetime is rejected as invalid_header (exit 1)', () => {
     const dir = deterministicFixture('fmt-invalid-header');
     try {
-      approveWithLogBaseline(dir, 'base entry');
+      seedOneEntryLogBaseline(dir, 'base entry');
       appendFileSync(ordersLogPath(dir), '## [2026-13-99 not-a-date]\nbody\n');
 
-      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
-      expect(status).toBe(1);
-      expect(all).toContain('Log format invalid');
-      expect(all).toContain('invalid_header');
-      expect(all).toContain('is not parseable');
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      expect(check.all).toContain('log-format');
+      const read = run(['log', 'read', '--node', 'services/orders'], dir);
+      expect(read.status).toBe(1);
+      expect(read.all).toContain('invalid_header');
+      expect(read.all).toContain('is not parseable');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -315,18 +324,20 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (append-only), format va
   it('2d: an unclosed code fence is rejected as unclosed_code_fence (exit 1)', () => {
     const dir = deterministicFixture('fmt-unclosed-fence');
     try {
-      approveWithLogBaseline(dir, 'base entry');
+      seedOneEntryLogBaseline(dir, 'base entry');
       // Open a fence in a new entry's body and never close it before EOF.
       appendFileSync(
         ordersLogPath(dir),
         '## [2027-01-01T00:00:00.000Z]\nbody\n```\nopen fence never closed\n',
       );
 
-      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
-      expect(status).toBe(1);
-      expect(all).toContain('Log format invalid');
-      expect(all).toContain('unclosed_code_fence');
-      expect(all).toContain('opened but never closed');
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      expect(check.all).toContain('log-format');
+      const read = run(['log', 'read', '--node', 'services/orders'], dir);
+      expect(read.status).toBe(1);
+      expect(read.all).toContain('unclosed_code_fence');
+      expect(read.all).toContain('opened but never closed');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -335,7 +346,7 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (append-only), format va
   it('2e: a stray level-2 heading inside an entry body is rejected as level2_header_in_body (exit 1)', () => {
     const dir = deterministicFixture('fmt-stray-h2');
     try {
-      approveWithLogBaseline(dir, 'base entry');
+      seedOneEntryLogBaseline(dir, 'base entry');
       // A level-2 heading written directly into log.md body (cannot be produced
       // via `yg log add`, which rejects it up front — the base suite covers that
       // path; here it is hand-written into the file to drive the FILE validator).
@@ -344,28 +355,27 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (append-only), format va
         '## [2027-02-01T00:00:00.000Z]\nbody line\n## Stray top-level heading\nmore\n',
       );
 
-      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
-      expect(status).toBe(1);
-      expect(all).toContain('Log format invalid');
-      expect(all).toContain('level2_header_in_body');
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      expect(check.all).toContain('log-format');
+      const read = run(['log', 'read', '--node', 'services/orders'], dir);
+      expect(read.status).toBe(1);
+      expect(read.all).toContain('level2_header_in_body');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('2f: check surfaces the format violation as code log-format (exit 1)', () => {
+  it('2f: check surfaces the format violation as code log-format with the node path (exit 1)', () => {
     const dir = deterministicFixture('fmt-via-check');
     try {
-      approveWithLogBaseline(dir, 'base entry');
-      // Approve payments too so the ONLY remaining error is the log-format one.
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      seedOneEntryLogBaseline(dir, 'base entry');
       appendFileSync(ordersLogPath(dir), '## [2020-01-01T00:00:00.000Z]\nolder\n');
 
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       // check renders the validation code, the offending node path, and the
-      // first line of the `what` block (the per-line reason detail lives in the
-      // full message data but check shows only the summary line + Why/Fix).
+      // summary line of the `what` block.
       expect(stdout).toContain('log-format');
       expect(stdout).toContain('services/orders');
       expect(stdout).toContain('Log format invalid at .yggdrasil/model/services/orders/log.md');

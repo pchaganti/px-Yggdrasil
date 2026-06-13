@@ -1,7 +1,0 @@
-name: bounty4 aspects-overview
-type: test-suite
-description: "Bug-bounty suites: aspects-overview (~17462 chars)."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/bounty4/aspects-overview.test.ts

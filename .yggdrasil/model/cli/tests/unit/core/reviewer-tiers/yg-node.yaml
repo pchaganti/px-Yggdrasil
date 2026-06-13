@@ -4,5 +4,4 @@ description: "Unit tests for v5 reviewer-tiers — tier-identity canonical JSON 
 aspects: []
 relations: []
 mapping:
-  - source/cli/tests/unit/core/tier-identity.test.ts
   - source/cli/tests/unit/core/tier-selection.test.ts

@@ -99,9 +99,9 @@ const CONFIG = [
  *
  * Every `service` carries the benign `base-ok` channel-3 type default — a
  * zero-violation deterministic aspect. It guarantees every leaf has at least one
- * effective ENFORCED aspect, so `yg approve` can always record a baseline even
- * in the exclude scenarios where the aspect under test is `when`-filtered out
- * (a node with only draft/no aspects refuses approve with "reviewer skipped").
+ * effective ENFORCED aspect, so `yg check --approve` can always record a verdict
+ * even in the exclude scenarios where the aspect under test is `when`-filtered
+ * out (a node with no effective enforced aspect would have nothing to fill).
  * It never contributes a violation, so it does not interfere with any assertion.
  */
 function architecture(moduleAspects: string[]): string {
@@ -281,12 +281,14 @@ describe.skipIf(!distExists)(
         expect(ctx.stdout).toContain('Source: inherited from parent (type: module)');
 
         // Enforcement crosses the extra generation: clean passes, BANNED refuses.
-        expect(run(['approve', '--node', 'root/sub/leaf'], dir).status).toBe(0);
+        expect(run(['check', '--approve'], dir).status).toBe(0);
         plantBanned(dir, 'src/root-sub-leaf.ts');
-        const refused = run(['approve', '--node', 'root/sub/leaf'], dir);
+        const refused = run(['check', '--approve'], dir);
         expect(refused.status).toBe(1);
         expect(refused.all).toContain('no-banned-word');
-        expect(refused.all).toContain('NOT SATISFIED');
+        expect(refused.all).toContain(
+          'is refused on node:root/sub/leaf by a deterministic check',
+        );
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -313,12 +315,14 @@ describe.skipIf(!distExists)(
         expect(ctx.stdout).toContain("Source: inherited from parent 'root'");
         expect(ctx.stdout).not.toContain("inherited from parent 'root/sub'");
 
-        expect(run(['approve', '--node', 'root/sub/leaf'], dir).status).toBe(0);
+        expect(run(['check', '--approve'], dir).status).toBe(0);
         plantBanned(dir, 'src/root-sub-leaf.ts');
-        const refused = run(['approve', '--node', 'root/sub/leaf'], dir);
+        const refused = run(['check', '--approve'], dir);
         expect(refused.status).toBe(1);
         expect(refused.all).toContain('no-banned-word');
-        expect(refused.all).toContain('NOT SATISFIED');
+        expect(refused.all).toContain(
+          'is refused on node:root/sub/leaf by a deterministic check',
+        );
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -402,12 +406,14 @@ describe.skipIf(!distExists)(
         expect(ctx.stdout).toContain(EFF('enforced'));
         expect(ctx.stdout).toContain("Source: inherited from parent 'root'");
 
-        expect(run(['approve', '--node', 'root/leaf'], dir).status).toBe(0);
+        expect(run(['check', '--approve'], dir).status).toBe(0);
         plantBanned(dir, 'src/root-leaf.ts');
-        const refused = run(['approve', '--node', 'root/leaf'], dir);
+        const refused = run(['check', '--approve'], dir);
         expect(refused.status).toBe(1);
         expect(refused.all).toContain('no-banned-word');
-        expect(refused.all).toContain('NOT SATISFIED');
+        expect(refused.all).toContain(
+          'is refused on node:root/leaf by a deterministic check',
+        );
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -420,11 +426,13 @@ describe.skipIf(!distExists)(
         expect(ctx.status).toBe(0);
         expect(ctx.stdout).toContain(EFF('enforced'));
 
-        expect(run(['approve', '--node', 'root/leaf'], dir).status).toBe(0);
+        expect(run(['check', '--approve'], dir).status).toBe(0);
         plantBanned(dir, 'src/root-leaf.ts');
-        const refused = run(['approve', '--node', 'root/leaf'], dir);
+        const refused = run(['check', '--approve'], dir);
         expect(refused.status).toBe(1);
-        expect(refused.all).toContain('NOT SATISFIED');
+        expect(refused.all).toContain(
+          'is refused on node:root/leaf by a deterministic check',
+        );
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -437,11 +445,13 @@ describe.skipIf(!distExists)(
         expect(ctx.status).toBe(0);
         expect(ctx.stdout).toContain(EFF('enforced'));
 
-        expect(run(['approve', '--node', 'root/leaf'], dir).status).toBe(0);
+        expect(run(['check', '--approve'], dir).status).toBe(0);
         plantBanned(dir, 'src/root-leaf.ts');
-        const refused = run(['approve', '--node', 'root/leaf'], dir);
+        const refused = run(['check', '--approve'], dir);
         expect(refused.status).toBe(1);
-        expect(refused.all).toContain('NOT SATISFIED');
+        expect(refused.all).toContain(
+          'is refused on node:root/leaf by a deterministic check',
+        );
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -478,12 +488,12 @@ describe.skipIf(!distExists)(
         expect(ctx.stdout).not.toContain('no-banned-word');
 
         // The gate is real — a BANNED token that refuses when the atom is TRUE
-        // (B2) approves clean here because the wrong relation type is present.
+        // (B2) fills clean here because the wrong relation type is present.
         plantBanned(dir, 'src/root-leaf.ts');
-        const approve = run(['approve', '--node', 'root/leaf'], dir);
-        expect(approve.status).toBe(0);
-        expect(approve.stdout).toContain('Approved: root/leaf');
-        expect(approve.all).not.toContain('no-banned-word');
+        const fill = run(['check', '--approve'], dir);
+        expect(fill.status).toBe(0);
+        expect(fill.stdout).toContain('yg check: PASS');
+        expect(fill.all).not.toContain('no-banned-word');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -570,20 +580,22 @@ describe.skipIf(!distExists)(
         expect(onPeer.stdout).not.toContain('no-banned-word');
 
         // Enforcement follows: identical BANNED token refuses the emitter,
-        // passes the listener.
-        expect(run(['approve', '--node', 'root/leaf'], dir).status).toBe(0);
-        expect(run(['approve', '--node', 'root/peer'], dir).status).toBe(0);
+        // passes the listener. A clean repo-wide fill records both; planting
+        // BANNED in BOTH sources then refuses ONLY the emitter (where the gated
+        // aspect is effective) — the listener holds no no-banned-word pair.
+        expect(run(['check', '--approve'], dir).status).toBe(0);
         plantBanned(dir, 'src/root-leaf.ts');
         plantBanned(dir, 'src/root-peer.ts');
 
-        const refused = run(['approve', '--node', 'root/leaf'], dir);
-        expect(refused.status).toBe(1);
-        expect(refused.all).toContain('NOT SATISFIED');
-
-        const passed = run(['approve', '--node', 'root/peer'], dir);
-        expect(passed.status).toBe(0);
-        expect(passed.stdout).toContain('Approved: root/peer');
-        expect(passed.all).not.toContain('no-banned-word');
+        const fill = run(['check', '--approve'], dir);
+        expect(fill.status).toBe(1);
+        expect(fill.all).toContain(
+          'is refused on node:root/leaf by a deterministic check',
+        );
+        // The listener is gated out — no no-banned-word refusal names it.
+        expect(fill.all).not.toContain(
+          'no-banned-word\' is refused on node:root/peer',
+        );
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -708,11 +720,13 @@ describe.skipIf(!distExists)(
         expect(ctx.status).toBe(0);
         expect(ctx.stdout).toContain(EFF('enforced'));
 
-        expect(run(['approve', '--node', 'root/leaf'], dir).status).toBe(0);
+        expect(run(['check', '--approve'], dir).status).toBe(0);
         plantBanned(dir, 'src/root-leaf.ts');
-        const refused = run(['approve', '--node', 'root/leaf'], dir);
+        const refused = run(['check', '--approve'], dir);
         expect(refused.status).toBe(1);
-        expect(refused.all).toContain('NOT SATISFIED');
+        expect(refused.all).toContain(
+          'is refused on node:root/leaf by a deterministic check',
+        );
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -732,10 +746,10 @@ describe.skipIf(!distExists)(
         expect(ctx.stdout).not.toContain('no-banned-word');
 
         plantBanned(dir, 'src/root-leaf.ts');
-        const approve = run(['approve', '--node', 'root/leaf'], dir);
-        expect(approve.status).toBe(0);
-        expect(approve.stdout).toContain('Approved: root/leaf');
-        expect(approve.all).not.toContain('no-banned-word');
+        const fill = run(['check', '--approve'], dir);
+        expect(fill.status).toBe(0);
+        expect(fill.stdout).toContain('yg check: PASS');
+        expect(fill.all).not.toContain('no-banned-word');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -761,9 +775,10 @@ describe.skipIf(!distExists)(
         expect(ctx.stdout).not.toContain('no-banned-word');
 
         plantBanned(dir, 'src/root-leaf.ts');
-        const approve = run(['approve', '--node', 'root/leaf'], dir);
-        expect(approve.status).toBe(0);
-        expect(approve.stdout).toContain('Approved: root/leaf');
+        const fill = run(['check', '--approve'], dir);
+        expect(fill.status).toBe(0);
+        expect(fill.stdout).toContain('yg check: PASS');
+        expect(fill.all).not.toContain('no-banned-word');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -823,14 +838,17 @@ describe.skipIf(!distExists)(
         expect(ctx.stdout).toContain('no-banned-word [enforced]');
         expect(ctx.stdout).toContain("implied by 'implier'");
 
-        expect(run(['approve', '--node', 'root/leaf'], dir).status).toBe(0);
+        expect(run(['check', '--approve'], dir).status).toBe(0);
         plantBanned(dir, 'src/root-leaf.ts');
-        const refused = run(['approve', '--node', 'root/leaf'], dir);
+        const refused = run(['check', '--approve'], dir);
         expect(refused.status).toBe(1);
         expect(refused.stdout).toContain('no-banned-word');
-        expect(refused.stdout).toContain('NOT SATISFIED');
-        // The implier itself (no BANNED rule of its own) is satisfied.
-        expect(refused.stdout).toContain('implier — SATISFIED');
+        expect(refused.stdout).toContain(
+          'is refused on node:root/leaf by a deterministic check',
+        );
+        // The implier itself (no BANNED rule of its own) is satisfied — its fill
+        // pair is approved, only the implied aspect refused.
+        expect(refused.stdout).toContain('[det] implier on node:root/leaf — approved');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -844,13 +862,12 @@ describe.skipIf(!distExists)(
         expect(ctx.status).toBe(0);
         expect(ctx.stdout).toContain('no-banned-word [advisory]');
 
-        expect(run(['approve', '--node', 'root/peer'], own).status).toBe(0);
         plantBanned(own, 'src/root-leaf.ts');
-        const approve = run(['approve', '--node', 'root/leaf'], own);
-        // Advisory → recorded but NON-blocking → approve exits 0.
-        expect(approve.status).toBe(0);
-        expect(approve.all).toContain('no-banned-word');
-        expect(approve.all).toContain('advisory');
+        const fill = run(['check', '--approve'], own);
+        // Advisory → recorded but NON-blocking → fill exits 0.
+        expect(fill.status).toBe(0);
+        expect(fill.all).toContain('no-banned-word');
+        expect(fill.all).toContain('advisory');
 
         const check = run(['check'], own);
         expect(check.status).toBe(0);
@@ -868,12 +885,14 @@ describe.skipIf(!distExists)(
         // strictest promotes the advisory default up to the implier's enforced.
         expect(ctx.stdout).toContain('no-banned-word [enforced]');
 
-        expect(run(['approve', '--node', 'root/leaf'], strict).status).toBe(0);
+        expect(run(['check', '--approve'], strict).status).toBe(0);
         plantBanned(strict, 'src/root-leaf.ts');
-        const refused = run(['approve', '--node', 'root/leaf'], strict);
+        const refused = run(['check', '--approve'], strict);
         expect(refused.status).toBe(1);
         expect(refused.stdout).toContain('no-banned-word');
-        expect(refused.stdout).toContain('NOT SATISFIED');
+        expect(refused.stdout).toContain(
+          'is refused on node:root/leaf by a deterministic check',
+        );
       } finally {
         rmSync(strict, { recursive: true, force: true });
       }
@@ -926,11 +945,13 @@ describe.skipIf(!distExists)(
         // No downgrade error — raising via a second channel is always legal.
         expect(ctx.all).not.toContain('aspect-status-downgrade');
 
-        expect(run(['approve', '--node', 'root/leaf'], dir).status).toBe(0);
+        expect(run(['check', '--approve'], dir).status).toBe(0);
         plantBanned(dir, 'src/root-leaf.ts');
-        const refused = run(['approve', '--node', 'root/leaf'], dir);
+        const refused = run(['check', '--approve'], dir);
         expect(refused.status).toBe(1);
-        expect(refused.stdout).toContain('NOT SATISFIED');
+        expect(refused.stdout).toContain(
+          'is refused on node:root/leaf by a deterministic check',
+        );
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }

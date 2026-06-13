@@ -1,0 +1,11 @@
+name: Invalidation detection
+description: "Detect which stored verdicts no longer hold — yg check loads the graph, computes the expected (aspect, unit) pairs, and re-hashes each against current source and observations, surfacing every missing or stale pair as unverified without writing anything."
+aspects:
+  - deterministic
+  - what-why-next
+nodes:
+  - cli/commands/check
+  - cli/core/loader
+  - cli/core/check
+  - cli/core/verify-lock
+  - cli/core/pairs

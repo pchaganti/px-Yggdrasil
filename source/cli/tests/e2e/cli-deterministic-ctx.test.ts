@@ -17,14 +17,16 @@ import { fileURLToPath } from 'node:url';
 // E2E suite — the GRAPH-AWARE deterministic check.mjs surface.
 //
 // Proves, end-to-end against the real built binary, the four pillars of the
-// graph-aware deterministic reviewer that have zero E2E coverage today:
+// graph-aware deterministic reviewer:
 //   * ctx.graph (node lookup, children) — cross-node topology rules
 //   * ctx.fs (exists/list/read) — file-system shape rules
 //   * ctx.parseAst — syntax-tree inspection inside a graph-aware check
 //   * the allowed-reads boundary — UndeclaredGraphReadError /
 //     structure-aspect-undeclared-graph-read when a check reaches outside it
-// plus the `yg deterministic-test` command surface: --node (graph-scoped),
-// --files (ad-hoc), and --check-determinism.
+// plus the `yg aspect-test` command surface: --node (graph-scoped),
+// --files (ad-hoc), and --check-determinism — and the `yg check --approve`
+// (fill) enforcement surface, which records each (aspect, unit) verdict in
+// .yggdrasil/yg-lock.json with its `touched` observation set.
 //
 // Every aspect / check.mjs used here is AUTHORED INTO A FRESH mkdtemp COPY of
 // the committed e2e-lifecycle fixture. The committed fixture is never mutated;
@@ -125,8 +127,35 @@ function attachAspectToNode(dir: string, nodePath: string, aspectId: string): vo
 
 const ordersFile = (dir: string) => path.join(dir, 'src', 'services', 'orders.ts');
 
-const baselinePath = (dir: string, node: string) =>
-  path.join(dir, '.yggdrasil', '.drift-state', ...node.split('/')) + '.json';
+/** The single state file of the verdict-lock model (replaces .drift-state/<node>.json). */
+const lockPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-lock.json');
+
+interface LockVerdict {
+  hash: string;
+  verdict: 'approved' | 'refused';
+  reason?: string;
+  /** Observation set folded into the verdict hash: [observationKey, hash] pairs. */
+  touched?: Array<[string, string]>;
+}
+
+/**
+ * Read the stored verdict (and its `touched` observation set) for an
+ * (aspect, node) pair from the verdict lock, or undefined if the pair has no
+ * recorded verdict. The lock keys by aspect first, then unitKey
+ * (`node:<model-relative path>`).
+ */
+function lockVerdict(dir: string, aspectId: string, node: string): LockVerdict | undefined {
+  if (!existsSync(lockPath(dir))) return undefined;
+  const lock = JSON.parse(readFileSync(lockPath(dir), 'utf-8')) as {
+    verdicts?: Record<string, Record<string, LockVerdict>>;
+  };
+  return lock.verdicts?.[aspectId]?.[`node:${node}`];
+}
+
+/** The observation keys (read:/list:/exists:/graph:) folded into a pair's verdict hash. */
+function touchedKeys(dir: string, aspectId: string, node: string): string[] {
+  return (lockVerdict(dir, aspectId, node)?.touched ?? []).map(([key]) => key);
+}
 
 // ---------------------------------------------------------------------------
 // Reusable check.mjs sources (authored into the temp copy at run time).
@@ -149,7 +178,7 @@ const CHILD_TYPE_CHECK = `export function check(ctx) {
 
 // Graph + file rule: the node's own source file (read back through
 // ctx.graph.node(ctx.node.id), always inside the allowed set) must export a
-// create* function. Attached to a node WITH files so `yg approve` evaluates it.
+// create* function. Attached to a node WITH files so the fill evaluates it.
 const GRAPH_NAME_MATCH_CHECK = `export function check(ctx) {
   const violations = [];
   const self = ctx.graph.node(ctx.node.id);
@@ -243,34 +272,39 @@ const GLOB_GRAPH_FILES_CHECK = `export function check(ctx) {
 }
 `;
 
-describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface + deterministic-test', () => {
+describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface + aspect-test + fill', () => {
   // -------------------------------------------------------------------------
-  // Scenario 1: GRAPH-AWARE check passes/refuses through yg approve.
+  // Scenario 1: GRAPH-AWARE check passes/refuses through the yg check --approve fill.
   // -------------------------------------------------------------------------
 
-  it('S1a: a graph-aware (ctx.graph + ctx.files) rule that HOLDS passes deterministic-test and approve', () => {
+  it('S1a: a graph-aware (ctx.graph + ctx.files) rule that HOLDS passes aspect-test and fill (verdict + touched recorded)', () => {
     const dir = deterministicFixture('s1a');
     try {
       writeAspect(dir, 'graph-name-match', 'Service file must export a create* function (read via ctx.graph).', GRAPH_NAME_MATCH_CHECK);
       attachAspectToNode(dir, 'services/orders', 'graph-name-match');
 
-      // deterministic-test --node confirms the rule holds with the real ctx.
-      const test = run(['deterministic-test', '--aspect', 'graph-name-match', '--node', 'services/orders'], dir);
+      // aspect-test --node confirms the rule holds with the real graph-aware ctx.
+      const test = run(['aspect-test', '--aspect', 'graph-name-match', '--node', 'services/orders'], dir);
       expect(test.status).toBe(0);
       expect(test.all).toContain('No violations.');
+      // aspect-test is diagnostic only — it never writes the lock.
+      expect(test.all).toContain('diagnostic only — lock unchanged; yg check still reports the stored verdict');
 
-      // approve evaluates the same graph-aware aspect and records a baseline.
-      run(['log', 'add', '--node', 'services/orders', '--reason', 'attach graph-aware export rule'], dir);
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.all).toContain('Approved: services/orders');
-      expect(existsSync(baselinePath(dir, 'services/orders'))).toBe(true);
+      // The fill evaluates the same graph-aware aspect and records an approved
+      // verdict in the lock, with the node's graph observation in `touched`.
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.all).toContain('[det] graph-name-match on node:services/orders — approved');
+      expect(lockVerdict(dir, 'graph-name-match', 'services/orders')?.verdict).toBe('approved');
+      // The check read its own node through ctx.graph.node — that folds a
+      // graph:<node> observation into the verdict hash.
+      expect(touchedKeys(dir, 'graph-name-match', 'services/orders')).toContain('graph:services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('S1b: breaking the graph-aware rule makes approve REFUSE (exit 1) naming the aspect', () => {
+  it('S1b: breaking the graph-aware rule makes the fill REFUSE (exit 1) and records a refused verdict naming the aspect', () => {
     const dir = deterministicFixture('s1b');
     try {
       writeAspect(dir, 'graph-name-match', 'Service file must export a create* function (read via ctx.graph).', GRAPH_NAME_MATCH_CHECK);
@@ -283,13 +317,19 @@ describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface 
       );
       writeFileSync(ordersFile(dir), broken, 'utf-8');
 
-      run(['log', 'add', '--node', 'services/orders', '--reason', 'rename create export to exercise refusal'], dir);
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(1);
-      expect(approve.all).toContain('graph-name-match');
-      expect(approve.all).toContain('NOT SATISFIED');
-      // The violation message produced by the graph-aware check surfaces.
-      expect(approve.all).toContain("Service must export a create* function (node 'services/orders').");
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      // The fill records the refusal and the check renderer surfaces the enforced
+      // refusal as a blocking error naming the aspect.
+      expect(fill.all).toContain('[det] graph-name-match on node:services/orders — refused');
+      expect(fill.all).toContain(
+        "Aspect 'graph-name-match' is refused on node:services/orders by a deterministic check.",
+      );
+      // The graph-aware check's violation message is preserved in the lock reason.
+      expect(lockVerdict(dir, 'graph-name-match', 'services/orders')?.verdict).toBe('refused');
+      expect(lockVerdict(dir, 'graph-name-match', 'services/orders')?.reason).toContain(
+        "Service must export a create* function (node 'services/orders').",
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -302,7 +342,7 @@ describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface 
       attachAspectToNode(dir, 'services', 'child-type');
 
       // HOLDS: all children of `services` (orders, payments) are type `service`.
-      const ok = run(['deterministic-test', '--aspect', 'child-type', '--node', 'services'], dir);
+      const ok = run(['aspect-test', '--aspect', 'child-type', '--node', 'services'], dir);
       expect(ok.status).toBe(0);
       expect(ok.all).toContain('No violations.');
 
@@ -315,7 +355,7 @@ describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface 
         'utf-8',
       );
 
-      const broken = run(['deterministic-test', '--aspect', 'child-type', '--node', 'services'], dir);
+      const broken = run(['aspect-test', '--aspect', 'child-type', '--node', 'services'], dir);
       expect(broken.status).toBe(1);
       // Graph-level violation (no file) renders under the <graph> bucket.
       expect(broken.all).toContain('<graph>');
@@ -337,18 +377,23 @@ describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface 
 
       // services/payments is a SIBLING of services/orders — not ancestor,
       // descendant, or relation target — so it is outside the allowed reads set.
-      const test = run(['deterministic-test', '--aspect', 'cross-read', '--node', 'services/orders'], dir);
+      // aspect-test --node renders the boundary breach as an actionable violation.
+      const test = run(['aspect-test', '--aspect', 'cross-read', '--node', 'services/orders'], dir);
       expect(test.status).toBe(1);
       // The runner converts UndeclaredGraphReadError into an actionable violation.
       expect(test.all).toContain("Aspect tried to read undeclared graph node 'services/payments'");
       expect(test.all).toContain('Add a relation in yg-node.yaml');
 
-      // The same boundary error blocks approve (exit 1) and names the aspect.
-      run(['log', 'add', '--node', 'services/orders', '--reason', 'attach boundary-violating check'], dir);
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(1);
-      expect(approve.all).toContain('cross-read');
-      expect(approve.all).toContain('NOT SATISFIED');
+      // The same boundary error blocks the fill (exit 1): the check crashed on the
+      // undeclared read, so its pair is classified aspect-check-runtime-error and
+      // left unverified rather than recording a verdict.
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      expect(fill.all).toContain('cross-read');
+      expect(fill.all).toContain('aspect-check-runtime-error');
+      expect(fill.all).toContain("Aspect tried to read undeclared graph node 'services/payments'");
+      // No verdict was written for the crashing pair.
+      expect(lockVerdict(dir, 'cross-read', 'services/orders')).toBeUndefined();
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -364,7 +409,7 @@ describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface 
       writeAspect(dir, 'ast-exports', 'Service file must contain at least one exported declaration (via ctx.parseAst).', AST_EXPORTS_CHECK);
       attachAspectToNode(dir, 'services/orders', 'ast-exports');
 
-      const test = run(['deterministic-test', '--aspect', 'ast-exports', '--node', 'services/orders'], dir);
+      const test = run(['aspect-test', '--aspect', 'ast-exports', '--node', 'services/orders'], dir);
       expect(test.status).toBe(0);
       expect(test.all).toContain('No violations.');
     } finally {
@@ -382,7 +427,7 @@ describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface 
       const stripped = readFileSync(ordersFile(dir), 'utf-8').replace(/^export /gm, '');
       writeFileSync(ordersFile(dir), stripped, 'utf-8');
 
-      const test = run(['deterministic-test', '--aspect', 'ast-exports', '--node', 'services/orders'], dir);
+      const test = run(['aspect-test', '--aspect', 'ast-exports', '--node', 'services/orders'], dir);
       expect(test.status).toBe(1);
       expect(test.all).toContain('No exported declarations found');
       // Confirms parseAst actually walked the tree and found zero exports.
@@ -393,7 +438,7 @@ describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface 
   });
 
   // -------------------------------------------------------------------------
-  // Scenario 4: yg deterministic-test --check-determinism.
+  // Scenario 4: yg aspect-test --check-determinism.
   // -------------------------------------------------------------------------
 
   it('S4a: --check-determinism passes for a STABLE graph-aware check (exit 0)', () => {
@@ -403,7 +448,7 @@ describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface 
       attachAspectToNode(dir, 'services/orders', 'graph-name-match');
 
       const test = run(
-        ['deterministic-test', '--aspect', 'graph-name-match', '--node', 'services/orders', '--check-determinism'],
+        ['aspect-test', '--aspect', 'graph-name-match', '--node', 'services/orders', '--check-determinism'],
         dir,
       );
       expect(test.status).toBe(0);
@@ -424,7 +469,7 @@ describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface 
       attachAspectToNode(dir, 'services/orders', 'flaky');
 
       const test = run(
-        ['deterministic-test', '--aspect', 'flaky', '--node', 'services/orders', '--check-determinism'],
+        ['aspect-test', '--aspect', 'flaky', '--node', 'services/orders', '--check-determinism'],
         dir,
       );
       expect(test.status).toBe(1);
@@ -455,13 +500,13 @@ describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface 
       attachAspectToNode(dir, 'services/orders', 'graph-name-match');
 
       // --node: graph-aware ctx is available, rule holds.
-      const node = run(['deterministic-test', '--aspect', 'graph-name-match', '--node', 'services/orders'], dir);
+      const node = run(['aspect-test', '--aspect', 'graph-name-match', '--node', 'services/orders'], dir);
       expect(node.status).toBe(0);
       expect(node.all).toContain('No violations.');
 
       // --files: ad-hoc single-file runner — ctx.graph is undefined, so the
       // graph-aware check throws. exit 1, error names the aspect.
-      const files = run(['deterministic-test', '--aspect', 'graph-name-match', '--files', 'src/services/orders.ts'], dir);
+      const files = run(['aspect-test', '--aspect', 'graph-name-match', '--files', 'src/services/orders.ts'], dir);
       expect(files.status).toBe(1);
       expect(files.all).toContain("check.mjs threw an exception while running (aspect 'graph-name-match')");
       // ctx.graph is absent in --files mode — the thrown error reflects that.
@@ -476,13 +521,13 @@ describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface 
     try {
       // The fixture ships `no-todo-comments` — a pure ctx.files check. In --files
       // mode it runs ad-hoc with no node/graph: a clean file passes, a TODO flags.
-      const clean = run(['deterministic-test', '--aspect', 'no-todo-comments', '--files', 'src/services/orders.ts'], dir);
+      const clean = run(['aspect-test', '--aspect', 'no-todo-comments', '--files', 'src/services/orders.ts'], dir);
       expect(clean.status).toBe(0);
       expect(clean.all).toContain('No violations.');
 
       const withTodo = readFileSync(ordersFile(dir), 'utf-8') + '\n// TODO: ad-hoc check should flag this\n';
       writeFileSync(ordersFile(dir), withTodo, 'utf-8');
-      const flagged = run(['deterministic-test', '--aspect', 'no-todo-comments', '--files', 'src/services/orders.ts'], dir);
+      const flagged = run(['aspect-test', '--aspect', 'no-todo-comments', '--files', 'src/services/orders.ts'], dir);
       expect(flagged.status).toBe(1);
       expect(flagged.all).toContain('TODO comment found');
     } finally {
@@ -494,11 +539,11 @@ describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface 
   // Mode guards (cheap, hermetic) — exactly-one-mode contract.
   // -------------------------------------------------------------------------
 
-  it('S5c: deterministic-test rejects both --node and --files together (exit 1)', () => {
+  it('S5c: aspect-test rejects both --node and --files together (exit 1)', () => {
     const dir = deterministicFixture('s5c');
     try {
       const test = run(
-        ['deterministic-test', '--aspect', 'no-todo-comments', '--node', 'services/orders', '--files', 'src/services/orders.ts'],
+        ['aspect-test', '--aspect', 'no-todo-comments', '--node', 'services/orders', '--files', 'src/services/orders.ts'],
         dir,
       );
       expect(test.status).toBe(1);
@@ -508,10 +553,10 @@ describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface 
     }
   });
 
-  it('S5d: deterministic-test rejects neither --node nor --files (exit 1)', () => {
+  it('S5d: aspect-test rejects neither --node nor --files (exit 1)', () => {
     const dir = deterministicFixture('s5d');
     try {
-      const test = run(['deterministic-test', '--aspect', 'no-todo-comments'], dir);
+      const test = run(['aspect-test', '--aspect', 'no-todo-comments'], dir);
       expect(test.status).toBe(1);
       expect(test.all).toContain('Neither --node nor --files was provided');
     } finally {
@@ -534,7 +579,7 @@ describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface 
       writeAspect(dir, 'glob-graph-files', 'ctx.graph must expose the same files a node owns.', GLOB_GRAPH_FILES_CHECK);
       attachAspectToNode(dir, 'services/orders', 'glob-graph-files');
 
-      const test = run(['deterministic-test', '--aspect', 'glob-graph-files', '--node', 'services/orders'], dir);
+      const test = run(['aspect-test', '--aspect', 'glob-graph-files', '--node', 'services/orders'], dir);
       // Post-fix: ctx.graph expands the glob, so it sees the same file ctx.files does.
       expect(test.all).toContain('No violations');
       expect(test.all).not.toContain('glob mapping not expanded');

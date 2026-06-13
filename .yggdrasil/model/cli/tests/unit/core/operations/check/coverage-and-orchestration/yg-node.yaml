@@ -1,7 +1,0 @@
-name: Check Coverage & Orchestration Unit Tests
-type: test-suite
-description: "Unit tests for the check coverage scan, coverage-issue building, orphaned drift-state detection, suggested-next priority, and the runCheck orchestration."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/core/check-coverage.test.ts

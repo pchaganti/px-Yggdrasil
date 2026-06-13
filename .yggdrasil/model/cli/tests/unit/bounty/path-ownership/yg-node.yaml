@@ -1,7 +1,0 @@
-name: Bounty path-ownership
-type: test-suite
-description: "Bug-bounty branch-coverage suites: path-ownership (~31924 chars)."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/bounty/path-ownership.test.ts

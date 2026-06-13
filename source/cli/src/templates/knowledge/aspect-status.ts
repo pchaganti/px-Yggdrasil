@@ -1,24 +1,42 @@
-export const summary = 'Three-level aspect status (draft / advisory / enforced) — semantics, declaration sites, max() rule, implies propagation, drift mechanics';
+export const summary =
+  'Three-level aspect status (draft / advisory / enforced) — rendering only, severity by status incl. unverified, verdict reuse across flips, declaration sites, max() rule, implies propagation';
 
 export const content = `# Aspect status
 
-Aspect status controls whether the reviewer runs and how \`yg check\` renders
-violations. Three levels:
+Aspect status controls how a verdict renders in \`yg check\` and whether it blocks.
+Status is RENDERING only — it never changes a verdict's validity. Three levels:
 
-| Status      | Reviewer invoked? | Refused verdict renders as | Blocks \`yg check\`? |
-|-------------|-------------------|----------------------------|----------------------|
-| \`draft\`   | no                | n/a (skipped)              | no                   |
-| \`advisory\`| yes               | warning                    | no                   |
-| \`enforced\`| yes               | error                      | yes                  |
+| Status      | Expected pairs | Refused renders as | Unverified renders as | Blocks \`yg check\`? |
+|-------------|----------------|--------------------|-----------------------|----------------------|
+| \`draft\`   | none (removed) | n/a                | n/a                   | no                   |
+| \`advisory\`| yes            | warning            | warning               | no                   |
+| \`enforced\`| yes            | error              | error                 | yes                  |
 
-Draft aspects are skipped entirely: the reviewer never runs, so a draft aspect
-gets no verdict and no baseline. Verdicts for advisory and enforced aspects are
-recorded. A code violation of an \`advisory\` aspect does NOT fail \`yg approve\`:
-the baseline and per-aspect verdict are still recorded and the CLI exits 0 with
-an informational line (the verdict surfaces later as a non-blocking \`yg check\`
-warning). Only a code violation of an \`enforced\` aspect refuses (exit 1); a mix
-of advisory + enforced refuses on the enforced one. Reviewer infrastructure
-failures always block regardless of status.
+Status colors verdicts that exist; it never substitutes for verification.
+
+- A recorded **advisory** refusal never blocks. A recorded **enforced** refusal
+  blocks.
+- An **unverified** pair blocks by its effective status too — enforced unverified
+  is an error, advisory unverified is a warning. Flipping an aspect to advisory
+  does NOT make an unverified enforced pair go green; the pair is still
+  unverified, just now a warning. \`yg check --approve\` is what fills it.
+- Only **\`draft\`** removes a pair from the expected set entirely — it is the only
+  keyless way to stop a pair from blocking CI (relevant in a keyless-CI
+  emergency).
+
+## Verdict reuse across status flips
+
+Status is NOT a hash input, so verdicts survive every flip:
+
+- \`advisory ↔ enforced\` re-colors an existing verdict without re-verifying — an
+  enforced→red overnight can happen if a refused verdict existed, but no reviewer
+  runs.
+- A \`draft\` round-trip preserves surviving verdicts: re-enabling an aspect whose
+  pairs' inputs are unchanged revives the cached verdicts — no fresh look. An
+  agent "parking and unparking" an aspect to force a re-review gets nothing.
+
+To PARK an aspect, use \`status: draft\`, never a \`when\` edit — garbage-collection
+prunes when-excluded pairs but keeps draft pairs.
 
 ## Declaration sites
 
@@ -66,6 +84,9 @@ For each (node, aspect):
    \`aspect-status-downgrade\` — downgrade attempts are validator errors.
    This is the "bump up OK, downgrade is error" rule.
 
+\`yg check\` computes effective status live each run, so the SAME stored verdict
+renders at whatever status is effective now.
+
 ## Implies propagation
 
 For aspect A implies aspect B on node N:
@@ -75,29 +96,32 @@ For aspect A implies aspect B on node N:
   - \`status_inherit: strictest\` (default): B contributes max(A_effective, B_default)
   - \`status_inherit: own-default\`: B contributes B_default
 
-## Drift mechanics
+## Status and verdicts
 
-- Status is NOT part of the canonical drift hash. The hash stays stable
-  across \`advisory ↔ enforced\` flips.
-- Transition \`draft → advisory/enforced\` produces drift indirectly via
-  missing baseline (emitted as \`aspect-newly-active\`).
-- Transition \`advisory → enforced\` does NOT drift but may flip CI from
-  green to red overnight if the baseline contains a refused verdict.
-- Transition \`advisory or enforced → draft\` does NOT drift; the stale
-  baseline entry is cleared lazily on the next \`yg approve\` of the node.
+- Status is NOT folded into a verdict's hash. A verdict stays valid across every
+  \`advisory ↔ enforced ↔ draft\` flip.
+- \`draft → advisory/enforced\`: a pair that has never been verified appears as
+  \`unverified\` (severity by the new status). A pair whose inputs match a surviving
+  verdict is immediately valid — no re-verification.
+- \`advisory → enforced\`: does NOT re-verify, but may flip CI from green to red if
+  a refused verdict exists.
+- \`advisory or enforced → draft\`: the pair leaves the expected set; its entry is
+  pruned by garbage-collection on the next \`yg check --approve\` only if it would
+  not be expected with draft included — draft pairs' entries are kept, so a round
+  trip revives them.
 
 ## When to use which status
 
 | Status   | When |
 |----------|------|
-| draft    | Content.md / check.mjs is still being authored, or the rule is unclear. Zero cost, zero enforcement. |
-| advisory | Rule is complete but you want to gather signal across the repo without blocking CI. Full LLM cost, warnings only. |
-| enforced | Rule is vetted; violations should block. Full LLM cost, errors that block check. |
+| draft    | Content.md / check.mjs is still being authored, or the rule is unclear. Zero cost, zero enforcement, no expected pairs. |
+| advisory | Rule is complete but you want to gather signal across the repo without blocking CI. Refused and unverified both render as warnings. |
+| enforced | Rule is vetted; violations should block. Refused and unverified both block check. |
 
 ## See also
 
 - [[aspects-overview]] — when to create aspects in general
-- [[drift-and-cascade]] — full drift mechanics including tier-identity
+- [[verification-and-lock]] — the lock, hashing, caching, the three exits from a refusal
 - [[conditional-aspects]] — \`when\` predicates (orthogonal to status)
 - [[writing-llm-aspects]] / [[writing-deterministic-aspects]] — authoring guide
 `;

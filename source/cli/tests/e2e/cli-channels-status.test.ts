@@ -229,17 +229,20 @@ describe.skipIf(!distExists)('CLI E2E — status propagation on cascading channe
       expect(ctx.stdout).toContain('no-banned-word [advisory]');
       expect(ctx.stdout).toContain('Source: architecture (type: service)');
 
-      // Plant the violation, then approve the OTHER node clean so the final
-      // `yg check` has no unrelated missing-baseline noise.
+      // Plant the violation, then fill repo-wide. The fill is repo-scoped, so it
+      // records both nodes in one pass — no need to seed the other node first.
       plantBannedToken(dir);
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
 
-      // Advisory via CH3 does NOT block approve — exit 0, recorded-not-blocking.
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/orders');
-      expect(approve.stdout).toContain('advisory aspect violation(s) on services/orders');
-      expect(approve.stdout).toContain('not blocking: no-banned-word');
+      // Advisory via CH3 does NOT block the fill — exit 0, recorded-not-blocking.
+      // The removed per-node approve banner ("advisory aspect violation(s) ..."
+      // / "not blocking: ...") is replaced by the fill's non-blocking warning.
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('[det] no-banned-word on node:services/orders — refused');
+      expect(fill.stdout).toContain('advisory');
+      expect(fill.stdout).toContain('services/orders');
+      expect(fill.stdout).toContain('no-banned-word');
+      expect(fill.stdout).toContain('(advisory — not blocking)');
 
       // `yg check` renders it as a non-blocking warning and PASSES.
       const check = run(['check'], dir);
@@ -271,18 +274,24 @@ describe.skipIf(!distExists)('CLI E2E — status propagation on cascading channe
       expect(ctx.stdout).toContain('Source: architecture (type: service)');
       expect(ctx.stdout).toContain('(reviewer skipped; aspect is draft)');
 
-      // The token the draft check WOULD flag is planted, yet approve ignores it:
-      // the reviewer never runs a draft aspect.
+      // The token the draft check WOULD flag is planted, yet the fill ignores it:
+      // a draft aspect is never run, so it contributes no fill pair and no
+      // verdict. (The old per-node approve emitted an explicit "[draft] ...
+      // skipped" banner; in the fill model a draft aspect is simply absent from
+      // the dispatch — proven by the lack of any no-banned-word pair below.)
       plantBannedToken(dir);
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain(
-        "[draft] node 'services/orders': aspect 'no-banned-word' skipped (status: draft)",
-      );
-      expect(approve.stdout).toContain('Approved: services/orders');
-      // The draft aspect produced no verdict — no refusal text whatsoever.
-      expect(approve.all).not.toContain('no-banned-word — NOT SATISFIED');
-      expect(approve.all).not.toContain('NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('yg check: PASS');
+      // The draft aspect produced no verdict — it never entered the fill and no
+      // refusal text exists for it.
+      expect(fill.all).not.toContain('no-banned-word on node:services/orders');
+      expect(fill.all).not.toContain('is refused');
+
+      // And `yg check` stays green — the draft aspect never blocks.
+      const check = run(['check'], dir);
+      expect(check.status).toBe(0);
+      expect(check.stdout).toContain('PASS');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -308,13 +317,15 @@ describe.skipIf(!distExists)('CLI E2E — status propagation on cascading channe
       expect(ctx.stdout).toContain('Source: inherited from parent (type: module)');
 
       plantBannedToken(dir);
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
 
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/orders');
-      expect(approve.stdout).toContain('advisory aspect violation(s) on services/orders');
-      expect(approve.stdout).toContain('not blocking: no-banned-word');
+      // Advisory via CH4 does NOT block the fill — exit 0, recorded-not-blocking.
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('[det] no-banned-word on node:services/orders — refused');
+      expect(fill.stdout).toContain('advisory');
+      expect(fill.stdout).toContain('services/orders');
+      expect(fill.stdout).toContain('no-banned-word');
+      expect(fill.stdout).toContain('(advisory — not blocking)');
 
       const check = run(['check'], dir);
       expect(check.status).toBe(0);
@@ -343,14 +354,19 @@ describe.skipIf(!distExists)('CLI E2E — status propagation on cascading channe
       expect(ctx.stdout).toContain('Source: inherited from parent (type: module)');
       expect(ctx.stdout).toContain('(reviewer skipped; aspect is draft)');
 
+      // A draft aspect is never run, so it contributes no fill pair and no
+      // verdict — the planted token is ignored (old "[draft] ... skipped" banner
+      // is replaced by the aspect's plain absence from the fill dispatch).
       plantBannedToken(dir);
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain(
-        "[draft] node 'services/orders': aspect 'no-banned-word' skipped (status: draft)",
-      );
-      expect(approve.stdout).toContain('Approved: services/orders');
-      expect(approve.all).not.toContain('NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('yg check: PASS');
+      expect(fill.all).not.toContain('no-banned-word on node:services/orders');
+      expect(fill.all).not.toContain('is refused');
+
+      const check = run(['check'], dir);
+      expect(check.status).toBe(0);
+      expect(check.stdout).toContain('PASS');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -399,16 +415,17 @@ describe.skipIf(!distExists)('CLI E2E — status propagation on cascading channe
       expect(ctx.stdout).toContain('no-banned-word [enforced]');
       expect(ctx.all).not.toContain('aspect-status-downgrade');
 
-      // A clean approve passes (the now-enforced aspect is satisfied).
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      // A clean fill passes (the now-enforced aspect is satisfied).
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // The same token that was a mere skip when the aspect was draft (tests 2/4)
       // now BLOCKS, because the flow channel raised it to enforced.
       plantBannedToken(dir);
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(1);
-      expect(approve.stdout).toContain('no-banned-word — NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      expect(fill.stdout).toContain(
+        "Aspect 'no-banned-word' is refused on node:services/orders by a deterministic check",
+      );
 
       const check = run(['check'], dir);
       expect(check.status).toBe(1);

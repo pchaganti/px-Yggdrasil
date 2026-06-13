@@ -178,13 +178,15 @@ mapping:
     }
   });
 
-  it('A2: a consumer of a multi-port list approves clean and yg check passes (both port aspects satisfied)', () => {
+  it('A2: a consumer of a multi-port list fills clean and yg check passes (both port aspects satisfied)', () => {
     const dir = copyFixture('a2-multi-approve');
     try {
       setupTwoPortGraph(dir);
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/orders');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      // Both channel-6 port aspects fill clean on the consumer.
+      expect(fill.stdout).toContain('[det] audit-required on node:services/orders — approved');
+      expect(fill.stdout).toContain('[det] refund-logged on node:services/orders — approved');
       const check = run(['check'], dir);
       expect(check.status).toBe(0);
       expect(check.stdout).toContain('PASS');
@@ -248,7 +250,7 @@ mapping:
       // services/orders consumes only charge; the refund port is declared but
       // consumed by nobody. That is legal — only the inverse (consumes with no
       // matching port) is an error.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(0);
       expect(stdout).toContain('PASS');
@@ -266,7 +268,7 @@ mapping:
   // separately in cli-status-suppress). Advisory => approve exits 0 with an
   // informational line; yg check renders a non-blocking warning.
 
-  it('C5: a violated ADVISORY port aspect does NOT block approve — it records an advisory violation (exit 0)', () => {
+  it('C5: a violated ADVISORY port aspect does NOT block fill — it records an advisory refusal (exit 0)', () => {
     const dir = copyFixture('c5-advisory-approve');
     try {
       writeDetAspect(
@@ -276,10 +278,13 @@ mapping:
         ALWAYS_FLAG_CHECK,
         'Consumers of the charge port must record an audit trail for every charge.',
       );
-      const { status, stdout } = run(['approve', '--node', 'services/orders'], dir);
-      expect(status).toBe(0); // advisory never blocks approve
-      expect(stdout).toContain('Approved: services/orders');
-      expect(stdout).toContain('advisory aspect violation(s) on services/orders');
+      const { status, stdout } = run(['check', '--approve'], dir);
+      expect(status).toBe(0); // advisory refusal never blocks fill
+      // The advisory pair fills with a refused verdict; the headline still PASSes
+      // (with the refusal surfaced as a non-blocking warning).
+      expect(stdout).toContain('[det] audit-required on node:services/orders — refused');
+      expect(stdout).toContain('PASS (1 warning)');
+      expect(stdout).toContain('advisory');
       expect(stdout).toContain('audit-required');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -296,7 +301,7 @@ mapping:
         ALWAYS_FLAG_CHECK,
         'Consumers of the charge port must record an audit trail for every charge.',
       );
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(0); // advisory warning does NOT fail check
       expect(stdout).toContain('PASS (1 warning)');
@@ -326,12 +331,13 @@ mapping:
       expect(ctx.stdout).toContain("port 'charge' on 'services/payments'");
       expect(ctx.stdout).toContain('(reviewer skipped; aspect is draft)');
 
-      // The consumer's only effective aspect is draft, so the reviewer is
-      // skipped entirely — the always-flag check never fires.
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain("Every effective aspect on node 'services/orders' has status 'draft'");
-      expect(approve.stdout).not.toContain('NOT SATISFIED');
+      // The consumer's only effective aspect is draft, so it contributes NO
+      // expected pair — fill has nothing to do and the always-flag check never
+      // fires. (A draft aspect is excluded from the expected-pair set entirely.)
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('Filling 0 unverified pairs across 0 nodes');
+      expect(fill.stdout).not.toContain('refused');
 
       // yg check tallies the draft and passes — the draft port aspect is dormant.
       const check = run(['check'], dir);
@@ -379,10 +385,12 @@ mapping:
       expect(ctx.stdout).toContain('audit-required [enforced]');
       expect(ctx.stdout).toContain("port 'charge' on 'services/payments'");
 
-      // Enforced + violating => approve REFUSES (unlike the advisory case C5).
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(1);
-      expect(approve.stdout).toContain('audit-required — NOT SATISFIED');
+      // Enforced + violating => the fill REFUSES and BLOCKS (unlike advisory C5):
+      // exit 1, the pair fills refused, and the enforced refusal renders.
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      expect(fill.stdout).toContain('[det] audit-required on node:services/orders — refused');
+      expect(fill.stdout).toContain("Aspect 'audit-required' is refused on node:services/orders");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -505,10 +513,11 @@ mapping:
     const dir = copyFixture('d11-when-check');
     try {
       setupWhenOnPortGraph(dir);
-      // services/orders carries the aspect (when TRUE) and must be approved;
+      // services/orders carries the aspect (when TRUE) and contributes a pair;
       // services/audited has no effective non-draft aspect (when FALSE) so it
-      // needs no baseline. After approving only orders, check is clean.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      // contributes none. A single repo-wide fill resolves everything and check
+      // is clean.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(0);
       expect(stdout).toContain('PASS');
@@ -519,13 +528,13 @@ mapping:
 
   // ── E. Port-definition CASCADE ──
 
-  it('E12: adding an aspect to a port\'s set drifts the consumer (cascade); re-approving the consumer clears it', () => {
+  it('E12: adding an aspect to a port\'s set leaves the consumer unverified for the new aspect; a fill clears it', () => {
     const dir = copyFixture('e12-cascade-aspect-set');
     try {
       writeDetAspect(dir, 'refund-logged', 'enforced', PASS_CHECK, 'Consumers must log refunds.');
 
-      // Approve the consumer against the original single-aspect charge port.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      // Fill against the original single-aspect charge port; check is clean.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       expect(run(['check'], dir).status).toBe(0);
 
       // Edit the port's ASPECT SET on the provider — add a second required aspect
@@ -547,19 +556,23 @@ mapping:
 `,
       );
 
-      // The consumer now drifts: the port contract changed upstream.
+      // The new port aspect is now effective on the consumer via channel 6, but
+      // no verdict exists for that (aspect, node) pair yet — the expected-pair
+      // set grew, so the consumer reports `unverified` for refund-logged.
+      // (The verdict-lock model replaces the old `cascade`/`aspect-newly-active`
+      // drift vocabulary: a newly-active aspect surfaces as `unverified` for the
+      // pair that has no recorded verdict. audit-required's own verdict stays
+      // valid — its inputs did not change.)
       const drifted = run(['check'], dir);
       expect(drifted.status).toBe(1);
-      expect(drifted.stdout).toContain('cascade');
+      expect(drifted.stdout).toContain('unverified');
       expect(drifted.stdout).toContain('services/orders');
-      // The newly-added port aspect is effective with no baseline yet.
-      expect(drifted.stdout).toContain('aspect-newly-active');
       expect(drifted.stdout).toContain('refund-logged');
 
-      // Re-approving the consumer re-verifies both port aspects and clears drift.
-      const reapprove = run(['approve', '--node', 'services/orders'], dir);
-      expect(reapprove.status).toBe(0);
-      expect(reapprove.stdout).toContain('Approved: services/orders');
+      // Re-filling verifies the newly-active port aspect and clears it.
+      const refill = run(['check', '--approve'], dir);
+      expect(refill.status).toBe(0);
+      expect(refill.stdout).toContain('[det] refund-logged on node:services/orders — approved');
 
       const cleared = run(['check'], dir);
       expect(cleared.status).toBe(0);
@@ -569,10 +582,21 @@ mapping:
     }
   });
 
-  it('E13: even a port DESCRIPTION-only edit on the provider drifts the consumer (port definition is tracked whole)', () => {
+  it('E13: a port DESCRIPTION-only edit does NOT invalidate the consumer\'s verdict (input-precise hashing — only the aspect SET matters)', () => {
+    // CONVERTED behavior (verdict-lock model). The old assertion was that a
+    // port description-only edit cascades drift onto the consumer "because the
+    // port definition is hashed whole". That whole-yaml tracking is GONE: the
+    // frozen pair-hash contract excludes node/port descriptions ("prompt
+    // garnish, not a judgment input") and recomputes port applicability live
+    // through the expected-pair set rather than by hashing the provider yaml.
+    // A description reword therefore changes neither the consumer's verdict
+    // hash nor its expected-pair set — the verdict stays valid. This pins the
+    // surviving, now-correct behavior (the complementary E12 still proves that
+    // an aspect-SET change DOES re-verify). It is the direct counterpart to the
+    // removed cascade-by-description surface, not a weakened version of it.
     const dir = copyFixture('e13-cascade-desc');
     try {
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       expect(run(['check'], dir).status).toBe(0);
 
       // Reword ONLY the charge port's description — aspect set unchanged.
@@ -592,16 +616,13 @@ mapping:
 `,
       );
 
-      // The provider's yg-node.yaml is a tracked dependency and the port
-      // definition is hashed whole, so a description-only edit still cascades.
-      const drifted = run(['check'], dir);
-      expect(drifted.status).toBe(1);
-      expect(drifted.stdout).toContain('cascade');
-      expect(drifted.stdout).toContain('services/orders');
-
-      // A cascade-only re-approve (no source change) re-verifies and clears it.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
-      expect(run(['check'], dir).status).toBe(0);
+      // The consumer's audit-required verdict is unaffected — its inputs (the
+      // consumer's source + the aspect's check.mjs + the consumed aspect SET)
+      // are identical. No fill is needed; check stays clean.
+      const after = run(['check'], dir);
+      expect(after.status).toBe(0);
+      expect(after.stdout).toContain('PASS');
+      expect(after.stdout).not.toContain('unverified');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

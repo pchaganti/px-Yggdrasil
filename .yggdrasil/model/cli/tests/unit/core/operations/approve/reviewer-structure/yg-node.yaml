@@ -1,7 +1,0 @@
-name: Approve Reviewer Structure Unit Tests
-type: test-suite
-description: "Unit tests for approve structure-aspect dispatch — resolveExecutionPlan structure branch, runApproveWithReviewer structure dispatch, structureTouchedFiles carry-forward for draft-skipped structure aspects, and the log-freshness baseline preservation on reviewer rejection. POSIX path-normalization tests live in the sibling reviewer-structure-posix node."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/core/approve-reviewer-structure.test.ts

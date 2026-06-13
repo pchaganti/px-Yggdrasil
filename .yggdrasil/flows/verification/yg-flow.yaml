@@ -1,0 +1,11 @@
+name: Verification
+description: "Recording verdicts into the content-addressed lock — yg check --approve runs the deterministic checks and the LLM reviewer for every unverified pair, then writes each verdict (and, on positive closure, the source fingerprint and log baseline) through a single fail-closed write path."
+nodes:
+  - cli/commands/check
+  - cli/core/fill
+  - cli/core/verify-lock
+aspects:
+  - provider-redaction
+  - provider-retry-contract
+  - what-why-next
+  - provider-redaction-cascade

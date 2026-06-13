@@ -214,25 +214,30 @@ describe('context pipeline integration', () => {
       expect(contextSourceSection).not.toContain('.generated.cs');
       expect(contextSourceSection).not.toContain('dist/out.cs');
 
-      // 2. approve --dry-run: should show exactly 7 files
+      // 2. aspect-test --dry-run: the assembled LLM prompt must embed exactly the
+      // same 7 source files (one <file path="..."> block each), with no
+      // gitignored file. aspect-test replaces approve --dry-run.
       const dryRunResult = spawnSync(
-        'node', [BIN_PATH, 'approve', '--dry-run', '--node', 'svc'],
+        'node', [BIN_PATH, 'aspect-test', '--aspect', 'code-style', '--node', 'svc', '--dry-run'],
         { cwd: root, encoding: 'utf-8' },
       );
       expect(dryRunResult.status).toBe(0);
-      // Extract the "Source files (N): ..." line to check file count and paths
-      const dryRunSourceLine = dryRunResult.stdout.split('\n').find((l: string) => l.startsWith('Source files'));
-      expect(dryRunSourceLine).toContain('Source files (7):');
-      expect(dryRunSourceLine).not.toContain('.log');
-      expect(dryRunSourceLine).not.toContain('.generated.cs');
+      const fileBlocks = dryRunResult.stdout.match(/<file path="[^"]+">/g) ?? [];
+      expect(fileBlocks).toHaveLength(7);
+      const dryRunFilePaths = fileBlocks.join('\n');
+      expect(dryRunFilePaths).not.toContain('.log');
+      expect(dryRunFilePaths).not.toContain('.generated.cs');
+      expect(dryRunFilePaths).not.toContain('dist/out.cs');
 
-      // 3. check: the oversized-node gate counts the same gitignore-excluded file
-      // set used by context and dry-run. The tiny fixture is well under the
-      // character budget, so it must not fire — confirming cross-command consistency.
+      // 3. check: the per-tier prompt-size gate measures the assembled prompt over
+      // the same gitignore-excluded file set used by context and dry-run. The tiny
+      // fixture is well under any limit (and this config sets none), so it must not
+      // fire — confirming cross-command consistency. (oversized-node is removed.)
       const checkResult = spawnSync(
         'node', [BIN_PATH, 'check'],
         { cwd: root, encoding: 'utf-8' },
       );
+      expect(checkResult.stdout).not.toContain('prompt-too-large');
       expect(checkResult.stdout).not.toContain('oversized-node');
     } finally {
       const { rm } = await import('node:fs/promises');
@@ -308,16 +313,19 @@ describe('context pipeline integration', () => {
       });
     });
 
-    it('approve --dry-run works from subdirectory', async () => {
+    it('aspect-test --dry-run works from subdirectory', async () => {
       await withFixtureCopy(FULL_FIXTURE, async (root) => {
         const subDir = path.join(root, 'src');
+        // requires-audit is the LLM aspect on orders/order-service; --dry-run
+        // assembles its prompt and makes no provider call. --node paths are
+        // graph-level, so running from a subdirectory must still resolve the node.
         const result = spawnSync(
-          'node', [BIN_PATH, 'approve', '--dry-run', '--node', 'orders/order-service'],
+          'node', [BIN_PATH, 'aspect-test', '--aspect', 'requires-audit', '--node', 'orders/order-service', '--dry-run'],
           { cwd: subDir, encoding: 'utf-8' },
         );
         expect(result.status).toBe(0);
         expect(result.stdout).toContain('orders/order-service');
-        expect(result.stdout).toContain('Source files');
+        expect(result.stdout).toContain('<source-files>');
       });
     });
   });

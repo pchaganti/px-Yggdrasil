@@ -180,18 +180,21 @@ describe.skipIf(!distExists)('CLI E2E — channel propagation completion (CH5 an
       expect(ctx.stdout).not.toContain('no-banned-word [');
 
       // Planting the banned token does NOT trip anything — no-banned-word is not
-      // effective, so approve passes.
+      // effective, so the fill passes.
       plantBanned(dir);
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // Flip the implier to enforced → the implied aspect now propagates and the
       // already-planted token blocks.
       writeLiteralAspect(dir, 'gate-rule', 'NEVERMATCH', { status: 'enforced', implies: ['no-banned-word'] });
       const ctx2 = run(['context', '--node', 'services/orders'], dir);
       expect(ctx2.stdout).toContain('no-banned-word [enforced]');
-      const refused = run(['approve', '--node', 'services/orders'], dir);
+      const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.all).toContain('no-banned-word');
+      expect(refused.all).toContain(
+        'is refused on node:services/orders by a deterministic check',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -244,12 +247,15 @@ describe.skipIf(!distExists)('CLI E2E — channel propagation completion (CH5 an
       expect(ctx.stdout).toContain('no-banned-word');
       expect(ctx.stdout).toContain("flow 'parent-flow' (via parent 'services')");
 
-      // Clean approve passes; planting the token trips the flow's enforced aspect.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      // Clean fill passes; planting the token trips the flow's enforced aspect.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       plantBanned(dir);
-      const refused = run(['approve', '--node', 'services/orders'], dir);
+      const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.all).toContain('no-banned-word');
+      expect(refused.all).toContain(
+        'is refused on node:services/orders by a deterministic check',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -291,10 +297,12 @@ describe.skipIf(!distExists)('CLI E2E — channel propagation completion (CH5 an
       expect(ctx.stdout).toContain('no-banned-word [enforced]');
 
       plantBanned(dir);
-      const refused = run(['approve', '--node', 'services/orders'], dir);
+      const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.all).toContain('no-banned-word');
-      expect(refused.all).toContain('NOT SATISFIED');
+      expect(refused.all).toContain(
+        'is refused on node:services/orders by a deterministic check',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

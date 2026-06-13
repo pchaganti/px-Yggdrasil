@@ -112,7 +112,7 @@ describe.skipIf(!distExists)('CLI E2E — port channel-6 enforcement / relation 
     }
   });
 
-  it('1b: a violating port aspect BLOCKS approve on the consumer (exit 1, aspect NOT SATISFIED)', () => {
+  it('1b: a violating port aspect REFUSES the consumer during fill (exit 1, aspect refused on the consumer)', () => {
     const dir = copyPortsFixture('block');
     try {
       // Make the port aspect's check.mjs flag the consumer's own source file.
@@ -120,27 +120,46 @@ describe.skipIf(!distExists)('CLI E2E — port channel-6 enforcement / relation 
       // 6) — it is not on the consumer node, its type, or any ancestor.
       writeFile(dir, '.yggdrasil/aspects/audit-required/check.mjs', ALWAYS_FLAG_CHECK);
 
-      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
-      expect(status).toBe(1);
-      expect(all).toContain('audit-required');
-      expect(all).toContain('NOT SATISFIED');
+      // Fill is repo-wide; the deterministic charge-port pair on the consumer is
+      // the only one and it refuses, so `yg check --approve` exits 1 and the
+      // enforced refusal names the consumer node + the port aspect.
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      expect(fill.all).toContain('audit-required');
+      expect(fill.all).toContain('refused');
+      expect(fill.all).toContain('services/orders');
+
+      // The recorded refusal renders on every subsequent read as an enforced
+      // error attributed to the consumer node and the port-sourced aspect.
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      expect(check.all).toContain("Aspect 'audit-required' is refused on node:services/orders");
+
       // The violation is reported against the consumer's OWN source file —
-      // proving the port contract enforces across the node boundary.
-      expect(all).toContain('src/services/orders.ts');
+      // proving the port contract enforces across the node boundary. The
+      // per-file Violation[] detail surfaces through the diagnostic runner
+      // (`yg check` renders only the one-line headline; aspect-test renders the
+      // recorded violation lines verbatim).
+      const at = run(['aspect-test', '--aspect', 'audit-required', '--node', 'services/orders'], dir);
+      expect(at.all).toContain('src/services/orders.ts');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('1c: control — with the trivial (passing) port aspect, the same consumer approves clean (exit 0)', () => {
+  it('1c: control — with the trivial (passing) port aspect, the same consumer fills clean (exit 0)', () => {
     const dir = copyPortsFixture('control');
     try {
       // No mutation of check.mjs: the committed aspect returns []. This isolates
       // 1b's refusal to the port aspect's verdict, not some unrelated drift.
-      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      // The consumer's charge-port pair fills clean (approved, no refusal).
+      expect(fill.all).toContain('[det] audit-required on node:services/orders — approved');
+      expect(fill.all).not.toContain('refused');
+      const { status, all } = run(['check'], dir);
       expect(status).toBe(0);
-      expect(all).toContain('Approved: services/orders');
-      expect(all).not.toContain('NOT SATISFIED');
+      expect(all).toContain('PASS');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -234,7 +253,7 @@ mapping:
     }
   });
 
-  it('2b: the same violating check does NOT refuse approve on the bare-relation consumer (no NOT SATISFIED)', () => {
+  it('2b: the same violating check does NOT refuse the bare-relation consumer (no pair, no refusal attributed to it)', () => {
     const dir = copyPortsFixture('bare-approve');
     try {
       setupBareRelationGraph(dir);
@@ -242,11 +261,22 @@ mapping:
       // consumer (Scenario 1b). The bare-relation consumer must be untouched.
       writeFile(dir, '.yggdrasil/aspects/audit-required/check.mjs', ALWAYS_FLAG_CHECK);
 
-      const { status, all } = run(['approve', '--node', 'services/billing'], dir);
-      // No effective aspect propagated here, so the reviewer never refuses.
-      expect(status).toBe(0);
-      expect(all).not.toContain('NOT SATISFIED');
-      expect(all).not.toContain('audit-required');
+      // Repo-wide fill: the only refusing pair is the charge consumer
+      // (services/orders). The bare-relation consumer contributes NO pair —
+      // the port aspect never crossed the bare relation, so no refusal is ever
+      // attributed to it.
+      const fill = run(['check', '--approve'], dir);
+      // The charge consumer refuses (proven in 1b); the bare consumer does not.
+      const billingRefusal = fill.all
+        .split('\n')
+        .filter((l) => l.includes('services/billing') && l.includes('refused'));
+      expect(billingRefusal.length).toBe(0);
+
+      // Confirmed structurally: the bare-relation consumer has no effective
+      // port aspect at all, so the always-flagging check is never run on it.
+      const ctx = run(['context', '--node', 'services/billing'], dir);
+      expect(ctx.status).toBe(0);
+      expect(ctx.all).not.toContain('audit-required');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -68,11 +68,11 @@ Before writing a single YAML file, we spent the equivalent of several days restr
 
 ### `log_required`
 
-**Used as:** Set to `false` on types that don't benefit from business-context logs: `types`, `knowledge-doc`, `schema-doc`, `test-suite`, `doc-page`, `build-script`, `example`, `ci-config`. Engine nodes and command nodes require log entries before `yg approve`.
+**Used as:** Opted in (`log_required: true`) on the production-code types whose changes carry business intent worth recording — `engine`, `command`, the persistence/parser/AST adapters, `migration`, `template`. Documentation, schemas, test suites, fixtures, and CI configs leave it off (the default), so no log entry is demanded before their changes are verified.
 
-**Earn-rate: high.** Without this distinction, agents accumulate meaningless log entries on config files and test suites. The default (`true`) is the right default for code that an LLM reviewer will scrutinize.
+**Earn-rate: high.** Targeting the gate at code an LLM reviewer scrutinizes captures the *why* behind real changes where it matters, without accumulating meaningless log entries on config files and test suites.
 
-**Recommendation:** Set `log_required: false` on any type whose files are not verified by an LLM reviewer. Documentation, schemas, test data, and CI configs rarely benefit from business-context logs.
+**Recommendation:** Enable `log_required` only on types whose changes a future maintainer would need explained — domain logic, command handlers, anything with non-obvious business rules. Leave it off (the default) for documentation, schemas, test data, and CI configs.
 
 ---
 
@@ -113,8 +113,8 @@ runs across the whole graph and surfaces refusals as warnings — without
 blocking CI. Once the warnings stabilize and we have confidence the rule
 fires only on real issues, the aspect is promoted to `status: enforced`.
 Aspects still being authored (rule text incomplete, edge cases unclear)
-sit at `status: draft` — the reviewer never runs and no baseline verdict
-is recorded.
+sit at `status: draft` — they produce no expected pairs, so the reviewer
+never runs and nothing is recorded in the lock.
 
 ```yaml
 # .yggdrasil/aspects/audit-logging/yg-aspect.yaml
@@ -134,10 +134,10 @@ implies:
     status_inherit: own-default   # keep companion at its own default
 ```
 
-**Earn-rate: high.** Status removes the all-or-nothing rollout problem
-that plagued 4.x: an aspect either blocked CI on day one or had to be
+**Earn-rate: high.** Status removes the all-or-nothing rollout problem: a
+new aspect would otherwise either block CI on day one or have to be
 suppressed everywhere until the codebase caught up. Advisory aspects
-gave us measurement before enforcement; draft kept work-in-progress
+give measurement before enforcement; draft keeps work-in-progress
 rules out of the reviewer entirely.
 
 **Recommendation:** Author every new aspect at `status: advisory` for
@@ -156,15 +156,15 @@ inherit its implier's level.
 
 **Earn-rate: high.** Without these filters, attaching an aspect to a flow or type default would fire the reviewer on every node in the graph. Filters eliminate false positives without suppression markers.
 
-**Recommendation:** Add a `when:` filter to every aspect that has a natural home type. The filter costs nothing at approve time and eliminates accidental over-application. Start with `node_type:`.
+**Recommendation:** Add a `when:` filter to every aspect that has a natural home type. The filter is evaluated deterministically at zero cost and eliminates accidental over-application. Start with `node_type:`.
 
 ---
 
 ### `when: descendants:`
 
-**Used as:** `provider-redaction-cascade` uses `descendants: { relations: { calls: { target_type: llm-provider } } }` — applies the aspect to any non-provider node whose call chain eventually reaches an LLM provider. One genuine site: the `approve` flow.
+**Used as:** `provider-redaction-cascade` uses `descendants: { relations: { calls: { target_type: llm-provider } } }` — applies the aspect to any non-provider node whose call chain eventually reaches an LLM provider. One genuine site: the `verification` flow.
 
-**Earn-rate: medium.** The filter correctly identified the approve orchestration layer as needing redaction review — without it, we would have needed to attach the aspect manually to six nodes.
+**Earn-rate: medium.** The filter correctly identified the verification orchestration layer as needing redaction review — without it, we would have needed to attach the aspect manually to six nodes.
 
 **Recommendation:** Introduce `descendants:` only when you have a real concern about transitive propagation of a security or correctness property. It is the most complex filter in the grammar; use it only when simpler alternatives (`node_type:`, `any_of:`) don't cover the case.
 
@@ -182,7 +182,7 @@ inherit its implier's level.
 
 ### Flow-level aspects (channel 5)
 
-**Used as:** Nine flows carry aspects. `validate` flow applies `deterministic` and `what-why-next` to its three participant nodes. `approve` flow applies `provider-redaction`, `provider-retry-contract`, and `provider-redaction-cascade`. Flow-level aspects propagate to all participant nodes automatically.
+**Used as:** Nine flows carry aspects. `validate` flow applies `deterministic` and `what-why-next` to its three participant nodes. `verification` flow applies `provider-redaction`, `provider-retry-contract`, and `provider-redaction-cascade`. Flow-level aspects propagate to all participant nodes automatically.
 
 **Earn-rate: high.** Flows are the right place for cross-cutting process requirements. The `what-why-next` aspect was attached to eight flows covering 30+ nodes — a single flow-level declaration instead of 30 node-level ones.
 

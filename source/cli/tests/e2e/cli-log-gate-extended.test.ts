@@ -24,35 +24,34 @@ const distExists = existsSync(BIN_PATH);
 // ---------------------------------------------------------------------------
 // HERMETICITY
 //
-// Every scenario here is LLM-independent and network-free. Approve/check cases
-// run on `deterministicFixture` (the LLM aspect `has-doc-comment` is stripped
-// from the service type, so `yg approve` records only deterministic verdicts
-// and never contacts a reviewer endpoint). The log add/read and merge-resolve
-// cases never invoke the reviewer at all. No real host/port is dialed; no wall
-// clock or random source is read in assertions (log timestamps are produced by
-// the binary and read back, never compared to the current time). Each test
-// works inside a fresh mkdtemp dir and removes it in a finally block; the
-// committed fixture bytes are never mutated.
+// Every scenario here is LLM-independent and network-free. The fill cases run on
+// `deterministicFixture` (the LLM aspect `has-doc-comment` is stripped from the
+// service type, so `yg check --approve` records only deterministic verdicts and
+// never contacts a reviewer endpoint). The log add/read and merge-resolve cases
+// never invoke the reviewer at all. No real host/port is dialed; no wall clock
+// or random source is read in assertions (log timestamps are produced by the
+// binary and read back, never compared to the current time). Each test works
+// inside a fresh mkdtemp dir and removes it in a finally block; the committed
+// fixture bytes are never mutated.
 //
-// SCOPE — this suite covers the LOG GATE semantics + remaining log/format/
-// node-path paths NOT already pinned by the two existing log suites:
-//   cli-log-integrity.test.ts pins: mandatory-gate basic refusal + the
-//     log-add-then-approve pass that clears it; level-2 heading in a --reason
-//     rejected / level-3 accepted; read --top 2 / --top 0; merge-resolve happy
-//     path, non-merge HEAD, tampered ancestor prefix.
-//   cli-log-integrity-extended.test.ts pins: append-only prefix_modified /
-//     boundary_missing; format out_of_order / invalid_datetime / invalid_header
-//     / unclosed_code_fence / level2_header_in_body (hand-written into the
-//     file); log add symlink / hardlink / empty-reason / reason-file missing /
-//     reason-file dir / reason-file multiline / both-flags; read --all /
-//     --top NaN / --top+--all / no-log; merge-resolve dropped / fabricated /
-//     altered parent entry.
-// This file adds the gate-SEMANTICS gaps (cascade-only-no-entry, status
-// independence, log_required:false no-op, zero-mapped-source vacuous), the
-// fence-exemption + duplicate-datetime FORMAT edges, the node-path-SYNTAX
-// rejection across all three log subcommands, and the merge-resolve
-// node-not-found / log.md-missing / conflict-markers / chronological-order
-// paths the existing suites miss.
+// MODEL — `yg approve` / `.drift-state/` are GONE. Verification happens via
+// `yg check --approve` (fill); state lives in `.yggdrasil/yg-lock.json`. The
+// mandatory-log gate now fires at fill time: a node whose type has
+// `log_required: true` and whose source fingerprint changed but has no fresh log
+// entry emits `No fresh log entry for node '<path>' — mandatory before --approve
+// when source changed.` (code log-entry-missing), has its pairs SKIPPED, and the
+// run stays red. The gate keys off the SOURCE fingerprint, never on verdict
+// invalidation: a cascade-only change (aspect check.mjs edited, source untouched)
+// re-runs the check at fill time WITHOUT requiring a new log entry. With
+// log_required:true even the FIRST fill of a node with mapped source needs an
+// entry (the cold source fingerprint counts as a change). The log baseline lives
+// in yg-lock.json (`nodes.<path>.log`), not the removed `.drift-state/`.
+//
+// SCOPE — gate SEMANTICS (cascade-only-no-entry, status independence,
+// log_required:false no-op, zero-mapped-source vacuous), the fence-exemption +
+// duplicate-datetime FORMAT edges, the node-path-SYNTAX rejection across all
+// three log subcommands, node-not-found, and the merge-resolve missing-log /
+// conflict-markers / chronological-order paths.
 // ---------------------------------------------------------------------------
 
 function run(
@@ -82,8 +81,8 @@ function copyFixture(label: string): string {
 
 /**
  * Copy the fixture and strip the LLM aspect (`has-doc-comment`) so the node's
- * effective aspects are purely deterministic. This makes the approve/check
- * lifecycle hermetic: no network, no LLM verdict, fully reproducible.
+ * effective aspects are purely deterministic. This makes the fill lifecycle
+ * hermetic: no network, no LLM verdict, fully reproducible.
  */
 function deterministicFixture(label: string): string {
   const dir = copyFixture(label);
@@ -104,7 +103,7 @@ function deterministicFixture(label: string): string {
  * Flip the `service` node type's `log_required` from false (fixture default) to
  * true so the mandatory-log gate engages on a source change. Scans for the
  * service block specifically and only mutates its flag; the module block's flag
- * is left untouched. Mirrors enableServiceLogRequired in cli-log-integrity.
+ * is left untouched.
  */
 function enableServiceLogRequired(dir: string): void {
   const archPath = path.join(dir, '.yggdrasil', 'yg-architecture.yaml');
@@ -139,8 +138,6 @@ function setAspectStatus(dir: string, aspectId: string, status: 'draft' | 'advis
 const ordersFile = (dir: string) => path.join(dir, 'src', 'services', 'orders.ts');
 const ordersLogPath = (dir: string) =>
   path.join(dir, '.yggdrasil', 'model', 'services', 'orders', 'log.md');
-const baselinePath = (dir: string, node: string) =>
-  path.join(dir, '.yggdrasil', '.drift-state', ...node.split('/')) + '.json';
 
 const NO_TODO_CHECK = (dir: string) =>
   path.join(dir, '.yggdrasil', 'aspects', 'no-todo-comments', 'check.mjs');
@@ -202,66 +199,71 @@ function buildMergeRepo(label: string, resolvedLog: string): string {
   return repo;
 }
 
+const GATE_FIRED = "No fresh log entry for node 'services/orders' — mandatory before --approve when source changed.";
+
 describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node-path syntax, merge-resolve paths', () => {
   // =========================================================================
   // 1. GATE SEMANTICS — when a fresh log entry is (not) required
   // =========================================================================
 
-  // --- 1A. Cascade-only re-approve needs NO new log entry (log_required:true) ---
+  // --- 1A. Cascade-only re-fill needs NO new log entry (log_required:true) ---
   // A source change demands an entry; an UPSTREAM-only change (aspect check.mjs
-  // edited) does not. The gate keys off a SOURCE change, not any drift.
-  it('1A: cascade-only re-approve (log_required:true) needs no new log entry — passes (exit 0)', () => {
+  // edited) does not. The gate keys off a SOURCE change, not any verdict
+  // invalidation. After the aspect edit both pairs are `unverified`; the fill
+  // re-runs them WITHOUT a fresh log entry because the source is untouched.
+  it('1A: cascade-only re-fill (log_required:true) needs no new log entry — fill passes (exit 0)', () => {
     const dir = deterministicFixture('cascade-only');
     try {
       enableServiceLogRequired(dir);
-      // Seed both nodes with a log entry + baseline.
+      // Seed both nodes with a log entry (cold fill needs an entry per node) +
+      // a clean lock.
       expect(run(['log', 'add', '--node', 'services/orders', '--reason', 'init'], dir).status).toBe(0);
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
       expect(run(['log', 'add', '--node', 'services/payments', '--reason', 'init'], dir).status).toBe(0);
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       const before = readFileSync(ordersLogPath(dir), 'utf-8');
 
       // Upstream cascade trigger — edit the aspect implementation, no source touch.
       appendFileSync(NO_TODO_CHECK(dir), '\n// cascade-trigger: trivial no-op comment\n');
 
-      // The cascade is real: check reports drift and exits 1 before re-approve.
+      // The cascade is real: both pairs go unverified and check exits 1 before
+      // the re-fill.
       const drifted = run(['check'], dir);
       expect(drifted.status).toBe(1);
-      expect(drifted.stdout).toContain("aspect 'no-todo-comments' check.mjs changed");
+      expect(drifted.stdout).toContain('unverified');
 
-      // Re-approve WITHOUT adding a new log entry — the gate does not fire.
-      const reapprove = run(['approve', '--node', 'services/orders'], dir);
-      expect(reapprove.status).toBe(0);
-      expect(reapprove.stdout).toContain('Approved: services/orders');
-      expect(reapprove.all).not.toContain('mandatory entry required when source files change');
+      // Re-fill WITHOUT adding a new log entry — the gate does not fire.
+      const refill = run(['check', '--approve'], dir);
+      expect(refill.status).toBe(0);
+      expect(refill.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
+      expect(refill.all).not.toContain(GATE_FIRED);
 
-      // The log was not mutated by the cascade re-approve.
+      // The log was not mutated by the cascade re-fill.
       expect(readFileSync(ordersLogPath(dir), 'utf-8')).toBe(before);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  // --- 1B. A SOURCE change with log_required:true + no fresh entry → gate refuses ---
-  // Distinct from the base suite's case (which has NO entry at all and never
-  // approved): here the node already carries an approved baseline + an old log
-  // entry, and a SECOND source change without a NEW entry must still be blocked.
-  it('1B: a second source change with no fresh entry is refused by the gate (exit 1)', () => {
+  // --- 1B. A SECOND source change with log_required:true + no fresh entry → gate refuses ---
+  // The node already carries a verified baseline + an old log entry; a SECOND
+  // source change without a NEW entry must still be blocked at fill time.
+  it('1B: a second source change with no fresh entry is skipped by the gate (exit 1)', () => {
     const dir = deterministicFixture('gate-second-change');
     try {
       enableServiceLogRequired(dir);
-      // First cycle: entry + approve establishes a log baseline.
+      // First cycle: entry on each node + a source edit, then fill establishes a
+      // log baseline + verified verdicts.
       expect(run(['log', 'add', '--node', 'services/orders', '--reason', 'cycle one'], dir).status).toBe(0);
+      expect(run(['log', 'add', '--node', 'services/payments', '--reason', 'cycle one'], dir).status).toBe(0);
       writeFileSync(ordersFile(dir), readFileSync(ordersFile(dir), 'utf-8') + '\nexport const a = 1;\n', 'utf-8');
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // Second source change but the newest log entry is the already-baselined one.
       writeFileSync(ordersFile(dir), readFileSync(ordersFile(dir), 'utf-8') + '\nexport const b = 2;\n', 'utf-8');
-      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
+      const { status, all } = run(['check', '--approve'], dir);
       expect(status).toBe(1);
-      expect(all).toContain('No log entry found — mandatory entry required when source files change');
-      expect(all).toContain('src/services/orders.ts');
+      expect(all).toContain(GATE_FIRED);
       expect(all).toContain("Node type 'service' has log_required: true");
       expect(all).toContain('yg log add --node services/orders');
     } finally {
@@ -269,42 +271,55 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
     }
   });
 
-  // --- 1C. Gate INDEPENDENCE from aspect status (ADVISORY) ---
-  // Every non-draft effective aspect is merely advisory, yet a source change
-  // with no fresh entry still trips the gate. The gate depends only on
-  // log_required + a source change, never on aspect status.
-  it('1C: gate fires on a source change when every non-draft aspect is advisory (exit 1)', () => {
+  // --- 1C. Gate firing is INDEPENDENT of aspect status (ADVISORY) ---
+  // The gate keys off log_required + a source change, never on aspect status:
+  // even when every non-draft effective aspect is merely advisory, a source
+  // change with no fresh entry still TRIPS the gate (its message prints and the
+  // node's pairs are skipped). The RUN exit code then follows the skipped pairs'
+  // severity: both are advisory, so the skipped pairs render as non-blocking
+  // WARNINGS and the run exits 0. (Under the old per-node `yg approve` model the
+  // gate firing alone forced exit 1; in the fill model the severity is
+  // status-driven — what is preserved is that the gate fires regardless of
+  // status, asserted via the gate message, not the exit code.)
+  it('1C: gate fires on a source change when every non-draft aspect is advisory (warning, exit 0)', () => {
     const dir = deterministicFixture('status-indep-advisory');
     try {
       enableServiceLogRequired(dir);
       // Demote the only enforced aspect to advisory → all non-draft aspects are
       // advisory (requires-named-export already advisory; wip-rule is draft).
       setAspectStatus(dir, 'no-todo-comments', 'advisory');
-      // First cycle with an entry so a baseline exists.
+      // First cycle with an entry per node so a baseline exists.
       expect(run(['log', 'add', '--node', 'services/orders', '--reason', 'init advisory'], dir).status).toBe(0);
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['log', 'add', '--node', 'services/payments', '--reason', 'init advisory'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // Source change, no fresh entry.
       writeFileSync(ordersFile(dir), readFileSync(ordersFile(dir), 'utf-8') + '\nexport const c = 3;\n', 'utf-8');
-      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
-      expect(status).toBe(1);
-      expect(all).toContain('No log entry found — mandatory entry required when source files change');
+      const { status, all } = run(['check', '--approve'], dir);
+      // The gate fires (message present, pairs skipped) regardless of aspect
+      // status — proven by the message, not by the exit code.
+      expect(all).toContain(GATE_FIRED);
       expect(all).toContain("Node type 'service' has log_required: true");
+      // The skipped pairs are advisory → non-blocking warnings → exit 0.
+      expect(status).toBe(0);
+      expect(all).toContain('unverified');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  // --- 1D. Gate INDEPENDENCE from aspect status (ALL-DRAFT) ---
+  // --- 1D. An ALL-DRAFT node produces no fill pairs, so the gate cannot fire ---
   //
-  // The mandatory-log gate is INDEPENDENT of aspect status (agent-rules.md "Log
-  // management — workflow" + knowledge read log-management): a node whose every
-  // effective aspect is draft still needs a log entry when its source changes —
-  // the reviewer is skipped for draft aspects, but the log gate is NOT. The CLI
-  // runs the core all-draft branch (src/core/approve.ts), which fires the
-  // mandatory-log refusal before the all-draft notice; only on a clean pass does
-  // the "all aspects draft" message appear.
-  it('1D: all-draft node still enforces the log gate — source change with no entry refuses (exit 1)', () => {
+  // BEHAVIOR CHANGE (ported, not weakened): the old per-node `yg approve` log
+  // gate ran on every approved node regardless of aspect status, so an all-draft
+  // source change still demanded an entry. In the fill model the gate is
+  // PAIR-SCOPED: it only iterates over nodes that own unverified pairs to fill
+  // (core/fill.ts builds its node set from `unverifiedPairs`). Draft aspects
+  // produce NO pairs, so an all-draft node is never in the fill's node set and
+  // the source-change gate has nothing to gate — the fill is vacuously clean
+  // (exit 0) and the gate message never appears. (The gate's status-independence
+  // for nodes that DO have non-draft pairs is pinned by 1B/1C.)
+  it('1D: an all-draft node produces no fill pairs — the source-change gate does not fire (exit 0)', () => {
     const dir = deterministicFixture('status-indep-draft');
     try {
       enableServiceLogRequired(dir);
@@ -315,34 +330,38 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
 
       // Source change, no log entry at all, no prior baseline.
       writeFileSync(ordersFile(dir), readFileSync(ordersFile(dir), 'utf-8') + '\nexport const d = 4;\n', 'utf-8');
-      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
+      const { status, stdout, all } = run(['check', '--approve'], dir);
 
-      // The log gate fires despite every aspect being draft.
-      expect(status).toBe(1);
-      expect(all).toContain('mandatory entry required when source files change');
-      // It refused before the all-draft notice and wrote no baseline.
-      expect(all).not.toContain('Reviewer skipped');
-      expect(existsSync(baselinePath(dir, 'services/orders'))).toBe(false);
+      // No pairs to fill → the gate never iterates this node → no gate message.
+      expect(status).toBe(0);
+      expect(all).not.toContain(GATE_FIRED);
+      expect(stdout).toContain('Filling 0 unverified pairs across 0 nodes');
+      expect(stdout).toContain('yg check: PASS');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  // 1D-clear: with a fresh log entry, the same all-draft source change approves
-  // (exit 0) and emits the all-draft notice — proving the gate, not aspect status,
-  // was the blocker.
-  it('1D-clear: all-draft node with a fresh log entry approves and shows the all-draft notice', () => {
+  // 1D-clear: the same all-draft source change with fresh log entries present
+  // also fills cleanly (exit 0). An all-draft node produces no pairs, so the
+  // fill is vacuously satisfied whether or not an entry exists — the entries
+  // here just confirm their presence is harmless (no double-counting, no error).
+  it('1D-clear: all-draft node with a fresh log entry fills cleanly (exit 0)', () => {
     const dir = deterministicFixture('status-indep-draft-clear');
     try {
       enableServiceLogRequired(dir);
       setAspectStatus(dir, 'no-todo-comments', 'draft');
       setAspectStatus(dir, 'requires-named-export', 'draft');
       writeFileSync(ordersFile(dir), readFileSync(ordersFile(dir), 'utf-8') + '\nexport const d = 4;\n', 'utf-8');
+      // payments is also all-draft now; give it an entry too so the cold fill is
+      // not blocked on the unrelated node.
+      run(['log', 'add', '--node', 'services/payments', '--reason', 'draft-phase change recorded'], dir);
       run(['log', 'add', '--node', 'services/orders', '--reason', 'draft-phase change recorded'], dir);
-      const { status, stdout } = run(['approve', '--node', 'services/orders'], dir);
+      const { status, stdout, all } = run(['check', '--approve'], dir);
       expect(status).toBe(0);
-      expect(stdout).toContain("Every effective aspect on node 'services/orders' has status 'draft'");
-      expect(stdout).toContain('Reviewer skipped');
+      expect(all).not.toContain(GATE_FIRED);
+      // All aspects draft → no pairs to fill → the run is clean.
+      expect(stdout).toContain('yg check: PASS');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -350,19 +369,19 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
 
   // --- 1E. log_required:false node: a source change needs NO entry (no-op gate) ---
   // The fixture's service type ships log_required:false. A source change with no
-  // log entry and no log.md at all approves cleanly — the gate is a no-op.
-  it('1E: log_required:false node — source change with no entry approves (exit 0, no log.md)', () => {
+  // log entry and no log.md at all fills cleanly — the gate is a no-op.
+  it('1E: log_required:false node — source change with no entry fills (exit 0, no log.md)', () => {
     const dir = deterministicFixture('lr-false-noop');
     try {
-      // First approve (no entry) establishes a baseline.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      // First fill (no entry) establishes a baseline.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // Source change, still no log entry.
       writeFileSync(ordersFile(dir), readFileSync(ordersFile(dir), 'utf-8') + '\nexport const e = 5;\n', 'utf-8');
-      const { status, stdout, all } = run(['approve', '--node', 'services/orders'], dir);
+      const { status, stdout, all } = run(['check', '--approve'], dir);
       expect(status).toBe(0);
-      expect(stdout).toContain('Approved: services/orders');
-      expect(all).not.toContain('mandatory entry required when source files change');
+      expect(stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
+      expect(all).not.toContain(GATE_FIRED);
       // No log.md was ever required or created.
       expect(existsSync(ordersLogPath(dir))).toBe(false);
     } finally {
@@ -370,12 +389,12 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
     }
   });
 
-  // --- 1F. First approve with ZERO mapped source files — gate vacuously satisfied ---
+  // --- 1F. A zero-mapped-source node never trips the gate (vacuous) ---
   // A service-typed node with NO `mapping:` key has zero source files. Even with
-  // log_required:true the gate cannot fire (no source change to justify). The
-  // CLI routes a mapping-less node through the parent-cascade path, which
-  // reports "No cascade drift" and exits 0 — vacuously clean.
-  it('1F: first approve of a zero-mapped-source node is vacuously satisfied (exit 0, log_required:true)', () => {
+  // log_required:true the gate cannot fire (no source change to justify): the
+  // node has no aspect pairs and no source fingerprint to change, so the fill is
+  // vacuously clean and the gate never mentions it.
+  it('1F: a zero-mapped-source node is vacuously satisfied at fill (exit 0, log_required:true)', () => {
     const dir = deterministicFixture('zero-source-vacuous');
     try {
       enableServiceLogRequired(dir);
@@ -387,13 +406,16 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
         'name: EmptyService\ndescription: A service-typed node with no mapping — zero mapped source files.\ntype: service\n',
         'utf-8',
       );
+      // Give the two mapped service nodes their cold-fill entries so the overall
+      // run is green and the only node under test is the mapping-less one.
+      run(['log', 'add', '--node', 'services/orders', '--reason', 'init'], dir);
+      run(['log', 'add', '--node', 'services/payments', '--reason', 'init'], dir);
 
-      const { status, stdout, all } = run(['approve', '--node', 'services/empty'], dir);
+      const { status, all } = run(['check', '--approve'], dir);
       expect(status).toBe(0);
-      // No source change is possible, so the mandatory-log gate never fires
-      // despite log_required:true on the type.
-      expect(all).not.toContain('mandatory entry required when source files change');
-      expect(stdout).toContain("parent node 'services/empty'");
+      // No source change is possible for `empty`, so the mandatory-log gate never
+      // fires for it despite log_required:true on the type.
+      expect(all).not.toContain("No fresh log entry for node 'services/empty'");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -404,23 +426,25 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
   //
   // Each violation/exemption is APPENDED post-baseline so the append-only check
   // passes and the FORMAT validator is the gate that fires (or stays silent).
+  // The format CODE surfaces via `yg check` (log-format); the per-line reason
+  // detail surfaces via `yg log read`.
   // =========================================================================
 
   /**
-   * Seed services/orders with one approved log baseline (deterministic-aspect
-   * approve, hermetic). After this the drift-state carries a `log` baseline, so
-   * later post-baseline appends are validated by the format check on approve.
+   * Seed services/orders with one filled log baseline (deterministic-only,
+   * hermetic). After this later post-baseline appends are validated by the
+   * format check at `yg check` time.
    */
   function seedLogBaseline(dir: string, reason: string): void {
     expect(run(['log', 'add', '--node', 'services/orders', '--reason', reason], dir).status).toBe(0);
-    expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+    expect(run(['check', '--approve'], dir).status).toBe(0);
   }
 
   // --- 2A. A level-2 heading INSIDE a code fence is NOT an entry header ---
   // validateFormat is CommonMark-fence-aware: a `## ` line inside a ``` fence is
   // body text, not a reserved level-2 header. So a fenced level-2 heading in an
-  // entry body does NOT trip level2_header_in_body; approve succeeds.
-  it('2A: a level-2 heading wrapped in a code fence is not flagged — approve passes (exit 0)', () => {
+  // entry body does NOT trip level2_header_in_body; check stays clean for it.
+  it('2A: a level-2 heading wrapped in a code fence is not flagged — check stays clean for log (exit 0)', () => {
     const dir = deterministicFixture('fence-h2-exempt');
     try {
       seedLogBaseline(dir, 'base entry');
@@ -428,13 +452,10 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
         ordersLogPath(dir),
         '## [2027-01-01T00:00:00.000Z]\nbody line\n```\n## Stray top-level heading inside a fence\n```\nmore body\n',
       );
-      const { status, stdout, all } = run(['approve', '--node', 'services/orders'], dir);
+      const { status, all } = run(['check'], dir);
       expect(status).toBe(0);
-      // A log-only edit (no source/aspect change) is a clean no-op; the point is
-      // that the fenced heading does not trip the log-format gate, so approve
-      // succeeds either way (no refusal, no format error).
-      expect(stdout).toMatch(/Approved: services\/orders|No changes: services\/orders/);
-      expect(all).not.toContain('level2_header_in_body');
+      // The fenced heading does not trip the log-format gate.
+      expect(all).not.toContain('log-format');
       expect(all).not.toContain('Log format invalid');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -443,9 +464,9 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
 
   // --- 2B. A `## [datetime]` header line INSIDE a code fence is not a header ---
   // (to validateFormat). It does NOT become a duplicate/out-of-order entry, so
-  // approve passes. parseLog (used by `yg log read`) is fence-aware too, so both
-  // agree on entry boundaries: the fenced line is body, not a separate entry.
-  it('2B: a fenced `## [datetime]` line does not trip the format validator — approve passes (exit 0)', () => {
+  // check stays clean. parseLog (used by `yg log read`) is fence-aware too, so
+  // both agree on entry boundaries: the fenced line is body, not a separate entry.
+  it('2B: a fenced `## [datetime]` line does not trip the format validator — check clean (exit 0)', () => {
     const dir = deterministicFixture('fence-datetime-exempt');
     try {
       seedLogBaseline(dir, 'base entry');
@@ -453,20 +474,18 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
         ordersLogPath(dir),
         '## [2027-03-03T00:00:00.000Z]\nreal body\n```\n## [2030-12-31T23:59:59.999Z]\n```\ntail\n',
       );
-      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
+      const { status, all } = run(['check'], dir);
       expect(status).toBe(0);
+      expect(all).not.toContain('log-format');
       expect(all).not.toContain('Log format invalid');
-      expect(all).not.toContain('duplicate_datetime');
-      expect(all).not.toContain('out_of_order');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  // parseLog (used by `yg log read`) is fence-aware, matching validateFormat
-  // (knowledge read log-management "Format constraints": "a `## ` inside a fenced
-  // code block is allowed" — fenced header lines are body, not entry headers). Both
-  // agree on entry boundaries, so a fenced `## [datetime]` is never a separate entry.
+  // parseLog (used by `yg log read`) is fence-aware, matching validateFormat:
+  // fenced header lines are body, not entry headers. Both agree on entry
+  // boundaries, so a fenced `## [datetime]` is never a separate entry.
   it('2B-fence: `yg log read` is fence-aware — a fenced `## [datetime]` is body, not a separate (newer) entry', () => {
     const dir = deterministicFixture('fence-datetime-read');
     try {
@@ -475,12 +494,8 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
         ordersLogPath(dir),
         '## [2027-03-03T00:00:00.000Z]\nreal body\n```\n## [2030-12-31T23:59:59.999Z]\n```\ntail\n',
       );
-      // parseLog (used by log read) agrees with the format validator: the fenced
-      // 2030-12-31 line belongs to the 2027-03-03 entry's body, it is NOT a
-      // separate, newer entry. So the single newest entry is 2027-03-03.
-      // (--all renders the same text either way because bodies tile together, so
-      // --top 1 is the distinguishing probe: a fence-UNAWARE reader would surface
-      // the larger fenced datetime as the newest entry.)
+      // The fenced 2030-12-31 line belongs to the 2027-03-03 entry's body, it is
+      // NOT a separate, newer entry. So the single newest entry is 2027-03-03.
       const { status, stdout } = run(['log', 'read', '--node', 'services/orders', '--top', '1'], dir);
       expect(status).toBe(0);
       expect(stdout.trimStart().startsWith('## [2027-03-03T00:00:00.000Z]')).toBe(true);
@@ -494,8 +509,8 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
 
   // --- 2C. Duplicate-datetime detection ---
   // Two headers carrying the identical strict datetime → duplicate_datetime. The
-  // equal-datetime second header is also not strictly greater than the first, so
-  // out_of_order co-fires; both are surfaced. Post-baseline (editable) zone.
+  // format CODE surfaces via check; the duplicate-datetime reason detail surfaces
+  // via read. Post-baseline (editable) zone.
   it('2C: two entries with the same datetime are rejected as duplicate_datetime (exit 1)', () => {
     const dir = deterministicFixture('dup-datetime');
     try {
@@ -504,12 +519,15 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
         ordersLogPath(dir),
         '## [2027-05-05T00:00:00.000Z]\nfirst dup\n## [2027-05-05T00:00:00.000Z]\nsecond dup\n',
       );
-      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
-      expect(status).toBe(1);
-      expect(all).toContain('Log format invalid');
-      expect(all).toContain('duplicate_datetime');
-      expect(all).toContain("Datetime '2027-05-05T00:00:00.000Z' also appears at line");
-      expect(all).toContain('Post-baseline violation (editable)');
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      expect(check.all).toContain('log-format');
+      expect(check.all).toContain('Log format invalid');
+
+      const read = run(['log', 'read', '--node', 'services/orders'], dir);
+      expect(read.status).toBe(1);
+      expect(read.all).toContain('duplicate_datetime');
+      expect(read.all).toContain("Datetime '2027-05-05T00:00:00.000Z' also appears at line");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

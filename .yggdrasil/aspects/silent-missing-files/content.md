@@ -21,7 +21,7 @@ resources it is responsible for; presence of unrelated resources is out of scope
 Known examples (each enforced on the owning component, not all of them on one):
 
 - **Graph loader:** `aspects/`, `flows/`, `schemas/` directories may not exist. Return empty arrays.
-- **Drift state store:** `.drift-state` file may not exist. Return empty object `{}`.
+- **Lock store:** the `yg-lock.json` file may not exist. Return an empty lock.
 - **Secrets parser:** `yg-secrets.yaml` may not exist. Return `undefined`.
 
 ## Rationale

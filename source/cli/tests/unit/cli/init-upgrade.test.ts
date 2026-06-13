@@ -2,7 +2,9 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { mkdtemp, writeFile, mkdir, readFile, stat, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { runVersionUpgrade } from '../../../src/cli/init.js';
+import { runVersionUpgrade, ensureGitattributes } from '../../../src/cli/init.js';
+
+const LOCK_LINE = '/.yggdrasil/yg-lock.json linguist-generated=true';
 
 async function scaffoldExistingYgg(projectRoot: string, version: string): Promise<string> {
   const yggRoot = path.join(projectRoot, '.yggdrasil');
@@ -44,10 +46,15 @@ describe('runVersionUpgrade', () => {
     const claudeMd = await readFile(path.join(projectRoot, 'CLAUDE.md'), 'utf-8');
     expect(claudeMd).toContain('agent-rules.md');
 
-    // Version advanced by each registered incremental migration; the
-    // 4.0.0→4.3.0 migration is the next applicable step from 4.0.0.
+    // With MIGRATIONS empty the runner lifts the version to CLI_SUPPORTED_SCHEMA
+    // (5.0.0) via the no-migration fallback path and emits an action message.
     const cfg = await readFile(path.join(yggRoot, 'yg-config.yaml'), 'utf-8');
-    expect(cfg).toMatch(/version:\s*["'](4\.3\.0|5\.0\.0)["']/);
+    expect(cfg).toContain('5.0.0');
+    expect(result.migrationActions).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('version updated to 5.0.0'),
+      ]),
+    );
 
     // Schemas directory is populated after refresh
     const schemaFiles = await (await import('node:fs/promises')).readdir(
@@ -57,6 +64,25 @@ describe('runVersionUpgrade', () => {
 
     // yg-architecture.yaml created if missing
     await expect(stat(path.join(yggRoot, 'yg-architecture.yaml'))).resolves.toBeTruthy();
+  });
+
+  it('is a clean no-op when config is already at the supported schema version', async () => {
+    const projectRoot = await mkdtemp(path.join(tmpdir(), 'yg-init-upgrade-'));
+    dirsToCleanup.push(projectRoot);
+    const yggRoot = await scaffoldExistingYgg(projectRoot, '5.0.0');
+
+    const result = await runVersionUpgrade(
+      projectRoot,
+      yggRoot,
+      'claude-code',
+    );
+
+    // Version must stay at 5.0.0 — no write, no false 'Migrated' action.
+    const cfg = await readFile(path.join(yggRoot, 'yg-config.yaml'), 'utf-8');
+    expect(cfg).toContain('5.0.0');
+    expect(result.migrationActions).toHaveLength(0);
+    expect(result.migrationWarnings).toHaveLength(0);
+    expect(result.withheld).toBe(false);
   });
 
   it('installs the rules file for a different platform on re-run', async () => {
@@ -72,5 +98,71 @@ describe('runVersionUpgrade', () => {
 
     expect(result.rulesPath).toMatch(/\.cursor[/\\]rules[/\\]yggdrasil\.mdc$/);
     await expect(stat(result.rulesPath)).resolves.toBeTruthy();
+  });
+
+  it('writes the .gitattributes lock line during upgrade', async () => {
+    const projectRoot = await mkdtemp(path.join(tmpdir(), 'yg-init-upgrade-'));
+    dirsToCleanup.push(projectRoot);
+    const yggRoot = await scaffoldExistingYgg(projectRoot, '4.0.0');
+
+    await runVersionUpgrade(projectRoot, yggRoot, 'claude-code');
+
+    const ga = await readFile(path.join(projectRoot, '.gitattributes'), 'utf-8');
+    expect(ga).toContain(LOCK_LINE);
+  });
+});
+
+describe('ensureGitattributes', () => {
+  const dirsToCleanup: string[] = [];
+  afterEach(async () => {
+    for (const d of dirsToCleanup.splice(0)) await rm(d, { recursive: true, force: true });
+  });
+
+  it('creates .gitattributes with the lock line when absent', async () => {
+    const repoRoot = await mkdtemp(path.join(tmpdir(), 'yg-gitattr-'));
+    dirsToCleanup.push(repoRoot);
+
+    await ensureGitattributes(repoRoot);
+
+    const ga = await readFile(path.join(repoRoot, '.gitattributes'), 'utf-8');
+    expect(ga).toBe(`${LOCK_LINE}\n`);
+  });
+
+  it('leaves the file unchanged when the lock line is already present', async () => {
+    const repoRoot = await mkdtemp(path.join(tmpdir(), 'yg-gitattr-'));
+    dirsToCleanup.push(repoRoot);
+    const original = `* text=auto\n${LOCK_LINE}\n`;
+    await writeFile(path.join(repoRoot, '.gitattributes'), original, 'utf-8');
+
+    await ensureGitattributes(repoRoot);
+
+    const ga = await readFile(path.join(repoRoot, '.gitattributes'), 'utf-8');
+    expect(ga).toBe(original);
+  });
+
+  it('appends the lock line exactly once when other content exists', async () => {
+    const repoRoot = await mkdtemp(path.join(tmpdir(), 'yg-gitattr-'));
+    dirsToCleanup.push(repoRoot);
+    await writeFile(path.join(repoRoot, '.gitattributes'), '* text=auto\n', 'utf-8');
+
+    await ensureGitattributes(repoRoot);
+    // Second call must NOT append a duplicate.
+    await ensureGitattributes(repoRoot);
+
+    const ga = await readFile(path.join(repoRoot, '.gitattributes'), 'utf-8');
+    expect(ga).toBe(`* text=auto\n${LOCK_LINE}\n`);
+    const occurrences = ga.split('\n').filter((l) => l.trim() === LOCK_LINE).length;
+    expect(occurrences).toBe(1);
+  });
+
+  it('inserts a separating newline when the existing file lacks a trailing one', async () => {
+    const repoRoot = await mkdtemp(path.join(tmpdir(), 'yg-gitattr-'));
+    dirsToCleanup.push(repoRoot);
+    await writeFile(path.join(repoRoot, '.gitattributes'), '* text=auto', 'utf-8');
+
+    await ensureGitattributes(repoRoot);
+
+    const ga = await readFile(path.join(repoRoot, '.gitattributes'), 'utf-8');
+    expect(ga).toBe(`* text=auto\n${LOCK_LINE}\n`);
   });
 });

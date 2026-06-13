@@ -5,6 +5,4 @@ aspects: []
 relations: []
 mapping:
   - source/cli/tests/integration/aspect-status-downgrade-blocks.test.ts
-  - source/cli/tests/integration/aspect-status-hash-stability.test.ts
   - source/cli/tests/integration/aspect-status-implies.test.ts
-  - source/cli/tests/integration/aspect-status-lifecycle.test.ts

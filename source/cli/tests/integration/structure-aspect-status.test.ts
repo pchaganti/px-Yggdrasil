@@ -57,9 +57,9 @@ function run(
 }
 
 /**
- * Layout a minimal repo with a structure aspect set to the given status.
+ * Layout a minimal repo with a deterministic aspect set to the given status.
  * The aspect check returns a violation (no README in mapping) intentionally
- * so we can verify how different statuses handle violations.
+ * so we can verify how different statuses render the refusal.
  */
 function layout(root: string, aspectStatus: 'draft' | 'advisory' | 'enforced'): void {
   const ygg = path.join(root, '.yggdrasil');
@@ -95,12 +95,23 @@ function layout(root: string, aspectStatus: 'draft' | 'advisory' | 'enforced'): 
   );
 }
 
-function readBaseline(root: string): Record<string, unknown> {
-  const jsonPath = path.join(root, '.yggdrasil', '.drift-state', 'N.json');
-  return JSON.parse(readFileSync(jsonPath, 'utf-8')) as Record<string, unknown>;
+interface Lock {
+  verdicts: Record<string, Record<string, { verdict: string; hash: string }>>;
+  nodes: Record<string, { source?: string }>;
 }
 
-describe.skipIf(!distExists)('structure aspect-status integration', () => {
+function readLock(root: string): Lock {
+  const lockPath = path.join(root, '.yggdrasil', 'yg-lock.json');
+  return JSON.parse(readFileSync(lockPath, 'utf-8')) as Lock;
+}
+
+function setStatus(root: string, status: 'draft' | 'advisory' | 'enforced'): void {
+  const aspectYamlPath = path.join(root, '.yggdrasil', 'aspects', 'has-readme', 'yg-aspect.yaml');
+  const yaml = readFileSync(aspectYamlPath, 'utf-8').replace(/^status: .*/m, `status: ${status}`);
+  writeFileSync(aspectYamlPath, yaml);
+}
+
+describe.skipIf(!distExists)('deterministic aspect-status integration', () => {
   let root: string;
 
   beforeEach(() => {
@@ -109,94 +120,96 @@ describe.skipIf(!distExists)('structure aspect-status integration', () => {
 
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-  it('draft: reviewer skipped, no verdict or checkTouchedFiles in baseline on approve', () => {
+  it('draft: aspect produces no pair — no lock verdict entry, check passes', () => {
     layout(root, 'draft');
-    const result = run(['approve', '--node', 'N'], root);
-    expect(result.status).toBe(0);
+    // A draft aspect is removed from the expected-pair set entirely: --approve
+    // computes no pair for it and the lock holds no entry. check passes (exit 0).
+    const fill = run(['check', '--approve'], root);
+    expect(fill.status).toBe(0);
 
-    // For a node with only draft aspects, a baseline IS written (source hash),
-    // but it contains no aspectVerdicts or checkTouchedFiles for the draft aspect.
-    const jsonPath = path.join(root, '.yggdrasil', '.drift-state', 'N.json');
-    // If no baseline was written (node auto-approved with no aspects), skip further checks
-    if (!existsSync(jsonPath)) return;
+    const check = run(['check'], root);
+    expect(check.status).toBe(0);
 
-    const b = readBaseline(root);
-    // Draft aspects never produce a verdict or checkTouched entry
-    const verdicts = b.aspectVerdicts as Record<string, unknown> | undefined;
-    expect(verdicts?.['has-readme']).toBeUndefined();
-    const aspects = (b.identity as { aspects?: Record<string, { checkTouched?: unknown }> } | undefined)?.aspects;
-    expect(aspects?.['has-readme']?.checkTouched).toBeUndefined();
+    if (existsSync(path.join(root, '.yggdrasil', 'yg-lock.json'))) {
+      const lock = readLock(root);
+      expect(lock.verdicts['has-readme']).toBeUndefined();
+    }
   });
 
-  it('advisory: violation renders as warning, yg check exits 0', () => {
+  it('advisory: refusal renders as a non-blocking warning, yg check exits 0', () => {
     layout(root, 'advisory');
-    run(['approve', '--node', 'N'], root);
+    // Fill records the refused verdict (advisory refusals are still cached).
+    expect(run(['check', '--approve'], root).status).toBe(0);
+
+    const lock = readLock(root);
+    expect(lock.verdicts['has-readme']?.['node:N']?.verdict).toBe('refused');
 
     const checkResult = run(['check'], root);
-    // Advisory violations render as warnings — check should pass (exit 0)
+    // Advisory refusals render as warnings — check passes (exit 0).
     expect(checkResult.status).toBe(0);
-    // Output should contain "warn" or "advisory" or "Warnings" in some form
     expect(checkResult.stdout.toLowerCase()).toMatch(/warn|advisory/);
   });
 
-  it('enforced: violation blocks yg check (exit 1)', () => {
+  it('enforced: refusal blocks yg check (exit 1)', () => {
     layout(root, 'enforced');
-    run(['approve', '--node', 'N'], root);
+    // Fill records the refused verdict; an enforced refusal makes --approve exit 1.
+    const fill = run(['check', '--approve'], root);
+    expect(fill.status).toBe(1);
+
+    const lock = readLock(root);
+    expect(lock.verdicts['has-readme']?.['node:N']?.verdict).toBe('refused');
 
     const checkResult = run(['check'], root);
-    // Enforced violations block check
+    // Enforced refusals block check.
     expect(checkResult.status).toBe(1);
+    expect(checkResult.stdout).toContain('has-readme');
   });
 
-  it('D8.3: enforced → draft → enforced status toggle preserves baseline hash', () => {
-    // Create a clean baseline: add a README so the aspect passes
+  it('verdict survives an enforced → draft → enforced status round-trip — no re-fill, hash unchanged', () => {
+    // Create a passing enforced verdict by adding a README so the aspect holds.
     layout(root, 'enforced');
     writeFileSync(path.join(root, 'src', 'README.md'), 'readme\n');
     writeFileSync(
       path.join(root, '.yggdrasil', 'model', 'N', 'yg-node.yaml'),
       `name: N\ntype: service\ndescription: test node\nmapping:\n  - src/a.ts\n  - src/README.md\naspects:\n  - has-readme\n`,
     );
-    run(['approve', '--node', 'N'], root);
-    const baselineHash0 = (readBaseline(root) as { hash: string }).hash;
+    expect(run(['check', '--approve'], root).status).toBe(0);
+    const hash0 = readLock(root).verdicts['has-readme']['node:N'].hash;
 
-    // Toggle: enforced → draft → enforced
+    // Round-trip the status. Status is a rendering concern only — excluded from
+    // the inputHash (spec §3.1) — so the stored verdict stays valid throughout.
     for (const status of ['draft', 'enforced'] as const) {
-      const aspectYamlPath = path.join(root, '.yggdrasil', 'aspects', 'has-readme', 'yg-aspect.yaml');
-      const yaml = readFileSync(aspectYamlPath, 'utf-8').replace(/^status: .*/m, `status: ${status}`);
-      writeFileSync(aspectYamlPath, yaml);
-      run(['approve', '--node', 'N'], root);
+      setStatus(root, status);
+      // A plain check must NOT need a re-fill: the verdict is still valid.
+      expect(run(['check'], root).status).toBe(0);
     }
 
-    const baselineHashN = (readBaseline(root) as { hash: string }).hash;
-    // D8.3: the canonical hash must survive status churn when source files are unchanged
-    expect(baselineHashN).toBe(baselineHash0);
+    const hashN = readLock(root).verdicts['has-readme']['node:N'].hash;
+    // The canonical inputHash is unchanged by status churn (source untouched).
+    expect(hashN).toBe(hash0);
   });
 
-  it('D8.3: draft toggle preserves checkTouchedFiles entry from prior enforced baseline', () => {
-    // Create a passing enforced baseline with a README
+  it('verdict survives a flip to draft and back — the entry is retained, not pruned', () => {
+    // Create a passing enforced verdict with a README.
     layout(root, 'enforced');
     writeFileSync(path.join(root, 'src', 'README.md'), 'readme\n');
     writeFileSync(
       path.join(root, '.yggdrasil', 'model', 'N', 'yg-node.yaml'),
       `name: N\ntype: service\ndescription: test node\nmapping:\n  - src/a.ts\n  - src/README.md\naspects:\n  - has-readme\n`,
     );
-    run(['approve', '--node', 'N'], root);
+    expect(run(['check', '--approve'], root).status).toBe(0);
+    const entryBefore = readLock(root).verdicts['has-readme']?.['node:N'];
+    expect(entryBefore).toBeDefined();
 
-    const ctOf = (b: Record<string, unknown>): unknown =>
-      (b.identity as { aspects?: Record<string, { checkTouched?: unknown }> } | undefined)?.aspects?.['has-readme']?.checkTouched;
-    const baselineBefore = readBaseline(root);
-    const stfBefore = ctOf(baselineBefore);
-    expect(stfBefore).toBeDefined();
+    // Flip to draft and run --approve. GC must NOT prune the draft pair's entry
+    // (GC ignores status — spec §3.2), so the verdict survives the round-trip.
+    setStatus(root, 'draft');
+    expect(run(['check', '--approve'], root).status).toBe(0);
+    const entryDraft = readLock(root).verdicts['has-readme']?.['node:N'];
+    expect(entryDraft).toEqual(entryBefore);
 
-    // Toggle aspect to draft, approve
-    const aspectYamlPath = path.join(root, '.yggdrasil', 'aspects', 'has-readme', 'yg-aspect.yaml');
-    const yaml = readFileSync(aspectYamlPath, 'utf-8').replace(/^status: .*/m, 'status: draft');
-    writeFileSync(aspectYamlPath, yaml);
-    run(['approve', '--node', 'N'], root);
-
-    const baselineAfter = readBaseline(root);
-    const stfAfter = ctOf(baselineAfter);
-    // D8.3 carry-forward: draft-skipped structure aspects retain their prior checkTouched entry
-    expect(stfAfter).toEqual(stfBefore);
+    // Flip back to enforced — the retained verdict is still valid, check stays green.
+    setStatus(root, 'enforced');
+    expect(run(['check'], root).status).toBe(0);
   });
 });

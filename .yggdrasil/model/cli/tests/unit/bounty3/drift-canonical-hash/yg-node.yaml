@@ -1,7 +1,0 @@
-name: bounty3 drift-canonical-hash
-type: test-suite
-description: "Bug-bounty suites: drift-canonical-hash (~30364 chars)."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/bounty3/drift-canonical-hash.test.ts

@@ -190,7 +190,8 @@ describe.skipIf(!distExists)('CLI E2E — conditional aspects (`when` predicate)
       expect(ctx.stdout).toContain('Source: architecture (type: service)');
 
       // The graph is well-formed and clean after gating (no orphan/validation error).
-      run(['approve', '--node', 'services/orders', 'services/payments'], dir);
+      // Repo-wide fill verifies every effective pair; a clean graph closes green.
+      run(['check', '--approve'], dir);
       const check = run(['check'], dir);
       expect(check.status).toBe(0);
     } finally {
@@ -287,17 +288,23 @@ describe.skipIf(!distExists)('CLI E2E — conditional aspects (`when` predicate)
       appendFileSync(ordersFile(dir), '\n// TODO: refactor this later\n');
       appendFileSync(paymentsFile(dir), '\n// TODO: refactor this later\n');
 
-      // orders: predicate TRUE → enforced aspect applies → refuse, names the aspect.
-      const onOrders = run(['approve', '--node', 'services/orders'], dir);
-      expect(onOrders.status).toBe(1);
-      expect(onOrders.stdout).toContain('no-todo-comments');
-      expect(onOrders.stdout).toContain('NOT SATISFIED');
+      // Repo-wide fill judges both nodes in one pass. The enforced
+      // `no-todo-comments` aspect is attached (gated TRUE) ONLY on orders, so:
+      //   orders   → predicate TRUE → aspect applies → refused on the TODO.
+      //   payments → aspect not attached (and would be filtered) → TODO ignored.
+      const fill = run(['check', '--approve'], dir);
+      // The fill prints the per-pair verdict for the orders node only.
+      expect(fill.all).toContain('[det] no-todo-comments on node:services/orders — refused');
+      expect(fill.all).not.toContain('node:services/payments — refused');
 
-      // payments: aspect not attached there at all (and would be filtered anyway),
-      // so the identical TODO is not judged → approve succeeds.
-      const onPayments = run(['approve', '--node', 'services/payments'], dir);
-      expect(onPayments.status).toBe(0);
-      expect(onPayments.stdout).not.toContain('NOT SATISFIED');
+      // The enforced refusal blocks the overall run.
+      expect(fill.status).toBe(1);
+
+      // A plain read renders the cached refusal and attributes it to orders, not payments.
+      const check = run(['check'], dir);
+      expect(check.status).toBe(1);
+      expect(check.all).toContain("Aspect 'no-todo-comments' is refused on node:services/orders");
+      expect(check.all).not.toContain('is refused on node:services/payments');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -316,10 +323,13 @@ describe.skipIf(!distExists)('CLI E2E — conditional aspects (`when` predicate)
 
       appendFileSync(ordersFile(dir), '\n// TODO: refactor this later\n');
 
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      // Predicate false → aspect never reaches the node → the TODO is irrelevant.
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).not.toContain('NOT SATISFIED');
+      // Predicate false → the enforced aspect never reaches orders → the TODO is
+      // irrelevant. Fill closes green; no refusal is attributed to the node.
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.all).not.toContain('node:services/orders — refused');
+      const check = run(['check'], dir);
+      expect(check.status).toBe(0);
+      expect(check.all).not.toContain("is refused on node:services/orders");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

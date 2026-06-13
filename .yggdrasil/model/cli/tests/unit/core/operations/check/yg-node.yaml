@@ -1,7 +1,0 @@
-name: Check Operation Drift Unit Tests
-type: test-suite
-description: "Unit tests for the check orchestration — drift classification (source, upstream, cascade) and cascade-cause message rendering."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/core/check-drift.test.ts

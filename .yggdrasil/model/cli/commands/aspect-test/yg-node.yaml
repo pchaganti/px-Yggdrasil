@@ -1,0 +1,27 @@
+name: AspectTestCommand
+type: command
+description: "Runs an aspect against a node or ad-hoc files WITHOUT touching the lock — a diagnostic. Deterministic mode exercises a check.mjs via the structure runner (--node) or AST runner (--files), with --check-determinism for output stability. LLM mode (--aspect <llm-aspect> --node <path>) builds the per-scope pair prompts and runs the reviewer, printing verdicts; --dry-run prints the assembled prompt(s) and makes no calls. Every diagnostic result ends with the footer noting the lock is unchanged and yg check still reports the stored verdict."
+aspects: []
+relations:
+  - target: cli/ast/runtime
+    type: calls
+  - target: cli/structure
+    type: calls
+  - target: cli/core/loader
+    type: calls
+  - target: cli/core/pairs
+    type: calls
+  - target: cli/core/pair-inputs
+    type: calls
+  - target: cli/core/reviewer-tiers
+    type: calls
+  - target: cli/llm/shared
+    type: calls
+  - target: cli/io/parsers/config
+    type: calls
+  - target: cli/io/stores
+    type: calls
+  - target: cli/tests/unit/cli
+    type: uses
+mapping:
+  - source/cli/src/cli/aspect-test.ts

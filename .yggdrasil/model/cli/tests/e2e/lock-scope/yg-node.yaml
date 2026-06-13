@@ -1,0 +1,7 @@
+name: E2E Tests — Per-File Scope & Observation Invalidation
+type: test-suite
+description: "Subprocess E2E for per-file scope with a files filter and observation invalidation (lock matrix part 3): irrelevant-edit immunity, per-file entries, and list/exists/graph observation changes forcing re-verification. Deterministic-only — real spawned binary, no reviewer needed."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-lock-scope.test.ts

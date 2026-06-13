@@ -21,12 +21,20 @@ const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle');
 const distExists = existsSync(BIN_PATH);
 
 // NOTE on hermeticity: every scenario in this file is LLM-independent. The
-// mandatory-log and approve-pass cases run on `deterministicFixture` (the LLM
-// aspect `has-doc-comment` is stripped, so `yg approve` records only
+// mandatory-log and fill-pass cases run on `deterministicFixture` (the LLM
+// aspect `has-doc-comment` is stripped, so `yg check --approve` records only
 // deterministic verdicts and never contacts a reviewer endpoint). The heading,
 // read, and merge-resolve cases never invoke the reviewer at all. No network
 // host or port is contacted by any test here, so no dead-endpoint override is
 // required.
+//
+// MODEL — `yg approve` / `.drift-state/` are GONE. Verification happens via
+// `yg check --approve` (fill); state lives in `.yggdrasil/yg-lock.json`. The
+// mandatory-log gate now fires at fill time (code `log-entry-missing`, written
+// to stdout): a node whose type has `log_required: true` and whose source
+// fingerprint changed but has no fresh log entry has its pairs skipped and the
+// run stays red. Append-only integrity (`log-integrity`) and format
+// (`log-format`) surface at plain `yg check` time (pure reads, unchanged).
 
 function run(
   args: string[],
@@ -55,7 +63,7 @@ function copyFixture(label: string): string {
 
 /**
  * Copy the fixture and strip the LLM aspect (`has-doc-comment`) so the node's
- * effective aspects are purely deterministic. This makes the approve lifecycle
+ * effective aspects are purely deterministic. This makes the fill lifecycle
  * hermetic: no network, no LLM verdict, fully reproducible.
  */
 function deterministicFixture(label: string): string {
@@ -107,13 +115,12 @@ const ordersLogPath = (dir: string) =>
   path.join(dir, '.yggdrasil', 'model', 'services', 'orders', 'log.md');
 
 // ---------------------------------------------------------------------------
-// merge-resolve git-repo builder. Mirrors the unit suite's setupMergeRepo
-// (tests/unit/cli/log-merge-resolve.test.ts) but drives the REAL binary against
-// a copy of the e2e-lifecycle graph so the CLI's graph load succeeds. The node
-// services/orders is reused as the merge target; its log.md is the only file
-// touched on each branch. git stderr is piped (not inherited) so conflict
-// notices do not leak into test output; a conflicting `git merge` returns
-// non-zero, which we tolerate (the conflict is then hand-resolved).
+// merge-resolve git-repo builder. Drives the REAL binary against a copy of the
+// e2e-lifecycle graph so the CLI's graph load succeeds. The node services/orders
+// is reused as the merge target; its log.md is the only file touched on each
+// branch. git stderr is piped (not inherited) so conflict notices do not leak
+// into test output; a conflicting `git merge` returns non-zero, which we
+// tolerate (the conflict is then hand-resolved).
 // ---------------------------------------------------------------------------
 
 const ANCESTOR_LOG = '## [2026-05-11T10:00:00.000Z]\nbase.\n';
@@ -175,9 +182,9 @@ function buildMergeRepo(label: string, resolvedLog: string): string {
 // ---------------------------------------------------------------------------
 
 describe.skipIf(!distExists)('CLI E2E — log integrity (mandatory gate, headings, read, merge-resolve)', () => {
-  // --- 1. Mandatory-log gate refuses approve when no fresh entry exists ---
+  // --- 1. Mandatory-log gate skips the node's fill when no fresh entry exists ---
 
-  it('1: approve refuses with the mandatory-log message when log_required and no entry', () => {
+  it('1: fill emits log-entry-missing when log_required and no entry (exit 1)', () => {
     const dir = deterministicFixture('mandatory');
     try {
       enableServiceLogRequired(dir);
@@ -187,10 +194,10 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (mandatory gate, heading
         readFileSync(ordersFile(dir), 'utf-8') + '\nexport const flag = true;\n',
         'utf-8',
       );
-      const { status, all } = run(['approve', '--node', 'services/orders'], dir);
+      const { status, all } = run(['check', '--approve'], dir);
       expect(status).toBe(1);
-      // what/why/next of the mandatory-log refusal.
-      expect(all).toContain('mandatory entry required when source files change');
+      // what/why/next of the mandatory-log gate (code log-entry-missing).
+      expect(all).toContain("No fresh log entry for node 'services/orders' — mandatory before --approve when source changed.");
       expect(all).toContain('log_required: true');
       expect(all).toContain('yg log add --node services/orders');
     } finally {
@@ -198,9 +205,9 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (mandatory gate, heading
     }
   });
 
-  // --- 2. A fresh log entry satisfies the gate; approve then passes ---
+  // --- 2. A fresh log entry satisfies the gate; fill then passes ---
 
-  it('2: log add then approve succeeds (exit 0)', () => {
+  it('2: log add then check --approve fills the node (exit 0)', () => {
     const dir = deterministicFixture('gate-pass');
     try {
       enableServiceLogRequired(dir);
@@ -209,13 +216,17 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (mandatory gate, heading
         readFileSync(ordersFile(dir), 'utf-8') + '\nexport const flag = true;\n',
         'utf-8',
       );
+      // payments also needs an entry on a cold fill (log_required:true treats the
+      // first source fingerprint as a change).
+      expect(run(['log', 'add', '--node', 'services/payments', '--reason', 'init'], dir).status).toBe(0);
       const add = run(['log', 'add', '--node', 'services/orders', '--reason', 'fix'], dir);
       expect(add.status).toBe(0);
       expect(add.stdout).toContain('Added log entry');
 
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/orders');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
+      expect(fill.stdout).toContain('yg check: PASS');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

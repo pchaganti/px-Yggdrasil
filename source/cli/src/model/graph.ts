@@ -85,11 +85,6 @@ export interface ArchitectureDef {
 
 export interface QualityConfig {
   max_direct_relations: number;
-  /** Per-node character budget. A node whose mapped source files plus the
-   *  reference files of its effective aspects exceed this total is an
-   *  `oversized-node` error. Default 40000. Binary files do not count; a node
-   *  may opt out via `sizeExempt`. */
-  max_node_chars?: number;
 }
 
 // ============================================================
@@ -131,13 +126,6 @@ export interface LlmConfig {
    * from canonicalTierJson like api_key and timeout).
    */
   max_prompt_chars?: number;
-  /** Optional caps on reference files for aspects resolving to this tier. */
-  references?: {
-    /** Max bytes per single reference file. Default 65536 (64 KiB). */
-    max_bytes_per_file?: number;
-    /** Max sum of reference bytes per aspect. Default 262144 (256 KiB). */
-    max_total_bytes_per_aspect?: number;
-  };
 }
 
 export interface NodeMeta {
@@ -153,10 +141,6 @@ export interface NodeMeta {
   relations?: Relation[];
   /** Flat list of file/directory paths relative to repo root */
   mapping?: string[];
-  /** Documented opt-out from the per-node character budget (`oversized-node`).
-   *  Use ONLY for nodes mapping an unsplittable generated or binary artifact
-   *  (lockfile, append-only changelog, image). Requires a justification. */
-  sizeExempt?: { reason: string };
 }
 
 export interface Relation {

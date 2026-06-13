@@ -7,20 +7,24 @@ import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { collectAncestors } from '../core/context-builder.js';
 import { computeEffectiveAspects, computeEffectiveAspectStatuses } from '../core/graph/aspects.js';
-import { collectTrackedFiles } from '../core/graph/files.js';
-import { readNodeDriftState } from '../io/drift-state-store.js';
 import {
   collectReverseDependents,
   buildTransitiveChains,
   collectIndirectDependents,
   collectStructureCascade,
+  nodesWithRefusedVerdict,
 } from '../core/graph/impact-graph.js';
 import { findOwner } from './owner.js';
 import { projectRootFromGraph, resolveFileArg } from '../io/paths.js';
 import { FileContentCache } from '../io/file-content-cache.js';
 import { walkRepoFiles } from '../io/repo-scanner.js';
 import { evaluateFileWhen } from '../core/file-when-evaluator.js';
+import { readLock, LockInvalidError } from '../io/lock-store.js';
+import { computeExpectedPairs } from '../core/pairs.js';
+import { selectTierForAspect } from '../core/tier-selection.js';
 import type { Graph } from '../model/graph.js';
+import type { LockFile } from '../model/lock.js';
+import { toPosixPath } from '../utils/posix.js';
 
 export function collectDescendants(graph: Graph, nodePath: string): string[] {
   const node = graph.nodes.get(nodePath);
@@ -38,6 +42,7 @@ export function collectDescendants(graph: Graph, nodePath: string): string[] {
 async function handleAspectImpact(
   graph: Graph,
   aspectId: string,
+  lock: LockFile,
 ): Promise<void> {
   const aspect = graph.aspects.find((a) => a.id === aspectId);
   if (!aspect) {
@@ -49,21 +54,19 @@ async function handleAspectImpact(
     process.exit(1);
   }
 
-  const affected: Array<{ path: string; source: string; status: string; refusedBaseline: boolean }> = [];
+  // Nodes currently holding a refused verdict for this aspect (lock scan, no IO).
+  const refusedNodes = nodesWithRefusedVerdict(graph, lock, aspectId);
+
+  const affected: Array<{ path: string; source: string; status: string; refused: boolean }> = [];
   for (const [nodePath, node] of graph.nodes) {
     const effective = computeEffectiveAspects(node, graph);
     if (effective.has(aspectId)) {
       const statuses = computeEffectiveAspectStatuses(node, graph);
       const status = statuses.get(aspectId) ?? aspect.status ?? 'enforced';
-      // Rendering-flip risk: when this aspect's status flips (advisory ↔
-      // enforced), nodes with a stored `refused` verdict for it will flip
-      // rendering severity on the next `yg check`. Surface that proactively so
-      // users see which baselines are sensitive before they touch the status.
-      const baseline = await readNodeDriftState(graph.rootPath, nodePath);
-      const refusedBaseline = baseline?.aspectVerdicts?.[aspectId]?.verdict === 'refused';
+      const refused = refusedNodes.has(nodePath);
       const ownAspectIds = new Set(node.meta.aspects ?? []);
       if (ownAspectIds.has(aspectId)) {
-        affected.push({ path: nodePath, source: 'own', status, refusedBaseline });
+        affected.push({ path: nodePath, source: 'own', status, refused });
       } else {
         let fromHierarchy = false;
         let anc = node.parent;
@@ -75,7 +78,7 @@ async function handleAspectImpact(
           anc = anc.parent;
         }
         if (fromHierarchy) {
-          affected.push({ path: nodePath, source: `hierarchy from ${anc!.path}`, status, refusedBaseline });
+          affected.push({ path: nodePath, source: `hierarchy from ${anc!.path}`, status, refused });
         } else {
           const ancestorPaths = new Set([nodePath, ...collectAncestors(node).map((a) => a.path)]);
           const flow = graph.flows.find(
@@ -83,7 +86,7 @@ async function handleAspectImpact(
               (f.aspects ?? []).includes(aspectId) &&
               f.nodes.some((n) => ancestorPaths.has(n)),
           );
-          affected.push({ path: nodePath, source: flow ? `flow: ${flow.name}` : 'implied', status, refusedBaseline });
+          affected.push({ path: nodePath, source: flow ? `flow: ${flow.name}` : 'implied', status, refused });
         }
       }
     }
@@ -105,16 +108,19 @@ async function handleAspectImpact(
     .map((a) => a.id);
   const implies = aspect.implies ?? [];
 
+  // Cost: how many pairs of THIS aspect would become unverified, and (for an LLM
+  // aspect) the reviewer calls a re-fill would cost. per: file scope produces one
+  // unit per subject file, so count from the expected-pair set, not node count.
+  const cost = await computeAspectFillCost(graph, aspectId);
+
   process.stdout.write(`Impact of changes in aspect ${aspectId}:\n\n`);
   process.stdout.write(`Directly affected (${affected.length}):\n`);
   if (affected.length === 0) {
     process.stdout.write('  (none)\n');
   } else {
-    for (const { path: p, source, status, refusedBaseline } of affected) {
-      process.stdout.write(`  ${p} (${source}) [${status}]\n`);
-      if (refusedBaseline) {
-        process.stdout.write(`    ⚠ refused baseline — rendering severity will flip on next yg check if status changes\n`);
-      }
+    for (const { path: p, source, status, refused } of affected) {
+      const refusedTag = refused ? ' [refused]' : '';
+      process.stdout.write(`  ${p} (${source}) [${status}]${refusedTag}\n`);
     }
   }
   if (chains.length > 0) {
@@ -129,12 +135,59 @@ async function handleAspectImpact(
   process.stdout.write(`Implied by: ${impliedBy.length > 0 ? impliedBy.join(', ') : '(none)'}\n`);
   process.stdout.write(`Implies: ${implies.length > 0 ? implies.join(', ') : '(none)'}\n`);
   process.stdout.write(`\nBlast radius: ${affected.length + indirectPaths.length} nodes, ${propagatingFlows.length} flows\n`);
-  process.stdout.write(`  All ${affected.length} directly affected nodes would show upstream-drift if this aspect changes.\n`);
+  process.stdout.write(renderFillCost(cost, affected.length));
   const totalAffected = affected.length + indirectPaths.length;
   if (totalAffected >= 10) {
     process.stdout.write(`  High blast radius — review aspect requirements in affected nodes before modifying this aspect.\n`);
   }
 
+}
+
+interface FillCost {
+  kind: 'llm' | 'deterministic' | 'unknown';
+  units: number;        // expected pairs of the aspect (per: file → one per file)
+  reviewerCalls: number; // units × resolved consensus (0 for deterministic)
+}
+
+/**
+ * Cost of re-filling every pair of `aspectId` after a change to it: the unit
+ * count (one per expected pair) and, for an LLM aspect, the reviewer calls a
+ * re-fill would dispatch (units × the resolved tier consensus). Deterministic
+ * aspects are free (0 reviewer calls).
+ */
+async function computeAspectFillCost(graph: Graph, aspectId: string): Promise<FillCost> {
+  const aspect = graph.aspects.find((a) => a.id === aspectId);
+  const { pairs } = await computeExpectedPairs(graph);
+  const units = pairs.filter((p) => p.aspectId === aspectId).length;
+
+  if (!aspect || aspect.reviewer.type === 'deterministic') {
+    return { kind: 'deterministic', units, reviewerCalls: 0 };
+  }
+  if (aspect.reviewer.type !== 'llm') {
+    return { kind: 'unknown', units, reviewerCalls: 0 };
+  }
+
+  const reviewer = graph.config.reviewer;
+  const tier = reviewer ? selectTierForAspect(aspect, reviewer) : undefined;
+  const consensus = tier?.ok ? tier.tier.consensus : 1;
+  return { kind: 'llm', units, reviewerCalls: units * consensus };
+}
+
+/** Render the cost lines for an aspect change in lock vocabulary (no drift words). */
+function renderFillCost(cost: FillCost, affectedNodes: number): string {
+  if (cost.units === 0) {
+    return `  No verified pairs of this aspect exist yet — a change re-verifies them on the next yg check --approve.\n`;
+  }
+  if (cost.kind === 'deterministic') {
+    return (
+      `  All ${affectedNodes} affected node(s) (${cost.units} pair(s)) would become unverified if this aspect changes — ` +
+      `re-verified for free by yg check --approve (deterministic, no reviewer calls).\n`
+    );
+  }
+  return (
+    `  All ${affectedNodes} affected node(s) (${cost.units} pair(s)) would become unverified if this aspect changes — ` +
+    `re-verified by yg check --approve at ${cost.reviewerCalls} reviewer call(s) (consensus included).\n`
+  );
 }
 
 async function handleFlowImpact(
@@ -188,7 +241,7 @@ async function handleFlowImpact(
   );
   const declaredParticipants = flow.nodes.filter((n) => graph.nodes.has(n));
   process.stdout.write(`\nBlast radius: ${sorted.length + indirectPaths.length} nodes\n`);
-  process.stdout.write(`  All ${declaredParticipants.length} participants would show upstream-drift if this flow changes.\n`);
+  process.stdout.write(`  All ${declaredParticipants.length} participant(s) would become unverified if this flow's aspect or participant set changes — re-verified by yg check --approve.\n`);
   const totalFlowAffected = sorted.length + indirectPaths.length;
   if (totalFlowAffected >= 10) {
     process.stdout.write(`  High blast radius — review flow compliance in participants before modifying.\n`);
@@ -345,33 +398,51 @@ export function registerImpactCommand(program: Command): void {
           const graph = await loadGraphOrAbort(process.cwd());
           initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
 
+          // Load the lock ONCE per command. A garbled/unknown-version lock fails
+          // closed with a clear error — impact cannot reason about cross-node
+          // file invalidation or refused verdicts without a readable lock.
+          let lock: LockFile;
+          try {
+            lock = readLock(graph.rootPath);
+          } catch (err) {
+            if (err instanceof LockInvalidError) {
+              process.stderr.write(chalk.red(`Error: ${buildIssueMessage(err.messageData)}\n`));
+              process.exit(1);
+            }
+            throw err;
+          }
+
           // Resolve --file to --node (structural owner) + cascade-via-reference scan
           if (options.file) {
             const repoRoot = projectRootFromGraph(graph.rootPath);
             const repoRelative = resolveFileArg(repoRoot, options.file);
             const ownerResult = findOwner(graph, repoRoot, repoRelative);
 
-            // Scan all nodes to find those whose aspect references include this file
+            // Scan all nodes to find those whose aspect references include this file.
+            // An aspect reference is hashed into every LLM pair of nodes carrying
+            // that aspect, so editing the file invalidates those pairs.
             const refCascadeNodes: string[] = [];
             for (const [nodePath, node] of graph.nodes) {
               // Skip the structural owner — it's handled separately
               if (ownerResult.nodePath && nodePath === ownerResult.nodePath) continue;
-              const { trackedFiles } = collectTrackedFiles(node, graph);
-              const hasRef = trackedFiles.some(
-                t => t.category === 'graph' && t.layer === 'aspects' && t.path === repoRelative,
-              );
+              const effective = computeEffectiveAspects(node, graph);
+              const hasRef = [...effective].some(aspectId => {
+                const aspect = graph.aspects.find(a => a.id === aspectId);
+                return aspect?.references?.some(r => r.path === repoRelative);
+              });
               if (hasRef) refCascadeNodes.push(nodePath);
             }
             refCascadeNodes.sort();
 
-            // Structure-aspect cascade: nodes whose effective structure aspect
-            // reads this file CROSS-NODE. See collectStructureCascade.
-            const structureCascade = await collectStructureCascade(graph, repoRelative, ownerResult.nodePath);
+            // Structure-aspect cascade: nodes whose effective deterministic aspect
+            // OBSERVES this file CROSS-NODE (precise, from the lock's `touched`
+            // maps; cold-start fallback = potential). See collectStructureCascade.
+            const structureCascade = collectStructureCascade(graph, repoRelative, ownerResult.nodePath, lock);
 
             if (!ownerResult.nodePath && refCascadeNodes.length === 0 && structureCascade.length === 0) {
               process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
                 what: `${repoRelative} -> no graph coverage`,
-                why: 'file is not mapped to any node, is not referenced by any aspect, and is not read by any structure aspect in the graph.',
+                why: 'file is not mapped to any node, is not referenced by any aspect, and is not observed by any deterministic aspect in the graph.',
                 next: 'Add the file to an existing node mapping, or create a new node.',
               })}\n`));
               process.exit(1);
@@ -385,20 +456,21 @@ export function registerImpactCommand(program: Command): void {
               }
               process.stdout.write(
                 `\nBlast radius via references: ${refCascadeNodes.length} node(s) — ` +
-                `editing this file cascades drift to each.\n`,
+                `editing this file would make their LLM pairs unverified (re-verified by yg check --approve).\n`,
               );
             }
 
             // Show structure-cascade section if any
             if (structureCascade.length > 0) {
-              process.stdout.write(`\nNodes whose structure aspects read ${repoRelative} [structure]:\n`);
+              process.stdout.write(`\nNodes whose deterministic aspects observe ${repoRelative} [structure]:\n`);
               for (const { nodePath, mode } of structureCascade) {
                 const suffix = mode === 'potential' ? ' [structure, potential]' : ' [structure]';
-                process.stdout.write(`  ${nodePath}${suffix}\n`);
+                process.stdout.write(`  ${toPosixPath(nodePath)}${suffix}\n`);
               }
               process.stdout.write(
-                `\nBlast radius via structure aspects: ${structureCascade.length} node(s) — ` +
-                `editing this file cascades drift to each.\n`,
+                `\nBlast radius via deterministic aspects: ${structureCascade.length} node(s) — ` +
+                `editing this file would make their deterministic pairs unverified ` +
+                `(re-verified for free by yg check --approve).\n`,
               );
             }
 
@@ -413,7 +485,7 @@ export function registerImpactCommand(program: Command): void {
           }
 
           if (options.aspect) {
-            await handleAspectImpact(graph, options.aspect.trim());
+            await handleAspectImpact(graph, options.aspect.trim(), lock);
             return;
           }
           if (options.flow) {
@@ -596,7 +668,8 @@ export function registerImpactCommand(program: Command): void {
             `\nBlast radius: ${allAffected.size} nodes, ${flows.length} flows, ${aspectsInScope.length} aspects\n`,
           );
           process.stdout.write(
-            `  All ${allAffected.size} nodes would show upstream-drift (cascade drift) if this node changes.\n`,
+            `  Editing this node re-verifies its own pairs on the next yg check --approve; ` +
+            `the ${allAffected.size} dependent node(s) above are where a behavioural change may need review.\n`,
           );
           if (allAffected.size >= 10) {
             process.stdout.write(`  High blast radius — review direct dependents before changing this node.\n`);

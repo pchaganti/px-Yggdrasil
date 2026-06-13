@@ -80,18 +80,17 @@ mapping:
 
 Nodes can be nested. Children inherit parent aspects automatically.
 
-### Node size budget
+### Prompt size and the reviewer's context window
 
-The LLM reviewer sends all of a node's mapped source (plus any aspect reference
-files) in one prompt, so a node has a character budget: `quality.max_node_chars`
-in `yg-config.yaml`, default 40000. A node that exceeds it produces an
-`oversized-node` error in `yg check` — split it into children or trim its
-mapping. The budget applies **only to nodes an LLM reviewer actually reads** —
-those with at least one non-draft LLM aspect. Nodes reviewed only by
-deterministic aspects (`check.mjs` reads files programmatically, with no context
-window) and aspect-less nodes are never bounded. Binary files (images, fonts, archives, etc.) count 0 toward the
-budget automatically. For a large unsplittable text artifact — a generated
-lockfile, for example — opt the node out with `sizeExempt: { reason: "..." }`.
+The LLM reviewer assembles each pair into one prompt (the rule, any reference
+files, and the subject files). To keep that prompt inside a model's context
+window, a tier in `yg-config.yaml` may set `max_prompt_chars`; `yg check`
+measures the assembled prompt for each LLM pair and reports `prompt-too-large`
+if it exceeds the tier's limit. The remedies, in safety order: narrow the
+aspect's `scope.files` so non-target payload drops out, switch a file-local
+rule to `per: file`, split the node, or raise the limit. Deterministic aspects
+read files programmatically with no prompt, so they are never subject to this
+gate. See [Configuration](/configuration#reviewer-tiers).
 
 ### Relations
 
@@ -151,9 +150,10 @@ mapping:
   - src/legacy/auth/
 ```
 
-Nodes without aspects auto-approve instantly — no hashing, no LLM review.
-They satisfy the coverage requirement without adding enforcement overhead.
-When you're ready to enforce rules, add aspects to the node.
+Nodes without aspects produce no pairs — there is nothing to verify and
+nothing to record. They satisfy the coverage requirement without adding
+enforcement overhead. When you're ready to enforce rules, add aspects to
+the node.
 
 ---
 
@@ -215,31 +215,65 @@ references:
     description: "Source of truth for error code constants."
 ```
 
-Changes to referenced files cascade like changes to `content.md` —
-every node where the aspect is effective is re-approved. Run
+Reference files are part of an LLM pair's input hash, so editing one
+invalidates every pair of the aspect — re-verifying them all. Run
 `yg impact --file <ref>` before editing a widely-referenced file.
-Size limits are configured per reviewer tier in `yg-config.yaml`.
+References travel in every prompt, so under `per: file` scope they are
+included once per file; the tier's `max_prompt_chars` bounds the result.
+
+### Aspect scope and units
+
+Every aspect with a rule source declares how broadly it verifies:
+
+```yaml
+# yg-aspect.yaml
+scope:
+  per: node | file          # default: node
+  files:                     # optional — narrows which mapped files are reviewed
+    all_of:
+      - path: "src/**/*.ts"
+      - not: { path: "**/*.test.ts" }
+```
+
+- **`per: node`** (the default) verifies the whole node in one pass — the LLM
+  reviewer sees every subject file in one prompt; a deterministic check sees them
+  all in one `check(ctx)` call.
+- **`per: file`** verifies each subject file independently — one prompt (or one
+  `check(ctx)` call) per file.
+
+The thing one verification covers is a **unit**: the whole node under `per:
+node`, a single file under `per: file`. An aspect paired with a unit is a
+**pair** — the unit of work, cost, and caching. `scope.files` filters which
+mapped files form the subject set; an aspect that excludes every file of a
+node it lands on simply produces no pair there (a vacuous pass — `yg context
+--node` shows the per-aspect subject count, including `0 files`).
+
+Use `per: file` only for **file-local** rules ("every handler validates its
+input"). Rules that need cross-file context ("exactly one file exports X",
+"a correlation ID propagates across calls") must stay `per: node` — a per-file
+reviewer cannot see the rest of the node.
 
 ### Aspect status
 
 Each aspect carries a status — `draft`, `advisory`, or `enforced` — that
-controls whether the reviewer runs and how violations surface:
+controls how its results render. Status never re-runs the reviewer; verdicts
+survive every status flip.
 
-| Status      | Reviewer runs? | Refused renders as |
-|-------------|----------------|--------------------|
-| `draft`     | no             | n/a (skipped)      |
-| `advisory`  | yes            | warning            |
-| `enforced`  | yes            | error (blocks CI)  |
+| Status      | A refusal renders as | An unverified pair renders as | Blocks CI |
+|-------------|----------------------|-------------------------------|-----------|
+| `draft`     | pair not expected    | pair not expected             | no        |
+| `advisory`  | warning              | warning                       | no        |
+| `enforced`  | error                | error                         | yes       |
 
 Status defaults to `enforced`. Set `status: advisory` on a new rule to
 gather signal across the repo without blocking CI; promote to `enforced`
-once you trust it. Status can be set on the aspect itself or overridden
-on any attach site (node, type, flow, port). The effective status on a
-node is the strictest declared across all channels — bumping up is fine,
-silent downgrades are rejected.
+once you trust it. `draft` removes the aspect's pairs entirely. Status can be
+set on the aspect itself or overridden on any attach site (node, type, flow,
+port). The effective status on a node is the strictest declared across all
+channels — bumping up is fine, silent downgrades are rejected.
 
 See [Aspect Status](/aspect-status) for the full lifecycle, `status_inherit`
-on implies edges, drift semantics, and migration from 4.x.
+on implies edges, severity-by-status, and verdict reuse across flips.
 
 ### How aspects reach nodes
 
@@ -256,7 +290,7 @@ Aspects propagate through seven channels:
 | Implied       | Aspects included via `implies` chains (recursive)           |
 
 One aspect can reach dozens of nodes through these channels. When you change
-an aspect's content, every node that uses it gets flagged for re-approval.
+an aspect's content, every pair it produces is flagged for re-verification.
 
 ---
 
@@ -283,20 +317,36 @@ to an entire business process.
 
 ---
 
-## The enforcement loop
+## The lock and the enforcement loop
+
+Every verdict — LLM and deterministic alike — is stored as a content-addressed
+entry in one committed file, `.yggdrasil/yg-lock.json`. Each entry maps an
+`(aspect, unit)` pair to a verdict plus the hash of the inputs that produced it
+(the rule text, the subject files, and for LLM pairs the tier and references).
+A verdict is valid exactly while those inputs still hash to the stored value;
+any change to them makes the pair **unverified**.
 
 1. Agent reads context before writing code (`yg context --file <path>`)
    and sees which aspects apply
 2. Agent writes code
-3. Agent runs `yg approve` — each aspect's reviewer checks the source code
-   against its rules. LLM aspects call the model with `content.md`; deterministic
-   aspects run `check.mjs` locally with no LLM call
-4. Reviewer says pass → approved, new baseline hash recorded
-5. Reviewer says fail → `aspect-violation`, agent must fix and re-approve
+3. Agent runs `yg check --approve` — it fills every unverified pair.
+   Deterministic pairs run first, locally, for free; LLM pairs then go to the
+   reviewer with `content.md` and the subject files
+4. Reviewer says pass → an `approved` verdict is recorded in the lock
+5. Reviewer says fail → a `refused` verdict is recorded and rendered; the agent
+   fixes the code and re-runs `yg check --approve`
 
-`yg check` is the CI gate. It compares file hashes — no LLM calls, runs
-instantly. If a file changed since its last approve, check fails. The agent
-does the approve (running the relevant reviewer) locally, CI just verifies it happened.
+`yg check` is the CI gate. It recomputes each pair's input hash and compares it
+against the lock — no LLM calls, no provider keys, runs instantly. If a pair's
+inputs changed since its verdict was recorded, the hash no longer matches and
+check reports it as unverified. The agent does the verification locally; CI just
+confirms the recorded verdicts still hold.
+
+Refusals are cached like approvals: re-running `yg check --approve` over a
+refused pair with unchanged inputs does not re-run the reviewer. The three ways
+out of a refusal are fix the code, sharpen the rule (which re-verifies every
+pair of the aspect — check `yg impact --aspect` first), or, with your sign-off,
+add a `yg-suppress` marker.
 
 ---
 
@@ -312,11 +362,10 @@ the schema and can modify this file on your behalf.
 node_types:
   module:
     description: "Business logic unit with clear domain responsibility"
-    log_required: false
   service:
     description: "Component providing functionality to other nodes"
     aspects: [requires-audit]
-    log_required: true
+    log_required: true        # opt in — service changes carry business intent
     enforce: strict
     parents: [module]
     relations:
@@ -340,9 +389,11 @@ node_types:
   have audit logging. Run `yg impact --type <id>` before adding an aspect here to see
   how many nodes will be affected.
 
-- **`log_required`** — Whether `yg approve` requires at least one log entry before
-  running the reviewer. Defaults to `true`. Set to `false` for types where business
-  reasoning entries aren't needed (e.g. test suites, config nodes).
+- **`log_required`** — Whether `yg check --approve` requires a fresh log entry
+  before it records a verdict for a source change on a node of this type. Defaults
+  to `false` (opt-in). Enable it on types whose changes carry business intent worth
+  capturing — domain logic, command handlers — so the *why* behind each change is
+  recorded before it is verified.
 
 - **`enforce: strict`** — When set to the string literal `strict`, every source file
   matched by the type's `when` predicate must belong to exactly one node of this type.
@@ -369,6 +420,6 @@ node_types:
 
 ## Next
 
-- [Reviewers](/reviewers) — LLM and deterministic reviewer types, authoring guides, suppression, drift, edge cases
+- [Reviewers](/reviewers) — LLM and deterministic reviewer types, authoring guides, suppression, edge cases
 - [Conditional Aspects](/conditional-aspects) — `when` predicates for selective aspect application
 - [CLI Reference](/cli-reference) — full command surface

@@ -4,5 +4,4 @@ description: End-to-end reviewer execution tests — multi-tier approve flow wit
 aspects: []
 relations: []
 mapping:
-  - source/cli/tests/integration/multi-tier-approve.test.ts
   - source/cli/tests/integration/ollama-reviewer.external.test.ts

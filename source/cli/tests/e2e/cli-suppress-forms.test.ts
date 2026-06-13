@@ -22,9 +22,8 @@ const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle');
 const distExists = existsSync(BIN_PATH);
 
 // A dead loopback endpoint. Pointing the reviewer at this makes the LLM aspect
-// path unreachable, so `yg approve` never produces an environment-dependent LLM
-// verdict — port 1 never has a listener, on ANY machine, with no reliance on a
-// real endpoint being present or absent. Used by killReviewer().
+// path unreachable — port 1 never has a listener, on ANY machine, with no
+// reliance on a real endpoint being present or absent. Used by killReviewer().
 const DEAD_ENDPOINT = 'http://127.0.0.1:1';
 
 function run(
@@ -54,7 +53,7 @@ function copyFixture(label: string): string {
 
 /**
  * Copy the fixture and strip the LLM aspect (`has-doc-comment`) so the node's
- * effective aspects are purely deterministic. This makes the approve/check
+ * effective aspects are purely deterministic. This makes the check/fill
  * lifecycle hermetic: no network, no LLM verdict, fully reproducible — only the
  * deterministic check.mjs aspects drive every refuse/pass outcome.
  */
@@ -208,6 +207,12 @@ function setNodeAspects(nodeYamlPath: string, name: string, description: string,
 // TODOs, draft-aspect suppress no-op). Fully hermetic: every test builds its
 // own graph in a fresh temp dir, uses only deterministic check.mjs aspects, and
 // makes no network / clock / random reads in any assertion.
+//
+// Verdict-lock model: `yg approve` is gone — verification happens via
+// `yg check --approve` (repo-wide fill). A deterministic verdict renders per
+// pair as `[det] <aspectId> on <unitKey> — approved|refused`; a refusal of an
+// enforced aspect blocks check (exit 1). A waived (suppressed) violation makes
+// the pair `approved`.
 // ---------------------------------------------------------------------------
 
 describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-path matching', () => {
@@ -216,11 +221,11 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
   // REVIEWER-TYPE-SPECIFIC SUPPRESS SEMANTICS — pinning the DETERMINISTIC behavior.
   //
   // Suppress is interpreted differently by the two reviewer types:
-  //   * LLM aspects: the reviewer prompt (src/llm/aspect-verifier.ts) INSTRUCTS the
-  //     model that the marker "applies contextually to the surrounding code
-  //     (function, class, or block)... at file level, the entire file." So for an
-  //     LLM aspect a single-line / file-level marker IS contextual / whole-file.
-  //     The `yg knowledge read suppress-syntax` "File-level placement" wording
+  //   * LLM aspects: the reviewer prompt INSTRUCTS the model that the marker
+  //     "applies contextually to the surrounding code (function, class, or
+  //     block)... at file level, the entire file." So for an LLM aspect a
+  //     single-line / file-level marker IS contextual / whole-file. The
+  //     `yg knowledge read suppress-syntax` "File-level placement" wording
   //     describes THIS behavior.
   //   * DETERMINISTIC aspects (AST + structure runners, src/ast/suppress.ts): purely
   //     LINE-BASED. A single-line `yg-suppress(<id>)` covers exactly ONE line — the
@@ -228,18 +233,16 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
   //     line 2; a violation deeper in the file is NOT waived. The only construct
   //     that waives "to end of file" is a bare `yg-suppress-disable(<id>)` with NO
   //     matching `enable` — the unterminated disable range extends through the last
-  //     line. The knowledge doc does not currently spell out this deterministic
-  //     line-based difference (recorded in .temp/dogfood-report.md).
+  //     line.
   //
   // This suite exercises the DETERMINISTIC runners, so the whole-file waiver here is
   // the unterminated disable. (See test 1b for the proof that the single-line form
   // does NOT do whole-file scoping under the deterministic runner.)
 
-  it('1: a file-level yg-suppress-disable(no-todo-comments) (no enable) waives a TODO deep in the file; approve+check green', () => {
+  it('1: a file-level yg-suppress-disable(no-todo-comments) (no enable) waives a TODO deep in the file; fill + check green', () => {
     const dir = hermeticFixture('file-level-disable');
     try {
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // File-level marker at the TOP (before any code), then a TODO buried in a
       // function body further down. The unterminated disable covers to EOF.
@@ -259,10 +262,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/payments'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/payments');
-      expect(approve.stdout).not.toContain('NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/payments — approved');
+      expect(fill.all).not.toContain('refused');
 
       const check = run(['check'], dir);
       expect(check.status).toBe(0);
@@ -276,7 +279,7 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
   it('1b: the identical deep TODO refuses WITHOUT the file-level disable; a single-line marker on line 1 does NOT cover it either', () => {
     const dir = hermeticFixture('file-level-control');
     try {
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       const clean = readFileSync(paymentsFile(dir), 'utf-8');
 
       const deepTodo = [
@@ -290,10 +293,9 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
 
       // (a) No marker at all -> the enforced aspect refuses.
       writeFileSync(paymentsFile(dir), clean + deepTodo, 'utf-8');
-      const noMarker = run(['approve', '--node', 'services/payments'], dir);
+      const noMarker = run(['check', '--approve'], dir);
       expect(noMarker.status).toBe(1);
-      expect(noMarker.stdout).toContain('no-todo-comments');
-      expect(noMarker.stdout).toContain('NOT SATISFIED');
+      expect(noMarker.stdout).toContain('[det] no-todo-comments on node:services/payments — refused');
 
       // (b) A SINGLE-LINE yg-suppress(...) on line 1 still refuses: under the
       // DETERMINISTIC runner the single-line form covers only the line
@@ -307,10 +309,9 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
           deepTodo,
         'utf-8',
       );
-      const singleLineTop = run(['approve', '--node', 'services/payments'], dir);
+      const singleLineTop = run(['check', '--approve'], dir);
       expect(singleLineTop.status).toBe(1);
-      expect(singleLineTop.stdout).toContain('no-todo-comments');
-      expect(singleLineTop.stdout).toContain('NOT SATISFIED');
+      expect(singleLineTop.stdout).toContain('[det] no-todo-comments on node:services/payments — refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -318,7 +319,7 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
 
   // --- 2. SINGLE-LINE WILDCARD waives EVERY aspect on the contextual block ---
 
-  it('2: a single-line yg-suppress(*) above one line waives TWO distinct aspects both violated on that line; approve exits 0', () => {
+  it('2: a single-line yg-suppress(*) above one line waives TWO distinct aspects both violated on that line; fill exits 0', () => {
     const dir = hermeticFixture('single-line-wildcard');
     try {
       // Two independent enforced aspects that both flag any line carrying the
@@ -332,7 +333,7 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
         'src/services/payments.ts',
         ['ban-foo', 'ban-bar'],
       );
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // ONE wildcard single-line marker directly above the single offending line.
       appendFileSync(
@@ -346,13 +347,12 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/payments'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/payments');
-      // BOTH aspects waived by the single wildcard marker — neither refuses.
-      expect(approve.stdout).not.toContain('NOT SATISFIED');
-      expect(approve.stdout).not.toContain('ban-foo — NOT SATISFIED');
-      expect(approve.stdout).not.toContain('ban-bar — NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      // BOTH aspects waived by the single wildcard marker — both pairs approve.
+      expect(fill.stdout).toContain('[det] ban-foo on node:services/payments — approved');
+      expect(fill.stdout).toContain('[det] ban-bar on node:services/payments — approved');
+      expect(fill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -360,7 +360,7 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
 
   // --- 2b. control: the same line WITHOUT the wildcard marker fires both aspects ---
 
-  it('2b: WITHOUT the wildcard marker the identical line trips BOTH aspects; approve exits 1', () => {
+  it('2b: WITHOUT the wildcard marker the identical line trips BOTH aspects; fill exits 1', () => {
     const dir = hermeticFixture('single-line-wildcard-control');
     try {
       writeTokenAspect(dir, 'ban-foo', 'BADTOKEN');
@@ -372,14 +372,14 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
         'src/services/payments.ts',
         ['ban-foo', 'ban-bar'],
       );
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       appendFileSync(paymentsFile(dir), '\nconst reconcileTag = "BADTOKEN";\n', 'utf-8');
 
-      const approve = run(['approve', '--node', 'services/payments'], dir);
-      expect(approve.status).toBe(1);
-      expect(approve.stdout).toContain('ban-foo — NOT SATISFIED');
-      expect(approve.stdout).toContain('ban-bar — NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      expect(fill.stdout).toContain('[det] ban-foo on node:services/payments — refused');
+      expect(fill.stdout).toContain('[det] ban-bar on node:services/payments — refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -390,7 +390,7 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
   it('3: a yg-suppress naming a NON-EXISTENT aspect-path does NOT waive the real violation; no "unknown target" notice; exit 1', () => {
     const dir = hermeticFixture('wrong-path-noop');
     try {
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // Marker names "no-todo-commentz" — a typo. The real aspect is
       // "no-todo-comments". The token is matched as a plain string against the
@@ -406,14 +406,13 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(1);
-      expect(approve.stdout).toContain('no-todo-comments');
-      expect(approve.stdout).toContain('NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
+      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — refused');
       // The CLI does NOT warn that the suppress id is unknown — a wrong/typo'd
       // aspect-path is silently inert (nothing validates the id exists).
-      expect(approve.all.toLowerCase()).not.toContain('unknown suppress');
-      expect(approve.all.toLowerCase()).not.toContain('suppress target');
+      expect(fill.all.toLowerCase()).not.toContain('unknown suppress');
+      expect(fill.all.toLowerCase()).not.toContain('suppress target');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -421,10 +420,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
 
   // --- 4. CORRECT aspect-path IS waived (positive control for test 3) ---
 
-  it('4: the SAME violation with the CORRECT aspect-path in the single-line marker IS waived; approve exits 0', () => {
+  it('4: the SAME violation with the CORRECT aspect-path in the single-line marker IS waived; fill exits 0', () => {
     const dir = hermeticFixture('correct-path-match');
     try {
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // Identical placement to test 3, but the id is spelled correctly.
       appendFileSync(
@@ -438,10 +437,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/orders');
-      expect(approve.stdout).not.toContain('NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
+      expect(fill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -449,7 +448,7 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
 
   // --- 5. GRAPH-AWARE (structure) runner honors in-source yg-suppress (STRUCT-1) ---
 
-  it('5: a graph-aware (ctx.graph/ctx.fs) violation is waived by a single-line yg-suppress; approve exits 0', () => {
+  it('5: a graph-aware (ctx.graph/ctx.fs) violation is waived by a single-line yg-suppress; fill exits 0', () => {
     const dir = hermeticFixture('graph-aware-suppress');
     try {
       // FORBIDDENMARK is chosen so it never appears inside the marker comment
@@ -463,7 +462,7 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
         'src/services/orders.ts',
         ['graph-no-forbidden'],
       );
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       appendFileSync(
         ordersFile(dir),
@@ -476,10 +475,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: services/orders');
-      expect(approve.stdout).not.toContain('NOT SATISFIED');
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('[det] graph-no-forbidden on node:services/orders — approved');
+      expect(fill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -496,14 +495,14 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
         'src/services/orders.ts',
         ['graph-no-forbidden'],
       );
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       const clean = readFileSync(ordersFile(dir), 'utf-8');
 
       // (a) No marker -> graph-aware aspect refuses.
       writeFileSync(ordersFile(dir), clean + '\nconst forbiddenTag = "FORBIDDENMARK";\n', 'utf-8');
-      const noMarker = run(['approve', '--node', 'services/orders'], dir);
+      const noMarker = run(['check', '--approve'], dir);
       expect(noMarker.status).toBe(1);
-      expect(noMarker.stdout).toContain('graph-no-forbidden — NOT SATISFIED');
+      expect(noMarker.stdout).toContain('[det] graph-no-forbidden on node:services/orders — refused');
 
       // (b) Wrong-id marker -> still refuses (suppress is matched by aspect id).
       writeFileSync(
@@ -513,9 +512,9 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
           'const forbiddenTag = "FORBIDDENMARK";\n',
         'utf-8',
       );
-      const wrongId = run(['approve', '--node', 'services/orders'], dir);
+      const wrongId = run(['check', '--approve'], dir);
       expect(wrongId.status).toBe(1);
-      expect(wrongId.stdout).toContain('graph-no-forbidden — NOT SATISFIED');
+      expect(wrongId.stdout).toContain('[det] graph-no-forbidden on node:services/orders — refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -536,7 +535,7 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
         'src/services/payments.ts',
         ['ban-foo', 'ban-bar'],
       );
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
 
       // A bracket scoped to ONE NAMED aspect (NOT wildcard) around the offending
       // line. Only ban-foo is named, so ban-bar still fires inside the range.
@@ -552,11 +551,11 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
         'utf-8',
       );
 
-      const approve = run(['approve', '--node', 'services/payments'], dir);
-      expect(approve.status).toBe(1);
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(1);
       // ban-foo is waived by the named bracket; ban-bar is NOT (different id).
-      expect(approve.stdout).toContain('ban-foo — SATISFIED');
-      expect(approve.stdout).toContain('ban-bar — NOT SATISFIED');
+      expect(fill.stdout).toContain('[det] ban-foo on node:services/payments — approved');
+      expect(fill.stdout).toContain('[det] ban-bar on node:services/payments — refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

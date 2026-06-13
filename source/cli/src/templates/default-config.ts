@@ -3,7 +3,6 @@ export const DEFAULT_CONFIG = `version: "5.0.0"
 # Quality thresholds
 quality:
   max_direct_relations: 10
-  max_node_chars: 40000
 
 # Reviewer configuration added by: yg init
 # (see schemas/yg-config.yaml + yg knowledge read configuration)

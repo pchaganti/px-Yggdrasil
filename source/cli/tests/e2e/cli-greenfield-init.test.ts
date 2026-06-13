@@ -288,32 +288,33 @@ describe.skipIf(!distExists)('CLI E2E — greenfield / init / platform-install',
   });
 
   // -------------------------------------------------------------------------
-  // 3. Greenfield lifecycle: graph before approve, through the real binary.
-  //    A hand-authored deterministic graph proves the unapproved -> approve ->
-  //    clean progression without any LLM call.
+  // 3. Greenfield lifecycle: graph before verification, through the real binary.
+  //    A hand-authored deterministic graph proves the unverified -> fill ->
+  //    verified progression without any LLM call. Verification now happens via
+  //    `yg check --approve` (the fill), and state lives in a single
+  //    `.yggdrasil/yg-lock.json` (the per-node `.drift-state/` files are gone).
   // -------------------------------------------------------------------------
 
-  it('G7: greenfield check reports the node as unapproved, then approve -> check clean', () => {
+  it('G7: greenfield check reports the node as unverified, then fill -> check clean', () => {
     const dir = greenfieldGraph('lifecycle');
     try {
-      // (a) Never approved -> exit 1, reported as `unapproved` with guidance
-      // pointing at yg approve.
+      // (a) Never filled -> exit 1, the deterministic pair reported as
+      // `unverified` with guidance pointing at the fill.
       const before = run(['check'], dir);
       expect(before.status).toBe(1);
-      expect(before.stdout).toContain('unapproved');
+      expect(before.stdout).toContain('unverified');
       expect(before.stdout).toContain('widgets/widget');
-      expect(before.stdout).toContain('Node has never been approved');
-      expect(before.stdout).toContain('yg approve --node widgets/widget');
+      expect(before.stdout).toContain("No valid verdict for aspect 'no-todo-comments' on node:widgets/widget.");
+      expect(before.stdout).toContain('yg check --approve');
 
-      // (b) Approve the node -> exit 0, baseline established.
-      const approve = run(['approve', '--node', 'widgets/widget'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.stdout).toContain('Approved: widgets/widget');
-      expect(
-        existsSync(path.join(dir, '.yggdrasil', '.drift-state', 'widgets', 'widget.json')),
-      ).toBe(true);
+      // (b) Fill -> exit 0, the deterministic verdict recorded into the lock.
+      const fill = run(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      expect(fill.stdout).toContain('[det] no-todo-comments on node:widgets/widget — approved');
+      expect(fill.stdout).toContain('yg check: PASS');
+      expect(existsSync(path.join(dir, '.yggdrasil', 'yg-lock.json'))).toBe(true);
 
-      // (c) Re-check -> clean (exit 0), no drift.
+      // (c) Re-check -> clean (exit 0), verdict held.
       const after = run(['check'], dir);
       expect(after.status).toBe(0);
       expect(after.stdout).toContain('PASS');
@@ -322,17 +323,20 @@ describe.skipIf(!distExists)('CLI E2E — greenfield / init / platform-install',
     }
   });
 
-  it('G8: a TODO introduced after approve refuses re-approve on the enforced aspect (exit 1)', () => {
+  it('G8: a TODO introduced after a clean fill refuses the enforced aspect at re-fill (exit 1)', () => {
     const dir = greenfieldGraph('todo-refuse');
     try {
-      expect(run(['approve', '--node', 'widgets/widget'], dir).status).toBe(0);
-      // Introduce the deterministic violation.
+      // First fill records a clean (approved) verdict.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
+      // Introduce the deterministic violation, invalidating the verdict.
       const src = path.join(dir, 'src', 'widgets', 'widget.ts');
       writeFileSync(src, readFileSync(src, 'utf-8') + '\n// TODO: revisit\n', 'utf-8');
-      const refused = run(['approve', '--node', 'widgets/widget'], dir);
+      // Re-fill: the deterministic check now refuses the enforced aspect.
+      const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
+      expect(refused.stdout).toContain('[det] no-todo-comments on node:widgets/widget — refused');
       expect(refused.stdout).toContain('no-todo-comments');
-      expect(refused.stdout).toContain('NOT SATISFIED');
+      expect(refused.stdout).toContain("Aspect 'no-todo-comments' is refused on node:widgets/widget by a deterministic check.");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

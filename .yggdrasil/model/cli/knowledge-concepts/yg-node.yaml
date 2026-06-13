@@ -1,8 +1,8 @@
 name: Knowledge Docs — Concepts & Registry
 type: knowledge-doc
-description: In-process knowledge documents served by yg knowledge read — core concepts (aspects overview, configuration, drift and cascade) and the topic registry index.
+description: In-process knowledge documents served by yg knowledge read — core concepts (aspects overview, configuration, verification and lock) and the topic registry index.
 mapping:
   - source/cli/src/templates/knowledge/aspects-overview.ts
   - source/cli/src/templates/knowledge/configuration.ts
-  - source/cli/src/templates/knowledge/drift-and-cascade.ts
+  - source/cli/src/templates/knowledge/verification-and-lock.ts
   - source/cli/src/templates/knowledge/index.ts

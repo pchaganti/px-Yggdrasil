@@ -1,0 +1,7 @@
+name: E2E Tests — Lock Format Recovery
+type: test-suite
+description: "Subprocess E2E for the prompt-too-large gate, lock merge recovery (take-a-side then re-approve), lock-invalid recovery (garbled, conflict markers, unknown version), and aspect-test diagnostic isolation (lock matrix part 4). Real spawned binary with a mock reviewer for the LLM paths."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-lock-format-recovery.test.ts

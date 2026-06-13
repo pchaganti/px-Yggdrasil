@@ -443,29 +443,38 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
   // GROUP G — top-level + global config (quality, parallel, empty file)
   // =========================================================================
 
-  it('G1: quality.max_node_chars that is negative yields config-invalid (exit 1)', () => {
-    const dir = scaffold('max-node-chars-neg', {
-      configYaml: ['quality:', '  max_node_chars: -5', 'reviewer:', '  tiers:', VALID_TIER, ''].join('\n'),
+  // RE-POINTED from `quality.max_node_chars` (removed) to the replacement
+  // per-tier `max_prompt_chars` ceiling. The old node-byte budget and its
+  // `config-invalid: quality.max_node_chars must be a positive integer` message
+  // are gone (the key is now silently ignored). The prompt-size cap moved onto
+  // the reviewer tier as `max_prompt_chars`, and a zero/negative/fractional value
+  // there is rejected by config parsing with code config-tier-prompt-chars-invalid
+  // — the same "a nonsensical positive-integer constraint is rejected" property
+  // the original two cases proved, ported to the surviving surface.
+
+  it('G1: a negative tier max_prompt_chars yields config-tier-prompt-chars-invalid (exit 1)', () => {
+    const dir = scaffold('prompt-chars-neg', {
+      configYaml: ['reviewer:', '  tiers:', '    standard:', '      provider: ollama', '      consensus: 1', '      max_prompt_chars: -5', '      config:', '        model: test', `        endpoint: ${LOOPBACK_ENDPOINT}`, ''].join('\n'),
     });
     try {
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
-      expect(stdout).toContain('config-invalid');
-      expect(stdout).toContain('quality.max_node_chars must be a positive integer');
+      expect(stdout).toContain('config-tier-prompt-chars-invalid');
+      expect(stdout).toContain("tier 'standard' has invalid max_prompt_chars: -5");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('G1b: quality.max_node_chars that is zero yields config-invalid (exit 1)', () => {
-    const dir = scaffold('max-node-chars-zero', {
-      configYaml: ['quality:', '  max_node_chars: 0', 'reviewer:', '  tiers:', VALID_TIER, ''].join('\n'),
+  it('G1b: a zero tier max_prompt_chars yields config-tier-prompt-chars-invalid (exit 1)', () => {
+    const dir = scaffold('prompt-chars-zero', {
+      configYaml: ['reviewer:', '  tiers:', '    standard:', '      provider: ollama', '      consensus: 1', '      max_prompt_chars: 0', '      config:', '        model: test', `        endpoint: ${LOOPBACK_ENDPOINT}`, ''].join('\n'),
     });
     try {
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
-      expect(stdout).toContain('config-invalid');
-      expect(stdout).toContain('quality.max_node_chars must be a positive integer');
+      expect(stdout).toContain('config-tier-prompt-chars-invalid');
+      expect(stdout).toContain("tier 'standard' has invalid max_prompt_chars: 0");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -288,49 +288,12 @@ describe.skipIf(!distExists)('CLI E2E — yg check validation code matrix (remai
     }
   });
 
-  // -------------------------------------------------------------------------
-  // GROUP B — aspect reference SIZE caps (core/checks/aspect-contracts.ts).
-  // A real reference file on disk exceeds the tier's per-file / per-aspect byte
-  // caps configured in yg-config.yaml. Both checks run against the same file:
-  // a single 200-byte reference trips the 50-byte per-file cap AND the 80-byte
-  // per-aspect cap, so one scaffold pins both codes.
-  // -------------------------------------------------------------------------
-
-  it('B1: an over-cap reference trips aspect-reference-too-large and aspect-references-total-too-large (exit 1)', () => {
-    const dir = minimalGraph(
-      'ref-too-large',
-      ({ ygRoot, projectRoot }) => {
-        writeAspect(
-          ygRoot,
-          'ref-aspect',
-          [
-            'name: RefAspect',
-            'description: An LLM aspect with an over-cap reference',
-            'reviewer:',
-            '  type: llm',
-            '  tier: standard',
-            'references:',
-            '  - docs/big.md',
-            '',
-          ].join('\n'),
-          { file: 'content.md', body: 'Rule.\n' },
-        );
-        writeNode(ygRoot, 'widget', WIDGET_WITH_REF_ASPECT);
-        // 200 bytes: over the 50-byte per-file cap and the 80-byte per-aspect cap.
-        writeSource(projectRoot, 'docs/big.md', 'x'.repeat(200));
-      },
-      { tierExtra: ['      references:', '        max_bytes_per_file: 50', '        max_total_bytes_per_aspect: 80'] },
-    );
-    try {
-      const { status, all } = run(['check'], dir);
-      expect(status).toBe(1);
-      expect(all).toContain('aspect-reference-too-large');
-      expect(all).toContain('aspect-references-total-too-large');
-      expect(all).toContain('docs/big.md');
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
+  // GROUP B (aspect reference SIZE caps) DELETED — `aspect-reference-too-large`,
+  // `aspect-references-total-too-large`, and the tier `references.max_bytes_per_file`
+  // / `max_total_bytes_per_aspect` caps are REMOVED surface (verdict-lock spec §4/§13:
+  // subsumed by the per-tier `max_prompt_chars` prompt-size gate, which bounds the
+  // same reference payload where it matters). The replacement `prompt-too-large`
+  // gate is covered in the lock matrix suites.
 
   // -------------------------------------------------------------------------
   // GROUP C — reviewer-spec parser errors (io/aspect-parser.ts parseReviewer).
@@ -531,87 +494,14 @@ describe.skipIf(!distExists)('CLI E2E — yg check validation code matrix (remai
     }
   });
 
-  // -------------------------------------------------------------------------
-  // GROUP E — sizeExempt opt-out (io/node-parser.ts + core/checks/mapping.ts).
-  // -------------------------------------------------------------------------
-
-  // A sizeExempt with a blank reason is a NODE PARSE ERROR (io/node-parser.ts:
-  // parseSizeExempt throws), surfaced by the validator as yaml-invalid against
-  // the offending node. The node never loads, so the parse-error why-line is the
-  // tripwire — not an oversized-node count.
-  it('E1: sizeExempt with a blank reason is rejected as yaml-invalid (exit 1)', () => {
-    const dir = minimalGraph(
-      'sizeexempt-blank',
-      ({ ygRoot, projectRoot }) => {
-        writeNode(
-          ygRoot,
-          'widget',
-          [
-            'name: Widget',
-            'description: a widget',
-            'type: service',
-            'mapping:',
-            '  - src/widget.ts',
-            'sizeExempt:',
-            '  reason: "   "',
-            '',
-          ].join('\n'),
-        );
-        writeSource(projectRoot, 'src/widget.ts', 'export const w = 1;\n');
-      },
-      { qualityExtra: ['  max_node_chars: 100'] },
-    );
-    try {
-      const { status, all } = run(['check'], dir);
-      expect(status).toBe(1);
-      expect(all).toContain('yaml-invalid');
-      expect(all).toContain('widget');
-      expect(all).toContain("'sizeExempt' requires a non-empty 'reason'");
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  // The positive path: a VALID sizeExempt reason suppresses oversized-node even
-  // though the mapped file is far over the (deliberately tiny) budget. The
-  // control case (no sizeExempt → oversized-node fires) is already pinned in
-  // cli-check-validation.test.ts case 1, so here we assert only the suppression.
-  it('E2: a valid sizeExempt reason suppresses oversized-node (exit 0)', () => {
-    const dir = minimalGraph(
-      'sizeexempt-suppress',
-      ({ ygRoot, projectRoot }) => {
-        writeNode(
-          ygRoot,
-          'widget',
-          [
-            'name: Widget',
-            'description: a widget mapping one unsplittable generated artifact',
-            'type: service',
-            'mapping:',
-            '  - src/generated.ts',
-            'sizeExempt:',
-            '  reason: "Single generated artifact that cannot be split."',
-            '',
-          ].join('\n'),
-        );
-        // ~3000 chars, far over the 100-char budget — would be oversized-node
-        // without the exemption.
-        writeSource(
-          projectRoot,
-          'src/generated.ts',
-          '// padding line to inflate this node past the budget\n'.repeat(60),
-        );
-      },
-      { qualityExtra: ['  max_node_chars: 100'] },
-    );
-    try {
-      const { status, all } = run(['check'], dir);
-      expect(status).toBe(0);
-      expect(all).not.toContain('oversized-node');
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
+  // GROUP E (sizeExempt opt-out) DELETED — `sizeExempt`, the `oversized-node`
+  // error, and `quality.max_node_chars` are REMOVED surface (verdict-lock spec
+  // §4/§13: the node character budget is replaced by the per-tier prompt-size
+  // gate `prompt-too-large`). With `sizeExempt` no longer in the node schema and
+  // `oversized-node`/`max_node_chars` gone, both E1 (blank-reason → yaml-invalid)
+  // and E2 (valid reason suppresses oversized-node) test behaviors that cannot
+  // occur. The replacement `prompt-too-large` gate is covered in the lock matrix
+  // suites.
 
   // -------------------------------------------------------------------------
   // GROUP H — structural codes not exercised anywhere else in the E2E corpus:

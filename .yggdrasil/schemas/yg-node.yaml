@@ -43,9 +43,3 @@ mapping:                      # optional — source files and directories owned 
                               # paths are relative to repository root
                               # each source file must have exactly one owner node
 
-sizeExempt:                   # optional — opt out of the per-node character budget (quality.max_node_chars)
-  reason: "package-lock.json is npm-generated and cannot be split"  # required — non-empty justification
-                              # Binary files (images, fonts, archives, etc.) count 0 toward the budget
-                              # automatically — they never need sizeExempt. Use sizeExempt ONLY for a
-                              # large unsplittable TEXT artifact (e.g. a generated lockfile), not images.
-                              # Normal oversized nodes must be split.

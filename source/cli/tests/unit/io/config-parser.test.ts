@@ -125,36 +125,8 @@ version: "4.0.0"
 
     const config = await parseConfig(path.join(tmpDir, 'yg-config.yaml'));
     expect(config.quality?.max_direct_relations).toBe(10);
-    expect(config.quality?.max_node_chars).toBe(40000);
 
     await rm(tmpDir, { recursive: true, force: true });
-  });
-
-  describe('quality.max_node_chars validation', () => {
-    async function parseWithMaxNodeChars(value: string) {
-      const dir = await mkdtemp(path.join(tmpdir(), 'yg-cfg-mnc-'));
-      try {
-        await writeFile(
-          path.join(dir, 'yg-config.yaml'),
-          `version: "4.0.0"\nquality:\n  max_node_chars: ${value}\n`,
-          'utf-8',
-        );
-        return await parseConfig(path.join(dir, 'yg-config.yaml'));
-      } finally {
-        await rm(dir, { recursive: true, force: true });
-      }
-    }
-
-    it('accepts a positive integer', async () => {
-      const config = await parseWithMaxNodeChars('25000');
-      expect(config.quality?.max_node_chars).toBe(25000);
-    });
-
-    for (const bad of ['0', '-5', '40000.5']) {
-      it(`rejects ${bad} as not a positive integer`, async () => {
-        await expect(parseWithMaxNodeChars(bad)).rejects.toThrow(ConfigParseError);
-      });
-    }
   });
 
   it('parses partial quality configuration with defaults', async () => {

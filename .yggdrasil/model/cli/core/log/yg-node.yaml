@@ -14,3 +14,4 @@ mapping:
   - source/cli/src/core/log/log-add.ts
   - source/cli/src/core/log/log-read.ts
   - source/cli/src/core/log/log-merge-resolve.ts
+  - source/cli/src/core/log/log-gate.ts

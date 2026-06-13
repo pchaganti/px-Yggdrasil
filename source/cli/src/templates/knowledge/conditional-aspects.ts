@@ -1,43 +1,43 @@
-export const summary = 'when predicate on aspects vs file classification: two grammars, boolean combinators (all_of/any_of/not), node/relations/descendants atoms, combining via AND';
+export const summary =
+  'One predicate grammar, three sites (when:, architecture node_types.*.when, scope.files), shared combinators, node atoms vs file atoms, cross-hints';
 
 export const content = `# Conditional aspects (when predicate)
 
 The \`when\` predicate filters applicability. Every propagation channel passes
 through \`when\` before an aspect becomes effective on a node. If \`when\` is
-false, the aspect is silently skipped on that node — no reviewer call, no cost.
+false, the aspect is silently skipped on that node — no verification, no cost.
 
-## Two distinct \`when\` grammars
+## One grammar, three sites
 
-There are TWO predicate grammars. They share the same boolean operator names
-(\`all_of\`, \`any_of\`, \`not\`), but their atomic clauses are completely
-different — each grammar inspects a different kind of subject. The operators
-are interchangeable; the atoms are NOT. Never use an atom from one grammar in
-the other.
+There is ONE predicate grammar: a parser with the boolean combinators
+\`all_of\` / \`any_of\` / \`not\`, shared everywhere. Two atom families exist; the
+SITE determines which atoms are legal, because each site asks about a different
+subject.
 
-1. **Aspect-when** — node-level applicability: filters whether an aspect
-   applies to a NODE. Used by EVERY aspect attach site: the aspect's own
-   \`yg-aspect.yaml\` \`when:\`, \`yg-node.yaml\` aspects and ports,
-   \`yg-architecture.yaml\` \`node_types.*.aspects[].when\`, \`yg-flow.yaml\`
-   aspects, and \`implies\` edges. Its atoms are \`node\`, \`relations\`, and
-   \`descendants\`: \`node\` inspects the node's type, ports (\`has_port\`), and
-   mapping (\`has_mapping\`); \`relations\` and \`descendants\` inspect relation
-   types and descendant type/ports.
+| Site | What it filters | Subject | Atom family |
+|---|---|---|---|
+| aspect \`when:\` (all attach sites + \`implies\` edges) | which NODES the aspect applies to | a node | \`node\`, \`relations\`, \`descendants\` |
+| \`yg-architecture.yaml\` → \`node_types.*.when\` | which FILES a type classifies | a file | \`path\`, \`content\` |
+| aspect \`scope.files\` | which FILES are the review subject | a file | \`path\`, \`content\` |
 
-2. **File-when** — architecture file classification: decides which source
-   FILES belong to a node type. Used ONLY in \`yg-architecture.yaml\`
-   \`node_types.*.when\`. Its atoms are \`path\` and \`content\` — they inspect a
-   single file's repo-relative path and its text. (Deep dive:
-   \`yg knowledge read working-with-architecture\`.)
+The combinators are interchangeable across sites; the atoms are NOT. A node atom
+(\`node\`, \`relations\`, \`descendants\`) is legal only where the subject is a node;
+a file atom (\`path\`, \`content\`) only where the subject is a file. Using the wrong
+family is a validator error, and the message cross-hints the sibling site
+("\`path\` is a file atom — not valid in \`when:\`. To filter which FILES are
+reviewed use \`scope.files:\`; \`when:\` filters which NODES the aspect applies to").
+Reference-integrity validation of named identifiers (\`when-unknown-*\`) is
+unchanged.
 
-This document is about aspect-when unless a section is explicitly labelled
-file-when.
+This document is about aspect \`when:\` (node applicability) unless a section is
+explicitly labelled file-when.
 
 ## Why use when
 
 Without \`when\`, attaching an aspect to a type or parent node applies it to
 every node of that type or every descendant. That is often too broad.
 
-Examples where aspect-when helps:
+Examples where aspect \`when\` helps:
 - \`external-api-error-mapping\` attached to a command type, but only when the
   command actually calls a service client.
 - \`pii-encryption\` on all repository nodes, but only when the node has a
@@ -70,16 +70,15 @@ when:
 Rules the parser enforces:
 - A relation-type entry must carry a match. \`relations: { emits: {} }\` is
   rejected — give at least one of \`target_type\`, \`target\`, or
-  \`consumes_port\`. A relation clause then means "at least one relation of that
-  type satisfies the match"; there is no count operator.
+  \`consumes_port\`. A relation clause means "at least one relation of that type
+  satisfies the match"; there is no count operator.
 - A \`node\`, \`relations\`, or \`descendants\` clause must carry at least one
   inner field; an empty clause is rejected.
 - At a single level, use EITHER one boolean operator OR atomic clauses — not
   both, and at most one boolean operator. To combine more, nest another level.
 
 Beyond these structural checks, \`yg check\` reference-integrity-validates the
-identifiers a \`when\` predicate names. These are error-severity and block
-\`yg check\`:
+identifiers a \`when\` predicate names. These are error-severity:
 - An unknown \`target_type\`, \`descendants.type\`, or \`node.type\` raises a
   \`when-unknown-type\` error.
 - An unknown relation \`target\` (a node path that does not exist) raises a
@@ -156,23 +155,36 @@ aspects:
       node: { has_mapping: true }
 \`\`\`
 
-## File-when grammar (architecture file classification only)
+## File atoms — scope.files and architecture classification
 
-In \`yg-architecture.yaml\`, \`node_types.*.when\` decides which files a type
-owns. Its ONLY atoms are \`path\` and \`content\` — the node/relations/descendants
-atoms above are NOT available here.
+Both file-atom sites use the SAME atoms — \`path\` and \`content\` — and the same
+combinators. The node/relations/descendants atoms are NOT available here.
+
+**\`scope.files\` on an aspect** narrows which mapped files are the review subject:
+
+\`\`\`yaml
+# yg-aspect.yaml
+scope:
+  per: node
+  files:
+    all_of:
+      - path: "src/**/*.ts"        # minimatch glob on repo-relative POSIX path
+      - not: { path: "**/*.test.ts" }
+\`\`\`
+
+**\`node_types.*.when\` in the architecture** decides which files a type owns:
 
 \`\`\`yaml
 node_types:
   command:
     when:
       all_of:
-        - path: "src/handlers/**"      # minimatch glob on repo-relative POSIX path
-        - content: "export class"      # JavaScript regex tested against file content
+        - path: "src/handlers/**"
+        - content: "export class"   # JavaScript regex tested against file content
 \`\`\`
 
-Boolean combinators (\`all_of\`, \`any_of\`, \`not\`) work the same way. A bare
-\`path\` plus \`content\` at the top level implies all_of of both atoms.
+A bare \`path\` plus \`content\` at the top level implies \`all_of\` of both atoms.
+(File classification deep dive: \`yg knowledge read working-with-architecture\`.)
 
 ## Propagation through channels
 
@@ -196,16 +208,18 @@ and is essentially free. Use it freely to narrow applicability; it is cheaper
 than letting the reviewer decide by reading code.
 
 Prefer \`when\` over splitting types (fewer types, same precision). Prefer
-\`when\` over leaving applicability decisions inside \`content.md\` prose
-(\`when\` is enforced by the graph engine — prose rules can be overlooked by
-the reviewer).
+\`when\` over leaving applicability decisions inside \`content.md\` prose.
+
+\`when\` applicability acts through the expected-pair set, not through
+invalidation: a \`when\` edit that changes a node's applicability adds or removes
+that node's pairs; one that does not change applicability re-verifies nothing.
 
 ## When vs status
 
 Applicability (\`when\` predicate) is distinct from enforcement level
 (\`status: draft | advisory | enforced\`). A \`when\` filter determines WHETHER
-an aspect reaches a node. Status determines what happens AFTER the aspect
-reaches the node (whether the reviewer runs and how violations are rendered).
-Both can be declared on the same aspect simultaneously. See:
+an aspect reaches a node. Status determines how a verdict renders once it does.
+To PARK an aspect, use \`status: draft\`, not a \`when\` edit — garbage-collection
+prunes when-excluded pairs but keeps draft pairs. See:
 \`yg knowledge read aspect-status\`.
 `;

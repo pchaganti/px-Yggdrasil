@@ -1,8 +1,0 @@
-name: Approve Aspect Verdicts Unit Tests
-type: test-suite
-description: "Unit tests for approve aspect-verdict propagation — DriftNodeState.aspectVerdicts persistence, applyAspectVerdictsToResult merge semantics, reviewerAborted detection, and buildAspectVerdicts including infra-error carry-forward."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/core/approve-aspect-verdicts.test.ts
-  - source/cli/tests/unit/core/aggregate-aspect-verdicts.test.ts

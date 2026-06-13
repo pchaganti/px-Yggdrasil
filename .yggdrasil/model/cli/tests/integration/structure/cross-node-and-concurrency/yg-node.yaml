@@ -5,5 +5,4 @@ aspects: []
 relations: []
 mapping:
   - source/cli/tests/integration/structure-cold-start.test.ts
-  - source/cli/tests/integration/structure-concurrent-approve.test.ts
   - source/cli/tests/integration/structure-cross-node-drift.test.ts

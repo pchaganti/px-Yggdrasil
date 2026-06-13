@@ -7,4 +7,3 @@ mapping:
   - source/cli/tests/integration/find.test.ts
   - source/cli/tests/integration/flow-support.test.ts
   - source/cli/tests/integration/loader-hook.test.ts
-  - source/cli/tests/integration/log-workflow.test.ts

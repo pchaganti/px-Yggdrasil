@@ -7,8 +7,6 @@ relations:
     type: uses
   - target: cli/model/context
     type: uses
-  - target: cli/model/drift
-    type: uses
   - target: cli/utils
     type: calls
 mapping:

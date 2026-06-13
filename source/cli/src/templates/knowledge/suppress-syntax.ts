@@ -82,7 +82,7 @@ keep pairs explicit and review the resulting range yourself.
 
 ## Wildcard
 
-\`*\` as the id suppresses ALL aspects (LLM, AST, and structure) in the range.
+\`*\` as the id suppresses ALL aspects (LLM and deterministic) in the range.
 
 \`\`\`typescript
 // yg-suppress-disable(*) generated code, do not edit manually
@@ -121,15 +121,15 @@ The reason text after the aspect-id is permanent. Future maintainers and
 agents will read it to understand why the waiver exists. Do not invent
 reasons — see the authorization rules in agent-rules.md.
 
-## Effect on approve
+## Effect on verification
 
 The reviewer honors suppress unconditionally. A suppressed line or range
 does not generate a violation, even if the code clearly violates the aspect.
 The suppression is an explicit human decision recorded in the code.
 
-Suppressing a draft aspect is a no-op: the reviewer never runs on a draft
-aspect, so there is nothing to waive. Only suppress aspects whose effective
-status is advisory or enforced.
+Suppressing a draft aspect is a no-op: a draft aspect produces no expected pairs,
+so there is nothing to waive. Only suppress aspects whose effective status is
+advisory or enforced.
 
 A suppress marker (single or disable form) must carry a reason — an empty
 reason is rejected with a clear error. Beyond that, the token is matched as a

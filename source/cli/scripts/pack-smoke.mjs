@@ -118,12 +118,12 @@ try {
     'export function check(ctx) {\n  for (const f of ctx.files) {\n    const tree = ctx.parseAst(f);\n    if (!tree || !tree.rootNode) throw new Error("no AST for " + f.path);\n  }\n  return [];\n}\n',
   );
 
-  log('yg deterministic-test (parses .ts/.py/.go via the packaged grammars)…');
-  const res = execFileSync('node', [bin, 'deterministic-test', '--aspect', 'parse-smoke', '--node', 'svc'], {
+  log('yg aspect-test (parses .ts/.py/.go via the packaged grammars)…');
+  const res = execFileSync('node', [bin, 'aspect-test', '--aspect', 'parse-smoke', '--node', 'svc'], {
     cwd: proj,
     encoding: 'utf-8',
   });
-  if (!/No violations|violations|satisfied/i.test(res)) fail(`unexpected deterministic-test output:\n${res}`);
+  if (!/No violations|violations|satisfied/i.test(res)) fail(`unexpected aspect-test output:\n${res}`);
   log(`parse smoke OK:\n${res.trim()}`);
 
   log('PASS — published package parses with grammars resolved from the tarball.');

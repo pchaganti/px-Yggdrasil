@@ -48,18 +48,19 @@ function copyFixture(label: string): string {
 }
 
 /**
- * Approve the consumer node so a baseline exists and `yg check` is clean.
+ * Fill the verdict lock so every expected (aspect, unit) pair holds a valid
+ * verdict and `yg check` is clean.
  *
  * The consumer's only effective aspect is the channel-6 port aspect
  * `audit-required`, whose reviewer is `deterministic` (a trivial check.mjs that
- * returns []). Approve therefore makes NO LLM call and needs NO network — it is
- * fully hermetic and reproducible on any machine. The provider node has no
- * effective aspects, so it never needs approval.
+ * returns []). `yg check --approve` therefore fills it locally — NO LLM call,
+ * NO network — fully hermetic and reproducible on any machine. Fill is
+ * repo-wide; the provider node has no effective aspects and contributes no pair.
  */
-function approveConsumer(dir: string): void {
-  const { status, all } = run(['approve', '--node', CONSUMER], dir);
+function fillLock(dir: string): void {
+  const { status, all } = run(['check', '--approve'], dir);
   if (status !== 0) {
-    throw new Error(`fixture precondition failed: approve ${CONSUMER} exited ${status}\n${all}`);
+    throw new Error(`fixture precondition failed: check --approve exited ${status}\n${all}`);
   }
 }
 
@@ -71,12 +72,12 @@ function approveConsumer(dir: string): void {
 // ---------------------------------------------------------------------------
 
 describe.skipIf(!distExists)('CLI E2E — ports / consumes channel-6 contract', () => {
-  it('1: clean fixture passes yg check (exit 0) once the consumer is approved', () => {
+  it('1: clean fixture passes yg check (exit 0) once the lock is filled', () => {
     const dir = copyFixture('clean');
     try {
-      // The consumer carries the deterministic port aspect; approving it records
-      // a baseline with zero LLM cost. Provider has no aspects to approve.
-      approveConsumer(dir);
+      // The consumer carries the deterministic port aspect; filling the lock
+      // records its verdict with zero LLM cost. Provider has no pairs to fill.
+      fillLock(dir);
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(0);
       expect(stdout).toContain('PASS');

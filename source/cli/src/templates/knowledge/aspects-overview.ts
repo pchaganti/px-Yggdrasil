@@ -1,21 +1,25 @@
-export const summary = 'What aspects are, when to create, LLM vs deterministic vs aggregating reviewer choice, cost model';
+export const summary =
+  'What aspects are, when to create, LLM vs deterministic vs aggregating reviewer choice, scope, cost model per pair';
 
 export const content = `# Aspects overview
 
 Aspects are enforceable rules attached to nodes. A reviewer (LLM or
-deterministic) checks every source file of a node against every effective aspect.
+deterministic) checks the subject files of a unit against the aspect, and the
+verdict is cached in the lock.
 
 ## What an aspect is
 
 An aspect pairs a description (\`content.md\` for LLM, \`check.mjs\` for
-deterministic) with metadata (\`yg-aspect.yaml\`), and optionally reference files (LLM aspects only) for supporting context. When you run \`yg approve --node <path>\`,
-the reviewer receives the aspect description and all source files of the
-node, then returns approved or refused with a violation report.
+deterministic) with metadata (\`yg-aspect.yaml\`), and optionally reference files
+(LLM aspects only) for supporting context. Verification produces \`approved\` or
+\`refused\` with a violation report, stored in \`.yggdrasil/yg-lock.json\` keyed by
+the \`(aspect, unit)\` pair.
 
-An aspect is always verified — not just when the code changes, but whenever
-any upstream input changes (aspect content, parent node, flow membership).
-This cascade is deliberate: the reviewer must confirm compliance with the
-current state of every constraint.
+A verdict holds exactly while the inputs that produced it are unchanged. Editing
+a subject file, the aspect's rule source, its \`scope\`, or its tier makes the pair
+unverified, and \`yg check --approve\` re-verifies it. A status flip is not an
+input — it never invalidates a verdict. (Full mechanics:
+\`yg knowledge read verification-and-lock\`.)
 
 For HOW aspects reach a node (the 7 propagation channels with concrete
 example), see the SYSTEM section of agent-rules.md — that mental model is
@@ -35,8 +39,34 @@ See agent-rules.md "Aspect Discovery" for the brownfield triggers
 duplicated here.
 
 While the rule is still being authored or is unclear, give the aspect
-\`status: draft\` — a draft aspect is WIP, so the reviewer never runs on it
-and it costs zero.
+\`status: draft\` — a draft aspect produces no expected pairs, so nothing is
+verified and it costs zero.
+
+## Scope — node or file
+
+An aspect with a rule source may declare \`scope:\`:
+
+\`\`\`yaml
+scope:
+  per: node | file        # default: node
+  files:                  # optional — file-predicate filter (path/content atoms)
+    all_of:
+      - path: "src/**/*.ts"
+      - not: { path: "**/*.test.ts" }
+\`\`\`
+
+- \`per: node\` (default) — one verdict over the whole subject set. Editing a file
+  OUTSIDE the filter does not change the subject set, so an irrelevant edit
+  (a README, a fixture) leaves the code-rule verdict valid.
+- \`per: file\` — one verdict per subject file. Correct only for **file-local**
+  rules. Cross-file rules ("exactly one file exports X", "correlation ID
+  propagates") must stay \`per: node\`. See
+  \`yg knowledge read writing-llm-aspects\`.
+
+A \`scope\` edit (either \`per\` or \`files\`) invalidates EVERY pair of the aspect —
+it cascades exactly like a \`content.md\` edit. Run \`yg impact --aspect <id>\`
+before changing scope on a widely-used aspect. Aggregating aspects have no rule
+source and therefore no \`scope\` (a validator error if present).
 
 ## Three reviewer kinds
 
@@ -59,20 +89,9 @@ once (per node, per flow, per architecture type) and let each implied child carr
 one concrete, independently-verdicted rule. An aspect with neither rule source
 and no \`implies:\` is rejected by the validator.
 
-### LLM and deterministic sweet spots
-
-The deterministic reviewer runs \`check.mjs\` locally — it covers both per-file
-syntactic rules (single-file style) and cross-node graph-shape rules
-(graph-aware style), all in one reviewer. LLM and deterministic each have a
-distinct sweet spot.
-
-\`check.mjs\` runs in the main Node process with full privileges — there is no
-security sandbox. The graph-aware allow-list (below) is a read *discipline* that
-scopes tracked dependencies, not an isolation boundary. Only run aspects you trust.
-
 ### When to use LLM
 
-Choose LLM (\`reviewer: { type: llm }\`) when:
+Choose LLM (ship a \`content.md\`) when:
 - The rule requires judgment ("no business logic in controllers")
 - The rule involves semantics ("correlation ID must propagate across calls")
 - The rule needs to understand intent rather than syntax
@@ -81,14 +100,13 @@ Choose LLM (\`reviewer: { type: llm }\`) when:
 LLM reviewers understand context, read prose rules, and can assess whether
 code satisfies a nuanced requirement. They are slower and cost per call.
 
-LLM aspects may also declare \`reviewer.tier: <name>\` to opt into a
-specific reviewer tier configured in \`yg-config.yaml\` (a higher-capability
-model for critical aspects, for example). If \`tier:\` is omitted, the
-aspect uses \`reviewer.default\` from the config.
+LLM aspects may declare \`reviewer.tier: <name>\` to opt into a specific reviewer
+tier configured in \`yg-config.yaml\` (a higher-capability model for critical
+aspects). If \`tier:\` is omitted, the aspect uses \`reviewer.default\`.
 
 ### When to use deterministic
 
-Choose deterministic (\`reviewer: { type: deterministic }\`) when:
+Choose deterministic (ship a \`check.mjs\`) when:
 - The rule is structural ("never import from \`db/\` in \`ui/\`")
 - The rule is naming-based ("exported classes must be PascalCase")
 - The rule is about graph or file-system shape ("every command node must have
@@ -97,12 +115,15 @@ Choose deterministic (\`reviewer: { type: deterministic }\`) when:
 - You need zero false-positive tolerance and determinism
 - The rule is "X must never appear" — forbidden API calls, banned imports
 
-Deterministic aspects run synchronously with no LLM call; they are free to run
-and produce exact, deterministic results. They come in two styles: a single-file
-style that inspects each file's syntax tree, and a graph-aware style that
-inspects the node's files, the file system, and the graph topology. Deterministic
-aspects do NOT use reviewer tiers — \`reviewer.tier:\` is rejected on
-\`reviewer.type: deterministic\` aspects.
+A \`check.mjs\` is one \`check(ctx)\` function: it reads the unit's files and may
+reach related nodes, the file system, and graph metadata through \`ctx\`. It runs
+locally during \`yg check --approve\` at zero LLM cost and returns exact,
+deterministic results. Deterministic aspects do NOT use reviewer tiers —
+\`reviewer.tier:\` is rejected on them.
+
+\`check.mjs\` runs in the main Node process with full privileges — there is no
+security sandbox. The read allow-list is a discipline that scopes observed
+dependencies, not an isolation boundary. Only run aspects you trust.
 
 ### Decision tree
 
@@ -121,45 +142,41 @@ aspects do NOT use reviewer tiers — \`reviewer.tier:\` is rejected on
 4. Does the rule need to assess whether semantics match a requirement?
    → Yes: use LLM
 
-When in doubt: write a draft \`check.mjs\`, test it with \`yg deterministic-test\`.
-If it catches real violations without false positives, ship it as deterministic.
-If it misses violations that require reading intent, switch to LLM.
+When in doubt: write a draft \`check.mjs\`, test it with \`yg aspect-test\`. If it
+catches real violations without false positives, ship it as deterministic. If it
+misses violations that require reading intent, switch to LLM.
 
-To author a \`check.mjs\` (both single-file and graph-aware styles):
-\`yg knowledge read writing-deterministic-aspects\`.
+To author a \`check.mjs\`: \`yg knowledge read writing-deterministic-aspects\`.
 
 ## Cost model
 
-Every effective non-draft LLM aspect on a node = at least one reviewer call
-during \`yg approve\`, multiplied by the tier's consensus count. The reviewer
-always sends the full node in a single prompt — there is no chunking.
-Deterministic aspects run locally at zero LLM cost. Aggregating aspects have no
-own reviewer call. A node with 5 LLM aspects = at least 5 reviewer calls. An LLM
-aspect touching 20 nodes = at least 20 calls when you run
-\`yg approve --aspect <id>\`.
+Cost is counted per PAIR.
 
-Use \`yg impact --aspect <id>\` before creating or modifying a widely-used
-aspect to assess the re-approval cost.
+- An LLM pair = at least one reviewer call during \`yg check --approve\`,
+  multiplied by the tier's consensus count. An LLM aspect touching 20 single-unit
+  nodes = at least 20 calls. With \`per: file\`, multiply by the subject-file count
+  (and references travel in every per-file prompt).
+- Deterministic pairs run locally at zero LLM cost, however many they touch.
+- Aggregating aspects have no own reviewer call.
+- A \`scope\` edit, a \`content.md\` edit, a reference-file edit, or a tier change
+  invalidates pairs and re-bills them. Run \`yg impact --aspect <id>\` before
+  modifying a widely-used aspect to see the re-verification cost.
 
-Aspect references add to drift cascade — modifying a referenced file re-approves every node where the referring aspect is effective.
-
-For full scenario-by-scenario cost breakdown (edit one file, add implies,
-change content.md, add aspect to parent, add node to flow) and batch
-approve strategies: \`yg knowledge read drift-and-cascade\`.
+The prompt-size gate (\`max_prompt_chars\` per tier) bounds an LLM prompt, not the
+node. For the full caching, hashing, and merge model:
+\`yg knowledge read verification-and-lock\`.
 
 ## Aspect status
 
 Aspects declare \`status: draft | advisory | enforced\` (default \`enforced\`).
-Status controls whether the reviewer runs and how \`yg check\` renders violations.
+Status is rendering only — it never changes a verdict's validity.
 
-| Status   | LLM cost per node | Renders as |
-|----------|-------------------|------------|
-| draft    | 0                 | n/a (skipped)            |
-| advisory | full              | warning                  |
-| enforced | full              | error (blocks yg check)  |
+| Status   | Expected pairs | Renders as |
+|----------|----------------|------------|
+| draft    | none (removed) | n/a                      |
+| advisory | yes            | warning (refused or unverified) |
+| enforced | yes            | error — blocks \`yg check\`     |
 
-Status changes rendering, not per-call cost. Advisory and enforced both
-invoke the reviewer at the same cost.
-
-Deep reference: \`yg knowledge read aspect-status\`.
+Advisory never blocks; enforced always does; only \`draft\` removes a pair from the
+expected set. Deep reference: \`yg knowledge read aspect-status\`.
 `;

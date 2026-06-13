@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, cp, rm } from 'node:fs/promises';
+import { mkdtemp, cp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -189,63 +189,7 @@ describe('impact command', () => {
       });
     });
 
-    it('annotates affected nodes with refused baselines (rendering-flip risk)', async () => {
-      // yg impact --aspect calls out nodes whose stored baseline contains a
-      // `refused` verdict for the aspect — their rendering severity will flip
-      // if the user changes the aspect's status.
-      await withFixtureCopy(async (cwd) => {
-        const { writeFile, mkdir } = await import('node:fs/promises');
-        const driftDir = path.join(cwd, '.yggdrasil', '.drift-state', 'orders');
-        await mkdir(driftDir, { recursive: true });
-        await writeFile(
-          path.join(driftDir, 'order-service.json'),
-          JSON.stringify({
-            schemaVersion: 1,
-            hash: 'fake-hash',
-            files: {},
-            identity: { ownSubset: 'o', ports: {}, aspects: {} },
-            aspectVerdicts: {
-              'requires-audit': { verdict: 'refused', reason: 'mock', errorSource: 'codeViolation' },
-            },
-          }),
-          'utf-8',
-        );
-        const result = spawnSync(
-          'node',
-          [BIN_PATH, 'impact', '--aspect', 'requires-audit'],
-          { cwd, encoding: 'utf-8' },
-        );
-        expect(result.status).toBe(0);
-        expect(result.stdout).toContain('refused baseline');
-        expect(result.stdout).toContain('rendering severity will flip');
-      });
-    });
 
-    it('does NOT annotate nodes whose baseline is approved', async () => {
-      await withFixtureCopy(async (cwd) => {
-        const { writeFile, mkdir } = await import('node:fs/promises');
-        const driftDir = path.join(cwd, '.yggdrasil', '.drift-state', 'orders');
-        await mkdir(driftDir, { recursive: true });
-        await writeFile(
-          path.join(driftDir, 'order-service.json'),
-          JSON.stringify({
-            schemaVersion: 1,
-            hash: 'fake-hash',
-            files: {},
-            identity: { ownSubset: 'o', ports: {}, aspects: {} },
-            aspectVerdicts: { 'requires-audit': { verdict: 'approved' } },
-          }),
-          'utf-8',
-        );
-        const result = spawnSync(
-          'node',
-          [BIN_PATH, 'impact', '--aspect', 'requires-audit'],
-          { cwd, encoding: 'utf-8' },
-        );
-        expect(result.status).toBe(0);
-        expect(result.stdout).not.toContain('refused baseline');
-      });
-    });
 
     it('shows implied-by relationship for requires-logging', async () => {
       await withFixtureCopy(async (cwd) => {
@@ -377,6 +321,71 @@ describe('impact command', () => {
         );
         expect(result.status).toBe(1);
         expect(result.stderr).toContain('Multiple targets specified');
+      });
+    });
+  });
+
+  describe('lock-seeded refused annotation', () => {
+    /** Write a lock with one refused verdict for `requires-audit` on a node. */
+    async function seedRefusedLock(cwd: string, unitKey: string): Promise<void> {
+      const lock = {
+        version: 1,
+        verdicts: {
+          'requires-audit': {
+            [unitKey]: { verdict: 'refused', hash: 'staleish', reason: 'missing audit log call' },
+          },
+        },
+        nodes: {},
+      };
+      await writeFile(
+        path.join(cwd, '.yggdrasil', 'yg-lock.json'),
+        JSON.stringify(lock, null, 2) + '\n',
+        'utf-8',
+      );
+    }
+
+    it('tags a node:<path> refused verdict with [refused] in --aspect output', async () => {
+      await withFixtureCopy(async (cwd) => {
+        await seedRefusedLock(cwd, 'node:orders/order-service');
+        const result = spawnSync(
+          'node',
+          [BIN_PATH, 'impact', '--aspect', 'requires-audit'],
+          { cwd, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(0);
+        // The affected line for the refused node carries the [refused] tag.
+        expect(result.stdout).toMatch(/orders\/order-service \([^)]+\) \[enforced\] \[refused\]/);
+      });
+    });
+
+    it('does not tag nodes that hold no refused verdict', async () => {
+      await withFixtureCopy(async (cwd) => {
+        await seedRefusedLock(cwd, 'node:orders/order-service');
+        const result = spawnSync(
+          'node',
+          [BIN_PATH, 'impact', '--aspect', 'requires-audit'],
+          { cwd, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(0);
+        // The parent `orders` node is affected but not refused → no [refused] tag.
+        expect(result.stdout).toMatch(/^ {2}orders \([^)]+\) \[enforced\]$/m);
+      });
+    });
+
+    it('exits 1 with a clear error when the lock is garbled', async () => {
+      await withFixtureCopy(async (cwd) => {
+        await writeFile(
+          path.join(cwd, '.yggdrasil', 'yg-lock.json'),
+          '{ not json',
+          'utf-8',
+        );
+        const result = spawnSync(
+          'node',
+          [BIN_PATH, 'impact', '--aspect', 'requires-audit'],
+          { cwd, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(1);
+        expect(result.stderr).toMatch(/yg-lock\.json/);
       });
     });
   });

@@ -5,8 +5,8 @@ title: Configuration
 Config file: `.yggdrasil/yg-config.yaml`
 
 `yg init` creates this file and configures the reviewer interactively.
-`yg init --upgrade` migrates the graph (config, aspects, drift-state baselines) to
-the current version and refreshes the rules, schemas, and platform files.
+`yg init --upgrade` lifts the graph's config version to the current one and
+refreshes the rules, schemas, and platform files.
 
 ---
 
@@ -41,6 +41,7 @@ reviewer:
     standard:                       # Tier name — referenced by aspect reviewer.tier
       provider: ollama              # LLM provider
       consensus: 1                  # Votes per aspect (odd integer >= 1)
+      max_prompt_chars: 50000       # Cap on the assembled prompt (optional; absent = unlimited)
       config:
         model: qwen3
         endpoint: http://localhost:11434
@@ -48,12 +49,11 @@ reviewer:
 
 coverage:                             # Optional — controls which files must be mapped
   required:                           # Unmapped files under these roots are a blocking error
-    - "/"                             # Default: whole repo (previous always-map-everything behavior)
+    - "/"                             # Default: whole repo
   excluded: []                        # Files under these roots are silently ignored
 
 quality:
   max_direct_relations: 10
-  max_node_chars: 40000
 
 parallel: 10
 debug: false
@@ -124,6 +124,7 @@ reviewer:
 | --- | --- | --- |
 | `provider` | yes | One of the supported providers (see below) |
 | `consensus` | yes | Positive odd integer. `1` = single call. `3` = majority vote. |
+| `max_prompt_chars` | no | Positive integer. Caps the assembled-prompt length for LLM pairs on this tier (see [Prompt-size gate](#prompt-size-gate)). Absent = unlimited. `yg init` writes `50000`. |
 | `config.model` | yes | Provider-specific model identifier |
 | `config.temperature` | no | Sampling temperature. Defaults to `0`. |
 | `config.endpoint` | required for `ollama`, `openai-compatible` | API endpoint URL |
@@ -193,22 +194,50 @@ Each file is scored against all roots independently; the longest matching root (
 
 ---
 
+## Prompt-size gate
+
+A tier's optional `max_prompt_chars` caps the length of the prompt the LLM
+reviewer assembles for each pair (the rule, reference files, and subject files).
+`yg check` measures the assembled prompt for every expected LLM pair and reports
+`prompt-too-large` — a blocking error — when it exceeds the resolved tier's limit.
+The check is deterministic and costs nothing; deterministic pairs have no prompt
+and are never subject to it.
+
+```yaml
+reviewer:
+  tiers:
+    standard:
+      provider: anthropic
+      consensus: 1
+      max_prompt_chars: 50000
+      config: { model: claude-haiku-4-5, temperature: 0 }
+```
+
+When a pair trips the gate, the remedies in safety order are:
+
+1. **Narrow `scope.files`** on the aspect so non-target payload (fixtures, generated
+   files) drops out of the subject set.
+2. **Switch the aspect to `per: file`** — only if the rule is file-local; a per-file
+   reviewer cannot judge a cross-file rule.
+3. **Split the node** into children.
+4. **Raise the limit** or move the aspect to a higher-limit tier — but tier choice is
+   part of a pair's identity, so a tier edit re-verifies every pair resolving to it.
+
+`max_prompt_chars` is a gate, not a verdict input: lowering it can make an
+already-verified pair trip the gate without invalidating its recorded verdict.
+
+---
+
 ## Quality config
 
 ```yaml
 quality:
   max_direct_relations: 10        # Max out-edges per node (high-fan-out warning)
-  max_node_chars: 40000           # Per-node character budget — source + aspect reference files (oversized-node error)
 ```
 
-`max_direct_relations` fires a warning when exceeded. `max_node_chars` is a blocking
-error: a node whose mapped source plus aspect reference files exceed it (binary files
-do not count) must be split into children. The budget applies **only to nodes an LLM
-reviewer actually reads** — those with at least one non-draft LLM aspect; nodes
-reviewed only by deterministic `check.mjs` aspects, and aspect-less nodes, are not
-bounded (they never become a context-window-limited prompt). For a node mapping a single unsplittable
-generated or binary artifact (a lockfile, an append-only changelog, an image), opt out
-per-node with `sizeExempt: { reason: "<why it cannot be split>" }`.
+`max_direct_relations` fires a warning when a node's outgoing relation count
+exceeds it — a signal that the node may be doing too much. It is the only
+quality threshold.
 
 ---
 
@@ -218,11 +247,13 @@ per-node with `sizeExempt: { reason: "<why it cannot be split>" }`.
 yg init --upgrade
 ```
 
-Migrates the graph to the current version: applies registered migrations to `yg-config.yaml`,
-all `yg-aspect.yaml` files, and drift-state baselines (losslessly re-keyed to the typed format),
-then refreshes the rules, schemas, and platform files. The legacy single-section reviewer format
-(flat provider keys + `reviewer.active`) is migrated to `reviewer.tiers` automatically. Run from
-the repository root only. Review the diff before committing.
+Lifts the graph's config version to the current one and refreshes the rules,
+schemas, and platform files. The legacy single-section reviewer format (flat
+provider keys + `reviewer.active`) is migrated to `reviewer.tiers` automatically.
+The config parser is strict: a `yg-config.yaml` still carrying retired fields
+(`quality.max_node_chars`, per-tier `references:` size caps) fails `yg check` with
+a clear unknown-key error — delete those lines. Run from the repository root only.
+Review the diff before committing.
 
 ---
 

@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { writeFile, mkdir, rm, mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile, mkdir, rm } from 'node:fs/promises';
 import { validate } from '../../../src/core/validator.js';
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import type { Graph, GraphNode } from '../../../src/model/graph.js';
@@ -628,113 +627,6 @@ describe('validator', () => {
     const result = await validate(graph, 'broken/child');
     expect(result.issues).toHaveLength(1);
     expect(result.issues[0].code).toBe('yaml-invalid');
-  });
-
-  describe('oversized-node', () => {
-    const big = (n: number) => '// ' + 'x'.repeat(n);
-
-    // Builds a minimal repo (config + one node mapping the given files) in a
-    // fresh per-test temp dir, runs validate, and returns the oversized-node issues.
-    async function oversizedIssues(opts: {
-      files: Record<string, string>;
-      nodeYaml: string;
-      config?: string;
-      llmAspect?: boolean;
-    }) {
-      const dir = await mkdtemp(path.join(tmpdir(), 'yg-oversized-'));
-      const yggRoot = path.join(dir, '.yggdrasil');
-      await mkdir(path.join(yggRoot, 'model', 'n'), { recursive: true });
-      for (const [rel, content] of Object.entries(opts.files)) {
-        const abs = path.join(dir, rel);
-        await mkdir(path.dirname(abs), { recursive: true });
-        await writeFile(abs, content);
-      }
-      await writeFile(path.join(yggRoot, 'yg-config.yaml'), opts.config ?? 'version: "5.0.0"');
-      // The per-node char budget applies only to LLM-reviewed nodes, so by default
-      // attach a non-draft LLM aspect to node 'n' so these cases exercise the gate.
-      // Pass llmAspect: false to model a node the budget must NOT bound.
-      let nodeYaml = opts.nodeYaml;
-      if (opts.llmAspect !== false) {
-        await mkdir(path.join(yggRoot, 'aspects', 'budget-llm'), { recursive: true });
-        await writeFile(path.join(yggRoot, 'aspects', 'budget-llm', 'yg-aspect.yaml'), 'name: BudgetLlm\ndescription: x\nreviewer:\n  type: llm\n');
-        await writeFile(path.join(yggRoot, 'aspects', 'budget-llm', 'content.md'), 'Rule.\n');
-        nodeYaml = nodeYaml.replace('description: x\n', 'description: x\naspects:\n  - budget-llm\n');
-      }
-      await writeFile(path.join(yggRoot, 'model', 'n', 'yg-node.yaml'), nodeYaml);
-      try {
-        const result = await validate(await loadGraph(dir));
-        return result.issues.filter((i) => i.rule === 'oversized-node');
-      } finally {
-        await rm(dir, { recursive: true, force: true });
-      }
-    }
-
-    it('errors when mapped source exceeds max_node_chars (default 40000)', async () => {
-      const issues = await oversizedIssues({
-        files: { 'src/a.ts': big(20000), 'src/b.ts': big(25000) }, // ~45006
-        nodeYaml: 'name: N\ntype: service\ndescription: x\nmapping:\n  - src/a.ts\n  - src/b.ts',
-      });
-      expect(issues).toHaveLength(1);
-      expect(issues[0].code).toBe('oversized-node');
-      expect(issues[0].severity).toBe('error');
-      expect(msgOf(issues[0])).toMatch(/characters \(max: 40000\)/);
-    });
-
-    it('does not error when an LLM-reviewed node is under the budget', async () => {
-      const issues = await oversizedIssues({
-        files: { 'src/a.ts': big(5000), 'src/b.ts': big(5000) }, // ~10006
-        nodeYaml: 'name: N\ntype: service\ndescription: x\nmapping:\n  - src/a.ts\n  - src/b.ts',
-      });
-      expect(issues).toHaveLength(0);
-    });
-
-    it('does NOT bound a node with no LLM aspect, even far over the budget (budget is LLM-only)', async () => {
-      const issues = await oversizedIssues({
-        files: { 'src/a.ts': big(20000), 'src/b.ts': big(25000) }, // ~45006, well over 40000
-        nodeYaml: 'name: N\ntype: service\ndescription: x\nmapping:\n  - src/a.ts\n  - src/b.ts',
-        llmAspect: false, // no LLM aspect → never sent to a reviewer → no context window to protect
-      });
-      expect(issues).toHaveLength(0);
-    });
-
-    it('honors a sizeExempt opt-out on an oversized node', async () => {
-      const issues = await oversizedIssues({
-        files: { 'src/a.ts': big(50000) },
-        nodeYaml:
-          'name: N\ntype: service\ndescription: x\nsizeExempt:\n  reason: "generated artifact, cannot be split"\nmapping:\n  - src/a.ts',
-      });
-      expect(issues).toHaveLength(0);
-    });
-
-    it('does not count files with a binary extension toward the budget', async () => {
-      const issues = await oversizedIssues({
-        files: { 'src/blob.bin': ' '.repeat(60000), 'src/a.ts': big(1000) },
-        nodeYaml: 'name: N\ntype: service\ndescription: x\nmapping:\n  - src/blob.bin\n  - src/a.ts',
-      });
-      expect(issues).toHaveLength(0);
-    });
-
-    it('respects a custom max_node_chars from yg-config.yaml', async () => {
-      const issues = await oversizedIssues({
-        files: { 'src/a.ts': big(12000) },
-        nodeYaml: 'name: N\ntype: service\ndescription: x\nmapping:\n  - src/a.ts',
-        config: 'version: "5.0.0"\nquality:\n  max_node_chars: 5000',
-      });
-      expect(issues).toHaveLength(1);
-      expect(msgOf(issues[0])).toContain('max: 5000');
-    });
-
-    it('counts a >5MB text file by its byte size so it cannot evade the gate', async () => {
-      // FileContentCache returns no content for files over its 5MB scan limit;
-      // a non-binary file over that limit must still be counted (by on-disk size)
-      // rather than scored as 0 — otherwise the largest files would slip the gate.
-      const issues = await oversizedIssues({
-        files: { 'src/huge.ts': 'a'.repeat(5 * 1024 * 1024 + 1) },
-        nodeYaml: 'name: N\ntype: service\ndescription: x\nmapping:\n  - src/huge.ts',
-      });
-      expect(issues).toHaveLength(1);
-      expect(issues[0].code).toBe('oversized-node');
-    });
   });
 
   describe('missing-description', () => {

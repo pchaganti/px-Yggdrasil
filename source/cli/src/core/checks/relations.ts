@@ -46,9 +46,10 @@ export function checkRelationTargets(graph: Graph): ValidationIssue[] {
           })
           .filter((v, i, a) => a.indexOf(v) === i)
           .sort();
+        const parentDisplay = (parentPrefix || 'model/').replace(/\/$/, '');
         const existingLine =
           existingInParent.length > 0
-            ? `\n     Existing nodes in ${parentPrefix || 'model/'}: ${existingInParent.join(', ')}`
+            ? `\n     Existing nodes under ${parentDisplay}: ${existingInParent.join(', ')}`
             : '';
         const hint = suggestion ? `\n     Did you mean '${suggestion}'?` : '';
         issues.push({

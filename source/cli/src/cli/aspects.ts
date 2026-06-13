@@ -54,7 +54,7 @@ export function formatAspectsOutput(graph: Graph): string {
   const usage = computeAspectUsage(graph);
   const lines: string[] = [];
 
-  for (const aspect of graph.aspects.sort((a, b) => a.id.localeCompare(b.id))) {
+  for (const aspect of graph.aspects.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
     const u = usage.get(aspect.id) ?? { architecture: 0, own: 0, implied: 0, flow: 0, total: 0 };
     const displayName = aspect.description ?? aspect.name;
     const status = aspect.status ?? 'enforced';

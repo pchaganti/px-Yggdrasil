@@ -1,7 +1,0 @@
-name: Approve Reviewer Structure POSIX Unit Tests
-type: test-suite
-description: "Unit tests for POSIX path normalization of structure-aspect touched files in runApproveWithReviewer — separated from the main structure-dispatch suite to keep each node's reviewer context within the size budget."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/core/approve-reviewer-structure-posix.test.ts

@@ -13,13 +13,16 @@ import { fileURLToPath } from 'node:url';
 import { startMockReviewer, runAsync, type ChatReply } from './support/mock-reviewer.js';
 
 // ---------------------------------------------------------------------------
-// TIER-IDENTITY cascade E2E.
+// TIER-IDENTITY cascade E2E (verdict-lock model).
 //
-// Each LLM aspect contributes a synthetic `tier-identity:<aspectId>` entry to
-// every using node's per-node drift hash. Anything that changes the RESOLVED
-// reviewer tier for that aspect (its consensus, model, endpoint, the tier's
-// name, or the default it falls back to) must drift every node the aspect is
-// effective on. `api_key` is excluded — secret rotation must NOT drift.
+// An LLM pair's verdict hash folds in the RESOLVED reviewer tier identity.
+// Anything that changes the resolved tier for an aspect — its consensus, model,
+// endpoint, the tier's NAME, or the default it falls back to — changes that
+// hash, so every using pair goes `unverified` and a re-fill (`yg check
+// --approve`) is required. Two config fields are EXCLUDED from the identity:
+// `api_key` (rotated independently — its value is not a judgment input) and
+// `timeout` (a transport knob that historically cascaded every node without
+// changing any reviewer output). Rotating either leaves every pair verified.
 //
 // This suite proves that mechanic end-to-end against the real built binary.
 //
@@ -27,23 +30,17 @@ import { startMockReviewer, runAsync, type ChatReply } from './support/mock-revi
 //   The `has-doc-comment` LLM aspect is enforced on the two `service` nodes.
 //   We point its reviewer tier at an in-process mock reviewer (support/
 //   mock-reviewer.ts) that speaks the Ollama wire protocol and always returns a
-//   satisfied verdict. `yg approve` then records a real, fully-verified baseline
-//   that tracks the aspect's `tier-identity` hash (verified by T0 below).
-//   Mutating the tier config in the temp copy surfaces a tier-identity cascade
-//   in `yg check` — and crucially, `yg check` reads no reviewer (drift detection
-//   is deterministic), so the tier edit is observed without any LLM call.
+//   satisfied verdict. `yg check --approve` then records a real, fully-verified
+//   lock entry whose hash tracks the aspect's resolved tier identity.
+//   Mutating the tier config in the temp copy makes those pairs `unverified` in
+//   the next `yg check` — and crucially `yg check` reads no reviewer (the
+//   invalidation is deterministic), so the tier edit is observed without any LLM
+//   call.
 //
 // Why a LIVE mock and not a dead endpoint: a reviewer INFRA failure now fails
-// closed (#2) — an unreachable reviewer refuses and writes NO baseline, so there
-// would be nothing to cascade against. A satisfied mock gives us a genuine green
-// baseline to perturb, which is what the tier-identity mechanic operates on.
-//
-// Settle step: the first approve writes a baseline whose `files` map lacks the
-// `check-touched:` synthetic keys (those are derived from the recorded
-// checkTouchedFiles set only on a SUBSEQUENT collect). A second approve folds
-// them in, so a later non-tier drift does not drag spurious check-touched
-// cascades into the output. Every test approves twice before mutating the tier,
-// isolating the tier-identity signal.
+// closed (#2) — an unreachable reviewer writes NO lock entry, so there would be
+// nothing to invalidate against. A satisfied mock gives us a genuine green lock
+// to perturb, which is what the tier-identity mechanic operates on.
 // ---------------------------------------------------------------------------
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -53,10 +50,10 @@ const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle');
 
 const distExists = existsSync(BIN_PATH);
 
-// A dead loopback endpoint, used ONLY as an endpoint-EDIT target in T2b. Port 1
-// never has a listener; pointing the config there is a genuine tier change, and
+// A dead loopback endpoint, used ONLY as an endpoint-EDIT target. Port 1 never
+// has a listener; pointing the config there is a genuine tier change, and
 // because `yg check` performs no reviewer call, the address being dead is
-// irrelevant to the deterministic drift detection the test asserts on.
+// irrelevant to the deterministic invalidation the test asserts on.
 const DEAD_ENDPOINT_ALT = 'http://127.0.0.2:1';
 
 const OK: () => ChatReply = () => ({ satisfied: true, reason: 'ok' });
@@ -69,8 +66,17 @@ function copyFixture(label: string): string {
 }
 
 const cfgPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-config.yaml');
-const baselinePath = (dir: string, node: string) =>
-  path.join(dir, '.yggdrasil', '.drift-state', ...node.split('/')) + '.json';
+const lockPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-lock.json');
+
+/** The recorded lock entry for one aspect/unit pair, serialized (or undefined). */
+function lockEntry(dir: string, aspectId: string, unitKey: string): string | undefined {
+  if (!existsSync(lockPath(dir))) return undefined;
+  const lock = JSON.parse(readFileSync(lockPath(dir), 'utf-8')) as {
+    verdicts: Record<string, Record<string, unknown>>;
+  };
+  const v = lock.verdicts[aspectId]?.[unitKey];
+  return v === undefined ? undefined : JSON.stringify(v);
+}
 
 /** Repoint the reviewer endpoint at the live mock (rewrites the first `endpoint:`). */
 function pointReviewer(dir: string, endpoint: string): void {
@@ -92,32 +98,28 @@ function patchConfig(dir: string, from: string | RegExp, to: string): void {
   writeFileSync(cfgPath(dir), cfg, 'utf-8');
 }
 
-const SERVICE_NODES = ['services/orders', 'services/payments'] as const;
+const HAS_DOC = 'has-doc-comment';
+const ORDERS = 'node:services/orders';
+const PAYMENTS = 'node:services/payments';
 
-/**
- * Point the reviewer at the live mock, then approve the service node(s) TWICE so
- * the recorded baseline is settled (check-touched synthetic keys folded in).
- * Each approve must exit 0 — the mock returns a satisfied verdict, so the LLM
- * aspect is genuinely verified and the baseline tracks its tier identity.
- */
-async function approveSettled(
-  dir: string,
-  endpoint: string,
-  nodes: readonly string[] = SERVICE_NODES,
-): Promise<void> {
+/** Point the reviewer at the live mock, then fill the repo to a green lock. */
+async function fillGreen(dir: string, endpoint: string): Promise<void> {
   pointReviewer(dir, endpoint);
-  const flags = nodes.flatMap((n) => ['--node', n]);
-  for (let i = 0; i < 2; i++) {
-    const r = await runAsync(['approve', ...flags], dir);
-    expect(r.status).toBe(0);
-  }
+  const r = await runAsync(['check', '--approve'], dir);
+  expect(r.status).toBe(0);
+  // Both service nodes hold an approved verdict for the enforced LLM aspect.
+  expect(JSON.parse(lockEntry(dir, HAS_DOC, ORDERS)!).verdict).toBe('approved');
+  expect(JSON.parse(lockEntry(dir, HAS_DOC, PAYMENTS)!).verdict).toBe('approved');
 }
 
-// The exact, stable cascade line the CLI emits for a tier-identity change.
-const TIER_CASCADE = "the resolved reviewer tier for aspect 'has-doc-comment' changed";
+/** Assert both LLM pairs render as unverified in `yg check` (exit 1). */
+function expectBothUnverified(all: string): void {
+  expect(all).toContain(`No valid verdict for aspect '${HAS_DOC}' on ${ORDERS}`);
+  expect(all).toContain(`No valid verdict for aspect '${HAS_DOC}' on ${PAYMENTS}`);
+}
 
-// Two-tier config (default = standard) used to exercise default-flip and rename
-// scenarios. BOTH tiers point at the same live mock endpoint, so the reviewer is
+// Two-tier config (default = standard) used to exercise the default-flip
+// scenario. BOTH tiers point at the same live mock endpoint, so the reviewer is
 // reachable no matter which one resolves.
 const twoTierConfig = (endpoint: string) => `version: "5.0.0"
 
@@ -141,115 +143,105 @@ reviewer:
         endpoint: "${endpoint}"
 `;
 
-describe.skipIf(!distExists)('CLI E2E — tier-identity cascade (LLM aspect resolved tier drifts every using node)', () => {
+describe.skipIf(!distExists)('CLI E2E — tier-identity invalidation (resolved tier change re-verifies every using pair)', () => {
   // --- T0: the hermetic assumption itself ---
 
-  it('T0: a satisfied-mock approve writes a baseline that TRACKS the LLM aspect tier-identity', async () => {
+  it('T0: a satisfied-mock fill writes a lock that TRACKS the LLM aspect tier-identity', async () => {
     const dir = copyFixture('t0');
     const mock = await startMockReviewer({ respond: OK });
     try {
-      pointReviewer(dir, mock.endpoint);
-      const approve = await runAsync(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0); // verified baseline, exit 0
-
-      const baseline = baselinePath(dir, 'services/orders');
-      expect(existsSync(baseline)).toBe(true);
-      const state = JSON.parse(readFileSync(baseline, 'utf-8')) as {
-        identity: { aspects: Record<string, { tier?: string }> };
-      };
-      // The typed tier identity for the enforced LLM aspect is present in the
-      // recorded baseline — this is what a tier edit will perturb.
-      expect(state.identity.aspects['has-doc-comment']?.tier).toBeDefined();
+      await fillGreen(dir, mock.endpoint);
+      // A clean re-check is green — the recorded verdict holds.
+      const check = await runAsync(['check'], dir);
+      expect(check.status).toBe(0);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  // --- T1a / T1b: scenario 1 — consensus edit drifts, re-approve clears it ---
+  // --- T1a / T1b: scenario 1 — consensus edit invalidates, re-fill clears it ---
 
-  it('T1a: editing the tier consensus (1→3) drifts every using node (exit 1, names both)', async () => {
+  it('T1a: editing the tier consensus (1→3) invalidates every using pair (exit 1, names both)', async () => {
     const dir = copyFixture('t1a');
     const mock = await startMockReviewer({ respond: OK });
     try {
-      await approveSettled(dir, mock.endpoint);
+      await fillGreen(dir, mock.endpoint);
 
       // Mutate the resolved tier: consensus 1 → 3.
       patchConfig(dir, 'consensus: 1', 'consensus: 3');
 
       const check = await runAsync(['check'], dir);
       expect(check.status).toBe(1);
-      expect(check.all).toContain(TIER_CASCADE);
-      // BOTH using nodes are named in the grouped affected-node list.
-      expect(check.all).toContain('services/{orders, payments}');
+      // BOTH using pairs are unverified — the resolved tier identity changed.
+      expectBothUnverified(check.all);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('T1b: re-approving the aspect after the consensus edit CLEARS the tier cascade', async () => {
+  it('T1b: re-filling after the consensus edit CLEARS the invalidation', async () => {
     const dir = copyFixture('t1b');
     const mock = await startMockReviewer({ respond: OK });
     try {
-      await approveSettled(dir, mock.endpoint);
+      await fillGreen(dir, mock.endpoint);
       patchConfig(dir, 'consensus: 1', 'consensus: 3');
 
-      // Confirm the cascade is present before clearing.
-      expect((await runAsync(['check'], dir)).all).toContain(TIER_CASCADE);
+      // Confirm both pairs are unverified before clearing.
+      expectBothUnverified((await runAsync(['check'], dir)).all);
 
-      // Batch re-approve from the changed aspect: both using nodes pick up the
-      // new tier identity. The mock satisfies all 3 consensus calls, exit 0.
-      const reapprove = await runAsync(['approve', '--aspect', 'has-doc-comment'], dir);
-      expect(reapprove.status).toBe(0);
-      expect(reapprove.all).toContain('services/orders');
-      expect(reapprove.all).toContain('services/payments');
-      expect(reapprove.all).toContain('2 approved');
+      // Re-fill: both using pairs pick up the new tier identity. The mock
+      // satisfies all 3 consensus calls per pair → 6 calls, exit 0.
+      const callsBefore = mock.chatCount();
+      const refill = await runAsync(['check', '--approve'], dir);
+      expect(refill.status).toBe(0);
+      expect(refill.all).toContain(`[llm] ${HAS_DOC} on ${ORDERS} — approved`);
+      expect(refill.all).toContain(`[llm] ${HAS_DOC} on ${PAYMENTS} — approved`);
+      expect(mock.chatCount() - callsBefore).toBe(6); // 2 pairs × consensus 3
 
-      // The tier-identity cascade signal is gone after re-approve.
+      // The invalidation is gone after re-fill.
       const cleared = await runAsync(['check'], dir);
-      expect(cleared.all).not.toContain(TIER_CASCADE);
+      expect(cleared.status).toBe(0);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  // --- T2: scenario 2 — editing a tier config field (model) drifts ---
+  // --- T2: scenario 2 — editing a tier config field (model / endpoint) invalidates ---
 
-  it('T2: editing the resolved tier model drifts every using node (tier-identity cascade)', async () => {
+  it('T2: editing the resolved tier model invalidates every using pair', async () => {
     const dir = copyFixture('t2-model');
     const mock = await startMockReviewer({ respond: OK });
     try {
-      await approveSettled(dir, mock.endpoint);
+      await fillGreen(dir, mock.endpoint);
 
       patchConfig(dir, 'qwen2.5-coder:0.5b', 'llama3.2:1b');
 
       const check = await runAsync(['check'], dir);
       expect(check.status).toBe(1);
-      expect(check.all).toContain(TIER_CASCADE);
-      expect(check.all).toContain('services/{orders, payments}');
+      expectBothUnverified(check.all);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('T2b: editing the resolved tier endpoint drifts every using node', async () => {
+  it('T2b: editing the resolved tier endpoint invalidates every using pair', async () => {
     const dir = copyFixture('t2-endpoint');
     const mock = await startMockReviewer({ respond: OK });
     try {
-      await approveSettled(dir, mock.endpoint);
+      await fillGreen(dir, mock.endpoint);
 
       // Repoint at a DIFFERENT address: a genuine tier change. `yg check` makes
       // no reviewer call, so the new address need not be live for the
-      // deterministic tier-identity drift to surface.
+      // deterministic invalidation to surface.
       patchConfig(dir, mock.endpoint, DEAD_ENDPOINT_ALT);
 
       const check = await runAsync(['check'], dir);
       expect(check.status).toBe(1);
-      expect(check.all).toContain(TIER_CASCADE);
-      expect(check.all).toContain('services/{orders, payments}');
+      expectBothUnverified(check.all);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
@@ -258,14 +250,14 @@ describe.skipIf(!distExists)('CLI E2E — tier-identity cascade (LLM aspect reso
 
   // --- T3: scenario 3 — rename the tier and repoint the default ---
 
-  it('T3: renaming the tier and repointing the default drifts every using node', async () => {
+  it('T3: renaming the tier and repointing the default invalidates every using pair', async () => {
     const dir = copyFixture('t3');
     const mock = await startMockReviewer({ respond: OK });
     try {
-      await approveSettled(dir, mock.endpoint);
+      await fillGreen(dir, mock.endpoint);
 
       // Rename `standard` → `primary` and repoint reviewer.default. The tier
-      // name is part of the identity, so this drifts even though the config
+      // name is part of the identity, so this invalidates even though the config
       // body is byte-equivalent.
       writeConfig(
         dir,
@@ -288,8 +280,7 @@ reviewer:
 
       const check = await runAsync(['check'], dir);
       expect(check.status).toBe(1);
-      expect(check.all).toContain(TIER_CASCADE);
-      expect(check.all).toContain('services/{orders, payments}');
+      expectBothUnverified(check.all);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
@@ -298,17 +289,17 @@ reviewer:
 
   // --- T4: scenario 4 — editing reviewer.default cascades to default-relying aspects ---
 
-  it('T4: editing reviewer.default cascades to aspects relying on the default tier', async () => {
+  it('T4: editing reviewer.default invalidates aspects relying on the default tier', async () => {
     const dir = copyFixture('t4');
     const mock = await startMockReviewer({ respond: OK });
     try {
       // Start with TWO tiers (default = standard). `has-doc-comment` pins no
       // tier, so it resolves the default. Both tiers point at the live mock.
       writeConfig(dir, twoTierConfig(mock.endpoint));
-      // approveSettled() also calls pointReviewer(), which only rewrites the
-      // FIRST endpoint match. Both tiers already point at the mock, so the
-      // reviewer stays reachable regardless.
-      await approveSettled(dir, mock.endpoint);
+      // fillGreen() also calls pointReviewer(), which only rewrites the FIRST
+      // endpoint match. Both tiers already point at the mock, so the reviewer
+      // stays reachable regardless.
+      await fillGreen(dir, mock.endpoint);
 
       // Flip the default standard → deep. The aspect's resolved tier changes
       // without touching the aspect itself.
@@ -316,8 +307,7 @@ reviewer:
 
       const check = await runAsync(['check'], dir);
       expect(check.status).toBe(1);
-      expect(check.all).toContain(TIER_CASCADE);
-      expect(check.all).toContain('services/{orders, payments}');
+      expectBothUnverified(check.all);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
@@ -326,7 +316,7 @@ reviewer:
 
   // --- T5: scenario 5 — api_key rotation is EXCLUDED from tier identity ---
 
-  it('T5: rotating the tier api_key does NOT drift (api_key excluded from tier identity)', async () => {
+  it('T5: rotating the tier api_key does NOT invalidate (api_key excluded from tier identity)', async () => {
     const dir = copyFixture('t5');
     const mock = await startMockReviewer({ respond: OK });
     try {
@@ -350,20 +340,70 @@ reviewer:
         api_key: "secret-old-key-aaaa"
 `,
       );
-      await approveSettled(dir, mock.endpoint);
+      await fillGreen(dir, mock.endpoint);
 
-      // A settled baseline carries no tier cascade.
-      expect((await runAsync(['check'], dir)).all).not.toContain(TIER_CASCADE);
+      const callsBefore = mock.chatCount();
 
-      // Rotate ONLY the api_key. canonicalTierJson omits api_key, so the
-      // tier-identity hash is unchanged → no cascade.
+      // Rotate ONLY the api_key. The tier-identity hash omits api_key, so the
+      // hash is unchanged → no pair is invalidated.
       patchConfig(dir, 'secret-old-key-aaaa', 'secret-NEW-key-bbbb');
 
+      // The next fill finds NOTHING to do — every pair still holds a valid verdict.
+      const refill = await runAsync(['check', '--approve'], dir);
+      expect(refill.status).toBe(0);
+      expect(refill.all).toContain('Filling 0 unverified pairs');
+      expect(mock.chatCount() - callsBefore).toBe(0); // zero reviewer calls
+
+      // And a plain check stays green.
       const check = await runAsync(['check'], dir);
-      // The tier-identity cause must NOT appear, and no cascade of ANY kind was
-      // introduced by the api_key rotation.
-      expect(check.all).not.toContain(TIER_CASCADE);
-      expect(check.all).not.toContain('cascade');
+      expect(check.status).toBe(0);
+    } finally {
+      await mock.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // --- T6: scenario 6 — timeout is EXCLUDED from tier identity ---
+
+  it('T6: editing the tier timeout (transport knob) does NOT invalidate', async () => {
+    const dir = copyFixture('t6');
+    const mock = await startMockReviewer({ respond: OK });
+    try {
+      // Author a config whose tier config carries a timeout, pointing at the mock.
+      writeConfig(
+        dir,
+        `version: "5.0.0"
+
+quality:
+  max_direct_relations: 10
+
+reviewer:
+  default: standard
+  tiers:
+    standard:
+      provider: ollama
+      consensus: 1
+      config:
+        model: "qwen2.5-coder:0.5b"
+        endpoint: "${mock.endpoint}"
+        timeout: 30000
+`,
+      );
+      await fillGreen(dir, mock.endpoint);
+
+      const callsBefore = mock.chatCount();
+
+      // Change ONLY the timeout. It is stripped from the tier-identity hash, so
+      // no pair is invalidated.
+      patchConfig(dir, 'timeout: 30000', 'timeout: 99000');
+
+      const refill = await runAsync(['check', '--approve'], dir);
+      expect(refill.status).toBe(0);
+      expect(refill.all).toContain('Filling 0 unverified pairs');
+      expect(mock.chatCount() - callsBefore).toBe(0);
+
+      const check = await runAsync(['check'], dir);
+      expect(check.status).toBe(0);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });

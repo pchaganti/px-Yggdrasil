@@ -5,6 +5,12 @@ import type { Migration } from './migrator.js';
 export interface RunUpgradeOptions {
   yggRoot: string;
   migrations: Migration[];
+  /**
+   * The schema version this CLI supports — used to lift the config version
+   * when no migrations apply but the project is below the supported schema.
+   * Defaults to '5.0.0' if omitted.
+   */
+  targetVersion?: string;
 }
 
 export interface UpgradeResult {
@@ -36,6 +42,7 @@ export interface UpgradeResult {
  */
 export async function runVersionUpgrade(options: RunUpgradeOptions): Promise<UpgradeResult> {
   const { yggRoot, migrations } = options;
+  const resolvedTarget = options.targetVersion ?? '5.0.0';
   const fromVersion = await detectVersion(yggRoot);
 
   const migrationActions: string[] = [];
@@ -78,6 +85,24 @@ export async function runVersionUpgrade(options: RunUpgradeOptions): Promise<Upg
     } catch {
       // yg-config.yaml absent — the migration itself reported this via a
       // warning, so skip silently here to avoid a duplicate entry.
+    }
+  }
+
+  // When the migration chain ran to completion (or was empty) but the
+  // project version is still below the supported schema — no automated
+  // transformations exist for this gap — lift the config version directly
+  // to the supported schema so yg check does not keep reporting an
+  // outdated version error.
+  if (!withheld && valid(resolvedTarget) && gt(resolvedTarget, landedVersion)) {
+    try {
+      await updateConfigVersion(yggRoot, resolvedTarget);
+      migrationActions.push(
+        `version updated to ${resolvedTarget} — no automatic transformations exist; ` +
+        `yg check will flag any stale config fields with exact errors`,
+      );
+      landedVersion = resolvedTarget;
+    } catch {
+      // yg-config.yaml absent — nothing to update.
     }
   }
 

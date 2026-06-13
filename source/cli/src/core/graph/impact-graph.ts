@@ -1,21 +1,68 @@
+import path from 'node:path';
 import { collectAllowedReadsForAspect } from '../../structure/allowed-reads.js';
 import { isPathInMapping } from '../../structure/expand-mapping-sync.js';
-import { readNodeDriftState } from '../../io/drift-state-store.js';
 import { computeEffectiveAspects, computeEffectiveAspectStatuses } from './aspects.js';
-import { collectTrackedFiles } from './files.js';
-import type { Graph } from '../../model/graph.js';
+import type { Graph, GraphNode } from '../../model/graph.js';
+import type { LockFile } from '../../model/lock.js';
+import { toPosix } from '../../utils/posix.js';
 
 /**
  * Pure graph blast-radius / reverse-dependency algorithms for `yg impact`.
  *
- * These helpers take a loaded Graph (and, for the structure cascade, read the
- * persisted drift baseline through the io adapter) and return derived data with
- * no presentation or argument-parsing concerns — the CLI command handler in
- * cli/impact.ts owns output formatting. Channel/iteration order is preserved so
- * the hashed and rendered outputs stay byte-stable.
+ * These helpers take a loaded Graph and return derived data with no presentation
+ * or argument-parsing concerns — the CLI command handler in cli/impact.ts owns
+ * output formatting. Channel/iteration order is preserved so the hashed and
+ * rendered outputs stay byte-stable.
  */
 
 const STRUCTURAL_TYPES = new Set(['uses', 'calls', 'extends', 'implements']);
+
+/**
+ * Node paths that currently hold a `refused` verdict for `aspectId` in the lock.
+ *
+ * Scans `lock.verdicts[aspectId]` unit keys (spec §8 refused-verdict annotation):
+ *   - node:<path>  → the node path directly.
+ *   - file:<repoRelPosix> → the owning node, resolved through the graph mapping
+ *     (no per-node file IO — the lock + graph are enough).
+ *
+ * Returns a Set of model-relative node paths. Entries whose file maps to no node
+ * (stale lock line, pruned by the next fill GC) are skipped.
+ */
+export function nodesWithRefusedVerdict(graph: Graph, lock: LockFile, aspectId: string): Set<string> {
+  const refused = new Set<string>();
+  const unitMap = lock.verdicts[aspectId];
+  if (!unitMap) return refused;
+
+  for (const unitKey of Object.keys(unitMap)) {
+    if (unitMap[unitKey].verdict !== 'refused') continue;
+    if (unitKey.startsWith('node:')) {
+      refused.add(unitKey.slice('node:'.length));
+      continue;
+    }
+    if (unitKey.startsWith('file:')) {
+      const f = toPosix(unitKey.slice('file:'.length));
+      const owner = ownerNodeForFile(graph, f);
+      if (owner) refused.add(owner);
+    }
+  }
+  return refused;
+}
+
+/**
+ * Owning node path for a repo-relative POSIX file, resolved from the graph's node
+ * mappings (longest-mapping wins, mirroring findOwner without the cli dependency).
+ */
+function ownerNodeForFile(graph: Graph, file: string): string | null {
+  let best: { nodePath: string; len: number } | null = null;
+  for (const [nodePath, node] of graph.nodes) {
+    for (const m of (node.meta.mapping ?? []).map(toPosix)) {
+      if (isPathInMapping(file, [m]) && (!best || m.length > best.len)) {
+        best = { nodePath, len: m.length };
+      }
+    }
+  }
+  return best ? best.nodePath : null;
+}
 
 export function collectReverseDependents(
   graph: Graph,
@@ -160,52 +207,141 @@ export function collectIndirectDependents(
 }
 
 /**
- * Find nodes whose effective structure aspect reads `repoRelative` CROSS-NODE.
- * Unified through collectTrackedFiles (precise) and collectAllowedReadsForAspect
- * (cold-start) so it cannot diverge from `yg check`'s check-touched drift.
- *   - precise (post-approve): the node's baseline records the file in
- *     identity.aspects[id].checkTouched, so collectTrackedFiles(node, graph, baseline) emits
- *     it under the 'check-touched' layer.
- *   - potential (cold-start, no identity.aspects[id].checkTouched baseline yet): the file is
- *     in the node's allowed-reads set for its structure aspect — editing it MAY
- *     cascade once the node is approved.
- * The structural owner (if any) is excluded — it is handled separately.
+ * Does a deterministic entry's stored observation key reference `repoRelative`?
+ *
+ * The lock records each cross-subject observation a deterministic check made as a
+ * `[observationKey, hash]` pair under the entry's `touched` array (spec §3.1). An
+ * edit to `repoRelative` invalidates a verdict whose observation set contained:
+ *   - read:<p>   / exists:<p>  → p === repoRelative (the bytes / existence probed)
+ *   - list:<dir>                → dir === dirname(repoRelative) (the file would
+ *                                  appear in that directory listing, so adding /
+ *                                  removing / renaming it changes the listing hash)
+ *   - graph:<node>             → repoRelative IS that node's yg-node.yaml (any
+ *                                  ctx.graph access folds the node's yaml bytes)
+ *
+ * Paths are compared in POSIX form. `repoRelative` is already repo-relative POSIX
+ * (the impact command resolves it through `resolveFileArg`).
  */
-export async function collectStructureCascade(
+function touchedReferencesFile(
+  touched: Array<[string, string]> | undefined,
+  repoRelative: string,
+): boolean {
+  if (!touched || touched.length === 0) return false;
+  const fileDir = toPosix(path.posix.dirname(repoRelative));
+  for (const [key] of touched) {
+    const sep = key.indexOf(':');
+    if (sep < 0) continue;
+    const kind = key.slice(0, sep);
+    const target = key.slice(sep + 1);
+    switch (kind) {
+      case 'read':
+      case 'exists':
+        if (target === repoRelative) return true;
+        break;
+      case 'list':
+        if (target === fileDir) return true;
+        break;
+      case 'graph': {
+        // graph:<modelRelNodePath> → the file is that node's yg-node.yaml.
+        const ygNodeRel = toPosix(path.posix.join('.yggdrasil', 'model', target, 'yg-node.yaml'));
+        if (ygNodeRel === repoRelative) return true;
+        break;
+      }
+      default:
+        break;
+    }
+  }
+  return false;
+}
+
+/**
+ * Find nodes whose effective deterministic aspect reads `repoRelative` CROSS-NODE.
+ *
+ * Two modes, re-sourced from the lock (spec §8):
+ *   - PRECISE: a deterministic lock entry whose `touched` observation keys
+ *     reference `repoRelative` (read:/exists:/list:/graph:) — the (aspect, unit)
+ *     verdict WOULD become unverified if the file is edited. The owning node is
+ *     reported as mode 'precise'.
+ *   - POTENTIAL (cold-start fallback): a node with NO deterministic lock entries
+ *     yet whose effective non-draft deterministic aspect's allowed-reads set
+ *     includes the file. Reported as mode 'potential' — it MIGHT read the file
+ *     when first verified.
+ *
+ * A node reported under precise mode is never also reported under potential mode.
+ */
+export function collectStructureCascade(
   graph: Graph,
   repoRelative: string,
   ownerNodePath: string | null | undefined,
-): Promise<Array<{ nodePath: string; mode: 'precise' | 'potential' }>> {
+  lock: LockFile,
+): Array<{ nodePath: string; mode: 'precise' | 'potential' }> {
   const out: Array<{ nodePath: string; mode: 'precise' | 'potential' }> = [];
+
   for (const [nodePath, node] of graph.nodes) {
     if (ownerNodePath && nodePath === ownerNodePath) continue;
 
-    const baseline = await readNodeDriftState(graph.rootPath, nodePath);
-    const hasStfBaseline = !!baseline && Object.values(baseline.identity.aspects)
-      .some(a => a.checkTouched && Object.keys(a.checkTouched).length > 0);
+    const statuses = computeEffectiveAspectStatuses(node, graph);
+    const detAspectIds = [...computeEffectiveAspects(node, graph)].filter((id) => {
+      if (statuses.get(id) === 'draft') return false;
+      return graph.aspects.find((a) => a.id === id)?.reviewer.type === 'deterministic';
+    });
+    if (detAspectIds.length === 0) continue;
 
-    if (hasStfBaseline) {
-      const { trackedFiles } = collectTrackedFiles(node, graph, baseline);
-      const reads = trackedFiles.some(t => t.layer === 'check-touched' && t.path === repoRelative);
-      if (reads) out.push({ nodePath, mode: 'precise' });
+    // ── Precise: any deterministic lock entry on this node whose observations
+    //    reference the edited file. Lock unit keys for this node are node:<path>
+    //    (per: node) or file:<mapped file> (per: file); the entry's `touched`
+    //    carries the recorded observation keys regardless of unit shape.
+    let precise = false;
+    let hasAnyDetEntry = false;
+    for (const aspectId of detAspectIds) {
+      const unitMap = lock.verdicts[aspectId];
+      if (!unitMap) continue;
+      for (const unitKey of Object.keys(unitMap)) {
+        // Only entries belonging to THIS node count. node:<path> matches by
+        // exact path; file:<f> matches when f is mapped to this node.
+        if (!unitKeyBelongsToNode(unitKey, nodePath, node)) continue;
+        hasAnyDetEntry = true;
+        if (touchedReferencesFile(unitMap[unitKey].touched, repoRelative)) {
+          precise = true;
+          break;
+        }
+      }
+      if (precise) break;
+    }
+
+    if (precise) {
+      out.push({ nodePath, mode: 'precise' });
       continue;
     }
 
-    // Cold start: pessimistic — does an effective non-draft deterministic aspect
-    // on this node have this file in its allowed-reads set?
-    const statuses = computeEffectiveAspectStatuses(node, graph);
-    const hasStructureAspect = [...computeEffectiveAspects(node, graph)].some(id => {
-      if (statuses.get(id) === 'draft') return false;
-      return graph.aspects.find(a => a.id === id)?.reviewer.type === 'deterministic';
-    });
-    if (!hasStructureAspect) continue;
+    // ── Cold-start fallback (no deterministic lock entries for this node yet):
+    //    pessimistic allowed-reads probe.
+    if (hasAnyDetEntry) continue; // entries exist but none touched the file → not affected
     const allowed = collectAllowedReadsForAspect(nodePath, graph);
     if (isPathInMapping(repoRelative, [...allowed])) {
       out.push({ nodePath, mode: 'potential' });
     }
   }
+
   // Code-unit comparison (locale-independent, deterministic across environments),
   // consistent with the plain .sort() calls elsewhere in this module.
   out.sort((a, b) => (a.nodePath < b.nodePath ? -1 : a.nodePath > b.nodePath ? 1 : 0));
   return out;
+}
+
+/**
+ * True when a lock unit key belongs to `nodePath`. A `node:<path>` key matches by
+ * exact path; a `file:<repoRelPosix>` key matches when that file is mapped to the
+ * node (per-file scope). Uses the node's mapping for the file-key case.
+ */
+function unitKeyBelongsToNode(unitKey: string, nodePath: string, node: GraphNode): boolean {
+  if (unitKey.startsWith('node:')) {
+    return unitKey.slice('node:'.length) === nodePath;
+  }
+  if (unitKey.startsWith('file:')) {
+    const f = toPosix(unitKey.slice('file:'.length));
+    const mapping = node.meta.mapping ?? [];
+    return isPathInMapping(f, mapping.map(toPosix));
+  }
+  return false;
 }

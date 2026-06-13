@@ -738,7 +738,7 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
       // Attributed to the declaring node.
       expect(stdout).toContain('app/p');
       // The existing-siblings hint surfaces the real nodes under app/.
-      expect(stdout).toContain('Existing nodes in app/');
+      expect(stdout).toContain('Existing nodes under app');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -983,16 +983,21 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
   //    with the LLM aspect stripped and the reviewer killed.
   // =========================================================================
 
-  // D1: ADDING a `uses` relation to a node's own yg-node.yaml drifts THAT node
-  //     (its own definition subset and its tracked dependency set both changed);
-  //     re-approving the node clears it. The node's OWN-metadata change renders as
-  //     `node 'services/orders' own metadata changed` (the own-subset synthetic key),
-  //     never the cosmetic `'unknown'` it used to emit.
-  it('D1: adding a uses relation to a node drifts it (cascade); re-approve clears it', () => {
+  // D1: CONVERTED behavior (verdict-lock model). The old assertion was that
+  //     ADDING a `uses` relation to a node's own yg-node.yaml drifts THAT node
+  //     via a relational cascade ("dependency ... metadata changed" / "node ...
+  //     own metadata changed"). That whole relational-metadata cascade is GONE:
+  //     the frozen pair-hash contract folds only the node's subject files +
+  //     the aspect rule into a verdict, and recomputes relation applicability
+  //     live through the expected-pair set — a relation add changes neither.
+  //     So adding a bare `uses` relation (no source change, no port aspect)
+  //     leaves every verdict valid. This pins the surviving, now-correct
+  //     behavior; it is the direct counterpart to the removed cascade surface,
+  //     not a weakened version of it.
+  it('D1: adding a bare uses relation to a node does NOT invalidate its verdicts (input-precise hashing)', () => {
     const dir = deterministicLifecycle('d1-add-relation');
     try {
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       expect(run(['check'], dir).status).toBe(0);
 
       // Add an allowed `uses` relation (service uses service) to orders.
@@ -1010,34 +1015,28 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
         'utf-8',
       );
 
-      const drifted = run(['check'], dir);
-      expect(drifted.status).toBe(1);
-      expect(drifted.stdout).toContain('cascade');
-      expect(drifted.stdout).toContain(
-        "dependency 'services/payments' metadata changed",
-      );
-      // The node's own-metadata edit is named precisely (not "parent node 'unknown'").
-      expect(drifted.stdout).toContain("node 'services/orders' own metadata changed");
-      expect(drifted.stdout).not.toContain("parent node 'unknown'");
-      expect(drifted.stdout).toContain('services/orders');
-
-      const reapprove = run(['approve', '--node', 'services/orders'], dir);
-      expect(reapprove.status).toBe(0);
-      expect(reapprove.stdout).toContain('Approved: services/orders');
-
-      expect(run(['check'], dir).status).toBe(0);
+      // No source change and no port consumed, so the dependent's verdict
+      // inputs are unchanged — check stays clean, no fill required.
+      const after = run(['check'], dir);
+      expect(after.status).toBe(0);
+      expect(after.stdout).toContain('PASS');
+      expect(after.stdout).not.toContain('unverified');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  // D2: REMOVING a previously-approved relation also drifts the node — the
-  //     dependency's tracked yg-node.yaml is no longer read, so the baseline
-  //     records a removed tracked file. Re-approving clears it.
-  it('D2: removing an approved relation drifts the node (cascade); re-approve clears it', () => {
+  // D2: CONVERTED behavior (verdict-lock model). The old assertion was that
+  //     REMOVING a previously-approved relation drifts the node ("Tracked file
+  //     removed" cascade, because the dependency's yg-node.yaml was a tracked
+  //     input). That tracked-dependency-yaml cascade is GONE for the same
+  //     reason as D1 — a dependency's yaml is no longer a verdict input. So
+  //     removing the relation leaves the node's verdicts valid. This pins the
+  //     surviving counterpart to the removed cascade surface.
+  it('D2: removing a bare uses relation does NOT invalidate the node\'s verdicts (input-precise hashing)', () => {
     const dir = deterministicLifecycle('d2-remove-relation');
     try {
-      // Start WITH the relation, approve, confirm clean.
+      // Start WITH the relation, fill, confirm clean.
       writeFileSync(
         ordersNodeYaml(dir),
         [
@@ -1051,30 +1050,21 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
         ].join('\n'),
         'utf-8',
       );
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       expect(run(['check'], dir).status).toBe(0);
 
-      // Now REMOVE the relation.
+      // Now REMOVE the relation — a pure graph-structure edit, no source change.
       writeFileSync(
         ordersNodeYaml(dir),
         [...ORDERS_BASE, 'mapping:', '  - src/services/orders.ts', ''].join('\n'),
         'utf-8',
       );
 
-      const drifted = run(['check'], dir);
-      expect(drifted.status).toBe(1);
-      expect(drifted.stdout).toContain('cascade');
-      // The dependency's yg-node.yaml is no longer tracked → removed-file cascade.
-      expect(drifted.stdout).toContain('Tracked file removed');
-      expect(drifted.stdout).toContain('services/payments');
-      expect(drifted.stdout).toContain('services/orders');
-
-      const reapprove = run(['approve', '--node', 'services/orders'], dir);
-      expect(reapprove.status).toBe(0);
-      expect(reapprove.stdout).toContain('Approved: services/orders');
-
-      expect(run(['check'], dir).status).toBe(0);
+      // The node's verdict inputs are unchanged → still valid, check stays clean.
+      const after = run(['check'], dir);
+      expect(after.status).toBe(0);
+      expect(after.stdout).toContain('PASS');
+      expect(after.stdout).not.toContain('unverified');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

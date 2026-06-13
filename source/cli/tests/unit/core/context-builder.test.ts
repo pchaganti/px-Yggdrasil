@@ -132,9 +132,6 @@ describe('context-builder', () => {
   });
 
   describe('buildStructuralRelationLayer', () => {
-    const defaultConfig: YggConfig = {
-    };
-
     it('includes consumes when present', () => {
       const target: GraphNode = {
         path: 'dep/svc',
@@ -658,6 +655,48 @@ describe('verifiedAgainst path (Task 31)', () => {
     const ast = data.aspects.find((a) => a.aspectId === 'ast-aspect');
     expect(ast).toBeDefined();
     expect(ast!.verifiedAgainst).toBe('.yggdrasil/aspects/ast-aspect/check.mjs');
+  });
+
+  // An AGGREGATE aspect (no own rule source) verifies against its yg-aspect.yaml,
+  // and an LLM aspect WITH references surfaces those references in the context.
+  const aggregateAspect: AspectDef = {
+    name: 'Bundle', id: 'bundle',
+    reviewer: { type: 'aggregate' as const }, artifacts: [],
+    implies: ['llm-aspect'],
+  } as unknown as AspectDef;
+  const refAspect: AspectDef = {
+    name: 'Ref Aspect', id: 'ref-aspect',
+    reviewer: { type: 'llm' as const },
+    artifacts: [{ filename: 'content.md', content: 'rule' }],
+    references: [{ path: 'docs/table.md', description: 'lookup table' }],
+  } as unknown as AspectDef;
+  const richNode: GraphNode = {
+    path: 'rich',
+    meta: { name: 'Rich', type: 'service', aspects: ['bundle', 'ref-aspect'], mapping: ['src/rich.ts'] },
+    children: [], parent: null,
+  };
+  const richGraph: Graph = {
+    config: {},
+    architecture: { node_types: { service: { description: 'svc' } } },
+    nodes: new Map([['rich', richNode]]),
+    aspects: [aggregateAspect, refAspect, llmAspect],
+    flows: [], schemas: [], rootPath: '/fake/.yggdrasil',
+  };
+
+  it('buildNodeContextData: aggregate aspect verifies against yg-aspect.yaml; references surface', () => {
+    const data = buildNodeContextData(richGraph, 'rich');
+    const agg = data.aspects.find((a) => a.id === 'bundle');
+    expect(agg!.verifiedAgainst).toBe('.yggdrasil/aspects/bundle/yg-aspect.yaml');
+    const ref = data.aspects.find((a) => a.id === 'ref-aspect');
+    expect(ref!.references).toEqual([{ path: 'docs/table.md', description: 'lookup table' }]);
+  });
+
+  it('buildFileContextData: aggregate verifies against yg-aspect.yaml; references surface', () => {
+    const data = buildFileContextData(richGraph, 'src/rich.ts', 'rich');
+    const agg = data.aspects.find((a) => a.aspectId === 'bundle');
+    expect(agg!.verifiedAgainst).toBe('.yggdrasil/aspects/bundle/yg-aspect.yaml');
+    const ref = data.aspects.find((a) => a.aspectId === 'ref-aspect');
+    expect(ref!.references).toEqual([{ path: 'docs/table.md', description: 'lookup table' }]);
   });
 });
 

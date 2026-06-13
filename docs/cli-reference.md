@@ -15,8 +15,8 @@ This page is for inspecting or debugging your graph and enforcement state.
 |---------|---------|
 | `yg context --file <path>` / `--node <path>` | Assemble context package |
 | `yg impact --file <path>` / `--node <path>` / `--aspect <id>` / `--flow <name>` / `--type <id>` | Blast radius analysis |
-| `yg check` | Unified gate — everything wrong, always global |
-| `yg approve --node <path>` (repeatable) / `--aspect <id>` / `--flow <name>` | Record baseline after review |
+| `yg check` | Unified gate — pure read, hash-only, no LLM, no keys |
+| `yg check --approve` | Verify every unverified pair and record the verdicts in the lock |
 | `yg log add` / `read` / `merge-resolve` | Per-node append-only business log |
 
 ### `yg context`
@@ -35,10 +35,17 @@ yg context --file <file-path>
   directory are mapped, lists candidate nodes with file counts and a hint to use `--node`.
   Exits 1 if no coverage. Mutually exclusive with `--node`.
 
+The node view also reports, per effective aspect, how many files form its subject
+set (including `0 files — vacuous` when a `scope.files` filter excludes everything),
+and a log-state line — whether a fresh log entry is required before `yg check
+--approve` and whether one is present.
+
 ### `yg impact`
 
-Shows the blast radius of changes to a node, aspect, flow, or type.
-`--file` resolves the owning node automatically, then proceeds as `--node`.
+Predicts which pairs an edit to a node, aspect, flow, or type would invalidate —
+the cost surface before you make the change. Counts are reviewer calls
+× consensus for LLM pairs; deterministic pairs are free. `--file` resolves the
+owning node automatically, then proceeds as `--node`.
 
 ```bash
 yg impact --node <path>
@@ -48,69 +55,67 @@ yg impact --flow <name>
 yg impact --type <id>
 ```
 
-- `--node` — Show reverse dependencies, descendants, structural dependents of descendants, flows, aspects, and co-aspect nodes
-- `--file` — Resolve owner, then proceed as `--node`
-- `--aspect` — Show all nodes where this aspect is effective (own, hierarchy, flow, or implied), plus structural dependents of affected nodes
-- `--flow` — Show all participants and their descendants, plus structural dependents of participants
-- `--type <id>` — Show all nodes of that architecture type and their source files. Useful
+- `--node` — Reverse dependencies, descendants, structural dependents of descendants, flows, aspects, and co-aspect nodes
+- `--file` — Resolve owner, then proceed as `--node`. Also reflects deterministic checks whose recorded observations touched this file (cross-node impact).
+- `--aspect` — All nodes where this aspect is effective (own, hierarchy, flow, or implied), plus structural dependents of affected nodes — the pairs an edit to its rule, description, references, scope, or tier would re-verify
+- `--flow` — All participants and their descendants, plus structural dependents of participants
+- `--type <id>` — All nodes of that architecture type and their source files. Useful
   before adding a default aspect to a type — see how many nodes would be affected.
 
 Exactly one of `--node`, `--file`, `--aspect`, `--flow`, or `--type` is required.
 
 ### `yg check`
 
-Unified gate combining structural integrity, drift detection, coverage, and completeness.
+Unified gate combining structural integrity, the prompt-size gate, lock
+verification, coverage, and completeness. It is a **pure read** — it recomputes
+each expected pair's input hash and compares it to the recorded verdict in
+`.yggdrasil/yg-lock.json`. It makes no LLM calls, executes no deterministic
+checks, and needs no provider config or keys.
 
 ```bash
 yg check
+yg check --approve
 ```
 
 Outputs: header (project, counts, coverage), errors grouped by category
-(drift, cascade, structural, architecture, coverage, completeness), warnings,
+(verification, structural, architecture, coverage, completeness), warnings,
 result (PASS/FAIL with category counts), and suggested next command.
 
 Exit code 0 if fully clean, 1 if any errors found.
 
-#### Aspect-status issue codes
+#### `--approve` — fill unverified pairs
 
-The validator emits the following codes related to aspect status (see
-[Aspect Status](/aspect-status) for semantics):
+`yg check --approve` runs every unverified pair, repo-wide (there is no scoping —
+verification is all-or-nothing), then reports. Deterministic pairs run first,
+locally, for free; a node with an enforced deterministic refusal has its LLM
+pairs skipped this run. LLM pairs then go to the reviewer per tier and consensus.
+Each real verdict — approved or refused — is recorded in the lock; infrastructure
+failures (provider unreachable, no reviewer configured, a `check.mjs` that throws)
+write nothing and leave the pair unverified. A refusal is cached and final for
+unchanged inputs: re-running does not re-roll it.
+
+`yg check --approve` prints a pre-dispatch header naming how many pairs and nodes
+it will fill and how many are deterministic (free) vs. reviewer calls. There is no
+preview or confirmation mode — use `yg impact` to predict cost before an edit, and
+`yg aspect-test --dry-run` to preview a single LLM prompt.
+
+#### Verification and aspect-status issue codes
+
+The validator emits the following codes (see [Aspect Status](/aspect-status) for
+status semantics):
 
 | Code | Severity | Meaning |
 |------|----------|---------|
-| `aspect-status-invalid` | error | Declared `status:` is not one of `draft`, `advisory`, `enforced` |
-| `aspect-status-downgrade` | error | An attach site declares a status lower than the cascade would yield (bump up OK, downgrade is an error) |
-| `implies-status-inherit-invalid` | error | `status_inherit:` is not `strictest` or `own-default` |
-| `aspect-newly-active` | error | Aspect transitioned from `draft` to `advisory`/`enforced`; baseline missing |
-| `aspect-violation-enforced` | error | Enforced aspect reviewer refused — blocks `yg check` |
-| `aspect-violation-advisory` | warning | Advisory aspect reviewer refused — surfaces as warning, does not block |
-
-### `yg approve`
-
-Records the current file state as the new baseline after review.
-
-```bash
-yg approve --node <path>
-yg approve --node <path1> --node <path2> --node <path3>
-yg approve --aspect <id>
-yg approve --flow <name>
-yg approve --dry-run --node <path>
-```
-
-Exactly one of `--node`, `--aspect`, or `--flow` is required.
-
-- `--node <path>` (repeatable) — One or more node paths to approve, passing `--node` once per
-  path. When a single node has no mapping, CLI redirects to batch-approve its children with
-  cascade drift.
-- `--aspect <id>` — Batch approve all nodes with cascade drift from this aspect.
-- `--flow <name>` — Batch approve all nodes with cascade drift from this flow.
-- `--dry-run` — Show what would be sent to the reviewer (aspects, source files, prompt)
-  without making the LLM call. Only works with `--node`.
-
-Aspects with effective status `draft` on a node are skipped before reviewer dispatch.
-`yg approve` prints a `[draft] node 'X': aspect 'Y' skipped (status: draft)` line for each
-and proceeds with the remaining aspects. No baseline verdict is recorded for draft aspects.
-See [Aspect Status](/aspect-status).
+| `unverified` | error (enforced) / warning (advisory) | Expected pair has no valid verdict — new, edited, tampered, or a fill that failed on infrastructure. Next: `yg check --approve`. |
+| `aspect-violation-enforced` | error | Valid `refused` verdict on an enforced pair — blocks `yg check`. |
+| `aspect-violation-advisory` | warning | Valid `refused` verdict on an advisory pair — does not block. |
+| `prompt-too-large` | error | Assembled LLM prompt exceeds the resolved tier's `max_prompt_chars`. Takes precedence over `unverified`; `--approve` skips the pair. |
+| `lock-invalid` | error | `yg-lock.json` is unparseable, garbled, conflict-markered, or an unknown version — fail closed. |
+| `aspect-check-runtime-error` | error (`--approve` only) | A `check.mjs` failed to import or threw at fill time — fail closed, no verdict written. |
+| `log-entry-missing` | error (`--approve` only) | A `log_required` node changed source without a fresh log entry. |
+| `aspect-status-invalid` | error | Declared `status:` is not one of `draft`, `advisory`, `enforced`. |
+| `aspect-status-downgrade` | error | An attach site declares a status lower than the cascade would yield (bump up OK, downgrade is an error). |
+| `implies-status-inherit-invalid` | error | `status_inherit:` is not `strictest` or `own-default`. |
 
 ### `yg log`
 
@@ -128,8 +133,9 @@ yg log merge-resolve --node <path>
 
 - `add` — Append an entry. `--reason "<text>"` for inline text; `--reason-file <path>` for
   multi-line content from a file. The entry gets a timestamp header automatically.
-  Requires `--node`. When `log_required: true` is set on the node's type (the default),
-  `yg approve` enforces that at least one log entry exists before running the reviewer.
+  Requires `--node`. When a node's type opts in with `log_required: true`, `yg check
+  --approve` requires a fresh log entry before it records a verdict for a source change
+  on that node.
 - `read` — Print entries newest-first. Default: top 10. `--top N` shows N entries.
   `--all` shows the full history. `--top` and `--all` are mutually exclusive. Use this
   before editing a node to understand past decisions.
@@ -148,6 +154,7 @@ yg log merge-resolve --node <path>
 | `yg aspects` | List aspects |
 | `yg flows` | List flows |
 | `yg owner --file <path>` | Quick ownership lookup |
+| `yg suppressions` | Inventory of active `yg-suppress` markers |
 | `yg type-suggest --file <path>` | Suggest architecture type for a file |
 
 ### `yg tree`
@@ -248,7 +255,7 @@ yg knowledge read <name>
 
 Available topics include: `working-with-architecture`, `aspects-overview`, `aspect-status`,
 `writing-llm-aspects`, `writing-deterministic-aspects`,
-`conditional-aspects`, `suppress-syntax`, `drift-and-cascade`, `configuration`,
+`conditional-aspects`, `suppress-syntax`, `verification-and-lock`, `configuration`,
 `cli-reference`, `log-management`, `ports-and-relations`, `flows`.
 
 Run `yg knowledge list` to see the current list with one-line descriptions.
@@ -259,35 +266,43 @@ Run `yg knowledge list` to see the current list with one-line descriptions.
 
 | Command                                                          | Purpose                               |
 |------------------------------------------------------------------|---------------------------------------|
-| `yg deterministic-test --aspect <id> --node <path>` / `--files <paths...>` | Run a deterministic aspect check without approving |
+| `yg aspect-test --aspect <id> --node <path>` / `--files <paths...>` | Run an aspect of either kind on demand; never writes the lock |
 
-### `yg deterministic-test`
+### `yg aspect-test`
 
-Runs a deterministic aspect's `check.mjs` against source files and prints violations.
-Use this during authoring to iterate on the check logic without going through the full
-approve cycle. It works in two modes: graph-scoped (`--node`) and ad-hoc (`--files`).
+Runs a single aspect — deterministic or LLM — against a node or an explicit file
+list, and prints the result. It is a **diagnostic**: it always runs live and never
+writes the lock, so use it freely while authoring a rule. Every run that produces a
+result ends with `diagnostic only — lock unchanged; yg check still reports the
+stored verdict`.
 
 ```bash
-yg deterministic-test --aspect <id> --node <node-path>
-yg deterministic-test --aspect <id> --files <path> [<path2> ...]
-yg deterministic-test --aspect <id> --node <node-path> --check-determinism
+yg aspect-test --aspect <id> --node <node-path>
+yg aspect-test --aspect <id> --files <path> [<path2> ...]
+yg aspect-test --aspect <id> --node <node-path> --check-determinism
+yg aspect-test --aspect <id> --node <node-path> --dry-run
 ```
 
-- `--aspect <id>` — Required. The aspect must have `reviewer.type: deterministic` in its
-  `yg-aspect.yaml`. Exits 1 with an error if the aspect uses the LLM reviewer.
+- `--aspect <id>` — Required. The aspect's kind is inferred from its rule source.
 - `--node <path>` — Run against the files mapped to this node, with the node's allow-listed
   `ctx` (its own files plus, via declared relations, related nodes' files and metadata). The
-  allow-list is a read *discipline* that scopes which files count as tracked dependencies —
-  not a security sandbox; `check.mjs` runs with full Node privileges.
-- `--files <paths...>` — Run against an explicit file list. Useful for ad-hoc testing
-  before wiring the aspect into the graph.
-- `--check-determinism` — Runs the check twice and exits 1 if the violation sets
-  differ (lexically sorted), catching side effects in `check.mjs`.
+  allow-list is a read *discipline* that scopes which files count as observations — not a
+  security sandbox; `check.mjs` runs with full Node privileges.
+- `--files <paths...>` — Run against an explicit file list (deterministic aspects). Useful
+  for ad-hoc testing before wiring the aspect into the graph.
+- `--check-determinism` — (deterministic) Runs the check twice and exits 1 if the violation
+  sets differ (lexically sorted), catching side effects and machine-dependence in `check.mjs`.
+- `--dry-run` — (LLM) Prints the assembled reviewer prompt(s) for the aspect's scope and makes
+  no LLM calls. The sanctioned way to inspect a prompt before switching an aspect to `per: file`.
 
-Exits 0 with "No violations" if all checks pass. Exits 1 if any violations found,
-with file path, line number, and violation message for each.
+For a deterministic aspect it runs `check.mjs` and prints violations. For an LLM
+aspect it runs the reviewer (or just prints the prompt under `--dry-run`). Exits 0
+when clean, 1 when violations or refusals are found.
 
-Exits 0 with no violations, 1 otherwise.
+When `yg aspect-test` repeatedly approves what the lock has refused, the rule text
+is ambiguous — sharpen `content.md` (which re-verifies every pair of the aspect; check
+`yg impact --aspect` first) or propose a suppress. There is deliberately no command
+to drop or re-roll a recorded verdict.
 
 ---
 
@@ -306,6 +321,10 @@ Interactive wizard. On a new project: walks you through platform selection and
 reviewer setup. On an existing project: offers upgrade, reviewer reconfiguration,
 or platform change.
 
-Non-interactive mode: `--upgrade --platform <name>` migrates the graph to the current
-version (config, aspects, drift-state baselines) and refreshes rules, schemas, and platform
-files — without prompts. Useful in scripts and CI.
+`yg init` also maintains a `.gitattributes` entry marking `yg-lock.json` as
+generated (`linguist-generated=true`) and writes `max_prompt_chars: 50000` into the
+generated reviewer tier.
+
+Non-interactive mode: `--upgrade --platform <name>` lifts the config version to the
+current one and refreshes rules, schemas, and platform files — without prompts.
+Useful in scripts and CI.

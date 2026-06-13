@@ -1,0 +1,8 @@
+name: Integration Aspect-Test Command Tests
+type: test-suite
+description: "Integration tests for the yg aspect-test command — deterministic and LLM diagnostic modes against graph nodes and ad-hoc files, --dry-run prompt assembly, reference handling, and the lock-unchanged diagnostic isolation guarantee."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/integration/aspect-test-cli.test.ts
+  - source/cli/tests/integration/aspect-test-references.test.ts

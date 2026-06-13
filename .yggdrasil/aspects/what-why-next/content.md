@@ -7,11 +7,11 @@ Every diagnostic or error message that agents consume must follow the what/why/n
 
 ## Rules
 
-- Every agent-visible diagnostic (validation errors, drift reports, approval failures, context build failures) must have `what`, `why`, and `next` populated.
+- Every agent-visible diagnostic (validation errors, unverified-pair reports, reviewer failures, context build failures) must have `what`, `why`, and `next` populated.
 - The `next` field must contain a concrete runnable command or actionable instruction.
 - Ad-hoc `Error: ${msg}` strings are acceptable ONLY for fatal/unexpected errors (I/O failures, missing arguments) where there is no remediation path beyond "fix the environment."
 - The standardized ENOENT-from-loadGraph message `Error: No .yggdrasil/ directory found. Run 'yg init' first.` is exempt — this exact string is required by the `cli-command-contract` aspect and takes precedence.
 - If a message guides agent remediation (telling the agent what to do next), it MUST use the structured format.
 - Engine modules satisfy this aspect by populating `messageData: IssueMessage` on returned result objects — not by calling `buildIssueMessage`. The CLI command handler is where rendering happens.
 - `throw new Error(msg)` in engine modules is exempt — throws are internal signals caught by the CLI command handler, which is responsible for formatting the output. The exception message does not need what/why/next structure.
-- `AspectResponse.reason` and `AspectViolation.reason` fields are reviewer assessment outputs — they carry the LLM's evaluation of why code satisfies or violates an aspect. These are not CLI diagnostic messages; they flow from the LLM back into the baseline store and are rendered as part of structured `CheckIssue.messageData` by the CLI layer. They are explicitly exempt from the what/why/next requirement.
+- `AspectResponse.reason` and `AspectViolation.reason` fields are reviewer assessment outputs — they carry the LLM's evaluation of why code satisfies or violates an aspect. These are not CLI diagnostic messages; they flow from the LLM back into the verdict lock and are rendered as part of structured `CheckIssue.messageData` by the CLI layer. They are explicitly exempt from the what/why/next requirement.

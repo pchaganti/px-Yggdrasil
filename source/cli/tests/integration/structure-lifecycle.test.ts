@@ -77,54 +77,69 @@ function layout(root: string): void {
   );
 }
 
-function readBaseline(root: string, nodePath: string): Record<string, unknown> {
-  const stateDir = path.join(root, '.yggdrasil', '.drift-state');
-  // Drift state is stored as nested path like cli/commands/N -> cli/commands/N.json
-  // or at the root level as N.json
-  const segments = nodePath.split('/');
-  const jsonPath = path.join(stateDir, ...segments.slice(0, -1), segments[segments.length - 1] + '.json');
-  return JSON.parse(readFileSync(jsonPath, 'utf-8')) as Record<string, unknown>;
+/** The committed verification state lives in a single lock file. */
+function readLock(root: string): {
+  version: number;
+  verdicts: Record<string, Record<string, { verdict: string; hash: string; touched?: Array<[string, string]> }>>;
+  nodes: Record<string, { source?: string }>;
+} {
+  const lockPath = path.join(root, '.yggdrasil', 'yg-lock.json');
+  return JSON.parse(readFileSync(lockPath, 'utf-8')) as ReturnType<typeof readLock>;
 }
 
-describe.skipIf(!distExists)('structure aspect lifecycle', () => {
+describe.skipIf(!distExists)('deterministic aspect lock lifecycle', () => {
   let root: string;
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(tmpdir(), 'yg-structure-lifecycle-'));
+    root = mkdtempSync(path.join(tmpdir(), 'yg-lock-lifecycle-'));
   });
 
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-  it('create → approve → edit → drift → re-approve → no drift', () => {
-    // 1. Lay out a minimal repo
+  it('cold start → fill → verified → edit → unverified → re-fill → verified', () => {
+    // 1. Lay out a minimal repo with one enforced deterministic aspect.
     layout(root);
 
-    // 2. yg approve --node N
-    const approveResult = run(['approve', '--node', 'N'], root);
-    expect(approveResult.status).toBe(0);
+    // 2. Cold check: the pair has no lock entry → unverified (error, exit 1).
+    //    Plain check executes nothing and writes nothing.
+    const coldCheck = run(['check'], root);
+    expect(coldCheck.status).toBe(1);
+    expect(coldCheck.stdout.toLowerCase()).toContain('unverified');
+    expect(existsSync(path.join(root, '.yggdrasil', 'yg-lock.json'))).toBe(false);
 
-    // 3. Read baseline, assert identity.aspects[touches-a].checkTouched populated
-    const baseline = readBaseline(root, 'N');
-    const aspects = (baseline.identity as { aspects: Record<string, { checkTouched?: Record<string, string> }> }).aspects;
-    const ct = aspects['touches-a']?.checkTouched;
-    expect(ct).toBeDefined();
-    expect(Object.keys(ct!)).toContain('src/a.ts');
+    // 3. yg check --approve: fills the deterministic pair locally (free), writes the lock.
+    const fill = run(['check', '--approve'], root);
+    expect(fill.status).toBe(0);
+    // The pre-dispatch header announces the fill plan.
+    expect(fill.stdout).toMatch(/1 deterministic/);
 
-    // 4. Modify src/a.ts to trigger drift
+    // 4. The lock records an approved verdict for (touches-a, node:N) and N's
+    //    source fingerprint at positive closure.
+    const lock = readLock(root);
+    const entry = lock.verdicts['touches-a']?.['node:N'];
+    expect(entry).toBeDefined();
+    expect(entry!.verdict).toBe('approved');
+    expect(typeof entry!.hash).toBe('string');
+    expect(lock.nodes['N']?.source).toBeDefined();
+
+    // 5. Clean check after fill — the recomputed hash matches → verified (exit 0).
+    const cleanCheck = run(['check'], root);
+    expect(cleanCheck.status).toBe(0);
+
+    // 6. Edit the subject file — the file hash folds into the pair input, so the
+    //    stored verdict no longer matches: the pair degrades to unverified.
     writeFileSync(path.join(root, 'src', 'a.ts'), 'export const x = 2;\n');
 
-    // 5. yg check → expect exit code 1 (drift detected)
-    const checkDrift = run(['check'], root);
-    expect(checkDrift.status).toBe(1);
-    // Output should contain drift-related language
-    expect(checkDrift.stdout.toLowerCase()).toMatch(/drift|approve/);
+    const driftCheck = run(['check'], root);
+    expect(driftCheck.status).toBe(1);
+    expect(driftCheck.stdout.toLowerCase()).toContain('unverified');
 
-    // 6. yg approve --node N (re-approve after edit)
-    const reApproveResult = run(['approve', '--node', 'N'], root);
-    expect(reApproveResult.status).toBe(0);
+    // 7. Re-fill clears the unverified pair (deterministic re-run, free).
+    const reFill = run(['check', '--approve'], root);
+    expect(reFill.status).toBe(0);
 
-    // 7. yg check → exit code 0 (no drift)
-    const checkClean = run(['check'], root);
-    expect(checkClean.status).toBe(0);
+    // 8. Clean check → verified again (exit 0).
+    const cleanAgain = run(['check'], root);
+    expect(cleanAgain.status).toBe(0);
   });
 });

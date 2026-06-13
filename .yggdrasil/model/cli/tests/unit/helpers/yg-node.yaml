@@ -1,10 +1,10 @@
 name: Test Helpers
 type: test-suite
-description: "Shared test-fixture builders used across unit test suites (e.g. buildTestGraph for graph resolver tests)"
+description: "Shared test-fixture builders used across unit test suites (e.g. buildTestGraph for graph resolver tests, seedLock for lock-backed verdict tests)"
 aspects: []
 relations: []
 mapping:
   - source/cli/tests/unit/helpers/build-test-graph.ts
   - source/cli/tests/unit/helpers/build-test-graph-structure.ts
   - source/cli/tests/unit/helpers/build-test-graph-structure.test.ts
-  - source/cli/tests/unit/helpers/seed-baseline.ts
+  - source/cli/tests/unit/helpers/seed-lock.ts

@@ -3,7 +3,6 @@ import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdtempSync,
-  mkdirSync,
   rmSync,
   cpSync,
   readFileSync,
@@ -56,14 +55,6 @@ function copyFixture(label: string): string {
  * Everything here is written into mkdtemp — the committed fixture is never
  * touched.
  */
-function makeV4Layout(label: string, configBody: string): string {
-  const dir = mkdtempSync(path.join(tmpdir(), `yg-mig-${label}-`));
-  const yggDir = path.join(dir, '.yggdrasil');
-  mkdirSync(path.join(yggDir, 'schemas'), { recursive: true });
-  writeFileSync(path.join(yggDir, 'yg-config.yaml'), configBody, 'utf-8');
-  return dir;
-}
-
 const configPath = (dir: string) =>
   path.join(dir, '.yggdrasil', 'yg-config.yaml');
 
@@ -72,40 +63,17 @@ const configPath = (dir: string) =>
 // Fully hermetic: no network, no LLM, no real endpoints, fresh mkdtemp per test.
 // ---------------------------------------------------------------------------
 
-describe.skipIf(!distExists)('CLI E2E — schema migrations (v4 → v5 config/aspect/version-guard)', () => {
-  // --- 1. Single-provider v4.3.0 config → v5 tiers ---
-
-  it('M1: v4.3.0 single-provider config upgrades to v5 with version 5.0.0 and reviewer.tiers', () => {
-    // A v4.3.0 config carrying a single bare provider section (no
-    // reviewer.active, no reviewer.tiers). transformConfigReviewer infers the
-    // sole provider as the default tier and rewrites to the tier shape.
-    const dir = makeV4Layout(
-      'm1',
-      [
-        'version: "4.3.0"',
-        'reviewer:',
-        '  ollama:',
-        '    model: qwen3',
-        '    endpoint: http://localhost:11434',
-        '',
-      ].join('\n'),
-    );
-    try {
-      const { status } = run(['init', '--upgrade', '--platform', 'generic'], dir);
-      expect(status).toBe(0);
-
-      const config = readFileSync(configPath(dir), 'utf-8');
-      // Version bumped to the migration target.
-      expect(config).toContain('version: "5.0.0"');
-      // Reviewer migrated to the tier-based shape.
-      expect(config).toContain('tiers:');
-      expect(config).toContain('provider: ollama');
-      // The legacy bare-provider shape is gone.
-      expect(config).not.toMatch(/^reviewer:\n {2}ollama:\n {4}model:/m);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
+describe.skipIf(!distExists)('CLI E2E — schema migrations (version-guard + idempotency)', () => {
+  // --- 1. DELETED: v4.x config-content migration (bare-provider → tiers) ---
+  // The legacy migration files were removed in the verdict-lock redesign
+  // (src/migrations/index.ts: `MIGRATIONS` is empty). `yg init --upgrade` still
+  // bumps the on-disk `version:` field to 5.0.0, but it no longer TRANSFORMS a
+  // v4 bare-provider reviewer block into the tier shape — there is no migration
+  // step to do so. The original M1 asserted that transform produced `tiers:` /
+  // `provider: ollama` from a bare-provider config; that transform no longer
+  // exists, so the assertion tests a removed surface and is deleted. (The
+  // surviving "older than this CLI" guard for a still-legacy config is exercised
+  // by M3 below; v5 upgrade idempotency by M2.)
 
   // --- 2. Idempotency on an already-v5 repo ---
 
@@ -132,115 +100,49 @@ describe.skipIf(!distExists)('CLI E2E — schema migrations (v4 → v5 config/as
     }
   });
 
-  // --- 3. Bad config: migration blocks the version bump and does NOT mutate ---
+  // --- 3. Version-too-OLD guard (a still-legacy config blocks every graph command) ---
 
-  it('M3: an unmigratable v4 config is left byte-identical and `yg check` rejects it with a migration hint', () => {
-    // Multiple bare providers WITHOUT reviewer.active: transformConfigReviewer
-    // cannot infer which tier should be default, so it emits a warning and
-    // withholds the version bump (the file MUST NOT be rewritten). We build
-    // this on top of the complete e2e-lifecycle fixture so `yg check` can
-    // resolve a real graph root afterwards.
+  it('M3: a still-legacy (sub-5.0.0) config blocks `yg check` with the older-than-CLI guard and the upgrade hint', () => {
+    // RE-POINTED: the original M3 asserted the now-removed "Migration withheld"
+    // path of `yg init --upgrade` on a multi-provider config. That migration is
+    // gone — `yg init --upgrade` now simply bumps the version field. What SURVIVES
+    // (and is the real enforcement the original test's tail proved) is the
+    // version-too-OLD guard in the graph loader: any config whose `version:` is
+    // below the CLI's 5.0.0 is refused by every command that loads the graph, with
+    // a clear "older than this CLI" message pointing at `yg init --upgrade`. We
+    // build this on the complete e2e-lifecycle fixture so `yg check` resolves a
+    // real graph root, and only lower its version field. (The too-NEW direction is
+    // M5.)
     const dir = copyFixture('m3');
-    const badConfig = [
-      'version: "4.3.0"',
-      'reviewer:',
-      '  ollama:',
-      '    model: qwen3',
-      '    endpoint: http://localhost:11434',
-      '  openai:',
-      '    model: gpt-4',
-      '',
-    ].join('\n');
     try {
-      writeFileSync(configPath(dir), badConfig, 'utf-8');
+      const original = readFileSync(configPath(dir), 'utf-8');
+      const lowered = original.match(/^version:\s/m)
+        ? original.replace(/^version:\s.*$/m, 'version: "4.3.0"')
+        : 'version: "4.3.0"\n' + original;
+      writeFileSync(configPath(dir), lowered, 'utf-8');
 
-      // The non-interactive `yg init --upgrade --platform` path must NOT swallow
-      // migration warnings. When transformConfigReviewer blocks the migration,
-      // the command surfaces the warning and exits 1 — the agent/CI gets a clear
-      // signal that the version bump was withheld, instead of a false success.
-      const upgrade = run(['init', '--upgrade', '--platform', 'generic'], dir);
-      expect(upgrade.status).toBe(1);
-      // The withheld-bump signal and the underlying migration warning are both
-      // surfaced — the agent/CI is told the version bump was NOT applied.
-      expect(upgrade.all).toContain('Migration withheld');
-      expect(upgrade.all).toContain('the version bump was NOT applied');
-      expect(upgrade.all).toContain('without reviewer.active');
-      // It must NOT falsely claim success.
-      expect(upgrade.all).not.toContain('Rules and schemas refreshed');
-
-      // Config must be byte-identical — no partial / silent mutation.
-      const after = readFileSync(configPath(dir), 'utf-8');
-      expect(after).toBe(badConfig);
-      // Version must NOT have been bumped.
-      expect(after).toContain('version: "4.3.0"');
-
-      // The real enforcement: `yg check` rejects the still-legacy (outdated) config and
-      // points the agent at the migration command.
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
       expect(check.all).toContain('older than this CLI');
       expect(check.all).toContain('yg init --upgrade');
+
+      // The same guard blocks any other graph-loading command (e.g. `yg tree`).
+      const tree = run(['tree'], dir);
+      expect(tree.status).toBe(1);
+      expect(tree.all).toContain('older than this CLI');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  // --- 4. Aspect reviewer field migration (string → mapping) ---
-
-  it('M4: aspect `reviewer: ast` → { type: deterministic }; missing reviewer → { type: llm }', () => {
-    // A clean single-provider config so the config migration succeeds and the
-    // runner proceeds to walk and rewrite the aspect reviewer fields.
-    const dir = makeV4Layout(
-      'm4',
-      [
-        'version: "4.3.0"',
-        'reviewer:',
-        '  ollama:',
-        '    model: qwen3',
-        '    endpoint: http://localhost:11434',
-        '',
-      ].join('\n'),
-    );
-    const aspectsDir = path.join(dir, '.yggdrasil', 'aspects');
-    try {
-      // v4 aspect with the legacy `reviewer: ast` string.
-      const astDir = path.join(aspectsDir, 'legacy-ast');
-      mkdirSync(astDir, { recursive: true });
-      writeFileSync(
-        path.join(astDir, 'yg-aspect.yaml'),
-        ['id: legacy-ast', 'description: A legacy AST aspect.', 'reviewer: ast', ''].join('\n'),
-        'utf-8',
-      );
-
-      // v4 aspect with NO reviewer field at all.
-      const noneDir = path.join(aspectsDir, 'legacy-noreviewer');
-      mkdirSync(noneDir, { recursive: true });
-      writeFileSync(
-        path.join(noneDir, 'yg-aspect.yaml'),
-        ['id: legacy-noreviewer', 'description: A legacy aspect with no reviewer field.', ''].join('\n'),
-        'utf-8',
-      );
-
-      const { status } = run(['init', '--upgrade', '--platform', 'generic'], dir);
-      expect(status).toBe(0);
-
-      // Config migrated cleanly → version bumped → aspects were walked.
-      expect(readFileSync(configPath(dir), 'utf-8')).toContain('version: "5.0.0"');
-
-      // `reviewer: ast` (legacy AST) maps to the deterministic reviewer type.
-      const astAfter = readFileSync(path.join(astDir, 'yg-aspect.yaml'), 'utf-8');
-      expect(astAfter).toContain('reviewer:');
-      expect(astAfter).toContain('type: deterministic');
-      expect(astAfter).not.toMatch(/reviewer:\s*ast/);
-
-      // Absent reviewer defaults to the llm reviewer type.
-      const noneAfter = readFileSync(path.join(noneDir, 'yg-aspect.yaml'), 'utf-8');
-      expect(noneAfter).toContain('reviewer:');
-      expect(noneAfter).toContain('type: llm');
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
+  // --- 4. DELETED: aspect reviewer field migration (string → mapping) ---
+  // The aspect-reviewer migration (`reviewer: ast` → { type: deterministic },
+  // absent → { type: llm }) was removed with the rest of the legacy migration
+  // content (`MIGRATIONS` is empty). `yg init --upgrade` no longer walks or
+  // rewrites aspect reviewer fields, so the original M4 transform assertions test
+  // a removed surface and are deleted. (The current aspect reviewer-kind contract
+  // — inferred from which rule-source file is present — is enforced by the aspect
+  // parser and covered by the validation suites.)
 
   // --- 5. Version-too-new guard (config schema newer than the CLI supports) ---
 
@@ -274,144 +176,15 @@ describe.skipIf(!distExists)('CLI E2E — schema migrations (v4 → v5 config/as
     }
   });
 
-  // --- 6. Drift-state baseline migration (flat synthetic-key shape → typed) ---
-  //
-  // The unit suite (to-5.0.0-drift-state.test.ts) exercises migrateTo50's
-  // drift-state logic directly. These prove the COMMAND wiring: `yg init
-  // --upgrade` actually walks .drift-state/, re-keys each baseline on disk,
-  // and gates the version bump on the outcome.
-
-  /** Plant a raw drift-state baseline file under <dir>/.yggdrasil/.drift-state/<nodePath>.json. */
-  function writeBaseline(dir: string, nodePath: string, raw: string): void {
-    const file = path.join(dir, '.yggdrasil', '.drift-state', `${nodePath}.json`);
-    mkdirSync(path.dirname(file), { recursive: true });
-    writeFileSync(file, raw, 'utf-8');
-  }
-  const readBaseline = (dir: string, nodePath: string): Record<string, unknown> =>
-    JSON.parse(readFileSync(path.join(dir, '.yggdrasil', '.drift-state', `${nodePath}.json`), 'utf-8'));
-
-  it('M6: a flat pre-verdict baseline (nested path, synthetic keys) is re-keyed to typed with approved-synthesis', () => {
-    const dir = makeV4Layout(
-      'm6',
-      ['version: "4.3.0"', 'reviewer:', '  ollama:', '    model: q', '    endpoint: http://x', ''].join('\n'),
-    );
-    try {
-      // Old flat shape: real file + the synthetic identity keys, NO aspectVerdicts.
-      writeBaseline(dir, 'svc/handler', JSON.stringify({
-        hash: 'OLD_HASH',
-        files: {
-          'src/foo.ts': 'h-foo',
-          'own-subset:svc/handler': 'h-own',
-          'aspect-meta:alpha': 'h-alpha',
-          'tier-identity:alpha': 'h-tier',
-        },
-      }));
-
-      const { status } = run(['init', '--upgrade', '--platform', 'generic'], dir);
-      expect(status).toBe(0);
-      // Config bumped — the drift-state pass succeeded, so the runner advanced the version.
-      expect(readFileSync(configPath(dir), 'utf-8')).toContain('version: "5.0.0"');
-
-      const typed = readBaseline(dir, 'svc/handler') as {
-        schemaVersion: number;
-        files: Record<string, string>;
-        identity: { ownSubset: string; ports: Record<string, string>; aspects: Record<string, unknown> };
-        aspectVerdicts: Record<string, unknown>;
-        hash: string;
-      };
-      expect(typed.schemaVersion).toBe(1);
-      // Synthetic keys are lifted out of `files`; only the real file remains.
-      expect(typed.files).toEqual({ 'src/foo.ts': 'h-foo' });
-      // Typed identity reconstructed from the synthetic kinds.
-      expect(typed.identity.ownSubset).toBe('h-own');
-      expect(typed.identity.aspects.alpha).toEqual({ meta: 'h-alpha', tier: 'h-tier' });
-      // Pre-verdict baseline → each identity aspect recorded as approved (carries the
-      // last-approve state forward instead of flooding the first check with newly-active).
-      expect(typed.aspectVerdicts).toEqual({ alpha: { verdict: 'approved' } });
-      // Hash recomputed (lossless) — no longer the placeholder.
-      expect(typed.hash).not.toBe('OLD_HASH');
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('M7: a baseline that already carries aspectVerdicts has them preserved verbatim (no approved-synthesis)', () => {
-    const dir = makeV4Layout(
-      'm7',
-      ['version: "4.3.0"', 'reviewer:', '  ollama:', '    model: q', '    endpoint: http://x', ''].join('\n'),
-    );
-    try {
-      writeBaseline(dir, 'svc', JSON.stringify({
-        hash: 'x',
-        files: { 'src/a.ts': 'h-a', 'aspect-meta:alpha': 'h-alpha' },
-        aspectVerdicts: { alpha: { verdict: 'refused', reason: 'bad', errorSource: 'codeViolation' } },
-      }));
-
-      const { status } = run(['init', '--upgrade', '--platform', 'generic'], dir);
-      expect(status).toBe(0);
-
-      const typed = readBaseline(dir, 'svc') as { aspectVerdicts: Record<string, unknown> };
-      // A recorded refusal must NOT be silently upgraded to approved by the migration.
-      expect(typed.aspectVerdicts).toEqual({
-        alpha: { verdict: 'refused', reason: 'bad', errorSource: 'codeViolation' },
-      });
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('M8: an unparseable baseline is deleted, withholds the version bump (exit 1), and a re-run then succeeds', () => {
-    const dir = makeV4Layout(
-      'm8',
-      ['version: "4.3.0"', 'reviewer:', '  ollama:', '    model: q', '    endpoint: http://x', ''].join('\n'),
-    );
-    try {
-      writeBaseline(dir, 'broken', '{ this is not valid json');
-
-      // First run: the corrupt baseline cannot be re-keyed, so the runner withholds
-      // the version bump and surfaces the deletion — exit 1, version untouched.
-      const first = run(['init', '--upgrade', '--platform', 'generic'], dir);
-      expect(first.status).toBe(1);
-      expect(first.all).toContain('Migration withheld');
-      expect(first.all).toContain('the version bump was NOT applied');
-      expect(first.all).toContain('.drift-state/broken.json');
-      expect(first.all).toContain('could not be parsed');
-      // The bump is withheld — the version is NOT advanced to 5.0.0 on this run.
-      expect(readFileSync(configPath(dir), 'utf-8')).not.toContain('5.0.0');
-      // The unsalvageable baseline was removed (the node will surface as drift).
-      expect(existsSync(path.join(dir, '.yggdrasil', '.drift-state', 'broken.json'))).toBe(false);
-
-      // Recovery: with the corrupt file gone, a second upgrade completes the bump.
-      const second = run(['init', '--upgrade', '--platform', 'generic'], dir);
-      expect(second.status).toBe(0);
-      expect(readFileSync(configPath(dir), 'utf-8')).toContain('version: "5.0.0"');
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('M9: re-keying is idempotent — upgrading an already-typed baseline twice leaves it byte-identical', () => {
-    const dir = makeV4Layout(
-      'm9',
-      ['version: "4.3.0"', 'reviewer:', '  ollama:', '    model: q', '    endpoint: http://x', ''].join('\n'),
-    );
-    const baselineFile = path.join(dir, '.yggdrasil', '.drift-state', 'svc.json');
-    try {
-      writeBaseline(dir, 'svc', JSON.stringify({
-        hash: 'x',
-        files: { 'src/a.ts': 'h-a', 'own-subset:svc': 'h-own', 'aspect-meta:alpha': 'h-alpha' },
-      }));
-
-      // First upgrade re-keys flat → typed.
-      expect(run(['init', '--upgrade', '--platform', 'generic'], dir).status).toBe(0);
-      const afterFirst = readFileSync(baselineFile, 'utf-8');
-      expect(afterFirst).toContain('"schemaVersion": 1');
-
-      // Second upgrade: the baseline is already typed → skipped untouched.
-      expect(run(['init', '--upgrade', '--platform', 'generic'], dir).status).toBe(0);
-      expect(readFileSync(baselineFile, 'utf-8')).toBe(afterFirst);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
+  // --- 6. DELETED: drift-state baseline migration (flat synthetic-key → typed) ---
+  // The `.yggdrasil/.drift-state/` directory and its per-node baseline files are
+  // gone in the verdict-lock redesign — verification state now lives in a single
+  // `.yggdrasil/yg-lock.json`. The `to-5.0.0` drift-state re-key migration (and
+  // the command wiring that walked `.drift-state/` and gated the version bump on
+  // its outcome) was removed with the rest of the legacy migration content. The
+  // four cases here (flat→typed re-key with approved-synthesis, verdict
+  // preservation, unparseable-baseline deletion + withheld bump, re-key
+  // idempotency) all exercised that removed `.drift-state/` machinery, so they
+  // are deleted. A stale lock entry for an absent node is now simply GC-pruned by
+  // the next fill, not migrated.
 });

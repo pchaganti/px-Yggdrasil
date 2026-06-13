@@ -231,27 +231,26 @@ describe.skipIf(!distExists)('CLI E2E — architecture relation rules, event pai
   });
 
   // -------------------------------------------------------------------------
-  // 5. Structural dependency cascade.
-  //    Wire services/orders --uses--> services/payments, approve both, then
-  //    exercise the relational cascade.
+  // 5. Structural dependency scope (verdict-lock model).
+  //    Wire services/orders --uses--> services/payments, fill the lock, then
+  //    exercise how edits to the dependency affect each node's verdicts.
   //
-  //    IMPORTANT — actual binary behavior vs. the naive premise:
-  //    Editing the dependency's mapped SOURCE (payments.ts) produces source
-  //    drift on services/payments ONLY. It does NOT cascade to the dependent
-  //    services/orders. This is intentional/scoped: the relational layer
-  //    tracks the dependency target's yg-node.yaml metadata (and ports hash),
-  //    NOT the dependency's source files (see source/cli/src/core/graph/
-  //    files.ts — "Track dependency yg-node.yaml only"). So a source edit to a
-  //    dependency never reaches its dependents.
-  //
-  //    The structural dependency cascade onto the dependent fires when the
-  //    dependency's METADATA changes. This test documents both halves:
-  //      (a) editing payments.ts => payments source drift, orders untouched;
-  //      (b) changing payments yg-node.yaml metadata => orders cascade
-  //          ("dependency 'services/payments' metadata changed"), cleared by
-  //          re-approving services/orders, after which check is clean.
+  //    CONVERTED behavior. The verdict-lock model is input-precise: a pair's
+  //    verdict hash folds the node's own subject files + the aspect rule, and
+  //    the frozen pair-hash contract EXCLUDES node/description metadata of a
+  //    dependency ("prompt garnish, not a judgment input"). So:
+  //      (a) editing the dependency's SOURCE leaves the dependency's own pairs
+  //          unverified (source hash changed); the dependent is untouched —
+  //          surviving behavior, now spelled `unverified` instead of the old
+  //          `source-drift`/"Source files changed" vocabulary.
+  //      (b) changing the dependency's yg-node.yaml METADATA (description) no
+  //          longer cascades onto the dependent — the old
+  //          "dependency 'services/payments' metadata changed" cascade was
+  //          removed when verdicts became input-precise. This half is replaced
+  //          by its now-correct counterpart: a dependency metadata reword keeps
+  //          the dependent's verdict valid (no fill needed).
   // -------------------------------------------------------------------------
-  it('5: structural dependency cascade — source edit drifts only the dependency; metadata change cascades to the dependent', () => {
+  it('5: structural dependency scope — a source edit leaves only the dependency unverified; a dependency metadata reword does not invalidate the dependent', () => {
     const dir = deterministicLifecycleFixture('cascade');
     try {
       // Wire orders --uses--> payments (allowed: service uses service).
@@ -273,9 +272,8 @@ describe.skipIf(!distExists)('CLI E2E — architecture relation rules, event pai
         'utf-8',
       );
 
-      // Approve both nodes; baseline check is clean.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      // Fill the lock; baseline check is clean.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       expect(run(['check'], dir).status).toBe(0);
 
       // --- (a) Edit the dependency's SOURCE. Adds a named export so no
@@ -287,21 +285,22 @@ describe.skipIf(!distExists)('CLI E2E — architecture relation rules, event pai
 
       const afterSourceEdit = run(['check'], dir);
       expect(afterSourceEdit.status).toBe(1);
-      // Source drift is reported on the edited dependency itself.
+      // The edited dependency's own pairs go unverified (its source hash moved).
+      expect(afterSourceEdit.stdout).toContain('unverified');
       expect(afterSourceEdit.stdout).toContain('services/payments');
-      expect(afterSourceEdit.stdout).toContain('Source files changed');
-      // The dependent is NOT dragged in by a source edit (scoped cascade).
+      // The dependent is NOT dragged in by a source edit (input-precise scope).
       const orderLines = afterSourceEdit.stdout
         .split('\n')
         .filter((l) => l.includes('services/orders'));
       expect(orderLines.length).toBe(0);
 
-      // Re-approving the edited dependency clears the drift.
-      expect(run(['approve', '--node', 'services/payments'], dir).status).toBe(0);
+      // Re-filling clears the dependency's unverified pairs.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       expect(run(['check'], dir).status).toBe(0);
 
-      // --- (b) Change the dependency's METADATA. This is what actually
-      // cascades onto the dependent. ---
+      // --- (b) Reword the dependency's METADATA (description only). Under the
+      // verdict-lock model this does NOT cascade onto the dependent — the
+      // dependent's verdict inputs are unchanged, so its verdict stays valid. ---
       writeFileSync(
         paymentsNodePath(dir),
         [
@@ -316,17 +315,10 @@ describe.skipIf(!distExists)('CLI E2E — architecture relation rules, event pai
       );
 
       const afterMetaChange = run(['check'], dir);
-      expect(afterMetaChange.status).toBe(1);
-      // The relational cascade fires on the dependent and names the dependency.
-      expect(afterMetaChange.stdout).toContain('cascade');
-      expect(afterMetaChange.stdout).toContain(
-        "dependency 'services/payments' metadata changed",
-      );
-      expect(afterMetaChange.stdout).toContain('services/orders');
-
-      // Re-approving the dependent clears the cascade; final check is clean.
-      expect(run(['approve', '--node', 'services/orders'], dir).status).toBe(0);
-      expect(run(['check'], dir).status).toBe(0);
+      // No cascade onto the dependent; check stays clean with no fill needed.
+      expect(afterMetaChange.status).toBe(0);
+      expect(afterMetaChange.stdout).toContain('PASS');
+      expect(afterMetaChange.stdout).not.toContain('unverified');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

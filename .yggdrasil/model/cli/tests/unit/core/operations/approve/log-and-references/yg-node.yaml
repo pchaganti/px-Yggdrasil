@@ -1,8 +1,0 @@
-name: Approve Log and Reviewer References Unit Tests
-type: test-suite
-description: "Unit tests for approve log integration (mapped and logical no-mapping nodes) and reviewer-side reference loading — loadAndIsolateReferences failure isolation and caching."
-aspects: []
-relations: []
-mapping:
-  - source/cli/tests/unit/core/approve-log.test.ts
-  - source/cli/tests/unit/core/approve-reviewer-references.test.ts

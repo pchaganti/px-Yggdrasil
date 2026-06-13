@@ -4,5 +4,4 @@ description: "Bug-bounty branch-coverage suites: path-drift-hash, path-matcher (
 aspects: []
 relations: []
 mapping:
-  - source/cli/tests/unit/bounty/path-drift-hash.test.ts
   - source/cli/tests/unit/bounty/path-matcher.test.ts

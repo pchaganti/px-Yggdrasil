@@ -28,18 +28,18 @@ import { startMockReviewer, runAsync } from './support/mock-reviewer.js';
 //     the descendants.relations atom is unexercised end-to-end. (The consumes_port
 //     when-atom on an aspect attach is already pinned by cli-ports-enforcement 4a;
 //     the relation-atom by cli-aspect-authoring E1 — both deliberately SKIPPED here.)
-//   * the reference-file MODIFICATION cascade with a WORKING LLM verdict (the
-//     in-process mock): editing an LLM aspect's declared `references:` file drifts
-//     EVERY node the aspect reaches, and a clean re-approve via the reviewer CLEARS
-//     the cascade — the full round-trip. cli-drift-cascade-variety 2 pins only the
-//     cascade MESSAGE with a KILLED reviewer (no clean approve is reachable there).
-//   * aspect REMOVAL lazy baseline cleanup: detaching an aspect from a node and
-//     re-approving evicts its stale per-aspect verdict from the baseline.
+//   * the reference-file MODIFICATION round-trip with a WORKING LLM verdict (the
+//     in-process mock): editing an LLM aspect's declared `references:` file is an
+//     input change that invalidates EVERY node the aspect reaches (their pairs go
+//     unverified), and a clean re-fill via the reviewer RESTORES them — the full
+//     round-trip.
+//   * aspect REMOVAL lazy lock cleanup: detaching an aspect from a node and
+//     re-filling evicts its stale per-aspect verdict from .yggdrasil/yg-lock.json.
 //
-// Harness (run / BIN_PATH / copyFixture / deterministicFixture / killReviewer) is
-// reused verbatim from cli-deterministic-lifecycle.test.ts; the mock-reviewer
-// harness (startMockReviewer / runAsync) from support/mock-reviewer.ts. Every graph
-// is built in a fresh mkdtemp COPY of the committed e2e-lifecycle fixture; the
+// Harness (run / BIN_PATH / copyFixture / deterministicFixture) is reused verbatim
+// from cli-deterministic-fill-lifecycle.test.ts; the mock-reviewer harness
+// (startMockReviewer / runAsync) from support/mock-reviewer.ts. Every graph is
+// built in a fresh mkdtemp COPY of the committed e2e-lifecycle fixture; the
 // committed fixture is never mutated; each test rmSync's its dir in finally. No
 // network, no fixed port, no clock/random in assertions.
 
@@ -94,8 +94,9 @@ const nodeYaml = (dir: string, node: string) =>
   path.join(dir, '.yggdrasil', 'model', ...node.split('/'), 'yg-node.yaml');
 const aspectDir = (dir: string, id: string) => path.join(dir, '.yggdrasil', 'aspects', id);
 const aspectYaml = (dir: string, id: string) => path.join(aspectDir(dir, id), 'yg-aspect.yaml');
-const baselineFile = (dir: string, node: string) =>
-  path.join(dir, '.yggdrasil', '.drift-state', ...node.split('/')) + '.json';
+
+/** The single state file of the verdict-lock model (replaces .drift-state/<node>.json). */
+const lockPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-lock.json');
 
 /** Author a deterministic aspect (yg-aspect.yaml + check.mjs) into the temp copy. */
 function writeDeterministicAspect(dir: string, id: string, description: string, checkSource: string): void {
@@ -116,12 +117,20 @@ function writeDeterministicAspect(dir: string, id: string, description: string, 
   writeFileSync(path.join(adir, 'check.mjs'), checkSource, 'utf-8');
 }
 
-/** Read the persisted per-aspect verdict keys from a node baseline. */
+/**
+ * Read, from the verdict lock, the set of aspect ids that hold a stored verdict
+ * for a given node (its `node:<path>` unitKey). The verdict-lock model keys by
+ * aspect first, then unitKey — so we walk every aspect and keep those that have
+ * an entry for this node. (Replaces the old per-node baseline `aspectVerdicts`.)
+ */
 function verdictKeys(dir: string, node: string): string[] {
-  const base = JSON.parse(readFileSync(baselineFile(dir, node), 'utf-8')) as {
-    aspectVerdicts?: Record<string, unknown>;
+  const lock = JSON.parse(readFileSync(lockPath(dir), 'utf-8')) as {
+    verdicts?: Record<string, Record<string, unknown>>;
   };
-  return Object.keys(base.aspectVerdicts ?? {});
+  const unitKey = `node:${node}`;
+  return Object.entries(lock.verdicts ?? {})
+    .filter(([, byUnit]) => Object.prototype.hasOwnProperty.call(byUnit, unitKey))
+    .map(([aspectId]) => aspectId);
 }
 
 /**
@@ -219,7 +228,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
     const dir = deterministicFixture('p1-yaml-ok');
     try {
       setupParseFixture(dir, 'cfg.yaml', 'name: widget\nenabled: true\n');
-      const test = run(['deterministic-test', '--aspect', 'parse-helpers', '--node', 'services/orders'], dir);
+      const test = run(['aspect-test', '--aspect', 'parse-helpers', '--node', 'services/orders'], dir);
       expect(test.status).toBe(0);
       expect(test.all).toContain('No violations.');
     } finally {
@@ -232,7 +241,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
     try {
       // Valid YAML, but enabled is false → the helper parsed it; the rule fails.
       setupParseFixture(dir, 'cfg.yaml', 'name: widget\nenabled: false\n');
-      const test = run(['deterministic-test', '--aspect', 'parse-helpers', '--node', 'services/orders'], dir);
+      const test = run(['aspect-test', '--aspect', 'parse-helpers', '--node', 'services/orders'], dir);
       expect(test.status).toBe(1);
       expect(test.all).toContain('parsed object must have enabled === true, got false');
     } finally {
@@ -245,7 +254,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
     try {
       // Broken block structure → the yaml parser throws.
       setupParseFixture(dir, 'cfg.yaml', 'name: [1, 2\n  - broken: : :\n');
-      const test = run(['deterministic-test', '--aspect', 'parse-helpers', '--node', 'services/orders'], dir);
+      const test = run(['aspect-test', '--aspect', 'parse-helpers', '--node', 'services/orders'], dir);
       expect(test.status).toBe(1);
       expect(test.all).toContain('parseYaml failed:');
     } finally {
@@ -257,7 +266,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
     const dir = deterministicFixture('p4-json-ok');
     try {
       setupParseFixture(dir, 'cfg.json', '{ "name": "widget", "enabled": true }\n');
-      const test = run(['deterministic-test', '--aspect', 'parse-helpers', '--node', 'services/orders'], dir);
+      const test = run(['aspect-test', '--aspect', 'parse-helpers', '--node', 'services/orders'], dir);
       expect(test.status).toBe(0);
       expect(test.all).toContain('No violations.');
     } finally {
@@ -269,7 +278,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
     const dir = deterministicFixture('p5-json-bad');
     try {
       setupParseFixture(dir, 'cfg.json', '{ "name": "widget", enabled true \n');
-      const test = run(['deterministic-test', '--aspect', 'parse-helpers', '--node', 'services/orders'], dir);
+      const test = run(['aspect-test', '--aspect', 'parse-helpers', '--node', 'services/orders'], dir);
       expect(test.status).toBe(1);
       expect(test.all).toContain('parseJson failed:');
     } finally {
@@ -281,7 +290,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
     const dir = deterministicFixture('p6-toml-ok');
     try {
       setupParseFixture(dir, 'cfg.toml', 'name = "widget"\nenabled = true\n');
-      const test = run(['deterministic-test', '--aspect', 'parse-helpers', '--node', 'services/orders'], dir);
+      const test = run(['aspect-test', '--aspect', 'parse-helpers', '--node', 'services/orders'], dir);
       expect(test.status).toBe(0);
       expect(test.all).toContain('No violations.');
     } finally {
@@ -293,7 +302,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
     const dir = deterministicFixture('p7-toml-bad');
     try {
       setupParseFixture(dir, 'cfg.toml', 'name = = "widget"\n');
-      const test = run(['deterministic-test', '--aspect', 'parse-helpers', '--node', 'services/orders'], dir);
+      const test = run(['aspect-test', '--aspect', 'parse-helpers', '--node', 'services/orders'], dir);
       expect(test.status).toBe(1);
       expect(test.all).toContain('parseToml failed:');
     } finally {
@@ -301,15 +310,18 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
     }
   });
 
-  it('P8: a CONFORMING parse-helpers aspect drives a real yg approve to a recorded baseline (exit 0)', () => {
-    const dir = deterministicFixture('p8-approve');
+  it('P8: a CONFORMING parse-helpers aspect drives a real fill to a recorded approved verdict (exit 0)', () => {
+    const dir = deterministicFixture('p8-fill');
     try {
       setupParseFixture(dir, 'cfg.toml', 'name = "widget"\nenabled = true\n');
-      run(['log', 'add', '--node', 'services/orders', '--reason', 'attach parse-helpers rule with a conforming config file'], dir);
-      const approve = run(['approve', '--node', 'services/orders'], dir);
-      expect(approve.status).toBe(0);
-      expect(approve.all).toContain('Approved: services/orders');
-      expect(existsSync(baselineFile(dir, 'services/orders'))).toBe(true);
+      const fill = run(['check', '--approve'], dir);
+      // The conforming config makes parse-helpers pass; the fill records it approved.
+      // (The advisory requires-named-export may warn on the data file — that is a
+      // non-blocking warning and does not fail the fill.)
+      expect(fill.status).toBe(0);
+      expect(fill.all).toContain('[det] parse-helpers on node:services/orders — approved');
+      expect(existsSync(lockPath(dir))).toBe(true);
+      expect(verdictKeys(dir, 'services/orders')).toContain('parse-helpers');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -400,12 +412,13 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
   });
 
   // =========================================================================
-  // GROUP R — reference-file MODIFICATION cascade with a WORKING LLM verdict.
-  // The in-process mock plays the reviewer so a CLEAN approve is reachable; the
-  // node's baseline then records the reference file's hash. Editing the reference
-  // file drifts every node the aspect reaches, and a clean re-approve via the mock
-  // CLEARS the cascade — the full round-trip cli-drift-cascade-variety 2 cannot do
-  // with a killed reviewer (no clean LLM verdict is recorded there).
+  // GROUP R — reference-file MODIFICATION round-trip with a WORKING LLM verdict.
+  // The in-process mock plays the reviewer so a CLEAN fill is reachable; the LLM
+  // pair's verdict hash folds in the reference file's bytes. Editing the reference
+  // file is an input change that invalidates every node the aspect reaches (their
+  // pairs go unverified), and a clean re-fill via the mock RESTORES them — the
+  // full round-trip. The reference file's bytes are an input to the (aspect, unit)
+  // pair hash, so a one-byte change to it flips both pairs to unverified.
   // =========================================================================
 
   function withReference(dir: string): string {
@@ -435,62 +448,61 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
     writeFileSync(p, readFileSync(p, 'utf-8').replace(/endpoint:\s*["']?[^"'\n]+["']?/, `endpoint: "${endpoint}"`), 'utf-8');
   }
 
-  it('R1: editing an LLM aspect reference file cascades to BOTH nodes; a clean re-approve via the reviewer CLEARS it', async () => {
+  it('R1: editing an LLM aspect reference file invalidates BOTH nodes (unverified); a clean re-fill via the reviewer RESTORES them', async () => {
     const dir = copyFixture('r1-reference-roundtrip');
     const mock = await startMockReviewer({ respond: () => ({ satisfied: true, reason: 'ok' }) });
     try {
       pointReviewer(dir, mock.endpoint);
       const guidance = withReference(dir);
 
-      // Clean LLM approve on both participants — the baseline records the ref hash.
-      const a1 = await runAsync(['approve', '--node', 'services/orders'], dir);
-      const a2 = await runAsync(['approve', '--node', 'services/payments'], dir);
-      expect(a1.status).toBe(0);
-      expect(a2.status).toBe(0);
+      // Clean LLM fill across both participants — each LLM pair's verdict hash
+      // folds in the reference file's bytes.
+      const filled = await runAsync(['check', '--approve'], dir);
+      expect(filled.status).toBe(0);
       expect(run(['check'], dir).status).toBe(0);
 
-      // Edit the reference file → reference-file cascade across both nodes.
-      appendFileSync(guidance, '\nAdditional guidance appended to trigger a cascade.\n');
-      const drifted = run(['check'], dir);
-      expect(drifted.status).toBe(1);
-      expect(drifted.stdout).toContain('cascade');
-      expect(drifted.stdout).toContain("reference file 'docs/guidance.md'");
-      expect(drifted.stdout).toContain("declared by aspect 'has-doc-comment'");
+      // Edit the reference file → both has-doc-comment pairs go unverified.
+      appendFileSync(guidance, '\nAdditional guidance appended to change the input.\n');
+      const invalidated = run(['check'], dir);
+      expect(invalidated.status).toBe(1);
+      expect(invalidated.stdout).toContain('unverified');
+      expect(invalidated.stdout).toContain("No valid verdict for aspect 'has-doc-comment' on node:services/orders.");
+      expect(invalidated.stdout).toContain("No valid verdict for aspect 'has-doc-comment' on node:services/payments.");
 
-      // A clean re-approve of the aspect re-runs the reviewer and clears the cascade.
-      const reapprove = await runAsync(['approve', '--aspect', 'has-doc-comment'], dir);
-      expect(reapprove.status).toBe(0);
-      expect(reapprove.all).toContain('services/orders');
-      expect(reapprove.all).toContain('services/payments');
+      // A clean re-fill re-runs the reviewer on both pairs and restores them.
+      const refill = await runAsync(['check', '--approve'], dir);
+      expect(refill.status).toBe(0);
+      expect(refill.all).toContain('[llm] has-doc-comment on node:services/orders — approved');
+      expect(refill.all).toContain('[llm] has-doc-comment on node:services/payments — approved');
 
       const cleared = run(['check'], dir);
-      expect(cleared.stdout).not.toContain("reference file 'docs/guidance.md'");
       expect(cleared.status).toBe(0);
+      expect(cleared.stdout).not.toContain('unverified');
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('R2: an aspect-only reference cascade re-runs ONLY that aspect — one reviewer call per affected node', async () => {
+  it('R2: a reference-file change re-runs ONLY that aspect on re-fill — one reviewer call per affected node', async () => {
     const dir = copyFixture('r2-reference-cost');
     const mock = await startMockReviewer({ respond: () => ({ satisfied: true, reason: 'ok' }) });
     try {
       pointReviewer(dir, mock.endpoint);
       const guidance = withReference(dir);
 
-      // Baseline both nodes; has-doc-comment is the sole LLM aspect → 1 call each.
-      await runAsync(['approve', '--node', 'services/orders'], dir);
-      await runAsync(['approve', '--node', 'services/payments'], dir);
-      const afterBaseline = mock.chatCount();
-      expect(afterBaseline).toBe(2);
+      // Initial fill; has-doc-comment is the sole LLM aspect → 1 call per node = 2.
+      await runAsync(['check', '--approve'], dir);
+      const afterFirstFill = mock.chatCount();
+      expect(afterFirstFill).toBe(2);
 
-      // Edit the reference → cascade → re-approve the aspect across both nodes.
+      // Edit the reference → both pairs go unverified → re-fill re-runs only this
+      // aspect across both nodes (the deterministic pairs need no reviewer call).
       appendFileSync(guidance, '\nMore guidance.\n');
-      const reapprove = await runAsync(['approve', '--aspect', 'has-doc-comment'], dir);
-      expect(reapprove.status).toBe(0);
+      const refill = await runAsync(['check', '--approve'], dir);
+      expect(refill.status).toBe(0);
       // Exactly one additional reviewer call per affected node (orders, payments).
-      expect(mock.chatCount()).toBe(afterBaseline + 2);
+      expect(mock.chatCount()).toBe(afterFirstFill + 2);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
@@ -498,13 +510,13 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
   });
 
   // =========================================================================
-  // GROUP X — aspect REMOVAL lazy baseline cleanup. Detaching an aspect from a
-  // node and re-approving evicts its stale per-aspect verdict from the baseline,
+  // GROUP X — aspect REMOVAL lazy lock cleanup. Detaching an aspect from a node
+  // and re-filling evicts its stale per-aspect verdict from .yggdrasil/yg-lock.json,
   // so no orphaned verdict lingers. Distinct from the draft-transition eviction
   // pinned by cli-aspect-status-extended (which keeps the aspect, only drafts it).
   // =========================================================================
 
-  it('X1: attaching an aspect records its verdict; REMOVING it from the node evicts the stale verdict on re-approve', () => {
+  it('X1: attaching an aspect records its verdict; REMOVING it from the node evicts the stale verdict on re-fill', () => {
     const dir = deterministicFixture('x1-removal-cleanup');
     try {
       // Author an always-pass aspect and attach it to orders.
@@ -523,9 +535,9 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
         ].join('\n'),
         'utf-8',
       );
-      const first = run(['approve', '--node', 'services/orders'], dir);
+      const first = run(['check', '--approve'], dir);
       expect(first.status).toBe(0);
-      // The baseline records a verdict for the attached aspect.
+      // The lock records a verdict for the attached aspect on this node.
       expect(verdictKeys(dir, 'services/orders')).toContain('extra-rule');
 
       // Detach extra-rule from the node (back to the committed node shape) and
@@ -544,20 +556,18 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
       );
       rmSync(aspectDir(dir, 'extra-rule'), { recursive: true, force: true });
 
-      const second = run(['approve', '--node', 'services/orders'], dir);
+      const second = run(['check', '--approve'], dir);
       expect(second.status).toBe(0);
-      // The removed aspect's verdict is GONE — no stale entry lingers.
+      // The removed aspect's verdict is GONE — no stale entry lingers in the lock.
       expect(verdictKeys(dir, 'services/orders')).not.toContain('extra-rule');
       // The node's remaining (type-default) aspects keep their verdicts.
       expect(verdictKeys(dir, 'services/orders')).toContain('no-todo-comments');
-      // No drift remains FOR THIS NODE after the cleanup re-approve. (The fixture's
-      // other node services/payments is intentionally left unapproved, so a global
-      // `yg check` exit 0 is not expected — scope the assertion to services/orders.)
+      // No unverified pair remains FOR THIS NODE after the cleanup re-fill.
       const check = run(['check'], dir);
-      const ordersDrift = check.stdout
+      const ordersUnverified = check.stdout
         .split('\n')
-        .filter((l) => l.includes('services/orders') && (l.includes('drift') || l.includes('unapproved')));
-      expect(ordersDrift.length).toBe(0);
+        .filter((l) => l.includes('services/orders') && l.includes('unverified'));
+      expect(ordersUnverified.length).toBe(0);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
