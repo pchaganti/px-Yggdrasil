@@ -27,7 +27,11 @@ export function findOwner(graph: Graph, projectRoot: string, rawPath: string): O
       if (isGlobPattern(mappingPath)) {
         if (mappingEntryMatchesFile(mappingPath, file)) {
           // Glob match: treat as direct (the pattern names the file explicitly)
-          if (!best || mappingPath.length > best.mappingPath.length) {
+          if (
+            !best ||
+            mappingPath.length > best.mappingPath.length ||
+            (mappingPath.length === best.mappingPath.length && nodePath < best.nodePath)
+          ) {
             best = { nodePath, mappingPath, exact: true };
           }
         }
@@ -36,7 +40,11 @@ export function findOwner(graph: Graph, projectRoot: string, rawPath: string): O
           return { file, nodePath, mappingPath, direct: true };
         }
         if (file.startsWith(mappingPath + '/')) {
-          if (!best || mappingPath.length > best.mappingPath.length) {
+          if (
+            !best ||
+            mappingPath.length > best.mappingPath.length ||
+            (mappingPath.length === best.mappingPath.length && nodePath < best.nodePath)
+          ) {
             best = { nodePath, mappingPath, exact: false };
           }
         }
