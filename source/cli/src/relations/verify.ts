@@ -41,10 +41,16 @@ import {
   hashRelations,
   sortFileHashPairs,
 } from './fingerprint-build.js';
+import {
+  verifyNodeDeps,
+  type ResolvedDep,
+  type RelationGraphView,
+  type Violation,
+} from './verifier.js';
 
 export type RelationState =
   | { nodeId: string; kind: 'verified' }
-  | { nodeId: string; kind: 'refused'; reason?: string }
+  | { nodeId: string; kind: 'refused'; reason?: string; violations: Violation[] }
   | { nodeId: string; kind: 'unverified' };
 
 export interface VerifyDeps {
@@ -110,6 +116,27 @@ export async function verifyRelationConformance(
 
   // 2. Index identity over the symbol-language source set — shared with pass.ts.
   const currentIndexIdentity = computeIndexIdentity(symbolSources);
+
+  // Graph view for reconstructing a refused node's structured violations from its
+  // re-derived outcomes — same shape pass.ts feeds verifyNodeDeps, so the
+  // recomputed violations match what the pass recorded for an unchanged tree.
+  const graphView: RelationGraphView = {
+    isAncestorOf(a, b) {
+      return b.startsWith(a + '/');
+    },
+    declaredTargets(id) {
+      return new Set((graph.nodes.get(id)?.meta.relations ?? []).map((r) => r.target));
+    },
+    parentChain(id) {
+      const chain: string[] = [];
+      let cur = id;
+      while (cur.includes('/')) {
+        cur = cur.slice(0, cur.lastIndexOf('/'));
+        chain.push(cur);
+      }
+      return chain;
+    },
+  };
 
   const results: RelationState[] = [];
 
@@ -208,11 +235,23 @@ export async function verifyRelationConformance(
     };
 
     if (computeFingerprint(current) === stored.fingerprint) {
-      results.push(
-        stored.verdict === 'refused'
-          ? { nodeId, kind: 'refused', reason: stored.reason }
-          : { nodeId, kind: 'verified' },
-      );
+      if (stored.verdict === 'refused') {
+        // Reconstruct the structured violations from the re-derived outcomes so
+        // the refusal message can name each undeclared target and compute the
+        // allowed relation types for it. Resolved outcomes carry the owner node;
+        // verifyNodeDeps applies the same intra-node / ancestor exemptions the
+        // pass used, so the reconstruction matches the recorded refusal.
+        const resolvedDeps: ResolvedDep[] = [];
+        for (const o of currentOutcomes) {
+          if ('ownerNode' in o.outcome) {
+            resolvedDeps.push({ fromFile: o.fromFile, line: o.line, ownerNode: o.outcome.ownerNode });
+          }
+        }
+        const violations = verifyNodeDeps(nodeId, resolvedDeps, graphView);
+        results.push({ nodeId, kind: 'refused', reason: stored.reason, violations });
+      } else {
+        results.push({ nodeId, kind: 'verified' });
+      }
     } else {
       results.push({ nodeId, kind: 'unverified' });
     }

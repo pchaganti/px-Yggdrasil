@@ -441,7 +441,7 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
         rule: 'relation-undeclared-dependency',
         nodePath: s.nodeId,
         messageData: s.kind === 'refused'
-          ? relationRefusedMessage(s.nodeId, s.reason)
+          ? relationRefusedMessage(graph, s.nodeId, s.violations)
           : relationUnverifiedMessage(s.nodeId),
       });
     }

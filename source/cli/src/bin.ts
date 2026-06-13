@@ -14,6 +14,7 @@ import { registerFindCommand } from './cli/find.js';
 import { registerTypeSuggestCommand } from './cli/type-suggest.js';
 import { registerKnowledgeCommand } from './cli/knowledge.js';
 import { registerSuppressionsCommand } from './cli/suppressions.js';
+import { registerRelationsCommand } from './cli/relations.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -43,6 +44,7 @@ registerFindCommand(program);
 registerTypeSuggestCommand(program);
 registerKnowledgeCommand(program);
 registerSuppressionsCommand(program);
+registerRelationsCommand(program);
 
 process.on('unhandledRejection', (reason) => {
   const msg = reason instanceof Error ? reason.message : String(reason);
