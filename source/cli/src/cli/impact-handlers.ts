@@ -129,7 +129,9 @@ export async function handleAspectImpact(
   if (totalAffected >= 10) {
     process.stdout.write(`  High blast radius — review aspect requirements in affected nodes before modifying this aspect.\n`);
   }
-
+  process.stdout.write(
+    `\nNext: weigh the cost above before editing the aspect, then run yg check --approve to re-verify the affected pairs.\n`,
+  );
 }
 
 interface FillCost {
@@ -235,7 +237,9 @@ export async function handleFlowImpact(
   if (totalFlowAffected >= 10) {
     process.stdout.write(`  High blast radius — review flow compliance in participants before modifying.\n`);
   }
-
+  process.stdout.write(
+    `\nNext: review the participants above before editing the flow, then run yg check --approve to re-verify them.\n`,
+  );
 }
 
 export async function handleTypeImpact(graph: Graph, typeId: string): Promise<void> {
@@ -330,5 +334,7 @@ export async function handleTypeImpact(graph: Graph, typeId: string): Promise<vo
       if (misplaced.length > 10) process.stdout.write(`    ... (${misplaced.length - 10} more)\n`);
     }
   }
-  process.stdout.write('\n');
+  process.stdout.write(
+    `\nNext: review the nodes of this type above before editing the type's defaults or when predicate, then run yg check --approve.\n`,
+  );
 }

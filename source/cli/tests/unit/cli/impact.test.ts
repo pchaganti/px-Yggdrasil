@@ -122,6 +122,24 @@ describe('impact command', () => {
         expect(result.stdout).toContain('(none)');
       });
     });
+
+    it('ends with a terminal Next: line after the Blast radius footer', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync(
+          'node',
+          [BIN_PATH, 'impact', '--node', 'orders/order-service'],
+          { cwd, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(0);
+        // The blast-radius footer must precede the Next line; Next is the LAST
+        // substantive line so the actionable step is never buried.
+        const brIdx = result.stdout.indexOf('Blast radius:');
+        const nextIdx = result.stdout.indexOf('Next: review the dependents above');
+        expect(brIdx).toBeGreaterThan(-1);
+        expect(nextIdx).toBeGreaterThan(brIdx);
+        expect(result.stdout).toContain('yg context --node orders/order-service');
+      });
+    });
   });
 
   describe('--aspect', () => {
@@ -161,6 +179,20 @@ describe('impact command', () => {
         );
         expect(result.status).toBe(0);
         expect(result.stdout).toContain('Blast radius');
+      });
+    });
+
+    it('ends with a terminal Next: line pointing at cost + yg check --approve', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync(
+          'node',
+          [BIN_PATH, 'impact', '--aspect', 'requires-audit'],
+          { cwd, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain(
+          'Next: weigh the cost above before editing the aspect, then run yg check --approve to re-verify the affected pairs.',
+        );
       });
     });
 
@@ -242,6 +274,20 @@ describe('impact command', () => {
         );
         expect(result.status).toBe(0);
         expect(result.stdout).toContain('Blast radius');
+      });
+    });
+
+    it('ends with a terminal Next: line for flow mode', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync(
+          'node',
+          [BIN_PATH, 'impact', '--flow', 'Checkout Flow'],
+          { cwd, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain(
+          'Next: review the participants above before editing the flow, then run yg check --approve to re-verify them.',
+        );
       });
     });
 
@@ -413,6 +459,20 @@ describe('impact command', () => {
         );
         expect(result.status).toBe(0);
         expect(result.stdout).toContain('Source files covered');
+      });
+    });
+
+    it('ends with a terminal Next: line for type mode', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync(
+          'node',
+          [BIN_PATH, 'impact', '--type', 'service'],
+          { cwd, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain(
+          "Next: review the nodes of this type above before editing the type's defaults or when predicate, then run yg check --approve.",
+        );
       });
     });
 

@@ -50,13 +50,40 @@ describe('findCommand', () => {
     expect(printed).toMatch(/model\/billing\/cancel/);
   });
 
-  it('emits "No matches." when query has no hit', async () => {
+  it('ends a node-kind top result with a Next: yg context --node line (model/ stripped)', async () => {
+    const root = await setupGraph();
+    const out: string[] = [];
+    vi.spyOn(process.stdout, 'write').mockImplementation((s: unknown) => { out.push(String(s)); return true; });
+    const exit = await findCommand('subscription cancellation', root);
+    expect(exit).toBe(0);
+    // Terminal next-action for a node hit: the model/ prefix is stripped so the
+    // path is a valid --node argument.
+    expect(out.join('')).toContain('Next: yg context --node billing/cancel');
+  });
+
+  it('ends an aspect-kind top result with a Next: read … (not a node) line', async () => {
+    const root = await setupGraph();
+    const out: string[] = [];
+    vi.spyOn(process.stdout, 'write').mockImplementation((s: unknown) => { out.push(String(s)); return true; });
+    // "period" matches the End-of-period aspect as the top result.
+    const exit = await findCommand('period', root);
+    expect(exit).toBe(0);
+    const printed = out.join('');
+    expect(printed).toMatch(/Kind:\s*aspect/);
+    expect(printed).toContain(
+      'Next: read .yggdrasil/aspects/end-of-period — this is a rule, not an entry-point node (do not pass it to --node).',
+    );
+  });
+
+  it('emits "No matches." with a Next fallback when query has no hit', async () => {
     const root = await setupGraph();
     const out: string[] = [];
     vi.spyOn(process.stdout, 'write').mockImplementation((s: unknown) => { out.push(String(s)); return true; });
     const exit = await findCommand('zzzzzzz nothing here', root);
     expect(exit).toBe(0);
-    expect(out.join('')).toMatch(/No matches/);
+    const printed = out.join('');
+    expect(printed).toMatch(/No matches/);
+    expect(printed).toContain('Next: run yg tree for the full graph, or re-query with sharper keywords.');
   });
 
   it('limits to top 5 results', async () => {

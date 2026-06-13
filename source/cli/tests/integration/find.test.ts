@@ -71,4 +71,22 @@ describe('yg find integration', () => {
     expect(printed).toMatch(/Kind: aspect/);
     expect(printed).toMatch(/aspects\/audit-logging/);
   });
+
+  it('appends a Next: yg context --node line for a node-kind top result', async () => {
+    const root = await richGraph();
+    const out: string[] = [];
+    vi.spyOn(process.stdout, 'write').mockImplementation((s: unknown) => { out.push(String(s)); return true; });
+    await findCommand('subscription cancellation', root);
+    expect(out.join('')).toContain('Next: yg context --node billing/cancel');
+  });
+
+  it('appends a Next: read … (rule, not a node) line for an aspect-kind top result', async () => {
+    const root = await richGraph();
+    const out: string[] = [];
+    vi.spyOn(process.stdout, 'write').mockImplementation((s: unknown) => { out.push(String(s)); return true; });
+    await findCommand('audit events', root);
+    expect(out.join('')).toContain(
+      'Next: read .yggdrasil/aspects/audit-logging — this is a rule, not an entry-point node (do not pass it to --node).',
+    );
+  });
 });

@@ -109,7 +109,11 @@ export function formatOutput(result: CheckResult): string {
     sections.push(renderWarningSection(warnings));
   }
 
-  if (result.suggestedNext && errors.length > 0) {
+  if (result.suggestedNext) {
+    // Render the Next line whenever computeSuggestedNext produced one — including a
+    // warnings-only PASS, where it falls back to the first advisory aspect-violation
+    // warning's `next`. A FULLY-GREEN run (no errors, no warnings) yields a null
+    // suggestedNext and prints no Next line — a clean run is self-evidently done.
     // Show only the first line — the actionable command, without annotation text.
     const nextCmd = result.suggestedNext.split('\n')[0];
     sections.push('');

@@ -39,6 +39,9 @@ export async function findCommand(query: string, projectRoot: string): Promise<n
   const results = ms.search(query.trim()).slice(0, TOP_N);
   if (results.length === 0) {
     process.stdout.write('No matches.\n');
+    process.stdout.write(
+      '\nNext: run yg tree for the full graph, or re-query with sharper keywords.\n',
+    );
     return 0;
   }
 
@@ -48,11 +51,14 @@ export async function findCommand(query: string, projectRoot: string): Promise<n
   // its fraction. results are score-sorted, so results[0] carries the max.
   const maxScore = results[0]?.score ?? 0;
   process.stdout.write('Top entry points (ranked by relevance):\n\n');
+  // The top result's document drives the terminal Next line (node vs aspect).
+  let topDoc: IndexedDocument | undefined;
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
     const doc = docs.find((d) => d.id === r.id) as IndexedDocument | undefined;
     /* v8 ignore next */
     if (!doc) continue;
+    if (i === 0) topDoc = doc;
     // Collapse the matched-term list: MiniSearch fuzzy/prefix expansion can
     // surface many near-duplicate stems (order, orders, ordering, …). Dedupe
     // case-insensitively and cap the rendered list so the line stays scannable.
@@ -80,6 +86,21 @@ export async function findCommand(query: string, projectRoot: string): Promise<n
     process.stdout.write(`   Description: "${doc.description}"\n`);
     if (matched) process.stdout.write(`   Matched: ${matched}\n`);
     process.stdout.write('\n');
+  }
+
+  // Terminal Next: derived from the TOP result's Kind. A node result is an
+  // entry-point — point the agent at its full context. An aspect result is a
+  // rule, not a node — tell the agent to read it and NOT pass it to --node.
+  if (topDoc) {
+    if (topDoc.kind === 'node') {
+      // Strip the leading `model/` so the path is a valid --node argument.
+      const nodeArg = toPosixPath(topDoc.path).replace(/^model\//, '');
+      process.stdout.write(`Next: yg context --node ${nodeArg}\n`);
+    } else {
+      process.stdout.write(
+        `Next: read .yggdrasil/${toPosixPath(topDoc.path)} — this is a rule, not an entry-point node (do not pass it to --node).\n`,
+      );
+    }
   }
   return 0;
 }

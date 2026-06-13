@@ -169,3 +169,78 @@ describe('check render — advisory warning hints', () => {
     expect(out).not.toContain('(advisory — not blocking)');
   });
 });
+
+describe('check render — Next line surfacing', () => {
+  /** A result whose only issue is an advisory aspect-violation warning — the
+   *  warnings-only PASS case. computeSuggestedNext returns the warning's `next`
+   *  (non-null) even though there are zero errors. */
+  function warningsOnlyResult(): CheckResult {
+    const advWarning: CheckIssue = {
+      severity: 'warning',
+      code: 'aspect-violation-advisory',
+      rule: 'aspect-violation-advisory',
+      nodePath: 'orders/handler',
+      aspectId: 'audit-logging',
+      messageData: llmRefusedMessage({
+        aspectId: 'audit-logging',
+        unitKey: 'orders/handler#audit-logging',
+        reason: 'missing audit entry',
+      }),
+    };
+    return {
+      projectName: 'test',
+      nodeCount: 1,
+      nodeTypeCounts: new Map(),
+      aspectCount: 1,
+      flowCount: 0,
+      coveredFiles: 0,
+      totalFiles: 0,
+      issues: [advWarning],
+      // What computeSuggestedNext returns for a warnings-only run: the first
+      // advisory aspect-violation warning's own `next`.
+      suggestedNext: advWarning.messageData.next,
+      advisoryWarnings: 1,
+      draftSkipped: 0,
+    };
+  }
+
+  it('renders the Next line on a warnings-only PASS (no errors, non-null suggestedNext)', () => {
+    const out = formatOutput(warningsOnlyResult());
+    // Still a PASS (warnings never fail the verdict)…
+    expect(out).toContain('yg check: PASS');
+    expect(out).toContain('1 warning');
+    // …and the computed next-action is surfaced, not silently dropped.
+    expect(out).toMatch(/\nNext: /);
+  });
+
+  it('omits the Next line on a fully-green run (no issues, null suggestedNext)', () => {
+    const green: CheckResult = {
+      ...warningsOnlyResult(),
+      issues: [],
+      suggestedNext: null,
+      advisoryWarnings: 0,
+    };
+    const out = formatOutput(green);
+    expect(out).toContain('yg check: PASS');
+    // A clean run is self-evidently done — no invented green Next line.
+    expect(out).not.toContain('Next:');
+  });
+
+  it('still renders the Next line on a failing run (errors present)', () => {
+    const out = formatOutput(baseResult([
+      {
+        severity: 'error',
+        code: 'unverified',
+        rule: 'unverified',
+        nodePath: 'orders/handler',
+        aspectId: 'audit-logging',
+        messageData: unverifiedMessage({
+          aspectId: 'audit-logging',
+          unitKey: 'orders/handler#audit-logging',
+        }),
+      },
+    ]));
+    expect(out).toContain('yg check: FAIL');
+    expect(out).toMatch(/\nNext: /);
+  });
+});

@@ -159,6 +159,9 @@ export function registerImpactCommand(program: Command): void {
               // Only cascade nodes found — no structural owner to follow. The
               // cascade/blast-radius sections above can be long; drain stdout
               // before the force-exit so a piped consumer is not truncated.
+              process.stdout.write(
+                `\nNext: review the cascade nodes above, then edit; run yg context --node <X> for any you're unsure about.\n`,
+              );
               await exitAfterFlush(0);
               return; // unreachable — keeps TS narrowing ownerResult.nodePath to string
             }
@@ -319,6 +322,25 @@ export function registerImpactCommand(program: Command): void {
             `Aspects: ${aspectsInScope.length > 0 ? aspectsInScope.join(', ') : '(none)'}\n`,
           );
 
+          // A "ubiquitous" aspect (effective on many nodes — a posix/style check
+          // attached to most of the graph) is a co-occurrence, not a real
+          // dependency: every node "shares" it, so it adds no signal and only
+          // buries the actionable blast-radius footer. Count effective nodes per
+          // target aspect once, then omit any aspect over the threshold from the
+          // "Nodes sharing aspects" section (with a one-line note).
+          const UBIQUITOUS_THRESHOLD = 20;
+          const aspectEffectiveCount = new Map<string, number>();
+          for (const [p] of graph.nodes) {
+            const eff = computeEffectiveAspects(graph.nodes.get(p)!, graph);
+            for (const id of targetEffective) {
+              if (eff.has(id)) aspectEffectiveCount.set(id, (aspectEffectiveCount.get(id) ?? 0) + 1);
+            }
+          }
+          const ubiquitousAspects = [...targetEffective].filter(
+            (id) => (aspectEffectiveCount.get(id) ?? 0) > UBIQUITOUS_THRESHOLD,
+          );
+          const ubiquitousSet = new Set(ubiquitousAspects);
+
           const coAspectNodes: Array<{ path: string; shared: string[] }> = [];
           if (targetEffective.size > 0) {
             for (const [p] of graph.nodes) {
@@ -327,7 +349,7 @@ export function registerImpactCommand(program: Command): void {
               const nodeEffective = computeEffectiveAspects(otherNode, graph);
               const otherStatuses = computeEffectiveAspectStatuses(otherNode, graph);
               const shared = [...targetEffective]
-                .filter((id) => nodeEffective.has(id))
+                .filter((id) => nodeEffective.has(id) && !ubiquitousSet.has(id))
                 .map((id) => {
                   const aspectDef = graph.aspects.find(a => a.id === id);
                   const status = otherStatuses.get(id) ?? aspectDef?.status ?? 'enforced';
@@ -346,6 +368,11 @@ export function registerImpactCommand(program: Command): void {
               process.stdout.write(`  ${p} (${shared.join(', ')})\n`);
             }
           }
+          if (ubiquitousAspects.length > 0) {
+            process.stdout.write(
+              `  (${ubiquitousAspects.length} ubiquitous aspect${ubiquitousAspects.length === 1 ? '' : 's'} omitted — they don't indicate a real dependency)\n`,
+            );
+          }
 
           const allAffected = new Set([...allDependents, ...descendants, ...eventDependents.map((e) => e.path), ...descIndirectPaths]);
           process.stdout.write(
@@ -360,6 +387,9 @@ export function registerImpactCommand(program: Command): void {
           } else if (allAffected.size > 0) {
             process.stdout.write(`  Review direct dependents before changing this node.\n`);
           }
+          process.stdout.write(
+            `\nNext: review the dependents above, then edit; run yg context --node ${toPosixPath(nodePath)} for any you're unsure about.\n`,
+          );
         } catch (error) {
           debugWrite(`[impact] command failed: ${(error as Error).message}`);
           abortOnUnexpectedError(error, 'running impact');
