@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { resolveTsPath } from './extractors/typescript-resolve.js';
+import { resolvePythonModule } from './extractors/python-resolve.js';
 
 /** Production resolvePathToFile: dispatches by language to the per-language path resolver.
  *  Checks existence against the project's files on disk. Symbol-resolved languages (and
@@ -10,6 +11,9 @@ export function makeResolvePathToFile(projectRoot: string): (specifier: string, 
   return (specifier, fromFile, language) => {
     if (language === 'typescript' || language === 'tsx' || language === 'javascript') {
       return resolveTsPath(specifier, fromFile, exists);
+    }
+    if (language === 'python') {
+      return resolvePythonModule(specifier, fromFile, exists);
     }
     return undefined;
   };
