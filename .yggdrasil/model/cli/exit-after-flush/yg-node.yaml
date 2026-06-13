@@ -1,0 +1,5 @@
+name: CLI Exit After Flush
+type: command-support
+description: "Command-layer support helper shared by every command that writes a large report to stdout then force-exits (check, aspect-test, impact). exitAfterFlush drains the pending stdout buffer before calling process.exit, so a long report sent to a pipe is not truncated by the kernel terminating the process before the buffer flushes, while preserving force-exit semantics (no hang on a lingering handle). Imports only node:process, so it declares no relations."
+mapping:
+  - source/cli/src/cli/exit-after-flush.ts

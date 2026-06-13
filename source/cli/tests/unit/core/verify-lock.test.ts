@@ -18,7 +18,9 @@ import { nodeUnit, fileUnit, LOCK_FORMAT_VERSION } from '../../../src/model/lock
 import { verifyLock } from '../../../src/core/verify-lock.js';
 import {
   hashExistsObservation,
+  hashNodeSetObservation,
   observationKey,
+  MISSING_OBSERVATION,
 } from '../../../src/core/pair-hash.js';
 import {
   computeSeedLlmHash,
@@ -299,6 +301,22 @@ describe('verifyLock — LLM pair validity', () => {
     const result = await verifyLock(graph, lock);
     expect(result.pairs[0].state.kind).toBe('verified');
   });
+
+  it('no reviewer config → tier cannot resolve → an LLM entry cannot be revalidated → unverified', async () => {
+    // When graph.config.reviewer is absent, selectTierForAspect is never called
+    // (the `reviewer ? … : undefined` else arm) and the validity recompute is
+    // skipped — the pair degrades to unverified (fail-closed).
+    writeFile('src/a.ts', 'code');
+    const aspect: TestAspect = { id: 'asp', kind: 'llm', ruleContent: 'rule' };
+    const graph = buildGraph([{ path: 'svc', mapping: ['src/a.ts'], aspects: ['asp'] }], [aspect]);
+    // Strip the reviewer config entirely.
+    (graph.config as { reviewer?: unknown }).reviewer = undefined;
+    const lock = emptyLock();
+    setEntry(lock, 'asp', nodeUnit('svc'), { verdict: 'approved', hash: 'whatever' });
+    const result = await verifyLock(graph, lock);
+    expect(result.pairs[0].state.kind).toBe('unverified');
+  });
+
 });
 
 // ---------------------------------------------------------------------------
@@ -438,6 +456,236 @@ describe('verifyLock — deterministic pair validity', () => {
     });
     const result = await verifyLock(graph, lock); // nothing changed
     expect(result.pairs[0].state.kind).toBe('verified');
+  });
+
+  it('touched list: directory that DISAPPEARED re-observes MISSING → unverified', async () => {
+    // The listed directory existed at seed time; deleting it makes listDir return
+    // null → MISSING_OBSERVATION (the entries===null arm of the list re-observe).
+    writeFile('src/a.ts', 'code');
+    writeFile('src/handlers/one.ts', 'one');
+    const key = observationKey('list', 'src/handlers');
+    const { graph, aspect, touched } = await detGraph([key]);
+    const lock = emptyLock();
+    setEntry(lock, 'det', nodeUnit('svc'), {
+      verdict: 'approved',
+      touched,
+      hash: await detHash({ aspect, nodePath: 'svc', subjectFiles: ['src/a.ts'], touched, verdict: 'approved' }),
+    });
+    rmSync(path.join(tmpDir, 'src/handlers'), { recursive: true }); // dir gone
+    const result = await verifyLock(graph, lock);
+    expect(result.pairs[0].state.kind).toBe('unverified');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Deterministic graph-SET observation re-observation (Bugs 2 & 3 + flow minor)
+//
+// Each test seeds a det entry whose `touched` carries a graph-set observation
+// (absent-node / children / by-type / flow) computed exactly as the RECORDER
+// would, then asserts: unchanged graph re-observes the same value (verified),
+// and a membership mutation re-observes a different value (unverified). This is
+// the record↔re-observe symmetry guarantee for the new observation kinds.
+// ---------------------------------------------------------------------------
+
+describe('verifyLock — deterministic graph-set observations', () => {
+  /** Attach parent→children wiring onto an already-built graph. */
+  function linkChildren(graph: Graph, parent: string, children: string[]): void {
+    const p = graph.nodes.get(parent)!;
+    p.children = children.map((c) => {
+      const child = graph.nodes.get(c)!;
+      child.parent = p;
+      return child;
+    });
+  }
+
+  it('graph: absent-node observation — creating the node later → unverified', async () => {
+    writeFile('src/a.ts', 'code');
+    const aspect: TestAspect = { id: 'det', kind: 'deterministic', ruleContent: 'check' };
+    const graph = buildGraph([{ path: 'svc', mapping: ['src/a.ts'], aspects: ['det'] }], [aspect]);
+    const key = observationKey('graph', 'ghost'); // node 'ghost' does not exist
+    const touched: Array<[string, string]> = [[key, MISSING_OBSERVATION]];
+    const lock = emptyLock();
+    setEntry(lock, 'det', nodeUnit('svc'), {
+      verdict: 'approved', touched,
+      hash: await detHash({ aspect, nodePath: 'svc', subjectFiles: ['src/a.ts'], touched, verdict: 'approved' }),
+    });
+    // Unchanged — the node is still absent → verified.
+    expect((await verifyLock(graph, lock)).pairs[0].state.kind).toBe('verified');
+    // Now the node exists on disk → graph: re-observes its yaml bytes → unverified.
+    writeFile('.yggdrasil/model/ghost/yg-node.yaml', 'name: ghost\n');
+    expect((await verifyLock(graph, lock)).pairs[0].state.kind).toBe('unverified');
+  });
+
+  it('graph-children: adding a child → unverified', async () => {
+    writeFile('src/a.ts', 'code');
+    const aspect: TestAspect = { id: 'det', kind: 'deterministic', ruleContent: 'check' };
+    const graph = buildGraph(
+      [
+        { path: 'svc', mapping: ['src/a.ts'], aspects: ['det'] },
+        { path: 'svc/c1', mapping: ['src/c1.ts'], aspects: [] },
+      ],
+      [aspect],
+    );
+    linkChildren(graph, 'svc', ['svc/c1']);
+    const key = observationKey('graph-children', 'svc');
+    const touched: Array<[string, string]> = [[key, hashNodeSetObservation(['svc/c1'])]];
+    const lock = emptyLock();
+    setEntry(lock, 'det', nodeUnit('svc'), {
+      verdict: 'approved', touched,
+      hash: await detHash({ aspect, nodePath: 'svc', subjectFiles: ['src/a.ts'], touched, verdict: 'approved' }),
+    });
+    // Unchanged child set → verified.
+    expect((await verifyLock(graph, lock)).pairs[0].state.kind).toBe('verified');
+    // Add a second child → membership changes → unverified.
+    const graph2 = buildGraph(
+      [
+        { path: 'svc', mapping: ['src/a.ts'], aspects: ['det'] },
+        { path: 'svc/c1', mapping: ['src/c1.ts'], aspects: [] },
+        { path: 'svc/c2', mapping: ['src/c2.ts'], aspects: [] },
+      ],
+      [aspect],
+    );
+    linkChildren(graph2, 'svc', ['svc/c1', 'svc/c2']);
+    expect((await verifyLock(graph2, lock)).pairs[0].state.kind).toBe('unverified');
+  });
+
+  it('graph-bytype: adding a node of that type within the allowed set → unverified', async () => {
+    writeFile('src/a.ts', 'code');
+    const aspect: TestAspect = { id: 'det', kind: 'deterministic', ruleContent: 'check' };
+    // svc + one child of type 'service' (descendants are in the allowed set).
+    const graph = buildGraph(
+      [
+        { path: 'svc', mapping: ['src/a.ts'], aspects: ['det'] },
+        { path: 'svc/c1', mapping: ['src/c1.ts'], aspects: [] },
+      ],
+      [aspect],
+    );
+    linkChildren(graph, 'svc', ['svc/c1']);
+    // Both svc and svc/c1 are type 'service' and in the allowed set of 'svc'.
+    const key = observationKey('graph-bytype', 'service');
+    const touched: Array<[string, string]> = [[key, hashNodeSetObservation(['svc', 'svc/c1'])]];
+    const lock = emptyLock();
+    setEntry(lock, 'det', nodeUnit('svc'), {
+      verdict: 'approved', touched,
+      hash: await detHash({ aspect, nodePath: 'svc', subjectFiles: ['src/a.ts'], touched, verdict: 'approved' }),
+    });
+    expect((await verifyLock(graph, lock)).pairs[0].state.kind).toBe('verified');
+    // Add another descendant of type service → by-type membership grows → unverified.
+    const graph2 = buildGraph(
+      [
+        { path: 'svc', mapping: ['src/a.ts'], aspects: ['det'] },
+        { path: 'svc/c1', mapping: ['src/c1.ts'], aspects: [] },
+        { path: 'svc/c2', mapping: ['src/c2.ts'], aspects: [] },
+      ],
+      [aspect],
+    );
+    linkChildren(graph2, 'svc', ['svc/c1', 'svc/c2']);
+    expect((await verifyLock(graph2, lock)).pairs[0].state.kind).toBe('unverified');
+  });
+
+  it('graph-children of an ABSENT parent re-observes the empty set; adding that node later → unverified', async () => {
+    // The recorded observation was children-of("ghost") = ∅ (ghost not in graph).
+    // While ghost stays absent the empty-set re-observation matches → verified
+    // (exercises the `parent ? … : []` else arm). Adding ghost WITH a child flips it.
+    writeFile('src/a.ts', 'code');
+    const aspect: TestAspect = { id: 'det', kind: 'deterministic', ruleContent: 'check' };
+    const graph = buildGraph([{ path: 'svc', mapping: ['src/a.ts'], aspects: ['det'] }], [aspect]);
+    const key = observationKey('graph-children', 'ghost'); // no such node
+    const touched: Array<[string, string]> = [[key, hashNodeSetObservation([])]];
+    const lock = emptyLock();
+    setEntry(lock, 'det', nodeUnit('svc'), {
+      verdict: 'approved', touched,
+      hash: await detHash({ aspect, nodePath: 'svc', subjectFiles: ['src/a.ts'], touched, verdict: 'approved' }),
+    });
+    // Absent parent → empty children set → matches the recorded ∅ → verified.
+    expect((await verifyLock(graph, lock)).pairs[0].state.kind).toBe('verified');
+    // Now 'ghost' exists with a child → children set grows → unverified.
+    const graph2 = buildGraph(
+      [
+        { path: 'svc', mapping: ['src/a.ts'], aspects: ['det'] },
+        { path: 'ghost', mapping: ['src/g.ts'], aspects: [] },
+        { path: 'ghost/c', mapping: ['src/gc.ts'], aspects: [] },
+      ],
+      [aspect],
+    );
+    linkChildren(graph2, 'ghost', ['ghost/c']);
+    expect((await verifyLock(graph2, lock)).pairs[0].state.kind).toBe('unverified');
+  });
+
+  it('graph-flow matched by flow PATH (not name) re-observes the participant set', async () => {
+    // The observation target equals the flow's PATH, not its name — exercising the
+    // `f.name === target || f.path === target` second disjunct.
+    writeFile('src/a.ts', 'code');
+    const aspect: TestAspect = { id: 'det', kind: 'deterministic', ruleContent: 'check' };
+    const graph = buildGraph(
+      [
+        { path: 'svc', mapping: ['src/a.ts'], aspects: ['det'] },
+        { path: 'other', mapping: ['src/o.ts'], aspects: [] },
+      ],
+      [aspect],
+    );
+    // name and path differ; the observation target is the PATH.
+    (graph as unknown as { flows: Array<{ path: string; name: string; nodes: string[]; aspects: string[] }> }).flows = [
+      { path: 'flows/checkout', name: 'Checkout Process', nodes: ['svc', 'other'], aspects: [] },
+    ];
+    const key = observationKey('graph-flow', 'flows/checkout'); // matched by PATH
+    const touched: Array<[string, string]> = [[key, hashNodeSetObservation(['svc', 'other'])]];
+    const lock = emptyLock();
+    setEntry(lock, 'det', nodeUnit('svc'), {
+      verdict: 'approved', touched,
+      hash: await detHash({ aspect, nodePath: 'svc', subjectFiles: ['src/a.ts'], touched, verdict: 'approved' }),
+    });
+    expect((await verifyLock(graph, lock)).pairs[0].state.kind).toBe('verified');
+  });
+
+  it('graph-flow of a NON-EXISTENT flow re-observes the empty set', async () => {
+    // No flow matches the target → the `flow ? […] : []` else arm yields ∅. The
+    // recorded value was ∅ too → verified; defining the flow later flips it.
+    writeFile('src/a.ts', 'code');
+    const aspect: TestAspect = { id: 'det', kind: 'deterministic', ruleContent: 'check' };
+    const graph = buildGraph([{ path: 'svc', mapping: ['src/a.ts'], aspects: ['det'] }], [aspect]);
+    const key = observationKey('graph-flow', 'nonexistent');
+    const touched: Array<[string, string]> = [[key, hashNodeSetObservation([])]];
+    const lock = emptyLock();
+    setEntry(lock, 'det', nodeUnit('svc'), {
+      verdict: 'approved', touched,
+      hash: await detHash({ aspect, nodePath: 'svc', subjectFiles: ['src/a.ts'], touched, verdict: 'approved' }),
+    });
+    // No such flow → empty participant set → matches recorded ∅ → verified.
+    expect((await verifyLock(graph, lock)).pairs[0].state.kind).toBe('verified');
+    // Define the flow with participants → set grows → unverified.
+    (graph as unknown as { flows: Array<{ path: string; name: string; nodes: string[]; aspects: string[] }> }).flows = [
+      { path: 'nonexistent', name: 'nonexistent', nodes: ['svc'], aspects: [] },
+    ];
+    expect((await verifyLock(graph, lock)).pairs[0].state.kind).toBe('unverified');
+  });
+
+  it('graph-flow: removing a participant → unverified', async () => {
+    writeFile('src/a.ts', 'code');
+    const aspect: TestAspect = { id: 'det', kind: 'deterministic', ruleContent: 'check' };
+    const graph = buildGraph(
+      [
+        { path: 'svc', mapping: ['src/a.ts'], aspects: ['det'] },
+        { path: 'other', mapping: ['src/o.ts'], aspects: [] },
+      ],
+      [aspect],
+    );
+    (graph as unknown as { flows: Array<{ path: string; name: string; nodes: string[]; aspects: string[] }> }).flows = [
+      { path: 'checkout', name: 'checkout', nodes: ['svc', 'other'], aspects: [] },
+    ];
+    const key = observationKey('graph-flow', 'checkout');
+    const touched: Array<[string, string]> = [[key, hashNodeSetObservation(['svc', 'other'])]];
+    const lock = emptyLock();
+    setEntry(lock, 'det', nodeUnit('svc'), {
+      verdict: 'approved', touched,
+      hash: await detHash({ aspect, nodePath: 'svc', subjectFiles: ['src/a.ts'], touched, verdict: 'approved' }),
+    });
+    expect((await verifyLock(graph, lock)).pairs[0].state.kind).toBe('verified');
+    // Drop a participant → participant set changes → unverified.
+    (graph as unknown as { flows: Array<{ path: string; name: string; nodes: string[]; aspects: string[] }> }).flows = [
+      { path: 'checkout', name: 'checkout', nodes: ['svc'], aspects: [] },
+    ];
+    expect((await verifyLock(graph, lock)).pairs[0].state.kind).toBe('unverified');
   });
 });
 

@@ -206,14 +206,55 @@ export function computeDetInputHash(input: DetHashInput): string {
 /**
  * Encode an observation key for a deterministic check's ctx read boundary.
  *
- * Format: '<kind>:<path>' where path is the repo-relative POSIX path (for
- * read/list/exists) or the model-relative node path (for graph).
+ * Format: '<kind>:<target>' where target is the repo-relative POSIX path (for
+ * read/list/exists), the model-relative node path (for graph and graph-children),
+ * or the node type (for graph-bytype).
+ *
+ *   read / list / exists — file/dir content + existence probes
+ *   graph                — a single node's yg-node.yaml bytes (or absent)
+ *   graph-children       — the SET of child node ids of <target> (membership fold)
+ *   graph-bytype         — the SET of node ids of type <target> (membership fold)
+ *   graph-flow           — the SET of declared participant ids of flow <target>
  *
  * Key encoding is part of the frozen contract — changing it changes all
  * deterministic hashes that include observations.
  */
-export function observationKey(kind: 'read' | 'list' | 'exists' | 'graph', path: string): string {
-  return `${kind}:${path}`;
+export function observationKey(
+  kind: 'read' | 'list' | 'exists' | 'graph' | 'graph-children' | 'graph-bytype' | 'graph-flow',
+  target: string,
+): string {
+  return `${kind}:${target}`;
+}
+
+/**
+ * Sentinel hash for a re-observation whose target vanished (a deleted file, dir,
+ * or absent graph node). It is NOT a valid 64-hex sha256, so it can never equal a
+ * stored content hash — a now-missing target therefore always reads as a CHANGED
+ * value (⇒ unverified) and never collides with a genuinely-empty stored
+ * observation. The recorder uses it to fold a NEGATIVE graph-node probe
+ * (ctx.graph.node() returning undefined) and the verifier uses it for every
+ * vanished re-observation, so the two sides stay byte-identical for an
+ * absent-then-still-absent target (spec §3.1: missing during re-observation =
+ * changed value, never a throw). Part of the FROZEN CONTRACT.
+ */
+export const MISSING_OBSERVATION = 'missing';
+
+/**
+ * Hash a node-id-SET observation (ctx.graph.children / ctx.graph.nodesByType).
+ *
+ * The result depends only on WHICH node ids were returned, not their order or any
+ * per-node content (each returned node additionally folds its own graph: read
+ * observation). Sorting makes the fold deterministic, so ADDING or REMOVING a
+ * node from the set changes the hash while a content-only edit to an unchanged
+ * member does not (that rides the member's graph: observation instead).
+ *
+ * Contract: sha256 over the sorted node ids joined by newline. An empty set folds
+ * to sha256('') — distinct from MISSING_OBSERVATION, so "no children" is a real,
+ * stable observed value that a later first child invalidates.
+ */
+export function hashNodeSetObservation(nodeIds: string[]): string {
+  const lines = [...nodeIds].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).join('\n');
+  return hashString(lines);
 }
 
 /**

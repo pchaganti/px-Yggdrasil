@@ -125,6 +125,64 @@ export function getChildMappingExclusions(graph: Graph, nodePath: string): strin
   return exclusions;
 }
 
+/**
+ * The full mapped subject set for a node: every mapped file (gitignore-aware
+ * expansion) with the child carve-out applied, BEFORE any scope.files filter and
+ * BEFORE binary exclusion. This is the deterministic-reviewer subject set when an
+ * aspect declares no scope filter — identical to the `nodeFiles` set
+ * computeExpectedPairs builds at step 4. Repo-relative POSIX paths, unsorted.
+ *
+ * Used by the fill stage to decide whether a deterministic pair's subject is
+ * NARROWER than the node's full mapping (a per:node aspect with a scope.files
+ * filter, or a per:file aspect): a narrowed subject must run the structure runner
+ * with subjectScope so reads of the excluded siblings fold as observations
+ * (spec §1, §3.1) rather than slipping into neither the subject hash nor touched.
+ */
+export async function computeNodeMappedFiles(
+  graph: Graph,
+  nodePath: string,
+): Promise<string[]> {
+  const node = graph.nodes.get(nodePath);
+  if (!node) return [];
+  const rawMapping = normalizeMappingPaths(node.meta.mapping);
+  if (rawMapping.length === 0) return [];
+
+  const projectRoot = path.dirname(graph.rootPath);
+  const excludePrefixes = getChildMappingExclusions(graph, nodePath);
+  const allExpanded = await expandMappingPaths(projectRoot, rawMapping);
+  return excludePrefixes.length > 0
+    ? allExpanded.filter((p) => !excludePrefixes.some((ep) => mappingEntryMatchesFile(ep, p)))
+    : allExpanded;
+}
+
+/**
+ * The set of node paths whose effective-aspect computation THROWS (an implies
+ * cycle, or any other structural error in the effectiveness engine). These nodes
+ * are silently skipped by computeExpectedPairs (they contribute ZERO pairs), so
+ * the GC pair universe cannot account for them — it would wrongly read their
+ * existing verdict entries as detached and prune paid verdicts (data loss).
+ *
+ * GC must POSITIVELY prove an entry detached before pruning it. A node in this
+ * set could NOT be computed this run, so its entries are retained untouched; the
+ * validator still surfaces the cycle as a blocking `aspect-implies-cycle` error.
+ * A node that simply no longer exists in the graph is NOT in this set (it is not
+ * iterated at all) — its entries are genuinely detached and remain prunable.
+ */
+export function computeUncomputableNodes(graph: Graph): Set<string> {
+  const uncomputable = new Set<string>();
+  for (const [nodePath, node] of graph.nodes) {
+    try {
+      computeEffectiveAspects(node, graph);
+      computeEffectiveAspectStatuses(node, graph);
+    } catch {
+      // Mirror computeExpectedPairs's catch: a node whose effectiveness throws is
+      // skipped there, so record it here to protect its entries from GC.
+      uncomputable.add(nodePath);
+    }
+  }
+  return uncomputable;
+}
+
 // ============================================================
 // computeExpectedPairs
 // ============================================================

@@ -18,7 +18,8 @@ import {
 
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import { runFill } from '../../../src/core/fill.js';
-import { readLock } from '../../../src/io/lock-store.js';
+import { readLock, writeLock } from '../../../src/io/lock-store.js';
+import { verifyLock } from '../../../src/core/verify-lock.js';
 import type { LlmProvider } from '../../../src/llm/types.js';
 import type { RunStructureAspectResult } from '../../../src/structure/runner.js';
 
@@ -84,6 +85,8 @@ interface AspectSpec {
   /** content.md (llm) / check.mjs (deterministic) body. */
   rule: string;
   scopePer?: 'node' | 'file';
+  /** scope.files path-atom filter (minimatch glob) — narrows the subject set. */
+  scopeFilesPath?: string;
   references?: Array<{ path: string; description?: string }>;
 }
 
@@ -143,10 +146,18 @@ async function setupProject(spec: ProjectSpec): Promise<{ projectRoot: string; y
     const refLines = (asp.references ?? [])
       .map((r) => `  - path: ${r.path}${r.description ? `\n    description: ${r.description}` : ''}`)
       .join('\n');
+    // Emit a scope: block when EITHER per or a files filter is set. The files
+    // filter is a single path atom (enough to narrow the subject set in tests).
+    let scopeBlock = '';
+    if (asp.scopePer || asp.scopeFilesPath) {
+      scopeBlock = 'scope:\n';
+      scopeBlock += `  per: ${asp.scopePer ?? 'node'}\n`;
+      if (asp.scopeFilesPath) scopeBlock += `  files:\n    path: "${asp.scopeFilesPath}"\n`;
+    }
     const yaml =
       `name: ${asp.id}\ndescription: ${asp.id} rule\nreviewer:\n  type: ${asp.kind}\n` +
       `${asp.status ? `status: ${asp.status}\n` : ''}` +
-      `${asp.scopePer ? `scope:\n  per: ${asp.scopePer}\n` : ''}` +
+      scopeBlock +
       `${asp.references ? `references:\n${refLines}\n` : ''}`;
     await writeFile(path.join(aspDir, 'yg-aspect.yaml'), yaml);
     await writeFile(path.join(aspDir, asp.kind === 'llm' ? 'content.md' : 'check.mjs'), asp.rule);
@@ -264,6 +275,111 @@ describe('positive closure', () => {
     // Advisory refusal does not block closure → fingerprint recorded.
     expect(lock.nodes['svc']?.source).toBeDefined();
   });
+
+  it('a stored-approved pair that is UNVERIFIED this run does NOT satisfy closure (fresh validity, not the raw token)', async () => {
+    // Two mapped files; one enforced LLM aspect over both. Run 1 approves and
+    // closes (records the fingerprint). Then edit a mapped file (drifts the
+    // fingerprint AND invalidates the LLM pair) and re-run with the provider
+    // UNREACHABLE: the LLM fill writes nothing, so the pair stays stored-approved
+    // (from run 1) but is UNVERIFIED this run. Closure must read fresh validity
+    // (verifyLock), not the stale token — the fingerprint must be held back.
+    const { projectRoot } = await setupProject({
+      aspects: [{ id: 'llm-a', kind: 'llm', status: 'enforced', rule: 'rule a' }],
+      mapping: ['src/svc.ts', 'src/helper.ts'],
+      files: { 'src/helper.ts': 'export const h = 1;\n' },
+    });
+    // Run 1: provider approves → pair approved, node closes.
+    let graph = await loadGraph(projectRoot);
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider());
+    await runFill(graph, { gitTrackedFiles: null, write: () => {} });
+    const run1Fingerprint = readLock(graph.rootPath).nodes['svc']?.source;
+    expect(run1Fingerprint).toBeDefined();
+    expect(readLock(graph.rootPath).verdicts['llm-a']?.['node:svc']?.verdict).toBe('approved');
+
+    // Edit a mapped file: fingerprint drifts and the LLM subject changes →
+    // llm-a is unverified pre-fill.
+    await writeFile(path.join(projectRoot, 'src', 'svc.ts'), 'export const x = 2;\n');
+    graph = await loadGraph(projectRoot);
+    // Run 2: provider unreachable → the LLM fill writes NOTHING (infra disposition).
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({ isAvailable: async () => false }));
+    const result = await runFill(graph, { gitTrackedFiles: null, write: () => {} });
+
+    const after = readLock(graph.rootPath);
+    // The stored token is still 'approved' (run 1's verdict was never overwritten).
+    expect(after.verdicts['llm-a']?.['node:svc']?.verdict).toBe('approved');
+    // But the pair is UNVERIFIED this run → closure must NOT advance the
+    // fingerprint. It must still be the run-1 value, never the post-edit one.
+    expect(after.nodes['svc']?.source).toBe(run1Fingerprint);
+    // And the run ends red (the unverified enforced pair blocks check).
+    expect(result.checkResult.issues.some((i) => i.code === 'unverified')).toBe(true);
+  });
+
+  it('a binary/scope-excluded source change on a log_required node does NOT advance the fingerprint without a fresh entry (gate not bypassed)', async () => {
+    // A log_required node maps a reviewed text file AND a binary. The only aspect
+    // is an enforced LLM aspect — binaries are excluded from its subject set. Run
+    // 1 closes (fresh entry present). Then edit ONLY the binary: the source
+    // fingerprint drifts, but the LLM pair's subject (the text file) is unchanged,
+    // so the pair stays verified → ZERO unverified pairs → the node never enters
+    // the run's nodeSet → the step-4 log gate never evaluates it. Closure must
+    // STILL re-check the §9 gate and refuse to advance the fingerprint without a
+    // fresh log entry (defect: scope/binary-excluded change bypassing the gate).
+    const { projectRoot } = await setupProject({
+      aspects: [{ id: 'llm-a', kind: 'llm', status: 'enforced', rule: 'rule a' }],
+      mapping: ['src/svc.ts', 'assets/logo.png'],
+      files: { 'assets/logo.png': 'PNGDATA-v1\n' },
+      logRequired: true,
+      logContent: '## [2026-05-11T10:00:00.000Z]\nfirst.\n',
+    });
+    let graph = await loadGraph(projectRoot);
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider()); // approves
+    await runFill(graph, { gitTrackedFiles: null, write: () => {} });
+    const run1Fingerprint = readLock(graph.rootPath).nodes['svc']?.source;
+    expect(run1Fingerprint).toBeDefined();
+
+    // Edit ONLY the binary (no fresh log entry). Fingerprint drifts; the LLM pair
+    // (subject = src/svc.ts, binary excluded) stays valid → zero unverified pairs.
+    await writeFile(path.join(projectRoot, 'assets', 'logo.png'), 'PNGDATA-v2-CHANGED\n');
+    graph = await loadGraph(projectRoot);
+    const result = await runFill(graph, { gitTrackedFiles: null, write: () => {} });
+
+    // Zero reviewer calls (nothing was unverified) — proves the node never entered
+    // the fill set, so the step-4 gate did not run for it.
+    expect(result.reviewerCallsMade).toBe(0);
+    // The fingerprint must NOT have advanced to the post-edit value — the §9 gate
+    // was re-checked at closure and held it back (no fresh entry).
+    expect(readLock(graph.rootPath).nodes['svc']?.source).toBe(run1Fingerprint);
+  });
+
+  it('a zero-enforced-pair (advisory-only) drifted log_required node does NOT vacuously close', async () => {
+    // log_required node, ONE advisory LLM aspect, plus a mapped binary. Run 1
+    // closes (fresh entry). Edit ONLY the binary: fingerprint drifts; the advisory
+    // LLM pair's subject (text file) is unchanged → it stays valid → zero
+    // unverified pairs → the node never enters the nodeSet (step-4 gate never
+    // runs). The node has ZERO enforced pairs, so the enforced-filter is empty and
+    // "all enforced approved" is VACUOUSLY true. Closure must STILL refuse to
+    // advance the fingerprint: a drifted log_required node needs a fresh entry.
+    const { projectRoot } = await setupProject({
+      aspects: [{ id: 'llm-adv', kind: 'llm', status: 'advisory', rule: 'advisory rule' }],
+      mapping: ['src/svc.ts', 'assets/logo.png'],
+      files: { 'assets/logo.png': 'PNGDATA-v1\n' },
+      logRequired: true,
+      logContent: '## [2026-05-11T10:00:00.000Z]\nfirst.\n',
+    });
+    let graph = await loadGraph(projectRoot);
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider()); // approves (advisory)
+    await runFill(graph, { gitTrackedFiles: null, write: () => {} });
+    const run1Fingerprint = readLock(graph.rootPath).nodes['svc']?.source;
+    expect(run1Fingerprint).toBeDefined();
+
+    // Edit ONLY the binary, no fresh log entry.
+    await writeFile(path.join(projectRoot, 'assets', 'logo.png'), 'PNGDATA-v2-CHANGED\n');
+    graph = await loadGraph(projectRoot);
+    await runFill(graph, { gitTrackedFiles: null, write: () => {} });
+
+    // The fingerprint must NOT advance — vacuous closure (zero enforced pairs) is
+    // refused for a drifted log_required node lacking a fresh entry.
+    expect(readLock(graph.rootPath).nodes['svc']?.source).toBe(run1Fingerprint);
+  });
 });
 
 // =============================================================================
@@ -271,7 +387,7 @@ describe('positive closure', () => {
 // =============================================================================
 
 describe('log gate (§9)', () => {
-  it('fires on a fingerprint change with no fresh entry (pair skipped)', async () => {
+  it('fires on a fingerprint change with no fresh entry (pair skipped, node does NOT close)', async () => {
     const { projectRoot, yggRoot } = await setupProject({
       aspects: [{ id: 'det-a', kind: 'deterministic', status: 'enforced', rule: DET_PASS }],
       logRequired: true,
@@ -280,7 +396,8 @@ describe('log gate (§9)', () => {
     // First fill closes the node (records fingerprint + log baseline).
     let graph = await loadGraph(projectRoot);
     await runFill(graph, { gitTrackedFiles: null, write: () => {} });
-    expect(readLock(graph.rootPath).nodes['svc']?.source).toBeDefined();
+    const preEditFingerprint = readLock(graph.rootPath).nodes['svc']?.source;
+    expect(preEditFingerprint).toBeDefined();
 
     // Edit source (fingerprint drifts) WITHOUT a fresh log entry.
     await writeFile(path.join(projectRoot, 'src', 'svc.ts'), 'export const x = 2;\n');
@@ -292,6 +409,15 @@ describe('log gate (§9)', () => {
     // stale entry stays and the check shows it unverified.
     expect(w.text()).toMatch(/no fresh log entry|mandatory/i);
     expect(result.checkResult.issues.some((i) => i.code === 'unverified')).toBe(true);
+
+    // The node did NOT close: its source fingerprint must still be the PRE-EDIT
+    // value (positive closure must not advance it over a gate-blocked change) and
+    // its log baseline must be unchanged. If the fingerprint had advanced to the
+    // post-edit value the §9 gate could never fire again for this change — the
+    // log entry would be permanently, silently waived.
+    const after = readLock(graph.rootPath).nodes['svc'];
+    expect(after?.source).toBe(preEditFingerprint);
+    expect(after?.log?.last_entry_datetime).toBe('2026-05-11T10:00:00.000Z');
     void yggRoot;
   });
 
@@ -514,6 +640,171 @@ describe('per-file deterministic pair — contract #8', () => {
     expect(result2.checkResult.issues.some((i) => i.code === 'unverified')).toBe(false);
     // The for-file pair for the OTHER file is its own subject — sanity.
     expect(readLock(graph2.rootPath).verdicts['det-pf']?.['file:src/other.ts']).toBeDefined();
+  });
+});
+
+// =============================================================================
+// 10b. Bug 3: per:node det aspect with scope.files — an EXCLUDED file read via
+//      ctx.node.files must fold as an observation (was stale-green).
+//
+// A per:node aspect with a scope.files filter has a NARROWED subject set: the
+// excluded files are not subjects. Before the fix, fill passed subjectScope only
+// for per:FILE pairs, so a per:node-with-filter pair ran the runner WITHOUT
+// subjectScope → the excluded files preloaded into ctx.node.files UN-recorded. A
+// check reading an excluded file (here through the preloaded ctx.node.files
+// content, no ctx.fs call) folded into NEITHER the subject hash NOR an
+// observation → editing that excluded file did not invalidate the verdict
+// (stale-green). With the fix the excluded-file read records a read: observation
+// and the verifier re-observes it, so an edit flips the pair to unverified.
+// =============================================================================
+
+describe('Bug 3 — per:node det aspect with scope.files excludes a read file', () => {
+  it('reading an excluded file via ctx.node.files folds an observation; editing it invalidates the pair', async () => {
+    // The check reads the EXCLUDED file's preloaded content from ctx.node.files
+    // (no ctx.fs.read). scope.files keeps only src/svc.ts as the subject, so
+    // src/excluded.ts is a non-subject sibling whose read must fold as read:.
+    const checkReadsExcluded =
+      'export function check(ctx) {' +
+      '  const ex = ctx.node.files.find((f) => f.path.endsWith("excluded.ts"));' +
+      '  if (ex && ex.content.includes("FORBIDDEN")) return [{ message: "forbidden token", file: ex.path, line: 1 }];' +
+      '  return [];' +
+      '}\n';
+    const { projectRoot } = await setupProject({
+      aspects: [
+        {
+          id: 'det-scoped',
+          kind: 'deterministic',
+          status: 'enforced',
+          // per: node (default) but scope.files keeps only svc.ts as the subject.
+          scopeFilesPath: '**/svc.ts',
+          rule: checkReadsExcluded,
+        },
+      ],
+      mapping: ['src/svc.ts', 'src/excluded.ts'],
+      files: { 'src/excluded.ts': 'export const ok = 1;\n' },
+    });
+    const graph = await loadGraph(projectRoot);
+    await runFill(graph, { gitTrackedFiles: null, write: () => {} });
+
+    const entry = readLock(graph.rootPath).verdicts['det-scoped']?.['node:svc'];
+    expect(entry).toBeDefined();
+    // The subject is ONLY src/svc.ts; src/excluded.ts is NOT a subject, so the
+    // read of it must appear as a read: observation in touched (the load-bearing
+    // fold). Pre-fix this would be absent → the next assertion's edit would be
+    // stale-green.
+    const touchedKeys = (entry?.touched ?? []).map(([k]) => k);
+    expect(touchedKeys).toContain('read:src/excluded.ts');
+
+    // Edit the EXCLUDED file. Its content is not a subject input (scope.files
+    // dropped it), so the only thing that can invalidate the verdict is the
+    // read: observation just folded. A fresh verifyLock must now read the pair as
+    // UNVERIFIED — pre-fix it stayed `verified` (stale-green).
+    await writeFile(path.join(projectRoot, 'src', 'excluded.ts'), 'export const ok = 2;\n');
+    const graph2 = await loadGraph(projectRoot);
+    const verification = await verifyLock(graph2, readLock(graph2.rootPath));
+    const vp = verification.pairs.find(
+      (p) => p.pair.aspectId === 'det-scoped' && p.pair.unitKey === 'node:svc',
+    );
+    expect(vp?.state.kind).toBe('unverified');
+
+    // Sanity: the subject file (src/svc.ts) is unchanged — the invalidation is
+    // driven purely by the excluded-file observation, not a subject-hash change.
+    const fp2 = readLock(graph2.rootPath).verdicts['det-scoped']?.['node:svc'];
+    expect(fp2).toBeDefined(); // entry still present (GC keeps it; only the hash no longer matches)
+  });
+});
+
+// =============================================================================
+// 7b. Bug 2: GC must NOT prune entries for a node skipped by a transient
+//     effectiveness error (an implies cycle) — those are paid verdicts.
+//
+// When a node's effective-aspect computation THROWS (implies cycle), it is
+// silently skipped by computeExpectedPairs and contributes ZERO pairs to the GC
+// universe. The old GC pruned any verdict entry absent from the universe, so it
+// deleted the cycle node's existing entries (data loss; the next run re-pays).
+// The fix retains entries owned by an uncomputable node, while STILL pruning
+// genuinely-detached entries (a different, computable node's removed aspect).
+// =============================================================================
+
+describe('Bug 2 — GC retains entries for an implies-cycle node', () => {
+  it('keeps the cycle node\'s entries and still prunes a genuinely-detached entry', async () => {
+    // Two nodes:
+    //   svc      — clean, one enforced det aspect (det-clean).
+    //   cyc      — carries det-a, which implies det-b, which implies det-a (cycle).
+    // We seed the lock with verdict entries for BOTH nodes plus one genuinely
+    // detached entry (an aspect no node uses). After fill's GC:
+    //   - the cycle node's entries survive (uncomputable → not provably detached),
+    //   - the detached entry is pruned (computable owner / no owner).
+    const root = await mkdtemp(path.join(tmpdir(), 'yg-fill-'));
+    dirs.push(root);
+    const yggRoot = path.join(root, '.yggdrasil');
+    await mkdir(path.join(yggRoot, 'schemas'), { recursive: true });
+    await mkdir(path.join(root, 'src'), { recursive: true });
+    await writeFile(path.join(yggRoot, 'schemas', 'yg-node.yaml'), 'type: node\n');
+    await writeFile(path.join(yggRoot, 'schemas', 'yg-aspect.yaml'), 'type: aspect\n');
+    await writeFile(path.join(yggRoot, 'schemas', 'yg-flow.yaml'), 'type: flow\n');
+    await writeFile(path.join(yggRoot, 'yg-config.yaml'), V5_REVIEWER_CONFIG);
+    await writeFile(
+      path.join(yggRoot, 'yg-architecture.yaml'),
+      'node_types:\n  service:\n    description: s\n    log_required: false\n',
+    );
+
+    // Node svc — clean aspect det-clean.
+    await mkdir(path.join(yggRoot, 'model', 'svc'), { recursive: true });
+    await writeFile(path.join(root, 'src', 'svc.ts'), 'export const x = 1;\n');
+    await writeFile(
+      path.join(yggRoot, 'model', 'svc', 'yg-node.yaml'),
+      'name: svc\ntype: service\ndescription: x\nmapping:\n  - src/svc.ts\naspects:\n  - det-clean\n',
+    );
+
+    // Node cyc — carries det-a (cyclic with det-b).
+    await mkdir(path.join(yggRoot, 'model', 'cyc'), { recursive: true });
+    await writeFile(path.join(root, 'src', 'cyc.ts'), 'export const y = 2;\n');
+    await writeFile(
+      path.join(yggRoot, 'model', 'cyc', 'yg-node.yaml'),
+      'name: cyc\ntype: service\ndescription: x\nmapping:\n  - src/cyc.ts\naspects:\n  - det-a\n',
+    );
+
+    // Aspects: det-clean (normal), det-a implies det-b, det-b implies det-a (cycle).
+    for (const [id, implies] of [['det-clean', null], ['det-a', 'det-b'], ['det-b', 'det-a']] as const) {
+      const aspDir = path.join(yggRoot, 'aspects', id);
+      await mkdir(aspDir, { recursive: true });
+      await writeFile(
+        path.join(aspDir, 'yg-aspect.yaml'),
+        `name: ${id}\ndescription: ${id}\nreviewer:\n  type: deterministic\nstatus: enforced\n` +
+          (implies ? `implies:\n  - ${implies}\n` : ''),
+      );
+      await writeFile(path.join(aspDir, 'check.mjs'), DET_PASS);
+    }
+
+    const graph = await loadGraph(root);
+
+    // Seed the lock directly: a valid-shaped entry for the cycle node's aspect, a
+    // valid entry for the clean node, and one genuinely-detached entry (an aspect
+    // no node references). GC keys on (aspectId, unitKey) membership and owner —
+    // hash validity is irrelevant to the prune decision.
+    writeLock(graph.rootPath, {
+      version: 1,
+      verdicts: {
+        'det-a': { 'node:cyc': { verdict: 'approved', hash: 'seed-cyc', touched: [] } },
+        'det-clean': { 'node:svc': { verdict: 'approved', hash: 'seed-svc' } },
+        'ghost-aspect': { 'node:svc': { verdict: 'approved', hash: 'seed-ghost' } },
+      },
+      nodes: {},
+    });
+
+    // Run fill. The cycle node throws during effectiveness (skipped by the pair
+    // engine); the clean node fills normally; GC then rewrites the lock.
+    await runFill(graph, { gitTrackedFiles: null, write: () => {} });
+
+    const lock = readLock(graph.rootPath);
+    // The cycle node's entry MUST survive (uncomputable → not provably detached).
+    expect(lock.verdicts['det-a']?.['node:cyc']).toBeDefined();
+    expect(lock.verdicts['det-a']?.['node:cyc']?.hash).toBe('seed-cyc');
+    // The genuinely-detached entry (no node uses ghost-aspect) MUST be pruned.
+    expect(lock.verdicts['ghost-aspect']).toBeUndefined();
+    // The clean node's aspect is in the universe — its entry remains.
+    expect(lock.verdicts['det-clean']?.['node:svc']).toBeDefined();
   });
 });
 

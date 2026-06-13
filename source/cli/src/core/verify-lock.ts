@@ -42,7 +42,10 @@ import {
   hashReadObservation,
   hashListObservation,
   hashExistsObservation,
+  hashNodeSetObservation,
+  MISSING_OBSERVATION,
 } from './pair-hash.js';
+import { computeAllowedNodePaths } from '../structure/ctx-graph.js';
 import { ruleHashFor, contentFor, nodeDescriptionFor, tierHashViewFromTier } from './pair-inputs.js';
 import type { ExpectedPair, UnreadableSubject } from './pairs.js';
 import { computeExpectedPairs } from './pairs.js';
@@ -137,7 +140,7 @@ export async function verifyLock(graph: Graph, lock: LockFile): Promise<LockVeri
       );
     } else {
       verified.push(
-        await verifyDetPair(pair, aspect, projectRoot, storedEntry, readBytes, hashCached),
+        await verifyDetPair(pair, aspect, graph, projectRoot, storedEntry, readBytes, hashCached),
       );
     }
   }
@@ -248,6 +251,7 @@ async function verifyLlmPair(
 async function verifyDetPair(
   pair: ExpectedPair,
   aspect: AspectDef,
+  graph: Graph,
   projectRoot: string,
   storedEntry: VerdictEntry | undefined,
   readBytes: (absPath: string) => Promise<Buffer | null>,
@@ -262,7 +266,7 @@ async function verifyDetPair(
     const stored = storedEntry.touched ?? [];
     const touchedNow: Array<[string, string]> = [];
     for (const [key] of stored) {
-      const nowHash = await reObserve(key, projectRoot, readBytes);
+      const nowHash = await reObserve(key, graph, pair.nodePath, projectRoot, readBytes);
       touchedNow.push([key, nowHash]);
     }
 
@@ -340,26 +344,26 @@ function classifyWithGate(
 // ============================================================
 
 /**
- * Sentinel hash for a re-observation whose target vanished. It is NOT a valid
- * 64-hex sha256, so it can never equal a stored content hash — a deleted file,
- * dir, or node therefore always reads as a CHANGED value (⇒ unverified), and
- * never collides with a genuinely-empty stored observation. (spec §3.1: missing
- * during re-observation = changed value, never a throw.)
- */
-const MISSING_OBSERVATION = 'missing';
-
-/**
  * Re-observe the CURRENT value for a stored observation key and return its hash
  * using the frozen observation-hash helpers. Mirrors the runner's recording
  * (ObservationRecorder) so an unchanged value reproduces the stored hash.
+ *
+ * Disk-backed kinds (read/list/exists/graph) re-read from disk; graph-SET kinds
+ * (graph-children/graph-bytype/graph-flow) recompute from the live `graph` — the
+ * runner folded them from the same graph at record time, so a node added/removed
+ * from the relevant set changes the value ⇒ unverified (spec §3.1). The
+ * graph-bytype set is scoped to the SAME allowed-node set the runner used for
+ * `currentNodePath`, so the two sides agree on which nodes are visible.
  */
 async function reObserve(
   key: string,
+  graph: Graph,
+  currentNodePath: string,
   projectRoot: string,
   readBytes: (absPath: string) => Promise<Buffer | null>,
 ): Promise<string> {
   const sep = key.indexOf(':');
-  /* v8 ignore next -- observation keys are always '<kind>:<path>' by construction */
+  /* v8 ignore next -- observation keys are always '<kind>:<target>' by construction */
   if (sep < 0) return MISSING_OBSERVATION;
   const kind = key.slice(0, sep);
   const target = key.slice(sep + 1);
@@ -371,6 +375,8 @@ async function reObserve(
     }
     case 'graph': {
       // graph:<nodePath> hashes the node's yg-node.yaml bytes (runner contract).
+      // An absent node yg-node.yaml folds MISSING_OBSERVATION — byte-identical to
+      // the runner's recordGraphNodeAbsent for a negative ctx.graph.node() probe.
       const ygNodePath = path.resolve(projectRoot, '.yggdrasil', 'model', target, 'yg-node.yaml');
       const bytes = await readBytes(ygNodePath);
       return bytes === null ? MISSING_OBSERVATION : hashReadObservation(bytes);
@@ -382,6 +388,28 @@ async function reObserve(
     case 'exists': {
       const result = await existsProbe(path.resolve(projectRoot, target));
       return hashExistsObservation(result);
+    }
+    case 'graph-children': {
+      // target = parent node path. Fold the SET of that node's child ids.
+      const parent = graph.nodes.get(target);
+      const childIds = parent ? parent.children.map((c) => c.path) : [];
+      return hashNodeSetObservation(childIds);
+    }
+    case 'graph-bytype': {
+      // target = node type. Fold the SET of node ids of that type WITHIN the
+      // allowed-node set the runner used for the current node (same visibility).
+      const allowed = computeAllowedNodePaths(currentNodePath, graph);
+      const ids: string[] = [];
+      for (const id of allowed) {
+        const m = graph.nodes.get(id);
+        if (m && m.meta.type === target) ids.push(m.path);
+      }
+      return hashNodeSetObservation(ids);
+    }
+    case 'graph-flow': {
+      // target = flow name. Fold the SET of the flow's declared participant ids.
+      const flow = graph.flows.find((f) => f.name === target || f.path === target);
+      return hashNodeSetObservation(flow ? [...flow.nodes] : []);
     }
     /* v8 ignore next 2 -- unknown kind never produced by observationKey() */
     default:

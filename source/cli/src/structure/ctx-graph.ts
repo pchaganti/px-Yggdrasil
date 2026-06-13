@@ -89,25 +89,26 @@ export function createCtxGraph(params: CtxGraphParams): CtxGraph {
 
   function recordGraphNode(m: ModelNode): void {
     if (!recorder) return;
-    // Hash using nodeYamlRaw from the in-memory model (the trusted source loaded
-    // at graph-load time). Fall back to reading the file from disk only when the
-    // in-memory field is absent (e.g. in tests that build minimal graph stubs).
-    let yamlBytes: Buffer;
-    if (m.nodeYamlRaw !== undefined) {
-      yamlBytes = Buffer.from(m.nodeYamlRaw, 'utf8');
-    } else {
-      // Derive yg-node.yaml path from the node path (model/<nodePath>/yg-node.yaml)
-      const ygNodePath = path.join(projectRoot, '.yggdrasil', 'model', m.path, 'yg-node.yaml');
-      try {
-        yamlBytes = fs.readFileSync(ygNodePath);
-      } catch {
-        // File absent — record an empty buffer so the observation key is still
-        // registered (the absence itself is information; a taint would fire if
-        // content later appears at a second observation of the same path).
-        yamlBytes = Buffer.alloc(0);
-      }
+    // Hash the RAW yg-node.yaml DISK bytes — byte-identical to what the verifier
+    // re-observes (it reads the same file from disk). Reading disk here, rather
+    // than re-encoding the in-memory nodeYamlRaw string as UTF-8, keeps the two
+    // sides symmetric for a non-UTF-8 yg-node.yaml (a lossy round-trip would
+    // diverge). Fall back to the in-memory raw only when the disk read fails
+    // (e.g. tests with minimal graph stubs and no on-disk file). An absent file
+    // with no in-memory raw records the MISSING_OBSERVATION token via
+    // recordGraphNodeAbsent so creating the file later invalidates.
+    const ygNodePath = path.join(projectRoot, '.yggdrasil', 'model', m.path, 'yg-node.yaml');
+    let yamlBytes: Buffer | undefined;
+    try {
+      yamlBytes = fs.readFileSync(ygNodePath);
+    } catch {
+      yamlBytes = m.nodeYamlRaw !== undefined ? Buffer.from(m.nodeYamlRaw, 'utf8') : undefined;
     }
-    recorder.recordGraphNode(m.path, yamlBytes);
+    if (yamlBytes === undefined) {
+      recorder.recordGraphNodeAbsent(m.path);
+    } else {
+      recorder.recordGraphNode(m.path, yamlBytes);
+    }
   }
 
   function toPublicNode(m: ModelNode): GraphNode {
@@ -152,14 +153,29 @@ export function createCtxGraph(params: CtxGraphParams): CtxGraph {
     node(id) {
       assertAllowed(id);
       const m = graph.nodes.get(id);
-      return m ? toPublicNode(m) : undefined;
+      if (!m) {
+        // NEGATIVE lookup: the node is absent. Record an absent graph:
+        // observation so creating it later invalidates the cached verdict
+        // (spec §3.1 over-record — a negative probe is still an observation).
+        if (recorder) recorder.recordGraphNodeAbsent(id);
+        return undefined;
+      }
+      return toPublicNode(m);
     },
     nodesByType(type) {
       const out: GraphNode[] = [];
+      const matchedIds: string[] = [];
       for (const id of allowed) {
         const m = graph.nodes.get(id);
-        if (m && m.meta.type === type) out.push(toPublicNode(m));
+        if (m && m.meta.type === type) {
+          matchedIds.push(m.path);
+          out.push(toPublicNode(m));
+        }
       }
+      // Fold the SET of matched node ids — adding/removing a node of this type
+      // changes membership and invalidates the verdict, even though each member
+      // already folds its own graph: observation (spec §3.1).
+      if (recorder) recorder.recordGraphNodesByType(type, matchedIds);
       return out;
     },
     relationsFrom(node) {
@@ -185,6 +201,12 @@ export function createCtxGraph(params: CtxGraphParams): CtxGraph {
     children(node) {
       assertAllowed(node.id);
       const m = graph.nodes.get(node.id);
+      const childIds = m ? m.children.map((c) => c.path) : [];
+      // Fold the SET of child node ids for this parent — adding/removing a child
+      // changes membership and invalidates, independent of each child's own
+      // graph: observation (spec §3.1). Recorded even for an empty result so a
+      // later first child invalidates.
+      if (recorder) recorder.recordGraphChildren(node.id, childIds);
       return m ? m.children.map(toPublicNode) : [];
     },
     flowParticipants(flowName) {
@@ -197,6 +219,11 @@ export function createCtxGraph(params: CtxGraphParams): CtxGraph {
         return false;
       });
       if (!participates) throw new UndeclaredGraphReadError(`flow:${flowName}`);
+      // Fold the flow's declared participant set (the flow DEFINITION membership)
+      // so adding/removing a participant invalidates even when every still-present
+      // participant node is unchanged (spec §3.1). Keyed by the flow's canonical
+      // name so the verifier re-observation matches.
+      if (recorder) recorder.recordFlowParticipants(flow.name, [...flow.nodes]);
       const out: GraphNode[] = [];
       for (const nodeId of flow.nodes) {
         const m = graph.nodes.get(nodeId);

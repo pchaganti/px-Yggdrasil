@@ -1,5 +1,5 @@
 import type { Graph, NodeMeta, Relation, PortDef, RelationType } from '../../../src/model/graph.js';
-import { buildTestGraph, type TestNodeInput, type TestAspectInput, type TestTypeInput } from './build-test-graph.js';
+import { buildTestGraph, type TestNodeInput, type TestAspectInput, type TestTypeInput, type TestFlowInput } from './build-test-graph.js';
 
 /**
  * Test-helper input for a node. Public-helper convention (inherited from
@@ -19,6 +19,7 @@ export interface StructureGraphInput {
   aspects?: TestAspectInput[];
   nodes?: StructureNodeInput[];
   types?: TestTypeInput[];
+  flows?: TestFlowInput[];
   rootPath?: string;
 }
 
@@ -27,6 +28,7 @@ export function buildTestGraphForStructure(input: StructureGraphInput): Graph {
     aspects: input.aspects,
     nodes: input.nodes,
     types: input.types,
+    flows: input.flows,
     rootPath: input.rootPath,
   });
   // Patch meta with mapping/relations/ports

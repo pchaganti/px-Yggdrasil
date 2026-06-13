@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Deterministic observation-completeness holes (stale-green).** Closed several cases where a cached deterministic verdict stayed valid although something the check observed had changed. A check that read a non-subject sibling file through `ctx.node.files` (preloaded content, no `ctx.fs` call) now folds a read observation for that sibling when the subject set is narrowed, so editing the sibling re-verifies. A negative `ctx.graph.node()` lookup (node absent) now folds an absent observation, so creating that node later re-verifies. `ctx.graph.children()`, `ctx.graph.nodesByType()`, and `ctx.graph.flowParticipants()` now fold the *set membership* of the nodes they return (not just each returned node's content), so adding or removing a node from a child set, a by-type set, or a flow's participant list re-verifies. A `ctx.graph` node observation now hashes the raw `yg-node.yaml` disk bytes on both the recording and re-observation sides (lossless for non-UTF-8 files). The `ctx.fs.exists` token now classifies a non-regular, non-directory entry as `false` identically on both sides. A `ctx.fs` / parser read or list that throws after passing the allow-check now folds an absent observation before re-throwing, so a check that swallows the error and treats the path as absent re-verifies when the path later appears.
+
 ## [5.0.0-alpha.5] - 2026-06-13
 
 > **Breaking — verdict lock redesign.** This release replaces per-node drift

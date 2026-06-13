@@ -19,6 +19,7 @@ import {
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import { runFill, FillGatingError } from '../../../src/core/fill.js';
 import { readLock } from '../../../src/io/lock-store.js';
+import { verifyLock } from '../../../src/core/verify-lock.js';
 import type { LlmProvider } from '../../../src/llm/types.js';
 import type { RunStructureAspectResult } from '../../../src/structure/runner.js';
 
@@ -539,5 +540,70 @@ describe('fill — fail-closed edge branches', () => {
     // No source fingerprint (mapping-less), but the log baseline is recorded.
     expect(nodeEntry?.source).toBeUndefined();
     expect(nodeEntry?.log?.last_entry_datetime).toBe('2026-05-11T10:00:00.000Z');
+  });
+});
+
+// =============================================================================
+// 15. Bug 1: a BOM-prefixed reference must round-trip fill → verify as VERIFIED.
+//
+// The producer (fill) and verifier (verify-lock) must hash the SAME bytes for
+// every reference. Before the fix the producer read references via
+// stripBom(readTextFile(...)) and folded the BOM-stripped, UTF-8-re-encoded
+// bytes, while the verifier reads raw disk bytes (readFileBytes) and folds those.
+// For a reference carrying a UTF-8 BOM the two byte streams differ, so the
+// freshly-written verdict reproduces a different hash at verify time and reads
+// `unverified` FOREVER — a permanent false-red with no in-product remedy. This
+// test pins the round-trip: after fill the pair must verify clean.
+// =============================================================================
+
+describe('Bug 1 — BOM/non-UTF-8 reference round-trips fill → verify', () => {
+  it('a reference file with a UTF-8 BOM verifies after fill (no permanent false-red)', async () => {
+    // U+FEFF encodes as the UTF-8 BOM bytes EF BB BF when written as UTF-8
+    // (escape sequence, not a literal BOM char, to stay lint-clean).
+    const BOM_REFERENCE = '\uFEFF# Catalogue\nallowed: a, b, c\n';
+    const { projectRoot } = await setupProject({
+      aspects: [
+        {
+          id: 'llm-ref',
+          kind: 'llm',
+          status: 'enforced',
+          rule: 'rule body',
+          references: [{ path: 'refs/catalogue.md', description: 'lookup table' }],
+        },
+      ],
+      extraFiles: { 'refs/catalogue.md': BOM_REFERENCE },
+    });
+
+    // Sanity: the reference really carries the BOM on disk (EF BB BF).
+    const rawRef = await readFile(path.join(projectRoot, 'refs', 'catalogue.md'));
+    expect(rawRef[0]).toBe(0xef);
+    expect(rawRef[1]).toBe(0xbb);
+    expect(rawRef[2]).toBe(0xbf);
+
+    const graph = await loadGraph(projectRoot);
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider()); // approves
+    const result = await runFill(graph, { gitTrackedFiles: null, write: () => {} });
+
+    // The fill wrote an approved verdict (the provider was reachable and approved).
+    const entry = readLock(graph.rootPath).verdicts['llm-ref']?.['node:svc'];
+    expect(entry?.verdict).toBe('approved');
+
+    // The final check report carries NO unverified for this aspect — the pair the
+    // fill just wrote re-verifies against the same raw reference bytes.
+    expect(
+      result.checkResult.issues.some(
+        (i) => i.code === 'unverified',
+      ),
+    ).toBe(false);
+
+    // And an independent verifyLock pass agrees: the pair is `verified`, not
+    // `unverified` (this is the assertion that fails against the pre-fix producer,
+    // where the BOM-stripped hash never matched the raw-bytes recompute).
+    const freshGraph = await loadGraph(projectRoot);
+    const verification = await verifyLock(freshGraph, readLock(freshGraph.rootPath));
+    const vp = verification.pairs.find(
+      (p) => p.pair.aspectId === 'llm-ref' && p.pair.unitKey === 'node:svc',
+    );
+    expect(vp?.state.kind).toBe('verified');
   });
 });

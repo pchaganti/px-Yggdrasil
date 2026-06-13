@@ -137,7 +137,17 @@ export function createCtxFs(params: CtxFsParams): CtxFs {
     read(raw) {
       const p = assertAllowed(raw);
       const abs = path.resolve(projectRoot, p);
-      const bytes = fs.readFileSync(abs);
+      let bytes: Buffer;
+      try {
+        bytes = fs.readFileSync(abs);
+      } catch (err) {
+        // Over-record (spec §3.1): the read passed the allow-check but threw
+        // (missing/unreadable). Fold an absent observation BEFORE re-throwing so a
+        // check that swallows the throw and treats the file as absent invalidates
+        // when the file later appears.
+        if (recorder && !isSubjectFile(p)) recorder.recordReadAbsent(p);
+        throw err;
+      }
       if (recorder && !isSubjectFile(p)) {
         recorder.recordRead(p, bytes);
       }
@@ -147,7 +157,15 @@ export function createCtxFs(params: CtxFsParams): CtxFs {
     list(raw) {
       const p = assertAllowed(raw);
       const abs = path.resolve(projectRoot, p);
-      const dirents = fs.readdirSync(abs, { withFileTypes: true });
+      let dirents;
+      try {
+        dirents = fs.readdirSync(abs, { withFileTypes: true });
+      } catch (err) {
+        // Over-record (spec §3.1): the list passed the allow-check but threw.
+        // Fold an absent observation BEFORE re-throwing (mirrors read).
+        if (recorder && !isSubjectFile(p)) recorder.recordListAbsent(p);
+        throw err;
+      }
       const entries = dirents.map(e => ({
         name: e.name,
         kind: e.isDirectory() ? ('dir' as const) : ('file' as const),

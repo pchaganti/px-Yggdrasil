@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { loadGraphOrAbort, abortOnUnexpectedError } from './preamble.js';
+import { exitAfterFlush } from './exit-after-flush.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { runCheck } from '../core/check.js';
@@ -24,21 +25,6 @@ function collectGitFiles(projectRoot: string): string[] | null {
     // Not a git repo or git not available — skip unmapped-files check.
     return null;
   }
-}
-
-/**
- * Exit after stdout has fully flushed. A large `formatOutput` string written to
- * a PIPE (an agent capturing `yg check | grep`, or CI) is buffered by the kernel;
- * a bare `process.exit()` terminates the process before that buffer drains and
- * silently truncates the error list — exactly when it is longest. Waiting for the
- * pending buffer to drain first preserves the force-exit semantics (no hang on a
- * lingering handle) while guaranteeing the full report reaches the consumer.
- */
-async function exitAfterFlush(code: number): Promise<never> {
-  if (process.stdout.writableLength > 0) {
-    await new Promise<void>((resolve) => process.stdout.once('drain', resolve));
-  }
-  process.exit(code);
 }
 
 export function registerCheckCommand(program: Command): void {
@@ -221,11 +207,31 @@ function renderWarningSection(warnings: CheckIssue[]): string {
 // ── Per-issue block ────────────────────────────────────────
 
 /**
- * Render a single issue (non-cascade, non-unmapped) as a 3-line block:
- *   <label>  <node-path>  <one-line what>
+ * Codes whose `messageData.what` carries the actionable refusal detail (the
+ * reviewer's reason / the deterministic violation list) on lines AFTER the first.
+ * For these, the full multi-line `what` is rendered — truncating to line 1 would
+ * hide the very thing the agent needs to fix the code, leaving plain `yg check`
+ * strictly less informative than `yg aspect-test`. All other codes keep the
+ * terse one-line summary.
+ */
+const FULL_WHAT_CODES = new Set(['aspect-violation-enforced', 'aspect-violation-advisory']);
+
+/** Indent applied to continuation lines so they align under the block body. */
+const BLOCK_INDENT = '            ';
+
+/**
+ * Render a single issue (non-cascade, non-unmapped) as a labelled block:
+ *   <label>  <node-path>  <what summary>
+ *            <…full what detail for refusal codes…>
  *            Why: <why>
  *            Fix: <next>
  * plus an (advisory — not blocking) note for advisory warnings.
+ *
+ * For refusal codes (FULL_WHAT_CODES) the complete multi-line `what` is shown:
+ * the first line as the block header, every subsequent line indented under it —
+ * this is where the reviewer reason / violation list lives. All other codes show
+ * only line 1 (terse one-line format preserved for unverified / prompt-too-large
+ * / structural issues).
  *
  * Accesses issue.messageData.{what,why,next} directly — the structured renderer
  * pattern permitted by the what-why-next aspect for CLI renderers that need
@@ -233,18 +239,37 @@ function renderWarningSection(warnings: CheckIssue[]): string {
  */
 function renderIssueBlock(issue: CheckIssue, lines: string[], mode: 'error' | 'warning'): void {
   const md = issue.messageData;
-  const what = md.what.split('\n')[0];
+  const whatLines = md.what.split('\n');
   const label = getIssueLabel(issue);
   const nodePath = issue.nodePath ?? '';
 
-  lines.push(`  ${label}  ${nodePath}  ${what}`);
+  lines.push(`  ${label}  ${nodePath}  ${whatLines[0]}`);
+  // Refusal codes: render the remaining `what` lines (reviewer reason /
+  // violation list) indented under the header so the agent sees the full
+  // refusal detail in plain `yg check`, not only via `yg aspect-test`.
+  if (FULL_WHAT_CODES.has(issue.code)) {
+    for (const extra of whatLines.slice(1)) {
+      lines.push(`${BLOCK_INDENT}${extra}`);
+    }
+  }
   if (md.why) {
-    lines.push(`            Why: ${md.why}`);
+    lines.push(`${BLOCK_INDENT}Why: ${md.why}`);
   }
   if (md.next) {
-    const isAdvisory = mode === 'warning' && issue.code === 'aspect-violation-advisory';
+    // Advisory warnings never block: advisory aspect violations AND advisory
+    // unverified pairs (an unverified pair renders as a warning only when its
+    // effective status is advisory) both carry the not-blocking hint.
+    const isAdvisory =
+      mode === 'warning' &&
+      (issue.code === 'aspect-violation-advisory' || issue.code === 'unverified');
     const fixSuffix = isAdvisory ? '  (advisory — not blocking)' : '';
-    lines.push(`            Fix: ${md.next}${fixSuffix}`);
+    // `next` may itself be multi-line (cached-refusal "three exits"); keep the
+    // full instruction, suffixing only the first line with the advisory hint.
+    const nextLines = md.next.split('\n');
+    lines.push(`${BLOCK_INDENT}Fix: ${nextLines[0]}${fixSuffix}`);
+    for (const extra of nextLines.slice(1)) {
+      lines.push(`${BLOCK_INDENT}${extra}`);
+    }
   }
 }
 

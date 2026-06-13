@@ -89,16 +89,22 @@ Deterministic pairs additionally fold the **observation set** — everything the
 check observed through \`ctx\` beyond its subject files, recorded by the runner:
 
 \`\`\`
-read:<path>   → sha256 of the file bytes read
-list:<dir>    → sha256 of the sorted entry name+kind list
-exists:<path> → sha256 of the returned token ('file' | 'dir' | 'false')
-graph:<node>  → sha256 of that node's yg-node.yaml bytes
+read:<path>            → sha256 of the file bytes read (or 'missing' if absent)
+list:<dir>             → sha256 of the sorted entry name+kind list (or 'missing')
+exists:<path>          → sha256 of the returned token ('file' | 'dir' | 'false')
+graph:<node>           → sha256 of that node's yg-node.yaml bytes ('missing' if absent)
+graph-children:<node>  → sha256 of the sorted child node-id list of <node>
+graph-bytype:<type>    → sha256 of the sorted node-id list of <type> (within reach)
+graph-flow:<flow>      → sha256 of the sorted participant node-id list of <flow>
 \`\`\`
 
 Observation-completeness is load-bearing: a deterministic verdict is reusable
-only if NO observed value changed — including negative \`exists\` probes and
-directory listings (an aspect may enforce file names, so the name list itself is
-an input).
+only if NO observed value changed — including negative \`exists\` probes, negative
+node lookups (a node that was absent and is later created), directory listings,
+and SET membership (an aspect that asks "which nodes are children of X / of type
+Y / participate in flow Z" records the membership, so adding or removing a node
+re-verifies). When in doubt the runner over-records: a spurious extra observation
+costs at worst one free re-run; a missed one yields a stale-green verdict.
 
 ### Excluded from the hash, deliberately
 

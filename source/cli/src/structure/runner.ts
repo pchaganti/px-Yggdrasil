@@ -72,8 +72,16 @@ export class StructureRunnerError extends Error {
  * Files owned by descendant (child) nodes are carved out so a child's
  * aspects apply to those files, not the parent's.
  * Binary files (by extension) and unreadable files are silently skipped.
+ *
+ * Returns each file's RAW disk bytes alongside its File view so the caller can
+ * fold a byte-symmetric `read:` observation if the check accesses a non-subject
+ * sibling's content (spec §3.1, Bug 1).
  */
-async function buildOwnFiles(node: ModelNode, projectRoot: string, touchedFiles: string[]): Promise<File[]> {
+async function buildOwnFiles(
+  node: ModelNode,
+  projectRoot: string,
+  touchedFiles: string[],
+): Promise<Array<{ file: File; bytes: Buffer }>> {
   // Collect all mapping entries from child nodes — we exclude any file that falls
   // under a child's mapping (file-or-directory) to preserve the child-wins model.
   const childMappingEntries: string[] = [];
@@ -91,23 +99,58 @@ async function buildOwnFiles(node: ModelNode, projectRoot: string, touchedFiles:
   // Expand directories to constituent files (gitignore-aware).
   const expanded = await expandMappingPaths(projectRoot, rawMapping);
 
-  const result: File[] = [];
+  const result: Array<{ file: File; bytes: Buffer }> = [];
   for (const p of expanded) {
     // Carve out files owned by descendant nodes.
     if (childMappingEntries.length > 0 && isPathInMapping(p, childMappingEntries)) continue;
     // Skip binary files by extension.
     if (BINARY_EXTENSIONS.has(path.extname(p).toLowerCase())) continue;
     const abs = path.resolve(projectRoot, p);
-    let content: string;
+    let bytes: Buffer;
     try {
-      content = fs.readFileSync(abs, 'utf8');
+      bytes = fs.readFileSync(abs);
     } catch {
       continue; // unreadable — skip
     }
-    result.push({ path: p, content });
+    const content = bytes.toString('utf8');
+    result.push({ file: { path: p, content }, bytes });
     touchedFiles.push(p);
   }
   return result;
+}
+
+/**
+ * Wrap a NON-subject own-file (visible through `ctx.node.files`) so reading its
+ * `content` folds a `read:` observation on first access. The raw disk `bytes`
+ * make the fold byte-symmetric with verifyLock's re-observation; the recorder
+ * dedups, so repeated reads cost one observation. All other File fields
+ * (path/ast/language) pass through untouched. If raw bytes are unavailable
+ * (defensive — should not happen for a materialized own-file) the content reads
+ * back plainly without recording. Spec §3.1 (Bug 1): the observation is what
+ * widens invalidation, so a sibling that is never read stays immune.
+ */
+function wrapNonSubjectFile(
+  f: File,
+  repoRelPosixPath: string,
+  bytes: Buffer | undefined,
+  recorder: ObservationRecorder,
+): File {
+  if (bytes === undefined) return f;
+  const { content, ...rest } = f;
+  let recorded = false;
+  const wrapped = { ...rest } as File;
+  Object.defineProperty(wrapped, 'content', {
+    enumerable: true,
+    configurable: true,
+    get(): string {
+      if (!recorded) {
+        recorder.recordRead(repoRelPosixPath, bytes);
+        recorded = true;
+      }
+      return content;
+    },
+  });
+  return wrapped;
 }
 
 /**
@@ -196,25 +239,50 @@ export async function runStructureAspect(
   const ctxGraph = createCtxGraph({ currentNodePath: nodePath, graph, projectRoot, touchedFiles, expandedFilesByNode, recorder, subjectFiles });
   const parsers = createCtxParsers({ allowedSet, projectRoot, touchedFiles, astCache, recorder, subjectFiles });
 
-  const ownFiles = await buildOwnFiles(node, projectRoot, touchedFiles);
+  const ownFilesWithBytes = await buildOwnFiles(node, projectRoot, touchedFiles);
+  const ownFiles = ownFilesWithBytes.map((x) => x.file);
+  // Raw disk bytes per own-file path — used to fold a byte-symmetric read:
+  // observation if the check accesses a non-subject sibling's content (Bug 1).
+  const bytesByPath = new Map<string, Buffer>();
+  for (const x of ownFilesWithBytes) bytesByPath.set(normalizeMappingPath(x.file.path), x.bytes);
   // Eagerly parse own-mapping files so ctx.files carry .ast + .language (AST-aspect parity).
   await prewarmupAstCache({ astCache, projectRoot, files: ownFiles });
 
   const ownFilesEnriched = enrichFilesWithAst(ownFiles, astCache);
-  // ctx.node.files always exposes the FULL node mapping (node-scoped, §1).
-  // ctx.files is the scope-driven subject view: the whole node mapping for a
-  // per: node pair, or exactly the subjectScope files for a per: file pair
-  // (contract #8). Filtering the already-built+enriched array keeps ctx.files
-  // byte-identical to ctx.node.files when no scope is supplied.
-  const ctxFilesEnriched = subjectScope !== undefined
-    ? ownFilesEnriched.filter((f) => subjectFiles.has(normalizeMappingPath(f.path)))
-    : ownFilesEnriched;
+  // ctx.node.files always exposes the FULL node mapping (node-scoped, §1). When
+  // the subject set is narrowed (subjectScope set, i.e. a per: file pair), a
+  // NON-subject sibling here has its `content` wrapped in a getter that folds a
+  // read: observation on first access — so a check that reads a sibling's
+  // preloaded content (no ctx.fs call) still invalidates when that sibling is
+  // edited (spec §3.1, Bug 1). A sibling that is NEVER accessed records nothing,
+  // preserving scope.files-excluded immunity: the filter bounds the subject, the
+  // OBSERVATION bounds invalidation.
+  //
+  // When the subject set is NOT narrowed (per: node, no override) every own-file
+  // is a subject — nothing to wrap — and ctx.node.files IS ctx.files (same array
+  // reference; the documented alias holds).
+  let nodeFilesEnriched: File[];
+  let ctxFilesEnriched: File[];
+  if (subjectScope !== undefined) {
+    nodeFilesEnriched = recorder !== undefined
+      ? ownFilesEnriched.map((f) => {
+          const p = normalizeMappingPath(f.path);
+          if (subjectFiles.has(p)) return f; // subject — hashed as a subject input
+          return wrapNonSubjectFile(f, p, bytesByPath.get(p), recorder);
+        })
+      : ownFilesEnriched;
+    // ctx.files is the scope-driven subject view: exactly the subjectScope files.
+    ctxFilesEnriched = ownFilesEnriched.filter((f) => subjectFiles.has(normalizeMappingPath(f.path)));
+  } else {
+    nodeFilesEnriched = ownFilesEnriched;
+    ctxFilesEnriched = ownFilesEnriched;
+  }
   const ctx: Ctx = {
     node: {
       id: node.path,
       type: node.meta.type,
       mapping: node.meta.mapping ?? [],
-      files: ownFilesEnriched,
+      files: nodeFilesEnriched,
       ports: (node.meta.ports ?? {}) as Record<string, Port>,
     },
     files: ctxFilesEnriched,

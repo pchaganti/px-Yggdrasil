@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import path from 'node:path';
 import { loadGraphOrAbort, abortOnUnexpectedError } from './preamble.js';
+import { exitAfterFlush } from './exit-after-flush.js';
 import { debugWrite } from '../utils/debug-log.js';
 import { runAstAspect } from '../ast/runner.js';
 import { runStructureAspect } from '../structure/runner.js';
@@ -168,8 +169,7 @@ export function registerAspectTestCommand(program: Command): void {
             if (!determinismMatches(result.violations, result2.violations)) {
               writeNonDeterministicError(opts.aspect, result.violations, result2.violations);
               process.stdout.write(DIAGNOSTIC_FOOTER);
-              process.exit(1);
-              return;
+              await exitAfterFlush(1);
             }
           }
           if (result.violations.length === 0) {
@@ -179,8 +179,7 @@ export function registerAspectTestCommand(program: Command): void {
           }
           printStructureViolations(result.violations);
           process.stdout.write(DIAGNOSTIC_FOOTER);
-          process.exit(1);
-          return;
+          await exitAfterFlush(1);
         }
 
         // --files: ad-hoc mode has no node and thus no approve equivalent; it
@@ -200,8 +199,7 @@ export function registerAspectTestCommand(program: Command): void {
           if (!determinismMatches(result.violations, result2.violations)) {
             writeNonDeterministicError(opts.aspect, result.violations, result2.violations);
             process.stdout.write(DIAGNOSTIC_FOOTER);
-            process.exit(1);
-            return;
+            await exitAfterFlush(1);
           }
         }
         if (result.violations.length === 0) {
@@ -211,7 +209,7 @@ export function registerAspectTestCommand(program: Command): void {
         }
         printAstViolations(result.violations);
         process.stdout.write(DIAGNOSTIC_FOOTER);
-        process.exit(1);
+        await exitAfterFlush(1);
       } catch (e: unknown) {
         debugWrite(`[aspect-test] run failed: ${e instanceof Error ? e.message : String(e)}`);
         abortOnUnexpectedError(e, 'running aspect-test');

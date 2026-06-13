@@ -6,6 +6,8 @@ import {
   hashReadObservation,
   hashListObservation,
   hashExistsObservation,
+  hashNodeSetObservation,
+  MISSING_OBSERVATION,
 } from '../core/pair-hash.js';
 
 export class ObservationRecorder {
@@ -30,6 +32,69 @@ export class ObservationRecorder {
   /** Record a graph-node observation by hashing its yg-node.yaml bytes. */
   recordGraphNode(nodePath: string, ygNodeYamlBytes: Buffer): void {
     this._record(observationKey('graph', nodePath), hashReadObservation(ygNodeYamlBytes));
+  }
+
+  /**
+   * Record an ABSENT file-read observation: the check attempted a read that threw
+   * (the path passed the allow-check but the file was missing/unreadable at read
+   * time). Folds MISSING_OBSERVATION under the same read:<path> key the verifier
+   * re-observes — so if the check swallowed the throw and treated the file as
+   * absent, a later successful read of that path changes the value ⇒ unverified
+   * (spec §3.1, over-record: a throwing access is still an observation).
+   */
+  recordReadAbsent(repoRelPosixPath: string): void {
+    this._record(observationKey('read', repoRelPosixPath), MISSING_OBSERVATION);
+  }
+
+  /**
+   * Record an ABSENT directory-listing observation: the check attempted a list
+   * that threw (path allow-checked but the dir was missing/unreadable at list
+   * time). Folds MISSING_OBSERVATION under the list:<path> key — a later
+   * successful listing changes the value ⇒ unverified (spec §3.1, over-record).
+   */
+  recordListAbsent(repoRelPosixDir: string): void {
+    this._record(observationKey('list', repoRelPosixDir), MISSING_OBSERVATION);
+  }
+
+  /**
+   * Record a NEGATIVE graph-node observation: the check looked up a node that
+   * does not exist. Folds the MISSING_OBSERVATION token so the verifier's
+   * re-observation (which reads that node's yg-node.yaml and also yields
+   * MISSING_OBSERVATION when absent) reproduces it byte-for-byte — and creating
+   * the node later changes the value ⇒ unverified (spec §3.1, over-record).
+   */
+  recordGraphNodeAbsent(nodePath: string): void {
+    this._record(observationKey('graph', nodePath), MISSING_OBSERVATION);
+  }
+
+  /**
+   * Record a child-set observation for `nodePath`: the SET of node ids returned
+   * by ctx.graph.children(node). Folds membership only — adding/removing a child
+   * invalidates; a content edit to an unchanged child rides its own graph:
+   * observation (spec §3.1).
+   */
+  recordGraphChildren(nodePath: string, childIds: string[]): void {
+    this._record(observationKey('graph-children', nodePath), hashNodeSetObservation(childIds));
+  }
+
+  /**
+   * Record a by-type-set observation for `type`: the SET of node ids returned by
+   * ctx.graph.nodesByType(type). Folds membership only — adding/removing a node
+   * of that type invalidates (spec §3.1).
+   */
+  recordGraphNodesByType(type: string, nodeIds: string[]): void {
+    this._record(observationKey('graph-bytype', type), hashNodeSetObservation(nodeIds));
+  }
+
+  /**
+   * Record a flow-participant-set observation for `flowName`: the SET of declared
+   * participant ids of the flow. Folds the flow's participant list (the flow
+   * DEFINITION's membership) so adding/removing a participant in the flow file
+   * invalidates the verdict, even when every still-present participant node is
+   * unchanged (spec §3.1, flowParticipants minor).
+   */
+  recordFlowParticipants(flowName: string, participantIds: string[]): void {
+    this._record(observationKey('graph-flow', flowName), hashNodeSetObservation(participantIds));
   }
 
   /**

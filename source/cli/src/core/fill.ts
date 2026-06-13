@@ -43,7 +43,12 @@ import { LOCK_FORMAT_VERSION } from '../model/lock.js';
 import type { CheckResult } from './check.js';
 import { runCheck } from './check.js';
 import { readLock, writeLock } from '../io/lock-store.js';
-import { computeExpectedPairs, computeSourceFingerprint } from './pairs.js';
+import {
+  computeExpectedPairs,
+  computeSourceFingerprint,
+  computeNodeMappedFiles,
+  computeUncomputableNodes,
+} from './pairs.js';
 import type { ExpectedPair } from './pairs.js';
 import { verifyLock } from './verify-lock.js';
 import { computeLlmInputHash, computeDetInputHash } from './pair-hash.js';
@@ -59,7 +64,7 @@ import { loadSecrets, mergeLlmConfig } from '../io/secrets-parser.js';
 import { runStructureAspect, StructureRunnerError } from '../structure/runner.js';
 import { validate } from './validator.js';
 import { APPROVE_GATING_CODES } from './check-codes.js';
-import { readTextFile } from '../io/graph-fs.js';
+import { readFileBytes } from '../io/graph-fs.js';
 import {
   hasFreshLogEntry,
   computeLogBaselineForNode,
@@ -67,7 +72,8 @@ import {
 } from './log/log-gate.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { debugWrite } from '../utils/debug-log.js';
-import { toPosixPath } from '../utils/posix.js';
+import { toPosixPath, toPosix } from '../utils/posix.js';
+import { isPathInMapping } from '../structure/expand-mapping-sync.js';
 
 // ============================================================
 // Public surface
@@ -239,7 +245,11 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
 
   // ── Step 6: LLM fills — grouped by resolved tier; one provider per tier. ───
   const secretsByProvider = new Map<string, Partial<LlmConfig> | null>();
-  const referencesCache = new Map<string, string | null>(); // path → content or null (missing)
+  // Reference bytes are cached as RAW disk Buffers (null = missing/unreadable) so
+  // the producer hashes and prompts the SAME bytes the verifier re-reads through
+  // readFileBytes — a BOM or non-UTF-8 reference can never desync the two sides
+  // (spec §3.1; Bug 1).
+  const referencesCache = new Map<string, Buffer | null>();
 
   // Resolve each fillable LLM pair to its tier; an unresolvable tier is an infra
   // disposition (no write). Group resolvable pairs by tier name.
@@ -336,8 +346,10 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
   // written. A node with a missing/stale fingerprint closes (records source +
   // log baseline) only when ALL its enforced effective pairs are approved.
   // Deliberate post-fill re-classification: must see freshly-written verdicts —
-  // do not thread step-2 (pre-fill verifyLock) results through.
-  await applyPositiveClosure(graph, projectRoot, lock, persistLock);
+  // do not thread step-2 (pre-fill verifyLock) results through. blockedNodes
+  // (the step-4 log-gate set) is threaded so a node whose pairs were skipped this
+  // run can never close over its stale verdicts.
+  await applyPositiveClosure(graph, projectRoot, lock, blockedNodes, persistLock);
 
   // ── Step 8: GC + canonical rewrite (§3.2). ────────────────────────────────
   // Deliberate post-fill re-classification: must see freshly-written verdicts —
@@ -382,18 +394,24 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
 // ============================================================
 
 /**
- * True when a node's pairs must be SKIPPED for a missing mandatory log entry
- * (spec §9): the type opts into log_required (default false) AND the current
- * source fingerprint differs from the stored one (or none is stored and the
- * mapping is non-empty — first verification) AND no fresh log entry exists.
- * Emits the `log-entry-missing` message when it blocks.
+ * True when a node is blocked by the mandatory-log gate (spec §9): the type opts
+ * into log_required (default false) AND the current source fingerprint differs
+ * from the stored one (or none is stored and the mapping is non-empty — first
+ * verification) AND no fresh log entry exists.
+ *
+ * This is the SINGLE source of truth for the freshness/fingerprint rule. The
+ * fill step-4 gate (logGateBlocks) and positive closure both consult it, so a
+ * node closure can never advance a fingerprint the gate would have blocked
+ * (defects 1, 2, 4: a node that never entered the run's nodeSet — e.g. its
+ * source change touched only scope/binary-excluded files, leaving zero
+ * unverified pairs — was never passed through step 4, so closure must re-check
+ * the gate itself rather than trust step-4's blocked set alone).
  */
-async function logGateBlocks(
+async function logGateBlocksNode(
   graph: Graph,
   projectRoot: string,
   node: GraphNode,
   lock: LockFile,
-  write: (s: string) => void,
 ): Promise<boolean> {
   // The default lives HERE and only here (spec §9): false unless the type opts in.
   const archType = graph.architecture.node_types[node.meta.type];
@@ -410,7 +428,22 @@ async function logGateBlocks(
   if (!drifted) return false;
 
   const logContent = await readLogContent(projectRoot, node.path);
-  if (hasFreshLogEntry(logContent, lock.nodes[node.path]?.log)) return false;
+  return !hasFreshLogEntry(logContent, lock.nodes[node.path]?.log);
+}
+
+/**
+ * Step-4 log gate: like logGateBlocksNode, but emits the `log-entry-missing`
+ * message when it blocks (its pairs are skipped this run; other nodes proceed).
+ */
+async function logGateBlocks(
+  graph: Graph,
+  projectRoot: string,
+  node: GraphNode,
+  lock: LockFile,
+  write: (s: string) => void,
+): Promise<boolean> {
+  const blocked = await logGateBlocksNode(graph, projectRoot, node, lock);
+  if (!blocked) return false;
 
   write(
     buildIssueMessage({
@@ -431,9 +464,25 @@ type DetFillOutcome =
   | { kind: 'runtime-error' };
 
 /**
- * Fill one deterministic pair. Runs check.mjs through the structure runner with
- * the per-file subjectScope for a `per: file` pair (contract #8). MANDATORY A6
- * carry-overs:
+ * Fill one deterministic pair. Runs check.mjs through the structure runner with a
+ * subjectScope WHENEVER the pair's subject set is NARROWER than the node's full
+ * mapping (spec §1, §3.1; contract #8):
+ *
+ *   - `per: file` → subject is a single file (always narrower unless the node
+ *     maps exactly that one file).
+ *   - `per: node` + `scope.files` that actually excludes a mapped file → the
+ *     excluded siblings are NOT subjects; without subjectScope the runner would
+ *     preload them into ctx.node.files UN-recorded, so a check reading an excluded
+ *     file folds into NEITHER the subject hash NOR an observation → stale-green.
+ *     subjectScope makes those reads record as `read:` observations, which the
+ *     verifier re-observes (a later edit to an excluded-but-read file invalidates
+ *     the pair).
+ *
+ * A plain `per: node` aspect with no filter (or a scope.files that matches every
+ * mapped file) keeps the legacy path (subjectScope undefined) so the documented
+ * `ctx.files === ctx.node.files` alias is preserved.
+ *
+ * MANDATORY A6 carry-overs:
  *   (1) gate on succeeded === true BEFORE consuming observations (a failed run's
  *       observations are meaningless).
  *   (2) a tainted result must NEVER be written — re-run once; still tainted →
@@ -447,8 +496,14 @@ async function fillDetPair(
   write: (s: string) => void,
 ): Promise<DetFillOutcome> {
   const aspectDirAbs = path.join(projectRoot, '.yggdrasil', 'aspects', aspect.id);
-  // per: file → scope the subject to exactly this file; per: node → full mapping.
-  const subjectScope = (aspect.scope?.per === 'file') ? pair.subjectFiles : undefined;
+  // The subject is narrowed iff it covers FEWER files than the node's full
+  // mapping (pair.subjectFiles ⊆ full mapping always, so a length difference is
+  // an exact set difference). Both per:file and per:node-with-scope.files can
+  // narrow; a plain per:node aspect has subject == full mapping → undefined.
+  const fullMapping = await computeNodeMappedFiles(graph, pair.nodePath);
+  const subjectScope = pair.subjectFiles.length < fullMapping.length
+    ? pair.subjectFiles
+    : undefined;
 
   const runOnce = async () => {
     try {
@@ -561,7 +616,7 @@ async function fillLlmPair(
   tierName: string,
   mergedTier: LlmConfig,
   provider: LlmProvider,
-  referencesCache: Map<string, string | null>,
+  referencesCache: Map<string, Buffer | null>,
 ): Promise<LlmFillOutcome> {
   // ── Load subject file bytes (sorted by path is the pair's contract). ──
   const subjects: Array<{ path: string; bytes: Buffer }> = [];
@@ -570,29 +625,33 @@ async function fillLlmPair(
     subjects.push({ path: rel, bytes });
   }
 
-  // ── Load references; a missing reference is a LOUD infra failure (#6). ──
+  // ── Load references as RAW disk bytes — byte-identical to the verifier
+  // (verify-lock.ts reads each reference via readFileBytes and folds those raw
+  // bytes; the prompt content there is rawBytes.toString('utf8')). Hashing,
+  // prompting, and the §4 size gate must all be measured over the SAME bytes, so
+  // a reference carrying a UTF-8 BOM or an invalid byte cannot make the producer
+  // and verifier disagree (which would pin the verdict to a permanent false-red).
+  // A missing reference stays a LOUD infra failure (#6) — never hashed over
+  // empty-substituted bytes. ──
   const refInputs = aspect.references ?? [];
   const referencesForHash: Array<[string, string, string]> = [];
   const referencesForPrompt: PromptReferenceInput[] = [];
   for (const ref of refInputs) {
     const absRef = path.resolve(projectRoot, ref.path);
-    let content = referencesCache.get(absRef);
-    if (content === undefined) {
-      try {
-        content = stripBom(await readTextFile(absRef));
-      } catch (e) {
-        debugWrite(`[fill] reference load failed for ${aspect.id} path ${ref.path}: ${e instanceof Error ? e.message : String(e)}`);
-        content = null;
+    let bytes = referencesCache.get(absRef);
+    if (bytes === undefined) {
+      bytes = await readFileBytes(absRef); // raw disk Buffer, no decode, no BOM strip; null on error
+      if (bytes === null) {
+        debugWrite(`[fill] reference load failed for ${aspect.id} path ${ref.path}`);
       }
-      referencesCache.set(absRef, content);
+      referencesCache.set(absRef, bytes);
     }
-    if (content === null) {
+    if (bytes === null) {
       // Never hash over empty-substituted bytes — fail closed.
       return { kind: 'infra', why: `reference '${toPosixPath(ref.path)}' for aspect '${aspect.id}' could not be read`, callsMade: 0 };
     }
-    const refBytes = Buffer.from(content, 'utf8');
-    referencesForHash.push([ref.path, hashBytes(refBytes), ref.description ?? '']);
-    referencesForPrompt.push({ path: ref.path, description: ref.description, content });
+    referencesForHash.push([ref.path, hashBytes(bytes), ref.description ?? '']);
+    referencesForPrompt.push({ path: ref.path, description: ref.description, content: bytes.toString('utf8') });
   }
 
   const prompt = buildPairPrompt({
@@ -642,30 +701,55 @@ async function fillLlmPair(
 // ============================================================
 
 /**
- * For every node with a missing/stale source fingerprint, record its fingerprint
- * + log baseline IFF all its enforced effective pairs (both kinds) are approved
- * in the POST-FILL lock. Advisory refusals never block closure; a node with no
- * pairs closes vacuously. Mirrors the legacy absent-log handling: when log.md is
- * absent the log baseline is simply omitted (the source fingerprint still
- * records).
+ * Positive closure (spec §7 step 5 / §9). For every node with a missing/stale
+ * source fingerprint, advance its fingerprint + log baseline IFF, AT THE END OF
+ * THIS RUN, ALL of the following hold:
+ *
+ *   (a) the node was NOT log-gate-blocked this run (blockedNodes), AND
+ *   (b) the node is not blocked by the mandatory-log gate when re-checked here —
+ *       this catches a drifted log_required node that never entered the run's
+ *       nodeSet (its source change touched only scope/binary-excluded files, so
+ *       it produced zero unverified pairs and step 4 never saw it), AND a drifted
+ *       log_required node with ZERO enforced pairs (which must NOT vacuously
+ *       close without a fresh entry), AND
+ *   (c) every ENFORCED effective pair of the node is approved AGAINST CURRENT
+ *       INPUTS — i.e. its post-fill verifyLock state is `verified` (a valid entry
+ *       carrying an approved token). A pair that is merely stored-`approved` but
+ *       is currently `unverified` (inputs changed, not re-verified this run),
+ *       `refused`, or `prompt-too-large` does NOT count.
+ *
+ * INVARIANT: the closure decision NEVER reads lock.verdicts[...].verdict
+ * directly. Fresh validity is sourced from a single post-fill verifyLock pass —
+ * the authoritative per-pair classification for THIS run — so a stale-but-stored
+ * approved token can never advance a fingerprint over code the run did not
+ * actually verify (false-green of both the verdict and the §9 log gate).
+ *
+ * Advisory refusals never block closure (they are not enforced pairs). A node
+ * with no enforced pairs at all closes vacuously ONLY when (a)+(b) also hold —
+ * for a drifted log_required node that means a fresh log entry is required.
+ * Mapping-less nodes have no source fingerprint; their log baseline is still
+ * recorded at closure if a log.md exists (spec §9).
  */
 async function applyPositiveClosure(
   graph: Graph,
   projectRoot: string,
   lock: LockFile,
+  blockedNodes: Set<string>,
   persistLock: () => Promise<void>,
 ): Promise<void> {
-  // Re-classify against the post-fill lock to see the verdicts just written.
-  const { pairs } = await computeExpectedPairs(graph);
-  const byNode = new Map<string, ExpectedPair[]>();
-  for (const p of pairs) {
-    const list = byNode.get(p.nodePath) ?? [];
-    list.push(p);
-    byNode.set(p.nodePath, list);
+  // Single post-fill verification pass: the authoritative per-pair validity for
+  // THIS run, computed against the freshly-written lock. This is the ONLY source
+  // of truth for closure — never the raw stored verdict token.
+  const verification = await verifyLock(graph, lock);
+  const byNode = new Map<string, typeof verification.pairs>();
+  for (const vp of verification.pairs) {
+    const list = byNode.get(vp.pair.nodePath) ?? [];
+    list.push(vp);
+    byNode.set(vp.pair.nodePath, list);
   }
 
   let mutated = false;
-  for (const nodePath of graph.nodes.keys()) {
+  for (const [nodePath, node] of graph.nodes) {
     const currentFingerprint = await computeSourceFingerprint(graph, nodePath);
     if (currentFingerprint === undefined) {
       // Mapping-less node: no source fingerprint to record. Its log baseline is
@@ -677,12 +761,23 @@ async function applyPositiveClosure(
     const stored = lock.nodes[nodePath]?.source;
     if (currentFingerprint === stored) continue; // fingerprint current — nothing to close
 
-    // All enforced effective pairs of this node must be approved in the lock.
+    // (a) A node whose pairs were skipped by the step-4 log gate this run must
+    // never close over its stale verdicts.
+    if (blockedNodes.has(nodePath)) continue;
+
+    // (b) Re-check the mandatory-log gate here. This independently blocks a
+    // drifted log_required node that step 4 never saw (zero unverified pairs) and
+    // a drifted log_required node with zero enforced pairs (no vacuous close).
+    if (await logGateBlocksNode(graph, projectRoot, node, lock)) continue;
+
+    // (c) Every ENFORCED effective pair must be FRESHLY verified-approved this
+    // run (state.kind === 'verified'); stored-approved-but-unverified does NOT
+    // count. Advisory refusals are not enforced pairs and never block closure.
     const nodePairs = byNode.get(nodePath) ?? [];
     const allEnforcedApproved = nodePairs
-      .filter((p) => p.status === 'enforced')
-      .every((p) => lock.verdicts[p.aspectId]?.[p.unitKey]?.verdict === 'approved');
-    if (!allEnforcedApproved) continue; // a red enforced pair keeps the cycle open
+      .filter((vp) => vp.pair.status === 'enforced')
+      .every((vp) => vp.state.kind === 'verified');
+    if (!allEnforcedApproved) continue; // a red/unverified enforced pair keeps the cycle open
 
     const entry = lock.nodes[nodePath] ?? {};
     entry.source = currentFingerprint;
@@ -708,9 +803,49 @@ async function closeLogBaselineOnly(projectRoot: string, nodePath: string, lock:
 // ============================================================
 
 /**
+ * Owning node path for a repo-relative POSIX file, resolved from the graph's node
+ * mappings (longest-mapping wins). Returns null when no node maps the file. Used
+ * only to attribute a `file:` verdict entry to a node during GC's
+ * positively-detached proof — never for read scoping.
+ */
+function ownerNodeForFile(graph: Graph, file: string): string | null {
+  let best: { nodePath: string; len: number } | null = null;
+  for (const [nodePath, node] of graph.nodes) {
+    for (const m of (node.meta.mapping ?? []).map(toPosix)) {
+      if (isPathInMapping(file, [m]) && (!best || m.length > best.len)) {
+        best = { nodePath, len: m.length };
+      }
+    }
+  }
+  return best ? best.nodePath : null;
+}
+
+/**
+ * The owning node path for a verdict entry's unit key. `node:<path>` resolves
+ * directly; `file:<path>` resolves through the node mappings. Returns null only
+ * for a `file:` key whose file maps to no node (genuinely detached).
+ */
+function owningNodeForUnitKey(graph: Graph, unitKey: string): string | null {
+  if (unitKey.startsWith('node:')) return unitKey.slice('node:'.length);
+  if (unitKey.startsWith('file:')) return ownerNodeForFile(graph, toPosix(unitKey.slice('file:'.length)));
+  /* v8 ignore next -- unit keys are always node:/file: by construction */
+  return null;
+}
+
+/**
  * Prune verdict entries whose pair is no longer in the expected universe
  * (includeDraft: true — draft pairs keep their entries) and `nodes` entries for
  * node paths absent from the graph, then rewrite canonically.
+ *
+ * GC may only prune entries it can POSITIVELY prove are detached. A node whose
+ * effective-aspect computation THROWS (an implies cycle, etc.) is silently
+ * skipped by computeExpectedPairs, so it contributes NO pairs to the universe —
+ * its entries would look detached even though they are valid paid verdicts.
+ * Such a node's entries are RETAINED untouched (the validator still surfaces the
+ * cycle as a blocking error). The universe accounts only for nodes that COULD be
+ * computed, so an entry is pruned iff (pair ∉ universe) AND (its owning node was
+ * NOT uncomputable this run) — a node that vanished from the graph is not
+ * uncomputable (it is not iterated), so its entries remain prunable.
  */
 async function garbageCollectAndRewrite(
   graph: Graph,
@@ -721,11 +856,21 @@ async function garbageCollectAndRewrite(
   const universe = new Set<string>(); // `${aspectId}\0${unitKey}`
   for (const p of pairs) universe.add(`${p.aspectId}\0${p.unitKey}`);
 
-  // Prune verdicts ∉ universe.
+  // Nodes whose effectiveness threw this run — their pairs never reach the
+  // universe, so their entries must NOT be treated as detached.
+  const uncomputable = computeUncomputableNodes(graph);
+
+  // Prune verdicts ∉ universe, EXCEPT entries owned by an uncomputable node.
   for (const aspectId of Object.keys(lock.verdicts)) {
     const unitMap = lock.verdicts[aspectId];
     for (const unitKey of Object.keys(unitMap)) {
-      if (!universe.has(`${aspectId}\0${unitKey}`)) delete unitMap[unitKey];
+      if (universe.has(`${aspectId}\0${unitKey}`)) continue;
+      const owner = owningNodeForUnitKey(graph, unitKey);
+      // Retain only when we can attribute the entry to a node that could not be
+      // computed this run. Everything else (deleted node, detached aspect,
+      // deleted/unmapped file) is positively detached → prune.
+      if (owner !== null && uncomputable.has(owner)) continue;
+      delete unitMap[unitKey];
     }
     if (Object.keys(unitMap).length === 0) delete lock.verdicts[aspectId];
   }
@@ -776,10 +921,6 @@ async function runPairPool<T>(
 // ============================================================
 // Small utilities
 // ============================================================
-
-function stripBom(s: string): string {
-  return s.charCodeAt(0) === 0xfeff ? s.slice(1) : s;
-}
 
 async function readBytesOrEmpty(absPath: string): Promise<Buffer> {
   const { readFile } = await import('node:fs/promises');

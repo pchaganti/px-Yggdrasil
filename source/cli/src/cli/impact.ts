@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import { join } from 'node:path';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { loadGraphOrAbort, abortOnUnexpectedError } from './preamble.js';
+import { exitAfterFlush } from './exit-after-flush.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { collectAncestors } from '../core/context-builder.js';
@@ -406,8 +407,9 @@ export function registerImpactCommand(program: Command): void {
             lock = readLock(graph.rootPath);
           } catch (err) {
             if (err instanceof LockInvalidError) {
+              debugWrite(`[impact] readLock failed: ${err.message}`);
               process.stderr.write(chalk.red(`Error: ${buildIssueMessage(err.messageData)}\n`));
-              process.exit(1);
+              await exitAfterFlush(1);
             }
             throw err;
           }
@@ -475,8 +477,11 @@ export function registerImpactCommand(program: Command): void {
             }
 
             if (!ownerResult.nodePath) {
-              // Only cascade nodes found — no structural owner to follow
-              process.exit(0);
+              // Only cascade nodes found — no structural owner to follow. The
+              // cascade/blast-radius sections above can be long; drain stdout
+              // before the force-exit so a piped consumer is not truncated.
+              await exitAfterFlush(0);
+              return; // unreachable — keeps TS narrowing ownerResult.nodePath to string
             }
 
             // Structural owner found — continue to regular node impact

@@ -68,7 +68,14 @@ export async function statKind(targetPath: string): Promise<'file' | 'dir' | fal
   try {
     const s = await stat(targetPath);
     if (s.isDirectory()) return 'dir';
-    return 'file';
+    // Classify identically to the recorder side (ctx.fs.exists): a non-regular,
+    // non-directory entry (socket, fifo, char/block device) is NEITHER 'file' nor
+    // 'dir' and folds as 'false'. Mirroring the producer's three-token mapping
+    // keeps the exists: observation byte-symmetric across record and re-observe
+    // (spec §3.1 symmetry; without this a special file recorded 'false' would
+    // re-observe 'file' and trip a spurious mismatch).
+    if (s.isFile()) return 'file';
+    return false;
   } catch {
     return false;
   }

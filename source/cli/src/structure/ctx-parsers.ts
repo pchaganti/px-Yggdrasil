@@ -58,7 +58,16 @@ export function createCtxParsers(params: CtxParsersParams): CtxParsers {
     }
     const p = resolveAllowedReadPath(input, allowedSet, projectRoot);
     const abs = path.resolve(projectRoot, p);
-    const bytes = fs.readFileSync(abs);
+    let bytes: Buffer;
+    try {
+      bytes = fs.readFileSync(abs);
+    } catch (err) {
+      // Over-record (spec §3.1): a path-based parser read that passed the
+      // allow-check but threw still folds an absent observation before
+      // re-throwing — symmetric with ctx.fs.read.
+      if (recorder && !(subjectFiles?.has(p))) recorder.recordReadAbsent(p);
+      throw err;
+    }
     const content = bytes.toString('utf8');
     touchedFiles.push(p);
     // Record a read: observation for path-based calls (the check passed a string

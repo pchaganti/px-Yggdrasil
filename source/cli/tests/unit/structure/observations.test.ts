@@ -12,8 +12,9 @@ import { buildTestGraphForStructure } from '../helpers/build-test-graph-structur
 import {
   observationKey,
   hashReadObservation,
-  hashListObservation,
   hashExistsObservation,
+  hashNodeSetObservation,
+  MISSING_OBSERVATION,
 } from '../../../src/core/pair-hash.js';
 import { ObservationRecorder } from '../../../src/structure/observations.js';
 
@@ -63,6 +64,60 @@ describe('ObservationRecorder — unit', () => {
     rec.recordRead('src/a.ts', Buffer.from('aaa'));
     rec.recordRead('src/b.ts', Buffer.from('bbb'));
     expect(rec.tainted).toBe(false);
+  });
+
+  it('recordGraphNodeAbsent folds the MISSING_OBSERVATION token under graph: key', () => {
+    const rec = new ObservationRecorder();
+    rec.recordGraphNodeAbsent('does/not/exist');
+    const snap = rec.snapshot();
+    const entry = snap.find(([k]) => k === observationKey('graph', 'does/not/exist'));
+    expect(entry?.[1]).toBe(MISSING_OBSERVATION);
+  });
+
+  it('recordGraphChildren folds the set membership (order-independent)', () => {
+    const rec1 = new ObservationRecorder();
+    rec1.recordGraphChildren('parent', ['parent/a', 'parent/b']);
+    const rec2 = new ObservationRecorder();
+    rec2.recordGraphChildren('parent', ['parent/b', 'parent/a']); // reordered
+    const k = observationKey('graph-children', 'parent');
+    const h1 = rec1.snapshot().find(([key]) => key === k)![1];
+    const h2 = rec2.snapshot().find(([key]) => key === k)![1];
+    expect(h1).toBe(h2); // order does not matter
+    expect(h1).toBe(hashNodeSetObservation(['parent/a', 'parent/b']));
+    // Adding a child changes the hash.
+    const rec3 = new ObservationRecorder();
+    rec3.recordGraphChildren('parent', ['parent/a', 'parent/b', 'parent/c']);
+    expect(rec3.snapshot().find(([key]) => key === k)![1]).not.toBe(h1);
+  });
+
+  it('recordGraphNodesByType folds by-type set membership', () => {
+    const rec = new ObservationRecorder();
+    rec.recordGraphNodesByType('command', ['x', 'y']);
+    const k = observationKey('graph-bytype', 'command');
+    expect(rec.snapshot().find(([key]) => key === k)![1]).toBe(hashNodeSetObservation(['x', 'y']));
+  });
+
+  it('recordFlowParticipants folds the flow participant set', () => {
+    const rec = new ObservationRecorder();
+    rec.recordFlowParticipants('checkout', ['a', 'b']);
+    const k = observationKey('graph-flow', 'checkout');
+    expect(rec.snapshot().find(([key]) => key === k)![1]).toBe(hashNodeSetObservation(['a', 'b']));
+  });
+
+  it('recordReadAbsent / recordListAbsent fold MISSING_OBSERVATION', () => {
+    const rec = new ObservationRecorder();
+    rec.recordReadAbsent('src/gone.ts');
+    rec.recordListAbsent('src/gonedir');
+    const snap = rec.snapshot();
+    expect(snap.find(([k]) => k === observationKey('read', 'src/gone.ts'))![1]).toBe(MISSING_OBSERVATION);
+    expect(snap.find(([k]) => k === observationKey('list', 'src/gonedir'))![1]).toBe(MISSING_OBSERVATION);
+  });
+
+  it('empty node set folds to a stable hash distinct from MISSING_OBSERVATION', () => {
+    const emptyHash = hashNodeSetObservation([]);
+    expect(emptyHash).not.toBe(MISSING_OBSERVATION);
+    // A later first member changes it.
+    expect(hashNodeSetObservation(['n'])).not.toBe(emptyHash);
   });
 });
 
@@ -476,5 +531,174 @@ describe('runStructureAspect — observation recording', () => {
     expect(entry2).toBeDefined();
     // Hash must have changed because Dep's yg-node.yaml content changed.
     expect(entry1![1]).not.toBe(entry2![1]);
+  });
+
+  // Bug 2 — a NEGATIVE ctx.graph.node() lookup folds an absent graph: observation.
+  it('ctx.graph.node() returning undefined → graph: observation with MISSING token', async () => {
+    // 'Ghost' is a relation target (so it is in the allowed set and the lookup is
+    // permitted) but has NO node in the graph — node('Ghost') returns undefined.
+    await writeAspect('obs-absent-node', `
+      export function check(ctx) {
+        const n = ctx.graph.node('Ghost');
+        if (n !== undefined) return [{ message: 'expected undefined' }];
+        return [];
+      }
+    `);
+    const g = buildTestGraphForStructure({
+      nodes: [
+        { path: 'N', type: 'module', mapping: ['src/a.ts'], relations: [{ type: 'uses', target: 'Ghost' }] },
+      ],
+    });
+    const r = await runStructureAspect({
+      aspectDir: path.join('.yggdrasil/aspects/obs-absent-node'),
+      aspectId: 'obs-absent-node', nodePath: 'N', graph: g, projectRoot,
+    });
+    expect(r.succeeded).toBe(true);
+    const entry = r.observations.find(([k]) => k === observationKey('graph', 'Ghost'));
+    expect(entry).toBeDefined();
+    expect(entry![1]).toBe(MISSING_OBSERVATION);
+  });
+
+  // Bug 3 — ctx.graph.children() folds the child-set membership.
+  it('ctx.graph.children() → graph-children: set observation', async () => {
+    await writeAspect('obs-children', `
+      export function check(ctx) {
+        ctx.graph.children(ctx.node);
+        return [];
+      }
+    `);
+    const g = buildTestGraphForStructure({
+      nodes: [
+        { path: 'N', type: 'module', mapping: ['src/a.ts'] },
+        { path: 'N/child1', type: 'module', mapping: ['src/c1.ts'], parent: 'N' },
+        { path: 'N/child2', type: 'module', mapping: ['src/c2.ts'], parent: 'N' },
+      ],
+    });
+    const r = await runStructureAspect({
+      aspectDir: path.join('.yggdrasil/aspects/obs-children'),
+      aspectId: 'obs-children', nodePath: 'N', graph: g, projectRoot,
+    });
+    const key = observationKey('graph-children', 'N');
+    const entry = r.observations.find(([k]) => k === key);
+    expect(entry).toBeDefined();
+    expect(entry![1]).toBe(hashNodeSetObservation(['N/child1', 'N/child2']));
+  });
+
+  // Bug 3 — ctx.graph.nodesByType() folds by-type set; adding a node changes it.
+  it('ctx.graph.nodesByType() → graph-bytype: set observation changes when a node is added', async () => {
+    await writeAspect('obs-bytype', `
+      export function check(ctx) {
+        ctx.graph.nodesByType('module');
+        return [];
+      }
+    `);
+    const before = buildTestGraphForStructure({
+      nodes: [
+        { path: 'N', type: 'module', mapping: ['src/a.ts'], relations: [{ type: 'uses', target: 'Dep' }] },
+        { path: 'Dep', type: 'module', mapping: ['src/b.ts'] },
+      ],
+    });
+    const r1 = await runStructureAspect({
+      aspectDir: path.join('.yggdrasil/aspects/obs-bytype'),
+      aspectId: 'obs-bytype', nodePath: 'N', graph: before, projectRoot,
+    });
+    const key = observationKey('graph-bytype', 'module');
+    const e1 = r1.observations.find(([k]) => k === key);
+    expect(e1).toBeDefined();
+
+    // Add a child of N (enters the allowed set as a descendant) of type module.
+    const after = buildTestGraphForStructure({
+      nodes: [
+        { path: 'N', type: 'module', mapping: ['src/a.ts'], relations: [{ type: 'uses', target: 'Dep' }] },
+        { path: 'N/extra', type: 'module', mapping: ['src/e.ts'], parent: 'N' },
+        { path: 'Dep', type: 'module', mapping: ['src/b.ts'] },
+      ],
+    });
+    const r2 = await runStructureAspect({
+      aspectDir: path.join('.yggdrasil/aspects/obs-bytype'),
+      aspectId: 'obs-bytype', nodePath: 'N', graph: after, projectRoot,
+    });
+    const e2 = r2.observations.find(([k]) => k === key);
+    expect(e2).toBeDefined();
+    expect(e1![1]).not.toBe(e2![1]); // membership grew → hash changed
+  });
+
+  // flowParticipants minor — folds the flow's declared participant set.
+  it('ctx.graph.flowParticipants() → graph-flow: participant set observation', async () => {
+    await writeAspect('obs-flow', `
+      export function check(ctx) {
+        ctx.graph.flowParticipants('checkout');
+        return [];
+      }
+    `);
+    const g = buildTestGraphForStructure({
+      nodes: [
+        { path: 'N', type: 'module', mapping: ['src/a.ts'] },
+        { path: 'Dep', type: 'module', mapping: ['src/b.ts'] },
+      ],
+      flows: [{ path: 'checkout', nodes: ['N', 'Dep'] }],
+    });
+    const r = await runStructureAspect({
+      aspectDir: path.join('.yggdrasil/aspects/obs-flow'),
+      aspectId: 'obs-flow', nodePath: 'N', graph: g, projectRoot,
+    });
+    const key = observationKey('graph-flow', 'checkout');
+    const entry = r.observations.find(([k]) => k === key);
+    expect(entry).toBeDefined();
+    expect(entry![1]).toBe(hashNodeSetObservation(['N', 'Dep']));
+  });
+
+  // Bug 1 — a non-subject sibling reachable via ctx.node.files folds a read:
+  // observation when the subject set is narrowed (per: file via subjectScope).
+  it('per:file — sibling in ctx.node.files folds a read: observation', async () => {
+    // Node maps BOTH src/a.ts and src/b.ts. With subjectScope=[src/a.ts] (a
+    // per:file pair for a.ts), src/b.ts is NOT a subject but IS in ctx.node.files
+    // with content preloaded — reading its .content must be covered by a read:
+    // observation so editing b.ts invalidates a.ts's verdict.
+    await writeAspect('obs-sibling', `
+      export function check(ctx) {
+        // Read a sibling's preloaded content via ctx.node.files (no ctx.fs call).
+        const sibling = ctx.node.files.find(f => f.path === 'src/b.ts');
+        void sibling.content;
+        return [];
+      }
+    `);
+    const g = buildTestGraphForStructure({
+      nodes: [{ path: 'N', type: 'module', mapping: ['src/a.ts', 'src/b.ts'] }],
+    });
+    const r = await runStructureAspect({
+      aspectDir: path.join('.yggdrasil/aspects/obs-sibling'),
+      aspectId: 'obs-sibling', nodePath: 'N', graph: g, projectRoot,
+      subjectScope: ['src/a.ts'],
+    });
+    expect(r.succeeded).toBe(true);
+    // src/b.ts (non-subject) must be folded as a read: observation.
+    const bKey = observationKey('read', 'src/b.ts');
+    const bEntry = r.observations.find(([k]) => k === bKey);
+    expect(bEntry).toBeDefined();
+    expect(bEntry![1]).toBe(hashReadObservation(Buffer.from('export const y = 2;')));
+    // src/a.ts (the subject) must NOT be a read: observation.
+    const aEntry = r.observations.find(([k]) => k === observationKey('read', 'src/a.ts'));
+    expect(aEntry).toBeUndefined();
+  });
+
+  it('per:node (no subjectScope) — own mapping files are NOT folded as read: observations', async () => {
+    // Without a narrowed subject set, every mapped file is a subject and hashed as
+    // a subject input — no duplicate read: observations for own files.
+    await writeAspect('obs-no-dup', `
+      export function check(ctx) {
+        void ctx.node.files.length;
+        return [];
+      }
+    `);
+    const g = buildTestGraphForStructure({
+      nodes: [{ path: 'N', type: 'module', mapping: ['src/a.ts', 'src/b.ts'] }],
+    });
+    const r = await runStructureAspect({
+      aspectDir: path.join('.yggdrasil/aspects/obs-no-dup'),
+      aspectId: 'obs-no-dup', nodePath: 'N', graph: g, projectRoot,
+    });
+    const reads = r.observations.filter(([k]) => k.startsWith('read:'));
+    expect(reads).toHaveLength(0);
   });
 });
