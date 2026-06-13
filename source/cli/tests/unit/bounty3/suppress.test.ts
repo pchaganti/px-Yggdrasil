@@ -374,7 +374,7 @@ function write(root: string, rel: string, content: string | Buffer): void {
 }
 
 describe('bounty3: runSuppressionsScan noise + binary exclusion (live-waiver invariant)', () => {
-  it('excludes .yggdrasil/, generated rules mirrors, any log.md, prose docs, and binary files', () => {
+  it('excludes .yggdrasil/, generated rules mirrors, any log.md, prose docs, and binary files', async () => {
     const root = freshDir('noise');
     write(root, 'src/real.ts', '// yg-suppress(known) genuine waiver, tracked\nx();\n');
     write(root, 'README.md', '// yg-suppress(known) doc only mentions syntax\n');
@@ -397,7 +397,7 @@ describe('bounty3: runSuppressionsScan noise + binary exclusion (live-waiver inv
       '.cursor/rules/yggdrasil.mdc', '.github/copilot-instructions.md',
       '.windsurfrules', '.clinerules', 'blob.bin',
     ];
-    const report = runSuppressionsScan(root, files, new Set(['known']));
+    const report = await runSuppressionsScan(root, files, new Set(['known']));
 
     // Only the genuine source file is a live waiver site.
     expect(report.fileEntries.map(f => f.file)).toEqual(['src/real.ts']);
@@ -405,17 +405,17 @@ describe('bounty3: runSuppressionsScan noise + binary exclusion (live-waiver inv
     expect(report.warnings).toHaveLength(0);
   });
 
-  it('a tracked file missing from disk is skipped silently (git/working-tree race)', () => {
+  it('a tracked file missing from disk is skipped silently (git/working-tree race)', async () => {
     const root = freshDir('missing');
     write(root, 'present.ts', '// yg-suppress(known) here\nx();\n');
-    const report = runSuppressionsScan(root, ['present.ts', 'GONE_FROM_DISK.ts'], new Set(['known']));
+    const report = await runSuppressionsScan(root, ['present.ts', 'GONE_FROM_DISK.ts'], new Set(['known']));
     expect(report.fileEntries.map(f => f.file)).toEqual(['present.ts']);
     expect(report.totalMarkers).toBe(1);
   });
 
-  it('an empty file list returns an empty, warning-free report', () => {
+  it('an empty file list returns an empty, warning-free report', async () => {
     const root = freshDir('empty');
-    const report = runSuppressionsScan(root, [], new Set(['known']));
+    const report = await runSuppressionsScan(root, [], new Set(['known']));
     expect(report.fileEntries).toHaveLength(0);
     expect(report.totalMarkers).toBe(0);
     expect(report.warnings).toHaveLength(0);
@@ -423,13 +423,13 @@ describe('bounty3: runSuppressionsScan noise + binary exclusion (live-waiver inv
 });
 
 describe('bounty3: runSuppressionsScan warning generation (all three kinds, real FS)', () => {
-  it('warns on unknown aspect id, on wildcard, and on unbounded disable — exempting wildcard from unknown', () => {
+  it('warns on unknown aspect id, on wildcard, and on unbounded disable — exempting wildcard from unknown', async () => {
     const root = freshDir('warns');
     write(root, 'unknown.ts', '// yg-suppress(ghost-typo) renamed away\nx();\n');
     write(root, 'wild.ts', '// yg-suppress(*) emergency bypass\nx();\n');
     write(root, 'open.ts', '// yg-suppress-disable(known) legacy, never closed\nx();\nmore();\n');
 
-    const report = runSuppressionsScan(
+    const report = await runSuppressionsScan(
       root,
       ['unknown.ts', 'wild.ts', 'open.ts'],
       new Set(['known']),
@@ -444,7 +444,7 @@ describe('bounty3: runSuppressionsScan warning generation (all three kinds, real
     expect(report.warnings.some(w => w.includes('Unknown aspect id "*"'))).toBe(false);
   });
 
-  it('a bounded disable+enable pair produces NO unbounded warning', () => {
+  it('a bounded disable+enable pair produces NO unbounded warning', async () => {
     const root = freshDir('bounded');
     write(
       root,
@@ -456,24 +456,24 @@ describe('bounty3: runSuppressionsScan warning generation (all three kinds, real
         '',
       ].join('\n'),
     );
-    const report = runSuppressionsScan(root, ['b.ts'], new Set(['known']));
+    const report = await runSuppressionsScan(root, ['b.ts'], new Set(['known']));
     expect(report.warnings.some(w => w.startsWith('Unbounded'))).toBe(false);
   });
 
-  it('a mixed comma list yg-suppress(known, *) fires exactly ONE warning (the wildcard, de-duped per file:line)', () => {
+  it('a mixed comma list yg-suppress(known, *) fires exactly ONE warning (the wildcard, de-duped per file:line)', async () => {
     const root = freshDir('mixed');
     write(root, 'm.ts', '// yg-suppress(known, *) mixed list, debt tracked\nx();\n');
-    const report = runSuppressionsScan(root, ['m.ts'], new Set(['known']));
+    const report = await runSuppressionsScan(root, ['m.ts'], new Set(['known']));
     expect(report.warnings).toHaveLength(1);
     expect(report.warnings[0].split('\n')[0]).toMatch(/^Wildcard suppression "\*" at m\.ts:1/);
   });
 
-  it('DIVERGENCE: a known but UNKNOWN-cased id still warns (matcher is exact-string, not normalized)', () => {
+  it('DIVERGENCE: a known but UNKNOWN-cased id still warns (matcher is exact-string, not normalized)', async () => {
     // Known set has "known"; a marker spelling "KNOWN" is a different string and
     // must be reported as unknown — pinning that the matcher does no casefolding.
     const root = freshDir('case');
     write(root, 'c.ts', '// yg-suppress(KNOWN) wrong case, debt tracked\nx();\n');
-    const report = runSuppressionsScan(root, ['c.ts'], new Set(['known']));
+    const report = await runSuppressionsScan(root, ['c.ts'], new Set(['known']));
     expect(report.warnings.some(w => w.includes('Unknown aspect id "KNOWN"'))).toBe(true);
   });
 });
@@ -501,7 +501,7 @@ describe('bounty3: nested-disable divergence — reviewer closes, inventory over
     expect(isLineSuppressed(ranges, 'a', 6)).toBe(false);
   });
 
-  it('inventory (runSuppressionsScan): the SAME nested disable still emits an Unbounded warning', () => {
+  it('inventory (runSuppressionsScan): the SAME nested disable still emits an Unbounded warning', async () => {
     const root = freshDir('diverge');
     write(
       root,
@@ -516,7 +516,7 @@ describe('bounty3: nested-disable divergence — reviewer closes, inventory over
         '',
       ].join('\n'),
     );
-    const report = runSuppressionsScan(root, ['d.ts'], new Set(['a']));
+    const report = await runSuppressionsScan(root, ['d.ts'], new Set(['a']));
     // Observed: the inventory's stack model leaves the FIRST disable open and
     // warns Unbounded, even though the reviewer closed the range at the enable.
     expect(report.warnings.some(w => w.startsWith('Unbounded yg-suppress-disable("a")'))).toBe(true);

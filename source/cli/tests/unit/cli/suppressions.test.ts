@@ -1,4 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { runSuppressionsScan, formatSuppressionsOutput } from '../../../src/cli/suppressions.js';
 import { scanSuppressionMarkers } from '../../../src/ast/suppress.js';
 
@@ -102,8 +105,8 @@ function makeKnownAspects(...ids: string[]): Set<string> {
 }
 
 describe('runSuppressionsScan', () => {
-  it('returns no markers when file list is empty', () => {
-    const report = runSuppressionsScan('/does-not-matter', [], makeKnownAspects('my-aspect'));
+  it('returns no markers when file list is empty', async () => {
+    const report = await runSuppressionsScan('/does-not-matter', [], makeKnownAspects('my-aspect'));
     expect(report.fileEntries).toHaveLength(0);
     expect(report.totalMarkers).toBe(0);
     expect(report.warnings).toHaveLength(0);
@@ -119,6 +122,118 @@ describe('runSuppressionsScan', () => {
     const markers = scanSuppressionMarkers(text);
     expect(markers).toHaveLength(1);
     expect(markers[0].aspectId).toBe('auth-guard');
+  });
+});
+
+// ── Comment-only inventory (the false-positive fix) ────────
+//
+// The `yg suppressions` inventory must list ONLY markers that the reviewer can
+// actually honor. The reviewer-honoring path (collectSuppressions) reads markers
+// from real COMMENT nodes, so a `yg-suppress(...)` that merely appears inside a
+// string literal — as it does in every test fixture and template that DOCUMENTS
+// the marker syntax — is not a real waiver and was previously a false positive.
+// These tests drive the real filesystem-walking runSuppressionsScan over temp
+// files to pin the corrected, comment-scoped behavior for parseable languages
+// while keeping the raw-line scan for non-AST languages.
+
+describe('runSuppressionsScan: comment-only scoping for AST languages', () => {
+  const tempDirs: string[] = [];
+  afterEach(() => {
+    while (tempDirs.length > 0) {
+      const d = tempDirs.pop()!;
+      try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ }
+    }
+  });
+
+  function freshDir(label: string): string {
+    const d = mkdtempSync(path.join(tmpdir(), `yg-supp-comment-${label}-`));
+    tempDirs.push(d);
+    return d;
+  }
+
+  function write(root: string, rel: string, content: string): void {
+    const abs = path.join(root, rel);
+    mkdirSync(path.dirname(abs), { recursive: true });
+    writeFileSync(abs, content, 'utf-8');
+  }
+
+  it('a yg-suppress marker INSIDE a TS string literal is NOT inventoried (was a false positive)', async () => {
+    const root = freshDir('string-literal');
+    // The marker syntax appears only inside a string literal — code that talks
+    // ABOUT the marker, not a real comment-based waiver. The reviewer never
+    // honors it, so the inventory must not list it either.
+    write(
+      root,
+      'doc.ts',
+      'const example = "// yg-suppress(some-aspect) this is documentation prose";\nconst y = 2;\n',
+    );
+    const report = await runSuppressionsScan(root, ['doc.ts'], new Set(['some-aspect']));
+    expect(report.fileEntries).toHaveLength(0);
+    expect(report.totalMarkers).toBe(0);
+    expect(report.warnings).toHaveLength(0);
+  });
+
+  it('a genuine comment marker in a TS file IS still inventoried (no regression)', async () => {
+    const root = freshDir('real-comment');
+    write(root, 'real.ts', '// yg-suppress(some-aspect) genuine waiver, debt tracked\nx();\n');
+    const report = await runSuppressionsScan(root, ['real.ts'], new Set(['some-aspect']));
+    expect(report.fileEntries.map(f => f.file)).toEqual(['real.ts']);
+    expect(report.totalMarkers).toBe(1);
+    expect(report.fileEntries[0].markers[0]).toMatchObject({
+      aspectId: 'some-aspect',
+      kind: 'single',
+      line: 1,
+    });
+  });
+
+  it('in one TS file: the real comment marker is listed, the string-literal one is not', async () => {
+    const root = freshDir('mixed');
+    write(
+      root,
+      'mixed.ts',
+      [
+        'const decoy = "yg-suppress(decoy-aspect) only a string, never honored";',  // 1 — string literal
+        '// yg-suppress(real-aspect) genuine waiver, tracked',                       // 2 — real comment
+        'offending();',                                                             // 3
+        '',
+      ].join('\n'),
+    );
+    const report = await runSuppressionsScan(root, ['mixed.ts'], new Set(['real-aspect', 'decoy-aspect']));
+    expect(report.totalMarkers).toBe(1);
+    const ids = report.fileEntries.flatMap(f => f.markers.map(m => m.aspectId));
+    expect(ids).toEqual(['real-aspect']);
+    expect(ids).not.toContain('decoy-aspect');
+  });
+
+  it('a marker inside a multi-line block comment is reported at its true file line', async () => {
+    const root = freshDir('block');
+    write(
+      root,
+      'block.ts',
+      [
+        'const a = 1;',                                  // 1
+        '/**',                                           // 2
+        ' * yg-suppress(block-aspect) waiver in a block', // 3 — real marker
+        ' */',                                           // 4
+        'const b = 2;',                                  // 5
+        '',
+      ].join('\n'),
+    );
+    const report = await runSuppressionsScan(root, ['block.ts'], new Set(['block-aspect']));
+    expect(report.totalMarkers).toBe(1);
+    expect(report.fileEntries[0].markers[0]).toMatchObject({ aspectId: 'block-aspect', line: 3 });
+  });
+
+  it('a non-AST file (.sql) still uses the raw-line scan — markers in -- comments detected', async () => {
+    const root = freshDir('sql');
+    write(
+      root,
+      'q.sql',
+      '-- yg-suppress(no-select-star) reporting batch, columns stable\nSELECT * FROM t;\n',
+    );
+    const report = await runSuppressionsScan(root, ['q.sql'], new Set(['no-select-star']));
+    expect(report.totalMarkers).toBe(1);
+    expect(report.fileEntries[0].markers[0].aspectId).toBe('no-select-star');
   });
 });
 

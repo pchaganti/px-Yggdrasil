@@ -343,11 +343,11 @@ describe('spec: a typo id is inert — it suppresses only its (nonexistent) own 
     expect(isLineSuppressed(ranges, 'securty/input-validaton', 2)).toBe(true);
   });
 
-  it('the marker is matched exact-string — no case folding (KNOWN != known)', () => {
+  it('the marker is matched exact-string — no case folding (KNOWN != known)', async () => {
     // yg suppressions warning engine: a mismatched-case id is reported as unknown.
     const root = freshDir('case');
     write(root, 'c.ts', '// yg-suppress(KNOWN) wrong case, tracked\nx();\n');
-    const report = runSuppressionsScan(root, ['c.ts'], new Set(['known']));
+    const report = await runSuppressionsScan(root, ['c.ts'], new Set(['known']));
     expect(report.warnings.some(w => w.includes('Unknown aspect id "KNOWN"'))).toBe(true);
   });
 });
@@ -494,10 +494,10 @@ describe('spec note: the inventory scanner does not enforce the reason requireme
     expect(markers[0]).toMatchObject({ aspectId: 'rule-a', kind: 'single', reason: '' });
   });
 
-  it('runSuppressionsScan emits NO "missing reason" warning for an empty-reason marker', () => {
+  it('runSuppressionsScan emits NO "missing reason" warning for an empty-reason marker', async () => {
     const root = freshDir('noreason');
     write(root, 'r.ts', '// yg-suppress(known)\nx();\n');
-    const report = runSuppressionsScan(root, ['r.ts'], new Set(['known']));
+    const report = await runSuppressionsScan(root, ['r.ts'], new Set(['known']));
     // The three documented warning kinds are unknown-id / wildcard / unbounded.
     // None of them is "missing reason", so the inventory stays silent on it.
     expect(report.warnings.some(w => /reason/i.test(w))).toBe(false);

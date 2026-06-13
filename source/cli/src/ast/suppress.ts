@@ -162,7 +162,7 @@ export function isLineSuppressed(ranges: SuppressedRange[], aspectId: string, li
   });
 }
 
-// ── Raw line scanner (no tree-sitter) ────────────────────────
+// ── Line scanner (no tree-sitter) ────────────────────────────
 
 export interface SuppressionMarkerInfo {
   line: number;       // 1-based
@@ -173,50 +173,93 @@ export interface SuppressionMarkerInfo {
 }
 
 /**
+ * Match the marker regexes against ONE line of text and append any markers it
+ * carries (one entry per listed aspect id) to `out`, stamped with `lineNum`.
+ * Disable beats enable beats single, exactly like the parse-side `parseMarker`.
+ * Shared by the raw-line scanner and the comment-only scanner so the two paths
+ * cannot diverge on which token counts as a marker.
+ */
+function scanLineInto(raw: string, lineNum: number, out: SuppressionMarkerInfo[]): void {
+  let m: RegExpMatchArray | null;
+
+  m = raw.match(RE_DISABLE);
+  if (m) {
+    const ids = splitAspectList(m[1]);
+    const reason = (m[2] ?? '').trim();
+    for (const id of ids) {
+      out.push({ line: lineNum, aspectId: id, kind: 'disable', wildcard: id === '*', reason });
+    }
+    return;
+  }
+
+  m = raw.match(RE_ENABLE);
+  if (m) {
+    const ids = splitAspectList(m[1]);
+    for (const id of ids) {
+      out.push({ line: lineNum, aspectId: id, kind: 'enable', wildcard: id === '*', reason: '' });
+    }
+    return;
+  }
+
+  m = raw.match(RE_SINGLE);
+  if (m) {
+    const ids = splitAspectList(m[1]);
+    const reason = (m[2] ?? '').trim();
+    for (const id of ids) {
+      out.push({ line: lineNum, aspectId: id, kind: 'single', wildcard: id === '*', reason });
+    }
+    return;
+  }
+}
+
+/**
  * Language-agnostic raw-line scan for yg-suppress markers.
  * Reuses the existing regex constants — no tree-sitter required.
  * Emits one SuppressionMarkerInfo entry per (line × aspectId) combination.
  * Skips lines where no marker regex matches.
+ *
+ * This scans EVERY line, including ones inside string literals, so it is the
+ * right tool ONLY for files with no registered grammar (`.sql`, `.sh` …) where
+ * there is no parse tree to tell comment from code — mirroring the honoring
+ * path's text fallback in `collectSuppressions`. For a parseable language, use
+ * `scanSuppressionMarkersInComments` so a marker that merely appears inside a
+ * string literal is not mistaken for a real waiver.
  */
 export function scanSuppressionMarkers(text: string): SuppressionMarkerInfo[] {
   const lines = text.split('\n');
   const result: SuppressionMarkerInfo[] = [];
-
   for (let i = 0; i < lines.length; i++) {
-    const lineNum = i + 1;
-    const raw = lines[i];
+    scanLineInto(lines[i], i + 1, result);
+  }
+  return result;
+}
 
-    let m: RegExpMatchArray | null;
-
-    m = raw.match(RE_DISABLE);
-    if (m) {
-      const ids = splitAspectList(m[1]);
-      const reason = (m[2] ?? '').trim();
-      for (const id of ids) {
-        result.push({ line: lineNum, aspectId: id, kind: 'disable', wildcard: id === '*', reason });
-      }
-      continue;
-    }
-
-    m = raw.match(RE_ENABLE);
-    if (m) {
-      const ids = splitAspectList(m[1]);
-      for (const id of ids) {
-        result.push({ line: lineNum, aspectId: id, kind: 'enable', wildcard: id === '*', reason: '' });
-      }
-      continue;
-    }
-
-    m = raw.match(RE_SINGLE);
-    if (m) {
-      const ids = splitAspectList(m[1]);
-      const reason = (m[2] ?? '').trim();
-      for (const id of ids) {
-        result.push({ line: lineNum, aspectId: id, kind: 'single', wildcard: id === '*', reason });
-      }
-      continue;
+/**
+ * Comment-only scan for yg-suppress markers, for files with a registered
+ * tree-sitter grammar. Walks the parse tree's COMMENT nodes (via the same
+ * `findComments` the reviewer-honoring `collectSuppressions` uses) and matches
+ * the marker regexes only against comment text — never string literals or other
+ * code. This is what keeps the `yg suppressions` inventory aligned with what the
+ * reviewer actually honors: a `yg-suppress(...)` written inside a string literal
+ * (e.g. a test fixture or a template that documents the marker syntax) is NOT a
+ * real waiver and must not be inventoried.
+ *
+ * Line numbers are mapped back to absolute, 1-based file lines using each
+ * comment node's start row, so a marker on the Nth line of a multi-line block
+ * comment is reported at the correct file line.
+ */
+export function scanSuppressionMarkersInComments(tree: Tree, file: string): SuppressionMarkerInfo[] {
+  const result: SuppressionMarkerInfo[] = [];
+  const comments = findComments({ path: file, ast: tree });
+  for (const c of comments) {
+    const startRow = c.startPosition.row; // 0-based
+    const commentLines = c.text.split('\n');
+    for (let i = 0; i < commentLines.length; i++) {
+      scanLineInto(commentLines[i], startRow + i + 1, result);
     }
   }
-
+  // A file may contain several comment nodes; emit markers in file order so the
+  // inventory and the per-file disable/enable pairing see them top-to-bottom.
+  result.sort((a, b) => a.line - b.line);
   return result;
 }

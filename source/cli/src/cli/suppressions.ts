@@ -6,8 +6,10 @@ import path from 'node:path';
 import { loadGraphOrAbort, abortOnUnexpectedError } from './preamble.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
-import { scanSuppressionMarkers } from '../ast/suppress.js';
+import { scanSuppressionMarkers, scanSuppressionMarkersInComments } from '../ast/suppress.js';
 import type { SuppressionMarkerInfo } from '../ast/suppress.js';
+import { parseFile } from '../ast/parser.js';
+import { getLanguageForExtension } from '../core/graph/language-registry.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { toPosixPath } from '../utils/posix.js';
 
@@ -87,13 +89,52 @@ function isNoiseFile(relFile: string): boolean {
   return false;
 }
 
+// ── Comment-aware marker scan ─────────────────────────────
+
+/**
+ * Scan one file for yg-suppress markers, restricted to REAL comments exactly as
+ * the reviewer-honoring path does.
+ *
+ * - AST-parseable languages (a registered tree-sitter grammar): parse the file
+ *   and scan only its COMMENT nodes. A `yg-suppress(...)` that appears inside a
+ *   TypeScript string literal — e.g. a test fixture or a template that documents
+ *   the marker syntax — is code, not a comment, so it is never inventoried. This
+ *   matches `collectSuppressions`, the path the reviewer uses to actually waive
+ *   an aspect, so the inventory lists exactly the waivers that can take effect.
+ * - Non-AST languages (no registered grammar, e.g. `.sql`, `.sh`): there is no
+ *   parse tree, so fall back to the language-agnostic raw-line scan. This
+ *   preserves suppress support for content-only deterministic checks in those
+ *   files (the `feat(suppress): honor yg-suppress markers in non-AST-language
+ *   files` behavior).
+ *
+ * If a parseable file fails to parse (a syntax error or a grammar that cannot be
+ * loaded), fall back to the raw-line scan rather than dropping the file from the
+ * inventory — a best-effort inventory is better than a silent omission for a
+ * read-only, exit-0 informational command.
+ */
+async function scanMarkersForFile(relFile: string, text: string): Promise<SuppressionMarkerInfo[]> {
+  const ext = path.extname(relFile).toLowerCase();
+  if (getLanguageForExtension(ext) === null) {
+    // No registered grammar — raw-line scan (parity with the honoring path's
+    // text fallback for non-AST languages).
+    return scanSuppressionMarkers(text);
+  }
+  try {
+    const tree = await parseFile(relFile, text);
+    return scanSuppressionMarkersInComments(tree, relFile);
+  } catch (error) {
+    debugWrite(`[suppressions] parse fallback (raw scan): ${relFile}: ${error instanceof Error ? error.message : String(error)}`);
+    return scanSuppressionMarkers(text);
+  }
+}
+
 // ── Core scan ─────────────────────────────────────────────
 
-export function runSuppressionsScan(
+export async function runSuppressionsScan(
   projectRoot: string,
   gitTrackedFiles: string[],
   knownAspectIds: Set<string>,
-): SuppressionsReport {
+): Promise<SuppressionsReport> {
   const fileEntries: FileMarkers[] = [];
   const warnings: string[] = [];
   let totalMarkers = 0;
@@ -121,7 +162,7 @@ export function runSuppressionsScan(
     if (isBinaryContent(buf)) continue;
 
     const text = buf.toString('utf-8');
-    const markers = scanSuppressionMarkers(text);
+    const markers = await scanMarkersForFile(relFile, text);
     if (markers.length === 0) continue;
 
     fileEntries.push({ file: toPosixPath(relFile), markers });
@@ -267,7 +308,7 @@ export function registerSuppressionsCommand(program: Command): void {
         }
 
         const knownAspectIds = new Set(graph.aspects.map(a => a.id));
-        const report = runSuppressionsScan(projectRoot, gitFiles, knownAspectIds);
+        const report = await runSuppressionsScan(projectRoot, gitFiles, knownAspectIds);
         process.stdout.write(formatSuppressionsOutput(report));
         // Always exit 0 — this is a purely informational command
       } catch (error) {
