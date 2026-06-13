@@ -14,4 +14,7 @@ describe('extractor registry', () => {
   it('resolves the Kotlin extractor (Phase 6, symbol-table resolved)', () => {
     expect(extractorForLanguage('kotlin')).toBeDefined();
   });
+  it('resolves the Rust extractor (Phase 7, crate module-tree resolved)', () => {
+    expect(extractorForLanguage('rust')).toBeDefined();
+  });
 });

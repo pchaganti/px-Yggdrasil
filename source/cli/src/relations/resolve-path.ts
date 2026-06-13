@@ -5,6 +5,7 @@ import { resolvePythonModule } from './extractors/python-resolve.js';
 import { resolveGoImport, type GoResolveDeps } from './extractors/go-resolve.js';
 import { resolveJavaFqn, type JavaResolveDeps } from './extractors/java-resolve.js';
 import { resolvePhpFqn, parsePsr4, type PhpResolveDeps } from './extractors/php-resolve.js';
+import { resolveRustPath, type RustResolveDeps } from './extractors/rust-resolve.js';
 
 /** Production resolvePathToFile: dispatches by language to the per-language path resolver.
  *  Checks existence against the project's files on disk. Symbol-resolved languages (and
@@ -14,6 +15,7 @@ export function makeResolvePathToFile(projectRoot: string): (specifier: string, 
   const goDeps = makeGoResolveDeps(projectRoot);
   const javaDeps = makeJavaResolveDeps(projectRoot, exists);
   const phpDeps = makePhpResolveDeps(projectRoot, exists);
+  const rustDeps = makeRustResolveDeps(projectRoot);
   return (specifier, fromFile, language) => {
     if (language === 'typescript' || language === 'tsx' || language === 'javascript') {
       return resolveTsPath(specifier, fromFile, exists);
@@ -30,8 +32,85 @@ export function makeResolvePathToFile(projectRoot: string): (specifier: string, 
     if (language === 'php') {
       return resolvePhpFqn(specifier, fromFile, phpDeps);
     }
+    if (language === 'rust') {
+      return resolveRustPath(specifier, fromFile, exists, rustDeps);
+    }
     return undefined;
   };
+}
+
+/**
+ * Build the disk-backed Rust resolution capabilities for a project root. A Rust path
+ * (`crate::a::b`) resolves through the crate's module tree rooted at the crate's
+ * `src/` directory. The crate root is the nearest ancestor of the importing file that
+ * contains a `Cargo.toml`; its `src/` is the module-tree root, and `[package].name`
+ * (hyphens → underscores) is the crate's own name so a path rooted at that name is
+ * treated like `crate`. The discovery is CACHED per Cargo.toml directory — Cargo.toml
+ * is stable across a single factory instance, so each manifest is read at most once.
+ *
+ * No Cargo.toml ancestor → undefined crate root, which the resolver treats as silence
+ * (it never guesses a source root).
+ *
+ * NOTE: makeResolvePathToFile is also used by verify.ts (parse-free re-validation);
+ * reading Cargo.toml there is fine — it reads a file, it does not parse source.
+ */
+function makeRustResolveDeps(projectRoot: string): RustResolveDeps {
+  // Cache: Cargo.toml directory (repo-rel POSIX, '' = root) → { srcDir, crateName }.
+  const byDir = new Map<string, { srcDir: string; crateName: string | undefined } | undefined>();
+
+  /** Read `[package].name` from a Cargo.toml at the given repo-rel dir, or undefined.
+   *  A minimal TOML scan: find the `[package]` section, then the first `name = "..."`
+   *  before the next `[section]`. Hyphens in the package name map to underscores (the
+   *  crate identifier rule). */
+  function readCrateName(repoRelDir: string): string | undefined {
+    const abs = path.join(projectRoot, repoRelDir, 'Cargo.toml');
+    let text: string;
+    try {
+      text = readFileSync(abs, 'utf-8');
+    } catch {
+      return undefined;
+    }
+    let inPackage = false;
+    for (const rawLine of text.split('\n')) {
+      const line = rawLine.trim();
+      if (line.startsWith('[')) {
+        inPackage = line === '[package]';
+        continue;
+      }
+      if (!inPackage) continue;
+      const m = line.match(/^name\s*=\s*["']([^"']+)["']/);
+      if (m) return m[1].replace(/-/g, '_');
+    }
+    return undefined;
+  }
+
+  /** Find the nearest ancestor directory of `fromFile` that contains a Cargo.toml,
+   *  then return its `src/` directory and crate name. Walks up to (and including) the
+   *  project root. */
+  function crateRootFor(
+    fromFile: string,
+  ): { srcDir: string; crateName: string | undefined } | undefined {
+    let dir = path.posix.dirname(toPosix(fromFile));
+    if (dir === '.') dir = '';
+    for (;;) {
+      if (byDir.has(dir)) {
+        const cached = byDir.get(dir);
+        if (cached !== undefined) return cached;
+      } else if (existsSync(path.join(projectRoot, dir, 'Cargo.toml'))) {
+        const srcDir = dir === '' ? 'src' : path.posix.join(dir, 'src');
+        const entry = { srcDir, crateName: readCrateName(dir) };
+        byDir.set(dir, entry);
+        return entry;
+      } else {
+        byDir.set(dir, undefined);
+      }
+      if (dir === '') return undefined; // reached the root without a Cargo.toml
+      const parent = path.posix.dirname(dir);
+      dir = parent === '.' ? '' : parent;
+    }
+  }
+
+  return { crateRootFor };
 }
 
 /**
