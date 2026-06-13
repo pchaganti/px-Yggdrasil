@@ -6,12 +6,12 @@ describe('buildIssueMessage', () => {
     const result = buildIssueMessage({
       what: 'Source files changed since last approve.',
       why: 'Graph metadata may no longer describe the actual behavior.',
-      next: 'Review changes, then: yg approve --node cli/core',
+      next: 'Review changes, then: yg check --approve',
     });
     expect(result).toBe(
       'Source files changed since last approve.\n' +
       'Graph metadata may no longer describe the actual behavior.\n' +
-      'Review changes, then: yg approve --node cli/core',
+      'Review changes, then: yg check --approve',
     );
   });
 

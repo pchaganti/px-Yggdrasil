@@ -25,11 +25,11 @@ by default — run `yg init` to switch to a different provider.
 ```bash
 cd examples/failing
 yg check                     # FAIL — payments never approved
-yg approve --node payments   # reviewer rejects: audit logging missing
+yg check --approve           # reviewer rejects: audit logging missing
 ```
 
-Fix `src/payments.ts` by adding audit logging, then re-run `yg approve` to
-see it pass.
+Fix `src/payments.ts` by adding audit logging, then re-run `yg check --approve`
+to see it pass.
 
 ## Project structure
 

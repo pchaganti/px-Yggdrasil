@@ -443,7 +443,7 @@ async function freshInit(projectRoot: string): Promise<void> {
   // 2. Reviewer — the LLM that verifies aspects against source code
   p.log.step('Step 2: Reviewer provider');
   p.log.info(
-    'The reviewer checks your source code against aspect rules during yg approve.\n' +
+    'The reviewer checks your source code against aspect rules during yg check --approve.\n' +
     '  API providers make HTTP calls. CLI providers delegate to an installed agent.\n' +
     '  For local review without API costs, use Ollama.',
   );

@@ -355,7 +355,7 @@ export async function runStructureAspect(
     throw new StructureRunnerError('STRUCTURE_CHECK_THROWN', {
       what: `check.mjs threw an exception while running (aspect '${aspectId}').`,
       why: `${(err as Error).message}\n${(err as Error).stack ?? ''}`,
-      next: `Fix the bug in check.mjs and re-run yg approve.`,
+      next: `Fix the bug in check.mjs, then re-run: yg check --approve`,
     });
   }
 

@@ -112,7 +112,8 @@ describe.skipIf(!distExists)('structure cold start + baseline migration', () => 
     // per-aspect checkTouched set — the legitimate cold-start case for a newly
     // attached deterministic aspect. After attaching the aspect, yg check must
     // not crash on the absent read-set; it surfaces drift (aspect-newly-active or
-    // source-drift) directing the user to run yg approve. It must NOT throw or
+    // source-drift) and reports the pair as unverified — plain yg check reports it,
+    // and yg check --approve fills it. It must NOT throw or
     // produce an unformatted stack trace.
     layoutBase(root);
     const ygg = path.join(root, '.yggdrasil');
@@ -153,7 +154,8 @@ describe.skipIf(!distExists)('structure cold start + baseline migration', () => 
     );
 
     // yg check must not crash — it should surface a recoverable state
-    // (drift or aspect-newly-active) pointing the user to yg approve.
+    // (drift or aspect-newly-active) reporting the pair as unverified, which
+    // yg check --approve fills.
     const checkResult = run(['check'], root);
     // Should exit 1 (drift or newly-active), NOT crash with an unhandled exception
     expect(checkResult.status).toBe(1);

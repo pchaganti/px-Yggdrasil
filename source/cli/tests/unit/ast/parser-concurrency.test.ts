@@ -4,7 +4,7 @@ import { getParser, parseFile } from '../../../src/ast/parser.js';
 
 // Regression guard for the parallel-approve grammar-load race.
 //
-// Under `yg approve` with parallel > 1, many deterministic checks call
+// Under `yg check --approve` with parallel > 1, many deterministic checks call
 // getParser() at the same time. Before the fix, the runtime-init flag and the
 // per-grammar cache were set only AFTER their `await`, so concurrent callers
 // each re-ran Parser.init() / Language.load() and one could observe a

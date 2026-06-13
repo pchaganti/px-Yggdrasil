@@ -30,7 +30,7 @@ const distExists = existsSync(BIN_PATH);
 // and tears it down in a finally. Fully hermetic: ZERO committed fixtures
 // mutated, no network, no clock, no randomness, no hardcoded ports. Every aspect
 // used here is reviewer.type: deterministic with a pure synchronous check.mjs —
-// `yg approve` makes NO LLM call and needs NO reviewer endpoint, so nothing
+// `yg check --approve` makes NO LLM call and needs NO reviewer endpoint, so nothing
 // depends on Ollama or any live service.
 // ---------------------------------------------------------------------------
 

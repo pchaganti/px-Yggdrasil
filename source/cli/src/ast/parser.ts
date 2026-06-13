@@ -19,7 +19,7 @@ const GRAMMAR_DIRS = [
 
 // Both the one-time WASM runtime init and each grammar load are memoized as
 // PROMISES (not resolved values), set SYNCHRONOUSLY before the first await.
-// Under a parallel `yg approve`, many deterministic checks call getParser() at
+// Under a parallel `yg check --approve`, many deterministic checks call getParser() at
 // once. If the flag/value were only set AFTER the await, concurrent callers
 // would each re-run Parser.init() / re-load the same grammar, and one could
 // observe a half-initialized Language — web-tree-sitter then throws

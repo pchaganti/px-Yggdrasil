@@ -126,7 +126,7 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
     throw new AstRunnerError('AST_CHECK_THROWN', {
       what: `check.mjs threw an exception while running (aspect '${params.aspectId}').`,
       why: (e instanceof Error ? e.stack : undefined) ?? String(e),
-      next: `Fix the bug in check.mjs and re-run yg approve.`,
+      next: `Fix the bug in check.mjs, then re-run: yg check --approve`,
     });
   }
 

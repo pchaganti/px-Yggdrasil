@@ -188,17 +188,17 @@ add('  src/payments/payment.schema.ts     created', GREEN); frames(4);
 
 // Scene 4: Approve fails
 add('', TEXT);
-add('\u25b6 Running yg approve --node payments/service', WHITE); frames(2);
-add('  Verifying aspects with reviewer...', DIM); frames(8);
+add('\u25b6 Running yg check --approve', WHITE); frames(2);
+add('  Filling 2 unverified pairs across 1 nodes \u2014', DIM);
+add('  0 deterministic (no cost), 2 reviewer calls', DIM); frames(8);
 add('', TEXT);
-add('ERROR: Reviewer found aspect violations.', RED, true); frames(2);
-add('', TEXT);
-add('Aspect verification:', OUTPUT_C);
-add('  \u2713 zod-validation \u2014 SATISFIED', GREEN); frames(2);
-add('  \u2717 requires-audit \u2014 NOT SATISFIED', RED, true);
+add('  [llm] zod-validation on payments/service \u2014 approved', GREEN); frames(2);
+add('  [llm] requires-audit on payments/service \u2014 refused', RED, true);
 add('    charge() and refund() mutate state but do not', OUTPUT_C);
 add('    call emitAudit(). Must emit audit events with', OUTPUT_C);
-add('    operation, timestamp, and entityId.', OUTPUT_C); frames(12);
+add('    operation, timestamp, and entityId.', OUTPUT_C); frames(3);
+add('', TEXT);
+add('yg check: FAIL  1 node \u00b7 2 aspects', RED, true); frames(12);
 
 // Scene 5: Agent fixes
 add('', TEXT);
@@ -210,13 +210,16 @@ add('  src/payments/audit.ts            created', GREEN); frames(4);
 
 // Scene 6: Approve passes
 add('', TEXT);
-add('\u25b6 Running yg approve --node payments/service', WHITE); frames(2);
-add('  Verifying aspects with reviewer...', DIM); frames(6);
+add('\u25b6 Running yg check --approve', WHITE); frames(2);
+add('  Filling 1 unverified pairs across 1 nodes \u2014', DIM);
+add('  0 deterministic (no cost), 1 reviewer calls', DIM); frames(6);
 add('', TEXT);
-add('Approved: payments/service \u2014 2 aspects satisfied.', GREEN, true); frames(4);
+add('  [llm] requires-audit on payments/service \u2014 approved', GREEN); frames(2);
+add('', TEXT);
+add('yg check: PASS  1 node \u00b7 2 aspects', GREEN, true); frames(4);
 add('', TEXT);
 add('\u25b6 Running yg check', WHITE); frames(2);
-add('  PASS (0 errors, 0 warnings)', GREEN); frames(8);
+add('  yg check: PASS  1 node \u00b7 2 aspects', GREEN, true); frames(8);
 
 // Scene 7: Punchline
 clear();

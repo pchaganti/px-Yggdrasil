@@ -27,7 +27,7 @@ const distExists = existsSync(BIN_PATH);
 // copy of the committed sample-project-ports fixture and tears it down in a
 // finally. Fully hermetic: ZERO new committed fixtures, no network, no clock,
 // no randomness. Every aspect used here is reviewer.type: deterministic and
-// ships a pure synchronous check.mjs — `yg approve` makes NO LLM call and needs
+// ships a pure synchronous check.mjs — `yg check --approve` makes NO LLM call and needs
 // NO reviewer endpoint, so nothing here depends on Ollama or any live service.
 // ---------------------------------------------------------------------------
 

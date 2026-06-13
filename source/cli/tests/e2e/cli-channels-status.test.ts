@@ -22,7 +22,7 @@ const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle');
 const distExists = existsSync(BIN_PATH);
 
 // A dead loopback endpoint. Pointing the reviewer at this makes the LLM aspect
-// path unreachable, so `yg approve` never produces an environment-dependent LLM
+// path unreachable, so `yg check --approve` never produces an environment-dependent LLM
 // verdict — port 1 never has a listener, on ANY machine, with no reliance on a
 // real endpoint being present or absent. Used by killReviewer().
 const DEAD_ENDPOINT = 'http://127.0.0.1:1';
@@ -32,7 +32,7 @@ const DEAD_ENDPOINT = 'http://127.0.0.1:1';
 // distExists guard with describe.skipIf, copyFixture(label) on mkdtempSync +
 // cpSync, deterministicFixture (strip the LLM aspect) and killReviewer (repoint
 // the endpoint at the dead loopback). Every aspect this suite uses is
-// reviewer.type: deterministic, so `yg approve` makes NO LLM call and needs NO
+// reviewer.type: deterministic, so `yg check --approve` makes NO LLM call and needs NO
 // reviewer endpoint — nothing here touches the network, the clock, or randomness.
 function run(
   args: string[],

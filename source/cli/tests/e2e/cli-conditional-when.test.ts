@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 // gating. The `when` predicate runs at graph-resolution time (no reviewer call):
 // every propagation channel passes through it before an aspect becomes effective
 // on a node. These tests prove that `when` deterministically includes/excludes a
-// deterministic aspect, that enforcement (yg approve) follows applicability, and
+// deterministic aspect, that enforcement (yg check --approve) follows applicability, and
 // that the boolean combinators (not / any_of / all_of) evaluate correctly.
 //
 // HERMETIC: an enforced `test-deterministic` aspect on this repo rejects ambient
