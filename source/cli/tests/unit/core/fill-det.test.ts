@@ -796,6 +796,7 @@ describe('Bug 2 — GC retains entries for an implies-cycle node', () => {
         'ghost-aspect': { 'node:svc': { verdict: 'approved', hash: 'seed-ghost' } },
       },
       nodes: {},
+      relation_verdicts: {},
     });
 
     // Run fill. The cycle node throws during effectiveness (skipped by the pair

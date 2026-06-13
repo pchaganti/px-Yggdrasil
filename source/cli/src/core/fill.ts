@@ -39,7 +39,10 @@ import path from 'node:path';
 
 import type { Graph, GraphNode, AspectDef, LlmConfig } from '../model/graph.js';
 import type { LockFile, VerdictEntry, Verdict } from '../model/lock.js';
-import { LOCK_FORMAT_VERSION } from '../model/lock.js';
+import { LOCK_FORMAT_VERSION, nodeUnit } from '../model/lock.js';
+import { runRelationPass } from '../relations/pass.js';
+import { extractorForLanguage } from '../relations/extractors/registry.js';
+import { relationIndexDir } from '../relations/index-dir.js';
 import type { CheckResult } from './check.js';
 import { runCheck } from './check.js';
 import { readLock, writeLock } from '../io/lock-store.js';
@@ -184,6 +187,27 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
     (lock.verdicts[aspectId] ??= {})[unitKey] = entry;
     await persistLock();
   };
+
+  // ── Relation-conformance pass (sequential, full graph, before the pool). ──
+  // Runs once over the whole graph BEFORE the parallel pair pool — never as a
+  // parallel pair — so its single shared symbol-index build and the serialized
+  // lock writer never race the pool's per-pair writes. Phase 0: the extractor
+  // registry is empty, so no dependencies are detected and every mapped node
+  // gets an `approved` verdict.
+  const relResult = await runRelationPass(graph, projectRoot, {
+    extractorFor: extractorForLanguage,
+    resolvePathToFile: () => undefined, // Phase 0: no extractors registered → no path hints → never called. Phase 1 injects the real per-language resolver.
+    symbolIndexDir: relationIndexDir(graph.rootPath),
+  });
+  for (const [nodeId, v] of relResult.verdicts) {
+    lock.relation_verdicts[nodeUnit(nodeId)] = {
+      verdict: v.verdict,
+      fingerprint: v.fingerprint,
+      reason: v.reason,
+      evidence: v.evidence,
+    };
+  }
+  await persistLock();
 
   // ── Step 4: Log gate per node (§9). Nodes owning unverified pairs whose ────
   // log_required type drifted (or first verification) with no fresh entry are
@@ -894,6 +918,13 @@ async function garbageCollectAndRewrite(
   // Prune nodes for absent node paths.
   for (const nodePath of Object.keys(lock.nodes)) {
     if (!graph.nodes.has(nodePath)) delete lock.nodes[nodePath];
+  }
+
+  // Prune relation verdicts for unit keys whose node no longer exists (a relation
+  // verdict is always node-keyed; a non-`node:` key or an absent node is detached).
+  for (const unitKey of Object.keys(lock.relation_verdicts)) {
+    const nodePath = unitKey.startsWith('node:') ? unitKey.slice('node:'.length) : null;
+    if (nodePath === null || !graph.nodes.has(nodePath)) delete lock.relation_verdicts[unitKey];
   }
 
   lock.version = LOCK_FORMAT_VERSION;
