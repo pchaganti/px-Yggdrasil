@@ -1,0 +1,7 @@
+name: E2E Tests — Unreadable Subject Fail-Closed
+type: test-suite
+description: "Subprocess E2E proving an unreadable subject file is never silently dropped into a vacuous green: a content-filter aspect must read each mapped file, so when one is unreadable (chmod 0o000 → EACCES) the spawned yg check exits 1 with a file-unreadable error and records no approved entry. Includes a privileged-runtime guard that skips cleanly under root, where chmod 0o000 is ignored."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-scope-unreadable.test.ts
