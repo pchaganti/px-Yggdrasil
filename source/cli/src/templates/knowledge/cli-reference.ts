@@ -190,6 +190,29 @@ Emits non-blocking warnings for:
 
 Use \`yg suppressions\` to audit accumulated waivers before a release or a new aspect rollout. It does not affect \`yg check\` or the lock.
 
+## yg relations
+
+Inspect cross-node dependency relations. Read-only — it never writes the lock.
+
+\`\`\`bash
+yg relations --suggest
+\`\`\`
+
+\`--suggest\` runs the built-in relation-conformance detection live and prints,
+per node, every detected-but-undeclared cross-node dependency together with the
+exact \`relations:\` stanza to add to that node's \`yg-node.yaml\` (choosing the
+first architecture-allowed relation type). When no relation type is allowed
+between the two node types, it prints a dead-end note pointing at
+\`yg-architecture.yaml\` instead. It is the migration aid for declaring real
+dependencies on a brownfield repo before the first \`yg check --approve\`. Without
+\`--suggest\` the command prints usage.
+
+The check itself runs as part of \`yg check --approve\` and emits
+\`relation-undeclared-dependency\` (always an error) when a node depends on another
+node without a declared, sanctioned relation. It is not an aspect, not
+status-governed, and not suppressible — fix it by declaring the relation or
+removing the dependency. Deep dive: \`yg knowledge read ports-and-relations\`.
+
 ## yg type-suggest
 
 Suggest which node_type a file fits based on architecture \`when\` predicates.
@@ -232,6 +255,7 @@ The validator (\`yg check\`) emits the following issue codes:
 | \`aspect-check-runtime-error\` | error (\`--approve\` report) | \`check.mjs\` failed to import/run at fill time — fail closed; plain check shows the pair as \`unverified\` |
 | \`prompt-too-large\` | error | Assembled prompt exceeds the resolved tier's \`max_prompt_chars\` |
 | \`lock-invalid\` | error | Lock unparseable, garbled, conflict-markered, or unknown version — fail closed |
+| \`relation-undeclared-dependency\` | error (always) | Built-in relation-conformance check: node depends on another node's code without a declared, sanctioned relation. Not an aspect — not status-governed, not suppressible. Next: declare the relation or remove the dependency (\`yg relations --suggest\`) |
 | \`log-entry-missing\` | error | \`--approve\` log gate fired |
 | \`aspect-status-invalid\` | error | Declared status is not one of \`draft\\|advisory\\|enforced\` |
 | \`aspect-status-downgrade\` | error | Declared status is lower than cascade would yield (bump up OK, downgrade is error) |

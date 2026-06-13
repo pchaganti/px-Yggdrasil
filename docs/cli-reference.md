@@ -111,6 +111,7 @@ status semantics):
 | `aspect-violation-advisory` | warning | Valid `refused` verdict on an advisory pair — does not block. |
 | `prompt-too-large` | error | Assembled LLM prompt exceeds the resolved tier's `max_prompt_chars`. Takes precedence over `unverified`; `--approve` skips the pair. |
 | `lock-invalid` | error | `yg-lock.json` is unparseable, garbled, conflict-markered, or an unknown version — fail closed. |
+| `relation-undeclared-dependency` | error (always) | Built-in relation-conformance check — a component depends on another component's code without a declared relation. Not an aspect: no status, not suppressible. Fix by declaring the relation (`yg relations --suggest`) or removing the dependency. |
 | `aspect-check-runtime-error` | error (`--approve` only) | A `check.mjs` failed to import or threw at fill time — fail closed, no verdict written. |
 | `log-entry-missing` | error (`--approve` only) | A `log_required` node changed source without a fresh log entry. |
 | `aspect-status-invalid` | error | Declared `status:` is not one of `draft`, `advisory`, `enforced`. |
@@ -155,6 +156,7 @@ yg log merge-resolve --node <path>
 | `yg flows` | List flows |
 | `yg owner --file <path>` | Quick ownership lookup |
 | `yg suppressions` | Inventory of active `yg-suppress` markers |
+| `yg relations --suggest` | List undeclared cross-node dependencies with the relation to add |
 | `yg type-suggest --file <path>` | Suggest architecture type for a file |
 
 ### `yg tree`
@@ -222,6 +224,28 @@ Quick ownership check — use `yg context --file` when you need the full context
 ```bash
 yg owner --file <path>
 ```
+
+### `yg relations`
+
+Inspects cross-node dependency relations. Read-only — it never writes the lock.
+
+```bash
+yg relations --suggest
+```
+
+`--suggest` runs the built-in relation-conformance detection live and prints, per
+node, every dependency on another component's code that is **not** yet declared as
+a relation, together with the exact `relations:` block to paste into that node's
+`yg-node.yaml` (using the first relation type the architecture allows between the
+two types). When no relation type is permitted between the two component types, it
+prints a note pointing at `yg-architecture.yaml` instead of a stanza.
+
+This is the migration aid for an existing codebase: run it once to surface every
+real dependency the graph hasn't declared yet, paste in the suggested relations,
+then run `yg check --approve`. The check itself runs as part of `yg check
+--approve` and reports `relation-undeclared-dependency` (always an error) for any
+component that depends on another without a declared relation — see
+[relation conformance](/core-concepts#relation-conformance-declared-relations-must-match-real-dependencies).
 
 ### `yg type-suggest`
 

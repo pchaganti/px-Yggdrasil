@@ -131,6 +131,16 @@ Suppressing a draft aspect is a no-op: a draft aspect produces no expected pairs
 so there is nothing to waive. Only suppress aspects whose effective status is
 advisory or enforced.
 
+## What cannot be suppressed
+
+\`yg-suppress\` waives ASPECTS. It has no effect on the built-in checks that are
+not aspects — the architecture and mapping validators, and the relation-conformance
+check (\`relation-undeclared-dependency\`, see
+\`yg knowledge read ports-and-relations\`). The relation-conformance check has no
+aspect id to name in a marker and is always an error; a \`yg-suppress\` aimed at it
+is inert. Resolve a relation refusal by declaring the relation in the node's
+\`yg-node.yaml\` or removing the dependency — never by trying to suppress it.
+
 A suppress marker (single or disable form) must carry a reason — an empty
 reason is rejected with a clear error. Beyond that, the token is matched as a
 plain string against the aspect id being checked: there is NO validation
