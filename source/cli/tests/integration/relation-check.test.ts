@@ -4,11 +4,13 @@
  * and emits NO such issue for a node whose verdict re-validates to verified.
  *
  * runCheck wires the parse-free `verifyRelationConformance` with the REAL
- * extractor registry (empty in Phase 0). To get a node that re-validates as
- * VERIFIED under that empty registry, the lock is seeded by a relation pass run
- * with the SAME empty extractor universe (`extractorFor: () => undefined`): no
- * deps are detected, every node is approved, and the fingerprint computed at seed
- * time matches the one runCheck recomputes. From that green baseline:
+ * extractor registry (TypeScript is live). To get a node that re-validates as
+ * VERIFIED under runCheck, the lock is seeded by a relation pass run with the
+ * SAME real extractor + resolver universe runCheck uses (`extractorForLanguage`
+ * + `makeResolvePathToFile`), so the symbol-language universe and indexIdentity
+ * match. The fixture's source files contain NO imports, so no cross-node edge is
+ * detected, every node is approved, and the fingerprint computed at seed time
+ * matches the one runCheck recomputes. From that green baseline:
  *   - deleting a node's relation verdict        → unverified → error (case b)
  *   - corrupting a node's stored fingerprint     → unverified → error (case a)
  *   - leaving a node's verdict intact            → verified  → no issue (case c)
@@ -24,6 +26,8 @@ import { tmpdir } from 'node:os';
 import { loadGraph } from '../../src/core/graph-loader.js';
 import { runCheck } from '../../src/core/check.js';
 import { runRelationPass } from '../../src/relations/pass.js';
+import { extractorForLanguage } from '../../src/relations/extractors/registry.js';
+import { makeResolvePathToFile } from '../../src/relations/resolve-path.js';
 import { writeLock } from '../../src/io/lock-store.js';
 import { nodeUnit, LOCK_FORMAT_VERSION, type LockFile } from '../../src/model/lock.js';
 
@@ -42,15 +46,17 @@ function writeNode(root: string, nodeRel: string, name: string, mapping: string)
 }
 
 /**
- * Seed a lock through the parse-heavy pass run with the EMPTY extractor universe
- * (matching runCheck's Phase-0 registry), so the seeded verdicts re-validate as
- * VERIFIED under runCheck on an unchanged tree.
+ * Seed a lock through the parse-heavy pass run with the SAME real extractor +
+ * resolver universe runCheck uses (TypeScript live), so the seeded verdicts
+ * re-validate as VERIFIED under runCheck on an unchanged tree. The fixture's
+ * source files import nothing, so no cross-node edge exists → every node is
+ * approved and the fingerprints match.
  */
 async function seedGreenLock(root: string): Promise<LockFile> {
   const graph = await loadGraph(root);
   const result = await runRelationPass(graph, root, {
-    extractorFor: () => undefined, // same empty universe runCheck uses in Phase 0
-    resolvePathToFile: () => undefined,
+    extractorFor: extractorForLanguage, // same real universe runCheck uses
+    resolvePathToFile: makeResolvePathToFile(root),
     symbolIndexDir: path.join(root, '.yg-cache-seed'),
   });
   const lock: LockFile = {

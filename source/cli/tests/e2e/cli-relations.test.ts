@@ -288,11 +288,27 @@ describe.skipIf(!distExists)('CLI E2E — architecture relation rules, event pai
       // The edited dependency's own pairs go unverified (its source hash moved).
       expect(afterSourceEdit.stdout).toContain('unverified');
       expect(afterSourceEdit.stdout).toContain('services/payments');
-      // The dependent is NOT dragged in by a source edit (input-precise scope).
-      const orderLines = afterSourceEdit.stdout
+      // The dependent's ASPECT pairs are NOT dragged in by the dependency's
+      // source edit (aspect-verdict scope is input-precise). The dependent's
+      // RELATION verdict is a separate, legitimately-cascading input: orders
+      // declares `uses: services/payments`, and a relation verdict folds in the
+      // resolved dependency-target's source (so a target edit re-validates the
+      // edge) — with live TypeScript extraction the orders relation verdict
+      // therefore goes unverified here. That is correct, not a spurious drag, so
+      // we scope the "dependent untouched" assertion to the aspect-pair
+      // (`unverified`) lines, excluding the relation-conformance line.
+      // (The relation-conformance message body itself contains the word
+      // "unverified", so we exclude lines carrying the relation code rather than
+      // matching on that word — only true aspect-pair lines should remain.)
+      const orderAspectLines = afterSourceEdit.stdout
         .split('\n')
-        .filter((l) => l.includes('services/orders'));
-      expect(orderLines.length).toBe(0);
+        .filter(
+          (l) =>
+            l.includes('services/orders') &&
+            l.includes('unverified') &&
+            !l.includes('relation-undeclared-dependency'),
+        );
+      expect(orderAspectLines.length).toBe(0);
 
       // Re-filling clears the dependency's unverified pairs.
       expect(run(['check', '--approve'], dir).status).toBe(0);

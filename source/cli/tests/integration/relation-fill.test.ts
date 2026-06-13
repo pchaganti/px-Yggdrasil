@@ -1,11 +1,14 @@
 /**
- * Integration test for TASK 0.11 — the relation-conformance pass wired into the
+ * Integration test for the relation-conformance pass wired into the
  * `yg check --approve` fill stage (core/fill.ts).
  *
- * This exercises the WIRING, not the refusal logic (the stub-extractor refused
- * case is covered by tests/integration/relation-pass.test.ts). In Phase 0 the
- * extractor registry is EMPTY, so the pass detects NO dependencies and EVERY
- * mapped node gets an `approved` verdict. We assert:
+ * This exercises the WIRING and the approved-persistence path, not the refusal
+ * logic (the refused case is covered by tests/integration/relation-pass.test.ts
+ * and the e2e relation-ts suite). TypeScript extraction is LIVE: node a's
+ * `src/a/foo.ts` imports node b's file, so a genuinely depends on b. The fixture
+ * DECLARES that dependency (a --uses--> b, an allowed service→service relation)
+ * so the resolved cross-node edge is sanctioned and both nodes are approved. We
+ * assert:
  *
  *   1. After runFill, lock.relation_verdicts['node:a'] and ['node:b'] both exist
  *      with verdict 'approved' — proving runFill runs the pass before the pool
@@ -26,12 +29,18 @@ import { loadGraph } from '../../src/core/graph-loader.js';
 import { runFill } from '../../src/core/fill.js';
 import { readLock, writeLock } from '../../src/io/lock-store.js';
 
-function writeNode(root: string, nodeRel: string, name: string, mapping: string): void {
+function writeNode(
+  root: string,
+  nodeRel: string,
+  name: string,
+  mapping: string,
+  relations = '',
+): void {
   const dir = path.join(root, '.yggdrasil', 'model', nodeRel);
   mkdirSync(dir, { recursive: true });
   writeFileSync(
     path.join(dir, 'yg-node.yaml'),
-    `name: ${name}\ntype: service\nmapping:\n  - ${mapping}\n`,
+    `name: ${name}\ntype: service\n${relations}mapping:\n  - ${mapping}\n`,
     'utf-8',
   );
 }
@@ -48,9 +57,11 @@ describe('relation pass wired into runFill (integration)', () => {
     writeFileSync(path.join(root, '.yggdrasil', 'schemas', 'yg-node.yaml'), 'type: node\n');
     writeFileSync(path.join(root, '.yggdrasil', 'schemas', 'yg-aspect.yaml'), 'type: aspect\n');
     writeFileSync(path.join(root, '.yggdrasil', 'schemas', 'yg-flow.yaml'), 'type: flow\n');
+    // `service uses service` is allowed so the declared a --uses--> b relation
+    // (added below) is a sanctioned target for the resolved cross-node import.
     writeFileSync(
       path.join(root, '.yggdrasil', 'yg-architecture.yaml'),
-      `node_types:\n  service:\n    description: 'unit'\n    log_required: false\n    when:\n      path: "**"\n`,
+      `node_types:\n  service:\n    description: 'unit'\n    log_required: false\n    when:\n      path: "**"\n    relations:\n      uses: [service]\n`,
       'utf-8',
     );
     // A reviewer section is mandatory (config-reviewer-missing gates --approve),
@@ -61,9 +72,10 @@ describe('relation pass wired into runFill (integration)', () => {
       'utf-8',
     );
 
-    // Two nodes, NO relation a → b. Node a imports node b's file but declares no
-    // relation; in Phase 0 (empty registry) the pass detects nothing → both approved.
-    writeNode(root, 'a', 'A', 'src/a');
+    // Node a imports node b's file (live TS extraction resolves it), so a
+    // genuinely depends on b — declare a --uses--> b so the edge is sanctioned
+    // and both nodes are approved (this suite asserts the approved-persist path).
+    writeNode(root, 'a', 'A', 'src/a', 'relations:\n  - target: b\n    type: uses\n');
     writeNode(root, 'b', 'B', 'src/b');
 
     mkdirSync(path.join(root, 'src', 'a'), { recursive: true });

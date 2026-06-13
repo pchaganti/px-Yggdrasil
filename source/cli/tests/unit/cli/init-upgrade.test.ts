@@ -2,9 +2,10 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { mkdtemp, writeFile, mkdir, readFile, stat, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { runVersionUpgrade, ensureGitattributes } from '../../../src/cli/init.js';
+import { runVersionUpgrade, ensureGitattributes, ensureProjectGitignore } from '../../../src/cli/init.js';
 
 const LOCK_LINE = '/.yggdrasil/yg-lock.json linguist-generated=true';
+const CACHE_LINE = '.yg-cache/';
 
 async function scaffoldExistingYgg(projectRoot: string, version: string): Promise<string> {
   const yggRoot = path.join(projectRoot, '.yggdrasil');
@@ -164,5 +165,60 @@ describe('ensureGitattributes', () => {
 
     const ga = await readFile(path.join(repoRoot, '.gitattributes'), 'utf-8');
     expect(ga).toBe(`* text=auto\n${LOCK_LINE}\n`);
+  });
+});
+
+describe('ensureProjectGitignore', () => {
+  const dirsToCleanup: string[] = [];
+  afterEach(async () => {
+    for (const d of dirsToCleanup.splice(0)) await rm(d, { recursive: true, force: true });
+  });
+
+  it('creates .gitignore with the cache line when absent', async () => {
+    const repoRoot = await mkdtemp(path.join(tmpdir(), 'yg-gitignore-'));
+    dirsToCleanup.push(repoRoot);
+
+    await ensureProjectGitignore(repoRoot);
+
+    const gi = await readFile(path.join(repoRoot, '.gitignore'), 'utf-8');
+    expect(gi).toBe(`${CACHE_LINE}\n`);
+  });
+
+  it('leaves the file unchanged when the cache line is already present', async () => {
+    const repoRoot = await mkdtemp(path.join(tmpdir(), 'yg-gitignore-'));
+    dirsToCleanup.push(repoRoot);
+    const original = `node_modules/\n${CACHE_LINE}\n`;
+    await writeFile(path.join(repoRoot, '.gitignore'), original, 'utf-8');
+
+    await ensureProjectGitignore(repoRoot);
+
+    const gi = await readFile(path.join(repoRoot, '.gitignore'), 'utf-8');
+    expect(gi).toBe(original);
+  });
+
+  it('appends the cache line exactly once when other content exists', async () => {
+    const repoRoot = await mkdtemp(path.join(tmpdir(), 'yg-gitignore-'));
+    dirsToCleanup.push(repoRoot);
+    await writeFile(path.join(repoRoot, '.gitignore'), 'node_modules/\n', 'utf-8');
+
+    await ensureProjectGitignore(repoRoot);
+    // Second call must NOT append a duplicate.
+    await ensureProjectGitignore(repoRoot);
+
+    const gi = await readFile(path.join(repoRoot, '.gitignore'), 'utf-8');
+    expect(gi).toBe(`node_modules/\n${CACHE_LINE}\n`);
+    const occurrences = gi.split('\n').filter((l) => l.trim() === CACHE_LINE).length;
+    expect(occurrences).toBe(1);
+  });
+
+  it('inserts a separating newline when the existing file lacks a trailing one', async () => {
+    const repoRoot = await mkdtemp(path.join(tmpdir(), 'yg-gitignore-'));
+    dirsToCleanup.push(repoRoot);
+    await writeFile(path.join(repoRoot, '.gitignore'), 'node_modules/', 'utf-8');
+
+    await ensureProjectGitignore(repoRoot);
+
+    const gi = await readFile(path.join(repoRoot, '.gitignore'), 'utf-8');
+    expect(gi).toBe(`node_modules/\n${CACHE_LINE}\n`);
   });
 });

@@ -107,4 +107,52 @@ describe('runRelationPass (integration)', () => {
     expect(a!.fingerprint.length).toBeGreaterThan(0);
     expect(a!.fingerprint).not.toBe(b!.fingerprint);
   });
+
+  it('sanctions a dependency on a NESTED node when a relation to its ancestor is declared', async () => {
+    // Add a nested child node b/sub mapping src/b/sub, and point a's import at a
+    // file owned by b/sub. Declaring a --uses--> b (the ANCESTOR of b/sub) must
+    // sanction the edge: the verifier walks parentChain(b/sub) = [b] and finds b
+    // among a's declared targets → no violation. This exercises the parentChain
+    // ancestor-sanction branch.
+    mkdirSync(path.join(root, '.yggdrasil', 'model', 'b', 'sub'), { recursive: true });
+    writeFileSync(
+      path.join(root, '.yggdrasil', 'model', 'b', 'sub', 'yg-node.yaml'),
+      `name: BSub\ntype: service\nmapping:\n  - src/b/sub\n`,
+      'utf-8',
+    );
+    // a declares a relation to the ancestor b.
+    writeFileSync(
+      path.join(root, '.yggdrasil', 'model', 'a', 'yg-node.yaml'),
+      `name: A\ntype: service\nrelations:\n  - target: b\n    type: uses\nmapping:\n  - src/a\n`,
+      'utf-8',
+    );
+    mkdirSync(path.join(root, 'src', 'b', 'sub'), { recursive: true });
+    writeFileSync(path.join(root, 'src', 'b', 'sub', 'deep' + EXT), 'export const deep = 3;\n', 'utf-8');
+
+    const graph = await loadGraph(root);
+    const result = await runRelationPass(graph, root, {
+      extractorFor: (language) => (language === 'typescript' ? nestedStub : undefined),
+      resolvePathToFile: (specifier) =>
+        specifier === '../b/sub/deep' ? 'src/b/sub/deep' + EXT : undefined,
+      symbolIndexDir: path.join(root, '.yg-cache-nested'),
+    });
+
+    // a depends on b/sub but declares a relation to the ancestor b → sanctioned.
+    expect(result.verdicts.get('a')!.verdict).toBe('approved');
+    expect(result.verdicts.get('a')!.violations).toHaveLength(0);
+  });
 });
+
+// Stub emitting one import from a/foo.ts → ../b/sub/deep (a nested node's file).
+const nestedStub: DependencyExtractor = {
+  languages: new Set(['typescript']),
+  declarations() {
+    return [];
+  },
+  uses(file: ParsedFile): DetectedDep[] {
+    if (file.path.endsWith('src/a/foo.ts')) {
+      return [{ targetHint: { kind: 'path', specifier: '../b/sub/deep' }, kind: 'import', line: 1 }];
+    }
+    return [];
+  },
+};

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import path from 'node:path';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'; // rmSync used in cleanup + the unmapped-target case
 import { tmpdir } from 'node:os';
 
 import { loadGraph } from '../../src/core/graph-loader.js';
@@ -153,5 +153,19 @@ describe('verifyRelationConformance (integration, parse-free)', () => {
     const spy = vi.spyOn(parser, 'parseFile');
     await verifyRelationConformance(graph, lock, { extractorFor, resolvePathToFile });
     expect(spy).toHaveBeenCalledTimes(0);
+  });
+
+  it('(e) the path hint re-resolves to an UNMAPPED file → external outcome, node falls to unverified', async () => {
+    const lock = await seedLock(root);
+    // Drop node b entirely so src/b/bar.ts is owned by NO node. The stored
+    // `path:` hint still resolves to the file on disk, but ownerOf is now
+    // undefined → verify.ts records an `external` outcome (the path-external
+    // branch). a's stored outcome was owned, so the fingerprint diverges → a is
+    // unverified rather than refused.
+    rmSync(path.join(root, '.yggdrasil', 'model', 'b'), { recursive: true, force: true });
+    const graph = await loadGraph(root);
+    const states = await verifyRelationConformance(graph, lock, { extractorFor, resolvePathToFile });
+    const byNode = new Map(states.map((s) => [s.nodeId, s]));
+    expect(byNode.get('a')?.kind).toBe('unverified');
   });
 });

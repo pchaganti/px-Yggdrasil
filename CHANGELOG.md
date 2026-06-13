@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **TypeScript relation conformance is live.** `yg check --approve` now extracts every cross-node dependency a TypeScript / TSX / JavaScript file declares (static `import`, re-export with a source, `import x = require(...)`, `require(...)`, and string-literal dynamic `import(...)`), resolves each relative specifier to its owning node, and refuses a node that depends on another node without a declared relation — reported as `relation-undeclared-dependency` naming the importing file and the target node. Whole-statement `import type`, dynamic imports of a non-literal specifier, bare/external packages, intra-node imports, dependencies onto an ancestor node, and imports that resolve to an unmapped file are all silent by design (no waiver needed). The verdict is cached in the lock like every other verdict, and plain `yg check` re-validates it parse-free.
+- **`relation-undeclared-dependency` now renders its full violation detail.** The refusal block lists each `<file>:<line> → undeclared dependency on <node>` under the header instead of truncating to the summary line, so the importing file and target are visible in plain `yg check` (matching the aspect-violation refusal rendering).
+- **`yg init` gitignores the relation cache.** Both fresh init and `--upgrade` ensure the repo-root `.gitignore` excludes `.yg-cache/` (the relation pass's rebuildable local symbol-index directory), so it is never committed — a committed cache would otherwise trip the coverage gate as an unmapped file.
+
 ## [5.0.0-alpha.5] - 2026-06-13
 
 > **Breaking — verdict lock redesign.** This release replaces per-node drift
