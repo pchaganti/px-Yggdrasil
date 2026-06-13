@@ -9,8 +9,10 @@ import { validateAppendOnly } from './log-integrity.js';
 import { STRUCTURAL_CODES, COMPLETENESS_CODES } from './check-codes.js';
 import { validateFormat } from './log-format.js';
 import { toPosixPath } from '../utils/posix.js';
-import { excludeNestedGraphSubtrees } from '../io/repo-scanner.js';
-import { mappingEntryMatchesFile } from '../utils/mapping-path.js';
+import { excludeNestedGraphSubtrees, loadRootGitignoreStack, isIgnoredByStack } from '../io/repo-scanner.js';
+import type { GitignoreEntry } from '../io/repo-scanner.js';
+import { mappingEntryMatchesFile, normalizeMappingPath, isGlobPattern } from '../utils/mapping-path.js';
+import { debugWrite } from '../utils/debug-log.js';
 // ── Verdict-lock live path (spec §6) ──────────────────────────
 import { readLock, LockInvalidError } from '../io/lock-store.js';
 import { verifyLock } from './verify-lock.js';
@@ -265,6 +267,112 @@ export function scanUncoveredFiles(graph: Graph, gitTrackedFiles: string[]): str
   return uncovered.sort();
 }
 
+/**
+ * Detect git-tracked files that the coverage scan counts as "covered" but that
+ * are silently dropped from every node's expanded subject set — a false-green.
+ *
+ * `expandMappingPaths` gitignore-filters the results of a DIRECTORY/GLOB mapping
+ * entry (a `.gitignore`-matched file is skipped), while a DIRECTLY-NAMED
+ * single-file mapping entry bypasses gitignore and is always hashed. So a file
+ * that is BOTH git-tracked AND gitignored (legal: `git add -f`, or a `.gitignore`
+ * rule added after the file was tracked) and is reached ONLY through a
+ * directory/glob entry is claimed as covered yet produces no review pair — an
+ * enforced rule passes over it without any reviewer seeing it.
+ *
+ * A file is a "silent drop" when ALL FOUR hold:
+ *   (1) it is git-tracked (in `gitTrackedFiles`), AND
+ *   (2) it is matched by at least one node's mapping entry (treated as covered), AND
+ *   (3) it is gitignored (root `.gitignore`, the same machinery the hash layer uses), AND
+ *   (4) it is NOT matched by any DIRECTLY-NAMED single-file mapping entry anywhere in
+ *       the graph (a directly-named entry bypasses gitignore and would include it → safe).
+ *
+ * A mapping entry is "directly-named" for a file when it is a concrete path with no
+ * glob characters whose normalized form EQUALS the normalized file path. A directory
+ * entry (prefix match) or a glob entry is NOT directly-named.
+ *
+ * Returns the offending repo-relative POSIX paths, sorted. This is PURELY ADDITIVE:
+ * it does not touch `scanUncoveredFiles` or the mapping-expansion logic.
+ */
+export async function scanGitignoredCoveredFiles(
+  graph: Graph,
+  gitTrackedFiles: string[],
+): Promise<string[]> {
+  // Collect all mapping entries, and separately the set of directly-named (plain,
+  // non-glob) entries — the latter bypass gitignore in the hash layer.
+  const allMappings: string[] = [];
+  const directlyNamed = new Set<string>();
+  for (const node of graph.nodes.values()) {
+    for (const raw of normalizeMappingPaths(node.meta.mapping)) {
+      allMappings.push(raw);
+      if (!isGlobPattern(raw)) directlyNamed.add(normalizeMappingPath(raw));
+    }
+  }
+
+  const projectRoot = path.dirname(graph.rootPath);
+  const yggPrefix = toPosixPath(path.relative(projectRoot, graph.rootPath));
+
+  // Load the root .gitignore stack once (the same loader the hash/expand layer uses).
+  // A failure to read it is debug-logged inside the loader and yields an empty stack —
+  // no false positives (nothing is reported as gitignored).
+  let gitignoreStack: GitignoreEntry[];
+  try {
+    gitignoreStack = await loadRootGitignoreStack(projectRoot);
+  } catch (err) {
+    debugWrite(`[check] scanGitignoredCoveredFiles: gitignore load failed: ${(err as Error).message}`);
+    gitignoreStack = [];
+  }
+  if (gitignoreStack.length === 0) return [];
+
+  const offending: string[] = [];
+  const tracked = excludeNestedGraphSubtrees(gitTrackedFiles);
+  for (const file of tracked) {
+    const normalized = toPosixPath(file.trim());
+
+    // (graph-self exclusion, mirrors scanUncoveredFiles)
+    if (normalized.startsWith(yggPrefix + '/') || normalized === yggPrefix) continue;
+
+    // (2) matched by at least one node's mapping entry → counted as covered.
+    if (!allMappings.some((mp) => mappingEntryMatchesFile(mp, normalized))) continue;
+
+    // (4) a directly-named single-file entry pointing at this exact file rescues it.
+    if (directlyNamed.has(normalizeMappingPath(normalized))) continue;
+
+    // (3) gitignored under the root .gitignore (absolute path, like the hash layer).
+    let ignored: boolean;
+    try {
+      ignored = isIgnoredByStack(path.join(projectRoot, normalized), gitignoreStack);
+    } catch (err) {
+      debugWrite(`[check] scanGitignoredCoveredFiles: isIgnoredByStack threw for ${normalized}: ${(err as Error).message}`);
+      continue;
+    }
+    if (!ignored) continue;
+
+    offending.push(normalized);
+  }
+
+  return offending.sort();
+}
+
+/**
+ * Build one blocking 'mapped-file-gitignored' CheckIssue per silent-drop file.
+ * Distinct what/why/next from the plain "not covered" wording — the file IS
+ * matched by a mapping; the problem is the gitignore conflict that excludes it
+ * from review. Structured messageData only (no buildIssueMessage in the engine —
+ * the CLI layer renders it, exactly like every other coverage/structural issue).
+ */
+function buildGitignoredCoveredIssues(offending: string[]): CheckIssue[] {
+  return offending.map((file) => ({
+    severity: 'error' as const,
+    code: 'mapped-file-gitignored',
+    rule: 'mapped-file-gitignored',
+    messageData: {
+      what: `File '${file}' is git-tracked and matched by a node mapping, but is excluded from review because it matches a .gitignore pattern (and is only reached via a directory/glob mapping entry).`,
+      why: 'A directory/glob mapping entry skips gitignored files, so this tracked source file produces no review subject — an enforced rule would pass over it without any reviewer seeing it (a false green).',
+      next: `Un-ignore the file in .gitignore, name it directly in the node mapping (direct file entries bypass gitignore), or stop tracking it (git rm --cached ${file}), then re-run yg check.`,
+    },
+  }));
+}
+
 // ── Check orchestrator ────────────────────────────────────
 
 /**
@@ -349,6 +457,12 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
       buildCoverageIssue(tiers.required, totalFiles),
       buildCoverageAdvisoryIssue(tiers.middle),
     ].filter((x): x is CheckIssue => x !== null);
+
+    // Additive false-green detection: files counted as covered above but silently
+    // dropped from every node's subject set because they are gitignored and reached
+    // only through a directory/glob mapping entry. Blocking (mapped-file-gitignored).
+    const gitignoredCovered = await scanGitignoredCoveredFiles(graph, gitTrackedFiles);
+    coverageIssues.push(...buildGitignoredCoveredIssues(gitignoredCovered));
   }
 
   // Combine all issues
@@ -405,7 +519,7 @@ function countDraftAspectsAcrossGraph(graph: Graph): number {
  * Suggest the next command based on the highest-priority error, in the §6 order:
  *   lock-invalid → unverified(enforced) → enforced refusal (three exits / fix
  *   violations, carried per-issue) → prompt-too-large → log integrity/format →
- *   structural → coverage → completeness.
+ *   mapped-file-gitignored → structural → coverage → completeness.
  *
  * Each lock issue carries its own kind-appropriate `next` in messageData
  * (cached three-exit for an LLM refusal, fix-violations for a deterministic
@@ -454,7 +568,14 @@ function computeSuggestedNext(issues: CheckIssue[]): string | null {
     return `Edit .yggdrasil/model/${node}/log.md to fix format violations\n  ${count} log format violation${count === 1 ? '' : 's'} — post-baseline edit OR git checkout for pre-baseline`;
   }
 
-  // 6. structural.
+  // 6. mapped-file-gitignored — a false-green coverage conflict. It lives in
+  //    STRUCTURAL_CODES (renders as a blocking error block), but its own next
+  //    carries the file-specific remedy, so surface that directly rather than the
+  //    generic structural "Fix <code>" line.
+  const gitignoredCovered = errors.find(i => i.code === 'mapped-file-gitignored');
+  if (gitignoredCovered) return gitignoredCovered.messageData.next;
+
+  // 7. structural.
   const structuralErrors = errors.filter(i => STRUCTURAL_CODES.has(i.code));
   const coverageErrors = errors.filter(i => i.code === 'unmapped-files');
   if (structuralErrors.length > 0) {
@@ -465,13 +586,13 @@ function computeSuggestedNext(issues: CheckIssue[]): string | null {
     return `Fix ${first.code} in ${first.nodePath ?? '.yggdrasil'}\n  1 of ${structuralErrors.length} structural error${structuralErrors.length === 1 ? '' : 's'}${then}`;
   }
 
-  // 7. coverage.
+  // 8. coverage.
   if (coverageErrors.length > 0) {
     const count = coverageErrors[0].uncoveredCount ?? 0;
     return `yg context --file <uncovered-path>\n  ${count} file${count === 1 ? '' : 's'} need coverage — bootstrap workflow`;
   }
 
-  // 8. completeness.
+  // 9. completeness.
   const completenessErrors = errors.filter(i => COMPLETENESS_CODES.has(i.code));
   if (completenessErrors.length > 0) {
     const first = completenessErrors[0];

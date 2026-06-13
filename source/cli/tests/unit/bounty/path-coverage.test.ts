@@ -22,6 +22,7 @@ import {
   matchesRoot,
   partitionByCoverageTier,
   scanUncoveredFiles,
+  scanGitignoredCoveredFiles,
 } from '../../../src/core/check.js';
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import type { Graph, GraphNode, CoverageConfig } from '../../../src/model/graph.js';
@@ -618,5 +619,150 @@ describe('scanUncoveredFiles + partitionByCoverageTier together', () => {
     const tiers = partitionByCoverageTier(uncovered, cov(['src/'], ['vendor/']));
     expect(tiers.required).toEqual(['src/svc2/extra.ts']);
     expect(tiers.middle).toEqual(['lib/u.ts']);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// scanGitignoredCoveredFiles — silent-drop false-green detection
+//
+// A git-tracked file that is ALSO gitignored (legal: `git add -f`, or a
+// .gitignore rule added after the file was tracked) and is reached ONLY through a
+// directory/glob mapping entry is counted "covered" by the coverage scan yet is
+// dropped from every node's expanded subject set by the gitignore filter → it
+// produces no review pair → a false green. This detection flags exactly those.
+//
+// Reads the real .gitignore and resolves absolute paths, so these cases use the
+// loadGraph-backed makeProject helper (fresh temp dirs, rm'd in finally).
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe('scanGitignoredCoveredFiles — silent-drop detection', () => {
+  it('flags a directory-mapped, git-tracked file that is gitignored', async () => {
+    const { tmpDir } = await makeProject({
+      mappingYaml: 'mapping:\n  - src/repo\n',
+      files: {
+        '.gitignore': 'src/repo/secret.ts\n',
+        'src/repo/FooRepository.cs': 'class Foo {}',
+        'src/repo/secret.ts': 'export const k = 1;',
+      },
+    });
+    try {
+      const graph = await loadGraph(tmpDir);
+      // Both files are git-tracked (e.g. secret.ts via `git add -f`).
+      const offending = await scanGitignoredCoveredFiles(graph, [
+        'src/repo/FooRepository.cs',
+        'src/repo/secret.ts',
+      ]);
+      expect(offending).toEqual(['src/repo/secret.ts']);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('does NOT flag the file when a directly-named mapping entry also points at it', async () => {
+    // Control: the directory entry would drop it, but the direct file entry
+    // bypasses gitignore and includes it → no silent drop → no issue.
+    const { tmpDir } = await makeProject({
+      mappingYaml: 'mapping:\n  - src/repo\n  - src/repo/secret.ts\n',
+      files: {
+        '.gitignore': 'src/repo/secret.ts\n',
+        'src/repo/FooRepository.cs': 'class Foo {}',
+        'src/repo/secret.ts': 'export const k = 1;',
+      },
+    });
+    try {
+      const graph = await loadGraph(tmpDir);
+      const offending = await scanGitignoredCoveredFiles(graph, [
+        'src/repo/FooRepository.cs',
+        'src/repo/secret.ts',
+      ]);
+      expect(offending).toEqual([]);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('does NOT flag a directory-mapped, git-tracked file that is NOT gitignored', async () => {
+    const { tmpDir } = await makeProject({
+      mappingYaml: 'mapping:\n  - src/repo\n',
+      files: {
+        '.gitignore': 'src/repo/other.ts\n',
+        'src/repo/FooRepository.cs': 'class Foo {}',
+        'src/repo/secret.ts': 'export const k = 1;',
+      },
+    });
+    try {
+      const graph = await loadGraph(tmpDir);
+      const offending = await scanGitignoredCoveredFiles(graph, [
+        'src/repo/FooRepository.cs',
+        'src/repo/secret.ts',
+      ]);
+      expect(offending).toEqual([]);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('flags a glob-mapped, git-tracked file that is gitignored', async () => {
+    const { tmpDir } = await makeProject({
+      mappingYaml: 'mapping:\n  - src/repo/**/*.ts\n',
+      files: {
+        '.gitignore': 'src/repo/secret.ts\n',
+        'src/repo/keep.ts': 'export const a = 1;',
+        'src/repo/secret.ts': 'export const k = 1;',
+      },
+    });
+    try {
+      const graph = await loadGraph(tmpDir);
+      const offending = await scanGitignoredCoveredFiles(graph, [
+        'src/repo/keep.ts',
+        'src/repo/secret.ts',
+      ]);
+      expect(offending).toEqual(['src/repo/secret.ts']);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('returns nothing when no .gitignore is present', async () => {
+    const { tmpDir } = await makeProject({
+      mappingYaml: 'mapping:\n  - src/repo\n',
+      files: {
+        'src/repo/FooRepository.cs': 'class Foo {}',
+        'src/repo/secret.ts': 'export const k = 1;',
+      },
+    });
+    try {
+      const graph = await loadGraph(tmpDir);
+      const offending = await scanGitignoredCoveredFiles(graph, [
+        'src/repo/FooRepository.cs',
+        'src/repo/secret.ts',
+      ]);
+      expect(offending).toEqual([]);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('does NOT flag a gitignored file that is not in any mapping', async () => {
+    // Condition (2) fails: not matched by any mapping entry → handled by the
+    // plain unmapped-files / uncovered scan, not this detection.
+    const { tmpDir } = await makeProject({
+      mappingYaml: 'mapping:\n  - src/repo\n',
+      files: {
+        '.gitignore': 'build/out.ts\n',
+        'src/repo/FooRepository.cs': 'class Foo {}',
+        'build/out.ts': 'export const k = 1;',
+      },
+    });
+    try {
+      const graph = await loadGraph(tmpDir);
+      const offending = await scanGitignoredCoveredFiles(graph, [
+        'src/repo/FooRepository.cs',
+        'build/out.ts',
+      ]);
+      expect(offending).toEqual([]);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
   });
 });
