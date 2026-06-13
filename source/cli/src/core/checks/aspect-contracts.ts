@@ -160,7 +160,7 @@ export function checkReviewerPresence(graph: Graph): ValidationIssue[] {
   if (graph.config.reviewer) return [];
   const msgData: IssueMessage = {
     what: 'yg-config.yaml has no reviewer: section.',
-    why: 'Every project must declare at least one reviewer tier — even AST-only projects need the section for future LLM aspects.',
+    why: 'Every project must declare at least one reviewer tier — even a deterministic-only project needs the section for future LLM aspects.',
     next: 'Add `reviewer: { tiers: { default-tier: { provider: ..., consensus: 1, config: { model: ... } } } }` to .yggdrasil/yg-config.yaml.',
   };
   return [{ code: 'config-reviewer-missing', severity: 'error', rule: 'config-reviewer-missing', ...issueMsg(msgData), messageData: msgData }];

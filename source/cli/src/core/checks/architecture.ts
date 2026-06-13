@@ -295,8 +295,8 @@ export function checkPortAspectsDefined(graph: Graph): ValidationIssue[] {
               rule: 'integration-aspect-missing',
               nodePath,
               ...issueMsg({
-                what: `Relation: ${rel.type} -> ${rel.target}, port '${portName}'`,
-                why: `Port requires aspect '${aspectId}' but it is not defined in aspects/ — port contracts are broken.`,
+                what: `Port '${portName}' on '${rel.target}' requires aspect '${aspectId}', which is not defined in aspects/.`,
+                why: `Port contracts are broken when a required aspect is missing — the consumer's obligation cannot be verified.`,
                 next: `Create aspects/${aspectId}/ with yg-aspect.yaml and content.md.`,
               }),
             });
@@ -336,8 +336,8 @@ export function checkArchitectureRelations(graph: Graph): ValidationIssue[] {
           rule: 'invalid-relation-target',
           nodePath,
           ...issueMsg({
-            what: `Relation: ${rel.type} -> ${rel.target} (type: ${target.meta.type})`,
-            why: `Architecture does not allow type '${node.meta.type}' to '${rel.type}' type '${target.meta.type}'. Allowed targets for '${rel.type}': [${allowedTypes.join(', ')}]`,
+            what: `Relation '${rel.type}' from '${nodePath}' to '${rel.target}' (type '${target.meta.type}') is not allowed by the architecture.`,
+            why: `Allowed targets for '${rel.type}' from type '${node.meta.type}': [${allowedTypes.join(', ')}]`,
             next: `Either change the relation type, change the target node's type, or update yg-architecture.yaml to allow this relation.`,
           }),
         });
@@ -368,8 +368,8 @@ export function checkArchitectureParents(graph: Graph): ValidationIssue[] {
         rule: 'invalid-parent-type',
         nodePath,
         ...issueMsg({
-          what: `Parent: ${node.parent.path} (type: ${node.parent.meta.type})`,
-          why: `Architecture does not allow type '${node.meta.type}' under parent type '${node.parent.meta.type}'. Allowed parents: [${typeConfig.parents.join(', ')}]`,
+          what: `Node '${node.path}' (type '${node.meta.type}') has parent '${node.parent.path}' of type '${node.parent.meta.type}', which is not an allowed parent type.`,
+          why: `Allowed parent types for '${node.meta.type}': [${typeConfig.parents.join(', ')}]`,
           next: `Either move this node under an allowed parent type, change this node's type, or update yg-architecture.yaml to allow this parent.`,
         }),
       });
@@ -405,8 +405,8 @@ export function checkPortConsumes(graph: Graph): ValidationIssue[] {
           rule: 'consumes-without-ports',
           nodePath,
           ...issueMsg({
-            what: `Relation: ${rel.type} -> ${rel.target} declares consumes: [${rel.consumes.join(', ')}]`,
-            why: `Target has no ports. consumes is only meaningful when the target declares ports with required aspects.`,
+            what: `Relation '${rel.type}' to '${rel.target}' declares consumes [${rel.consumes.join(', ')}], but the target has no ports.`,
+            why: `consumes is only meaningful when the target declares ports with required aspects.`,
             next: `Remove consumes from this relation in yg-node.yaml.`,
           }),
         });
@@ -425,7 +425,7 @@ export function checkPortConsumes(graph: Graph): ValidationIssue[] {
           rule: 'missing-consumes',
           nodePath,
           ...issueMsg({
-            what: `Relation: ${rel.type} -> ${rel.target}`,
+            what: `Node '${nodePath}' relates (${rel.type}) to '${rel.target}', which declares ports, but the relation has no consumes.`,
             why: `Target has ports: [${portNames.join(', ')}] — port-required aspects won't be verified without a consumes declaration.`,
             next: `Add consumes: [<port-names>] to this relation in yg-node.yaml.`,
           }),

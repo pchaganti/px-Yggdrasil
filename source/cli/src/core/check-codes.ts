@@ -66,9 +66,19 @@ export const STRUCTURAL_CODES = new Set<string>([
   // The lock file is unparseable, garbled, conflict-markered, or an unknown
   // version. Fail closed — blocking, structural, independent of any pair state.
   'lock-invalid',
+  // yg-secrets.yaml carries a non-credential field (only api_key is allowed).
+  // Emitted as a blocking error and gates --approve; structural so the summary
+  // tally counts it and computeSuggestedNext can point at it.
+  'secrets-non-credential-field',
 ]);
 
-/** Completeness codes — non-blocking metadata gaps surfaced in the summary. */
+/**
+ * Metadata-completeness codes surfaced in the summary. NOTE: despite the
+ * historical "non-blocking" framing, `description-missing` is emitted at
+ * `severity: 'error'` (see checkMissingDescriptions) and therefore BLOCKS
+ * `yg check`. Membership here governs grouping/tally only, not severity —
+ * the emitting check decides whether a code blocks.
+ */
 export const COMPLETENESS_CODES = new Set<string>(['description-missing']);
 
 /**

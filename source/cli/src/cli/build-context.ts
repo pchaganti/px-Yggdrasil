@@ -261,6 +261,17 @@ export function registerBuildCommand(program: Command): void {
           }) + '\n'));
           process.exit(1);
         }
+        // A --file path that resolves outside the repository is USER input, not an
+        // internal bug — classify it rather than routing to the crash handler.
+        const outsideRoot = msg.match(/^Path is outside project root: (.+)$/);
+        if (outsideRoot) {
+          process.stderr.write(chalk.red(buildIssueMessage({
+            what: `The path '${outsideRoot[1]}' is outside the project root.`,
+            why: `Context can only be built for files tracked inside the project.`,
+            next: `Pass a path inside the project root (relative to the repo).`,
+          }) + '\n'));
+          process.exit(1);
+        }
         abortOnUnexpectedError(error, 'building context');
       }
   };

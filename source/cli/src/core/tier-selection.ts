@@ -18,9 +18,9 @@ export function selectTierForAspect(
     return {
       ok: false,
       error: {
-        what: `selectTierForAspect called with aspect '${aspect.id}' having reviewer type '${aspect.reviewer.type}'`,
-        why: 'tier selection applies only to LLM aspects; AST aspects run locally without an LLM',
-        next: 'caller should gate on aspect.reviewer.type === "llm" before calling',
+        what: `Internal error: tried to resolve a reviewer tier for non-LLM aspect '${aspect.id}'.`,
+        why: 'This indicates an internal bug — a deterministic aspect should never need a reviewer tier.',
+        next: 'Re-run yg check; if it persists, report it.',
       },
     };
   }

@@ -311,12 +311,12 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
       // One forbidden line per offending relation, each naming the declaring
       // node, the relation type, the target, and the target's type.
       expect(stdout).toContain('relation-target-forbidden');
-      expect(stdout).toContain('Relation: calls -> app/b (type: base)');
-      expect(stdout).toContain('Relation: uses -> app/i (type: iface)');
-      expect(stdout).toContain('Relation: extends -> app/i (type: iface)');
-      expect(stdout).toContain('Relation: implements -> app/b (type: base)');
+      expect(stdout).toContain("Relation 'calls' from 'app/p' to 'app/b' (type 'base') is not allowed by the architecture.");
+      expect(stdout).toContain("Relation 'uses' from 'app/p' to 'app/i' (type 'iface') is not allowed by the architecture.");
+      expect(stdout).toContain("Relation 'extends' from 'app/p' to 'app/i' (type 'iface') is not allowed by the architecture.");
+      expect(stdout).toContain("Relation 'implements' from 'app/p' to 'app/b' (type 'base') is not allowed by the architecture.");
       // The WHY enumerates the allowed targets for the relation type.
-      expect(stdout).toContain("Allowed targets for 'calls': [consumer]");
+      expect(stdout).toContain("Allowed targets for 'calls' from type 'producer': [consumer]");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -343,8 +343,8 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('relation-target-forbidden');
-      expect(stdout).toContain('Relation: emits -> app/b (type: base)');
-      expect(stdout).toContain("Allowed targets for 'emits': [consumer]");
+      expect(stdout).toContain("Relation 'emits' from 'app/p' to 'app/b' (type 'base') is not allowed by the architecture.");
+      expect(stdout).toContain("Allowed targets for 'emits' from type 'producer': [consumer]");
       // The unpaired emit is independently reported.
       expect(stdout).toContain('event-unpaired');
     } finally {
@@ -704,8 +704,8 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('relation-target-forbidden');
-      expect(stdout).toContain('Relation: calls -> app (type: module)');
-      expect(stdout).toContain("Allowed targets for 'calls': [consumer]");
+      expect(stdout).toContain("Relation 'calls' from 'app/p' to 'app' (type 'module') is not allowed by the architecture.");
+      expect(stdout).toContain("Allowed targets for 'calls' from type 'producer': [consumer]");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -376,8 +376,9 @@ mapping:
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('relation-target-forbidden');
-      expect(all).toContain('extends -> other');
-      expect(all).toContain("Allowed targets for 'extends': [base]");
+      expect(all).toContain("Relation 'extends' from");
+      expect(all).toContain("to 'other'");
+      expect(all).toContain("Allowed targets for 'extends' from type 'derived': [base]");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -405,8 +406,9 @@ mapping:
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('relation-target-forbidden');
-      expect(all).toContain('implements -> other');
-      expect(all).toContain("Allowed targets for 'implements': [iface]");
+      expect(all).toContain("Relation 'implements' from");
+      expect(all).toContain("to 'other'");
+      expect(all).toContain("Allowed targets for 'implements' from type 'derived': [iface]");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -265,7 +265,7 @@ describe('checkArchitectureRelations — target-type gating', () => {
     const issues = checkArchitectureRelations(makeGraph({ nodes, architecture: arch({ calls: ['module'] }) }));
     expect(codesOf(issues)).toEqual(['relation-target-forbidden']);
     expect(issues[0].nodePath).toBe('a');
-    expect(issues[0].messageData.why).toContain('library');
+    expect(issues[0].messageData.what).toContain('library');
     expect(issues[0].messageData.why).toContain('module');
   });
 
@@ -364,7 +364,7 @@ describe('checkArchitectureParents — parent-type gating', () => {
     const issues = checkArchitectureParents(makeGraph({ nodes, architecture }));
     expect(codesOf(issues)).toEqual(['parent-type-forbidden']);
     expect(issues[0].nodePath).toBe('p/c');
-    expect(issues[0].messageData.why).toContain('library');
+    expect(issues[0].messageData.what).toContain('library');
   });
 
   it('a root node (no parent) is never checked even when its type restricts parents', () => {
@@ -498,7 +498,7 @@ describe('checkPortAspectsDefined — port-required aspect must exist', () => {
     const issues = checkPortAspectsDefined(makeGraph({ nodes }));
     expect(codesOf(issues)).toEqual(['port-missing-aspect']);
     expect(issues[0].nodePath).toBe('c');
-    expect(issues[0].messageData.why).toContain('ghost');
+    expect(issues[0].messageData.what).toContain('ghost');
   });
 
   it('defined aspect → no issue', () => {
@@ -650,7 +650,7 @@ describe('cross-consistency — contract codes agree with channel-6 propagation'
 
     const contractIssues = checkPortAspectsDefined(graph);
     expect(contractIssues).toHaveLength(1);
-    expect(contractIssues[0].messageData.why).toContain('ghost');
+    expect(contractIssues[0].messageData.what).toContain('ghost');
     // The propagation layer still makes the (undefined) id effective by id —
     // proving the contract guards exactly the id the consumer would inherit.
     expect(computeEffectiveAspects(consumer, graph).has('ghost')).toBe(true);

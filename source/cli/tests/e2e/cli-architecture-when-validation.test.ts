@@ -193,8 +193,10 @@ describe.skipIf(!distExists)(
         expect(status).toBe(1);
         expect(stdout).toContain('parent-type-forbidden');
         expect(stdout).toContain(
-          "Architecture does not allow type 'widget' under parent type 'module'. Allowed parents: [service]",
+          "(type 'widget') has parent",
         );
+        expect(stdout).toContain("of type 'module', which is not an allowed parent type.");
+        expect(stdout).toContain("Allowed parent types for 'widget': [service]");
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -613,8 +615,10 @@ describe.skipIf(!distExists)(
         expect(status).toBe(1);
         expect(stdout).toContain('relation-target-forbidden');
         expect(stdout).toContain(
-          "Architecture does not allow type 'service' to 'calls' type 'service'. Allowed targets for 'calls': [module]",
+          "Relation 'calls' from",
         );
+        expect(stdout).toContain("to 'services/payments' (type 'service') is not allowed by the architecture.");
+        expect(stdout).toContain("Allowed targets for 'calls' from type 'service': [module]");
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }

@@ -413,7 +413,7 @@ describe.skipIf(!distExists)('CLI E2E — yg check validation code matrix (remai
       expect(status).toBe(1);
       expect(all).toContain('parent-type-forbidden');
       expect(all).toContain('outer/inner');
-      expect(all).toContain('Allowed parents: [gadget]');
+      expect(all).toContain("Allowed parent types for 'widget': [gadget]");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

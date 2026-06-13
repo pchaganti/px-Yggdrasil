@@ -332,8 +332,9 @@ describe('spec §"Missing port contracts" — port-missing-consumes', () => {
   // DIVERGENCE: the spec quotes a specific rendered message
   //   "Missing port contract: <consumer> → <target> has ports [...], consumer
   //    must declare consumes: [<port-name>]."
-  // The actual diagnostic is "Relation: <type> -> <target>" / "Target has
-  // ports: [...]" and NEVER contains the literal "Missing port contract:".
+  // The actual diagnostic states the problem in the `what` line — the consumer
+  // relates to a target that declares ports but the relation has no consumes —
+  // and NEVER contains the literal "Missing port contract:".
   // Pinned here as ACTUAL behavior (see suspectedBugs: port-missing-consumes-message-divergence).
   it("the documented literal 'Missing port contract:' message is NOT produced (actual format pinned)", () => {
     const nodes = new Map<string, GraphNode>([
@@ -343,7 +344,7 @@ describe('spec §"Missing port contracts" — port-missing-consumes', () => {
     const [issue] = checkPortConsumes(makeGraph({ nodes }));
     const text = `${issue.messageData.what}\n${issue.messageData.why}\n${issue.messageData.next}`;
     expect(text).not.toContain('Missing port contract:');
-    expect(issue.messageData.what.startsWith('Relation:')).toBe(true);
+    expect(issue.messageData.what).toContain('has no consumes');
   });
 });
 

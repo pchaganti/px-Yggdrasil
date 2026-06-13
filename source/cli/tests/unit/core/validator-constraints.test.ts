@@ -157,7 +157,7 @@ describe('validator', () => {
       expect(portMissingAspect).toHaveLength(1);
       expect(portMissingAspect[0].rule).toBe('integration-aspect-missing');
       expect(msgOf(portMissingAspect[0])).toContain('audit-logging');
-      expect(msgOf(portMissingAspect[0])).toContain("port 'api'");
+      expect(msgOf(portMissingAspect[0])).toContain("Port 'api'");
     });
 
     it('integration-aspect-missing not fired when consumer uses a port whose required aspect exists', async () => {
