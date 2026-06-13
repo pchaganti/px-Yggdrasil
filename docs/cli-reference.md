@@ -182,7 +182,11 @@ yg find "authentication middleware"
 ```
 
 Use this when you know the feature you want to work on but not the node path.
-Scores above 0.6 are usually reliable; below 0.3, verify with `yg context`.
+The `score` is **relative to the best match in this query** — the top result is
+always `1.00` and the rest are its fraction, not an absolute confidence. Read the
+gap: a large drop from `1.00` to the next result signals a confident winner;
+closely-clustered scores mean the query is ambiguous, so confirm the top
+candidate with `yg context` before relying on it.
 
 ### `yg aspects`
 
