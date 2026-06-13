@@ -1,0 +1,8 @@
+name: Repo-Wide Regression Guards
+type: test-suite
+description: "Repo-wide meta-tests (in-process, no spawned binary) that guard today's cleanup against silent rot. One greps the source-of-truth files (CLI source + templates, docs, examples, tools, top-level READMEs, config schemas) and fails if a removed CLI command name reappears as a runnable command. The other re-asserts the false-green invariant over this repo's own dogfood graph: every covered, readable, git-tracked file is in at least one expected verification pair OR legitimately accounted for (no rule applies, binary excluded from an LLM-only subject set, or scope-excluded), so no mapped file silently leaves the review set and passes a rule vacuously."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/unit/repo/no-removed-commands.test.ts
+  - source/cli/tests/unit/repo/false-green-invariant.test.ts

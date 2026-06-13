@@ -1,0 +1,303 @@
+// =============================================================================
+// GUARD 1 — removed-command names must not reappear as runnable commands.
+//
+// `yg approve` and `yg deterministic-test` were REMOVED from the CLI surface and
+// replaced by `yg check --approve` and `yg aspect-test`. This grep-guard scans
+// the source-of-truth files (CLI source + templates, user docs, examples, tools,
+// top-level READMEs, and the config schemas) and FAILS if either removed command
+// appears as a RUNNABLE COMMAND. It is the cheap regression guard that stops a
+// future contributor from quietly re-introducing a dead command in prose, an
+// example, a help string, or a diagnostic.
+//
+// What is a "runnable command" vs. a legitimate mention:
+//   - `yg approve ...`            → runnable (BAD) unless the token right before
+//                                    `approve` is `check` (i.e. `yg check --approve`).
+//   - `yg deterministic-test ...` → runnable (BAD), always.
+//   - A line that DOCUMENTS the removal (contains words like "removed", "no
+//     longer", "replaced", "retired", "gone", "does not exist", …) is a
+//     regression-guard / changelog-style statement, not a runnable command, and
+//     is allowed. These let the codebase keep talking ABOUT the old names.
+//
+// Excluded paths (legitimate, must NOT fail the guard):
+//   - CHANGELOG.md                 — documents the removal and historical fixes.
+//   - generated rules files         — `.yggdrasil/agent-rules.md`, `.cursor/**`
+//                                     (auto-generated from rules.ts; never edited).
+//   - node_modules / dist / coverage / .git — not source of truth.
+//   - **/log.md                     — append-only per-node history, not docs.
+//   - this test file itself         — it names the removed commands by design.
+//
+// Hermetic & fast: reads files via fs + regex; spawns nothing. Deterministic.
+// =============================================================================
+
+import { describe, it, expect } from 'vitest';
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// tests/unit/repo → repo root is five levels up: repo/unit/tests/cli/source.
+const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..', '..');
+
+// This test file's own repo-relative path — excluded from its own scan.
+const SELF_REL = toRepoRel(fileURLToPath(import.meta.url));
+
+function toRepoRel(abs: string): string {
+  return path.relative(REPO_ROOT, abs).split(path.sep).join('/');
+}
+
+// ---------------------------------------------------------------------------
+// Scan scope.
+// ---------------------------------------------------------------------------
+
+/** Directory subtrees to walk (repo-relative). Missing ones are skipped. */
+const SCAN_DIRS = [
+  'source/cli/src', // CLI code + templates (rules.ts, knowledge/*, platform.ts)
+  'docs',
+  'examples',
+  'tools',
+  '.yggdrasil/schemas', // the config/element schemas shipped with the graph
+];
+
+/** Individual files to scan (repo-relative). Missing ones are skipped. */
+const SCAN_FILES = ['README.md', 'source/cli/README.md'];
+
+/** Only these extensions are scanned (text formats that can carry a command). */
+const SCAN_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts', '.js', '.mjs', '.cjs', '.md', '.mdx', '.yaml', '.yml', '.json', '.html', '.txt']);
+
+/**
+ * Directory names that are never source of truth: build output, dependencies,
+ * coverage reports, VCS internals, the VitePress build, and docs' own deps.
+ */
+const EXCLUDED_DIR_NAMES = new Set(['node_modules', 'dist', 'coverage', '.git']);
+
+/** Repo-relative path prefixes that are excluded wholesale. */
+const EXCLUDED_PATH_PREFIXES = [
+  'docs/.vitepress/dist/',
+  'docs/node_modules/',
+];
+
+/** Repo-relative files that are excluded wholesale (legitimate mentions). */
+const EXCLUDED_FILES = new Set([
+  'CHANGELOG.md', // documents the removal + historical fixes — allowed to name them.
+  SELF_REL, // this guard names the removed commands by design.
+]);
+
+/**
+ * A path is an excluded GENERATED rules file or append-only log when it matches
+ * one of these. Generated rules files are reproduced from rules.ts (the real
+ * source of truth) and may legitimately carry historical text; per-node log.md
+ * is append-only history, not docs.
+ */
+function isExcludedPath(rel: string): boolean {
+  if (EXCLUDED_FILES.has(rel)) return true;
+  if (rel.endsWith('/log.md') || rel === 'log.md') return true;
+  if (rel === '.yggdrasil/agent-rules.md') return true; // generated
+  if (rel.startsWith('.cursor/')) return true; // generated rules (other platforms)
+  if (rel.endsWith('.cursor/rules/yggdrasil.mdc')) return true;
+  for (const prefix of EXCLUDED_PATH_PREFIXES) {
+    if (rel.startsWith(prefix)) return true;
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// File collection.
+// ---------------------------------------------------------------------------
+
+function collectFiles(): string[] {
+  const out: string[] = [];
+
+  const walk = (absDir: string): void => {
+    let entries: string[];
+    try {
+      entries = readdirSync(absDir);
+    } catch {
+      return; // directory vanished mid-walk or is unreadable — skip.
+    }
+    for (const name of entries) {
+      if (EXCLUDED_DIR_NAMES.has(name)) continue;
+      const abs = path.join(absDir, name);
+      let st;
+      try {
+        st = statSync(abs);
+      } catch {
+        continue;
+      }
+      const rel = toRepoRel(abs);
+      if (st.isDirectory()) {
+        if (isExcludedPath(rel + '/')) continue;
+        walk(abs);
+      } else if (st.isFile()) {
+        if (!SCAN_EXTENSIONS.has(path.extname(name).toLowerCase())) continue;
+        if (isExcludedPath(rel)) continue;
+        out.push(abs);
+      }
+    }
+  };
+
+  for (const dir of SCAN_DIRS) {
+    const abs = path.join(REPO_ROOT, dir);
+    if (existsSync(abs)) walk(abs);
+  }
+  for (const file of SCAN_FILES) {
+    const abs = path.join(REPO_ROOT, file);
+    if (!existsSync(abs)) continue;
+    const rel = toRepoRel(abs);
+    if (isExcludedPath(rel)) continue;
+    if (!SCAN_EXTENSIONS.has(path.extname(abs).toLowerCase())) continue;
+    out.push(abs);
+  }
+
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Detection.
+// ---------------------------------------------------------------------------
+
+/**
+ * Words that mark a line as a removal/regression-guard statement (a line that
+ * talks ABOUT the old command) rather than a runnable invocation. Matched
+ * case-insensitively against the whole line.
+ */
+const REMOVAL_MARKERS = [
+  'removed',
+  'remove',
+  'gone',
+  'no longer',
+  'replaced',
+  'replaces',
+  'replacement',
+  'replacement',
+  'retired',
+  'is absent',
+  'does not exist',
+  'deprecated',
+  "didn't exist",
+  'former',
+  'old ',
+  'used to',
+];
+
+function isRemovalStatement(line: string): boolean {
+  const lower = line.toLowerCase();
+  return REMOVAL_MARKERS.some((m) => lower.includes(m));
+}
+
+// `yg deterministic-test` — always a removed runnable command.
+const DETERMINISTIC_TEST_RE = /\byg\s+deterministic-test\b/;
+
+// `yg approve` — a removed runnable command UNLESS it is part of `yg check --approve`.
+// The removed form has no flags, so we match `yg approve` literally and then, for
+// each match, decide whether it is actually the surviving `yg check --approve`
+// (the token immediately before `approve` is `check`, i.e. `yg check --approve`)
+// — in that case the substring "yg ... approve" we matched is a red herring.
+const YG_APPROVE_RE = /\byg\s+approve\b/g;
+// Surviving form: `yg check --approve` (any whitespace). If a line contains this,
+// the `approve` on it is accounted for by the survivor, not the removed command.
+const YG_CHECK_APPROVE_RE = /\byg\s+check\s+--approve\b/;
+
+interface Offender {
+  rel: string;
+  line: number;
+  text: string;
+  command: string;
+}
+
+function scanLine(rel: string, lineNo: number, raw: string, offenders: Offender[]): void {
+  const line = raw;
+
+  // `yg deterministic-test` — flag unless the line documents the removal.
+  if (DETERMINISTIC_TEST_RE.test(line) && !isRemovalStatement(line)) {
+    offenders.push({ rel, line: lineNo, text: line.trim(), command: 'yg deterministic-test' });
+  }
+
+  // `yg approve` — flag unless it is the surviving `yg check --approve`, or the
+  // line documents the removal. A line may contain BOTH (e.g. "yg approve →
+  // yg check --approve"); such a line is a removal statement and is allowed.
+  if (YG_APPROVE_RE.test(line)) {
+    YG_APPROVE_RE.lastIndex = 0; // reset the global regex before reuse.
+    if (isRemovalStatement(line)) return;
+    // If the ONLY `approve` occurrences on the line belong to `yg check --approve`,
+    // there is no bare removed command. Strip every `yg check --approve` occurrence
+    // and re-test for a leftover bare `yg approve`.
+    const stripped = line.replace(/\byg\s+check\s+--approve\b/g, '');
+    if (/\byg\s+approve\b/.test(stripped)) {
+      offenders.push({ rel, line: lineNo, text: line.trim(), command: 'yg approve' });
+    }
+    void YG_CHECK_APPROVE_RE; // documented survivor pattern (kept for clarity).
+  }
+}
+
+function findOffenders(): Offender[] {
+  const offenders: Offender[] = [];
+  for (const abs of collectFiles()) {
+    let content: string;
+    try {
+      content = readFileSync(abs, 'utf-8');
+    } catch {
+      continue; // unreadable — not our concern here.
+    }
+    const rel = toRepoRel(abs);
+    const lines = content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      scanLine(rel, i + 1, lines[i], offenders);
+    }
+  }
+  return offenders;
+}
+
+// ---------------------------------------------------------------------------
+// Tests.
+// ---------------------------------------------------------------------------
+
+describe('GUARD: removed CLI commands must not reappear as runnable commands', () => {
+  it('no `yg approve` or `yg deterministic-test` invocation in source-of-truth files', () => {
+    const offenders = findOffenders();
+    const report = offenders
+      .map((o) => `  ${o.rel}:${o.line}  [${o.command}]  ${o.text}`)
+      .join('\n');
+    expect(
+      offenders,
+      offenders.length === 0
+        ? ''
+        : `Found ${offenders.length} reference(s) to a REMOVED CLI command used as a runnable command.\n` +
+            `Replace 'yg approve' with 'yg check --approve' and 'yg deterministic-test' with 'yg aspect-test'.\n` +
+            `If a line legitimately documents the removal, phrase it with words like "removed"/"no longer"/"replaced".\n` +
+            `Offenders:\n${report}`,
+    ).toEqual([]);
+  });
+
+  it('the scan actually inspected files (guard is wired up, not a no-op)', () => {
+    // A regression here would mean the scan silently matched nothing (e.g. a
+    // broken REPO_ROOT) and could never catch a re-introduced command.
+    const files = collectFiles();
+    expect(files.length).toBeGreaterThan(50);
+    expect(files.some((f) => toRepoRel(f) === 'source/cli/src/templates/rules.ts')).toBe(true);
+  });
+
+  it('the detector flags a bare `yg approve` but not the surviving `yg check --approve`', () => {
+    // Self-test of the matcher so the exclusion logic itself cannot silently rot.
+    const bad: Offender[] = [];
+    scanLine('x.md', 1, 'Run `yg approve` to fill the lock.', bad);
+    expect(bad).toHaveLength(1);
+    expect(bad[0].command).toBe('yg approve');
+
+    const survivor: Offender[] = [];
+    scanLine('x.md', 1, 'Run `yg check --approve` to fill the lock.', survivor);
+    expect(survivor).toHaveLength(0);
+
+    const removalDoc: Offender[] = [];
+    scanLine('x.md', 1, 'The `yg approve` command was removed; use `yg check --approve`.', removalDoc);
+    expect(removalDoc).toHaveLength(0);
+
+    const detTest: Offender[] = [];
+    scanLine('x.md', 1, 'Run `yg deterministic-test --files foo.ts`.', detTest);
+    expect(detTest).toHaveLength(1);
+    expect(detTest[0].command).toBe('yg deterministic-test');
+
+    const detTestRemoval: Offender[] = [];
+    scanLine('x.md', 1, '`yg deterministic-test` is gone; use `yg aspect-test`.', detTestRemoval);
+    expect(detTestRemoval).toHaveLength(0);
+  });
+});
