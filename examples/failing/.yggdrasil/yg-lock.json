@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "verdicts": {
+    "requires-audit": {
+      "node:payments": {"hash":"a280fb7b9827f2a7a8e393bcd29c40b3585825b352805fc250d309b2864bdf0b","reason":"Both mutation functions in src/payments.ts fail to emit audit events with required fields. src/payments.ts:2 charge() uses only console.log() (not acceptable per aspect). src/payments.ts:8 refund() also uses only console.log() instead of calling emitAudit() with operation, timestamp, and entityId. The emitAudit() function is defined and available in src/audit.ts but is never invoked by either mutation function.","verdict":"refused"}
+    }
+  },
+  "nodes": {
+    "api": {"source":"0aac398b69c28d3c90642035290d3990e405a425ba88c2640bcf9486d6bc2cc9"}
+  }
+}

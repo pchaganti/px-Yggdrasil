@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "verdicts": {
+    "requires-audit": {
+      "node:payments": {"hash":"fe91972688b5dfdece2c512cb96246aa518573e775b2eae48d71350ebd8d2aa0","verdict":"approved"}
+    }
+  },
+  "nodes": {
+    "api": {"source":"0aac398b69c28d3c90642035290d3990e405a425ba88c2640bcf9486d6bc2cc9"},
+    "payments": {"log":{"last_entry_datetime":"2026-06-03T11:37:45.233Z","prefix_hash":"61283a0c70b8902e38f8e29405e9b32f1e0097277b3fcc16b3533bb12ecb46bd"},"source":"e1f77e17c0bebdb1c3386e486cda9e5871e727ce267ac395dd6acb7c16999365"}
+  }
+}

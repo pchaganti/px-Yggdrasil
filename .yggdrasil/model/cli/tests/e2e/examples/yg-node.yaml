@@ -1,0 +1,7 @@
+name: E2E Tests — Shipped Examples
+type: test-suite
+description: "Subprocess E2E that spawns the built binary against the shipped examples/ projects (passing and failing) and asserts the README-documented outcome: examples/passing reports PASS and examples/failing reports the requires-audit refusal on payments. Each example ships a committed yg-lock.json, so yg check is a pure read reproducing the verdict with no API key — this pins the examples so they cannot silently rot against the verdict-lock model."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-examples.test.ts
