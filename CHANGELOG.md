@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Converted the `schema-bump-bookkeeping` and `top-level-error-handler` aspects from AI-reviewed to deterministic checks (mechanical, free, no flakiness).
+
 ### Fixed
 
 - **A gitignored-but-tracked mapped file no longer becomes a false green.** A file that is BOTH git-tracked (`git add -f`, or a `.gitignore` rule added after the file was tracked) AND matches a `.gitignore` pattern, and is reached ONLY through a directory or glob mapping entry, was previously counted as "covered" by the coverage scan yet silently dropped from every node's review subject set by the gitignore filter that directory/glob expansion applies — so it produced no review pair and `yg check` reported PASS over a tracked source file no reviewer ever saw. The coverage scan now raises a blocking `mapped-file-gitignored` error for exactly this case (git-tracked AND mapping-matched AND gitignored AND not rescued by any directly-named single-file mapping entry, since a direct file entry bypasses gitignore and would include it). The remedy is to un-ignore the file, name it directly in the mapping, or stop tracking it. This detection is additive — the mapping-expansion logic is unchanged.
