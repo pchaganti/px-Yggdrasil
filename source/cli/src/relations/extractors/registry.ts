@@ -8,6 +8,7 @@ import { kotlinExtractor } from './kotlin.js';
 import { rustExtractor } from './rust.js';
 import { cExtractor } from './c.js';
 import { cppExtractor } from './cpp.js';
+import { csharpExtractor } from './csharp.js';
 
 const EXTRACTORS: DependencyExtractor[] = [
   typescriptExtractor, // TS / TSX / JS (Phase 1)
@@ -19,6 +20,7 @@ const EXTRACTORS: DependencyExtractor[] = [
   rustExtractor, // Rust (Phase 7) — resolves via the crate module tree (crate::/super::/self::)
   cExtractor, // C (.c/.h) — resolves via quoted #include path relative to the includer
   cppExtractor, // C++ (.cpp/.hpp/.cc/.cxx/.hh/.hxx) — same quoted-#include resolver as C
+  csharpExtractor, // C# (.cs) — namespace-spanning SymbolTable: using-scope + qualified/bare symbol use → FQN
 ];
 
 const byLanguage = new Map<string, DependencyExtractor>();
