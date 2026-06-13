@@ -341,7 +341,7 @@ describe.skipIf(!distExists)('CLI E2E — invalidation extended paths', () => {
   // type with no default aspects, carrying only the draft `wip-rule`.
   // -------------------------------------------------------------------------
 
-  it('4: an all-draft node is never unverified — no invalidation even after a source edit', () => {
+  it('4: an all-draft node has no ASPECT pair to invalidate on a source edit — but its relation verdict IS source-sensitive', () => {
     const dir = deterministicFixture('alldraft');
     try {
       appendFileSync(
@@ -385,20 +385,33 @@ describe.skipIf(!distExists)('CLI E2E — invalidation extended paths', () => {
         'utf-8',
       );
 
-      // Fill the real service nodes; the gadget node has no enforceable pair.
+      // Fill the real service nodes AND seed the gadget's relation verdict (mapped node,
+      // empty registry → approved). The gadget has no enforceable ASPECT pair (draft only).
       expect(run(['check', '--approve'], dir).status).toBe(0);
 
-      // The all-draft gadget node is never unverified — check is green and the
-      // node is not named.
+      // Green and the all-draft gadget is not named: it has no aspect pair AND its relation
+      // verdict is now seeded approved.
       const before = run(['check'], dir);
       expect(before.status).toBe(0);
       expect(before.all).not.toContain('widgets/gadget');
 
-      // Edit the gadget's source — still no invalidation (its only aspect is draft).
+      // Edit the gadget's source. The DRAFT aspect still has no pair to invalidate (no wip-rule
+      // pair is ever recorded for the node). BUT since relation-conformance the node's source is
+      // an input to its relation verdict, so the source edit DOES make the relation verdict
+      // unverified — exit 1, the node is named, and the remedy is a re-approve.
       appendFileSync(gadgetFile, '\n// edited; no non-draft aspect cares\n');
       const after = run(['check'], dir);
-      expect(after.status).toBe(0);
-      expect(after.all).not.toContain('widgets/gadget');
+      expect(after.status).toBe(1); // relation verdict is source-sensitive since relation-conformance
+      expect(after.all).toContain('relation-undeclared-dependency');
+      expect(after.all).toContain('widgets/gadget');
+      // The draft aspect still produces NO aspect pair — no wip-rule verdict is ever named.
+      expect(after.all).not.toContain('wip-rule');
+
+      // A re-approve reseeds the relation verdict (empty registry → approved) and check is green again.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
+      const reapproved = run(['check'], dir);
+      expect(reapproved.status).toBe(0);
+      expect(reapproved.all).not.toContain('widgets/gadget');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -44,8 +44,10 @@ const distExists = existsSync(BIN_PATH);
 const LOOPBACK_ENDPOINT = 'http://127.0.0.1:11434';
 
 // Number of nodes to create. Each node gets 3 LLM aspects (from architecture
-// type defaults) = 3 × NODE_COUNT unverified pairs.
-// 75 nodes × 3 aspects = 225 unverified errors — well above the 200 threshold.
+// type defaults) = 3 × NODE_COUNT unverified aspect pairs, PLUS one unverified
+// relation verdict per mapped node (since relation-conformance).
+// 75 nodes × 3 aspects = 225 unverified aspect errors (well above the 200 threshold),
+// + 75 relation-verdict errors = 300 total error blocks.
 const NODE_COUNT = 75;
 
 /**
@@ -184,14 +186,25 @@ describe.skipIf(!distExists)('CLI E2E — yg check output survives pipe (flush r
       //    would have been truncated under the pre-fix process.exit() behaviour.
       expect(headerCount).toBeGreaterThan(200);
 
-      // 3. Count rendered unverified issue blocks. Each block's first line matches
-      //    the pattern "  unverified  <nodePath>  No valid verdict ..." (two
-      //    leading spaces, literal "unverified", then two more spaces).
-      //    We strip ANSI escape sequences first so chalk colour codes don't
-      //    interfere with the match.
+      // 3. Count rendered error issue blocks. Each block's first line is
+      //    "  <code>  <nodePath>  <what>" (two leading spaces, the error code, two
+      //    more spaces). Two kinds of error appear here: the LLM aspect pairs render
+      //    as `unverified`, and — since relation-conformance — every mapped node also
+      //    carries an unverified relation verdict that renders as
+      //    `relation-undeclared-dependency`. The flush-truncation invariant is that
+      //    EVERY error the header declares is rendered, regardless of code, so count
+      //    both block kinds. We strip ANSI escape sequences first so chalk colour
+      //    codes don't interfere with the match.
       // eslint-disable-next-line no-control-regex
       const stripped = stdout.replace(/\x1b\[[0-9;]*m/g, '');
-      const renderedCount = (stripped.match(/^ {2}unverified {2}/gm) ?? []).length;
+      const unverifiedCount = (stripped.match(/^ {2}unverified {2}/gm) ?? []).length;
+      const relationCount = (stripped.match(/^ {2}relation-undeclared-dependency {2}/gm) ?? []).length;
+      const renderedCount = unverifiedCount + relationCount;
+
+      // The aspect-unverified blocks alone still exceed 200 (75 nodes × 3 LLM aspects = 225);
+      // the relation verdicts add one per node (75 more). Pin both so the test stays meaningful.
+      expect(unverifiedCount).toBe(225); // 75 mapped nodes × 3 LLM aspects, each unverified cold
+      expect(relationCount).toBe(NODE_COUNT); // one unverified relation verdict per mapped node since relation-conformance
 
       // 4. The core assertion: every error the header declares must be rendered.
       //    Under the truncation bug, renderedCount < headerCount for large outputs.

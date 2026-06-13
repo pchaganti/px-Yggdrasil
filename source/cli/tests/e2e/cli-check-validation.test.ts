@@ -7,6 +7,7 @@ import {
   rmSync,
   cpSync,
   writeFileSync,
+  readFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -197,9 +198,12 @@ describe.skipIf(!distExists)('CLI E2E — yg check surfaces blocking validation 
   });
 
   it('1c: a large aspect-less node does NOT block check — it passes (exit 0)', () => {
-    // An aspect-less node is never sent to a reviewer at all and has no verdict to
-    // fill, so a large mapped file produces no error of any kind. Strong form:
+    // An aspect-less node is never sent to a reviewer at all and has no ASPECT verdict to
+    // fill, so a large mapped file produces no reviewer error of any kind. Strong form:
     // exit 0, no oversized-node (the removed code) anywhere in the output.
+    // Since relation-conformance every MAPPED node also carries a relation verdict, so the
+    // node is seeded with --approve first (empty registry → approved); a plain check then
+    // re-validates it green. The aspect-less node still passes — it just now has a relation verdict.
     const dir = minimalGraph('oversized-bare', (ygRoot) => {
       const root = path.dirname(ygRoot);
       writeNode(ygRoot, 'big', 'name: Big\ntype: service\ndescription: x\nmapping:\n  - src/big.ts\n');
@@ -207,9 +211,16 @@ describe.skipIf(!distExists)('CLI E2E — yg check surfaces blocking validation 
       writeFileSync(path.join(root, 'src', 'big.ts'), '// large mapped source — no per-node byte ceiling exists anymore\n'.repeat(50), 'utf-8');
     });
     try {
+      // Seed the relation verdict (empty registry → approved), then a plain check re-validates green.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       const { status, stdout } = run(['check'], dir);
       expect(stdout).not.toContain('oversized-node');
       expect(status).toBe(0);
+      // The aspect-less node now carries a relation verdict of approved (was: no verdict at all).
+      const lock = JSON.parse(readFileSync(path.join(dir, '.yggdrasil', 'yg-lock.json'), 'utf-8')) as {
+        relation_verdicts: Record<string, { verdict: string }>;
+      };
+      expect(lock.relation_verdicts['node:big']?.verdict).toBe('approved');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

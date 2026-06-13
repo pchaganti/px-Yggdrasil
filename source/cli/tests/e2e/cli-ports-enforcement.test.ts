@@ -344,6 +344,9 @@ mapping:
   - src/derived.ts
 `,
       );
+      // Seed per-node relation verdicts first (empty registry → approved); a plain check would
+      // otherwise be exit 1 on the unverified relation verdicts every mapped node now carries.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       const { status, all } = run(['check'], dir);
       expect(status).toBe(0);
       expect(all).toContain('PASS');
