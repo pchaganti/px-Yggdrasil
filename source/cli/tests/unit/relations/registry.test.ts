@@ -6,7 +6,9 @@ describe('extractor registry', () => {
     expect(extractorForLanguage('json')).toBeUndefined();
     expect(extractorForLanguage('yaml')).toBeUndefined();
   });
-  it('returns undefined until any extractor is registered (Phase 0 stub)', () => {
-    expect(extractorForLanguage('typescript')).toBeUndefined();
+  it('resolves the TypeScript extractor for ts/tsx/js (Phase 1)', () => {
+    expect(extractorForLanguage('typescript')).toBeDefined();
+    expect(extractorForLanguage('tsx')).toBeDefined();
+    expect(extractorForLanguage('javascript')).toBeDefined();
   });
 });

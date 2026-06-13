@@ -1,7 +1,9 @@
 import type { DependencyExtractor } from './types.js';
+import { typescriptExtractor } from './typescript.js';
 
 const EXTRACTORS: DependencyExtractor[] = [
-  // typescriptExtractor (Phase 1), pythonExtractor (Phase 2), ...
+  typescriptExtractor, // TS / TSX / JS (Phase 1)
+  // pythonExtractor (Phase 2), ...
 ];
 
 const byLanguage = new Map<string, DependencyExtractor>();
