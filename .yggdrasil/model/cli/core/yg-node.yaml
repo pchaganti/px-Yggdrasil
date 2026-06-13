@@ -1,5 +1,6 @@
 name: Core
 type: module
 description: "Pure domain logic layer implementing graph operations independent of CLI presentation"
-aspects: []
+aspects:
+  - no-buildissuemessage-in-engine
 relations: []

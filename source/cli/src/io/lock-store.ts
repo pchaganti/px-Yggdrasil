@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { IssueMessage } from '../model/validation.js';
-import { buildIssueMessage } from '../formatters/message-builder.js';
 import type { LockFile, VerdictEntry, LockNodeEntry } from '../model/lock.js';
 import { LOCK_FORMAT_VERSION, LOCK_FILE_NAME } from '../model/lock.js';
 import { atomicWriteFile } from '../io/atomic-write.js';
@@ -21,7 +20,7 @@ export class LockInvalidError extends Error {
   readonly messageData: IssueMessage;
 
   constructor(messageData: IssueMessage) {
-    super(buildIssueMessage(messageData));
+    super(messageData.what);
     this.name = 'LockInvalidError';
     this.messageData = messageData;
   }
