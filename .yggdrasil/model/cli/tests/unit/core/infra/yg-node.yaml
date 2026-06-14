@@ -7,7 +7,7 @@ relations:
   [
     { target: cli/core/file-when-evaluator, type: uses },
     { target: cli/core/type-classifier, type: uses },
-    { target: cli/core/when-evaluator, type: uses },
+    { target: cli/core/graph, type: uses },
     { target: cli/io/file-content-cache, type: uses }
   ]
 mapping:

@@ -51,8 +51,6 @@ relations:
     type: calls
   - target: cli/structure
     type: calls
-  - target: cli/structure-runner
-    type: calls
   - target: cli/utils
     type: calls
 mapping:

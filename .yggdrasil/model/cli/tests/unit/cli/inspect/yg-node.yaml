@@ -14,7 +14,7 @@ relations:
     { target: cli/core/pairs, type: uses },
     { target: cli/llm/shared, type: uses },
     { target: cli/preamble, type: uses },
-    { target: cli/structure-runner, type: uses }
+    { target: cli/structure, type: uses }
   ]
 mapping:
   - source/cli/tests/unit/cli/knowledge.test.ts

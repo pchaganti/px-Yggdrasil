@@ -38,8 +38,6 @@ relations:
     type: uses
   - target: cli/preamble
     type: calls
-  - target: cli/structure-runner
-    type: calls
   - target: cli/utils
     type: calls
 mapping:

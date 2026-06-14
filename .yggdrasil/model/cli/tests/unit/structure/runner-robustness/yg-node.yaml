@@ -7,7 +7,7 @@ description: "Unit tests for structure-aspect runner robustness over
 aspects: []
 relations:
   [
-    { target: cli/structure-runner, type: uses },
+    { target: cli/structure, type: uses },
     { target: cli/tests/unit/helpers, type: uses }
   ]
 mapping:

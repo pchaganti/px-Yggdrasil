@@ -12,7 +12,7 @@ relations:
     { target: cli/formatters, type: uses },
     { target: cli/io/lock-store, type: uses },
     { target: cli/llm/shared, type: uses },
-    { target: cli/structure-runner, type: uses }
+    { target: cli/structure, type: uses }
   ]
 mapping:
   - source/cli/tests/unit/core/fill-llm.test.ts

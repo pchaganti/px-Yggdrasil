@@ -6,7 +6,6 @@ aspects: []
 relations:
   [
     { target: cli/structure, type: uses },
-    { target: cli/structure-runner, type: uses },
     { target: cli/tests/unit/helpers, type: uses }
   ]
 mapping:

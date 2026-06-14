@@ -1,7 +1,9 @@
 name: Structure
 type: structure-adapter
-description: "Context layer for the structure-aspect runtime: types, ctx
-  factories (fs, graph, parsers), and the allowed-reads collector."
+description: "Structure-aspect runtime — context layer (types, ctx factories for
+  fs, graph, parsers, the allowed-reads collector) and execution layer
+  (orchestrates check.mjs loading, ctx construction, and result collection
+  including result-bearing observations)."
 mapping:
   - source/cli/src/structure/index.ts
   - source/cli/src/structure/expand-mapping-sync.ts
@@ -10,6 +12,8 @@ mapping:
   - source/cli/src/structure/ctx-fs.ts
   - source/cli/src/structure/ctx-graph.ts
   - source/cli/src/structure/ctx-parsers.ts
+  - source/cli/src/structure/runner.ts
+  - source/cli/src/structure/observations.ts
 relations:
   - target: cli/ast/report
     type: calls
@@ -17,7 +21,9 @@ relations:
     type: calls
   - target: cli/core/language-registry
     type: calls
-  - target: cli/structure-runner
+  - target: cli/core/pair-hash
+    type: calls
+  - target: cli/io/stores
     type: calls
   - target: cli/utils
     type: calls
