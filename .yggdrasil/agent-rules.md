@@ -91,7 +91,7 @@ Two properties keep it false-positive-free:
 - **One-directional.** A detected code dependency MUST be declared. A declared relation needs NO code backing — reflection, dependency injection, HTTP, and event edges are legitimately declared without any static call, and the check never complains about a relation with no matching code.
 - **Mapped-target-only and unambiguous-only.** It fires only when the depended-on file is MAPPED to a known node — a dependency on an UNMAPPED file is a coverage matter, never a relation error. It resolves only unambiguous edges; anything dynamic, reflective, external, or not-uniquely-resolvable is silent (zero false positives by design — no waiver needed).
 
-Fix a refusal in one of two ways: declare the relation in the node's `yg-node.yaml` (pick an architecture-allowed type), OR remove the dependency. If NO relation type is allowed between the two node types, that is an architecture decision — update `yg-architecture.yaml` with the user's confirmation. `yg relations --suggest` (read-only) lists every detected-but-undeclared edge per node with the exact `relations:` stanza to paste. Deep dive: `yg knowledge read ports-and-relations`.
+Fix a refusal in one of two ways: declare the relation in the node's `yg-node.yaml` (pick an architecture-allowed type), OR remove the dependency. If NO relation type is allowed between the two node types, that is an architecture decision — update `yg-architecture.yaml` with the user's confirmation. `yg check` names the file, target, and the stanza to add. Deep dive: `yg knowledge read ports-and-relations`.
 
 ### Verification and the lock
 
@@ -121,10 +121,9 @@ Full lock format, hash ingredients, caching policy, merge procedure, garbage-col
 | `yg log read --node <path> [--top N \| --all]` | Read log entries (default top 10, newest first) |
 | `yg log merge-resolve --node <path>` | Reconcile log.md after a git merge (validates byte-exact ancestor + union of new entries) |
 | `yg suppressions` | Read-only inventory of active `yg-suppress` markers; warns on unknown aspect-id, wildcard, or unbounded range. Exit 0. |
-| `yg relations --suggest` | Read-only — list detected-but-undeclared cross-node dependencies, each with the `relations:` stanza to add. Writes nothing. |
 | `yg knowledge list` / `yg knowledge read <name>` | Browse deep-reference topics |
 
-Full command reference (`yg aspects`, `yg flows`, `yg owner`, `yg suppressions`, `yg relations`, `yg aspect-test`, `yg type-suggest`, `yg init`, `yg log merge-resolve`, all option flags): `yg knowledge read cli-reference`.
+Full command reference (`yg aspects`, `yg flows`, `yg owner`, `yg suppressions`, `yg aspect-test`, `yg type-suggest`, `yg init`, `yg log merge-resolve`, all option flags): `yg knowledge read cli-reference`.
 
 ### Impact and Cost
 

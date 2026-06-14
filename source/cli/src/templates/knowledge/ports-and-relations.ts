@@ -86,24 +86,6 @@ but does NOT propagate the target's aspects. If the dependency also needs to
 carry a critical aspect across the boundary, model a port and \`consumes\` it (see
 below) in addition to declaring the relation.
 
-### yg relations --suggest
-
-\`yg relations --suggest\` is a read-only triage command: it runs the same
-detection live and prints, per node, every detected-but-undeclared edge together
-with the exact \`relations:\` stanza to paste — or, when no relation type is
-allowed between the two types, a note pointing at the architecture. It writes
-nothing (does not touch the lock). Use it to bootstrap relation declarations on a
-brownfield repo before the first \`yg check --approve\`. Example output:
-
-\`\`\`text
-orders/handler: undeclared cross-node dependencies detected
-    src/orders/handler.ts:14 → payments/service
-  payments/service: allowed relation type(s) [calls, uses]. Add to .yggdrasil/model/orders/handler/yg-node.yaml:
-    relations:
-      - target: payments/service
-        type: calls
-\`\`\`
-
 ## Ports — named entry points with aspects
 
 A port on a node says: "consumers of this endpoint must satisfy these

@@ -141,11 +141,7 @@ A few things to know:
   relation type is allowed between the two component types, that is an architecture
   decision — your agent will surface it for your confirmation.
 
-When adopting Yggdrasil on an existing codebase, run `yg relations --suggest`
-(read-only) to list every detected-but-undeclared dependency with the exact
-`relations:` block to paste into each node — a fast way to bring the graph in line
-with the code before your first `yg check --approve`. See the
-[CLI Reference](/cli-reference#yg-relations).
+When adopting Yggdrasil on an existing codebase, run `yg check` to identify every undeclared dependency — the refusal message names the file, the target node, and the exact `relations:` stanza to add, so you can declare them before running `yg check --approve`.
 
 ### Ports
 
