@@ -83,7 +83,7 @@ export function makeResolvePathToFile(
  * No Cargo.toml ancestor → undefined crate root, which the resolver treats as silence
  * (it never guesses a source root).
  *
- * NOTE: makeResolvePathToFile is also used by verify.ts (parse-free re-validation);
+ * NOTE: makeResolvePathToFile's deps are pure filesystem access;
  * reading Cargo.toml there is fine — it reads a file, it does not parse source.
  */
 function makeRustResolveDeps(projectRoot: string): RustResolveDeps {
@@ -152,7 +152,7 @@ function makeRustResolveDeps(projectRoot: string): RustResolveDeps {
  * single factory instance, so each module root is read at most once. Listing the
  * package directory (readdirSync) is the only per-import disk touch.
  *
- * NOTE: makeResolvePathToFile is also used by verify.ts (parse-free re-validation);
+ * NOTE: makeResolvePathToFile's deps are pure filesystem access;
  * reading go.mod + readdirSync is fine there — it lists/reads files, it does not parse.
  */
 function makeGoResolveDeps(
@@ -246,7 +246,7 @@ function makeGoResolveDeps(
  * so `exists` is shared with the other resolvers; the only extra capability is
  * listing a package directory's `.java` files for a wildcard import.
  *
- * NOTE: makeResolvePathToFile is also used by verify.ts (parse-free re-validation);
+ * NOTE: makeResolvePathToFile's deps are pure filesystem access;
  * readdirSync is fine there — it lists files, it does not parse.
  */
 function makeJavaResolveDeps(
@@ -284,7 +284,7 @@ function makeJavaResolveDeps(
  * No composer.json found (or an unreadable / classmap-only one) yields an empty map,
  * which the resolver treats as silence — it never guesses a source root.
  *
- * NOTE: makeResolvePathToFile is also used by verify.ts (parse-free re-validation);
+ * NOTE: makeResolvePathToFile's deps are pure filesystem access;
  * reading composer.json there is fine — it reads a file, it does not parse source.
  */
 function makePhpResolveDeps(
