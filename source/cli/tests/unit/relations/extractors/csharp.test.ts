@@ -9,8 +9,43 @@ import { parseFile } from '../../../../src/ast/parser.js';
 
 const run = (code: string) => runExtractor(csharpExtractor, 'csharp', '.cs', code);
 
+/** Every symbol key across EVERY candidate of EVERY detected reference. Each C# reference is
+ *  now ONE ordered DetectedDep carrying its whole candidate group (nearest binding first,
+ *  verbatim/top-level last), so a key may sit at any position in the group. */
 const symbolKeys = (uses: Awaited<ReturnType<typeof run>>['uses']): string[] =>
-  uses.flatMap((u) => (u.candidates[0].kind === 'symbol' ? [u.candidates[0].symbolKey] : []));
+  uses.flatMap((u) => u.candidates.flatMap((c) => (c.kind === 'symbol' ? [c.symbolKey] : [])));
+
+/** The ordered symbol-key group for the reference whose group CONTAINS `key` (anywhere). */
+const groupContaining = (
+  uses: Awaited<ReturnType<typeof run>>['uses'],
+  key: string,
+): string[] | undefined => {
+  const dep = uses.find((u) =>
+    u.candidates.some((c) => c.kind === 'symbol' && c.symbolKey === key),
+  );
+  return dep?.candidates.flatMap((c) => (c.kind === 'symbol' ? [c.symbolKey] : []));
+};
+
+/** Resolve a detected reference exactly as `pass.ts` does: walk its ordered candidate group
+ *  and take the FIRST candidate that resolves to a unique mapped owner (stop), silence on a
+ *  present-but-ambiguous nearer candidate, continue past absent ones. Returns the bound owner
+ *  node, or undefined (silence). `dep` is the reference whose group contains `key`. */
+const walkResolve = (
+  uses: Awaited<ReturnType<typeof run>>['uses'],
+  key: string,
+  resolver: ReturnType<typeof makeResolver>,
+  fromFile: string,
+): string | undefined => {
+  const dep = uses.find((u) => u.candidates.some((c) => c.kind === 'symbol' && c.symbolKey === key));
+  if (dep === undefined) return undefined;
+  for (const cand of dep.candidates) {
+    const outcome = resolver.classify(cand, fromFile, 'csharp');
+    if (outcome.kind === 'resolved') return outcome.ownerNode; // first bind wins, stop
+    if (outcome.kind === 'ambiguous') return undefined; // nearer ambiguity silences the group
+    // absent → continue
+  }
+  return undefined;
+};
 
 /** Parse a C# source string into a ParsedFile under a chosen repo-rel path. */
 async function parse(repoRel: string, code: string): Promise<ParsedFile> {
@@ -62,6 +97,39 @@ describe('csharp extractor — declarations() produce <Namespace>.<Type> FQN key
   });
 });
 
+describe('csharp extractor — declarations() key NESTED types with the reflection `+` separator', () => {
+  it('keys a nested type `Outer+Inner` (and deeper `Outer+Obj+Deep`), NOT the bare simple name', async () => {
+    const { declarations } = await run(
+      [
+        'namespace App;',
+        'class Outer {',
+        '  class Inner { }',
+        '  class Obj { class Deep { } }',
+        '}',
+        '',
+      ].join('\n'),
+    );
+    const keys = declarations.map((d) => d.symbolKey);
+    expect(keys).toContain('App.Outer'); // top-level type unchanged
+    expect(keys).toContain('App.Outer+Inner'); // nested → `+` reflection FQN
+    expect(keys).toContain('App.Outer+Obj'); // nested
+    expect(keys).toContain('App.Outer+Obj+Deep'); // doubly nested
+    // D-N5: a nested type emits ONLY its `+` key, never also the bare simple name — that
+    // removes the collision that would let a nested `Inner` silence a top-level `App.Inner`.
+    expect(keys).not.toContain('App.Inner');
+    expect(keys).not.toContain('App.Deep');
+    expect(keys).not.toContain('App.Obj');
+  });
+
+  it('keys a file-scope nested type `Outer+Inner` with no namespace prefix', async () => {
+    const { declarations } = await run(['class Outer { class Inner { } }', ''].join('\n'));
+    const keys = declarations.map((d) => d.symbolKey);
+    expect(keys).toContain('Outer');
+    expect(keys).toContain('Outer+Inner');
+    expect(keys).not.toContain('Inner');
+  });
+});
+
 describe('csharp extractor — uses() emits SYMBOL hints (never path hints)', () => {
   it('emits a FULLY-QUALIFIED `new Foo.Bar.Baz()` as the FQN candidate', async () => {
     const { uses } = await run(
@@ -103,14 +171,16 @@ describe('csharp extractor — uses() emits SYMBOL hints (never path hints)', ()
     expect(keys).toContain('Other.Ns.Baz');
   });
 
-  it('resolves a BARE name through an ALIAS (`using Gw = Foo.Bar.IGateway;`)', async () => {
+  it('resolves a BARE name through an ALIAS (`using Gw = Foo.Bar.IGateway;`) — alias expansion is the NEAREST candidate', async () => {
     const { uses } = await run(
       ['using Gw = Foo.Bar.IGateway;', 'class C { void M() { var x = new Gw(); } }', ''].join('\n'),
     );
-    const keys = symbolKeys(uses);
-    // The aliased FQN is the dependency; the local alias name `Gw` is never a target.
-    expect(keys).toContain('Foo.Bar.IGateway');
-    expect(keys).not.toContain('Gw');
+    // The aliased FQN is the dependency and sits FIRST in the ordered group (the alias is a
+    // hard local override, nearest binding). The bare alias name `Gw` is only the harmless
+    // verbatim last candidate — it resolves to nothing, so the alias FQN is what binds.
+    const group = groupContaining(uses, 'Foo.Bar.IGateway');
+    expect(group?.[0]).toBe('Foo.Bar.IGateway');
+    expect(group?.[group.length - 1]).toBe('Gw');
   });
 
   it('SKIPS `using static X;` — it imports a TYPE\'s members, not a namespace prefix', async () => {
@@ -123,10 +193,19 @@ describe('csharp extractor — uses() emits SYMBOL hints (never path hints)', ()
     expect(keys.some((k) => k.endsWith('.Baz'))).toBe(false);
   });
 
-  it('does NOT honor `global using` from another file: a bare name with no in-file using is SILENT', async () => {
-    // No `using` directive in THIS file → a bare base type cannot be qualified.
+  it('does NOT honor `global using` from another file: a bare name with no in-file using stays SILENT at resolution', async () => {
+    // No `using` directive and no namespace in THIS file → the only candidate for a bare base
+    // type is its verbatim top-level form (`SomeGlobalType`), the harmless last candidate. With
+    // no in-graph file declaring that bare top-level type, it resolves to nothing → SILENCE.
     const { uses } = await run(['class C : SomeGlobalType { }', ''].join('\n'));
-    expect(symbolKeys(uses)).toHaveLength(0);
+    expect(symbolKeys(uses)).toEqual(['SomeGlobalType']);
+    const st = new SymbolTable(); // empty table — `global using` declared elsewhere is invisible here
+    const resolver = makeResolver({
+      ownerIndex: { ownerOf: () => 'someNode' } as never,
+      symbolTable: st,
+      resolvePathToFile: () => undefined,
+    });
+    expect(resolver.resolve({ kind: 'symbol', symbolKey: 'SomeGlobalType' }, 'src/c/Use.cs', 'csharp')).toBeUndefined();
   });
 
   it('every hint is a SYMBOL hint (csharp resolves through the SymbolTable, never a path)', async () => {
@@ -151,13 +230,13 @@ describe('csharp extractor — uses() emits SYMBOL hints (never path hints)', ()
     expect(symbolKeys(uses)).toContain('Foo.Bar.Baz');
   });
 
-  it('resolves a bare name through a `global using Alias = Foo.Bar.IGateway;` alias', async () => {
+  it('resolves a bare name through a `global using Alias = Foo.Bar.IGateway;` alias — alias expansion is NEAREST', async () => {
     const { uses } = await run(
       ['global using Gw = Foo.Bar.IGateway;', 'class C { void M() { var x = new Gw(); } }', ''].join('\n'),
     );
-    const keys = symbolKeys(uses);
-    expect(keys).toContain('Foo.Bar.IGateway');
-    expect(keys).not.toContain('Gw');
+    const group = groupContaining(uses, 'Foo.Bar.IGateway');
+    expect(group?.[0]).toBe('Foo.Bar.IGateway'); // alias expansion is the first/nearest candidate
+    expect(group?.[group.length - 1]).toBe('Gw'); // bare alias name only as harmless last
   });
 
   it('emits a QUALIFIED base type (`: Foo.Bar.Base`) even with NO using directive', async () => {
@@ -201,18 +280,24 @@ describe('csharp extractor — uses() emits SYMBOL hints (never path hints)', ()
     expect(declarations.map((d) => d.symbolKey)).toContain('A.B.C.D.X');
   });
 
-  it('DEDUPES the SAME qualified base type listed twice on one line (`: Foo.Bar, Foo.Bar`)', async () => {
-    // The same candidate FQN on the same line is emitted once — the second hit is
-    // suppressed by the symbol+line dedup key.
+  it('DEDUPES the SAME candidate key WITHIN one reference group (`: Foo.Bar, Foo.Bar`)', async () => {
+    // Each base entry is its own reference → its own ordered group. The dedup is now
+    // WITHIN a group: a group never lists the same candidate key twice. (Two distinct base
+    // entries legitimately produce two groups — each a clean single-candidate `[Foo.Bar]`.)
     const { uses } = await run(['class C : Foo.Bar, Foo.Bar { }', ''].join('\n'));
-    expect(symbolKeys(uses).filter((k) => k === 'Foo.Bar')).toHaveLength(1);
+    for (const u of uses) {
+      const keys = u.candidates.flatMap((c) => (c.kind === 'symbol' ? [c.symbolKey] : []));
+      expect(new Set(keys).size).toBe(keys.length); // no duplicate key inside any one group
+    }
   });
 
-  it('DEDUPES a bare base type qualified by a DUPLICATE using prefix (one candidate, not two)', async () => {
-    // Two identical `using A;` directives yield the same prefix; the bare base `Baz`
-    // would produce `A.Baz` twice, but the dedup collapses it to one.
+  it('DEDUPES a duplicate candidate produced by a REPEATED using prefix WITHIN the group', async () => {
+    // Two identical `using A;` directives yield the same prefix; the bare base `Baz` would
+    // produce `A.Baz` twice in the same ordered group, but within-group dedup collapses it
+    // to a single candidate (order preserved).
     const { uses } = await run(['using A;', 'using A;', 'class C : Baz { }', ''].join('\n'));
-    expect(symbolKeys(uses).filter((k) => k === 'A.Baz')).toHaveLength(1);
+    const group = groupContaining(uses, 'A.Baz');
+    expect(group?.filter((k) => k === 'A.Baz')).toHaveLength(1);
   });
 
   it('inside a namespace, expands a multi-segment qualified ref against EACH using prefix too', async () => {
@@ -247,23 +332,73 @@ describe('csharp extractor — uses() emits SYMBOL hints (never path hints)', ()
     expect(keys).toEqual(['Foo.Bar.Baz']);
   });
 
-  it('a partially-qualified ref that ONLY the top-level form resolves still flags (one expansion resolves)', async () => {
-    // Positive: inside `namespace App;`, `Models.Order` is emitted as App.Models.Order +
-    // Models.Order. Only the top-level Models.Order is declared in the table → exactly one
-    // resolution → the dependency is found (not over-silenced).
+  it('ORDERED GROUP: nearest expansion FIRST, verbatim LAST — and the verbatim binds when nothing nearer does (recall)', async () => {
+    // Inside `namespace App;`, `Models.Order` is ONE ordered group: the enclosing-namespace
+    // expansion `App.Models.Order` (nearest) THEN the verbatim `Models.Order` (last). When only
+    // the top-level form is declared, the walk skips the absent nearest and binds the verbatim
+    // — the real dependency is found, not over-silenced. (This replaces the C5-era false-green
+    // assertion that treated an independent verbatim hint as a hit regardless of order.)
     const consumer = await parse(
       'src/c/Use.cs',
       'namespace App;\nclass C { void M() { var o = new Models.Order(); } }\n',
     );
+    const group = groupContaining(csharpExtractor.uses(consumer), 'Models.Order');
+    expect(group).toEqual(['App.Models.Order', 'Models.Order']); // nearest first, verbatim last
+
     const st = new SymbolTable();
     st.declare('csharp', 'Models.Order', 'src/m/Order.cs'); // ONLY the top-level form exists
-    const hint = csharpExtractor
-      .uses(consumer)
-      .find((u) => u.candidates[0].kind === 'symbol' && u.candidates[0].symbolKey === 'Models.Order');
-    expect(hint).toBeDefined();
-    expect(st.resolveUnique('csharp', 'Models.Order')).toBe('src/m/Order.cs');
-    // The phantom enclosing-namespace expansion resolves to nothing → no second match.
-    expect(st.resolveUnique('csharp', 'App.Models.Order')).toBeUndefined();
+    const resolver = makeResolver({
+      ownerIndex: { ownerOf: (f: string) => (f === 'src/m/Order.cs' ? 'm' : undefined) } as never,
+      symbolTable: st,
+      resolvePathToFile: () => undefined,
+    });
+    // The nearest expansion is ABSENT (continue); the verbatim then RESOLVES → the binding.
+    expect(resolver.classify({ kind: 'symbol', symbolKey: 'App.Models.Order' }, consumer.path, 'csharp')).toEqual({ kind: 'absent' });
+    expect(resolver.classify({ kind: 'symbol', symbolKey: 'Models.Order' }, consumer.path, 'csharp')).toEqual({
+      kind: 'resolved', ownerNode: 'm', resolvedFile: 'src/m/Order.cs',
+    });
+  });
+
+  it('DECISIVE FP (extractor/resolver level): a nearer using-relative split binds and the verbatim is NEVER reached', async () => {
+    // The brief's decisive false positive, at the candidate-walk level. n1 owns
+    // `App.Data.Models+Order` (nested) intra-node; n2 owns top-level `Models.Order`. The
+    // consumer in `namespace App.Services; using App.Data;` writes `new Models.Order()`.
+    // The ordered group [App.Services.Models.Order, App.Data.Models.Order, Models.Order] binds
+    // the nearest that resolves — `App.Data.Models.Order` splits at the declared type
+    // `App.Data.Models` to `App.Data.Models+Order` → n1 — and STOPS. The verbatim
+    // `Models.Order` (which would resolve to n2) is never reached → no n1→n2 edge.
+    const consumer = await parse(
+      'src/n1/Order.cs',
+      'namespace App.Services;\nusing App.Data;\npublic class C { void M() { var o = new Models.Order(); } }\n',
+    );
+    const st = new SymbolTable();
+    st.declare('csharp', 'App.Data.Models', 'src/n1/Data.cs'); // the enclosing nested TYPE
+    st.declare('csharp', 'App.Data.Models+Order', 'src/n1/Data.cs'); // the nested Order (n1)
+    st.declare('csharp', 'Models.Order', 'src/n2/Order.cs'); // top-level Order (n2)
+    const resolver = makeResolver({
+      ownerIndex: {
+        ownerOf: (f: string) => (f === 'src/n1/Data.cs' ? 'n1' : f === 'src/n2/Order.cs' ? 'n2' : undefined),
+      } as never,
+      symbolTable: st,
+      resolvePathToFile: () => undefined,
+    });
+    const group = groupContaining(csharpExtractor.uses(consumer), 'Models.Order');
+    // Enclosing-ns chain innermost→outermost (App.Services, App), then the using prefix
+    // (App.Data), then the verbatim LAST.
+    expect(group).toEqual([
+      'App.Services.Models.Order',
+      'App.Models.Order',
+      'App.Data.Models.Order',
+      'Models.Order',
+    ]);
+    // Walk the group in order: first resolved wins and stops.
+    const outcomes = group!.map((k) => resolver.classify({ kind: 'symbol', symbolKey: k }, consumer.path, 'csharp'));
+    expect(outcomes[0]).toEqual({ kind: 'absent' }); // App.Services.Models.Order — absent
+    expect(outcomes[1]).toEqual({ kind: 'absent' }); // App.Models.Order — absent
+    // App.Data.Models.Order splits at the declared type App.Data.Models → App.Data.Models+Order → n1.
+    expect(outcomes[2]).toEqual({ kind: 'resolved', ownerNode: 'n1', resolvedFile: 'src/n1/Data.cs' }); // binds n1, stop
+    // outcomes[3] (verbatim Models.Order → n2) is NEVER reached by the walk, so n2 is never flagged.
+    expect(walkResolve(csharpExtractor.uses(consumer), 'Models.Order', resolver, consumer.path)).toBe('n1');
   });
 });
 
@@ -285,15 +420,19 @@ describe('csharp SYMBOL-TABLE resolution — the half this language validates', 
       for (const d of csharpExtractor.declarations(f)) st.declare('csharp', d.symbolKey, f.path);
     }
 
-    // The consumer's qualified `new` resolves to fileA via resolveUnique.
+    // The consumer's qualified `new` resolves to fileA. The group is
+    // [MyApp.Orders.MyApp.Payments.Gateway (enclosing-ns, absent), MyApp.Payments.Gateway
+    // (verbatim, binds)] — the ordered walk skips the absent nearest and binds the verbatim.
     const uses = csharpExtractor.uses(consumer);
-    const hint = uses.find(
-      (u) => u.candidates[0].kind === 'symbol' && u.candidates[0].symbolKey === 'MyApp.Payments.Gateway',
-    );
-    expect(hint?.candidates[0]).toEqual({ kind: 'symbol', symbolKey: 'MyApp.Payments.Gateway' });
+    // Enclosing-ns chain innermost→outermost (MyApp.Orders, MyApp), then the verbatim LAST.
+    expect(groupContaining(uses, 'MyApp.Payments.Gateway')).toEqual([
+      'MyApp.Orders.MyApp.Payments.Gateway',
+      'MyApp.MyApp.Payments.Gateway',
+      'MyApp.Payments.Gateway',
+    ]);
     expect(st.resolveUnique('csharp', 'MyApp.Payments.Gateway')).toBe('src/a/Gateway.cs');
 
-    // And the full resolver wires symbol → owner node (mirrors resolver.ts).
+    // And the full resolver wires symbol → owner node (mirrors resolver.ts + the pass walk).
     const ownerIndex = {
       ownerOf: (f: string) =>
         f === 'src/a/Gateway.cs' ? 'a' : f === 'src/b/Audit.cs' ? 'b' : undefined,
@@ -303,10 +442,7 @@ describe('csharp SYMBOL-TABLE resolution — the half this language validates', 
       symbolTable: st,
       resolvePathToFile: () => undefined,
     });
-    expect(resolver.resolve(hint!.candidates[0], consumer.path, 'csharp')).toEqual({
-      ownerNode: 'a',
-      resolvedFile: 'src/a/Gateway.cs',
-    });
+    expect(walkResolve(uses, 'MyApp.Payments.Gateway', resolver, consumer.path)).toBe('a');
   });
 
   it('BARE name resolves through the using scope to the right file', async () => {
@@ -319,11 +455,17 @@ describe('csharp SYMBOL-TABLE resolution — the half this language validates', 
     const st = new SymbolTable();
     for (const d of csharpExtractor.declarations(fileA)) st.declare('csharp', d.symbolKey, fileA.path);
 
-    const hint = csharpExtractor
-      .uses(consumer)
-      .find((u) => u.candidates[0].kind === 'symbol' && u.candidates[0].symbolKey === 'MyApp.Payments.Gateway');
-    expect(hint).toBeDefined();
+    // The bare `new Gateway()` group puts the using-prefix expansion `MyApp.Payments.Gateway`
+    // ahead of the bare-last `Gateway`; the walk binds it to fileA.
+    const uses = csharpExtractor.uses(consumer);
+    expect(groupContaining(uses, 'MyApp.Payments.Gateway')).toBeDefined();
     expect(st.resolveUnique('csharp', 'MyApp.Payments.Gateway')).toBe('src/a/Gateway.cs');
+    const resolver = makeResolver({
+      ownerIndex: { ownerOf: (f: string) => (f === 'src/a/Gateway.cs' ? 'a' : undefined) } as never,
+      symbolTable: st,
+      resolvePathToFile: () => undefined,
+    });
+    expect(walkResolve(uses, 'MyApp.Payments.Gateway', resolver, consumer.path)).toBe('a');
   });
 
   it('AMBIGUITY: two files declaring the SAME FQN → a use of it resolves to undefined (silence, no flag)', async () => {
@@ -342,17 +484,17 @@ describe('csharp SYMBOL-TABLE resolution — the half this language validates', 
     // resolveUnique returns undefined for the ambiguous FQN.
     expect(st.resolveUnique('csharp', 'MyApp.Dup.Thing')).toBeUndefined();
 
-    // Through the resolver the use also resolves to undefined — silence, never a flag.
+    // Through the ordered walk the use resolves to nothing — the verbatim `MyApp.Dup.Thing`
+    // is present-but-ambiguous (2 defs) → the group silences; never a flag.
     const ownerIndex = { ownerOf: () => 'someNode' };
     const resolver = makeResolver({
       ownerIndex: ownerIndex as never,
       symbolTable: st,
       resolvePathToFile: () => undefined,
     });
-    const hint = csharpExtractor
-      .uses(consumer)
-      .find((u) => u.candidates[0].kind === 'symbol' && u.candidates[0].symbolKey === 'MyApp.Dup.Thing')!;
-    expect(resolver.resolve(hint.candidates[0], consumer.path, 'csharp')).toBeUndefined();
+    const uses = csharpExtractor.uses(consumer);
+    expect(resolver.classify({ kind: 'symbol', symbolKey: 'MyApp.Dup.Thing' }, consumer.path, 'csharp')).toEqual({ kind: 'ambiguous' });
+    expect(walkResolve(uses, 'MyApp.Dup.Thing', resolver, consumer.path)).toBeUndefined();
   });
 });
 
@@ -370,9 +512,16 @@ describe('csharp anti-FALSE-POSITIVE — the silence list (D8 gate)', () => {
       symbolTable: st,
       resolvePathToFile: () => undefined,
     });
+    // Walk each reference's WHOLE ordered group exactly as pass.ts does: the bound owner is
+    // the first candidate that resolves (stop), or undefined if a nearer candidate is
+    // ambiguous or nothing binds. A silence case must yield undefined for every group.
     return uses.map((u) => {
-      const r = resolver.resolve(u.candidates[0], 'src/c/Use.cs', 'csharp');
-      return r?.ownerNode;
+      for (const cand of u.candidates) {
+        const outcome = resolver.classify(cand, 'src/c/Use.cs', 'csharp');
+        if (outcome.kind === 'resolved') return outcome.ownerNode;
+        if (outcome.kind === 'ambiguous') return undefined;
+      }
+      return undefined;
     });
   };
 
@@ -437,10 +586,14 @@ describe('csharp anti-FALSE-POSITIVE — the silence list (D8 gate)', () => {
     expect(symbolKeys(uses).some((k) => k.startsWith('MyApp.Math'))).toBe(false);
   });
 
-  it('`global using` from ANOTHER file is invisible: a bare type stays SILENT', async () => {
-    // No using in this file; the bare base type cannot be qualified to any candidate.
+  it('`global using` from ANOTHER file is invisible: a bare type stays SILENT at resolution', async () => {
+    // No using/namespace in this file; the bare base type's only candidate is its verbatim
+    // top-level form (`RepositoryBase`, the harmless last candidate). A `global using` declared
+    // elsewhere is invisible here, so nothing maps that bare name to a node → SILENCE.
     const { uses } = await run(['class C : RepositoryBase { }', ''].join('\n'));
-    expect(symbolKeys(uses)).toHaveLength(0);
+    expect(symbolKeys(uses)).toEqual(['RepositoryBase']);
+    const owners = resolveAll(uses, new SymbolTable(), () => undefined);
+    expect(owners.every((o) => o === undefined)).toBe(true);
   });
 
   it('EXTERNAL/BCL type resolves to NO node (System.* → external, never a violation)', async () => {
@@ -477,6 +630,132 @@ describe('csharp anti-FALSE-POSITIVE — the silence list (D8 gate)', () => {
     // It resolves to node 'c' — the consumer's own node — which is never an undeclared
     // cross-node dependency (the verifier's self/family filter handles it).
     expect(owners).toContain('c');
+  });
+});
+
+describe('csharp NESTED-TYPE resolution + the tri-state / split over-silence guards', () => {
+  /** Resolve a reference whose group contains `key`, via the ordered first-unique-match walk. */
+  const walk = (
+    uses: Awaited<ReturnType<typeof run>>['uses'],
+    key: string,
+    st: SymbolTable,
+    ownerOf: (f: string) => string | undefined,
+    fromFile: string,
+  ): string | undefined => {
+    const resolver = makeResolver({ ownerIndex: { ownerOf } as never, symbolTable: st, resolvePathToFile: () => undefined });
+    return walkResolve(uses, key, resolver, fromFile);
+  };
+
+  it('RECALL: a cross-node use of `Outer.Inner` resolves to the declaring node via the guarded `+`-split', async () => {
+    // Declaration side keys the nested type `App.Outer+Inner`. The use writes `Outer.Inner`
+    // (here fully qualified `App.Outer.Inner`); the resolver splits at the declared type
+    // `App.Outer` → `App.Outer+Inner` and binds the declaring node.
+    const decl = await parse('src/a/Nested.cs', 'namespace App;\nclass Outer { class Inner { } }\n');
+    const consumer = await parse(
+      'src/c/Use.cs',
+      'namespace Other;\nclass C { void M() { var x = new App.Outer.Inner(); } }\n',
+    );
+    const st = new SymbolTable();
+    for (const d of csharpExtractor.declarations(decl)) st.declare('csharp', d.symbolKey, decl.path);
+    expect(st.has('csharp', 'App.Outer')).toBe(true); // declared TYPE → the split guard fires
+    expect(st.resolveUnique('csharp', 'App.Outer+Inner')).toBe('src/a/Nested.cs');
+    const owners = csharpExtractor.uses(consumer);
+    expect(walk(owners, 'App.Outer.Inner', st, (f) => (f === 'src/a/Nested.cs' ? 'a' : undefined), consumer.path)).toBe('a');
+  });
+
+  it('COLLISION HEALED: a nested `App.Outer+Inner` no longer shadows a top-level `App.Inner` (D-N5)', async () => {
+    // A nested Inner (node a) and a top-level Inner (node b) of the same simple name. Because
+    // the nested type is keyed `App.Outer+Inner` (not `App.Inner`), a use of the TOP-LEVEL
+    // `App.Inner` resolves cleanly to node b — the collateral silencing is gone.
+    const nested = await parse('src/a/Nested.cs', 'namespace App;\nclass Outer { class Inner { } }\n');
+    const topLevel = await parse('src/b/Inner.cs', 'namespace App;\nclass Inner { }\n');
+    const consumer = await parse(
+      'src/c/Use.cs',
+      'namespace Other;\nclass C { void M() { var x = new App.Inner(); } }\n',
+    );
+    const st = new SymbolTable();
+    for (const f of [nested, topLevel]) {
+      for (const d of csharpExtractor.declarations(f)) st.declare('csharp', d.symbolKey, f.path);
+    }
+    expect(st.resolveUnique('csharp', 'App.Inner')).toBe('src/b/Inner.cs'); // exactly one def now
+    const owners = csharpExtractor.uses(consumer);
+    expect(walk(owners, 'App.Inner', st, (f) => (f === 'src/b/Inner.cs' ? 'b' : undefined), consumer.path)).toBe('b');
+  });
+
+  it('GUARD HOLDS: a namespace-`Foo` type-`Bar` use is NOT re-read as nested `Foo+Bar` even if one coincidentally exists', async () => {
+    // `Foo` is a NAMESPACE (no `Foo` type declared), so the `Foo.Bar` use is not split at
+    // `Foo`. A coincidental nested `Foo+Bar` in another node must NOT be matched → silence,
+    // even though `Foo.Bar` (top-level dotted) maps to node x.
+    const coincidental = await parse('src/y/Coin.cs', 'namespace App;\nclass Foo { class Bar { } }\n'); // App.Foo+Bar
+    const real = await parse('src/x/Bar.cs', 'namespace Foo;\nclass Bar { }\n'); // Foo.Bar (namespace Foo)
+    const consumer = await parse(
+      'src/c/Use.cs',
+      'namespace Other;\nclass C { void M() { var x = new Foo.Bar(); } }\n',
+    );
+    const st = new SymbolTable();
+    for (const f of [coincidental, real]) {
+      for (const d of csharpExtractor.declarations(f)) st.declare('csharp', d.symbolKey, f.path);
+    }
+    // `Foo` is NOT a declared type (only the namespace), so no split of `Foo.Bar` at `Foo`.
+    expect(st.has('csharp', 'Foo')).toBe(false);
+    const owners = csharpExtractor.uses(consumer);
+    // `Foo.Bar` (verbatim) binds the real top-level `Foo.Bar` in node x; the coincidental
+    // `App.Foo+Bar` is NEVER produced for this use. So it resolves to x (the legitimate dotted
+    // top-level type), NOT ambiguously to y.
+    expect(walk(owners, 'Foo.Bar', st, (f) => (f === 'src/x/Bar.cs' ? 'x' : f === 'src/y/Coin.cs' ? 'y' : undefined), consumer.path)).toBe('x');
+  });
+
+  it('SPLIT AMBIGUITY SILENCES: two mapped files both declaring `App.Outer+Inner` → silence, not a flag', async () => {
+    const a = await parse('src/a/Nested.cs', 'namespace App;\nclass Outer { class Inner { } }\n');
+    const b = await parse('src/b/Nested.cs', 'namespace App;\nclass Outer { class Inner { } }\n');
+    const consumer = await parse(
+      'src/c/Use.cs',
+      'namespace Other;\nclass C { void M() { var x = new App.Outer.Inner(); } }\n',
+    );
+    const st = new SymbolTable();
+    for (const f of [a, b]) {
+      for (const d of csharpExtractor.declarations(f)) st.declare('csharp', d.symbolKey, f.path);
+    }
+    const owners = csharpExtractor.uses(consumer);
+    // `App.Outer` is declared in two files (defCount 2) — the split guard `has` still fires,
+    // but the split key `App.Outer+Inner` maps to two files → ≥2 distinct → ambiguous → silence.
+    expect(walk(owners, 'App.Outer.Inner', st, () => 'someNode', consumer.path)).toBeUndefined();
+  });
+
+  it('USING-LEVEL: a bare base never leaks to the foreign verbatim top-level (verbatim is LAST and unreached)', async () => {
+    // `using L1; using L2;` both declare `Widget`; a stray top-level `Widget` also exists in
+    // node d. The bare base `Widget`'s ordered group is the enclosing-ns level, then the
+    // code-point-sorted using prefixes (L1.Widget, L2.Widget), then the verbatim `Widget` LAST.
+    // first-unique-match-wins binds the FIRST using expansion that resolves and STOPS — so the
+    // walk NEVER reaches the verbatim top-level `Widget` and node d is NEVER flagged. The bound
+    // edge is one of the actually-imported types; this is the deliberate one-edge-on-ambiguity
+    // trade (at most one edge for an ambiguous source, never a leak to the foreign top-level).
+    const l1 = await parse('src/a/W.cs', 'namespace L1;\nclass Widget { }\n');
+    const l2 = await parse('src/b/W.cs', 'namespace L2;\nclass Widget { }\n');
+    const verbatim = await parse('src/d/W.cs', 'class Widget { }\n'); // top-level `Widget` — must NEVER bind
+    const consumer = await parse(
+      'src/c/Use.cs',
+      'using L1;\nusing L2;\nnamespace App;\nclass C : Widget { }\n',
+    );
+    const st = new SymbolTable();
+    for (const f of [l1, l2, verbatim]) {
+      for (const d of csharpExtractor.declarations(f)) st.declare('csharp', d.symbolKey, f.path);
+    }
+    const owners = csharpExtractor.uses(consumer);
+    const group = groupContaining(owners, 'Widget')!;
+    // Verbatim LAST; using prefixes code-point sorted ahead of it.
+    expect(group).toEqual(['App.Widget', 'L1.Widget', 'L2.Widget', 'Widget']);
+    expect(group[group.length - 1]).toBe('Widget');
+    const resolver = makeResolver({
+      ownerIndex: {
+        ownerOf: (f: string) => (f === 'src/a/W.cs' ? 'a' : f === 'src/b/W.cs' ? 'b' : f === 'src/d/W.cs' ? 'd' : undefined),
+      } as never,
+      symbolTable: st,
+      resolvePathToFile: () => undefined,
+    });
+    const bound = walkResolve(owners, 'Widget', resolver, consumer.path);
+    expect(bound).not.toBe('d'); // the foreign top-level interpretation is NEVER the binding (zero-FP)
+    expect(['a', 'b']).toContain(bound); // at most one edge, to an actually-imported type
   });
 });
 

@@ -1,7 +1,6 @@
 import type { Node } from 'web-tree-sitter';
 import { walk } from '../../ast/walk.js';
-import type { DependencyExtractor, DetectedDep, DeclaredSymbol, ParsedFile } from './types.js';
-import { single } from './types.js';
+import type { DependencyExtractor, DetectedDep, DeclaredSymbol, ParsedFile, TargetHint } from './types.js';
 
 /**
  * C# dependency extractor — the HARDEST language, and the design's poster child for
@@ -23,8 +22,14 @@ import { single } from './types.js';
  *    ancestor chain — a `namespace_declaration` (block `namespace Foo { }`) or a
  *    `file_scoped_namespace_declaration` (`namespace Foo.Bar;`), with nested namespaces
  *    concatenated. For each class/interface/struct/record/enum declaration, emit
- *    `<namespace>.<TypeName>` (bare `<TypeName>` at file scope). These populate the
- *    shared SymbolTable as FQN→file.
+ *    `<namespace>.<TypeChain>`, where `<TypeChain>` is the enclosing-TYPE chain joined by
+ *    the .NET reflection separator `+` and ending in the type's own simple name: a
+ *    top-level type is `App.Type`, a nested `Inner` in `Outer` is `App.Outer+Inner`, a
+ *    file-scope nested type is `Outer+Inner`. A nested type emits ONLY its `+` key, never
+ *    also the bare simple name — that removes the collision that would otherwise let a
+ *    nested `Inner` silence a legitimate top-level `App.Inner`. These populate the shared
+ *    SymbolTable as FQN→file. Separator isolation: nested keys use `+`, namespace boundaries
+ *    use `.`, so a dot-only use candidate never accidentally matches a `+` key.
  *
  *  - uses(file): build the file's USING SCOPE first — the set of namespace prefixes from
  *    each PLAIN `using Foo.Bar;` (D6: a `using_directive` with no `static`/`global` token
@@ -32,18 +37,31 @@ import { single } from './types.js';
  *    `name` field carries the alias; the `qualified_name` sibling is the aliased FQN).
  *    `using static X;` (a `static` token child) is SKIPPED — it imports a type's static
  *    MEMBERS, not a namespace. `global using` declared in ANOTHER file is never honored
- *    (this extractor only sees THIS file). Then qualify each symbol reference:
+ *    (this extractor only sees THIS file). Then, for each symbol reference, build ONE
+ *    ORDERED candidate group in C# name-binding order (nearest scope first, verbatim/
+ *    top-level LAST), and emit it as a single `DetectedDep`:
+ *      [alias-expansion?]                              ← leftmost segment is a local alias
+ *        ++ [enclosing-namespace chain innermost→outermost]
+ *        ++ [using-prefix block, code-point sorted]    ← ONE binding level
+ *        ++ [verbatim / bare top-level]                ← farthest, last
+ *    The per-reference resolver (`pass.ts`) walks this group and takes the FIRST candidate
+ *    that binds to a UNIQUE mapped definition — that IS the binding; it emits at most one
+ *    edge and STOPS, never reaching a farther candidate. A nearer candidate that is
+ *    present-but-ambiguous (≥2 defs) SILENCES the whole group rather than leaking to the
+ *    verbatim top-level interpretation. The verbatim form therefore only binds when nothing
+ *    nearer does — which closes the decisive C# false positive (a partially-qualified ref
+ *    whose verbatim top-level reading coincides with another node's same-named type).
  *      • an OUTERMOST `qualified_name` (a `qualified_name` whose parent is not itself a
  *        `qualified_name`) — e.g. in `new Foo.Bar.Baz()`, a base list, a field type, a
- *        static-call receiver — is ALREADY (likely) fully or partially qualified; its
- *        `.text` is a candidate FQN.
+ *        static-call receiver — is partially or fully qualified; its `.text` is the verbatim
+ *        last candidate, with the enclosing-namespace and using-prefix expansions ahead of it.
  *      • a BARE type identifier in a `base_list` entry or an `object_creation_expression`
- *        `type` field — for EACH using-scope prefix `P`, candidate FQN is `P.<Name>`;
- *        the alias map is tried too.
- *    Each candidate is emitted as `{kind:'symbol', symbolKey: candidateFQN}`. The
- *    resolver's `resolveUnique` returns undefined unless EXACTLY ONE definition matches —
- *    so emitting several candidates for a bare name is SAFE (only the real one resolves;
- *    the rest are non-events). This is the unambiguous-only discipline.
+ *        `type` field — alias, then the enclosing-namespace chain, then each using prefix,
+ *        with the bare name itself last.
+ *    Nested-type recovery is centralized in the resolver: for any dotted candidate it also
+ *    tries the guarded `+`-boundary split (split `s1..sk + '+' + s_{k+1}..sn` only when
+ *    `s1..sk` is a declared TYPE), so a use of `Outer.Inner` resolves to the `Outer+Inner`
+ *    declaration key. The extractor emits dot-only candidates; the split is the resolver's.
  *
  * SILENCE-ON-DOUBT (D8 — no waiver; a false positive blocks CI with no escape). All of
  * the following stay silent here, by construction:
@@ -127,13 +145,36 @@ function blockNamespace(node: Node): string {
   return parts.join('.');
 }
 
+/** The enclosing-TYPE chain of `node`, read from its ancestor chain, outermost-first.
+ *  A nested `class Inner` inside `class Outer` yields `["Outer"]`; deeper nesting yields
+ *  `["Outer", "Mid"]`. Empty when the type is not nested in another type. Joined with the
+ *  type's own simple name by `+` (the .NET reflection FQN separator) — distinct from the
+ *  namespace `.` so a nested key lives in a disjoint string space from any dot-only use
+ *  candidate (separator isolation). */
+function enclosingTypeChain(node: Node): string[] {
+  const parts: string[] = [];
+  let cur: Node | null = node.parent;
+  while (cur !== null) {
+    if (TYPE_DECLARATION_TYPES.has(cur.type)) {
+      const nameField = cur.childForFieldName('name');
+      if (nameField !== null && nameField.text !== '') parts.unshift(nameField.text);
+    }
+    cur = cur.parent;
+  }
+  return parts;
+}
+
 /**
  * The FULLY-QUALIFIED symbol keys this file DEFINES. The namespace for each type is the
- * file-scoped namespace (if any) joined with the block-namespace ancestor chain. For
- * each type declaration (top-level AND nested — nesting does not change the owning node,
- * and the extra names let `Outer.Inner`-style access resolve), emit
- * `<namespace>.<TypeName>`, or bare `<TypeName>` at true file scope. These keys feed the
- * shared SymbolTable.
+ * file-scoped namespace (if any) joined with the block-namespace ancestor chain. The TYPE
+ * part is the enclosing-type chain joined by the reflection separator `+`, ending in the
+ * type's own simple name: a top-level type is `<namespace>.<TypeName>`; a nested type is
+ * `<namespace>.<Outer>+<Inner>` (deeper: `<Outer>+<Mid>+<Inner>`); at true file scope the
+ * namespace prefix is omitted (`<TypeName>` or `<Outer>+<Inner>`). A nested type emits ONLY
+ * its `+` key — never also the bare simple name — so it cannot collide with, and silence, a
+ * legitimate top-level type of the same simple name in another node. These keys feed the
+ * shared SymbolTable; a use's `Outer.Inner` reference resolves to them via the resolver's
+ * guarded `+`-boundary split.
  */
 function declarations(file: ParsedFile): DeclaredSymbol[] {
   const out: DeclaredSymbol[] = [];
@@ -145,7 +186,8 @@ function declarations(file: ParsedFile): DeclaredSymbol[] {
     if (nameField === null || nameField.text === '') return undefined;
     const blockNs = blockNamespace(node);
     const ns = [fileNs, blockNs].filter((p) => p !== '').join('.');
-    const symbolKey = ns === '' ? nameField.text : `${ns}.${nameField.text}`;
+    const typeKey = [...enclosingTypeChain(node), nameField.text].join('+');
+    const symbolKey = ns === '' ? typeKey : `${ns}.${typeKey}`;
     out.push({ symbolKey, line: node.startPosition.row + 1 });
     return undefined;
   });
@@ -230,26 +272,63 @@ function bareTypeName(node: Node | null): string | undefined {
   return undefined;
 }
 
+/** The enclosing-namespace prefixes for a reference, INNERMOST first. For a reference in
+ *  `namespace App.Services.Sub` (file-scoped `App` + block chain `Services.Sub`) the chain
+ *  is `["App.Services.Sub", "App.Services", "App"]` — C# looks an unqualified/partial name
+ *  up against each progressively-shorter enclosing namespace, innermost outward, before the
+ *  imports. An empty result means the reference sits at true file scope. */
+function enclosingNamespaceChain(fileNs: string, node: Node): string[] {
+  const segments = [fileNs, blockNamespace(node)]
+    .filter((p) => p !== '')
+    .join('.')
+    .split('.')
+    .filter((s) => s !== '');
+  const chain: string[] = [];
+  for (let i = segments.length; i >= 1; i--) chain.push(segments.slice(0, i).join('.'));
+  return chain;
+}
+
 function uses(file: ParsedFile): DetectedDep[] {
   const out: DetectedDep[] = [];
-  const seen = new Set<string>();
   const scope = buildUsingScope(file);
   const fileNs = fileScopedNamespace(file.tree.rootNode);
+  // Using prefixes are an UNORDERED set at one binding level — sort by code point so the
+  // candidate order within that level is deterministic and never load-bearing.
+  const sortedPrefixes = [...scope.prefixes].sort();
 
-  const emit = (symbolKey: string | undefined, line: number): void => {
-    if (symbolKey === undefined || symbolKey === '') return;
-    const dedupKey = `${symbolKey} ${line}`;
-    if (seen.has(dedupKey)) return;
-    seen.add(dedupKey);
-    out.push(single({ kind: 'symbol', symbolKey }, 'import', line));
+  /** Emit ONE ordered candidate group for a reference. `orderedKeys` is already in
+   *  name-binding order (nearest first, verbatim/top-level last); duplicates are dropped
+   *  in place preserving first-seen order (the dedup intent of the same-key-twice tests).
+   *  A reference with no candidate (e.g. an unqualifiable bare name) emits nothing. */
+  const pushGroup = (orderedKeys: Array<string | undefined>, line: number): void => {
+    const seen = new Set<string>();
+    const candidates: TargetHint[] = [];
+    for (const key of orderedKeys) {
+      if (key === undefined || key === '') continue;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      candidates.push({ kind: 'symbol', symbolKey: key });
+    }
+    if (candidates.length === 0) return;
+    out.push({ candidates, kind: 'import', line });
   };
 
-  /** Emit every candidate FQN for a BARE type name: each using prefix + name, plus the
-   *  alias map. resolveUnique keeps only the one that actually resolves. */
-  const emitBare = (name: string, line: number): void => {
-    const alias = scope.aliases.get(name);
-    if (alias !== undefined) emit(alias, line);
-    for (const prefix of scope.prefixes) emit(`${prefix}.${name}`, line);
+  /** Ordered candidate keys for a reference whose written text is `ref` (a dotted partial
+   *  name or a bare identifier). Order: alias (if leftmost is a local alias) → enclosing-
+   *  namespace chain innermost→outermost → using-prefix block (sorted) → verbatim/bare last. */
+  const orderedKeysFor = (ref: string, node: Node): Array<string | undefined> => {
+    const keys: Array<string | undefined> = [];
+    const lead = ref.split('.')[0];
+    const alias = scope.aliases.get(lead);
+    if (alias !== undefined) {
+      // The alias rewrites the leftmost segment; the rest of the dotted tail follows it.
+      const tail = ref.slice(lead.length); // includes the leading '.', or '' for a bare ref
+      keys.push(`${alias}${tail}`);
+    }
+    for (const ns of enclosingNamespaceChain(fileNs, node)) keys.push(`${ns}.${ref}`);
+    for (const prefix of sortedPrefixes) keys.push(`${prefix}.${ref}`);
+    keys.push(ref); // verbatim / bare top-level — LAST, binds only when nothing nearer does
+    return keys;
   };
 
   walk(file.tree.rootNode, (node) => {
@@ -266,17 +345,16 @@ function uses(file: ParsedFile): DetectedDep[] {
       if (nameField !== null) return undefined; // continue into children (incl. body)
     }
 
-    // (a) Qualified references: emit the OUTERMOST qualified_name only (skip a
-    //     qualified_name nested directly inside another — that is just the qualifier
-    //     part of a longer dotted name, never an independent reference). A multi-segment
-    //     `qualified_name` written inside a namespace or under a `using` is NOT provably
-    //     a complete FQN — C# name lookup tries the enclosing-namespace and using-prefix
-    //     expansions before the top-level interpretation. So we emit the verbatim text
-    //     AND each expansion as candidates; resolveUnique's exactly-one-or-silence rule
-    //     keeps the real edge and silences when two expansions resolve to different files.
-    //     Only at TRUE FILE SCOPE (no using AND no enclosing namespace) is the verbatim
-    //     text the sole possible meaning, so it is emitted alone. (Separator isolation:
-    //     these are dot-only candidates; nested-type keys use `+` and never collide.)
+    // (a) Qualified references: process the OUTERMOST qualified_name only (skip a
+    //     qualified_name nested directly inside another — that is just the qualifier part
+    //     of a longer dotted name, never an independent reference). A multi-segment
+    //     `qualified_name` written inside a namespace or under a `using` is NOT provably a
+    //     complete FQN — C# name lookup tries the enclosing-namespace and using-prefix
+    //     expansions BEFORE the top-level interpretation. So the ordered group puts those
+    //     expansions ahead of the verbatim text, which is LAST; first-unique-match-wins
+    //     stops at the nearest binding and never falls through to the verbatim form unless
+    //     nothing nearer binds. (Separator isolation: these are dot-only candidates; nested-
+    //     type keys use `+` and never collide — the resolver derives `+` keys by guarded split.)
     if (node.type === 'qualified_name') {
       // Skip the namespace-name qualified_name that is the `name` field of a block
       // namespace declaration (it names the namespace, not a dependency).
@@ -285,31 +363,26 @@ function uses(file: ParsedFile): DetectedDep[] {
         if (nm !== null && nm.id === node.id) return undefined;
       }
       if (node.parent !== null && node.parent.type === 'qualified_name') return undefined;
-      const line = node.startPosition.row + 1;
-      const verbatim = node.text;
-      // Enclosing namespace = file-scoped namespace joined with the block-namespace
-      // ancestor chain of THIS reference.
-      const enclosingNs = [fileNs, blockNamespace(node)].filter((p) => p !== '').join('.');
-      if (enclosingNs !== '') emit(`${enclosingNs}.${verbatim}`, line);
-      for (const prefix of scope.prefixes) emit(`${prefix}.${verbatim}`, line);
-      emit(verbatim, line);
+      pushGroup(orderedKeysFor(node.text, node), node.startPosition.row + 1);
       return undefined;
     }
 
-    // (b) Bare type identifiers in base_list entries → P.<Name> for each using prefix.
+    // (b) Bare type identifiers in base_list entries → ordered group (alias → enclosing-ns
+    //     chain → using prefixes → bare name last).
     if (node.type === 'base_list') {
       for (let i = 0; i < node.namedChildCount; i++) {
         const c = node.namedChild(i);
         const bare = bareTypeName(c);
-        if (bare !== undefined) emitBare(bare, (c ?? node).startPosition.row + 1);
+        if (bare !== undefined) pushGroup(orderedKeysFor(bare, c ?? node), (c ?? node).startPosition.row + 1);
       }
       return undefined;
     }
 
-    // (c) Bare type in `new Bare()` → P.<Name> for each using prefix.
+    // (c) Bare type in `new Bare()` → ordered group (same order as a bare base type).
     if (node.type === 'object_creation_expression') {
-      const bare = bareTypeName(node.childForFieldName('type'));
-      if (bare !== undefined) emitBare(bare, node.startPosition.row + 1);
+      const typeField = node.childForFieldName('type');
+      const bare = bareTypeName(typeField);
+      if (bare !== undefined) pushGroup(orderedKeysFor(bare, typeField ?? node), node.startPosition.row + 1);
       return undefined;
     }
 

@@ -138,20 +138,10 @@ function buildRepo(label: string, withRelation: boolean): string {
   return root;
 }
 
-/**
- * Build a temp repo where a/Order.cs (inside `namespace MyApp.Orders;`) references a
- * PARTIALLY-qualified `new Payments.Gateway()`. Node a also declares its own
- * `Payments.Gateway` (a local stub), while node b independently declares `Payments.Gateway`.
- * Because C5 emits BOTH the enclosing-namespace expansion (`MyApp.Orders.Payments.Gateway`,
- * which resolves to nothing) AND the verbatim `Payments.Gateway`, the verbatim form is
- * ambiguous in the symbol table (two files claim it — one in node a, one in node b), so
- * `resolveUnique` returns undefined and no cross-node flag is raised. This demonstrates the
- * C5 guarantee: a partially-qualified `qualified_name` that could bind to multiple targets
- * is silenced rather than producing a false positive. Node a does NOT declare a relation to
- * b, so any stale verbatim-only flag would surface as exit 1.
- */
-function buildPartialRepo(label: string): string {
-  const root = mkdtempSync(path.join(tmpdir(), `yg-rel-csharp-partial-${label}-`));
+/** Write the shared architecture (one `component` type mapping `src/**`, `uses: [component]`)
+ *  and an aspect-free reviewer config into a fresh repo skeleton. Returns the repo root. */
+function buildSkeleton(prefix: string): string {
+  const root = mkdtempSync(path.join(tmpdir(), `${prefix}-`));
   cpSync(SCHEMAS_SRC, path.join(root, '.yggdrasil', 'schemas'), { recursive: true });
   writeFile(
     root,
@@ -189,49 +179,121 @@ function buildPartialRepo(label: string): string {
       '',
     ].join('\n'),
   );
-  // Node b declares `Payments.Gateway` (namespace `Payments`).
+  return root;
+}
+
+/** A `component` node yaml, optionally declaring a `uses` relation to `target`. */
+function nodeYaml(name: string, mapDir: string, target?: string): string {
+  const head = `name: ${name}\ndescription: ${name} component.\ntype: component\n`;
+  const rel = target ? `relations:\n  - target: ${target}\n    type: uses\n` : '';
+  return `${head}${rel}mapping:\n  - ${mapDir}\n`;
+}
+
+/**
+ * THE DECISIVE FALSE-POSITIVE repo (must exit 0 — NO relation flag).
+ *
+ * n1 maps src/n1/** and contains BOTH the consumer and the NEARER binding:
+ *   - src/n1/Order.cs : `namespace App.Services; using App.Data; ... new Models.Order()`.
+ *   - src/n1/Data.cs  : `namespace App.Data.Models; class Order { }` → key App.Data.Models.Order,
+ *                       which is the using-relative binding `App.Data` + `Models.Order`.
+ * n2 maps src/n2/** with a TOP-LEVEL `namespace Models; class Order { }` → key Models.Order.
+ * n1 declares NO relation to n2.
+ *
+ * For the ordered group [App.Services.Models.Order, App.Models.Order, App.Data.Models.Order,
+ * Models.Order], the walk binds the using-relative `App.Data.Models.Order` → n1 (intra-node,
+ * exempt) FIRST and STOPS. The verbatim `Models.Order` (which would resolve to n2) is never
+ * reached → NO n1→n2 edge → exit 0. (Pre-Stage-2, the independent verbatim hint resolved to n2
+ * and false-flagged.)
+ */
+function buildDecisiveFpRepo(): string {
+  const root = buildSkeleton('yg-rel-csharp-fp');
+  writeFile(root, '.yggdrasil/model/n1/yg-node.yaml', nodeYaml('N1', 'src/n1'));
+  writeFile(root, '.yggdrasil/model/n2/yg-node.yaml', nodeYaml('N2', 'src/n2'));
   writeFile(
     root,
-    '.yggdrasil/model/b/yg-node.yaml',
-    'name: B\ndescription: Dependency target component.\ntype: component\nmapping:\n  - src/b\n',
-  );
-  // Node a does NOT declare a relation to b.
-  writeFile(
-    root,
-    '.yggdrasil/model/a/yg-node.yaml',
-    'name: A\ndescription: Constructing component.\ntype: component\nmapping:\n  - src/a\n',
-  );
-  // a/Order.cs: inside `namespace MyApp.Orders;`, writes a PARTIALLY-qualified
-  // `new Payments.Gateway()`. C5 emits BOTH the enclosing-namespace expansion
-  // `MyApp.Orders.Payments.Gateway` (resolves to nothing) AND the verbatim
-  // `Payments.Gateway`. The verbatim is claimed by BOTH src/a/LocalGateway.cs and
-  // src/b/Gateway.cs — resolveUnique sees two definitions → returns undefined → silence.
-  writeFile(
-    root,
-    'src/a/Order.cs',
+    'src/n1/Order.cs',
     [
-      'namespace MyApp.Orders;',
-      'public class Order {',
-      '  public void Pay() {',
-      '    var gw = new Payments.Gateway();',
-      '  }',
-      '}',
+      'namespace App.Services;',
+      'using App.Data;',
+      'public class C { void M() { var o = new Models.Order(); } }',
       '',
     ].join('\n'),
   );
-  // Node a also has a local Payments.Gateway declaration — this creates the symbol-table
-  // ambiguity that makes resolveUnique('csharp', 'Payments.Gateway') return undefined,
-  // silencing the partial-qual reference rather than flagging a false positive on node b.
+  // The NEARER binding lives intra-node (n1): App.Data.Models.Order.
   writeFile(
     root,
-    'src/a/LocalGateway.cs',
-    ['namespace Payments;', 'public class Gateway { }', ''].join('\n'),
+    'src/n1/Data.cs',
+    ['namespace App.Data.Models;', 'public class Order { }', ''].join('\n'),
   );
-  // b declares the same `Payments.Gateway` key.
+  // The foreign top-level Models.Order in n2 — must NEVER be flagged.
   writeFile(
     root,
-    'src/b/Gateway.cs',
-    ['namespace Payments;', 'public class Gateway { }', ''].join('\n'),
+    'src/n2/Order.cs',
+    ['namespace Models;', 'public class Order { }', ''].join('\n'),
+  );
+  return root;
+}
+
+/**
+ * THE RECALL POSITIVE repo. A partial `Models.Order` inside `namespace App.Services;` where NO
+ * nearer binding exists intra-node — only a TOP-LEVEL `Models.Order` in another node (n2). The
+ * verbatim candidate (LAST) is the one that resolves → the real cross-node edge IS detected:
+ * undeclared → exit 1; declared → exit 0. `withRelation` toggles the declared `uses` edge.
+ */
+function buildRecallRepo(withRelation: boolean): string {
+  const root = buildSkeleton(`yg-rel-csharp-recall-${withRelation ? 'decl' : 'undecl'}`);
+  writeFile(
+    root,
+    '.yggdrasil/model/n1/yg-node.yaml',
+    nodeYaml('N1', 'src/n1', withRelation ? 'n2' : undefined),
+  );
+  writeFile(root, '.yggdrasil/model/n2/yg-node.yaml', nodeYaml('N2', 'src/n2'));
+  // No intra-node `Models.Order` here — only the foreign top-level one exists.
+  writeFile(
+    root,
+    'src/n1/Order.cs',
+    [
+      'namespace App.Services;',
+      'public class C { void M() { var o = new Models.Order(); } }',
+      '',
+    ].join('\n'),
+  );
+  writeFile(
+    root,
+    'src/n2/Order.cs',
+    ['namespace Models;', 'public class Order { }', ''].join('\n'),
+  );
+  return root;
+}
+
+/**
+ * A NESTED-TYPE cross-node repo. n2 declares `namespace App; class Outer { class Inner { } }`
+ * → key App.Outer+Inner. n1 uses `new App.Outer.Inner()`. The resolver splits the dotted use at
+ * the declared type App.Outer → App.Outer+Inner → n2. `withRelation` toggles the declared edge:
+ * undeclared → exit 1; declared → exit 0. (Pre-Stage-2 this silently missed — the declaration
+ * side keyed only the simple name App.Inner.)
+ */
+function buildNestedRepo(withRelation: boolean): string {
+  const root = buildSkeleton(`yg-rel-csharp-nested-${withRelation ? 'decl' : 'undecl'}`);
+  writeFile(
+    root,
+    '.yggdrasil/model/n1/yg-node.yaml',
+    nodeYaml('N1', 'src/n1', withRelation ? 'n2' : undefined),
+  );
+  writeFile(root, '.yggdrasil/model/n2/yg-node.yaml', nodeYaml('N2', 'src/n2'));
+  writeFile(
+    root,
+    'src/n1/Use.cs',
+    [
+      'namespace Other;',
+      'public class C { void M() { var x = new App.Outer.Inner(); } }',
+      '',
+    ].join('\n'),
+  );
+  writeFile(
+    root,
+    'src/n2/Nested.cs',
+    ['namespace App;', 'public class Outer { public class Inner { } }', ''].join('\n'),
   );
   return root;
 }
@@ -269,19 +331,64 @@ describe.skipIf(!distExists)('CLI E2E — C# relation conformance (live, symbol-
     }
   });
 
-  it('does NOT raise a false relation flag for a partially-qualified ref bound to the enclosing namespace', () => {
-    // a writes `new Payments.Gateway()` inside `namespace MyApp.Orders;`. The enclosing
-    // candidate MyApp.Orders.Payments.Gateway resolves to nothing; emitting the verbatim
-    // Payments.Gateway alongside it lets resolveUnique gate the edge. With a/b in distinct
-    // namespaces and no declared relation, C5 must NOT turn the bare verbatim guess into a
-    // cross-node refusal.
-    const repo = buildPartialRepo('amb');
+  it('DECISIVE FP: a partially-qualified ref binds the NEARER intra-node candidate and never the foreign top-level (exit 0)', () => {
+    // The whole point of the ordered-group mechanism: `new Models.Order()` inside
+    // `namespace App.Services; using App.Data;` binds the using-relative App.Data.Models.Order
+    // (intra-node n1, exempt) FIRST and stops; the verbatim Models.Order (n2) is never reached.
+    // n1 declares NO relation to n2 → a stale verbatim flag would surface as exit 1.
+    const repo = buildDecisiveFpRepo();
     try {
       const res = run(['check', '--approve'], repo);
       expect(res.status, res.all).toBe(0);
       expect(res.all).not.toContain('relation-undeclared-dependency');
     } finally {
       rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it('RECALL: a partial ref whose ONLY binding is the foreign top-level (verbatim, last) IS detected (exit 1, then exit 0 when declared)', () => {
+    // No nearer intra-node binding → the verbatim candidate resolves to n2 → the real
+    // cross-node edge is flagged when undeclared, and clears once the relation is declared.
+    const undeclared = buildRecallRepo(false);
+    try {
+      const res = run(['check', '--approve'], undeclared);
+      expect(res.status, res.all).toBe(1);
+      expect(res.all).toContain('relation-undeclared-dependency');
+      expect(res.all).toContain('n2');
+      expect(res.all).toContain('src/n1/Order.cs');
+    } finally {
+      rmSync(undeclared, { recursive: true, force: true });
+    }
+
+    const declared = buildRecallRepo(true);
+    try {
+      const ok = run(['check', '--approve'], declared);
+      expect(ok.status, ok.all).toBe(0);
+      expect(ok.all).not.toContain('relation-undeclared-dependency');
+    } finally {
+      rmSync(declared, { recursive: true, force: true });
+    }
+  });
+
+  it('NESTED TYPE: a cross-node use of `Outer.Inner` resolves via the guarded `+`-split (exit 1 undeclared, exit 0 declared)', () => {
+    const undeclared = buildNestedRepo(false);
+    try {
+      const res = run(['check', '--approve'], undeclared);
+      expect(res.status, res.all).toBe(1);
+      expect(res.all).toContain('relation-undeclared-dependency');
+      expect(res.all).toContain('n2');
+      expect(res.all).toContain('src/n1/Use.cs');
+    } finally {
+      rmSync(undeclared, { recursive: true, force: true });
+    }
+
+    const declared = buildNestedRepo(true);
+    try {
+      const ok = run(['check', '--approve'], declared);
+      expect(ok.status, ok.all).toBe(0);
+      expect(ok.all).not.toContain('relation-undeclared-dependency');
+    } finally {
+      rmSync(declared, { recursive: true, force: true });
     }
   });
 });
