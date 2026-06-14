@@ -1,0 +1,347 @@
+/**
+ * Unit tests for core/fill-gc.ts — the fill stage's garbage collection and
+ * canonical lock rewrite (spec §3.2).
+ *
+ * These exercise the three exported functions directly against in-memory graphs
+ * built with real on-disk files (so computeExpectedPairs / computeSourceFingerprint
+ * resolve actual mappings):
+ *
+ *   ownerNodeForFile        — longest-mapping-wins attribution over overlapping
+ *                             parent/child mappings; null for an unmapped file.
+ *   owningNodeForUnitKey    — node:<path> pass-through; file:<path> via mappings;
+ *                             null for a file mapped to no node.
+ *   garbageCollectAndRewrite — prunes verdicts whose pair left the expected
+ *                             universe and nodes[] entries for vanished node
+ *                             paths, retains entries owned by an uncomputable
+ *                             (implies-cycle) node, sets lock.version, and
+ *                             persists exactly once.
+ *
+ * The graph builder mirrors buildPairsGraph in pairs.test.ts (same Graph shape),
+ * extended with an `implies` field so an implies-cycle node can be constructed
+ * to drive computeUncomputableNodes.
+ */
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+import {
+  ownerNodeForFile,
+  owningNodeForUnitKey,
+  garbageCollectAndRewrite,
+} from '../../../src/core/fill-gc.js';
+import { LOCK_FORMAT_VERSION } from '../../../src/model/lock.js';
+import type { LockFile } from '../../../src/model/lock.js';
+import { fileUnit, nodeUnit } from '../../../src/model/lock.js';
+import type { Graph, GraphNode, AspectDef } from '../../../src/model/graph.js';
+
+// ---------------------------------------------------------------------------
+// In-memory graph builder (mirrors buildPairsGraph; adds `implies`)
+// ---------------------------------------------------------------------------
+
+interface GcTestAspect {
+  id: string;
+  kind?: 'llm' | 'deterministic' | 'aggregate';
+  status?: 'draft' | 'advisory' | 'enforced';
+  implies?: string[];
+}
+
+interface GcTestNode {
+  path: string;       // model-relative node path
+  mapping?: string[]; // repo-relative paths (relative to tmpDir)
+  aspects?: string[];
+  parent?: string;
+}
+
+function buildGraph(
+  tmpDir: string,
+  nodes: GcTestNode[],
+  aspects: GcTestAspect[],
+): Graph {
+  const rootPath = path.join(tmpDir, '.yggdrasil');
+  mkdirSync(rootPath, { recursive: true });
+
+  const aspectDefs: AspectDef[] = aspects.map((a) => {
+    const kind = a.kind ?? 'deterministic';
+    return {
+      id: a.id,
+      name: a.id,
+      reviewer: { type: kind },
+      status: a.status ?? 'enforced',
+      implies: a.implies,
+      artifacts:
+        kind === 'aggregate'
+          ? []
+          : [{ filename: kind === 'llm' ? 'content.md' : 'check.mjs', content: 'rule' }],
+    } as AspectDef;
+  });
+
+  const nodeByPath = new Map<string, GraphNode>();
+  for (const n of nodes) {
+    nodeByPath.set(n.path, {
+      path: n.path,
+      meta: {
+        name: n.path,
+        type: 'service',
+        aspects: n.aspects ?? [],
+        mapping: n.mapping ?? [],
+      },
+      children: [],
+      parent: null,
+    } as GraphNode);
+  }
+  for (const n of nodes) {
+    if (n.parent) {
+      const child = nodeByPath.get(n.path)!;
+      const parent = nodeByPath.get(n.parent)!;
+      child.parent = parent;
+      parent.children.push(child);
+    }
+  }
+
+  return {
+    config: {
+      version: '5.0.0',
+      reviewer: { tiers: { default: { provider: 'ollama', model: 'test', temperature: 0, consensus: 1 } }, default: 'default' },
+    },
+    architecture: { node_types: { service: { description: 'test' } } },
+    nodes: nodeByPath,
+    aspects: aspectDefs,
+    flows: [],
+    schemas: [],
+    rootPath,
+  } as unknown as Graph;
+}
+
+let tmpDir: string;
+
+beforeEach(() => {
+  tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-fill-gc-'));
+});
+
+afterEach(() => {
+  rmSync(tmpDir, { recursive: true, force: true });
+});
+
+function writeFile(relPath: string, content = 'content'): void {
+  const abs = path.join(tmpDir, relPath);
+  mkdirSync(path.dirname(abs), { recursive: true });
+  writeFileSync(abs, content, 'utf-8');
+}
+
+// ===========================================================================
+// ownerNodeForFile — longest-mapping-wins attribution
+// ===========================================================================
+
+describe('ownerNodeForFile', () => {
+  it('a file under the deeper of two overlapping mappings attributes to the longest mapping (child wins)', () => {
+    // Node A maps `src` (whole dir); node B maps `src/sub` (deeper). A file under
+    // src/sub is covered by BOTH mappings; longest-mapping-wins must pick B.
+    const graph = buildGraph(
+      tmpDir,
+      [
+        { path: 'a', mapping: ['src'] },
+        { path: 'b', mapping: ['src/sub'] },
+      ],
+      [],
+    );
+    expect(ownerNodeForFile(graph, 'src/sub/leaf.ts')).toBe('b');
+  });
+
+  it('a file under only the broad mapping attributes to that node (not the deeper one)', () => {
+    const graph = buildGraph(
+      tmpDir,
+      [
+        { path: 'a', mapping: ['src'] },
+        { path: 'b', mapping: ['src/sub'] },
+      ],
+      [],
+    );
+    // src/top.ts is under `src` but NOT under `src/sub` → owned by A only.
+    expect(ownerNodeForFile(graph, 'src/top.ts')).toBe('a');
+  });
+
+  it('an unmapped file attributes to no node (null)', () => {
+    const graph = buildGraph(
+      tmpDir,
+      [{ path: 'a', mapping: ['src'] }],
+      [],
+    );
+    expect(ownerNodeForFile(graph, 'docs/readme.md')).toBeNull();
+  });
+});
+
+// ===========================================================================
+// owningNodeForUnitKey — node:/file: routing
+// ===========================================================================
+
+describe('owningNodeForUnitKey', () => {
+  it('a node:<path> key passes the node path straight through (no mapping lookup)', () => {
+    // The node path in the key need not even exist in the graph — node: keys are
+    // returned verbatim by construction.
+    const graph = buildGraph(tmpDir, [{ path: 'a', mapping: ['src'] }], []);
+    expect(owningNodeForUnitKey(graph, nodeUnit('some/deep/node'))).toBe('some/deep/node');
+  });
+
+  it('a file:<mapped> key resolves through the node mappings to the owning node', () => {
+    const graph = buildGraph(
+      tmpDir,
+      [
+        { path: 'a', mapping: ['src'] },
+        { path: 'b', mapping: ['src/sub'] },
+      ],
+      [],
+    );
+    // file: routes through ownerNodeForFile → longest mapping (b).
+    expect(owningNodeForUnitKey(graph, fileUnit('src/sub/leaf.ts'))).toBe('b');
+  });
+
+  it('a file:<unmapped> key resolves to null (genuinely detached)', () => {
+    const graph = buildGraph(tmpDir, [{ path: 'a', mapping: ['src'] }], []);
+    expect(owningNodeForUnitKey(graph, fileUnit('elsewhere/x.ts'))).toBeNull();
+  });
+});
+
+// ===========================================================================
+// garbageCollectAndRewrite — prune / retain / version / persist
+// ===========================================================================
+
+describe('garbageCollectAndRewrite', () => {
+  it('prunes a verdict whose pair left the expected universe (detached aspect, vanished node, unmapped file) and persists once, stamping the lock version', async () => {
+    // The graph has exactly ONE expected pair: aspect `live` on node:svc.
+    // The seeded lock contains that valid entry PLUS three entries that are no
+    // longer in the universe:
+    //   - ghost-aspect on node:svc      → aspect not attached to svc (detached)
+    //   - live           on node:ghost  → node 'ghost' is not in the graph
+    //   - live           on file:gone.ts→ file maps to no node (unmapped)
+    // GC must keep the live entry and prune all three detached entries.
+    writeFile('src/svc.ts', 'export const x = 1;');
+    const graph = buildGraph(
+      tmpDir,
+      [{ path: 'svc', mapping: ['src/svc.ts'], aspects: ['live'] }],
+      [{ id: 'live', kind: 'deterministic' }],
+    );
+
+    const lock: LockFile = {
+      version: 0, // deliberately stale → GC must stamp it to LOCK_FORMAT_VERSION
+      verdicts: {
+        live: {
+          [nodeUnit('svc')]: { verdict: 'approved', hash: 'h-live' },
+          [nodeUnit('ghost')]: { verdict: 'approved', hash: 'h-ghost-node' },
+          [fileUnit('gone.ts')]: { verdict: 'approved', hash: 'h-gone-file' },
+        },
+        'ghost-aspect': {
+          [nodeUnit('svc')]: { verdict: 'approved', hash: 'h-ghost-aspect' },
+        },
+      },
+      nodes: {},
+    };
+
+    let persistCalls = 0;
+    await garbageCollectAndRewrite(graph, lock, async () => { persistCalls += 1; });
+
+    // The one valid entry survives untouched.
+    expect(lock.verdicts['live']?.[nodeUnit('svc')]?.hash).toBe('h-live');
+    // The detached-node and unmapped-file entries under `live` are pruned.
+    expect(lock.verdicts['live']?.[nodeUnit('ghost')]).toBeUndefined();
+    expect(lock.verdicts['live']?.[fileUnit('gone.ts')]).toBeUndefined();
+    // The fully-detached aspect's unit map is emptied → the aspect key is dropped.
+    expect(lock.verdicts['ghost-aspect']).toBeUndefined();
+    // The lock version was stamped, and persist ran exactly once.
+    expect(lock.version).toBe(LOCK_FORMAT_VERSION);
+    expect(persistCalls).toBe(1);
+  });
+
+  it('prunes nodes[] entries for node paths absent from the graph, keeping present ones', async () => {
+    writeFile('src/svc.ts', 'export const x = 1;');
+    const graph = buildGraph(
+      tmpDir,
+      [{ path: 'svc', mapping: ['src/svc.ts'], aspects: ['live'] }],
+      [{ id: 'live', kind: 'deterministic' }],
+    );
+
+    const lock: LockFile = {
+      version: LOCK_FORMAT_VERSION,
+      verdicts: {},
+      nodes: {
+        svc: { source: 'fp-svc' },        // present in graph → kept
+        'ghost/node': { source: 'fp-x' }, // absent from graph → pruned
+      },
+    };
+
+    await garbageCollectAndRewrite(graph, lock, async () => {});
+
+    expect(lock.nodes['svc']).toBeDefined();
+    expect(lock.nodes['svc']?.source).toBe('fp-svc');
+    expect(lock.nodes['ghost/node']).toBeUndefined();
+  });
+
+  it('retains a verdict owned by an uncomputable (implies-cycle) node while still pruning a genuinely-detached entry', async () => {
+    // Node `cyc` carries det-a, which implies det-b, which implies det-a — a
+    // cycle. computeEffectiveAspects throws for cyc, so it contributes ZERO pairs
+    // to the universe; computeUncomputableNodes flags it, and GC must RETAIN its
+    // entry (a paid verdict, not provably detached). The clean node `svc` (aspect
+    // `live`) contributes its pair normally. A `ghost-aspect` entry on node:svc
+    // is genuinely detached and must be pruned even though its owning node IS
+    // computable — proving the retain rule keys on uncomputability, not merely on
+    // owner-resolves-to-a-node.
+    writeFile('src/svc.ts', 'export const x = 1;');
+    writeFile('src/cyc.ts', 'export const y = 2;');
+    const graph = buildGraph(
+      tmpDir,
+      [
+        { path: 'svc', mapping: ['src/svc.ts'], aspects: ['live'] },
+        { path: 'cyc', mapping: ['src/cyc.ts'], aspects: ['det-a'] },
+      ],
+      [
+        { id: 'live', kind: 'deterministic' },
+        { id: 'det-a', kind: 'deterministic', implies: ['det-b'] },
+        { id: 'det-b', kind: 'deterministic', implies: ['det-a'] }, // cycle
+      ],
+    );
+
+    const lock: LockFile = {
+      version: LOCK_FORMAT_VERSION,
+      verdicts: {
+        'det-a': { [nodeUnit('cyc')]: { verdict: 'approved', hash: 'h-cyc' } },
+        live: { [nodeUnit('svc')]: { verdict: 'approved', hash: 'h-live' } },
+        'ghost-aspect': { [nodeUnit('svc')]: { verdict: 'approved', hash: 'h-ghost' } },
+      },
+      nodes: {},
+    };
+
+    await garbageCollectAndRewrite(graph, lock, async () => {});
+
+    // The cycle node's entry survives (uncomputable → not provably detached).
+    expect(lock.verdicts['det-a']?.[nodeUnit('cyc')]?.hash).toBe('h-cyc');
+    // The clean node's expected pair survives.
+    expect(lock.verdicts['live']?.[nodeUnit('svc')]?.hash).toBe('h-live');
+    // The genuinely-detached entry on a COMPUTABLE node is still pruned.
+    expect(lock.verdicts['ghost-aspect']).toBeUndefined();
+  });
+
+  it('keeps a draft aspect pair entry (GC universe includes draft pairs)', async () => {
+    // The GC universe is computed with includeDraft: true, so a draft aspect's
+    // pair stays in the universe and its entry is retained even though plain check
+    // would not expect it.
+    writeFile('src/svc.ts', 'export const x = 1;');
+    const graph = buildGraph(
+      tmpDir,
+      [{ path: 'svc', mapping: ['src/svc.ts'], aspects: ['wip'] }],
+      [{ id: 'wip', kind: 'deterministic', status: 'draft' }],
+    );
+
+    const lock: LockFile = {
+      version: LOCK_FORMAT_VERSION,
+      verdicts: {
+        wip: { [nodeUnit('svc')]: { verdict: 'approved', hash: 'h-wip' } },
+      },
+      nodes: {},
+    };
+
+    await garbageCollectAndRewrite(graph, lock, async () => {});
+
+    expect(lock.verdicts['wip']?.[nodeUnit('svc')]?.hash).toBe('h-wip');
+  });
+});
