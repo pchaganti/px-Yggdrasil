@@ -207,7 +207,8 @@ grammar.
 
 ## See also
 
-- [Core Concepts](/core-concepts) — aspects, the seven channels, the lock
+- [Aspects](/aspects) — rules, and the seven ways one reaches your code
+- [The lock](/the-lock) — how verdicts are stored
 - [Reviewers](/reviewers) — how the reviewer is invoked
 - [Conditional Aspects](/conditional-aspects) — `when` predicates
 - [CLI Reference](/cli-reference) — issue codes emitted by `yg check`

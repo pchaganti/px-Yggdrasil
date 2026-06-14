@@ -33,22 +33,31 @@ A rules file is a suggestion. There are no consequences for ignoring it, and no 
 
 ## What Yggdrasil does
 
-The architecture lives in a graph next to the code, under `.yggdrasil/`. It has three first-class elements:
+You lay the track: rules and structure that live in a graph next to your code, under `.yggdrasil/`. The agent drives — it writes the code. A reviewer keeps it on the rails: it checks each change against your rules and makes the agent fix course before it moves on.
+
+The graph has three first-class elements:
 
 - **Nodes** group source files into components.
 - **Aspects** are the rules attached to nodes ("Every public endpoint must use rate limiting", "All command handlers must validate input with zod", "No direct database access from this layer").
 - **Flows** mark business processes that span components; an aspect on a flow reaches every participant.
 
-**Ports** carry an aspect across a component boundary. A bare relation between nodes does not propagate aspects — only consuming a named port does, which keeps inheritance explicit rather than accidental.
+A rule can apply to one component or many. You attach it once; the tool computes everywhere it lands. You never copy-paste a rule onto each file — see the [docs](https://krzysztofdudek.github.io/Yggdrasil/) for how that works. **Ports** are the one explicit exception: a bare relation between nodes does not carry an aspect across a component boundary, but consuming a named port does. That keeps inheritance deliberate, never accidental.
 
-Every aspect declares a reviewer type:
+Every aspect names its reviewer:
 
-- **LLM aspects** are plain Markdown (`content.md`). A separate LLM call — one model verifying another — reads the rule and the node's source, then returns SATISFIED or NOT SATISFIED.
-- **Deterministic aspects** ship a `check.mjs` that the CLI runs locally at zero LLM cost. There is one `check(ctx)` contract: the check receives the node, its subject files (each with a tree-sitter parse tree when the language has a grammar), the file system, and the graph topology, and returns a list of violations. Use `yg aspect-test` to run either kind on demand without recording anything. A `check.mjs` and `content.md` are mutually exclusive — an aspect is one or the other.
+- **LLM aspects** are plain Markdown (`content.md`). A separate LLM call — one model verifying another — reads the rule and the node's source, then returns SATISFIED or NOT SATISFIED. The rule is just text you write:
 
-Every aspect also declares its **scope**: `per: node` (the default — one verification over the whole node) or `per: file` (one verification per file), with an optional `files:` filter that narrows which files are reviewed. The thing one verification covers is a **unit**; each `(aspect, unit)` is a **pair**, and a pair is the unit of work, cost, and caching.
+  ```markdown
+  # Audit every payment mutation
 
-Before the agent edits a file, `yg context` returns the aspects that touch it (as `read:` pointers the agent opens individually, not an inline dump). The agent writes code that targets them. After editing, `yg check --approve` verifies every pair whose inputs changed: deterministic pairs run locally for free, LLM pairs go to the reviewer. Each verdict is recorded in a single committed lock file. If anything fails, the agent gets specific feedback, fixes, and re-verifies. This is code review while the agent is working, not after.
+  Any function that creates, updates, or refunds a charge must
+  call `auditLog.emit()` before it returns. A mutation with no
+  audit event is a refusal.
+  ```
+
+- **Deterministic aspects** ship a `check.mjs` that the CLI runs locally at zero LLM cost. The check receives the node, its source files (with a tree-sitter parse tree where the language has a grammar), the file system, and the graph, and returns a list of violations. An aspect is one or the other, never both.
+
+Before the agent edits a file, `yg context` returns the aspects that touch it — the agent opens each rule's text and writes code that targets it. After editing, `yg check --approve` verifies everything whose inputs changed: deterministic checks run locally for free, LLM rules go to the reviewer. Each verdict is recorded in a single committed lock file. If anything fails, the agent gets specific feedback, fixes, and re-verifies. This is code review while the agent is working, not after.
 
 ```
 agent about to edit a file
@@ -62,30 +71,19 @@ agent about to edit a file
   → yg check in CI: PASS (recomputes input hashes, no LLM calls)
 ```
 
-Aspects are scoped. The agent only sees the ones that touch the file it's working on, not all 200. One aspect can cover dozens of files. Change an aspect and every pair it produces gets flagged for re-verification.
-
-How aspects reach a node is itself a graph computation. An aspect can arrive through any of **seven channels** — declared on the node, inherited from an ancestor node, applied as an architecture default for the node's own type, applied as an architecture default for an ancestor's type, propagated from a flow, required by a consumed port, or pulled in by another aspect's recursive `implies` chain. The effective set is the union across all of them.
+Aspects are scoped. The agent only sees the ones that touch the file it's working on, not all 200. One aspect can cover dozens of files. Change an aspect and everything it governs gets flagged for re-verification.
 
 ### Status: draft, advisory, enforced
 
-Status is purely how a verdict renders. It never changes whether a verdict is computed or cached — it controls whether a pair is expected at all (`draft` removes it) and whether a problem blocks CI:
-
-| Status | A refusal renders as | An unverified pair renders as | Blocks `yg check` / CI |
-|---|---|---|---|
-| `draft` | n/a — pair not expected | n/a — pair not expected | no |
-| `advisory` | warning | warning | no |
-| `enforced` (default) | error | error | yes |
-
-A typical lifecycle is draft while you author the rule, advisory for a sprint or two to gather signal without blocking anyone, then enforced once you trust it. Verdicts survive status flips — moving an aspect from advisory to enforced and back never re-runs the reviewer. Status can be declared at several attach sites (the aspect itself, a per-node entry, an architecture type, a flow, a port); the effective status is the strictest one — bumping up is allowed, downgrading is a validator error.
+Status controls how loud a rule is, not what it checks. A `draft` aspect is silent while you author it. An `advisory` aspect runs the reviewer and lists problems as warnings — useful for a sprint or two to gather signal without blocking anyone. An `enforced` aspect blocks `yg check` and CI. Verdicts survive status flips, so promoting advisory → enforced never re-runs the reviewer. See [Aspect Status](https://krzysztofdudek.github.io/Yggdrasil/aspect-status) for the lifecycle.
 
 ### When you need finer control
 
-- **Conditional aspects.** A `when` predicate filters applicability per node, deterministically, before the reviewer is ever invoked — over relations, descendants, ports, and node type. If it evaluates false, the aspect is invisible on that node: no cost, no display, no verdict.
-- **Tiers and consensus.** LLM aspects pick a named tier in `yg-config.yaml` that pins a provider, model, temperature, and endpoint. A tier can set `consensus` to a positive odd number to run the reviewer N times and take the majority vote for high-stakes rules (cost multiplies accordingly). Deterministic aspects must not set a tier.
+A `when` predicate makes an aspect apply to only a subset of nodes — checked deterministically, before the reviewer is ever called. LLM aspects can pin a named tier (provider, model, temperature) and run the reviewer multiple times to take a majority vote on high-stakes rules. Both are reference-level; see the [docs](https://krzysztofdudek.github.io/Yggdrasil/).
 
-Each node also has an append-only `log.md` under its model directory (next to `yg-node.yaml`). The log captures *why* a change happened — the intent behind it, which the diff never records. The agent writes entries via `yg log add` and reads prior ones with `yg log read`. A node type can opt in to requiring this: enable `log_required` on a type whose changes carry business intent worth capturing, and `yg check --approve` won't record a verdict for a source change on that node until a fresh log entry exists. The log carries intent between sessions. The reviewer doesn't see it. The next agent does.
+Each node also keeps an append-only `log.md` next to its `yg-node.yaml`. The log captures *why* a change happened — the intent the diff never records. The agent writes entries with `yg log add` and reads prior ones with `yg log read`. A node type can require a fresh entry before a source change is verified. The reviewer never sees the log; the next agent does.
 
-When a genuine exception is needed, an inline `yg-suppress(<aspect-path>) <reason>` waiver can exempt a specific location — used sparingly, and only with your explicit sign-off.
+When a genuine exception is needed, an inline `yg-suppress(<aspect-path>) <reason>` waiver exempts a specific location — used sparingly, and only with your explicit sign-off.
 
 ## Works on any codebase
 
@@ -166,7 +164,7 @@ Works with any AI coding agent. `yg init` sets up the rules file your agent expe
 - `yg aspect-test` — run an aspect of either kind against a node or files on demand, including an LLM `--dry-run` prompt preview; never writes the lock.
 - `yg log add | read | merge-resolve` — the per-node decision log.
 - `yg impact`, `yg tree`, `yg find`, `yg aspects`, `yg flows`, `yg owner`, `yg suppressions`, `yg type-suggest` — navigate and query the graph.
-- `yg knowledge list | read <name>` — the built-in reference topics (aspects, ports, flows, the lock, script checks, and more).
+- `yg knowledge list | read <name>` — the built-in reference topics (aspects, ports and relations, flows, the lock, and more).
 
 ## FAQ
 
@@ -196,7 +194,7 @@ This repo uses Yggdrasil on itself. Browse [`.yggdrasil/`](.yggdrasil/) for a re
 
 ## Docs
 
-[krzysztofdudek.github.io/Yggdrasil](https://krzysztofdudek.github.io/Yggdrasil/)
+[krzysztofdudek.github.io/Yggdrasil](https://krzysztofdudek.github.io/Yggdrasil/) — start with [How it works](https://krzysztofdudek.github.io/Yggdrasil/how-it-works), then [Getting started](https://krzysztofdudek.github.io/Yggdrasil/getting-started).
 
 ## License
 

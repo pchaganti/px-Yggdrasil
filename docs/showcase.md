@@ -1,5 +1,7 @@
 # Yggdrasil Dogfood Showcase
 
+> **Advanced.** A deep dive for readers who already know the basics. New here? Start with [Getting Started](/getting-started) and [How it works](/how-it-works).
+
 This document captures how the Yggdrasil CLI applies its own enforcement rules to itself — a real-world case study of every major feature in production. Use it to calibrate which capabilities are worth introducing early vs. which emerge only as the system grows.
 
 Each section covers one schema feature, how we used it in our self-architecture, its earn-rate (measured in reviewer rejection prevention vs. maintenance overhead), and what we recommend to adopters.

@@ -1,10 +1,14 @@
 name: Adopter Guides — Fundamentals
 type: doc-page
-description: "Task-oriented adopter documentation: getting started, core concepts, CLI reference, and site index."
+description: "Task-oriented adopter documentation: the home page, getting started, the how-it-works model, the core concept pages (aspects, nodes, relations/flows/ports), the lock, and the CLI reference."
 aspects: []
 relations: []
 mapping:
-  - docs/getting-started.md
-  - docs/core-concepts.md
-  - docs/cli-reference.md
   - docs/index.md
+  - docs/getting-started.md
+  - docs/how-it-works.md
+  - docs/aspects.md
+  - docs/nodes.md
+  - docs/relations-flows-ports.md
+  - docs/the-lock.md
+  - docs/cli-reference.md

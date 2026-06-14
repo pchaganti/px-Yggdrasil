@@ -15,6 +15,8 @@ cd your-project
 yg init
 ```
 
+`yg init` walks you through picking your agent platform and a reviewer (Anthropic, OpenAI, Google, Ollama, or a local agent CLI), then writes the `.yggdrasil/` graph into your repo.
+
 ## License
 
 MIT

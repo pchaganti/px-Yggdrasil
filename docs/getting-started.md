@@ -4,6 +4,8 @@ title: Getting Started
 
 ## 1) Install
 
+Requires Node.js 22+.
+
 ```bash
 npm install -g @chrisdudek/yg
 ```
@@ -67,7 +69,7 @@ The agent will create:
 .yggdrasil/
   aspects/
     requires-audit/
-      yg-aspect.yaml       ← name, description, reviewer: { type: llm }
+      yg-aspect.yaml       ← name + description
       content.md            ← the actual rule (plain Markdown)
   model/
     payments/
@@ -203,7 +205,7 @@ Aspect inheritance through the node hierarchy, architecture type-defaults,
 one purpose: applying a rule to many nodes **without** copy-pasting it onto each
 one. You do not need any of them to start. When "every X must do Y" spans more
 than a handful of files, that is the signal to read
-[Core Concepts](/core-concepts) and adopt one of these mechanisms.
+[How it works](/how-it-works) and adopt one of these mechanisms.
 
 **You never trace the cascade by hand.** No matter how many of those mechanisms
 are in play, you do not work out which rules apply to a file by reading the
@@ -226,6 +228,8 @@ exactly as before. No build dependencies, no runtime hooks.
 
 _Want to understand the model?_
 
-- [Core concepts](/core-concepts) — aspects, nodes, flows, graph structure
+- [How it works](/how-it-works) — the model: rails, the three players, the loop
+- [Aspects](/aspects) — write your first rule
+- [Nodes](/nodes) — group files into components
 - [Configuration](/configuration) — reviewer setup, quality thresholds
 - [CLI reference](/cli-reference) — all commands

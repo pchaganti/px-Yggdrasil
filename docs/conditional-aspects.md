@@ -27,7 +27,7 @@ call, no reviewer uncertainty.
 > validator points you at `scope.files` instead, and vice versa. The grammar
 > below is the node-applicability (`when:`) form. For the file forms, see
 > `schemas/yg-architecture.yaml`, `yg knowledge read working-with-architecture`,
-> and the [scope section in Core Concepts](/core-concepts#aspect-scope-and-units).
+> and the [scope section on the Aspects page](/aspects).
 
 ## When to reach for `when`
 

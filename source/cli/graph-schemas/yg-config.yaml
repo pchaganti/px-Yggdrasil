@@ -31,8 +31,6 @@ reviewer:                         # required — aspect verification during yg c
         model: "qwen3.5:9b"       #       model id
         endpoint: "http://localhost:11434"   # custom endpoint (required for ollama, openai-compatible)
         temperature: 0            #       reduces variability — keep at 0
-        max_tokens: auto          #       auto = query provider, or explicit positive integer
-        context_length_field: ""  #       ollama: model_info key for context window size
         # timeout: 300            #       Per-call timeout in SECONDS (default 300). Only CLI providers.
       # max_prompt_chars: 200000  # optional — assembled reviewer-prompt character cap (positive integer).
                                   #   Checked deterministically before the LLM call. Absent = unlimited.

@@ -19,19 +19,44 @@ export default defineConfig({
     nav: [
       { text: "Home", link: "/" },
       { text: "Getting Started", link: "/getting-started" },
+      { text: "How It Works", link: "/how-it-works" },
       { text: "GitHub", link: "https://github.com/krzysztofdudek/Yggdrasil" },
     ],
     sidebar: [
-      { text: "Home", link: "/" },
-      { text: "Getting Started", link: "/getting-started" },
-      { text: "Core Concepts", link: "/core-concepts" },
-      { text: "Supported Platforms", link: "/platforms" },
-      { text: "CLI Reference", link: "/cli-reference" },
-      { text: "Configuration", link: "/configuration" },
-      { text: "Reviewers", link: "/reviewers" },
-      { text: "Aspect Status", link: "/aspect-status" },
-      { text: "Conditional Aspects", link: "/conditional-aspects" },
-      { text: "Dogfood Showcase", link: "/showcase" },
+      {
+        text: "Start here",
+        items: [
+          { text: "Home", link: "/" },
+          { text: "Getting Started", link: "/getting-started" },
+          { text: "How It Works", link: "/how-it-works" },
+        ],
+      },
+      {
+        text: "Build the rails",
+        items: [
+          { text: "Aspects", link: "/aspects" },
+          { text: "Nodes", link: "/nodes" },
+          { text: "Relations, Flows & Ports", link: "/relations-flows-ports" },
+        ],
+      },
+      {
+        text: "Author & operate",
+        items: [
+          { text: "Reviewers", link: "/reviewers" },
+          { text: "Aspect Status", link: "/aspect-status" },
+          { text: "Conditional Aspects", link: "/conditional-aspects" },
+          { text: "Configuration", link: "/configuration" },
+          { text: "CLI Reference", link: "/cli-reference" },
+          { text: "Supported Platforms", link: "/platforms" },
+        ],
+      },
+      {
+        text: "Reference & deep dives",
+        items: [
+          { text: "The Lock", link: "/the-lock" },
+          { text: "Dogfood Showcase", link: "/showcase" },
+        ],
+      },
     ],
   },
 });

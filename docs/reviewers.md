@@ -1,4 +1,4 @@
-# Aspect Reviewers
+# Reviewers
 
 Aspects are verified by reviewers. Yggdrasil ships three reviewer kinds — all operate on the same aspect-node-flow graph; the kind is inferred from which rule source file is present in the aspect directory.
 
@@ -461,7 +461,8 @@ Both reviewer types record their results the same way: one content-addressed ent
 
 ## See also
 
-- [Core Concepts](/core-concepts) — nodes, aspects, the lock, and pairs
+- [How it works](/how-it-works) — the model: rails, the three players, the loop
+- [The lock](/the-lock) — how verdicts are stored
 - [CLI Reference](/cli-reference) — `yg check --approve`, `yg aspect-test`, `yg aspects`
 - [Configuration](/configuration) — reviewer provider setup
 - [Conditional Aspects](/conditional-aspects) — `when` predicates for selective aspect application
