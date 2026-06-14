@@ -1,6 +1,14 @@
 name: Fill
 type: engine
-description: "Fill stage behind yg check --approve — the single producer of verdict-lock entries. Computes unverified pairs, runs the deterministic-first gate (det fills before LLM; a node's enforced det refusal skips its LLM fills), dispatches LLM reviewer calls per tier with a single fail-closed write chokepoint, enforces the mandatory-log gate, and on positive closure writes the source fingerprint and log baseline. GCs detached verdict entries and writes the lock canonically. No write ever happens on an infra disposition (provider unreachable, tier-resolution error, reference-load failure, unparseable response) or a tainted/failed deterministic result."
+description: "Fill stage behind yg check --approve — the single producer of
+  verdict-lock entries. Computes unverified pairs, runs the deterministic-first
+  gate (det fills before LLM; a node's enforced det refusal skips its LLM
+  fills), dispatches LLM reviewer calls per tier with a single fail-closed write
+  chokepoint, enforces the mandatory-log gate, and on positive closure writes
+  the source fingerprint and log baseline. GCs detached verdict entries and
+  writes the lock canonically. No write ever happens on an infra disposition
+  (provider unreachable, tier-resolution error, reference-load failure,
+  unparseable response) or a tainted/failed deterministic result."
 aspects:
   - deterministic
   - posix-paths-output
@@ -27,5 +35,25 @@ relations:
     type: uses
   - target: cli/model/lock
     type: uses
+  - target: cli/core/check-codes
+    type: calls
+  - target: cli/core/log
+    type: calls
+  - target: cli/core/pair-hash
+    type: calls
+  - target: cli/io/parsers/config
+    type: calls
+  - target: cli/io/stores
+    type: calls
+  - target: cli/relations
+    type: extends
+  - target: cli/relations/extractors
+    type: extends
+  - target: cli/structure
+    type: extends
+  - target: cli/structure-runner
+    type: extends
+  - target: cli/utils
+    type: calls
 mapping:
   - source/cli/src/core/fill.ts

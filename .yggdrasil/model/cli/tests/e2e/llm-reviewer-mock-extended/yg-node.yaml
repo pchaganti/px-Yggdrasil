@@ -1,7 +1,13 @@
 name: E2E Tests — LLM Reviewer Mechanics Extended (Mock)
 type: test-suite
-description: "Subprocess E2E extending the mock-reviewer coverage — source exceeding the token budget is split into multiple reviewer calls (chunking), a node mixing a deterministic and an LLM aspect calls the reviewer only for the LLM one, several LLM aspects each consume their own call, a 429 is retried once then succeeds, and a refused LLM verdict renders in yg check as a blocking error when enforced and a non-blocking warning when advisory without re-calling the reviewer."
+description: "Subprocess E2E extending the mock-reviewer coverage — source
+  exceeding the token budget is split into multiple reviewer calls (chunking), a
+  node mixing a deterministic and an LLM aspect calls the reviewer only for the
+  LLM one, several LLM aspects each consume their own call, a 429 is retried
+  once then succeeds, and a refused LLM verdict renders in yg check as a
+  blocking error when enforced and a non-blocking warning when advisory without
+  re-calling the reviewer."
 aspects: []
-relations: []
+relations: [ { target: cli/tests/e2e/support, type: uses } ]
 mapping:
   - source/cli/tests/e2e/cli-llm-reviewer-mock-extended.test.ts

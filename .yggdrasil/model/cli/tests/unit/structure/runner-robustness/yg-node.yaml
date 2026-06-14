@@ -1,8 +1,15 @@
 name: Structure Runner Robustness Tests
 type: test-suite
-description: "Unit tests for structure-aspect runner robustness over directory-mapped nodes — directory mappings expand to their constituent files, and AST-walking checks skip non-AST files (.md, .sh, .json) without crashing instead of dereferencing a missing AST."
+description: "Unit tests for structure-aspect runner robustness over
+  directory-mapped nodes — directory mappings expand to their constituent files,
+  and AST-walking checks skip non-AST files (.md, .sh, .json) without crashing
+  instead of dereferencing a missing AST."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/structure-runner, type: uses },
+    { target: cli/tests/unit/helpers, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/structure/runner-dir-mapping.test.ts
   - source/cli/tests/unit/structure/runner-non-ast-files.test.ts

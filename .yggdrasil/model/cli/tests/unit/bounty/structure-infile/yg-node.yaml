@@ -2,6 +2,12 @@ name: Bounty structure-infile
 type: test-suite
 description: "Bug-bounty branch-coverage suites: structure-infile (~24303 chars)."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/ast/report, type: uses },
+    { target: cli/structure, type: uses },
+    { target: cli/structure-runner, type: uses },
+    { target: cli/tests/unit/helpers, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/bounty2/structure-infile.test.ts

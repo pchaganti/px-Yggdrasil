@@ -1,11 +1,14 @@
 name: When Evaluator
 type: engine
-description: Pure predicate evaluator — determines whether a WhenPredicate passes against a (GraphNode, Graph) pair. No I/O, no LLM, deterministic.
+description: Pure predicate evaluator — determines whether a WhenPredicate
+  passes against a (GraphNode, Graph) pair. No I/O, no LLM, deterministic.
 aspects: []
 relations:
   - target: cli/model/graph
     type: uses
   - target: cli/model/when
     type: uses
+  - target: cli/core/graph
+    type: calls
 mapping:
   - source/cli/src/core/when-evaluator.ts

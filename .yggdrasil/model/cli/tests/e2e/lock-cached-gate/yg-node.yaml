@@ -1,7 +1,11 @@
 name: E2E Tests — Lock Cached Verdicts & Deterministic Gate
 type: test-suite
-description: "Subprocess E2E for cached refusals, the deterministic-first gate, and infrastructure fail-closed (lock matrix part 2): a second yg check --approve makes zero reviewer calls and re-renders the stored refusal, a red deterministic check skips a node's LLM calls, and provider failure leaves prior entries intact. Real spawned binary with an in-process mock reviewer."
+description: "Subprocess E2E for cached refusals, the deterministic-first gate,
+  and infrastructure fail-closed (lock matrix part 2): a second yg check
+  --approve makes zero reviewer calls and re-renders the stored refusal, a red
+  deterministic check skips a node's LLM calls, and provider failure leaves
+  prior entries intact. Real spawned binary with an in-process mock reviewer."
 aspects: []
-relations: []
+relations: [ { target: cli/tests/e2e/support, type: uses } ]
 mapping:
   - source/cli/tests/e2e/cli-lock-cached-gate.test.ts

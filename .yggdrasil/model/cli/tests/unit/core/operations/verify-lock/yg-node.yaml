@@ -1,7 +1,16 @@
 name: Verify-Lock Unit Tests
 type: test-suite
-description: "Unit tests for read-only lock verification — re-deriving each pair's input hash from current source and observations and classifying it as valid-approved, valid-refused (cached), or missing/stale (unverified), including empty-byte folding for disappeared references and subjects."
+description: "Unit tests for read-only lock verification — re-deriving each
+  pair's input hash from current source and observations and classifying it as
+  valid-approved, valid-refused (cached), or missing/stale (unverified),
+  including empty-byte folding for disappeared references and subjects."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/core/pair-hash, type: uses },
+    { target: cli/core/verify-lock, type: uses },
+    { target: cli/model/lock, type: uses },
+    { target: cli/tests/unit/helpers, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/core/verify-lock.test.ts

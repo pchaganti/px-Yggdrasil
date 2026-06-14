@@ -1,7 +1,18 @@
 name: Fill LLM Unit Tests
 type: test-suite
-description: "Unit tests for LLM fills — consensus, infra fail-closed, cached refusals (second run zero calls), exact header and summary strings, FillGatingError structural abort, and fail-closed edge branches."
+description: "Unit tests for LLM fills — consensus, infra fail-closed, cached
+  refusals (second run zero calls), exact header and summary strings,
+  FillGatingError structural abort, and fail-closed edge branches."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/core/fill, type: uses },
+    { target: cli/core/loader, type: uses },
+    { target: cli/core/verify-lock, type: uses },
+    { target: cli/formatters, type: uses },
+    { target: cli/io/lock-store, type: uses },
+    { target: cli/llm/shared, type: uses },
+    { target: cli/structure-runner, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/core/fill-llm.test.ts

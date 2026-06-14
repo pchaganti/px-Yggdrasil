@@ -1,10 +1,20 @@
 name: Architecture Checks
 type: engine
-description: "Validation checks for architecture constraints — node-type parents, parent cycles, enforce/when consistency, type classification, relation-target and parent-type rules, port aspects and consumes. Includes the shared issueMsg helper."
+description: "Validation checks for architecture constraints — node-type
+  parents, parent cycles, enforce/when consistency, type classification,
+  relation-target and parent-type rules, port aspects and consumes. Includes the
+  shared issueMsg helper."
 aspects:
   - posix-paths-output
   - what-why-next
-relations: []
+relations:
+  [
+    { target: cli/core/file-when-evaluator, type: calls },
+    { target: cli/formatters, type: extends },
+    { target: cli/io/file-content-cache, type: calls },
+    { target: cli/io/stores, type: calls },
+    { target: cli/utils, type: calls }
+  ]
 mapping:
   - source/cli/src/core/checks/architecture.ts
   - source/cli/src/core/checks/shared.ts

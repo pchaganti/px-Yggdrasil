@@ -1,9 +1,14 @@
 name: LLM Providers
 type: llm-provider
-description: API and CLI provider implementations — each adapter translates a specific LLM backend into the common LlmProvider interface
+description: API and CLI provider implementations — each adapter translates a
+  specific LLM backend into the common LlmProvider interface
 
 relations:
   - target: cli/llm/shared
+    type: calls
+  - target: cli/llm/subprocess-base
+    type: calls
+  - target: cli/utils
     type: calls
 
 mapping:

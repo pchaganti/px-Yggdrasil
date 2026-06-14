@@ -1,9 +1,14 @@
 name: Formatters
 type: formatter
-description: Output formatting for context packages, converting structured data to YAML and text
+description: Output formatting for context packages, converting structured data
+  to YAML and text
 relations:
   - target: cli/model/context
     type: uses
+  - target: cli/model/graph
+    type: uses
+  - target: cli/utils
+    type: calls
 mapping:
   - source/cli/src/formatters/aspect-status-messages.ts
   - source/cli/src/formatters/context-file.ts

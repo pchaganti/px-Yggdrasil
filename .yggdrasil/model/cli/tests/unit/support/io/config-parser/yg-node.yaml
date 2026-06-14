@@ -1,8 +1,9 @@
 name: Config Parser Tests
 type: test-suite
-description: "Unit tests for the config parser I/O adapter — config-parser core parsing/validation and config-parser references resolution"
+description: "Unit tests for the config parser I/O adapter — config-parser core
+  parsing/validation and config-parser references resolution"
 aspects: []
-relations: []
+relations: [ { target: cli/io/parsers/config, type: uses } ]
 mapping:
   - source/cli/tests/unit/io/config-parser.test.ts
   - source/cli/tests/unit/io/config-parser-prompt-chars.test.ts

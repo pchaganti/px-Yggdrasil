@@ -1,8 +1,13 @@
 name: Integration AST Tests
 type: test-suite
-description: Integration tests for the single-file (AST) runner and impact computation — runner behavior and AST-based impact analysis
+description: Integration tests for the single-file (AST) runner and impact
+  computation — runner behavior and AST-based impact analysis
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/ast/runtime, type: uses },
+    { target: cli/core/graph, type: uses }
+  ]
 mapping:
   - source/cli/tests/integration/ast-runner.test.ts
   - source/cli/tests/integration/impact-ast.test.ts

@@ -1,9 +1,20 @@
 name: Core Graph Queries
 type: engine
-description: Pure graph queries — traversal (ancestors, descendants), flow membership, dependency views, and blast-radius/reverse-dependency algorithms. Helpers take a Graph and/or GraphNode and return derived data with no side effects. Canonical home for new graph-query helpers.
+description: Pure graph queries — traversal (ancestors, descendants), flow
+  membership, dependency views, and blast-radius/reverse-dependency algorithms.
+  Helpers take a Graph and/or GraphNode and return derived data with no side
+  effects. Canonical home for new graph-query helpers.
 relations:
   - target: cli/model/graph
     type: uses
+  - target: cli/core/language-registry
+    type: calls
+  - target: cli/core/when-evaluator
+    type: calls
+  - target: cli/structure
+    type: extends
+  - target: cli/utils
+    type: calls
 mapping:
   - source/cli/src/core/graph/aspects.ts
   - source/cli/src/core/graph/dependencies.ts

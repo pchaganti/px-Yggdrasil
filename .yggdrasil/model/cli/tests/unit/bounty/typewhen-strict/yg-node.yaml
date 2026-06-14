@@ -2,6 +2,12 @@ name: Bounty typewhen-strict
 type: test-suite
 description: "Bug-bounty branch-coverage suites: typewhen-strict (~30004 chars)."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/core/checks/architecture, type: uses },
+    { target: cli/core/checks/mapping, type: uses },
+    { target: cli/core/loader, type: uses },
+    { target: cli/io/file-content-cache, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/bounty2/typewhen-strict.test.ts

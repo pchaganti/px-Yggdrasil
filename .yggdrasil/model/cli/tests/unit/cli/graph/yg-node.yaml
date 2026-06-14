@@ -1,8 +1,15 @@
 name: CLI Graph Query Command Tests
 type: test-suite
-description: Unit tests for graph-query commands — aspects, find, flows, impact, owner, and which
+description: Unit tests for graph-query commands — aspects, find, flows, impact,
+  owner, and which
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/commands/aspects, type: uses },
+    { target: cli/commands/find, type: uses },
+    { target: cli/commands/flows, type: uses },
+    { target: cli/commands/owner, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/cli/aspects.test.ts
   - source/cli/tests/unit/cli/find.test.ts

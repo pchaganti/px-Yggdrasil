@@ -2,6 +2,10 @@ name: bounty3 suppress
 type: test-suite
 description: "Bug-bounty suites: suppress (~30275 chars)."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/ast/runtime, type: uses },
+    { target: cli/commands/suppressions, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/bounty3/suppress.test.ts

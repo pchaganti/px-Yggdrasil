@@ -1,7 +1,13 @@
 name: E2E Tests — Per-File Scope (LLM Side)
 type: test-suite
-description: "Subprocess E2E for per-file scope on an LLM aspect via the in-process mock reviewer: one prompt and one file: lock entry per subject file, a single-file edit re-invokes the reviewer for only that file's pair while the sibling verdict carries forward, a scope.files content atom narrows the subject set, and binary files are auto-excluded from the LLM subject while a deterministic aspect still covers them. Real spawned binary over the async mock."
+description: "Subprocess E2E for per-file scope on an LLM aspect via the
+  in-process mock reviewer: one prompt and one file: lock entry per subject
+  file, a single-file edit re-invokes the reviewer for only that file's pair
+  while the sibling verdict carries forward, a scope.files content atom narrows
+  the subject set, and binary files are auto-excluded from the LLM subject while
+  a deterministic aspect still covers them. Real spawned binary over the async
+  mock."
 aspects: []
-relations: []
+relations: [ { target: cli/tests/e2e/support, type: uses } ]
 mapping:
   - source/cli/tests/e2e/cli-scope-llm.test.ts

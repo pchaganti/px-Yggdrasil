@@ -2,6 +2,14 @@ name: bounty4 conditional-aspects
 type: test-suite
 description: "Bug-bounty suites: conditional-aspects (~26424 chars)."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/core/checks/aspects, type: uses },
+    { target: cli/core/file-when-evaluator, type: uses },
+    { target: cli/core/graph, type: uses },
+    { target: cli/core/when-evaluator, type: uses },
+    { target: cli/io/file-content-cache, type: uses },
+    { target: cli/utils, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/bounty4/conditional-aspects.test.ts

@@ -2,6 +2,10 @@ name: Bounty eff-own-ancestor
 type: test-suite
 description: "Bug-bounty branch-coverage suites: eff-own-ancestor (~20209 chars)."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/core/graph, type: uses },
+    { target: cli/tests/unit/helpers, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/bounty/eff-own-ancestor.test.ts

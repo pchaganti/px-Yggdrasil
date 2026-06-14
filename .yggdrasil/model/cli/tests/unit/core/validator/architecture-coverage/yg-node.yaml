@@ -1,7 +1,13 @@
 name: Validator Architecture Coverage Tests
 type: test-suite
-description: Unit tests for architecture-level validation — type-without-when-with-mapping, parent cycles, enforce-strict, type-when-mismatch, gitignored mappings, and strict backward/overlap coverage
+description: Unit tests for architecture-level validation —
+  type-without-when-with-mapping, parent cycles, enforce-strict,
+  type-when-mismatch, gitignored mappings, and strict backward/overlap coverage
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/core/loader, type: uses },
+    { target: cli/core/validator, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/core/validator-architecture.test.ts

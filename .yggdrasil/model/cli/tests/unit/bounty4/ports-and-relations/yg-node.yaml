@@ -2,6 +2,14 @@ name: bounty4 ports-and-relations
 type: test-suite
 description: "Bug-bounty suites: ports-and-relations (~30425 chars)."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/core/check-codes, type: uses },
+    { target: cli/core/checks/architecture, type: uses },
+    { target: cli/core/checks/aspects, type: uses },
+    { target: cli/core/checks/relations, type: uses },
+    { target: cli/core/graph, type: uses },
+    { target: cli/io/parsers/graph, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/bounty4/ports-and-relations.test.ts

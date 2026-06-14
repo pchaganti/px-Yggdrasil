@@ -1,8 +1,9 @@
 name: Diagnostic Message Formatters Unit Tests
 type: test-suite
-description: Unit tests for CLI diagnostic-message formatters — issue-message snapshots, message-builder, and predicate-trace output rendering
+description: Unit tests for CLI diagnostic-message formatters — issue-message
+  snapshots, message-builder, and predicate-trace output rendering
 aspects: []
-relations: []
+relations: [ { target: cli/formatters, type: uses } ]
 mapping:
   - source/cli/tests/unit/formatters/message-builder.test.ts
   - source/cli/tests/unit/formatters/predicate-trace.test.ts

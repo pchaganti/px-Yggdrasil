@@ -1,5 +1,10 @@
 name: LLM Subprocess Base
 type: llm-subprocess-base
-description: Base class for CLI subprocess providers (claude-code, codex, gemini-cli) — handles process spawning, stdio streaming, and exit-code classification.
+description: Base class for CLI subprocess providers (claude-code, codex,
+  gemini-cli) — handles process spawning, stdio streaming, and exit-code
+  classification.
 mapping:
   - source/cli/src/llm/cli-base.ts
+relations:
+  - target: cli/utils
+    type: calls

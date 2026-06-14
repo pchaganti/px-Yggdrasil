@@ -1,11 +1,30 @@
 name: InitCommand
 type: command
-description: Bootstraps Yggdrasil graph structure in a project or refreshes platform rules via yg init
+description: Bootstraps Yggdrasil graph structure in a project or refreshes
+  platform rules via yg init
 aspects: []
 relations:
   - target: cli/templates
     type: calls
   - target: cli/tests/unit/cli
     type: uses
+  - target: cli/core/loader
+    type: calls
+  - target: cli/core/migrations
+    type: extends
+  - target: cli/core/migrator
+    type: calls
+  - target: cli/core/migrator-runner
+    type: calls
+  - target: cli/formatters
+    type: calls
+  - target: cli/llm/shared
+    type: calls
+  - target: cli/preamble
+    type: extends
+  - target: cli/templates-platform
+    type: calls
+  - target: cli/utils
+    type: calls
 mapping:
   - source/cli/src/cli/init.ts

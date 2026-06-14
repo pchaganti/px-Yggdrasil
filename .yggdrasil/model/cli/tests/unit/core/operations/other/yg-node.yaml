@@ -1,7 +1,8 @@
 name: Effective-Aspect Resolution Unit Tests
 type: test-suite
-description: "Unit tests for effective-aspect resolution — how aspects accumulate on a node across cascading channels."
+description: "Unit tests for effective-aspect resolution — how aspects
+  accumulate on a node across cascading channels."
 aspects: []
-relations: []
+relations: [ { target: cli/core/graph, type: uses } ]
 mapping:
   - source/cli/tests/unit/core/effective-aspects.test.ts

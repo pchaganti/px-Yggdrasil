@@ -1,10 +1,17 @@
 name: Aspect Parser
 type: parser-adapter
-description: "Parses yg-aspect.yaml files — reads the aspect definition from disk and returns a typed AspectDef. Includes scope: block parsing (per node|file, files filter via file-when grammar, aggregate restriction) and cross-hint validation for wrong-family predicate atoms."
+description: "Parses yg-aspect.yaml files — reads the aspect definition from
+  disk and returns a typed AspectDef. Includes scope: block parsing (per
+  node|file, files filter via file-when grammar, aggregate restriction) and
+  cross-hint validation for wrong-family predicate atoms."
 relations:
   - target: cli/model/graph
     type: uses
   - target: cli/utils
     type: calls
+  - target: cli/formatters
+    type: extends
+  - target: cli/io/stores
+    type: extends
 mapping:
   - source/cli/src/io/aspect-parser.ts

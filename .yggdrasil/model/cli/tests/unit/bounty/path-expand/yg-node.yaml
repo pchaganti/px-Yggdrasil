@@ -2,6 +2,6 @@ name: Bounty path-expand
 type: test-suite
 description: "Bug-bounty branch-coverage suites: path-expand (~21416 chars)."
 aspects: []
-relations: []
+relations: [ { target: cli/io/stores, type: uses } ]
 mapping:
   - source/cli/tests/unit/bounty/path-expand.test.ts

@@ -1,8 +1,20 @@
 name: Integration Tests — Relation Conformance Pass
 type: test-suite
-description: "Integration tests for the parse-heavy relation-conformance pass and its wiring into yg check: edge resolution across nodes, the runCheck blocking-issue surface that emits relation-undeclared-dependency, and the fill-stage approved-persistence path under yg check --approve."
+description: "Integration tests for the parse-heavy relation-conformance pass
+  and its wiring into yg check: edge resolution across nodes, the runCheck
+  blocking-issue surface that emits relation-undeclared-dependency, and the
+  fill-stage approved-persistence path under yg check --approve."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/core/check, type: uses },
+    { target: cli/core/fill, type: uses },
+    { target: cli/core/loader, type: uses },
+    { target: cli/io/lock-store, type: uses },
+    { target: cli/model/lock, type: uses },
+    { target: cli/relations, type: uses },
+    { target: cli/relations/extractors, type: uses }
+  ]
 mapping:
   - source/cli/tests/integration/relation-pass.test.ts
   - source/cli/tests/integration/relation-pass-edges.test.ts

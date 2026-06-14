@@ -1,8 +1,16 @@
 name: Relations Extractor Unit Tests — JVM and Go
 type: test-suite
-description: "Per-language unit tests for the Go, Java, and Kotlin relation-conformance dependency extractors — uses()/calls() edge emission and the Go and Java import/path resolvers."
+description: "Per-language unit tests for the Go, Java, and Kotlin
+  relation-conformance dependency extractors — uses()/calls() edge emission and
+  the Go and Java import/path resolvers."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/ast/runtime, type: uses },
+    { target: cli/relations, type: uses },
+    { target: cli/relations/extractors, type: uses },
+    { target: cli/tests/unit/relations/extractors-c-family, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/relations/extractors/go.test.ts
   - source/cli/tests/unit/relations/extractors/go-resolve.test.ts

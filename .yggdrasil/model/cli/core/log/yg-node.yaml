@@ -1,6 +1,7 @@
 name: Core Log
 type: engine
-description: Pure log-entry orchestration — logAdd, logRead, logMergeResolve return structured IssueMessage-shaped results with no presentation concerns.
+description: Pure log-entry orchestration — logAdd, logRead, logMergeResolve
+  return structured IssueMessage-shaped results with no presentation concerns.
 aspects:
   - what-why-next
   - posix-paths-output
@@ -9,6 +10,12 @@ relations:
   - target: cli/core/log-validator
     type: calls
   - target: cli/io/stores
+    type: calls
+  - target: cli/core/parsing
+    type: calls
+  - target: cli/io/lock-store
+    type: calls
+  - target: cli/utils
     type: calls
 mapping:
   - source/cli/src/core/log/log-add.ts

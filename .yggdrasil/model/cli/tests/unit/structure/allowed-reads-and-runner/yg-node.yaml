@@ -1,8 +1,14 @@
 name: Structure Allowed-Reads and Runner Tests
 type: test-suite
-description: "Unit tests for the structure-aspect runner and the allowed-reads collection (including its conformance with the tracked-files source layer)."
+description: "Unit tests for the structure-aspect runner and the allowed-reads
+  collection (including its conformance with the tracked-files source layer)."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/structure, type: uses },
+    { target: cli/structure-runner, type: uses },
+    { target: cli/tests/unit/helpers, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/structure/allowed-reads.test.ts
   - source/cli/tests/unit/structure/runner.test.ts

@@ -1,6 +1,7 @@
 name: LLM Shared
 type: llm-shared
-description: Shared LLM utilities — provider interface, registry, API helpers, aspect verifier, model fetcher, and reviewer connectivity test.
+description: Shared LLM utilities — provider interface, registry, API helpers,
+  aspect verifier, model fetcher, and reviewer connectivity test.
 aspects:
   - diagnostic-logging
 mapping:
@@ -13,3 +14,8 @@ mapping:
   - source/cli/src/llm/reviewer-test.ts
   - source/cli/src/llm/model-fetcher.ts
   - source/cli/src/llm/xml-escape.ts
+relations:
+  - target: cli/llm/providers
+    type: calls
+  - target: cli/utils
+    type: calls

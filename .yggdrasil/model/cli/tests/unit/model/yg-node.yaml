@@ -1,8 +1,9 @@
 name: Model Unit Tests
 type: test-suite
-description: Unit tests for TypeScript model types, covering WhenPredicate, FileWhenPredicate, and DriftNodeState type shapes.
+description: Unit tests for TypeScript model types, covering WhenPredicate,
+  FileWhenPredicate, and DriftNodeState type shapes.
 aspects: []
-relations: []
+relations: [ { target: cli/model/lock, type: uses } ]
 mapping:
   - source/cli/tests/unit/model/when.test.ts
   - source/cli/tests/unit/model/file-when.test.ts

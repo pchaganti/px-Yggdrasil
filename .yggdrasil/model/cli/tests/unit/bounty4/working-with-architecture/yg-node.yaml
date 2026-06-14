@@ -2,6 +2,15 @@ name: bounty4 working-with-architecture
 type: test-suite
 description: "Bug-bounty suites: working-with-architecture (~34107 chars)."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/core/check, type: uses },
+    { target: cli/core/checks/architecture, type: uses },
+    { target: cli/core/checks/mapping, type: uses },
+    { target: cli/core/file-when-evaluator, type: uses },
+    { target: cli/core/loader, type: uses },
+    { target: cli/core/validator, type: uses },
+    { target: cli/io/file-content-cache, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/bounty4/working-with-architecture.test.ts

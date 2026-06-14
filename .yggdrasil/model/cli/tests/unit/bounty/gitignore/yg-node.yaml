@@ -2,6 +2,6 @@ name: Bounty gitignore
 type: test-suite
 description: "Bug-bounty branch-coverage suites: gitignore (~20828 chars)."
 aspects: []
-relations: []
+relations: [ { target: cli/io/stores, type: uses } ]
 mapping:
   - source/cli/tests/unit/bounty2/gitignore.test.ts

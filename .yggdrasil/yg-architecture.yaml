@@ -198,6 +198,23 @@ node_types:
       calls: [utility, ast-adapter]
       uses: [types]
 
+  relations-adapter:
+    description: "Relation-conformance subsystem — per-language dependency extractors, resolvers, and the pass/verify engine. Deterministic static code analysis."
+    enforce: strict
+    when:
+      all_of:
+        - path: "source/cli/src/relations/**/*.ts"
+        - not:
+            path: "**/*.test.ts"
+    aspects:
+      - deterministic
+      - posix-paths-source
+      - no-direct-minimatch
+    parents: [module]
+    relations:
+      calls: [engine, ast-adapter, structure-adapter, persistence-adapter, llm-shared, utility]
+      uses: [types]
+
   llm-provider:
     description: "LLM provider — vendor-specific adapter implementing the provider interface. One file per vendor."
     enforce: strict

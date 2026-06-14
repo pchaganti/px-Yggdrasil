@@ -1,8 +1,9 @@
 name: Predicate & Log Parser Unit Tests
 type: test-suite
-description: "Unit tests for predicate parsers (file-level when, expression-level when) and the log-file parser."
+description: "Unit tests for predicate parsers (file-level when,
+  expression-level when) and the log-file parser."
 aspects: []
-relations: []
+relations: [ { target: cli/core/parsing, type: uses }, { target: cli/utils, type: uses } ]
 mapping:
   - source/cli/tests/unit/io/file-when-parser.test.ts
   - source/cli/tests/unit/io/when-parser.test.ts

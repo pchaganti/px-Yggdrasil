@@ -9,5 +9,13 @@ relations:
     type: uses
   - target: cli/tests/unit/cli
     type: uses
+  - target: cli/formatters
+    type: calls
+  - target: cli/io/stores
+    type: calls
+  - target: cli/preamble
+    type: extends
+  - target: cli/utils
+    type: calls
 mapping:
   - source/cli/src/cli/tree.ts

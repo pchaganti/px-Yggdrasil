@@ -1,6 +1,9 @@
 name: TypeSuggestCommand
 type: command
-description: Suggests which node_type a file fits based on architecture `when` predicates. Returns matching types (✓), closest non-matching types ranked by satisfied-fraction, or edge-case messages for .yggdrasil/ paths and non-existent files.
+description: Suggests which node_type a file fits based on architecture `when`
+  predicates. Returns matching types (✓), closest non-matching types ranked by
+  satisfied-fraction, or edge-case messages for .yggdrasil/ paths and
+  non-existent files.
 aspects:
   - posix-paths-output
 relations:
@@ -14,5 +17,11 @@ relations:
     type: calls
   - target: cli/tests/unit/cli
     type: uses
+  - target: cli/formatters
+    type: calls
+  - target: cli/preamble
+    type: extends
+  - target: cli/utils
+    type: calls
 mapping:
   - source/cli/src/cli/type-suggest.ts

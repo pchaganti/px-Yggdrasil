@@ -1,6 +1,7 @@
 name: Log Commands
 type: command
-description: CLI commands for managing per-node log.md files — yg log add, read, merge-resolve, and the parent registrar
+description: CLI commands for managing per-node log.md files — yg log add, read,
+  merge-resolve, and the parent registrar
 aspects: []
 relations:
   - target: cli/core/loader
@@ -9,5 +10,11 @@ relations:
     type: calls
   - target: cli/tests/unit/cli
     type: uses
+  - target: cli/formatters
+    type: calls
+  - target: cli/preamble
+    type: extends
+  - target: cli/utils
+    type: calls
 mapping:
   - source/cli/src/cli/log.ts

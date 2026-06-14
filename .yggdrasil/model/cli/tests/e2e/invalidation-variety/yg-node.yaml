@@ -1,7 +1,9 @@
 name: E2E Tests — Invalidation (Variety)
 type: test-suite
-description: "Subprocess E2E covering a variety of invalidation triggers across aspect, node, dependency, and flow changes — each surfaces the affected pairs as unverified without re-verifying untouched pairs. Real spawned binary."
+description: "Subprocess E2E covering a variety of invalidation triggers across
+  aspect, node, dependency, and flow changes — each surfaces the affected pairs
+  as unverified without re-verifying untouched pairs. Real spawned binary."
 aspects: []
-relations: []
+relations: [ { target: cli/tests/e2e/support, type: uses } ]
 mapping:
   - source/cli/tests/e2e/cli-invalidation-variety.test.ts

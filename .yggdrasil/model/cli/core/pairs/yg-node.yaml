@@ -1,6 +1,12 @@
 name: Pairs
 type: engine
-description: "Expected-pair computation and source fingerprints — reads effective aspects (7-channel cascade) crossed with each aspect's declared review scope to produce the set of (aspect, unit) pairs a verdict lock must contain. Also computes per-node source fingerprints (sha256 fold over sorted [path, sha256(bytes)] of all mapped files, child carve-out applied, binaries included). Owns getChildMappingExclusions (single source of truth, re-exported to approve and check consumers)."
+description: "Expected-pair computation and source fingerprints — reads
+  effective aspects (7-channel cascade) crossed with each aspect's declared
+  review scope to produce the set of (aspect, unit) pairs a verdict lock must
+  contain. Also computes per-node source fingerprints (sha256 fold over sorted
+  [path, sha256(bytes)] of all mapped files, child carve-out applied, binaries
+  included). Owns getChildMappingExclusions (single source of truth, re-exported
+  to approve and check consumers)."
 aspects: []
 relations:
   - target: cli/model/graph
@@ -14,6 +20,8 @@ relations:
   - target: cli/core/file-when-evaluator
     type: calls
   - target: cli/core/graph
+    type: calls
+  - target: cli/io/file-content-cache
     type: calls
 mapping:
   - source/cli/src/core/pairs.ts

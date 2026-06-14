@@ -1,6 +1,7 @@
 name: GraphLoader
 type: engine
-description: Loads the graph from .yggdrasil/ — model nodes, aspects, flows, schemas — into memory
+description: Loads the graph from .yggdrasil/ — model nodes, aspects, flows,
+  schemas — into memory
 aspects:
   - silent-missing-files
 relations:
@@ -13,6 +14,10 @@ relations:
   - target: cli/model/graph
     type: uses
   - target: cli/utils
+    type: calls
+  - target: cli/core/migrator
+    type: calls
+  - target: cli/io/parsers/aspect
     type: calls
 mapping:
   - source/cli/src/core/graph-loader.ts

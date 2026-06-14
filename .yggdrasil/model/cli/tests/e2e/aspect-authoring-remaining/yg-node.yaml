@@ -1,7 +1,10 @@
 name: E2E Tests — aspect-authoring-remaining
 type: test-suite
-description: "Subprocess E2E covering the remaining aspect-authoring paths — a reference-file modification cascade drifting every using node, the graph-aware ctx parse helpers on conforming and malformed input, and aspect-removal baseline cleanup leaving no stale verdict."
+description: "Subprocess E2E covering the remaining aspect-authoring paths — a
+  reference-file modification cascade drifting every using node, the graph-aware
+  ctx parse helpers on conforming and malformed input, and aspect-removal
+  baseline cleanup leaving no stale verdict."
 aspects: []
-relations: []
+relations: [ { target: cli/tests/e2e/support, type: uses } ]
 mapping:
   - source/cli/tests/e2e/cli-aspect-authoring-remaining.test.ts
