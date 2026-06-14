@@ -34,8 +34,10 @@ export function resolvePythonModule(
  * ancestor directory up to (and including) the repo root, probe the module as a
  * file/package rooted at that directory. For `from a.b import c` the LAST segment
  * may be a symbol rather than a submodule, so also probe the parent module
- * (`a/b.py`, `a/b/__init__.py`) for the longest-match. The FIRST existing
- * candidate wins.
+ * (`a/b.py`, `a/b/__init__.py`) for the longest-match. We probe EVERY ancestor
+ * root (the importer's own/intermediate dirs are not genuine roots, so they must
+ * not shadow the real source root): a single distinct matching file is returned;
+ * 2+ distinct matches are ambiguous and resolve to undefined (silence).
  */
 function resolveAbsolute(
   specifier: string,
@@ -48,6 +50,19 @@ function resolveAbsolute(
   const modulePath = segments.join('/'); // a/b/c
   const parentPath = segments.slice(0, -1).join('/'); // a/b (drop last segment)
 
+  // Probe EVERY ancestor source root and collect the DISTINCT files that match.
+  // The importing file's own dir and the intermediate dirs are NOT genuine
+  // absolute-import roots, so a same-named module sitting in the importer's own
+  // package must not shadow the real source root. Resolving the same dotted
+  // module to 2+ distinct files means we cannot tell which root is genuine —
+  // silence (undefined) per the zero-false-positive rule. A single distinct
+  // file is an unambiguous resolution and is returned.
+  //
+  // Per-root, the candidate priority order is preserved (module-as-file/package
+  // first, then the parentPath longest-match): only the first hit at each root
+  // is added to the set, so a root that matches both the full module and its
+  // parent still contributes just one file (the stronger match wins).
+  const matches = new Set<string>();
   for (const dir of ancestorDirs(path.posix.dirname(toPosix(fromFile)))) {
     const candidates: string[] = [
       // module-as-file / package at this root
@@ -60,10 +75,13 @@ function resolveAbsolute(
       candidates.push(joinUnder(dir, parentPath + '/__init__.py'));
     }
     for (const cand of candidates) {
-      if (cand !== undefined && exists(cand)) return cand;
+      if (cand !== undefined && exists(cand)) {
+        matches.add(cand);
+        break; // only the strongest match per root contributes to the set
+      }
     }
   }
-  return undefined;
+  return matches.size === 1 ? [...matches][0] : undefined;
 }
 
 /**

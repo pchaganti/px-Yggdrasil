@@ -62,6 +62,31 @@ describe('resolvePythonModule — absolute', () => {
     // file resolves to the package a (src/a/__init__.py); the symbol lives inside.
     expect(resolvePythonModule('a.nope', 'src/a/c.py', exists)).toBe('src/a/__init__.py');
   });
+
+  it('returns undefined when the own dir shadows a genuine root (2+ distinct files)', () => {
+    // Importing file src/a/b.py does `from b.bar import x`. The genuine root is
+    // src/, where b.bar -> src/b/bar.py (a real cross-node target). But the
+    // importer's OWN dir src/a/ also "roots" the parent module b -> src/a/b.py
+    // (the importing file itself). Two distinct files match across roots, so the
+    // absolute resolver must SILENCE (undefined) rather than pick the nearer self.
+    const shadow = new Set(['src/a/b.py', 'src/b/bar.py']);
+    expect(resolvePythonModule('b.bar', 'src/a/b.py', (p) => shadow.has(p))).toBeUndefined();
+  });
+
+  it('returns undefined when an intermediate dir shadows a genuine root', () => {
+    // Importing file src/pkg/a/c.py does an absolute `import pkg.mod`. The genuine
+    // root is src/ -> src/pkg/mod.py. But the intermediate dir src/pkg/ also roots
+    // pkg.mod -> src/pkg/pkg/mod.py. Two distinct files -> silence.
+    const shadow = new Set(['src/pkg/pkg/mod.py', 'src/pkg/mod.py']);
+    expect(resolvePythonModule('pkg.mod', 'src/pkg/a/c.py', (p) => shadow.has(p))).toBeUndefined();
+  });
+
+  it('still resolves a single-root cross-node import (no shadowing file present)', () => {
+    // Paired positive: ONLY the genuine target exists (no self-shadow). The legit
+    // cross-node edge `from b.bar import x` at the source root must still resolve.
+    const clean = new Set(['src/b/bar.py']);
+    expect(resolvePythonModule('b.bar', 'src/a/foo.py', (p) => clean.has(p))).toBe('src/b/bar.py');
+  });
 });
 
 describe('resolvePythonModule — relative', () => {
