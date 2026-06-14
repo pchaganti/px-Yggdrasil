@@ -102,7 +102,7 @@ describe('resolveGoImport via makeResolvePathToFile (disk-backed)', () => {
 
 describe('resolveGoImport — pure unit (injected deps)', () => {
   const deps: GoResolveDeps = {
-    modulePathFor: () => 'example.com/m',
+    modulePathFor: () => ({ modulePath: 'example.com/m', moduleDir: '' }),
     dirExists: (d) => d === 'foo/bar' || d === '',
     goFilesIn: (d) =>
       d === 'foo/bar' ? ['foo/bar/baz.go', 'foo/bar/aux.go'] : d === '' ? ['main.go'] : [],

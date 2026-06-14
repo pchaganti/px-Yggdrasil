@@ -73,7 +73,7 @@ const specs = (uses: Awaited<ReturnType<typeof run>>['uses']): string[] =>
 // layout. Directories are keyed by their repo-relative POSIX path; each holds one representative
 // `.go` file. The SAME-LEAF trap is `pkg/sub` vs `other/sub` (both end in `sub`).
 const baseDeps: GoResolveDeps = {
-  modulePathFor: () => 'github.com/mod',
+  modulePathFor: () => ({ modulePath: 'github.com/mod', moduleDir: '' }),
   dirExists: (d) =>
     ['pkg/sub', 'other/sub', 'internal/x', 'bar'].includes(d) || d === '',
   goFilesIn: (d) => {
@@ -226,6 +226,64 @@ describe('MATRIX — internal/ packages (Go visibility is a compile rule, not a 
     expect(resolveGoImport('github.com/mod/internal/x', 'app/main.go', baseDeps)).toBe(
       'internal/x/x.go',
     );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('MATRIX — nested submodule (the nearest go.mod is in a subdirectory: root the package under THAT dir)', () => {
+  // SEALED: a genuine false positive found by validating the real repo grpc/grpc-go.
+  // Its nearest go.mod for a file under `security/advancedtls/` is a NESTED SUBMODULE
+  // (`module google.golang.org/grpc/security/advancedtls`, go.mod at dir
+  // `security/advancedtls/`). Stripping the module prefix from an import like
+  // `…/security/advancedtls/internal/testutils` yields the MODULE-RELATIVE remainder
+  // `internal/testutils`. The pre-fix resolver rooted that remainder at the REPO ROOT
+  // → `internal/testutils/`, owned by the wrong node, while the Go-correct package dir
+  // is `security/advancedtls/internal/testutils/`. The two collide on the leaf
+  // `internal/testutils`. The fix carries the go.mod DIRECTORY (`moduleDir`) alongside
+  // the module path and joins the remainder onto it, so a nested submodule's package
+  // roots under the submodule dir, never the repo root.
+  //
+  // Fixture: root module `example.com/m` at the repo root; nested submodule
+  // `example.com/m/sub` whose go.mod lives at dir `sub/`. A file under `sub/` whose
+  // nearest go.mod is the submodule sees `modulePathFor` return `{ example.com/m/sub, sub }`.
+  // A repo-root `internal/x/` ALSO exists — the same-leaf FP trap.
+  const nestedDeps: GoResolveDeps = {
+    // A file under sub/ resolves through the NESTED submodule's go.mod.
+    modulePathFor: () => ({ modulePath: 'example.com/m/sub', moduleDir: 'sub' }),
+    dirExists: (d) => ['internal/x', 'sub/internal/x', 'sub'].includes(d) || d === '',
+    goFilesIn: (d) => {
+      if (d === 'internal/x') return ['internal/x/root.go']; // repo-root same-leaf trap
+      if (d === 'sub/internal/x') return ['sub/internal/x/sub.go']; // the Go-correct dir
+      if (d === 'sub') return ['sub/sub.go']; // submodule-root package
+      if (d === '') return ['main.go'];
+      return [];
+    },
+  };
+
+  it('SEALED: a nested-submodule internal import resolves UNDER the submodule dir, NEVER the repo-root same-leaf dir', () => {
+    // `example.com/m/sub/internal/x` strips to remainder `internal/x`, joined onto the
+    // submodule dir `sub` → `sub/internal/x/`. It must NOT resolve to repo-root
+    // `internal/x/` even though that directory exists and shares the leaf `internal/x`.
+    expect(resolveGoImport('example.com/m/sub/internal/x', 'sub/pkg/app.go', nestedDeps)).toBe(
+      'sub/internal/x/sub.go',
+    );
+  });
+
+  it('SEALED: the nested submodule ROOT import resolves to the submodule dir itself', () => {
+    // The module path itself (`example.com/m/sub`) → remainder '' → the moduleDir `sub`.
+    expect(resolveGoImport('example.com/m/sub', 'sub/pkg/app.go', nestedDeps)).toBe('sub/sub.go');
+  });
+
+  it('GAP: a cross-submodule import of the ROOT module package from a sub/ file → SILENCE (tolerated recall)', () => {
+    // A file whose nearest go.mod is the submodule (`example.com/m/sub`) imports the
+    // ROOT module's package `example.com/m/internal/y`. From the submodule's perspective
+    // that import path does NOT start with the submodule prefix `example.com/m/sub` (the
+    // boundary check fails: `example.com/m/internal/y` is not `example.com/m/sub` nor
+    // under `example.com/m/sub/`), so it is silenced. Missing this genuine cross-module
+    // edge is a tolerated false-NEGATIVE — it can NEVER mis-bind to a wrong directory.
+    expect(
+      resolveGoImport('example.com/m/internal/y', 'sub/pkg/app.go', nestedDeps),
+    ).toBeUndefined();
   });
 });
 

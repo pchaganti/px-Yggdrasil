@@ -183,20 +183,27 @@ function makeGoResolveDeps(
   }
 
   /** Find the nearest ancestor directory of `fromFile` that contains a go.mod, then
-   *  return its module path. Walks up to (and including) the project root. */
-  function modulePathFor(fromFile: string): string | undefined {
+   *  return its module path AND that directory. The directory (repo-rel POSIX, '' =
+   *  root) is the go.mod-bearing module root — required so a NESTED submodule's
+   *  packages root under the submodule dir, not the repo root. `moduleByDir` is keyed
+   *  by the go.mod directory and stores the module path declared by the go.mod IN
+   *  that exact dir, so the `dir` at the point of return IS that module's directory.
+   *  Walks up to (and including) the project root. */
+  function modulePathFor(
+    fromFile: string,
+  ): { modulePath: string; moduleDir: string } | undefined {
     let dir = path.posix.dirname(toPosix(fromFile));
     if (dir === '.') dir = '';
     for (;;) {
       if (moduleByDir.has(dir)) {
         const cached = moduleByDir.get(dir);
-        if (cached !== undefined) return cached;
+        if (cached !== undefined) return { modulePath: cached, moduleDir: dir };
       } else {
         const mod = existsSync(path.join(projectRoot, dir, 'go.mod'))
           ? readModulePath(dir)
           : undefined;
         moduleByDir.set(dir, mod);
-        if (mod !== undefined) return mod;
+        if (mod !== undefined) return { modulePath: mod, moduleDir: dir };
       }
       if (dir === '') return undefined; // reached the root without a usable go.mod
       const parent = path.posix.dirname(dir);
