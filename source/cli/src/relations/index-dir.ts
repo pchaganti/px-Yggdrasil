@@ -3,11 +3,14 @@ import path from 'node:path';
 /**
  * Local cache directory for the relation pass's persisted symbol indexes.
  *
- * `graphRootPath` is the `.yggdrasil` directory; its parent is the project root.
- * `.yg-cache` sits at the project root and is gitignored — a rebuildable local
- * cache, never committed. Shared by the fill stage and (later) plain `yg check`
- * so the two always read/write the same location.
+ * `graphRootPath` is the `.yggdrasil` directory. The cache lives at
+ * `.yggdrasil/.symbols-cache/` — under the graph root, gitignored, and a
+ * rebuildable local artifact, never committed. It is a SPEED-only cache: live
+ * `yg check` re-parses only the changed files instead of all mapped files; a
+ * cold CI run with no cache simply parses everything. Nothing about
+ * correctness depends on it (there is no relation-verdict cache to validate).
+ * Convention: all Yggdrasil-derived local state lives under `.yggdrasil/`.
  */
 export function relationIndexDir(graphRootPath: string): string {
-  return path.join(path.dirname(graphRootPath), '.yg-cache');
+  return path.join(graphRootPath, '.symbols-cache');
 }

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { runVersionUpgrade, ensureGitattributes, ensureProjectGitignore } from '../../../src/cli/init.js';
 
 const LOCK_LINE = '/.yggdrasil/yg-lock.json linguist-generated=true';
-const CACHE_LINE = '.yg-cache/';
+const CACHE_LINE = '.yggdrasil/.symbols-cache/';
 
 async function scaffoldExistingYgg(projectRoot: string, version: string): Promise<string> {
   const yggRoot = path.join(projectRoot, '.yggdrasil');

@@ -117,15 +117,16 @@ export async function ensureGitattributes(repoRoot: string): Promise<void> {
 }
 
 /** The exact repo-root .gitignore line that excludes the relation pass's local
- *  symbol-index cache. `.yg-cache/` sits at the project root and is a rebuildable
- *  artifact — committing it makes the coverage gate flag it as an unmapped file. */
-const GITIGNORE_CACHE_LINE = '.yg-cache/';
+ *  symbol-index cache. `.yggdrasil/.symbols-cache/` is a rebuildable artifact —
+ *  committing it makes the coverage gate flag it as an unmapped file. */
+const GITIGNORE_CACHE_LINE = '.yggdrasil/.symbols-cache/';
 
 /**
- * Ensure the repo-root .gitignore excludes the relation pass's `.yg-cache/`
- * directory. The pass writes a per-language symbol index there during
- * `yg check --approve`; it must never be committed (a committed cache trips the
- * coverage gate as an unmapped file the moment it is git-tracked).
+ * Ensure the repo-root .gitignore excludes the relation pass's
+ * `.yggdrasil/.symbols-cache/` directory. The pass writes a per-language symbol
+ * index there during `yg check` (and `yg check --approve`); it must never be
+ * committed (a committed cache trips the coverage gate as an unmapped file the
+ * moment it is git-tracked).
  *
  * Idempotent: creates the file with the single line when absent; appends the
  * line exactly once when the file exists without it (preserving other content
@@ -579,8 +580,8 @@ export async function runVersionUpgrade(
   // adopters pick it up (both the interactive and non-interactive --upgrade
   // paths route through here). Idempotent.
   await ensureGitattributes(projectRoot);
-  // Likewise ensure `.yg-cache/` is gitignored — the relation pass's local
-  // cache must never be committed. Idempotent.
+  // Likewise ensure `.yggdrasil/.symbols-cache/` is gitignored — the relation
+  // pass's local cache must never be committed. Idempotent.
   await ensureProjectGitignore(projectRoot);
 
   return { rulesPath, migrationActions, migrationWarnings, withheld };

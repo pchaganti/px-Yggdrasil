@@ -22,6 +22,10 @@ You work on the Yggdrasil repository: an open-source CLI that provides continuou
 - **Always reflect changes in corresponding documentation.** When modifying code behavior, algorithms, or data structures, identify and update all documentation that describes the changed behavior — `docs/` (user docs) and `.yggdrasil/` (graph metadata). Changes to behavior are not complete until every document describing that behavior is consistent.
 - **NEVER run `yg init` from a subdirectory.** Always run from the repository root. Running from `source/cli/` or any subdirectory creates a new `.yggdrasil/` there or corrupts the project config. Use `node source/cli/dist/bin.js` for local builds, not `npx yg` (which may use a cached global version).
 
+## Yggdrasil-derived local state lives under `.yggdrasil/`
+
+All Yggdrasil-derived local/rebuildable state (caches, indexes, scratch state) MUST live under the `.yggdrasil/` directory — never at the repo root or elsewhere. Gitignore it within `.yggdrasil/` (it is rebuildable and must not be committed). Example: the relation-conformance symbol-index cache lives at `.yggdrasil/.symbols-cache/<lang>.json` and is gitignored. Do not scatter Yggdrasil state outside `.yggdrasil/` (no root-level `.yg-cache/` etc.). The committed graph (model/aspects/flows/schemas/lock) also lives here; keep derived state in dot-prefixed, gitignored subdirectories so it never mixes with the committed graph.
+
 ## Adding Support for a New Agent
 
 To add a new platform (e.g. a new IDE or agent): add it to `source/cli/src/templates/platform.ts` — implement `installFor<Platform>` to write the rules file to the agent's expected location.

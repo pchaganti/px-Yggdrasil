@@ -34,7 +34,7 @@ export interface RelationPassResult {
 export interface RelationPassDeps {
   extractorFor: (language: string) => DependencyExtractor | undefined;
   resolvePathToFile: (specifier: string, fromFile: string, language: string) => string | undefined;
-  symbolIndexDir: string; // local cache dir, e.g. <projectRoot>/.yg-cache
+  symbolIndexDir: string; // local cache dir, e.g. <root>/.yggdrasil/.symbols-cache
 }
 
 interface FileRecord {
