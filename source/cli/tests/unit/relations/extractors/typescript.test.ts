@@ -77,6 +77,63 @@ describe('typescript extractor — uses()', () => {
       expect.objectContaining({ targetHint: { kind: 'path', specifier: './m' } }),
     );
   });
+
+  it('excludes a whole-statement export type re-export (`export type { X } from`)', async () => {
+    // `export type { X } from './m'` carries a statement-level `type` token before the
+    // export_clause — a compile-time-only re-export, NOT a runtime dependency.
+    const { uses } = await run(`export type { X } from './typeonly';\nexport { v } from './value';`);
+    expect(
+      uses.some((u) => u.targetHint.kind === 'path' && u.targetHint.specifier === './typeonly'),
+    ).toBe(false);
+    // The value re-export on the next line is unaffected.
+    expect(uses).toContainEqual(
+      expect.objectContaining({ targetHint: { kind: 'path', specifier: './value' } }),
+    );
+  });
+
+  it('excludes an all-inline-type named import (`import { type A, type B } from`)', async () => {
+    // Every specifier carries `type`; no default/namespace binding remains at runtime.
+    const { uses } = await run(`import { type A, type B } from './alltype';`);
+    expect(uses).toHaveLength(0);
+  });
+
+  it('excludes an all-inline-type named export (`export { type A, type B } from`)', async () => {
+    const { uses } = await run(`export { type A, type B } from './alltype';`);
+    expect(uses).toHaveLength(0);
+  });
+
+  it('KEEPS a mixed inline-type export re-export (`export { type A, b } from`)', async () => {
+    // `b` is a runtime re-export → exactly one edge survives.
+    const { uses } = await run(`export { type A, b } from './mixed';`);
+    expect(
+      uses.filter((u) => u.targetHint.kind === 'path' && u.targetHint.specifier === './mixed'),
+    ).toHaveLength(1);
+  });
+
+  it('KEEPS an all-inline-type import that still has a default binding (`import def, { type A } from`)', async () => {
+    // The default `def` is a runtime binding even though every named specifier is type-only.
+    const { uses } = await run(`import def, { type A } from './withdefault';`);
+    expect(uses).toContainEqual(
+      expect.objectContaining({ targetHint: { kind: 'path', specifier: './withdefault' } }),
+    );
+  });
+
+  it('KEEPS a namespace export re-export (`export * as ns from`) — never type-only', async () => {
+    // `export type * as` is not valid TS; a namespace re-export is always a runtime edge.
+    const { uses } = await run(`export * as ns from './ns';`);
+    expect(uses).toContainEqual(
+      expect.objectContaining({ targetHint: { kind: 'path', specifier: './ns' } }),
+    );
+  });
+
+  it('KEEPS an empty re-export clause (`export {} from`) — not provably type-only', async () => {
+    // Zero specifiers: not provably a type-only construct, so the edge is conservatively kept.
+    const { uses } = await run(`export {} from './empty';`);
+    expect(uses).toContainEqual(
+      expect.objectContaining({ targetHint: { kind: 'path', specifier: './empty' } }),
+    );
+  });
+
   it('deduplicates two require() calls for the same module on one line', async () => {
     const { uses } = await run(`const a = require('./a'); const b = require('./a');`);
     expect(
