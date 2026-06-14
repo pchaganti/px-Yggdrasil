@@ -53,8 +53,9 @@ function quotedIncludePath(include: Node): string | undefined {
 /**
  * Emit one path hint per QUOTED `#include`. The specifier is the header path text exactly
  * as written in the source (e.g. `../inc/foo.h`, `db/connection.h`); the resolver
- * (`include-resolve.ts`) resolves it relative to the including file's directory, then
- * against a few common include roots. Angle and macro includes are skipped here, so they
+ * (`include-resolve.ts`) resolves it relative to the including file's directory only — a
+ * header reachable solely through an unseen compiler -I root stays silent rather than
+ * resolving to a same-basename decoy. Angle and macro includes are skipped here, so they
  * never reach the resolver and can never become a violation.
  */
 export function includeUses(file: ParsedFile): DetectedDep[] {
