@@ -10,7 +10,7 @@ import { parseFile } from '../../../../src/ast/parser.js';
 const run = (code: string) => runExtractor(csharpExtractor, 'csharp', '.cs', code);
 
 const symbolKeys = (uses: Awaited<ReturnType<typeof run>>['uses']): string[] =>
-  uses.flatMap((u) => (u.targetHint.kind === 'symbol' ? [u.targetHint.symbolKey] : []));
+  uses.flatMap((u) => (u.candidates[0].kind === 'symbol' ? [u.candidates[0].symbolKey] : []));
 
 /** Parse a C# source string into a ParsedFile under a chosen repo-rel path. */
 async function parse(repoRel: string, code: string): Promise<ParsedFile> {
@@ -68,7 +68,7 @@ describe('csharp extractor — uses() emits SYMBOL hints (never path hints)', ()
       ['class C { void M() { var o = new Foo.Bar.Baz(); } }', ''].join('\n'),
     );
     expect(symbolKeys(uses)).toContain('Foo.Bar.Baz');
-    expect(uses.every((u) => u.targetHint.kind === 'symbol')).toBe(true);
+    expect(uses.every((u) => u.candidates[0].kind === 'symbol')).toBe(true);
   });
 
   it('inside a namespace, emits BOTH the enclosing-namespace expansion AND the verbatim form for a multi-segment qualified base type', async () => {
@@ -134,7 +134,7 @@ describe('csharp extractor — uses() emits SYMBOL hints (never path hints)', ()
       ['using Foo.Bar;', 'class C : Baz { Foo.Bar.Dep _d; }', ''].join('\n'),
     );
     expect(uses.length).toBeGreaterThan(0);
-    expect(uses.every((u) => u.targetHint.kind === 'symbol')).toBe(true);
+    expect(uses.every((u) => u.candidates[0].kind === 'symbol')).toBe(true);
   });
 
   it('honors `global using Foo.Bar;` as a plain namespace prefix for a bare base type', async () => {
@@ -259,7 +259,7 @@ describe('csharp extractor — uses() emits SYMBOL hints (never path hints)', ()
     st.declare('csharp', 'Models.Order', 'src/m/Order.cs'); // ONLY the top-level form exists
     const hint = csharpExtractor
       .uses(consumer)
-      .find((u) => u.targetHint.kind === 'symbol' && u.targetHint.symbolKey === 'Models.Order');
+      .find((u) => u.candidates[0].kind === 'symbol' && u.candidates[0].symbolKey === 'Models.Order');
     expect(hint).toBeDefined();
     expect(st.resolveUnique('csharp', 'Models.Order')).toBe('src/m/Order.cs');
     // The phantom enclosing-namespace expansion resolves to nothing → no second match.
@@ -288,9 +288,9 @@ describe('csharp SYMBOL-TABLE resolution — the half this language validates', 
     // The consumer's qualified `new` resolves to fileA via resolveUnique.
     const uses = csharpExtractor.uses(consumer);
     const hint = uses.find(
-      (u) => u.targetHint.kind === 'symbol' && u.targetHint.symbolKey === 'MyApp.Payments.Gateway',
+      (u) => u.candidates[0].kind === 'symbol' && u.candidates[0].symbolKey === 'MyApp.Payments.Gateway',
     );
-    expect(hint?.targetHint).toEqual({ kind: 'symbol', symbolKey: 'MyApp.Payments.Gateway' });
+    expect(hint?.candidates[0]).toEqual({ kind: 'symbol', symbolKey: 'MyApp.Payments.Gateway' });
     expect(st.resolveUnique('csharp', 'MyApp.Payments.Gateway')).toBe('src/a/Gateway.cs');
 
     // And the full resolver wires symbol → owner node (mirrors resolver.ts).
@@ -303,7 +303,7 @@ describe('csharp SYMBOL-TABLE resolution — the half this language validates', 
       symbolTable: st,
       resolvePathToFile: () => undefined,
     });
-    expect(resolver.resolve(hint!.targetHint, consumer.path, 'csharp')).toEqual({
+    expect(resolver.resolve(hint!.candidates[0], consumer.path, 'csharp')).toEqual({
       ownerNode: 'a',
       resolvedFile: 'src/a/Gateway.cs',
     });
@@ -321,7 +321,7 @@ describe('csharp SYMBOL-TABLE resolution — the half this language validates', 
 
     const hint = csharpExtractor
       .uses(consumer)
-      .find((u) => u.targetHint.kind === 'symbol' && u.targetHint.symbolKey === 'MyApp.Payments.Gateway');
+      .find((u) => u.candidates[0].kind === 'symbol' && u.candidates[0].symbolKey === 'MyApp.Payments.Gateway');
     expect(hint).toBeDefined();
     expect(st.resolveUnique('csharp', 'MyApp.Payments.Gateway')).toBe('src/a/Gateway.cs');
   });
@@ -351,8 +351,8 @@ describe('csharp SYMBOL-TABLE resolution — the half this language validates', 
     });
     const hint = csharpExtractor
       .uses(consumer)
-      .find((u) => u.targetHint.kind === 'symbol' && u.targetHint.symbolKey === 'MyApp.Dup.Thing')!;
-    expect(resolver.resolve(hint.targetHint, consumer.path, 'csharp')).toBeUndefined();
+      .find((u) => u.candidates[0].kind === 'symbol' && u.candidates[0].symbolKey === 'MyApp.Dup.Thing')!;
+    expect(resolver.resolve(hint.candidates[0], consumer.path, 'csharp')).toBeUndefined();
   });
 });
 
@@ -371,7 +371,7 @@ describe('csharp anti-FALSE-POSITIVE — the silence list (D8 gate)', () => {
       resolvePathToFile: () => undefined,
     });
     return uses.map((u) => {
-      const r = resolver.resolve(u.targetHint, 'src/c/Use.cs', 'csharp');
+      const r = resolver.resolve(u.candidates[0], 'src/c/Use.cs', 'csharp');
       return r?.ownerNode;
     });
   };

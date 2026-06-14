@@ -194,10 +194,21 @@ export async function runRelationPass(
       if (!parsed) continue;
 
       for (const dep of extractor.uses(parsed)) {
-        const resolved = resolver.resolve(dep.targetHint, record.path, record.language);
-        if (resolved) {
-          resolvedDeps.push({ fromFile: record.path, line: dep.line, ownerNode: resolved.ownerNode });
+        // Ordered first-unique-match-wins walk over the candidate group (nearest binding
+        // first, verbatim/top-level last). For a one-element group this is byte-identical
+        // to a single resolve.
+        for (const cand of dep.candidates) {
+          const outcome = resolver.classify(cand, record.path, record.language);
+          if (outcome.kind === 'resolved') {
+            // RESOLVED-UNIQUE → that IS the binding. Emit one edge and stop the group;
+            // never consider a farther candidate.
+            resolvedDeps.push({ fromFile: record.path, line: dep.line, ownerNode: outcome.ownerNode });
+            break;
+          }
+          if (outcome.kind === 'ambiguous') break; // PRESENT-BUT-AMBIGUOUS → silence the group
+          // outcome.kind === 'absent' → continue to the next, farther candidate
         }
+        // end of list with nothing bound → silence (external / unmapped)
       }
     }
 

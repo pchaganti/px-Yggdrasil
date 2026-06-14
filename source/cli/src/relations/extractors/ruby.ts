@@ -1,5 +1,6 @@
 import type { Node } from 'web-tree-sitter';
 import type { DependencyExtractor, DetectedDep, DeclaredSymbol, ParsedFile } from './types.js';
+import { single } from './types.js';
 
 /**
  * Ruby dependency extractor — the LAST language, and honestly the LOWEST-detectability
@@ -130,7 +131,7 @@ function uses(file: ParsedFile): DetectedDep[] {
     const dedupKey = `path\0${specifier}\0${line}`;
     if (seen.has(dedupKey)) return;
     seen.add(dedupKey);
-    out.push({ targetHint: { kind: 'path', specifier }, kind: 'import', line });
+    out.push(single({ kind: 'path', specifier }, 'import', line));
   };
 
   const emitSymbol = (symbolKey: string | undefined, line: number): void => {
@@ -138,7 +139,7 @@ function uses(file: ParsedFile): DetectedDep[] {
     const dedupKey = `symbol\0${symbolKey}\0${line}`;
     if (seen.has(dedupKey)) return;
     seen.add(dedupKey);
-    out.push({ targetHint: { kind: 'symbol', symbolKey }, kind: 'import', line });
+    out.push(single({ kind: 'symbol', symbolKey }, 'import', line));
   };
 
   // Namespace-aware recursive visitor (mirrors declarations()). `nsDepth` counts

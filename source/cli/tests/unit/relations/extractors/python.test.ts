@@ -5,13 +5,13 @@ import { pythonExtractor } from '../../../../src/relations/extractors/python.js'
 const run = (code: string) => runExtractor(pythonExtractor, 'python', '.py', code);
 
 const specs = (uses: Awaited<ReturnType<typeof run>>['uses']): string[] =>
-  uses.flatMap((u) => (u.targetHint.kind === 'path' ? [u.targetHint.specifier] : []));
+  uses.flatMap((u) => (u.candidates[0].kind === 'path' ? [u.candidates[0].specifier] : []));
 
 describe('python extractor — uses()', () => {
   it('detects a plain `import a.b` as the dotted module hint', async () => {
     const { uses } = await run('import foo.bar');
     expect(uses).toContainEqual(
-      expect.objectContaining({ targetHint: { kind: 'path', specifier: 'foo.bar' }, kind: 'import' }),
+      expect.objectContaining({ candidates: [{ kind: 'path', specifier: 'foo.bar' }], kind: 'import' }),
     );
   });
 

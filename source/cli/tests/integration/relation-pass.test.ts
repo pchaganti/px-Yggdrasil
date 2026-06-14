@@ -24,7 +24,7 @@ const stubExtractor: DependencyExtractor = {
   },
   uses(file: ParsedFile): DetectedDep[] {
     if (file.path.endsWith('src/a/foo.ts')) {
-      return [{ targetHint: { kind: 'path', specifier: '../b/bar' }, kind: 'import', line: 1 }];
+      return [{ candidates: [{ kind: 'path', specifier: '../b/bar' }], kind: 'import', line: 1 }];
     }
     return [];
   },
@@ -142,7 +142,7 @@ const nestedStub: DependencyExtractor = {
   },
   uses(file: ParsedFile): DetectedDep[] {
     if (file.path.endsWith('src/a/foo.ts')) {
-      return [{ targetHint: { kind: 'path', specifier: '../b/sub/deep' }, kind: 'import', line: 1 }];
+      return [{ candidates: [{ kind: 'path', specifier: '../b/sub/deep' }], kind: 'import', line: 1 }];
     }
     return [];
   },

@@ -1,6 +1,7 @@
 import type { Node } from 'web-tree-sitter';
 import { walk } from '../../ast/walk.js';
 import type { DependencyExtractor, DetectedDep, DeclaredSymbol, ParsedFile } from './types.js';
+import { single } from './types.js';
 
 /**
  * Java dependency extractor.
@@ -84,7 +85,7 @@ function uses(file: ParsedFile): DetectedDep[] {
     const dedupKey = `${specifier} ${line}`;
     if (seen.has(dedupKey)) return;
     seen.add(dedupKey);
-    out.push({ targetHint: { kind: 'path', specifier, isPackage }, kind: 'import', line });
+    out.push(single({ kind: 'path', specifier, isPackage }, 'import', line));
   };
 
   walk(file.tree.rootNode, (node) => {

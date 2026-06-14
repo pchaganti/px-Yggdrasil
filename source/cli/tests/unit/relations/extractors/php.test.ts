@@ -5,14 +5,14 @@ import { phpExtractor } from '../../../../src/relations/extractors/php.js';
 const run = (code: string) => runExtractor(phpExtractor, 'php', '.php', code);
 
 const specs = (uses: Awaited<ReturnType<typeof run>>['uses']): string[] =>
-  uses.flatMap((u) => (u.targetHint.kind === 'path' ? [u.targetHint.specifier] : []));
+  uses.flatMap((u) => (u.candidates[0].kind === 'path' ? [u.candidates[0].specifier] : []));
 
 describe('php extractor — uses()', () => {
   it('emits the FQN for a simple use import', async () => {
     const { uses } = await run('<?php\nuse App\\Payment\\Gateway;\nclass C {}\n');
     expect(uses).toContainEqual(
       expect.objectContaining({
-        targetHint: { kind: 'path', specifier: 'App\\Payment\\Gateway' },
+        candidates: [{ kind: 'path', specifier: 'App\\Payment\\Gateway' }],
         kind: 'import',
       }),
     );

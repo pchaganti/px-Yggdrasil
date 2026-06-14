@@ -10,9 +10,9 @@ import { parseFile } from '../../../../src/ast/parser.js';
 const run = (code: string) => runExtractor(rubyExtractor, 'ruby', '.rb', code);
 
 const symbolKeys = (uses: DetectedDep[]): string[] =>
-  uses.flatMap((u) => (u.targetHint.kind === 'symbol' ? [u.targetHint.symbolKey] : []));
+  uses.flatMap((u) => (u.candidates[0].kind === 'symbol' ? [u.candidates[0].symbolKey] : []));
 const pathSpecs = (uses: DetectedDep[]): string[] =>
-  uses.flatMap((u) => (u.targetHint.kind === 'path' ? [u.targetHint.specifier] : []));
+  uses.flatMap((u) => (u.candidates[0].kind === 'path' ? [u.candidates[0].specifier] : []));
 
 async function parse(repoRel: string, code: string): Promise<ParsedFile> {
   ensureLoaderRegistered();
@@ -25,7 +25,7 @@ describe('ruby extractor — uses() emits PATH hints (require_relative)', () => 
     const { uses } = await run("require_relative '../services/order_service'\n");
     expect(uses).toContainEqual(
       expect.objectContaining({
-        targetHint: { kind: 'path', specifier: '../services/order_service' },
+        candidates: [{ kind: 'path', specifier: '../services/order_service' }],
         kind: 'import',
       }),
     );
@@ -33,7 +33,7 @@ describe('ruby extractor — uses() emits PATH hints (require_relative)', () => 
 
   it('carries a 1-based line number for the require_relative hint', async () => {
     const { uses } = await run("\n\nrequire_relative './helper'\n");
-    const hint = uses.find((u) => u.targetHint.kind === 'path');
+    const hint = uses.find((u) => u.candidates[0].kind === 'path');
     expect(hint?.line).toBe(3);
   });
 
@@ -235,8 +235,8 @@ describe('ruby SYMBOL-TABLE resolution — unique resolves, reopened silences', 
 
     expect(st.resolveUnique('ruby', 'BaseService')).toBe('src/a/base_service.rb');
 
-    const importHint = rubyExtractor.uses(consumer).find((u) => u.targetHint.kind === 'symbol')!;
-    expect(importHint.targetHint).toEqual({ kind: 'symbol', symbolKey: 'BaseService' });
+    const importHint = rubyExtractor.uses(consumer).find((u) => u.candidates[0].kind === 'symbol')!;
+    expect(importHint.candidates[0]).toEqual({ kind: 'symbol', symbolKey: 'BaseService' });
 
     const ownerIndex = { ownerOf: (f: string) => (f === 'src/a/base_service.rb' ? 'a' : undefined) };
     const resolver = makeResolver({
@@ -244,7 +244,7 @@ describe('ruby SYMBOL-TABLE resolution — unique resolves, reopened silences', 
       symbolTable: st,
       resolvePathToFile: () => undefined,
     });
-    expect(resolver.resolve(importHint.targetHint, consumer.path, 'ruby')).toEqual({
+    expect(resolver.resolve(importHint.candidates[0], consumer.path, 'ruby')).toEqual({
       ownerNode: 'a',
       resolvedFile: 'src/a/base_service.rb',
     });
@@ -269,8 +269,8 @@ describe('ruby SYMBOL-TABLE resolution — unique resolves, reopened silences', 
       symbolTable: st,
       resolvePathToFile: () => undefined,
     });
-    const hint = rubyExtractor.uses(consumer).find((u) => u.targetHint.kind === 'symbol')!;
-    expect(resolver.resolve(hint.targetHint, consumer.path, 'ruby')).toBeUndefined();
+    const hint = rubyExtractor.uses(consumer).find((u) => u.candidates[0].kind === 'symbol')!;
+    expect(resolver.resolve(hint.candidates[0], consumer.path, 'ruby')).toBeUndefined();
   });
 });
 

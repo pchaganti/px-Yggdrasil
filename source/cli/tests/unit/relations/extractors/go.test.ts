@@ -5,13 +5,13 @@ import { goExtractor } from '../../../../src/relations/extractors/go.js';
 const run = (code: string) => runExtractor(goExtractor, 'go', '.go', code);
 
 const specs = (uses: Awaited<ReturnType<typeof run>>['uses']): string[] =>
-  uses.flatMap((u) => (u.targetHint.kind === 'path' ? [u.targetHint.specifier] : []));
+  uses.flatMap((u) => (u.candidates[0].kind === 'path' ? [u.candidates[0].specifier] : []));
 
 describe('go extractor — uses()', () => {
   it('detects a single `import "fmt"` as the import-path hint', async () => {
     const { uses } = await run('package main\nimport "fmt"\n');
     expect(uses).toContainEqual(
-      expect.objectContaining({ targetHint: { kind: 'path', specifier: 'fmt' }, kind: 'import' }),
+      expect.objectContaining({ candidates: [{ kind: 'path', specifier: 'fmt' }], kind: 'import' }),
     );
   });
 

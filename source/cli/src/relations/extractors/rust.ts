@@ -1,6 +1,7 @@
 import type { Node } from 'web-tree-sitter';
 import { walk } from '../../ast/walk.js';
 import type { DependencyExtractor, DetectedDep, DeclaredSymbol, ParsedFile } from './types.js';
+import { single } from './types.js';
 
 /**
  * Rust dependency extractor.
@@ -104,7 +105,7 @@ function uses(file: ParsedFile): DetectedDep[] {
     const dedupKey = `${specifier} ${line}`;
     if (seen.has(dedupKey)) return;
     seen.add(dedupKey);
-    out.push({ targetHint: { kind: 'path', specifier }, kind: 'import', line });
+    out.push(single({ kind: 'path', specifier }, 'import', line));
   };
 
   // Resolve one `use` argument node (or a list item) to its specifier and emit.

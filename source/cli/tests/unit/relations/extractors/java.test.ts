@@ -5,14 +5,14 @@ import { javaExtractor } from '../../../../src/relations/extractors/java.js';
 const run = (code: string) => runExtractor(javaExtractor, 'java', '.java', code);
 
 const specs = (uses: Awaited<ReturnType<typeof run>>['uses']): string[] =>
-  uses.flatMap((u) => (u.targetHint.kind === 'path' ? [u.targetHint.specifier] : []));
+  uses.flatMap((u) => (u.candidates[0].kind === 'path' ? [u.candidates[0].specifier] : []));
 
 const hintFor = (
   uses: Awaited<ReturnType<typeof run>>['uses'],
   specifier: string,
-): Extract<(typeof uses)[number]['targetHint'], { kind: 'path' }> | undefined =>
+): Extract<(typeof uses)[number]['candidates'][number], { kind: 'path' }> | undefined =>
   uses
-    .map((u) => u.targetHint)
+    .map((u) => u.candidates[0])
     .find((h): h is Extract<typeof h, { kind: 'path' }> =>
       h.kind === 'path' && h.specifier === specifier,
     );
@@ -22,7 +22,7 @@ describe('java extractor — uses()', () => {
     const { uses } = await run('import com.acme.payments.PaymentService;\nclass C {}\n');
     expect(uses).toContainEqual(
       expect.objectContaining({
-        targetHint: expect.objectContaining({ kind: 'path', specifier: 'com.acme.payments.PaymentService' }),
+        candidates: [expect.objectContaining({ kind: 'path', specifier: 'com.acme.payments.PaymentService' })],
         kind: 'import',
       }),
     );

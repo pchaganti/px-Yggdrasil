@@ -1,6 +1,7 @@
 import type { Node } from 'web-tree-sitter';
 import { walk } from '../../ast/walk.js';
 import type { DetectedDep, ParsedFile } from './types.js';
+import { single } from './types.js';
 
 /**
  * Shared include-extraction for C and C++.
@@ -70,7 +71,7 @@ export function includeUses(file: ParsedFile): DetectedDep[] {
     const dedupKey = `${headerPath} ${line}`;
     if (seen.has(dedupKey)) return undefined;
     seen.add(dedupKey);
-    out.push({ targetHint: { kind: 'path', specifier: headerPath }, kind: 'import', line });
+    out.push(single({ kind: 'path', specifier: headerPath }, 'import', line));
     return undefined;
   });
 

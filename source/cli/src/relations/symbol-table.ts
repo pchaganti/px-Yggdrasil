@@ -19,6 +19,16 @@ export class SymbolTable {
     if (!s || s.size !== 1) return undefined;
     return [...s][0];
   }
+  /** Number of distinct files declaring `symbolKey` in `language` (0 = absent, ≥2 = ambiguous).
+   *  Lets the tri-state resolver tell an ambiguous candidate (≥2) from an absent one (0) —
+   *  a distinction `resolveUnique` collapses to undefined. */
+  defCount(language: string, symbolKey: string): number {
+    return this.defs.get(this.key(language, symbolKey))?.size ?? 0;
+  }
+  /** True when at least one definition exists (the declared-type guard; ≥1 def). */
+  has(language: string, symbolKey: string): boolean {
+    return this.defCount(language, symbolKey) > 0;
+  }
 }
 
 export interface PersistedSymbolIndex { builtFrom: Array<[string, string]>; symbols: Array<[string, string]>; }

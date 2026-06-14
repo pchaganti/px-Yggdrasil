@@ -10,7 +10,7 @@ import { parseFile } from '../../../../src/ast/parser.js';
 const run = (code: string) => runExtractor(kotlinExtractor, 'kotlin', '.kt', code);
 
 const symbolKeys = (uses: Awaited<ReturnType<typeof run>>['uses']): string[] =>
-  uses.flatMap((u) => (u.targetHint.kind === 'symbol' ? [u.targetHint.symbolKey] : []));
+  uses.flatMap((u) => (u.candidates[0].kind === 'symbol' ? [u.candidates[0].symbolKey] : []));
 
 /** Parse a Kotlin source string into a ParsedFile under a chosen repo-rel path. */
 async function parse(repoRel: string, code: string): Promise<ParsedFile> {
@@ -24,12 +24,12 @@ describe('kotlin extractor — uses() emits SYMBOL hints (not path hints)', () =
     const { uses } = await run('package com.acme.app\nimport com.acme.payments.PaymentService\nclass C\n');
     expect(uses).toContainEqual(
       expect.objectContaining({
-        targetHint: { kind: 'symbol', symbolKey: 'com.acme.payments.PaymentService' },
+        candidates: [{ kind: 'symbol', symbolKey: 'com.acme.payments.PaymentService' }],
         kind: 'import',
       }),
     );
     // It must NOT be a path hint — Kotlin resolves through the SymbolTable.
-    expect(uses.every((u) => u.targetHint.kind === 'symbol')).toBe(true);
+    expect(uses.every((u) => u.candidates[0].kind === 'symbol')).toBe(true);
   });
 
   it('IGNORES the alias of `import ... as B` — the hint is the real FQN', async () => {
@@ -161,14 +161,14 @@ describe('kotlin SYMBOL-TABLE resolution — the half this language validates', 
 
     // The consumer's import hint must resolve to fileA via resolveUnique.
     const uses = kotlinExtractor.uses(consumer);
-    const importHint = uses.find((u) => u.targetHint.kind === 'symbol');
-    expect(importHint?.targetHint).toEqual({ kind: 'symbol', symbolKey: 'com.acme.payments.PaymentService' });
+    const importHint = uses.find((u) => u.candidates[0].kind === 'symbol');
+    expect(importHint?.candidates[0]).toEqual({ kind: 'symbol', symbolKey: 'com.acme.payments.PaymentService' });
     expect(st.resolveUnique('kotlin', 'com.acme.payments.PaymentService')).toBe('src/a/PaymentService.kt');
 
     // And the full resolver wires symbol → owner node (mirrors resolver.ts).
     const ownerIndex = { ownerOf: (f: string) => (f === 'src/a/PaymentService.kt' ? 'a' : f === 'src/b/AuditLog.kt' ? 'b' : undefined) };
     const resolver = makeResolver({ ownerIndex: ownerIndex as never, symbolTable: st, resolvePathToFile: () => undefined });
-    expect(resolver.resolve(importHint!.targetHint, consumer.path, 'kotlin')).toEqual({
+    expect(resolver.resolve(importHint!.candidates[0], consumer.path, 'kotlin')).toEqual({
       ownerNode: 'a',
       resolvedFile: 'src/a/PaymentService.kt',
     });
@@ -191,8 +191,8 @@ describe('kotlin SYMBOL-TABLE resolution — the half this language validates', 
     // Through the resolver the use also resolves to undefined — silence, never a flag.
     const ownerIndex = { ownerOf: () => 'someNode' };
     const resolver = makeResolver({ ownerIndex: ownerIndex as never, symbolTable: st, resolvePathToFile: () => undefined });
-    const importHint = kotlinExtractor.uses(consumer).find((u) => u.targetHint.kind === 'symbol')!;
-    expect(resolver.resolve(importHint.targetHint, consumer.path, 'kotlin')).toBeUndefined();
+    const importHint = kotlinExtractor.uses(consumer).find((u) => u.candidates[0].kind === 'symbol')!;
+    expect(resolver.resolve(importHint.candidates[0], consumer.path, 'kotlin')).toBeUndefined();
   });
 });
 

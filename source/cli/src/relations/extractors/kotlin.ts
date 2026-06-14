@@ -1,6 +1,7 @@
 import type { Node } from 'web-tree-sitter';
 import { walk } from '../../ast/walk.js';
 import type { DependencyExtractor, DetectedDep, DeclaredSymbol, ParsedFile } from './types.js';
+import { single } from './types.js';
 
 /**
  * Kotlin dependency extractor — the FIRST language that resolves through the shared
@@ -77,7 +78,7 @@ function uses(file: ParsedFile): DetectedDep[] {
     const dedupKey = `${symbolKey} ${line}`;
     if (seen.has(dedupKey)) return;
     seen.add(dedupKey);
-    out.push({ targetHint: { kind: 'symbol', symbolKey }, kind: 'import', line });
+    out.push(single({ kind: 'symbol', symbolKey }, 'import', line));
   };
 
   walk(file.tree.rootNode, (node) => {
