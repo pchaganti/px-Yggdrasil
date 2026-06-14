@@ -122,21 +122,77 @@ const DECLARATION_TYPES = new Set([
   'record_declaration',
 ]);
 
+/** The package FQN of a compilation unit, read from its `package_declaration`'s
+ *  `scoped_identifier` (a bare `identifier` for a single-segment package). Empty string
+ *  for the unnamed/default package. */
+function packageFqn(file: ParsedFile): string {
+  let pkg = '';
+  walk(file.tree.rootNode, (node) => {
+    if (node.type !== 'package_declaration') return undefined;
+    for (let i = 0; i < node.namedChildCount; i++) {
+      const c = node.namedChild(i);
+      if (c !== null && (c.type === 'scoped_identifier' || c.type === 'identifier')) {
+        pkg = c.text;
+        return false; // first package_declaration wins; stop descending it
+      }
+    }
+    return false;
+  });
+  return pkg;
+}
+
+/** The enclosing-TYPE chain of `node`, outermost-first: the `name` of every ancestor
+ *  `class`/`interface`/`enum`/`record` declaration. A nested `class Inner` inside
+ *  `class Outer` yields `["Outer"]`; deeper nesting yields `["Outer", "Mid"]`; empty for a
+ *  top-level declaration. Joined to the declaration's own simple name by the reflection
+ *  separator `+` (Java's JVM binary name is `Outer$Inner`; the analyzer's canonical key is
+ *  `Outer+Inner` — same boundary), DISJOINT from the package `.` so a nested key lives in a
+ *  string space no dot-only candidate can collide with (separator isolation). */
+function enclosingTypeChain(node: Node): string[] {
+  const parts: string[] = [];
+  let cur: Node | null = node.parent;
+  while (cur !== null) {
+    if (DECLARATION_TYPES.has(cur.type)) {
+      const name = cur.childForFieldName('name')?.text;
+      if (name !== undefined && name !== '') parts.unshift(name);
+    }
+    cur = cur.parent;
+  }
+  return parts;
+}
+
 /**
- * Declared top-level types — a thin parity layer (Java v1 resolves dependencies by
- * PATH via the package = directory convention, not by symbol, so a Java SymbolTable
- * is not load-bearing). Emits the names of `class` / `interface` / `enum` / `record`
- * declarations (field `name`). Nested types are included too: their owning file is
- * the same node either way, so the extra names are harmless parity data.
+ * The FULLY-QUALIFIED symbol keys this file DEFINES — a thin parity layer. Java v1 resolves
+ * dependencies by PATH (the package = directory convention; `uses()` emits only `path` hints
+ * that never touch the SymbolTable), so this table is NOT load-bearing for Java resolution
+ * today; it exists for parity with the symbol-resolved languages and for any future symbol
+ * consumer. Reads the file's `package_declaration`, then for each `class`/`interface`/`enum`/
+ * `record` declaration (top-level AND nested) emits `<package>.<TypeKey>` (or `<TypeKey>` for
+ * the unnamed package).
+ *
+ * `<TypeKey>` is the enclosing-TYPE chain joined to the declaration's own simple name by `+`:
+ * a top-level `Order` is `Order`; a nested `Inner` inside `Outer` is `Outer+Inner`. A NESTED
+ * declaration emits ONLY its `+` key — NEVER also a bare flat `Inner`. Keying a nested type
+ * flat (the latent v1 shape, mirrored on the pre-fix Kotlin bug) manufactured a phantom
+ * top-level name: `class Outer { class Inner }` produced the bare `Inner`, which — the instant
+ * any Java symbol consumer existed — a top-level `import <pkg>.Inner` (in Java that names a
+ * TOP-LEVEL type, never the nested `Outer.Inner`) would mis-bind to this file (a false
+ * positive), or which would collide with a real `<pkg>.Inner` in another node and silence its
+ * legitimate edge. The `+` key lives in a string space disjoint from the dot-only namespace,
+ * so it cannot collide; a nested-type use resolves to it through the resolver's guarded
+ * `+`-boundary split. (This change is parity-data only: Java resolution is path-based and
+ * never reads these keys, so no current edge changes — the latent phantom is removed.)
  */
 function declarations(file: ParsedFile): DeclaredSymbol[] {
   const out: DeclaredSymbol[] = [];
+  const pkg = packageFqn(file);
   walk(file.tree.rootNode, (node) => {
     if (!DECLARATION_TYPES.has(node.type)) return undefined;
     const nameNode = node.childForFieldName('name');
-    if (nameNode !== null) {
-      out.push({ symbolKey: nameNode.text, line: node.startPosition.row + 1 });
-    }
+    if (nameNode === null || nameNode.text === '') return undefined;
+    const typeKey = [...enclosingTypeChain(node), nameNode.text].join('+');
+    const symbolKey = pkg === '' ? typeKey : `${pkg}.${typeKey}`;
+    out.push({ symbolKey, line: node.startPosition.row + 1 });
     return undefined;
   });
   return out;

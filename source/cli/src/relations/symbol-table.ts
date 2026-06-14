@@ -48,8 +48,10 @@ export class SymbolTable {
  *
  * Bump this whenever the SYMBOL KEYS an unchanged file set produces change.
  *   v1 → v2: nested types keyed `Outer+Inner` (reflection FQN), replacing the bare simple name.
+ *   v2 → v3: Java declarations keyed `<package>.<Outer+Inner>` (package-qualified + `+`-nested),
+ *            replacing the bare flat simple name (the latent phantom-flat-key seal).
  */
-const SYMBOL_INDEX_VERSION = 2;
+const SYMBOL_INDEX_VERSION = 3;
 
 export interface PersistedSymbolIndex {
   /** Extractor/keying version (N-CACHE). Absent in pre-version indexes → treated as stale. */
