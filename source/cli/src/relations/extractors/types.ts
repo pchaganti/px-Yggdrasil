@@ -1,9 +1,31 @@
 import type { Tree } from 'web-tree-sitter';
 
 export type DepKind = 'import' | 'call' | 'extends' | 'implements' | 'type-ref' | 'construct';
+
+/** One member of a symbol resolution SET (C# only). `symbolKey` is resolved exactly like a
+ *  plain symbol hint; `nestedOnly` (R4) restricts it to the guarded nested-type `+`-split
+ *  reading, never the verbatim dotted reading. */
+export interface SymbolSetMember { symbolKey: string; nestedOnly?: boolean }
+
 export type TargetHint =
   | { kind: 'path'; specifier: string; isPackage?: boolean }
-  | { kind: 'symbol'; symbolKey: string };
+  | {
+      kind: 'symbol';
+      /** The candidate's OWN display key — what `groupContaining`/`symbolKeys` read, and what
+       *  pins the ordered-group shape. Always present. */
+      symbolKey: string;
+      /** R4 (C#): resolve `symbolKey` ONLY via the guarded nested-type `+`-split, never the
+       *  verbatim dotted form. A `using A;` prefix applied to a multi-segment ref `B.Type` is
+       *  only valid when `A.B` is a declared TYPE (→ `A.B+Type`); a sub-namespace reading
+       *  (`A.B.Type` dotted) is forbidden. Absent = resolve verbatim + splits normally. */
+      nestedOnly?: boolean;
+      /** R9/R8 (C#): when present, classification resolves the UNION of files across ALL set
+       *  members (each honoring its own `nestedOnly`) and applies the distinct-file rule:
+       *  0 → absent, exactly 1 → resolved, ≥2 → ambiguous (CS0104 / co-definition silence).
+       *  The candidate's own `symbolKey` still drives the display shape; `set` drives only
+       *  classification. Absent = resolve `symbolKey` alone as a singleton. */
+      set?: SymbolSetMember[];
+    };
 
 /**
  * A detected reference carries an ORDERED list of alternative target hints, in the

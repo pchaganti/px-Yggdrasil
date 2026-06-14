@@ -52,6 +52,24 @@ function nestedSplitKeys(symbolTable: SymbolTable, language: string, symbolKey: 
   return keys;
 }
 
+/**
+ * The guarded nested-type `+`-split keys ONLY (the verbatim dotted form excluded). This is the
+ * R4 reading: a `using A;` prefix on a multi-segment ref `B.Type` may bind `A.B+Type` (B a type,
+ * Type nested) but MUST NOT bind the dotted `A.B.Type` (which would mean B is a sub-namespace,
+ * and `using A;` imports the types of EXACTLY A, never A's nested namespaces). A single-segment
+ * key (no `.`) has no split → empty.
+ */
+function nestedOnlySplitKeys(symbolTable: SymbolTable, language: string, symbolKey: string): string[] {
+  const keys: string[] = [];
+  const segs = symbolKey.split('.');
+  for (let k = 1; k < segs.length; k++) {
+    const prefix = segs.slice(0, k).join('.');
+    if (!symbolTable.has(language, prefix)) continue; // guard: split only at a declared TYPE
+    keys.push(`${prefix}+${segs.slice(k).join('+')}`);
+  }
+  return keys;
+}
+
 export function makeResolver(deps: ResolverDeps): TargetResolver {
   /** The DISTINCT defining files a dotted symbol candidate maps to, across the verbatim key
    *  AND the guarded nested-type `+`-splits. The set-level rule: 0 distinct files → absent,
@@ -67,10 +85,39 @@ export function makeResolver(deps: ResolverDeps): TargetResolver {
     return files;
   };
 
+  /** The distinct defining files of one symbol-set member, honoring `nestedOnly` (R4): a
+   *  `nestedOnly` member contributes ONLY its guarded `+`-split files, never the verbatim
+   *  dotted reading. A plain member contributes the verbatim key + all guarded splits. */
+  const memberFiles = (language: string, key: string, nestedOnly: boolean): Set<string> => {
+    if (!nestedOnly) return symbolFiles(language, key);
+    const files = new Set<string>();
+    for (const splitKey of nestedOnlySplitKeys(deps.symbolTable, language, key)) {
+      for (const f of deps.symbolTable.filesFor(language, splitKey)) files.add(f);
+    }
+    return files;
+  };
+
+  /** The distinct files a symbol HINT maps to: the union across its `set` members (each honoring
+   *  its own `nestedOnly`) when a set is present, else the single `symbolKey` honoring the hint's
+   *  own `nestedOnly`. ≥2 distinct files anywhere = a real ambiguity (CS0104 / co-definition). */
+  const hintFiles = (
+    hint: Extract<TargetHint, { kind: 'symbol' }>,
+    language: string,
+  ): Set<string> => {
+    if (hint.set !== undefined) {
+      const files = new Set<string>();
+      for (const m of hint.set) {
+        for (const f of memberFiles(language, m.symbolKey, m.nestedOnly === true)) files.add(f);
+      }
+      return files;
+    }
+    return memberFiles(language, hint.symbolKey, hint.nestedOnly === true);
+  };
+
   const resolve: TargetResolver['resolve'] = (hint, fromFile, language) => {
     let file: string | undefined;
     if (hint.kind === 'symbol') {
-      const files = symbolFiles(language, hint.symbolKey);
+      const files = hintFiles(hint, language);
       if (files.size !== 1) return undefined;    // 0 → unresolved; ≥2 → ambiguous → silence
       file = [...files][0];
     } else {
@@ -84,10 +131,11 @@ export function makeResolver(deps: ResolverDeps): TargetResolver {
 
   const classify: TargetResolver['classify'] = (hint, fromFile, language) => {
     if (hint.kind === 'symbol') {
-      // Symbol axis: collect the distinct files across the verbatim key + guarded `+`-splits.
-      // ≥2 distinct files is a real ambiguity (silence the group); 0 is absent (continue);
-      // exactly one is the candidate binding.
-      const files = symbolFiles(language, hint.symbolKey);
+      // Symbol axis: collect the distinct files this hint maps to — the union across its `set`
+      // members (CS0104 / co-definition), each honoring `nestedOnly` (R4), or the lone
+      // `symbolKey`'s verbatim + guarded `+`-splits. ≥2 distinct files is a real ambiguity
+      // (silence the group); 0 is absent (continue); exactly one is the candidate binding.
+      const files = hintFiles(hint, language);
       if (files.size === 0) return { kind: 'absent' };
       if (files.size >= 2) return { kind: 'ambiguous' };
       const file = [...files][0];

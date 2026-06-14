@@ -194,16 +194,24 @@ function nodeYaml(name: string, mapDir: string, target?: string): string {
  *
  * n1 maps src/n1/** and contains BOTH the consumer and the NEARER binding:
  *   - src/n1/Order.cs : `namespace App.Services; using App.Data; ... new Models.Order()`.
- *   - src/n1/Data.cs  : `namespace App.Data.Models; class Order { }` → key App.Data.Models.Order,
- *                       which is the using-relative binding `App.Data` + `Models.Order`.
+ *   - src/n1/Data.cs  : `namespace App.Data; class Models { class Order { } }` → key
+ *                       App.Data.Models+Order (Models is a TYPE, Order nested in it). This is
+ *                       what `using App.Data;` + `Models.Order` legitimately binds: `using A;`
+ *                       imports the TYPES of A (here the type `Models`), and `Order` is the
+ *                       nested type — NOT a sub-namespace. (A `class Models`, not a
+ *                       `namespace Models`: per the C# spec a using-namespace directive imports
+ *                       A's types, NEVER A's nested namespaces, so a `namespace App.Data.Models`
+ *                       would make `Models.Order` bind the GLOBAL `Models.Order` instead — the
+ *                       recall case below, not this one.)
  * n2 maps src/n2/** with a TOP-LEVEL `namespace Models; class Order { }` → key Models.Order.
  * n1 declares NO relation to n2.
  *
  * For the ordered group [App.Services.Models.Order, App.Models.Order, App.Data.Models.Order,
- * Models.Order], the walk binds the using-relative `App.Data.Models.Order` → n1 (intra-node,
- * exempt) FIRST and STOPS. The verbatim `Models.Order` (which would resolve to n2) is never
- * reached → NO n1→n2 edge → exit 0. (Pre-Stage-2, the independent verbatim hint resolved to n2
- * and false-flagged.)
+ * Models.Order], the walk binds the using-relative `App.Data.Models.Order` — which splits at the
+ * declared TYPE `App.Data.Models` to `App.Data.Models+Order` → n1 (intra-node, exempt) — FIRST
+ * and STOPS. The verbatim `Models.Order` (which would resolve to n2) is never reached → NO
+ * n1→n2 edge → exit 0. (Pre-Stage-2, the independent verbatim hint resolved to n2 and
+ * false-flagged.)
  */
 function buildDecisiveFpRepo(): string {
   const root = buildSkeleton('yg-rel-csharp-fp');
@@ -219,11 +227,12 @@ function buildDecisiveFpRepo(): string {
       '',
     ].join('\n'),
   );
-  // The NEARER binding lives intra-node (n1): App.Data.Models.Order.
+  // The NEARER binding lives intra-node (n1): the TYPE App.Data.Models with nested Order →
+  // App.Data.Models+Order. `using App.Data;` imports the type `Models`; `Order` is nested in it.
   writeFile(
     root,
     'src/n1/Data.cs',
-    ['namespace App.Data.Models;', 'public class Order { }', ''].join('\n'),
+    ['namespace App.Data;', 'public class Models { public class Order { } }', ''].join('\n'),
   );
   // The foreign top-level Models.Order in n2 — must NEVER be flagged.
   writeFile(

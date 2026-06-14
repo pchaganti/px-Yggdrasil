@@ -722,14 +722,14 @@ describe('csharp NESTED-TYPE resolution + the tri-state / split over-silence gua
     expect(walk(owners, 'App.Outer.Inner', st, () => 'someNode', consumer.path)).toBeUndefined();
   });
 
-  it('USING-LEVEL: a bare base never leaks to the foreign verbatim top-level (verbatim is LAST and unreached)', async () => {
+  it('USING-LEVEL CS0104: two usings each defining `Widget` → the using tier is AMBIGUOUS → SILENCE (never the foreign verbatim either)', async () => {
     // `using L1; using L2;` both declare `Widget`; a stray top-level `Widget` also exists in
     // node d. The bare base `Widget`'s ordered group is the enclosing-ns level, then the
     // code-point-sorted using prefixes (L1.Widget, L2.Widget), then the verbatim `Widget` LAST.
-    // first-unique-match-wins binds the FIRST using expansion that resolves and STOPS — so the
-    // walk NEVER reaches the verbatim top-level `Widget` and node d is NEVER flagged. The bound
-    // edge is one of the actually-imported types; this is the deliberate one-edge-on-ambiguity
-    // trade (at most one edge for an ambiguous source, never a leak to the foreign top-level).
+    // The using-prefix expansions form ONE binding level (a CS0104 set): both L1.Widget and
+    // L2.Widget resolve, to DIFFERENT nodes → the simple name is genuinely ambiguous per the C#
+    // spec → the whole group SILENCES. It binds NEITHER an arbitrary import NOR the foreign
+    // top-level `Widget` in node d. Zero edge, zero false positive.
     const l1 = await parse('src/a/W.cs', 'namespace L1;\nclass Widget { }\n');
     const l2 = await parse('src/b/W.cs', 'namespace L2;\nclass Widget { }\n');
     const verbatim = await parse('src/d/W.cs', 'class Widget { }\n'); // top-level `Widget` — must NEVER bind
@@ -754,8 +754,7 @@ describe('csharp NESTED-TYPE resolution + the tri-state / split over-silence gua
       resolvePathToFile: () => undefined,
     });
     const bound = walkResolve(owners, 'Widget', resolver, consumer.path);
-    expect(bound).not.toBe('d'); // the foreign top-level interpretation is NEVER the binding (zero-FP)
-    expect(['a', 'b']).toContain(bound); // at most one edge, to an actually-imported type
+    expect(bound).toBeUndefined(); // CS0104: ambiguous using tier silences the whole group
   });
 });
 

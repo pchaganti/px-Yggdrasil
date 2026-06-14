@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { csharpExtractor } from '../../../../src/relations/extractors/csharp.js';
+import { csharpExtractor, csharpUses, collectGlobalUsings } from '../../../../src/relations/extractors/csharp.js';
 import { SymbolTable } from '../../../../src/relations/symbol-table.js';
 import { makeResolver } from '../../../../src/relations/resolver.js';
 import type { ParsedFile } from '../../../../src/relations/extractors/types.js';
@@ -14,7 +14,7 @@ import { parseFile } from '../../../../src/ast/parser.js';
  * ANOTHER node that must NOT be chosen) sits beside the positive.
  *
  * PASS  → the resolver already does the spec-correct thing (live `it`).
- * GAP   → it does not (documented as `it.skip('GAP: ...')` so CI stays green).
+ * GAP   → it does not (documented as `it('GAP: ...')` so CI stays green).
  *
  * The spec rules (C# language spec / MS Learn), asserted here:
  *  R1  unqualified leading name: walk enclosing ns innermost→outermost→global;
@@ -159,23 +159,27 @@ describe('MATRIX — global usings (project-wide aggregation)', () => {
     expect(walkResolve(csharpExtractor.uses(consumer), 'N.Type', r, consumer.path)).toBe('n');
   });
 
-  it.skip('GAP: `global using N;` declared in a SIBLING file is NOT honored for THIS file (no project-wide aggregation) — RECALL gap', async () => {
+  it('GAP R5: a `global using N;` declared in a SIBLING file IS honored for THIS file (project-wide aggregation)', async () => {
     // R5: a `global using N;` in file A must make a bare `Type` in file B qualify as N.Type.
-    // ACTUAL: buildUsingScope walks only THIS file's tree; a global using in a sibling is
-    // invisible (see csharp.ts: "`global using` declared in another file is never honored").
-    // So the bare `Type` in the consumer yields only the verbatim `Type` candidate, and the
-    // real dependency on N.Type is MISSED. RECALL gap (no FP — it just under-detects). The
-    // extractor has no cross-file scope channel, so this cannot be fixed at the extractor
-    // layer alone; pass.ts would need a project-wide global-using pre-pass.
+    // The fix is a project-wide pre-pass (pass.ts): aggregate every C# file's `global using`
+    // prefixes via `collectGlobalUsings`, then inject the set into each file's `uses()` as its
+    // lowest using tier (`csharpUses(file, { projectGlobalUsings })`). Here we reproduce that
+    // pre-pass over the sibling + consumer exactly as pass.ts does, and assert the consumer's
+    // bare `Type` now qualifies as N.Type and resolves to node n. (Implicit/SDK global usings
+    // stay invisible to a source-only tool → correctly silenced; only declared ones aggregate.)
     const sibling = await parse('src/g/Globals.cs', 'global using N;\n');
-    void sibling; // a real aggregator would read this file's global usings first
     const consumer = await parse('src/c/Use.cs', 'class C : Type { }\n');
-    // Spec-correct group would be ['N.Type', 'Type']; ACTUAL is just ['Type'].
-    expect(groupContaining(csharpExtractor.uses(consumer), 'N.Type')).toEqual(['N.Type', 'Type']);
+    // pass.ts pre-pass: aggregate global usings across every C# file before per-file resolution.
+    const projectGlobalUsings = [
+      ...new Set([...collectGlobalUsings(sibling), ...collectGlobalUsings(consumer)]),
+    ];
+    expect(projectGlobalUsings).toEqual(['N']);
+    const usesWithGlobals = csharpUses(consumer, { projectGlobalUsings });
+    expect(groupContaining(usesWithGlobals, 'N.Type')).toEqual(['N.Type', 'Type']);
     const st = new SymbolTable();
     st.declare('csharp', 'N.Type', 'src/n/Type.cs');
     const r = resolverOver(st, { 'src/n/Type.cs': 'n' });
-    expect(walkResolve(csharpExtractor.uses(consumer), 'N.Type', r, consumer.path)).toBe('n');
+    expect(walkResolve(usesWithGlobals, 'N.Type', r, consumer.path)).toBe('n');
   });
 });
 
@@ -264,7 +268,7 @@ describe('MATRIX — type-reference SYNTACTIC positions (detection)', () => {
     expect(symbolKeys(uses)).toContain('Foo.Bar.Dep');
   });
 
-  it.skip('GAP: bare field/param/return type `Foo _f;` is NOT detected — RECALL gap', async () => {
+  it('GAP: bare field/param/return type `Foo _f;` is NOT detected — RECALL gap', async () => {
     // A bare (unqualified, non-generic) type in a field/param/return/local position is
     // `field_declaration > variable_declaration > identifier` — the extractor only inspects
     // bare identifiers in `base_list` and `object_creation_expression`. So a real dependency
@@ -273,33 +277,33 @@ describe('MATRIX — type-reference SYNTACTIC positions (detection)', () => {
     expect(symbolKeys(uses)).toContain('N.Foo');
   });
 
-  it.skip('GAP: generic `List<Foo>` — embedded `Foo` is NOT extracted — RECALL gap', async () => {
+  it('GAP: generic `List<Foo>` — embedded `Foo` is NOT extracted — RECALL gap', async () => {
     // `generic_name` (List) + `type_argument_list` (Foo) is never descended for the type
     // argument. A dependency carried only as a generic type argument is MISSED. RECALL.
     const { uses } = await run('using N;\nclass C { List<Foo> _x; }\n');
     expect(symbolKeys(uses)).toContain('N.Foo');
   });
 
-  it.skip('GAP: attribute `[Foo]` / `[FooAttribute]` is NOT detected — RECALL gap', async () => {
+  it('GAP: attribute `[Foo]` / `[FooAttribute]` is NOT detected — RECALL gap', async () => {
     // `attribute_list > attribute > identifier` is never walked. Attribute type dependencies
     // (and the `Foo`→`FooAttribute` naming convention) are entirely MISSED. RECALL.
     const { uses } = await run('using N;\n[Foo]\nclass C { }\n');
     expect(symbolKeys(uses)).toContain('N.Foo');
   });
 
-  it.skip('GAP: generic constraint `where T : Constraint` is NOT detected — RECALL gap', async () => {
+  it('GAP: generic constraint `where T : Constraint` is NOT detected — RECALL gap', async () => {
     // `type_parameter_constraint` carries the constraint type; never walked. RECALL.
     const { uses } = await run('using N;\nclass C<T> where T : Constraint { }\n');
     expect(symbolKeys(uses)).toContain('N.Constraint');
   });
 
-  it.skip('GAP: `typeof(X)` is NOT detected — RECALL gap', async () => {
+  it('GAP: `typeof(X)` is NOT detected — RECALL gap', async () => {
     // `typeof_expression`'s type operand is never walked. RECALL.
     const { uses } = await run('using N;\nclass C { void M() { var t = typeof(X); } }\n');
     expect(symbolKeys(uses)).toContain('N.X');
   });
 
-  it.skip('GAP: `is X` / `as X` / cast `(X)x` are NOT detected — RECALL gap', async () => {
+  it('GAP: `is X` / `as X` / cast `(X)x` are NOT detected — RECALL gap', async () => {
     // is_pattern_expression / as_expression / cast_expression type operands are never walked.
     // RECALL (each is a real type reference).
     const { uses } = await run(
@@ -311,7 +315,7 @@ describe('MATRIX — type-reference SYNTACTIC positions (detection)', () => {
     expect(keys).toContain('N.Z');
   });
 
-  it.skip('GAP: tuple `(Foo, Bar)` / array `Foo[]` / nullable `Foo?` element types — NOT detected — RECALL gap', async () => {
+  it('GAP: tuple `(Foo, Bar)` / array `Foo[]` / nullable `Foo?` element types — NOT detected — RECALL gap', async () => {
     // tuple_type/tuple_element, array_type, nullable_type wrap an `identifier` the walk
     // never reaches (only base/new bare identifiers are inspected). RECALL.
     const { uses } = await run(
@@ -327,7 +331,7 @@ describe('MATRIX — type-reference SYNTACTIC positions (detection)', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('MATRIX — C#12 alias to closed generic / tuple / array', () => {
-  it.skip('GAP R7: alias to a closed generic `using L = List<MyApp.Models.Customer>;` — embedded named types NOT extracted — RECALL gap', async () => {
+  it('GAP R7: alias to a closed generic `using L = List<MyApp.Models.Customer>;` — embedded named types NOT extracted — RECALL gap', async () => {
     // R7: the EMBEDDED named types (here MyApp.Models.Customer) are real dependencies, and
     // the alias identifier `L` must not be mis-bound as a short name. ACTUAL: the alias RHS
     // is parsed for its dotted text only when it is a plain qualified_name/identifier; a
@@ -410,7 +414,7 @@ describe('MATRIX — SILENCE cases (must NOT bind / must silence)', () => {
     expect(walkResolve(csharpExtractor.uses(consumer), 'B.Type', r, consumer.path)).toBe('b');
   });
 
-  it.skip('GAP R4: `using A;` + `B.Type` (B sub-ns of A) MIS-BINDS `A.B.Type` when such a type happens to exist — FP-risk', async () => {
+  it('GAP R4: `using A;` + `B.Type` (B sub-ns of A) MIS-BINDS `A.B.Type` when such a type happens to exist — FP-risk', async () => {
     // R4: `using A;` does NOT import A's nested namespace B, so `B.Type` must NOT resolve to
     // `A.B.Type`. ACTUAL: orderedKeysFor prepends every using prefix to a multi-segment ref,
     // producing the candidate `A.B.Type`, ordered AHEAD of the verbatim `B.Type`. If node aB
@@ -426,7 +430,7 @@ describe('MATRIX — SILENCE cases (must NOT bind / must silence)', () => {
     expect(walkResolve(csharpExtractor.uses(consumer), 'B.Type', r, consumer.path)).toBe('b');
   });
 
-  it.skip('GAP R2/R9 (using-import CS0104): two usings each defining `Foo` → must SILENCE; resolver binds the first instead — FP-risk', async () => {
+  it('GAP R2/R9 (using-import CS0104): two usings each defining `Foo` → must SILENCE; resolver binds the first instead — FP-risk', async () => {
     // R9: `using A; using B;` where BOTH A.Foo and B.Foo exist (in DIFFERENT nodes) is CS0104
     // — the simple name `Foo` is ambiguous and MUST silence. ACTUAL: the group is
     // [A.Foo, B.Foo, Foo] (using prefixes code-point sorted); the ordered walk binds the FIRST
@@ -446,7 +450,7 @@ describe('MATRIX — SILENCE cases (must NOT bind / must silence)', () => {
     expect(walkResolve(csharpExtractor.uses(consumer), 'A.Foo', r, consumer.path)).toBeUndefined();
   });
 
-  it.skip('GAP R8: co-definition (enclosing member `I` + using-alias `I`) → must SILENCE; not modeled — silence gap', async () => {
+  it('GAP R8: co-definition (enclosing member `I` + using-alias `I`) → must SILENCE; not modeled — silence gap', async () => {
     // R8: when an enclosing scope declares a member named `I` AND a using-alias `I` is in
     // scope, the simple name `I` is ambiguous (CS0104-class co-definition) and MUST silence.
     // ACTUAL: the extractor models an alias as a hard nearest override (alias expansion FIRST),
@@ -492,7 +496,7 @@ describe('MATRIX — SILENCE cases (must NOT bind / must silence)', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('MATRIX — global:: prefix stripping', () => {
-  it.skip('GAP R12: `global::A.B.Base` keeps the literal `global::` in the key → never resolves — RECALL gap', async () => {
+  it('GAP R12: `global::A.B.Base` keeps the literal `global::` in the key → never resolves — RECALL gap', async () => {
     // R12: strip `global::` and resolve A.B.Base from the global root. ACTUAL: the
     // alias_qualified_name text `global::A.B.Base` is taken verbatim (and even prefixed to
     // `App.global::A.B.Base`); neither candidate matches the dot-only declaration key

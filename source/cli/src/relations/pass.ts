@@ -15,6 +15,7 @@ import {
   type PersistedSymbolIndex,
 } from './symbol-table.js';
 import { makeResolver } from './resolver.js';
+import { csharpUses, collectGlobalUsings } from './extractors/csharp.js';
 import { verifyNodeDeps, type ResolvedDep, type RelationGraphView, type Violation } from './verifier.js';
 import type {
   DependencyExtractor,
@@ -149,6 +150,21 @@ export async function runRelationPass(
     await writeSymbolIndex(deps.symbolIndexDir, language, toPersist);
   }
 
+  // 4.5 C# global-using pre-pass (R5). A `global using N;` declared in ANY C# file is a
+  //     project-wide import that qualifies bare names in EVERY C# file. Aggregate every C#
+  //     file's `global using` namespace prefixes once, then inject the set into each file's
+  //     `uses()` below (as the lowest using tier). This is the one cross-file scope channel
+  //     the per-file extractor cannot see on its own. Implicit/SDK global usings remain
+  //     invisible to a source-only tool → the names they would import stay silenced (correct).
+  const csharpRecords = recordsByLanguage.get('csharp') ?? [];
+  const projectGlobalUsings = new Set<string>();
+  for (const record of csharpRecords) {
+    const parsed = await getParsed(record);
+    if (!parsed) continue;
+    for (const prefix of collectGlobalUsings(parsed)) projectGlobalUsings.add(prefix);
+  }
+  const csharpGlobalUsings = [...projectGlobalUsings];
+
   // 5. Resolver composes owner index + symbol table + injected path resolution.
   const resolver = makeResolver({
     ownerIndex,
@@ -193,7 +209,13 @@ export async function runRelationPass(
       const parsed = await getParsed(record);
       if (!parsed) continue;
 
-      for (const dep of extractor.uses(parsed)) {
+      // C# uses the cross-file global-using set as its lowest using tier (R5). Every other
+      // extractor's `uses` ignores extra args, so this is a no-op for them.
+      const detected =
+        record.language === 'csharp'
+          ? csharpUses(parsed, { projectGlobalUsings: csharpGlobalUsings })
+          : extractor.uses(parsed);
+      for (const dep of detected) {
         // Ordered first-unique-match-wins walk over the candidate group (nearest binding
         // first, verbatim/top-level last). For a one-element group this is byte-identical
         // to a single resolve.
