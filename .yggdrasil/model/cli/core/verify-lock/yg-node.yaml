@@ -30,6 +30,6 @@ relations:
   - target: cli/model/lock
     type: uses
   - target: cli/structure
-    type: extends
+    type: calls
 mapping:
   - source/cli/src/core/verify-lock.ts

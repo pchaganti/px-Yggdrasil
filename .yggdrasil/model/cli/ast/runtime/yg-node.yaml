@@ -11,8 +11,8 @@ mapping:
   - source/cli/src/ast/suppress.ts
 relations:
   - target: cli/ast/report
-    type: extends
+    type: calls
   - target: cli/core/language-registry
-    type: extends
+    type: calls
   - target: cli/utils
     type: calls

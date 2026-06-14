@@ -31,13 +31,13 @@ relations:
   - target: cli/tests/unit/cli
     type: uses
   - target: cli/exit-after-flush
-    type: extends
+    type: calls
   - target: cli/formatters
     type: calls
   - target: cli/model/graph
     type: uses
   - target: cli/preamble
-    type: extends
+    type: calls
   - target: cli/structure-runner
     type: calls
   - target: cli/utils

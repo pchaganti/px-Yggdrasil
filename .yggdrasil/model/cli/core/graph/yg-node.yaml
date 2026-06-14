@@ -12,7 +12,7 @@ relations:
   - target: cli/core/when-evaluator
     type: calls
   - target: cli/structure
-    type: extends
+    type: calls
   - target: cli/utils
     type: calls
 mapping:

@@ -16,8 +16,8 @@ relations:
   - target: cli/ast/runtime
     type: calls
   - target: cli/core/language-registry
-    type: extends
+    type: calls
   - target: cli/structure-runner
-    type: extends
+    type: calls
   - target: cli/utils
     type: calls

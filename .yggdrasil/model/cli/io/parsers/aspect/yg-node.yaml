@@ -10,8 +10,8 @@ relations:
   - target: cli/utils
     type: calls
   - target: cli/formatters
-    type: extends
+    type: calls
   - target: cli/io/stores
-    type: extends
+    type: calls
 mapping:
   - source/cli/src/io/aspect-parser.ts

@@ -31,15 +31,15 @@ relations:
   - target: cli/core/log-validator
     type: calls
   - target: cli/formatters
-    type: extends
+    type: calls
   - target: cli/io/parsers/config
     type: calls
   - target: cli/io/stores
     type: calls
   - target: cli/relations
-    type: extends
+    type: calls
   - target: cli/relations/extractors
-    type: extends
+    type: calls
   - target: cli/utils
     type: calls
 mapping:

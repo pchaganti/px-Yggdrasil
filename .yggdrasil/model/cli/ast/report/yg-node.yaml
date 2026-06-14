@@ -11,6 +11,6 @@ mapping:
   - source/cli/src/ast/walk.ts
 relations:
   - target: cli/core/language-registry
-    type: extends
+    type: calls
   - target: cli/utils
     type: calls

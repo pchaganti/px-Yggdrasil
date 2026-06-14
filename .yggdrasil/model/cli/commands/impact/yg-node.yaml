@@ -13,20 +13,20 @@ relations:
   - target: cli/tests/unit/cli
     type: uses
   - target: cli/commands/owner
-    type: extends
+    type: calls
   - target: cli/core/graph
     type: calls
   - target: cli/exit-after-flush
-    type: extends
+    type: calls
   - target: cli/formatters
     type: calls
   - target: cli/impact-handlers
-    type: extends
+    type: calls
   - target: cli/io/lock-store
     type: calls
   - target: cli/io/stores
     type: calls
   - target: cli/preamble
-    type: extends
+    type: calls
 mapping:
   - source/cli/src/cli/impact.ts

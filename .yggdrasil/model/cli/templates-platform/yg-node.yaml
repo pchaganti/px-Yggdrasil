@@ -5,7 +5,7 @@ description: Default yg-config.yaml template and platform-specific installer
   Template) sibling node.
 relations:
   [
-    { target: cli/templates, type: extends },
+    { target: cli/templates, type: calls },
     { target: cli/utils, type: calls }
   ]
 mapping:

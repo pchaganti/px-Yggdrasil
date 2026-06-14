@@ -20,7 +20,7 @@ relations:
   - target: cli/formatters
     type: calls
   - target: cli/preamble
-    type: extends
+    type: calls
   - target: cli/utils
     type: calls
 mapping:

@@ -19,7 +19,7 @@ relations:
   - target: cli/tests/unit/cli
     type: uses
   - target: cli/commands/owner
-    type: extends
+    type: calls
   - target: cli/core/log
     type: calls
   - target: cli/core/pairs
@@ -29,6 +29,6 @@ relations:
   - target: cli/io/stores
     type: calls
   - target: cli/preamble
-    type: extends
+    type: calls
 mapping:
   - source/cli/src/cli/build-context.ts

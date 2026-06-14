@@ -11,7 +11,7 @@ relations:
   - target: cli/core/loader
     type: calls
   - target: cli/core/migrations
-    type: extends
+    type: calls
   - target: cli/core/migrator
     type: calls
   - target: cli/core/migrator-runner
@@ -21,7 +21,7 @@ relations:
   - target: cli/llm/shared
     type: calls
   - target: cli/preamble
-    type: extends
+    type: calls
   - target: cli/templates-platform
     type: calls
   - target: cli/utils

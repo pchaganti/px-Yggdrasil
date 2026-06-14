@@ -10,10 +10,10 @@ relations:
   - target: cli/ast/runtime
     type: calls
   - target: cli/core/pair-hash
-    type: extends
+    type: calls
   - target: cli/io/stores
-    type: extends
+    type: calls
   - target: cli/structure
-    type: extends
+    type: calls
   - target: cli/utils
     type: calls

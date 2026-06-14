@@ -17,6 +17,6 @@ relations:
   - target: cli/io/stores
     type: calls
   - target: cli/preamble
-    type: extends
+    type: calls
 mapping:
   - source/cli/src/cli/owner.ts

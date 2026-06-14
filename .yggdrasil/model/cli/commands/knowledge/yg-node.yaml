@@ -11,8 +11,8 @@ relations:
   - target: cli/formatters
     type: calls
   - target: cli/knowledge-concepts
-    type: extends
+    type: calls
   - target: cli/preamble
-    type: extends
+    type: calls
 mapping:
   - source/cli/src/cli/knowledge.ts
