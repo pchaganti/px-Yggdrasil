@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { resolveTsPath } from './extractors/typescript-resolve.js';
 import { resolvePythonModule } from './extractors/python-resolve.js';
 import { resolveGoImport, type GoResolveDeps } from './extractors/go-resolve.js';
-import { resolveJavaFqn, type JavaResolveDeps } from './extractors/java-resolve.js';
+import { resolveJavaFqn, resolveJavaPackageFiles, type JavaResolveDeps } from './extractors/java-resolve.js';
 import { resolvePhpFqn, parsePsr4, type PhpResolveDeps } from './extractors/php-resolve.js';
 import { resolveRustPath, type RustResolveDeps } from './extractors/rust-resolve.js';
 import { resolveIncludePath } from './extractors/include-resolve.js';
@@ -15,13 +15,13 @@ import { resolveRubyRequireRelative } from './extractors/ruby-resolve.js';
 export function makeResolvePathToFile(
   projectRoot: string,
   ownerOf?: (repoRelPosix: string) => string | undefined,
-): (specifier: string, fromFile: string, language: string) => string | undefined {
+): (specifier: string, fromFile: string, language: string, isPackage?: boolean) => string | undefined {
   const exists = (repoRelPosix: string): boolean => existsSync(path.resolve(projectRoot, repoRelPosix));
   const goDeps = makeGoResolveDeps(projectRoot, ownerOf);
   const javaDeps = makeJavaResolveDeps(projectRoot, exists);
   const phpDeps = makePhpResolveDeps(projectRoot, exists);
   const rustDeps = makeRustResolveDeps(projectRoot);
-  return (specifier, fromFile, language) => {
+  return (specifier, fromFile, language, isPackage = false) => {
     if (language === 'typescript' || language === 'tsx' || language === 'javascript') {
       return resolveTsPath(specifier, fromFile, exists);
     }
@@ -32,6 +32,21 @@ export function makeResolvePathToFile(
       return resolveGoImport(specifier, fromFile, goDeps);
     }
     if (language === 'java') {
+      if (isPackage) {
+        // Wildcard package import: collect owners of ALL .java in the resolved
+        // package dir. Exactly one distinct owner → attribute (return that file);
+        // zero or 2+ distinct owners → silence (S2/S3 — never guess across a split).
+        const files = resolveJavaPackageFiles(specifier, fromFile, javaDeps);
+        const owners = new Set<string>();
+        let firstFile: string | undefined;
+        for (const f of files) {
+          const owner = ownerOf?.(f);
+          if (owner === undefined) continue; // unmapped file is not part of the owner set
+          if (owners.size === 0) firstFile = f;
+          owners.add(owner);
+        }
+        return owners.size === 1 ? firstFile : undefined;
+      }
       return resolveJavaFqn(specifier, fromFile, javaDeps);
     }
     if (language === 'php') {

@@ -3,9 +3,13 @@ import path from 'node:path';
 /**
  * Resolve a Java import FQN to a repo-relative POSIX `.java` source file, or undefined.
  *
- * The specifier is what the extractor emits: a fully-qualified Java name — a TYPE
- * FQN (`com.foo.Bar`, from a single-type or static import) or a PACKAGE FQN
- * (`com.foo`, from a wildcard import).
+ * The specifier is what the extractor emits: a fully-qualified Java name. The
+ * dispatch boundary (`makeResolvePathToFile`) routes the two universes:
+ *   - TYPE FQN (`com.foo.Bar`, from a single-type or static import): routed through
+ *     `resolveJavaFqn` — returns a single file, NO package fall-through.
+ *   - PACKAGE FQN (`com.foo`, from a wildcard import, tagged `isPackage`): routed
+ *     through `resolveJavaPackageFiles` — returns the candidate file LIST so the
+ *     caller can apply owner-set collapse (one owner → attribute, 0/2+ → silence).
  *
  * Java compiles `package a.b.c; class Foo` to a path ending `a/b/c/Foo.java` under
  * SOME source root (commonly `src/main/java`, `src/test/java`, or a module srcDir;
@@ -13,28 +17,6 @@ import path from 'node:path';
  * the Python module-path search — we probe the FQN as a file rooted at the importing
  * file's directory and at every ancestor directory up to (and including) the repo
  * root, nearest-first. The FIRST existing candidate wins.
- *
- * For a TYPE FQN `com.foo.Bar`:
- *   - candidate `com/foo/Bar.java` at each root.
- *   - NESTED TYPE longest-match: `com.foo.Outer.Inner` — `Inner` may be a member of
- *     `Outer`, so also probe `com/foo/Outer.java` (drop the trailing segment). The
- *     deeper (full-FQN) candidate is tried first; the parent is the fallback.
- *
- * For a PACKAGE FQN (`isPackage`, a wildcard import) `com.foo`:
- *   - the package DIRECTORY `com/foo/` at each root; a representative `.java` in it
- *     (via `javaFilesIn`) owns the dependency.
- *
- * `deps.exists` reports file presence; `deps.javaFilesIn` lists `.java` files in a
- * directory (used for the wildcard package case). Resolution is pure except through
- * `deps`.
- *
- * A specifier may be a TYPE FQN or a PACKAGE FQN, and the dispatch boundary
- * (`makeResolvePathToFile`) does not know which. The two universes do not collide:
- * a type `com.foo.Bar` resolves to a FILE `com/foo/Bar.java`, while a wildcard
- * package `com.foo` resolves to a DIRECTORY `com/foo/` of `.java` files — a normal
- * type never has a `<segments>/` directory of sources and a package never has a
- * `<segments>.java` file. So we try TYPE resolution first (the common case) and
- * fall back to PACKAGE resolution. No out-of-band flag is needed.
  *
  * RESOLUTION MISS → undefined. This fail-to-silence is the single most important
  * false-positive guard: a `java.*` / `javax.*` / `jakarta.*` stdlib type, a
@@ -48,6 +30,13 @@ export interface JavaResolveDeps {
   javaFilesIn(repoRelDir: string): string[];
 }
 
+/**
+ * Resolve a single-TYPE Java import FQN (`com.foo.Bar`) to a repo-relative `.java`
+ * file, or undefined. NO package fall-through: a hint reaches here only for a TYPE
+ * (the extractor tags package wildcards with `isPackage`, routed through
+ * `resolveJavaPackageFiles` instead). A type FQN whose path is actually a package
+ * DIRECTORY resolves to nothing — silence, not a phantom package edge.
+ */
 export function resolveJavaFqn(
   specifier: string,
   fromFile: string,
@@ -55,13 +44,30 @@ export function resolveJavaFqn(
 ): string | undefined {
   const segments = specifier.split('.').filter((s) => s.length > 0);
   if (segments.length === 0) return undefined;
+  return resolveType(segments, fromFile, deps);
+}
 
-  // TYPE FQN → file (com/foo/Bar.java). The dominant case.
-  const asType = resolveType(segments, fromFile, deps);
-  if (asType !== undefined) return asType;
-
-  // PACKAGE FQN → directory (com/foo/) → representative .java (wildcard import).
-  return resolvePackage(segments, fromFile, deps);
+/**
+ * Resolve a wildcard PACKAGE FQN (`com.foo`) to the candidate `.java` files in the
+ * resolved package directory, found via the same ancestor-source-root search the type
+ * resolver uses. Returns the FULL list (caller computes the owner set: one owner →
+ * attribute, zero or 2+ → silence). Empty list = the package directory was found
+ * nowhere, or exists with no `.java` files.
+ */
+export function resolveJavaPackageFiles(
+  packageFqn: string,
+  fromFile: string,
+  deps: JavaResolveDeps,
+): string[] {
+  const segments = packageFqn.split('.').filter((s) => s.length > 0);
+  if (segments.length === 0) return [];
+  const pkgDir = segments.join('/'); // com/foo
+  for (const dir of ancestorDirs(path.posix.dirname(toPosix(fromFile)))) {
+    const repoRelDir = joinUnder(dir, pkgDir);
+    const files = deps.javaFilesIn(repoRelDir);
+    if (files.length > 0) return [...files].sort();
+  }
+  return [];
 }
 
 /** TYPE FQN `com.foo.Bar` → `com/foo/Bar.java` (with the nested-type parent fallback). */
@@ -82,25 +88,6 @@ function resolveType(
     if (parentTypePath !== undefined) candidates.push(joinUnder(dir, parentTypePath));
     for (const cand of candidates) {
       if (deps.exists(cand)) return cand;
-    }
-  }
-  return undefined;
-}
-
-/** PACKAGE FQN `com.foo` → directory `com/foo/` → a representative `.java` in it. */
-function resolvePackage(
-  segments: string[],
-  fromFile: string,
-  deps: JavaResolveDeps,
-): string | undefined {
-  const pkgDir = segments.join('/'); // com/foo
-
-  for (const dir of ancestorDirs(path.posix.dirname(toPosix(fromFile)))) {
-    const repoRelDir = joinUnder(dir, pkgDir);
-    const files = deps.javaFilesIn(repoRelDir);
-    if (files.length > 0) {
-      // Deterministic representative: the lexically-first `.java` in the package.
-      return [...files].sort()[0];
     }
   }
   return undefined;

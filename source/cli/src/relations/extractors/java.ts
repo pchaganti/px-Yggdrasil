@@ -78,13 +78,13 @@ function uses(file: ParsedFile): DetectedDep[] {
   const out: DetectedDep[] = [];
   const seen = new Set<string>();
 
-  const emit = (specifier: string | undefined, node: Node): void => {
+  const emit = (specifier: string | undefined, node: Node, isPackage = false): void => {
     if (specifier === undefined || specifier === '') return;
     const line = node.startPosition.row + 1;
     const dedupKey = `${specifier} ${line}`;
     if (seen.has(dedupKey)) return;
     seen.add(dedupKey);
-    out.push({ targetHint: { kind: 'path', specifier }, kind: 'import', line });
+    out.push({ targetHint: { kind: 'path', specifier, isPackage }, kind: 'import', line });
   };
 
   walk(file.tree.rootNode, (node) => {
@@ -97,10 +97,10 @@ function uses(file: ParsedFile): DetectedDep[] {
     const isStatic = isStaticImport(node);
 
     if (wildcard) {
-      // `import com.foo.*;`            → package FQN `com.foo` (emit as-is).
+      // `import com.foo.*;`            → package FQN `com.foo` (a directory of types).
       // `import static com.foo.Bar.*;` → the scoped_identifier IS the class FQN
-      //   `com.foo.Bar` (the `*` is a separate token), so emit it unchanged too.
-      emit(fqn, node);
+      //   `com.foo.Bar` (static-on-demand); it is a TYPE, not a package.
+      emit(fqn, node, /* isPackage */ !isStatic);
     } else if (isStatic) {
       // `import static com.foo.Bar.method;` → drop the trailing member → type FQN.
       emit(dropLastSegment(fqn), node);

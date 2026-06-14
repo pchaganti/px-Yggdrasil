@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { resolveJavaFqn, type JavaResolveDeps } from '../../../../src/relations/extractors/java-resolve.js';
+import {
+  resolveJavaFqn,
+  resolveJavaPackageFiles,
+  type JavaResolveDeps,
+} from '../../../../src/relations/extractors/java-resolve.js';
 
 // Fixed resolution universe (repo-relative POSIX). Two source roots are present —
 // a flat `src/main/java/...` Maven layout and a sibling `lib/...` root — to prove
@@ -70,15 +74,38 @@ describe('resolveJavaFqn — type FQN → file', () => {
   });
 });
 
-describe('resolveJavaFqn — wildcard package FQN → directory', () => {
-  it('resolves a package FQN to a representative .java in that package directory', () => {
-    // com.acme.audit → src/main/java/com/acme/audit/ → lexically-first .java.
-    expect(resolveJavaFqn('com.acme.audit', FROM, deps)).toBe(
+describe('resolveJavaPackageFiles — wildcard package FQN → candidate file set', () => {
+  it('returns ALL .java files in the resolved package directory', () => {
+    // com.acme.audit → src/main/java/com/acme/audit/ has TWO files.
+    expect(resolveJavaPackageFiles('com.acme.audit', FROM, deps).sort()).toEqual([
       'src/main/java/com/acme/audit/AuditLog.java',
-    );
+      'src/main/java/com/acme/audit/AuditWriter.java',
+    ]);
   });
 
-  it('returns undefined for a package with no source files anywhere', () => {
-    expect(resolveJavaFqn('com.acme.empty', FROM, deps)).toBeUndefined();
+  it('returns an empty set for a package with no source files anywhere', () => {
+    expect(resolveJavaPackageFiles('com.acme.empty', FROM, deps)).toEqual([]);
+  });
+
+  it('returns the single file for a one-file package', () => {
+    // com.acme.payments has exactly one .java.
+    expect(resolveJavaPackageFiles('com.acme.payments', FROM, deps)).toEqual([
+      'src/main/java/com/acme/payments/PaymentService.java',
+    ]);
+  });
+});
+
+describe('resolveJavaFqn — single-type import does NOT fall through to a package', () => {
+  it('returns undefined for a type FQN whose path is a DIRECTORY of .java files', () => {
+    // com.acme.audit is a package directory, NOT a type. A single-type hint
+    // (isPackage absent) must not resolve it as a package — the old fall-through
+    // would have returned a representative .java; the guard returns undefined.
+    expect(resolveJavaFqn('com.acme.audit', FROM, deps)).toBeUndefined();
+  });
+
+  it('still resolves a real type FQN to its file', () => {
+    expect(resolveJavaFqn('com.acme.payments.PaymentService', FROM, deps)).toBe(
+      'src/main/java/com/acme/payments/PaymentService.java',
+    );
   });
 });

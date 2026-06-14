@@ -7,12 +7,22 @@ const run = (code: string) => runExtractor(javaExtractor, 'java', '.java', code)
 const specs = (uses: Awaited<ReturnType<typeof run>>['uses']): string[] =>
   uses.flatMap((u) => (u.targetHint.kind === 'path' ? [u.targetHint.specifier] : []));
 
+const hintFor = (
+  uses: Awaited<ReturnType<typeof run>>['uses'],
+  specifier: string,
+): Extract<(typeof uses)[number]['targetHint'], { kind: 'path' }> | undefined =>
+  uses
+    .map((u) => u.targetHint)
+    .find((h): h is Extract<typeof h, { kind: 'path' }> =>
+      h.kind === 'path' && h.specifier === specifier,
+    );
+
 describe('java extractor — uses()', () => {
   it('emits the type FQN for a single-type import', async () => {
     const { uses } = await run('import com.acme.payments.PaymentService;\nclass C {}\n');
     expect(uses).toContainEqual(
       expect.objectContaining({
-        targetHint: { kind: 'path', specifier: 'com.acme.payments.PaymentService' },
+        targetHint: expect.objectContaining({ kind: 'path', specifier: 'com.acme.payments.PaymentService' }),
         kind: 'import',
       }),
     );
@@ -104,6 +114,29 @@ describe('java extractor — uses()', () => {
     const s = specs(uses);
     expect(s).toContain('com.acme.a.Alpha');
     expect(s).toContain('com.acme.b.Beta');
+  });
+
+  it('tags the wildcard package hint with isPackage: true', async () => {
+    const { uses } = await run('import com.acme.audit.*;\nclass C {}\n');
+    const h = hintFor(uses, 'com.acme.audit');
+    expect(h).toBeDefined();
+    expect(h?.isPackage).toBe(true);
+  });
+
+  it('does NOT tag a single-type import as a package', async () => {
+    const { uses } = await run('import com.acme.payments.PaymentService;\nclass C {}\n');
+    const h = hintFor(uses, 'com.acme.payments.PaymentService');
+    expect(h).toBeDefined();
+    expect(h?.isPackage).toBeFalsy();
+  });
+
+  it('does NOT tag a static-on-demand import as a package (the FQN is the class)', async () => {
+    // `import static com.acme.util.Constants.*;` — the scoped_identifier IS the
+    // class; the asterisk is static-on-demand, not a package wildcard.
+    const { uses } = await run('import static com.acme.util.Constants.*;\nclass C {}\n');
+    const h = hintFor(uses, 'com.acme.util.Constants');
+    expect(h).toBeDefined();
+    expect(h?.isPackage).toBeFalsy();
   });
 
   it('does NOT treat extends/implements/new/method calls as edges (v1 = import only)', async () => {
