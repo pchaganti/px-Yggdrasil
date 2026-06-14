@@ -983,103 +983,112 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
   //    with the LLM aspect stripped and the reviewer killed.
   // =========================================================================
 
-  // Read the orders node's ASPECT verdict hashes (aspectId → hash) and its relation verdict
-  // straight from the lock. Used by D1/D2 to prove aspect-verdict input-precision separately
-  // from the relation verdict's relation-sensitivity.
-  function ordersLockFacts(dir: string): {
-    aspectHashes: Record<string, string>;
-    relationVerdict: string | undefined;
-  } {
+  // Read the orders node's ASPECT verdict hashes (aspectId → hash) straight from the
+  // lock. Used by D1/D2 to prove aspect-verdict input-precision: a relation edit is
+  // NOT an aspect-verdict input, so these hashes stay byte-identical across it.
+  // Relations themselves are no longer in the lock — they are computed live every run.
+  function ordersAspectHashes(dir: string): Record<string, string> {
     const lock = JSON.parse(readFileSync(path.join(dir, '.yggdrasil', 'yg-lock.json'), 'utf-8')) as {
       verdicts: Record<string, Record<string, { hash: string }>>;
-      relation_verdicts: Record<string, { verdict: string }>;
     };
     const aspectHashes: Record<string, string> = {};
     for (const [aspectId, byUnit] of Object.entries(lock.verdicts)) {
       const entry = byUnit['node:services/orders'];
       if (entry) aspectHashes[aspectId] = entry.hash;
     }
-    return { aspectHashes, relationVerdict: lock.relation_verdicts['node:services/orders']?.verdict };
+    return aspectHashes;
   }
 
-  // D1: relation-conformance behavior. Adding a bare `uses` relation to a node's own
-  //     yg-node.yaml is now an INPUT to that node's RELATION verdict (the relation set is
-  //     folded into the relation fingerprint), so the relation verdict goes unverified and a
-  //     re-approve re-seeds it (empty registry → approved). The node's ASPECT verdicts are
-  //     UNCHANGED — a relation is not an aspect-verdict input — proving the surviving
-  //     "bare relations don't propagate aspects" property holds for aspect verdicts.
-  it('D1: adding a bare uses relation re-validates the node RELATION verdict but NOT its aspect verdicts', () => {
+  // The path to the copied orders source — D1/D2 give it a REAL cross-node import of
+  // services/payments so the live relation pass has an actual dependency to judge.
+  const ordersSrc = (dir: string) => path.join(dir, 'src', 'services', 'orders.ts');
+  const ORDERS_WITH_PAYMENT_IMPORT =
+    "import { charge } from './payments.js';\n" +
+    'export interface Order { id: string; total: number; }\n' +
+    'export function createOrder(id: string, total: number): Order {\n' +
+    '  charge(id, total);\n' +
+    '  return { id, total };\n' +
+    '}\n';
+  const ORDERS_RELATIONS = [
+    'relations:',
+    '  - target: services/payments',
+    '    type: uses',
+  ];
+
+  // D1: relation conformance is computed LIVE. orders has a REAL cross-node import of
+  //     services/payments. With the relation declared the live pass approves; remove the
+  //     declaration and a plain `yg check` (no --approve) catches the now-undeclared
+  //     dependency directly — there is no cache to invalidate or re-seed. Across the
+  //     relation edit the node's ASPECT verdicts are byte-identical (a relation is not an
+  //     aspect-verdict input) — the surviving "relations are not aspect inputs" property.
+  it('D1: a plain check catches an undeclared dependency live; declaring the relation clears it; aspect verdicts never move', () => {
     const dir = deterministicLifecycle('d1-add-relation');
     try {
-      expect(run(['check', '--approve'], dir).status).toBe(0);
-      expect(run(['check'], dir).status).toBe(0);
-      const before = ordersLockFacts(dir);
-
-      // Add an allowed `uses` relation (service uses service) to orders.
+      // orders genuinely imports payments; declare the relation so the baseline is green.
+      writeFileSync(ordersSrc(dir), ORDERS_WITH_PAYMENT_IMPORT, 'utf-8');
       writeFileSync(
         ordersNodeYaml(dir),
-        [
-          ...ORDERS_BASE,
-          'relations:',
-          '  - target: services/payments',
-          '    type: uses',
-          'mapping:',
-          '  - src/services/orders.ts',
-          '',
-        ].join('\n'),
+        [...ORDERS_BASE, ...ORDERS_RELATIONS, 'mapping:', '  - src/services/orders.ts', ''].join('\n'),
         'utf-8',
       );
+      expect(run(['check', '--approve'], dir).status).toBe(0);
+      expect(run(['check'], dir).status).toBe(0);
+      const before = ordersAspectHashes(dir);
 
-      // RELATION verdict half: the relation is an input to the relation verdict, so it goes
-      // unverified — exit 1, the relation code fires, the node is named.
+      // Remove the declaration — the import is still there, so it becomes undeclared. A
+      // plain `yg check` (NO --approve) computes the relation pass live and catches it.
+      writeFileSync(
+        ordersNodeYaml(dir),
+        [...ORDERS_BASE, 'mapping:', '  - src/services/orders.ts', ''].join('\n'),
+        'utf-8',
+      );
       const after = run(['check'], dir);
-      expect(after.status).toBe(1); // relation verdict is relation-sensitive since relation-conformance
+      expect(after.status).toBe(1); // live relation pass catches the undeclared dependency
       expect(after.all).toContain('relation-undeclared-dependency');
       expect(after.all).toContain('services/orders');
 
-      // ASPECT verdict half: the aspect verdicts are NOT invalidated — their hashes are byte-identical
+      // ASPECT verdict half: the aspect verdicts are NOT invalidated — byte-identical
       // (a relation is not an aspect-verdict input). No aspect pair is named unverified.
-      expect(after.all).not.toContain("No valid verdict for aspect");
-      expect(ordersLockFacts(dir).aspectHashes).toEqual(before.aspectHashes);
+      expect(after.all).not.toContain('No valid verdict for aspect');
+      expect(ordersAspectHashes(dir)).toEqual(before);
 
-      // A re-approve re-seeds the relation verdict (empty registry → approved); check is green again.
-      expect(run(['check', '--approve'], dir).status).toBe(0);
-      const reapproved = run(['check'], dir);
-      expect(reapproved.status).toBe(0);
-      expect(reapproved.stdout).toContain('PASS');
-      // The aspect verdicts are STILL byte-identical after the re-approve (never re-verified).
-      const final = ordersLockFacts(dir);
-      expect(final.aspectHashes).toEqual(before.aspectHashes);
-      expect(final.relationVerdict).toBe('approved');
+      // Re-declaring the relation clears the live error (re-approve NOT required for relations).
+      writeFileSync(
+        ordersNodeYaml(dir),
+        [...ORDERS_BASE, ...ORDERS_RELATIONS, 'mapping:', '  - src/services/orders.ts', ''].join('\n'),
+        'utf-8',
+      );
+      const cleared = run(['check'], dir);
+      expect(cleared.status).toBe(0);
+      expect(cleared.stdout).toContain('PASS');
+      // The aspect verdicts are STILL byte-identical (never re-verified by a relation edit).
+      expect(ordersAspectHashes(dir)).toEqual(before);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  // D2: relation-conformance behavior, symmetric to D1. REMOVING a previously-approved
-  //     relation changes the relation set, which is an input to the node's RELATION verdict,
-  //     so it goes unverified and a re-approve re-seeds it. The node's ASPECT verdicts are
-  //     UNCHANGED (a relation is not an aspect-verdict input).
-  it('D2: removing a bare uses relation re-validates the node RELATION verdict but NOT its aspect verdicts', () => {
+  // D2: symmetric to D1 from the other direction — start WITH the relation declared and
+  //     green, then remove it and confirm a plain `yg check` catches the live undeclared
+  //     dependency. The node's ASPECT verdicts are UNCHANGED (a relation is not an
+  //     aspect-verdict input). Relations are never written to the lock.
+  it('D2: removing a declared relation re-introduces the live error but never touches the aspect verdicts', () => {
     const dir = deterministicLifecycle('d2-remove-relation');
     try {
-      // Start WITH the relation, fill, confirm clean.
+      // Start WITH the import AND the relation, fill, confirm clean.
+      writeFileSync(ordersSrc(dir), ORDERS_WITH_PAYMENT_IMPORT, 'utf-8');
       writeFileSync(
         ordersNodeYaml(dir),
-        [
-          ...ORDERS_BASE,
-          'relations:',
-          '  - target: services/payments',
-          '    type: uses',
-          'mapping:',
-          '  - src/services/orders.ts',
-          '',
-        ].join('\n'),
+        [...ORDERS_BASE, ...ORDERS_RELATIONS, 'mapping:', '  - src/services/orders.ts', ''].join('\n'),
         'utf-8',
       );
       expect(run(['check', '--approve'], dir).status).toBe(0);
       expect(run(['check'], dir).status).toBe(0);
-      const before = ordersLockFacts(dir);
+      const before = ordersAspectHashes(dir);
+
+      // The lock carries NO relation cache — relations are computed live.
+      const raw = readFileSync(path.join(dir, '.yggdrasil', 'yg-lock.json'), 'utf-8');
+      expect(raw).not.toContain('relation_verdicts');
 
       // Now REMOVE the relation — a pure graph-structure edit, no source change.
       writeFileSync(
@@ -1088,25 +1097,15 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
         'utf-8',
       );
 
-      // RELATION verdict half: the relation set changed (an input), so the relation verdict goes
-      // unverified — exit 1, the relation code fires, the node is named.
+      // Live relation pass catches the now-undeclared dependency — exit 1, node named.
       const after = run(['check'], dir);
-      expect(after.status).toBe(1); // relation verdict is relation-sensitive since relation-conformance
+      expect(after.status).toBe(1);
       expect(after.all).toContain('relation-undeclared-dependency');
       expect(after.all).toContain('services/orders');
 
       // ASPECT verdict half: the aspect verdicts are NOT invalidated — hashes byte-identical.
-      expect(after.all).not.toContain("No valid verdict for aspect");
-      expect(ordersLockFacts(dir).aspectHashes).toEqual(before.aspectHashes);
-
-      // A re-approve re-seeds the relation verdict (empty registry → approved); check is green again.
-      expect(run(['check', '--approve'], dir).status).toBe(0);
-      const reapproved = run(['check'], dir);
-      expect(reapproved.status).toBe(0);
-      expect(reapproved.stdout).toContain('PASS');
-      const final = ordersLockFacts(dir);
-      expect(final.aspectHashes).toEqual(before.aspectHashes);
-      expect(final.relationVerdict).toBe('approved');
+      expect(after.all).not.toContain('No valid verdict for aspect');
+      expect(ordersAspectHashes(dir)).toEqual(before);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

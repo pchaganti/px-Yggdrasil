@@ -154,14 +154,14 @@ describe('relation Java anti-false-positive (D8 soundness gate)', () => {
       symbolIndexDir: path.join(root, '.yg-cache'),
     });
 
-    const allViolations = [...result.verdicts.values()].flatMap((v) => v.violations);
+    const allViolations = [...result.violationsByNode.values()].flatMap((v) => v.violations);
     expect(
       allViolations,
       `expected no undeclared-dependency violations, got: ${JSON.stringify(allViolations)}`,
     ).toHaveLength(0);
 
     for (const nodeId of ['a', 'a/child', 'b']) {
-      expect(result.verdicts.get(nodeId)?.verdict, `node ${nodeId}`).toBe('approved');
+      expect(result.violationsByNode.get(nodeId)?.verdict, `node ${nodeId}`).toBe('approved');
     }
   });
 
@@ -180,7 +180,7 @@ describe('relation Java anti-false-positive (D8 soundness gate)', () => {
         resolvePathToFile: makeResolvePathToFile(root),
         symbolIndexDir: path.join(root, '.yg-cache'),
       });
-      const v = result.verdicts.get(c.node);
+      const v = result.violationsByNode.get(c.node);
       expect(v?.verdict, c.name).toBe('approved');
       expect(v?.violations, c.name).toHaveLength(0);
     });

@@ -1,9 +1,8 @@
 /**
  * source/cli/src/core/fill-gc.ts — garbage collection + canonical lock rewrite for
  * the fill stage (spec §3.2). Prunes verdict entries whose pair left the expected
- * universe and `nodes`/`relation_verdicts` entries for vanished node paths, then
- * rewrites the lock canonically. GC may only prune entries it can POSITIVELY prove
- * are detached.
+ * universe and `nodes` entries for vanished node paths, then rewrites the lock
+ * canonically. GC may only prune entries it can POSITIVELY prove are detached.
  */
 
 import type { Graph } from '../model/graph.js';
@@ -89,13 +88,6 @@ export async function garbageCollectAndRewrite(
   // Prune nodes for absent node paths.
   for (const nodePath of Object.keys(lock.nodes)) {
     if (!graph.nodes.has(nodePath)) delete lock.nodes[nodePath];
-  }
-
-  // Prune relation verdicts for unit keys whose node no longer exists (a relation
-  // verdict is always node-keyed; a non-`node:` key or an absent node is detached).
-  for (const unitKey of Object.keys(lock.relation_verdicts)) {
-    const nodePath = unitKey.startsWith('node:') ? unitKey.slice('node:'.length) : null;
-    if (nodePath === null || !graph.nodes.has(nodePath)) delete lock.relation_verdicts[unitKey];
   }
 
   lock.version = LOCK_FORMAT_VERSION;

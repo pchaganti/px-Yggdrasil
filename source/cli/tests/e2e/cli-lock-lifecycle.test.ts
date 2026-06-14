@@ -120,9 +120,9 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: lifecycle / closure / GC'
       expect(fill.all).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(fill.all).toContain('[llm] has-doc-comment on node:services/orders — approved');
 
-      // Lock content sane: valid JSON, version 2, sorted keys, entries present.
+      // Lock content sane: valid JSON, version 1, sorted keys, entries present.
       const lock = readLock(dir);
-      expect(lock.version).toBe(2); // lock is v2 since relation-conformance
+      expect(lock.version).toBe(1); // relations are computed live; the lock is back to v1
       const raw = readFileSync(lockPath(dir), 'utf-8');
       expect(raw.endsWith('}\n')).toBe(true); // trailing newline
       // top-level aspect ids sorted (code-point)

@@ -115,7 +115,7 @@ function buildGraph(
 }
 
 function emptyLock(): LockFile {
-  return { version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: {}, relation_verdicts: {} };
+  return { version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: {} };
 }
 
 /**

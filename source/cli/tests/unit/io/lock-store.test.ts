@@ -6,17 +6,9 @@ import { mkdir, rm, writeFile, stat } from 'node:fs/promises';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = path.join(__dirname, '../../fixtures');
 
-import type { LockFile, RelationEvidence } from '../../../src/model/lock.js';
+import type { LockFile } from '../../../src/model/lock.js';
 import { LOCK_FORMAT_VERSION } from '../../../src/model/lock.js';
 
-/** Schema-valid empty relation evidence for verdict literals under test. */
-const EMPTY_EVIDENCE: RelationEvidence = {
-  sources: [],
-  relations: '',
-  outcomes: [],
-  grammarVersions: [],
-  indexIdentity: '',
-};
 import {
   readLock,
   writeLock,
@@ -41,7 +33,7 @@ describe('lock-store', () => {
     await rm(tmpDir, { recursive: true, force: true });
     await mkdir(tmpDir, { recursive: true });
     const result = readLock(tmpDir);
-    expect(result).toEqual({ version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: {}, relation_verdicts: {} });
+    expect(result).toEqual({ version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: {} });
   });
 
   it('writeLock + readLock roundtrip preserves entries and nodes', async () => {
@@ -67,7 +59,6 @@ describe('lock-store', () => {
           log: { last_entry_datetime: '2026-06-12T10:00:00.000Z', prefix_hash: 'loghash' },
         },
       },
-      relation_verdicts: {},
     };
     await writeLock(tmpDir, lock);
     const result = readLock(tmpDir);
@@ -94,10 +85,6 @@ describe('lock-store', () => {
           source: 'fp-billing',
         },
       },
-      relation_verdicts: {
-        'node:z-unit': { verdict: 'approved', fingerprint: 'fp-z', evidence: EMPTY_EVIDENCE },
-        'node:a-unit': { verdict: 'refused', fingerprint: 'fp-a', reason: 'undeclared dep', evidence: EMPTY_EVIDENCE },
-      },
     };
 
     // Expected canonical form:
@@ -106,12 +93,9 @@ describe('lock-store', () => {
     // - entry fields sorted by code-point: "hash" (h=0x68) < "reason" (r=0x72) < "verdict" (v=0x76)
     // - each verdict entry on ONE line
     // - nodes entry on ONE line
-    // - relation_verdicts: unit keys code-point sorted ("node:a-unit" < "node:z-unit");
-    //   entry fields sorted ("evidence" < "fingerprint" < "reason" < "verdict"); absent reason omitted
-    const ev = '{"sources":[],"relations":"","outcomes":[],"grammarVersions":[],"indexIdentity":""}';
     const expected =
       '{\n' +
-      '  "version": 2,\n' +
+      '  "version": 1,\n' +
       '  "verdicts": {\n' +
       '    "Zeta-rule": {\n' +
       '      "node:A-unit": {"hash":"hash-zeta-A","reason":"violation text","verdict":"refused"},\n' +
@@ -123,10 +107,6 @@ describe('lock-store', () => {
       '  },\n' +
       '  "nodes": {\n' +
       '    "billing/cancel": {"source":"fp-billing"}\n' +
-      '  },\n' +
-      '  "relation_verdicts": {\n' +
-      `    "node:a-unit": {"evidence":${ev},"fingerprint":"fp-a","reason":"undeclared dep","verdict":"refused"},\n` +
-      `    "node:z-unit": {"evidence":${ev},"fingerprint":"fp-z","verdict":"approved"}\n` +
       '  }\n' +
       '}\n';
 
@@ -143,12 +123,13 @@ describe('lock-store', () => {
   });
 
   it('readLock throws LockInvalidError on an unsupported future version (3)', async () => {
-    // Version 1 and 2 are accepted (1 is migrated); a higher version was written by
-    // a newer CLI and must fail closed rather than be misinterpreted.
+    // Version 1 (native) and 2 (read leniently, stray relation_verdicts dropped) are
+    // accepted; a higher version was written by a newer CLI and must fail closed
+    // rather than be misinterpreted.
     const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-bad-version');
     await rm(tmpDir, { recursive: true, force: true });
     await mkdir(tmpDir, { recursive: true });
-    const badLock = { version: 3, verdicts: {}, nodes: {}, relation_verdicts: {} };
+    const badLock = { version: 3, verdicts: {}, nodes: {} };
     await writeFile(path.join(tmpDir, 'yg-lock.json'), JSON.stringify(badLock), 'utf-8');
     expect(() => readLock(tmpDir)).toThrow(LockInvalidError);
   });
@@ -216,7 +197,6 @@ describe('lock-store', () => {
         },
       },
       nodes: {},
-      relation_verdicts: {},
     };
     // Write via writeLock — serializer must escape the angle brackets inside the JSON string.
     await writeLock(tmpDir, lock);
@@ -244,7 +224,6 @@ describe('lock-store', () => {
         },
       },
       nodes: {},
-      relation_verdicts: {},
     };
     await writeLock(tmpDir, lock);
     // (i) Each verdict entry must appear on a single line (no raw newline inside the entry line).
@@ -276,7 +255,6 @@ describe('lock-store', () => {
         },
       },
       nodes: {},
-      relation_verdicts: {},
     };
     const serialized = serializeLock(lock);
     // The extra field must not appear in the serialized output.
@@ -300,7 +278,6 @@ describe('lock-store', () => {
       version: LOCK_FORMAT_VERSION,
       verdicts: {},
       nodes: {},
-      relation_verdicts: {},
     };
     await writeLock(tmpDir, lock);
     // Verify no .tmp file left (atomic write cleans up)
@@ -442,7 +419,6 @@ describe('lock-store', () => {
           log: { last_entry_datetime: '2026-06-12T10:00:00.000Z', prefix_hash: 'loghash' },
         },
       },
-      relation_verdicts: {},
     };
     await writeLock(tmpDir, lock);
     const result = readLock(tmpDir);
@@ -456,7 +432,7 @@ describe('lock-store', () => {
     // No file written — absent file is legitimate cold-start state.
     expect(() => readLock(tmpDir)).not.toThrow();
     const result = readLock(tmpDir);
-    expect(result).toEqual({ version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: {}, relation_verdicts: {} });
+    expect(result).toEqual({ version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: {} });
   });
 
   // ── Every malformed-shape rejection arm of validateLockShape (fail closed). ──
@@ -754,7 +730,6 @@ describe('lock-store', () => {
       version: LOCK_FORMAT_VERSION,
       verdicts: {},
       nodes: { 'billing/cancel': {} },
-      relation_verdicts: {},
     };
     const serialized = serializeLock(lock);
     expect(serialized).toContain('"billing/cancel": {}');

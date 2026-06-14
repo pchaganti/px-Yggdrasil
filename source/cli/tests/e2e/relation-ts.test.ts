@@ -7,6 +7,7 @@ import {
   rmSync,
   writeFileSync,
   cpSync,
+  readFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -125,6 +126,12 @@ describe.skipIf(!distExists)('CLI E2E — TypeScript relation conformance (live)
       // The refusal names the dependency target node and the importing file.
       expect(refused.all).toContain('b');
       expect(refused.all).toContain('src/a/foo.ts');
+
+      // Plain `yg check` (no --approve) catches the same undeclared dependency
+      // live — relations are computed every run, not read from a cache.
+      const plain = run(['check'], undeclared);
+      expect(plain.status).toBe(1);
+      expect(plain.all).toContain('relation-undeclared-dependency');
     } finally {
       rmSync(undeclared, { recursive: true, force: true });
     }
@@ -135,6 +142,11 @@ describe.skipIf(!distExists)('CLI E2E — TypeScript relation conformance (live)
       const ok = run(['check', '--approve'], declared);
       expect(ok.status).toBe(0);
       expect(ok.all).not.toContain('relation-undeclared-dependency');
+
+      // The lock carries no relation cache — relations are live, not stored.
+      const raw = readFileSync(path.join(declared, '.yggdrasil', 'yg-lock.json'), 'utf-8');
+      expect(raw).not.toContain('relation_verdicts');
+      expect(JSON.parse(raw).version).toBe(1);
     } finally {
       rmSync(declared, { recursive: true, force: true });
     }

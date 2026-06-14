@@ -216,11 +216,10 @@ describe.skipIf(!distExists)('CLI E2E — yg check surfaces blocking validation 
       const { status, stdout } = run(['check'], dir);
       expect(stdout).not.toContain('oversized-node');
       expect(status).toBe(0);
-      // The aspect-less node now carries a relation verdict of approved (was: no verdict at all).
-      const lock = JSON.parse(readFileSync(path.join(dir, '.yggdrasil', 'yg-lock.json'), 'utf-8')) as {
-        relation_verdicts: Record<string, { verdict: string }>;
-      };
-      expect(lock.relation_verdicts['node:big']?.verdict).toBe('approved');
+      // Relations are computed live, not cached: the lock carries no relation
+      // section, and the aspect-less node passes the (live) relation check.
+      const raw = readFileSync(path.join(dir, '.yggdrasil', 'yg-lock.json'), 'utf-8');
+      expect(raw).not.toContain('relation_verdicts'); // relations are live, not cached
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

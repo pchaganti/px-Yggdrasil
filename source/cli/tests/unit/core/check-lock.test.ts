@@ -70,7 +70,7 @@ async function seedAndCheck(
 ) {
   writeFile('src/a.ts', 'code');
   if (verdict === null) {
-    const lock: LockFile = { version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: {}, relation_verdicts: {} };
+    const lock: LockFile = { version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: {} };
     await writeLock(graph.rootPath, lock);
   } else {
     await writeSeededLock(graph, {

@@ -341,7 +341,7 @@ describe.skipIf(!distExists)('CLI E2E — invalidation extended paths', () => {
   // type with no default aspects, carrying only the draft `wip-rule`.
   // -------------------------------------------------------------------------
 
-  it('4: an all-draft node has no ASPECT pair to invalidate on a source edit — but its relation verdict IS source-sensitive', () => {
+  it('4: an all-draft node with no cross-node dependency stays green across a source edit (no aspect pair, no live relation error)', () => {
     const dir = deterministicFixture('alldraft');
     try {
       appendFileSync(
@@ -385,33 +385,26 @@ describe.skipIf(!distExists)('CLI E2E — invalidation extended paths', () => {
         'utf-8',
       );
 
-      // Fill the real service nodes AND seed the gadget's relation verdict (mapped node,
-      // empty registry → approved). The gadget has no enforceable ASPECT pair (draft only).
+      // Fill the real service nodes. The gadget has no enforceable ASPECT pair (draft
+      // only) and no cross-node dependency, so it is silently green.
       expect(run(['check', '--approve'], dir).status).toBe(0);
 
-      // Green and the all-draft gadget is not named: it has no aspect pair AND its relation
-      // verdict is now seeded approved.
+      // Green and the all-draft gadget is not named: it has no aspect pair, and the live
+      // relation pass finds no cross-node dependency to flag.
       const before = run(['check'], dir);
       expect(before.status).toBe(0);
       expect(before.all).not.toContain('widgets/gadget');
 
-      // Edit the gadget's source. The DRAFT aspect still has no pair to invalidate (no wip-rule
-      // pair is ever recorded for the node). BUT since relation-conformance the node's source is
-      // an input to its relation verdict, so the source edit DOES make the relation verdict
-      // unverified — exit 1, the node is named, and the remedy is a re-approve.
+      // Edit the gadget's source. The DRAFT aspect still has no pair to invalidate, and
+      // relations are computed LIVE: the gadget imports nothing across a node boundary,
+      // so a plain `yg check` (no --approve) stays green and never names the node.
       appendFileSync(gadgetFile, '\n// edited; no non-draft aspect cares\n');
       const after = run(['check'], dir);
-      expect(after.status).toBe(1); // relation verdict is source-sensitive since relation-conformance
-      expect(after.all).toContain('relation-undeclared-dependency');
-      expect(after.all).toContain('widgets/gadget');
+      expect(after.status).toBe(0); // no aspect pair, no live relation error
+      expect(after.all).not.toContain('relation-undeclared-dependency');
+      expect(after.all).not.toContain('widgets/gadget');
       // The draft aspect still produces NO aspect pair — no wip-rule verdict is ever named.
       expect(after.all).not.toContain('wip-rule');
-
-      // A re-approve reseeds the relation verdict (empty registry → approved) and check is green again.
-      expect(run(['check', '--approve'], dir).status).toBe(0);
-      const reapproved = run(['check'], dir);
-      expect(reapproved.status).toBe(0);
-      expect(reapproved.all).not.toContain('widgets/gadget');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Relation conformance is now computed LIVE on every `yg check`, and the relation-verdict cache is removed.** Plain `yg check` runs the relation analyzer every call (parse + resolve + verify) and reports undeclared cross-node dependencies as `relation-undeclared-dependency` errors directly — the result is always the current truth, never read from a cache. `yg check` is no longer a pure read (it parses source locally) but stays keyless / makes no LLM calls. `yg check --approve` keeps only its aspect-verdict filling and ends with the same live relation scan; it has no relation-specific role. The lock's `relation_verdicts` section, the fingerprint / evidence / `indexIdentity` machinery, and the parse-free re-validation path are deleted. The lock format reverts to **v1**; the reader leniently accepts a stray `v2` lock and drops its `relation_verdicts` section (alpha.6 was unreleased, so no migration is owed). The symbol-index speed cache is unchanged. This dissolves the blast-radius problem where one source edit reddened every relation verdict.
+
 ## [5.0.0-alpha.6] - 2026-06-14
 
 ### Added

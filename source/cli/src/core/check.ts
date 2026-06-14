@@ -23,10 +23,11 @@ import {
   detRefusedMessage,
   promptTooLargeMessage,
 } from '../formatters/lock-issue-messages.js';
-// ── Relation-conformance re-validation (parse-free) ───────────
-import { verifyRelationConformance } from '../relations/verify.js';
+// ── Relation-conformance (computed live, parse + resolve every run) ──
+import { runRelationPass } from '../relations/pass.js';
 import { extractorForLanguage } from '../relations/extractors/registry.js';
-import { relationRefusedMessage, relationUnverifiedMessage } from '../relations/messages.js';
+import { relationIndexDir } from '../relations/index-dir.js';
+import { relationRefusedMessage } from '../relations/messages.js';
 import { makeResolvePathToFile } from '../relations/resolve-path.js';
 
 // ── Types ──────────────────────────────────────────────────
@@ -381,12 +382,15 @@ function buildGitignoredCoveredIssues(offending: string[]): CheckIssue[] {
 // ── Check orchestrator ────────────────────────────────────
 
 /**
- * Run the full check — a PURE READ (spec §6):
+ * Run the full check (spec §6):
  *   structural validation → coverage → prompt-size gate → lock verification →
- *   log integrity → report.
+ *   relation conformance (computed LIVE) → log integrity → report.
  *
- * No drift classification, no execution stage, no writes. The lock is the only
- * persisted verification state; pairs are validated by hashing.
+ * Aspect verdicts are validated by hashing against the lock (no LLM calls, no
+ * writes — the lock is the only persisted aspect-verification state). Relation
+ * conformance is NOT cached: the relation analyzer is run live every call
+ * (parse + resolve + verify), so the result is always the current truth. The
+ * relation pass parses source locally but is keyless / makes no LLM calls.
  *
  * @param gitTrackedFiles -- pass null to skip unmapped-files check (no git available).
  */
@@ -427,22 +431,23 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
       lockIssues.push(...emitPairIssue(vp));
     }
 
-    // Relation-conformance re-validation (parse-free). A refused/unverified node
-    // blocks with a relation-undeclared-dependency error.
-    const relStates = await verifyRelationConformance(graph, lock, {
-      resolvePathToFile: makeResolvePathToFile(projectRoot),
+    // Relation-conformance, computed LIVE (parse + resolve + verify every run).
+    // A node with an undeclared cross-node dependency blocks with a
+    // relation-undeclared-dependency error. No verdict is cached — the result is
+    // always the current truth.
+    const relResult = await runRelationPass(graph, projectRoot, {
       extractorFor: extractorForLanguage,
+      resolvePathToFile: makeResolvePathToFile(projectRoot),
+      symbolIndexDir: relationIndexDir(graph.rootPath),
     });
-    for (const s of relStates) {
-      if (s.kind === 'verified') continue;
+    for (const [nodeId, nv] of relResult.violationsByNode) {
+      if (nv.verdict !== 'refused') continue;
       lockIssues.push({
         severity: 'error',
         code: 'relation-undeclared-dependency',
         rule: 'relation-undeclared-dependency',
-        nodePath: s.nodeId,
-        messageData: s.kind === 'refused'
-          ? relationRefusedMessage(graph, s.nodeId, s.violations)
-          : relationUnverifiedMessage(s.nodeId),
+        nodePath: nodeId,
+        messageData: relationRefusedMessage(graph, nodeId, nv.violations),
       });
     }
 
