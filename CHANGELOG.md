@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0-alpha.6] - 2026-06-14
+
 ### Added
 
 - **TypeScript relation conformance is live.** `yg check --approve` now extracts every cross-node dependency a TypeScript / TSX / JavaScript file declares (static `import`, re-export with a source, `import x = require(...)`, `require(...)`, and string-literal dynamic `import(...)`), resolves each relative specifier to its owning node, and refuses a node that depends on another node without a declared relation — reported as `relation-undeclared-dependency` naming the importing file and the target node. Whole-statement `import type`, dynamic imports of a non-literal specifier, bare/external packages, intra-node imports, dependencies onto an ancestor node, and imports that resolve to an unmapped file are all silent by design (no waiver needed). The verdict is cached in the lock like every other verdict, and plain `yg check` re-validates it parse-free.
