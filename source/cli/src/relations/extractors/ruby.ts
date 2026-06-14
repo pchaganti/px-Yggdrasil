@@ -1,5 +1,4 @@
 import type { Node } from 'web-tree-sitter';
-import { walk } from '../../ast/walk.js';
 import type { DependencyExtractor, DetectedDep, DeclaredSymbol, ParsedFile } from './types.js';
 
 /**
@@ -60,6 +59,16 @@ function constantKey(node: Node | null): string | undefined {
     return t === '' ? undefined : t;
   }
   return undefined;
+}
+
+/** True when a constant-name node is a COMPLETE reference path — `::`-rooted
+ *  (`::Top`) or `::`-qualified (`A::B`). Such a reference does NOT lexically shadow
+ *  against an enclosing namespace, so it stays emittable inside a namespace (C1). A
+ *  bare single-segment `constant` is shadowing-prone and is suppressed when nested. */
+function isCompleteReference(node: Node | null): boolean {
+  if (node === null) return false;
+  if (node.type === 'scope_resolution') return true; // has `::` (rooted or dotted)
+  return false; // a bare `constant` node is never a complete reference
 }
 
 /** The first named child of a node (or null). */
@@ -132,66 +141,97 @@ function uses(file: ParsedFile): DetectedDep[] {
     out.push({ targetHint: { kind: 'symbol', symbolKey }, kind: 'import', line });
   };
 
-  walk(file.tree.rootNode, (node) => {
-    // (a) require_relative '<lit>' → PATH hint. Skip a non-literal / interpolated arg.
+  // Namespace-aware recursive visitor (mirrors declarations()). `nsDepth` counts
+  // enclosing CLASS and MODULE bodies (both are constant namespaces in Ruby). A bare
+  // unqualified constant value-use inside any class or module body is suppressed because
+  // it lexically resolves against the enclosing namespace — a bare `Helper` inside
+  // `class Order` may resolve to `Order::Helper`, not to a uniquely-defined top-level
+  // constant owned by another node. A complete reference (`::`-rooted or `::` -qualified)
+  // is always emitted regardless of depth (it is unambiguously absolute).
+  //
+  // A superclass/mixin constant is emitted based on the OUTER depth — the nsDepth at the
+  // class/module node itself (before descending into its body). So `class C < Base` nested
+  // inside `module App` (outer nsDepth=1) suppresses the bare `Base`, while a top-level
+  // `class C < Base` (outer nsDepth=0) emits it.
+  const visit = (node: Node, nsDepth: number): void => {
+    // (a) require_relative '<lit>' → PATH hint. Path links never shadow; depth-agnostic.
     if (isBareCallTo(node, REQUIRE_RELATIVE)) {
       emitPath(literalStringArg(node), node.startPosition.row + 1);
-      // The literal is a string, not a constant; nothing to prune for symbols. Continue.
-      return undefined;
+      return; // a string arg, no constant children to descend for symbols
     }
 
-    // (b) class C < Base → SYMBOL hint for the superclass constant. The `name` field is a
-    //     self-definition (excluded); only the `superclass` constant is a dependency.
-    if (node.type === 'class') {
-      const sup = node.childForFieldName('superclass');
-      if (sup !== null) {
-        // The superclass node's single named child is the constant / scope_resolution.
-        const expr = firstNamedChild(sup);
-        emitSymbol(constantKey(expr), (expr ?? sup).startPosition.row + 1);
+    // (b) class C < Base / module M → handle superclass, then descend into body.
+    if (node.type === 'class' || node.type === 'module') {
+      if (node.type === 'class') {
+        const sup = node.childForFieldName('superclass');
+        if (sup !== null) {
+          const expr = firstNamedChild(sup);
+          // Suppress a BARE superclass when inside any class/module namespace (outer
+          // nsDepth > 0); a complete ::/qualified ref still emits.
+          if (nsDepth === 0 || isCompleteReference(expr)) {
+            emitSymbol(constantKey(expr), (expr ?? sup).startPosition.row + 1);
+          }
+        }
       }
-      return undefined; // descend into the body; the `name` constant is handled below (skipped)
+      // Descend into the body. Both `class` and `module` introduce a new constant
+      // namespace in Ruby, so nsDepth increments for the body contents in both cases.
+      const body = node.childForFieldName('body');
+      if (body !== null) {
+        const childDepth = nsDepth + 1;
+        for (let i = 0; i < body.namedChildCount; i++) {
+          const c = body.namedChild(i);
+          if (c !== null) visit(c, childDepth);
+        }
+      }
+      return;
     }
 
     // (c) include / extend / prepend Mod[, Mod2] → SYMBOL hint per constant argument.
+    // Direct mixins written in a class/module body use the OUTER depth of that class/module
+    // (one level above the current nsDepth, since nsDepth was incremented when entering the
+    // body). A mixin at top level (nsDepth=0) or in a top-level class body (nsDepth=1,
+    // outer depth=0) emits; a mixin nested deeper (nsDepth>1, outer depth>0) suppresses.
+    // A complete ::/qualified ref always emits regardless of depth.
     if (isBareCallTo(node, MIXIN_METHODS)) {
       const args = node.childForFieldName('arguments');
       if (args !== null) {
         for (let i = 0; i < args.namedChildCount; i++) {
           const arg = args.namedChild(i);
           const key = constantKey(arg);
-          if (key !== undefined && arg !== null) emitSymbol(key, arg.startPosition.row + 1);
+          if (key !== undefined && arg !== null && (nsDepth <= 1 || isCompleteReference(arg))) {
+            emitSymbol(key, arg.startPosition.row + 1);
+          }
         }
       }
-      // The mixin-argument constants are counted; prune so the generic constant pass below
-      // does not re-emit them (it would dedupe anyway, but pruning keeps lines exact).
-      return undefined;
+      return; // mixin-arg constants handled; do not descend (would re-emit as bare)
     }
 
-    // (d) A bare `constant` or a `scope_resolution` used as a value / receiver. EXCLUDE
-    //     definition positions: the `name` field of a `class`/`module`, and the `scope`
-    //     part of a longer `scope_resolution` (counted whole via the outermost node).
+    // (d) A bare `constant` or a `scope_resolution` used as a value / receiver.
     if (node.type === 'constant' || node.type === 'scope_resolution') {
       const parent = node.parent;
       if (parent !== null) {
-        // Skip the `name` field of a class/module declaration (self-definition).
         if (parent.type === 'class' || parent.type === 'module') {
           const nameField = parent.childForFieldName('name');
-          if (nameField !== null && nameField.id === node.id) return false;
+          if (nameField !== null && nameField.id === node.id) return; // self-definition
         }
-        // Skip a constant/scope_resolution nested INSIDE another scope_resolution — it is
-        // only the qualifier of a longer dotted name; the outermost node carries the key.
-        if (parent.type === 'scope_resolution') return false;
-        // The superclass constant is handled in (b); skip it here (prune its subtree).
-        if (parent.type === 'superclass') return false;
+        if (parent.type === 'scope_resolution') return; // inner qualifier of a longer name
+        if (parent.type === 'superclass') return; // handled in (b)
       }
-      emitSymbol(constantKey(node), node.startPosition.row + 1);
-      // Prune: a scope_resolution's inner constants must not be visited as bare names.
-      return false;
+      // C1: inside any class/module namespace, emit ONLY a complete (::-rooted / qualified) ref.
+      if (nsDepth === 0 || isCompleteReference(node)) {
+        emitSymbol(constantKey(node), node.startPosition.row + 1);
+      }
+      return; // do not descend into a scope_resolution's inner constants
     }
 
-    return undefined;
-  });
+    // Generic descent (nsDepth unchanged for non-class/module containers).
+    for (let i = 0; i < node.namedChildCount; i++) {
+      const c = node.namedChild(i);
+      if (c !== null) visit(c, nsDepth);
+    }
+  };
 
+  visit(file.tree.rootNode, 0);
   return out;
 }
 

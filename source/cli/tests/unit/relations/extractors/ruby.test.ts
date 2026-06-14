@@ -279,3 +279,71 @@ describe('ruby extractor — registry wiring', () => {
     expect(rubyExtractor.languages.has('ruby')).toBe(true);
   });
 });
+
+describe('ruby extractor — C1: bare constants inside a namespace are suppressed (zero-FP)', () => {
+  it('SUPPRESSES a bare unqualified constant used inside a module body', async () => {
+    // `Helper` inside `module App` lexically resolves to App::Helper (or a top-level
+    // Helper) — never to a uniquely-defined top-level Helper owned by another node.
+    const { uses } = await run(['module App', '  x = Helper', 'end', ''].join('\n'));
+    expect(symbolKeys(uses)).not.toContain('Helper');
+    expect(symbolKeys(uses)).toHaveLength(0);
+  });
+
+  it('SUPPRESSES a bare unqualified superclass inside a nested namespace', async () => {
+    // `class Widget < Base` nested in module App — `Base` is bare → suppressed.
+    const { uses } = await run(
+      ['module App', '  class Widget < Base', '  end', 'end', ''].join('\n'),
+    );
+    expect(symbolKeys(uses)).not.toContain('Base');
+    expect(symbolKeys(uses)).toHaveLength(0);
+  });
+
+  it('SUPPRESSES a bare mixin argument inside a module body', async () => {
+    const { uses } = await run(
+      ['module App', '  class C', '    include Loggable', '  end', 'end', ''].join('\n'),
+    );
+    expect(symbolKeys(uses)).not.toContain('Loggable');
+    expect(symbolKeys(uses)).toHaveLength(0);
+  });
+
+  // ---- PAIRED POSITIVES: do NOT over-silence real cross-node references ----
+
+  it('STILL emits a ::-rooted absolute constant used inside a namespace (key stripped)', async () => {
+    const { uses } = await run(['module App', '  x = ::TopHelper', 'end', ''].join('\n'));
+    // The ::-prefix makes it a complete top-level path — no lexical shadowing risk.
+    expect(symbolKeys(uses)).toContain('TopHelper');
+  });
+
+  it('STILL emits a ::-qualified (dotted) constant used inside a namespace', async () => {
+    const { uses } = await run(['module App', '  x = Payments::Gateway', 'end', ''].join('\n'));
+    expect(symbolKeys(uses)).toContain('Payments::Gateway');
+  });
+
+  it('STILL emits a bare constant used at TOP LEVEL (no enclosing namespace)', async () => {
+    // Regression guard: the existing top-level behavior is unchanged.
+    const { uses } = await run('x = Helper\n');
+    expect(symbolKeys(uses)).toContain('Helper');
+  });
+
+  it('STILL emits a top-level superclass and a top-level mixin (depth 0)', async () => {
+    const { uses } = await run(
+      ['class OrderService < BaseService', '  include Loggable', 'end', ''].join('\n'),
+    );
+    const keys = symbolKeys(uses);
+    expect(keys).toContain('BaseService');
+    expect(keys).toContain('Loggable');
+  });
+
+  it('SUPPRESSES a bare value-use constant inside a (top-level) class body', async () => {
+    // A class IS a constant namespace in Ruby: a bare `Helper` inside `class Order`
+    // lexically resolves to Order::Helper (if defined) or top-level Helper — never
+    // reliably to a uniquely-defined top-level Helper in another node. Zero-FP.
+    const { uses } = await run(['class Order', '  def run', '    Helper.go', '  end', 'end', ''].join('\n'));
+    expect(symbolKeys(uses)).not.toContain('Helper');
+  });
+
+  it('STILL emits a ::-rooted reference inside a class body (complete path, no shadow risk)', async () => {
+    const { uses } = await run(['class Order', '  def run', '    ::TopHelper.go', '  end', 'end', ''].join('\n'));
+    expect(symbolKeys(uses)).toContain('TopHelper');
+  });
+});

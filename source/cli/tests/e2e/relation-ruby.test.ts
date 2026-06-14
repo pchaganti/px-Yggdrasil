@@ -144,4 +144,75 @@ describe.skipIf(!distExists)('CLI E2E — Ruby relation conformance (live, requi
       rmSync(declared, { recursive: true, force: true });
     }
   });
+
+  it('does NOT flag a bare namespaced constant that shadows a top-level same-name, but DOES flag a ::-rooted cross-node use', () => {
+    // Repo: b defines a UNIQUE top-level `Helper`; a uses a BARE `Helper` inside
+    // `module App`. Pre-C1 the flat symbol table resolved the bare use to b → false
+    // cross-node edge with NO declared relation. Under C1 the bare-in-namespace use is
+    // suppressed → no edge → check --approve is GREEN even WITHOUT a declared relation.
+    const root = mkdtempSync(path.join(tmpdir(), 'yg-rel-ruby-c1-'));
+    try {
+      cpSync(SCHEMAS_SRC, path.join(root, '.yggdrasil', 'schemas'), { recursive: true });
+      writeFile(
+        root,
+        '.yggdrasil/yg-architecture.yaml',
+        [
+          'node_types:',
+          '  component:',
+          "    description: 'A source component mapped under src/.'",
+          '    log_required: false',
+          '    when:',
+          '      path: "src/**"',
+          '    relations:',
+          '      uses: [component]',
+          '',
+        ].join('\n'),
+      );
+      writeFile(
+        root,
+        '.yggdrasil/yg-config.yaml',
+        [
+          'version: "5.0.0"',
+          '',
+          'quality:',
+          '  max_direct_relations: 10',
+          '',
+          'reviewer:',
+          '  default: standard',
+          '  tiers:',
+          '    standard:',
+          '      provider: ollama',
+          '      consensus: 1',
+          '      config:',
+          '        model: "qwen2.5-coder:0.5b"',
+          '        endpoint: "http://host.docker.internal:11434"',
+          '',
+        ].join('\n'),
+      );
+      // b defines a UNIQUE top-level Helper. No relation declared by a.
+      writeFile(root, '.yggdrasil/model/b/yg-node.yaml',
+        'name: B\ndescription: Dependency target.\ntype: component\nmapping:\n  - src/b\n');
+      writeFile(root, '.yggdrasil/model/a/yg-node.yaml',
+        'name: A\ndescription: Requiring component.\ntype: component\nmapping:\n  - src/a\n');
+      writeFile(root, 'src/b/helper.rb', ['class Helper', '  def self.run; end', 'end', ''].join('\n'));
+      // a uses a BARE Helper INSIDE module App → suppressed by C1 → must NOT flag.
+      writeFile(root, 'src/a/order.rb',
+        ['module App', '  class Order', '    def go', '      Helper.run', '    end', '  end', 'end', ''].join('\n'));
+
+      const green = run(['check', '--approve'], root);
+      expect(green.status, green.all).toBe(0);
+      expect(green.all).not.toContain('relation-undeclared-dependency');
+
+      // Positive: change the use to a ::-rooted absolute reference to b's Helper. A
+      // complete top-level path is NOT suppressed → the undeclared cross-node edge flags.
+      writeFile(root, 'src/a/order.rb',
+        ['module App', '  class Order', '    def go', '      ::Helper.run', '    end', '  end', 'end', ''].join('\n'));
+      const flagged = run(['check', '--approve'], root);
+      expect(flagged.status).toBe(1);
+      expect(flagged.all).toContain('relation-undeclared-dependency');
+      expect(flagged.all).toContain('src/a/order.rb');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
