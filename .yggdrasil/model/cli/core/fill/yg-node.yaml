@@ -47,7 +47,7 @@ relations:
     type: calls
   - target: cli/io/stores
     type: calls
-  - target: cli/relations
+  - target: cli/relations/core
     type: calls
   - target: cli/relations/extractors
     type: calls
@@ -57,3 +57,10 @@ relations:
     type: calls
 mapping:
   - source/cli/src/core/fill.ts
+  - source/cli/src/core/fill-shared.ts
+  - source/cli/src/core/fill-pool.ts
+  - source/cli/src/core/fill-log-gate.ts
+  - source/cli/src/core/fill-det.ts
+  - source/cli/src/core/fill-llm.ts
+  - source/cli/src/core/fill-closure.ts
+  - source/cli/src/core/fill-gc.ts

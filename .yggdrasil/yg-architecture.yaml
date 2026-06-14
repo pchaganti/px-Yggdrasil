@@ -212,7 +212,7 @@ node_types:
       - no-direct-minimatch
     parents: [module]
     relations:
-      calls: [engine, ast-adapter, structure-adapter, persistence-adapter, llm-shared, utility]
+      calls: [engine, ast-adapter, structure-adapter, persistence-adapter, llm-shared, utility, relations-adapter]
       uses: [types]
 
   llm-provider:

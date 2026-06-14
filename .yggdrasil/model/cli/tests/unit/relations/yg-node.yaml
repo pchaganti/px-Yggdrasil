@@ -8,7 +8,7 @@ description: "Unit tests for the relation-conformance engine modules: the symbol
 aspects: []
 relations:
   [
-    { target: cli/relations, type: uses },
+    { target: cli/relations/core, type: uses },
     { target: cli/relations/extractors, type: uses }
   ]
 mapping:

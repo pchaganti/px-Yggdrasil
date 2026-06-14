@@ -36,7 +36,7 @@ relations:
     type: calls
   - target: cli/io/stores
     type: calls
-  - target: cli/relations
+  - target: cli/relations/core
     type: calls
   - target: cli/relations/extractors
     type: calls

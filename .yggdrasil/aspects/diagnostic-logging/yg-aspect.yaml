@@ -2,3 +2,5 @@ name: DiagnosticLogging
 description: Catch blocks that swallow errors must call debugWrite() — no silent failures
 reviewer:
   type: llm
+scope:
+  per: file

@@ -9,7 +9,7 @@ aspects: []
 relations:
   [
     { target: cli/core/loader, type: uses },
-    { target: cli/relations, type: uses },
+    { target: cli/relations/core, type: uses },
     { target: cli/relations/extractors, type: uses }
   ]
 mapping:
