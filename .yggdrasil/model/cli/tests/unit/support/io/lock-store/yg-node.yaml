@@ -5,3 +5,4 @@ aspects: []
 relations: []
 mapping:
   - source/cli/tests/unit/io/lock-store.test.ts
+  - source/cli/tests/unit/io/lock-store-migration.test.ts

@@ -1,0 +1,11 @@
+name: E2E Tests — Relation Conformance (Scripting Languages)
+type: test-suite
+description: "Subprocess E2E proving the built-in relation-conformance check is live for the dynamic/scripting languages — TypeScript, Python, PHP, Ruby, Kotlin. Each builds a temp repo, spawns the real binary, and asserts an undeclared cross-node dependency is refused by yg check --approve (exit 1) and clears once the relation is declared. Split from the compiled-language suite to keep each reviewer prompt within tier limits."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/relation-ts.test.ts
+  - source/cli/tests/e2e/relation-python.test.ts
+  - source/cli/tests/e2e/relation-php.test.ts
+  - source/cli/tests/e2e/relation-ruby.test.ts
+  - source/cli/tests/e2e/relation-kotlin.test.ts
