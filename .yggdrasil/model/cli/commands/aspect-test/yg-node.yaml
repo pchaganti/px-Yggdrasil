@@ -24,6 +24,8 @@ relations:
     type: calls
   - target: cli/llm/shared
     type: calls
+  - target: cli/llm/registry
+    type: calls
   - target: cli/io/parsers/config
     type: calls
   - target: cli/io/stores

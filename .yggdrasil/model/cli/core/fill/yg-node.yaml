@@ -31,6 +31,8 @@ relations:
     type: calls
   - target: cli/llm/shared
     type: calls
+  - target: cli/llm/registry
+    type: calls
   - target: cli/model/graph
     type: uses
   - target: cli/model/lock

@@ -13,6 +13,7 @@ relations:
     { target: cli/commands/type-suggest, type: uses },
     { target: cli/core/pairs, type: uses },
     { target: cli/llm/shared, type: uses },
+    { target: cli/llm/registry, type: uses },
     { target: cli/preamble, type: uses },
     { target: cli/structure, type: uses }
   ]
