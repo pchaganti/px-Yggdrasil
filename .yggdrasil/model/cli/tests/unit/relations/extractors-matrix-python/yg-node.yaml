@@ -1,0 +1,18 @@
+name: Relations Name-Resolution Matrix — Python
+type: test-suite
+description: "Exhaustive name-resolution identification matrix for the Python
+  relation-conformance extractor — every supported import/from-import/reference
+  form that must resolve to a cross-node edge through the module-path resolver,
+  and every shape that must stay silent (zero false positives). Isolated in its
+  own node because the matrix is large enough to exceed the reviewer prompt
+  limit if combined with other languages."
+aspects: []
+relations:
+  [
+    { target: cli/ast/runtime, type: uses },
+    { target: cli/relations/core, type: uses },
+    { target: cli/relations/extractors, type: uses },
+    { target: cli/tests/unit/relations/extractors-c-family, type: uses }
+  ]
+mapping:
+  - source/cli/tests/unit/relations/extractors/python-name-resolution-matrix.test.ts

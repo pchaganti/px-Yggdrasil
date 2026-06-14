@@ -5,3 +5,4 @@ aspects: []
 relations: []
 mapping:
   - source/cli/tests/e2e/cli-relations.test.ts
+  - source/cli/tests/e2e/relation-crosslang.test.ts

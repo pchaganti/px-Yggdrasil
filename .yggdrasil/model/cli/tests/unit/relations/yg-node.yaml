@@ -18,3 +18,5 @@ mapping:
   - source/cli/tests/unit/relations/registry.test.ts
   - source/cli/tests/unit/relations/messages.test.ts
   - source/cli/tests/unit/relations/verifier.test.ts
+  - source/cli/tests/unit/relations/candidate-parity.test.ts
+  - source/cli/tests/unit/relations/index-dir.test.ts

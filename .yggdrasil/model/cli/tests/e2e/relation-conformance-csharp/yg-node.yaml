@@ -1,0 +1,12 @@
+name: E2E Tests — Relation Conformance (C#)
+type: test-suite
+description: "Subprocess E2E proving the built-in relation-conformance check is
+  live for C#: it builds a temp repo, spawns the real binary, and asserts an
+  undeclared cross-node dependency is refused by yg check --approve (exit 1) and
+  clears once the relation is declared. Split out of the compiled-language suite
+  because the C# coverage is large enough that the combined reviewer prompt
+  exceeds the tier limit."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/relation-csharp.test.ts
