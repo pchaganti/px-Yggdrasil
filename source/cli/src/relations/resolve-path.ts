@@ -12,9 +12,12 @@ import { resolveRubyRequireRelative } from './extractors/ruby-resolve.js';
 /** Production resolvePathToFile: dispatches by language to the per-language path resolver.
  *  Checks existence against the project's files on disk. Symbol-resolved languages (and
  *  not-yet-implemented ones) return undefined here — they resolve via the SymbolTable. */
-export function makeResolvePathToFile(projectRoot: string): (specifier: string, fromFile: string, language: string) => string | undefined {
+export function makeResolvePathToFile(
+  projectRoot: string,
+  ownerOf?: (repoRelPosix: string) => string | undefined,
+): (specifier: string, fromFile: string, language: string) => string | undefined {
   const exists = (repoRelPosix: string): boolean => existsSync(path.resolve(projectRoot, repoRelPosix));
-  const goDeps = makeGoResolveDeps(projectRoot);
+  const goDeps = makeGoResolveDeps(projectRoot, ownerOf);
   const javaDeps = makeJavaResolveDeps(projectRoot, exists);
   const phpDeps = makePhpResolveDeps(projectRoot, exists);
   const rustDeps = makeRustResolveDeps(projectRoot);
@@ -137,7 +140,10 @@ function makeRustResolveDeps(projectRoot: string): RustResolveDeps {
  * NOTE: makeResolvePathToFile is also used by verify.ts (parse-free re-validation);
  * reading go.mod + readdirSync is fine there — it lists/reads files, it does not parse.
  */
-function makeGoResolveDeps(projectRoot: string): GoResolveDeps {
+function makeGoResolveDeps(
+  projectRoot: string,
+  ownerOf?: (repoRelPosix: string) => string | undefined,
+): GoResolveDeps {
   // Cache: go.mod directory (repo-rel POSIX, '' = root) → module path or undefined.
   const moduleByDir = new Map<string, string | undefined>();
 
@@ -209,7 +215,7 @@ function makeGoResolveDeps(projectRoot: string): GoResolveDeps {
     return out;
   }
 
-  return { modulePathFor, dirExists, goFilesIn };
+  return { modulePathFor, dirExists, goFilesIn, ownerOf };
 }
 
 /**

@@ -116,6 +116,107 @@ function buildRepo(label: string, withRelation: boolean): string {
 }
 
 describe.skipIf(!distExists)('CLI E2E — Go relation conformance (live)', () => {
+  it('silences a package directory split across two nodes, but still flags an undeclared edge for a single-owner package', () => {
+    // buildSplitRepo: one Go package dir `src/pkg` whose two files belong to
+    // DIFFERENT nodes — px maps src/pkg/a*.go, py maps src/pkg/z*.go. A third
+    // node `caller` imports "example.com/m/src/pkg" and declares NO relation.
+    // Because the package has 2 distinct owners, owner-set resolution silences
+    // it: no edge, no violation. (Pre-fix: pick[0] attributes the whole import
+    // to whichever node owns the lexicographically-first file → false positive.)
+    function buildSplitRepo(label: string): string {
+      const root = mkdtempSync(path.join(tmpdir(), `yg-rel-go-${label}-`));
+      cpSync(SCHEMAS_SRC, path.join(root, '.yggdrasil', 'schemas'), { recursive: true });
+      writeFile(
+        root,
+        '.yggdrasil/yg-architecture.yaml',
+        [
+          'node_types:',
+          '  component:',
+          "    description: 'A source component mapped under src/.'",
+          '    log_required: false',
+          '    when:',
+          '      path: "src/**"',
+          '    relations:',
+          '      uses: [component]',
+          '',
+        ].join('\n'),
+      );
+      writeFile(
+        root,
+        '.yggdrasil/yg-config.yaml',
+        [
+          'version: "5.0.0"',
+          '',
+          'quality:',
+          '  max_direct_relations: 10',
+          '',
+          'reviewer:',
+          '  default: standard',
+          '  tiers:',
+          '    standard:',
+          '      provider: ollama',
+          '      consensus: 1',
+          '      config:',
+          '        model: "qwen2.5-coder:0.5b"',
+          '        endpoint: "http://host.docker.internal:11434"',
+          '',
+        ].join('\n'),
+      );
+      writeFile(root, 'go.mod', 'module example.com/m\n\ngo 1.22\n');
+
+      // Two owners carve ONE directory src/pkg via file-glob mappings.
+      writeFile(
+        root,
+        '.yggdrasil/model/px/yg-node.yaml',
+        'name: PX\ndescription: Owner of a-files in pkg.\ntype: component\nmapping:\n  - src/pkg/a*.go\n',
+      );
+      writeFile(
+        root,
+        '.yggdrasil/model/py/yg-node.yaml',
+        'name: PY\ndescription: Owner of z-files in pkg.\ntype: component\nmapping:\n  - src/pkg/z*.go\n',
+      );
+      // caller imports the split package, declares NO relation.
+      writeFile(
+        root,
+        '.yggdrasil/model/caller/yg-node.yaml',
+        'name: Caller\ndescription: Imports the split package.\ntype: component\nmapping:\n  - src/caller\n',
+      );
+
+      // src/pkg split: a_one.go (owner px), z_two.go (owner py). Both package pkg.
+      writeFile(root, 'src/pkg/a_one.go', 'package pkg\n\nvar A = 1\n');
+      writeFile(root, 'src/pkg/z_two.go', 'package pkg\n\nvar Z = 2\n');
+      // caller imports the package across the boundary.
+      writeFile(
+        root,
+        'src/caller/use.go',
+        'package caller\n\nimport "example.com/m/src/pkg"\n\nvar Use = pkg.A\n',
+      );
+      return root;
+    }
+
+    const split = buildSplitRepo('split');
+    try {
+      const res = run(['check', '--approve'], split);
+      // Split package → owner-set silence → no undeclared-dependency, check passes.
+      expect(res.all).not.toContain('relation-undeclared-dependency');
+      expect(res.status).toBe(0);
+    } finally {
+      rmSync(split, { recursive: true, force: true });
+    }
+
+    // Paired positive: a SINGLE-owner package must still flag an undeclared edge
+    // (proves the owner-set guard did not blanket-silence Go resolution).
+    const single = buildRepo('single-owner', false);
+    try {
+      const res = run(['check', '--approve'], single);
+      expect(res.status).toBe(1);
+      expect(res.all).toContain('relation-undeclared-dependency');
+      expect(res.all).toContain('src/a/foo.go');
+    } finally {
+      rmSync(single, { recursive: true, force: true });
+    }
+  });
+
   it('refuses an undeclared cross-node import, then passes once the relation is declared', () => {
     // 1. No declared relation → the cross-node import is refused.
     const undeclared = buildRepo('undeclared', false);

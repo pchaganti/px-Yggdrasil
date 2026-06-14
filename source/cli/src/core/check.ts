@@ -29,6 +29,7 @@ import { extractorForLanguage } from '../relations/extractors/registry.js';
 import { relationIndexDir } from '../relations/index-dir.js';
 import { relationRefusedMessage } from '../relations/messages.js';
 import { makeResolvePathToFile } from '../relations/resolve-path.js';
+import { buildOwnerIndex } from '../relations/owner-index.js';
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -437,7 +438,7 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
     // always the current truth.
     const relResult = await runRelationPass(graph, projectRoot, {
       extractorFor: extractorForLanguage,
-      resolvePathToFile: makeResolvePathToFile(projectRoot),
+      resolvePathToFile: makeResolvePathToFile(projectRoot, buildOwnerIndex(graph.nodes).ownerOf),
       symbolIndexDir: relationIndexDir(graph.rootPath),
     });
     for (const [nodeId, nv] of relResult.violationsByNode) {
