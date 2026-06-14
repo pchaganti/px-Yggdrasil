@@ -140,12 +140,59 @@ const DECLARATION_TYPES = new Set([
   'type_alias',
 ]);
 
+/** The classifier nodes a nested declaration can sit INSIDE — its enclosing-type chain.
+ *  `class`/`interface` (`class_declaration`), `object` (`object_declaration`), and a
+ *  `companion object` (`companion_object`, whose JVM/source name is `Companion`). A
+ *  `function_declaration` is NEVER an enclosing TYPE (a local class inside a function is not
+ *  importable from outside), so it is excluded from the chain. */
+const ENCLOSING_TYPE_TYPES = new Set([
+  'class_declaration',
+  'object_declaration',
+  'companion_object',
+]);
+
+/** The enclosing-TYPE chain of `node`, read from its ancestor chain, outermost-first. A
+ *  nested `class Inner` inside `class Outer` yields `["Outer"]`; deeper nesting yields
+ *  `["Outer", "Mid"]`; a member inside a `companion object` yields `["Outer", "Companion"]`.
+ *  Empty when the declaration is top-level (not nested in another type). Joined with the
+ *  declaration's own simple name by the reflection separator `+` (Kotlin's JVM binary name
+ *  is `Outer$Inner`; the analyzer's canonical key is `Outer+Inner` — same boundary), which
+ *  is DISJOINT from the package `.` so a nested key lives in a string space no dot-only use
+ *  candidate can match (separator isolation). This is what stops a nested `Inner` from being
+ *  keyed as the bare top-level `<package>.Inner` and silencing — or mis-binding — a real
+ *  top-level type of the same simple name in another node. */
+function enclosingTypeChain(node: Node): string[] {
+  const parts: string[] = [];
+  let cur: Node | null = node.parent;
+  while (cur !== null) {
+    if (ENCLOSING_TYPE_TYPES.has(cur.type)) {
+      // A `companion object` has no `name` field — its canonical name is `Companion`.
+      const name = cur.type === 'companion_object' ? 'Companion' : cur.childForFieldName('name')?.text;
+      if (name !== undefined && name !== '') parts.unshift(name);
+    }
+    cur = cur.parent;
+  }
+  return parts;
+}
+
 /**
  * The FULLY-QUALIFIED symbol keys this file DEFINES. Reads the file's `package_header`
  * (the package FQN, possibly empty for a root-package / `.kts` file), then for each
- * declaration (top-level AND nested — nesting does not change the owning node, so the
- * extra names are harmless and let `Outer.Inner`-style qualified access resolve in the
- * future) emits `<package>.<Name>`, or just `<Name>` when the package is empty.
+ * declaration (top-level AND nested) emits `<package>.<TypeKey>`, or just `<TypeKey>` when
+ * the package is empty.
+ *
+ * `<TypeKey>` is the enclosing-TYPE chain joined to the declaration's own simple name by the
+ * reflection separator `+`: a top-level `Order` is `Order`; a nested `Inner` inside `Outer`
+ * is `Outer+Inner`; a member of a `companion object` is `Outer+Companion+member`. A NESTED
+ * declaration emits ONLY its `+` key — NEVER also the bare `<package>.<SimpleName>`. Keying
+ * a nested type flat (the v1 bug) manufactured a phantom top-level FQN: a `class Outer { class
+ * Inner }` produced `<package>.Inner`, which a consumer's `import <package>.Inner` (in Kotlin
+ * that names a TOP-LEVEL type, never the nested `Outer.Inner`) would mis-bind to this file —
+ * a false positive — or which would collide with a real top-level `<package>.Inner` in another
+ * node and silence its legitimate edge. The `+` key lives in a string space disjoint from the
+ * dot-only namespace, so it cannot collide; a use of `import <package>.Outer.Inner` resolves
+ * to it through the resolver's guarded `+`-boundary split (`Outer` is a declared type → split
+ * to `<package>.Outer+Inner`).
  *
  * These keys feed the shared SymbolTable; a use's import FQN resolves against them.
  */
@@ -169,7 +216,8 @@ function declarations(file: ParsedFile): DeclaredSymbol[] {
     if (!DECLARATION_TYPES.has(node.type)) return undefined;
     const name = declarationName(node);
     if (name === undefined || name === '') return undefined;
-    const symbolKey = pkg === '' ? name : `${pkg}.${name}`;
+    const typeKey = [...enclosingTypeChain(node), name].join('+');
+    const symbolKey = pkg === '' ? typeKey : `${pkg}.${typeKey}`;
     out.push({ symbolKey, line: node.startPosition.row + 1 });
     return undefined;
   });
