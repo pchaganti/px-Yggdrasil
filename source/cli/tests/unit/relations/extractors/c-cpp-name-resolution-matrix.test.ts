@@ -59,21 +59,31 @@ import { resolveIncludePath } from '../../../../src/relations/extractors/include
  *        family distinction is irrelevant to path resolution (it is pure path arithmetic).
  *   CC5  candidate-parity invariant: every emitted reference is a ONE-ELEMENT candidate group
  *        (path languages never widen). Asserted at the end so the matrix can't break parity.
+ *   CC6  An `#include` in the DEAD body of a literal `#if 0` / `#elif 0` branch is SKIPPED at
+ *        emission — `0` is unconditionally false, the branch is never compiled, so it carries
+ *        no real dependency; emitting an edge there is a genuine FP. Branch-precise: the
+ *        `#else`/live-`#elif` branch is KEPT, and every `#ifdef` / `#if <non-zero or macro>` /
+ *        `#if defined(...)` / `#if 1` conditional STILL emits (legitimate conditional deps).
+ *        A nested conditional inside a dead `#if 0` is also skipped (the dead outer subsumes
+ *        it). `#if 0` is the ONLY preprocessor conditional resolvable with certainty by a
+ *        source-only tool; everything else stays as a live conditional dependency.
  *
  * PASS    → the extractor / resolver already does the spec-correct zero-FP thing (live `it`).
- * GAP     → a deliberate tolerated false-NEGATIVE (silence), OR a benign textual
- *           over-emission that is NOT one of the defined FP categories (a conditionally-
- *           compiled `#if 0` include is still a real path-correct textual `#include`; the
- *           extractor cannot run the preprocessor, so it emits the literal hint — it can only
- *           ever resolve to the correctly-located, mapped header, never a decoy). Live `it`
- *           asserting the current behavior; the suite stays green and documents the boundary.
- * SEALED   → a genuine current false-positive a matrix exposed and FIXED. The speculative
- *           include-root walk was already sealed on this branch by ae3403b6; this matrix
- *           RE-ASSERTS that seal (the CC3 ancestor-decoy and the same-basename-decoy rows)
- *           so it cannot regress. This matrix itself exposed NO new genuine FP — the
- *           canonical-join-only resolver + the angle/macro emission gate are already zero-FP
- *           across every include form, so every other live row is PASS / GAP and no further
- *           seal was required.
+ * GAP     → a deliberate tolerated false-NEGATIVE (silence) that is NOT one of the defined
+ *           FP categories. Live `it` asserting the current behavior; the suite stays green
+ *           and documents the boundary.
+ * SEALED   → a genuine current false-positive a matrix exposed and FIXED. Two seals live
+ *           here: (a) the speculative include-root walk, already sealed on this branch by
+ *           ae3403b6 and RE-ASSERTED by the CC3 ancestor-decoy + same-basename-decoy rows so
+ *           it cannot regress; and (b) the literal `#if 0` / `#elif 0` DEAD-BRANCH include —
+ *           a `0`-condition conditional is unconditionally never compiled, so an `#include`
+ *           in its dead body is statically-known-dead with NO real dependency. Emitting an
+ *           edge for it is a genuine false positive (a spurious cross-node edge for code the
+ *           compiler discards). The extractor now SKIPS such includes (CC6), branch-precise:
+ *           the `#else`/live-`#elif` branch and every `#ifdef` / `#if <non-zero or macro>` /
+ *           `#if defined(...)` / `#if 1` conditional STILL emit (those are legitimate
+ *           conditional dependencies — real under some configuration). `#if 0` is the ONE
+ *           preprocessor conditional a hermetic, source-only tool can resolve with certainty.
  */
 
 const runC = (code: string, ext = '.c') => runExtractor(cExtractor, 'c', ext, code);
@@ -333,26 +343,83 @@ describe('MATRIX — empty / malformed quoted include', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('MATRIX — conditionally-compiled include (`#if 0`) — benign textual over-emission, NEVER a decoy', () => {
-  it('GAP: a `#if 0 … #include "dead.h" … #endif` → STILL emits `dead.h` (the extractor does not run the preprocessor)', async () => {
-    // The extractor walks the AST and sees a real `preproc_include` directive inside an
-    // `#if 0` block, so it emits the literal `dead.h`. It does NOT evaluate preprocessor
-    // conditionals (that needs a full preprocessor this v1 layer deliberately does not run).
-    // This is a tolerated textual OVER-emission, NOT one of the defined FP categories: the
-    // emitted hint is the literal, correctly-spelled path, so it can only ever resolve to the
-    // correctly-LOCATED, mapped `dead.h` next to the includer — never a same-basename decoy in
-    // another directory, never an angle/system header, never a speculative-root grab. If
-    // `dead.h` does not exist relative to the includer (the usual case for dead code), the
-    // resolver silences it (CC3). Distinguishing live from dead `#include`s would require a
-    // preprocessor and risks UNDER-emission; sealing this would be a recall change, not an FP
-    // fix. Surfaced as a recall note, not auto-changed.
-    expect(specs((await runC('#if 0\n#include "dead.h"\n#endif\n')).uses)).toEqual(['dead.h']);
+describe('MATRIX — conditionally-compiled include (`#if 0`) — DEAD `#if 0` branch SEALED; live conditionals KEPT', () => {
+  it('SEALED CC6 (C): a `#if 0 … #include "../b/target.h" … #endif` → NO edge (dead branch, statically-known-dead)', async () => {
+    // THE SEAL. The `0` condition is unconditionally false, so the branch is never compiled
+    // and the include carries no real dependency. The extractor's ancestor-chain check finds
+    // the enclosing literal-`0` `preproc_if` (condition is `number_literal "0"`) with the
+    // include in its DEAD BODY (not under its `alternative`) and skips emission. Without the
+    // seal this emitted a spurious cross-node edge (`a/main.c → b`) for code the compiler
+    // discards — a genuine false positive (proven synthetically; unreached in real repos but
+    // a hard-wall zero-FP violation regardless).
+    expect(specs((await runC('#if 0\n#include "../b/target.h"\n#endif\n')).uses)).toEqual([]);
   });
 
-  it('PASS CC3: that same `dead.h` resolves to SILENCE when no `dead.h` exists relative to the includer', () => {
-    // The benign-over-emission claim above, proven: with no `src/a/dead.h` in the known-set,
-    // the literal hint canonical-joins to a miss → undefined. The over-emitted hint cannot
-    // become an edge unless a real, correctly-located, mapped header backs it.
+  it('SEALED CC6 (C++): the same dead `#if 0` include is skipped under the C++ grammar too', async () => {
+    // c-cpp-shared is SHARED verbatim by cExtractor and cppExtractor; the `preproc_if` /
+    // `number_literal "0"` shape is identical across tree-sitter-c and tree-sitter-cpp
+    // (probe-confirmed), so the seal holds for both.
+    expect(specs((await runCpp('#if 0\n#include "../b/target.hpp"\n#endif\n')).uses)).toEqual([]);
+  });
+
+  it('PASS CC6 (C, branch precision): `#if 0 … #else #include "../b/live.h" … #endif` → the `#else` include IS emitted', async () => {
+    // Branch-precise: the include sits under the `preproc_else` (the `alternative` field of the
+    // dead `#if 0`), which is the LIVE branch — kept. Only the dead-body include is dropped.
+    // The dead `#if 0` body here is empty; the live `#else` include emits.
+    expect(specs((await runC('#if 0\n#else\n#include "../b/live.h"\n#endif\n')).uses)).toEqual(['../b/live.h']);
+  });
+
+  it('PASS CC6 (C, branch precision): `#if 0 #include "dead.h" #else #include "live.h" #endif` → ONLY `live.h`', async () => {
+    // Both branches contain an include. The dead-body `dead.h` is skipped; the live `#else`
+    // `live.h` is emitted — proving the skip targets exactly the dead branch, not the whole
+    // conditional.
+    expect(
+      specs((await runC('#if 0\n#include "dead.h"\n#else\n#include "live.h"\n#endif\n')).uses),
+    ).toEqual(['live.h']);
+  });
+
+  it('PASS CC6 (C, legitimate conditional dep): `#ifdef FOO #include "../b/cond.h" #endif` → STILL emitted', async () => {
+    // `#ifdef FOO` is a `preproc_ifdef` (no `condition` field, never literal-`0`) — a real
+    // dependency under the FOO configuration. The seal does NOT touch it; the include emits.
+    expect(specs((await runC('#ifdef FOO\n#include "../b/cond.h"\n#endif\n')).uses)).toEqual([
+      '../b/cond.h',
+    ]);
+  });
+
+  it('PASS CC6 (C, legitimate conditional dep): `#if 1 #include "../b/one.h" #endif` → STILL emitted', async () => {
+    // `#if 1` is a `preproc_if` with condition `number_literal "1"` — NOT `0`, so not dead.
+    // The literal-`0` check is exact (`text === "0"`); `1` is live and the include emits.
+    expect(specs((await runC('#if 1\n#include "../b/one.h"\n#endif\n')).uses)).toEqual(['../b/one.h']);
+  });
+
+  it('PASS CC6 (C, legitimate conditional dep): `#if defined(FOO) #include "../b/d.h" #endif` → STILL emitted', async () => {
+    // `#if defined(FOO)` carries a `preproc_defined` condition, not a `number_literal` — a
+    // real macro-state-dependent include. Kept.
+    expect(specs((await runC('#if defined(FOO)\n#include "../b/d.h"\n#endif\n')).uses)).toEqual([
+      '../b/d.h',
+    ]);
+  });
+
+  it('SEALED CC6 (C, nested): `#if 0` outer with inner `#ifdef` → the inner include is STILL skipped (dead outer subsumes it)', async () => {
+    // The inner `#ifdef BAR` include is a descendant of the dead outer `#if 0` body. The
+    // ancestor walk climbs past the inner conditional and reaches the dead literal-`0` outer
+    // → skipped. A nested conditional cannot resurrect an include inside a dead outer branch.
+    expect(specs((await runC('#if 0\n#ifdef BAR\n#include "../b/inner.h"\n#endif\n#endif\n')).uses)).toEqual([]);
+  });
+
+  it('SEALED CC6 (C, `#elif 0`): the dead `#elif 0` branch include is skipped; the live `#if` branch include is kept', async () => {
+    // `#elif 0` is a `preproc_elif` with condition `number_literal "0"` (reached via the
+    // `alternative` of its parent `#if`). Its own body include is dead → skipped. The live
+    // first-branch `a.h` (a direct body child of a NON-zero `#if FOO`) is kept.
+    expect(
+      specs((await runC('#if FOO\n#include "a.h"\n#elif 0\n#include "dead.h"\n#endif\n')).uses),
+    ).toEqual(['a.h']);
+  });
+
+  it('PASS CC3 (C): a kept dead-code path still SILENCES at the resolver when unmapped', () => {
+    // Belt-and-suspenders: even for an include the seal does NOT drop, a literal hint that
+    // canonical-joins to a miss is undefined. `dead.h` with no `src/a/dead.h` in the known-set
+    // → silence (the resolver gate is independent of the emission-side seal).
     expect(R('dead.h', 'src/a/main.c')).toBeUndefined();
   });
 });
