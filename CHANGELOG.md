@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - **`esbuild` pinned to `^0.28.1` in the CLI build toolchain.** `tsup` pulls `esbuild` transitively and its `^0.27.0` range topped out at `0.27.3`, which is affected by two advisories — a high-severity missing binary-integrity verification that enables remote code execution via `NPM_CONFIG_REGISTRY`, and a low-severity arbitrary file read by the dev server on Windows (both patched in `0.28.1`). An npm `overrides` entry forces `esbuild >= 0.28.1` across the `source/cli` dependency tree (the latest `tsup` still declares `^0.27.0`, so a parent upgrade could not resolve it). Build (`tsup`) and the full test suite verified unaffected.
+- **`esbuild` pinned to `^0.28.1` in the docs site toolchain.** `vitepress` pulls `esbuild` transitively through `vite ^5.4` (resolving to `0.21.5`), affected by the same high-severity advisory. The override is paired with a Vite `build.target: es2022` in `docs/.vitepress/config.ts`, because `esbuild 0.28` refuses to down-level modern syntax to Vite 5.4's default `chrome87`/`es2020` browser target and would otherwise fail the build. Trade-off: the generated documentation site now targets reasonably modern browsers (≈2022+). The `vitepress build` is verified to pass with the upgraded `esbuild`.
 
 ## [5.0.0-alpha.5] - 2026-06-13
 
