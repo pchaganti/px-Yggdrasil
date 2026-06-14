@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Architecture-validation diagnostics consistently carry structured `{ what, why, next }` data.** Every diagnostic the architecture checks emit (parent cycles, type/when mismatches, undefined node types, port-aspect/consumes contracts, forbidden relation and parent types) now builds its message once and attaches it as structured `messageData`, so each is uniformly actionable. No message text changed.
 - **Internal fill-stage and log-merge diagnostics hardened.** Infrastructure dispositions from the fill stage (an unexpected worker error, an unreadable reference, a reviewer that threw or returned a provider error) now carry structured `{ what, why, next }` detail; the lock-invalid branch in log merge-resolution now logs diagnostic context before returning; and `[fill]` debug lines normalize paths to forward-slash form.
 
+### Security
+
+- **`esbuild` pinned to `^0.28.1` in the CLI build toolchain.** `tsup` pulls `esbuild` transitively and its `^0.27.0` range topped out at `0.27.3`, which is affected by two advisories — a high-severity missing binary-integrity verification that enables remote code execution via `NPM_CONFIG_REGISTRY`, and a low-severity arbitrary file read by the dev server on Windows (both patched in `0.28.1`). An npm `overrides` entry forces `esbuild >= 0.28.1` across the `source/cli` dependency tree (the latest `tsup` still declares `^0.27.0`, so a parent upgrade could not resolve it). Build (`tsup`) and the full test suite verified unaffected.
+
 ## [5.0.0-alpha.5] - 2026-06-13
 
 > **Breaking — verdict lock redesign.** This release replaces per-node drift
