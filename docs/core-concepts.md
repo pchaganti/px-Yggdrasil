@@ -141,7 +141,7 @@ A few things to know:
   relation type is allowed between the two component types, that is an architecture
   decision — your agent will surface it for your confirmation.
 
-When adopting Yggdrasil on an existing codebase, run `yg check` to identify every undeclared dependency — the refusal message names the file, the target node, and the exact `relations:` stanza to add, so you can declare them before running `yg check --approve`.
+When adopting Yggdrasil on an existing codebase, run `yg check --approve` — it parses your code and refuses each component that has an undeclared dependency, naming the file, the target node, and the exact `relations:` stanza to add. (Plain `yg check` is parse-free: it re-validates recorded verdicts but does not discover new dependencies, so the detecting run is always `yg check --approve`.) Declare the relations it reports, then re-run until `yg check` is clean.
 
 ### Ports
 

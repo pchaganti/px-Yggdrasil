@@ -29,6 +29,11 @@ ports:                        # optional — named entry points with required as
         when: <predicate>     #   optional — object form with per-attach applicability filter
 
 relations:                    # optional — outgoing dependencies to other nodes
+                              # Load-bearing, not just documentation: a built-in deterministic check
+                              # parses this node's mapped code and REFUSES it (relation-undeclared-dependency,
+                              # always an error) if it depends on another mapped node without a relation here.
+                              # One-directional — a declared relation needs no code behind it. See
+                              # `yg knowledge read ports-and-relations`.
   - target: other/module-path # required — node path relative to model/
     type: calls               # required — calls | uses | extends | implements | emits | listens
     consumes: [port-name]     # optional — port names consumed from target
