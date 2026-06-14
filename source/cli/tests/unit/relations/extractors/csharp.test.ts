@@ -225,7 +225,7 @@ describe('csharp SYMBOL-TABLE resolution — the half this language validates', 
     // Build the shared SymbolTable exactly as pass.ts step 4 does.
     const st = new SymbolTable();
     for (const f of [fileA, fileB]) {
-      for (const d of csharpExtractor.declarations(f)) st.declare(d.symbolKey, f.path);
+      for (const d of csharpExtractor.declarations(f)) st.declare('csharp', d.symbolKey, f.path);
     }
 
     // The consumer's qualified `new` resolves to fileA via resolveUnique.
@@ -234,7 +234,7 @@ describe('csharp SYMBOL-TABLE resolution — the half this language validates', 
       (u) => u.targetHint.kind === 'symbol' && u.targetHint.symbolKey === 'MyApp.Payments.Gateway',
     );
     expect(hint?.targetHint).toEqual({ kind: 'symbol', symbolKey: 'MyApp.Payments.Gateway' });
-    expect(st.resolveUnique('MyApp.Payments.Gateway')).toBe('src/a/Gateway.cs');
+    expect(st.resolveUnique('csharp', 'MyApp.Payments.Gateway')).toBe('src/a/Gateway.cs');
 
     // And the full resolver wires symbol → owner node (mirrors resolver.ts).
     const ownerIndex = {
@@ -260,13 +260,13 @@ describe('csharp SYMBOL-TABLE resolution — the half this language validates', 
     );
 
     const st = new SymbolTable();
-    for (const d of csharpExtractor.declarations(fileA)) st.declare(d.symbolKey, fileA.path);
+    for (const d of csharpExtractor.declarations(fileA)) st.declare('csharp', d.symbolKey, fileA.path);
 
     const hint = csharpExtractor
       .uses(consumer)
       .find((u) => u.targetHint.kind === 'symbol' && u.targetHint.symbolKey === 'MyApp.Payments.Gateway');
     expect(hint).toBeDefined();
-    expect(st.resolveUnique('MyApp.Payments.Gateway')).toBe('src/a/Gateway.cs');
+    expect(st.resolveUnique('csharp', 'MyApp.Payments.Gateway')).toBe('src/a/Gateway.cs');
   });
 
   it('AMBIGUITY: two files declaring the SAME FQN → a use of it resolves to undefined (silence, no flag)', async () => {
@@ -279,11 +279,11 @@ describe('csharp SYMBOL-TABLE resolution — the half this language validates', 
 
     const st = new SymbolTable();
     for (const f of [fileX, fileY]) {
-      for (const d of csharpExtractor.declarations(f)) st.declare(d.symbolKey, f.path);
+      for (const d of csharpExtractor.declarations(f)) st.declare('csharp', d.symbolKey, f.path);
     }
 
     // resolveUnique returns undefined for the ambiguous FQN.
-    expect(st.resolveUnique('MyApp.Dup.Thing')).toBeUndefined();
+    expect(st.resolveUnique('csharp', 'MyApp.Dup.Thing')).toBeUndefined();
 
     // Through the resolver the use also resolves to undefined — silence, never a flag.
     const ownerIndex = { ownerOf: () => 'someNode' };
@@ -353,7 +353,7 @@ describe('csharp anti-FALSE-POSITIVE — the silence list (D8 gate)', () => {
     // The FQN is a STRING literal — never a qualified_name node. No symbol hint can
     // resolve to MyApp.Payments.Gateway even if that type is in the table.
     const st = new SymbolTable();
-    st.declare('MyApp.Payments.Gateway', 'src/pay/Gateway.cs');
+    st.declare('csharp', 'MyApp.Payments.Gateway', 'src/pay/Gateway.cs');
     const owners = resolveAll(uses, st, (f) => (f === 'src/pay/Gateway.cs' ? 'pay' : undefined));
     expect(owners.every((o) => o === undefined)).toBe(true);
   });
@@ -401,7 +401,7 @@ describe('csharp anti-FALSE-POSITIVE — the silence list (D8 gate)', () => {
       ['class C { void M() { var x = new Foo.Bar.Baz(); } }', ''].join('\n'),
     );
     const st = new SymbolTable();
-    st.declare('Foo.Bar.Baz', 'src/unmapped/Baz.cs');
+    st.declare('csharp', 'Foo.Bar.Baz', 'src/unmapped/Baz.cs');
     // ownerOf returns undefined for the unmapped file → resolver yields undefined (D7).
     const owners = resolveAll(uses, st, () => undefined);
     expect(owners.every((o) => o === undefined)).toBe(true);
@@ -415,7 +415,7 @@ describe('csharp anti-FALSE-POSITIVE — the silence list (D8 gate)', () => {
       ['namespace App;', 'class C { void M() { var x = new App.Sibling(); } }', ''].join('\n'),
     );
     const st = new SymbolTable();
-    st.declare('App.Sibling', 'src/c/Sibling.cs'); // same node as the consumer
+    st.declare('csharp', 'App.Sibling', 'src/c/Sibling.cs'); // same node as the consumer
     const owners = resolveAll(uses, st, (f) => (f === 'src/c/Sibling.cs' ? 'c' : undefined));
     // It resolves to node 'c' — the consumer's own node — which is never an undeclared
     // cross-node dependency (the verifier's self/family filter handles it).

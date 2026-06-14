@@ -231,9 +231,9 @@ describe('ruby SYMBOL-TABLE resolution — unique resolves, reopened silences', 
     const consumer = await parse('src/b/order_service.rb', 'class OrderService < BaseService\nend\n');
 
     const st = new SymbolTable();
-    for (const d of rubyExtractor.declarations(fileA)) st.declare(d.symbolKey, fileA.path);
+    for (const d of rubyExtractor.declarations(fileA)) st.declare('ruby', d.symbolKey, fileA.path);
 
-    expect(st.resolveUnique('BaseService')).toBe('src/a/base_service.rb');
+    expect(st.resolveUnique('ruby', 'BaseService')).toBe('src/a/base_service.rb');
 
     const importHint = rubyExtractor.uses(consumer).find((u) => u.targetHint.kind === 'symbol')!;
     expect(importHint.targetHint).toEqual({ kind: 'symbol', symbolKey: 'BaseService' });
@@ -258,10 +258,10 @@ describe('ruby SYMBOL-TABLE resolution — unique resolves, reopened silences', 
 
     const st = new SymbolTable();
     for (const f of [fileX, fileY]) {
-      for (const d of rubyExtractor.declarations(f)) st.declare(d.symbolKey, f.path);
+      for (const d of rubyExtractor.declarations(f)) st.declare('ruby', d.symbolKey, f.path);
     }
 
-    expect(st.resolveUnique('Widget')).toBeUndefined();
+    expect(st.resolveUnique('ruby', 'Widget')).toBeUndefined();
 
     const ownerIndex = { ownerOf: () => 'someNode' };
     const resolver = makeResolver({

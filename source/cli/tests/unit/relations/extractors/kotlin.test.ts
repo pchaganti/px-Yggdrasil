@@ -156,14 +156,14 @@ describe('kotlin SYMBOL-TABLE resolution — the half this language validates', 
     // Build the shared SymbolTable exactly as pass.ts step 4 does.
     const st = new SymbolTable();
     for (const f of [fileA, fileB]) {
-      for (const d of kotlinExtractor.declarations(f)) st.declare(d.symbolKey, f.path);
+      for (const d of kotlinExtractor.declarations(f)) st.declare('kotlin', d.symbolKey, f.path);
     }
 
     // The consumer's import hint must resolve to fileA via resolveUnique.
     const uses = kotlinExtractor.uses(consumer);
     const importHint = uses.find((u) => u.targetHint.kind === 'symbol');
     expect(importHint?.targetHint).toEqual({ kind: 'symbol', symbolKey: 'com.acme.payments.PaymentService' });
-    expect(st.resolveUnique('com.acme.payments.PaymentService')).toBe('src/a/PaymentService.kt');
+    expect(st.resolveUnique('kotlin', 'com.acme.payments.PaymentService')).toBe('src/a/PaymentService.kt');
 
     // And the full resolver wires symbol → owner node (mirrors resolver.ts).
     const ownerIndex = { ownerOf: (f: string) => (f === 'src/a/PaymentService.kt' ? 'a' : f === 'src/b/AuditLog.kt' ? 'b' : undefined) };
@@ -182,11 +182,11 @@ describe('kotlin SYMBOL-TABLE resolution — the half this language validates', 
 
     const st = new SymbolTable();
     for (const f of [fileX, fileY]) {
-      for (const d of kotlinExtractor.declarations(f)) st.declare(d.symbolKey, f.path);
+      for (const d of kotlinExtractor.declarations(f)) st.declare('kotlin', d.symbolKey, f.path);
     }
 
     // resolveUnique returns undefined for the ambiguous FQN.
-    expect(st.resolveUnique('com.acme.dup.Thing')).toBeUndefined();
+    expect(st.resolveUnique('kotlin', 'com.acme.dup.Thing')).toBeUndefined();
 
     // Through the resolver the use also resolves to undefined — silence, never a flag.
     const ownerIndex = { ownerOf: () => 'someNode' };

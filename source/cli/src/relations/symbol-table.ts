@@ -3,15 +3,19 @@ import { readFileSync, existsSync } from 'node:fs';
 import { atomicWriteFile } from '../io/atomic-write.js';
 
 export class SymbolTable {
-  private readonly defs = new Map<string, Set<string>>(); // symbolKey → set of defining files
-  declare(symbolKey: string, file: string): void {
-    let s = this.defs.get(symbolKey);
-    if (!s) { s = new Set(); this.defs.set(symbolKey, s); }
+  private readonly defs = new Map<string, Set<string>>(); // `${language}\0${symbolKey}` → set of defining files
+  private key(language: string, symbolKey: string): string {
+    return `${language}\0${symbolKey}`;
+  }
+  declare(language: string, symbolKey: string, file: string): void {
+    const k = this.key(language, symbolKey);
+    let s = this.defs.get(k);
+    if (!s) { s = new Set(); this.defs.set(k, s); }
     s.add(file);
   }
-  /** Exactly one definition → that file; zero or 2+ (ambiguous, incl. off-graph) → undefined. */
-  resolveUnique(symbolKey: string): string | undefined {
-    const s = this.defs.get(symbolKey);
+  /** Exactly one same-language definition → that file; zero or 2+ (ambiguous, incl. off-graph) → undefined. */
+  resolveUnique(language: string, symbolKey: string): string | undefined {
+    const s = this.defs.get(this.key(language, symbolKey));
     if (!s || s.size !== 1) return undefined;
     return [...s][0];
   }

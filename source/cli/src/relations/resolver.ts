@@ -15,7 +15,7 @@ export function makeResolver(deps: ResolverDeps): TargetResolver {
   return {
     resolve(hint, fromFile, language) {
       const file = hint.kind === 'symbol'
-        ? deps.symbolTable.resolveUnique(hint.symbolKey)
+        ? deps.symbolTable.resolveUnique(language, hint.symbolKey)
         : deps.resolvePathToFile(hint.specifier, fromFile, language);
       if (!file) return undefined;                 // unresolved / ambiguous → silence
       const ownerNode = deps.ownerIndex.ownerOf(file);

@@ -131,7 +131,7 @@ export async function runRelationPass(
 
     const cached = loadSymbolIndex(deps.symbolIndexDir, language, builtFrom);
     if (cached) {
-      for (const [symbolKey, file] of cached.symbols) symbolTable.declare(symbolKey, file);
+      for (const [symbolKey, file] of cached.symbols) symbolTable.declare(language, symbolKey, file);
       continue;
     }
 
@@ -142,7 +142,7 @@ export async function runRelationPass(
       if (!parsed) continue;
       for (const decl of extractor.declarations(parsed)) {
         symbols.push([decl.symbolKey, record.path]);
-        symbolTable.declare(decl.symbolKey, record.path);
+        symbolTable.declare(language, decl.symbolKey, record.path);
       }
     }
     const toPersist: PersistedSymbolIndex = { builtFrom, symbols };
