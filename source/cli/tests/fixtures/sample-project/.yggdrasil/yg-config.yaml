@@ -8,4 +8,9 @@ reviewer:
       consensus: 1
       config:
         model: test
-        endpoint: http://localhost:11434
+        # Reserved port 1 (tcpmux) — guaranteed unreachable regardless of any
+        # ambient ollama/LLM service a dev machine may run on the default port.
+        # The reviewer's isAvailable() GET is refused immediately (ECONNREFUSED),
+        # so "reviewer unreachable" is a deterministic precondition, not a
+        # function of what happens to be listening locally.
+        endpoint: http://127.0.0.1:1

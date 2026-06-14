@@ -183,6 +183,7 @@ export async function logMergeResolve(input: LogMergeResolveInput): Promise<LogM
       lock = readLock(yggRoot);
     } catch (err) {
       if (err instanceof LockInvalidError) {
+        debugWrite(`[log-merge-resolve] readLock returned an invalid lock for node ${nodePath}: ${err.message}`);
         return { ok: false, error: err.messageData };
       }
       throw err;

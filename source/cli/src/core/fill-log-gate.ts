@@ -49,7 +49,7 @@ export async function logGateBlocksNode(
     // already surfaced as a blocking file-unreadable error; block it here too so
     // its pairs are never filled/closed over an unreadable source.
     if (e instanceof FileUnreadableError) {
-      debugWrite(`[fill] logGate fingerprint for ${node.path}: ${e.message}`);
+      debugWrite(`[fill] logGate fingerprint for ${toPosixPath(node.path)}: ${e.message}`);
       return true;
     }
     throw e;

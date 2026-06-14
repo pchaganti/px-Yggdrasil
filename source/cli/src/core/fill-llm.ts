@@ -5,6 +5,8 @@
  * produces the content-addressed entry. Every infra disposition (reference
  * unreadable, provider error/unparseable) returns { kind: 'infra' } so the caller
  * writes NOTHING (spec §3.2).
+ *
+ * yg-suppress(deterministic) the fill stage exists to invoke the configured LLM reviewer; non-determinism is inherent to its purpose, and every verdict it records is content-addressed so reproducibility is enforced at the lock layer instead
  */
 
 import path from 'node:path';
@@ -66,13 +68,23 @@ export async function fillLlmPair(
     if (bytes === undefined) {
       bytes = await readFileBytes(absRef); // raw disk Buffer, no decode, no BOM strip; null on error
       if (bytes === null) {
-        debugWrite(`[fill] reference load failed for ${aspect.id} path ${ref.path}`);
+        debugWrite(`[fill] reference load failed for ${aspect.id} path ${toPosixPath(ref.path)}`);
       }
       referencesCache.set(absRef, bytes);
     }
     if (bytes === null) {
       // Never hash over empty-substituted bytes — fail closed.
-      return { kind: 'infra', why: `reference '${toPosixPath(ref.path)}' for aspect '${aspect.id}' could not be read`, callsMade: 0 };
+      const why = `reference '${toPosixPath(ref.path)}' for aspect '${aspect.id}' could not be read`;
+      return {
+        kind: 'infra',
+        why,
+        messageData: {
+          what: `Reference file '${toPosixPath(ref.path)}' for aspect '${aspect.id}' could not be read.`,
+          why: 'A declared reference is part of the verifier input; reading empty-substituted bytes would desync the producer and verifier and pin a false verdict, so the fill fails closed and writes NOTHING.',
+          next: `Restore the reference file at '${toPosixPath(ref.path)}' or fix its permissions, then re-run: yg check --approve`,
+        },
+        callsMade: 0,
+      };
     }
     referencesForHash.push([ref.path, hashBytes(bytes), ref.description ?? '']);
     referencesForPrompt.push({ path: ref.path, description: ref.description, content: bytes.toString('utf8') });
@@ -92,14 +104,33 @@ export async function fillLlmPair(
   try {
     response = await verifyWithConsensus(provider, prompt, consensus);
   } catch (e) {
-    debugWrite(`[fill] reviewer threw for ${aspect.id} on ${pair.unitKey}: ${e instanceof Error ? e.message : String(e)}`);
-    return { kind: 'infra', why: `the reviewer threw or returned an unparseable response: ${e instanceof Error ? e.message : String(e)}`, callsMade: consensus };
+    const detail = e instanceof Error ? e.message : String(e);
+    debugWrite(`[fill] reviewer threw for ${aspect.id} on ${pair.unitKey}: ${detail}`);
+    return {
+      kind: 'infra',
+      why: `the reviewer threw or returned an unparseable response: ${detail}`,
+      messageData: {
+        what: `Reviewer for aspect '${aspect.id}' on ${toPosixPath(pair.unitKey)} threw or returned an unparseable response: ${detail}`,
+        why: 'The reviewer could not produce a verdict — an infrastructure problem, not a code violation. Fail-closed: NOTHING was written, the pair stays unverified (spec §3.2).',
+        next: 'Check the provider endpoint, network, and credentials, then re-run: yg check --approve',
+      },
+      callsMade: consensus,
+    };
   }
 
   // A provider-sourced failure is infra (no write). Only a codeViolation maps to
   // a real verdict token.
   if (!response.satisfied && response.errorSource === 'provider') {
-    return { kind: 'infra', why: `the reviewer returned a provider error: ${response.reason}`, callsMade: consensus };
+    return {
+      kind: 'infra',
+      why: `the reviewer returned a provider error: ${response.reason}`,
+      messageData: {
+        what: `Reviewer for aspect '${aspect.id}' on ${toPosixPath(pair.unitKey)} returned a provider error: ${response.reason}`,
+        why: 'A provider-sourced failure is infrastructure, not a code violation — only a codeViolation maps to a real verdict. Fail-closed: NOTHING was written, the pair stays unverified (spec §3.2).',
+        next: 'Check the provider endpoint, network, and credentials, then re-run: yg check --approve',
+      },
+      callsMade: consensus,
+    };
   }
 
   const verdict: Verdict = response.satisfied ? 'approved' : 'refused';
