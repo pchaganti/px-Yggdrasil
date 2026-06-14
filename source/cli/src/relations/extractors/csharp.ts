@@ -233,6 +233,7 @@ function uses(file: ParsedFile): DetectedDep[] {
   const out: DetectedDep[] = [];
   const seen = new Set<string>();
   const scope = buildUsingScope(file);
+  const fileNs = fileScopedNamespace(file.tree.rootNode);
 
   const emit = (symbolKey: string | undefined, line: number): void => {
     if (symbolKey === undefined || symbolKey === '') return;
@@ -266,8 +267,15 @@ function uses(file: ParsedFile): DetectedDep[] {
 
     // (a) Qualified references: emit the OUTERMOST qualified_name only (skip a
     //     qualified_name nested directly inside another — that is just the qualifier
-    //     part of a longer dotted name, never an independent reference). The text is a
-    //     candidate FQN exactly as written.
+    //     part of a longer dotted name, never an independent reference). A multi-segment
+    //     `qualified_name` written inside a namespace or under a `using` is NOT provably
+    //     a complete FQN — C# name lookup tries the enclosing-namespace and using-prefix
+    //     expansions before the top-level interpretation. So we emit the verbatim text
+    //     AND each expansion as candidates; resolveUnique's exactly-one-or-silence rule
+    //     keeps the real edge and silences when two expansions resolve to different files.
+    //     Only at TRUE FILE SCOPE (no using AND no enclosing namespace) is the verbatim
+    //     text the sole possible meaning, so it is emitted alone. (Separator isolation:
+    //     these are dot-only candidates; nested-type keys use `+` and never collide.)
     if (node.type === 'qualified_name') {
       // Skip the namespace-name qualified_name that is the `name` field of a block
       // namespace declaration (it names the namespace, not a dependency).
@@ -276,7 +284,14 @@ function uses(file: ParsedFile): DetectedDep[] {
         if (nm !== null && nm.id === node.id) return undefined;
       }
       if (node.parent !== null && node.parent.type === 'qualified_name') return undefined;
-      emit(node.text, node.startPosition.row + 1);
+      const line = node.startPosition.row + 1;
+      const verbatim = node.text;
+      // Enclosing namespace = file-scoped namespace joined with the block-namespace
+      // ancestor chain of THIS reference.
+      const enclosingNs = [fileNs, blockNamespace(node)].filter((p) => p !== '').join('.');
+      if (enclosingNs !== '') emit(`${enclosingNs}.${verbatim}`, line);
+      for (const prefix of scope.prefixes) emit(`${prefix}.${verbatim}`, line);
+      emit(verbatim, line);
       return undefined;
     }
 

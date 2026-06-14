@@ -138,6 +138,104 @@ function buildRepo(label: string, withRelation: boolean): string {
   return root;
 }
 
+/**
+ * Build a temp repo where a/Order.cs (inside `namespace MyApp.Orders;`) references a
+ * PARTIALLY-qualified `new Payments.Gateway()`. Node a also declares its own
+ * `Payments.Gateway` (a local stub), while node b independently declares `Payments.Gateway`.
+ * Because C5 emits BOTH the enclosing-namespace expansion (`MyApp.Orders.Payments.Gateway`,
+ * which resolves to nothing) AND the verbatim `Payments.Gateway`, the verbatim form is
+ * ambiguous in the symbol table (two files claim it — one in node a, one in node b), so
+ * `resolveUnique` returns undefined and no cross-node flag is raised. This demonstrates the
+ * C5 guarantee: a partially-qualified `qualified_name` that could bind to multiple targets
+ * is silenced rather than producing a false positive. Node a does NOT declare a relation to
+ * b, so any stale verbatim-only flag would surface as exit 1.
+ */
+function buildPartialRepo(label: string): string {
+  const root = mkdtempSync(path.join(tmpdir(), `yg-rel-csharp-partial-${label}-`));
+  cpSync(SCHEMAS_SRC, path.join(root, '.yggdrasil', 'schemas'), { recursive: true });
+  writeFile(
+    root,
+    '.yggdrasil/yg-architecture.yaml',
+    [
+      'node_types:',
+      '  component:',
+      "    description: 'A source component mapped under src/.'",
+      '    log_required: false',
+      '    when:',
+      '      path: "src/**"',
+      '    relations:',
+      '      uses: [component]',
+      '',
+    ].join('\n'),
+  );
+  writeFile(
+    root,
+    '.yggdrasil/yg-config.yaml',
+    [
+      'version: "5.0.0"',
+      '',
+      'quality:',
+      '  max_direct_relations: 10',
+      '',
+      'reviewer:',
+      '  default: standard',
+      '  tiers:',
+      '    standard:',
+      '      provider: ollama',
+      '      consensus: 1',
+      '      config:',
+      '        model: "qwen2.5-coder:0.5b"',
+      '        endpoint: "http://host.docker.internal:11434"',
+      '',
+    ].join('\n'),
+  );
+  // Node b declares `Payments.Gateway` (namespace `Payments`).
+  writeFile(
+    root,
+    '.yggdrasil/model/b/yg-node.yaml',
+    'name: B\ndescription: Dependency target component.\ntype: component\nmapping:\n  - src/b\n',
+  );
+  // Node a does NOT declare a relation to b.
+  writeFile(
+    root,
+    '.yggdrasil/model/a/yg-node.yaml',
+    'name: A\ndescription: Constructing component.\ntype: component\nmapping:\n  - src/a\n',
+  );
+  // a/Order.cs: inside `namespace MyApp.Orders;`, writes a PARTIALLY-qualified
+  // `new Payments.Gateway()`. C5 emits BOTH the enclosing-namespace expansion
+  // `MyApp.Orders.Payments.Gateway` (resolves to nothing) AND the verbatim
+  // `Payments.Gateway`. The verbatim is claimed by BOTH src/a/LocalGateway.cs and
+  // src/b/Gateway.cs — resolveUnique sees two definitions → returns undefined → silence.
+  writeFile(
+    root,
+    'src/a/Order.cs',
+    [
+      'namespace MyApp.Orders;',
+      'public class Order {',
+      '  public void Pay() {',
+      '    var gw = new Payments.Gateway();',
+      '  }',
+      '}',
+      '',
+    ].join('\n'),
+  );
+  // Node a also has a local Payments.Gateway declaration — this creates the symbol-table
+  // ambiguity that makes resolveUnique('csharp', 'Payments.Gateway') return undefined,
+  // silencing the partial-qual reference rather than flagging a false positive on node b.
+  writeFile(
+    root,
+    'src/a/LocalGateway.cs',
+    ['namespace Payments;', 'public class Gateway { }', ''].join('\n'),
+  );
+  // b declares the same `Payments.Gateway` key.
+  writeFile(
+    root,
+    'src/b/Gateway.cs',
+    ['namespace Payments;', 'public class Gateway { }', ''].join('\n'),
+  );
+  return root;
+}
+
 describe.skipIf(!distExists)('CLI E2E — C# relation conformance (live, symbol-table)', () => {
   it('refuses an undeclared cross-node type use, then passes once the relation is declared', () => {
     // 1. No declared relation → the cross-node type use is refused.
@@ -168,6 +266,22 @@ describe.skipIf(!distExists)('CLI E2E — C# relation conformance (live, symbol-
       expect(plain.all).not.toContain('relation-undeclared-dependency');
     } finally {
       rmSync(declared, { recursive: true, force: true });
+    }
+  });
+
+  it('does NOT raise a false relation flag for a partially-qualified ref bound to the enclosing namespace', () => {
+    // a writes `new Payments.Gateway()` inside `namespace MyApp.Orders;`. The enclosing
+    // candidate MyApp.Orders.Payments.Gateway resolves to nothing; emitting the verbatim
+    // Payments.Gateway alongside it lets resolveUnique gate the edge. With a/b in distinct
+    // namespaces and no declared relation, C5 must NOT turn the bare verbatim guess into a
+    // cross-node refusal.
+    const repo = buildPartialRepo('amb');
+    try {
+      const res = run(['check', '--approve'], repo);
+      expect(res.status, res.all).toBe(0);
+      expect(res.all).not.toContain('relation-undeclared-dependency');
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
     }
   });
 });

@@ -71,9 +71,15 @@ describe('csharp extractor — uses() emits SYMBOL hints (never path hints)', ()
     expect(uses.every((u) => u.targetHint.kind === 'symbol')).toBe(true);
   });
 
-  it('emits a FULLY-QUALIFIED base type (`: Foo.Bar.Base`) as the FQN candidate', async () => {
+  it('inside a namespace, emits BOTH the enclosing-namespace expansion AND the verbatim form for a multi-segment qualified base type', async () => {
+    // `Foo.Bar.Base` written inside `namespace App;` could bind to `App.Foo.Bar.Base`
+    // (enclosing-namespace lookup) OR top-level `Foo.Bar.Base`. We emit BOTH candidates;
+    // resolveUnique keeps only one if exactly one resolves, and silences if both resolve
+    // to different files.
     const { uses } = await run(['namespace App;', 'class C : Foo.Bar.Base { }', ''].join('\n'));
-    expect(symbolKeys(uses)).toContain('Foo.Bar.Base');
+    const keys = symbolKeys(uses);
+    expect(keys).toContain('App.Foo.Bar.Base'); // enclosing-namespace expansion
+    expect(keys).toContain('Foo.Bar.Base'); // verbatim fallback
   });
 
   it('emits a FULLY-QUALIFIED field type as the FQN candidate', async () => {
@@ -207,6 +213,57 @@ describe('csharp extractor — uses() emits SYMBOL hints (never path hints)', ()
     // would produce `A.Baz` twice, but the dedup collapses it to one.
     const { uses } = await run(['using A;', 'using A;', 'class C : Baz { }', ''].join('\n'));
     expect(symbolKeys(uses).filter((k) => k === 'A.Baz')).toHaveLength(1);
+  });
+
+  it('inside a namespace, expands a multi-segment qualified ref against EACH using prefix too', async () => {
+    // `new Models.Order()` inside `namespace App;` with `using Domain;` could mean
+    // App.Models.Order, Domain.Models.Order, or top-level Models.Order — emit all three.
+    const { uses } = await run(
+      ['using Domain;', 'namespace App;', 'class C { void M() { var o = new Models.Order(); } }', ''].join('\n'),
+    );
+    const keys = symbolKeys(uses);
+    expect(keys).toContain('App.Models.Order'); // enclosing-namespace expansion
+    expect(keys).toContain('Domain.Models.Order'); // using-prefix expansion
+    expect(keys).toContain('Models.Order'); // verbatim fallback
+  });
+
+  it('inside a namespace with a using, expands a qualified BASE type the same way', async () => {
+    const { uses } = await run(
+      ['using Domain;', 'namespace App.Sub;', 'class C : Models.Base { }', ''].join('\n'),
+    );
+    const keys = symbolKeys(uses);
+    expect(keys).toContain('App.Sub.Models.Base'); // enclosing block namespace expansion
+    expect(keys).toContain('Domain.Models.Base'); // using-prefix expansion
+    expect(keys).toContain('Models.Base'); // verbatim fallback
+  });
+
+  it('at FILE SCOPE (no namespace, no using), keeps a multi-segment qualified ref VERBATIM only', async () => {
+    // No enclosing namespace and no using prefix → `Foo.Bar.Baz` can ONLY mean top-level
+    // Foo.Bar.Baz. It is unambiguous, so it stays a verbatim candidate (no expansion noise).
+    const { uses } = await run(['class C { void M() { var o = new Foo.Bar.Baz(); } }', ''].join('\n'));
+    const keys = symbolKeys(uses);
+    expect(keys).toContain('Foo.Bar.Baz');
+    // No spurious namespace/using expansion exists to emit.
+    expect(keys).toEqual(['Foo.Bar.Baz']);
+  });
+
+  it('a partially-qualified ref that ONLY the top-level form resolves still flags (one expansion resolves)', async () => {
+    // Positive: inside `namespace App;`, `Models.Order` is emitted as App.Models.Order +
+    // Models.Order. Only the top-level Models.Order is declared in the table → exactly one
+    // resolution → the dependency is found (not over-silenced).
+    const consumer = await parse(
+      'src/c/Use.cs',
+      'namespace App;\nclass C { void M() { var o = new Models.Order(); } }\n',
+    );
+    const st = new SymbolTable();
+    st.declare('csharp', 'Models.Order', 'src/m/Order.cs'); // ONLY the top-level form exists
+    const hint = csharpExtractor
+      .uses(consumer)
+      .find((u) => u.targetHint.kind === 'symbol' && u.targetHint.symbolKey === 'Models.Order');
+    expect(hint).toBeDefined();
+    expect(st.resolveUnique('csharp', 'Models.Order')).toBe('src/m/Order.cs');
+    // The phantom enclosing-namespace expansion resolves to nothing → no second match.
+    expect(st.resolveUnique('csharp', 'App.Models.Order')).toBeUndefined();
   });
 });
 
