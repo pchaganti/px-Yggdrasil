@@ -1,7 +1,10 @@
 name: E2E Tests — Lock Lifecycle
 type: test-suite
-description: "Subprocess E2E for the full verdict-lock lifecycle (lock matrix part 1): cold start to fill to verified, edit to unverified to re-fill, the log gate plus positive closure, and garbage collection of detached entries. Real spawned binary with an in-process mock reviewer."
+description: "Subprocess E2E for the full verdict-lock lifecycle (lock matrix
+  part 1): cold start to fill to verified, edit to unverified to re-fill, the
+  log gate plus positive closure, and garbage collection of detached entries.
+  Real spawned binary with an in-process mock reviewer."
 aspects: []
-relations: []
+relations: [ { target: cli/tests/e2e/support, type: uses } ]
 mapping:
   - source/cli/tests/e2e/cli-lock-lifecycle.test.ts

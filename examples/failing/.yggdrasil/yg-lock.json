@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "verdicts": {
     "requires-audit": {
       "node:payments": {"hash":"a280fb7b9827f2a7a8e393bcd29c40b3585825b352805fc250d309b2864bdf0b","reason":"Both mutation functions in src/payments.ts fail to emit audit events with required fields. src/payments.ts:2 charge() uses only console.log() (not acceptable per aspect). src/payments.ts:8 refund() also uses only console.log() instead of calling emitAudit() with operation, timestamp, and entityId. The emitAudit() function is defined and available in src/audit.ts but is never invoked by either mutation function.","verdict":"refused"}
@@ -7,5 +7,9 @@
   },
   "nodes": {
     "api": {"source":"0aac398b69c28d3c90642035290d3990e405a425ba88c2640bcf9486d6bc2cc9"}
+  },
+  "relation_verdicts": {
+    "node:api": {"evidence":{"sources":[["src/api.ts","9433d9df4efc18d1ad0e267e0046d8f99bd15b7a57028b195f18691d13d509a0"]],"relations":"082665f7817109db03c49951e25db348f445e97025281e83c403b1da4857b0e4","outcomes":[{"fromFile":"src/api.ts","line":1,"hintKey":"path:./payments.js","outcome":{"ownerNode":"payments","resolvedFile":"src/payments.ts","resolvedFileHash":"65d907165dd1776e58489e42d4840993551f626ec22b731f1f7ad3bec4cd15c9","basis":"payments"}}],"grammarVersions":[["typescript","1"]],"indexIdentity":"fe13f97b74ac587021080cc1540a316df87403d1bc1eddc29b07f89b99c3b9d3"},"fingerprint":"01b69fde0a475623d33ca9272361e7faf322b1f7f073e84e4441267b40b09f74","verdict":"approved"},
+    "node:payments": {"evidence":{"sources":[["src/audit.ts","150f7f8a73a427a97b0011d6261f0afe7c6d83cc2f626133cb858d16830860c8"],["src/payments.ts","65d907165dd1776e58489e42d4840993551f626ec22b731f1f7ad3bec4cd15c9"]],"relations":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","outcomes":[],"grammarVersions":[["typescript","1"]],"indexIdentity":"fe13f97b74ac587021080cc1540a316df87403d1bc1eddc29b07f89b99c3b9d3"},"fingerprint":"d7913785caf3f1864d2342bae6110ec157fa5bc03caf3f5119338cdbb225b206","verdict":"approved"}
   }
 }

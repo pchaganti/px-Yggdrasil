@@ -162,8 +162,9 @@ describe('check command', () => {
     });
 
     it('exits 1 when the reviewer is unreachable and pairs remain unverified', async () => {
-      // The fixture reviewer is configured for a local ollama endpoint that
-      // does not exist in CI — fill fails on infrastructure, check exits 1.
+      // The fixture reviewer points at reserved port 1 (127.0.0.1:1), which is
+      // guaranteed-closed regardless of any ambient LLM service on the dev
+      // machine — fill fails on infrastructure deterministically, check exits 1.
       await withFixtureCopy(async (cwd) => {
         const result = spawnSync('node', [BIN_PATH, 'check', '--approve'], {
           cwd,

@@ -224,7 +224,15 @@ function renderWarningSection(warnings: CheckIssue[]): string {
  * strictly less informative than `yg aspect-test`. All other codes keep the
  * terse one-line summary.
  */
-const FULL_WHAT_CODES = new Set(['aspect-violation-enforced', 'aspect-violation-advisory']);
+const FULL_WHAT_CODES = new Set([
+  'aspect-violation-enforced',
+  'aspect-violation-advisory',
+  // The relation refusal's `what` carries the violation list (each
+  // `<file>:<line> → undeclared dependency on <node>`) on lines after the
+  // first; truncating to line 1 would hide which import in which file drives
+  // the refusal — the very thing the agent needs to declare or remove.
+  'relation-undeclared-dependency',
+]);
 
 /** Indent applied to continuation lines so they align under the block body. */
 const BLOCK_INDENT = '            ';

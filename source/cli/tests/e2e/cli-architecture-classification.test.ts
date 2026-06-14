@@ -314,6 +314,10 @@ describe.skipIf(!distExists)('CLI E2E — architecture type classification', () 
       writeSource(projectRoot, 'src/services/orders.ts', 'export const o = 1;\n');
     });
     try {
+      // Seed the per-node relation verdict first (empty registry → approved); otherwise
+      // a plain check is exit 1 because every mapped node now carries a relation verdict
+      // that is unverified until --approve. Intent of this test is classification correctness.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       const { status, all } = run(['check'], dir);
       expect(status).toBe(0);
       expect(all).not.toContain('type-when-mismatch');
@@ -390,6 +394,9 @@ describe.skipIf(!distExists)('CLI E2E — architecture type classification', () 
       writeSource(projectRoot, 'src/auth.secure.ts', 'export const a = 1;\n');
     });
     try {
+      // Seed the per-node relation verdict (empty registry → approved); a plain check would
+      // otherwise be exit 1 on the unverified relation verdict every mapped node now carries.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       const { status, all } = run(['check'], dir);
       expect(status).toBe(0);
       expect(all).not.toContain('type-strict-orphan');
@@ -506,6 +513,9 @@ describe.skipIf(!distExists)('CLI E2E — architecture type classification', () 
       writeSource(projectRoot, 'src/services/orders.ts', 'export const o = 1;\n');
     });
     try {
+      // Seed the mapped child's relation verdict (empty registry → approved); otherwise a
+      // plain check is exit 1 on the unverified relation verdict every mapped node now carries.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       const { status, all } = run(['check'], dir);
       expect(status).toBe(0);
       expect(all).not.toContain('type-without-when-with-mapping');

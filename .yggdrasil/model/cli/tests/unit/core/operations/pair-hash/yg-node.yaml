@@ -1,7 +1,10 @@
 name: Pair Hash Unit Tests
 type: test-suite
-description: "Unit tests for the frozen input-hash contract — codePointCanonicalJson code-point ordering, LLM and deterministic hash computation, golden-pinned values, observation helpers, tierHashView, and POSIX path normalization."
+description: "Unit tests for the frozen input-hash contract —
+  codePointCanonicalJson code-point ordering, LLM and deterministic hash
+  computation, golden-pinned values, observation helpers, tierHashView, and
+  POSIX path normalization."
 aspects: []
-relations: []
+relations: [ { target: cli/core/pair-hash, type: uses } ]
 mapping:
   - source/cli/tests/unit/core/pair-hash.test.ts

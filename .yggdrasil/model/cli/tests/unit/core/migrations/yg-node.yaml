@@ -1,7 +1,12 @@
 name: Core Migration Tests — Runner and 4.x Migrations
 type: test-suite
-description: Unit tests for the migrator runner, the 4.x version migrations, and format-detect legacy predicates — migrator, to-4.0.0, to-4.3.0, format-detect
+description: Unit tests for the migrator runner, the 4.x version migrations, and
+  format-detect legacy predicates — migrator, to-4.0.0, to-4.3.0, format-detect
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/core/migrator, type: uses },
+    { target: cli/core/migrator-runner, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/core/migrator.test.ts

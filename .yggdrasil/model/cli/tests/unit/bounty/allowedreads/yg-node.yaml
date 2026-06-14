@@ -2,6 +2,10 @@ name: Bounty allowedreads
 type: test-suite
 description: "Bug-bounty branch-coverage suites: allowedreads (~27610 chars)."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/structure, type: uses },
+    { target: cli/tests/unit/helpers, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/bounty2/allowedreads.test.ts

@@ -2,6 +2,6 @@ name: AST Syntax Helper Tests
 type: test-suite
 description: Unit tests for file-path resolution
 aspects: []
-relations: []
+relations: [ { target: cli/ast/report, type: uses } ]
 mapping:
   - source/cli/tests/unit/ast/file-path.test.ts

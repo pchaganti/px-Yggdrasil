@@ -1,8 +1,17 @@
 name: Integration Feature Tests
 type: test-suite
-description: Integration tests for cross-cutting commands — find, flows, loader hook, and log workflow. Migration and reviewer tests live in dedicated child nodes.
+description: Integration tests for cross-cutting commands — find, flows, loader
+  hook, and log workflow. Migration and reviewer tests live in dedicated child
+  nodes.
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/ast/runtime, type: uses },
+    { target: cli/commands/find, type: uses },
+    { target: cli/core/graph, type: uses },
+    { target: cli/core/loader, type: uses },
+    { target: cli/core/validator, type: uses }
+  ]
 mapping:
   - source/cli/tests/integration/find.test.ts
   - source/cli/tests/integration/flow-support.test.ts

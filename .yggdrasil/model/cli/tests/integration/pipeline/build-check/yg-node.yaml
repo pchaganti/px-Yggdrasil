@@ -1,8 +1,15 @@
 name: Build & Check Pipeline Integration Tests
 type: test-suite
-description: "End-to-end smoke tests for the build, check, and validation pipelines, plus the shared integration-test bootstrap (setup.ts)."
+description: "End-to-end smoke tests for the build, check, and validation
+  pipelines, plus the shared integration-test bootstrap (setup.ts)."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/core/check, type: uses },
+    { target: cli/core/loader, type: uses },
+    { target: cli/core/validator, type: uses },
+    { target: cli/formatters, type: uses }
+  ]
 mapping:
   - source/cli/tests/integration/build-pipeline.test.ts
   - source/cli/tests/integration/check-pipeline.test.ts

@@ -1,7 +1,13 @@
 name: E2E Tests — Fail-Closed Reviewer (Mock)
 type: test-suite
-description: "Subprocess E2E proving the reviewer fails closed on an infrastructure failure — when the provider returns a non-200 or an unparseable response on a source change the baseline hash is NOT advanced and yg check stays red, a garbled reply that merely contains the word satisfied never becomes a code pass, and a clean approve still commits a green baseline. Driven by the in-process mock so the fail-closed mechanics are exercised deterministically with no real model."
+description: "Subprocess E2E proving the reviewer fails closed on an
+  infrastructure failure — when the provider returns a non-200 or an unparseable
+  response on a source change the baseline hash is NOT advanced and yg check
+  stays red, a garbled reply that merely contains the word satisfied never
+  becomes a code pass, and a clean approve still commits a green baseline.
+  Driven by the in-process mock so the fail-closed mechanics are exercised
+  deterministically with no real model."
 aspects: []
-relations: []
+relations: [ { target: cli/tests/e2e/support, type: uses } ]
 mapping:
   - source/cli/tests/e2e/cli-fail-closed-mock.test.ts

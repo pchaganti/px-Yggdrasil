@@ -1,4 +1,4 @@
-export const summary = 'Six relation types, paired events, ports propagate aspects via channel 6, defense against cross-file evasion, missing-contract errors';
+export const summary = 'Six relation types, paired events, ports propagate aspects via channel 6, defense against cross-file evasion, missing-contract errors, built-in relation-conformance check';
 
 export const content = `# Ports and relations
 
@@ -37,6 +37,54 @@ When a needed relation is not allowed by the architecture:
 2. Change one node's type
 3. Update the architecture to permit the relation (requires user
    confirmation — never silent)
+
+## Relation-conformance check — declared relations must cover real dependencies
+
+\`yg check --approve\` runs a built-in, deterministic check that holds the graph's
+relation edges to the code's actual dependencies. It parses every mapped source
+file (TypeScript/JS/TSX, Python, Go, Java, PHP, Kotlin, Rust, C, C++, C#, Ruby),
+finds each statically-resolvable dependency on ANOTHER node's code, and refuses a
+node that depends on a node it does not declare a relation to. The issue code is
+\`relation-undeclared-dependency\`.
+
+This is a built-in check, NOT an aspect. It has no \`content.md\` or \`check.mjs\`,
+it is not attached through any of the seven aspect channels, and \`status:\`
+(draft/advisory/enforced) does not apply — it is ALWAYS an error and blocks
+\`yg check\`, exactly like the architecture and mapping validators. It is also NOT
+\`yg-suppress\`-able (suppress waives aspects; this is not one). Its verdict is
+cached in the lock and re-validated parse-free by plain \`yg check\`.
+
+Two design properties make it false-positive-free:
+
+- **One-directional.** A detected code dependency MUST be declared as a relation.
+  The reverse does NOT hold: a declared relation needs no static code backing.
+  Reflection, dependency injection, HTTP calls, and event (\`emits\`/\`listens\`)
+  edges are legitimately declared without any resolvable call in the source, and
+  the check never flags a relation that has no matching code.
+- **Mapped-target-only, unambiguous-only.** The check fires only when the
+  depended-on file is MAPPED to a known node. A dependency on an UNMAPPED file is
+  a coverage matter (handled by \`unmapped-files\` / \`uncovered-advisory\`), never a
+  relation error. And it resolves only edges it can pin to exactly one target node
+  — anything dynamic, reflective, external, or not-uniquely-resolvable is silent.
+  Intra-node dependencies and dependencies between a node and its own ancestor or
+  descendant are exempt (they are not cross-node edges). The result is zero false
+  positives by design — there is no waiver because none is needed.
+
+Two ways to clear a refusal:
+
+1. **Declare the relation** in the depending node's \`yg-node.yaml\`, choosing a
+   relation type the architecture allows between the two node types.
+2. **Remove the dependency** if the code should not depend on the other node.
+
+If NO relation type is allowed between the two node types, that is a dead end you
+cannot resolve at the node level — it is an architecture decision. Either change a
+node's type so an allowed relation exists, or extend the allowed relations in
+\`yg-architecture.yaml\` (requires the user's confirmation — never silent).
+
+A declared relation here is a bare relation: it satisfies the conformance check
+but does NOT propagate the target's aspects. If the dependency also needs to
+carry a critical aspect across the boundary, model a port and \`consumes\` it (see
+below) in addition to declaring the relation.
 
 ## Ports — named entry points with aspects
 

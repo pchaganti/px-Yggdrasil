@@ -266,7 +266,7 @@ export function registerBuildCommand(program: Command): void {
         const outsideRoot = msg.match(/^Path is outside project root: (.+)$/);
         if (outsideRoot) {
           process.stderr.write(chalk.red(buildIssueMessage({
-            what: `The path '${outsideRoot[1]}' is outside the project root.`,
+            what: `The path '${toPosixPath(outsideRoot[1])}' is outside the project root.`,
             why: `Context can only be built for files tracked inside the project.`,
             next: `Pass a path inside the project root (relative to the repo).`,
           }) + '\n'));

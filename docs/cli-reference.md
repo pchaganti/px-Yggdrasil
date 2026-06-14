@@ -111,6 +111,7 @@ status semantics):
 | `aspect-violation-advisory` | warning | Valid `refused` verdict on an advisory pair — does not block. |
 | `prompt-too-large` | error | Assembled LLM prompt exceeds the resolved tier's `max_prompt_chars`. Takes precedence over `unverified`; `--approve` skips the pair. |
 | `lock-invalid` | error | `yg-lock.json` is unparseable, garbled, conflict-markered, or an unknown version — fail closed. |
+| `relation-undeclared-dependency` | error (always) | Built-in relation-conformance check — a component depends on another component's code without a declared relation. Not an aspect: no status, not suppressible. Fix by declaring the relation in `yg-node.yaml` or removing the dependency. |
 | `aspect-check-runtime-error` | error (`--approve` only) | A `check.mjs` failed to import or threw at fill time — fail closed, no verdict written. |
 | `log-entry-missing` | error (`--approve` only) | A `log_required` node changed source without a fresh log entry. |
 | `aspect-status-invalid` | error | Declared `status:` is not one of `draft`, `advisory`, `enforced`. |
@@ -145,7 +146,7 @@ yg log merge-resolve --node <path>
 
 ---
 
-## Navigation (6)
+## Navigation (5)
 
 | Command | Purpose |
 |---------|---------|

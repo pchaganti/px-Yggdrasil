@@ -116,7 +116,7 @@ describe.skipIf(!distExists)('CLI E2E — yg-lock.json format and read-boundary 
 
   // --- 2. After a fill: the lock is well-formed JSON with the documented shape. ---
 
-  it('2: after a fill the lock is valid JSON — version 1, keys sorted at every level, trailing newline', () => {
+  it('2: after a fill the lock is valid JSON — version 2, keys sorted at every level, trailing newline', () => {
     const dir = deterministicFixture('shape');
     try {
       expect(run(['check', '--approve'], dir).status).toBe(0);
@@ -130,15 +130,17 @@ describe.skipIf(!distExists)('CLI E2E — yg-lock.json format and read-boundary 
         version: number;
         verdicts: Record<string, Record<string, Record<string, unknown>>>;
         nodes: Record<string, { source?: string }>;
+        relation_verdicts: Record<string, Record<string, unknown>>;
       };
-      expect(parsed.version).toBe(1);
+      expect(parsed.version).toBe(2); // lock is v2 since relation-conformance
 
-      // Top-level keys are exactly version/verdicts/nodes (and in sorted order
+      // Top-level keys are exactly version/verdicts/nodes/relation_verdicts (and in sorted order
       // when iterated, JSON.stringify preserves insertion order — verify sort).
       const sorted = (keys: string[]): boolean =>
         JSON.stringify(keys) === JSON.stringify([...keys].sort());
       expect(sorted(Object.keys(parsed.verdicts))).toBe(true);
       expect(sorted(Object.keys(parsed.nodes))).toBe(true);
+      expect(sorted(Object.keys(parsed.relation_verdicts))).toBe(true); // relation_verdicts keys sorted too (v2)
       for (const aspectId of Object.keys(parsed.verdicts)) {
         const byUnit = parsed.verdicts[aspectId];
         expect(sorted(Object.keys(byUnit))).toBe(true);
@@ -349,7 +351,7 @@ describe.skipIf(!distExists)('CLI E2E — yg-lock.json format and read-boundary 
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
       expect(check.all).toContain('lock-invalid');
-      expect(check.all).toContain('yg-lock.json has unsupported version 99 (this CLI reads version 1)');
+      expect(check.all).toContain('yg-lock.json has unsupported version 99 (this CLI reads version 1 or 2)'); // CLI now reads v1 (migrated) or v2 since relation-conformance
       expect(check.all).toContain('git checkout HEAD -- .yggdrasil/yg-lock.json');
       expectCleanLockError(check.all);
     } finally {

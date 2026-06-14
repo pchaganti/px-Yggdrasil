@@ -2,6 +2,12 @@ name: bounty3 flows
 type: test-suite
 description: "Bug-bounty suites: flows (~24028 chars)."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/core/checks/aspects, type: uses },
+    { target: cli/core/checks/relations, type: uses },
+    { target: cli/core/graph, type: uses },
+    { target: cli/tests/unit/helpers, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/bounty3/flows.test.ts

@@ -2,6 +2,6 @@ name: Bounty ctxfs
 type: test-suite
 description: "Bug-bounty branch-coverage suites: ctxfs (~24621 chars)."
 aspects: []
-relations: []
+relations: [ { target: cli/structure, type: uses } ]
 mapping:
   - source/cli/tests/unit/bounty2/ctxfs.test.ts

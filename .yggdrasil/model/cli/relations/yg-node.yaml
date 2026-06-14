@@ -1,0 +1,5 @@
+name: Relations
+type: module
+description: Relation-conformance subsystem grouping — the deterministic static
+  dependency-analysis engine (core) and the per-language dependency extractors
+  (extractors). Organizational parent; owns no files directly.

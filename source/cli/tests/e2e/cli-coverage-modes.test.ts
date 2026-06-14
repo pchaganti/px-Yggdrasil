@@ -105,6 +105,9 @@ describe('E2E: scoped coverage via the real CLI binary', () => {
       // mapping `src/svc/` covers src/svc/i.ts → no required-tier error; lib/u.ts → middle warning.
       const dir = scaffold('advisory', { mapping: 'src/svc/' });
       try {
+        // Seed the mapped node's relation verdict (empty registry → approved); a plain check would
+        // otherwise be exit 1 on the unverified relation verdict every mapped node now carries.
+        expect(run(['check', '--approve'], dir).status).toBe(0);
         const { status, out } = run(['check'], dir);
         expect(status).toBe(0); // advisory-only must NOT block
         expect(out).toContain('PASS');

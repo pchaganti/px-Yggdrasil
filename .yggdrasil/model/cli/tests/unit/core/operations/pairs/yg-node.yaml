@@ -1,7 +1,16 @@
 name: Pairs Unit Tests
 type: test-suite
-description: "Unit tests for expected-pair computation and source fingerprints — covers per-node and per-file pairs, scope.files path and content filters, binary exclusion for LLM aspects (deterministic aspects keep binaries), empty-subject vacuous pass, draft aspect inclusion/exclusion, aggregate aspect exclusion, child carve-out, deterministic output ordering, and fingerprint stability/sensitivity properties."
+description: "Unit tests for expected-pair computation and source fingerprints —
+  covers per-node and per-file pairs, scope.files path and content filters,
+  binary exclusion for LLM aspects (deterministic aspects keep binaries),
+  empty-subject vacuous pass, draft aspect inclusion/exclusion, aggregate aspect
+  exclusion, child carve-out, deterministic output ordering, and fingerprint
+  stability/sensitivity properties."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/core/pairs, type: uses },
+    { target: cli/model/lock, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/core/pairs.test.ts

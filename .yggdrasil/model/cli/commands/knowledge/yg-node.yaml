@@ -1,11 +1,18 @@
 name: KnowledgeCommand
 type: command
-description: Implements `yg knowledge list` and `yg knowledge read <name>` — read-only access to KNOWLEDGE_TOPICS embedded in the CLI binary.
+description: Implements `yg knowledge list` and `yg knowledge read <name>` —
+  read-only access to KNOWLEDGE_TOPICS embedded in the CLI binary.
 aspects: []
 relations:
   - target: cli/templates
     type: calls
   - target: cli/tests/unit/cli
     type: uses
+  - target: cli/formatters
+    type: calls
+  - target: cli/knowledge-concepts
+    type: calls
+  - target: cli/preamble
+    type: calls
 mapping:
   - source/cli/src/cli/knowledge.ts

@@ -2,6 +2,9 @@ name: Bounty eff-when
 type: test-suite
 description: "Bug-bounty branch-coverage suites: eff-when (~18481 chars)."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/core/graph, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/bounty/eff-when.test.ts

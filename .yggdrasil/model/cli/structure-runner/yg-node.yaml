@@ -1,6 +1,0 @@
-name: Structure Runner
-type: structure-adapter
-description: "Execution layer for structure-aspect runs: orchestrates check.mjs loading, ctx construction, and result collection including result-bearing observations."
-mapping:
-  - source/cli/src/structure/runner.ts
-  - source/cli/src/structure/observations.ts

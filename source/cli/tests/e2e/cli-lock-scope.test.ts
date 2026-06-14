@@ -103,14 +103,20 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: per-file scope / observat
 
       // EDIT THE EXCLUDED FILE → c.gen.ts is outside the no-todo-comments subject
       // set, so that per-file aspect's verdicts stay valid (none of its pairs go
-      // unverified). The enforced run stays green. (The node-scoped advisory
-      // requires-named-export DOES re-verify — c.gen.ts is in the node mapping —
-      // but that is a different aspect and only a non-blocking warning; the point
-      // under test is the per-file aspect's immunity to an excluded-file edit.)
+      // unverified). The per-file immunity — the point under test — is preserved:
+      // no no-todo-comments pair is named unverified.
+      //
+      // Since relation-conformance, c.gen.ts IS still a mapped file of the node, and the node's
+      // RELATION verdict folds ALL mapped files (the excluded-from-aspect filter does not narrow
+      // the relation verdict's input). So editing c.gen.ts flips the relation verdict → exit 1
+      // with ONLY a relation error. The aspect-scoping immunity is the "no no-todo-comments pair
+      // unverified" invariant below, no longer the overall exit code.
       appendFileSync(path.join(base, 'c.gen.ts'), '\nexport const cc = 2;\n');
       const afterExcluded = run(['check'], dir);
-      expect(afterExcluded.status).toBe(0);
       expect(afterExcluded.all).not.toContain("No valid verdict for aspect 'no-todo-comments'");
+      expect(afterExcluded.status).toBe(1); // mapped-file edit flips the node's relation verdict since relation-conformance
+      expect(afterExcluded.all).toContain('relation-undeclared-dependency');
+      expect(afterExcluded.all).toContain('services/orders');
 
       // EDIT ONE INCLUDED FILE (a.ts) → ONLY its pair goes unverified; b.ts stays valid.
       appendFileSync(path.join(base, 'a.ts'), '\nexport const aa = 2;\n');

@@ -1,0 +1,11 @@
+name: E2E Tests — Relation Conformance (Compiled Languages)
+type: test-suite
+description: "Subprocess E2E proving the built-in relation-conformance check is live for the compiled/systems languages — Go, Java, Rust, C, C#. Each builds a temp repo, spawns the real binary, and asserts an undeclared cross-node dependency is refused by yg check --approve (exit 1) and clears once the relation is declared. Split from the scripting-language suite to keep each reviewer prompt within tier limits."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/relation-go.test.ts
+  - source/cli/tests/e2e/relation-java.test.ts
+  - source/cli/tests/e2e/relation-rust.test.ts
+  - source/cli/tests/e2e/relation-c.test.ts
+  - source/cli/tests/e2e/relation-csharp.test.ts

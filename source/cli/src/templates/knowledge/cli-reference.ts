@@ -232,6 +232,7 @@ The validator (\`yg check\`) emits the following issue codes:
 | \`aspect-check-runtime-error\` | error (\`--approve\` report) | \`check.mjs\` failed to import/run at fill time — fail closed; plain check shows the pair as \`unverified\` |
 | \`prompt-too-large\` | error | Assembled prompt exceeds the resolved tier's \`max_prompt_chars\` |
 | \`lock-invalid\` | error | Lock unparseable, garbled, conflict-markered, or unknown version — fail closed |
+| \`relation-undeclared-dependency\` | error (always) | Built-in relation-conformance check: node depends on another node's code without a declared, sanctioned relation. Not an aspect — not status-governed, not suppressible. Next: declare the relation in \`yg-node.yaml\` or remove the dependency. |
 | \`log-entry-missing\` | error | \`--approve\` log gate fired |
 | \`aspect-status-invalid\` | error | Declared status is not one of \`draft\\|advisory\\|enforced\` |
 | \`aspect-status-downgrade\` | error | Declared status is lower than cascade would yield (bump up OK, downgrade is error) |

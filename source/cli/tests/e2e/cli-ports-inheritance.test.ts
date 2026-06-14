@@ -206,7 +206,7 @@ mapping:
     }
   });
 
-  it('A2: the child (no effective aspect) contributes no verdict pair — a repo-wide fill records nothing for it and check passes', () => {
+  it('A2: the child (no effective aspect) contributes no ASPECT verdict pair — a repo-wide fill records no aspect verdict for it (only a relation verdict) and check passes', () => {
     const dir = copyFixture('a2-child-approve');
     try {
       setupChildGraph(dir);
@@ -217,10 +217,20 @@ mapping:
       expect(fill.status).toBe(0);
       expect(fill.stdout).toContain('[det] audit-required on node:services/orders — approved');
 
-      // No verdict entry is written for the aspect-less child anywhere in the
-      // lock (the verdict-lock model replaces the per-node .drift-state file).
-      const lock = readFileSync(at(dir, '.yggdrasil/yg-lock.json'), 'utf-8');
-      expect(lock).not.toContain('node:services/orders/detail');
+      // No ASPECT verdict pair is written for the aspect-less child (it has zero
+      // effective aspects). Since relation-conformance the mapped child DOES carry a
+      // relation verdict (every mapped node does) — assert that precisely: the child
+      // is absent from the aspect `verdicts` section but present (approved) in
+      // `relation_verdicts`. Empty registry → approved, so the fill is still green.
+      const lock = JSON.parse(readFileSync(at(dir, '.yggdrasil/yg-lock.json'), 'utf-8')) as {
+        verdicts: Record<string, Record<string, unknown>>;
+        relation_verdicts: Record<string, { verdict: string }>;
+      };
+      const childAspectPairs = Object.values(lock.verdicts).filter((byUnit) =>
+        Object.keys(byUnit).includes('node:services/orders/detail'),
+      );
+      expect(childAspectPairs).toEqual([]); // child contributes no ASPECT verdict pair
+      expect(lock.relation_verdicts['node:services/orders/detail']?.verdict).toBe('approved'); // mapped child now carries an approved relation verdict
 
       const check = run(['check'], dir);
       expect(check.status).toBe(0);

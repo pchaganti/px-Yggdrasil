@@ -112,6 +112,37 @@ which target types it may reach per relation type, and `yg check` rejects
 relations that violate those constraints. The event types `emits` and `listens`
 must be paired.
 
+### Relation conformance: declared relations must match real dependencies
+
+Relations are not just documentation. Yggdrasil ships a built-in check that reads
+your actual code and verifies that every dependency between components is declared
+as a relation. During `yg check --approve` it parses each mapped source file
+(TypeScript/JavaScript/TSX, Python, Go, Java, PHP, Kotlin, Rust, C, C++, C#, Ruby),
+finds where one component depends on another component's code, and **refuses** a
+component that depends on another it does not declare a relation to. This keeps the
+architecture map honest: the graph's edges always reflect the code's real
+dependencies, so blast-radius analysis and the architecture allow-list can be
+trusted.
+
+A few things to know:
+
+- **It only flows one way.** A dependency the code actually has must be declared.
+  A declared relation does *not* need code behind it — relations that happen over
+  HTTP, dependency injection, reflection, or events are legitimately declared
+  without a direct call in the source, and the check never complains about them.
+- **It only fires on covered components.** A dependency on a file that isn't
+  mapped to any node is a coverage matter, not a relation error. The check also
+  resolves only unambiguous dependencies — anything dynamic or external is left
+  alone, so there are no false alarms to wave away.
+- **It always blocks.** Unlike an aspect, this check has no draft/advisory/enforced
+  status and cannot be suppressed — a missing relation is always an error in
+  `yg check`. Fix it by **declaring the relation** in the component's `yg-node.yaml`
+  (with a type the architecture allows) or by **removing the dependency**. If no
+  relation type is allowed between the two component types, that is an architecture
+  decision — your agent will surface it for your confirmation.
+
+When adopting Yggdrasil on an existing codebase, run `yg check --approve` — it parses your code and refuses each component that has an undeclared dependency, naming the file, the target node, and the exact `relations:` stanza to add. (Plain `yg check` is parse-free: it re-validates recorded verdicts but does not discover new dependencies, so the detecting run is always `yg check --approve`.) Declare the relations it reports, then re-run until `yg check` is clean.
+
 ### Ports
 
 A node can declare **ports** — named entry points with required aspects.
@@ -347,6 +378,13 @@ refused pair with unchanged inputs does not re-run the reviewer. The three ways
 out of a refusal are fix the code, sharpen the rule (which re-verifies every
 pair of the aspect — check `yg impact --aspect` first), or, with your sign-off,
 add a `yg-suppress` marker.
+
+The lock also records the verdict for the built-in [relation-conformance
+check](#relation-conformance-declared-relations-must-match-real-dependencies)
+in its own section, re-validated the same hash-only way. (This is lock format
+version 2; a version-1 lock created before the check existed is upgraded
+automatically on the next run, preserving all existing verdicts — no
+re-verification.)
 
 ---
 

@@ -234,18 +234,20 @@ describe('findOwner — best replacement on the GLOB side (line 30)', () => {
     expect(findOwner(g, ROOT, 'src/a/b.ts').nodePath).toBe('long');
   });
 
-  it('arm C (equal length, strict >): a later equal-length glob does NOT overwrite the first', () => {
+  it('arm C (equal length): the lexicographically-smaller node path wins the tie (declared first here)', () => {
     // 'g1' glob and 'g2' glob both equal-length and both match src/x.ts; the
-    // strict `>` keeps the FIRST. Asserts first-owner-wins on a tie.
+    // tie is now broken DETERMINISTICALLY by lexicographic node path, so g1 (< g2) wins.
     const g = graphOf(['g1', ['src/*.ts']], ['g2', ['src/*.ts']]);
     const r = findOwner(g, ROOT, 'src/x.ts');
     expect(r.nodePath).toBe('g1');
     expect(r.mappingPath).toBe('src/*.ts');
   });
 
-  it('arm C: reversing order flips the equal-length tie winner', () => {
+  it('arm C: reversing order does NOT flip the winner — the tie break is deterministic-lexicographic', () => {
+    // Tie break is now lexicographic node path (was order-dependent — fixed bug): g1 (< g2)
+    // wins regardless of declaration order, proving determinism.
     const g = graphOf(['g2', ['src/*.ts']], ['g1', ['src/*.ts']]);
-    expect(findOwner(g, ROOT, 'src/x.ts').nodePath).toBe('g2');
+    expect(findOwner(g, ROOT, 'src/x.ts').nodePath).toBe('g1'); // deterministic lexicographic tie-break since relation-conformance owner-index fix
   });
 
   it('arm C: a shorter later glob does NOT replace a longer earlier glob best', () => {
@@ -273,7 +275,8 @@ describe('findOwner — best replacement on the PLAIN-prefix side (line 39)', ()
     expect(findOwner(g, ROOT, 'src/core/a.ts').nodePath).toBe('long');
   });
 
-  it('arm C (equal length, strict >): the first-declared equal-length prefix wins', () => {
+  it('arm C (equal length): the lexicographically-smaller node path wins the tie deterministically', () => {
+    // Tie break is now lexicographic node path (was order-dependent): a (< b) wins.
     const g = graphOf(['a', ['src/aaa']], ['b', ['src/aaa']]);
     const r = findOwner(g, ROOT, 'src/aaa/x.ts');
     expect(r.nodePath).toBe('a');

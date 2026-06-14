@@ -1,7 +1,13 @@
 name: Lock Store Tests
 type: test-suite
-description: "Unit tests for the lock-store I/O adapter — read/write behavior, canonical serialization, error handling, and atomic write verification"
+description: "Unit tests for the lock-store I/O adapter — read/write behavior,
+  canonical serialization, error handling, and atomic write verification"
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/io/lock-store, type: uses },
+    { target: cli/model/lock, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/io/lock-store.test.ts
+  - source/cli/tests/unit/io/lock-store-migration.test.ts

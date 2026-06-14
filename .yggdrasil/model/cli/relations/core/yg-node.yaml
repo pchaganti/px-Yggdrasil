@@ -1,0 +1,37 @@
+name: Relations Core
+type: relations-adapter
+description: Relation-conformance engine — the pass/verify orchestration, symbol
+  table and owner index, fingerprinting, path resolution, the resolver,
+  allowed-type lookup, index directory, and verifier. Deterministic static
+  dependency analysis over the graph.
+mapping:
+  - source/cli/src/relations/allowed-types.ts
+  - source/cli/src/relations/fingerprint-build.ts
+  - source/cli/src/relations/fingerprint.ts
+  - source/cli/src/relations/index-dir.ts
+  - source/cli/src/relations/messages.ts
+  - source/cli/src/relations/owner-index.ts
+  - source/cli/src/relations/pass.ts
+  - source/cli/src/relations/resolve-path.ts
+  - source/cli/src/relations/resolver.ts
+  - source/cli/src/relations/symbol-table.ts
+  - source/cli/src/relations/verifier.ts
+  - source/cli/src/relations/verify.ts
+relations:
+  - target: cli/relations/extractors
+    type: calls
+  - target: cli/ast/runtime
+    type: calls
+  - target: cli/core/language-registry
+    type: calls
+  - target: cli/core/pair-hash
+    type: calls
+  - target: cli/io/atomic-write
+    type: calls
+    consumes: [write-atomic]
+  - target: cli/io/stores
+    type: calls
+  - target: cli/model/lock
+    type: uses
+  - target: cli/utils
+    type: calls

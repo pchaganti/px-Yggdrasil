@@ -1,8 +1,9 @@
 name: Architecture and Flow Parser Unit Tests
 type: test-suite
-description: "Unit tests for parsers of architecture and flow graph files, covering both core parsing and status-field handling."
+description: "Unit tests for parsers of architecture and flow graph files,
+  covering both core parsing and status-field handling."
 aspects: []
-relations: []
+relations: [ { target: cli/io/parsers/graph, type: uses } ]
 mapping:
   - source/cli/tests/unit/io/architecture-parser.test.ts
   - source/cli/tests/unit/io/architecture-parser-status.test.ts

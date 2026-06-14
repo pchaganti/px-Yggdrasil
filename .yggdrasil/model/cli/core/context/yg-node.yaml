@@ -1,6 +1,7 @@
 name: ContextBuilder
 type: engine
-description: "Assembles context packages via 5-step layer assembly: global, hierarchy, own, aspects, relational"
+description: "Assembles context packages via 5-step layer assembly: global,
+  hierarchy, own, aspects, relational"
 aspects: []
 relations:
   - target: cli/model/graph
@@ -8,6 +9,10 @@ relations:
   - target: cli/model/context
     type: uses
   - target: cli/utils
+    type: calls
+  - target: cli/core/graph
+    type: calls
+  - target: cli/io/stores
     type: calls
 mapping:
   - source/cli/src/core/context-builder.ts

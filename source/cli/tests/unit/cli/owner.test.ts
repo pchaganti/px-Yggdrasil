@@ -3,6 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { mkdtemp, cp, rm } from 'node:fs/promises';
+import { findOwner } from '../../../src/cli/owner.js';
+import type { Graph } from '../../../src/model/graph.js';
 import { tmpdir } from 'node:os';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -109,5 +111,41 @@ describe('owner command', () => {
       expect(result.status).toBe(0);
       expect(result.stdout).toMatch(/src\/checkout\/checkout\.controller\.ts -> checkout\/controller/);
     });
+  });
+});
+
+function makeGraph(nodes: Map<string, { path: string; meta: { mapping?: string[] } }>): Graph {
+  return {
+    nodes: nodes as Graph['nodes'],
+    config: { reviewer: { tiers: {} } },
+    architecture: { node_types: {} },
+    aspects: [],
+    flows: [],
+    schemas: [],
+    rootPath: '/fake/.yggdrasil',
+  } as unknown as Graph;
+}
+
+describe('findOwner tie-break determinism', () => {
+  it('resolves an equal-length mapping tie to the lexicographically-smaller node path, regardless of insertion order', () => {
+    const projectRoot = '/fake';
+
+    // Both nodes map 'src/shared' — equal length, so lex order of node path decides.
+    const graphA = makeGraph(new Map([
+      ['zzz', { path: 'zzz', meta: { mapping: ['src/shared'] } }],
+      ['aaa', { path: 'aaa', meta: { mapping: ['src/shared'] } }],
+    ]));
+    const graphB = makeGraph(new Map([
+      ['aaa', { path: 'aaa', meta: { mapping: ['src/shared'] } }],
+      ['zzz', { path: 'zzz', meta: { mapping: ['src/shared'] } }],
+    ]));
+
+    const resultA = findOwner(graphA, projectRoot, 'src/shared/util.ts');
+    const resultB = findOwner(graphB, projectRoot, 'src/shared/util.ts');
+
+    // Both orders must resolve to the same node
+    expect(resultA.nodePath).toBe(resultB.nodePath);
+    // And that node must be the lexicographically smaller one
+    expect(resultA.nodePath).toBe('aaa');
   });
 });

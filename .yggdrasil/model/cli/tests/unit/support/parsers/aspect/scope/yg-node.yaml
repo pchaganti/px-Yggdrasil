@@ -1,7 +1,9 @@
 name: Aspect Scope Parser Unit Tests
 type: test-suite
-description: "Unit tests for the aspect scope: block parser — per node|file, files filter (file-when grammar), cross-hint validation for wrong-family atoms, and aggregate restriction."
+description: "Unit tests for the aspect scope: block parser — per node|file,
+  files filter (file-when grammar), cross-hint validation for wrong-family
+  atoms, and aggregate restriction."
 aspects: []
-relations: []
+relations: [ { target: cli/io/parsers/aspect, type: uses } ]
 mapping:
   - source/cli/tests/unit/io/aspect-parser-scope.test.ts

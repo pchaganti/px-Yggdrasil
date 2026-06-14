@@ -8,7 +8,7 @@ version: "5.0.0"                  # managed by CLI — do not edit manually. Tra
 quality:                          # optional — quality thresholds
   max_direct_relations: 10        #   maximum outgoing relations per node (warning if above)
 
-parallel: 1                       # optional — concurrency limit for batch approve (positive integer, default: 1)
+parallel: 1                       # optional — concurrency limit for the yg check --approve fill (positive integer, default: 1)
 
 debug: false                      # optional — when true, appends all command output to .yggdrasil/.debug.log
                                   # Default: false (off). Log is append-only; rotate or delete manually.

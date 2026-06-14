@@ -1,8 +1,13 @@
 name: AST Core Traversal Tests
 type: test-suite
-description: Unit tests for core AST traversal utilities — walking, reporting, suppression, parsing, and the public index barrel
+description: Unit tests for core AST traversal utilities — walking, reporting,
+  suppression, parsing, and the public index barrel
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/ast/report, type: uses },
+    { target: cli/ast/runtime, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/ast/find-comments.test.ts
   - source/cli/tests/unit/ast/index-exports.test.ts

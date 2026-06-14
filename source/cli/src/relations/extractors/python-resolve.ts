@@ -1,0 +1,130 @@
+import path from 'node:path';
+
+/**
+ * Resolve a Python module specifier to a repo-relative POSIX source file, or undefined.
+ *
+ * The specifier is what the extractor emits: either an ABSOLUTE dotted module path
+ * (`foo.bar`, no leading dot) or a RELATIVE one (a leading run of dots, then an
+ * optional dotted tail — `.`, `..`, `.sib`, `..pkg.mod`).
+ *
+ * `exists(repoRelPosix)` reports whether a candidate file exists in the resolution
+ * universe (disk at --approve time; a fixed known-set in unit tests). PURE except
+ * through `exists`. Resolution is a pure file-existence search — no directory
+ * listing, no graph access. The owner index downstream maps the resolved file to a
+ * node; an unmapped resolved file is simply not a known target.
+ *
+ * RESOLUTION MISS → undefined. This fail-to-silence is the single most important
+ * false-positive guard: a stdlib/third-party module, a mis-climbed relative import,
+ * or any module whose file is not present resolves to nothing and is never flagged.
+ */
+export function resolvePythonModule(
+  specifier: string,
+  fromFile: string,
+  exists: (repoRelPosix: string) => boolean,
+): string | undefined {
+  if (specifier.startsWith('.')) {
+    return resolveRelative(specifier, fromFile, exists);
+  }
+  return resolveAbsolute(specifier, fromFile, exists);
+}
+
+/**
+ * Absolute dotted module `a.b.c`. Without a directory listing we approximate
+ * CPython's source-root search: for the importing file's directory and every
+ * ancestor directory up to (and including) the repo root, probe the module as a
+ * file/package rooted at that directory. For `from a.b import c` the LAST segment
+ * may be a symbol rather than a submodule, so also probe the parent module
+ * (`a/b.py`, `a/b/__init__.py`) for the longest-match. The FIRST existing
+ * candidate wins.
+ */
+function resolveAbsolute(
+  specifier: string,
+  fromFile: string,
+  exists: (repoRelPosix: string) => boolean,
+): string | undefined {
+  const segments = specifier.split('.').filter((s) => s.length > 0);
+  if (segments.length === 0) return undefined;
+
+  const modulePath = segments.join('/'); // a/b/c
+  const parentPath = segments.slice(0, -1).join('/'); // a/b (drop last segment)
+
+  for (const dir of ancestorDirs(path.posix.dirname(toPosix(fromFile)))) {
+    const candidates: string[] = [
+      // module-as-file / package at this root
+      joinUnder(dir, modulePath + '.py'),
+      joinUnder(dir, modulePath + '/__init__.py'),
+    ];
+    // `from a.b import c` longest-match: last segment is a symbol in module a.b.
+    if (parentPath.length > 0) {
+      candidates.push(joinUnder(dir, parentPath + '.py'));
+      candidates.push(joinUnder(dir, parentPath + '/__init__.py'));
+    }
+    for (const cand of candidates) {
+      if (cand !== undefined && exists(cand)) return cand;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Relative module: a leading run of `k` dots then an optional dotted tail. CPython
+ * semantics: 1 dot = the importing file's own package (its directory), each extra
+ * dot climbs one parent. So climb `(k - 1)` directories from the importing file's
+ * directory, append the tail path, then try `<base>.py` and `<base>/__init__.py`.
+ */
+function resolveRelative(
+  specifier: string,
+  fromFile: string,
+  exists: (repoRelPosix: string) => boolean,
+): string | undefined {
+  const dotMatch = specifier.match(/^\.+/);
+  if (dotMatch === null) return undefined;
+  const dots = dotMatch[0].length;
+  const tail = specifier.slice(dots); // "" | "sib" | "pkg.mod"
+
+  // Start from the importing file's directory; climb (dots - 1) parents.
+  let base = path.posix.dirname(toPosix(fromFile));
+  for (let i = 0; i < dots - 1; i++) {
+    const parent = path.posix.dirname(base);
+    if (parent === base) return undefined; // climbed above repo root → miss
+    base = parent;
+  }
+
+  const tailPath = tail.length > 0 ? tail.split('.').filter((s) => s.length > 0).join('/') : '';
+  const target = tailPath.length > 0 ? path.posix.join(base, tailPath) : base;
+  const normalized = path.posix.normalize(target);
+  if (normalized.startsWith('..')) return undefined; // escaped the repo → miss
+
+  const candidates =
+    tailPath.length > 0
+      ? [normalized + '.py', path.posix.join(normalized, '__init__.py')]
+      : [path.posix.join(normalized, '__init__.py')]; // bare dots → the package's __init__
+
+  for (const cand of candidates) {
+    if (exists(cand)) return cand;
+  }
+  return undefined;
+}
+
+/** The importing file's directory and every ancestor directory up to the repo root,
+ *  nearest-first. '' (the repo root) is the final entry. */
+function ancestorDirs(dir: string): string[] {
+  const out: string[] = [];
+  let cur = dir === '.' ? '' : dir;
+  for (;;) {
+    out.push(cur);
+    if (cur === '') break;
+    const parent = path.posix.dirname(cur);
+    cur = parent === '.' ? '' : parent;
+  }
+  return out;
+}
+
+/** Join a repo-relative directory with a sub-path, normalizing. '' → the sub-path itself. */
+function joinUnder(dir: string, sub: string): string {
+  return path.posix.normalize(dir === '' ? sub : path.posix.join(dir, sub));
+}
+
+function toPosix(p: string): string {
+  return p.replace(/\\/g, '/');
+}

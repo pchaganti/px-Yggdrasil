@@ -1,6 +1,8 @@
 name: SuppressionsCommand
 type: command
-description: Read-only inventory of active yg-suppress markers across git-tracked files via yg suppressions; warns on unknown aspect id, wildcard, or unbounded disable range. Always exits 0.
+description: Read-only inventory of active yg-suppress markers across
+  git-tracked files via yg suppressions; warns on unknown aspect id, wildcard,
+  or unbounded disable range. Always exits 0.
 aspects: []
 relations:
   - target: cli/ast/runtime
@@ -9,5 +11,15 @@ relations:
     type: calls
   - target: cli/tests/unit/cli
     type: uses
+  - target: cli/core/language-registry
+    type: calls
+  - target: cli/formatters
+    type: calls
+  - target: cli/io/stores
+    type: calls
+  - target: cli/preamble
+    type: calls
+  - target: cli/utils
+    type: calls
 mapping:
   - source/cli/src/cli/suppressions.ts

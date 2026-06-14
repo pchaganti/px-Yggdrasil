@@ -52,7 +52,7 @@ node_types:
     log_required: true
     parents: [module]
     relations:
-      calls: [engine, parser-adapter, persistence-adapter, llm-shared, llm-subprocess-base, formatter, utility, ast-adapter, structure-adapter, template]
+      calls: [engine, parser-adapter, persistence-adapter, llm-shared, llm-subprocess-base, formatter, utility, ast-adapter, structure-adapter, template, command, command-support, knowledge-doc, migration]
       uses: [types, test-suite]
 
   command-support:
@@ -93,7 +93,7 @@ node_types:
     log_required: true
     parents: [module]
     relations:
-      calls: [engine, parser-adapter, persistence-adapter, llm-shared, utility]
+      calls: [engine, parser-adapter, persistence-adapter, llm-shared, utility, formatter, relations-adapter, structure-adapter]
       uses: [types]
 
   migration:
@@ -131,7 +131,7 @@ node_types:
     log_required: true
     parents: [module]
     relations:
-      calls: [utility]
+      calls: [utility, formatter, persistence-adapter]
       uses: [types]
 
   persistence-adapter:
@@ -178,7 +178,7 @@ node_types:
     log_required: true
     parents: [module]
     relations:
-      calls: [utility, llm-shared]
+      calls: [utility, llm-shared, ast-adapter, engine]
       uses: [types]
 
   structure-adapter:
@@ -195,7 +195,24 @@ node_types:
       - no-direct-minimatch
     parents: [module]
     relations:
-      calls: [utility, ast-adapter]
+      calls: [utility, ast-adapter, engine, persistence-adapter, structure-adapter]
+      uses: [types]
+
+  relations-adapter:
+    description: "Relation-conformance subsystem — per-language dependency extractors, resolvers, and the pass/verify engine. Deterministic static code analysis."
+    enforce: strict
+    when:
+      all_of:
+        - path: "source/cli/src/relations/**/*.ts"
+        - not:
+            path: "**/*.test.ts"
+    aspects:
+      - deterministic
+      - posix-paths-source
+      - no-direct-minimatch
+    parents: [module]
+    relations:
+      calls: [engine, ast-adapter, structure-adapter, persistence-adapter, llm-shared, utility, relations-adapter]
       uses: [types]
 
   llm-provider:
@@ -297,7 +314,7 @@ node_types:
     log_required: true
     parents: [module]
     relations:
-      calls: [utility]
+      calls: [utility, template]
       uses: [types]
 
   knowledge-doc:

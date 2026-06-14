@@ -1,7 +1,13 @@
 name: E2E Tests — Lock Merge & Piped Refusals (LLM Side)
 type: test-suite
-description: "Subprocess E2E for the paid LLM paths the deterministic merge suite leaves open: take-a-side lock-merge recovery re-reviews only the missing LLM pair (HTTP call delta equals missing pairs) while the kept side stays byte-identical and the final check passes, and a piped report of over 200 cached enforced refusals keeps its Errors header count equal to the rendered refusal blocks so the stdout drain survives refusal-shaped output. Real spawned binary with the in-process mock reviewer."
+description: "Subprocess E2E for the paid LLM paths the deterministic merge
+  suite leaves open: take-a-side lock-merge recovery re-reviews only the missing
+  LLM pair (HTTP call delta equals missing pairs) while the kept side stays
+  byte-identical and the final check passes, and a piped report of over 200
+  cached enforced refusals keeps its Errors header count equal to the rendered
+  refusal blocks so the stdout drain survives refusal-shaped output. Real
+  spawned binary with the in-process mock reviewer."
 aspects: []
-relations: []
+relations: [ { target: cli/tests/e2e/support, type: uses } ]
 mapping:
   - source/cli/tests/e2e/cli-lock-merge-llm.test.ts

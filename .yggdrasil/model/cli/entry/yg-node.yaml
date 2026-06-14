@@ -18,5 +18,17 @@ relations:
     type: calls
   - target: cli/commands/check
     type: calls
+  - target: cli/commands/aspect-test
+    type: uses
+  - target: cli/commands/find
+    type: uses
+  - target: cli/commands/knowledge
+    type: uses
+  - target: cli/commands/log
+    type: uses
+  - target: cli/commands/suppressions
+    type: uses
+  - target: cli/commands/type-suggest
+    type: uses
 mapping:
   - source/cli/src/bin.ts

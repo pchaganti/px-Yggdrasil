@@ -1,8 +1,15 @@
 name: Path and IO Utils Unit Tests
 type: test-suite
-description: "Unit tests for filesystem and path utility modules: atomic writes, debug logging, node-path validation, path helpers, mapping-path normalization and glob matching, and check.mjs export-shape validation"
+description: "Unit tests for filesystem and path utility modules: atomic writes,
+  debug logging, node-path validation, path helpers, mapping-path normalization
+  and glob matching, and check.mjs export-shape validation"
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/io/atomic-write, type: uses, consumes: [write-atomic] },
+    { target: cli/io/stores, type: uses },
+    { target: cli/utils, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/utils/atomic-write.test.ts
   - source/cli/tests/unit/utils/debug-log.test.ts

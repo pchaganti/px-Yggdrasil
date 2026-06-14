@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { IssueMessage } from '../model/validation.js';
-import type { LockFile, VerdictEntry, LockNodeEntry } from '../model/lock.js';
+import type { LockFile, VerdictEntry, LockNodeEntry, RelationVerdict } from '../model/lock.js';
 import { LOCK_FORMAT_VERSION, LOCK_FILE_NAME } from '../model/lock.js';
 import { atomicWriteFile } from '../io/atomic-write.js';
 
@@ -47,7 +47,7 @@ export function readLock(yggRoot: string): LockFile {
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
       // Absent file is valid cold-start state — return empty lock.
-      return { version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: {} };
+      return { version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: {}, relation_verdicts: {} };
     }
     throw err;
   }
@@ -111,14 +111,19 @@ export function readLock(yggRoot: string): LockFile {
     });
   }
 
-  if (obj.version !== LOCK_FORMAT_VERSION) {
+  if (obj.version !== 1 && obj.version !== LOCK_FORMAT_VERSION) {
     throw new LockInvalidError({
-      what: `${LOCK_FILE_NAME} has unsupported version ${obj.version} (this CLI reads version ${LOCK_FORMAT_VERSION})`,
+      what: `${LOCK_FILE_NAME} has unsupported version ${obj.version} (this CLI reads version 1 or ${LOCK_FORMAT_VERSION})`,
       why: 'an unrecognized lock version means the file was written by a different or newer CLI; parsing it would risk silently misinterpreting its structure',
       next:
         'restore the file from git (`git checkout HEAD -- .yggdrasil/yg-lock.json`), OR\n' +
         'delete the file and re-fill via `yg check --approve` — this will re-verify all pairs (full re-verification cost).',
     });
+  }
+  // Migrate v1 → v2 in memory: a v1 lock has no relation_verdicts. Inject an empty
+  // one so existing aspect verdicts survive (no forced LLM re-verification).
+  if (obj.version === 1 && obj.relation_verdicts === undefined) {
+    obj.relation_verdicts = {};
   }
 
   // Validate the SHAPE of the parsed lock. The lock is the only persisted verification state;
@@ -138,6 +143,7 @@ export function readLock(yggRoot: string): LockFile {
     version: LOCK_FORMAT_VERSION,
     verdicts: obj.verdicts as Record<string, Record<string, VerdictEntry>>,
     nodes: obj.nodes as Record<string, LockNodeEntry>,
+    relation_verdicts: obj.relation_verdicts as Record<string, RelationVerdict>,
   };
 }
 
@@ -173,10 +179,10 @@ function throwMalformed(detail: string): never {
  *   `log` = plain object { last_entry_datetime: string, prefix_hash: string }.
  */
 function validateLockShape(obj: Record<string, unknown>): void {
-  // Top-level keys: only version / verdicts / nodes are allowed.
-  const TOP_KEYS = new Set(['version', 'verdicts', 'nodes']);
+  // Top-level keys: only version / verdicts / nodes / relation_verdicts are allowed.
+  const TOP_KEYS = new Set(['version', 'verdicts', 'nodes', 'relation_verdicts']);
   for (const key of Object.keys(obj)) {
-    if (!TOP_KEYS.has(key)) throwMalformed(`unexpected top-level key "${key}" (allowed: version, verdicts, nodes)`);
+    if (!TOP_KEYS.has(key)) throwMalformed(`unexpected top-level key "${key}" (allowed: version, verdicts, nodes, relation_verdicts)`);
   }
 
   // verdicts must be a plain object of aspectId → (unitKey → entry).
@@ -199,6 +205,14 @@ function validateLockShape(obj: Record<string, unknown>): void {
   }
   for (const nodePath of Object.keys(obj.nodes)) {
     validateNodeEntry(obj.nodes[nodePath], `nodes.${nodePath}`);
+  }
+
+  // relation_verdicts must be a plain object of unitKey → relation verdict.
+  if (!isPlainObject(obj.relation_verdicts)) {
+    throwMalformed('"relation_verdicts" must be a JSON object (found ' + describe(obj.relation_verdicts) + ')');
+  }
+  for (const unitKey of Object.keys(obj.relation_verdicts)) {
+    validateRelationVerdict(obj.relation_verdicts[unitKey], `relation_verdicts.${unitKey}`);
   }
 }
 
@@ -234,6 +248,51 @@ function validateVerdictEntry(entry: unknown, at: string): void {
       ) {
         throwMalformed(`"${at}.touched[${i}]" must be a [string, string] pair (found ${describe(pair)})`);
       }
+    }
+  }
+}
+
+/** Validate a single RelationVerdict (verdict + fingerprint + evidence required; reason optional). */
+function validateRelationVerdict(entry: unknown, at: string): void {
+  if (!isPlainObject(entry)) throwMalformed(`"${at}" must be a JSON object (found ${describe(entry)})`);
+  const KEYS = new Set(['verdict', 'fingerprint', 'reason', 'evidence']);
+  for (const key of Object.keys(entry)) if (!KEYS.has(key)) throwMalformed(`"${at}" has unexpected key "${key}" (allowed: verdict, fingerprint, reason, evidence)`);
+  if (entry.verdict !== 'approved' && entry.verdict !== 'refused') throwMalformed(`"${at}.verdict" must be "approved" or "refused" (found ${describe(entry.verdict)})`);
+  if (typeof entry.fingerprint !== 'string') throwMalformed(`"${at}.fingerprint" must be a string (found ${describe(entry.fingerprint)})`);
+  if (entry.reason !== undefined && typeof entry.reason !== 'string') throwMalformed(`"${at}.reason" must be a string when present (found ${describe(entry.reason)})`);
+  validateRelationEvidence(entry.evidence, `${at}.evidence`);
+}
+
+/** Validate a RelationEvidence object (the stored fingerprint inputs). Strict-by-design. */
+function validateRelationEvidence(evidence: unknown, at: string): void {
+  if (!isPlainObject(evidence)) throwMalformed(`"${at}" must be a JSON object (found ${describe(evidence)})`);
+  const EV_KEYS = new Set(['sources', 'relations', 'outcomes', 'grammarVersions', 'indexIdentity']);
+  for (const key of Object.keys(evidence)) {
+    if (!EV_KEYS.has(key)) throwMalformed(`"${at}" has unexpected key "${key}" (allowed: sources, relations, outcomes, grammarVersions, indexIdentity)`);
+  }
+  validateStringPairArray(evidence.sources, `${at}.sources`);
+  if (typeof evidence.relations !== 'string') throwMalformed(`"${at}.relations" must be a string (found ${describe(evidence.relations)})`);
+  if (typeof evidence.indexIdentity !== 'string') throwMalformed(`"${at}.indexIdentity" must be a string (found ${describe(evidence.indexIdentity)})`);
+  validateStringPairArray(evidence.grammarVersions, `${at}.grammarVersions`);
+  if (!Array.isArray(evidence.outcomes)) throwMalformed(`"${at}.outcomes" must be an array (found ${describe(evidence.outcomes)})`);
+  for (let i = 0; i < evidence.outcomes.length; i++) {
+    const o = evidence.outcomes[i];
+    const oat = `${at}.outcomes[${i}]`;
+    if (!isPlainObject(o)) throwMalformed(`"${oat}" must be a JSON object (found ${describe(o)})`);
+    if (typeof o.fromFile !== 'string') throwMalformed(`"${oat}.fromFile" must be a string (found ${describe(o.fromFile)})`);
+    if (typeof o.line !== 'number') throwMalformed(`"${oat}.line" must be a number (found ${describe(o.line)})`);
+    if (typeof o.hintKey !== 'string') throwMalformed(`"${oat}.hintKey" must be a string (found ${describe(o.hintKey)})`);
+    if (!isPlainObject(o.outcome)) throwMalformed(`"${oat}.outcome" must be a JSON object (found ${describe(o.outcome)})`);
+  }
+}
+
+/** Validate an array of [string, string] pairs (used for sources / grammarVersions). */
+function validateStringPairArray(value: unknown, at: string): void {
+  if (!Array.isArray(value)) throwMalformed(`"${at}" must be an array (found ${describe(value)})`);
+  for (let i = 0; i < value.length; i++) {
+    const pair = value[i];
+    if (!Array.isArray(pair) || pair.length !== 2 || typeof pair[0] !== 'string' || typeof pair[1] !== 'string') {
+      throwMalformed(`"${at}[${i}]" must be a [string, string] pair (found ${describe(pair)})`);
     }
   }
 }
@@ -323,11 +382,36 @@ export function serializeLock(lock: LockFile): string {
     lines.push(`    ${JSON.stringify(nodePath)}: ${serializeNodeEntry(nodeEntry)}${comma}`);
   }
 
+  lines.push('  },'); // end nodes (now followed by relation_verdicts)
+  lines.push('  "relation_verdicts": {');
+  const rvKeys = Object.keys(lock.relation_verdicts).sort();
+  for (let i = 0; i < rvKeys.length; i++) {
+    const k = rvKeys[i];
+    const comma = i === rvKeys.length - 1 ? '' : ',';
+    lines.push(`    ${JSON.stringify(k)}: ${serializeRelationVerdict(lock.relation_verdicts[k])}${comma}`);
+  }
   lines.push('  }');
   lines.push('}');
   lines.push(''); // trailing newline (join adds \n between, so this creates the trailing \n)
 
   return lines.join('\n');
+}
+
+/**
+ * Serialize a RelationVerdict on a single line.
+ * Fields are code-point sorted; optional `reason` omitted when absent.
+ */
+function serializeRelationVerdict(entry: RelationVerdict): string {
+  const obj: Record<string, unknown> = {};
+  obj.verdict = entry.verdict;
+  obj.fingerprint = entry.fingerprint;
+  if (entry.reason !== undefined) obj.reason = entry.reason;
+  // Pre-sorting the evidence arrays (sources, outcomes, grammarVersions) is the PRODUCER's
+  // contract — the store serializes evidence as given. JSON.stringify per key keeps it deterministic.
+  obj.evidence = entry.evidence;
+  const sortedKeys = Object.keys(obj).sort();
+  const pairs = sortedKeys.map((k) => `${JSON.stringify(k)}:${JSON.stringify(obj[k])}`);
+  return `{${pairs.join(',')}}`;
 }
 
 /**

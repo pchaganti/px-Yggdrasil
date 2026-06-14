@@ -1,7 +1,10 @@
 name: E2E Tests — Tier Identity Cascade
 type: test-suite
-description: "Subprocess E2E proving a change to an LLM aspect resolved reviewer tier (consensus, model, endpoint, rename, default) drifts every node using it via the tier-identity synthetic hash, and that api_key rotation does not cascade."
+description: "Subprocess E2E proving a change to an LLM aspect resolved reviewer
+  tier (consensus, model, endpoint, rename, default) drifts every node using it
+  via the tier-identity synthetic hash, and that api_key rotation does not
+  cascade."
 aspects: []
-relations: []
+relations: [ { target: cli/tests/e2e/support, type: uses } ]
 mapping:
   - source/cli/tests/e2e/cli-tier-cascade.test.ts

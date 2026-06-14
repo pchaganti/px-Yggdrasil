@@ -1,8 +1,17 @@
 name: Log Format and Integrity Helper Unit Tests
 type: test-suite
-description: "Unit tests for log helper functions — log entry format parsing, integrity-hash verification, and lock-backed merge resolution."
+description: "Unit tests for log helper functions — log entry format parsing,
+  integrity-hash verification, and lock-backed merge resolution."
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/core/loader, type: uses },
+    { target: cli/core/log, type: uses },
+    { target: cli/core/log-validator, type: uses },
+    { target: cli/core/parsing, type: uses },
+    { target: cli/io/lock-store, type: uses },
+    { target: cli/model/lock, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/core/log-format.test.ts
   - source/cli/tests/unit/core/log-integrity.test.ts

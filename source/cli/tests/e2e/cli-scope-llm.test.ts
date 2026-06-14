@@ -242,13 +242,24 @@ describe.skipIf(!distExists)('CLI E2E — scope (LLM-side): per:file / content-a
       const hashAfterFill = verdicts['node:services/orders'].hash as string;
       expect(run(['check'], dir).status).toBe(0);
 
-      // EDIT THE NON-MATCHING FILE (other.ts) → NOT in the subject set → verdict
-      // stays valid AND the entry hash is unchanged (the excluded file does not
-      // fold into the hash). This is the load-bearing proof of scope narrowing.
+      // EDIT THE NON-MATCHING FILE (other.ts) → NOT in the marker-rule subject set → the
+      // ASPECT verdict stays valid AND its entry hash is unchanged (the excluded file does not
+      // fold into the aspect hash). This is the load-bearing proof of scope narrowing — it is
+      // unaffected by relation-conformance.
       appendFileSync(path.join(base, 'other.ts'), 'export const oo = 2;\n');
       const afterOther = run(['check'], dir);
-      expect(afterOther.status).toBe(0);
+      // The scoped ASPECT pair is immune: no marker-rule pair is named unverified and its hash holds.
       expect(afterOther.all).not.toContain("No valid verdict for aspect 'marker-rule'");
+      expect(readLock(dir).verdicts['marker-rule']['node:services/orders'].hash).toBe(hashAfterFill);
+      // BUT other.ts IS a mapped file of the node, so it IS an input to the node's RELATION
+      // verdict (which folds ALL mapped files) — that goes unverified. So check is now exit 1
+      // with ONLY the relation error, never a marker-rule error. The scoping immunity is the
+      // aspect-hash invariant above, no longer the overall exit code.
+      expect(afterOther.status).toBe(1); // relation verdict folds all mapped files since relation-conformance
+      expect(afterOther.all).toContain('relation-undeclared-dependency');
+      expect(afterOther.all).toContain('services/orders');
+      // Re-approve clears the relation verdict (empty registry → approved); the marker-rule hash STILL holds.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
       expect(readLock(dir).verdicts['marker-rule']['node:services/orders'].hash).toBe(hashAfterFill);
 
       // ADD THE MARKER to the previously-excluded file → subject set GROWS to include
@@ -307,18 +318,27 @@ describe.skipIf(!distExists)('CLI E2E — scope (LLM-side): per:file / content-a
       expect(Object.keys(readLock(dir).verdicts['has-doc-comment'])).toEqual(['node:services/orders']);
       expect(run(['check'], dir).status).toBe(0);
 
-      // EDIT ONLY THE BINARY → the LLM pair's subject set excludes it → stays verified,
-      // and the entry hash is unchanged (the binary's bytes never fold into the LLM hash).
+      // EDIT ONLY THE BINARY → the LLM pair's subject set excludes it → the ASPECT verdict stays
+      // verified and its entry hash is unchanged (the binary's bytes never fold into the LLM hash).
       const callsBefore = mock.chatCount();
       appendFileSync(path.join(base, 'logo.png'), Buffer.from([0x42, 0x43, 0x44]));
       const afterBinaryEdit = run(['check'], dir);
-      expect(afterBinaryEdit.status).toBe(0);
+      // The LLM aspect pair is immune: no has-doc-comment pair is named unverified and its hash holds.
       expect(afterBinaryEdit.all).not.toContain("No valid verdict for aspect 'has-doc-comment'");
       expect(readLock(dir).verdicts['has-doc-comment']['node:services/orders'].hash).toBe(hashAfterFill);
-      // A re-fill makes ZERO new reviewer calls — nothing to re-verify for the LLM aspect.
+      // BUT the .png IS a mapped file of the node, so it IS an input to the node's RELATION verdict
+      // (which folds ALL mapped files, binaries included) — that goes unverified. So check is now
+      // exit 1 with ONLY the relation error, never a has-doc-comment error. The binary-exclusion
+      // immunity is the aspect-hash invariant above, no longer the overall exit code.
+      expect(afterBinaryEdit.status).toBe(1); // relation verdict folds all mapped files (binaries included) since relation-conformance
+      expect(afterBinaryEdit.all).toContain('relation-undeclared-dependency');
+      expect(afterBinaryEdit.all).toContain('services/orders');
+      // A re-fill makes ZERO new reviewer calls — nothing to re-verify for the LLM aspect (the
+      // relation verdict re-seeds deterministically at zero LLM cost). The aspect hash STILL holds.
       const refill = await runAsync(['check', '--approve'], dir);
+      expect(refill.status).toBe(0);
       expect(mock.chatCount() - callsBefore).toBe(0);
-      void refill;
+      expect(readLock(dir).verdicts['has-doc-comment']['node:services/orders'].hash).toBe(hashAfterFill);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });

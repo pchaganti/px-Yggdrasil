@@ -2,6 +2,6 @@ name: Node Parser Unit Tests
 type: test-suite
 description: "Unit tests for the parser of structural node graph files."
 aspects: []
-relations: []
+relations: [ { target: cli/io/parsers/graph, type: uses } ]
 mapping:
   - source/cli/tests/unit/io/node-parser.test.ts

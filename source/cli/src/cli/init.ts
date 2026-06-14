@@ -116,6 +116,49 @@ export async function ensureGitattributes(repoRoot: string): Promise<void> {
   await writeFile(gaPath, `${existing}${sep}${GITATTRIBUTES_LOCK_LINE}\n`, 'utf-8');
 }
 
+/** The exact repo-root .gitignore line that excludes the relation pass's local
+ *  symbol-index cache. `.yg-cache/` sits at the project root and is a rebuildable
+ *  artifact — committing it makes the coverage gate flag it as an unmapped file. */
+const GITIGNORE_CACHE_LINE = '.yg-cache/';
+
+/**
+ * Ensure the repo-root .gitignore excludes the relation pass's `.yg-cache/`
+ * directory. The pass writes a per-language symbol index there during
+ * `yg check --approve`; it must never be committed (a committed cache trips the
+ * coverage gate as an unmapped file the moment it is git-tracked).
+ *
+ * Idempotent: creates the file with the single line when absent; appends the
+ * line exactly once when the file exists without it (preserving other content
+ * and ensuring a separating newline); no-op when the line is already present.
+ * Run on fresh init AND every --upgrade so existing adopters pick it up.
+ */
+export async function ensureProjectGitignore(repoRoot: string): Promise<void> {
+  const giPath = path.join(repoRoot, '.gitignore');
+  let existing: string | undefined;
+  try {
+    existing = await readFile(giPath, 'utf-8');
+  } catch (e: unknown) {
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+    debugWrite(`[init] ensureProjectGitignore: ${giPath} not found (ENOENT), will create`);
+    existing = undefined;
+  }
+
+  if (existing === undefined) {
+    await writeFile(giPath, `${GITIGNORE_CACHE_LINE}\n`, 'utf-8');
+    return;
+  }
+
+  // Already present (anywhere, as a full line) → nothing to do.
+  const hasLine = existing
+    .split('\n')
+    .some((line) => line.trim() === GITIGNORE_CACHE_LINE);
+  if (hasLine) return;
+
+  // Append once, guaranteeing a newline boundary before and after.
+  const sep = existing.length > 0 && !existing.endsWith('\n') ? '\n' : '';
+  await writeFile(giPath, `${existing}${sep}${GITIGNORE_CACHE_LINE}\n`, 'utf-8');
+}
+
 const API_PROVIDERS: ReviewerProvider[] = ['anthropic', 'openai', 'google', 'openai-compatible', 'ollama'];
 const CLI_PROVIDERS: ReviewerProvider[] = ['claude-code', 'codex', 'gemini-cli'];
 const CLAUDE_CODE_ALIASES = [
@@ -458,6 +501,7 @@ async function freshInit(projectRoot: string): Promise<void> {
   }
 
   await ensureGitattributes(projectRoot);
+  await ensureProjectGitignore(projectRoot);
 
   p.outro(chalk.green('Yggdrasil initialized. Run yg check to get started.'));
 }
@@ -535,6 +579,9 @@ export async function runVersionUpgrade(
   // adopters pick it up (both the interactive and non-interactive --upgrade
   // paths route through here). Idempotent.
   await ensureGitattributes(projectRoot);
+  // Likewise ensure `.yg-cache/` is gitignored — the relation pass's local
+  // cache must never be committed. Idempotent.
+  await ensureProjectGitignore(projectRoot);
 
   return { rulesPath, migrationActions, migrationWarnings, withheld };
 }

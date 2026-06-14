@@ -33,7 +33,7 @@ function makeGraph(nodes: GraphNode[]): Graph {
 }
 
 function emptyLock(): LockFile {
-  return { version: 1, verdicts: {}, nodes: {} };
+  return { version: 1, verdicts: {}, nodes: {}, relation_verdicts: {} };
 }
 
 describe('collectReverseDependents', () => {
@@ -322,6 +322,7 @@ describe('nodesWithRefusedVerdict (lock-seeded)', () => {
         },
       },
       nodes: {},
+      relation_verdicts: {},
     };
     const result = nodesWithRefusedVerdict(graph, lock, 'shape');
     expect([...result]).toEqual(['billing/cancel']);
@@ -341,6 +342,7 @@ describe('nodesWithRefusedVerdict (lock-seeded)', () => {
       version: 1,
       verdicts: { shape: { 'file:src/billing/x.ts': entry('refused') } },
       nodes: {},
+      relation_verdicts: {},
     };
     const result = nodesWithRefusedVerdict(graph, lock, 'shape');
     expect([...result]).toEqual(['billing']);
@@ -352,6 +354,7 @@ describe('nodesWithRefusedVerdict (lock-seeded)', () => {
       version: 1,
       verdicts: { shape: { 'file:src/gone.ts': entry('refused') } },
       nodes: {},
+      relation_verdicts: {},
     };
     expect(nodesWithRefusedVerdict(graph, lock, 'shape').size).toBe(0);
   });
@@ -362,6 +365,7 @@ describe('nodesWithRefusedVerdict (lock-seeded)', () => {
       version: 1,
       verdicts: { shape: { 'node:a': entry('approved') } },
       nodes: {},
+      relation_verdicts: {},
     };
     expect(nodesWithRefusedVerdict(graph, lock, 'shape').size).toBe(0);
   });
@@ -374,6 +378,7 @@ describe('nodesWithRefusedVerdict (lock-seeded)', () => {
       version: 1,
       verdicts: { shape: { 'weird:something': entry('refused') } },
       nodes: {},
+      relation_verdicts: {},
     };
     expect(nodesWithRefusedVerdict(graph, lock, 'shape').size).toBe(0);
   });
@@ -506,6 +511,7 @@ describe('collectStructureCascade (lock-seeded)', () => {
         },
       },
       nodes: {},
+      relation_verdicts: {},
     };
     const result = collectStructureCascade(graph, 'src/owner.ts', 'owner', lock);
     expect(result).toEqual([{ nodePath: 'neighbour', mode: 'precise' }]);
@@ -536,6 +542,7 @@ describe('collectStructureCascade (lock-seeded)', () => {
         },
       },
       nodes: {},
+      relation_verdicts: {},
     };
     // Adding/renaming a file inside src/billing changes the listing hash.
     const result = collectStructureCascade(graph, 'src/billing/new.ts', 'owner', lock);
@@ -554,6 +561,7 @@ describe('collectStructureCascade (lock-seeded)', () => {
         shape: { 'node:neighbour': { verdict: 'approved', hash: 'h', touched: [['exists:src/probe.ts', 'sha']] } },
       },
       nodes: {},
+      relation_verdicts: {},
     };
     expect(collectStructureCascade(graph, 'src/probe.ts', 'owner', lock)).toEqual([{ nodePath: 'neighbour', mode: 'precise' }]);
     // A different file is not the probed path → no cascade.
@@ -572,6 +580,7 @@ describe('collectStructureCascade (lock-seeded)', () => {
         shape: { 'node:neighbour': { verdict: 'approved', hash: 'h', touched: [['graph:owner', 'sha']] } },
       },
       nodes: {},
+      relation_verdicts: {},
     };
     // graph:owner folds owner's yg-node.yaml bytes — editing that file invalidates.
     const ygNode = '.yggdrasil/model/owner/yg-node.yaml';
@@ -591,6 +600,7 @@ describe('collectStructureCascade (lock-seeded)', () => {
         shape: { 'file:src/n.ts': { verdict: 'approved', hash: 'h', touched: [['read:src/owner.ts', 'sha']] } },
       },
       nodes: {},
+      relation_verdicts: {},
     };
     expect(collectStructureCascade(graph, 'src/owner.ts', 'owner', lock)).toEqual([{ nodePath: 'neighbour', mode: 'precise' }]);
   });
@@ -614,6 +624,7 @@ describe('collectStructureCascade (lock-seeded)', () => {
       version: 1,
       verdicts: { shape: { 'node:neighbour': { verdict: 'approved', hash: 'h', touched: [] } } },
       nodes: {},
+      relation_verdicts: {},
     };
     expect(collectStructureCascade(graph, 'src/owner.ts', 'owner', lock)).toEqual([]);
   });
@@ -641,6 +652,7 @@ describe('collectStructureCascade (lock-seeded)', () => {
         },
       },
       nodes: {},
+      relation_verdicts: {},
     };
     // None of the observation keys reference src/owner.ts → not precise; the node has a
     // det entry so cold-start is suppressed → empty cascade.
@@ -674,6 +686,7 @@ describe('collectStructureCascade (lock-seeded)', () => {
         },
       },
       nodes: {},
+      relation_verdicts: {},
     };
     const result = collectStructureCascade(graph, 'src/owner.ts', 'owner', lock);
     expect(result).toEqual([
@@ -704,6 +717,7 @@ describe('collectStructureCascade (lock-seeded)', () => {
         },
       },
       nodes: {},
+      relation_verdicts: {},
     };
     // The file: key does not map to the (mapping-less) neighbour → not precise, and
     // with no det entry of its own the cold-start probe finds no allowed read.
@@ -729,6 +743,7 @@ describe('collectStructureCascade (lock-seeded)', () => {
         },
       },
       nodes: {},
+      relation_verdicts: {},
     };
     // Entries do not belong to `neighbour` (unitKeyBelongsToNode → false), so it has
     // no det entry of its own → cold-start probe runs but file is not in its reads.
@@ -746,6 +761,7 @@ describe('nodesWithRefusedVerdict — longest-mapping owner resolution', () => {
       // The file src/c/x.ts is in BOTH mappings (src and src/c); the longer wins.
       verdicts: { shape: { 'file:src/c/x.ts': { verdict: 'refused', hash: 'h' } } },
       nodes: {},
+      relation_verdicts: {},
     };
     expect([...nodesWithRefusedVerdict(graph, lock, 'shape')]).toEqual(['p/c']);
   });
@@ -762,6 +778,7 @@ describe('nodesWithRefusedVerdict — longest-mapping owner resolution', () => {
       version: 1,
       verdicts: { shape: { 'file:src/c/x.ts': { verdict: 'refused', hash: 'h' } } },
       nodes: {},
+      relation_verdicts: {},
     };
     expect([...nodesWithRefusedVerdict(graph, lock, 'shape')]).toEqual(['p/c']);
   });

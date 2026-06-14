@@ -1,6 +1,7 @@
 name: Validator
 type: engine
-description: Structural validation and completeness checks enforcing graph integrity across structural, coverage, completeness, and architecture rules
+description: Structural validation and completeness checks enforcing graph
+  integrity across structural, coverage, completeness, and architecture rules
 aspects:
   - posix-paths-output
   - what-why-next
@@ -12,6 +13,16 @@ relations:
   - target: cli/model/validation
     type: uses
   - target: cli/utils
+    type: calls
+  - target: cli/core/checks/architecture
+    type: calls
+  - target: cli/core/checks/aspects
+    type: calls
+  - target: cli/core/checks/mapping
+    type: calls
+  - target: cli/core/checks/relations
+    type: calls
+  - target: cli/io/file-content-cache
     type: calls
 mapping:
   - source/cli/src/core/validator.ts

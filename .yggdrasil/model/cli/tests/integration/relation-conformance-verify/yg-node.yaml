@@ -1,0 +1,20 @@
+name: Integration Tests — Relation Conformance Verify
+type: test-suite
+description: "Integration tests for the parse-free relation-conformance
+  re-validation path used by plain yg check: hash-based verdict re-validation
+  without tree-sitter, the symbol-table-backed verify path, and the TypeScript
+  anti-false-positive suite asserting dynamic/reflective/external/unmapped
+  dependencies stay silent."
+aspects: []
+relations:
+  [
+    { target: cli/ast/runtime, type: uses },
+    { target: cli/core/loader, type: uses },
+    { target: cli/model/lock, type: uses },
+    { target: cli/relations/core, type: uses },
+    { target: cli/relations/extractors, type: uses }
+  ]
+mapping:
+  - source/cli/tests/integration/relation-verify.test.ts
+  - source/cli/tests/integration/relation-verify-symbol.test.ts
+  - source/cli/tests/integration/relation-ts-antifp.test.ts

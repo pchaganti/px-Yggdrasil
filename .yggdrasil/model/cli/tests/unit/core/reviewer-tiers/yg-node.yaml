@@ -1,7 +1,8 @@
 name: Reviewer Tiers Unit Tests
 type: test-suite
-description: "Unit tests for v5 reviewer-tiers — tier-identity canonical JSON and tier-selection aspect-to-tier resolution"
+description: "Unit tests for v5 reviewer-tiers — tier-identity canonical JSON
+  and tier-selection aspect-to-tier resolution"
 aspects: []
-relations: []
+relations: [ { target: cli/core/reviewer-tiers, type: uses } ]
 mapping:
   - source/cli/tests/unit/core/tier-selection.test.ts

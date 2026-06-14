@@ -1,8 +1,14 @@
 name: Templates Unit Tests
 type: test-suite
-description: "Unit tests for template generation: commands, default-config, platform rules, and project name resolution"
+description: "Unit tests for template generation: commands, default-config,
+  platform rules, and project name resolution"
 aspects: []
-relations: []
+relations:
+  [
+    { target: cli/knowledge-concepts, type: uses },
+    { target: cli/templates, type: uses },
+    { target: cli/templates-platform, type: uses }
+  ]
 mapping:
   - source/cli/tests/unit/templates/commands.test.ts
   - source/cli/tests/unit/templates/default-config.test.ts

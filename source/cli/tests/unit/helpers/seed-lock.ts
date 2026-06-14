@@ -115,7 +115,7 @@ export interface SeedLockSpec {
  * project root (the parent of graph.rootPath).
  */
 export async function seedLock(graph: Graph, spec: SeedLockSpec = {}): Promise<LockFile> {
-  const lock: LockFile = { version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: {} };
+  const lock: LockFile = { version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: {}, relation_verdicts: {} };
   const projectRoot = path.dirname(graph.rootPath);
 
   const { pairs } = await computeExpectedPairs(graph, { includeDraft: spec.includeDraft ?? false });

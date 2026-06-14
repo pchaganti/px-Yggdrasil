@@ -1,9 +1,13 @@
 name: Graph Parsers
 type: parser-adapter
-description: Parsers for graph-shape YAML — architecture, nodes, and flows. The aspect parser lives in the sibling node cli/io/parsers/aspect to keep each node within the reviewer character budget.
+description: Parsers for graph-shape YAML — architecture, nodes, and flows. The
+  aspect parser lives in the sibling node cli/io/parsers/aspect to keep each
+  node within the reviewer character budget.
 relations:
   - target: cli/model/graph
     type: uses
+  - target: cli/utils
+    type: calls
 mapping:
   - source/cli/src/io/architecture-parser.ts
   - source/cli/src/io/node-parser.ts
