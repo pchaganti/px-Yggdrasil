@@ -105,6 +105,46 @@ describe('php extractor — uses()', () => {
     expect(uses).toHaveLength(0);
   });
 
+  it('drops only the function clause in a mixed grouped use, keeping the class (`{function format, Gateway}`)', async () => {
+    // Per-clause `function` token: the group mixes a function import and a class
+    // import. Only the class is a dependency edge; the function must be silenced
+    // without taking the class down with it.
+    const { uses } = await run('<?php\nuse App\\Pkg\\{function format, Gateway};\nclass C {}\n');
+    const s = specs(uses);
+    expect(s).toContain('App\\Pkg\\Gateway');
+    expect(s).not.toContain('App\\Pkg\\format');
+    expect(s).toHaveLength(1);
+  });
+
+  it('drops the function clause regardless of its position in the group (`{Gateway, function format}`)', async () => {
+    // Class-first ordering — guard must be evaluated per clause, not by position.
+    const { uses } = await run('<?php\nuse App\\Pkg\\{Gateway, function format};\nclass C {}\n');
+    const s = specs(uses);
+    expect(s).toContain('App\\Pkg\\Gateway');
+    expect(s).not.toContain('App\\Pkg\\format');
+    expect(s).toHaveLength(1);
+  });
+
+  it('drops only the const clause in a mixed grouped use, keeping the class (`{const MAX, Gateway}`)', async () => {
+    // Per-clause `const` token — same rule as `function`.
+    const { uses } = await run('<?php\nuse App\\Pkg\\{const MAX, Gateway};\nclass C {}\n');
+    const s = specs(uses);
+    expect(s).toContain('App\\Pkg\\Gateway');
+    expect(s).not.toContain('App\\Pkg\\MAX');
+    expect(s).toHaveLength(1);
+  });
+
+  it('keeps both classes in a per-clause-typed group with no function/const clause (positive guard)', async () => {
+    // POSITIVE / anti-over-silencing: a perfectly ordinary grouped class import
+    // must still emit BOTH class hints. The per-clause guard must not silence
+    // clauses that carry no function/const token.
+    const { uses } = await run('<?php\nuse App\\Payment\\{Charge, Refund};\nclass C {}\n');
+    const s = specs(uses);
+    expect(s).toContain('App\\Payment\\Charge');
+    expect(s).toContain('App\\Payment\\Refund');
+    expect(s).toHaveLength(2);
+  });
+
   it('deduplicates a class repeated in one grouped use on the same line (`{Foo, Foo}`)', async () => {
     const { uses } = await run('<?php\nuse App\\Pkg\\{Foo, Foo};\nclass C {}\n');
     // Same FQN, same line → one hint, not two.

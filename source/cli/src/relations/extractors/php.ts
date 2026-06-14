@@ -34,10 +34,14 @@ import type { DependencyExtractor, DetectedDep, DeclaredSymbol, ParsedFile } fro
  *       and a `namespace_use_group` of namespace_use_clause nodes. Each group clause's
  *       symbol is its own qualified_name (nested group) or a bare `name` (`Charge`);
  *       the imported FQN = leading base + `\` + that segment.
- *   - function / const imports `use function App\Util\format;` / `use const App\Util\MAX;`
- *       the clause carries an anonymous `function` / `const` token child. These import
- *       a function or constant, not a class — SKIPPED (they would resolve to a
- *       different symbol kind; dropping them costs recall, never a false positive).
+ *   - function / const imports — two grammar placements, both SKIPPED (importing a
+ *     function or constant, not a class; dropping them costs recall, never a false positive):
+ *       * declaration-level `use function App\Util\format;` / `use const App\Util\{A, B};`
+ *         — the anonymous `function`/`const` token is a direct child of the declaration;
+ *         every clause it introduces is a function/const, so the whole declaration is skipped.
+ *       * per-clause inside a group `use App\Pkg\{function format, Gateway};` — the token sits
+ *         on the individual namespace_use_clause; ONLY that clause is dropped, sibling class
+ *         clauses (here `Gateway`) are still emitted.
  */
 
 /** Strip a single leading backslash from a PHP FQN: `\App\X` → `App\X`. */
@@ -56,22 +60,29 @@ function clauseNameText(clause: Node): string | undefined {
   return undefined;
 }
 
-/** True when a `use` declaration imports a FUNCTION or CONST (anonymous token child),
- *  not a class-like symbol. Such imports are skipped — out of v1 class-dependency scope. */
+/** True when a `use` declaration imports a FUNCTION or CONST at the DECLARATION level
+ *  (`use function Base\X;`, `use const Base\{A, B};`) — the anonymous `function` / `const`
+ *  token sits directly under the declaration, so EVERY clause it introduces is a
+ *  function/constant, not a class. Such declarations are skipped wholesale — out of v1
+ *  class-dependency scope. A grouped use that carries the token on an INDIVIDUAL clause
+ *  instead (`use Base\{function f, Klass};`) is NOT caught here; that is guarded per clause
+ *  by clauseIsFunctionOrConst during expansion. */
 function isFunctionOrConstUse(decl: Node): boolean {
   for (let j = 0; j < decl.childCount; j++) {
     const c = decl.child(j);
     if (c !== null && !c.isNamed && (c.type === 'function' || c.type === 'const')) return true;
   }
-  // A grouped function/const use carries the token on each clause instead of the
-  // declaration; check the first clause as a representative.
-  for (let j = 0; j < decl.namedChildCount; j++) {
-    const clause = decl.namedChild(j);
-    if (clause === null || clause.type !== 'namespace_use_clause') continue;
-    for (let k = 0; k < clause.childCount; k++) {
-      const c = clause.child(k);
-      if (c !== null && !c.isNamed && (c.type === 'function' || c.type === 'const')) return true;
-    }
+  return false;
+}
+
+/** True when a single `namespace_use_clause` carries its OWN `function` / `const` token
+ *  (the per-clause form inside a grouped use, e.g. `{function format, Gateway}` — only the
+ *  `function format` clause is a function import). Such a clause imports a function/constant,
+ *  not a class, and is dropped while its sibling class clauses are kept. */
+function clauseIsFunctionOrConst(clause: Node): boolean {
+  for (let k = 0; k < clause.childCount; k++) {
+    const c = clause.child(k);
+    if (c !== null && !c.isNamed && (c.type === 'function' || c.type === 'const')) return true;
   }
   return false;
 }
@@ -115,6 +126,7 @@ function uses(file: ParsedFile): DetectedDep[] {
 
       if (child.type === 'namespace_use_clause') {
         // Plain / aliased clause directly under the declaration.
+        if (clauseIsFunctionOrConst(child)) continue;
         const name = clauseNameText(child);
         emit(name, child);
       } else if (child.type === 'namespace_use_group') {
@@ -122,6 +134,7 @@ function uses(file: ParsedFile): DetectedDep[] {
         for (let g = 0; g < child.namedChildCount; g++) {
           const clause = child.namedChild(g);
           if (clause === null || clause.type !== 'namespace_use_clause') continue;
+          if (clauseIsFunctionOrConst(clause)) continue;
           const seg = clauseNameText(clause);
           if (seg === undefined) continue;
           const segClean = stripLeadingBackslash(seg);
