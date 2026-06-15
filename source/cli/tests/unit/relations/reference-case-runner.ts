@@ -7,7 +7,11 @@ import { ensureLoaderRegistered } from '../../../src/ast/loader-hook.js';
 import { parseFile } from '../../../src/ast/parser.js';
 import { getLanguageForExtension } from '../../../src/core/graph/language-registry.js';
 import { extractorForLanguage } from '../../../src/relations/extractors/registry.js';
-import { csharpUses, collectGlobalUsings } from '../../../src/relations/extractors/csharp.js';
+import {
+  csharpUses,
+  collectGlobalUsings,
+  collectGlobalUsingAliases,
+} from '../../../src/relations/extractors/csharp.js';
 import { SymbolTable } from '../../../src/relations/symbol-table.js';
 import { buildOwnerIndex } from '../../../src/relations/owner-index.js';
 import { makeResolver, resolveCandidateGroup } from '../../../src/relations/resolver.js';
@@ -187,13 +191,18 @@ export async function runCase(id: string): Promise<void> {
     }
   }
 
-  // 3. C# global-using pre-pass (pass.ts step 4.5).
+  // 3. C# global-using pre-pass (pass.ts step 4.5): namespace prefixes AND project-wide aliases.
   const csharpGlobalUsings = new Set<string>();
+  const csharpGlobalUsingAliasMap = new Map<string, string>();
   for (const f of doc.files) {
     if (f.language !== 'csharp') continue;
     for (const prefix of collectGlobalUsings(parsedByPath.get(f.path)!)) csharpGlobalUsings.add(prefix);
+    for (const [name, fqn] of collectGlobalUsingAliases(parsedByPath.get(f.path)!)) {
+      csharpGlobalUsingAliasMap.set(name, fqn);
+    }
   }
   const csharpGlobalUsingsList = [...csharpGlobalUsings];
+  const csharpGlobalUsingAliasesList = [...csharpGlobalUsingAliasMap.entries()];
 
   // 4. Owner index over the in-memory graph (one node per file's parent dir).
   const nodes = new Map<string, { path: string; meta: { mapping: string[] } }>();
@@ -227,7 +236,10 @@ export async function runCase(id: string): Promise<void> {
     const fromNode = nodeOf(f.path);
     const detected =
       f.language === 'csharp'
-        ? csharpUses(parsed, { projectGlobalUsings: csharpGlobalUsingsList })
+        ? csharpUses(parsed, {
+            projectGlobalUsings: csharpGlobalUsingsList,
+            projectGlobalUsingAliases: csharpGlobalUsingAliasesList,
+          })
         : extractor.uses(parsed);
     for (const dep of detected) {
       // The SAME candidate walk the live pass runs (resolveCandidateGroup) — never a copy, so

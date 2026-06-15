@@ -183,12 +183,14 @@ describe('csharp extractor — uses() emits SYMBOL hints (never path hints)', ()
     expect(group?.[group.length - 1]).toBe('Gw');
   });
 
-  it('SKIPS `using static X;` — it imports a TYPE\'s members, not a namespace prefix', async () => {
+  it('`using static X;` records NO namespace prefix — it imports a TYPE\'s members, not a namespace', async () => {
     const { uses } = await run(
       ['using static Foo.Bar.Calc;', 'class C : Baz { }', ''].join('\n'),
     );
     const keys = symbolKeys(uses);
-    // No plain namespace prefix recorded → the bare base `Baz` yields NO candidate.
+    // No plain namespace prefix recorded → the bare base `Baz` yields NO `Foo.Bar.Baz` candidate.
+    // (The static-using TARGET `Foo.Bar.Calc` IS emitted as its own fully-qualified dependency,
+    // but it never expands into a sibling-namespace candidate for `Baz`.)
     expect(keys).not.toContain('Foo.Bar.Baz');
     expect(keys.some((k) => k.endsWith('.Baz'))).toBe(false);
   });
@@ -577,13 +579,20 @@ describe('csharp anti-FALSE-POSITIVE — the silence list (D8 gate)', () => {
     expect(symbolKeys(uses)).toHaveLength(0);
   });
 
-  it('`using static X;` emits NO namespace-prefix candidate', async () => {
+  it('`using static X;` emits the fully-qualified TARGET as a sole candidate, NO namespace-prefix expansion', async () => {
     const { uses } = await run(
       ['using static MyApp.Math.Calc;', 'class C { void M() { var r = Compute(); } }', ''].join('\n'),
     );
-    // `Compute()` is a bare invocation, not a `new`/base/qualified_name → no hints.
-    // And `using static` added no prefix, so even a bare base type would not qualify.
-    expect(symbolKeys(uses).some((k) => k.startsWith('MyApp.Math'))).toBe(false);
+    // The static-using TARGET `MyApp.Math.Calc` IS a real, fully-qualified type dependency: it is
+    // emitted as a ONE-candidate group (no enclosing-ns / using-prefix expansion), so it resolves
+    // only when MyApp.Math.Calc is in-graph (external here → silence). Crucially the directive adds
+    // NO namespace prefix: `Compute()` (a bare invocation) yields no hint, and no sibling
+    // `MyApp.Math.<other>` candidate is ever invented.
+    const target = uses.find((u) => u.candidates.some((c) => c.kind === 'symbol' && c.symbolKey === 'MyApp.Math.Calc'));
+    expect(target).toBeDefined();
+    expect(target!.candidates).toHaveLength(1); // sole verbatim/FQN candidate, no expansion
+    // The ONLY `MyApp.Math.*` key is the target itself — never a sibling-namespace expansion.
+    expect(symbolKeys(uses).filter((k) => k.startsWith('MyApp.Math'))).toEqual(['MyApp.Math.Calc']);
   });
 
   it('`global using` from ANOTHER file is invisible: a bare type stays SILENT at resolution', async () => {

@@ -15,7 +15,7 @@ import {
   type PersistedSymbolIndex,
 } from './symbol-table.js';
 import { makeResolver, resolveCandidateGroup } from './resolver.js';
-import { csharpUses, collectGlobalUsings } from './extractors/csharp.js';
+import { csharpUses, collectGlobalUsings, collectGlobalUsingAliases } from './extractors/csharp.js';
 import { verifyNodeDeps, type ResolvedDep, type RelationGraphView, type Violation } from './verifier.js';
 import type {
   DependencyExtractor,
@@ -156,14 +156,23 @@ export async function runRelationPass(
   //     `uses()` below (as the lowest using tier). This is the one cross-file scope channel
   //     the per-file extractor cannot see on its own. Implicit/SDK global usings remain
   //     invisible to a source-only tool → the names they would import stay silenced (correct).
+  //     Also aggregate every file's `global using Alias = N.Type;` project-wide aliases (A12):
+  //     a global-using alias declared in ANY file is usable in EVERY file, resolved in the
+  //     declaring file's context (the alias RHS is fully-qualified, so the captured FQN is the
+  //     target). A later same-named global alias overwrites an earlier one (last-wins is benign:
+  //     a genuine cross-file collision is a compile error C# itself rejects; our zero-FP floor is
+  //     that a file-local alias of the same name always takes precedence, enforced in uses()).
   const csharpRecords = recordsByLanguage.get('csharp') ?? [];
   const projectGlobalUsings = new Set<string>();
+  const projectGlobalUsingAliases = new Map<string, string>();
   for (const record of csharpRecords) {
     const parsed = await getParsed(record);
     if (!parsed) continue;
     for (const prefix of collectGlobalUsings(parsed)) projectGlobalUsings.add(prefix);
+    for (const [name, fqn] of collectGlobalUsingAliases(parsed)) projectGlobalUsingAliases.set(name, fqn);
   }
   const csharpGlobalUsings = [...projectGlobalUsings];
+  const csharpGlobalUsingAliases = [...projectGlobalUsingAliases.entries()];
 
   // 5. Resolver composes owner index + symbol table + injected path resolution.
   const resolver = makeResolver({
@@ -213,7 +222,10 @@ export async function runRelationPass(
       // extractor's `uses` ignores extra args, so this is a no-op for them.
       const detected =
         record.language === 'csharp'
-          ? csharpUses(parsed, { projectGlobalUsings: csharpGlobalUsings })
+          ? csharpUses(parsed, {
+              projectGlobalUsings: csharpGlobalUsings,
+              projectGlobalUsingAliases: csharpGlobalUsingAliases,
+            })
           : extractor.uses(parsed);
       for (const dep of detected) {
         // Ordered first-unique-match-wins walk over the candidate group — the SINGLE

@@ -182,6 +182,30 @@ function enclosingTypeChain(node: Node): string[] {
   return parts;
 }
 
+/** True when a `*_declaration` node carries the C#11 `file` modifier — a child `modifier`
+ *  node whose text is the keyword `file`. A `file`-modified type is visible ONLY inside its
+ *  declaring source file (it cannot be referenced cross-file, and two different files may each
+ *  declare an unrelated same-named `file` type). */
+function hasFileModifier(node: Node): boolean {
+  for (let i = 0; i < node.childCount; i++) {
+    const c = node.child(i);
+    if (c !== null && c.type === 'modifier' && c.text === 'file') return true;
+  }
+  return false;
+}
+
+/** True when `node` is a `file`-local type OR is nested (at any depth) inside a `file`-local
+ *  type. A type unreachable across files because an enclosing type is `file`-local must also be
+ *  withheld from the cross-file index — a nested type of a `file` type cannot escape the file. */
+function isFileLocalType(node: Node): boolean {
+  let cur: Node | null = node;
+  while (cur !== null) {
+    if (TYPE_DECLARATION_TYPES.has(cur.type) && hasFileModifier(cur)) return true;
+    cur = cur.parent;
+  }
+  return false;
+}
+
 /**
  * The FULLY-QUALIFIED symbol keys this file DEFINES. The namespace for each type is the
  * file-scoped namespace (if any) joined with the block-namespace ancestor chain. The TYPE
@@ -193,6 +217,11 @@ function enclosingTypeChain(node: Node): string[] {
  * legitimate top-level type of the same simple name in another node. These keys feed the
  * shared SymbolTable; a use's `Outer.Inner` reference resolves to them via the resolver's
  * guarded `+`-boundary split.
+ *
+ * A C#11 `file`-local type (and anything nested inside one) is NEVER published to the shared
+ * cross-file index: it is visible only in its own file, so a cross-file reference to a
+ * same-named type must never bind to it, and two files declaring same-named `file` types must
+ * not mis-merge into one cross-file definition (zero-FP guard F5).
  */
 function declarations(file: ParsedFile): DeclaredSymbol[] {
   const out: DeclaredSymbol[] = [];
@@ -202,6 +231,8 @@ function declarations(file: ParsedFile): DeclaredSymbol[] {
     if (!TYPE_DECLARATION_TYPES.has(node.type)) return undefined;
     const nameField = node.childForFieldName('name');
     if (nameField === null || nameField.text === '') return undefined;
+    // C#11 `file`-local type → not a cross-file resolution target. Skip publishing its FQN.
+    if (isFileLocalType(node)) return undefined;
     const blockNs = blockNamespace(node);
     const ns = [fileNs, blockNs].filter((p) => p !== '').join('.');
     const typeKey = [...enclosingTypeChain(node), nameField.text].join('+');
@@ -223,6 +254,17 @@ interface UsingScope {
   /** alias local-name → aliased FQN from `using Alias = Foo.Bar;` (incl. `global using
    *  Alias = ...`, an alias is always file-local in effect for resolution). */
   aliases: Map<string, string>;
+  /** alias local-name → aliased FQN from `global using Alias = Foo.Bar;` declared in THIS file
+   *  only. Tracked apart from `aliases` so the cross-file pre-pass (pass.ts) can aggregate them
+   *  project-wide (A12). The RHS FQN is the resolved alias target (C# resolves an alias RHS
+   *  fully-qualified vs the global namespace, so the captured dotted text IS the target). */
+  globalAliases: Map<string, string>;
+  /** Fully-resolved TARGET type FQN (with the directive's line) of each `using static N.C;` /
+   *  `global using static N.C;` directive in this file (A8/A11). The directive names a concrete
+   *  type whose static members are imported — that target is a real type dependency of this file,
+   *  resolved like an alias RHS (already fully-qualified). NOT a namespace prefix (a sibling
+   *  `N.Baz` is never imported). */
+  staticTargets: Array<{ fqn: string; line: number }>;
 }
 
 const NAMESPACE_NODE_TYPES = new Set([
@@ -264,25 +306,39 @@ function stripGlobalQualifier(text: string): string {
 }
 
 /** Build the file's using scope: file-local plain prefixes, project-wide `global using`
- *  prefixes, and the alias map. Skips `using static` per D6/silence discipline. */
+ *  prefixes, the alias map (file-local + project-wide global aliases tracked apart), and the
+ *  fully-resolved target type of each `using static` / `global using static` directive. */
 function buildUsingScope(file: ParsedFile): UsingScope {
   const prefixes: string[] = [];
   const globalPrefixes: string[] = [];
   const aliases = new Map<string, string>();
+  const globalAliases = new Map<string, string>();
+  const staticTargets: Array<{ fqn: string; line: number }> = [];
 
   walk(file.tree.rootNode, (node) => {
     if (node.type !== 'using_directive') return undefined;
 
-    // `using static X;` imports a type's static MEMBERS, not a namespace → SKIP.
-    if (hasTokenChild(node, 'static')) return undefined;
+    // `using static N.C;` imports a type's static MEMBERS, not a namespace → NO namespace
+    // prefix. But the TARGET type `N.C` IS a real type dependency of this file (A8/A11),
+    // resolved like an alias RHS (already fully-qualified). Record it as a static target.
+    if (hasTokenChild(node, 'static')) {
+      const target = directiveNamespaceText(node);
+      if (target !== undefined && target !== '') {
+        staticTargets.push({ fqn: target, line: node.startPosition.row + 1 });
+      }
+      return undefined;
+    }
 
     // `using Alias = Foo.Bar;` — the `name` field is the alias; record alias→FQN. Do
-    // NOT treat the alias as a namespace prefix. (`global using Alias = ...` lands here
-    // too and is treated as a same-file alias, which is correct.)
+    // NOT treat the alias as a namespace prefix. A `global using Alias = ...` is ALSO
+    // recorded apart so pass.ts can apply the alias project-wide (A12).
     const aliasName = node.childForFieldName('name');
     if (aliasName !== null) {
       const fqn = directiveNamespaceText(node, aliasName);
-      if (fqn !== undefined && fqn !== '') aliases.set(aliasName.text, fqn);
+      if (fqn !== undefined && fqn !== '') {
+        aliases.set(aliasName.text, fqn);
+        if (hasTokenChild(node, 'global')) globalAliases.set(aliasName.text, fqn);
+      }
       return undefined;
     }
 
@@ -297,7 +353,7 @@ function buildUsingScope(file: ParsedFile): UsingScope {
     return undefined;
   });
 
-  return { prefixes, globalPrefixes, aliases };
+  return { prefixes, globalPrefixes, aliases, globalAliases, staticTargets };
 }
 
 /**
@@ -310,6 +366,19 @@ function buildUsingScope(file: ParsedFile): UsingScope {
  */
 export function collectGlobalUsings(file: ParsedFile): string[] {
   return buildUsingScope(file).globalPrefixes;
+}
+
+/**
+ * Collect the `global using Alias = Foo.Bar;` aliases a C# file declares (project-wide
+ * aliases, A12). Used by the cross-file pre-pass in pass.ts to aggregate every file's global
+ * aliases before per-file resolution, so a `global using` alias declared in ANY file is usable
+ * in EVERY file. The alias RHS is resolved fully-qualified vs the global namespace (C# resolves
+ * an alias RHS ignoring other usings and the enclosing namespace), so the captured dotted FQN
+ * IS the resolved target in the declaring file's context — aggregating `[alias, fqn]` pairs is
+ * sufficient. Returned as entries so pass.ts can union them into a project-wide alias map.
+ */
+export function collectGlobalUsingAliases(file: ParsedFile): Array<[string, string]> {
+  return [...buildUsingScope(file).globalAliases.entries()];
 }
 
 /** The enclosing-namespace prefixes for a reference, INNERMOST first. For a reference in
@@ -334,12 +403,23 @@ export interface CsharpUsesOptions {
   /** Namespace prefixes from `global using` directives aggregated across EVERY C# file in the
    *  project (a project-wide import set). Applied to every file's simple-name resolution. */
   projectGlobalUsings?: string[];
+  /** Alias name → fully-qualified target from `global using Alias = ...;` directives aggregated
+   *  across EVERY C# file (A12, project-wide aliases). Merged into this file's alias map BELOW
+   *  any file-local alias of the same name (a file-local alias takes precedence). */
+  projectGlobalUsingAliases?: Array<[string, string]>;
 }
 
 function uses(file: ParsedFile, options: CsharpUsesOptions = {}): DetectedDep[] {
   const out: DetectedDep[] = [];
   const scope = buildUsingScope(file);
   const fileNs = fileScopedNamespace(file.tree.rootNode);
+
+  // Project-wide `global using` aliases (A12): a `global using Alias = N.Type;` declared in ANY
+  // file is usable in EVERY file. Merge the aggregated set BELOW this file's own aliases — a
+  // file-local alias of the same name takes precedence (the local directive wins for this file).
+  for (const [name, fqn] of options.projectGlobalUsingAliases ?? []) {
+    if (!scope.aliases.has(name)) scope.aliases.set(name, fqn);
+  }
 
   // The using-import binding level (R2/R9: an UNORDERED set at one scope). File-local plain
   // usings + this file's own `global using` + the project-wide aggregated global usings, all
@@ -467,14 +547,31 @@ function uses(file: ParsedFile, options: CsharpUsesOptions = {}): DetectedDep[] 
         return;
       }
       case 'alias_qualified_name': {
-        // `global::A.B` rooted reference. A NON-`global` alias (`Lib::A.B`) is left untouched —
-        // its `::` text cannot collide with a dot-only key (R13 silence-by-luck).
+        // `global::A.B` rooted reference (R12): resolve the right side from the global root.
         const aliasField = typeNode.childForFieldName('alias');
         if (aliasField !== null && aliasField.text === 'global') {
           if (emitted.has(typeNode.id)) return;
           emitted.add(typeNode.id);
           const nameField = typeNode.childForFieldName('name');
           if (nameField !== null) emitTypeNode(nameField);
+          return;
+        }
+        // `S::Tail` where `S` is an in-file `using S = N;` namespace alias (B5): rewrite the
+        // leftmost `S` to its aliased namespace FQN `N` and resolve `N.Tail` from the root (the
+        // alias RHS is fully-qualified, so the rewritten name is a verbatim FQN). Fires ONLY when
+        // `S` is a confirmed file-local using-alias — an extern/unknown alias (`Lib::A.B`) is left
+        // untouched (its `::` text cannot collide with a dot-only key → R13 silence-by-luck).
+        if (aliasField !== null) {
+          const aliasFqn = scope.aliases.get(aliasField.text);
+          if (aliasFqn !== undefined) {
+            if (emitted.has(typeNode.id)) return;
+            emitted.add(typeNode.id);
+            const nameField = typeNode.childForFieldName('name');
+            if (nameField !== null) {
+              const tail = stripGlobalQualifier(nameField.text);
+              pushRef(`${aliasFqn}.${tail}`, typeNode, typeNode.startPosition.row + 1, true);
+            }
+          }
         }
         return;
       }
@@ -514,20 +611,60 @@ function uses(file: ParsedFile, options: CsharpUsesOptions = {}): DetectedDep[] 
     return null;
   }
 
-  // ── C#12 alias-RHS embedded named types (R7) ────────────────────────────────────────────
+  // ── `using static N.C;` / `global using static N.C;` TARGET edge (A8/A11) ────────────────
+  // The directive imports the static MEMBERS of the concrete type `N.C` — the target type
+  // itself is a real, fully-qualified type dependency of this file (never a namespace prefix:
+  // a sibling `N.Baz` is never imported). Resolve it FROM THE ROOT as its sole candidate (like
+  // an alias RHS): no enclosing-ns / using-prefix expansion, so it stays zero-FP (the target
+  // either maps to an in-graph node → edge, or is external/unmapped → silence). The line is the
+  // directive's own line; `global using static` carries the same target edge from its declaring
+  // file (it is the file that textually names the target).
+  for (const target of scope.staticTargets) {
+    out.push({
+      candidates: [{ kind: 'symbol', symbolKey: target.fqn }],
+      kind: 'import',
+      line: target.line,
+    });
+  }
+
+  // ── C#12 alias-RHS embedded named types (R7 + A6) ───────────────────────────────────────
   // `using L = System.Collections.Generic.List<MyApp.Models.Customer>;` — the alias NAME `L`
   // resolves to the closed generic on use (the container `List` is external), but the EMBEDDED
   // named type arguments (`MyApp.Models.Customer`) are real dependencies the alias-on-use cannot
   // surface as their own edge. The directive header is skipped by the main walk, so harvest the
-  // RHS's embedded generic-argument / tuple / array element types here. The container's own
-  // dotted name is NOT emitted (it is the alias target, surfaced via the alias map on use).
+  // RHS's embedded named types here.
+  //
+  // C#12 lets the alias RHS be ANY type — a tuple `(int, Mod.Customer)`, an array `Mod.Order[]`,
+  // a pointer `Mod.Header*`, a nullable value `Mod.Money?` — and each NAMED type embedded in the
+  // structural RHS is a real reference. So descend the RHS structural WRAPPERS (generic args,
+  // tuple elements, array/pointer/nullable element types) for their embedded named types. What is
+  // NEVER emitted: a plain top-level bare named RHS (`using X = N.Type;`) — that is the alias
+  // TARGET, surfaced via the alias map on USE (emitting it here would double-count the A3 edge),
+  // and the tuple element LABELS (they are not types).
   walk(file.tree.rootNode, (node) => {
     if (node.type !== 'using_directive') return undefined;
     if (node.childForFieldName('name') === null) return false; // not an alias directive
-    // Find every type_argument_list anywhere in the RHS and emit each argument's named types.
+    // Find every type_argument_list anywhere in the RHS and emit each argument's named types
+    // (covers `List<Customer>`, and a generic nested inside a tuple/array element).
     walk(node, (n) => {
       if (n.type === 'type_argument_list') {
         for (let i = 0; i < n.namedChildCount; i++) emitTypeNode(n.namedChild(i));
+        return false; // args handled; do not descend further into this list
+      }
+      // Tuple / array / pointer / nullable RHS — the element type(s) are embedded NAMED types.
+      // Emit a non-generic element directly (a generic element is covered by the
+      // type_argument_list walk above; `emitted` dedups, and a `<…>`-bearing element is skipped
+      // here so we never emit a full `Container<…>` verbatim key). The top-level alias TARGET is
+      // a bare named RHS with no wrapper, so it is never reached here.
+      if (n.type === 'tuple_element') {
+        const t = n.childForFieldName('type');
+        if (t !== null && !t.text.includes('<')) emitTypeNode(t);
+        return undefined;
+      }
+      if (n.type === 'array_type' || n.type === 'pointer_type' || n.type === 'nullable_type') {
+        const el = n.childForFieldName('type');
+        if (el !== null && !el.text.includes('<')) emitTypeNode(el);
+        return undefined;
       }
       return undefined;
     });
@@ -569,6 +706,19 @@ function uses(file: ParsedFile, options: CsharpUsesOptions = {}): DetectedDep[] 
       emitTypeNode(node.childForFieldName('type') ?? node.childForFieldName('returns'));
       return undefined;
     }
+    // Local-function RETURN type (E17): `Foo Helper(Bar b) {…}`. The `type` field is the return
+    // type; the parameter types are `parameter` nodes handled above. (An explicitly-typed lambda
+    // parameter is also a `parameter` node — already covered — so the lambda needs no own case.)
+    if (node.type === 'local_function_statement') {
+      emitTypeNode(node.childForFieldName('type'));
+      return undefined;
+    }
+    // `catch (FooException e)` exception type (E18). The `catch_declaration` `type` field is the
+    // exception type; the `name` field (the bound variable) is NOT a type reference.
+    if (node.type === 'catch_declaration') {
+      emitTypeNode(node.childForFieldName('type'));
+      return undefined;
+    }
     // typeof(X) / sizeof(X) / default(X).
     if (
       node.type === 'typeof_expression' ||
@@ -605,7 +755,7 @@ function uses(file: ParsedFile, options: CsharpUsesOptions = {}): DetectedDep[] 
       emitTypeNode(node.childForFieldName('type'));
       return undefined;
     }
-    // Attribute usage `[Foo]` / `[FooAttribute]`.
+    // Attribute usage `[Foo]` / `[FooAttribute]` / generic `[Foo<Bar>]` (C#11, E9).
     if (node.type === 'attribute') {
       const nameField = node.childForFieldName('name');
       if (nameField !== null && (nameField.type === 'identifier' || nameField.type === 'qualified_name')) {
@@ -619,6 +769,27 @@ function uses(file: ParsedFile, options: CsharpUsesOptions = {}): DetectedDep[] 
           const suffixed =
             last.endsWith('Attribute') ? undefined : `${written}Attribute`;
           pushAttribute(written, suffixed, nameField, nameField.startPosition.row + 1);
+        }
+      } else if (nameField !== null && nameField.type === 'generic_name') {
+        // C#11 generic attribute `[Foo<Bar>]`: the attribute NAME is the `generic_name`'s base
+        // identifier (`Foo`, with the `Foo`/`FooAttribute` convention), and each type ARGUMENT
+        // (`Bar`) is its own real type reference. The base container name resolves the attribute
+        // class; the type arguments are descended separately.
+        if (!emitted.has(nameField.id)) {
+          emitted.add(nameField.id);
+          const baseName = nameField.childForFieldName('name');
+          const baseId = baseName ?? findChild(nameField, 'identifier');
+          if (baseId !== null) {
+            const written = stripGlobalQualifier(baseId.text);
+            const last = written.split('.').pop() ?? written;
+            const suffixed = last.endsWith('Attribute') ? undefined : `${written}Attribute`;
+            pushAttribute(written, suffixed, baseId, baseId.startPosition.row + 1);
+          }
+          const args =
+            nameField.childForFieldName('type_arguments') ?? findChild(nameField, 'type_argument_list');
+          if (args !== null) {
+            for (let i = 0; i < args.namedChildCount; i++) emitTypeNode(args.namedChild(i));
+          }
         }
       }
       return undefined;
