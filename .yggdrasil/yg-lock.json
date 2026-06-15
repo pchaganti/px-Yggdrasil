@@ -736,7 +736,7 @@
       "node:cli/tests/e2e/lock-format-recovery": {"hash":"987a5ac1511847483de3574a66260b47af19fbbb678732cc3aca6998d7aa4d3c","verdict":"approved"},
       "node:cli/tests/e2e/lock-lifecycle": {"hash":"6501f6761b2afc13da59a895d211d53182ffc173b40fc4e3ce9b6526230ec683","verdict":"approved"},
       "node:cli/tests/e2e/lock-merge-llm": {"hash":"0b612fff78a035085a513a2d1055e545d1e48c8bfb87280d8bf8455644ab81ad","verdict":"approved"},
-      "node:cli/tests/e2e/lock-scope": {"hash":"23dfb5caf01b576c579f921f0393e9ebedae4c6114a2f981ac5fc04e38d119f5","verdict":"approved"},
+      "node:cli/tests/e2e/lock-scope": {"hash":"ee93b9f1c32f5e314dc2079e970f3afcdcd0b679a87edff2d5d1c9081148fb98","verdict":"approved"},
       "node:cli/tests/e2e/log-gate-extended": {"hash":"871ecfd90b32d98e2cc57b22dfda29f41c0d6ae128685e76330152f36f2b2cc2","verdict":"approved"},
       "node:cli/tests/e2e/log-integrity": {"hash":"e2d8d85c1271905509543df48c468da68a22d772072fb43a081ac7be4463f0ec","verdict":"approved"},
       "node:cli/tests/e2e/log-integrity-extended": {"hash":"5016f26a9d700c9e112d9cb3317c092d438afb7f695320091ab9ed1c7ae2dec1","verdict":"approved"},
@@ -1066,7 +1066,7 @@
     "cli/tests/e2e/lock-format-recovery": {"source":"97215812d33514e764a12ad2c4bfc896e1bef2986f9e232de5c83ccd49da699b"},
     "cli/tests/e2e/lock-lifecycle": {"source":"65bcaaaad50f76f35ada028b5d1a5d80adf19a2a1ee4a3ccb9b4350c1e557bd1"},
     "cli/tests/e2e/lock-merge-llm": {"source":"a276ec80213e1f6fd451f9482d2c2da97e33ba25baaa48c1367c0a7f8d2f7fb9"},
-    "cli/tests/e2e/lock-scope": {"source":"7b40c5c374dfaeb43d61122eb099870afed51ceb4964e224c67415064fc583f6"},
+    "cli/tests/e2e/lock-scope": {"source":"2917347baa71ccea107b6414bd57c9dfa46495e2fdb6d65f5fc8f41c1fe86ccc"},
     "cli/tests/e2e/log-gate-extended": {"log":{"last_entry_datetime":"2026-05-31T10:33:50.991Z","prefix_hash":"7f01650073150936e9183821b9f015342f12fb3a3a258b99b25b13637ac930b3"},"source":"1ed628f20b160b884e8d22668b13018a1ff2df792ca04fcddc982e6ca130ec64"},
     "cli/tests/e2e/log-integrity": {"source":"eb8263ea59c5ae29544708fba86b7c70ecc9723ae3f82761dbef8cecdea7a77c"},
     "cli/tests/e2e/log-integrity-extended": {"log":{"last_entry_datetime":"2026-05-31T07:46:40.552Z","prefix_hash":"35ddb7534cb7f2ffa529848cf0d71cbab69658d93548c36b9694988b4547e402"},"source":"fd6249d8ca873a84234bfd5ae87523fe73a8b97b5bcc8b745e7142ddbc8aebbe"},
@@ -1220,7 +1220,7 @@
     "examples": {"source":"2d383f9fbe97d7b324d3d92dc76372fc6689d7574f13c006531dc3a25f06aa6b"},
     "root": {"log":{"last_entry_datetime":"2026-05-15T11:05:58.272Z","prefix_hash":"3183f15df80dcc84c2e60d5b4bff7c641dd5f1b72a92a50c1ce78dff5d704db7"}},
     "root/ci": {"source":"643871fa7d732c3874be19b1444db618f1f7a6a90cc0f0d3fef8afffc3de5b58"},
-    "root/project-config": {"source":"9d40c32dc34ec162a3177941e268b1cb80660323a190e3be1be0175b44700969"},
+    "root/project-config": {"source":"ae9417acc3b8629b6b929d75385baf18089d5241ccf86dcb20fd8c4f0cb91c7b"},
     "scripts": {"source":"0aa0ba70942c6cff3af0c4449bffb7edea2693edfe29749b348708f961dbd3da"},
     "tools": {"source":"1a030a5fbea70e0351c558ab44b886a81393348720327dd04a9af9b8f59d40cd"}
   }

@@ -7,12 +7,18 @@
 // rmSync'd in finally. No fixed ports, no clock/random assertions.
 // =============================================================================
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync, cpSync, readFileSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+// Each case spawns the real CLI binary many times; on a loaded CI runner that
+// exceeds vitest's 5000ms default and flakily times out. Use the same 30s budget
+// the other heavy lock e2e suites (lifecycle, format-recovery, fill-semantics)
+// already apply.
+vi.setConfig({ testTimeout: 30000 });
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '..', '..');
