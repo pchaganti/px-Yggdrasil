@@ -40,19 +40,21 @@ When a needed relation is not allowed by the architecture:
 
 ## Relation-conformance check — declared relations must cover real dependencies
 
-\`yg check --approve\` runs a built-in, deterministic check that holds the graph's
-relation edges to the code's actual dependencies. It parses every mapped source
-file (TypeScript/JS/TSX, Python, Go, Java, PHP, Kotlin, Rust, C, C++, C#, Ruby),
-finds each statically-resolvable dependency on ANOTHER node's code, and refuses a
-node that depends on a node it does not declare a relation to. The issue code is
-\`relation-undeclared-dependency\`.
+Every \`yg check\` (plain or \`--approve\`) runs a built-in, deterministic check that
+holds the graph's relation edges to the code's actual dependencies. It parses
+every mapped source file (TypeScript/JS/TSX, Python, Go, Java, PHP, Kotlin, Rust,
+C, C++, C#, Ruby), finds each statically-resolvable dependency on ANOTHER node's
+code, and refuses a node that depends on a node it does not declare a relation to.
+The issue code is \`relation-undeclared-dependency\`.
 
 This is a built-in check, NOT an aspect. It has no \`content.md\` or \`check.mjs\`,
 it is not attached through any of the seven aspect channels, and \`status:\`
 (draft/advisory/enforced) does not apply — it is ALWAYS an error and blocks
 \`yg check\`, exactly like the architecture and mapping validators. It is also NOT
-\`yg-suppress\`-able (suppress waives aspects; this is not one). Its verdict is
-cached in the lock and re-validated parse-free by plain \`yg check\`.
+\`yg-suppress\`-able (suppress waives aspects; this is not one). It is NOT stored in
+the lock: it is recomputed live on every \`yg check\` (parse, resolve, verify, from
+scratch), so it is never cached and never stale — a keyless \`yg check\` catches an
+undeclared dependency at zero LLM cost.
 
 Two design properties make it false-positive-free:
 

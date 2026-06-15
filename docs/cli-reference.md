@@ -15,7 +15,7 @@ This page is for inspecting or debugging your graph and enforcement state.
 |---------|---------|
 | `yg context --file <path>` / `--node <path>` | Assemble context package |
 | `yg impact --file <path>` / `--node <path>` / `--aspect <id>` / `--flow <name>` / `--type <id>` | Blast radius analysis |
-| `yg check` | Unified gate — pure read, hash-only, no LLM, no keys |
+| `yg check` | Unified gate — writes nothing, no LLM, no keys |
 | `yg check --approve` | Verify every unverified pair and record the verdicts in the lock |
 | `yg log add` / `read` / `merge-resolve` | Per-node append-only business log |
 
@@ -67,10 +67,11 @@ Exactly one of `--node`, `--file`, `--aspect`, `--flow`, or `--type` is required
 ### `yg check`
 
 Unified gate combining structural integrity, the prompt-size gate, lock
-verification, coverage, and completeness. It is a **pure read** — it recomputes
+verification, coverage, and completeness. It **writes nothing** — it recomputes
 each expected pair's input hash and compares it to the recorded verdict in
-`.yggdrasil/yg-lock.json`. It makes no LLM calls, executes no deterministic
-checks, and needs no provider config or keys.
+`.yggdrasil/yg-lock.json`. It makes no LLM calls, runs no aspect reviewers, and
+needs no provider config or keys. The one thing it does run over your code is the
+built-in relation-conformance check, live and parse-based, at zero LLM cost.
 
 ```bash
 yg check

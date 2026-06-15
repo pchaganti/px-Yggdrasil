@@ -10,8 +10,9 @@ produced it hash to the stored value. Any input change makes the pair
 **unverified**; a status flip never does. States are: **verified / unverified /
 refused**.
 
-\`yg check\` is a pure read — it recomputes each pair's hash and reports, executing
-nothing and making no LLM calls. \`yg check --approve\` fills every unverified pair
+\`yg check\` writes nothing — it recomputes each pair's hash and reports, running no
+aspect reviewers and making no LLM calls (it does recompute relation conformance
+live; see below). \`yg check --approve\` fills every unverified pair
 and then reports. These two commands are the only writers of verdicts (with
 \`yg log merge-resolve\` writing the lock's per-node log baseline).
 

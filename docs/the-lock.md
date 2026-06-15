@@ -36,7 +36,7 @@ One thing is deliberately **not** an input: the aspect's status. Flipping `draft
 
 These are two different jobs.
 
-`yg check` is a pure read. It recomputes each pair's input hash and compares it against the lock. It runs nothing, makes no LLM calls, and needs no provider keys — which is why it's the CI gate. A mismatch means a pair changed without being re-verified, and check reports it.
+`yg check` writes nothing. It recomputes each pair's input hash and compares it against the lock. It runs no aspect reviewers, makes no LLM calls, and needs no provider keys — which is why it's the CI gate. (It does recompute relation conformance live; see below.) A mismatch means a pair changed without being re-verified, and check reports it.
 
 `yg check --approve` is the only command that writes verdicts. It fills every unverified pair: deterministic checks first (they run locally, for free), then the LLM pairs. When a pair gets a real verdict — pass or refusal — the entry lands in the lock. Then it reports, just like a plain check.
 
@@ -54,13 +54,13 @@ There are exactly three ways out of a refusal:
 
 A cosmetic edit to the rule or the source — a reworded comment, a whitespace change — would also re-roll the verdict. Don't. That is exactly the laundering the missing force command refuses to offer.
 
-## The relation check's verdicts
+## The relation check is not in the lock
 
-Alongside the aspect reviewers, `yg check --approve` runs one built-in check that confirms every real code dependency is declared as a relation. It's deterministic but it is not an aspect, so its results live in their own section of the lock rather than under the aspect verdicts. There is one relation verdict per node.
+Alongside the aspect reviewers, every `yg check` runs one built-in check that confirms every real code dependency is declared as a relation. It's deterministic, but unlike an aspect verdict it is **never stored in the lock** — there is no relation verdict, no hash, and no section for it.
 
-This section is what made the lock format version 2. A version-1 lock — written before the relation check existed — upgrades automatically the first time it's loaded: the new section starts empty, and every existing aspect verdict and every node entry is preserved byte for byte. Nothing is re-verified. The only new work is that each node's relation conformance has no verdict yet, so the first `yg check --approve` after the upgrade fills them, deterministically, at zero LLM cost.
+Instead it is recomputed live on every run, plain `yg check` and `yg check --approve` alike: the pass parses each mapped source file, resolves every statically-resolvable cross-node dependency, and checks it against the node's declared relations, from scratch. Because nothing is cached, it can never go stale and never needs re-validation — the result is always the current truth of your code against the graph, at zero LLM cost.
 
-A relation verdict re-validates the same hash-only way as everything else, and plain `yg check` checks it without parsing any code. For what it detects and how to clear a refusal, see [/relations-flows-ports](/relations-flows-ports).
+That is also why a keyless CI `yg check` catches an undeclared dependency: it makes no LLM calls and reads no verdict for this check, yet it still parses and resolves live. For what it detects and how to clear a refusal, see [/relations-flows-ports](/relations-flows-ports).
 
 ## Merge conflicts
 

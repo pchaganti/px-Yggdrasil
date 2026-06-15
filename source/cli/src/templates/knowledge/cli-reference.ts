@@ -8,8 +8,9 @@ directory. Run \`yg init\` to bootstrap if missing.
 
 ## yg check
 
-Unified gate — a pure read. Validates the lock, structure, and coverage; runs
-no checks and makes no LLM calls.
+Unified gate — writes nothing. Validates the lock, structure, and coverage; runs
+no aspect reviewers and makes no LLM calls. It does recompute the built-in
+relation-conformance check live (parse + resolve), at zero LLM cost.
 
 \`\`\`bash
 yg check
