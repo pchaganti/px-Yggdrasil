@@ -1,5 +1,5 @@
 ---
-id: kotlin-nullable-array-vararg-usage-silence
+id: kotlin-nullable-array-vararg-edge
 language: kotlin
 category: usage-site
 expectation: edge

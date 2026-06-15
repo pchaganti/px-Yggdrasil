@@ -117,18 +117,18 @@ describe('MATRIX — non-type tokens that must NEVER become an edge (enum case /
 // resolves through the shared SymbolTable exactly like an import → a REAL cross-node edge.
 // Each case puts the referenced type IN-GRAPH; the edge proves the FQN binds the mapped node.
 describe('MATRIX — inline fully-qualified TYPE reference (no import): the FQN is shadow-free → real edge', () => {
-  it('java-fully-qualified-inline-silence', () => runCase('java-fully-qualified-inline-silence'));
-  it('java-extends-implements-usage-silence', () => runCase('java-extends-implements-usage-silence'));
-  it('java-generic-argument-bound-usage-silence', () => runCase('java-generic-argument-bound-usage-silence'));
-  it('java-instanceof-cast-classliteral-usage-silence', () => runCase('java-instanceof-cast-classliteral-usage-silence'));
-  it('java-new-anonymous-diamond-usage-silence', () => runCase('java-new-anonymous-diamond-usage-silence'));
-  it('java-array-varargs-element-usage-silence', () => runCase('java-array-varargs-element-usage-silence'));
-  it('java-throws-clause-usage-silence', () => runCase('java-throws-clause-usage-silence'));
-  it('java-multi-catch-usage-silence', () => runCase('java-multi-catch-usage-silence'));
-  it('java-method-reference-usage-silence', () => runCase('java-method-reference-usage-silence'));
-  it('java-generic-method-witness-usage-silence', () => runCase('java-generic-method-witness-usage-silence'));
-  it('java-record-component-sealed-permits-usage-silence', () => runCase('java-record-component-sealed-permits-usage-silence'));
-  it('java-switch-pattern-types-silent', () => runCase('java-switch-pattern-types-silent'));
+  it('java-fully-qualified-inline-edge', () => runCase('java-fully-qualified-inline-edge'));
+  it('java-extends-implements-edge', () => runCase('java-extends-implements-edge'));
+  it('java-generic-argument-bound-edge', () => runCase('java-generic-argument-bound-edge'));
+  it('java-instanceof-cast-classliteral-edge', () => runCase('java-instanceof-cast-classliteral-edge'));
+  it('java-new-anonymous-diamond-edge', () => runCase('java-new-anonymous-diamond-edge'));
+  it('java-array-varargs-element-edge', () => runCase('java-array-varargs-element-edge'));
+  it('java-throws-clause-edge', () => runCase('java-throws-clause-edge'));
+  it('java-multi-catch-edge', () => runCase('java-multi-catch-edge'));
+  it('java-method-reference-edge', () => runCase('java-method-reference-edge'));
+  it('java-generic-method-witness-edge', () => runCase('java-generic-method-witness-edge'));
+  it('java-record-component-sealed-permits-edge', () => runCase('java-record-component-sealed-permits-edge'));
+  it('java-switch-pattern-types-edge', () => runCase('java-switch-pattern-types-edge'));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

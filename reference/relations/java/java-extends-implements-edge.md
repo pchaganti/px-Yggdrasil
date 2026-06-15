@@ -1,5 +1,5 @@
 ---
-id: java-extends-implements-usage-silence
+id: java-extends-implements-edge
 language: java
 category: usage-site
 expectation: edge

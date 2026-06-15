@@ -1,5 +1,5 @@
 ---
-id: java-throws-clause-usage-silence
+id: java-throws-clause-edge
 language: java
 category: usage-site
 expectation: edge

@@ -1,5 +1,5 @@
 ---
-id: java-new-anonymous-diamond-usage-silence
+id: java-new-anonymous-diamond-edge
 language: java
 category: usage-site
 expectation: edge

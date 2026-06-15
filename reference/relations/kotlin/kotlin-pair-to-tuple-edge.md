@@ -1,5 +1,5 @@
 ---
-id: kotlin-pair-to-tuple-usage-silence
+id: kotlin-pair-to-tuple-edge
 language: kotlin
 category: usage-site
 expectation: edge

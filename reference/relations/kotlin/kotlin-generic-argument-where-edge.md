@@ -1,5 +1,5 @@
 ---
-id: kotlin-generic-argument-where-usage-silence
+id: kotlin-generic-argument-where-edge
 language: kotlin
 category: usage-site
 expectation: edge

@@ -1,5 +1,5 @@
 ---
-id: java-generic-argument-bound-usage-silence
+id: java-generic-argument-bound-edge
 language: java
 category: usage-site
 expectation: edge

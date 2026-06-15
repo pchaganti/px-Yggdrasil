@@ -1,5 +1,5 @@
 ---
-id: kotlin-typealias-rhs-usage-silence
+id: kotlin-typealias-rhs-edge
 language: kotlin
 category: usage-site
 expectation: edge

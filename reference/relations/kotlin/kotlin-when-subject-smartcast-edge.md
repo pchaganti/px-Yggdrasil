@@ -1,5 +1,5 @@
 ---
-id: kotlin-when-subject-smartcast-usage-silence
+id: kotlin-when-subject-smartcast-edge
 language: kotlin
 category: usage-site
 expectation: edge

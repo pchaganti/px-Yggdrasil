@@ -1,5 +1,5 @@
 ---
-id: java-instanceof-cast-classliteral-usage-silence
+id: java-instanceof-cast-classliteral-edge
 language: java
 category: usage-site
 expectation: edge

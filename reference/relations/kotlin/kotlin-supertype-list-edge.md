@@ -1,5 +1,5 @@
 ---
-id: kotlin-supertype-list-usage-silence
+id: kotlin-supertype-list-edge
 language: kotlin
 category: usage-site
 expectation: edge

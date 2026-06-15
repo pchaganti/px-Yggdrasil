@@ -1,5 +1,5 @@
 ---
-id: kotlin-delegation-by-usage-silence
+id: kotlin-delegation-by-edge
 language: kotlin
 category: usage-site
 expectation: edge

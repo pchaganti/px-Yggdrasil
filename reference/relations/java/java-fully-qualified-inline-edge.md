@@ -1,5 +1,5 @@
 ---
-id: java-fully-qualified-inline-silence
+id: java-fully-qualified-inline-edge
 language: java
 category: usage-site
 expectation: edge

@@ -1,5 +1,5 @@
 ---
-id: java-multi-catch-usage-silence
+id: java-multi-catch-edge
 language: java
 category: usage-site
 expectation: edge

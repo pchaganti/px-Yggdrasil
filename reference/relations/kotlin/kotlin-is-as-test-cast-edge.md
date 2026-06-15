@@ -1,5 +1,5 @@
 ---
-id: kotlin-is-as-test-cast-usage-silence
+id: kotlin-is-as-test-cast-edge
 language: kotlin
 category: usage-site
 expectation: edge

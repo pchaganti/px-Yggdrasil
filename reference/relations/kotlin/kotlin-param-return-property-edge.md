@@ -1,5 +1,5 @@
 ---
-id: kotlin-param-return-property-usage-silence
+id: kotlin-param-return-property-edge
 language: kotlin
 category: usage-site
 expectation: edge

@@ -1,5 +1,5 @@
 ---
-id: java-generic-method-witness-usage-silence
+id: java-generic-method-witness-edge
 language: java
 category: usage-site
 expectation: edge

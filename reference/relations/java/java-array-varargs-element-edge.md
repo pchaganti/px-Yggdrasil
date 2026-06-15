@@ -1,5 +1,5 @@
 ---
-id: java-array-varargs-element-usage-silence
+id: java-array-varargs-element-edge
 language: java
 category: usage-site
 expectation: edge

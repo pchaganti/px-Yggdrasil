@@ -1,5 +1,5 @@
 ---
-id: kotlin-annotation-use-usage-silence
+id: kotlin-annotation-use-edge
 language: kotlin
 category: usage-site
 expectation: edge

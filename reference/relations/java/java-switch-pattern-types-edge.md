@@ -1,5 +1,5 @@
 ---
-id: java-switch-pattern-types-silent
+id: java-switch-pattern-types-edge
 language: java
 category: usage-site
 expectation: edge

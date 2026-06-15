@@ -1,5 +1,5 @@
 ---
-id: kotlin-extension-receiver-usage-silence
+id: kotlin-extension-receiver-edge
 language: kotlin
 category: usage-site
 expectation: edge

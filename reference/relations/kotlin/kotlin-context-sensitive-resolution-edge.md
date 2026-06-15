@@ -1,5 +1,5 @@
 ---
-id: kotlin-context-sensitive-resolution-no-edge
+id: kotlin-context-sensitive-resolution-edge
 language: kotlin
 category: usage-site
 expectation: edge

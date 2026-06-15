@@ -88,19 +88,19 @@ describe('MATRIX — nested / inner types (Form 4): split at a declared-TYPE bou
 // shared SymbolTable EXACTLY like an import and produces a real cross-node edge. Each case
 // puts the referenced type IN-GRAPH and asserts the edge to its node.
 describe('MATRIX — inline fully-qualified TYPE reference (no import): the FQN is shadow-free → real edge', () => {
-  it('kotlin-supertype-list-usage-silence', () => runCase('kotlin-supertype-list-usage-silence'));
-  it('kotlin-generic-argument-where-usage-silence', () => runCase('kotlin-generic-argument-where-usage-silence'));
-  it('kotlin-is-as-test-cast-usage-silence', () => runCase('kotlin-is-as-test-cast-usage-silence'));
-  it('kotlin-param-return-property-usage-silence', () => runCase('kotlin-param-return-property-usage-silence'));
-  it('kotlin-annotation-use-usage-silence', () => runCase('kotlin-annotation-use-usage-silence'));
-  it('kotlin-annotation-use-site-target-not-ref', () => runCase('kotlin-annotation-use-site-target-not-ref'));
-  it('kotlin-context-sensitive-resolution-no-edge', () => runCase('kotlin-context-sensitive-resolution-no-edge'));
-  it('kotlin-typealias-rhs-usage-silence', () => runCase('kotlin-typealias-rhs-usage-silence'));
-  it('kotlin-extension-receiver-usage-silence', () => runCase('kotlin-extension-receiver-usage-silence'));
-  it('kotlin-delegation-by-usage-silence', () => runCase('kotlin-delegation-by-usage-silence'));
-  it('kotlin-when-subject-smartcast-usage-silence', () => runCase('kotlin-when-subject-smartcast-usage-silence'));
-  it('kotlin-pair-to-tuple-usage-silence', () => runCase('kotlin-pair-to-tuple-usage-silence'));
-  it('kotlin-nullable-array-vararg-usage-silence', () => runCase('kotlin-nullable-array-vararg-usage-silence'));
+  it('kotlin-supertype-list-edge', () => runCase('kotlin-supertype-list-edge'));
+  it('kotlin-generic-argument-where-edge', () => runCase('kotlin-generic-argument-where-edge'));
+  it('kotlin-is-as-test-cast-edge', () => runCase('kotlin-is-as-test-cast-edge'));
+  it('kotlin-param-return-property-edge', () => runCase('kotlin-param-return-property-edge'));
+  it('kotlin-annotation-use-edge', () => runCase('kotlin-annotation-use-edge'));
+  it('kotlin-annotation-use-site-target-edge', () => runCase('kotlin-annotation-use-site-target-edge'));
+  it('kotlin-context-sensitive-resolution-edge', () => runCase('kotlin-context-sensitive-resolution-edge'));
+  it('kotlin-typealias-rhs-edge', () => runCase('kotlin-typealias-rhs-edge'));
+  it('kotlin-extension-receiver-edge', () => runCase('kotlin-extension-receiver-edge'));
+  it('kotlin-delegation-by-edge', () => runCase('kotlin-delegation-by-edge'));
+  it('kotlin-when-subject-smartcast-edge', () => runCase('kotlin-when-subject-smartcast-edge'));
+  it('kotlin-pair-to-tuple-edge', () => runCase('kotlin-pair-to-tuple-edge'));
+  it('kotlin-nullable-array-vararg-edge', () => runCase('kotlin-nullable-array-vararg-edge'));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

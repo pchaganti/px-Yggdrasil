@@ -1,5 +1,5 @@
 ---
-id: kotlin-annotation-use-site-target-not-ref
+id: kotlin-annotation-use-site-target-edge
 language: kotlin
 category: usage-site
 expectation: edge

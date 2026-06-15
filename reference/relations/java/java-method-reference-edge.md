@@ -1,5 +1,5 @@
 ---
-id: java-method-reference-usage-silence
+id: java-method-reference-edge
 language: java
 category: usage-site
 expectation: edge

@@ -1,5 +1,5 @@
 ---
-id: java-record-component-sealed-permits-usage-silence
+id: java-record-component-sealed-permits-edge
 language: java
 category: usage-site
 expectation: edge
