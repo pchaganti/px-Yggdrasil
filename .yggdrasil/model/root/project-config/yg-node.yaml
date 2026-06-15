@@ -12,7 +12,6 @@ mapping:
   - .github/dependabot.yml
   - .gitignore
   - .nvmrc
-  - .rtk/
   - Yggdrasil.code-workspace
   - AGENTS.md
   - CHANGELOG.md
