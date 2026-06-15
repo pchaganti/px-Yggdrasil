@@ -178,9 +178,14 @@ describe('java extractor — uses()', () => {
     expect(uses.every((u) => u.candidates[0].kind === 'path' && u.candidates[0].isPackage !== true)).toBe(true);
   });
 
-  it('does NOT treat extends/implements/new/method calls as edges (v1 = import only)', async () => {
-    // No import lines. extends, implements, FQ construction, FQ static call: all
-    // usage-site refinement, DEFERRED in v1. Zero detected deps.
+  it('emits a SYMBOL hint for an inline fully-qualified TYPE reference (extends), but NOT for expression-position dotted calls or same-package bare names', async () => {
+    // The inline fully-qualified TYPE reference `extends com.acme.base.Base` is the
+    // outermost `scoped_type_identifier` in a TYPE position. A fully-qualified name is
+    // shadow-free (JLS §6.5.5.2), so it now emits a `symbol` hint that resolves through
+    // the shared SymbolTable like an import. The EXPRESSION-position dotted static call
+    // `com.acme.audit.AuditLog.record(...)` parses as a field_access/method_invocation
+    // chain — never a `scoped_type_identifier` — so it emits NOTHING (the zero-FP boundary);
+    // the bare same-package supertype `Other` is a simple name, also no hint.
     const { uses } = await run(
       [
         'package com.acme.app;',
@@ -190,10 +195,23 @@ describe('java extractor — uses()', () => {
         '    com.acme.audit.AuditLog.record("x");',
         '  }',
         '}',
+        'class D extends Other {}',
         '',
       ].join('\n'),
     );
-    expect(uses).toHaveLength(0);
+    const symbolKeys = uses.flatMap((u) =>
+      u.candidates[0].kind === 'symbol' ? [u.candidates[0].symbolKey] : [],
+    );
+    // Inline fully-qualified TYPE references → symbol hints (the type-position forms).
+    expect(symbolKeys).toContain('com.acme.base.Base'); // extends
+    expect(symbolKeys).toContain('com.acme.flow.Flowable'); // implements
+    expect(symbolKeys).toContain('com.acme.metrics.Timer'); // new type
+    // EVERY emitted hint here is a TYPE-position symbol hint, none a path hint.
+    expect(uses.every((u) => u.candidates[0].kind === 'symbol')).toBe(true);
+    // Expression-position dotted static call → NO hint (field_access/method_invocation chain).
+    expect(symbolKeys.some((k) => k.startsWith('com.acme.audit'))).toBe(false);
+    // Same-package bare simple-name supertype `Other` → NO hint.
+    expect(symbolKeys).not.toContain('Other');
   });
 });
 

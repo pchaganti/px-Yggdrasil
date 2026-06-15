@@ -2,18 +2,18 @@
 id: kotlin-supertype-list-usage-silence
 language: kotlin
 category: usage-site
-expectation: silence
+expectation: edge
 cites: "Kotlin spec — Overload resolution / Scopes (usage-site precedence); research Form D1 (supertype/interface list)"
 ---
 
 ## Rule
 
-A supertype / interface list `class C : Base(), Iface` is a usage-site type reference.
-The import-only extractor extracts edges ONLY from `import` directives — it performs
-NO usage-site refinement — so the supertype references emit nothing, even when the
-referenced types are in-graph. This is a deliberate tolerated false-negative (recall
-miss), never a false positive. Binding a supertype by simple name would reintroduce
-the precedence + stdlib-collision FP traps and is forbidden.
+A supertype / interface list `class C : com.acme.base.Base(), com.acme.flow.Iface`
+names each supertype in a TYPE position. When a supertype is written as an inline
+fully-qualified name the FQN is shadow-free and resolves through the shared SymbolTable
+exactly like an import, so each is a real edge. (A simple-name supertype would carry the
+precedence + stdlib-collision traps and stays silent, but a fully-qualified name has no
+such ambiguity.)
 
 ## Files
 
@@ -34,9 +34,10 @@ class C : com.acme.base.Base(), com.acme.flow.Iface
 
 ## Expect
 
-- silence      # the supertype list is a usage site; import-only emits nothing even though Base/Iface are in-graph
+- src/c/Use.kt:2 -> node:base      # the superclass as an inline FQN (`com.acme.base.Base`) is a type-position ref → real edge
+- src/c/Use.kt:2 -> node:flow      # the interface as an inline FQN (`com.acme.flow.Iface`) is a type-position ref → real edge
 
 ## Why
 
-A real cross-file dependency carried only by a supertype is a recall gap the
-one-directional check tolerates; never an FP.
+Each supertype sits in a TYPE position; written as an inline fully-qualified name it is
+shadow-free, so it resolves like an import and is a real cross-node edge.

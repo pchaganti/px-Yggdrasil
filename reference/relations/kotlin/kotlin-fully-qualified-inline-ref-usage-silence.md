@@ -8,11 +8,14 @@ cites: "Kotlin spec — Scopes (qualified inline reference); research Form D18 (
 
 ## Rule
 
-A fully-qualified inline reference (`com.acme.metrics.Timer()`) is the one
-provably-safe recall extension the decision flags for owner review — NOT
-auto-implemented. Current behavior: the import-only extractor emits nothing for it,
-even with the referenced type in-graph — a deliberate recall miss, never a false
-positive.
+A fully-qualified inline reference written as a CONSTRUCTOR CALL
+(`com.acme.metrics.Timer()`) is in EXPRESSION position, not type position. It parses as
+a `navigation_expression` / member-access chain that is syntactically indistinguishable
+from `localVariable.field.method`, so resolving it could bind the wrong target. The
+extractor therefore emits nothing for it — deliberately silent, a zero-false-positive
+boundary. (An inline FQN in a TYPE position — a parameter/return/property type, a
+supertype, an `is`/`as` type, a generic argument — is shadow-free and DOES edge; the
+distinction is the syntactic position, not the FQN itself.)
 
 ## Files
 
@@ -28,9 +31,11 @@ fun f() { val o = com.acme.metrics.Timer() }
 
 ## Expect
 
-- silence      # a fully-qualified inline reference is a usage site → import-only emits nothing (recall extension deferred to owner review)
+- silence      # a fully-qualified CONSTRUCTOR CALL is in expression position → indistinguishable from a member-access chain → silent (zero-FP boundary)
 
 ## Why
 
-Even the unambiguous fully-qualified inline form is left silent in v1 — promoting it
-is an owner decision, not an automatic recall add.
+A constructor call sits in expression position and parses as a member-access chain
+indistinguishable from `localVariable.field.method`; binding it could pick the wrong
+target, so it is deliberately silent. A fully-qualified name in TYPE position has no
+such ambiguity and does edge — the boundary is the syntactic position.

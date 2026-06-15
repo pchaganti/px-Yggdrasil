@@ -2,16 +2,17 @@
 id: kotlin-delegation-by-usage-silence
 language: kotlin
 category: usage-site
-expectation: silence
+expectation: edge
 cites: "Kotlin docs — Delegated properties / Delegation; research Form D11 (delegation by)"
 ---
 
 ## Rule
 
-Delegation (`class C : Iface by impl`, `val p by lazy {}`) names a delegated type at a
-usage site, and `lazy` is stdlib. The import-only extractor emits nothing for them,
-even with the delegated interface in-graph — a deliberate recall miss, never a false
-positive.
+Delegation (`class C : Iface by impl`) names a delegated type in the supertype list — a
+TYPE position. When the delegated interface is written as an inline fully-qualified name
+(`com.acme.flow.Iface`) the FQN is shadow-free and resolves through the shared
+SymbolTable like an import, so it is a real edge. `val p by lazy {}` names `lazy`
+(stdlib) at a usage site and stays silent.
 
 ## Files
 
@@ -29,9 +30,10 @@ class C(impl: com.acme.flow.Iface) : com.acme.flow.Iface by impl {
 
 ## Expect
 
-- silence      # delegated type + `by lazy` are usage sites → import-only emits nothing
+- src/c/Use.kt:2 -> node:flow      # the delegated supertype as an inline FQN (`com.acme.flow.Iface`) is a type-position ref → real edge
 
 ## Why
 
-The delegated type is a usage site and `lazy` is stdlib; the import-only design
-silences both.
+The delegated type sits in the supertype list — a TYPE position — and written as an
+inline fully-qualified name it is shadow-free, so it resolves like an import and is a
+real edge. `lazy` is stdlib at a usage site and stays silent.

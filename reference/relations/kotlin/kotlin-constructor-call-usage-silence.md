@@ -8,10 +8,13 @@ cites: "Kotlin spec — Scopes (ctor name = type name); research Form D8 (constr
 
 ## Rule
 
-A constructor call (`Order()`) is a usage-site reference (the ctor name is the type
-name), and stdlib ctors (`Result.success(...)`, `Pair(1, 2)`) carry the stdlib-collision
-trap. The import-only extractor emits nothing for any of them, even with the project
-type in-graph — a deliberate recall miss, never a false positive.
+A constructor call (`com.acme.model.Order()`) is in EXPRESSION position. It parses as a
+`navigation_expression` / member-access chain that is syntactically indistinguishable
+from `localVariable.field.method`, so resolving it could bind the wrong target — the
+extractor therefore emits nothing for it. Stdlib ctors (`Result.success(...)`,
+`Pair(1, 2)`) additionally carry the stdlib-collision trap. All stay silent — a
+zero-false-positive boundary. (An inline FQN in a TYPE position is shadow-free and DOES
+edge; the distinction is the syntactic position, not the FQN.)
 
 ## Files
 
@@ -31,9 +34,12 @@ fun f() {
 
 ## Expect
 
-- silence      # constructor calls (incl. stdlib `Result`/`Pair`) are usage sites → import-only emits nothing
+- silence      # constructor calls (incl. stdlib `Result`/`Pair`) are in expression position → indistinguishable from a member-access chain → silent (zero-FP boundary)
 
 ## Why
 
-A ctor call is a usage site whose name equals the type; the stdlib ctor trap makes
-bare-name binding doubly dangerous, so it stays silent.
+A constructor call sits in expression position and parses as a member-access chain
+indistinguishable from `localVariable.field.method`; binding it could pick the wrong
+target, so it is deliberately silent. The stdlib ctor trap makes a bare-name guess
+doubly dangerous. A fully-qualified name in TYPE position has no such ambiguity and does
+edge — the boundary is the syntactic position.

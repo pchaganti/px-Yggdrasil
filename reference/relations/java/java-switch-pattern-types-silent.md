@@ -2,18 +2,23 @@
 id: java-switch-pattern-types-silent
 language: java
 category: usage-site
-expectation: silence
+expectation: edge
 cites: "JEP 440 Record Patterns, JEP 441 Pattern Matching for switch (Java 21); research G5 (NEW vs 06-14)"
 ---
 
 ## Rule
 
-A type pattern `case X x ->` and a record (deconstruction) pattern
-`case R(com.b.Point p, com.b.Size s) ->` reference the types `X`, `R`, `Point`, `Size` —
-but at a usage site (inside a `switch_expression`), with no import. The import-only
-extractor emits no hint. The binding identifiers (`x`, `p`, `s`) and any `_` components
-are NOT references; a future usage-site / record-pattern walker must skip the binding
-names and `_` and read only the pattern TYPES.
+Pattern types inside a `switch` are read where the grammar exposes them as a
+`scoped_type_identifier` (a TYPE position) — and a fully-qualified name there is
+shadow-free per §6.5.5.2, so the extractor emits a SYMBOL hint that resolves like an
+import → a real cross-node edge. A simple type pattern `case com.a.Circle c ->` edges to
+node `a`. A record (deconstruction) pattern reads its COMPONENT types as
+`scoped_type_identifier`s: both the record declaration `record Rect(com.b.Point p, com.b.Size s)`
+and the deconstruction pattern `case com.a.Rect(com.b.Point p, com.b.Size s) ->` edge to
+node `b` for `com.b.Point`/`com.b.Size`. The OUTER deconstruction type `com.a.Rect` is
+NOT exposed as a `scoped_type_identifier` in the record-pattern grammar node, so it stays
+silent (a tolerated false-NEGATIVE). The binding identifiers (`c`, `p`, `s`) and any `_`
+components are never type references.
 
 ## Files
 
@@ -52,9 +57,14 @@ class C {
 
 ## Expect
 
-- silence      # switch type/record patterns are usage sites with no import → no hint, even though Circle/Rect/Point/Size are in-graph
+- src/main/java/com/a/Rect.java:2 -> node:b        # record components `com.b.Point` / `com.b.Size` (node b)
+- src/main/java/com/app/C.java:5 -> node:a          # simple type pattern `com.a.Circle` (node a)
+- src/main/java/com/app/C.java:6 -> node:b          # deconstruction component types `com.b.Point` / `com.b.Size` (node b)
 
 ## Why
 
-A `switch` pattern is a usage site; binding it by simple name would reintroduce the
-§6.5.5 precedence trap and is FORBIDDEN. The bound names and `_` are never type refs.
+A fully-qualified pattern type exposed as a `scoped_type_identifier` is shadow-free, so
+it resolves like an import — a real cross-node edge. The outer deconstruction type
+`com.a.Rect` is not exposed that way and stays silent; binding any pattern type by simple
+name would reintroduce the §6.5.5 precedence trap and is FORBIDDEN. The bound names and
+`_` are never type refs.

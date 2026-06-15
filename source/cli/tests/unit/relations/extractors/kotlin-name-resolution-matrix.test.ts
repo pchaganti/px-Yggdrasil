@@ -81,28 +81,45 @@ describe('MATRIX — nested / inner types (Form 4): split at a declared-TYPE bou
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// USAGE-SITE forms (deliberate tolerated false-NEGATIVE: SILENT, not a bug). Per
-// .plans/2026-06-14-import-only-languages-decision.md: Kotlin STAYS import-only. Every
-// usage-site construct is a tolerated recall gap (silence). Each case puts the referenced
-// type IN-GRAPH, so the silence proves the import-only extractor emits no edge even when the
-// usage-site target is a mapped node — binding any of them by simple name would reintroduce
-// the precedence + stdlib-collision FP traps and is FORBIDDEN.
-describe('MATRIX — usage-site forms (deliberate tolerated false-NEGATIVE: SILENT, not a bug)', () => {
+// INLINE FULLY-QUALIFIED TYPE references (no import). A multi-segment user_type written
+// inline in a TYPE position — parameter/return/property type, supertype list, is/as type,
+// generic argument, type-alias RHS, extension-receiver type, annotation class — is
+// SHADOW-FREE: a fully-qualified name has exactly one meaning, so it resolves through the
+// shared SymbolTable EXACTLY like an import and produces a real cross-node edge. Each case
+// puts the referenced type IN-GRAPH and asserts the edge to its node.
+describe('MATRIX — inline fully-qualified TYPE reference (no import): the FQN is shadow-free → real edge', () => {
   it('kotlin-supertype-list-usage-silence', () => runCase('kotlin-supertype-list-usage-silence'));
   it('kotlin-generic-argument-where-usage-silence', () => runCase('kotlin-generic-argument-where-usage-silence'));
   it('kotlin-is-as-test-cast-usage-silence', () => runCase('kotlin-is-as-test-cast-usage-silence'));
   it('kotlin-param-return-property-usage-silence', () => runCase('kotlin-param-return-property-usage-silence'));
   it('kotlin-annotation-use-usage-silence', () => runCase('kotlin-annotation-use-usage-silence'));
-  it('kotlin-class-literal-callable-ref-usage-silence', () => runCase('kotlin-class-literal-callable-ref-usage-silence'));
-  it('kotlin-constructor-call-usage-silence', () => runCase('kotlin-constructor-call-usage-silence'));
+  it('kotlin-annotation-use-site-target-not-ref', () => runCase('kotlin-annotation-use-site-target-not-ref'));
+  it('kotlin-context-sensitive-resolution-no-edge', () => runCase('kotlin-context-sensitive-resolution-no-edge'));
   it('kotlin-typealias-rhs-usage-silence', () => runCase('kotlin-typealias-rhs-usage-silence'));
   it('kotlin-extension-receiver-usage-silence', () => runCase('kotlin-extension-receiver-usage-silence'));
   it('kotlin-delegation-by-usage-silence', () => runCase('kotlin-delegation-by-usage-silence'));
   it('kotlin-when-subject-smartcast-usage-silence', () => runCase('kotlin-when-subject-smartcast-usage-silence'));
   it('kotlin-pair-to-tuple-usage-silence', () => runCase('kotlin-pair-to-tuple-usage-silence'));
   it('kotlin-nullable-array-vararg-usage-silence', () => runCase('kotlin-nullable-array-vararg-usage-silence'));
-  it('kotlin-bare-top-level-call-only-import-edge', () => runCase('kotlin-bare-top-level-call-only-import-edge'));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPRESSION-POSITION / grammar-limited SILENCES (deliberate tolerated false-NEGATIVE:
+// SILENT, not a bug). The inline-FQN edge above fires ONLY in TYPE position. A reference in
+// EXPRESSION position — a constructor call `com.x.Y()`, a `::class` literal, a `::member`
+// callable reference — parses as a navigation_expression / member-access chain that is
+// syntactically indistinguishable from `localVariable.field.method`, so binding it could pick
+// the wrong target; it is DELIBERATELY left silent (zero-FP boundary). Context-parameter types
+// stay silent because the shipped tree-sitter-kotlin grammar predates Kotlin 2.2 context
+// parameters (the `context(...)` clause parses as an ERROR node → invisible to a source-only
+// tool → tolerated recall gap). The bare top-level call documents the same expression-position
+// silence: only its IMPORT is the edge, the bare call adds nothing.
+describe('MATRIX — expression-position / grammar-limited silences (deliberate tolerated false-NEGATIVE: SILENT, not a bug)', () => {
+  it('kotlin-class-literal-callable-ref-usage-silence', () => runCase('kotlin-class-literal-callable-ref-usage-silence'));
+  it('kotlin-constructor-call-usage-silence', () => runCase('kotlin-constructor-call-usage-silence'));
   it('kotlin-fully-qualified-inline-ref-usage-silence', () => runCase('kotlin-fully-qualified-inline-ref-usage-silence'));
+  it('kotlin-context-parameter-type-silent', () => runCase('kotlin-context-parameter-type-silent'));
+  it('kotlin-bare-top-level-call-only-import-edge', () => runCase('kotlin-bare-top-level-call-only-import-edge'));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -112,15 +129,14 @@ describe('MATRIX — JVM artifacts (Form 8): no `<File>Kt` facade / `@file:JvmNa
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NEWER-VERSION forms (Kotlin 2.0→2.4) the 2026-06-15 research audit found MISSING.
-// Three are usage-site/no-new-edge SILENCEs whose value is documenting the boundary so a
-// future usage-site implementer does not mishandle them; one (nested type alias) is a new
-// declaration-keying EDGE the existing enclosing-type-chain logic already handles (pinned here).
-describe('MATRIX — newer forms (Kotlin 2.0→2.4: context params, context-sensitive resolution, nested type alias, use-site target)', () => {
-  it('kotlin-context-parameter-type-silent', () => runCase('kotlin-context-parameter-type-silent'));
-  it('kotlin-context-sensitive-resolution-no-edge', () => runCase('kotlin-context-sensitive-resolution-no-edge'));
+// NEWER-VERSION forms (Kotlin 2.0→2.4) the 2026-06-15 research audit found MISSING. The
+// context-parameter type is a grammar-limited SILENCE (it lives in the expression-position /
+// grammar-limited block above). The context-sensitive-resolution and use-site-target cases
+// now EDGE on their inline fully-qualified TYPE reference (they live in the inline-FQN block
+// above). What remains here is the nested type alias — a declaration-keying EDGE the existing
+// enclosing-type-chain logic already handles (pinned here).
+describe('MATRIX — newer forms (Kotlin 2.0→2.4): nested type alias declaration-keying edge', () => {
   it('kotlin-nested-type-alias-plus-keyed', () => runCase('kotlin-nested-type-alias-plus-keyed'));
-  it('kotlin-annotation-use-site-target-not-ref', () => runCase('kotlin-annotation-use-site-target-not-ref'));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

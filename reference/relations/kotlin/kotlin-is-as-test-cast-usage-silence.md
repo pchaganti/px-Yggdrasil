@@ -2,15 +2,16 @@
 id: kotlin-is-as-test-cast-usage-silence
 language: kotlin
 category: usage-site
-expectation: silence
+expectation: edge
 cites: "Kotlin spec — Scopes (smart-cast subject type); research Form D4 (is/as test+cast)"
 ---
 
 ## Rule
 
-An `is` type test and an `as` cast (`if (x is Order)`, `x as Receipt`) are usage-site
-type references. The import-only extractor emits nothing for them, even with the
-referenced types in-graph — a deliberate recall miss, never a false positive.
+An `is` type test and an `as` cast (`if (x is com.acme.model.Order)`,
+`x as com.acme.model.Receipt`) name a type in a TYPE position. When that type is
+written as an inline fully-qualified name the FQN is shadow-free and resolves through
+the shared SymbolTable exactly like an import, so each is a real edge.
 
 ## Files
 
@@ -34,9 +35,10 @@ fun f(x: Any) {
 
 ## Expect
 
-- silence      # `is` test and `as` cast are usage sites → import-only emits nothing
+- src/c/Use.kt:3 -> node:m      # the `is` test type as an inline FQN is a type-position ref → real edge
+- src/c/Use.kt:4 -> node:m      # the `as` cast type as an inline FQN is a type-position ref → real edge
 
 ## Why
 
-Cast and type-test operand types are usage sites; the import-only design tolerates the
-recall gap rather than risk the precedence trap.
+Cast and type-test operand types are TYPE positions; written as inline fully-qualified
+names they are shadow-free, so they resolve like imports and each is a real edge.

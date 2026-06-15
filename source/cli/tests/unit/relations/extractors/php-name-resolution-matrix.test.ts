@@ -144,11 +144,12 @@ describe('MATRIX — function / const imports (no class edge; sibling class clau
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('MATRIX — usage-site forms (deliberate tolerated false-NEGATIVE: SILENT, not a bug)', () => {
-  // Per .plans/2026-06-14-import-only-languages-decision.md: PHP stays import-only.
-  // Every usage-site construct is a tolerated recall gap (silence), explicitly allowed by
-  // the one-directional check. Adding usage-site simple-name resolution would reintroduce
-  // FP risk (no-global-fallback / sibling same-name traps) and is FORBIDDEN by the decision.
+describe('MATRIX — namespace-RELATIVE inline forms (FP-prone → still SILENT, not a bug)', () => {
+  // PHP now detects LEADING-BACKSLASH (absolute, shadow-free) inline class references — see the
+  // "leading-backslash inline" block below. A namespace-RELATIVE inline name (no leading `\`)
+  // is resolved against the file's `namespace` + `use` aliases, which a source-only tool cannot
+  // reconstruct (no-global-fallback / sibling same-name traps), so it STAYS a tolerated recall
+  // gap (silence). The cases here are all relative → silent; the absolute counterparts edge.
 
   it('GAP (deliberate recall): `new Foo()` — SILENT (decision doc: import-only)', async () => {
     const { uses } = await run('<?php\nnamespace App;\nclass C { function m() { $o = new Foo(); } }\n');
@@ -225,11 +226,99 @@ describe('MATRIX — usage-site forms (deliberate tolerated false-NEGATIVE: SILE
     expect(specs(uses)).toEqual(['App\\Models']);
   });
 
-  it('GAP (deliberate recall): leading-backslash INLINE `new \\App\\X()` — SILENT (decision doc: import-only)', async () => {
-    // A fully-qualified inline reference is the one provably-safe recall extension the
-    // decision doc flags for OWNER review — NOT auto-implemented. Current behavior: silence.
+  it('RELATIVE param/return/property types — SILENT (no leading `\\`)', async () => {
+    const { uses } = await run(
+      '<?php\nnamespace App;\nclass C { private Repo $r; function m(Logger $l): Result {} }\n',
+    );
+    expect(uses).toHaveLength(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LEADING-BACKSLASH inline references are ABSOLUTE (resolved from the global namespace,
+// independent of the file's `namespace`/`use` aliases) → shadow-free → a real, zero-FP edge.
+// The extractor emits the FQN (one leading `\` stripped) in every CLASS-autoload position; the
+// resolver maps it to a file by PSR-4 exactly as for an import. FUNCTION-call and bare-CONSTANT
+// positions are excluded (PHP does not autoload those).
+describe('MATRIX — leading-backslash inline (absolute, shadow-free) → EDGE', () => {
+  it('`new \\App\\Metrics\\Timer()` → emits `App\\Metrics\\Timer`', async () => {
     const { uses } = await run(
       '<?php\nnamespace App;\nclass C { function m() { $o = new \\App\\Metrics\\Timer(); } }\n',
+    );
+    expect(specs(uses)).toEqual(['App\\Metrics\\Timer']);
+  });
+
+  it('`extends \\App\\Base\\Base implements \\App\\Flow\\Flowable` → both FQNs', async () => {
+    const { uses } = await run(
+      '<?php\nnamespace App;\nclass C extends \\App\\Base\\Base implements \\App\\Flow\\Flowable {}\n',
+    );
+    const s = specs(uses);
+    expect(s).toContain('App\\Base\\Base');
+    expect(s).toContain('App\\Flow\\Flowable');
+    expect(s).toHaveLength(2);
+  });
+
+  it('in-class trait `use \\App\\Mixin\\Timestamps;` → emits `App\\Mixin\\Timestamps`', async () => {
+    const { uses } = await run('<?php\nnamespace App;\nclass C { use \\App\\Mixin\\Timestamps; }\n');
+    expect(specs(uses)).toEqual(['App\\Mixin\\Timestamps']);
+  });
+
+  it('leading-`\\` param / return / property types → each FQN', async () => {
+    const { uses } = await run(
+      '<?php\nnamespace App;\nclass C { private \\App\\Dep\\Repo $r; function m(\\App\\Log\\Logger $l): \\App\\Res\\Result {} }\n',
+    );
+    const s = specs(uses);
+    expect(s).toContain('App\\Dep\\Repo');
+    expect(s).toContain('App\\Log\\Logger');
+    expect(s).toContain('App\\Res\\Result');
+  });
+
+  it('`$x instanceof \\App\\M\\Timer` → emits `App\\M\\Timer`', async () => {
+    const { uses } = await run(
+      '<?php\nnamespace App;\nclass C { function m($x) { return $x instanceof \\App\\M\\Timer; } }\n',
+    );
+    expect(specs(uses)).toEqual(['App\\M\\Timer']);
+  });
+
+  it('`\\App\\Pay\\Gateway::class` → emits `App\\Pay\\Gateway`', async () => {
+    const { uses } = await run(
+      '<?php\nnamespace App;\nclass C { function m() { return \\App\\Pay\\Gateway::class; } }\n',
+    );
+    expect(specs(uses)).toEqual(['App\\Pay\\Gateway']);
+  });
+
+  it('`\\App\\Audit\\AuditLog::record()` static call → emits `App\\Audit\\AuditLog`', async () => {
+    const { uses } = await run(
+      '<?php\nnamespace App;\nclass C { function m() { \\App\\Audit\\AuditLog::record("x"); } }\n',
+    );
+    expect(specs(uses)).toEqual(['App\\Audit\\AuditLog']);
+  });
+
+  it('multi-`catch (\\App\\E\\DomainError | \\App\\E\\OtherError $e)` → both FQNs', async () => {
+    const { uses } = await run(
+      '<?php\nnamespace App;\nclass C { function m() { try {} catch (\\App\\E\\DomainError | \\App\\E\\OtherError $e) {} } }\n',
+    );
+    const s = specs(uses);
+    expect(s).toContain('App\\E\\DomainError');
+    expect(s).toContain('App\\E\\OtherError');
+    expect(s).toHaveLength(2);
+  });
+
+  it('attribute `#[\\App\\Http\\Route]` → emits `App\\Http\\Route`', async () => {
+    const { uses } = await run('<?php\nnamespace App;\n#[\\App\\Http\\Route("/x")]\nclass C {}\n');
+    expect(specs(uses)).toEqual(['App\\Http\\Route']);
+  });
+
+  it('leading-`\\` FUNCTION call `\\App\\Util\\format()` → SILENT (not class autoloading)', async () => {
+    const { uses } = await run(
+      '<?php\nnamespace App;\nfunction m() { \\App\\Util\\format(); }\n',
+    );
+    expect(uses).toHaveLength(0);
+  });
+
+  it('leading-`\\` bare CONSTANT `\\App\\C\\FOO` → SILENT (not class autoloading)', async () => {
+    const { uses } = await run(
+      '<?php\nnamespace App;\nfunction m() { $x = \\App\\C\\FOO; }\n',
     );
     expect(uses).toHaveLength(0);
   });

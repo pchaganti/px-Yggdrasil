@@ -2,15 +2,16 @@
 id: kotlin-annotation-use-usage-silence
 language: kotlin
 category: usage-site
-expectation: silence
+expectation: edge
 cites: "Kotlin spec — Scopes (annotation class is a type ref); research Form D6 (annotation use)"
 ---
 
 ## Rule
 
-An annotation use `@Audited fun f()` is a usage-site type reference (the annotation
-class). The import-only extractor emits nothing for it, even with the annotation class
-in-graph — a deliberate recall miss, never a false positive.
+An annotation use `@com.acme.audit.Audited fun f()` names the annotation class in a
+TYPE position. When written as an inline fully-qualified name the FQN is shadow-free
+and resolves through the shared SymbolTable exactly like an import, so it is a real
+edge to the annotation class's node.
 
 ## Files
 
@@ -27,9 +28,10 @@ fun f() {}
 
 ## Expect
 
-- silence      # an annotation use is a usage-site type ref → import-only emits nothing
+- src/c/Use.kt:2 -> node:audit      # the annotation class as an inline FQN is a type-position ref → real edge
 
 ## Why
 
-The annotation class at a use site is a usage-site reference; binding it by simple name
-would hit the precedence trap.
+The annotation class at an annotation use is a TYPE-position reference; written as an
+inline fully-qualified name it is shadow-free and resolves like an import, so it is a
+real edge — no simple-name precedence guess is involved.

@@ -17,6 +17,11 @@ every `provides … with …` operand as TYPE path hints. The `requires` (module
 `exports` and `opens` (package names) directives are EXCLUDED — they reference
 modules/packages, never types; reading them as type references would be a phantom.
 
+Separately, the provider implementation's own `implements com.acme.spi.Intf` clause is an
+INLINE fully-qualified TYPE reference (a `scoped_type_identifier`), also shadow-free, so it
+too edges — `Impl.java` depends on node `spi` independently of the `module-info.java`
+directives.
+
 ## Files
 
 ```java path=src/main/java/com/acme/spi/Intf.java
@@ -59,10 +64,12 @@ module com.example.foo {
 - src/main/java/module-info.java:5 -> node:spi       # `uses com.acme.spi.Intf` → service type (node spi)
 - src/main/java/module-info.java:6 -> node:spi       # `provides com.acme.spi.Intf` → service type (node spi)
 - src/main/java/module-info.java:6 -> node:impl      # `provides … with com.acme.impl.Impl` → provider type (node impl)
+- src/main/java/com/acme/impl/Impl.java:2 -> node:spi # provider `implements com.acme.spi.Intf` inline FQN → real edge (node spi)
 
 ## Why
 
 `uses`/`provides` operands are real shadow-free service-type dependencies; the
 `requires`/`exports`/`opens` operands are module/package names and must never edge —
 even though ReqType/ExpType/OpnType are in-graph at the paths those operands would
-resolve to if mis-read as types.
+resolve to if mis-read as types. The provider's `implements com.acme.spi.Intf` is an
+inline fully-qualified TYPE reference, equally shadow-free, so it edges too.

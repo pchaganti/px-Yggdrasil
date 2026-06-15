@@ -2,15 +2,18 @@
 id: java-record-component-sealed-permits-usage-silence
 language: java
 category: usage-site
-expectation: silence
+expectation: edge
 cites: "JLS SE25 §8.10 (records), §8.1.1.2 (sealed permits); research F19/F20 (C35 in 06-14)"
 ---
 
 ## Rule
 
-A `record R(com.acme.model.Foo f) {}` component type and a
-`sealed interface S permits com.acme.model.Sub {}` permit type are usage-site
-references carrying no import. The import-only extractor emits no hint.
+A record component type `record R(com.acme.model.Foo f) {}` and a sealed permit type
+`sealed interface S permits com.acme.model.Sub {}` are both TYPE positions. A
+fully-qualified name in either is a `scoped_type_identifier`, shadow-free per §6.5.5.2,
+so the extractor emits a SYMBOL hint that resolves like an import → a real cross-node
+edge. The record component `com.acme.model.Foo` and the permit type `com.acme.model.Sub`
+each edge to node `model`.
 
 ## Files
 
@@ -32,8 +35,10 @@ sealed interface S permits com.acme.model.Sub {}
 
 ## Expect
 
-- silence      # record component types and sealed permit types are usage sites with no import → no hint
+- src/main/java/com/app/Decls.java:2 -> node:model      # record component `com.acme.model.Foo` (node model)
+- src/main/java/com/app/Decls.java:3 -> node:model      # sealed permit type `com.acme.model.Sub` (node model)
 
 ## Why
 
-Record components and permit lists are usage sites; the import-only model silences them.
+Fully-qualified record-component and permit types are shadow-free, so they resolve like
+imports — real cross-node edges.

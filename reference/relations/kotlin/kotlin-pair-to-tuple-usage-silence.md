@@ -2,15 +2,17 @@
 id: kotlin-pair-to-tuple-usage-silence
 language: kotlin
 category: usage-site
-expectation: silence
+expectation: edge
 cites: "Kotlin spec — Scopes (tuple element types); research Form D13 (Pair / to tuple)"
 ---
 
 ## Rule
 
-`Pair`/`to` tuple element types (`Pair<Order, Receipt>`) are usage-site references, and
-`Pair`/`to` are stdlib. The import-only extractor emits nothing for them, even with the
-element types in-graph — a deliberate recall miss, never a false positive.
+`Pair`/`to` tuple element types (`Pair<com.acme.model.Order, com.acme.model.Receipt>`)
+sit in TYPE positions inside the generic argument list. `Pair`/`to` themselves are
+stdlib, but each element type written as an inline fully-qualified name is shadow-free
+and resolves through the shared SymbolTable exactly like an import, so it is a real
+edge.
 
 ## Files
 
@@ -31,9 +33,10 @@ val t: Pair<com.acme.model.Order, com.acme.model.Receipt>? = null
 
 ## Expect
 
-- silence      # tuple element types are usage sites and `Pair` is stdlib → import-only emits nothing
+- src/c/Use.kt:2 -> node:m      # the tuple element types as inline FQNs are type-position refs → real edge
 
 ## Why
 
-The element types are usage sites; `Pair` is stdlib; the import-only design silences
-both.
+The tuple element types sit in TYPE positions; written as inline fully-qualified names
+they are shadow-free, so they resolve like imports and produce a real edge. `Pair` is
+stdlib and does not suppress the inner fully-qualified element types.

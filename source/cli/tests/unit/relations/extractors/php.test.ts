@@ -167,9 +167,10 @@ describe('php extractor — uses()', () => {
     expect(s).toHaveLength(1);
   });
 
-  it('does NOT treat extends/implements/trait-use/new/static calls as edges (v1 = use-import only)', async () => {
-    // No top-level `use` imports. extends, implements, in-body trait use, `new`, a
-    // fully-qualified static call: all usage-site refinement, DEFERRED in v1.
+  it('emits inline LEADING-BACKSLASH class references in class-autoload positions (extends/implements/trait-use/new/static)', async () => {
+    // A leading-`\` FQN is absolute (resolved from the global namespace, shadow-free), so an
+    // inline reference in a class-autoload position is a real, zero-false-positive edge. The
+    // resolver maps the FQN to a file by PSR-4 exactly as for an import.
     const { uses } = await run(
       [
         '<?php',
@@ -183,6 +184,31 @@ describe('php extractor — uses()', () => {
         '}',
         '',
       ].join('\n'),
+    );
+    const s = specs(uses);
+    expect(s).toContain('App\\Base\\Base'); // extends
+    expect(s).toContain('App\\Flow\\Flowable'); // implements
+    expect(s).toContain('App\\Mixin\\Timestamps'); // in-body trait use
+    expect(s).toContain('App\\Metrics\\Timer'); // new
+    expect(s).toContain('App\\Audit\\AuditLog'); // static call scope
+    expect(s).toHaveLength(5);
+  });
+
+  it('does NOT emit a backslash-LESS (namespace-relative) inline reference — needs namespace+use context', async () => {
+    // `new Sub\\Rel()` and a bare `Rel` are relative to the current namespace / use aliases; a
+    // source-only tool cannot bind them, so they stay silent (recall miss, never an FP).
+    const { uses } = await run(
+      ['<?php', 'namespace App\\App;', 'class C { function m() { $o = new Sub\\Rel(); } }', ''].join('\n'),
+    );
+    expect(uses).toHaveLength(0);
+  });
+
+  it('does NOT emit a leading-backslash FUNCTION call or bare constant (not class autoloading)', async () => {
+    // `\\App\\Util\\format()` is a function call and `\\App\\C\\FOO` a bare constant; PHP keeps
+    // functions/constants in separate namespaces resolved at call time, never PSR-4 class files,
+    // so emitting them could bind an unrelated class file — excluded for zero false positives.
+    const { uses } = await run(
+      ['<?php', 'namespace App\\App;', 'function m() { \\App\\Util\\format(); $x = \\App\\C\\FOO; }', ''].join('\n'),
     );
     expect(uses).toHaveLength(0);
   });

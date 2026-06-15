@@ -35,6 +35,23 @@ import { single } from './types.js';
  * still emit a hint here — silence is the RESOLVER's job (an FQN that maps to no
  * mapped `.java` resolves to undefined and is never flagged).
  *
+ * INLINE FULLY-QUALIFIED TYPE references (`com.app.X x;`, `new com.app.X()`,
+ * `extends com.app.Base`, `catch (com.app.E e)`, `List<com.app.Item>`) ARE emitted — as
+ * SYMBOL hints, not path hints. A fully-qualified type written without an import appears in
+ * the grammar as a `scoped_type_identifier` (dotted, e.g. `com.app.X`). This node type
+ * occurs ONLY in TYPE positions: an EXPRESSION-position dotted access (`com.app.Helper.f()`)
+ * parses as a `field_access`/`method_invocation` chain, NEVER a `scoped_type_identifier`, so
+ * reading `scoped_type_identifier` captures type references exclusively and never the
+ * member-access ambiguity. The hint is a SYMBOL hint resolved through the shared SymbolTable
+ * (this is the one Java form that makes `declarations()` load-bearing): the table's
+ * distinct-file rule silences any dotted name that could bind two ways (a fully-qualified
+ * `com.app.Outer.Inner` resolves via the guarded `+`-split to the nested-type key; a
+ * `Map.Entry`-style import-qualified nested ref matches no package key and stays silent), so
+ * detection is additive recall with zero false positives. The OUTERMOST scoped_type_identifier
+ * of a nested chain carries the complete dotted FQN — inner ones (the `scope` segments) are
+ * skipped. Import declarations carry `scoped_identifier` (never `scoped_type_identifier`), so
+ * they are untouched by this branch and stay path-resolved.
+ *
  * MODULE IMPORT DECLARATIONS (`import module M;`, JEP 511, Java 25) are SKIPPED. The
  * operand is a MODULE name, not a type FQN or a package directory: the set of simple
  * names it brings lives in compiled module-path metadata (`java.base`'s jmods, a
@@ -164,7 +181,28 @@ function uses(file: ParsedFile): DetectedDep[] {
     out.push(single({ kind: 'path', specifier, isPackage }, 'import', line));
   };
 
+  // Inline fully-qualified type references resolve as SYMBOL hints (see file doc comment).
+  // Keyed separately from the path-hint dedup so an FQN that appears both as an import and
+  // inline is not cross-suppressed (different hint kinds, different resolution axes).
+  const seenSym = new Set<string>();
+  const emitSymbol = (symbolKey: string, node: Node): void => {
+    if (symbolKey === '' || /\s/.test(symbolKey)) return;
+    const line = node.startPosition.row + 1;
+    const dedupKey = `${symbolKey} ${line}`;
+    if (seenSym.has(dedupKey)) return;
+    seenSym.add(dedupKey);
+    out.push(single({ kind: 'symbol', symbolKey }, 'type-ref', line));
+  };
+
   walk(file.tree.rootNode, (node) => {
+    // Inline FQN type reference: the OUTERMOST scoped_type_identifier of a chain carries the
+    // complete dotted FQN; inner ones are its `scope` segments. Type positions only — an
+    // expression-position dotted access is a field_access chain, never this node.
+    if (node.type === 'scoped_type_identifier' && node.parent?.type !== 'scoped_type_identifier') {
+      emitSymbol(node.text, node);
+      return undefined;
+    }
+
     // `module-info.java`: emit the TYPE references of `uses` / `provides … with …`
     // directives ONLY (shadow-free service-type FQNs). `requires` / `exports` / `opens`
     // carry module/package names and are skipped (they are not `*_module_directive`
@@ -255,13 +293,14 @@ function enclosingTypeChain(node: Node): string[] {
 }
 
 /**
- * The FULLY-QUALIFIED symbol keys this file DEFINES — a thin parity layer. Java v1 resolves
- * dependencies by PATH (the package = directory convention; `uses()` emits only `path` hints
- * that never touch the SymbolTable), so this table is NOT load-bearing for Java resolution
- * today; it exists for parity with the symbol-resolved languages and for any future symbol
- * consumer. Reads the file's `package_declaration`, then for each `class`/`interface`/`enum`/
- * `record` declaration (top-level AND nested) emits `<package>.<TypeKey>` (or `<TypeKey>` for
- * the unnamed package).
+ * The FULLY-QUALIFIED symbol keys this file DEFINES. Java IMPORTS resolve by PATH (the
+ * package = directory convention; an import emits a `path` hint that never touches the
+ * SymbolTable), but the INLINE FULLY-QUALIFIED TYPE form (`uses()` emits a `symbol` hint for
+ * a `scoped_type_identifier`) DOES resolve through this table — so it is load-bearing for that
+ * one form (the table's distinct-file rule + guarded `+`-split give ambiguity→silence). Reads
+ * the file's `package_declaration`, then for each `class`/`interface`/`enum`/`record`
+ * declaration (top-level AND nested) emits `<package>.<TypeKey>` (or `<TypeKey>` for the
+ * unnamed package).
  *
  * `<TypeKey>` is the enclosing-TYPE chain joined to the declaration's own simple name by `+`:
  * a top-level `Order` is `Order`; a nested `Inner` inside `Outer` is `Outer+Inner`. A NESTED
@@ -273,8 +312,8 @@ function enclosingTypeChain(node: Node): string[] {
  * positive), or which would collide with a real `<pkg>.Inner` in another node and silence its
  * legitimate edge. The `+` key lives in a string space disjoint from the dot-only namespace,
  * so it cannot collide; a nested-type use resolves to it through the resolver's guarded
- * `+`-boundary split. (This change is parity-data only: Java resolution is path-based and
- * never reads these keys, so no current edge changes — the latent phantom is removed.)
+ * `+`-boundary split — e.g. an inline `new com.app.Outer.Inner()` symbol hint splits at the
+ * declared `com.app.Outer` type to the `com.app.Outer+Inner` key.
  */
 function declarations(file: ParsedFile): DeclaredSymbol[] {
   const out: DeclaredSymbol[] = [];

@@ -8,13 +8,14 @@ cites: "What's new in Kotlin 2.4.0 — Stable context parameters; What's new in 
 
 ## Rule
 
-A context parameter `context(repo: T)` (Stable in Kotlin 2.4) declares a new
-declaration-HEADER position carrying a type reference `T`. The parameter TYPE is an
-ordinary usage-site type reference resolved by the precedence walk — NOT a new way to
-name a type, and the parameter NAME is not a reference. The import-only extractor
-performs no usage-site refinement, so the context-parameter type emits nothing even
-when the referenced type is in-graph — a deliberate recall miss, never a false
-positive. The only edge would be an explicit `import` of the type.
+A context parameter `context(repo: com.acme.data.OrderRepo)` (Stable in Kotlin 2.4)
+declares a new declaration-HEADER position carrying a type reference. Although that
+type is in a TYPE position — which would normally edge as a shadow-free inline FQN —
+the shipped tree-sitter-kotlin grammar predates Kotlin 2.2 context parameters, so the
+`context(...)` clause parses as an ERROR node. The type reference is invisible to a
+source-only tool, so the extractor emits nothing for it — a tolerated recall gap from
+the grammar limitation, never a false positive. The type would edge if it were instead
+written in a grammar-recognized type position (e.g. a parameter or property type).
 
 ## Files
 
@@ -31,11 +32,13 @@ fun save() {}
 
 ## Expect
 
-- silence      # the context-parameter type is a usage site on a new header position → import-only emits nothing
+- silence      # the `context(...)` clause parses as a grammar ERROR node (shipped grammar predates Kotlin 2.2 context params) → the type ref is invisible → silent
 
 ## Why
 
-The context-parameter type sits on the declaration header (like a primary-constructor
-parameter type) — a position a body-only walker would skip. Documenting it pins the new
-2.4 header position so a future usage-site implementer does not bind it by simple name
-(which would reintroduce the precedence trap).
+The context-parameter type sits in a TYPE position that would otherwise edge as a
+shadow-free inline FQN, but the shipped tree-sitter-kotlin grammar does not recognize
+the `context(...)` clause — it parses as an ERROR node, so the type reference is
+invisible to a source-only tool. The silence is a grammar-limitation recall gap, not an
+FP risk. Documenting it pins the new 2.4 header position so a future grammar upgrade
+that exposes it is wired to edge like any other type-position FQN.

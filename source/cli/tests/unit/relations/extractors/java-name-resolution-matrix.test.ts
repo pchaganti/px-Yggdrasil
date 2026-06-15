@@ -16,31 +16,39 @@ import { parseFile } from '../../../../src/ast/parser.js';
  * (reference/relations/case-has-test + case-is-tested) enforce the 1:1 catalogue↔test
  * correspondence, so this file cannot drift from the catalogue.
  *
- * THE GOVERNING DECISION (.plans/2026-06-14-import-only-languages-decision.md): the Java
- * extractor is and STAYS IMPORT-ONLY. A dependency edge is established ONLY by an
- * `import_declaration` (or, NEW, a `module-info.java` `uses`/`provides` directive — a
- * shadow-free service-TYPE FQN), whose operand is a FULLY-QUALIFIED type (or a package,
- * for a wildcard) resolved to a `.java` file by the package = directory convention,
- * fail-to-silence on a miss. Adding usage-site / same-package / wildcard-expansion /
- * bare-simple-name resolution is FORBIDDEN — it would reintroduce the JLS §6.5.5
- * simple-name precedence trap. The cardinal invariant — ZERO false positives, a hard
- * wall with no adopter waiver — outranks recall; a missed edge is a tolerated
- * false-NEGATIVE.
+ * THE GOVERNING INVARIANT: a Java dependency edge is established ONLY by a SHADOW-FREE
+ * FULLY-QUALIFIED type reference. Three forms qualify: an `import_declaration` (operand is
+ * a fully-qualified type, or a package for a wildcard), a `module-info.java`
+ * `uses`/`provides` directive (a shadow-free service-TYPE FQN), and — NEW — an INLINE
+ * fully-qualified TYPE reference written WITHOUT an import (the outermost
+ * `scoped_type_identifier`: a dotted type in any TYPE position). Because the name is
+ * fully qualified it is shadow-free per JLS §6.5.5.2 — there is no simple-name precedence
+ * trap to fall into. What stays FORBIDDEN is resolving a PARTIALLY-qualified name, a bare
+ * SAME-PACKAGE simple name, or EXPRESSION-position dotted access — those would reintroduce
+ * the §6.5.5 trap. The cardinal invariant — ZERO false positives, a hard wall with no
+ * adopter waiver — outranks recall; a missed edge is a tolerated false-NEGATIVE.
  *
- * THE KEY STRUCTURAL PROPERTY: Java `uses()` emits ONLY `path` hints (the import FQN /
- * package / module-info service type), which route through the PATH axis (`resolveJavaFqn`
- * / `resolveJavaPackageFiles`), NEVER through the SymbolTable. The classic name-collision
- * FP trap is therefore structurally unreachable: the analyzer keys off the fully-qualified
- * STRING and an exact file path, never a bare simple name resolved against a symbol table.
- * The Java symbol table (built from `declarations()`) is parity data only — no Java symbol
- * hint ever reads it.
+ * THE ZERO-FP BOUNDARY: the inline-FQN form edges ONLY in a TYPE position, because the
+ * grammar node `scoped_type_identifier` occurs only in type positions. An EXPRESSION-position
+ * dotted access (`com.app.Helper.staticMethod()`, a qualified enum constant, an
+ * annotation-use name) parses as a `field_access` / `method_invocation` chain — never a
+ * `scoped_type_identifier` — and stays silent. The import / package / module-info service
+ * forms emit `path` hints through the PATH axis (`resolveJavaFqn` / `resolveJavaPackageFiles`);
+ * the new inline-FQN form emits a `symbol` hint that resolves through the shared SymbolTable —
+ * which, being a fully-qualified key, is shadow-free, so the classic name-collision FP trap
+ * stays structurally unreachable (the SymbolTable's distinct-file rule + declared-type
+ * `+`-split silence any dotted name that could bind two ways). The Java symbol table (built
+ * from `declarations()`) is now LOAD-BEARING for the inline-FQN form.
  *
  * The catalogue covers the full research enumeration (.plans/2026-06-15-java-name-resolution-
  * research.md): import forms (B1–B4/B6), wildcard owner-set collapse, JDK/stdlib/external
- * silence (C1), nested keying & fallback (D1), every usage-site recall gap (F1–F21, D2),
- * the MUST-EXCLUDE non-type tokens (G1–G4), and the newer 17→25 forms — module import
- * (B5, SILENCE), module-info uses/provides (E1, EDGE), implicit java.base (C2, SILENCE),
- * unnamed `_` (G4, SILENCE), and switch record/type patterns (G5, SILENCE).
+ * silence (C1), nested keying & fallback (D1), the usage-site TYPE-position forms now
+ * promoted to inline-FQN edges (F1–F20, D2) alongside the residual partially-qualified /
+ * same-package / expression-position silences (F6/F21, A2, D2'), the MUST-EXCLUDE non-type
+ * tokens (G1–G4), and the newer 17→25 forms — module import (B5, SILENCE), module-info
+ * uses/provides (E1, EDGE), implicit java.base (C2, SILENCE), unnamed `_` (G4, SILENCE),
+ * and switch record/type patterns (G5, partial inline-FQN edge — inner pattern types edge,
+ * the outer pattern type stays silent).
  *
  * A handful of original matrix cases assert things the runCase harness cannot express —
  * the parity-only `declarations()` KEY SHAPE (no edges), a pure `resolveJavaFqn` unit
@@ -101,18 +109,17 @@ describe('MATRIX — non-type tokens that must NEVER become an edge (enum case /
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// USAGE-SITE forms (deliberate tolerated false-NEGATIVE: SILENT, not a bug). Per
-// .plans/2026-06-14-import-only-languages-decision.md: Java STAYS import-only. Every
-// usage-site construct is a tolerated recall gap (silence); each case puts the referenced
-// type IN-GRAPH, so the silence proves the import-only extractor emits no edge even when
-// the usage-site target is a mapped node.
-describe('MATRIX — same-package / inline-FQN / usage-site forms (deliberate tolerated false-NEGATIVE: SILENT)', () => {
-  it('java-same-package-no-import-silence', () => runCase('java-same-package-no-import-silence'));
+// INLINE FULLY-QUALIFIED TYPE references (no import). The extractor now emits a SYMBOL
+// hint for every `scoped_type_identifier` — a dotted type written inline WITHOUT an import
+// in a TYPE position (field/local/param/return, extends/implements, throws, catch, generic
+// argument/bound, instanceof/cast, record component, sealed permits, method-reference
+// qualifier, `new` type). A fully-qualified name is shadow-free (JLS §6.5.5.2), so it
+// resolves through the shared SymbolTable exactly like an import → a REAL cross-node edge.
+// Each case puts the referenced type IN-GRAPH; the edge proves the FQN binds the mapped node.
+describe('MATRIX — inline fully-qualified TYPE reference (no import): the FQN is shadow-free → real edge', () => {
   it('java-fully-qualified-inline-silence', () => runCase('java-fully-qualified-inline-silence'));
-  it('java-partially-qualified-inline-silence', () => runCase('java-partially-qualified-inline-silence'));
   it('java-extends-implements-usage-silence', () => runCase('java-extends-implements-usage-silence'));
   it('java-generic-argument-bound-usage-silence', () => runCase('java-generic-argument-bound-usage-silence'));
-  it('java-annotation-use-usage-silence', () => runCase('java-annotation-use-usage-silence'));
   it('java-instanceof-cast-classliteral-usage-silence', () => runCase('java-instanceof-cast-classliteral-usage-silence'));
   it('java-new-anonymous-diamond-usage-silence', () => runCase('java-new-anonymous-diamond-usage-silence'));
   it('java-array-varargs-element-usage-silence', () => runCase('java-array-varargs-element-usage-silence'));
@@ -121,16 +128,34 @@ describe('MATRIX — same-package / inline-FQN / usage-site forms (deliberate to
   it('java-method-reference-usage-silence', () => runCase('java-method-reference-usage-silence'));
   it('java-generic-method-witness-usage-silence', () => runCase('java-generic-method-witness-usage-silence'));
   it('java-record-component-sealed-permits-usage-silence', () => runCase('java-record-component-sealed-permits-usage-silence'));
-  it('java-enum-constant-use-usage-silence', () => runCase('java-enum-constant-use-usage-silence'));
   it('java-switch-pattern-types-silent', () => runCase('java-switch-pattern-types-silent'));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USAGE-SITE forms that STAY SILENT (deliberate tolerated false-NEGATIVE, not a bug). These
+// are the residual silences AFTER inline fully-qualified TYPE references began to edge: a
+// reference is silent here because it is NOT a shadow-free `scoped_type_identifier` in a TYPE
+// position. Three residual families remain — PARTIALLY-qualified inline names (would need the
+// §6.5.5 simple-name precedence trap to resolve), SAME-PACKAGE bare simple names (same trap),
+// and EXPRESSION-position dotted access (`com.app.Helper.staticMethod()`, a qualified enum
+// constant, an annotation-use name) which parses as a field_access/method_invocation chain,
+// never a `scoped_type_identifier` — the zero-FP boundary. Each case puts the referenced type
+// IN-GRAPH, so the silence proves the extractor emits no edge even when the target is mapped.
+describe('MATRIX — partially-qualified / same-package / expression-position forms (deliberate tolerated false-NEGATIVE: SILENT)', () => {
+  it('java-same-package-no-import-silence', () => runCase('java-same-package-no-import-silence'));
+  it('java-partially-qualified-inline-silence', () => runCase('java-partially-qualified-inline-silence'));
+  it('java-fully-qualified-expression-call-silence', () => runCase('java-fully-qualified-expression-call-silence'));
+  it('java-annotation-use-usage-silence', () => runCase('java-annotation-use-usage-silence'));
+  it('java-enum-constant-use-usage-silence', () => runCase('java-enum-constant-use-usage-silence'));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NEWER-VERSION forms (Java 17→25) the 2026-06-15 research audit found MISSING. Module
 // import (`import module M;`) is the only new IMPORT form since SE 21 (SILENCE — a module
-// name maps to no file/dir); module-info `uses`/`provides` are the one NEEDS-CODE EDGE
-// (shadow-free service-type FQNs now emitted); implicit java.base is SILENCE. (The unnamed
-// `_` and switch-pattern silences live with their token / usage-site siblings above.)
+// name maps to no file/dir); module-info `uses`/`provides` emit shadow-free service-type
+// FQN EDGES (and the provider's `implements` clause is itself an inline fully-qualified
+// TYPE reference → a further edge); implicit java.base is SILENCE. (The unnamed `_` and
+// switch-pattern forms live with their token / inline-FQN siblings above.)
 describe('MATRIX — newer forms (Java 17→25: module import, module-info uses/provides, implicit java.base)', () => {
   it('java-module-import-silence', () => runCase('java-module-import-silence'));
   it('java-module-info-uses-provides', () => runCase('java-module-info-uses-provides'));
@@ -165,11 +190,13 @@ describe('MATRIX — declaration-key shape & resolver invariants (not expressibl
   it('SEALED (latent): a nested decl is `+`-chained and package-qualified, never a flat phantom `Inner`', async () => {
     // GENUINE FLAT-KEY PHANTOM this matrix exposed and FIXED — the SAME shape as the
     // pre-fix Kotlin nested-type bug, and worse (Java did not even package-qualify).
-    // LATENT not LIVE: Java `uses()` emits ONLY `path` hints → the SymbolTable is never
-    // read for Java resolution → the phantom flat `Inner` key cannot mis-bind anything in
-    // the current model. It is a phantom ONE symbol-hint away from a live FP, so it is
-    // sealed by `+`-keying the nested chain and package-qualifying the key. Parity-data
-    // only — Java resolution is path-based, so NO current edge changes.
+    // Now that inline fully-qualified TYPE references emit `symbol` hints, the SymbolTable
+    // IS read for Java resolution — so the phantom flat `Inner` key is no longer merely
+    // latent: were a nested decl keyed as a flat `Inner` (or an un-package-qualified one),
+    // an inline `com.acme.Inner`-shaped reference could mis-bind. It is sealed by `+`-keying
+    // the nested chain and package-qualifying the key: the `+` namespace is disjoint from
+    // the dotted FQN namespace a `scoped_type_identifier` hint carries, so a nested type is
+    // reachable only via its enclosing-file fallback, never as a flat phantom.
     const nestedFile = await parse(`${ROOT}/com/acme/Outer.java`, 'package com.acme;\nclass Outer {\n  class Inner {}\n}\n');
     expect(javaExtractor.declarations(nestedFile).map((d) => d.symbolKey)).toEqual([
       'com.acme.Outer',

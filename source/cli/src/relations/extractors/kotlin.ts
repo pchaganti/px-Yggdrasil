@@ -53,6 +53,21 @@ import { single } from './types.js';
  * stdlib / external imports (`kotlin.*`, `kotlinx.*`, `java.*`, AndroidX, third-party)
  * still emit a symbol hint here — silence is the SymbolTable's job (an FQN no in-graph
  * file declares resolves to undefined and is never flagged).
+ *
+ * INLINE FULLY-QUALIFIED TYPE references (`val x: app.dto.Req`, `: app.base.Base()`
+ * supertype, `List<app.dto.Item>`) ARE emitted — as symbol hints, exactly like imports. A
+ * fully-qualified type written without an import appears as a `user_type` whose leading
+ * children are the dotted `identifier` segments. This node type occurs ONLY in TYPE
+ * positions: an EXPRESSION-position dotted reference (`app.logging.Logger()`) parses as a
+ * `navigation_expression` chain, never a `user_type`, so reading `user_type` captures type
+ * references exclusively and never the member-access ambiguity. Only a MULTI-segment
+ * user_type (≥2 dotted identifiers) is emitted — a bare `String` is import/same-package
+ * resolved and stays silent. Resolution is the SymbolTable's distinct-file rule, so a name
+ * that could bind two ways silences; an import-qualified nested ref (`Outer.Inner`, whose
+ * `Outer` carries an import that already covers the edge) matches no package-qualified key
+ * and stays silent — detection is additive recall with zero false positives. A type's
+ * generic ARGUMENTS are nested `user_type`s and are emitted independently; the leading
+ * segment collection stops at the first non-identifier child (the `type_arguments`).
  */
 
 /** The FQN `qualified_identifier` child of an `import` node, as dotted text. A
@@ -68,20 +83,41 @@ function importFqn(decl: Node): string | undefined {
   return undefined;
 }
 
+/** The dotted FQN of a `user_type`: its LEADING `identifier` children joined by `.`,
+ *  stopping at the first non-identifier child (a `type_arguments` generic list). Returns
+ *  undefined for a single-segment type (`String`) — not a fully-qualified reference. */
+function dottedUserType(node: Node): string | undefined {
+  const segs: string[] = [];
+  for (let i = 0; i < node.namedChildCount; i++) {
+    const c = node.namedChild(i);
+    if (c === null) continue;
+    if (c.type === 'identifier') segs.push(c.text);
+    else break; // type_arguments / nested structure → stop the dotted prefix
+  }
+  return segs.length >= 2 ? segs.join('.') : undefined;
+}
+
 function uses(file: ParsedFile): DetectedDep[] {
   const out: DetectedDep[] = [];
   const seen = new Set<string>();
 
-  const emit = (symbolKey: string | undefined, node: Node): void => {
+  const emit = (symbolKey: string | undefined, node: Node, kind: 'import' | 'type-ref' = 'import'): void => {
     if (symbolKey === undefined || symbolKey === '') return;
     const line = node.startPosition.row + 1;
     const dedupKey = `${symbolKey} ${line}`;
     if (seen.has(dedupKey)) return;
     seen.add(dedupKey);
-    out.push(single({ kind: 'symbol', symbolKey }, 'import', line));
+    out.push(single({ kind: 'symbol', symbolKey }, kind, line));
   };
 
   walk(file.tree.rootNode, (node) => {
+    // Inline FQN type reference: a multi-segment `user_type` (type position only — an
+    // expression-position dotted reference is a navigation_expression, never a user_type).
+    if (node.type === 'user_type') {
+      emit(dottedUserType(node), node, 'type-ref');
+      return undefined;
+    }
+
     // Match the NAMED `import` node, never the bare `import` keyword token.
     if (node.type !== 'import' || !node.isNamed) return undefined;
     // The FQN is the qualified_identifier text. For a wildcard the text is already the

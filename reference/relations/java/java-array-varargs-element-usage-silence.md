@@ -2,14 +2,17 @@
 id: java-array-varargs-element-usage-silence
 language: java
 category: usage-site
-expectation: silence
+expectation: edge
 cites: "JLS SE25 §10.1, §8.4.1; research F13/F14 (C30 in 06-14)"
 ---
 
 ## Rule
 
-An array type `Foo[]` and a varargs parameter `Bar...` reference their element types at
-usage sites, but carry no import. The import-only extractor emits no hint.
+An array type `Foo[]` and a varargs parameter `Bar...` carry their element type in a TYPE
+position. A fully-qualified element type is a `scoped_type_identifier`, shadow-free per
+§6.5.5.2, so the extractor emits a SYMBOL hint that resolves like an import → a real
+cross-node edge. The field `com.acme.model.Foo[] a` and the varargs parameter
+`com.acme.model.Bar... xs` each edge to node `model`.
 
 ## Files
 
@@ -33,8 +36,10 @@ class C {
 
 ## Expect
 
-- silence      # array element / varargs element are usage sites with no import → no hint
+- src/main/java/com/app/C.java:3 -> node:model      # array element type `com.acme.model.Foo` (node model)
+- src/main/java/com/app/C.java:4 -> node:model      # varargs element type `com.acme.model.Bar` (node model)
 
 ## Why
 
-The element type of an array or varargs is a usage site; the import-only model silences it.
+A fully-qualified array/varargs element type is shadow-free, so it resolves like an
+import — a real cross-node edge.

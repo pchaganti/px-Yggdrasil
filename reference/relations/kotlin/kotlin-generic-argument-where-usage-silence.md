@@ -2,16 +2,16 @@
 id: kotlin-generic-argument-where-usage-silence
 language: kotlin
 category: usage-site
-expectation: silence
+expectation: edge
 cites: "Kotlin spec — Overload resolution / Scopes; research Form D2/D3 (generic argument + where)"
 ---
 
 ## Rule
 
-A generic type argument (`List<Order>`) and a `where` constraint
-(`where T : Comparable<T>`) are usage-site type references. The import-only extractor
-emits nothing for them, even with the referenced types in-graph — a deliberate recall
-miss, never a false positive.
+A generic type argument (`List<com.acme.model.Order>`) and a `where` constraint
+(`where T : com.acme.model.Comparable<T>`) sit in TYPE positions. When the argument /
+constraint type is written as an inline fully-qualified name the FQN is shadow-free and
+resolves through the shared SymbolTable exactly like an import, so each is a real edge.
 
 ## Files
 
@@ -33,9 +33,11 @@ fun <T> f(t: T) where T : com.acme.model.Comparable<T> {}
 
 ## Expect
 
-- silence      # generic argument + where-constraint types are usage sites → import-only emits nothing
+- src/c/Use.kt:2 -> node:m      # the generic argument type as an inline FQN is a type-position ref → real edge
+- src/c/Use.kt:3 -> node:m      # the where-constraint type as an inline FQN is a type-position ref → real edge
 
 ## Why
 
-Generic and constraint positions are usage sites; binding them by simple name would
-hit the precedence and stdlib-collision traps.
+Generic argument and `where` constraint positions are TYPE positions; written as inline
+fully-qualified names the types are shadow-free, so they resolve like imports and each
+is a real edge.

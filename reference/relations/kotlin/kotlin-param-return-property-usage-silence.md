@@ -2,15 +2,16 @@
 id: kotlin-param-return-property-usage-silence
 language: kotlin
 category: usage-site
-expectation: silence
+expectation: edge
 cites: "Kotlin spec — Scopes (declaration-site type refs); research Form D5 (param/return/property)"
 ---
 
 ## Rule
 
-Parameter, return, and property types (`fun m(l: Logger): Result`, `val r: Repo?`) are
-usage-site type references. The import-only extractor emits nothing for them, even
-with the referenced types in-graph — a deliberate recall miss, never a false positive.
+Parameter, return, and property types (`fun m(l: com.acme.Logger): com.acme.Result`,
+`val r: com.acme.Repo?`) sit in TYPE positions. When written as inline fully-qualified
+names the FQNs are shadow-free and resolve through the shared SymbolTable exactly like
+imports, so each is a real edge.
 
 ## Files
 
@@ -39,9 +40,11 @@ class C {
 
 ## Expect
 
-- silence      # param / return / property types are usage sites → import-only emits nothing
+- src/c/Use.kt:3 -> node:d      # the property type as an inline FQN is a type-position ref → real edge
+- src/c/Use.kt:4 -> node:d      # the parameter and return types as inline FQNs are type-position refs → real edge
 
 ## Why
 
-Declaration-header type positions are usage sites; binding them by simple name is the
-precedence-trap door the import-only design closes.
+Declaration-header type positions (parameter, return, property) are TYPE positions;
+written as inline fully-qualified names they are shadow-free, so they resolve like
+imports and each is a real edge.

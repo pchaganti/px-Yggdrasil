@@ -72,16 +72,43 @@ describe('kotlin extractor — uses() emits SYMBOL hints (not path hints)', () =
     expect(symbolKeys(uses)).toEqual(['a.B']);
   });
 
-  it('does NOT treat supertypes / by-delegation / qualified calls / type refs as edges (v1 = import only)', async () => {
+  it('emits a SYMBOL hint for an inline fully-qualified TYPE reference (type position is shadow-free)', async () => {
+    // A multi-segment user_type written inline in a TYPE position — supertype list,
+    // by-delegation supertype, property / parameter / return type — is a fully-qualified
+    // name with exactly one meaning, so it resolves through the SymbolTable like an import.
     const { uses } = await run(
       [
         'package com.acme.app',
         'class C : com.acme.base.Base(), com.acme.flow.Flowable by delegate {',
-        '  fun m() {',
-        '    val t = com.acme.metrics.Timer()',
-        '    com.acme.audit.AuditLog.record("x")',
-        '    val ref = com.acme.util.Helpers::format',
-        '  }',
+        '  val r: com.acme.model.Repo? = null',
+        '  fun m(l: com.acme.metrics.Logger): com.acme.model.Result = TODO()',
+        '}',
+        '',
+      ].join('\n'),
+    );
+    const keys = symbolKeys(uses);
+    expect(keys).toContain('com.acme.base.Base'); // superclass
+    expect(keys).toContain('com.acme.flow.Flowable'); // by-delegation supertype
+    expect(keys).toContain('com.acme.model.Repo'); // property type
+    expect(keys).toContain('com.acme.metrics.Logger'); // parameter type
+    expect(keys).toContain('com.acme.model.Result'); // return type
+    // The hints are SYMBOL hints (Kotlin resolves through the SymbolTable, never a path).
+    expect(uses.every((u) => u.candidates[0].kind === 'symbol')).toBe(true);
+  });
+
+  it('emits NOTHING for EXPRESSION-position references (ctor call, qualified call, `::member`, `::class`)', async () => {
+    // An EXPRESSION-position reference — a constructor call, a qualified member call, a
+    // `::member` callable reference, a `::class` literal — parses as a navigation_expression /
+    // member-access chain that is indistinguishable from `localVariable.field.method`, so
+    // binding it could pick the wrong target. It is deliberately left silent (zero-FP boundary).
+    const { uses } = await run(
+      [
+        'package com.acme.app',
+        'fun m() {',
+        '  val t = com.acme.metrics.Timer()',
+        '  com.acme.audit.AuditLog.record("x")',
+        '  val ref = com.acme.util.Helpers::format',
+        '  val k = com.acme.model.Order::class',
         '}',
         '',
       ].join('\n'),

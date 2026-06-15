@@ -109,7 +109,12 @@ const R = (specifier: string, fromFile: string, deps: RustResolveDeps = baseDeps
 // ─────────────────────────────────────────────────────────────────────────────
 describe('MATRIX — crate-relative use (the `::`-path IS the edge; resolves through the module tree)', () => {
   it('PASS R1: `use crate::a::b::C;` → emits the crate-relative path `crate::a::b::C`', async () => {
-    expect(specs((await run('mod a;\nuse crate::a::b::C;')).uses)).toEqual(['crate::a::b::C']);
+    // The fixture's `mod a;` (a file-backed module declaration) now ALSO emits `self::a` — a real
+    // intra-crate file dependency — so both the mod edge and the use edge are expected.
+    expect(specs((await run('mod a;\nuse crate::a::b::C;')).uses)).toEqual([
+      'self::a',
+      'crate::a::b::C',
+    ]);
   });
 
   it('PASS R2: `crate::a::b::C` resolves through the tree to `src/a/b.rs` (C is an item in module a::b)', () => {
@@ -279,36 +284,54 @@ describe('MATRIX — pub use re-export (a real runtime dependency, resolves like
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('MATRIX — usage-site / non-use forms (deliberate tolerated recall GAPs, never an FP)', () => {
-  it('GAP: a `mod foo;` declaration → emits NOTHING (extractor walks only `use_declaration`)', async () => {
-    // `mod foo;` pulls foo.rs/foo/mod.rs into the tree — a real intra-crate file dependency. The
-    // extractor does NOT treat a `mod` declaration as a dependency edge (it walks only
-    // `use_declaration`), so this is a tolerated false-NEGATIVE. It can never mis-bind — no edge
-    // is emitted at all. (Recall recommendation surfaced in the report, not auto-implemented.)
-    expect(specs((await run('mod foo;')).uses)).toEqual([]);
+describe('MATRIX — mod declarations & inline crate-relative paths (file-backed mod + crate/self/super inline → EDGE)', () => {
+  it('EDGE: a file-backed `mod foo;` (no body) → emits `self::foo` (foo.rs / foo/mod.rs beside this module)', async () => {
+    // `mod foo;` pulls foo.rs/foo/mod.rs into the module tree — a real intra-crate file dependency.
+    // Emitted as the relative path `self::foo`, which the resolver maps deterministically through
+    // the module tree (zero false positives — the location is conventional and unambiguous).
+    expect(specs((await run('mod foo;')).uses)).toEqual(['self::foo']);
   });
 
-  it('PASS R1: an INLINE `mod foo { … }` → emits NOTHING (correct: same-file detail, no file dependency)', async () => {
+  it('SILENT: an INLINE `mod foo { … }` (with a body) → emits NOTHING (same-file detail, no file dependency)', async () => {
     expect(specs((await run('mod foo { pub struct X; }')).uses)).toEqual([]);
   });
 
-  it('GAP: an old-style `extern crate foo;` → emits NOTHING (external crate; never a use_declaration)', async () => {
+  it('SILENT: a `#[path = "…"] mod foo;` (location override) → emits NOTHING (conventional location is wrong → skipped)', async () => {
+    // The `#[path]` attribute overrides the conventional file location; resolving it correctly
+    // needs nesting-sensitive rules a source-only walk cannot get right in every case, so the mod
+    // is skipped rather than risk binding the wrong file. A tolerated recall gap, never an FP.
+    expect(specs((await run('#[path = "custom/loc.rs"]\nmod foo;')).uses)).toEqual([]);
+  });
+
+  it('SILENT: an old-style `extern crate foo;` → emits NOTHING (external crate)', async () => {
     // `extern crate foo;` declares an external Cargo dependency — external anyway (it would
-    // silence at the resolver). It is not a `use_declaration`, so the extractor emits nothing.
-    // Correct on both counts: a missed external is no loss, and no in-repo edge can be fabricated.
+    // silence at the resolver). It is not a path the extractor reads, so it emits nothing.
     expect(specs((await run('extern crate foo;')).uses)).toEqual([]);
   });
 
-  it('GAP: a fully-qualified call expression `crate::a::f()` (NOT a `use`) → emits NOTHING (usage-site)', async () => {
-    // An inline fully-qualified path expression is a usage site, not a `use` import. v1 enforces
-    // existence (the relation TYPE is not refined by usage sites), so the extractor performs no
-    // usage-site refinement → no edge. A tolerated false-NEGATIVE.
-    expect(specs((await run('fn g() { crate::a::f(); }')).uses)).toEqual([]);
+  it('EDGE: inline `crate::a::f()` call → emits `crate::a::f` (crate-root absolute, shadow-free)', async () => {
+    expect(specs((await run('fn g() { crate::a::f(); }')).uses)).toEqual(['crate::a::f']);
   });
 
-  it('PASS R1: a `crate::…` path appearing ONLY inside a macro invocation → emits NOTHING (macro tokens are unparsed)', async () => {
-    // A path inside a `macro_invocation` token tree is unparsed tokens, never a use_declaration →
-    // zero hints. Macro-generated deps are invisible by design (cannot be a guess = no FP).
+  it('EDGE: inline TYPE refs `crate::orders::Order` / `self::util::Res` / `super::shared::T` → each path', async () => {
+    const { uses } = await run(
+      'struct S { f: crate::orders::Order }\nfn g() -> self::util::Res { super::shared::T::new() }',
+    );
+    const s = specs(uses);
+    expect(s).toContain('crate::orders::Order');
+    expect(s).toContain('self::util::Res');
+    expect(s).toContain('super::shared::T::new');
+  });
+
+  it('SILENT: inline `external::thing::Foo::bar()` (bare-identifier root) → emits NOTHING (use-alias / external ambiguity)', async () => {
+    // A path NOT rooted at crate/self/super may be a `use`-bound alias or an external crate — a
+    // source-only tool must not guess, so a bare-identifier-rooted inline path is never emitted.
+    expect(specs((await run('fn g() { external::thing::Foo::bar(); }')).uses)).toEqual([]);
+  });
+
+  it('SILENT: a `crate::…` path appearing ONLY inside a macro invocation → emits NOTHING (macro tokens are unparsed)', async () => {
+    // A path inside a `macro_invocation` token tree is unparsed tokens → zero hints. Macro-generated
+    // deps are invisible by design (cannot be a guess = no FP).
     expect(specs((await run('fn f() {\n  println!("{}", crate::config::NAME);\n}\n')).uses)).toEqual(
       [],
     );

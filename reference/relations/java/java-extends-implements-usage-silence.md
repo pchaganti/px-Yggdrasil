@@ -2,16 +2,19 @@
 id: java-extends-implements-usage-silence
 language: java
 category: usage-site
-expectation: silence
+expectation: edge
 cites: "JLS SE25 §8.1.4, §8.1.5, §9.1.3; research F1/F2 (C24 in 06-14)"
 ---
 
 ## Rule
 
-`extends` superclass and `implements` interface lists with fully-qualified names are
-usage sites — they reference types but carry no import. The import-only extractor emits
-no hint. `Runnable` is auto-imported java.lang (silence anyway). Binding any by simple
-name would reintroduce the §6.5.5 precedence trap and is FORBIDDEN.
+`extends` superclass and `implements` interface lists written with fully-qualified
+names are `scoped_type_identifier`s in TYPE positions. Because each name is fully
+qualified it is shadow-free per §6.5.5.2, so the extractor emits a SYMBOL hint that
+resolves like an import → real cross-node edges. `extends com.acme.base.Base` edges to
+node `base` and `implements com.acme.flow.Flowable` edges to node `flow`. `Runnable` is
+a bare simple name (auto-imported java.lang), not a fully-qualified `scoped_type_identifier`,
+so it stays silent — binding it by simple name would reintroduce the §6.5.5 precedence trap.
 
 ## Files
 
@@ -32,9 +35,10 @@ class C extends com.acme.base.Base implements com.acme.flow.Flowable, Runnable {
 
 ## Expect
 
-- silence      # extends/implements are usage sites with no import → no hint, even though Base/Flowable are in-graph
+- src/main/java/com/app/C.java:2 -> node:base      # `extends com.acme.base.Base` fully-qualified → real edge (node base)
+- src/main/java/com/app/C.java:2 -> node:flow      # `implements com.acme.flow.Flowable` fully-qualified → real edge (node flow)
 
 ## Why
 
-A supertype reference is a usage site; the import-only model silences it as a tolerated
-recall miss.
+A fully-qualified supertype reference is shadow-free, so it resolves like an import — a
+real cross-node edge. The bare `Runnable` is not fully qualified and stays silent.

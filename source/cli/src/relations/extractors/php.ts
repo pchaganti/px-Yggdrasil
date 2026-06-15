@@ -17,8 +17,22 @@ import { single } from './types.js';
  * specifier is a PHP FULLY-QUALIFIED NAME with `\` separators (`Foo\Bar\Baz`); the
  * resolver maps that FQN → a file via composer.json PSR-4.
  *
- * Fully-qualified INLINE references without a `use` (`new \App\X()`, `\App\X::y()`) are
- * also out of v1 scope — reduced recall, never a false positive.
+ * Fully-qualified INLINE references WITH A LEADING BACKSLASH (`new \App\X()`,
+ * `\App\X::y()`, `\App\X $param`, `extends \App\X`) ARE emitted. The leading `\` is PHP's
+ * absoluteness marker: `\App\X` names the type `App\X` from the GLOBAL namespace, with no
+ * dependence on the file's `namespace` or its `use` aliases — so it is shadow-free and maps
+ * to a file by the SAME PSR-4 rule as an import. Detection is restricted two ways to stay
+ * false-positive-free:
+ *   - ONLY a leading-backslash `qualified_name` is read; a backslash-LESS `qualified_name`
+ *     (`Sub\Rel`, `Rel`) is namespace-relative and would need the current namespace + use
+ *     aliases to bind — out of reach for a source-only tool, so it stays silent.
+ *   - ONLY when the reference sits in a CLASS-autoload position (a type, `new`, `extends` /
+ *     `implements`, `::` static access, an attribute, `instanceof`). A leading-backslash
+ *     name in FUNCTION-call position (`\App\f()`) or as a bare CONSTANT (`\App\FOO`) does
+ *     NOT trigger class autoloading — PHP keeps functions/constants in separate namespaces
+ *     resolved at call time, never mapped to a PSR-4 class file — so emitting them could
+ *     bind to an unrelated class file that merely shares the path. Those positions are
+ *     excluded; the emitted set is exactly the class references PSR-4 actually resolves.
  *
  * Grammar shapes this extractor reads (verified live against tree-sitter-php_only):
  *   - Plain      `use App\Payment\Gateway;`
@@ -99,6 +113,63 @@ function groupBase(decl: Node): string | undefined {
   return undefined;
 }
 
+/**
+ * The PARENT node types under which a leading-backslash `qualified_name` is a CLASS
+ * reference that PHP autoloads via PSR-4 — the sound allowlist that keeps inline detection
+ * false-positive-free. Verified against tree-sitter-php_only:
+ *   - object_creation_expression     `new \App\X()`
+ *   - named_type                     a type hint (param/return/property), incl. inside a
+ *                                    union_type / intersection_type / optional_type and a
+ *                                    catch `type_list` (which wraps each type in named_type)
+ *   - base_clause                    `extends \App\Base`
+ *   - class_interface_clause         `implements \App\Iface`
+ *   - scoped_call_expression         `\App\X::method()`  (the qualified_name is the scope)
+ *   - scoped_property_access_expression `\App\X::$prop`
+ *   - class_constant_access_expression  `\App\X::CONST`, `\App\X::class`
+ *   - attribute                      `#[\App\Route]`
+ *   - use_declaration                an IN-BODY trait use `use \App\Mixin\Trait;` (a class's
+ *                                    `use_declaration`, distinct from the top-level namespace
+ *                                    import `namespace_use_declaration`) — a real trait dependency
+ * `instanceof` (`$x instanceof \App\Y`) parses as a binary_expression and is handled
+ * separately (isInstanceofClassRef) — its right operand is a class reference, but a
+ * binary_expression is not a class context in general, so it is NOT in this set.
+ */
+const CLASS_REF_PARENTS = new Set([
+  'object_creation_expression',
+  'named_type',
+  'base_clause',
+  'class_interface_clause',
+  'scoped_call_expression',
+  'scoped_property_access_expression',
+  'class_constant_access_expression',
+  'attribute',
+  'use_declaration',
+]);
+
+/** True when `qn` is the right operand of an `instanceof` binary expression
+ *  (`$x instanceof \App\Y`) — a class reference. Detected by an anonymous `instanceof`
+ *  token child on the binary_expression parent. */
+function isInstanceofClassRef(qn: Node): boolean {
+  const parent = qn.parent;
+  if (parent === null || parent.type !== 'binary_expression') return false;
+  for (let i = 0; i < parent.childCount; i++) {
+    const c = parent.child(i);
+    if (c !== null && !c.isNamed && c.type === 'instanceof') return true;
+  }
+  return false;
+}
+
+/** True when a leading-backslash `qualified_name` sits in a class-autoload position — the
+ *  only positions an inline FQN is emitted from (see CLASS_REF_PARENTS / isInstanceofClassRef).
+ *  A function-call (`\App\f()`) parent is `function_call_expression`; a bare constant parent
+ *  is a generic expression — neither is in scope, so both are excluded. */
+function isClassReferenceContext(qn: Node): boolean {
+  const parent = qn.parent;
+  if (parent === null) return false;
+  if (CLASS_REF_PARENTS.has(parent.type)) return true;
+  return isInstanceofClassRef(qn);
+}
+
 function uses(file: ParsedFile): DetectedDep[] {
   const out: DetectedDep[] = [];
   const seen = new Set<string>();
@@ -115,6 +186,16 @@ function uses(file: ParsedFile): DetectedDep[] {
   };
 
   walk(file.tree.rootNode, (node) => {
+    // Inline class reference: a leading-backslash `qualified_name` in a class-autoload
+    // position. The leading `\` is the absoluteness marker (resolved from the global
+    // namespace, shadow-free); the position allowlist excludes function/constant FQNs.
+    // An import's qualified_name sits under namespace_use_clause (not a class context) and
+    // is never matched here, so imports are handled solely by the branch below.
+    if (node.type === 'qualified_name') {
+      if (node.text.startsWith('\\') && isClassReferenceContext(node)) emit(node.text, node);
+      return undefined;
+    }
+
     if (node.type !== 'namespace_use_declaration') return undefined;
     // Skip function/const imports — they bind a function/constant, not a class.
     if (isFunctionOrConstUse(node)) return undefined;

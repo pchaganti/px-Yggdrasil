@@ -59,6 +59,30 @@ interface CaseFile {
   code: string;
 }
 
+/** A materialize-only support file (go.mod / composer.json / Cargo.toml): the path
+ *  resolver reads it from disk to map a specifier → file (module path, PSR-4 map, crate
+ *  name), but it carries NO source code to parse — it is excluded from the SymbolTable
+ *  and from extractor.uses(). It exists in the temp project ONLY so the REAL resolver
+ *  sees the EXACT layout the catalogue documents. */
+interface ConfigFile {
+  path: string; // repo-rel POSIX path declared in the ```… path=…``` block
+  code: string;
+}
+
+/** Support-file basenames the path resolvers consume but never parse as source. A
+ *  `## Files` block whose extension has no grammar language is accepted ONLY when its
+ *  basename is one of these (else it is a typo and throws — the guard is preserved).
+ *  Kept in lockstep with resolve-path.ts: Go reads go.mod (and go.work), PHP reads
+ *  composer.json, Rust reads Cargo.toml; the lock/sum files are harmless to materialize. */
+const CONFIG_BASENAMES = new Set([
+  'go.mod',
+  'go.work',
+  'go.sum',
+  'composer.json',
+  'Cargo.toml',
+  'Cargo.lock',
+]);
+
 interface ExpectEdge {
   fromFile: string;
   line: number;
@@ -70,6 +94,7 @@ interface CaseDoc {
   language: string;
   expectation: 'edge' | 'silence';
   files: CaseFile[];
+  configFiles: ConfigFile[];
   expectEdges: ExpectEdge[];
   expectSilence: boolean;
 }
@@ -117,8 +142,13 @@ function loadCaseDoc(id: string, mdPath: string): CaseDoc {
 
   const body = text.slice(fmMatch[0].length);
 
-  // ## Files — every ```<lang> path=<repo-rel>``` fenced block.
+  // ## Files — every ```<lang> path=<repo-rel>``` fenced block. A block whose extension
+  // maps to a grammar language is a SOURCE file (parsed, indexed, run through uses()); a
+  // block whose extension has no language but whose basename is a known resolver support
+  // file (go.mod / composer.json / Cargo.toml) is a CONFIG file — materialized only, never
+  // parsed. Any other unknown extension throws (typo guard).
   const files: CaseFile[] = [];
+  const configFiles: ConfigFile[] = [];
   const fenceRe = /```[a-zA-Z+]*\s+path=([^\s`]+)\n([\s\S]*?)```/g;
   const filesSection = sectionBody(body, 'Files');
   let m: RegExpExecArray | null;
@@ -126,8 +156,13 @@ function loadCaseDoc(id: string, mdPath: string): CaseDoc {
     const fpath = m[1].trim();
     const ext = path.extname(fpath);
     const lang = getLanguageForExtension(ext);
-    if (!lang) throw new Error(`reference-case ${id}: no language for extension '${ext}' (${fpath})`);
-    files.push({ path: fpath, language: lang, code: m[2] });
+    if (lang) {
+      files.push({ path: fpath, language: lang, code: m[2] });
+    } else if (CONFIG_BASENAMES.has(path.posix.basename(fpath))) {
+      configFiles.push({ path: fpath, code: m[2] });
+    } else {
+      throw new Error(`reference-case ${id}: no language for extension '${ext}' (${fpath})`);
+    }
   }
   if (files.length === 0) throw new Error(`reference-case ${id}: ## Files has no path-tagged code blocks`);
 
@@ -153,7 +188,7 @@ function loadCaseDoc(id: string, mdPath: string): CaseDoc {
     throw new Error(`reference-case ${id}: ## Expect has neither an edge line nor a 'silence' line`);
   }
 
-  return { id, language, expectation, files, expectEdges, expectSilence };
+  return { id, language, expectation, files, configFiles, expectEdges, expectSilence };
 }
 
 /** Extract the text under a `## <name>` heading, up to the next `## ` heading or EOF. */
@@ -235,7 +270,7 @@ export async function runCase(id: string): Promise<void> {
   //    materialize the embedded `## Files` into a throwaway project root and point the real
   //    `makeResolvePathToFile` at it. The whole pipeline — extractor.uses(), the path resolver,
   //    the owner-set-collapse for a wildcard package import — is then byte-identical to pass.ts.
-  const projectRoot = materializeProject(doc.files);
+  const projectRoot = materializeProject(doc.files, doc.configFiles);
   try {
     const resolver = makeResolver({
       ownerIndex,
@@ -297,9 +332,9 @@ export async function runCase(id: string): Promise<void> {
  * caller removes the directory in a `finally`. This is the path-axis analogue of building the
  * SymbolTable for the symbol-axis languages — both feed the SAME production resolver.
  */
-function materializeProject(files: CaseFile[]): string {
+function materializeProject(files: CaseFile[], configFiles: ConfigFile[] = []): string {
   const root = mkdtempSync(path.join(os.tmpdir(), 'yg-refcase-'));
-  for (const f of files) {
+  for (const f of [...files, ...configFiles]) {
     const abs = path.join(root, f.path);
     mkdirSync(path.dirname(abs), { recursive: true });
     writeFileSync(abs, f.code, 'utf-8');

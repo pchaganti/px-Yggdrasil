@@ -2,7 +2,7 @@
 id: kotlin-annotation-use-site-target-not-ref
 language: kotlin
 category: usage-site
-expectation: silence
+expectation: edge
 cites: "What's new in Kotlin 2.2.0 — @all meta-target; What's new in Kotlin 2.4.0 — @all + use-site-target defaulting Stable; research Form E8"
 ---
 
@@ -10,9 +10,11 @@ cites: "What's new in Kotlin 2.2.0 — @all meta-target; What's new in Kotlin 2.
 
 An annotation use-site target prefix (`@all:`, `@field:`, `@get:`, `@set:`, `@param:`,
 `@receiver:`, `@property:`, `@setparam:`) is a target SELECTOR keyword, NEVER a type
-reference. Only the annotation CLASS after the `:` is a (usage-site, silenced)
-reference. The import-only extractor emits nothing for an annotated property: neither
-the target keyword `field`/`all` nor the annotation class produces an edge.
+reference. The annotation CLASS after the `:`, when written as an inline fully-qualified
+name (`com.acme.audit.Email`), sits in a TYPE position: the FQN is shadow-free and
+resolves through the shared SymbolTable exactly like an import, so it is a real edge.
+The use-site-target keyword `field`/`all` is STILL not a reference and produces NO edge —
+only the annotation class does.
 
 ## Files
 
@@ -31,10 +33,12 @@ class C {
 
 ## Expect
 
-- silence      # the use-site-target keyword (`field`) is never a type ref, and the annotation use is a usage site → import-only emits nothing
+- src/c/Use.kt:3 -> node:audit      # the annotation CLASS as an inline FQN (`com.acme.audit.Email`) is a type-position ref → real edge
 
 ## Why
 
-Reading a use-site-target keyword (`all`/`field`/`get`/…) as a type reference would
-emit a spurious edge for a Kotlin keyword; only the annotation class is a reference, and
-it is itself a silenced usage site.
+The annotation class written as an inline fully-qualified name is a TYPE-position
+reference; the FQN is shadow-free, so it resolves like an import and is a real edge.
+Reading the use-site-target keyword (`all`/`field`/`get`/…) as a type reference, by
+contrast, would emit a spurious edge for a Kotlin keyword — so the keyword is NOT a
+reference and produces no edge; only the annotation class does.
