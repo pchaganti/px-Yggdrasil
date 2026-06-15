@@ -5,14 +5,14 @@ import { cppExtractor } from '../../../../src/relations/extractors/cpp.js';
 const run = (code: string, ext = '.cpp') => runExtractor(cppExtractor, 'cpp', ext, code);
 
 const specs = (uses: Awaited<ReturnType<typeof run>>['uses']): string[] =>
-  uses.flatMap((u) => (u.targetHint.kind === 'path' ? [u.targetHint.specifier] : []));
+  uses.flatMap((u) => (u.candidates[0].kind === 'path' ? [u.candidates[0].specifier] : []));
 
 describe('C++ extractor — uses()', () => {
   it('emits a path hint for a quoted #include (the header path text, no quotes)', async () => {
     const { uses } = await run('#include "orders/Order.hpp"\n');
     expect(uses).toContainEqual(
       expect.objectContaining({
-        targetHint: { kind: 'path', specifier: 'orders/Order.hpp' },
+        candidates: [{ kind: 'path', specifier: 'orders/Order.hpp' }],
         kind: 'import',
       }),
     );

@@ -117,7 +117,7 @@ describe('relation TS anti-false-positive (D8 soundness gate)', () => {
 
     // Aggregate every violation across every node — the suite is airtight only
     // if the WHOLE graph is silent, so we never special-case a node.
-    const allViolations = [...result.verdicts.values()].flatMap((v) => v.violations);
+    const allViolations = [...result.violationsByNode.values()].flatMap((v) => v.violations);
     expect(
       allViolations,
       `expected no undeclared-dependency violations, got: ${JSON.stringify(allViolations)}`,
@@ -125,7 +125,7 @@ describe('relation TS anti-false-positive (D8 soundness gate)', () => {
 
     // Every node with mapped source must carry an `approved` verdict.
     for (const nodeId of ['a', 'a/child', 'b']) {
-      expect(result.verdicts.get(nodeId)?.verdict, `node ${nodeId}`).toBe('approved');
+      expect(result.violationsByNode.get(nodeId)?.verdict, `node ${nodeId}`).toBe('approved');
     }
   });
 
@@ -150,7 +150,7 @@ describe('relation TS anti-false-positive (D8 soundness gate)', () => {
         resolvePathToFile: makeResolvePathToFile(root),
         symbolIndexDir: path.join(root, '.yg-cache'),
       });
-      const v = result.verdicts.get(c.node);
+      const v = result.violationsByNode.get(c.node);
       expect(v?.verdict, c.name).toBe('approved');
       expect(v?.violations, c.name).toHaveLength(0);
     });

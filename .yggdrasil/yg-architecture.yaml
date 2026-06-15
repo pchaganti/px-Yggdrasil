@@ -432,3 +432,16 @@ node_types:
     when:
       path: "source/cli/tests/fixtures/**"
     parents: [module]
+
+  reference-catalogue:
+    description: "Catalogue of structured reference docs under reference/<kind>/. Each kind declares its structure in reference/<kind>/_reference-schema.yaml; the generic deterministic aspects reference/doc-shape + reference/layout enforce it. First kind: the relations name-resolution case catalogue (one .md per identification case, 1:1 with a runCase test)."
+    enforce: strict
+    when:
+      path: "reference/**/*"
+    aspects:
+      - reference/doc-shape
+      - reference/layout
+    log_required: false
+    parents: [module, reference-catalogue]
+    relations:
+      uses: [test-suite]

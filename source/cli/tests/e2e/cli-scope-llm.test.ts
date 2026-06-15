@@ -251,15 +251,11 @@ describe.skipIf(!distExists)('CLI E2E — scope (LLM-side): per:file / content-a
       // The scoped ASPECT pair is immune: no marker-rule pair is named unverified and its hash holds.
       expect(afterOther.all).not.toContain("No valid verdict for aspect 'marker-rule'");
       expect(readLock(dir).verdicts['marker-rule']['node:services/orders'].hash).toBe(hashAfterFill);
-      // BUT other.ts IS a mapped file of the node, so it IS an input to the node's RELATION
-      // verdict (which folds ALL mapped files) — that goes unverified. So check is now exit 1
-      // with ONLY the relation error, never a marker-rule error. The scoping immunity is the
-      // aspect-hash invariant above, no longer the overall exit code.
-      expect(afterOther.status).toBe(1); // relation verdict folds all mapped files since relation-conformance
-      expect(afterOther.all).toContain('relation-undeclared-dependency');
-      expect(afterOther.all).toContain('services/orders');
-      // Re-approve clears the relation verdict (empty registry → approved); the marker-rule hash STILL holds.
-      expect(run(['check', '--approve'], dir).status).toBe(0);
+      // Relations are computed LIVE: other.ts introduces no cross-node dependency, so the
+      // live relation pass finds nothing to flag. The edit leaves the node fully green.
+      expect(afterOther.all).not.toContain('relation-undeclared-dependency');
+      expect(afterOther.status).toBe(0); // non-subject edit invalidates nothing
+      // The marker-rule hash STILL holds across the edit.
       expect(readLock(dir).verdicts['marker-rule']['node:services/orders'].hash).toBe(hashAfterFill);
 
       // ADD THE MARKER to the previously-excluded file → subject set GROWS to include
@@ -326,15 +322,12 @@ describe.skipIf(!distExists)('CLI E2E — scope (LLM-side): per:file / content-a
       // The LLM aspect pair is immune: no has-doc-comment pair is named unverified and its hash holds.
       expect(afterBinaryEdit.all).not.toContain("No valid verdict for aspect 'has-doc-comment'");
       expect(readLock(dir).verdicts['has-doc-comment']['node:services/orders'].hash).toBe(hashAfterFill);
-      // BUT the .png IS a mapped file of the node, so it IS an input to the node's RELATION verdict
-      // (which folds ALL mapped files, binaries included) — that goes unverified. So check is now
-      // exit 1 with ONLY the relation error, never a has-doc-comment error. The binary-exclusion
-      // immunity is the aspect-hash invariant above, no longer the overall exit code.
-      expect(afterBinaryEdit.status).toBe(1); // relation verdict folds all mapped files (binaries included) since relation-conformance
-      expect(afterBinaryEdit.all).toContain('relation-undeclared-dependency');
-      expect(afterBinaryEdit.all).toContain('services/orders');
-      // A re-fill makes ZERO new reviewer calls — nothing to re-verify for the LLM aspect (the
-      // relation verdict re-seeds deterministically at zero LLM cost). The aspect hash STILL holds.
+      // Relations are computed LIVE: the .png is not parsed and the node has no cross-node
+      // dependency, so the live relation pass finds nothing to flag. The edit leaves the
+      // node fully green — the binary's bytes never reach any reviewer.
+      expect(afterBinaryEdit.all).not.toContain('relation-undeclared-dependency');
+      expect(afterBinaryEdit.status).toBe(0); // binary-only edit invalidates nothing
+      // A re-fill makes ZERO new reviewer calls — nothing to re-verify. The aspect hash STILL holds.
       const refill = await runAsync(['check', '--approve'], dir);
       expect(refill.status).toBe(0);
       expect(mock.chatCount() - callsBefore).toBe(0);

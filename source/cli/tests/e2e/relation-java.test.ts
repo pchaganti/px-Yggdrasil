@@ -115,6 +115,93 @@ function buildRepo(label: string, withRelation: boolean): string {
   return root;
 }
 
+/**
+ * Wildcard-import variant. a/Foo.java does `import com.b.*;`. The `com.b` package
+ * directory is owned by one or two nodes depending on `split`:
+ *   - split=false: a single node b maps src/main/java/com/b → one owner → edge fires.
+ *   - split=true : two nodes b1, b2 each map a DISTINCT .java file inside com/b via
+ *     a glob, so the package directory's files split across two owners → silence.
+ */
+function buildWildcardRepo(label: string, split: boolean): string {
+  const root = mkdtempSync(path.join(tmpdir(), `yg-rel-java-wild-${label}-`));
+  cpSync(SCHEMAS_SRC, path.join(root, '.yggdrasil', 'schemas'), { recursive: true });
+
+  writeFile(
+    root,
+    '.yggdrasil/yg-architecture.yaml',
+    [
+      'node_types:',
+      '  component:',
+      "    description: 'A source component mapped under src/.'",
+      '    log_required: false',
+      '    when:',
+      '      path: "src/**"',
+      '    relations:',
+      '      uses: [component]',
+      '',
+    ].join('\n'),
+  );
+  writeFile(
+    root,
+    '.yggdrasil/yg-config.yaml',
+    [
+      'version: "5.0.0"',
+      '',
+      'quality:',
+      '  max_direct_relations: 10',
+      '',
+      'reviewer:',
+      '  default: standard',
+      '  tiers:',
+      '    standard:',
+      '      provider: ollama',
+      '      consensus: 1',
+      '      config:',
+      '        model: "qwen2.5-coder:0.5b"',
+      '        endpoint: "http://host.docker.internal:11434"',
+      '',
+    ].join('\n'),
+  );
+
+  // Node a — wildcard-imports the com.b package. NO declared relation → any
+  // resolved cross-node edge is a violation.
+  writeFile(
+    root,
+    '.yggdrasil/model/a/yg-node.yaml',
+    'name: A\ndescription: Importing component.\ntype: component\nmapping:\n  - src/main/java/com/a\n',
+  );
+
+  if (split) {
+    // Two owners over the com.b directory — each maps ONE file via a glob.
+    writeFile(
+      root,
+      '.yggdrasil/model/b1/yg-node.yaml',
+      'name: B1\ndescription: Half of com.b.\ntype: component\nmapping:\n  - src/main/java/com/b/Bar.java\n',
+    );
+    writeFile(
+      root,
+      '.yggdrasil/model/b2/yg-node.yaml',
+      'name: B2\ndescription: Other half of com.b.\ntype: component\nmapping:\n  - src/main/java/com/b/Baz.java\n',
+    );
+  } else {
+    writeFile(
+      root,
+      '.yggdrasil/model/b/yg-node.yaml',
+      'name: B\ndescription: Dependency target component.\ntype: component\nmapping:\n  - src/main/java/com/b\n',
+    );
+  }
+
+  writeFile(
+    root,
+    'src/main/java/com/a/Foo.java',
+    'package com.a;\nimport com.b.*;\npublic class Foo {\n  Bar bar;\n  Baz baz;\n}\n',
+  );
+  writeFile(root, 'src/main/java/com/b/Bar.java', 'package com.b;\npublic class Bar {}\n');
+  writeFile(root, 'src/main/java/com/b/Baz.java', 'package com.b;\npublic class Baz {}\n');
+
+  return root;
+}
+
 describe.skipIf(!distExists)('CLI E2E — Java relation conformance (live)', () => {
   it('refuses an undeclared cross-node import, then passes once the relation is declared', () => {
     // 1. No declared relation → the cross-node import is refused.
@@ -137,6 +224,34 @@ describe.skipIf(!distExists)('CLI E2E — Java relation conformance (live)', () 
       expect(ok.all).not.toContain('relation-undeclared-dependency');
     } finally {
       rmSync(declared, { recursive: true, force: true });
+    }
+  });
+
+  it('silences a wildcard import when the target package splits across two owners', () => {
+    // com.b directory owned by b1 (Bar.java) and b2 (Baz.java): the wildcard
+    // resolves to a SPLIT owner set → no attribution → no violation, even though
+    // a declares no relation. Trade recall for zero false positives.
+    const split = buildWildcardRepo('split', true);
+    try {
+      const r = run(['check', '--approve'], split);
+      expect(r.status).toBe(0);
+      expect(r.all).not.toContain('relation-undeclared-dependency');
+    } finally {
+      rmSync(split, { recursive: true, force: true });
+    }
+  });
+
+  it('fires a wildcard import edge when the target package has exactly one owner', () => {
+    // com.b directory owned wholly by node b: the wildcard resolves to a single
+    // owner → undeclared cross-node edge → refused (a declares no relation).
+    const single = buildWildcardRepo('single', false);
+    try {
+      const r = run(['check', '--approve'], single);
+      expect(r.status).toBe(1);
+      expect(r.all).toContain('relation-undeclared-dependency');
+      expect(r.all).toContain('src/main/java/com/a/Foo.java');
+    } finally {
+      rmSync(single, { recursive: true, force: true });
     }
   });
 });

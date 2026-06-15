@@ -83,9 +83,9 @@ A draft aspect produces no expected pairs — nothing is verified, nothing recor
 
 ### Built-in relation-conformance check
 
-Alongside the aspect reviewers, `yg check --approve` runs ONE built-in, deterministic check over every node: it parses each mapped source file (TypeScript/JS/TSX, Python, Go, Java, PHP, Kotlin, Rust, C, C++, C#, Ruby), finds each statically-resolvable dependency on ANOTHER node's code, and REFUSES the node if it depends on a node it does not declare a relation to (issue code `relation-undeclared-dependency`). The graph's relation edges must match the code's real dependencies.
+Independently of the aspect reviewers, every `yg check` (with or without `--approve`) runs ONE built-in, deterministic check LIVE over every node: it parses each mapped source file (TypeScript/JS/TSX, Python, Go, Java, PHP, Kotlin, Rust, C, C++, C#, Ruby), finds each statically-resolvable dependency on ANOTHER node's code, and REFUSES the node if it depends on a node it does not declare a relation to (issue code `relation-undeclared-dependency`). The graph's relation edges must match the code's real dependencies.
 
-This is NOT an aspect. It has no `content.md`/`check.mjs`, it is not attached via any of the 7 channels, `status:` does not apply (no draft/advisory/enforced — it is ALWAYS `error` and blocks `yg check`, like the built-in architecture and mapping validators), and it is NOT `yg-suppress`-able. Its verdict is cached in the lock like any other and re-validated parse-free by plain `yg check`.
+This is NOT an aspect. It has no `content.md`/`check.mjs`, it is not attached via any of the 7 channels, `status:` does not apply (no draft/advisory/enforced — it is ALWAYS `error` and blocks `yg check`, like the built-in architecture and mapping validators), and it is NOT `yg-suppress`-able. Unlike aspect verdicts, its result is NOT cached — every `yg check` recomputes it live (parse + resolve + verify), so it is always the current truth of the code against the graph, at zero LLM cost, like the built-in architecture and mapping validators.
 
 Two properties keep it false-positive-free:
 - **One-directional.** A detected code dependency MUST be declared. A declared relation needs NO code backing — reflection, dependency injection, HTTP, and event edges are legitimately declared without any static call, and the check never complains about a relation with no matching code.
@@ -97,7 +97,7 @@ Fix a refusal in one of two ways: declare the relation in the node's `yg-node.ya
 
 A verdict is valid exactly while the inputs that produced it hash to the stored value. Any input change — an edited subject file, an edited `content.md` / `check.mjs`, an edited `scope`, a tier change — makes the pair **unverified**, and `yg check --approve` re-verifies it. (A status flip is NOT an input — it never invalidates a verdict.) States are: **verified / unverified / refused**.
 
-`yg check` is a pure read: it recomputes each pair's hash and reports — it executes nothing and makes no LLM calls, so CI runs it cheap and keyless. `yg check --approve` fills the unverified pairs and then reports.
+`yg check` writes nothing and makes no LLM calls: it re-hashes each lock verdict and reports (on plain `yg check` it never runs an aspect reviewer or a deterministic `check.mjs`), and it runs the built-in relation-conformance check live (parse + resolve). So CI runs it cheap and keyless. `yg check --approve` fills the unverified pairs and then reports.
 
 If you modify code without reading the aspect content files (`yg context --file` → follow the `read:` paths), you will likely write code that violates rules you didn't know about. The reviewer will refuse it. You will have to read the aspects anyway, then rewrite. Double cost.
 
@@ -109,7 +109,7 @@ Full lock format, hash ingredients, caching policy, merge procedure, garbage-col
 
 | Command | Purpose |
 |---|---|
-| `yg check` | Pure read — validate the lock, validation, coverage. Blocks CI. Makes no LLM calls. |
+| `yg check` | Read-only, no LLM calls — re-hash lock verdicts, run the relation check live, validate coverage. Blocks CI. |
 | `yg check --approve` | Fill every unverified pair (deterministic first, then LLM), then report. The only writer of verdicts. |
 | `yg context --file <path>` | Show owning node, effective aspects (`read:` paths), dependencies |
 | `yg context --node <path>` | Show node overview — aspects (with subject-file counts), flows, dependents, log state, source files |

@@ -73,9 +73,6 @@ function assertNotCancelled<T>(value: T | symbol): asserts value is T {
   }
 }
 
-const GITIGNORE_CONTENT = `yg-secrets.yaml
-`;
-
 /** The exact .gitattributes line that marks the lock as generated for diff/review tools. */
 const GITATTRIBUTES_LOCK_LINE = '/.yggdrasil/yg-lock.json linguist-generated=true';
 
@@ -116,47 +113,57 @@ export async function ensureGitattributes(repoRoot: string): Promise<void> {
   await writeFile(gaPath, `${existing}${sep}${GITATTRIBUTES_LOCK_LINE}\n`, 'utf-8');
 }
 
-/** The exact repo-root .gitignore line that excludes the relation pass's local
- *  symbol-index cache. `.yg-cache/` sits at the project root and is a rebuildable
- *  artifact — committing it makes the coverage gate flag it as an unmapped file. */
-const GITIGNORE_CACHE_LINE = '.yg-cache/';
+/** The lines `.yggdrasil/.gitignore` must carry, in order. All Yggdrasil-derived
+ *  local state lives under `.yggdrasil/` and is rebuildable or secret — it must
+ *  never be committed:
+ *    - `yg-secrets.yaml`  — provider API keys
+ *    - `.symbols-cache/`  — the relation pass's per-language symbol-index cache
+ *    - `.debug.log`       — the opt-in command debug log
+ *  This is the single source of truth for what init writes into the local
+ *  gitignore (both fresh init and every --upgrade). Paths are relative to the
+ *  `.yggdrasil/` directory the file lives in. */
+const YGGDRASIL_GITIGNORE_LINES = [
+  'yg-secrets.yaml',
+  '.symbols-cache/',
+  '.debug.log',
+] as const;
 
 /**
- * Ensure the repo-root .gitignore excludes the relation pass's `.yg-cache/`
- * directory. The pass writes a per-language symbol index there during
- * `yg check --approve`; it must never be committed (a committed cache trips the
- * coverage gate as an unmapped file the moment it is git-tracked).
+ * Ensure `<yggRoot>/.gitignore` carries every required line. `.yggdrasil/` is the
+ * single home for all Yggdrasil-derived local state (secrets, the relation
+ * symbol-index cache, the debug log); none of it may be committed (a committed
+ * cache trips the coverage gate as an unmapped file the moment it is tracked, and
+ * secrets must never reach the repo).
  *
- * Idempotent: creates the file with the single line when absent; appends the
- * line exactly once when the file exists without it (preserving other content
- * and ensuring a separating newline); no-op when the line is already present.
- * Run on fresh init AND every --upgrade so existing adopters pick it up.
+ * Idempotent: creates the file with all lines when absent; appends only the
+ * missing line(s), once each, when the file exists without them (preserving any
+ * other existing content and ensuring a separating newline); no-op when every
+ * line is already present. Run on fresh init AND every --upgrade so existing
+ * adopters pick up the complete set.
  */
-export async function ensureProjectGitignore(repoRoot: string): Promise<void> {
-  const giPath = path.join(repoRoot, '.gitignore');
+export async function ensureYggdrasilGitignore(yggRoot: string): Promise<void> {
+  const giPath = path.join(yggRoot, '.gitignore');
   let existing: string | undefined;
   try {
     existing = await readFile(giPath, 'utf-8');
   } catch (e: unknown) {
     if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
-    debugWrite(`[init] ensureProjectGitignore: ${giPath} not found (ENOENT), will create`);
+    debugWrite(`[init] ensureYggdrasilGitignore: ${giPath} not found (ENOENT), will create`);
     existing = undefined;
   }
 
   if (existing === undefined) {
-    await writeFile(giPath, `${GITIGNORE_CACHE_LINE}\n`, 'utf-8');
+    await writeFile(giPath, `${YGGDRASIL_GITIGNORE_LINES.join('\n')}\n`, 'utf-8');
     return;
   }
 
-  // Already present (anywhere, as a full line) → nothing to do.
-  const hasLine = existing
-    .split('\n')
-    .some((line) => line.trim() === GITIGNORE_CACHE_LINE);
-  if (hasLine) return;
+  const presentLines = new Set(existing.split('\n').map((line) => line.trim()));
+  const missing = YGGDRASIL_GITIGNORE_LINES.filter((line) => !presentLines.has(line));
+  if (missing.length === 0) return;
 
-  // Append once, guaranteeing a newline boundary before and after.
+  // Append each missing line once, guaranteeing a newline boundary before and after.
   const sep = existing.length > 0 && !existing.endsWith('\n') ? '\n' : '';
-  await writeFile(giPath, `${existing}${sep}${GITIGNORE_CACHE_LINE}\n`, 'utf-8');
+  await writeFile(giPath, `${existing}${sep}${missing.join('\n')}\n`, 'utf-8');
 }
 
 const API_PROVIDERS: ReviewerProvider[] = ['anthropic', 'openai', 'google', 'openai-compatible', 'ollama'];
@@ -501,7 +508,6 @@ async function freshInit(projectRoot: string): Promise<void> {
   }
 
   await ensureGitattributes(projectRoot);
-  await ensureProjectGitignore(projectRoot);
 
   p.outro(chalk.green('Yggdrasil initialized. Run yg check to get started.'));
 }
@@ -528,14 +534,14 @@ async function createYggdrasilStructure(
     }
   } catch (err) {
     debugWrite(`[init] createYggdrasilStructure schema copy failed: ${err instanceof Error ? err.message : String(err)}`);
-    process.stderr.write(
+    process.stdout.write(
       chalk.yellow(`Warning: Could not copy graph schemas: ${(err as Error).message}\n`),
     );
   }
 
   await writeFile(path.join(yggRoot, 'yg-config.yaml'), DEFAULT_CONFIG, 'utf-8');
   await writeFile(path.join(yggRoot, 'yg-architecture.yaml'), DEFAULT_ARCHITECTURE, 'utf-8');
-  await writeFile(path.join(yggRoot, '.gitignore'), GITIGNORE_CONTENT, 'utf-8');
+  await ensureYggdrasilGitignore(yggRoot);
   // yg-secrets.yaml is created by writeSecretsFile when user provides an API key
 
   await installRulesForPlatform(projectRoot, platform);
@@ -579,9 +585,10 @@ export async function runVersionUpgrade(
   // adopters pick it up (both the interactive and non-interactive --upgrade
   // paths route through here). Idempotent.
   await ensureGitattributes(projectRoot);
-  // Likewise ensure `.yg-cache/` is gitignored — the relation pass's local
-  // cache must never be committed. Idempotent.
-  await ensureProjectGitignore(projectRoot);
+  // Likewise ensure `.yggdrasil/.gitignore` carries the full set of local
+  // rebuildable/secret state (secrets, the relation symbol-index cache, the
+  // debug log) so existing adopters pick up the complete set. Idempotent.
+  await ensureYggdrasilGitignore(yggRoot);
 
   return { rulesPath, migrationActions, migrationWarnings, withheld };
 }
@@ -594,7 +601,7 @@ async function existingInit(projectRoot: string): Promise<void> {
   const yggRoot = path.join(projectRoot, '.yggdrasil');
 
   if (!isTTY()) {
-    process.stderr.write(chalk.yellow(buildIssueMessage({
+    process.stdout.write(chalk.yellow(buildIssueMessage({
       what: '.yggdrasil/ already exists.',
       why: 'Re-configuration requires interactive prompts which are not available in non-TTY mode.',
       next: 'Run yg init interactively in a terminal to reconfigure.',

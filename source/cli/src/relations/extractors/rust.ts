@@ -1,6 +1,7 @@
 import type { Node } from 'web-tree-sitter';
 import { walk } from '../../ast/walk.js';
 import type { DependencyExtractor, DetectedDep, DeclaredSymbol, ParsedFile } from './types.js';
+import { single } from './types.js';
 
 /**
  * Rust dependency extractor.
@@ -36,6 +37,28 @@ import type { DependencyExtractor, DetectedDep, DeclaredSymbol, ParsedFile } fro
  * emitted. EXTERNAL crates (std, serde, …) emit a path hint too, but the resolver
  * returns undefined for any path whose root is not `crate`/`super`/`self` (and not
  * the current crate's own name) — so they never become a violation.
+ *
+ * MODULE DECLARATIONS: a file-backed `mod foo;` (a `mod_item` with NO body) declares that
+ * submodule `foo` lives in `foo.rs` / `foo/mod.rs` beside the current file's module — a real
+ * intra-crate file dependency that crosses a node boundary when that file is mapped to another
+ * node. It is emitted as the relative path `self::foo`, which the resolver maps through the
+ * module tree exactly like any `self::` import. A `#[path = "…"]` attribute OVERRIDES the
+ * conventional location; resolving the override correctly requires nesting-sensitive rules a
+ * source-only walk cannot get right in every case, so a `#[path]`-annotated `mod` is SKIPPED
+ * (silence) rather than risk binding the wrong file. An INLINE `mod foo { … }` (with a body)
+ * declares no separate file — its contents are walked in place (its own `use`/paths are
+ * caught), and the `mod` itself emits nothing.
+ *
+ * INLINE PATHS: a fully-qualified path used WITHOUT a `use` — in TYPE position
+ * (`field: crate::orders::Order`, `impl crate::traits::T`) a `scoped_type_identifier`, in
+ * EXPRESSION position (`crate::logging::Logger::new()`, a `crate::m::macro!()` call) a
+ * `scoped_identifier` — is emitted when its ROOT segment is `crate` / `self` / `super`. Those
+ * three roots are absolute-within-crate or relative-to-module markers: the path is shadow-free
+ * and resolves deterministically through the module tree, so detection is zero false positives.
+ * A path rooted at a BARE identifier (`foo::Bar`) is NOT emitted — `foo` may be a `use`-bound
+ * alias or the crate's own name, an ambiguity a source-only tool must not guess; the import or
+ * a `crate::`-qualified form covers the real edge instead. Only the OUTERMOST scoped node of a
+ * chain is read (it carries the complete path); the inner `path` segments are skipped.
  */
 
 /**
@@ -94,6 +117,50 @@ function prefixNode(parent: Node): Node | null {
   return null;
 }
 
+/** The `::`-joined text of a `scoped_type_identifier` (`crate::orders::Order`): its `path`
+ *  field (a scoped_identifier or a crate/self/super leaf) joined to its `name` type_identifier.
+ *  Returns undefined when the path field is type-rooted (`Outer::Inner`, not crate-absolute)
+ *  or structurally unexpected — so a non-crate-rooted type ref is never built. */
+function scopedTypePathText(node: Node): string | undefined {
+  const pathNode = node.childForFieldName('path');
+  const nameNode = node.childForFieldName('name');
+  if (pathNode === null || nameNode === null) return undefined;
+  const prefix = pathNode.type === 'scoped_identifier' ? pathText(pathNode) : leafRoot(pathNode);
+  if (prefix === undefined) return undefined;
+  return `${prefix}::${nameNode.text}`;
+}
+
+/** The text of a path-ROOT leaf node, but ONLY for the crate-relative roots
+ *  (`crate` / `super` / `self`). Any other leaf (a bare `identifier`, a `type_identifier`)
+ *  returns undefined so a non-crate-rooted path is not built. */
+function leafRoot(node: Node): string | undefined {
+  if (node.type === 'crate' || node.type === 'super' || node.type === 'self') return node.text;
+  return undefined;
+}
+
+/** True when the `::`-path's root segment is a crate-relative marker (`crate`/`self`/`super`)
+ *  — the only roots that resolve deterministically shadow-free. A bare-identifier root
+ *  (`foo::Bar`, an external crate or a `use`-bound alias) is excluded. */
+function isCrateRelativeRoot(specifier: string): boolean {
+  const root = specifier.split('::', 1)[0];
+  return root === 'crate' || root === 'self' || root === 'super';
+}
+
+/** True when `modItem` is preceded by a `#[path = "…"]` attribute that overrides its
+ *  conventional file location. Attributes parse as preceding `attribute_item` siblings. */
+function modHasPathOverride(modItem: Node): boolean {
+  let sib: Node | null = modItem.previousNamedSibling;
+  while (sib !== null && sib.type === 'attribute_item') {
+    const attr = sib.namedChild(0); // attribute
+    if (attr !== null && attr.type === 'attribute') {
+      const id = attr.namedChild(0);
+      if (id !== null && id.type === 'identifier' && id.text === 'path') return true;
+    }
+    sib = sib.previousNamedSibling;
+  }
+  return false;
+}
+
 function uses(file: ParsedFile): DetectedDep[] {
   const out: DetectedDep[] = [];
   const seen = new Set<string>();
@@ -104,7 +171,14 @@ function uses(file: ParsedFile): DetectedDep[] {
     const dedupKey = `${specifier} ${line}`;
     if (seen.has(dedupKey)) return;
     seen.add(dedupKey);
-    out.push({ targetHint: { kind: 'path', specifier }, kind: 'import', line });
+    out.push(single({ kind: 'path', specifier }, 'import', line));
+  };
+
+  /** Emit an inline path ONLY when it is crate-relative (`crate`/`self`/`super` root). */
+  const emitInline = (specifier: string | undefined, node: Node): void => {
+    if (specifier === undefined || specifier === '') return;
+    if (!isCrateRelativeRoot(specifier)) return;
+    emit(specifier, node);
   };
 
   // Resolve one `use` argument node (or a list item) to its specifier and emit.
@@ -176,6 +250,37 @@ function uses(file: ParsedFile): DetectedDep[] {
       if (arg !== null) handleArgument(arg, '');
       return false; // do not descend into the use tree again
     }
+
+    // File-backed `mod foo;` (no body) → the submodule file, addressed as `self::foo`. A
+    // `#[path]`-overridden mod is skipped (silence); an inline `mod foo { … }` (body present)
+    // emits nothing here and is descended into so its own paths are caught.
+    if (node.type === 'mod_item') {
+      const body = node.childForFieldName('body');
+      if (body === null && !modHasPathOverride(node)) {
+        const name = node.childForFieldName('name');
+        if (name !== null) emit(`self::${name.text}`, node);
+      }
+      return undefined;
+    }
+
+    // Inline FQN in TYPE position — the outermost scoped_type_identifier carries the full path.
+    if (node.type === 'scoped_type_identifier' && node.parent?.type !== 'scoped_type_identifier') {
+      emitInline(scopedTypePathText(node), node);
+      return undefined;
+    }
+
+    // Inline FQN in EXPRESSION position — the outermost scoped_identifier (a call/macro path,
+    // an associated-fn path). Inner scoped_identifiers (incl. the `path` of a
+    // scoped_type_identifier) have a scoped parent and are skipped.
+    if (
+      node.type === 'scoped_identifier' &&
+      node.parent?.type !== 'scoped_identifier' &&
+      node.parent?.type !== 'scoped_type_identifier'
+    ) {
+      emitInline(pathText(node), node);
+      return undefined;
+    }
+
     return undefined;
   });
 

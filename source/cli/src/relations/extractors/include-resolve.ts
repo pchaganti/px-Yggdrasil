@@ -17,16 +17,14 @@ import path from 'node:path';
  * index maps it to nothing and the dependency is SILENT (a coverage matter, never a
  * violation) — the resolver's job ends at producing the file path.
  *
- * Resolution order (first existing candidate wins; a MISS → undefined, i.e. SILENCE — the
- * single most important false-positive guard, because real includes resolve through
- * compiler -I flags this resolver cannot see):
- *   1. Relative to the including file's directory: `<dir-of-includer>/<headerPath>`,
- *      normalized. This is the canonical meaning of a quoted include and the dominant
- *      case (`#include "../inc/foo.h"`, `#include "sibling.h"`).
- *   2. A few common include ROOTS, tried by walking up the includer's ancestor directories
- *      (nearest first): for each ancestor dir D, probe `<D>/<headerPath>` and
- *      `<D>/include/<headerPath>`. This covers the conventional `-Iinclude` /
- *      project-root include layouts without guessing arbitrary -I paths.
+ * Resolution is the canonical quoted-include semantics ONLY: resolve relative to the
+ * including file's directory (`<dir-of-includer>/<headerPath>`, normalized). A MISS →
+ * undefined, i.e. SILENCE — the single most important false-positive guard, because real
+ * includes resolve through compiler -I flags this resolver cannot see. We deliberately do
+ * NOT probe speculative include roots (ancestor dirs or their `include/` subdirs): such a
+ * probe can only match a same-basename decoy the compiler would not pick, which would
+ * manufacture a false dependency edge. Handles the dominant cases `#include "sibling.h"`
+ * and `#include "../inc/foo.h"`; a header reachable only via an unseen -I root stays silent.
  *
  * Angle includes (`<stdio.h>`) and macro includes (`#include HDR`) never reach this
  * resolver — the extractor skips them — so a system/third-party header can never be
@@ -41,24 +39,15 @@ export function resolveIncludePath(
 
   const fromDir = path.posix.dirname(toPosix(fromFile));
 
-  // 1. Relative to the including file's directory (canonical quoted-include semantics).
+  // The canonical quoted-include semantics: resolve relative to the including file's
+  // directory only. A miss → undefined (silence). We deliberately do NOT probe
+  // speculative include roots (ancestor dirs / `include/` subdirs): the real include
+  // path is set by compiler -I flags this resolver cannot see, so an ancestor probe
+  // can only ever match a SAME-BASENAME DECOY that the compiler would not pick —
+  // manufacturing a false dependency edge. Silence on doubt (trade recall for zero
+  // false positives) is the rule.
   const relative = normalizeRepoRel(path.posix.join(fromDir, headerPath));
   if (relative !== undefined && exists(relative)) return relative;
-
-  // 2. Common include roots: walk up the includer's ancestors (nearest first), probing
-  //    `<ancestor>/<headerPath>` and `<ancestor>/include/<headerPath>`.
-  let dir = fromDir === '.' ? '' : fromDir;
-  for (;;) {
-    const atRoot = normalizeRepoRel(dir === '' ? headerPath : path.posix.join(dir, headerPath));
-    if (atRoot !== undefined && exists(atRoot)) return atRoot;
-
-    const underInclude = normalizeRepoRel(path.posix.join(dir, 'include', headerPath));
-    if (underInclude !== undefined && exists(underInclude)) return underInclude;
-
-    if (dir === '') break; // reached the repo root
-    const parent = path.posix.dirname(dir);
-    dir = parent === '.' ? '' : parent;
-  }
 
   return undefined; // miss → silence
 }

@@ -5,14 +5,14 @@ import { rustExtractor } from '../../../../src/relations/extractors/rust.js';
 const run = (code: string) => runExtractor(rustExtractor, 'rust', '.rs', code);
 
 const specs = (uses: Awaited<ReturnType<typeof run>>['uses']): string[] =>
-  uses.flatMap((u) => (u.targetHint.kind === 'path' ? [u.targetHint.specifier] : []));
+  uses.flatMap((u) => (u.candidates[0].kind === 'path' ? [u.candidates[0].specifier] : []));
 
 describe('rust extractor — uses()', () => {
   it('detects a single `use crate::payments::charge;` as the crate-relative path hint', async () => {
     const { uses } = await run('use crate::payments::charge;');
     expect(uses).toContainEqual(
       expect.objectContaining({
-        targetHint: { kind: 'path', specifier: 'crate::payments::charge' },
+        candidates: [{ kind: 'path', specifier: 'crate::payments::charge' }],
         kind: 'import',
       }),
     );

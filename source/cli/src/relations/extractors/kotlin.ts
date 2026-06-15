@@ -1,6 +1,7 @@
 import type { Node } from 'web-tree-sitter';
 import { walk } from '../../ast/walk.js';
 import type { DependencyExtractor, DetectedDep, DeclaredSymbol, ParsedFile } from './types.js';
+import { single } from './types.js';
 
 /**
  * Kotlin dependency extractor — the FIRST language that resolves through the shared
@@ -52,6 +53,21 @@ import type { DependencyExtractor, DetectedDep, DeclaredSymbol, ParsedFile } fro
  * stdlib / external imports (`kotlin.*`, `kotlinx.*`, `java.*`, AndroidX, third-party)
  * still emit a symbol hint here — silence is the SymbolTable's job (an FQN no in-graph
  * file declares resolves to undefined and is never flagged).
+ *
+ * INLINE FULLY-QUALIFIED TYPE references (`val x: app.dto.Req`, `: app.base.Base()`
+ * supertype, `List<app.dto.Item>`) ARE emitted — as symbol hints, exactly like imports. A
+ * fully-qualified type written without an import appears as a `user_type` whose leading
+ * children are the dotted `identifier` segments. This node type occurs ONLY in TYPE
+ * positions: an EXPRESSION-position dotted reference (`app.logging.Logger()`) parses as a
+ * `navigation_expression` chain, never a `user_type`, so reading `user_type` captures type
+ * references exclusively and never the member-access ambiguity. Only a MULTI-segment
+ * user_type (≥2 dotted identifiers) is emitted — a bare `String` is import/same-package
+ * resolved and stays silent. Resolution is the SymbolTable's distinct-file rule, so a name
+ * that could bind two ways silences; an import-qualified nested ref (`Outer.Inner`, whose
+ * `Outer` carries an import that already covers the edge) matches no package-qualified key
+ * and stays silent — detection is additive recall with zero false positives. A type's
+ * generic ARGUMENTS are nested `user_type`s and are emitted independently; the leading
+ * segment collection stops at the first non-identifier child (the `type_arguments`).
  */
 
 /** The FQN `qualified_identifier` child of an `import` node, as dotted text. A
@@ -67,20 +83,41 @@ function importFqn(decl: Node): string | undefined {
   return undefined;
 }
 
+/** The dotted FQN of a `user_type`: its LEADING `identifier` children joined by `.`,
+ *  stopping at the first non-identifier child (a `type_arguments` generic list). Returns
+ *  undefined for a single-segment type (`String`) — not a fully-qualified reference. */
+function dottedUserType(node: Node): string | undefined {
+  const segs: string[] = [];
+  for (let i = 0; i < node.namedChildCount; i++) {
+    const c = node.namedChild(i);
+    if (c === null) continue;
+    if (c.type === 'identifier') segs.push(c.text);
+    else break; // type_arguments / nested structure → stop the dotted prefix
+  }
+  return segs.length >= 2 ? segs.join('.') : undefined;
+}
+
 function uses(file: ParsedFile): DetectedDep[] {
   const out: DetectedDep[] = [];
   const seen = new Set<string>();
 
-  const emit = (symbolKey: string | undefined, node: Node): void => {
+  const emit = (symbolKey: string | undefined, node: Node, kind: 'import' | 'type-ref' = 'import'): void => {
     if (symbolKey === undefined || symbolKey === '') return;
     const line = node.startPosition.row + 1;
     const dedupKey = `${symbolKey} ${line}`;
     if (seen.has(dedupKey)) return;
     seen.add(dedupKey);
-    out.push({ targetHint: { kind: 'symbol', symbolKey }, kind: 'import', line });
+    out.push(single({ kind: 'symbol', symbolKey }, kind, line));
   };
 
   walk(file.tree.rootNode, (node) => {
+    // Inline FQN type reference: a multi-segment `user_type` (type position only — an
+    // expression-position dotted reference is a navigation_expression, never a user_type).
+    if (node.type === 'user_type') {
+      emit(dottedUserType(node), node, 'type-ref');
+      return undefined;
+    }
+
     // Match the NAMED `import` node, never the bare `import` keyword token.
     if (node.type !== 'import' || !node.isNamed) return undefined;
     // The FQN is the qualified_identifier text. For a wildcard the text is already the
@@ -139,12 +176,59 @@ const DECLARATION_TYPES = new Set([
   'type_alias',
 ]);
 
+/** The classifier nodes a nested declaration can sit INSIDE — its enclosing-type chain.
+ *  `class`/`interface` (`class_declaration`), `object` (`object_declaration`), and a
+ *  `companion object` (`companion_object`, whose JVM/source name is `Companion`). A
+ *  `function_declaration` is NEVER an enclosing TYPE (a local class inside a function is not
+ *  importable from outside), so it is excluded from the chain. */
+const ENCLOSING_TYPE_TYPES = new Set([
+  'class_declaration',
+  'object_declaration',
+  'companion_object',
+]);
+
+/** The enclosing-TYPE chain of `node`, read from its ancestor chain, outermost-first. A
+ *  nested `class Inner` inside `class Outer` yields `["Outer"]`; deeper nesting yields
+ *  `["Outer", "Mid"]`; a member inside a `companion object` yields `["Outer", "Companion"]`.
+ *  Empty when the declaration is top-level (not nested in another type). Joined with the
+ *  declaration's own simple name by the reflection separator `+` (Kotlin's JVM binary name
+ *  is `Outer$Inner`; the analyzer's canonical key is `Outer+Inner` — same boundary), which
+ *  is DISJOINT from the package `.` so a nested key lives in a string space no dot-only use
+ *  candidate can match (separator isolation). This is what stops a nested `Inner` from being
+ *  keyed as the bare top-level `<package>.Inner` and silencing — or mis-binding — a real
+ *  top-level type of the same simple name in another node. */
+function enclosingTypeChain(node: Node): string[] {
+  const parts: string[] = [];
+  let cur: Node | null = node.parent;
+  while (cur !== null) {
+    if (ENCLOSING_TYPE_TYPES.has(cur.type)) {
+      // A `companion object` has no `name` field — its canonical name is `Companion`.
+      const name = cur.type === 'companion_object' ? 'Companion' : cur.childForFieldName('name')?.text;
+      if (name !== undefined && name !== '') parts.unshift(name);
+    }
+    cur = cur.parent;
+  }
+  return parts;
+}
+
 /**
  * The FULLY-QUALIFIED symbol keys this file DEFINES. Reads the file's `package_header`
  * (the package FQN, possibly empty for a root-package / `.kts` file), then for each
- * declaration (top-level AND nested — nesting does not change the owning node, so the
- * extra names are harmless and let `Outer.Inner`-style qualified access resolve in the
- * future) emits `<package>.<Name>`, or just `<Name>` when the package is empty.
+ * declaration (top-level AND nested) emits `<package>.<TypeKey>`, or just `<TypeKey>` when
+ * the package is empty.
+ *
+ * `<TypeKey>` is the enclosing-TYPE chain joined to the declaration's own simple name by the
+ * reflection separator `+`: a top-level `Order` is `Order`; a nested `Inner` inside `Outer`
+ * is `Outer+Inner`; a member of a `companion object` is `Outer+Companion+member`. A NESTED
+ * declaration emits ONLY its `+` key — NEVER also the bare `<package>.<SimpleName>`. Keying
+ * a nested type flat (the v1 bug) manufactured a phantom top-level FQN: a `class Outer { class
+ * Inner }` produced `<package>.Inner`, which a consumer's `import <package>.Inner` (in Kotlin
+ * that names a TOP-LEVEL type, never the nested `Outer.Inner`) would mis-bind to this file —
+ * a false positive — or which would collide with a real top-level `<package>.Inner` in another
+ * node and silence its legitimate edge. The `+` key lives in a string space disjoint from the
+ * dot-only namespace, so it cannot collide; a use of `import <package>.Outer.Inner` resolves
+ * to it through the resolver's guarded `+`-boundary split (`Outer` is a declared type → split
+ * to `<package>.Outer+Inner`).
  *
  * These keys feed the shared SymbolTable; a use's import FQN resolves against them.
  */
@@ -168,7 +252,8 @@ function declarations(file: ParsedFile): DeclaredSymbol[] {
     if (!DECLARATION_TYPES.has(node.type)) return undefined;
     const name = declarationName(node);
     if (name === undefined || name === '') return undefined;
-    const symbolKey = pkg === '' ? name : `${pkg}.${name}`;
+    const typeKey = [...enclosingTypeChain(node), name].join('+');
+    const symbolKey = pkg === '' ? typeKey : `${pkg}.${typeKey}`;
     out.push({ symbolKey, line: node.startPosition.row + 1 });
     return undefined;
   });

@@ -24,7 +24,7 @@ const stubExtractor: DependencyExtractor = {
   },
   uses(file: ParsedFile): DetectedDep[] {
     if (file.path.endsWith('src/a/foo.ts')) {
-      return [{ targetHint: { kind: 'path', specifier: '../b/bar' }, kind: 'import', line: 1 }];
+      return [{ candidates: [{ kind: 'path', specifier: '../b/bar' }], kind: 'import', line: 1 }];
     }
     return [];
   },
@@ -84,8 +84,8 @@ describe('runRelationPass (integration)', () => {
       symbolIndexDir: path.join(root, '.yg-cache'),
     });
 
-    const a = result.verdicts.get('a');
-    const b = result.verdicts.get('b');
+    const a = result.violationsByNode.get('a');
+    const b = result.violationsByNode.get('b');
 
     expect(a).toBeDefined();
     expect(a!.verdict).toBe('refused');
@@ -97,15 +97,6 @@ describe('runRelationPass (integration)', () => {
     expect(b).toBeDefined();
     expect(b!.verdict).toBe('approved');
     expect(b!.violations).toHaveLength(0);
-
-    // The refused node carries its fingerprint evidence — at least the one
-    // detected cross-node dependency that drove the refusal.
-    expect(a!.evidence.outcomes.length).toBeGreaterThanOrEqual(1);
-
-    // Fingerprints are populated and distinct between the two nodes.
-    expect(typeof a!.fingerprint).toBe('string');
-    expect(a!.fingerprint.length).toBeGreaterThan(0);
-    expect(a!.fingerprint).not.toBe(b!.fingerprint);
   });
 
   it('sanctions a dependency on a NESTED node when a relation to its ancestor is declared', async () => {
@@ -138,8 +129,8 @@ describe('runRelationPass (integration)', () => {
     });
 
     // a depends on b/sub but declares a relation to the ancestor b → sanctioned.
-    expect(result.verdicts.get('a')!.verdict).toBe('approved');
-    expect(result.verdicts.get('a')!.violations).toHaveLength(0);
+    expect(result.violationsByNode.get('a')!.verdict).toBe('approved');
+    expect(result.violationsByNode.get('a')!.violations).toHaveLength(0);
   });
 });
 
@@ -151,7 +142,7 @@ const nestedStub: DependencyExtractor = {
   },
   uses(file: ParsedFile): DetectedDep[] {
     if (file.path.endsWith('src/a/foo.ts')) {
-      return [{ targetHint: { kind: 'path', specifier: '../b/sub/deep' }, kind: 'import', line: 1 }];
+      return [{ candidates: [{ kind: 'path', specifier: '../b/sub/deep' }], kind: 'import', line: 1 }];
     }
     return [];
   },

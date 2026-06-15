@@ -10,9 +10,9 @@ import { parseFile } from '../../../../src/ast/parser.js';
 const run = (code: string) => runExtractor(rubyExtractor, 'ruby', '.rb', code);
 
 const symbolKeys = (uses: DetectedDep[]): string[] =>
-  uses.flatMap((u) => (u.targetHint.kind === 'symbol' ? [u.targetHint.symbolKey] : []));
+  uses.flatMap((u) => (u.candidates[0].kind === 'symbol' ? [u.candidates[0].symbolKey] : []));
 const pathSpecs = (uses: DetectedDep[]): string[] =>
-  uses.flatMap((u) => (u.targetHint.kind === 'path' ? [u.targetHint.specifier] : []));
+  uses.flatMap((u) => (u.candidates[0].kind === 'path' ? [u.candidates[0].specifier] : []));
 
 async function parse(repoRel: string, code: string): Promise<ParsedFile> {
   ensureLoaderRegistered();
@@ -25,7 +25,7 @@ describe('ruby extractor — uses() emits PATH hints (require_relative)', () => 
     const { uses } = await run("require_relative '../services/order_service'\n");
     expect(uses).toContainEqual(
       expect.objectContaining({
-        targetHint: { kind: 'path', specifier: '../services/order_service' },
+        candidates: [{ kind: 'path', specifier: '../services/order_service' }],
         kind: 'import',
       }),
     );
@@ -33,7 +33,7 @@ describe('ruby extractor — uses() emits PATH hints (require_relative)', () => 
 
   it('carries a 1-based line number for the require_relative hint', async () => {
     const { uses } = await run("\n\nrequire_relative './helper'\n");
-    const hint = uses.find((u) => u.targetHint.kind === 'path');
+    const hint = uses.find((u) => u.candidates[0].kind === 'path');
     expect(hint?.line).toBe(3);
   });
 
@@ -231,12 +231,12 @@ describe('ruby SYMBOL-TABLE resolution — unique resolves, reopened silences', 
     const consumer = await parse('src/b/order_service.rb', 'class OrderService < BaseService\nend\n');
 
     const st = new SymbolTable();
-    for (const d of rubyExtractor.declarations(fileA)) st.declare(d.symbolKey, fileA.path);
+    for (const d of rubyExtractor.declarations(fileA)) st.declare('ruby', d.symbolKey, fileA.path);
 
-    expect(st.resolveUnique('BaseService')).toBe('src/a/base_service.rb');
+    expect(st.resolveUnique('ruby', 'BaseService')).toBe('src/a/base_service.rb');
 
-    const importHint = rubyExtractor.uses(consumer).find((u) => u.targetHint.kind === 'symbol')!;
-    expect(importHint.targetHint).toEqual({ kind: 'symbol', symbolKey: 'BaseService' });
+    const importHint = rubyExtractor.uses(consumer).find((u) => u.candidates[0].kind === 'symbol')!;
+    expect(importHint.candidates[0]).toEqual({ kind: 'symbol', symbolKey: 'BaseService' });
 
     const ownerIndex = { ownerOf: (f: string) => (f === 'src/a/base_service.rb' ? 'a' : undefined) };
     const resolver = makeResolver({
@@ -244,7 +244,7 @@ describe('ruby SYMBOL-TABLE resolution — unique resolves, reopened silences', 
       symbolTable: st,
       resolvePathToFile: () => undefined,
     });
-    expect(resolver.resolve(importHint.targetHint, consumer.path, 'ruby')).toEqual({
+    expect(resolver.resolve(importHint.candidates[0], consumer.path, 'ruby')).toEqual({
       ownerNode: 'a',
       resolvedFile: 'src/a/base_service.rb',
     });
@@ -258,10 +258,10 @@ describe('ruby SYMBOL-TABLE resolution — unique resolves, reopened silences', 
 
     const st = new SymbolTable();
     for (const f of [fileX, fileY]) {
-      for (const d of rubyExtractor.declarations(f)) st.declare(d.symbolKey, f.path);
+      for (const d of rubyExtractor.declarations(f)) st.declare('ruby', d.symbolKey, f.path);
     }
 
-    expect(st.resolveUnique('Widget')).toBeUndefined();
+    expect(st.resolveUnique('ruby', 'Widget')).toBeUndefined();
 
     const ownerIndex = { ownerOf: () => 'someNode' };
     const resolver = makeResolver({
@@ -269,13 +269,81 @@ describe('ruby SYMBOL-TABLE resolution — unique resolves, reopened silences', 
       symbolTable: st,
       resolvePathToFile: () => undefined,
     });
-    const hint = rubyExtractor.uses(consumer).find((u) => u.targetHint.kind === 'symbol')!;
-    expect(resolver.resolve(hint.targetHint, consumer.path, 'ruby')).toBeUndefined();
+    const hint = rubyExtractor.uses(consumer).find((u) => u.candidates[0].kind === 'symbol')!;
+    expect(resolver.resolve(hint.candidates[0], consumer.path, 'ruby')).toBeUndefined();
   });
 });
 
 describe('ruby extractor — registry wiring', () => {
   it('declares the ruby language', () => {
     expect(rubyExtractor.languages.has('ruby')).toBe(true);
+  });
+});
+
+describe('ruby extractor — C1: bare constants inside a namespace are suppressed (zero-FP)', () => {
+  it('SUPPRESSES a bare unqualified constant used inside a module body', async () => {
+    // `Helper` inside `module App` lexically resolves to App::Helper (or a top-level
+    // Helper) — never to a uniquely-defined top-level Helper owned by another node.
+    const { uses } = await run(['module App', '  x = Helper', 'end', ''].join('\n'));
+    expect(symbolKeys(uses)).not.toContain('Helper');
+    expect(symbolKeys(uses)).toHaveLength(0);
+  });
+
+  it('SUPPRESSES a bare unqualified superclass inside a nested namespace', async () => {
+    // `class Widget < Base` nested in module App — `Base` is bare → suppressed.
+    const { uses } = await run(
+      ['module App', '  class Widget < Base', '  end', 'end', ''].join('\n'),
+    );
+    expect(symbolKeys(uses)).not.toContain('Base');
+    expect(symbolKeys(uses)).toHaveLength(0);
+  });
+
+  it('SUPPRESSES a bare mixin argument inside a module body', async () => {
+    const { uses } = await run(
+      ['module App', '  class C', '    include Loggable', '  end', 'end', ''].join('\n'),
+    );
+    expect(symbolKeys(uses)).not.toContain('Loggable');
+    expect(symbolKeys(uses)).toHaveLength(0);
+  });
+
+  // ---- PAIRED POSITIVES: do NOT over-silence real cross-node references ----
+
+  it('STILL emits a ::-rooted absolute constant used inside a namespace (key stripped)', async () => {
+    const { uses } = await run(['module App', '  x = ::TopHelper', 'end', ''].join('\n'));
+    // The ::-prefix makes it a complete top-level path — no lexical shadowing risk.
+    expect(symbolKeys(uses)).toContain('TopHelper');
+  });
+
+  it('STILL emits a ::-qualified (dotted) constant used inside a namespace', async () => {
+    const { uses } = await run(['module App', '  x = Payments::Gateway', 'end', ''].join('\n'));
+    expect(symbolKeys(uses)).toContain('Payments::Gateway');
+  });
+
+  it('STILL emits a bare constant used at TOP LEVEL (no enclosing namespace)', async () => {
+    // Regression guard: the existing top-level behavior is unchanged.
+    const { uses } = await run('x = Helper\n');
+    expect(symbolKeys(uses)).toContain('Helper');
+  });
+
+  it('STILL emits a top-level superclass and a top-level mixin (depth 0)', async () => {
+    const { uses } = await run(
+      ['class OrderService < BaseService', '  include Loggable', 'end', ''].join('\n'),
+    );
+    const keys = symbolKeys(uses);
+    expect(keys).toContain('BaseService');
+    expect(keys).toContain('Loggable');
+  });
+
+  it('SUPPRESSES a bare value-use constant inside a (top-level) class body', async () => {
+    // A class IS a constant namespace in Ruby: a bare `Helper` inside `class Order`
+    // lexically resolves to Order::Helper (if defined) or top-level Helper — never
+    // reliably to a uniquely-defined top-level Helper in another node. Zero-FP.
+    const { uses } = await run(['class Order', '  def run', '    Helper.go', '  end', 'end', ''].join('\n'));
+    expect(symbolKeys(uses)).not.toContain('Helper');
+  });
+
+  it('STILL emits a ::-rooted reference inside a class body (complete path, no shadow risk)', async () => {
+    const { uses } = await run(['class Order', '  def run', '    ::TopHelper.go', '  end', 'end', ''].join('\n'));
+    expect(symbolKeys(uses)).toContain('TopHelper');
   });
 });

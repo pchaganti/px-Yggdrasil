@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { resolveTsPath } from './extractors/typescript-resolve.js';
 import { resolvePythonModule } from './extractors/python-resolve.js';
 import { resolveGoImport, type GoResolveDeps } from './extractors/go-resolve.js';
-import { resolveJavaFqn, type JavaResolveDeps } from './extractors/java-resolve.js';
+import { resolveJavaFqn, resolveJavaPackageFiles, type JavaResolveDeps } from './extractors/java-resolve.js';
 import { resolvePhpFqn, parsePsr4, type PhpResolveDeps } from './extractors/php-resolve.js';
 import { resolveRustPath, type RustResolveDeps } from './extractors/rust-resolve.js';
 import { resolveIncludePath } from './extractors/include-resolve.js';
@@ -12,13 +12,16 @@ import { resolveRubyRequireRelative } from './extractors/ruby-resolve.js';
 /** Production resolvePathToFile: dispatches by language to the per-language path resolver.
  *  Checks existence against the project's files on disk. Symbol-resolved languages (and
  *  not-yet-implemented ones) return undefined here — they resolve via the SymbolTable. */
-export function makeResolvePathToFile(projectRoot: string): (specifier: string, fromFile: string, language: string) => string | undefined {
+export function makeResolvePathToFile(
+  projectRoot: string,
+  ownerOf?: (repoRelPosix: string) => string | undefined,
+): (specifier: string, fromFile: string, language: string, isPackage?: boolean) => string | undefined {
   const exists = (repoRelPosix: string): boolean => existsSync(path.resolve(projectRoot, repoRelPosix));
-  const goDeps = makeGoResolveDeps(projectRoot);
+  const goDeps = makeGoResolveDeps(projectRoot, ownerOf);
   const javaDeps = makeJavaResolveDeps(projectRoot, exists);
   const phpDeps = makePhpResolveDeps(projectRoot, exists);
   const rustDeps = makeRustResolveDeps(projectRoot);
-  return (specifier, fromFile, language) => {
+  return (specifier, fromFile, language, isPackage = false) => {
     if (language === 'typescript' || language === 'tsx' || language === 'javascript') {
       return resolveTsPath(specifier, fromFile, exists);
     }
@@ -29,6 +32,21 @@ export function makeResolvePathToFile(projectRoot: string): (specifier: string, 
       return resolveGoImport(specifier, fromFile, goDeps);
     }
     if (language === 'java') {
+      if (isPackage) {
+        // Wildcard package import: collect owners of ALL .java in the resolved
+        // package dir. Exactly one distinct owner → attribute (return that file);
+        // zero or 2+ distinct owners → silence (S2/S3 — never guess across a split).
+        const files = resolveJavaPackageFiles(specifier, fromFile, javaDeps);
+        const owners = new Set<string>();
+        let firstFile: string | undefined;
+        for (const f of files) {
+          const owner = ownerOf?.(f);
+          if (owner === undefined) continue; // unmapped file is not part of the owner set
+          if (owners.size === 0) firstFile = f;
+          owners.add(owner);
+        }
+        return owners.size === 1 ? firstFile : undefined;
+      }
       return resolveJavaFqn(specifier, fromFile, javaDeps);
     }
     if (language === 'php') {
@@ -65,7 +83,7 @@ export function makeResolvePathToFile(projectRoot: string): (specifier: string, 
  * No Cargo.toml ancestor → undefined crate root, which the resolver treats as silence
  * (it never guesses a source root).
  *
- * NOTE: makeResolvePathToFile is also used by verify.ts (parse-free re-validation);
+ * NOTE: makeResolvePathToFile's deps are pure filesystem access;
  * reading Cargo.toml there is fine — it reads a file, it does not parse source.
  */
 function makeRustResolveDeps(projectRoot: string): RustResolveDeps {
@@ -134,10 +152,13 @@ function makeRustResolveDeps(projectRoot: string): RustResolveDeps {
  * single factory instance, so each module root is read at most once. Listing the
  * package directory (readdirSync) is the only per-import disk touch.
  *
- * NOTE: makeResolvePathToFile is also used by verify.ts (parse-free re-validation);
+ * NOTE: makeResolvePathToFile's deps are pure filesystem access;
  * reading go.mod + readdirSync is fine there — it lists/reads files, it does not parse.
  */
-function makeGoResolveDeps(projectRoot: string): GoResolveDeps {
+function makeGoResolveDeps(
+  projectRoot: string,
+  ownerOf?: (repoRelPosix: string) => string | undefined,
+): GoResolveDeps {
   // Cache: go.mod directory (repo-rel POSIX, '' = root) → module path or undefined.
   const moduleByDir = new Map<string, string | undefined>();
 
@@ -162,20 +183,27 @@ function makeGoResolveDeps(projectRoot: string): GoResolveDeps {
   }
 
   /** Find the nearest ancestor directory of `fromFile` that contains a go.mod, then
-   *  return its module path. Walks up to (and including) the project root. */
-  function modulePathFor(fromFile: string): string | undefined {
+   *  return its module path AND that directory. The directory (repo-rel POSIX, '' =
+   *  root) is the go.mod-bearing module root — required so a NESTED submodule's
+   *  packages root under the submodule dir, not the repo root. `moduleByDir` is keyed
+   *  by the go.mod directory and stores the module path declared by the go.mod IN
+   *  that exact dir, so the `dir` at the point of return IS that module's directory.
+   *  Walks up to (and including) the project root. */
+  function modulePathFor(
+    fromFile: string,
+  ): { modulePath: string; moduleDir: string } | undefined {
     let dir = path.posix.dirname(toPosix(fromFile));
     if (dir === '.') dir = '';
     for (;;) {
       if (moduleByDir.has(dir)) {
         const cached = moduleByDir.get(dir);
-        if (cached !== undefined) return cached;
+        if (cached !== undefined) return { modulePath: cached, moduleDir: dir };
       } else {
         const mod = existsSync(path.join(projectRoot, dir, 'go.mod'))
           ? readModulePath(dir)
           : undefined;
         moduleByDir.set(dir, mod);
-        if (mod !== undefined) return mod;
+        if (mod !== undefined) return { modulePath: mod, moduleDir: dir };
       }
       if (dir === '') return undefined; // reached the root without a usable go.mod
       const parent = path.posix.dirname(dir);
@@ -209,7 +237,7 @@ function makeGoResolveDeps(projectRoot: string): GoResolveDeps {
     return out;
   }
 
-  return { modulePathFor, dirExists, goFilesIn };
+  return { modulePathFor, dirExists, goFilesIn, ownerOf };
 }
 
 /**
@@ -218,7 +246,7 @@ function makeGoResolveDeps(projectRoot: string): GoResolveDeps {
  * so `exists` is shared with the other resolvers; the only extra capability is
  * listing a package directory's `.java` files for a wildcard import.
  *
- * NOTE: makeResolvePathToFile is also used by verify.ts (parse-free re-validation);
+ * NOTE: makeResolvePathToFile's deps are pure filesystem access;
  * readdirSync is fine there — it lists files, it does not parse.
  */
 function makeJavaResolveDeps(
@@ -256,7 +284,7 @@ function makeJavaResolveDeps(
  * No composer.json found (or an unreadable / classmap-only one) yields an empty map,
  * which the resolver treats as silence — it never guesses a source root.
  *
- * NOTE: makeResolvePathToFile is also used by verify.ts (parse-free re-validation);
+ * NOTE: makeResolvePathToFile's deps are pure filesystem access;
  * reading composer.json there is fine — it reads a file, it does not parse source.
  */
 function makePhpResolveDeps(

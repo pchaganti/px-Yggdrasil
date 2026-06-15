@@ -7,6 +7,7 @@ import {
   rmSync,
   writeFileSync,
   cpSync,
+  readFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -49,7 +50,11 @@ function writeFile(root: string, rel: string, content: string): void {
  * deterministic relation-conformance pass (no aspects → no LLM needed).
  * `withRelation` controls whether a declares the `uses` relation to b.
  */
-function buildRepo(label: string, withRelation: boolean): string {
+function buildRepo(
+  label: string,
+  withRelation: boolean,
+  fooSource = "import { x } from '../b/bar.js';\nexport const foo = x;\n",
+): string {
   const root = mkdtempSync(path.join(tmpdir(), `yg-rel-ts-${label}-`));
 
   // Schemas: a graph without them raises blocking schema-missing errors that
@@ -108,7 +113,7 @@ function buildRepo(label: string, withRelation: boolean): string {
   writeFile(root, '.yggdrasil/model/a/yg-node.yaml', aNode);
 
   // Source — a/foo.ts depends on b/bar.ts (NodeNext '.js' specifier).
-  writeFile(root, 'src/a/foo.ts', "import { x } from '../b/bar.js';\nexport const foo = x;\n");
+  writeFile(root, 'src/a/foo.ts', fooSource);
   writeFile(root, 'src/b/bar.ts', 'export const x = 1;\n');
 
   return root;
@@ -125,6 +130,12 @@ describe.skipIf(!distExists)('CLI E2E — TypeScript relation conformance (live)
       // The refusal names the dependency target node and the importing file.
       expect(refused.all).toContain('b');
       expect(refused.all).toContain('src/a/foo.ts');
+
+      // Plain `yg check` (no --approve) catches the same undeclared dependency
+      // live — relations are computed every run, not read from a cache.
+      const plain = run(['check'], undeclared);
+      expect(plain.status).toBe(1);
+      expect(plain.all).toContain('relation-undeclared-dependency');
     } finally {
       rmSync(undeclared, { recursive: true, force: true });
     }
@@ -135,8 +146,31 @@ describe.skipIf(!distExists)('CLI E2E — TypeScript relation conformance (live)
       const ok = run(['check', '--approve'], declared);
       expect(ok.status).toBe(0);
       expect(ok.all).not.toContain('relation-undeclared-dependency');
+
+      // The lock carries no relation cache — relations are live, not stored.
+      const raw = readFileSync(path.join(declared, '.yggdrasil', 'yg-lock.json'), 'utf-8');
+      expect(raw).not.toContain('relation_verdicts');
+      expect(JSON.parse(raw).version).toBe(1);
     } finally {
       rmSync(declared, { recursive: true, force: true });
+    }
+  });
+
+  it('does NOT refuse an all-inline-type cross-node import (no runtime dependency)', () => {
+    // `import { type X } from '../b/bar.js'` erases at compile time — it is not a
+    // runtime dependency, so the undeclared-relation check must NOT fire even
+    // though node a declares no `uses` relation to b.
+    const typeOnly = buildRepo(
+      'typeonly',
+      false,
+      "import { type X } from '../b/bar.js';\nexport type Y = X;\n",
+    );
+    try {
+      const ok = run(['check', '--approve'], typeOnly);
+      expect(ok.all).not.toContain('relation-undeclared-dependency');
+      expect(ok.status).toBe(0);
+    } finally {
+      rmSync(typeOnly, { recursive: true, force: true });
     }
   });
 });

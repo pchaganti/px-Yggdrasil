@@ -1,18 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { LOCK_FORMAT_VERSION, nodeUnit, type LockFile, type RelationVerdict } from '../../../src/model/lock.js';
+import { LOCK_FORMAT_VERSION, type LockFile } from '../../../src/model/lock.js';
 
-describe('lock model — relation_verdicts', () => {
-  it('LOCK_FORMAT_VERSION is 2', () => {
-    expect(LOCK_FORMAT_VERSION).toBe(2);
+describe('lock model — v1, no relation cache', () => {
+  it('LOCK_FORMAT_VERSION is 1 (the relation-verdict v2 bump is reverted)', () => {
+    expect(LOCK_FORMAT_VERSION).toBe(1);
   });
-  it('LockFile carries a relation_verdicts map keyed by node unit', () => {
-    const v: RelationVerdict = {
-      verdict: 'refused',
-      fingerprint: 'abc',
-      reason: 'x imports y',
-      evidence: { sources: [], relations: '', outcomes: [], grammarVersions: [], indexIdentity: '' },
-    };
-    const lock: LockFile = { version: 2, verdicts: {}, nodes: {}, relation_verdicts: { [nodeUnit('a/b')]: v } };
-    expect(lock.relation_verdicts[nodeUnit('a/b')].verdict).toBe('refused');
+
+  it('a LockFile has no relation_verdicts field', () => {
+    const lock: LockFile = { version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: {} };
+    // @ts-expect-error relation_verdicts was removed from the LockFile type
+    expect(lock.relation_verdicts).toBeUndefined();
   });
 });

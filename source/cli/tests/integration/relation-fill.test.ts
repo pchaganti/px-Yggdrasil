@@ -1,19 +1,19 @@
 /**
- * Integration test for the relation-conformance pass wired into the
- * `yg check --approve` fill stage (core/fill.ts).
+ * Integration test for relation conformance under the `yg check --approve` fill
+ * stage (core/fill.ts) — now that relations are computed LIVE and never cached.
  *
- * This exercises the WIRING and the approved-persistence path, not the refusal
- * logic (the refused case is covered by tests/integration/relation-pass.test.ts
- * and the e2e relation-ts suite). TypeScript extraction is LIVE: node a's
+ * Relations are no longer written to the lock: there is no `relation_verdicts`
+ * section. `--approve` (runFill) ends with a live `runCheck` re-read whose
+ * relation result is the current truth; a plain `runCheck` (no --approve)
+ * computes the same result. TypeScript extraction is LIVE: node a's
  * `src/a/foo.ts` imports node b's file, so a genuinely depends on b. The fixture
  * DECLARES that dependency (a --uses--> b, an allowed service→service relation)
  * so the resolved cross-node edge is sanctioned and both nodes are approved. We
  * assert:
  *
- *   1. After runFill, lock.relation_verdicts['node:a'] and ['node:b'] both exist
- *      with verdict 'approved' — proving runFill runs the pass before the pool
- *      and persists its verdicts.
- *   2. GC prunes a relation verdict for a node path that is not in the graph.
+ *   1. After runFill, the lock has NO `relation_verdicts` and is format v1; the
+ *      live check carries no relation error; a separate plain runCheck agrees.
+ *   2. A plain runCheck (no --approve) catches a newly-undeclared dependency.
  *
  * The graph has ZERO LLM aspects, so runFill completes deterministically with no
  * reviewer calls (a reviewer section is still required — it gates --approve —
@@ -22,12 +22,12 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import path from 'node:path';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
 import { loadGraph } from '../../src/core/graph-loader.js';
 import { runFill } from '../../src/core/fill.js';
-import { readLock, writeLock } from '../../src/io/lock-store.js';
+import { runCheck } from '../../src/core/check.js';
 
 function writeNode(
   root: string,
@@ -92,48 +92,32 @@ describe('relation pass wired into runFill (integration)', () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  it('runFill runs the relation pass and persists an approved verdict per mapped node', async () => {
+  it('runFill writes NO relation_verdicts and the live check agrees on the relation result', async () => {
     const graph = await loadGraph(root);
-    await runFill(graph, { gitTrackedFiles: null, write: () => {} });
+    const fill = await runFill(graph, { gitTrackedFiles: null, write: () => {} });
 
-    const lock = readLock(graph.rootPath);
-    expect(lock.relation_verdicts['node:a']).toBeDefined();
-    expect(lock.relation_verdicts['node:a']?.verdict).toBe('approved');
-    expect(lock.relation_verdicts['node:b']).toBeDefined();
-    expect(lock.relation_verdicts['node:b']?.verdict).toBe('approved');
-    // Each verdict carries a fingerprint + evidence (parse-free re-validation input).
-    expect(typeof lock.relation_verdicts['node:a']?.fingerprint).toBe('string');
-    expect(lock.relation_verdicts['node:a']?.fingerprint.length).toBeGreaterThan(0);
-    expect(lock.relation_verdicts['node:a']?.evidence).toBeDefined();
+    // The lock has no relation cache at all — relations are computed live.
+    const raw = readFileSync(path.join(graph.rootPath, 'yg-lock.json'), 'utf-8');
+    expect(raw).not.toContain('relation_verdicts');
+    const parsed = JSON.parse(raw) as { version: number; relation_verdicts?: unknown };
+    expect(parsed.version).toBe(1);
+    expect(parsed.relation_verdicts).toBeUndefined();
+
+    // a --uses--> b is declared, so the live pass approves both → no relation error.
+    const liveIssues = fill.checkResult.issues.filter((i) => i.code === 'relation-undeclared-dependency');
+    expect(liveIssues).toHaveLength(0);
+
+    // A separate plain runCheck (live) reports the SAME relation result.
+    const check = await runCheck(await loadGraph(root), null);
+    expect(check.issues.filter((i) => i.code === 'relation-undeclared-dependency')).toHaveLength(0);
   });
 
-  it('GC prunes a relation verdict whose node path is not in the graph', async () => {
-    // First run populates relation_verdicts for the real nodes.
-    let graph = await loadGraph(root);
-    await runFill(graph, { gitTrackedFiles: null, write: () => {} });
-
-    // Inject a relation verdict for a node that does not exist, then re-fill.
-    const lock = readLock(graph.rootPath);
-    lock.relation_verdicts['node:ghost'] = {
-      verdict: 'approved',
-      fingerprint: 'deadbeef',
-      evidence: {
-        sources: [],
-        relations: 'x',
-        outcomes: [],
-        grammarVersions: [],
-        indexIdentity: 'y',
-      },
-    };
-    await writeLock(graph.rootPath, lock);
-
-    graph = await loadGraph(root);
-    await runFill(graph, { gitTrackedFiles: null, write: () => {} });
-
-    const after = readLock(graph.rootPath);
-    expect(after.relation_verdicts['node:ghost']).toBeUndefined();
-    // The real nodes' verdicts survive.
-    expect(after.relation_verdicts['node:a']).toBeDefined();
-    expect(after.relation_verdicts['node:b']).toBeDefined();
+  it('a plain runCheck (no --approve) catches a newly-undeclared dependency', async () => {
+    // Remove a's declared relation so the live import becomes undeclared.
+    writeNode(root, 'a', 'A', 'src/a'); // no relations stanza
+    const check = await runCheck(await loadGraph(root), null);
+    const aIssues = check.issues.filter((i) => i.code === 'relation-undeclared-dependency' && i.nodePath === 'a');
+    expect(aIssues).toHaveLength(1);
+    expect(aIssues[0].severity).toBe('error');
   });
 });

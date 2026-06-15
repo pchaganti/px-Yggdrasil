@@ -150,12 +150,32 @@ describe('makeResolvePathToFile — per-language dispatch (disk-backed)', () => 
     expect(resolve('com.foo.Bar', 'com/foo/App.java', 'java')).toBe('com/foo/Bar.java');
   });
 
-  it('resolves a Java wildcard package import to a representative .java in the package dir', () => {
+  it('returns undefined for a Java package FQN without isPackage=true (no fall-through)', () => {
     const resolve = makeResolvePathToFile(root);
-    // A PACKAGE FQN (wildcard import) → directory com/foo/ → lexically-first .java
-    // (listed via javaFilesIn). From a root-level file the ancestor walk reaches the
-    // package directory at the repo root.
-    expect(resolve('com.foo', 'src/Main.java', 'java')).toBe('com/foo/App.java');
+    // Without the isPackage flag, a package-directory FQN must NOT fall through to
+    // package resolution — the type guard returns undefined instead of a phantom edge.
+    expect(resolve('com.foo', 'src/Main.java', 'java')).toBeUndefined();
+  });
+
+  it('resolves a Java wildcard package import when isPackage=true and all files share one owner', () => {
+    // With isPackage=true and an ownerOf that maps both com/foo .java files to 'foo',
+    // the owner set has exactly one member → return the lexically-first file.
+    const ownerOf = (f: string): string | undefined =>
+      f.startsWith('com/foo/') && f.endsWith('.java') ? 'foo' : undefined;
+    const resolve = makeResolvePathToFile(root, ownerOf);
+    // From a root-level file the ancestor walk reaches com/foo/ at the repo root.
+    expect(resolve('com.foo', 'src/Main.java', 'java', true)).toBe('com/foo/App.java');
+  });
+
+  it('silences a Java wildcard package import when files split across two owners', () => {
+    // Two different owners → 2 distinct values in the owner set → silence (undefined).
+    const ownerOf = (f: string): string | undefined => {
+      if (f === 'com/foo/App.java') return 'node-a';
+      if (f === 'com/foo/Bar.java') return 'node-b';
+      return undefined;
+    };
+    const resolve = makeResolvePathToFile(root, ownerOf);
+    expect(resolve('com.foo', 'src/Main.java', 'java', true)).toBeUndefined();
   });
 
   it('resolves a Rust crate path through the nearest Cargo.toml src dir', () => {

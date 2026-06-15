@@ -51,6 +51,24 @@ vi.mock('../../../src/structure/runner.js', async (importOriginal) => {
 import { runStructureAspect } from '../../../src/structure/runner.js';
 const mockRunStructureAspect = vi.mocked(runStructureAspect);
 
+// ── Mock tier resolution (pass-through by default; override per test) ─────────
+// Same seam style as the two mocks above. A test that needs an UNRESOLVABLE tier
+// (the per-pair "Cannot resolve a reviewer tier" infra disposition at fill.ts
+// step 6) overrides this to return { ok: false }. By default it delegates to the
+// real selector so every other test resolves tiers normally.
+// eslint-disable-next-line no-var
+var tierSelectRealFn: (typeof import('../../../src/core/tier-selection.js'))['selectTierForAspect'] | undefined;
+vi.mock('../../../src/core/tier-selection.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../src/core/tier-selection.js')>();
+  tierSelectRealFn = actual.selectTierForAspect;
+  return {
+    ...actual,
+    selectTierForAspect: vi.fn(actual.selectTierForAspect),
+  };
+});
+import { selectTierForAspect } from '../../../src/core/tier-selection.js';
+const mockSelectTierForAspect = vi.mocked(selectTierForAspect);
+
 function makeMockProvider(overrides: Partial<LlmProvider> = {}): LlmProvider {
   return {
     verifyAspect: async () => ({ satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }),
@@ -74,6 +92,13 @@ beforeEach(() => {
     const real = structureRunnerRealFn;
     mockRunStructureAspect.mockImplementation(
       (...args: Parameters<typeof runStructureAspect>) => real(...args),
+    );
+  }
+  // Restore the real tier selector so existing LLM tests resolve tiers normally.
+  if (tierSelectRealFn) {
+    const real = tierSelectRealFn;
+    mockSelectTierForAspect.mockImplementation(
+      (...args: Parameters<typeof selectTierForAspect>) => real(...args),
     );
   }
 });
@@ -465,6 +490,67 @@ describe('fill — fail-closed edge branches', () => {
     let lockHasEntry: boolean;
     try { lockHasEntry = readLock(graph.rootPath).verdicts['llm-a']?.['node:svc'] !== undefined; } catch { lockHasEntry = false; }
     expect(lockHasEntry).toBe(false);
+  });
+
+  it('a non-gating UNRESOLVABLE reviewer tier leaves the LLM pair UNVERIFIED (fail-closed, no write, infra counted)', async () => {
+    // Distinct from the gating cases above: the config IS structurally valid (the
+    // validator emits no APPROVE_GATING_CODES, so the fill is NOT aborted in step
+    // 1), yet tier resolution still fails for this aspect at dispatch time. fill.ts
+    // step 6 must treat that as an infrastructure disposition — write NOTHING and
+    // leave the pair unverified (fail-closed), never approving or crashing.
+    //
+    // We force the unresolvable tier through the tier-selection seam (the same
+    // mocking pattern this file uses for the provider and the structure runner),
+    // because every NATURAL trigger of selectTierForAspect → { ok: false } is
+    // itself a gating config error that aborts the whole fill before this per-pair
+    // branch is ever reached. The seam isolates exactly the per-pair fail-closed
+    // contract under test.
+    const { projectRoot } = await setupProject({
+      aspects: [{ id: 'llm-a', kind: 'llm', status: 'enforced', rule: 'rule a' }],
+    });
+    const graph = await loadGraph(projectRoot);
+
+    // Tier resolution fails for the aspect (no gating code involved).
+    mockSelectTierForAspect.mockReturnValue({
+      ok: false,
+      error: {
+        what: 'tier unresolvable (test)',
+        why: 'forced unresolvable tier for the fail-closed contract',
+        next: 'fix the tier',
+      },
+    });
+
+    // The provider must never be reached: an unresolvable tier short-circuits
+    // before any provider is created or queried.
+    let providerVerifyCalls = 0;
+    let providerCreated = 0;
+    mockCreateLlmProvider.mockImplementation(() => {
+      providerCreated++;
+      return makeMockProvider({
+        async verifyAspect() {
+          providerVerifyCalls++;
+          return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const };
+        },
+      });
+    });
+
+    const w = makeWriter();
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
+
+    // Fail-closed: NO verdict written for the unresolvable-tier pair.
+    expect(readLock(graph.rootPath).verdicts['llm-a']?.['node:svc']).toBeUndefined();
+    // Counted as an infra failure, not a code violation.
+    expect(result.infraFailures).toBeGreaterThan(0);
+    // No provider was ever created or asked — the disposition is decided before dispatch.
+    expect(providerCreated).toBe(0);
+    expect(providerVerifyCalls).toBe(0);
+    expect(result.reviewerCallsMade).toBe(0);
+    // The exact per-pair infra notice was emitted.
+    expect(w.text()).toContain(
+      "Cannot resolve a reviewer tier for aspect 'llm-a' on node:svc — left unverified.",
+    );
+    // The pair stays red on the report (no false-green over the unreviewed aspect).
+    expect(result.checkResult.issues.some((i) => i.code === 'unverified')).toBe(true);
   });
 
   it('a det check returning succeeded:false is a runtime error → no write, runtimeErrors counted', async () => {

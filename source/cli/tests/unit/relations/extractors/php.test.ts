@@ -5,14 +5,14 @@ import { phpExtractor } from '../../../../src/relations/extractors/php.js';
 const run = (code: string) => runExtractor(phpExtractor, 'php', '.php', code);
 
 const specs = (uses: Awaited<ReturnType<typeof run>>['uses']): string[] =>
-  uses.flatMap((u) => (u.targetHint.kind === 'path' ? [u.targetHint.specifier] : []));
+  uses.flatMap((u) => (u.candidates[0].kind === 'path' ? [u.candidates[0].specifier] : []));
 
 describe('php extractor — uses()', () => {
   it('emits the FQN for a simple use import', async () => {
     const { uses } = await run('<?php\nuse App\\Payment\\Gateway;\nclass C {}\n');
     expect(uses).toContainEqual(
       expect.objectContaining({
-        targetHint: { kind: 'path', specifier: 'App\\Payment\\Gateway' },
+        candidates: [{ kind: 'path', specifier: 'App\\Payment\\Gateway' }],
         kind: 'import',
       }),
     );
@@ -105,6 +105,46 @@ describe('php extractor — uses()', () => {
     expect(uses).toHaveLength(0);
   });
 
+  it('drops only the function clause in a mixed grouped use, keeping the class (`{function format, Gateway}`)', async () => {
+    // Per-clause `function` token: the group mixes a function import and a class
+    // import. Only the class is a dependency edge; the function must be silenced
+    // without taking the class down with it.
+    const { uses } = await run('<?php\nuse App\\Pkg\\{function format, Gateway};\nclass C {}\n');
+    const s = specs(uses);
+    expect(s).toContain('App\\Pkg\\Gateway');
+    expect(s).not.toContain('App\\Pkg\\format');
+    expect(s).toHaveLength(1);
+  });
+
+  it('drops the function clause regardless of its position in the group (`{Gateway, function format}`)', async () => {
+    // Class-first ordering — guard must be evaluated per clause, not by position.
+    const { uses } = await run('<?php\nuse App\\Pkg\\{Gateway, function format};\nclass C {}\n');
+    const s = specs(uses);
+    expect(s).toContain('App\\Pkg\\Gateway');
+    expect(s).not.toContain('App\\Pkg\\format');
+    expect(s).toHaveLength(1);
+  });
+
+  it('drops only the const clause in a mixed grouped use, keeping the class (`{const MAX, Gateway}`)', async () => {
+    // Per-clause `const` token — same rule as `function`.
+    const { uses } = await run('<?php\nuse App\\Pkg\\{const MAX, Gateway};\nclass C {}\n');
+    const s = specs(uses);
+    expect(s).toContain('App\\Pkg\\Gateway');
+    expect(s).not.toContain('App\\Pkg\\MAX');
+    expect(s).toHaveLength(1);
+  });
+
+  it('keeps both classes in a per-clause-typed group with no function/const clause (positive guard)', async () => {
+    // POSITIVE / anti-over-silencing: a perfectly ordinary grouped class import
+    // must still emit BOTH class hints. The per-clause guard must not silence
+    // clauses that carry no function/const token.
+    const { uses } = await run('<?php\nuse App\\Payment\\{Charge, Refund};\nclass C {}\n');
+    const s = specs(uses);
+    expect(s).toContain('App\\Payment\\Charge');
+    expect(s).toContain('App\\Payment\\Refund');
+    expect(s).toHaveLength(2);
+  });
+
   it('deduplicates a class repeated in one grouped use on the same line (`{Foo, Foo}`)', async () => {
     const { uses } = await run('<?php\nuse App\\Pkg\\{Foo, Foo};\nclass C {}\n');
     // Same FQN, same line → one hint, not two.
@@ -127,9 +167,10 @@ describe('php extractor — uses()', () => {
     expect(s).toHaveLength(1);
   });
 
-  it('does NOT treat extends/implements/trait-use/new/static calls as edges (v1 = use-import only)', async () => {
-    // No top-level `use` imports. extends, implements, in-body trait use, `new`, a
-    // fully-qualified static call: all usage-site refinement, DEFERRED in v1.
+  it('emits inline LEADING-BACKSLASH class references in class-autoload positions (extends/implements/trait-use/new/static)', async () => {
+    // A leading-`\` FQN is absolute (resolved from the global namespace, shadow-free), so an
+    // inline reference in a class-autoload position is a real, zero-false-positive edge. The
+    // resolver maps the FQN to a file by PSR-4 exactly as for an import.
     const { uses } = await run(
       [
         '<?php',
@@ -143,6 +184,31 @@ describe('php extractor — uses()', () => {
         '}',
         '',
       ].join('\n'),
+    );
+    const s = specs(uses);
+    expect(s).toContain('App\\Base\\Base'); // extends
+    expect(s).toContain('App\\Flow\\Flowable'); // implements
+    expect(s).toContain('App\\Mixin\\Timestamps'); // in-body trait use
+    expect(s).toContain('App\\Metrics\\Timer'); // new
+    expect(s).toContain('App\\Audit\\AuditLog'); // static call scope
+    expect(s).toHaveLength(5);
+  });
+
+  it('does NOT emit a backslash-LESS (namespace-relative) inline reference — needs namespace+use context', async () => {
+    // `new Sub\\Rel()` and a bare `Rel` are relative to the current namespace / use aliases; a
+    // source-only tool cannot bind them, so they stay silent (recall miss, never an FP).
+    const { uses } = await run(
+      ['<?php', 'namespace App\\App;', 'class C { function m() { $o = new Sub\\Rel(); } }', ''].join('\n'),
+    );
+    expect(uses).toHaveLength(0);
+  });
+
+  it('does NOT emit a leading-backslash FUNCTION call or bare constant (not class autoloading)', async () => {
+    // `\\App\\Util\\format()` is a function call and `\\App\\C\\FOO` a bare constant; PHP keeps
+    // functions/constants in separate namespaces resolved at call time, never PSR-4 class files,
+    // so emitting them could bind an unrelated class file — excluded for zero false positives.
+    const { uses } = await run(
+      ['<?php', 'namespace App\\App;', 'function m() { \\App\\Util\\format(); $x = \\App\\C\\FOO; }', ''].join('\n'),
     );
     expect(uses).toHaveLength(0);
   });

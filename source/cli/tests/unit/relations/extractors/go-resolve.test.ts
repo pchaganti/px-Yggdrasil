@@ -102,7 +102,7 @@ describe('resolveGoImport via makeResolvePathToFile (disk-backed)', () => {
 
 describe('resolveGoImport — pure unit (injected deps)', () => {
   const deps: GoResolveDeps = {
-    modulePathFor: () => 'example.com/m',
+    modulePathFor: () => ({ modulePath: 'example.com/m', moduleDir: '' }),
     dirExists: (d) => d === 'foo/bar' || d === '',
     goFilesIn: (d) =>
       d === 'foo/bar' ? ['foo/bar/baz.go', 'foo/bar/aux.go'] : d === '' ? ['main.go'] : [],
@@ -116,5 +116,29 @@ describe('resolveGoImport — pure unit (injected deps)', () => {
   it('returns undefined when modulePathFor yields nothing', () => {
     const noMod: GoResolveDeps = { ...deps, modulePathFor: () => undefined };
     expect(resolveGoImport('example.com/m/foo/bar', 'foo/x.go', noMod)).toBeUndefined();
+  });
+
+  it('silences a package directory split across 2+ owners (F20 package granularity)', () => {
+    // foo/bar holds aux.go (owned by node "y") and baz.go (owned by node "x").
+    // With an ownerOf that reports a SPLIT package, the import must resolve to
+    // nothing — no representative file, no edge — rather than attributing the
+    // whole package to whoever owns the lexicographically-first file.
+    const split: GoResolveDeps = {
+      ...deps,
+      goFilesIn: (d) => (d === 'foo/bar' ? ['foo/bar/baz.go', 'foo/bar/aux.go'] : []),
+      ownerOf: (f) => (f === 'foo/bar/aux.go' ? 'y' : f === 'foo/bar/baz.go' ? 'x' : undefined),
+    };
+    expect(resolveGoImport('example.com/m/foo/bar', 'foo/x.go', split)).toBeUndefined();
+  });
+
+  it('resolves a single-owner package even when ownerOf is supplied (positive)', () => {
+    // Both files in foo/bar belong to node "x" → one owner → attribute the
+    // representative (lexicographically-first production file, aux.go).
+    const oneOwner: GoResolveDeps = {
+      ...deps,
+      goFilesIn: (d) => (d === 'foo/bar' ? ['foo/bar/baz.go', 'foo/bar/aux.go'] : []),
+      ownerOf: () => 'x',
+    };
+    expect(resolveGoImport('example.com/m/foo/bar', 'foo/x.go', oneOwner)).toBe('foo/bar/aux.go');
   });
 });

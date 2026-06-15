@@ -81,7 +81,6 @@ describe('logMergeResolve (core, lock store)', () => {
       version: LOCK_FORMAT_VERSION,
       verdicts: {},
       nodes: { billing: { source: 'src-fp', log: ancestorBaseline } },
-      relation_verdicts: {},
     });
     const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
     const result = await logMergeResolve({ graph, nodePath, repoRoot: projectRoot });

@@ -6,8 +6,9 @@ import { tmpdir } from 'node:os';
 import { makeResolvePathToFile } from '../../../../src/relations/resolve-path.js';
 
 // The C/C++ include resolver maps a QUOTED `#include "header"` path → a repo-relative
-// file. A quoted include resolves first relative to the including file's directory, then
-// against common include roots (walking up ancestors, also probing `<ancestor>/include/`).
+// file. A quoted include resolves ONLY relative to the including file's directory (canonical
+// quoted-include semantics). A miss → undefined (silence). The old speculative include-root
+// walk has been dropped to prevent false cross-node edges from same-basename decoys.
 // These tests build a real temp tree and drive the production makeResolvePathToFile
 // (disk-backed existence) for both the `c` and `cpp` language branches.
 
@@ -48,11 +49,13 @@ describe('resolveIncludePath via makeResolvePathToFile (disk-backed, C + C++)', 
     expect(resolve('../inc/bar.h', 'src/a/foo.cpp', 'cpp')).toBe('src/inc/bar.h');
   });
 
-  it('resolves via an ancestor include/ root when not found relative', () => {
+  it('does NOT resolve via an ancestor include/ root (speculative walk dropped)', () => {
     const resolve = makeResolvePathToFile(root);
-    // From src/a/foo.c, "proj/widget.h" is not under src/a; walking up to the repo root
-    // probes <root>/include/proj/widget.h → match.
-    expect(resolve('proj/widget.h', 'src/a/foo.c', 'c')).toBe('include/proj/widget.h');
+    // From src/a/foo.c, "proj/widget.h" is not under src/a. It exists only at
+    // <root>/include/proj/widget.h — reachable solely through the old ancestor
+    // include-root walk, which is gone. A real -Iinclude flag the resolver cannot
+    // see would resolve this; without it we stay silent rather than guess.
+    expect(resolve('proj/widget.h', 'src/a/foo.c', 'c')).toBeUndefined();
   });
 
   it('returns undefined for a missing header (silence, never a guess)', () => {
@@ -66,18 +69,30 @@ describe('resolveIncludePath via makeResolvePathToFile (disk-backed, C + C++)', 
     expect(resolve('', 'src/a/foo.c', 'c')).toBeUndefined();
   });
 
-  it('resolves an include/-only header for a source file at the repo root (fromDir === ".")', () => {
+  it('does NOT resolve an include/-only header for a repo-root source file (walk dropped)', () => {
     const resolve = makeResolvePathToFile(root);
-    // main.c lives at the repo root, so its directory is '.'. cfg.h is not relative to
-    // the root, so resolution falls through to the include-root walk, which starts at
-    // the root directory and probes <root>/include/cfg.h → match.
-    expect(resolve('cfg.h', 'main.c', 'c')).toBe('include/cfg.h');
+    // main.c lives at the repo root; cfg.h exists only under <root>/include/cfg.h.
+    // The canonical relative join (<root>/cfg.h) misses, and the speculative
+    // include-root probe is gone → silence.
+    expect(resolve('cfg.h', 'main.c', 'c')).toBeUndefined();
   });
 
-  it('resolves a header bare at an ancestor root (no include/ dir on that hop)', () => {
+  it('does NOT resolve a header bare at an ancestor root (walk dropped)', () => {
     const resolve = makeResolvePathToFile(root);
-    // From src/a/foo.c, "top.h" is not relative and not under any include/ dir; walking
-    // up the ancestors the bare `<root>/top.h` probe matches before the include/ probe.
-    expect(resolve('top.h', 'src/a/foo.c', 'c')).toBe('top.h');
+    // From src/a/foo.c, "top.h" exists only as <root>/top.h — a same-basename
+    // file at an ancestor root. The old walk would have grabbed it (a decoy);
+    // the canonical-relative-only resolver returns undefined.
+    expect(resolve('top.h', 'src/a/foo.c', 'c')).toBeUndefined();
+  });
+
+  it('does NOT grab a same-basename decoy at an ancestor root when the relative join misses', () => {
+    const resolve = makeResolvePathToFile(root);
+    // src/a/foo.c includes "bar.h". A real sibling does NOT exist next to foo.c, but a
+    // same-basename decoy lives at <root>/include/proj — created here to model the trap.
+    mkdirSync(path.join(root, 'include', 'proj'), { recursive: true });
+    writeFileSync(path.join(root, 'include', 'proj', 'bar.h'), '/* decoy */\n', 'utf-8');
+    // The relative join <root>/src/a/bar.h misses; with the walk dropped, the decoy is
+    // never reached → silence (the old resolver would have returned a wrong path).
+    expect(resolve('bar.h', 'src/a/foo.c', 'c')).toBeUndefined();
   });
 });

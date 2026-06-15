@@ -5,14 +5,24 @@ import { javaExtractor } from '../../../../src/relations/extractors/java.js';
 const run = (code: string) => runExtractor(javaExtractor, 'java', '.java', code);
 
 const specs = (uses: Awaited<ReturnType<typeof run>>['uses']): string[] =>
-  uses.flatMap((u) => (u.targetHint.kind === 'path' ? [u.targetHint.specifier] : []));
+  uses.flatMap((u) => (u.candidates[0].kind === 'path' ? [u.candidates[0].specifier] : []));
+
+const hintFor = (
+  uses: Awaited<ReturnType<typeof run>>['uses'],
+  specifier: string,
+): Extract<(typeof uses)[number]['candidates'][number], { kind: 'path' }> | undefined =>
+  uses
+    .map((u) => u.candidates[0])
+    .find((h): h is Extract<typeof h, { kind: 'path' }> =>
+      h.kind === 'path' && h.specifier === specifier,
+    );
 
 describe('java extractor — uses()', () => {
   it('emits the type FQN for a single-type import', async () => {
     const { uses } = await run('import com.acme.payments.PaymentService;\nclass C {}\n');
     expect(uses).toContainEqual(
       expect.objectContaining({
-        targetHint: { kind: 'path', specifier: 'com.acme.payments.PaymentService' },
+        candidates: [expect.objectContaining({ kind: 'path', specifier: 'com.acme.payments.PaymentService' })],
         kind: 'import',
       }),
     );
@@ -106,9 +116,76 @@ describe('java extractor — uses()', () => {
     expect(s).toContain('com.acme.b.Beta');
   });
 
-  it('does NOT treat extends/implements/new/method calls as edges (v1 = import only)', async () => {
-    // No import lines. extends, implements, FQ construction, FQ static call: all
-    // usage-site refinement, DEFERRED in v1. Zero detected deps.
+  it('tags the wildcard package hint with isPackage: true', async () => {
+    const { uses } = await run('import com.acme.audit.*;\nclass C {}\n');
+    const h = hintFor(uses, 'com.acme.audit');
+    expect(h).toBeDefined();
+    expect(h?.isPackage).toBe(true);
+  });
+
+  it('does NOT tag a single-type import as a package', async () => {
+    const { uses } = await run('import com.acme.payments.PaymentService;\nclass C {}\n');
+    const h = hintFor(uses, 'com.acme.payments.PaymentService');
+    expect(h).toBeDefined();
+    expect(h?.isPackage).toBeFalsy();
+  });
+
+  it('does NOT tag a static-on-demand import as a package (the FQN is the class)', async () => {
+    // `import static com.acme.util.Constants.*;` — the scoped_identifier IS the
+    // class; the asterisk is static-on-demand, not a package wildcard.
+    const { uses } = await run('import static com.acme.util.Constants.*;\nclass C {}\n');
+    const h = hintFor(uses, 'com.acme.util.Constants');
+    expect(h).toBeDefined();
+    expect(h?.isPackage).toBeFalsy();
+  });
+
+  it('emits NOTHING for a module import declaration `import module M;` (JEP 511)', async () => {
+    // A module import names a MODULE, not a type/package; its imported set lives in
+    // unreadable module-path metadata. The extractor recognizes the `module` soft keyword
+    // (or, in the pre-JEP-511 grammar, the malformed leading-`module` scoped_identifier)
+    // and emits no hint — and the whitespace-validity backstop drops the malformed
+    // `"module …"` pseudo-FQN even if recognition were bypassed.
+    const { uses } = await run('package com.app;\nimport module java.base;\nimport module com.acme.lib;\nclass C {}\n');
+    expect(uses).toHaveLength(0);
+  });
+
+  it('emits the service + provider TYPE FQNs of module-info uses / provides directives', async () => {
+    // `module-info.java`: `uses TypeName` and `provides TypeName with TypeName…` carry
+    // genuine shadow-free service-type FQNs → TYPE hints. `requires`/`exports`/`opens`
+    // carry module/package names and MUST be excluded.
+    const { uses } = await run(
+      [
+        'module com.example.foo {',
+        '  requires com.acme.req.ReqType;',
+        '  exports com.acme.exp.ExpType;',
+        '  opens com.acme.opn.OpnType;',
+        '  uses com.acme.spi.Intf;',
+        '  provides com.acme.spi.Intf with com.acme.impl.Impl, com.acme.impl.Impl2;',
+        '}',
+        '',
+      ].join('\n'),
+    );
+    const s = specs(uses);
+    // uses + provides operands (service + both providers) are emitted as TYPE hints.
+    expect(s).toContain('com.acme.spi.Intf');
+    expect(s).toContain('com.acme.impl.Impl');
+    expect(s).toContain('com.acme.impl.Impl2');
+    // requires / exports / opens operands are NEVER emitted (module/package names).
+    expect(s).not.toContain('com.acme.req.ReqType');
+    expect(s).not.toContain('com.acme.exp.ExpType');
+    expect(s).not.toContain('com.acme.opn.OpnType');
+    // All emitted hints are TYPE hints (not package wildcards).
+    expect(uses.every((u) => u.candidates[0].kind === 'path' && u.candidates[0].isPackage !== true)).toBe(true);
+  });
+
+  it('emits a SYMBOL hint for an inline fully-qualified TYPE reference (extends), but NOT for expression-position dotted calls or same-package bare names', async () => {
+    // The inline fully-qualified TYPE reference `extends com.acme.base.Base` is the
+    // outermost `scoped_type_identifier` in a TYPE position. A fully-qualified name is
+    // shadow-free (JLS §6.5.5.2), so it now emits a `symbol` hint that resolves through
+    // the shared SymbolTable like an import. The EXPRESSION-position dotted static call
+    // `com.acme.audit.AuditLog.record(...)` parses as a field_access/method_invocation
+    // chain — never a `scoped_type_identifier` — so it emits NOTHING (the zero-FP boundary);
+    // the bare same-package supertype `Other` is a simple name, also no hint.
     const { uses } = await run(
       [
         'package com.acme.app;',
@@ -118,10 +195,23 @@ describe('java extractor — uses()', () => {
         '    com.acme.audit.AuditLog.record("x");',
         '  }',
         '}',
+        'class D extends Other {}',
         '',
       ].join('\n'),
     );
-    expect(uses).toHaveLength(0);
+    const symbolKeys = uses.flatMap((u) =>
+      u.candidates[0].kind === 'symbol' ? [u.candidates[0].symbolKey] : [],
+    );
+    // Inline fully-qualified TYPE references → symbol hints (the type-position forms).
+    expect(symbolKeys).toContain('com.acme.base.Base'); // extends
+    expect(symbolKeys).toContain('com.acme.flow.Flowable'); // implements
+    expect(symbolKeys).toContain('com.acme.metrics.Timer'); // new type
+    // EVERY emitted hint here is a TYPE-position symbol hint, none a path hint.
+    expect(uses.every((u) => u.candidates[0].kind === 'symbol')).toBe(true);
+    // Expression-position dotted static call → NO hint (field_access/method_invocation chain).
+    expect(symbolKeys.some((k) => k.startsWith('com.acme.audit'))).toBe(false);
+    // Same-package bare simple-name supertype `Other` → NO hint.
+    expect(symbolKeys).not.toContain('Other');
   });
 });
 

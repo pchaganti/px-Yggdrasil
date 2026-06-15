@@ -1,5 +1,5 @@
 export const summary =
-  'The verdict lock: format (v2), pairs/units, hash ingredients + exclusions + observation fold, relation_verdicts section + v1→v2 migration, caching policy (refusals final, three exits), merge procedure, garbage-collection, revert recipe, park-with-draft';
+  'The verdict lock: format (v1), pairs/units, hash ingredients + exclusions + observation fold, relation conformance computed live (no cached relation verdict), caching policy (refusals final, three exits), merge procedure, garbage-collection, revert recipe, park-with-draft';
 
 export const content = `# Verification and the lock
 
@@ -35,7 +35,7 @@ pairs on that node — a legitimate vacuous pass, no verdict, no entry.
 
 \`\`\`jsonc
 {
-  "version": 2,                              // lock FORMAT version (see migration below)
+  "version": 1,                              // lock FORMAT version
   "verdicts": {
     "<aspectId>": {                          // keys code-point-sorted at every level
       "node:billing/cancel":   { "hash": "<inputHash>", "verdict": "approved" },
@@ -52,10 +52,6 @@ pairs on that node — a legitimate vacuous pass, no verdict, no entry.
       "source": "<sha256>",                  // source fingerprint — the log gate's basis
       "log": { "last_entry_datetime": "<ISO>", "prefix_hash": "<sha256>" }
     }
-  },
-  "relation_verdicts": {                     // built-in relation-conformance check
-    "node:billing/cancel": { "verdict": "approved", "fingerprint": "<sha256>",
-                             "evidence": { /* see "Relation verdicts" below */ } }
   }
 }
 \`\`\`
@@ -72,11 +68,10 @@ pairs on that node — a legitimate vacuous pass, no verdict, no entry.
   files; LLM entries omit the key entirely.
 - \`nodes.<path>\` carries the source fingerprint (the log gate's contract,
   \`yg knowledge read log-management\`) and the append-only log integrity baseline.
-- \`relation_verdicts\` is a top-level section, keyed by \`node:<path>\` (its own
-  unit key — relation conformance is always a whole-node verdict), holding the
-  built-in relation-conformance check's verdict per node. It lives outside
-  \`verdicts\` because that section is aspect-keyed and relation conformance is not
-  an aspect. See "Relation verdicts" below.
+- The built-in relation-conformance check is NOT stored in the lock — it is
+  recomputed live on every \`yg check\`. The lock holds only aspect \`verdicts\`
+  and per-node \`nodes\` facts; there is no relation section. See "Relation
+  conformance — computed live" below.
 - Serialization is canonical: code-point-sorted keys, stable formatter, trailing
   newline — so git's line merge aligns with entry boundaries.
 
@@ -141,48 +136,28 @@ verdict token; a mismatch — whether from an input change or a hand-edited verd
 green. This is tamper *evidence* against casual edits, not cryptography; the trust
 model is reviewing lock diffs in PRs and never hand-editing the lock.
 
-## Relation verdicts
+## Relation conformance — computed live
 
 The built-in relation-conformance check (\`yg knowledge read ports-and-relations\`)
-is deterministic but NOT an aspect, so its verdicts live in their own
-\`relation_verdicts\` section rather than under \`verdicts\`. There is exactly one
-relation verdict per node (a whole-node check, no per-file scope), keyed by the
-node's \`node:<path>\` unit key. Each entry carries a \`verdict\`
-(\`approved\`/\`refused\`), a self-contained \`fingerprint\`, a \`reason\` on a refusal
-(the rendered list of undeclared dependencies), and an \`evidence\` block recording
-the fingerprint inputs the pass observed.
+is deterministic but NOT an aspect, and it is NOT stored in the lock at all. It is
+recomputed **live on every \`yg check\`**: the pass parses each mapped source file,
+resolves every statically-resolvable cross-node dependency, and verifies it
+against the node's declared relations — every run, from scratch. There is no
+cached relation verdict, no fingerprint, and nothing to migrate. The result is
+always the current truth.
 
-\`evidence\` is what lets plain \`yg check\` re-validate a relation verdict
-**parse-free** — by re-hashing the recorded inputs only, never re-running
-tree-sitter (parsing is reserved for \`--approve\`). It folds:
+This differs from aspect verdicts in two ways:
 
-\`\`\`
-sources:         [ [path, sha256(bytes)], ... ]   // this node's mapped files, sorted
-relations:       sha256 of this node's declared relation edges
-outcomes:        every detected dependency (resolved or not), sorted — each records
-                 the from-file, line, a hint key, and the resolution outcome
-                 (owner node + resolved file + that file's hash, or external/missing)
-grammarVersions: [ [language, extractorVersionTag], ... ]   // per-language extractor version
-indexIdentity:   sha256 over the symbol-language source-set identity (the repo-wide
-                 symbol landscape the resolver draws on)
-\`\`\`
-
-A relation verdict goes **unverified** when any of these shifts:
-
-- the node's OWN mapped source changes (\`sources\`),
-- its declared relations change (\`relations\`) — adding the missing relation that
-  clears a refusal is exactly this case,
-- a dependency target's OWNER changes — e.g. the depended-on file is remapped to a
-  different node, moved, or deleted (\`outcomes\`),
-- the repo-wide symbol landscape shifts so resolution could differ
-  (\`indexIdentity\`), or a language extractor's version changes
-  (\`grammarVersions\`).
-
-Like every verdict, a relation refusal is cached and final for unchanged inputs.
-But its exits differ from an aspect's: there is no \`content.md\` to sharpen and it
-is not \`yg-suppress\`-able. The only exits are **declare the relation** (changes
-\`relations\`, re-verifies) or **remove the dependency** (changes \`sources\`,
-re-verifies). \`status:\` never applies — a relation refusal is always an error.
+- **No caching, no \`--approve\` gate.** Aspect pairs are filled by
+  \`yg check --approve\` and cached; plain \`yg check\` re-validates them parse-free
+  by re-hashing. Relation conformance does the full parse + resolve + verify on
+  every \`yg check\` (plain or \`--approve\`) — it never reads or writes a lock entry,
+  so it is never stale and never needs re-validation.
+- **No status, no waiver.** A relation refusal (\`relation-undeclared-dependency\`)
+  is always an error and blocks \`yg check\`. There is no \`content.md\` to sharpen
+  and it is not \`yg-suppress\`-able. The only exits are **declare the relation**
+  (add an architecture-allowed relation edge) or **remove the dependency**. The
+  next run recomputes and the refusal clears the moment the code or graph matches.
 
 ## Caching policy
 
@@ -248,24 +223,27 @@ because the subject files changed). NEVER check out the whole lock to roll back
 one node — that clobbers every other node's verdicts. (Full revert recipe:
 \`yg knowledge read log-management\`.)
 
-## Lock format version and the v1→v2 migration
+## Lock format version
 
-The current lock FORMAT version is 2 — version 2 adds the \`relation_verdicts\`
-section. A version-1 lock (no \`relation_verdicts\`) is migrated forward
-automatically on load: the section is injected as empty, and every existing
-aspect verdict in \`verdicts\` and every \`nodes\` entry is preserved byte-for-byte.
-The migration forces NO re-verification of aspect pairs. The only new work is
-that each node's relation conformance has no verdict yet, so the first
-\`yg check --approve\` after the upgrade fills the relation verdicts (deterministic
-— zero LLM cost). The lock is rewritten with \`"version": 2\` at that point.
+The current lock FORMAT version is 1 — exactly \`{ version, verdicts, nodes }\`.
+There is no separate relation section and no migration to perform: relation
+conformance is computed live (see above), so nothing about it ever lands in the
+lock.
+
+A short history note: an unreleased alpha introduced a v2 lock that added a
+\`relation_verdicts\` section for a cached relation check. That was reverted to v1.
+For backward compatibility a committed v2 lock still loads cleanly — its stray
+\`relation_verdicts\` section is simply dropped on read (it is moot now), and the
+file is otherwise a valid v1 lock. The lock is rewritten with \`"version": 1\` on
+the next \`yg check --approve\`.
 
 ## Absent or garbled lock
 
 An absent file = empty lock (all expected pairs unverified). A garbled or
-unparseable file, or an unrecognized \`version\` (neither 1 nor 2), is a blocking
-\`lock-invalid\` error (fail closed); the \`next:\` covers both recoveries — restore
-from git, or delete the file and re-fill via \`yg check --approve\` (which
-re-verifies everything).
+unparseable file, or an unrecognized \`version\` (neither 1 nor 2 — 2 is accepted
+only for the backward-compat drop above), is a blocking \`lock-invalid\` error
+(fail closed); the \`next:\` covers both recoveries — restore from git, or delete
+the file and re-fill via \`yg check --approve\` (which re-verifies everything).
 
 ## See also
 

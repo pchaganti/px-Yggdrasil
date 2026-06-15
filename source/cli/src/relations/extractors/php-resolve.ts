@@ -14,7 +14,13 @@ import path from 'node:path';
  *   - the remainder after the prefix maps to `<baseDir>/<remainder-with-\→/>.php`;
  *   - check that file exists.
  * A PSR-4 prefix value may be an ARRAY of directories (one prefix → several roots) —
- * each candidate directory is tried in turn.
+ * each candidate directory is tried. When the class file exists under EXACTLY ONE of
+ * them the resolution is unambiguous and that file is returned; when it exists under
+ * 2+ of them the FQN genuinely maps to two distinct files (two candidate owner nodes)
+ * and resolution is AMBIGUOUS → undefined (silence). PSR-4 forbids the same class in
+ * two roots at runtime (the first autoloader hit wins arbitrarily), so a static tool
+ * MUST NOT pick one — guessing a root would be a false positive. This mirrors the
+ * Java/Go multi-target rule (2+ distinct targets → silence, never first-wins).
  *
  * Longest-prefix matters because prefixes nest: with `App\` → `src/` and `App\Tests\` →
  * `tests/`, the FQN `App\Tests\UnitTest` must map under `tests/`, not `src/Tests/`.
@@ -22,8 +28,9 @@ import path from 'node:path';
  * RESOLUTION MISS → undefined. This fail-to-silence is the false-positive guard: a
  * vendor / third-party class (its namespace is not in the project's psr-4 map), a
  * project that uses classmap / files autoload instead of psr-4 (no matching prefix), a
- * missing or unreadable composer.json, or an FQN whose file is simply not present all
- * resolve to nothing and are never flagged. We never GUESS a root.
+ * missing or unreadable composer.json, an FQN whose file is simply not present, or an
+ * FQN whose file is present under 2+ roots of one prefix all resolve to nothing and are
+ * never flagged. We never GUESS a root.
  */
 export interface PhpResolveDeps {
   /**
@@ -63,12 +70,18 @@ export function resolvePhpFqn(
   const relParts = remainder.split('\\').filter((s) => s.length > 0);
   const subPath = relParts.join('/') + '.php';
 
+  // Try every base directory of the chosen prefix. Collect the DISTINCT existing files:
+  //   0 → unresolved (silence); exactly 1 → the unambiguous file; 2+ → genuinely
+  //   ambiguous (the class lives under two roots) → silence, never first-wins. PSR-4
+  //   resolves such a clash arbitrarily at runtime, so a static tool must not guess.
   const baseDirs = psr4.get(bestPrefix) ?? [];
+  const hits = new Set<string>();
   for (const baseDir of baseDirs) {
     const candidate = joinUnder(baseDir, subPath);
-    if (deps.exists(candidate)) return candidate;
+    if (deps.exists(candidate)) hits.add(candidate);
   }
-  return undefined;
+  if (hits.size !== 1) return undefined;
+  return [...hits][0];
 }
 
 /** Join a repo-relative directory with a sub-path, normalizing. '' → the sub-path itself. */

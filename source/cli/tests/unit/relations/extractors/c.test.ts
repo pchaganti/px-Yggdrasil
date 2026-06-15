@@ -5,14 +5,14 @@ import { cExtractor } from '../../../../src/relations/extractors/c.js';
 const run = (code: string, ext = '.c') => runExtractor(cExtractor, 'c', ext, code);
 
 const specs = (uses: Awaited<ReturnType<typeof run>>['uses']): string[] =>
-  uses.flatMap((u) => (u.targetHint.kind === 'path' ? [u.targetHint.specifier] : []));
+  uses.flatMap((u) => (u.candidates[0].kind === 'path' ? [u.candidates[0].specifier] : []));
 
 describe('C extractor — uses()', () => {
   it('emits a path hint for a quoted #include (the header path text, no quotes)', async () => {
     const { uses } = await run('#include "db/connection.h"\n');
     expect(uses).toContainEqual(
       expect.objectContaining({
-        targetHint: { kind: 'path', specifier: 'db/connection.h' },
+        candidates: [{ kind: 'path', specifier: 'db/connection.h' }],
         kind: 'import',
       }),
     );

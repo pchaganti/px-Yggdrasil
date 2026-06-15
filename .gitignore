@@ -40,5 +40,5 @@ Thumbs.db
 # Temporary files
 .temp/
 
-# Yggdrasil local symbol-index cache
-.yg-cache/
+# Yggdrasil local symbol-index cache (speed-only; rebuildable, never committed)
+.yggdrasil/.symbols-cache/

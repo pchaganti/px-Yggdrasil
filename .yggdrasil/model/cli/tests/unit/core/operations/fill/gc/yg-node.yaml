@@ -1,0 +1,16 @@
+name: Fill GC Unit Tests
+type: test-suite
+description: "Unit tests for the fill stage's garbage collection and canonical
+  lock rewrite (fill-gc) — owner-node attribution by longest-mapping-wins,
+  node:/file: unit-key routing, pruning of detached verdicts and vanished
+  nodes[] entries, retention of uncomputable (implies-cycle) and draft pairs,
+  lock-version stamping, and single-persist."
+aspects: []
+relations:
+  [
+    { target: cli/core/fill, type: uses },
+    { target: cli/model/lock, type: uses },
+    { target: cli/model/graph, type: uses }
+  ]
+mapping:
+  - source/cli/tests/unit/core/fill-gc.test.ts
