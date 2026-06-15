@@ -139,6 +139,45 @@ describe('java extractor — uses()', () => {
     expect(h?.isPackage).toBeFalsy();
   });
 
+  it('emits NOTHING for a module import declaration `import module M;` (JEP 511)', async () => {
+    // A module import names a MODULE, not a type/package; its imported set lives in
+    // unreadable module-path metadata. The extractor recognizes the `module` soft keyword
+    // (or, in the pre-JEP-511 grammar, the malformed leading-`module` scoped_identifier)
+    // and emits no hint — and the whitespace-validity backstop drops the malformed
+    // `"module …"` pseudo-FQN even if recognition were bypassed.
+    const { uses } = await run('package com.app;\nimport module java.base;\nimport module com.acme.lib;\nclass C {}\n');
+    expect(uses).toHaveLength(0);
+  });
+
+  it('emits the service + provider TYPE FQNs of module-info uses / provides directives', async () => {
+    // `module-info.java`: `uses TypeName` and `provides TypeName with TypeName…` carry
+    // genuine shadow-free service-type FQNs → TYPE hints. `requires`/`exports`/`opens`
+    // carry module/package names and MUST be excluded.
+    const { uses } = await run(
+      [
+        'module com.example.foo {',
+        '  requires com.acme.req.ReqType;',
+        '  exports com.acme.exp.ExpType;',
+        '  opens com.acme.opn.OpnType;',
+        '  uses com.acme.spi.Intf;',
+        '  provides com.acme.spi.Intf with com.acme.impl.Impl, com.acme.impl.Impl2;',
+        '}',
+        '',
+      ].join('\n'),
+    );
+    const s = specs(uses);
+    // uses + provides operands (service + both providers) are emitted as TYPE hints.
+    expect(s).toContain('com.acme.spi.Intf');
+    expect(s).toContain('com.acme.impl.Impl');
+    expect(s).toContain('com.acme.impl.Impl2');
+    // requires / exports / opens operands are NEVER emitted (module/package names).
+    expect(s).not.toContain('com.acme.req.ReqType');
+    expect(s).not.toContain('com.acme.exp.ExpType');
+    expect(s).not.toContain('com.acme.opn.OpnType');
+    // All emitted hints are TYPE hints (not package wildcards).
+    expect(uses.every((u) => u.candidates[0].kind === 'path' && u.candidates[0].isPackage !== true)).toBe(true);
+  });
+
   it('does NOT treat extends/implements/new/method calls as edges (v1 = import only)', async () => {
     // No import lines. extends, implements, FQ construction, FQ static call: all
     // usage-site refinement, DEFERRED in v1. Zero detected deps.

@@ -34,6 +34,26 @@ import { single } from './types.js';
  * `java.*` / `javax.*` / `jakarta.*` stdlib imports and any external-library import
  * still emit a hint here — silence is the RESOLVER's job (an FQN that maps to no
  * mapped `.java` resolves to undefined and is never flagged).
+ *
+ * MODULE IMPORT DECLARATIONS (`import module M;`, JEP 511, Java 25) are SKIPPED. The
+ * operand is a MODULE name, not a type FQN or a package directory: the set of simple
+ * names it brings lives in compiled module-path metadata (`java.base`'s jmods, a
+ * third-party JAR) a hermetic source-only tool never reads, and a module exports many
+ * packages from many directories, so there is no single path to map. A `module` import
+ * is recognized by the `module` soft keyword and emitted as NO hint — so it can never
+ * resolve to a phantom (in the pre-JEP-511 grammar an `import module M;` parses
+ * malformed, with the swallowed `module` keyword leaving a whitespace-bearing pseudo-FQN
+ * like `"module java.base"`; the same guard, plus a whitespace-validity backstop in
+ * `emit`, drops it cleanly either way).
+ *
+ * MODULE DECLARATIONS (`module-info.java`) carry TYPE references in their `uses` /
+ * `provides … with …` directives — genuine fully-qualified, shadow-free service-type
+ * FQNs that resolve exactly like a single-type import. They ARE emitted as TYPE path
+ * hints. The `requires` / `exports` / `opens` directives carry MODULE / PACKAGE names
+ * (never types) and are EXCLUDED — mapping a module/package name to a `.java` would be a
+ * phantom. (A `provides … with …` provider class is the kind of service-provider edge
+ * the relation-conformance check tolerates as a declared relation even without code
+ * backing; emitting it is sound — it is a real, shadow-free type reference.)
  */
 
 /** Drop the trailing segment of a dotted FQN: `com.foo.Bar.method` → `com.foo.Bar`.
@@ -75,12 +95,68 @@ function isWildcardImport(decl: Node): boolean {
   return false;
 }
 
+/**
+ * True when `decl` is a module import declaration `import module M;` (JEP 511, Java 25).
+ * A module import names a MODULE, not a type/package — its imported set is unreadable
+ * module-path metadata — so it must emit NO hint (see the file doc comment).
+ *
+ * Two recognition paths, covering grammar versions on both sides of JEP 511:
+ *   - FUTURE grammar: an anonymous `module` token child (parallel to the `static`
+ *     token of a static import).
+ *   - PRE-JEP-511 grammar (the one shipped today): `import module M;` parses MALFORMED
+ *     — the `module` soft keyword is swallowed as the first `identifier` of the
+ *     `scoped_identifier`, leaving an ERROR node, so the node's text begins with the
+ *     literal `module` followed by whitespace (`"module java.base"`). Detect the leading
+ *     `module` identifier of an erroring scoped_identifier.
+ */
+function isModuleImport(decl: Node): boolean {
+  for (let j = 0; j < decl.childCount; j++) {
+    const c = decl.child(j);
+    if (c !== null && !c.isNamed && c.type === 'module') return true; // future grammar
+  }
+  // Pre-JEP-511 fallback: a malformed `scoped_identifier` whose first identifier is the
+  // swallowed `module` soft keyword.
+  for (let i = 0; i < decl.namedChildCount; i++) {
+    const child = decl.namedChild(i);
+    if (child === null) continue;
+    if (child.type === 'scoped_identifier' && child.hasError) {
+      const firstId = firstIdentifierText(child);
+      if (firstId === 'module') return true;
+    }
+  }
+  return false;
+}
+
+/** The leftmost `identifier`'s text in a (possibly nested) `scoped_identifier`, or
+ *  undefined. The grammar nests dotted names rightmost-outermost, so the leftmost leaf
+ *  identifier is the first dotted segment. */
+function firstIdentifierText(node: Node): string | undefined {
+  let cur: Node | null = node;
+  while (cur !== null) {
+    if (cur.type === 'identifier') return cur.text;
+    let next: Node | null = null;
+    for (let i = 0; i < cur.namedChildCount; i++) {
+      const c = cur.namedChild(i);
+      if (c !== null && (c.type === 'scoped_identifier' || c.type === 'identifier')) {
+        next = c;
+        break;
+      }
+    }
+    cur = next;
+  }
+  return undefined;
+}
+
 function uses(file: ParsedFile): DetectedDep[] {
   const out: DetectedDep[] = [];
   const seen = new Set<string>();
 
   const emit = (specifier: string | undefined, node: Node, isPackage = false): void => {
     if (specifier === undefined || specifier === '') return;
+    // Whitespace-validity backstop: a real Java FQN has no whitespace. A specifier that
+    // contains any (e.g. the malformed `"module java.base"` of a pre-JEP-511 `import
+    // module` parse) is not a resolvable FQN — drop it rather than risk a phantom path.
+    if (/\s/.test(specifier)) return;
     const line = node.startPosition.row + 1;
     const dedupKey = `${specifier} ${line}`;
     if (seen.has(dedupKey)) return;
@@ -89,7 +165,24 @@ function uses(file: ParsedFile): DetectedDep[] {
   };
 
   walk(file.tree.rootNode, (node) => {
+    // `module-info.java`: emit the TYPE references of `uses` / `provides … with …`
+    // directives ONLY (shadow-free service-type FQNs). `requires` / `exports` / `opens`
+    // carry module/package names and are skipped (they are not `*_module_directive`
+    // type-bearing forms we read).
+    if (node.type === 'uses_module_directive' || node.type === 'provides_module_directive') {
+      for (let i = 0; i < node.namedChildCount; i++) {
+        const c = node.namedChild(i);
+        if (c !== null && (c.type === 'scoped_identifier' || c.type === 'identifier')) {
+          emit(c.text, c);
+        }
+      }
+      return undefined;
+    }
+
     if (node.type !== 'import_declaration') return undefined;
+
+    // `import module M;` (JEP 511) names a module, not a type/package → emit nothing.
+    if (isModuleImport(node)) return undefined;
 
     const fqn = importFqn(node);
     if (fqn === undefined) return undefined;

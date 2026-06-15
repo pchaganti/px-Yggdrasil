@@ -1,4 +1,13 @@
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import {
+  readFileSync,
+  readdirSync,
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+} from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect } from 'vitest';
@@ -15,6 +24,7 @@ import {
 import { SymbolTable } from '../../../src/relations/symbol-table.js';
 import { buildOwnerIndex } from '../../../src/relations/owner-index.js';
 import { makeResolver, resolveCandidateGroup } from '../../../src/relations/resolver.js';
+import { makeResolvePathToFile } from '../../../src/relations/resolve-path.js';
 import type { ParsedFile } from '../../../src/relations/extractors/types.js';
 
 /**
@@ -218,56 +228,83 @@ export async function runCase(id: string): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ownerIndex = buildOwnerIndex(nodes as any);
 
-  // 5. Real resolver. No path-axis cases in this catalogue's symbol languages use it,
-  //    but wire it so the pipeline is identical to pass.ts.
-  const resolver = makeResolver({
-    ownerIndex,
-    symbolTable,
-    resolvePathToFile: () => undefined,
-  });
+  // 5. Real resolver. Symbol-axis languages (C#, Kotlin) resolve through the SymbolTable;
+  //    path-axis languages (Java, Go, PHP, TS/JS, Python, Rust, C/C++, Ruby) resolve by the
+  //    package/module = file/directory convention through `makeResolvePathToFile`, which is
+  //    pure filesystem access. To drive the IDENTICAL production path resolver (never a copy),
+  //    materialize the embedded `## Files` into a throwaway project root and point the real
+  //    `makeResolvePathToFile` at it. The whole pipeline — extractor.uses(), the path resolver,
+  //    the owner-set-collapse for a wildcard package import — is then byte-identical to pass.ts.
+  const projectRoot = materializeProject(doc.files);
+  try {
+    const resolver = makeResolver({
+      ownerIndex,
+      symbolTable,
+      resolvePathToFile: makeResolvePathToFile(projectRoot, ownerIndex.ownerOf),
+    });
 
-  // 6. Per file: real extractor.uses() (C# injects the global-using tier), then the
-  //    EXACT pass.ts ordered-candidate walk → resolved cross-node edges.
-  const edges: ExpectEdge[] = [];
-  for (const f of doc.files) {
-    const extractor = extractorForLanguage(f.language);
-    if (!extractor) continue;
-    const parsed = parsedByPath.get(f.path)!;
-    const fromNode = nodeOf(f.path);
-    const detected =
-      f.language === 'csharp'
-        ? csharpUses(parsed, {
-            projectGlobalUsings: csharpGlobalUsingsList,
-            projectGlobalUsingAliases: csharpGlobalUsingAliasesList,
-          })
-        : extractor.uses(parsed);
-    for (const dep of detected) {
-      // The SAME candidate walk the live pass runs (resolveCandidateGroup) — never a copy, so
-      // a catalogue case can never pass on resolution logic that diverges from `yg check`.
-      const ownerNode = resolveCandidateGroup(dep.candidates, resolver, f.path, f.language);
-      if (ownerNode !== undefined && ownerNode !== fromNode) {
-        edges.push({ fromFile: f.path, line: dep.line, node: ownerNode });
+    // 6. Per file: real extractor.uses() (C# injects the global-using tier), then the
+    //    EXACT pass.ts ordered-candidate walk → resolved cross-node edges.
+    const edges: ExpectEdge[] = [];
+    for (const f of doc.files) {
+      const extractor = extractorForLanguage(f.language);
+      if (!extractor) continue;
+      const parsed = parsedByPath.get(f.path)!;
+      const fromNode = nodeOf(f.path);
+      const detected =
+        f.language === 'csharp'
+          ? csharpUses(parsed, {
+              projectGlobalUsings: csharpGlobalUsingsList,
+              projectGlobalUsingAliases: csharpGlobalUsingAliasesList,
+            })
+          : extractor.uses(parsed);
+      for (const dep of detected) {
+        // The SAME candidate walk the live pass runs (resolveCandidateGroup) — never a copy, so
+        // a catalogue case can never pass on resolution logic that diverges from `yg check`.
+        const ownerNode = resolveCandidateGroup(dep.candidates, resolver, f.path, f.language);
+        if (ownerNode !== undefined && ownerNode !== fromNode) {
+          edges.push({ fromFile: f.path, line: dep.line, node: ownerNode });
+        }
       }
     }
-  }
 
-  // 7. Assertions.
-  const edgeKey = (e: ExpectEdge): string => `${e.fromFile}:${e.line}->${e.node}`;
-  const actual = new Set(edges.map(edgeKey));
-  const expected = new Set(doc.expectEdges.map(edgeKey));
+    // 7. Assertions.
+    const edgeKey = (e: ExpectEdge): string => `${e.fromFile}:${e.line}->${e.node}`;
+    const actual = new Set(edges.map(edgeKey));
+    const expected = new Set(doc.expectEdges.map(edgeKey));
 
-  // every expected edge present
-  for (const e of doc.expectEdges) {
-    expect(actual, `case ${id}: expected edge ${edgeKey(e)} not emitted (got ${[...actual].join(', ') || 'none'})`).toContain(edgeKey(e));
+    // every expected edge present
+    for (const e of doc.expectEdges) {
+      expect(actual, `case ${id}: expected edge ${edgeKey(e)} not emitted (got ${[...actual].join(', ') || 'none'})`).toContain(edgeKey(e));
+    }
+    // no unexpected cross-node edge (covers silence cases and edge cases alike)
+    for (const a of actual) {
+      expect(expected, `case ${id}: unexpected cross-node edge ${a}`).toContain(a);
+    }
+    // a `silence` expectation must yield zero edges
+    if (doc.expectSilence && doc.expectEdges.length === 0) {
+      expect(edges, `case ${id}: expected silence but emitted ${edges.map(edgeKey).join(', ')}`).toHaveLength(0);
+    }
+  } finally {
+    rmSync(projectRoot, { recursive: true, force: true });
   }
-  // no unexpected cross-node edge (covers silence cases and edge cases alike)
-  for (const a of actual) {
-    expect(expected, `case ${id}: unexpected cross-node edge ${a}`).toContain(a);
+}
+
+/**
+ * Materialize the embedded `## Files` into a throwaway temp project root and return its
+ * absolute path. Each file's repo-relative POSIX path is created verbatim under the root, so
+ * the path resolver sees the EXACT package = directory layout the catalogue documents. The
+ * caller removes the directory in a `finally`. This is the path-axis analogue of building the
+ * SymbolTable for the symbol-axis languages — both feed the SAME production resolver.
+ */
+function materializeProject(files: CaseFile[]): string {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'yg-refcase-'));
+  for (const f of files) {
+    const abs = path.join(root, f.path);
+    mkdirSync(path.dirname(abs), { recursive: true });
+    writeFileSync(abs, f.code, 'utf-8');
   }
-  // a `silence` expectation must yield zero edges
-  if (doc.expectSilence && doc.expectEdges.length === 0) {
-    expect(edges, `case ${id}: expected silence but emitted ${edges.map(edgeKey).join(', ')}`).toHaveLength(0);
-  }
+  return root;
 }
 
 /** Find the case `.md` by scanning each declared language dir for `<id>.md`. */
