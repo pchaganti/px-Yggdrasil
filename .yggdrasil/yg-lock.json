@@ -167,9 +167,9 @@
       "file:source/cli/src/relations/index-dir.ts": {"hash":"df2731e67466baf4f0cc3fdd1d0cd9be059a16f08dc86fb587c6e7c302f4ed12","verdict":"approved"},
       "file:source/cli/src/relations/messages.ts": {"hash":"6be2459b8680fe4857c9fc695f77ffd8b669a26ff00b3e84e5d1a4da580f5ead","verdict":"approved"},
       "file:source/cli/src/relations/owner-index.ts": {"hash":"5bde3bfca223c3fc559e04ad6614771ce6cbe155455a32cc39065b1ad35bda45","verdict":"approved"},
-      "file:source/cli/src/relations/pass.ts": {"hash":"dbd1b67fd49084e5224f8d502f48275d409be522c45147a317b8cb4362f4d41a","verdict":"approved"},
+      "file:source/cli/src/relations/pass.ts": {"hash":"8baaa5a7025311d400ed8982ee1f9b7bbd7ca47b36222b82b4469daa31f77418","verdict":"approved"},
       "file:source/cli/src/relations/resolve-path.ts": {"hash":"f448b174a598bbca8491138bc2b4b56538d7ac9c340f22784f065568c3dce043","verdict":"approved"},
-      "file:source/cli/src/relations/resolver.ts": {"hash":"ba8f5b6022b75d5ad6e05e5fe8e333a59d2aaec8ff022c7db95ddf9746870d76","verdict":"approved"},
+      "file:source/cli/src/relations/resolver.ts": {"hash":"0cf66cbf3b411b67f4a12390b1a302a0cd4e2fab05e06ce119e88c72246c1cf6","verdict":"approved"},
       "file:source/cli/src/relations/symbol-table.ts": {"hash":"193ebb7e70dd484fb8d0a2d7b2b6c4166fb278b66c99a42d9ed63e1999aab83d","verdict":"approved"},
       "file:source/cli/src/relations/verifier.ts": {"hash":"b0fd5ea3670aa3ab7360669d12d86f27d2c0dc988c00ed42fca35bbc1be64dfc","verdict":"approved"},
       "file:source/cli/src/structure/allowed-reads.ts": {"hash":"970b33a7bdade8a7c8c5e037da372a8311f57bee709411d606aecb856e8884c7","verdict":"approved"},
@@ -385,7 +385,7 @@
       "node:cli/model/validation": {"hash":"a91828855ba5701ce3705bc75e988df66da9b02d74790620205730d925b54315","touched":[],"verdict":"approved"},
       "node:cli/model/when": {"hash":"f5c0253d97edd963bda52413fcc822c43c1c3407cf19df657d295f46d83a5648","touched":[],"verdict":"approved"},
       "node:cli/preamble": {"hash":"29c092ef35b539d76d94fd57ad7e0a2100a9accc390eb4351abf758b23006a07","touched":[],"verdict":"approved"},
-      "node:cli/relations/core": {"hash":"e2f7173c4f61c31f1e05d1b31a3fe6a43cf6542ebf735a6c0fd3ef185ec96b61","touched":[],"verdict":"approved"},
+      "node:cli/relations/core": {"hash":"b6470285a5099a4d1c922ee5fbf816c1e23ee87b1415f663a5aba3edc324568f","touched":[],"verdict":"approved"},
       "node:cli/relations/extractors": {"hash":"144a45ab8d9807b2c77c02073403bddabebf3360ade36959a19cae8db15a0140","touched":[],"verdict":"approved"},
       "node:cli/structure": {"hash":"8630ecbe6243dd00d0240622848e7c4040a76be571c5caac58edc953c25b7fe0","touched":[],"verdict":"approved"},
       "node:cli/templates": {"hash":"a431a1541a7a33f4157999a716556b6afe63965cd5ecfdb84328bc4d977d268c","touched":[],"verdict":"approved"},
@@ -543,7 +543,7 @@
       "node:cli/llm/providers": {"hash":"76688803622f463cca28e66fbb484ada68f2dc9793eb389a9cfb305769d665d4","touched":[],"verdict":"approved"},
       "node:cli/llm/subprocess-base": {"hash":"27b52579c905065a39805997d8fddc758dcaec4062a0ce173b00b8df49b6c159","touched":[],"verdict":"approved"},
       "node:cli/preamble": {"hash":"981c0dff63a6233c9fdcd9806b27e029b932d004fccdbdbaa3b041512a1a4496","touched":[],"verdict":"approved"},
-      "node:cli/relations/core": {"hash":"c2161f8ec540ab47c61e122af9adeef20633ce1909c82cdce8dd1c47f11ecd78","touched":[],"verdict":"approved"},
+      "node:cli/relations/core": {"hash":"a1eb00e7f410de2b9e58f3d05055c39dfed506cb120287dbb939613139943c9d","touched":[],"verdict":"approved"},
       "node:cli/relations/extractors": {"hash":"c445a40c0eb1bdf0c923e97776aff7fdf9502b2418a67edb1d5cdf07bc1a8587","touched":[],"verdict":"approved"},
       "node:cli/structure": {"hash":"9898461c8bcae6c81b6b22520227d59c232476cbbc49a5286c9527468bfee282","touched":[],"verdict":"approved"},
       "node:cli/templates": {"hash":"0b3f674464132653bb17cc2d8d074295b4eaddc414db542d30a46838720a96e8","touched":[],"verdict":"approved"},
@@ -581,6 +581,20 @@
       "node:cli/io/parsers/config": {"hash":"9ed224f24b05aeeb8c595e2e55457da5d7aceb91f97990c16d3fe0e532fbb302","touched":[],"verdict":"approved"},
       "node:cli/io/parsers/graph": {"hash":"15534600c2be25b9aa819938efcc179807d3017902e22b6e51148584b4dda21f","touched":[],"verdict":"approved"},
       "node:cli/io/stores": {"hash":"bdb944f4a0ad6c97a470a26d57dcda65a7a18ede73e62c4aa2c5432ded714737","touched":[],"verdict":"approved"}
+    },
+    "reference/doc-shape": {
+      "node:cli/reference/relations": {"hash":"aecbce2452c253d54dcb6d310e23af4bf20c7a94fef8fa7599ad6c91776dcd56","touched":[],"verdict":"approved"},
+      "node:cli/reference/relations/csharp": {"hash":"d96e5dd9a38d7f95594d6b2df0eb4eb7bc43710e2af963c15a3e48ec10acb116","touched":[["graph:cli","4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611"],["graph:cli/reference","25ec414a230f7cd21aea67dc8843e74faa0b2abd396531de5e821863c7d6d688"],["graph:cli/reference/relations","53c92ebf1b46c6cd155eea7b5363ba3eb52fe1c03ab7289a8a3126734e153b02"],["read:reference/relations/_reference-schema.yaml","64b349c2fe8fe49540694974b85c56354d1b8884c0ce1f2233c6365cedbb091f"]],"verdict":"approved"}
+    },
+    "reference/layout": {
+      "node:cli/reference/relations": {"hash":"42e9014b6136d35cc37232ce94edd36df2f7eea1f8fa689bff9e6ab24b3dd480","touched":[],"verdict":"approved"},
+      "node:cli/reference/relations/csharp": {"hash":"779022a8dd10f64cf9fc7fee6ccffb461960495e1223a49dd950593b956a5bda","touched":[["graph:cli","4b493e4905484f8d7ed4cbc576aede514269ba0d7367cf1a9577297d830ee611"],["graph:cli/reference","25ec414a230f7cd21aea67dc8843e74faa0b2abd396531de5e821863c7d6d688"],["graph:cli/reference/relations","53c92ebf1b46c6cd155eea7b5363ba3eb52fe1c03ab7289a8a3126734e153b02"],["list:reference/relations/csharp","b62db25ad35f11d06161e4cfa4010e4b95f87eb36769eb0ae97cfef5e451d274"],["read:reference/relations/_reference-schema.yaml","64b349c2fe8fe49540694974b85c56354d1b8884c0ce1f2233c6365cedbb091f"]],"verdict":"approved"}
+    },
+    "reference/relations/case-has-test": {
+      "node:cli/reference/relations/csharp": {"hash":"a872f72924cb7d60d4a39facf4cf75a723578e0aa237d535cd6a673c3092fe06","touched":[["graph-children:cli/tests/unit/relations/extractors-matrix-csharp","e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],["graph:cli/reference/relations/csharp","3ec8187ad84d0e0e2d1391162814365afc57d978386793ceea06d8f5a2f7b6d8"],["graph:cli/tests/unit/relations/extractors-matrix-csharp","948799a9e6ebe4a535f8ad628dca94b08a43692f44d4d95a840c9c0935337491"],["read:source/cli/tests/unit/relations/extractors/csharp-name-resolution-matrix.test.ts","37d167be92ef4d779e264cbf97a4a2c3eca50ed946af4eea82100906820be872"]],"verdict":"approved"}
+    },
+    "reference/relations/case-is-tested": {
+      "node:cli/reference/relations/csharp": {"hash":"a32f4484a5a46bfbdecdb005e5bd4f9d398961347e434b66baf8608a8ea27dfc","touched":[["graph-children:cli/tests/unit/relations/extractors-matrix-csharp","e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],["graph:cli/reference/relations/csharp","3ec8187ad84d0e0e2d1391162814365afc57d978386793ceea06d8f5a2f7b6d8"],["graph:cli/tests/unit/relations/extractors-matrix-csharp","948799a9e6ebe4a535f8ad628dca94b08a43692f44d4d95a840c9c0935337491"],["read:source/cli/tests/unit/relations/extractors/csharp-name-resolution-matrix.test.ts","37d167be92ef4d779e264cbf97a4a2c3eca50ed946af4eea82100906820be872"]],"verdict":"approved"}
     },
     "schema-bump-bookkeeping": {
       "node:cli/core/migrations": {"hash":"232ccbd29f008395f5a104599595d684805353a1db44c18d679959b1a2debd23","touched":[],"verdict":"approved"}
@@ -797,7 +811,7 @@
       "node:cli/tests/unit/relations/extractors-csharp": {"hash":"4c6fcd09234e3eff44dce192e78811d35623e38d45556c911b66357bbe7d6710","verdict":"approved"},
       "node:cli/tests/unit/relations/extractors-jvm-go": {"hash":"afbdfb1ec73a714b7f3ba6b1fecb47d696ec6de521e83d4bf121573d70d3d4c8","verdict":"approved"},
       "node:cli/tests/unit/relations/extractors-matrix-c-cpp": {"hash":"d5037884b626bf2de4d797ce851404f980bdbfdaa2afdff916b33c503e80afe7","verdict":"approved"},
-      "node:cli/tests/unit/relations/extractors-matrix-csharp": {"hash":"15e081ca60466283fb8419ccd72737c2d1ec540cb83ae7da0c6d7a484e86ac3b","verdict":"approved"},
+      "node:cli/tests/unit/relations/extractors-matrix-csharp": {"hash":"651f951e0c9c04a5947b2e9430ddf0743f3a45ba09c233b3bc4a60c2511cfbe2","verdict":"approved"},
       "node:cli/tests/unit/relations/extractors-matrix-go": {"hash":"a7b8579d228189cca90d4dec18d381f858c5fb85c5b1a36a2b70030931ccadad","verdict":"approved"},
       "node:cli/tests/unit/relations/extractors-matrix-java": {"hash":"86e85becfa2365f64bb76084a631ca95c8c13e28e2f94d2f1f0bb3b89c15a328","verdict":"approved"},
       "node:cli/tests/unit/relations/extractors-matrix-kotlin": {"hash":"4a75459d06f804727d494ce61c8cbeb72d312745df944b0b085bd49b572783a4","verdict":"approved"},
@@ -807,6 +821,7 @@
       "node:cli/tests/unit/relations/extractors-php-python": {"hash":"700616eea28f38f4f020923702a7da23a02b868334fc889ddb336f4986045727","verdict":"approved"},
       "node:cli/tests/unit/relations/extractors-ruby": {"hash":"b2f7a16695666abeef84fd1acc7c3d12d2a1042b28e202770361542cf2be43d7","verdict":"approved"},
       "node:cli/tests/unit/relations/extractors-rust-ts": {"hash":"5f6a88768aa834bdea261066a1589b173dd6a370ec08cf11516df31061e6ef5c","verdict":"approved"},
+      "node:cli/tests/unit/relations/reference-runner": {"hash":"17547e248d3ae524d1700034eb7bde4b371c342dd0ca6b85ba51305e161c9237","verdict":"approved"},
       "node:cli/tests/unit/repo": {"hash":"278c99e0db92900abe81c802692db59fcffe280d8ef0aacb0cb0eb849ac0cc7d","verdict":"approved"},
       "node:cli/tests/unit/structure": {"hash":"3b605d51093b8a3b5bb4630d386873a2157239848c3f3f518be8f8e59c20f189","verdict":"approved"},
       "node:cli/tests/unit/structure/allowed-reads-and-runner": {"hash":"956c53821f4ea0eb1054de149440512e4a554e329bfce5f25bf6de0fff23c653","verdict":"approved"},
@@ -954,7 +969,9 @@
     "cli/model/validation": {"source":"25427cc12b55a622bd8c1fceeca6c09beabeda0d7bd6e51e0d543dcd2493262c"},
     "cli/model/when": {"source":"64f63ae93919374eec4bd8b86a8f0f9487f2e65e4237b4be69ca01c2367c020a"},
     "cli/preamble": {"log":{"last_entry_datetime":"2026-06-01T09:41:50.140Z","prefix_hash":"1169a24ada6cc37b8c4ab80c099f2848f81d29922465318ab0a60021c675085a"},"source":"8879c137d46f04d4be64391ae09e55beeae2b1c35dfd4caeac0176d550f75283"},
-    "cli/relations/core": {"source":"cba9faba18edf290fb9c5d572cb8f910e06f066b01d396ad2bfcf98c525b8fbd"},
+    "cli/reference/relations": {"source":"f8e120cee563ce5c6fc02111b1713a0b98a81591c80fca2cdd232c8fd8eb87e9"},
+    "cli/reference/relations/csharp": {"source":"dece4a9723c9df6aa23a23353e91dfe05a333282129abd7ff212980c590b71ab"},
+    "cli/relations/core": {"source":"c0d8f07537d9773eb2c6b9758797d219edde17a2d13be5b24859b4172590fb4b"},
     "cli/relations/extractors": {"source":"011434382f5f43982c782e936bc6ca404a5143e004b46038bb695e355214b577"},
     "cli/structure": {"log":{"last_entry_datetime":"2026-06-14T05:30:00.000Z","prefix_hash":"cc779352f6413c18fbf19e5712a4bd4afdcb5ea70106abd9be27dc46709d2a25"},"source":"0d9853dd123615002a7a3bebfe8f666ec850e84d9e3206da3a8d70caea806cb1"},
     "cli/templates": {"log":{"last_entry_datetime":"2026-06-14T22:16:46.169Z","prefix_hash":"fbecb9fe9c343e690792780661efe5559b4fb8787efa89c1e005d0372fb21cd6"},"source":"36e92b597cd412ae97c666a01bb3e4a09bbee1cacc7dbf22fa1c7ff8c0033c0c"},
@@ -1115,7 +1132,7 @@
     "cli/tests/unit/relations/extractors-csharp": {"source":"cfc6253bac17552dc3a5524068341a475edb10b74690a3322ad26726186e50be"},
     "cli/tests/unit/relations/extractors-jvm-go": {"source":"52fc4a5348fa4ea89bca02100eee10a8144ffe9e03ae8ea01119ebe816363989"},
     "cli/tests/unit/relations/extractors-matrix-c-cpp": {"source":"98bfeb47c24afde80ca86155e5989a05a72bb296af8a722f0cfab8b5f006e397"},
-    "cli/tests/unit/relations/extractors-matrix-csharp": {"source":"d2eedcf060c1200fe89a2251186e278d6b2053d078c1ffd6a1816dc89ebdfd6b"},
+    "cli/tests/unit/relations/extractors-matrix-csharp": {"source":"147fa9f41fa882a5cc32f326d76d0612fae9ba3c06ff9ba08617ba9a149f27ed"},
     "cli/tests/unit/relations/extractors-matrix-go": {"source":"43d9e609aabee1dcf646dfe2e42bbfb17314b1f7a228459d53a92f567dd3736e"},
     "cli/tests/unit/relations/extractors-matrix-java": {"source":"edc683e052a679b5b34f24f2c794192ae76915383a59469099cde69e19a65d17"},
     "cli/tests/unit/relations/extractors-matrix-kotlin": {"source":"d95c5cbe1cd7327179c2b3f4668e2c189b695fce2a47affd1fd0b57c56fffe0f"},
@@ -1125,6 +1142,7 @@
     "cli/tests/unit/relations/extractors-php-python": {"source":"fb9f7721d1ab1ccf3a5a20d97aafd16e90cce7ebc393997c7b04290feae30c2d"},
     "cli/tests/unit/relations/extractors-ruby": {"source":"af7e4e73f8ced1c3402140a03694e896fd03578f2fefc768b4654de0b49b76ad"},
     "cli/tests/unit/relations/extractors-rust-ts": {"source":"81c58dcfa50d842f9007418804892515fce31d2549cd9bf7ec2318ae2b95c7b6"},
+    "cli/tests/unit/relations/reference-runner": {"source":"3bea18a61cb50763abb1c58d826de91c0a63c6ffd14afcbcd56b54210266e80a"},
     "cli/tests/unit/repo": {"source":"5cc0e0f3ce317ee55267032864397160b9847f666bc37259a1a29e8c99c16c8c"},
     "cli/tests/unit/structure": {"log":{"last_entry_datetime":"2026-05-29T18:15:44.596Z","prefix_hash":"1d4d8202925d03e458b3c7410efeb3b07138a8232e9e584dabd23d3c242a125e"},"source":"6736df0d948d2c433fdf09d923f37e079ee8c3de694f82edc5394ee1dbfba67b"},
     "cli/tests/unit/structure/allowed-reads-and-runner": {"log":{"last_entry_datetime":"2026-05-30T12:46:26.639Z","prefix_hash":"18164e65d0739660f22291953aaa88ba4be67a674b067638de23ee4d2651faec"},"source":"b29f999583b173710ec1a7d4ca698505af265263b224a6ce33cf38059d7bf300"},

@@ -31,6 +31,32 @@ export interface TargetResolver {
 }
 
 /**
+ * The ordered first-unique-match-wins walk over a detected reference's candidate group:
+ * nearest binding first (member → enclosing namespace → unique using-import → verbatim),
+ * farther candidates last. Returns the owner node of the resolved binding, or undefined when
+ * the group silences (a nearer candidate is present-but-ambiguous, or no candidate binds). For
+ * a one-element group this is byte-identical to a single resolve.
+ *
+ * This is the SINGLE definition of the candidate walk, shared by the live relation pass and the
+ * reference-case test runner so the two can never drift. Self-edge filtering and declared-
+ * relation verification are the caller's concern (they happen at different stages).
+ */
+export function resolveCandidateGroup(
+  candidates: readonly TargetHint[],
+  resolver: TargetResolver,
+  fromFile: string,
+  language: string,
+): string | undefined {
+  for (const cand of candidates) {
+    const outcome = resolver.classify(cand, fromFile, language);
+    if (outcome.kind === 'resolved') return outcome.ownerNode;
+    if (outcome.kind === 'ambiguous') return undefined; // present-but-ambiguous → silence the group
+    // outcome.kind === 'absent' → continue to the next, farther candidate
+  }
+  return undefined; // end of list, nothing bound → silence (external / unmapped)
+}
+
+/**
  * The candidate symbol keys for ONE dotted symbol reference: the verbatim dot-only key,
  * PLUS the guarded nested-type `+`-boundary splits. For a dotted candidate `s1...sn`, for
  * each split index `k` in `[1, n-1]` the key `s1..sk + '+' + s_{k+1}..sn` is added ONLY

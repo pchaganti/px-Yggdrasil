@@ -14,7 +14,7 @@ import {
   writeSymbolIndex,
   type PersistedSymbolIndex,
 } from './symbol-table.js';
-import { makeResolver } from './resolver.js';
+import { makeResolver, resolveCandidateGroup } from './resolver.js';
 import { csharpUses, collectGlobalUsings } from './extractors/csharp.js';
 import { verifyNodeDeps, type ResolvedDep, type RelationGraphView, type Violation } from './verifier.js';
 import type {
@@ -216,21 +216,14 @@ export async function runRelationPass(
           ? csharpUses(parsed, { projectGlobalUsings: csharpGlobalUsings })
           : extractor.uses(parsed);
       for (const dep of detected) {
-        // Ordered first-unique-match-wins walk over the candidate group (nearest binding
-        // first, verbatim/top-level last). For a one-element group this is byte-identical
-        // to a single resolve.
-        for (const cand of dep.candidates) {
-          const outcome = resolver.classify(cand, record.path, record.language);
-          if (outcome.kind === 'resolved') {
-            // RESOLVED-UNIQUE → that IS the binding. Emit one edge and stop the group;
-            // never consider a farther candidate.
-            resolvedDeps.push({ fromFile: record.path, line: dep.line, ownerNode: outcome.ownerNode });
-            break;
-          }
-          if (outcome.kind === 'ambiguous') break; // PRESENT-BUT-AMBIGUOUS → silence the group
-          // outcome.kind === 'absent' → continue to the next, farther candidate
+        // Ordered first-unique-match-wins walk over the candidate group — the SINGLE
+        // definition shared verbatim with the reference-case runner (resolveCandidateGroup).
+        // A resolved self-edge is pushed here and filtered downstream by verifyNodeDeps
+        // against the node's declared relations.
+        const ownerNode = resolveCandidateGroup(dep.candidates, resolver, record.path, record.language);
+        if (ownerNode !== undefined) {
+          resolvedDeps.push({ fromFile: record.path, line: dep.line, ownerNode });
         }
-        // end of list with nothing bound → silence (external / unmapped)
       }
     }
 

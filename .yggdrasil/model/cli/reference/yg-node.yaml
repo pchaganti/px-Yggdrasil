@@ -1,0 +1,6 @@
+name: Reference Catalogues
+type: module
+description: "Organizational grouping for the structured reference catalogues under
+  reference/<kind>/. Owns no files directly; each kind sub-area is a
+  reference-catalogue node beneath it (first kind: the relations name-resolution
+  case catalogue)."

@@ -1,0 +1,3 @@
+name: RelationsCaseIsTested
+description: "Each relations reference case is really exercised: the matching matrix it('<id>') calls runCase('<id>') with the id literal matching, and is not it.skip / it.todo."
+status: enforced

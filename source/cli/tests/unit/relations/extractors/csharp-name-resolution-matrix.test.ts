@@ -5,6 +5,7 @@ import { makeResolver } from '../../../../src/relations/resolver.js';
 import type { ParsedFile } from '../../../../src/relations/extractors/types.js';
 import { ensureLoaderRegistered } from '../../../../src/ast/loader-hook.js';
 import { parseFile } from '../../../../src/ast/parser.js';
+import { runCase } from '../reference-case-runner.js';
 
 /**
  * C# NAME-RESOLUTION IDENTIFICATION MATRIX — characterization, one `it()` per
@@ -122,19 +123,10 @@ describe('MATRIX — using-import & alias forms', () => {
     expect(keys.some((k) => k.startsWith('N.'))).toBe(false);
   });
 
-  it('PASS R6: `using Alias = N.Type;` + use of `Alias` → N.Type (alias is nearest candidate)', async () => {
-    const consumer = await parse(
-      'src/c/Use.cs',
-      'using Gw = Foo.Bar.IGateway;\nnamespace App;\nclass C { void M() { var x = new Gw(); } }\n',
-    );
-    const group = groupContaining(csharpExtractor.uses(consumer), 'Foo.Bar.IGateway');
-    expect(group?.[0]).toBe('Foo.Bar.IGateway'); // alias expansion is FIRST/nearest
-    expect(group?.[group.length - 1]).toBe('Gw'); // bare alias name only harmless-last
-    const st = new SymbolTable();
-    st.declare('csharp', 'Foo.Bar.IGateway', 'src/g/IGateway.cs');
-    const r = resolverOver(st, { 'src/g/IGateway.cs': 'g' });
-    expect(walkResolve(csharpExtractor.uses(consumer), 'Foo.Bar.IGateway', r, consumer.path)).toBe('g');
-  });
+  // Migrated to the reference catalogue (reference/relations/csharp/csharp-using-alias.md):
+  // the embedded fixture + documented outcome are the single source, asserted end-to-end
+  // through the real relation pass by runCase. (Was: PASS R6 `using Alias = N.Type;`.)
+  it('csharp-using-alias', () => runCase('csharp-using-alias'));
 
   it('PASS R6: `using Alias = N;` then `Alias.Type` → N.Type', async () => {
     // The alias rewrites the leftmost segment; the dotted tail follows it → N.Sub.Type.
