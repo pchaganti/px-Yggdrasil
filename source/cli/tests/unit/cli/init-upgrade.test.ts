@@ -2,10 +2,10 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { mkdtemp, writeFile, mkdir, readFile, stat, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { runVersionUpgrade, ensureGitattributes, ensureProjectGitignore } from '../../../src/cli/init.js';
+import { runVersionUpgrade, ensureGitattributes, ensureYggdrasilGitignore } from '../../../src/cli/init.js';
 
 const LOCK_LINE = '/.yggdrasil/yg-lock.json linguist-generated=true';
-const CACHE_LINE = '.yggdrasil/.symbols-cache/';
+const GITIGNORE_LINES = ['yg-secrets.yaml', '.symbols-cache/', '.debug.log'];
 
 async function scaffoldExistingYgg(projectRoot: string, version: string): Promise<string> {
   const yggRoot = path.join(projectRoot, '.yggdrasil');
@@ -168,57 +168,77 @@ describe('ensureGitattributes', () => {
   });
 });
 
-describe('ensureProjectGitignore', () => {
+describe('ensureYggdrasilGitignore', () => {
   const dirsToCleanup: string[] = [];
   afterEach(async () => {
     for (const d of dirsToCleanup.splice(0)) await rm(d, { recursive: true, force: true });
   });
 
-  it('creates .gitignore with the cache line when absent', async () => {
-    const repoRoot = await mkdtemp(path.join(tmpdir(), 'yg-gitignore-'));
-    dirsToCleanup.push(repoRoot);
+  it('creates .gitignore with all required lines when absent', async () => {
+    const yggRoot = await mkdtemp(path.join(tmpdir(), 'yg-gitignore-'));
+    dirsToCleanup.push(yggRoot);
 
-    await ensureProjectGitignore(repoRoot);
+    await ensureYggdrasilGitignore(yggRoot);
 
-    const gi = await readFile(path.join(repoRoot, '.gitignore'), 'utf-8');
-    expect(gi).toBe(`${CACHE_LINE}\n`);
+    const gi = await readFile(path.join(yggRoot, '.gitignore'), 'utf-8');
+    expect(gi).toBe(`${GITIGNORE_LINES.join('\n')}\n`);
   });
 
-  it('leaves the file unchanged when the cache line is already present', async () => {
-    const repoRoot = await mkdtemp(path.join(tmpdir(), 'yg-gitignore-'));
-    dirsToCleanup.push(repoRoot);
-    const original = `node_modules/\n${CACHE_LINE}\n`;
-    await writeFile(path.join(repoRoot, '.gitignore'), original, 'utf-8');
+  it('leaves the file unchanged when every required line is already present', async () => {
+    const yggRoot = await mkdtemp(path.join(tmpdir(), 'yg-gitignore-'));
+    dirsToCleanup.push(yggRoot);
+    const original = `node_modules/\n${GITIGNORE_LINES.join('\n')}\n`;
+    await writeFile(path.join(yggRoot, '.gitignore'), original, 'utf-8');
 
-    await ensureProjectGitignore(repoRoot);
+    await ensureYggdrasilGitignore(yggRoot);
 
-    const gi = await readFile(path.join(repoRoot, '.gitignore'), 'utf-8');
+    const gi = await readFile(path.join(yggRoot, '.gitignore'), 'utf-8');
     expect(gi).toBe(original);
   });
 
-  it('appends the cache line exactly once when other content exists', async () => {
-    const repoRoot = await mkdtemp(path.join(tmpdir(), 'yg-gitignore-'));
-    dirsToCleanup.push(repoRoot);
-    await writeFile(path.join(repoRoot, '.gitignore'), 'node_modules/\n', 'utf-8');
+  it('appends only the missing line, preserving other content (idempotent)', async () => {
+    const yggRoot = await mkdtemp(path.join(tmpdir(), 'yg-gitignore-'));
+    dirsToCleanup.push(yggRoot);
+    // File already has a subset (the secrets + cache lines) plus unrelated content.
+    await writeFile(
+      path.join(yggRoot, '.gitignore'),
+      'custom-local-state\nyg-secrets.yaml\n.symbols-cache/\n',
+      'utf-8',
+    );
 
-    await ensureProjectGitignore(repoRoot);
-    // Second call must NOT append a duplicate.
-    await ensureProjectGitignore(repoRoot);
+    await ensureYggdrasilGitignore(yggRoot);
+    // Second call must NOT append a duplicate of anything.
+    await ensureYggdrasilGitignore(yggRoot);
 
-    const gi = await readFile(path.join(repoRoot, '.gitignore'), 'utf-8');
-    expect(gi).toBe(`node_modules/\n${CACHE_LINE}\n`);
-    const occurrences = gi.split('\n').filter((l) => l.trim() === CACHE_LINE).length;
-    expect(occurrences).toBe(1);
+    const gi = await readFile(path.join(yggRoot, '.gitignore'), 'utf-8');
+    // Only the single missing line (.debug.log) was appended; existing content preserved.
+    expect(gi).toBe('custom-local-state\nyg-secrets.yaml\n.symbols-cache/\n.debug.log\n');
+    for (const line of GITIGNORE_LINES) {
+      const occurrences = gi.split('\n').filter((l) => l.trim() === line).length;
+      expect(occurrences).toBe(1);
+    }
+  });
+
+  it('is a no-op when all required lines are already present', async () => {
+    const yggRoot = await mkdtemp(path.join(tmpdir(), 'yg-gitignore-'));
+    dirsToCleanup.push(yggRoot);
+    const original = `${GITIGNORE_LINES.join('\n')}\n`;
+    await writeFile(path.join(yggRoot, '.gitignore'), original, 'utf-8');
+
+    await ensureYggdrasilGitignore(yggRoot);
+
+    const gi = await readFile(path.join(yggRoot, '.gitignore'), 'utf-8');
+    expect(gi).toBe(original);
   });
 
   it('inserts a separating newline when the existing file lacks a trailing one', async () => {
-    const repoRoot = await mkdtemp(path.join(tmpdir(), 'yg-gitignore-'));
-    dirsToCleanup.push(repoRoot);
-    await writeFile(path.join(repoRoot, '.gitignore'), 'node_modules/', 'utf-8');
+    const yggRoot = await mkdtemp(path.join(tmpdir(), 'yg-gitignore-'));
+    dirsToCleanup.push(yggRoot);
+    await writeFile(path.join(yggRoot, '.gitignore'), 'node_modules/', 'utf-8');
 
-    await ensureProjectGitignore(repoRoot);
+    await ensureYggdrasilGitignore(yggRoot);
 
-    const gi = await readFile(path.join(repoRoot, '.gitignore'), 'utf-8');
-    expect(gi).toBe(`node_modules/\n${CACHE_LINE}\n`);
+    const gi = await readFile(path.join(yggRoot, '.gitignore'), 'utf-8');
+    expect(gi).toBe(`node_modules/\n${GITIGNORE_LINES.join('\n')}\n`);
   });
 });

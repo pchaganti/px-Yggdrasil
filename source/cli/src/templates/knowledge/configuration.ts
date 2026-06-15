@@ -163,7 +163,7 @@ reviewer:
 ## Secrets (yg-secrets.yaml)
 
 API keys go in \`yg-secrets.yaml\`, NOT in \`yg-config.yaml\`.
-\`yg-secrets.yaml\` is gitignored by default.
+\`yg-secrets.yaml\` is gitignored by default — see "Local state (.yggdrasil/.gitignore)" below.
 
 \`\`\`yaml
 # .yggdrasil/yg-secrets.yaml  — gitignored, never commit
@@ -228,7 +228,26 @@ starves a cheap tier. Tune \`parallel\` conservatively when mixing tier costs.
 
 \`debug\` (top-level) defaults to \`false\`. When set to \`true\`, every command
 appends its output to \`.yggdrasil/.debug.log\`. The log is append-only — rotate
-or delete it manually.
+or delete it manually. It is gitignored — see "Local state" below.
+
+## Local state (.yggdrasil/.gitignore)
+
+All Yggdrasil-derived LOCAL state — rebuildable caches and secrets — lives under
+\`.yggdrasil/\` and must never be committed. \`yg init\` manages a single
+\`.yggdrasil/.gitignore\` as the one home for it, writing these entries (relative
+to the \`.yggdrasil/\` directory):
+
+\`\`\`
+yg-secrets.yaml      # provider API keys
+.symbols-cache/      # the relation pass's per-language symbol-index cache
+.debug.log           # the opt-in command debug log
+\`\`\`
+
+It is written idempotently on fresh \`yg init\` AND on every \`yg init --upgrade\`
+(missing lines are appended once, present lines and any of your own entries are
+left untouched), so existing adopters pick up the complete set on upgrade. There
+is no separate repo-root gitignore entry for the symbol cache — the consolidated
+\`.yggdrasil/.gitignore\` covers it.
 
 ## Upgrading
 
@@ -236,7 +255,8 @@ or delete it manually.
 yg init --upgrade
 \`\`\`
 
-Refreshes rules, schemas, platform files, and \`.gitattributes\`, and lifts the
+Refreshes rules, schemas, platform files, \`.gitattributes\`, and
+\`.yggdrasil/.gitignore\` (see "Local state" above), and lifts the
 config's version bookkeeping to the current schema. The config parser is strict:
 a config carrying an unknown field (e.g. \`quality.max_node_chars\` or a tier
 \`references:\` cap block) gets a clear unknown-key error from \`yg check\` — delete
