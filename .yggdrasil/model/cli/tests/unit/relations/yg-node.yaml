@@ -1,9 +1,9 @@
 name: Relations Unit Tests
 type: test-suite
 description: "Unit tests for the relation-conformance engine modules: the symbol
-  table, owner index, resolver, path resolution, the extractor registry,
-  agent-facing messages, and the verifier. Per-language extractor tests live in
-  the extractors child node."
+  table, owner index, path resolution, the extractor registry, agent-facing
+  messages, and the verifier. The resolver's own unit tests live in the
+  resolver-unit child node; per-language extractor tests in the extractors child node."
 aspects: []
 relations:
   [
@@ -13,7 +13,6 @@ relations:
 mapping:
   - source/cli/tests/unit/relations/symbol-table.test.ts
   - source/cli/tests/unit/relations/owner-index.test.ts
-  - source/cli/tests/unit/relations/resolver.test.ts
   - source/cli/tests/unit/relations/resolve-path.test.ts
   - source/cli/tests/unit/relations/registry.test.ts
   - source/cli/tests/unit/relations/messages.test.ts

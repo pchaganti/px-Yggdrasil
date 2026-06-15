@@ -74,6 +74,58 @@ describe('resolver.classify — tri-state (resolved / ambiguous / absent)', () =
   });
 });
 
+// Ruby root-anchoring: a multi-segment constant `A::B::C` resolves to an in-repo
+// declaration ONLY when its ROOT `A` is itself a declared in-repo symbol. A compact
+// reopening of an external constant (`module Rack::Handler` with no in-repo `Rack`) is thus
+// silenced — the zero-FP fix for the sinatra `defined?(Rackup::Handler)` mis-binding.
+describe('resolver — Ruby root-anchoring (multi-segment resolves only when its ROOT is in-repo)', () => {
+  const rbOwner = { ownerOf: (f: string) => (f === 'lib/x.rb' ? 'x' : undefined) };
+  const rubyTable = (...decls: [string, string][]): SymbolTable => {
+    const st = new SymbolTable();
+    for (const [k, f] of decls) st.declare('ruby', k, f);
+    return st;
+  };
+
+  it('classify: a compact constant whose ROOT is NOT in-repo is `absent` (reopened-external)', () => {
+    const st = rubyTable(['Rack::Handler', 'lib/x.rb']); // only the compact key; `Rack` unanchored
+    const r = makeResolver({ ownerIndex: rbOwner as any, symbolTable: st, resolvePathToFile: () => undefined });
+    expect(r.classify({ kind: 'symbol', symbolKey: 'Rack::Handler' }, 'lib/a.rb', 'ruby')).toEqual({ kind: 'absent' });
+  });
+  it('resolve: a root-unanchored compact constant does not resolve', () => {
+    const st = rubyTable(['Rack::Handler', 'lib/x.rb']);
+    const r = makeResolver({ ownerIndex: rbOwner as any, symbolTable: st, resolvePathToFile: () => undefined });
+    expect(r.resolve({ kind: 'symbol', symbolKey: 'Rack::Handler' }, 'lib/a.rb', 'ruby')).toBeUndefined();
+  });
+  it('classify: when the ROOT is anchored in-repo (a bare `module Rack`), the constant resolves', () => {
+    const st = rubyTable(['Rack', 'lib/x.rb'], ['Rack::Handler', 'lib/x.rb']);
+    const r = makeResolver({ ownerIndex: rbOwner as any, symbolTable: st, resolvePathToFile: () => undefined });
+    expect(r.classify({ kind: 'symbol', symbolKey: 'Rack::Handler' }, 'lib/a.rb', 'ruby')).toEqual({
+      kind: 'resolved', ownerNode: 'x', resolvedFile: 'lib/x.rb',
+    });
+  });
+  it('resolve: a root-anchored constant resolves to its owner', () => {
+    const st = rubyTable(['Rack', 'lib/x.rb'], ['Rack::Handler', 'lib/x.rb']);
+    const r = makeResolver({ ownerIndex: rbOwner as any, symbolTable: st, resolvePathToFile: () => undefined });
+    expect(r.resolve({ kind: 'symbol', symbolKey: 'Rack::Handler' }, 'lib/a.rb', 'ruby')).toEqual({
+      ownerNode: 'x', resolvedFile: 'lib/x.rb',
+    });
+  });
+  it('a single-segment Ruby constant is its own root → not subject to the guard', () => {
+    const st = rubyTable(['Helper', 'lib/x.rb']);
+    const r = makeResolver({ ownerIndex: rbOwner as any, symbolTable: st, resolvePathToFile: () => undefined });
+    expect(r.classify({ kind: 'symbol', symbolKey: 'Helper' }, 'lib/a.rb', 'ruby')).toEqual({
+      kind: 'resolved', ownerNode: 'x', resolvedFile: 'lib/x.rb',
+    });
+  });
+  it('RUBY-ONLY: a C# `A.B` resolves even though its root `A` is not a standalone symbol', () => {
+    const st = new SymbolTable(); st.declare('csharp', 'A.B', 'src/b.cs');
+    const r = makeResolver({ ownerIndex: owner as any, symbolTable: st, resolvePathToFile: () => undefined });
+    expect(r.classify({ kind: 'symbol', symbolKey: 'A.B' }, 'src/a.cs', 'csharp')).toEqual({
+      kind: 'resolved', ownerNode: 'b', resolvedFile: 'src/b.cs',
+    });
+  });
+});
+
 // SymbolTable defCount/has — the count accessors the tri-state probe is built on.
 describe('SymbolTable.defCount / has', () => {
   it('counts distinct defining files and reports presence', () => {

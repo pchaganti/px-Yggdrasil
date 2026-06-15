@@ -66,6 +66,8 @@ describe('MATRIX — load-path / ambiguity / shadowing silences (the master zero
   it('ruby-plain-require-silence', () => runCase('ruby-plain-require-silence'));
   it('ruby-reopening-ambiguity-silence', () => runCase('ruby-reopening-ambiguity-silence'));
   it('ruby-lexical-shadowing-bare-silence', () => runCase('ruby-lexical-shadowing-bare-silence'));
+  // Root-anchoring: a compact reopening of an EXTERNAL constant (root not in-repo) → silence.
+  it('ruby-reopened-external-constant-silence', () => runCase('ruby-reopened-external-constant-silence'));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

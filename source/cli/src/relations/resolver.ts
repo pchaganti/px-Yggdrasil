@@ -96,6 +96,26 @@ function nestedOnlySplitKeys(symbolTable: SymbolTable, language: string, symbolK
   return keys;
 }
 
+/**
+ * Ruby root-anchoring guard. A Ruby constant reference `A::B::C` resolves to an in-repo
+ * declaration ONLY when its ROOT segment `A` is itself a declared in-repo symbol. Ruby's
+ * COMPACT declaration form (`module Rackup::Handler`) records the full `Rackup::Handler`
+ * key but REOPENS a namespace (`Rackup`) that must already exist — so when `Rackup` has no
+ * in-repo declaration of its own, it is an EXTERNAL library and the compact form merely
+ * extends it. A reference to `Rackup::Handler` then means the external entity, and binding
+ * it to the in-repo reopening would be a FALSE POSITIVE (the real case: a test stub `module
+ * Rackup::Handler` wrongly pulled in by a library file's `defined?(Rackup::Handler)`).
+ * Requiring the root to be anchored in-repo (some bare `module Rackup` / `class Rackup`,
+ * recorded as a single-segment key) keeps genuine in-repo constants resolvable while
+ * silencing reopened-external ones. RUBY-ONLY: C#/Kotlin root at a namespace that is never
+ * recorded as a standalone symbol, so this guard must not apply to them.
+ */
+function rubyRootUnanchored(symbolKey: string, symbolTable: SymbolTable): boolean {
+  const idx = symbolKey.indexOf('::');
+  if (idx === -1) return false; // single-segment reference: it is its own root
+  return !symbolTable.has('ruby', symbolKey.slice(0, idx));
+}
+
 export function makeResolver(deps: ResolverDeps): TargetResolver {
   /** The DISTINCT defining files a dotted symbol candidate maps to, across the verbatim key
    *  AND the guarded nested-type `+`-splits. The set-level rule: 0 distinct files → absent,
@@ -143,6 +163,7 @@ export function makeResolver(deps: ResolverDeps): TargetResolver {
   const resolve: TargetResolver['resolve'] = (hint, fromFile, language) => {
     let file: string | undefined;
     if (hint.kind === 'symbol') {
+      if (language === 'ruby' && rubyRootUnanchored(hint.symbolKey, deps.symbolTable)) return undefined;
       const files = hintFiles(hint, language);
       if (files.size !== 1) return undefined;    // 0 → unresolved; ≥2 → ambiguous → silence
       file = [...files][0];
@@ -157,6 +178,12 @@ export function makeResolver(deps: ResolverDeps): TargetResolver {
 
   const classify: TargetResolver['classify'] = (hint, fromFile, language) => {
     if (hint.kind === 'symbol') {
+      // Ruby: a multi-segment constant whose ROOT namespace is not itself declared in-repo
+      // is reopening an EXTERNAL library (e.g. a test stub `module Rackup::Handler`) → absent,
+      // never bind a reference to the reopened-external constant (zero-FP). See rubyRootUnanchored.
+      if (language === 'ruby' && rubyRootUnanchored(hint.symbolKey, deps.symbolTable)) {
+        return { kind: 'absent' };
+      }
       // Symbol axis: collect the distinct files this hint maps to — the union across its `set`
       // members (CS0104 / co-definition), each honoring `nestedOnly` (R4), or the lone
       // `symbolKey`'s verbatim + guarded `+`-splits. ≥2 distinct files is a real ambiguity
