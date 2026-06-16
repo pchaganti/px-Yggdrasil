@@ -37,6 +37,7 @@ To add a new platform (e.g. a new IDE or agent): add it to `source/cli/src/templ
   1. Bump version (patch/minor/major per [semver](https://semver.org/)).
   2. Run `npm install` in `source/cli/` to update `package-lock.json`.
   3. Move current version entries to a release section in `CHANGELOG.md`.
+- **Two distinct version notions — do not conflate them.** The `package.json` version is the release/marketing version and moves on every release. The **graph schema version** is separate: it lives in `CLI_SUPPORTED_SCHEMA` (`core/graph-loader.ts`) and the `version:` field of `templates/default-config.ts`, and it advances ONLY when the graph format/migrations change — never for a code-only patch. `yg init` compares a project's graph version against `CLI_SUPPORTED_SCHEMA` (not the package version) to decide whether an upgrade is needed. Bumping `package.json` does NOT require bumping the schema version; bump the schema version (in both places, plus a migration) only when the graph format actually changes.
 
 ## CLI Message Design Principle
 

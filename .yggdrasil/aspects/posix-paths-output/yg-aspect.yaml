@@ -4,3 +4,6 @@ reviewer:
   type: llm
 scope:
   per: file
+references:
+  - path: source/cli/src/utils/posix.ts
+    description: "Canonical path-output helpers. toPosixPath(p) converts backslashes to forward slashes AND strips trailing slashes — code that writes a path through toPosixPath() therefore satisfies both rules of this aspect. toPosix(p) only converts separators and preserves a trailing slash, so it is NOT sufficient for output paths on its own."

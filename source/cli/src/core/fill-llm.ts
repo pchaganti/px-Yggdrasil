@@ -142,7 +142,7 @@ export async function fillLlmPair(
     ruleHash: ruleHashFor(aspect, 'content.md'),
     files: subjects.map((s) => [s.path, hashBytes(s.bytes)] as [string, string]),
     references: referencesForHash,
-    tier: tierHashViewFromTier(tierName, tier),
+    tier: tierHashViewFromTier(tierName),
     verdict,
   });
 

@@ -1,16 +1,12 @@
 {
-  "version": 2,
+  "version": 1,
   "verdicts": {
     "requires-audit": {
-      "node:payments": {"hash":"fe91972688b5dfdece2c512cb96246aa518573e775b2eae48d71350ebd8d2aa0","verdict":"approved"}
+      "node:payments": {"hash":"646f6ca16a60df6ad4c9312784d7a3e43273947e3352c0c3a2987f07387f6770","verdict":"approved"}
     }
   },
   "nodes": {
     "api": {"source":"0aac398b69c28d3c90642035290d3990e405a425ba88c2640bcf9486d6bc2cc9"},
     "payments": {"log":{"last_entry_datetime":"2026-06-03T11:37:45.233Z","prefix_hash":"61283a0c70b8902e38f8e29405e9b32f1e0097277b3fcc16b3533bb12ecb46bd"},"source":"e1f77e17c0bebdb1c3386e486cda9e5871e727ce267ac395dd6acb7c16999365"}
-  },
-  "relation_verdicts": {
-    "node:api": {"evidence":{"sources":[["src/api.ts","9433d9df4efc18d1ad0e267e0046d8f99bd15b7a57028b195f18691d13d509a0"]],"relations":"082665f7817109db03c49951e25db348f445e97025281e83c403b1da4857b0e4","outcomes":[{"fromFile":"src/api.ts","line":1,"hintKey":"path:./payments.js","outcome":{"ownerNode":"payments","resolvedFile":"src/payments.ts","resolvedFileHash":"b06d60ef769ee357b3337ddb26fab2924460224c5e4785fbfa3a7e3d10856038","basis":"payments"}}],"grammarVersions":[["typescript","1"]],"indexIdentity":"45844d08a400709e5f86f4cdd8c0523abd312c3a2d55f36c0614882d1fa9201c"},"fingerprint":"fb45198fecd66680c9af35836f2d21c7c3070bf60ab50164fd4ee72556aafad5","verdict":"approved"},
-    "node:payments": {"evidence":{"sources":[["src/audit.ts","150f7f8a73a427a97b0011d6261f0afe7c6d83cc2f626133cb858d16830860c8"],["src/payments.ts","b06d60ef769ee357b3337ddb26fab2924460224c5e4785fbfa3a7e3d10856038"]],"relations":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","outcomes":[{"fromFile":"src/payments.ts","line":1,"hintKey":"path:./audit.js","outcome":{"ownerNode":"payments","resolvedFile":"src/audit.ts","resolvedFileHash":"150f7f8a73a427a97b0011d6261f0afe7c6d83cc2f626133cb858d16830860c8","basis":"none"}}],"grammarVersions":[["typescript","1"]],"indexIdentity":"45844d08a400709e5f86f4cdd8c0523abd312c3a2d55f36c0614882d1fa9201c"},"fingerprint":"17a05b67bd6f76f06c0d2ebfe4ecab941350717ee1ae675a89c2ac2080b539ae","verdict":"approved"}
   }
 }

@@ -1,0 +1,54 @@
+# _reference-schema.yaml — structure contract for the `llm-aspect-verdict-responses` kind.
+#
+# Consumed by the GENERIC reference aspects (reference/doc-shape, reference/layout).
+# Kind: the corpus of raw reviewer replies parseAspectResponse must handle — the
+# well-formed happy path and every malformation local/quantized models actually
+# emit (unescaped " in the reason, truncated/unclosed reason, chain-of-thought
+# leaked into the reason, a quoted "true"/"false"). Each `.md` is ONE reply, 1:1
+# with a case in the verdict-response corpus test.
+
+kind: llm-aspect-verdict-responses
+
+# Flat: every case is <id>.md directly under the kind root.
+layout:
+  pattern: "<id>.md"
+  allow_only: ["*.md", "_reference-schema.yaml"]
+
+frontmatter:
+  required: [id, category, expectation]
+  enums:
+    # what the raw reply looks like
+    category: [wellformed, malformed, infra, empty]
+    # the parse outcome the corpus test asserts:
+    #   verdict   — a real "satisfied" verdict is read (errorSource codeViolation)
+    #   infra     — no verdict field; fail-closed provider/infra disposition (no false PASS)
+    #   undefined — no reply at all; parseAspectResponse returns undefined
+    expectation: [verdict, infra, undefined]
+
+# `##` headings every `.md` must contain, in order.
+#   Rule   — what the case exercises (prose).
+#   Input  — the raw reviewer reply, VERBATIM, in a 4-backtick fence (so a reply
+#            that itself contains a ```json fence embeds cleanly).
+#   Expect — the asserted parse outcome (satisfied / error_source / reason_includes / result).
+sections:
+  required: [Rule, Input, Expect]
+  # Body contract — enforced by the generic reference/section-body aspect.
+  body:
+    # The raw reviewer reply: exactly one 4-backtick fence (so a reply that itself
+    # contains a ```json block embeds cleanly).
+    Input:
+      shape: fence
+      backticks: 4
+    # The asserted parse outcome: `- key: value` lines.
+    Expect:
+      shape: keyed-list
+      keys: [satisfied, error_source, reason_includes, result]
+      enums:
+        satisfied: [true, false]
+        error_source: [codeViolation, provider]
+        result: ["undefined"]
+      # frontmatter `expectation` value → keys that MUST be present (no vacuous Expect):
+      require_by:
+        verdict: [satisfied, error_source]
+        infra: [error_source]
+        undefined: [result]

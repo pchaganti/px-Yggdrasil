@@ -15,14 +15,15 @@ import { startMockReviewer, runAsync, type ChatReply } from './support/mock-revi
 // ---------------------------------------------------------------------------
 // TIER-IDENTITY cascade E2E (verdict-lock model).
 //
-// An LLM pair's verdict hash folds in the RESOLVED reviewer tier identity.
-// Anything that changes the resolved tier for an aspect — its consensus, model,
-// endpoint, the tier's NAME, or the default it falls back to — changes that
-// hash, so every using pair goes `unverified` and a re-fill (`yg check
-// --approve`) is required. Two config fields are EXCLUDED from the identity:
-// `api_key` (rotated independently — its value is not a judgment input) and
-// `timeout` (a transport knob that historically cascaded every node without
-// changing any reviewer output). Rotating either leaves every pair verified.
+// An LLM pair's verdict hash folds in ONLY the resolved tier NAME — never its
+// config. Changing which NAMED tier an aspect resolves to (renaming the tier, or
+// repointing `reviewer.default`) changes that hash, so every using pair goes
+// `unverified` and a re-fill (`yg check --approve`) is required. Editing a tier's
+// CONFIG — consensus, model, endpoint, api_key, timeout — does NOT change the
+// hash: every pair stays verified, no re-fill. The resolved reviewer config is the
+// reviewer's private business; only the tier name is a judgment input, so a team
+// can point the same named tier at a different model (or a local secrets overlay)
+// without invalidating committed baselines.
 //
 // This suite proves that mechanic end-to-end against the real built binary.
 //
@@ -143,7 +144,7 @@ reviewer:
         endpoint: "${endpoint}"
 `;
 
-describe.skipIf(!distExists)('CLI E2E — tier-identity invalidation (resolved tier change re-verifies every using pair)', () => {
+describe.skipIf(!distExists)('CLI E2E — tier-NAME identity (only the resolved tier NAME re-verifies; config edits do not)', () => {
   // --- T0: the hermetic assumption itself ---
 
   it('T0: a satisfied-mock fill writes a lock that TRACKS the LLM aspect tier-identity', async () => {
@@ -160,88 +161,73 @@ describe.skipIf(!distExists)('CLI E2E — tier-identity invalidation (resolved t
     }
   });
 
-  // --- T1a / T1b: scenario 1 — consensus edit invalidates, re-fill clears it ---
+  // --- T1: scenario 1 — a consensus edit does NOT invalidate (config, not name) ---
 
-  it('T1a: editing the tier consensus (1→3) invalidates every using pair (exit 1, names both)', async () => {
-    const dir = copyFixture('t1a');
+  it('T1: editing the tier consensus (1→3) does NOT invalidate — config is not a verdict input', async () => {
+    const dir = copyFixture('t1');
     const mock = await startMockReviewer({ respond: OK });
     try {
       await fillGreen(dir, mock.endpoint);
-
-      // Mutate the resolved tier: consensus 1 → 3.
-      patchConfig(dir, 'consensus: 1', 'consensus: 3');
-
-      const check = await runAsync(['check'], dir);
-      expect(check.status).toBe(1);
-      // BOTH using pairs are unverified — the resolved tier identity changed.
-      expectBothUnverified(check.all);
-    } finally {
-      await mock.close();
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it('T1b: re-filling after the consensus edit CLEARS the invalidation', async () => {
-    const dir = copyFixture('t1b');
-    const mock = await startMockReviewer({ respond: OK });
-    try {
-      await fillGreen(dir, mock.endpoint);
-      patchConfig(dir, 'consensus: 1', 'consensus: 3');
-
-      // Confirm both pairs are unverified before clearing.
-      expectBothUnverified((await runAsync(['check'], dir)).all);
-
-      // Re-fill: both using pairs pick up the new tier identity. The mock
-      // satisfies all 3 consensus calls per pair → 6 calls, exit 0.
       const callsBefore = mock.chatCount();
+
+      // Mutate the tier config: consensus 1 → 3. The hash folds only the tier
+      // NAME, so every using pair stays verified.
+      patchConfig(dir, 'consensus: 1', 'consensus: 3');
+
       const refill = await runAsync(['check', '--approve'], dir);
       expect(refill.status).toBe(0);
-      expect(refill.all).toContain(`[llm] ${HAS_DOC} on ${ORDERS} — approved`);
-      expect(refill.all).toContain(`[llm] ${HAS_DOC} on ${PAYMENTS} — approved`);
-      expect(mock.chatCount() - callsBefore).toBe(6); // 2 pairs × consensus 3
+      expect(refill.all).toContain('Filling 0 unverified pairs');
+      expect(mock.chatCount() - callsBefore).toBe(0); // nothing re-reviewed
 
-      // The invalidation is gone after re-fill.
-      const cleared = await runAsync(['check'], dir);
-      expect(cleared.status).toBe(0);
+      const check = await runAsync(['check'], dir);
+      expect(check.status).toBe(0);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  // --- T2: scenario 2 — editing a tier config field (model / endpoint) invalidates ---
+  // --- T2: scenario 2 — editing a tier config field (model / endpoint) does NOT invalidate ---
 
-  it('T2: editing the resolved tier model invalidates every using pair', async () => {
+  it('T2: editing the tier model does NOT invalidate — config is not a verdict input', async () => {
     const dir = copyFixture('t2-model');
     const mock = await startMockReviewer({ respond: OK });
     try {
       await fillGreen(dir, mock.endpoint);
+      const callsBefore = mock.chatCount();
 
       patchConfig(dir, 'qwen2.5-coder:0.5b', 'llama3.2:1b');
 
+      const refill = await runAsync(['check', '--approve'], dir);
+      expect(refill.status).toBe(0);
+      expect(refill.all).toContain('Filling 0 unverified pairs');
+      expect(mock.chatCount() - callsBefore).toBe(0);
+
       const check = await runAsync(['check'], dir);
-      expect(check.status).toBe(1);
-      expectBothUnverified(check.all);
+      expect(check.status).toBe(0);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('T2b: editing the resolved tier endpoint invalidates every using pair', async () => {
+  it('T2b: editing the tier endpoint does NOT invalidate — config is not a verdict input', async () => {
     const dir = copyFixture('t2-endpoint');
     const mock = await startMockReviewer({ respond: OK });
     try {
       await fillGreen(dir, mock.endpoint);
+      const callsBefore = mock.chatCount();
 
-      // Repoint at a DIFFERENT address: a genuine tier change. `yg check` makes
-      // no reviewer call, so the new address need not be live for the
-      // deterministic invalidation to surface.
+      // Repoint at a different address — a config change, not a name change.
       patchConfig(dir, mock.endpoint, DEAD_ENDPOINT_ALT);
 
+      const refill = await runAsync(['check', '--approve'], dir);
+      expect(refill.status).toBe(0);
+      expect(refill.all).toContain('Filling 0 unverified pairs');
+      expect(mock.chatCount() - callsBefore).toBe(0);
+
       const check = await runAsync(['check'], dir);
-      expect(check.status).toBe(1);
-      expectBothUnverified(check.all);
+      expect(check.status).toBe(0);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });

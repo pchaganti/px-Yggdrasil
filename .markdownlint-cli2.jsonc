@@ -23,5 +23,6 @@
     ".cursor/rules/**",
     "**/log.md",
     ".lab*/**/*.md",
+    "reference/llm-aspect-verdict-responses/**",
   ],
 }

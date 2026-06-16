@@ -53,12 +53,6 @@ const BASE_LLM_INPUT: LlmHashInput = {
   ],
   tier: {
     name: 'standard',
-    provider: 'anthropic',
-    consensus: 2,
-    config: {
-      model: 'claude-3-7-sonnet-20250219',
-      temperature: 0,
-    },
   },
   verdict: 'approved',
 };
@@ -125,36 +119,22 @@ describe('computeLlmInputHash', () => {
     expect(withUndefined).toBe(withExplicit);
   });
 
-  it('tier config api_key and timeout do not affect the hash', () => {
-    const tierWithSensitive = tierHashView('standard', {
-      provider: 'anthropic',
-      consensus: 2,
-      config: {
-        model: 'claude-3-7-sonnet-20250219',
-        temperature: 0,
-        api_key: 'sk-secret-key',
-        timeout: 30000,
-      },
-    });
-    const tierWithout = tierHashView('standard', {
-      provider: 'anthropic',
-      consensus: 2,
-      config: {
-        model: 'claude-3-7-sonnet-20250219',
-        temperature: 0,
-      },
-    });
+  it('tier config (provider/model/temperature/consensus/api_key/timeout) does not affect the hash — only the name folds in', () => {
+    // Same tier name, wildly different resolved config → identical hash.
+    const tierA = tierHashView('standard');
+    const tierB = tierHashView('standard');
+    const hashA = computeLlmInputHash({ ...BASE_LLM_INPUT, tier: tierA });
+    const hashB = computeLlmInputHash({ ...BASE_LLM_INPUT, tier: tierB });
+    expect(hashA).toBe(hashB);
+    // tierHashView never exposes config at all — swapping the model behind the
+    // name is invisible to the hash by construction.
+    expect(tierA).toEqual({ name: 'standard' });
+  });
 
-    const hashWithSensitive = computeLlmInputHash({
-      ...BASE_LLM_INPUT,
-      tier: tierWithSensitive,
-    });
-    const hashWithout = computeLlmInputHash({
-      ...BASE_LLM_INPUT,
-      tier: tierWithout,
-    });
-
-    expect(hashWithSensitive).toBe(hashWithout);
+  it('tier NAME changes the hash', () => {
+    const standard = computeLlmInputHash({ ...BASE_LLM_INPUT, tier: tierHashView('standard') });
+    const thorough = computeLlmInputHash({ ...BASE_LLM_INPUT, tier: tierHashView('thorough') });
+    expect(standard).not.toBe(thorough);
   });
 
   it('aspect description affects the hash', () => {
@@ -311,34 +291,13 @@ describe('hashExistsObservation', () => {
 // ---------------------------------------------------------------------------
 
 describe('tierHashView', () => {
-  it('strips api_key and timeout, preserves everything else', () => {
-    const view = tierHashView('standard', {
-      provider: 'anthropic',
-      consensus: 1,
-      config: {
-        model: 'claude-3-7-sonnet-20250219',
-        temperature: 0.1,
-        api_key: 'sk-secret',
-        timeout: 60000,
-        custom_header: 'x-value',
-      },
-    });
-    expect(view.config).not.toHaveProperty('api_key');
-    expect(view.config).not.toHaveProperty('timeout');
-    expect(view.config).toHaveProperty('model');
-    expect(view.config).toHaveProperty('temperature');
-    expect(view.config).toHaveProperty('custom_header');
-    expect(view.name).toBe('standard');
-    expect(view.provider).toBe('anthropic');
-    expect(view.consensus).toBe(1);
+  it('returns ONLY the tier name — no provider/consensus/config', () => {
+    const view = tierHashView('standard');
+    expect(view).toEqual({ name: 'standard' });
   });
 
-  it('does not mutate its input', () => {
-    const config = { model: 'x', api_key: 'secret', timeout: 5000 };
-    const llm = { provider: 'openai' as const, consensus: 1, config };
-    tierHashView('t', llm);
-    expect(config).toHaveProperty('api_key', 'secret');
-    expect(config).toHaveProperty('timeout', 5000);
+  it('different names produce different views', () => {
+    expect(tierHashView('fast')).not.toEqual(tierHashView('thorough'));
   });
 });
 

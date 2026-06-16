@@ -436,7 +436,7 @@ Agents may propose adding a suppress marker but must **never** write one without
 
 Both reviewer types record their results the same way: one content-addressed entry per `(aspect, unit)` pair in the committed `.yggdrasil/yg-lock.json`. Each entry stores the verdict and the hash of the inputs that produced it:
 
-- **LLM pair:** the hash folds `content.md`, the subject files, the aspect description, the reference files, and the resolved tier identity. Change any of them → the pair is unverified.
+- **LLM pair:** the hash folds `content.md`, the subject files, the aspect description, the reference files, and the **name** of the resolved tier. The tier's config — provider, model, endpoint, temperature, consensus — is not folded; only its name. Change any folded input → the pair is unverified.
 - **Deterministic pair:** the hash folds `check.mjs`, the subject files, and the observation set — every `ctx.fs` read, listing, and existence probe and every `ctx.graph` access the check made beyond its subject files (see [the observation model](#the-observation-model-what-invalidates-a-deterministic-verdict) below). Change the check, a subject file, or any observed value → the pair is unverified.
 
 `yg check` recomputes each pair's input hash and compares it to the lock — no LLM calls, no provider keys, runs instantly. A source edit and an aspect-content edit both surface the same way: the affected pairs no longer match their recorded hash, so check reports them as unverified until `yg check --approve` fills them again.

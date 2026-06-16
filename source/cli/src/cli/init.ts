@@ -39,12 +39,6 @@ function getGraphSchemasDir(): string {
   return path.join(getPackageRoot(), 'graph-schemas');
 }
 
-async function getCliVersion(): Promise<string> {
-  const pkgPath = path.join(getPackageRoot(), 'package.json');
-  const pkg = JSON.parse(await readFile(pkgPath, 'utf-8'));
-  return pkg.version;
-}
-
 async function refreshSchemas(yggRoot: string): Promise<void> {
   const schemasDir = path.join(yggRoot, 'schemas');
   await mkdir(schemasDir, { recursive: true });
@@ -611,12 +605,14 @@ async function existingInit(projectRoot: string): Promise<void> {
 
   p.intro(chalk.bold('Yggdrasil Configuration'));
 
-  // Check for pending migrations
+  // Check for pending migrations. The graph version is the SCHEMA version — it
+  // advances only when the graph format changes, not on every package release —
+  // so compare it against CLI_SUPPORTED_SCHEMA, never the package version. A
+  // patch release that leaves the format unchanged needs no upgrade.
   const currentVersion = await detectVersion(yggRoot);
-  const cliVersion = await getCliVersion();
 
-  if (currentVersion && currentVersion !== cliVersion) {
-    p.log.step(`Graph version ${currentVersion} detected — CLI is ${cliVersion}. Upgrade required.`);
+  if (currentVersion && currentVersion !== CLI_SUPPORTED_SCHEMA) {
+    p.log.step(`Graph schema ${currentVersion} detected — this CLI uses schema ${CLI_SUPPORTED_SCHEMA}. Upgrade required.`);
     p.log.info('Select the agent platform so rules and schemas advance together.');
     const platform = await promptPlatform();
 

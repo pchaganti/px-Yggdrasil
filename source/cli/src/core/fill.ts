@@ -56,7 +56,6 @@ import type { ExpectedPair } from './pairs.js';
 import { verifyLock } from './verify-lock.js';
 import { selectTierForAspect } from './tier-selection.js';
 import { createLlmProvider } from '../llm/index.js';
-import { loadSecrets, mergeLlmConfig } from '../io/secrets-parser.js';
 import { validate } from './validator.js';
 import { APPROVE_GATING_CODES } from './check-codes.js';
 import type { IssueMessage } from '../model/validation.js';
@@ -178,15 +177,25 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
     await persistLock();
   };
 
-  // ── Step 4: Log gate per node (§9). Nodes owning unverified pairs whose ────
-  // log_required type drifted (or first verification) with no fresh entry are
-  // BLOCKED: their pairs are skipped; other nodes proceed.
+  // ── Step 4: Log gate per node (§9). A node owning unverified pairs whose
+  // log_required type drifted (or first verification) with no fresh entry needs
+  // a justification entry first. The gate is all-or-nothing: if ANY node needs an
+  // entry, --approve approves NOTHING this run and stops (no fill, no report) —
+  // the per-node messages tell the user which entries to add, then re-run.
   const blockedNodes = new Set<string>();
   for (const nodePath of nodeSet) {
     const node = graph.nodes.get(nodePath);
     if (!node) continue;
     const blocked = await logGateBlocks(graph, projectRoot, node, lock, emitIssue);
     if (blocked) blockedNodes.add(nodePath);
+  }
+  if (blockedNodes.size > 0) {
+    throw new FillGatingError([{
+      code: 'log-entry-required',
+      what: `${blockedNodes.size} node(s) need a fresh log entry before --approve.`,
+      why: 'Source changed on log_required nodes without a justification entry; nothing was approved this run.',
+      next: 'Add the log entries listed above (yg log add), then re-run: yg check --approve',
+    }]);
   }
 
   let reviewerCallsMade = 0;
@@ -241,7 +250,8 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
   }
 
   // ── Step 6: LLM fills — grouped by resolved tier; one provider per tier. ───
-  const secretsByProvider = new Map<string, Partial<LlmConfig> | null>();
+  // Tier config already reflects the yg-secrets overlay (deep-merged at config
+  // parse time), so no per-provider secret merge happens here.
   // Reference bytes are cached as RAW disk Buffers (null = missing/unreadable) so
   // the producer hashes and prompts the SAME bytes the verifier re-reads through
   // readFileBytes — a BOM or non-UTF-8 reference can never desync the two sides
@@ -279,14 +289,9 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
   const parallel = Math.max(1, graph.config.parallel ?? 1);
 
   for (const [tierName, group] of byTier) {
-    // One provider per tier per run. Merge run-scoped secrets once.
+    // Tier config already includes the yg-secrets overlay (applied at parse time).
     const baseTier = group[0].tier;
-    if (!secretsByProvider.has(baseTier.provider)) {
-      const secrets = await loadSecrets(graph.rootPath, baseTier.provider);
-      secretsByProvider.set(baseTier.provider, secrets ?? null);
-    }
-    const merged = applySecrets(baseTier, secretsByProvider.get(baseTier.provider));
-    const provider = createLlmProvider(merged);
+    const provider = createLlmProvider(baseTier);
 
     // Availability is an infra gate — if the provider is unreachable, every
     // pair in this tier is an infra disposition (no write).
@@ -299,9 +304,9 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
     }
     if (!available) {
       infraFailures += group.length;
-      infraReport.push({ provider: merged.provider, tier: tierName });
+      infraReport.push({ provider: baseTier.provider, tier: tierName });
       emitIssue({
-        what: `Reviewer provider '${merged.provider}' (tier '${tierName}') is unreachable — ${group.length} pair(s) left unverified.`,
+        what: `Reviewer provider '${baseTier.provider}' (tier '${tierName}') is unreachable — ${group.length} pair(s) left unverified.`,
         why: 'The configured reviewer endpoint did not respond (availability check failed) — an infrastructure problem, not a code violation. No verdict was written.',
         next: `Check the provider endpoint, network, and credentials, then re-run: yg check --approve`,
       });
@@ -310,25 +315,34 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
 
     // Worker pool bounded by parallel; consensus runs sequentially in-slot.
     const outcomes = await runPairPool(group, parallel, async (item) => {
-      return fillLlmPair(graph, projectRoot, item.pair, item.aspect, item.tier, item.tierName, merged, provider, referencesCache);
+      const outcome = await fillLlmPair(graph, projectRoot, item.pair, item.aspect, item.tier, item.tierName, baseTier, provider, referencesCache);
+      // Persist each verdict the moment its pair completes — like the deterministic
+      // loop — so interrupting the run (Ctrl+C) keeps every finished verdict and the
+      // next run resumes only the rest (§7). Infra dispositions write nothing.
+      // setEntry's mutation is synchronous and persistLock serializes the disk
+      // writes, so concurrent pool workers cannot corrupt the lock.
+      if (outcome.kind !== 'infra') {
+        await setEntry(item.pair.aspectId, item.pair.unitKey, outcome.entry);
+        write(`  [llm] ${item.pair.aspectId} on ${toPosixPath(item.pair.unitKey)} — ${outcome.entry.verdict}\n`);
+      }
+      return outcome;
     });
 
+    // Tally counters and surface infra dispositions (no persistence here — the
+    // verdicts were already written inside the pool as each pair finished).
     for (let i = 0; i < group.length; i++) {
       const item = group[i];
       const outcome = outcomes[i];
       reviewerCallsMade += outcome.callsMade;
       if (outcome.kind === 'infra') {
         infraFailures += 1;
-        infraReport.push({ provider: merged.provider, tier: tierName });
+        infraReport.push({ provider: baseTier.provider, tier: tierName });
         emitIssue({
           what: `Reviewer could not verify aspect '${item.pair.aspectId}' on ${toPosixPath(item.pair.unitKey)} — left unverified.`,
           why: outcome.why,
           next: `Resolve the provider/config problem, then re-run: yg check --approve`,
         });
-        continue;
       }
-      await setEntry(item.pair.aspectId, item.pair.unitKey, outcome.entry);
-      write(`  [llm] ${item.pair.aspectId} on ${toPosixPath(item.pair.unitKey)} — ${outcome.entry.verdict}\n`);
     }
   }
 
@@ -374,12 +388,4 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
 
   const checkResult = await runCheck(graph, opts.gitTrackedFiles);
   return { checkResult, reviewerCallsMade, infraFailures, runtimeErrors };
-}
-
-// ============================================================
-// Small utilities
-// ============================================================
-
-function applySecrets(tier: LlmConfig, secrets: Partial<LlmConfig> | null | undefined): LlmConfig {
-  return secrets ? mergeLlmConfig(tier, secrets) : tier;
 }

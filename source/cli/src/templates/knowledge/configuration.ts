@@ -120,10 +120,10 @@ Provider-specific options passed to the LLM client:
 | \`endpoint\` | string | Required for \`openai-compatible\` (no default host — else falls back to api.openai.com); \`ollama\` defaults to http://localhost:11434. |
 | \`timeout\` | number | Timeout in seconds. Default 300. Applies to CLI providers only — non-CLI/API providers ignore it. Not folded into a verdict's hash (a transport knob). |
 
-API keys do NOT live here — they belong in \`yg-secrets.yaml\` (api_key only).
-API providers also read the provider API key from environment variables (e.g.
-the provider's standard \`*_API_KEY\`) as a fallback when not present in
-\`yg-secrets.yaml\`.
+API keys do NOT belong in the committed config — put them in \`yg-secrets.yaml\`,
+the local overlay (see "Secrets and local overrides" below). API providers also
+read the provider API key from the standard \`*_API_KEY\` environment variable as
+a fallback when it is not present in \`yg-secrets.yaml\`.
 
 ## Multi-tier example
 
@@ -160,25 +160,30 @@ reviewer:
   type: llm
 \`\`\`
 
-## Secrets (yg-secrets.yaml)
+## Secrets and local overrides (yg-secrets.yaml)
 
-API keys go in \`yg-secrets.yaml\`, NOT in \`yg-config.yaml\`.
-\`yg-secrets.yaml\` is gitignored by default — see "Local state (.yggdrasil/.gitignore)" below.
+\`yg-secrets.yaml\` is a deep-merge OVERLAY over \`yg-config.yaml\`: it mirrors the
+same shape, and any field present in it wins. Use it for the API key of a tier,
+or to point a named tier at a different provider/model/endpoint on your machine.
+It is gitignored by default — see "Local state (.yggdrasil/.gitignore)" below —
+and is never committed.
 
 \`\`\`yaml
 # .yggdrasil/yg-secrets.yaml  — gitignored, never commit
 reviewer:
-  anthropic:
-    api_key: sk-ant-...
+  tiers:
+    standard:
+      config:
+        api_key: sk-ant-...
 \`\`\`
 
-The secrets file accepts only \`api_key\` per provider. Any other field
-triggers \`secrets-non-credential-field\` from \`yg check\` — non-credential
-overrides belong in the tier's \`config:\` block instead.
+Because only the tier NAME is folded into a verdict's hash, an overlay never
+invalidates recorded baselines: the committed config names a canonical reviewer
+while each machine points the same named tier at its own provider, model, or key.
 
-API providers also read the provider API key from environment variables (e.g.
-the provider's standard \`*_API_KEY\`) as a fallback when not present in
-\`yg-secrets.yaml\`. If the env var is set, \`yg-secrets.yaml\` is not required.
+API providers also read the provider API key from the standard \`*_API_KEY\`
+environment variable as a fallback. If the env var is set, the key is not needed
+in \`yg-secrets.yaml\`.
 
 \`yg-config.yaml\` itself must never contain credentials. Commit it to the
 repository — it is safe to share.

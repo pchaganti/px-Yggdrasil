@@ -1,0 +1,9 @@
+name: ReferenceSectionBody
+description: "Each reference-catalogue .md section body conforms to its kind's
+  _reference-schema.yaml `sections.body` contract — the layer doc-shape leaves open
+  (doc-shape checks only that the ## headings exist, not their content). `fence`
+  sections must hold exactly one balanced fence of the declared backtick width;
+  `keyed-list` sections may use only the declared keys (a typo'd key silently makes
+  a runner assertion vanish), each value within its enum, and must carry every key
+  the frontmatter expectation requires. No-op for kinds that declare no sections.body."
+status: enforced

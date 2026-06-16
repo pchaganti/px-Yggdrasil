@@ -129,8 +129,15 @@ async function testOllama(model: string, endpoint: string): Promise<ReviewerTest
       model,
       messages: [{ role: 'user', content: 'Respond with OK' }],
       stream: false,
+      // Mirror the real reviewer (OllamaProvider.verifyAspect): disable the
+      // model's reasoning trace so a "thinking" model does not burn the probe
+      // on a long chain-of-thought for a trivial prompt.
+      think: false,
     }),
-    signal: AbortSignal.timeout(15_000),
+    // A large local model is cold-loaded from disk on the first request; 15s was
+    // too tight and produced false "connection failed" on working setups. Match
+    // the real reviewer's tolerance (apiFetch default).
+    signal: AbortSignal.timeout(60_000),
   });
   if (!res.ok) {
     const msg = `HTTP ${res.status} ${res.statusText}`;

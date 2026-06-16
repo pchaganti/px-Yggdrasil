@@ -6,6 +6,5 @@ nodes:
   - cli/core/verify-lock
 aspects:
   - provider-redaction
-  - provider-retry-contract
   - what-why-next
   - provider-redaction-cascade

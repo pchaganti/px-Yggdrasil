@@ -90,8 +90,10 @@ verdict: "approved" | "refused"             // the discrete token — tamper evi
 \`\`\`
 
 LLM pairs additionally fold their prompt inputs: the aspect description, each
-reference \`[path, sha256(bytes), description]\`, and the resolved tier
-\`{name, provider, consensus, config}\`.
+reference \`[path, sha256(bytes), description]\`, and the resolved tier's NAME.
+The tier's config (provider, model, endpoint, temperature, consensus, api_key,
+timeout) is NOT a verdict input — only the name folds in, so a named tier can be
+re-pointed at a different reviewer without invalidating any recorded verdict.
 
 Deterministic pairs additionally fold the **observation set** — everything the
 check observed through \`ctx\` beyond its subject files, recorded by the runner:
@@ -121,8 +123,10 @@ costs at worst one free re-run; a missed one yields a stale-green verdict.
 - **\`reason\`** / free-text output — only the discrete verdict token is folded.
 - **Node description** — prompt garnish, not hashed (the aspect description IS
   hashed for LLM pairs).
-- **\`timeout\`** and **api_key** in tier config — transport / secret knobs, not
-  judgment inputs.
+- **Tier config** — provider, model, endpoint, temperature, consensus, api_key,
+  and timeout. Only the tier NAME folds into the hash; the resolved config is the
+  reviewer's private business, so re-pointing a named tier at a different model or
+  provider does not invalidate a verdict.
 - **\`max_prompt_chars\`** — a gate, not an input; lowering it can trip the gate on
   an already-verified pair without invalidating the verdict.
 - **\`when\` / \`implies\` / port declarations** — applicability is recomputed live

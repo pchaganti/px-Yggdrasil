@@ -37,8 +37,7 @@ export interface CommonHashInput {
 export interface LlmHashInput extends CommonHashInput {
   aspectDescription: string;
   references: Array<[string, string, string]>; // [path, sha256(bytes), description] — sorted internally by path
-  tier: { name: string; provider: string; consensus: number;
-          config: Record<string, unknown> };   // caller already stripped api_key + timeout
+  tier: { name: string };   // ONLY the tier name folds in — the resolved config (provider/model/endpoint/temperature/consensus) is not a verdict input
 }
 
 export interface DetHashInput extends CommonHashInput {
@@ -156,10 +155,7 @@ export function computeLlmInputHash(input: LlmHashInput): string {
     kind: 'llm',
     references,
     tier: {
-      config: input.tier.config,
-      consensus: input.tier.consensus,
       name: input.tier.name,
-      provider: input.tier.provider,
     },
   };
 
@@ -294,30 +290,23 @@ export function hashExistsObservation(result: 'file' | 'dir' | false): string {
 }
 
 // ============================================================
-// tierHashView — strips api_key + timeout without mutating input
+// tierHashView — the tier NAME is the only judgment input
 // ============================================================
 
 /**
- * Build the tier view used in LlmHashInput.tier. Strips api_key and timeout
- * from the tier's config — these are the ONLY exclusions from config; every
- * other config key folds into the hash.
+ * Build the tier view used in LlmHashInput.tier. ONLY the tier name folds into
+ * the verdict hash — the tier's resolved configuration (provider, model,
+ * endpoint, temperature, consensus, api_key, timeout, and any custom knobs) is
+ * deliberately excluded.
  *
- *   api_key — rotated independently; its value is not a judgment input
- *   timeout — transport knob; historically made timeout tuning cascade across
- *             every node without changing any reviewer output
+ * The tier name is the identity of the reviewer contract: swapping the model or
+ * provider behind a named tier does NOT invalidate existing verdicts. Changing
+ * which named tier an aspect resolves to DOES (the name differs).
  *
- * Does NOT mutate its input.
+ * Trade-off (intentional): the lock no longer detects when the actual reviewer
+ * behind a tier changes — a reviewer downgrade is invisible to invalidation.
+ * Reviewer identity is pinned by the tier name alone.
  */
-export function tierHashView(
-  tierName: string,
-  llm: { provider: string; consensus: number; config: Record<string, unknown> },
-): LlmHashInput['tier'] {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { api_key: _a, timeout: _t, ...rest } = llm.config;
-  return {
-    name: tierName,
-    provider: llm.provider,
-    consensus: llm.consensus,
-    config: rest,
-  };
+export function tierHashView(tierName: string): LlmHashInput['tier'] {
+  return { name: tierName };
 }

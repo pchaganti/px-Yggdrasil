@@ -192,7 +192,7 @@ async function buildEntry(
       ruleHash,
       files,
       references,
-      tier: tierHashViewFromTier(tierResult.tierName, tierResult.tier),
+      tier: tierHashViewFromTier(tierResult.tierName),
       verdict,
     });
     return makeEntry(verdict, hash, v.reason);
@@ -346,8 +346,7 @@ export async function computeSeedLlmHash(
 ): Promise<string> {
   const files = await hashSubjectFiles(projectRoot, ing.subjectFiles);
   const references = await hashReferences(projectRoot, ing.references ?? []);
-  const { provider, consensus, max_prompt_chars: _mpc, ...rest } = ing.tier;
-  void _mpc;
+  // tier config no longer folds into the hash — only the tier name does.
   return computeLlmInputHash({
     aspectId: ing.aspectId,
     aspectDescription: ing.aspectDescription ?? '',
@@ -356,7 +355,7 @@ export async function computeSeedLlmHash(
     ruleHash: hashBytes(Buffer.from(ing.ruleContent, 'utf8')),
     files,
     references,
-    tier: tierHashView(ing.tierName ?? 'default', { provider, consensus, config: rest }),
+    tier: tierHashView(ing.tierName ?? 'default'),
     verdict: ing.verdict,
   });
 }

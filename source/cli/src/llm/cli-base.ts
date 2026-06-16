@@ -7,11 +7,65 @@ import { debugWrite } from '../utils/debug-log.js';
 
 const execFileAsync = promisify(execFile);
 
+/**
+ * Coerce a verdict value: a JSON boolean OR a quoted "true"/"false" string
+ * (case-insensitive). Models emit both shapes; a bare `false` and a `"false"`
+ * string must read identically. Returns undefined when it is neither.
+ */
+function coerceBool(v: unknown): boolean | undefined {
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'string') {
+    const s = v.trim().toLowerCase();
+    if (s === 'true') return true;
+    if (s === 'false') return false;
+  }
+  return undefined;
+}
+
 function normalizeResponse(raw: unknown): AspectResponse {
   const r = raw as Record<string, unknown>;
   return {
-    satisfied: typeof r.satisfied === 'boolean' ? r.satisfied : false,
+    satisfied: coerceBool(r.satisfied) ?? false,
     reason: typeof r.reason === 'string' ? r.reason : '',
+    errorSource: 'codeViolation',
+  };
+}
+
+/**
+ * Last-resort salvage for a reply that is a CLEAR verdict object but invalid JSON
+ * — an unescaped `"` inside the long `reason`, a missing closing `"}`, or
+ * chain-of-thought leaked into the reason string. We read the verdict FIELD
+ * itself (`"satisfied": true|false`, value optionally quoted) — never a bare word
+ * in prose, so a garbled non-verdict reply still yields nothing here (A3b: no
+ * false PASS from arbitrary text). The `reason` is grabbed best-effort as raw
+ * text: it is only report copy, so it need not be valid JSON.
+ */
+function salvageVerdict(text: string): AspectResponse | undefined {
+  if (!text.includes('{')) return undefined; // must be a JSON-object attempt
+  const verdicts = [...text.matchAll(/"satisfied"\s*:\s*"?(true|false)"?/gi)];
+  if (verdicts.length === 0) return undefined;
+  const satisfied = verdicts[verdicts.length - 1][1].toLowerCase() === 'true';
+
+  let reason = '';
+  const rms = [...text.matchAll(/"reason"\s*:\s*"/g)];
+  if (rms.length > 0) {
+    const m = rms[rms.length - 1];
+    reason = text
+      .slice((m.index ?? 0) + m[0].length)
+      .split(/"\s*,\s*"satisfied"\s*:/i)[0] // stop if a sibling verdict field follows
+      .replace(/\s*}\s*$/, '') // trailing object close
+      .replace(/"\s*$/, '') // reason's closing quote, if present
+      .replace(/\\"/g, '"')
+      .replace(/\\n/g, '\n')
+      .replace(/\\t/g, '\t')
+      .replace(/\\\\/g, '\\')
+      .trim();
+  }
+
+  debugWrite('[parseAspectResponse] salvaged verdict from invalid-JSON reply');
+  return {
+    satisfied,
+    reason: reason || '(verdict salvaged; reviewer reason was not valid JSON)',
     errorSource: 'codeViolation',
   };
 }
@@ -48,7 +102,7 @@ function extractLastVerdict(text: string): Record<string, unknown> | undefined {
         if (depth === 0) {
           try {
             const obj = JSON.parse(text.slice(i, j + 1)) as Record<string, unknown>;
-            if (obj && typeof obj.satisfied === 'boolean') last = obj;
+            if (obj && coerceBool(obj.satisfied) !== undefined) last = obj;
           } catch { /* not a JSON object — keep scanning */ }
           break;
         }
@@ -77,7 +131,14 @@ export function parseAspectResponse(output: string): AspectResponse | undefined 
   const verdict = extractLastVerdict(trimmed);
   if (verdict) return normalizeResponse(verdict);
 
-  // 4. Unparseable response — no valid JSON verdict found. Do NOT heuristically
+  // 4. Salvage a clear verdict FIELD from invalid JSON — an unescaped `"` in the
+  // reason, a missing closing `"}`, or leaked chain-of-thought. Reads the
+  // `"satisfied": true|false` field (not a prose word), so A3b still holds: a
+  // garbled reply without that field yields nothing and falls through to (5).
+  const salvaged = salvageVerdict(trimmed);
+  if (salvaged) return salvaged;
+
+  // 5. Unparseable response — no valid JSON verdict found. Do NOT heuristically
   // guess "satisfied" from a substring match: a garbled/non-JSON reply that happens
   // to contain the word would become a false code-PASS that commits green over
   // unverified code (A3b). Classify it as a PROVIDER (infrastructure) error so the

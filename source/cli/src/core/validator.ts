@@ -47,7 +47,6 @@ import {
   checkNoCycles,
   checkSchemas,
   checkMissingDescriptions,
-  checkSecretsCredentialsOnly,
 } from './checks/relations.js';
 
 // Architecture-level errors that abort per-node and global validation stages.
@@ -179,7 +178,6 @@ export async function validate(graph: Graph, scope: string = 'all'): Promise<Val
 
   // Stage 5: global checks.
   issues.push(...checkFileDuplicateMapping(graph));
-  issues.push(...(await checkSecretsCredentialsOnly(graph)));
   const strictOutcome = await checkStrictBackwardCoverage(graph, cache);
   issues.push(...strictOutcome.issues);
   allUnreadable.push(...strictOutcome.unreadable);

@@ -1,0 +1,14 @@
+name: LLM Aspect-Verdict Response Reference
+type: reference-catalogue
+description: "The reviewer-reply corpus — kind root and case docs. One .md per raw
+  reviewer reply parseAspectResponse must handle (well-formed and every malformation
+  local/quantized models emit: unescaped quotes, truncated reasons, leaked
+  chain-of-thought, quoted booleans), 1:1 with a case in the verdict-response corpus
+  test. Owns the kind descriptor (_reference-schema.yaml); the generic reference
+  aspects reference/doc-shape + reference/layout enforce its structure."
+relations:
+  - target: cli/tests/unit/llm/providers
+    type: uses
+mapping:
+  - reference/llm-aspect-verdict-responses/_reference-schema.yaml
+  - reference/llm-aspect-verdict-responses/*.md

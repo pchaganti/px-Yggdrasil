@@ -10,6 +10,7 @@ import type {
 } from '../model/graph.js';
 import type { IssueMessage } from '../model/validation.js';
 import { KNOWN_PROVIDERS } from '../utils/known-providers.js';
+import { loadConfigOverlay, deepMerge } from './secrets-parser.js';
 
 export { KNOWN_PROVIDERS };
 
@@ -94,15 +95,22 @@ const PROVIDER_DEFAULTS: Record<string, Partial<LlmConfig>> = {
 export async function parseConfig(filePath: string): Promise<YggConfig> {
   const filename = path.basename(filePath);
   const content = await readFile(filePath, 'utf-8');
-  const raw = parseYaml(content) as Record<string, unknown>;
+  const baseRaw = parseYaml(content) as Record<string, unknown>;
 
-  if (!raw || typeof raw !== 'object') {
+  if (!baseRaw || typeof baseRaw !== 'object') {
     throw new ConfigParseError({
       what: `${filename} is empty or not a valid YAML mapping`,
       why: 'the top-level structure must be a YAML mapping with keys like reviewer, quality, parallel',
       next: 'restore the file from version control, or regenerate it via `yg init`',
     }, 'config-invalid');
   }
+
+  // yg-secrets.yaml is a deep-merge overlay over yg-config.yaml (local, gitignored).
+  // It can override any field — most often a tier's provider/model/endpoint/api_key —
+  // without touching the committed config. The tier NAME is the only verdict input,
+  // so an overlay never invalidates recorded baselines.
+  const overlay = await loadConfigOverlay(path.dirname(filePath));
+  const raw = overlay ? deepMerge(baseRaw, overlay) : baseRaw;
 
   const version = typeof raw.version === 'string' ? raw.version.trim() : undefined;
 

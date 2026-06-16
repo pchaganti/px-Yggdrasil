@@ -256,7 +256,7 @@ describe('verifyLock — LLM pair validity', () => {
     expect(result.pairs[0].state.kind).toBe('unverified');
   });
 
-  it('tier config change → unverified', async () => {
+  it('tier CONFIG change is NOT an input — model/consensus change keeps the verdict valid (only the tier NAME folds in)', async () => {
     writeFile('src/a.ts', 'code');
     const aspect: TestAspect = { id: 'asp', kind: 'llm', ruleContent: 'rule' };
     const tierV1: LlmConfig = { provider: 'ollama', model: 'm1', temperature: 0, consensus: 1 };
@@ -266,10 +266,12 @@ describe('verifyLock — LLM pair validity', () => {
       verdict: 'approved',
       hash: await llmHash({ aspect, nodePath: 'svc', subjectFiles: ['src/a.ts'], verdict: 'approved', tier: tierV1 }),
     });
-    // Change the tier model — folds into the hash → unverified.
+    // Change the tier model + consensus — config is the reviewer's private business,
+    // not a verdict input, so the pair stays VERIFIED.
     graph.config.reviewer!.tiers.default.model = 'm2';
+    graph.config.reviewer!.tiers.default.consensus = 3;
     const result = await verifyLock(graph, lock);
-    expect(result.pairs[0].state.kind).toBe('unverified');
+    expect(result.pairs[0].state.kind).toBe('verified');
   });
 
   it('verdict-token tamper (entry says approved but hash computed for refused) → unverified', async () => {

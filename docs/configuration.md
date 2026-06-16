@@ -149,23 +149,29 @@ installed CLI tool.
 
 ---
 
-## API keys and secrets
+## Secrets and local overrides
 
-Credentials go in `.yggdrasil/yg-secrets.yaml` (gitignored by default):
+`.yggdrasil/yg-secrets.yaml` is a deep-merge overlay over `yg-config.yaml`
+(gitignored by default). It mirrors the same shape, and any field in it wins —
+use it for a tier's API key, or to point a named tier at a different
+provider/model/endpoint on your machine:
 
 ```yaml
 # .yggdrasil/yg-secrets.yaml — gitignored, never commit
 reviewer:
-  anthropic:
-    api_key: sk-ant-...
-  openai:
-    api_key: sk-...
-  google:
-    api_key: AI...
+  tiers:
+    standard:
+      config:
+        api_key: sk-ant-...
 ```
 
+Because only the tier **name** is folded into a verdict's hash, a local override
+never invalidates recorded baselines: the committed config names a canonical
+reviewer, and each machine points the same named tier at its own provider, model,
+or key.
+
 API providers also check environment variables: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
-`GOOGLE_API_KEY`. If the env var is set, `yg-secrets.yaml` is not required.
+`GOOGLE_API_KEY`. If the env var is set, the key is not needed in `yg-secrets.yaml`.
 
 `yg-config.yaml` itself must never contain credentials. Commit it to the repository.
 

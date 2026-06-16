@@ -1,6 +1,5 @@
 import type { Graph } from '../../model/graph.js';
-import type { ValidationIssue, IssueMessage } from '../../model/validation.js';
-import { inspectSecretsForValidation } from '../../io/secrets-parser.js';
+import type { ValidationIssue } from '../../model/validation.js';
 import { issueMsg } from './shared.js';
 
 // --- Rule 1: Relation targets exist ---
@@ -310,20 +309,3 @@ export function checkMissingDescriptions(graph: Graph): ValidationIssue[] {
   return issues;
 }
 
-// --- secrets-non-credential-field: yg-secrets.yaml must only contain api_key ---
-
-export async function checkSecretsCredentialsOnly(graph: Graph): Promise<ValidationIssue[]> {
-  const foreign = await inspectSecretsForValidation(graph.rootPath);
-  const issues: ValidationIssue[] = [];
-  for (const { provider, foreignKeys } of foreign) {
-    for (const key of foreignKeys) {
-      const msgData: IssueMessage = {
-        what: `yg-secrets.yaml has '${key}' under reviewer.${provider}.`,
-        why: 'The secrets file accepts only api_key; non-credential fields belong in yg-config.yaml tiers.',
-        next: `Move '${key}' into reviewer.tiers.<name> in .yggdrasil/yg-config.yaml and remove it from yg-secrets.yaml.`,
-      };
-      issues.push({ code: 'secrets-non-credential-field', severity: 'error', rule: 'secrets-non-credential-field', ...issueMsg(msgData), messageData: msgData });
-    }
-  }
-  return issues;
-}

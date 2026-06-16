@@ -3,6 +3,11 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
+  "runArgs": [
+    "--add-host=host.docker.internal:host-gateway",
+    "--name",
+    "yggdrasil-devcontainer"
+  ],
   "mounts": [
     "source=yggdrasil-cli-node-modules,target=${containerWorkspaceFolder}/source/cli/node_modules,type=volume",
     "source=yggdrasil-cli-dist,target=${containerWorkspaceFolder}/source/cli/dist,type=volume",

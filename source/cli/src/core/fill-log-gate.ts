@@ -82,7 +82,7 @@ export async function logGateBlocks(
 
   emitIssue({
     what: `No fresh log entry for node '${toPosixPath(node.path)}' — mandatory before --approve when source changed.`,
-    why: `Node type '${node.meta.type}' has log_required: true — every source change needs a justification entry capturing WHY. This node's pairs are skipped this run; other nodes proceed.`,
+    why: `Node type '${node.meta.type}' has log_required: true — every source change needs a justification entry capturing WHY. --approve stops here and approves nothing this run until a fresh entry exists.`,
     next: `yg log add --node ${toPosixPath(node.path)} --reason '<justification>', then re-run: yg check --approve`,
   });
   return true;

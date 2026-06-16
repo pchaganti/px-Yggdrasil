@@ -6,3 +6,5 @@ Each error this diagnostic swallows — an unavailable provider, an unreadable s
 A reference file that cannot be read aborts the diagnostic with an actionable message and leaves a diagnostic trace of the underlying read error, and the reference path it reports is normalized to forward slashes so the output is stable across platforms.
 ## [2026-06-13T05:33:57.815Z]
 A report handed to a pipe now drains fully before the process exits, so a long error list sent to a capturing consumer (an agent, a grep, or CI) is never truncated by the process terminating before the kernel buffer flushes. The full refusal reason for a rejected pair is now shown in the gate output rather than being abbreviated, so the reader sees the complete reason a verdict was refused.
+## [2026-06-16T09:52:40.157Z]
+Removed the per-provider secrets merge here: yg-secrets is now a general deep-merge overlay over yg-config applied once at config parse time, so the resolved tier already reflects any local override and no separate merge is needed at review time.

@@ -25,10 +25,10 @@ Each entry stores the verdict and a hash of the inputs that produced it. The ver
 
 What the hash folds depends on the reviewer kind:
 
-- **LLM pair** — the rule text (`content.md`), the subject files, the aspect description, any reference files, and the resolved reviewer tier.
+- **LLM pair** — the rule text (`content.md`), the subject files, the aspect description, any reference files, and the **name** of the resolved reviewer tier. The tier's config (provider, model, endpoint, temperature, consensus) is not folded — only its name, so re-pointing a named tier at a different reviewer leaves verdicts valid.
 - **Deterministic pair** — the rule (`check.mjs`), the subject files, and everything the check observed beyond those files: each file it read, each directory it listed, each existence probe (including the ones that came back `false`), and each piece of graph topology it looked at.
 
-Change any folded input and the pair goes unverified. Edit a source file, edit the rule, change the tier, move a file the check was watching — all of these. The next `yg check --approve` re-verifies them.
+Change any folded input and the pair goes unverified. Edit a source file, edit the rule, point the aspect at a different named tier, move a file the check was watching — all of these. The next `yg check --approve` re-verifies them.
 
 One thing is deliberately **not** an input: the aspect's status. Flipping `draft ↔ advisory ↔ enforced` changes how a verdict renders, never whether it's valid. A verdict survives every status flip, including a full `draft` round-trip. See [/aspect-status](/aspect-status).
 

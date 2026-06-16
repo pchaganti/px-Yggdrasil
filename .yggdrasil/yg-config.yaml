@@ -1,14 +1,15 @@
-version: "5.0.0"
-
+version: 5.0.0
 quality:
   max_direct_relations: 20
-
 parallel: 10
 debug: false
-
 reviewer:
   tiers:
     standard:
+      # Canonical reviewer for this repo. The verdict hash folds only the tier
+      # NAME, so you can point `standard` at your own reviewer locally via
+      # .yggdrasil/yg-secrets.yaml (a deep-merge overlay over this file) without
+      # invalidating any recorded baseline. (Was configured for sonnet.)
       provider: claude-code
       consensus: 1
       max_prompt_chars: 50000

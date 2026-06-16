@@ -281,12 +281,14 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
   // gate firing alone forced exit 1; in the fill model the severity is
   // status-driven — what is preserved is that the gate fires regardless of
   // status, asserted via the gate message, not the exit code.)
-  it('1C: gate fires on a source change when every non-draft aspect is advisory (warning, exit 0)', () => {
+  it('1C: a missing log HARD-STOPS --approve regardless of aspect status — the log requirement is a node-type property, decoupled from advisory/enforced', () => {
     const dir = deterministicFixture('status-indep-advisory');
     try {
       enableServiceLogRequired(dir);
-      // Demote the only enforced aspect to advisory → all non-draft aspects are
-      // advisory (requires-named-export already advisory; wip-rule is draft).
+      // Demote the only enforced aspect to advisory → every non-draft aspect is
+      // advisory (requires-named-export already advisory; wip-rule is draft). This
+      // proves the gate does NOT track aspect status: log_required is a property of
+      // the node TYPE, a separate axis from advisory(warn)/enforced(error).
       setAspectStatus(dir, 'no-todo-comments', 'advisory');
       // First cycle with an entry per node so a baseline exists.
       expect(run(['log', 'add', '--node', 'services/orders', '--reason', 'init advisory'], dir).status).toBe(0);
@@ -296,13 +298,12 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
       // Source change, no fresh entry.
       writeFileSync(ordersFile(dir), readFileSync(ordersFile(dir), 'utf-8') + '\nexport const c = 3;\n', 'utf-8');
       const { status, all } = run(['check', '--approve'], dir);
-      // The gate fires (message present, pairs skipped) regardless of aspect
-      // status — proven by the message, not by the exit code.
+      // Even with every aspect advisory, a missing log hard-stops the run: the gate
+      // message prints, exit is 1, and the normal yg-check report is NOT rendered.
       expect(all).toContain(GATE_FIRED);
       expect(all).toContain("Node type 'service' has log_required: true");
-      // The skipped pairs are advisory → non-blocking warnings → exit 0.
-      expect(status).toBe(0);
-      expect(all).toContain('unverified');
+      expect(status).toBe(1);
+      expect(all).not.toContain('yg check:'); // hard stop → no report summary
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

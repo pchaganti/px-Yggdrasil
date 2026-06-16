@@ -9,9 +9,9 @@
  *
  *   - ruleHashFor / contentFor — the rule-source bytes (content.md / check.mjs)
  *     loaded into the graph as UTF-8 text (contract #1).
- *   - tierHashViewFromTier — strips the non-judgment fields (provider/consensus
- *     are folded separately; max_prompt_chars + references caps are GATES, not
- *     inputs) and delegates api_key/timeout stripping to tierHashView (contract #3).
+ *   - tierHashViewFromTier — folds ONLY the tier name into the hash; the tier's
+ *     resolved config (provider/model/endpoint/temperature/consensus/api_key/
+ *     timeout/custom) is deliberately not a verdict input (contract #3).
  *   - nodeDescriptionFor — the node description that garnishes the prompt (NOT
  *     hashed; exposed here only so both sides assemble the prompt identically).
  *
@@ -23,7 +23,7 @@
  * policy.
  */
 
-import type { Graph, AspectDef, LlmConfig } from '../model/graph.js';
+import type { Graph, AspectDef } from '../model/graph.js';
 import { hashBytes } from '../io/hash.js';
 import { tierHashView } from './pair-hash.js';
 import type { LlmHashInput } from './pair-hash.js';
@@ -49,22 +49,12 @@ export function nodeDescriptionFor(graph: Graph, nodePath: string): string {
 }
 
 /**
- * Build the tier hash view from a resolved LlmConfig (contract #3). Strips the
- * non-judgment fields:
- *   - provider / consensus fold separately (carried by tierHashView's own fields)
- *   - max_prompt_chars + references caps are GATES (§4), never verdict inputs
- * then lets tierHashView strip api_key + timeout. The remaining config knobs
- * (model, endpoint, temperature, …custom) fold into the hash. Does NOT mutate
- * its input.
+ * Build the tier hash view (contract #3). ONLY the tier name is a verdict input;
+ * the resolved configuration (provider, model, endpoint, temperature, consensus,
+ * api_key, timeout, max_prompt_chars, …custom) is deliberately excluded. Swapping
+ * the model behind a named tier does NOT invalidate verdicts; changing which named
+ * tier an aspect uses does.
  */
-export function tierHashViewFromTier(tierName: string, tier: LlmConfig): LlmHashInput['tier'] {
-  const {
-    provider,
-    consensus,
-    // Excluded gates — never fold into the verdict hash.
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    max_prompt_chars: _mpc,
-    ...rest
-  } = tier;
-  return tierHashView(tierName, { provider, consensus, config: rest });
+export function tierHashViewFromTier(tierName: string): LlmHashInput['tier'] {
+  return tierHashView(tierName);
 }

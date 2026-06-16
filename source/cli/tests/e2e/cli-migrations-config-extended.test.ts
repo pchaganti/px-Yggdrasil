@@ -37,7 +37,7 @@ import { fileURLToPath } from 'node:url';
 //     a mapping, a tier config: that is not a mapping, a scalar reviewer:, a
 //     quality block that is not a mapping, parallel as a FLOAT, an ignored
 //     (removed) max_tokens, a tier `references` key now rejected as an unknown
-//     tier key, and the secrets-non-credential field through the check gate.
+//     tier key, and a yg-secrets overlay field accepted through the check gate.
 //
 // Determinism: every test scaffolds in a fresh mkdtemp dir and rmSync()s it in a
 // finally. The committed fixtures are never mutated (schemas are cpSync-copied,
@@ -283,8 +283,8 @@ describe.skipIf(!distExists)('CLI E2E — migrations & config remaining paths (p
   // that removed transform/withhold machinery (unrecognized aspect string,
   // mapping-without-type, even/odd global-consensus normalization, multi-provider
   // active-default resolution, secrets foreign-field withhold, resumable
-  // withhold→fix→bump), so all seven are deleted. The surviving secrets defect is
-  // still enforced at check time — see C10 below (secrets-non-credential-field).
+  // withhold→fix→bump), so all seven are deleted. yg-secrets is now a deep-merge
+  // overlay over yg-config — overlay fields are accepted (see C10 below).
 
   // =========================================================================
   // GROUP C — config-parser coercion edges via `yg check` (not in
@@ -435,19 +435,17 @@ describe.skipIf(!distExists)('CLI E2E — migrations & config remaining paths (p
     }
   });
 
-  it('C10: a yg-secrets.yaml non-credential field is rejected by yg check as secrets-non-credential-field (exit 1)', () => {
-    // The check gate surfaces the same secrets defect the migration runner does,
-    // but as a validator code (independent of any upgrade run). The config is
-    // valid v5 so the SOLE error is the foreign secrets field.
-    const dir = scaffoldCheck('secrets-foreign', {
+  it('C10: a yg-secrets.yaml overlay field (non-credential) is accepted — yg-secrets is a deep-merge overlay over yg-config', () => {
+    // yg-secrets is no longer api_key-only: it overlays any yg-config field
+    // locally (e.g. a tier's provider/model). A non-credential field is valid
+    // and must NOT raise the retired secrets-non-credential-field error.
+    const dir = scaffoldCheck('secrets-overlay', {
       configYaml: ['reviewer:', '  tiers:', VALID_TIER, ''].join('\n'),
-      secretsYaml: ['reviewer:', '  ollama:', '    api_key: sk-placeholder', '    organization: org-123', ''].join('\n'),
+      secretsYaml: ['reviewer:', '  tiers:', '    standard:', '      config:', '        temperature: 0.2', ''].join('\n'),
     });
     try {
-      const { status, stdout } = run(['check'], dir);
-      expect(status).toBe(1);
-      expect(stdout).toContain('secrets-non-credential-field');
-      expect(stdout).toContain("'organization' under reviewer.ollama");
+      const { stdout } = run(['check'], dir);
+      expect(stdout).not.toContain('secrets-non-credential-field');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

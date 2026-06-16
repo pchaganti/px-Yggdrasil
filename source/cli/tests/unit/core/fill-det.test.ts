@@ -17,7 +17,7 @@ import {
 } from 'node:fs/promises';
 
 import { loadGraph } from '../../../src/core/graph-loader.js';
-import { runFill } from '../../../src/core/fill.js';
+import { runFill, FillGatingError } from '../../../src/core/fill.js';
 import { buildIssueMessage } from '../../../src/formatters/message-builder.js';
 import type { IssueMessage } from '../../../src/model/validation.js';
 import { readLock, writeLock } from '../../../src/io/lock-store.js';
@@ -392,7 +392,7 @@ describe('positive closure', () => {
 // =============================================================================
 
 describe('log gate (§9)', () => {
-  it('fires on a fingerprint change with no fresh entry (pair skipped, node does NOT close)', async () => {
+  it('fires on a fingerprint change with no fresh entry (all-or-nothing: aborts, approves nothing, node does NOT close)', async () => {
     const { projectRoot, yggRoot } = await setupProject({
       aspects: [{ id: 'det-a', kind: 'deterministic', status: 'enforced', rule: DET_PASS }],
       logRequired: true,
@@ -408,12 +408,13 @@ describe('log gate (§9)', () => {
     await writeFile(path.join(projectRoot, 'src', 'svc.ts'), 'export const x = 2;\n');
     graph = await loadGraph(projectRoot);
     const w = makeWriter();
-    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
-
-    // The gate blocks this node's pairs — the det pair is NOT re-filled, the
-    // stale entry stays and the check shows it unverified.
+    // All-or-nothing: a node needing a fresh entry aborts the whole run
+    // (FillGatingError) — nothing is approved — but the per-node "no fresh log
+    // entry" message is emitted first so the user knows what to add.
+    await expect(
+      runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue }),
+    ).rejects.toBeInstanceOf(FillGatingError);
     expect(w.text()).toMatch(/no fresh log entry|mandatory/i);
-    expect(result.checkResult.issues.some((i) => i.code === 'unverified')).toBe(true);
 
     // The node did NOT close: its source fingerprint must still be the PRE-EDIT
     // value (positive closure must not advance it over a gate-blocked change) and

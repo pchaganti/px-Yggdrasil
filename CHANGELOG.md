@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.1] - 2026-06-16
+
+### Changed
+
+- **The mandatory-log gate now stops `yg check --approve` entirely instead of partially filling.** When any node whose source changed lacks a fresh log entry, `--approve` emits the per-node "add a log entry" messages and stops — approving nothing and not printing the check report. So a run is now either a clean approval followed by the check result, or a clear "add these entries first" halt. Previously it skipped the gated nodes, filled the rest, and printed a report mixing both, which obscured what was actually needed.
+- **A verdict's reviewer identity is the tier NAME alone.** The LLM verdict hash folds only the resolved tier's name — not its config (provider, model, endpoint, temperature, consensus). Re-pointing a named tier at a different reviewer, or overriding it locally, does not invalidate recorded baselines. Only `api_key` and `timeout` were excluded before; now the entire tier config is.
+- **`yg-secrets.yaml` is a deep-merge overlay over `yg-config.yaml`.** It mirrors the full config shape and overrides any field locally — most often a tier's `api_key`, provider, model, or endpoint — not just `api_key`. The api_key-only restriction and the `secrets-non-credential-field` validator are removed. **Migration:** move local secrets from the old `reviewer.<provider>.api_key` shape to the config-mirroring `reviewer.tiers.<name>.config.api_key`.
+
+### Fixed
+
+- **Reviewer replies that are real verdicts but malformed JSON are now salvaged instead of failing closed.** The shared `parseAspectResponse` (used by every provider) now recovers a verdict from a reply carrying a `"satisfied": true|false` field even when the JSON is invalid — an unescaped `"` inside the `reason`, a truncated/unclosed `reason`, chain-of-thought leaked into the `reason`, or a quoted `"true"`/`"false"` value. The verdict is taken from the field (never from a bare word in prose, so a garbled reply is still classified as an infra error — no false PASS). A reference catalogue of well-formed and malformed replies under `reference/llm-aspect-verdict-responses/` (one `.md` per case, like the relations name-resolution catalogue — governed by `_reference-schema.yaml` and the generic `reference/doc-shape` + `reference/layout` aspects) drives the tests; add a `.md` to add a case. This mainly unblocks local/quantized models (e.g. Ollama) that don't reliably honor `format: json`.
+- **Interrupting `yg check --approve` now preserves every finished LLM verdict.** Each reviewer verdict is written to the lock the moment its pair completes — the same way deterministic checks already behaved — so Ctrl+C keeps all completed work and the next run resumes only the remainder. Previously LLM verdicts were buffered in memory and flushed only after the whole tier's batch finished, so an interrupt discarded every completed reviewer call (the most expensive work to lose).
+- **`yg init` no longer loops on "upgrade required" after a version-only release.** The graph version is the schema version — it advances only when the graph format changes — so `yg init` compares it against the schema version the CLI supports, not the package version. A patch release that leaves the graph format unchanged needs no upgrade.
+- **The Ollama reviewer runs with the model's native thinking enabled.** A reasoning model previously had thinking turned off, so it had to emit the `satisfied` verdict as the opening token of the response JSON — before working through the rules — and on harder files that snap judgment could contradict the model's own reasoning (a refusal whose explanation concluded the code was fine). Reasoning now runs in the model's separate thinking channel and only the final verdict JSON is parsed, so the verdict follows the reasoning and chain-of-thought never leaks into the parsed reason. Because a thinking pass can run for minutes, the Ollama request timeout is raised from the shared 60s default to a generous ceiling (5 min), overridable per tier via `timeout`.
+- **The `yg init` Ollama connection probe no longer reports a false failure on a working large local model.** It now disables the model's reasoning trace — the probe only confirms the model answers, so it skips the reasoning pass — and allows 60s for a cold model load, instead of a 15s cap that a large model's first load from disk could exceed.
+
 ## [5.0.0] - 2026-06-15
 
 Stable release — the 5.0.0 line is closed. The changes that make up 5.0.0 (the

@@ -13,7 +13,6 @@ import { buildPairPrompt } from '../llm/prompt.js';
 import type { PromptReferenceInput, PromptFileInput } from '../llm/prompt.js';
 import { verifyWithConsensus } from '../llm/aspect-verifier.js';
 import { createLlmProvider } from '../llm/index.js';
-import { loadSecrets, mergeLlmConfig } from '../io/secrets-parser.js';
 import { selectTierForAspect } from '../core/tier-selection.js';
 import { contentFor, nodeDescriptionFor } from '../core/pair-inputs.js';
 import { readTextFile } from '../io/graph-fs.js';
@@ -296,9 +295,8 @@ async function runLlmAspectTest(
   const aspectContent = contentFor(aspect, 'content.md');
 
   if (!dryRun) {
-    // Merge secrets and build provider.
-    const secrets = await loadSecrets(graph.rootPath, tier.provider);
-    const mergedTier = secrets ? mergeLlmConfig(tier, secrets) : tier;
+    // Tier config already includes the yg-secrets overlay (applied at parse time).
+    const mergedTier = tier;
     const provider = createLlmProvider(mergedTier);
 
     // Availability check.

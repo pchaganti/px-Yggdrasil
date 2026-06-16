@@ -235,7 +235,7 @@ async function verifyLlmPair(
       ruleHash,
       files: subjects.map((s) => [s.path, hashCached(path.resolve(projectRoot, s.path), s.bytes)] as [string, string]),
       references: referencesForHash,
-      tier: tierHashViewFromTier(tierResult.tierName, tierResult.tier),
+      tier: tierHashViewFromTier(tierResult.tierName),
       verdict: storedEntry.verdict,
     });
     valid = expectedHash === storedEntry.hash;

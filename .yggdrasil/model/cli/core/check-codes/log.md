@@ -16,3 +16,5 @@ Registered a new blocking issue category for a file that a node mapping claims b
 Two issue-classification gaps fixed. The secrets-non-credential error blocks the fill step but was not listed among the structural issue codes, so the single-next-step suggestion never pointed at it; it is now classified structural so it is grouped and surfaced correctly. Separately, a comment claimed the completeness-category codes are non-blocking, but one of them is emitted as a blocking error — the comment was corrected to say that category membership governs only grouping and tally, while the emitting check decides whether it blocks.
 ## [2026-06-14T06:55:19.446Z]
 The relation-undeclared-dependency code was registered among the structural codes so it is counted in the summary, grouped with its peers, and reachable by the next-step suggestion.
+## [2026-06-16T09:52:39.403Z]
+Removed the secrets-non-credential-field code: yg-secrets is now a general deep-merge overlay over yg-config rather than an api_key-only file, so a non-credential field in it is valid and no longer a blocking error.

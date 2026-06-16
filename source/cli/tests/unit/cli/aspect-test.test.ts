@@ -31,10 +31,10 @@ vi.mock('../../../src/io/graph-fs.js', () => ({
   readTextFile: vi.fn(),
 }));
 
-// Mock secrets loading.
+// Mock the yg-secrets overlay loader (no local overlay during the test).
 vi.mock('../../../src/io/secrets-parser.js', () => ({
-  loadSecrets: vi.fn().mockResolvedValue(undefined),
-  mergeLlmConfig: vi.fn((base: unknown) => base),
+  loadConfigOverlay: vi.fn().mockResolvedValue(undefined),
+  deepMerge: vi.fn((base: Record<string, unknown>, overlay: Record<string, unknown>) => ({ ...base, ...overlay })),
 }));
 
 import { registerAspectTestCommand } from '../../../src/cli/aspect-test.js';

@@ -71,10 +71,6 @@ export const STRUCTURAL_CODES = new Set<string>([
   // a node depends on another node without a declared, sanctioned relation, or its
   // relation verdict could not be confirmed against the current tree.
   'relation-undeclared-dependency',
-  // yg-secrets.yaml carries a non-credential field (only api_key is allowed).
-  // Emitted as a blocking error and gates --approve; structural so the summary
-  // tally counts it and computeSuggestedNext can point at it.
-  'secrets-non-credential-field',
 ]);
 
 /**
@@ -116,5 +112,4 @@ export const APPROVE_GATING_CODES = new Set<string>([
   'aspect-reviewer-unknown-key',
   'aspect-tier-on-deterministic',
   'aspect-tier-unknown',
-  'secrets-non-credential-field',
 ]);

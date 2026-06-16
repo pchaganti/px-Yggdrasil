@@ -6,3 +6,5 @@ The per-aspect language declaration was removed from the system. An aspect that 
 This change deletes the field, the validators that policed its shape, and the documentation and tests that described it, and promotes the extension-to-grammar registry to the single authority for matching a file to its parser. The motivation is to remove a confusing mismatch between what an aspect claimed about languages and what the engine did, and to collapse the duplicated extension-knowledge that had drifted into more than one place.
 
 The language a parsed-tree check sees for a given file is now derived solely from that file's extension; an unrecognized extension yields no parsed tree rather than a per-aspect error. The drift identity of a graph-aware structural check is deliberately held stable across this change so existing approvals are not invalidated by metadata that never affected behavior.
+## [2026-06-16T09:52:39.644Z]
+Removed the secrets-non-credential validator: yg-secrets became a general deep-merge overlay over yg-config, so overriding any field locally is the intended use and is no longer rejected.
