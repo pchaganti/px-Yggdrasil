@@ -31,7 +31,11 @@ export class AnthropicProvider implements LlmProvider {
         body: JSON.stringify({
           model: this.model,
           messages: [{ role: 'user', content: prompt }],
-          max_tokens: 500,
+          // Never cap the verdict. The Anthropic API requires a max_tokens ceiling
+          // (there is no "unlimited"), so set it far above any reviewer reply — a
+          // verdict is hundreds of tokens; this is many times that — so it is never
+          // truncated. A truncated reply still fails closed when parsed.
+          max_tokens: 8192,
           temperature: this.temperature,
         }),
       }, 'anthropic');

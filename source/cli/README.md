@@ -2,7 +2,7 @@
 
 **Your agent will ignore CLAUDE.md. Yggdrasil makes sure it doesn't.**
 
-Architecture rules your agent can't ignore. You write them in plain Markdown; a reviewer verifies every change and feeds violations back into the agent's loop — before it moves on. Works with Claude Code, Cursor, Copilot, Codex, Cline, and more. The reviewer runs against your code, not your diffs. The feedback is specific, and the agent has to fix before moving on.
+Architecture rules your agent can't ignore. Before it edits a file, your agent gets the few rules that apply — and writes to them. After, every change is checked before it moves on: by a script that runs locally for free, or by an LLM reviewer. A rule written as a script *runs* — your agent can't quietly optimize it away the way it drops a line in CLAUDE.md. Works with Claude Code, Cursor, Copilot, Codex, Cline, and more. Checks run against your code, not your diffs; the feedback is specific; the agent has to fix before it can move on.
 
 See the [main README](https://github.com/krzysztofdudek/Yggdrasil#readme) for documentation, or visit
 [krzysztofdudek.github.io/Yggdrasil](https://krzysztofdudek.github.io/Yggdrasil/).

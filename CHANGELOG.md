@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0] - 2026-06-15
+
+Stable release — the 5.0.0 line is closed. The changes that make up 5.0.0 (the
+content-addressed verdict lock and `yg check --approve`, deterministic and LLM
+reviewers, aspect `scope` and `status`, live relation-conformance, glob mapping,
+and scoped coverage) are documented across the `5.0.0-alpha.*` pre-releases below;
+this section records what changed since the final alpha.
+
+### Changed
+
+- **User docs restructured around the "rails" model.** The documentation site is now a guided funnel: a rebuilt home page and a new "How it works" page lead with the mental model (you lay the rails, the agent drives, the reviewer keeps it on track); the monolithic "Core Concepts" page is split into focused **Aspects**, **Nodes**, and **Relations, flows & ports** pages; and a new **The lock** page collects the verdict-lock mechanics out of the concept pages. Navigation is regrouped (Start here / Build the rails / Author & operate / Reference & deep dives) and the dogfood showcase is marked advanced.
+- **README, npm package description, and package README rebalanced toward the value adopters report.** They now lead with the two things that consistently deliver — scoped rules delivered to the agent *before* it writes (prevention), and the deterministic checks that run on every change and can't be quietly optimized away — and frame the LLM reviewer as the higher-variance judgment layer to keep small and stage through `advisory`. Two honesty notes added: rules enforce structure, not runtime behavior, and a green check is only as good as the rule behind it. The hero demo GIF (`tools/render-demo-gif.js`) was re-cut to match (prevention + the un-ignorable deterministic/relation gate as the spine; the LLM refusal as one beat).
+
+### Fixed
+
+- **Reviewer verdicts are no longer truncated by an output-token cap.** The Anthropic (`max_tokens: 500`) and Ollama (`num_predict: 500`) reviewers capped generation low enough that a long verdict — the refusal reason, or the verdict JSON itself — could be clipped mid-response, arriving truncated and, at worst, unparseable, costing a wasted re-verification. After a manual audit of every provider: Anthropic's ceiling is raised far above any verdict (the API requires one), Ollama now generates unbounded (`num_predict: -1`), and the OpenAI / OpenAI-compatible, Google, and the three CLI providers (`claude-code`, `codex`, `gemini-cli`) were confirmed to impose no output cap at all. A reply that still arrives truncated continues to fail closed in parsing rather than be trusted as a verdict. (The init-time connectivity probe keeps its tiny `max_tokens: 10` — it only pings the provider, it does not verify code.)
+
 ## [5.0.0-alpha.6] - 2026-06-15
 
 ### Added

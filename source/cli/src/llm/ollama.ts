@@ -34,7 +34,10 @@ export class OllamaProvider implements LlmProvider {
       messages: [{ role: 'user', content: prompt }],
       stream: false,
       think: false,
-      options: { temperature: this.temperature, num_predict: 500 },
+      // num_predict: -1 → generate until the model stops; no cap, so the verdict
+      // is never truncated (a cut-off JSON would otherwise fail to parse and waste
+      // a re-verification).
+      options: { temperature: this.temperature, num_predict: -1 },
       format: 'json',
     };
 

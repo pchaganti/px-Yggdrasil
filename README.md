@@ -6,7 +6,7 @@
 
 **Your agent will ignore CLAUDE.md. Yggdrasil makes sure it doesn't.**
 
-Architecture rules your agent can't ignore. You write them in plain Markdown for a reviewer LLM to enforce, or as check scripts that run locally at zero LLM cost. Every change gets verified before the agent moves on. Works with Claude Code, Cursor, Copilot, Codex, Cline, and more. The reviewer runs against your code, not your diffs. The feedback is specific. The agent has to fix before it can move on.
+Architecture rules your agent can't ignore. Before it edits a file, your agent gets the few rules that apply — and writes to them. After, every change is checked before it moves on: by a script that runs locally for free, or by an LLM reviewer. A rule written as a script *runs* — your agent can't quietly optimize it away the way it drops a line in CLAUDE.md. Works with Claude Code, Cursor, Copilot, Codex, Cline, and more. Checks run against your code, not your diffs; the feedback is specific; the agent has to fix before it can move on.
 
 [![CI](https://github.com/krzysztofdudek/Yggdrasil/actions/workflows/ci.yml/badge.svg)](https://github.com/krzysztofdudek/Yggdrasil/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@chrisdudek/yg.svg)](https://www.npmjs.com/package/@chrisdudek/yg)
@@ -43,9 +43,11 @@ The graph has three first-class elements:
 
 A rule can apply to one component or many. You attach it once; the tool computes everywhere it lands. You never copy-paste a rule onto each file — see the [docs](https://krzysztofdudek.github.io/Yggdrasil/) for how that works. **Ports** are the one explicit exception: a bare relation between nodes does not carry an aspect across a component boundary, but consuming a named port does. That keeps inheritance deliberate, never accidental.
 
-Every aspect names its reviewer:
+Every aspect names its reviewer — and the two are not equal:
 
-- **LLM aspects** are plain Markdown (`content.md`). A separate LLM call — one model verifying another — reads the rule and the node's source, then returns SATISFIED or NOT SATISFIED. The rule is just text you write:
+- **Deterministic aspects** ship a `check.mjs` that the CLI runs locally at zero LLM cost. It reads the node's source (with a tree-sitter parse tree where the language has a grammar), the file system, and the graph, and returns a list of violations. This is the un-ignorable layer: the script *runs*, every time, deterministically, for free — exactly the kind of rule an agent quietly drops when it's only a line in CLAUDE.md. A built-in check of the same kind keeps your declared component dependencies honest against the real code. Lean on this layer.
+
+- **LLM aspects** are plain Markdown (`content.md`) — for the judgment a script can't make. A separate LLM call — one model verifying another — reads the rule and the node's source, then returns SATISFIED or NOT SATISFIED. It is the higher-variance layer: reserve it for rules that genuinely need reading, keep those nodes small, and stage new ones through `advisory` before you enforce. The rule is just text you write:
 
   ```markdown
   # Audit every payment mutation
@@ -55,7 +57,7 @@ Every aspect names its reviewer:
   audit event is a refusal.
   ```
 
-- **Deterministic aspects** ship a `check.mjs` that the CLI runs locally at zero LLM cost. The check receives the node, its source files (with a tree-sitter parse tree where the language has a grammar), the file system, and the graph, and returns a list of violations. An aspect is one or the other, never both.
+An aspect is one or the other, never both.
 
 Before the agent edits a file, `yg context` returns the aspects that touch it — the agent opens each rule's text and writes code that targets it. After editing, `yg check --approve` verifies everything whose inputs changed: deterministic checks run locally for free, LLM rules go to the reviewer. Each verdict is recorded in a single committed lock file. If anything fails, the agent gets specific feedback, fixes, and re-verifies. This is code review while the agent is working, not after.
 
@@ -94,6 +96,8 @@ When a genuine exception is needed, an inline `yg-suppress(<aspect-path>) <reaso
 ## Rules can be anything enforceable
 
 Team conventions. Company standards. ISO compliance. Architecture boundaries. Error handling patterns. Logging formats. If you can describe it in plain language and a reviewer can check it — or express it as a script — Yggdrasil enforces it.
+
+Two honest limits. A rule enforces **structure, not runtime behavior**: it can require that you call the audit utility, not that the audit actually fires in production. And a green check is only as good as the rule behind it — a shallow rule passes shallow code. The enforcement is real; deciding what is worth enforcing stays yours.
 
 ## The Yggdrasil family
 

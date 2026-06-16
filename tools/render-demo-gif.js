@@ -130,113 +130,97 @@ function add(text, color, bold) { lines.push({ text, color: color || TEXT, bold:
 function clear() { lines = []; }
 
 // ===== SCENE SCRIPT =====
+// Narrative (rebalanced from real adopter feedback): the proven value is
+// (1) scoped rules BEFORE the agent writes — prevention via `yg context`, and
+// (2) the deterministic + relation gate that is free, live, and un-ignorable.
+// The LLM reviewer is ONE beat, not the axis. Keep this weighting on edits.
 console.log('Rendering...');
 
 // Scene 1: Init
-termTitle = '~/my-project';
+termTitle = '~/payments-api';
 add('$ npm install -g @chrisdudek/yg', WHITE); frames(2);
 add('added 6 packages in 2s', OUTPUT_C); frames(3);
 add('', TEXT);
 add('$ yg init', WHITE); frames(2);
-add('', TEXT);
-add('Yggdrasil Setup', WHITE, true); frames(1);
-add('', TEXT);
-add('Step 1: AI coding platform', OUTPUT_C); frames(2);
-for (const p of ['cursor','claude-code','copilot','codex','cline','windsurf','aider','gemini-cli']) {
-  add('  ' + p, OUTPUT_C); frames(1);
-}
-frames(1);
-add('  > claude-code', GREEN); frames(3);
-add('', TEXT);
-add('Step 2: Reviewer provider', OUTPUT_C); frames(2);
-add('  > Claude Code  CLI', GREEN); frames(2);
-add('  > sonnet', GREEN); frames(2);
-add('  \u2713 claude found.', GREEN); frames(3);
-add('', TEXT);
-add('\u2713 Yggdrasil initialized.', GREEN); frames(6);
+add('  platform  > claude-code', GREEN); frames(2);
+add('  reviewer  > Claude Code  CLI (sonnet)', GREEN); frames(2);
+add('  ✓ Yggdrasil initialized.', GREEN); frames(5);
 
 // Scene 2: User task
 clear(); termTitle = 'claude code'; frames(2);
-add('You: Add a payment endpoint to the API. All payment', BLUE, true);
-add('     operations must emit audit events and validate', BLUE);
-add('     input with zod schemas.', BLUE); frames(8);
+add('You: Add a charge endpoint. Payments must emit an', BLUE, true);
+add('     audit event and record to the ledger.', BLUE); frames(8);
 add('', TEXT);
-add('Agent: I\'ll set up the architecture rules first,', PURPLE);
-add('       then implement.', PURPLE); frames(5);
 
-// Scene 3: Agent builds graph
+// Scene 3: Rules BEFORE writing — the prevention beat (the proven value)
+add('Agent: Pulling the rules for this file before I write.', PURPLE); frames(4);
 add('', TEXT);
-add('\u25b6 Creating aspect: requires-audit', WHITE); frames(2);
-add('  aspects/requires-audit/content.md', DIM);
-add('  "Every mutation must emit an audit event with', YELLOW);
-add('   operation, timestamp, and entity ID"', YELLOW); frames(3);
+add('▶ yg context --file src/payments/charge.ts', WHITE); frames(2);
+add('  node: payments/service', DIM);
+add('  requires-audit    [llm]  read: aspects/requires-audit/content.md', OUTPUT_C);
+add('  input-validation  [llm]  read: aspects/input-validation/content.md', OUTPUT_C);
+add('  no-direct-db      [det]  read: aspects/no-direct-db/check.mjs', OUTPUT_C); frames(9);
 add('', TEXT);
-add('\u25b6 Creating aspect: zod-validation', WHITE); frames(2);
-add('  aspects/zod-validation/content.md', DIM);
-add('  "All endpoint handlers must validate input', YELLOW);
-add('   using zod schemas before processing"', YELLOW); frames(3);
-add('', TEXT);
-add('\u25b6 Creating node: payments/service', WHITE); frames(2);
-add('  type: service', OUTPUT_C);
-add('  aspects: [requires-audit, zod-validation]', OUTPUT_C);
-add('  mapping: [src/payments/]', OUTPUT_C); frames(3);
-add('', TEXT);
-add('\u25b6 Implementing payment endpoint...', WHITE); frames(2);
-add('  src/payments/payment.service.ts    created', GREEN); frames(1);
-add('  src/payments/payment.controller.ts created', GREEN); frames(1);
-add('  src/payments/payment.schema.ts     created', GREEN); frames(4);
+add('Agent: 3 rules. Writing to them up front.', PURPLE); frames(5);
 
-// Scene 4: Approve fails
+// Scene 4: Agent writes code that already fits the rules it was handed
 add('', TEXT);
-add('\u25b6 Running yg check --approve', WHITE); frames(2);
-add('  Filling 2 unverified pairs across 1 nodes \u2014', DIM);
-add('  0 deterministic (no cost), 2 reviewer calls', DIM); frames(8);
-add('', TEXT);
-add('  [llm] zod-validation on payments/service \u2014 approved', GREEN); frames(2);
-add('  [llm] requires-audit on payments/service \u2014 refused', RED, true);
-add('    charge() and refund() mutate state but do not', OUTPUT_C);
-add('    call emitAudit(). Must emit audit events with', OUTPUT_C);
-add('    operation, timestamp, and entityId.', OUTPUT_C); frames(3);
-add('', TEXT);
-add('yg check: FAIL  1 node \u00b7 2 aspects', RED, true); frames(12);
+add('  src/payments/charge.ts        created', GREEN); frames(1);
+add('  src/payments/charge.schema.ts created', GREEN); frames(3);
 
-// Scene 5: Agent fixes
+// Scene 5: The un-ignorable gate — deterministic relation check, live + FREE
 add('', TEXT);
-add('Agent: Audit logging missing. Fixing.', PURPLE); frames(4);
+add('▶ yg check --approve', WHITE); frames(2);
+add('  relation-undeclared-dependency  payments/service', RED, true);
+add('    charge.ts:14 → undeclared dependency on ledger/service', OUTPUT_C);
+add('    Why: code calls another node it declares no relation to.', OUTPUT_C);
+add('    Fix: add the relation in payments/service/yg-node.yaml.', OUTPUT_C); frames(10);
 add('', TEXT);
-add('\u25b6 Adding audit events to payment service...', WHITE); frames(2);
-add('  src/payments/payment.service.ts  modified', YELLOW); frames(1);
-add('  src/payments/audit.ts            created', GREEN); frames(4);
+add('  (deterministic — no LLM, no cost, runs every check)', DIM); frames(5);
+add('', TEXT);
+add('Agent: Right — declaring the calls relation to ledger.', PURPLE); frames(3);
+add('  payments/service/yg-node.yaml  modified', YELLOW); frames(4);
 
-// Scene 6: Approve passes
+// Scene 6: One LLM beat — the semantic catch a script can't make
 add('', TEXT);
-add('\u25b6 Running yg check --approve', WHITE); frames(2);
-add('  Filling 1 unverified pairs across 1 nodes \u2014', DIM);
-add('  0 deterministic (no cost), 1 reviewer calls', DIM); frames(6);
+add('▶ yg check --approve', WHITE); frames(2);
+add('  Filling 3 unverified pairs across 1 node —', DIM);
+add('  1 deterministic (no cost), 2 reviewer calls (consensus included)', DIM); frames(7);
 add('', TEXT);
-add('  [llm] requires-audit on payments/service \u2014 approved', GREEN); frames(2);
-add('', TEXT);
-add('yg check: PASS  1 node \u00b7 2 aspects', GREEN, true); frames(4);
-add('', TEXT);
-add('\u25b6 Running yg check', WHITE); frames(2);
-add('  yg check: PASS  1 node \u00b7 2 aspects', GREEN, true); frames(8);
+add('  [det] no-direct-db on payments/service — approved', GREEN); frames(1);
+add('  [llm] input-validation on payments/service — approved', GREEN); frames(1);
+add('  [llm] requires-audit on payments/service — refused', RED, true);
+add('    charge() mutates state but never calls emitAudit().', OUTPUT_C);
+add('    Every mutation must emit an audit event.', OUTPUT_C); frames(10);
 
-// Scene 7: Punchline
+// Scene 7: Agent fixes, passes, CI green without keys
+add('', TEXT);
+add('Agent: Audit event missing. Adding it.', PURPLE); frames(3);
+add('  src/payments/charge.ts  modified', YELLOW); frames(3);
+add('', TEXT);
+add('▶ yg check --approve', WHITE); frames(2);
+add('  [llm] requires-audit on payments/service — approved', GREEN); frames(2);
+add('  yg check: PASS  2 nodes · 5/5 files · 3 aspects · 0 flows', GREEN, true); frames(7);
+add('', TEXT);
+add('$ yg check   # the CI gate — no LLM, no keys', WHITE); frames(2);
+add('  yg check: PASS  2 nodes · 5/5 files · 3 aspects · 0 flows', GREEN, true); frames(8);
+
+// Scene 8: Punchline — rebalanced toward prevention + un-ignorable enforcement
 clear();
 bigText = [
-  { text: 'Rules defined once.', color: GREEN, font: 'bold 42px sans-serif' },
-  { text: 'Enforced on every change, automatically.', color: '#888', font: '22px sans-serif' },
+  { text: 'The rules reach the agent before it writes a line.', color: GREEN, font: 'bold 29px sans-serif' },
+  { text: 'Not in a PR review, after.', color: '#888', font: '22px sans-serif' },
 ]; frames(15);
 
 bigText = [
-  { text: 'The agent caught its own mistake', color: '#888', font: '20px sans-serif' },
-  { text: 'before it reached your PR.', color: WHITE, font: 'bold 30px sans-serif' },
+  { text: 'The checks run on every change.', color: WHITE, font: 'bold 30px sans-serif' },
+  { text: 'Your agent can’t optimize them away.', color: '#888', font: '22px sans-serif' },
 ]; frames(16);
 
 bigText = [
   { text: 'YGGDRASIL', color: WHITE, font: '900 52px sans-serif' },
   { text: 'Your agent will ignore CLAUDE.md.', color: '#888', font: '20px sans-serif' },
-  { text: 'Yggdrasil makes sure it doesn\u2019t.', color: WHITE, font: 'bold 22px sans-serif' },
+  { text: 'Yggdrasil makes sure it doesn’t.', color: WHITE, font: 'bold 22px sans-serif' },
   { text: 'npm install -g @chrisdudek/yg', color: GREEN, font: '14px monospace' },
 ]; frames(20);
 
