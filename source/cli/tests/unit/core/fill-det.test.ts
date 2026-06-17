@@ -789,7 +789,11 @@ describe('Bug 2 — GC retains entries for an implies-cycle node', () => {
     // valid entry for the clean node, and one genuinely-detached entry (an aspect
     // no node references). GC keys on (aspectId, unitKey) membership and owner —
     // hash validity is irrelevant to the prune decision.
-    writeLock(graph.rootPath, {
+    // MUST await: writeLock is async (atomic temp-write + rename). runFill reads
+    // this lock synchronously at its start (after only `await validate`), so an
+    // unawaited seed write races that read — under the parallel coverage run the
+    // write lands late, runFill sees no seed, and GC has no entry to retain.
+    await writeLock(graph.rootPath, {
       version: 1,
       verdicts: {
         'det-a': { 'node:cyc': { verdict: 'approved', hash: 'seed-cyc', touched: [] } },
