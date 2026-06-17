@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.2] - 2026-06-17
+
+### Fixed
+
+- **Line-ending style no longer affects verdicts.** Content is now hashed with line endings normalized (CRLF and lone CR collapse to LF) before the SHA-256 fold. The same file checked out with CRLF on Windows and LF on Linux produces an identical verdict hash and source fingerprint, so a mixed-platform team no longer sees pairs flip to unverified — or the mandatory-log gate re-trigger — purely because of a line-ending difference. Only the line-break style is normalized; any other byte change (including trailing whitespace) still invalidates as before.
+
 ## [5.0.1] - 2026-06-16
 
 ### Changed

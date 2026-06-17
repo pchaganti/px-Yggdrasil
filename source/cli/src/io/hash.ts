@@ -18,9 +18,41 @@ type HashPathOptions = {
 
 type GitignoreEntry = { basePath: string; matcher: Ignore };
 
+const CR = 0x0d;
+const LF = 0x0a;
+
+/**
+ * Normalize line endings so the STYLE of line break never affects a content
+ * hash: every CRLF (`\r\n`) and every lone CR (`\r`) becomes a single LF (`\n`).
+ * The same source checked out with CRLF on Windows and LF on Linux therefore
+ * hashes identically — a verdict survives a line-ending change and no spurious
+ * re-verification or log-gate prompt is triggered.
+ *
+ * Operates on raw bytes (CR/LF are ASCII, so this is UTF-8 safe). A buffer with
+ * no CR is returned unchanged (byte-identical, same reference). The result is
+ * never longer than the input — only used as a hash input, never written back as
+ * file content. Binary mapped files are normalized too (a deliberate, harmless
+ * trade-off for a single uniform chokepoint — see CHANGELOG 5.0.2).
+ */
+export function normalizeLineEndings(bytes: Buffer): Buffer {
+  if (!bytes.includes(CR)) return bytes;
+  const out = Buffer.allocUnsafe(bytes.length);
+  let w = 0;
+  for (let i = 0; i < bytes.length; i++) {
+    if (bytes[i] === CR) {
+      out[w++] = LF;
+      if (bytes[i + 1] === LF) i++; // collapse a CRLF pair into the single LF just written
+    } else {
+      out[w++] = bytes[i];
+    }
+  }
+  return out.subarray(0, w);
+}
+
+/** sha256 hex of a file's content, with line endings normalized (see {@link normalizeLineEndings}). */
 export async function hashFile(filePath: string): Promise<string> {
   const content = await readFile(filePath);
-  return createHash('sha256').update(content).digest('hex');
+  return hashBytes(content);
 }
 
 export async function hashPath(targetPath: string, options: HashPathOptions = {}): Promise<string> {
@@ -86,9 +118,9 @@ export function hashString(content: string): string {
   return createHash('sha256').update(content).digest('hex');
 }
 
-/** sha256 hex of raw bytes. */
+/** sha256 hex of bytes, with line endings normalized (see {@link normalizeLineEndings}). */
 export function hashBytes(bytes: Buffer): string {
-  return createHash('sha256').update(bytes).digest('hex');
+  return createHash('sha256').update(normalizeLineEndings(bytes)).digest('hex');
 }
 
 /** Compute per-file hashes for a mapping. Used for diagnostics (which files changed). */

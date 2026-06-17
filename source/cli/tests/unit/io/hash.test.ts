@@ -21,6 +21,7 @@ import {
   perFileHashes,
   expandMappingPaths,
   expandMappingPathsExcluding,
+  normalizeLineEndings,
 } from '../../../src/io/hash.js';
 
 const dirs: string[] = [];
@@ -49,6 +50,49 @@ describe('hash primitives', () => {
     expect(fromFile).toBe(fromString);
     // Different content → different hash.
     expect(hashString('hello!')).not.toBe(fromString);
+  });
+});
+
+describe('line-ending-insensitive content hashing', () => {
+  it('hashBytes ignores CRLF vs LF vs lone CR', () => {
+    const lf = hashBytes(Buffer.from('a\nb\nc\n', 'utf8'));
+    const crlf = hashBytes(Buffer.from('a\r\nb\r\nc\r\n', 'utf8'));
+    const cr = hashBytes(Buffer.from('a\rb\rc\r', 'utf8'));
+    const mixed = hashBytes(Buffer.from('a\r\nb\rc\n', 'utf8'));
+    expect(crlf).toBe(lf);
+    expect(cr).toBe(lf);
+    expect(mixed).toBe(lf);
+  });
+
+  it('hashFile gives the same digest for a CRLF file and its LF twin', async () => {
+    const root = await tmpTree({});
+    const crlfPath = path.join(root, 'crlf.ts');
+    const lfPath = path.join(root, 'lf.ts');
+    await writeFile(crlfPath, 'export const x = 1;\r\nexport const y = 2;\r\n');
+    await writeFile(lfPath, 'export const x = 1;\nexport const y = 2;\n');
+    expect(await hashFile(crlfPath)).toBe(await hashFile(lfPath));
+  });
+
+  it('does NOT collapse content that differs beyond line endings', () => {
+    // Same line-ending style, genuinely different text → different hash.
+    expect(hashBytes(Buffer.from('a\nb\n', 'utf8')))
+      .not.toBe(hashBytes(Buffer.from('a\nB\n', 'utf8')));
+    // A literal backslash-r-backslash-n (two chars: '\\' 'r') is NOT a line ending
+    // and must stay distinct from a real CRLF.
+    expect(hashBytes(Buffer.from('a\\nb', 'utf8')))
+      .not.toBe(hashBytes(Buffer.from('a\nb', 'utf8')));
+  });
+
+  it('normalizeLineEndings is a byte-identical no-op on all-LF (and CR-free) input', () => {
+    const lf = Buffer.from('already\nlf\nonly\n', 'utf8');
+    expect(normalizeLineEndings(lf).equals(lf)).toBe(true);
+    const noNewlines = Buffer.from('no newlines here', 'utf8');
+    expect(normalizeLineEndings(noNewlines).equals(noNewlines)).toBe(true);
+  });
+
+  it('normalizeLineEndings rewrites CRLF and lone CR to LF', () => {
+    expect(normalizeLineEndings(Buffer.from('a\r\nb\rc', 'utf8')))
+      .toEqual(Buffer.from('a\nb\nc', 'utf8'));
   });
 });
 
