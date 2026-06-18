@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.3] - 2026-06-18
+
+### Fixed
+
+- **CLI reviewers (`claude-code`, `codex`, `gemini-cli`) are no longer reported as missing on Windows.** Detection of whether a provider's command is installed shelled out to `which <binary>` — but `which` is a Unix-only command. On Windows there is no `which` on PATH (the equivalent is `where`), so the probe failed to spawn `which` itself and concluded the binary was absent on every Windows machine, even when the command was installed and runnable. As a result `yg init` always warned "`claude` not found on PATH" and the reviewer's runtime availability gate (`isAvailable()`) always returned false, so a correctly-installed CLI reviewer could not be used at all. Detection now runs the binary directly with `--version` and treats a clean exit as "available" — no platform-specific lookup tool, so it works identically on Windows, macOS, and Linux. On Windows the probe runs through the shell so PATHEXT shims (e.g. a `claude.cmd` installed by npm) resolve; the binary name is always a fixed internal constant, never user input. Running the binary also confirms it actually executes, which a bare path lookup never verified.
+
 ## [5.0.2] - 2026-06-17
 
 ### Fixed

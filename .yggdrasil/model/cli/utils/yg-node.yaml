@@ -4,13 +4,16 @@ description: Shared helper functions — debug logging, git introspection, path
   validation, POSIX path normalization, mapping-path normalization, check.mjs
   export-shape validation, the constant list of known LLM provider ids, the
   canonical binary-extension set (single source of truth replacing two prior
-  copies in mapping.ts and runner.ts), and the pure when-predicate parsers
+  copies in mapping.ts and runner.ts), the cross-platform CLI-binary
+  availability probe (runs `<binary> --version` rather than the Unix-only
+  `which`, so detection works on Windows), and the pure when-predicate parsers
   (file-level and aspect-level, plus the shared boolean-clause helper) that the
   io layer imports without an io→engine boundary violation.
 aspects:
   - posix-paths-output
 relations: [ { target: cli/model/graph, type: uses } ]
 mapping:
+  - source/cli/src/utils/binary-check.ts
   - source/cli/src/utils/binary-extensions.ts
   - source/cli/src/utils/debug-log.ts
   - source/cli/src/utils/git-introspect.ts

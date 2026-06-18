@@ -1,11 +1,8 @@
 import { spawn } from 'node:child_process';
-import { execFile } from 'node:child_process';
 import { tmpdir } from 'node:os';
-import { promisify } from 'node:util';
 import type { LlmProvider, AspectResponse } from './types.js';
 import { debugWrite } from '../utils/debug-log.js';
-
-const execFileAsync = promisify(execFile);
+import { binaryAvailable } from '../utils/binary-check.js';
 
 /**
  * Coerce a verdict value: a JSON boolean OR a quoted "true"/"false" string
@@ -166,13 +163,7 @@ export abstract class CliAgentProvider implements LlmProvider {
   abstract get stdinMode(): boolean;
 
   async isAvailable(): Promise<boolean> {
-    try {
-      await execFileAsync('which', [this.binary], { timeout: 5000 });
-      return true;
-    } catch (err) {
-      debugWrite(`[${this.binary}] isAvailable: ${(err as Error).message}`);
-      return false;
-    }
+    return binaryAvailable(this.binary);
   }
 
   async verifyAspect(prompt: string): Promise<AspectResponse> {

@@ -1,9 +1,6 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import type { ReviewerProvider } from '../model/graph.js';
 import { debugWrite } from '../utils/debug-log.js';
-
-const execFileAsync = promisify(execFile);
+import { binaryAvailable } from '../utils/binary-check.js';
 
 export interface ReviewerTestResult {
   ok: boolean;
@@ -48,14 +45,10 @@ export async function testCliProvider(provider: ReviewerProvider): Promise<Revie
   if (!binary) {
     return { ok: false, error: `Unsupported CLI provider: ${provider}` };
   }
-  try {
-    await execFileAsync('which', [binary], { timeout: 5000 });
+  if (await binaryAvailable(binary)) {
     return { ok: true };
-  } catch (err) {
-    const msg = `'${binary}' not found on PATH`;
-    debugWrite(`[reviewer-test] testCliProvider(${provider}): ${(err as Error).message}`);
-    return { ok: false, error: msg };
   }
+  return { ok: false, error: `'${binary}' could not be run — is it installed and on PATH?` };
 }
 
 async function testAnthropic(apiKey: string, model: string, endpoint: string): Promise<ReviewerTestResult> {
