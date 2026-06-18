@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.4] - 2026-06-18
+
+### Fixed
+
+- **`yg` no longer aborts at shutdown on Windows with a libuv assertion (`UV_HANDLE_CLOSING`, exit 127).** Commands that run a deterministic check — `yg aspect-test`, and `yg check --approve` while filling deterministic pairs — import each `check.mjs` through a `node:module` customization hook, which Node runs on a worker thread connected by a MessagePort (a libuv async handle). The shared command-exit helper then called `process.exit()` the instant the command finished, tearing the event loop down while that handle was still live; on a Windows debug-assert libuv build (observed on Node 24) that tripped `assert(!(handle->flags & UV_HANDLE_CLOSING))` in `src\win\async.c` and aborted the process with exit 127 — intermittently leaving a `--approve` fill incomplete so it had to be re-run. The helper now sets `process.exitCode` and returns to the event loop, letting Node shut the hook worker down cleanly before the process exits, with an unref'd fallback that still force-exits if some other handle ever keeps the loop alive past a grace window. Output is still drained before exit, so large reports piped to another command are never truncated. No behavior change on macOS/Linux, where the same teardown was already silent (libuv assertions compiled out).
+
 ## [5.0.3] - 2026-06-18
 
 ### Fixed

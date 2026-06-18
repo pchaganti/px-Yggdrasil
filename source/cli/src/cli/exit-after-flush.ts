@@ -1,20 +1,55 @@
 /**
- * Exit after stdout has fully flushed. A large report written to a PIPE (an
- * agent capturing `yg check | grep`, `yg aspect-test` output, `yg impact`, or
- * CI) is buffered by the kernel; a bare `process.exit()` terminates the process
- * before that buffer drains and silently truncates the output — exactly when it
- * is longest. Waiting for the pending buffer to drain first preserves the
- * force-exit semantics (no hang on a lingering handle) while guaranteeing the
- * full report reaches the consumer.
+ * Exit after stdout has fully flushed, then let the event loop drain so the
+ * process shuts down cleanly. Guards two distinct failure modes:
+ *
+ * 1. Truncated output. A large report written to a PIPE (an agent capturing
+ *    `yg check | grep`, `yg aspect-test` output, `yg impact`, or CI) is buffered;
+ *    a bare `process.exit()` terminates before that buffer drains and silently
+ *    truncates the output — exactly when it is longest. We wait for the pending
+ *    buffer to drain first.
+ *
+ * 2. Shutdown abort on Windows. The deterministic-check path registers a
+ *    node:module customization hook (see ast/loader-hook.ts) so a check.mjs can
+ *    import `@chrisdudek/yg/*`. Node runs that hook on a worker thread connected
+ *    by a MessagePort — a libuv async handle. Calling `process.exit()` the instant
+ *    a command finishes tears the loop down while that handle is still live; on a
+ *    Windows debug-assert libuv build (observed on Node 24) that trips
+ *    `assert(!(handle->flags & UV_HANDLE_CLOSING))` in src\win\async.c and aborts
+ *    with exit 127. Returning to the event loop instead lets Node shut the hook
+ *    worker down cleanly and exit on `process.exitCode`.
+ *
+ * So we set `process.exitCode` and return to the loop rather than forcing the
+ * exit. An UNREF'd fallback `process.exit()` preserves the original "never hang
+ * on a lingering handle" guarantee: it fires only if some OTHER handle keeps the
+ * loop alive past the grace window, and being unref'd it never holds the loop
+ * open itself.
+ *
+ * The returned promise never resolves: callers treat `exitAfterFlush` as terminal
+ * — code after `await exitAfterFlush(...)` must not run (e.g. aspect-test.ts relies
+ * on it not to fall through into the --files branch). The hung await is harmless;
+ * a pending promise is not a libuv handle and does not keep the loop alive.
  *
  * Shared by every command that does a large `process.stdout.write` immediately
- * followed by `process.exit()` (check, aspect-test, impact). Keep this the
- * single source of the drain-before-exit logic so the truncation fix cannot
- * regress in one command while staying correct in another.
+ * followed by exit (check, aspect-test, impact). Keep this the single source of
+ * the drain-and-exit logic so the fix cannot regress in one command while staying
+ * correct in another.
  */
+
+/**
+ * Grace window before the unref'd fallback forces exit, for the rare case where
+ * some other handle keeps the loop alive. Normal runs exit immediately via loop
+ * drain and never reach it.
+ */
+const FORCE_EXIT_GRACE_MS = 2000;
+
 export async function exitAfterFlush(code: number): Promise<never> {
   if (process.stdout.writableLength > 0) {
     await new Promise<void>((resolve) => process.stdout.once('drain', resolve));
   }
-  process.exit(code);
+  process.exitCode = code;
+  // Fallback only — unref() so it never keeps the loop alive on its own; fires
+  // solely if a genuinely lingering handle blocks the natural exit above.
+  setTimeout(() => process.exit(code), FORCE_EXIT_GRACE_MS).unref();
+  // Never resolves: exitAfterFlush is terminal for its callers (see doc comment).
+  return new Promise<never>(() => {});
 }

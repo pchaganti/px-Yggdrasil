@@ -37,6 +37,16 @@ vi.mock('../../../src/io/secrets-parser.js', () => ({
   deepMerge: vi.fn((base: Record<string, unknown>, overlay: Record<string, unknown>) => ({ ...base, ...overlay })),
 }));
 
+// Isolate the shared exit helper. The real exitAfterFlush sets process.exitCode
+// and returns to the event loop (never resolving) so Node can tear the
+// node:module hook worker down cleanly — see exit-after-flush.ts. An in-process
+// command test only needs the requested exit code, so delegate to the
+// process.exit spy installed in beforeEach (which throws ExitSignal to unwind).
+// The real helper has its own coverage in exit-after-flush.test.ts.
+vi.mock('../../../src/cli/exit-after-flush.js', () => ({
+  exitAfterFlush: vi.fn((code: number) => process.exit(code)),
+}));
+
 import { registerAspectTestCommand } from '../../../src/cli/aspect-test.js';
 import { loadGraphOrAbort } from '../../../src/cli/preamble.js';
 import { runAstAspect } from '../../../src/ast/runner.js';
