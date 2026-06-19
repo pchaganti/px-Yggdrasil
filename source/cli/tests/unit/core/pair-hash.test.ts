@@ -172,6 +172,40 @@ describe('computeLlmInputHash', () => {
     });
     expect(posix).toBe(windows);
   });
+
+  it('plain input (no companionHash, no touched) still equals the golden — backward compat', () => {
+    expect(computeLlmInputHash(BASE_LLM_INPUT)).toBe(golden.llmInputHash);
+  });
+
+  it('empty touched array hashes identically to absent (independent length-0 guard)', () => {
+    const withEmpty = computeLlmInputHash({ ...BASE_LLM_INPUT, touched: [] });
+    expect(withEmpty).toBe(golden.llmInputHash);
+  });
+
+  it('companionHash folds INDEPENDENT of touched: present companionHash + absent touched differs from plain', () => {
+    const withCompanion = computeLlmInputHash({ ...BASE_LLM_INPUT, companionHash: 'e'.repeat(64) });
+    expect(withCompanion).not.toBe(golden.llmInputHash);
+    // identical whether touched is undefined or []
+    const withCompanionEmpty = computeLlmInputHash({ ...BASE_LLM_INPUT, companionHash: 'e'.repeat(64), touched: [] });
+    expect(withCompanionEmpty).toBe(withCompanion);
+  });
+
+  it('editing companionHash changes the hash even with empty touched', () => {
+    const a = computeLlmInputHash({ ...BASE_LLM_INPUT, companionHash: 'e'.repeat(64), touched: [] });
+    const b = computeLlmInputHash({ ...BASE_LLM_INPUT, companionHash: 'f'.repeat(64), touched: [] });
+    expect(a).not.toBe(b);
+  });
+
+  it('touched folds INDEPENDENT of companionHash: present touched + absent companionHash differs from plain', () => {
+    const withTouched = computeLlmInputHash({ ...BASE_LLM_INPUT, touched: [['read:src/spec.ts', 'g'.repeat(64)]] });
+    expect(withTouched).not.toBe(golden.llmInputHash);
+  });
+
+  it('touched fold is order-insensitive (sorted by key)', () => {
+    const t1: Array<[string, string]> = [['read:a.ts', 'a'.repeat(64)], ['read:b.ts', 'b'.repeat(64)]];
+    const t2: Array<[string, string]> = [['read:b.ts', 'b'.repeat(64)], ['read:a.ts', 'a'.repeat(64)]];
+    expect(computeLlmInputHash({ ...BASE_LLM_INPUT, touched: t1 })).toBe(computeLlmInputHash({ ...BASE_LLM_INPUT, touched: t2 }));
+  });
 });
 
 // ---------------------------------------------------------------------------

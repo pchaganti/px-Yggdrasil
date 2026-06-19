@@ -38,6 +38,10 @@ export interface LlmHashInput extends CommonHashInput {
   aspectDescription: string;
   references: Array<[string, string, string]>; // [path, sha256(bytes), description] — sorted internally by path
   tier: { name: string };   // ONLY the tier name folds in — the resolved config (provider/model/endpoint/temperature/consensus) is not a verdict input
+  /** sha256 of companion.mjs bytes — folded ONLY when present (aspect ships a hook). */
+  companionHash?: string;
+  /** companion hook out-of-subject observations — folded ONLY when length > 0. */
+  touched?: Array<[string, string]>;
 }
 
 export interface DetHashInput extends CommonHashInput {
@@ -136,6 +140,13 @@ function buildCommonCanonical(input: CommonHashInput): Record<string, unknown> {
  * Ingredients (spec §3.1):
  *   common: aspect, scope, node, rule, files, verdict
  *   LLM-only: aspectDescription, references, tier (config excludes api_key + timeout)
+ *   optional, only-when-present (INDEPENDENT predicates — a plain LLM aspect passes
+ *   neither, so `canonical` is byte-identical to the pre-companion contract):
+ *     companionHash — sha256 of companion.mjs bytes; folded ONLY when !== undefined
+ *     touched       — companion hook observations; folded ONLY when length > 0
+ *
+ * DELIBERATE divergence from computeDetInputHash, which ALWAYS emits touched:[].
+ * The two guards are INDEPENDENT: folding one does not require the other.
  *
  * Hash = sha256(codePointCanonicalJson(canonical_object)) where canonical_object
  * includes a 'kind: "llm"' discriminator so LLM and deterministic pairs can never
@@ -158,6 +169,19 @@ export function computeLlmInputHash(input: LlmHashInput): string {
       name: input.tier.name,
     },
   };
+
+  // Companion ingredients — INDEPENDENT only-when-present guards. A plain LLM
+  // aspect passes neither, so `canonical` is byte-identical to the pre-companion
+  // contract (golden-pinned): no mass re-verification, no lock-format bump.
+  // DELIBERATE divergence from computeDetInputHash, which ALWAYS emits touched:[].
+  if (input.companionHash !== undefined) {
+    canonical.companionHash = input.companionHash;
+  }
+  if (input.touched !== undefined && input.touched.length > 0) {
+    canonical.touched = [...input.touched]
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([k, h]) => [k, h]);
+  }
 
   return hashString(codePointCanonicalJson(canonical));
 }

@@ -43,6 +43,17 @@ export function ruleHashFor(aspect: AspectDef, filename: 'content.md' | 'check.m
   return hashBytes(Buffer.from(contentFor(aspect, filename), 'utf8'));
 }
 
+/**
+ * sha256 of the aspect's companion.mjs bytes, or undefined when the aspect ships
+ * no companion. Presence is by ARTIFACT EXISTENCE (not hook/touched state), so a
+ * []-resolving companion still folds companionHash and invalidates on a hook edit.
+ * Single shared impl: fill and verify MUST fold companionHash identically.
+ */
+export function companionHashFor(aspect: AspectDef): string | undefined {
+  const art = aspect.artifacts.find((a) => a.filename === 'companion.mjs');
+  return art === undefined ? undefined : hashBytes(Buffer.from(art.content, 'utf8'));
+}
+
 /** The node's description (prompt garnish — not hashed; spec §3.1). */
 export function nodeDescriptionFor(graph: Graph, nodePath: string): string {
   return graph.nodes.get(nodePath)?.meta.description ?? '';
