@@ -509,6 +509,13 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (fail-closed)
       const v = verdicts(dir, 'scenario-matches-test');
       expect(v[UNIT('checkout')].verdict).toBe('approved');
       expect(run(['check'], dir).status).toBe(0);
+
+      // Assert the product guarantee (D1): the prompt's INSTRUCTION TEXT scopes suppress
+      // to <source-files>. A regression that changed "If a file in <source-files> below"
+      // to a weaker phrasing would not be caught by the mock alone — this pins the wording.
+      const checkoutReq = mock.chatRequests.find((r) => r.prompt.includes('test: checkout.spec.ts'));
+      expect(checkoutReq).toBeDefined();
+      expect(checkoutReq!.prompt).toContain('If a file in <source-files> below contains a comment with the marker yg-suppress(<aspect-id>) where');
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
@@ -559,6 +566,11 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (fail-closed)
       expect(checkoutReq).toBeDefined();
       expect(checkoutReq!.prompt).toContain('yg-suppress(scenario-matches-test)');
       expect(sourceFilesRegion(checkoutReq!.prompt)).not.toContain('yg-suppress(scenario-matches-test)');
+
+      // Assert the product wording (D1): the instruction text that makes a companion-file
+      // marker ineffective is the same scoping sentence as in suppress-a. Pin it here too
+      // so a wording regression is caught in both the "honored" and "not-honored" branches.
+      expect(checkoutReq!.prompt).toContain('If a file in <source-files> below contains a comment with the marker yg-suppress(<aspect-id>) where');
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
