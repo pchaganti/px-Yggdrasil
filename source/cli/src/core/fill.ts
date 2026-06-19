@@ -337,11 +337,19 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
       if (outcome.kind === 'infra') {
         infraFailures += 1;
         infraReport.push({ provider: baseTier.provider, tier: tierName });
-        emitIssue({
-          what: `Reviewer could not verify aspect '${item.pair.aspectId}' on ${toPosixPath(item.pair.unitKey)} — left unverified.`,
-          why: outcome.why,
-          next: `Resolve the provider/config problem, then re-run: yg check --approve`,
-        });
+        // Prefer the outcome's self-describing messageData when present (mirrors
+        // the det loop) — a companion-assembly failure carries a precise
+        // what/why/next (e.g. the relation-source/target to declare); the generic
+        // provider/config message is the fallback for a bare `why`.
+        if (outcome.messageData) {
+          emitIssue(outcome.messageData);
+        } else {
+          emitIssue({
+            what: `Reviewer could not verify aspect '${item.pair.aspectId}' on ${toPosixPath(item.pair.unitKey)} — left unverified.`,
+            why: outcome.why,
+            next: `Resolve the provider/config problem, then re-run: yg check --approve`,
+          });
+        }
       }
     }
   }
@@ -371,8 +379,8 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
     const ids = [providers, tiers].filter((s) => s.length > 0).join(' / ');
     emitIssue({
       what: `${infraFailures} pairs failed on provider/config errors — re-running will not help until the connection/config is fixed${ids ? ` (${ids})` : ''}.`,
-      why: 'These pairs hit an infrastructure disposition (provider unreachable, tier unresolved, reference unreadable, or an unparseable response). No verdict was written; the pairs stay unverified and the run ends red.',
-      next: 'Fix the reviewer connection/configuration, then re-run: yg check --approve. To unblock CI without a reviewer, set the affected aspect(s) to status: draft.',
+      why: 'These pairs hit an infrastructure disposition (provider unreachable, tier unresolved, reference unreadable, an unparseable response, or a companion-assembly failure — companion.mjs threw / returned a bad shape / a resolved path is missing or outside allowed-reads / observations stayed inconsistent across two runs). No verdict was written; the pairs stay unverified and the run ends red.',
+      next: 'Fix the reviewer connection/configuration (or the companion.mjs / its returned paths — see the per-pair messages above), then re-run: yg check --approve. To unblock CI without a reviewer, set the affected aspect(s) to status: draft.',
     });
   }
   if (runtimeErrors > 0) {

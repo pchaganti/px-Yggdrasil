@@ -16,8 +16,14 @@ export type DetFillOutcome =
   | { kind: 'runtime-error' };
 
 /** Outcome of filling one LLM pair. A real verdict carries an entry to write; an
- *  infra disposition (reference unreadable, provider error/unparseable) carries a
- *  reason and writes NOTHING (spec §3.2). `callsMade` is consensus-inclusive.
+ *  infra disposition writes NOTHING (spec §3.2) and carries a reason + `callsMade`
+ *  (consensus-inclusive). Infra causes:
+ *    - reference unreadable (a declared reference file could not be read);
+ *    - provider error / unparseable response (the reviewer could not produce a verdict);
+ *    - companion-assembly failure (companion.mjs threw / returned a bad shape /
+ *      a resolved path is missing / a resolved path is outside allowed-reads /
+ *      observations stayed inconsistent across two runs). A companion-assembly
+ *      failure is decided BEFORE the reviewer runs, so its `callsMade` is 0.
  *  The infra disposition also carries structured `messageData` ({ what, why, next })
  *  so the failure is self-describing at the point it is produced — the bare `why`
  *  stays for callers that fold it into their own surrounding message. */
