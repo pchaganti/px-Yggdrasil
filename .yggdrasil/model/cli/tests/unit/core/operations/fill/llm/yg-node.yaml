@@ -21,3 +21,4 @@ relations:
   ]
 mapping:
   - source/cli/tests/unit/core/fill-llm.test.ts
+  - source/cli/tests/unit/core/fill-llm-companion.test.ts

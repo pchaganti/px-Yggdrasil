@@ -16,3 +16,4 @@ relations:
   ]
 mapping:
   - source/cli/tests/unit/core/verify-lock.test.ts
+  - source/cli/tests/unit/core/verify-lock-companion.test.ts
