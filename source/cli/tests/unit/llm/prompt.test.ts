@@ -114,6 +114,70 @@ describe('assembledPromptChars', () => {
   });
 });
 
+describe('buildPairPrompt — companions block', () => {
+  const BASE = {
+    aspect: { id: 'a', description: 'd', content: 'RULE' },
+    references: [], nodePath: 'n', nodeDescription: '', scope: undefined,
+    files: [{ path: 'src/x.ts', content: 'X' }],
+  };
+
+  it('omitting companions is byte-identical to passing []', () => {
+    expect(buildPairPrompt({ ...BASE })).toBe(buildPairPrompt({ ...BASE, companions: [] }));
+  });
+
+  it('renders a distinct <companions> block with path-sorted entries', () => {
+    const out = buildPairPrompt({ ...BASE, companions: [
+      { path: 'b/two.ts', content: 'TWO', label: 'pair two' },
+      { path: 'a/one.ts', content: 'ONE' },
+    ]});
+    expect(out).toContain('<companions>');
+    expect(out.indexOf('a/one.ts')).toBeLessThan(out.indexOf('b/two.ts')); // sorted
+    expect(out).toContain('pair two');
+  });
+
+  it('companions block appears before the <source-files> block', () => {
+    const out = buildPairPrompt({ ...BASE, companions: [
+      { path: 'z/file.ts', content: 'Z' },
+    ]});
+    expect(out).toContain('<companions>');
+    // Use the standalone block tag (prefixed with newline) to avoid matching the
+    // "<source-files>" reference that appears in the suppress instruction text.
+    expect(out.indexOf('<companions>')).toBeLessThan(out.lastIndexOf('<source-files>'));
+  });
+
+  it('companions uses XML escaping for path, label, and content', () => {
+    const out = buildPairPrompt({ ...BASE, companions: [
+      { path: 'src/<evil>.ts', content: 'a & b', label: '"quoted"' },
+    ]});
+    expect(out).not.toContain('<evil>');
+    expect(out).toContain('&lt;evil&gt;');
+    expect(out).toContain('&amp; b');
+    expect(out).toContain('&quot;quoted&quot;');
+  });
+});
+
+describe('assembledPromptChars — label-free gate (D6)', () => {
+  const BASE = {
+    aspect: { id: 'a', description: 'd', content: 'RULE' },
+    references: [], nodePath: 'n', nodeDescription: '', scope: undefined,
+    files: [{ path: 'src/x.ts', content: 'X' }],
+  };
+
+  it('with no companions, equals buildPairPrompt length', () => {
+    expect(assembledPromptChars(BASE)).toBe(buildPairPrompt(BASE).length);
+  });
+
+  it('with companions without labels, equals buildPairPrompt length', () => {
+    const input = { ...BASE, companions: [{ path: 'a.ts', content: 'A' }] };
+    expect(assembledPromptChars(input)).toBe(buildPairPrompt(input).length);
+  });
+
+  it('with companions WITH labels, is LESS than buildPairPrompt length (labels stripped)', () => {
+    const input = { ...BASE, companions: [{ path: 'a.ts', content: 'A', label: 'my label' }] };
+    expect(assembledPromptChars(input)).toBeLessThan(buildPairPrompt(input).length);
+  });
+});
+
 describe('buildPairPrompt — XML escaping (adopter-controlled fields)', () => {
   it('escapes < and & and " in file path attribute', () => {
     const prompt = buildPairPrompt({
