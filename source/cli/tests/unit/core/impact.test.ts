@@ -594,7 +594,7 @@ describe('collectStructureCascade (lock-seeded)', () => {
   });
 
   it('an entry whose touched is EMPTY: the node has a lock entry but it touched nothing → not affected (cold-start suppressed)', () => {
-    // hasAnyDetEntry is true (a det entry exists) but touched is empty, so precise
+    // hasAnyObservingEntry is true (an observing entry exists) but touched is empty, so precise
     // stays false AND the cold-start allowed-reads probe is suppressed → no cascade.
     const owner = makeNode('owner', { meta: { name: 'owner', type: 'engine', mapping: ['src/owner.ts'] } });
     const neighbour = makeNode('neighbour', {
@@ -939,6 +939,61 @@ describe('collectStructureCascade — companion-LLM aspect inclusion (Task 9)', 
     const result = collectStructureCascade(graph, 'src/owner.ts', 'owner', lock);
     expect(result).toHaveLength(1);
     expect((result[0] as { reviewerKind: string }).reviewerKind).toBe('deterministic');
+  });
+
+  // ── Finding 1 — cold-start must not fire for companion-LLM-ONLY nodes ──────
+
+  it('(d) cold-start EXCLUSION: a companion-LLM-only node with no lock entries is NOT reported even when the file is in its allowed-reads', () => {
+    // The neighbour declares a relation to owner (so owner's file IS in its
+    // allowed-reads). But its ONLY observing aspect is a companion-LLM aspect —
+    // no deterministic aspect. Cold-start applies only to deterministic aspects
+    // (they have an allowed-reads model; companion-LLM aspects do not).
+    // → The node must NOT appear in the cascade.
+    const owner = makeNode('owner', {
+      meta: { name: 'owner', type: 'engine', mapping: ['src/owner.ts'] },
+    });
+    const neighbour = makeNode('neighbour', {
+      meta: {
+        name: 'neighbour',
+        type: 'engine',
+        aspects: ['companion-check'],
+        relations: [{ target: 'owner', type: 'uses' }],
+        mapping: ['src/neighbour.ts'],
+      },
+    });
+    const graph = makeGraphWithAspects([owner, neighbour], [makeCompanionLlmAspect('companion-check')]);
+    // No lock entries at all for this node — cold-start would fire IF the node
+    // had a deterministic aspect; it must NOT fire for companion-LLM-only.
+    const result = collectStructureCascade(graph, 'src/owner.ts', 'owner', emptyLock());
+    expect(result).toEqual([]);
+  });
+
+  it('(e) cold-start REGRESSION: a node WITH a deterministic aspect (alongside a companion-LLM) still gets cold-start potential', () => {
+    // The neighbour has BOTH a deterministic aspect (shape) and a companion-LLM
+    // aspect. With no lock entries, the cold-start fallback MUST still run
+    // because a deterministic aspect is present — the node must be reported.
+    const owner = makeNode('owner', {
+      meta: { name: 'owner', type: 'engine', mapping: ['src/owner.ts'] },
+    });
+    const neighbour = makeNode('neighbour', {
+      meta: {
+        name: 'neighbour',
+        type: 'engine',
+        aspects: ['shape', 'companion-check'],
+        relations: [{ target: 'owner', type: 'uses' }],
+        mapping: ['src/neighbour.ts'],
+      },
+    });
+    const detAspect: AspectDef = {
+      id: 'shape',
+      name: 'shape',
+      reviewer: { type: 'deterministic' },
+      artifacts: [],
+    };
+    const graph = makeGraphWithAspects([owner, neighbour], [detAspect, makeCompanionLlmAspect('companion-check')]);
+    // No lock entries → cold-start fires (deterministic aspect is present).
+    const result = collectStructureCascade(graph, 'src/owner.ts', 'owner', emptyLock());
+    expect(result).toEqual([{ nodePath: 'neighbour', mode: 'potential', reviewerKind: 'deterministic' }]);
   });
 });
 

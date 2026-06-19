@@ -361,9 +361,14 @@ export function collectStructureCascade(
     }
 
     // ── Cold-start fallback (no observing lock entries for this node yet):
-    //    pessimistic allowed-reads probe — applies only to deterministic aspects,
+    //    pessimistic allowed-reads probe — applies ONLY to deterministic aspects,
     //    which have an allowed-reads model. Companion-LLM aspects don't.
+    //    Skip entirely when no deterministic aspect is among observingAspectIds.
     if (hasAnyObservingEntry) continue; // entries exist but none touched the file → not affected
+    const hasDetAspect = observingAspectIds.some(
+      (id) => graph.aspects.find((a) => a.id === id)?.reviewer.type === 'deterministic',
+    );
+    if (!hasDetAspect) continue;
     const allowed = collectAllowedReadsForAspect(nodePath, graph);
     if (isPathInMapping(repoRelative, [...allowed])) {
       out.push({ nodePath, mode: 'potential', reviewerKind: 'deterministic' });

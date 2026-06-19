@@ -329,4 +329,111 @@ describe.skipIf(!distExists)('CLI E2E — yg impact re-sourced from the lock', (
     expect(stdout).toMatch(/^ {2}services\/orders \[structure, potential\]$/m);
     expect(stdout).toContain('Blast radius via deterministic aspects: 1 node(s)');
   });
+
+  // ===========================================================================
+  // (4) impact --file companion-LLM renderer path — billed-cost label.
+  //
+  // When a companion-backed LLM aspect entry in the lock has a `touched` key
+  // referencing the edited file, the structure cascade section must render the
+  // widened header AND the per-kind blast-radius footer including the
+  // "billed: reviewer requests × consensus × units" companion line.
+  //
+  // The fixture is constructed entirely from a hand-written lock (no --approve
+  // needed) so no network / reviewer calls occur.
+  // ===========================================================================
+
+  it('companion-LLM renderer: billed-cost label appears in structure cascade output', () => {
+    const dir = fixture('companion-llm-renderer');
+
+    // Add a companion-backed LLM aspect (LLM aspect + check.mjs companion) to
+    // the e2e-lifecycle fixture. The companion makes it eligible for the
+    // structure cascade (hasCompanion === true).
+    const compAspDir = aspectDir(dir, 'companion-rule');
+    mkdirSync(compAspDir, { recursive: true });
+    writeFileSync(
+      path.join(compAspDir, 'yg-aspect.yaml'),
+      [
+        'name: CompanionRule',
+        'description: A companion-backed LLM aspect for renderer testing.',
+        'reviewer:',
+        '  type: llm',
+        'status: enforced',
+        '',
+      ].join('\n'),
+      'utf-8',
+    );
+    // content.md marks this as an LLM aspect.
+    writeFileSync(
+      path.join(compAspDir, 'content.md'),
+      '# CompanionRule\n\nEvery service must be correct.\n',
+      'utf-8',
+    );
+    // companion.mjs makes this a companion-backed LLM aspect (hasCompanion: true).
+    writeFileSync(
+      path.join(compAspDir, 'companion.mjs'),
+      [
+        'export function check(ctx) {',
+        "  ctx.fs.read('src/services/payments.ts');",
+        '  return [];',
+        '}',
+        '',
+      ].join('\n'),
+      'utf-8',
+    );
+
+    // Attach companion-rule to services/orders with a relation to services/payments.
+    writeFileSync(
+      nodeYaml(dir, 'services/orders'),
+      [
+        'name: OrdersService',
+        'description: Creates and retrieves customer orders.',
+        'type: service',
+        'aspects:',
+        '  - wip-rule',
+        '  - companion-rule',
+        'relations:',
+        '  - target: services/payments',
+        '    type: uses',
+        'mapping:',
+        '  - src/services/orders.ts',
+        '',
+      ].join('\n'),
+      'utf-8',
+    );
+
+    // Write a hand-crafted lock: services/orders' companion-rule verdict has
+    // touched read:src/services/payments.ts (cross-node). This is the PRECISE
+    // path — the cascade is sourced directly from the lock.
+    writeLock(dir, {
+      version: 1,
+      verdicts: {
+        'companion-rule': {
+          'node:services/orders': {
+            verdict: 'approved',
+            hash: 'deadbeef',
+            touched: [['read:src/services/payments.ts', 'sha-of-payments']],
+          },
+        },
+      },
+      nodes: {},
+    });
+
+    // services/payments.ts is owned by services/payments — editing it should
+    // surface services/orders under the widened companion-LLM section.
+    const { stdout, status } = run(['impact', '--file', 'src/services/payments.ts'], dir);
+    expect(status).toBe(0);
+    // Widened section header (companion-LLM entries present).
+    expect(stdout).toContain(
+      'Nodes whose deterministic or companion-backed aspects observe src/services/payments.ts [structure]:',
+    );
+    // services/orders is listed as PRECISE (no potential suffix).
+    expect(stdout).toMatch(/^ {2}services\/orders \[structure\]$/m);
+    // Mixed/companion blast-radius footer with the billed-cost label.
+    expect(stdout).toContain('Blast radius via observing aspects:');
+    expect(stdout).toContain(
+      'companion-backed LLM node(s) — re-verified by the reviewer (billed: reviewer requests × consensus × units).',
+    );
+    // Structural owner resolution still renders.
+    expect(stdout).toContain('src/services/payments.ts -> services/payments');
+  });
 });
