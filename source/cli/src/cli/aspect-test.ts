@@ -8,15 +8,20 @@ import { runStructureAspect } from '../structure/runner.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import type { Violation as AstViolation } from '../ast/types.js';
 import type { Violation as StructureViolation } from '../structure/types.js';
-import { computeExpectedPairs } from '../core/pairs.js';
+import { computeExpectedPairs, computeNodeMappedFiles } from '../core/pairs.js';
 import { buildPairPrompt } from '../llm/prompt.js';
-import type { PromptReferenceInput, PromptFileInput } from '../llm/prompt.js';
+import type { PromptReferenceInput, PromptFileInput, PromptCompanionInput } from '../llm/prompt.js';
 import { verifyWithConsensus } from '../llm/aspect-verifier.js';
 import { createLlmProvider } from '../llm/index.js';
 import { selectTierForAspect } from '../core/tier-selection.js';
 import { contentFor, nodeDescriptionFor } from '../core/pair-inputs.js';
-import { readTextFile } from '../io/graph-fs.js';
-import { toPosixPath } from '../utils/posix.js';
+import { readTextFile, readFileBytes } from '../io/graph-fs.js';
+import { toPosix, toPosixPath } from '../utils/posix.js';
+import { runCompanionHook } from '../structure/hook-loader.js';
+import { collectAllowedReadsForAspect } from '../structure/allowed-reads.js';
+import { resolveAllowedReadPath } from '../structure/ctx-fs.js';
+import type { ExpectedPair } from '../core/pairs.js';
+import type { AspectDef } from '../model/graph.js';
 
 /** Footer printed after every run (det, LLM, and --dry-run). */
 const DIAGNOSTIC_FOOTER =
@@ -27,13 +32,14 @@ export function registerAspectTestCommand(program: Command): void {
     .command('aspect-test')
     .description(
       'Run an aspect check without modifying the lock — against a graph node (--node) or ad-hoc files (--files, deterministic only). ' +
-      'For LLM aspects, --dry-run prints the assembled prompt(s) without making any provider calls.',
+      'For LLM aspects, --dry-run prints the assembled prompt(s) without making any reviewer/LLM call. ' +
+      'For companion aspects, --dry-run runs the companion hook live and prints resolved companion paths.',
     )
     .requiredOption('--aspect <id>', 'aspect id to run')
     .option('--node <path>', 'graph node to check (uses the node mapping and graph-aware ctx)')
     .option('--files <paths...>', 'ad-hoc source files to check (deterministic aspects only; no graph attachment)')
     .option('--check-determinism', 'run the check twice and fail if results differ (deterministic aspects only)')
-    .option('--dry-run', 'for LLM aspects: print the assembled prompt(s) to stdout, make NO provider calls')
+    .option('--dry-run', 'for LLM aspects: print the assembled prompt(s) to stdout, make no reviewer/LLM call (companion hook runs live)')
     .action(async (opts) => {
       const projectRoot = process.cwd();
       try {
@@ -217,6 +223,105 @@ export function registerAspectTestCommand(program: Command): void {
 }
 
 // ============================================================
+// Companion resolution (diagnostic — lock never written, hook runs live)
+// ============================================================
+
+/**
+ * Resolve companions for one pair in aspect-test / dry-run context.
+ *
+ * Resolution mirrors fill-llm's resolveCompanions exactly: same allowed-reads
+ * enforcement, same normalization, same subject-dedupe, same read path. This
+ * ensures --dry-run is a faithful preview of what --approve sends to the LLM.
+ *
+ * On hook failure (infra) returns { kind: 'infra' } — the caller prints a
+ * buildIssueMessage and continues; it NEVER writes to the lock and NEVER throws.
+ */
+async function resolveCompanionsForTest(
+  graph: import('../model/graph.js').Graph,
+  projectRoot: string,
+  pair: ExpectedPair,
+  aspect: AspectDef,
+): Promise<
+  | { kind: 'ok'; companions: PromptCompanionInput[] }
+  | { kind: 'infra'; messageData: { what: string; why: string; next: string } }
+> {
+  const aspectDirAbs = path.join(projectRoot, '.yggdrasil', 'aspects', aspect.id);
+
+  // subjectScope mirrors fill-llm: narrow iff the subject set is FEWER files
+  // than the node's full mapping (per:file, or per:node with a scope.files filter).
+  const fullMapping = await computeNodeMappedFiles(graph, pair.nodePath);
+  const subjectScope = pair.subjectFiles.length < fullMapping.length ? pair.subjectFiles : undefined;
+
+  const run = await runCompanionHook({
+    aspectDir: aspectDirAbs,
+    aspectId: aspect.id,
+    nodePath: pair.nodePath,
+    graph,
+    projectRoot,
+    subjectScope,
+  });
+
+  if (run.kind === 'infra') {
+    return { kind: 'infra', messageData: run.messageData };
+  }
+
+  // Normalize + dedupe + sort — same logic as fill-llm.
+  const allowedSet = collectAllowedReadsForAspect(pair.nodePath, graph);
+  const subjectSet = new Set(pair.subjectFiles.map((p) => toPosix(p)));
+  const normalizedSet = new Set<string>();
+  for (const d of run.descriptors) {
+    const abs = path.resolve(projectRoot, d.path.replace(/\\/g, '/'));
+    const rel = toPosix(path.relative(projectRoot, abs));
+    if (subjectSet.has(rel)) continue;
+    normalizedSet.add(rel);
+  }
+  const sortedPaths = [...normalizedSet].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+
+  // Label lookup.
+  const labelByPath = new Map<string, string | undefined>();
+  for (const d of run.descriptors) {
+    const abs = path.resolve(projectRoot, d.path.replace(/\\/g, '/'));
+    const rel = toPosix(path.relative(projectRoot, abs));
+    if (!labelByPath.has(rel)) labelByPath.set(rel, d.label);
+  }
+
+  // Validate allowed-reads + read each companion file.
+  const companions: PromptCompanionInput[] = [];
+  for (const rel of sortedPaths) {
+    try {
+      resolveAllowedReadPath(rel, allowedSet, projectRoot);
+    } catch {
+      return {
+        kind: 'infra',
+        messageData: {
+          what: `Companion file '${rel}' for aspect '${aspect.id}' is outside the node's allowed-reads.`,
+          why: 'A companion must be relation-reachable from the reviewed node — the reviewer may only see files the graph permits the node to read.',
+          next: `Declare a relation from ${toPosixPath(pair.nodePath)} to the node owning '${rel}', or fix companion.mjs to return only relation-reachable paths.`,
+        },
+      };
+    }
+    const bytes = await readFileBytes(path.resolve(projectRoot, rel));
+    if (bytes === null) {
+      return {
+        kind: 'infra',
+        messageData: {
+          what: `Companion file '${rel}' for aspect '${aspect.id}' could not be read.`,
+          why: 'A resolved companion file is missing or unreadable.',
+          next: `Restore the file at '${rel}' or fix companion.mjs so it returns only existing, relation-reachable paths.`,
+        },
+      };
+    }
+    companions.push({
+      path: rel,
+      content: bytes.toString('utf8'),
+      ...(labelByPath.get(rel) !== undefined ? { label: labelByPath.get(rel) } : {}),
+    });
+  }
+
+  return { kind: 'ok', companions };
+}
+
+// ============================================================
 // LLM aspect test
 // ============================================================
 
@@ -334,12 +439,27 @@ async function runLlmAspectTest(
         files.push({ path: rel, content });
       }
 
+      // Resolve companions (live hook run, same resolution as --approve).
+      let companions: PromptCompanionInput[] = [];
+      if (aspect.hasCompanion === true) {
+        const resolved = await resolveCompanionsForTest(graph, projectRoot, pair, aspect);
+        if (resolved.kind === 'infra') {
+          debugWrite(`[aspect-test] companion resolution failed for ${aspect.id} on ${pair.unitKey}: ${resolved.messageData.what}`);
+          process.stderr.write(
+            buildIssueMessage(resolved.messageData) + '\n',
+          );
+          continue;
+        }
+        companions = resolved.companions;
+      }
+
       const prompt = buildPairPrompt({
         aspect: { id: aspect.id, description: aspect.description ?? '', content: aspectContent },
         references: referencesForPrompt,
         nodePath,
         nodeDescription,
         files,
+        companions,
         scope: aspect.scope,
       });
 
@@ -362,7 +482,9 @@ async function runLlmAspectTest(
       process.stdout.write(`${pair.unitKey}: ${verdict} — ${response.reason}\n`);
     }
   } else {
-    // --dry-run: print assembled prompt(s), no provider calls.
+    // --dry-run: print assembled prompt(s), no reviewer/LLM calls.
+    // For companion aspects: runs the companion hook live (same resolution as --approve),
+    // prints resolved companion paths/labels, then includes them in the prompt.
     for (const pair of myPairs) {
       const files: PromptFileInput[] = [];
       for (const rel of pair.subjectFiles) {
@@ -377,12 +499,39 @@ async function runLlmAspectTest(
         files.push({ path: rel, content });
       }
 
+      // Resolve companions (live hook run, same resolution as --approve).
+      // On hook failure: print a what/why/next message and continue — never crash.
+      let companions: PromptCompanionInput[] = [];
+      if (aspect.hasCompanion === true) {
+        const resolved = await resolveCompanionsForTest(graph, projectRoot, pair, aspect);
+        if (resolved.kind === 'infra') {
+          debugWrite(`[aspect-test] companion resolution failed for ${aspect.id} on ${pair.unitKey}: ${resolved.messageData.what}`);
+          process.stderr.write(
+            buildIssueMessage(resolved.messageData) + '\n',
+          );
+          // Continue so the user sees the rest of the dry-run output (no reviewer calls made).
+          continue;
+        }
+        companions = resolved.companions;
+        // Print resolved companion paths/labels BEFORE the prompt for this unit.
+        process.stdout.write(`--- companions for ${pair.unitKey} ---\n`);
+        if (companions.length === 0) {
+          process.stdout.write('  (none)\n');
+        } else {
+          for (const c of companions) {
+            const labelSuffix = c.label !== undefined ? ` (${c.label})` : '';
+            process.stdout.write(`  ${c.path}${labelSuffix}\n`);
+          }
+        }
+      }
+
       const prompt = buildPairPrompt({
         aspect: { id: aspect.id, description: aspect.description ?? '', content: aspectContent },
         references: referencesForPrompt,
         nodePath,
         nodeDescription,
         files,
+        companions,
         scope: aspect.scope,
       });
 

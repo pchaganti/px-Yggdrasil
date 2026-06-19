@@ -24,11 +24,30 @@ vi.mock('../../../src/llm/index.js', () => ({
 // Mock computeExpectedPairs so we can control LLM pair sets.
 vi.mock('../../../src/core/pairs.js', () => ({
   computeExpectedPairs: vi.fn(),
+  // Default: return empty array so subjectScope stays undefined (no narrowing).
+  computeNodeMappedFiles: vi.fn().mockResolvedValue([]),
 }));
 
 // Mock readTextFile for references.
 vi.mock('../../../src/io/graph-fs.js', () => ({
   readTextFile: vi.fn(),
+  readFileBytes: vi.fn(),
+}));
+
+// Mock the companion hook runner so we can inject companion resolution results
+// without authoring real companion.mjs fixtures.
+vi.mock('../../../src/structure/hook-loader.js', () => ({
+  runCompanionHook: vi.fn(),
+}));
+
+// Mock allowed-reads helper so companion path validation doesn't need real graph data.
+vi.mock('../../../src/structure/allowed-reads.js', () => ({
+  collectAllowedReadsForAspect: vi.fn().mockReturnValue(new Set<string>()),
+}));
+
+// Mock resolveAllowedReadPath so companion path validation passes in tests.
+vi.mock('../../../src/structure/ctx-fs.js', () => ({
+  resolveAllowedReadPath: vi.fn(),
 }));
 
 // Mock the yg-secrets overlay loader (no local overlay during the test).
@@ -53,6 +72,8 @@ import { runAstAspect } from '../../../src/ast/runner.js';
 import { runStructureAspect } from '../../../src/structure/runner.js';
 import { createLlmProvider } from '../../../src/llm/index.js';
 import { computeExpectedPairs } from '../../../src/core/pairs.js';
+import { runCompanionHook } from '../../../src/structure/hook-loader.js';
+import { readFileBytes } from '../../../src/io/graph-fs.js';
 import type { LlmProvider } from '../../../src/llm/types.js';
 
 const mockLoadGraph = vi.mocked(loadGraphOrAbort);
@@ -60,10 +81,12 @@ const mockRunAst = vi.mocked(runAstAspect);
 const mockRunStructure = vi.mocked(runStructureAspect);
 const mockCreateLlmProvider = vi.mocked(createLlmProvider);
 const mockComputeExpectedPairs = vi.mocked(computeExpectedPairs);
+const mockRunCompanionHook = vi.mocked(runCompanionHook);
+const mockReadFileBytes = vi.mocked(readFileBytes);
 
 // A minimal graph: aspects array + nodes Map are all the command consults.
 function makeGraph(opts: {
-  aspects: Array<{ id: string; reviewer: { type: string; tier?: string }; scope?: { per: string }; description?: string; artifacts?: Array<{ filename: string; content: string }>; references?: unknown[] }>;
+  aspects: Array<{ id: string; reviewer: { type: string; tier?: string }; scope?: { per: string }; description?: string; artifacts?: Array<{ filename: string; content: string }>; references?: unknown[]; hasCompanion?: boolean }>;
   nodes?: Array<[string, { path: string; meta: Record<string, unknown> }]>;
   config?: { reviewer?: { tiers: Record<string, { provider: string; consensus: number; config: Record<string, unknown> }> } };
 }): unknown {
@@ -75,6 +98,7 @@ function makeGraph(opts: {
       description: a.description ?? `${a.id} description`,
       artifacts: a.artifacts ?? [{ filename: a.reviewer.type === 'llm' ? 'content.md' : 'check.mjs', content: 'rule body' }],
       references: a.references ?? [],
+      hasCompanion: a.hasCompanion ?? false,
     })),
     nodes: new Map(opts.nodes ?? []),
     config: opts.config ?? { reviewer: { tiers: { standard: { provider: 'ollama', consensus: 1, config: { model: 'llama3', temperature: 0 } } } } },
@@ -173,6 +197,8 @@ describe('aspect-test command behavior (mocked runners)', () => {
     mockLoadGraph.mockReset();
     mockCreateLlmProvider.mockReset();
     mockComputeExpectedPairs.mockReset();
+    mockRunCompanionHook.mockReset();
+    mockReadFileBytes.mockReset();
   });
 
   afterEach(() => {
@@ -378,6 +404,155 @@ describe('aspect-test command behavior (mocked runners)', () => {
     expect(exitCode).toBe(1);
     expect(stderr).toContain('LLM');
     expect(stderr).toContain('graph context');
+  });
+
+  // ── LLM companion: --dry-run resolves companions, prints block, ZERO LLM calls ─
+  it('LLM companion --dry-run: hook runs live, companion block printed, ZERO reviewer calls', async () => {
+    const nodeEntry = { path: 'N', meta: { type: 'service', description: 'node desc' } };
+    mockLoadGraph.mockResolvedValue(
+      makeGraph({
+        aspects: [{ id: 'llm-companion', reviewer: { type: 'llm' }, hasCompanion: true }],
+        nodes: [['N', nodeEntry]],
+      }) as never,
+    );
+    mockComputeExpectedPairs.mockResolvedValue({
+      pairs: [{ aspectId: 'llm-companion', kind: 'llm' as const, unitKey: 'node:N', nodePath: 'N', status: 'enforced' as const, subjectFiles: [] }],
+      unreadable: [],
+    });
+    // Companion hook returns one companion descriptor.
+    mockRunCompanionHook.mockResolvedValue({
+      kind: 'ok' as const,
+      descriptors: [{ path: 'docs/schema.md', label: 'schema' }],
+      touchedFiles: [],
+      observations: [],
+      observationsTainted: false,
+    });
+    // readFileBytes returns content for the companion file.
+    mockReadFileBytes.mockResolvedValue(Buffer.from('# schema content') as never);
+    let verifyCalls = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { verifyCalls++; return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }; },
+    }));
+    await runCommand(['--aspect', 'llm-companion', '--node', 'N', '--dry-run']);
+    // ZERO reviewer calls in dry-run.
+    expect(verifyCalls).toBe(0);
+    // Companion hook was called once (live).
+    expect(mockRunCompanionHook).toHaveBeenCalledTimes(1);
+    // The companions-for block must be printed before the prompt.
+    expect(stdout).toContain('--- companions for node:N ---');
+    expect(stdout).toContain('docs/schema.md');
+    // The assembled prompt must contain the <companions> XML block.
+    expect(stdout).toContain('<companions>');
+    expect(stdout).toContain('<companion path="docs/schema.md"');
+    // Footer present.
+    expect(stdout).toContain('diagnostic only — lock unchanged');
+    expect(exitCode).toBeUndefined();
+  });
+
+  // ── LLM companion: live run passes companions into prompt ────────────────────
+  it('LLM companion live run: companions resolved and passed to reviewer', async () => {
+    const nodeEntry = { path: 'N', meta: { type: 'service', description: 'node desc' } };
+    mockLoadGraph.mockResolvedValue(
+      makeGraph({
+        aspects: [{ id: 'llm-companion', reviewer: { type: 'llm' }, hasCompanion: true }],
+        nodes: [['N', nodeEntry]],
+      }) as never,
+    );
+    mockComputeExpectedPairs.mockResolvedValue({
+      pairs: [{ aspectId: 'llm-companion', kind: 'llm' as const, unitKey: 'node:N', nodePath: 'N', status: 'enforced' as const, subjectFiles: [] }],
+      unreadable: [],
+    });
+    mockRunCompanionHook.mockResolvedValue({
+      kind: 'ok' as const,
+      descriptors: [{ path: 'docs/schema.md' }],
+      touchedFiles: [],
+      observations: [],
+      observationsTainted: false,
+    });
+    mockReadFileBytes.mockResolvedValue(Buffer.from('# schema content') as never);
+    let capturedPrompt = '';
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect(prompt: string) {
+        capturedPrompt = prompt;
+        return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const };
+      },
+    }));
+    await runCommand(['--aspect', 'llm-companion', '--node', 'N']);
+    expect(capturedPrompt).toContain('<companions>');
+    expect(capturedPrompt).toContain('docs/schema.md');
+    expect(stdout).toContain('satisfied');
+    expect(exitCode).toBeUndefined();
+  });
+
+  // ── LLM companion: hook failure prints what/why/next and continues ───────────
+  it('LLM companion hook failure: prints buildIssueMessage and continues', async () => {
+    const nodeEntry = { path: 'N', meta: { type: 'service', description: 'node desc' } };
+    mockLoadGraph.mockResolvedValue(
+      makeGraph({
+        aspects: [{ id: 'llm-companion', reviewer: { type: 'llm' }, hasCompanion: true }],
+        nodes: [['N', nodeEntry]],
+      }) as never,
+    );
+    mockComputeExpectedPairs.mockResolvedValue({
+      pairs: [{ aspectId: 'llm-companion', kind: 'llm' as const, unitKey: 'node:N', nodePath: 'N', status: 'enforced' as const, subjectFiles: [] }],
+      unreadable: [],
+    });
+    // Hook fails.
+    mockRunCompanionHook.mockResolvedValue({
+      kind: 'infra' as const,
+      messageData: {
+        what: 'companion.mjs threw an error',
+        why: 'The hook crashed.',
+        next: 'Fix the hook.',
+      },
+    });
+    let verifyCalls = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { verifyCalls++; return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }; },
+    }));
+    await runCommand(['--aspect', 'llm-companion', '--node', 'N', '--dry-run']);
+    // Must print a what/why/next error to stderr.
+    expect(stderr).toContain('companion.mjs threw an error');
+    // Must continue (not crash), footer present.
+    expect(stdout).toContain('diagnostic only — lock unchanged');
+    // No reviewer calls.
+    expect(verifyCalls).toBe(0);
+    expect(exitCode).toBeUndefined();
+  });
+
+  // ── LLM companion + --files rejects with the graph-context message ───────────
+  it('LLM companion + --files: rejects with graph-context-required message (not a hook crash)', async () => {
+    mockLoadGraph.mockResolvedValue(
+      makeGraph({ aspects: [{ id: 'llm-companion', reviewer: { type: 'llm' }, hasCompanion: true }] }) as never,
+    );
+    await runCommand(['--aspect', 'llm-companion', '--files', 'src/a.ts']);
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain('LLM');
+    expect(stderr).toContain('graph context');
+    // Hook must NOT have been called (reject happens before any hook call).
+    expect(mockRunCompanionHook).not.toHaveBeenCalled();
+  });
+
+  // ── Non-companion LLM: behavior unchanged ───────────────────────────────────
+  it('non-companion LLM --dry-run: hook not called, prompt has no <companions> block', async () => {
+    const nodeEntry = { path: 'N', meta: { type: 'service', description: 'node desc' } };
+    mockLoadGraph.mockResolvedValue(
+      makeGraph({
+        aspects: [{ id: 'llm-a', reviewer: { type: 'llm' }, hasCompanion: false }],
+        nodes: [['N', nodeEntry]],
+      }) as never,
+    );
+    mockComputeExpectedPairs.mockResolvedValue({
+      pairs: [{ aspectId: 'llm-a', kind: 'llm' as const, unitKey: 'node:N', nodePath: 'N', status: 'enforced' as const, subjectFiles: [] }],
+      unreadable: [],
+    });
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider());
+    await runCommand(['--aspect', 'llm-a', '--node', 'N', '--dry-run']);
+    expect(mockRunCompanionHook).not.toHaveBeenCalled();
+    // Prompt does NOT contain a companions block.
+    expect(stdout).not.toContain('<companions>');
+    expect(stdout).toContain('=== prompt for node:N ===');
+    expect(exitCode).toBeUndefined();
   });
 });
 
