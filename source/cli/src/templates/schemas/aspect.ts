@@ -194,4 +194,62 @@ status: enforced                   # optional — aspect-level default. enum: dr
                                    #
                                    # Size limits: per-tier caps via reviewer.tiers.<tier>.references.* in yg-config.yaml.
                                    # Defaults: 64 KiB per file, 256 KiB total per aspect.
+
+# companion.mjs                   # OPTIONAL — per-unit companion file resolver. LLM aspects ONLY.
+                                   # Requires content.md (validator error aspect-companion-without-content
+                                   # if companion.mjs is present without content.md). Forbidden alongside
+                                   # check.mjs (validator error aspect-companion-with-check). This is an
+                                   # ADD-ON to the LLM reviewer kind, not a new reviewer kind; reviewer
+                                   # kind inference is unchanged.
+                                   #
+                                   # Contract:
+                                   #   export function companion(ctx) { ... }  // may be async
+                                   #   // Returns Array<{ path: string, label?: string }>
+                                   #
+                                   # The hook runs once per unit, BEFORE the LLM call. It selects 0..N
+                                   # companion files that are injected into the reviewer prompt for that
+                                   # unit only (companion files differ per unit; static supporting files
+                                   # use references: instead).
+                                   #
+                                   # ctx mirrors the deterministic check ctx PLUS:
+                                   #   ctx.subject — the unit's subject file(s).
+                                   #     scope.per: file → single File object.
+                                   #     scope.per: node → the full subject set (same as ctx.files).
+                                   # Read boundaries: same as check.mjs (own mapping, declared-relation
+                                   # targets, ancestors, own descendants). Attempting to read outside
+                                   # this set is an allowed-reads violation and causes an infra-fail.
+                                   #
+                                   # Returned paths:
+                                   #   Absolute or relative paths. The runner normalizes each to
+                                   #   repo-root-relative POSIX, deduplicates, and sorts.
+                                   #   For scope.per: node, a returned path equal to a unit subject
+                                   #   file is silently skipped and NOT recorded as touched.
+                                   #
+                                   # Return [] to indicate no companions for this unit (valid — the
+                                   # unit is reviewed with subject files only).
+                                   #
+                                   # Throw to assert a requirement that cannot be satisfied —
+                                   # the throw becomes an infra-fail (nothing written, pair stays
+                                   # unverified, reported as aspect-companion-runtime-error).
+                                   #
+                                   # Assembly failure — hook throws, bad return shape, a returned path
+                                   # does not exist, or a path outside the allowed-reads set — is an
+                                   # infra-fail. The hook never judges code; it only resolves paths.
+                                   #
+                                   # yg-suppress markers in companion files are IGNORED — suppression
+                                   # is scoped to subject files only.
+                                   #
+                                   # companion.mjs appears in the aspect's read: listing (yg context).
+                                   #
+                                   # Hashing:
+                                   #   companionHash: sha256(companion.mjs bytes) — folded into
+                                   #     inputHash when the aspect ships companion.mjs, regardless of
+                                   #     whether the hook resolves any files for a given unit. Editing
+                                   #     companion.mjs re-verifies ALL pairs of the aspect.
+                                   #   touched: hook's file observations beyond the subject set —
+                                   #     also appears on companion-bearing LLM entries (not only
+                                   #     deterministic entries). Editing a resolved companion file
+                                   #     re-verifies only pairs that read it.
+                                   #
+                                   # Lock version remains 1 — no schema/format bump.
 `;

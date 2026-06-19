@@ -76,6 +76,14 @@ Three reviewer kinds exist: LLM, deterministic, and aggregating. The kind is
 declared → aggregating. The \`reviewer:\` block in \`yg-aspect.yaml\` is optional;
 if present, an explicit \`reviewer.type\` must agree with the inferred kind.
 
+**\`companion.mjs\` is an add-on to the LLM kind, not a fourth reviewer kind.**
+An LLM aspect may ship \`companion.mjs\` alongside \`content.md\` to provide a
+per-unit companion file resolver — a hook that selects 0..N files injected
+into the reviewer prompt for each unit individually. Presence of
+\`companion.mjs\` does not change the inferred reviewer kind (still LLM) and
+is forbidden alongside \`check.mjs\`. See
+\`yg knowledge read writing-llm-aspects\` for the full contract.
+
 ### Aggregating aspects
 
 An aggregating aspect ships neither \`content.md\` nor \`check.mjs\`. It exists
@@ -162,6 +170,10 @@ Cost is counted per PAIR.
 - A \`scope\` edit, a \`content.md\` edit, a reference-file edit, or a tier change
   invalidates pairs and re-bills them. Run \`yg impact --aspect <id>\` before
   modifying a widely-used aspect to see the re-verification cost.
+- **Editing \`companion.mjs\`** re-verifies ALL pairs of the aspect (like a
+  \`content.md\` edit). **Editing a resolved companion file** re-verifies only
+  the pairs that observed it (like editing a subject file, not a full re-bill).
+  Use \`yg impact --file <companion>\` to see which pairs read a given file.
 
 The prompt-size gate (\`max_prompt_chars\` per tier) bounds an LLM prompt, not the
 node. For the full caching, hashing, and merge model:

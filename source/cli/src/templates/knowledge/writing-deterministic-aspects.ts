@@ -196,6 +196,12 @@ interface Ctx {
   // The node being reviewed
   node: GraphNode;
 
+  // ctx.subject — the unit's subject file(s). Available in both check.mjs and
+  // companion.mjs. In check.mjs: same as ctx.files (provided for cross-hook
+  // consistency). In companion.mjs: for scope.per:file → single File object;
+  // scope.per:node → the full subject set (same as ctx.files).
+  subject: File | File[];
+
   // The unit's subject files (scope-driven view; child carve-out applied)
   files: File[];
 
@@ -508,6 +514,15 @@ The check function is deterministic and synchronous:
 
 Respecting purity keeps the check reproducible: the same inputs must always
 yield the same violations, which is what \`--check-determinism\` verifies.
+
+Note: \`companion.mjs\` (the LLM add-on hook) MAY be async — it exports
+\`async function companion(ctx)\`. \`check.mjs\` must remain synchronous. The two
+files are separate contracts: one for deterministic verdict computation
+(\`check.mjs\`), one for per-unit companion file resolution (\`companion.mjs\`).
+\`companion.mjs\` shares the same allowed-reads boundary as \`check.mjs\` and
+also folds its observations (reads beyond the subject set) into the pair's
+hash — editing a resolved companion file re-verifies only pairs that read it,
+exactly like an observation fold in a deterministic verdict.
 
 ## Suppression in deterministic aspects
 

@@ -4,8 +4,9 @@ export const summary =
 export const content = `# Writing LLM aspects
 
 LLM aspects ship a \`content.md\` describing the rules in prose. The reviewer
-receives \`content.md\` + any reference files + the unit's subject files and
-returns approved or refused. The verdict is cached in the lock keyed by the
+receives \`content.md\` + any reference files + resolved companion files (from
+\`companion.mjs\`, per unit) + the unit's subject files and returns approved or
+refused. The verdict is cached in the lock keyed by the
 \`(aspect, unit)\` pair.
 
 ## content.md format
@@ -113,9 +114,10 @@ precise aspects over broad catch-all ones.
 ## Prompt-size gate
 
 Each tier may set \`max_prompt_chars\`. An assembled LLM prompt (scaffold +
-content.md + references + subject files + node descriptor) exceeding the resolved
-tier's limit is a blocking \`prompt-too-large\` error — checked deterministically
-at \`yg check\`, and the pair is skipped by \`--approve\`. Remedies, in safety order:
+content.md + references + resolved companion files + subject files + node
+descriptor) exceeding the resolved tier's limit is a blocking
+\`prompt-too-large\` error — checked deterministically at \`yg check\`, and the
+pair is skipped by \`--approve\`. Remedies, in safety order:
 
 1. Narrow \`scope.files\` — safe when the overflow is non-target payload (fixtures,
    generated files, docs).
@@ -194,6 +196,116 @@ a tier on a widely-used aspect.
 If the rule is expressible as "this identifier must / must not appear" or
 "imports from X are forbidden in Y" — use a deterministic aspect instead. It is
 deterministic, produces no false positives, and costs nothing per call.
+
+## Companion files (companion.mjs)
+
+An LLM aspect may ship an optional \`companion.mjs\` alongside \`content.md\`.
+The companion hook is a per-unit resolver that selects 0..N companion files
+injected into the reviewer prompt for that unit only. Use it when the files
+relevant to the review differ per unit — for example, each feature file has
+a paired requirements doc, or each test file maps to a specific scenario
+description.
+
+### Contract
+
+\`\`\`javascript
+// .yggdrasil/aspects/my-rule/companion.mjs
+export async function companion(ctx) {
+  // ctx mirrors the deterministic check ctx, plus ctx.subject.
+  // ctx.subject: for scope.per:file → the single subject File;
+  //              for scope.per:node → the full subject set (same as ctx.files).
+  //
+  // Read files via ctx to DECIDE which paths to return.
+  // Return Array<{ path: string, label?: string }>.
+  // Return [] when no companion applies to this unit (valid).
+  // Throw to assert a requirement — becomes an infra-fail (pair stays unverified).
+  return [];
+}
+\`\`\`
+
+The hook may be async. Returned paths may be absolute or relative; the runner
+normalizes each to repo-root-relative POSIX, deduplicates, and sorts. For
+\`scope.per: node\`, a returned path that equals a unit subject file is silently
+skipped and not recorded.
+
+### When to use companion files vs references
+
+- **\`references:\`** — static files that apply to ALL units of the aspect
+  (e.g. an error-code catalogue, a shared contract). Declared once in
+  \`yg-aspect.yaml\`; included in every prompt.
+- **\`companion.mjs\`** — per-unit files resolved at review time (e.g. a
+  requirements doc paired with the specific source file being reviewed).
+  The hook runs once per unit and can return a different set each time.
+
+### Allowed reads
+
+The companion hook shares the same read boundary as \`check.mjs\`: own
+mapping, declared-relation targets, ancestors, and own descendants.
+Attempting to read outside this set is an allowed-reads violation and causes
+an infra-fail (nothing written, pair stays unverified).
+
+### Assembly failure
+
+If the hook throws, returns a bad shape, returns a path that does not exist,
+or returns a path outside the allowed-reads set, the pair fails closed:
+nothing is written, the pair stays unverified, and the error is reported as
+\`aspect-companion-runtime-error\`. The hook never judges code — any judgment
+logic belongs in the LLM reviewer via \`content.md\`.
+
+### yg-suppress in companion files
+
+\`yg-suppress\` markers in companion files are IGNORED. Suppression is scoped
+to subject files only.
+
+### Example: pairing each test file with its scenario document
+
+\`\`\`javascript
+// .yggdrasil/aspects/scenario-coverage/companion.mjs
+// For each test file, locate the paired scenario doc by convention.
+// Test files are named foo.test.ts; scenarios live at docs/scenarios/foo.md.
+export async function companion(ctx) {
+  const file = ctx.subject; // per:file scope — single File
+  const stem = file.path.split('/').pop().replace(/\\.test\\.ts$/, '');
+  const scenarioPath = \`docs/scenarios/\${stem}.md\`;
+  if (ctx.fs.exists(scenarioPath) === 'file') {
+    return [{ path: scenarioPath, label: 'scenario document' }];
+  }
+  // No scenario doc found — return [] and let the reviewer decide
+  return [];
+}
+\`\`\`
+
+### Frontmatter parsing
+
+There is no dedicated frontmatter helper. To extract YAML frontmatter from
+a Markdown file, use a regex on the \`---\` block or \`ctx.parseYaml(path)\`
+on a YAML file path:
+
+\`\`\`javascript
+// Option 1: regex on the --- block
+function parseFrontmatter(content) {
+  const m = content.match(/^---\\n([\\s\\S]*?)\\n---/);
+  return m ? m[1] : null;
+}
+
+// Option 2: ctx.parseYaml with a path (path-based, not a content helper)
+const data = ctx.parseYaml('docs/config.yaml');
+\`\`\`
+
+### Validator errors
+
+- \`aspect-companion-without-content\` — \`companion.mjs\` is present but
+  \`content.md\` is absent. Companion files require an LLM aspect.
+- \`aspect-companion-with-check\` — \`companion.mjs\` is present alongside
+  \`check.mjs\`. Companion files are an LLM add-on only.
+
+### Cost
+
+- **Editing \`companion.mjs\`** re-verifies ALL pairs of the aspect (same as
+  editing \`content.md\`). Run \`yg impact --aspect <id>\` first.
+- **Editing a resolved companion file** re-verifies only the pairs that
+  observed it — like editing a subject file, not a full re-bill.
+- **\`companion.mjs\`** appears in the aspect's \`read:\` listing (\`yg context\`).
 
 ## Reference files
 

@@ -63,10 +63,13 @@ pairs on that node — a legitimate vacuous pass, no verdict, no entry.
 - \`reason\` is stored only on a \`refused\` entry (the reviewer's violation report,
   or a deterministic check's recorded violations) so plain \`yg check\` renders the
   violation without re-running anything.
-- \`touched\` appears only on deterministic entries, recording observations OUTSIDE
-  the subject set (see the observation fold below). Every deterministic entry
-  carries it — possibly \`[]\` when the check observed nothing beyond its subject
-  files; LLM entries omit the key entirely.
+- \`touched\` appears on deterministic entries AND on companion-bearing LLM
+  entries, recording observations OUTSIDE the subject set (see the observation
+  fold below). Every deterministic entry carries it — possibly \`[]\` when the
+  check observed nothing beyond its subject files. A companion-bearing LLM
+  entry carries \`touched\` only when the hook observed files beyond the subject
+  set (length > 0); plain LLM entries without \`companion.mjs\` omit the key
+  entirely.
 - \`nodes.<path>\` carries the source fingerprint (the log gate's contract,
   \`yg knowledge read log-management\`) and the append-only log integrity baseline.
 - The built-in relation-conformance check is NOT stored in the lock — it is
@@ -94,6 +97,17 @@ reference \`[path, sha256(bytes), description]\`, and the resolved tier's NAME.
 The tier's config (provider, model, endpoint, temperature, consensus, api_key,
 timeout) is NOT a verdict input — only the name folds in, so a named tier can be
 re-pointed at a different reviewer without invalidating any recorded verdict.
+
+LLM pairs that ship \`companion.mjs\` additionally fold:
+\`\`\`
+companionHash: sha256(companion.mjs bytes)   // present when aspect ships companion.mjs,
+                                             // independent of whether the hook resolved files
+\`\`\`
+The stored \`touched\` observations (hook's reads beyond the subject set) are
+also folded into the hash — on re-validation (\`yg check\`), companion hash is
+re-computed from the \`companion.mjs\` bytes and the stored \`touched\` list is
+re-hashed. The companion hook is NOT re-run at re-validation time; no LLM
+call is made.
 
 Deterministic pairs additionally fold the **observation set** — everything the
 check observed through \`ctx\` beyond its subject files, recorded by the runner:
@@ -186,8 +200,9 @@ This differs from aspect verdicts in two ways:
 - **Fail-closed**: an entry is written only on a real verdict. Every infra
   disposition (provider unreachable, no reviewer configured, reference-load
   failure, unparseable response; for deterministic pairs a \`check.mjs\` import
-  failure or thrown error) writes nothing — the pair stays unverified. There is no
-  "infra" verdict state.
+  failure or thrown error; companion-assembly failure — hook throws, bad return
+  shape, path outside allowed-reads, or missing path) writes nothing — the pair
+  stays unverified. There is no "infra" verdict state.
 
 ## Garbage-collection
 
@@ -233,7 +248,11 @@ one node — that clobbers every other node's verdicts. (Full revert recipe:
 The current lock FORMAT version is 1 — exactly \`{ version, verdicts, nodes }\`.
 There is no separate relation section and no migration to perform: relation
 conformance is computed live (see above), so nothing about it ever lands in the
-lock.
+lock. The addition of \`companion.mjs\` support (including \`companionHash\` in the
+inputHash and \`touched\` on companion-bearing LLM entries) does NOT bump the
+format version — existing lock entries hash byte-identically when no
+\`companion.mjs\` is present, and the format remains \`{ version: 1, verdicts,
+nodes }\`.
 
 A short history note: an unreleased alpha introduced a v2 lock that added a
 \`relation_verdicts\` section for a cached relation check. That was reverted to v1.

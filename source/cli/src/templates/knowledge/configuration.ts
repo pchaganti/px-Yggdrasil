@@ -97,7 +97,8 @@ not global.
 ### reviewer.tiers.<name>.max_prompt_chars
 
 Optional cap on the assembled LLM prompt for any pair resolving to this tier —
-scaffold + content.md + references + the unit's subject files + node descriptor.
+scaffold + content.md + references + resolved companion files (when
+\`companion.mjs\` is present) + the unit's subject files + node descriptor.
 Absent = unlimited. \`yg init\` writes \`50000\` into the generated config so
 out-of-box adopters keep a guard.
 
@@ -271,7 +272,8 @@ those lines. Run from the repository root only. Review the diff before committin
 
 There is no node-level size budget and no per-tier reference byte cap. The
 assembled LLM prompt is bounded by \`max_prompt_chars\` (above), which covers the
-same payload — content.md, references, and the unit's subject files — where it
-actually matters. A pair whose prompt exceeds the tier limit is reported as
+same payload — content.md, references, resolved companion files (when
+\`companion.mjs\` is present), and the unit's subject files — where it actually
+matters. A pair whose prompt exceeds the tier limit is reported as
 \`prompt-too-large\` at \`yg check\` time, before any reviewer call.
 `;

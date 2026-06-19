@@ -84,11 +84,13 @@ yg aspect-test --aspect test-quality --node orders/handler --dry-run
 
 Every run that produces a result ends with the footer \`diagnostic only — lock
 unchanged; yg check still reports the stored verdict\`. \`--dry-run\` prints the
-assembled prompt(s) and makes no calls. \`--check-determinism\` runs a
-deterministic check twice and fails if the violation sets differ. If aspect-test
-repeatedly approves what the lock refuses, the rule text is ambiguous — sharpen
-\`content.md\` (cascades; check \`yg impact\`) or propose a \`yg-suppress\`; there is
-deliberately no verdict-drop.
+assembled prompt(s) including resolved companions, runs the companion hook live
+(if present), but makes no reviewer or LLM calls and does not write the lock.
+\`--check-determinism\` runs a deterministic check twice and fails if the
+violation sets differ. If aspect-test repeatedly approves what the lock refuses,
+the rule text is ambiguous — sharpen \`content.md\` (cascades; check
+\`yg impact\`) or propose a \`yg-suppress\`; there is deliberately no
+verdict-drop.
 
 ## yg impact
 
@@ -241,6 +243,9 @@ The validator (\`yg check\`) emits the following issue codes:
 | \`aspect-violation-enforced\` | error | Enforced aspect refused (valid refused lock entry — cached) |
 | \`aspect-violation-advisory\` | warning | Advisory aspect refused |
 | \`aspect-check-runtime-error\` | error (\`--approve\` report) | \`check.mjs\` failed to import/run at fill time — fail closed; plain check shows the pair as \`unverified\` |
+| \`aspect-companion-without-content\` | error | \`companion.mjs\` present without \`content.md\` — companion files require an LLM aspect |
+| \`aspect-companion-with-check\` | error | \`companion.mjs\` present alongside \`check.mjs\` — companion files are an LLM add-on only |
+| \`aspect-companion-runtime-error\` | error (\`--approve\` report) | companion hook failed to run at assembly time (hook threw, bad return shape, missing path, or outside allowed-reads) — fail closed; plain check shows the pair as \`unverified\` |
 | \`prompt-too-large\` | error | Assembled prompt exceeds the resolved tier's \`max_prompt_chars\` |
 | \`lock-invalid\` | error | Lock unparseable, garbled, conflict-markered, or unknown version — fail closed |
 | \`relation-undeclared-dependency\` | error (always) | Built-in relation-conformance check: node depends on another node's code without a declared, sanctioned relation. Not an aspect — not status-governed, not suppressible. Next: declare the relation in \`yg-node.yaml\` or remove the dependency. |
