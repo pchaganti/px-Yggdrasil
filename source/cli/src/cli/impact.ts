@@ -115,15 +115,16 @@ export function registerImpactCommand(program: Command): void {
             }
             refCascadeNodes.sort();
 
-            // Structure-aspect cascade: nodes whose effective deterministic aspect
-            // OBSERVES this file CROSS-NODE (precise, from the lock's `touched`
-            // maps; cold-start fallback = potential). See collectStructureCascade.
+            // Structure-aspect cascade: nodes whose effective deterministic or
+            // companion-backed LLM aspect OBSERVES this file CROSS-NODE (precise,
+            // from the lock's `touched` maps; cold-start fallback = potential).
+            // See collectStructureCascade.
             const structureCascade = collectStructureCascade(graph, repoRelative, ownerResult.nodePath, lock);
 
             if (!ownerResult.nodePath && refCascadeNodes.length === 0 && structureCascade.length === 0) {
               process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
                 what: `${repoRelative} -> no graph coverage`,
-                why: 'file is not mapped to any node, is not referenced by any aspect, and is not observed by any deterministic aspect in the graph.',
+                why: 'file is not mapped to any node, is not referenced by any aspect, and is not observed by any deterministic or companion-backed aspect in the graph.',
                 next: 'Add the file to an existing node mapping, or create a new node.',
               })}\n`));
               process.exit(1);
@@ -143,16 +144,45 @@ export function registerImpactCommand(program: Command): void {
 
             // Show structure-cascade section if any
             if (structureCascade.length > 0) {
-              process.stdout.write(`\nNodes whose deterministic aspects observe ${repoRelative} [structure]:\n`);
+              // When all cascade entries are deterministic, keep the section header
+              // byte-identical to preserve existing test assertions. When companion-LLM
+              // entries are present, widen the header to include them.
+              const hasCompanionLlmEntry = structureCascade.some((e) => e.reviewerKind === 'llm');
+              const sectionHeader = hasCompanionLlmEntry
+                ? `\nNodes whose deterministic or companion-backed aspects observe ${repoRelative} [structure]:\n`
+                : `\nNodes whose deterministic aspects observe ${repoRelative} [structure]:\n`;
+              process.stdout.write(sectionHeader);
               for (const { nodePath, mode } of structureCascade) {
                 const suffix = mode === 'potential' ? ' [structure, potential]' : ' [structure]';
                 process.stdout.write(`  ${toPosixPath(nodePath)}${suffix}\n`);
               }
-              process.stdout.write(
-                `\nBlast radius via deterministic aspects: ${structureCascade.length} node(s) — ` +
-                `editing this file would make their deterministic pairs unverified ` +
-                `(re-verified for free by yg check --approve).\n`,
-              );
+              // Blast-radius footer — split by reviewer kind so cost is labelled accurately.
+              const detCount = structureCascade.filter((e) => e.reviewerKind === 'deterministic').length;
+              const llmCount = structureCascade.filter((e) => e.reviewerKind === 'llm').length;
+              if (!hasCompanionLlmEntry) {
+                // Deterministic-only path: byte-identical to previous output.
+                process.stdout.write(
+                  `\nBlast radius via deterministic aspects: ${structureCascade.length} node(s) — ` +
+                  `editing this file would make their deterministic pairs unverified ` +
+                  `(re-verified for free by yg check --approve).\n`,
+                );
+              } else {
+                // Mixed or LLM-companion path: per-kind breakdown.
+                process.stdout.write(
+                  `\nBlast radius via observing aspects: ${structureCascade.length} node(s) — ` +
+                  `editing this file would make their pairs unverified.\n`,
+                );
+                if (detCount > 0) {
+                  process.stdout.write(
+                    `  ${detCount} deterministic node(s) — re-verified for free by yg check --approve.\n`,
+                  );
+                }
+                if (llmCount > 0) {
+                  process.stdout.write(
+                    `  ${llmCount} companion-backed LLM node(s) — re-verified by the reviewer (billed: reviewer requests × consensus × units).\n`,
+                  );
+                }
+              }
             }
 
             if (!ownerResult.nodePath) {

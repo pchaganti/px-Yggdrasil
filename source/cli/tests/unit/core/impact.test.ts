@@ -431,7 +431,7 @@ describe('collectStructureCascade (lock-seeded)', () => {
     });
     const graph = makeGraphWithAspects([owner, neighbour], [makeStructureAspect('shape')]);
     const result = collectStructureCascade(graph, 'src/owner.ts', 'owner', emptyLock());
-    expect(result).toEqual([{ nodePath: 'neighbour', mode: 'potential' }]);
+    expect(result).toEqual([{ nodePath: 'neighbour', mode: 'potential', reviewerKind: 'deterministic' }]);
   });
 
   it('cold-start: skips a structure-aspect node when the file is outside its allowed reads', () => {
@@ -506,7 +506,7 @@ describe('collectStructureCascade (lock-seeded)', () => {
       nodes: {},
     };
     const result = collectStructureCascade(graph, 'src/owner.ts', 'owner', lock);
-    expect(result).toEqual([{ nodePath: 'neighbour', mode: 'precise' }]);
+    expect(result).toEqual([{ nodePath: 'neighbour', mode: 'precise', reviewerKind: 'deterministic' }]);
 
     // A file the entry did NOT touch yields no cascade for this node (it has a
     // lock entry, so the cold-start fallback is suppressed).
@@ -537,7 +537,7 @@ describe('collectStructureCascade (lock-seeded)', () => {
     };
     // Adding/renaming a file inside src/billing changes the listing hash.
     const result = collectStructureCascade(graph, 'src/billing/new.ts', 'owner', lock);
-    expect(result).toEqual([{ nodePath: 'neighbour', mode: 'precise' }]);
+    expect(result).toEqual([{ nodePath: 'neighbour', mode: 'precise', reviewerKind: 'deterministic' }]);
   });
 
   it('precise: an exists: observation invalidates when the probed file is edited', () => {
@@ -553,7 +553,7 @@ describe('collectStructureCascade (lock-seeded)', () => {
       },
       nodes: {},
     };
-    expect(collectStructureCascade(graph, 'src/probe.ts', 'owner', lock)).toEqual([{ nodePath: 'neighbour', mode: 'precise' }]);
+    expect(collectStructureCascade(graph, 'src/probe.ts', 'owner', lock)).toEqual([{ nodePath: 'neighbour', mode: 'precise', reviewerKind: 'deterministic' }]);
     // A different file is not the probed path → no cascade.
     expect(collectStructureCascade(graph, 'src/other.ts', 'owner', lock)).toEqual([]);
   });
@@ -573,7 +573,7 @@ describe('collectStructureCascade (lock-seeded)', () => {
     };
     // graph:owner folds owner's yg-node.yaml bytes — editing that file invalidates.
     const ygNode = '.yggdrasil/model/owner/yg-node.yaml';
-    expect(collectStructureCascade(graph, ygNode, 'something-else', lock)).toEqual([{ nodePath: 'neighbour', mode: 'precise' }]);
+    expect(collectStructureCascade(graph, ygNode, 'something-else', lock)).toEqual([{ nodePath: 'neighbour', mode: 'precise', reviewerKind: 'deterministic' }]);
   });
 
   it('precise: a per-file unit key (file:<mapped>) belongs to its owning node', () => {
@@ -590,7 +590,7 @@ describe('collectStructureCascade (lock-seeded)', () => {
       },
       nodes: {},
     };
-    expect(collectStructureCascade(graph, 'src/owner.ts', 'owner', lock)).toEqual([{ nodePath: 'neighbour', mode: 'precise' }]);
+    expect(collectStructureCascade(graph, 'src/owner.ts', 'owner', lock)).toEqual([{ nodePath: 'neighbour', mode: 'precise', reviewerKind: 'deterministic' }]);
   });
 
   it('an entry whose touched is EMPTY: the node has a lock entry but it touched nothing → not affected (cold-start suppressed)', () => {
@@ -675,9 +675,9 @@ describe('collectStructureCascade (lock-seeded)', () => {
     };
     const result = collectStructureCascade(graph, 'src/owner.ts', 'owner', lock);
     expect(result).toEqual([
-      { nodePath: 'alpha', mode: 'precise' },
-      { nodePath: 'mid', mode: 'precise' },
-      { nodePath: 'zeta', mode: 'precise' },
+      { nodePath: 'alpha', mode: 'precise', reviewerKind: 'deterministic' },
+      { nodePath: 'mid', mode: 'precise', reviewerKind: 'deterministic' },
+      { nodePath: 'zeta', mode: 'precise', reviewerKind: 'deterministic' },
     ]);
   });
 
@@ -731,6 +731,214 @@ describe('collectStructureCascade (lock-seeded)', () => {
     // Entries do not belong to `neighbour` (unitKeyBelongsToNode → false), so it has
     // no det entry of its own → cold-start probe runs but file is not in its reads.
     expect(collectStructureCascade(graph, 'src/owner.ts', 'owner', lock)).toEqual([]);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// Task 9 — companion-LLM aspect in the structure cascade + new touched kinds
+// ────────────────────────────────────────────────────────────────────────────
+
+describe('collectStructureCascade — companion-LLM aspect inclusion (Task 9)', () => {
+  /** Companion LLM aspect (hasCompanion === true, reviewer.type === 'llm') */
+  function makeCompanionLlmAspect(id: string): AspectDef {
+    return {
+      id,
+      name: id,
+      reviewer: { type: 'llm' },
+      artifacts: [],
+      hasCompanion: true,
+    };
+  }
+
+  /** Plain LLM aspect (no companion) */
+  function makePlainLlmAspect(id: string): AspectDef {
+    return {
+      id,
+      name: id,
+      reviewer: { type: 'llm' },
+      artifacts: [],
+    };
+  }
+
+  function makeGraphWithAspects(nodes: GraphNode[], aspects: AspectDef[]): Graph {
+    return {
+      config: {},
+      architecture: { node_types: {} },
+      nodes: new Map(nodes.map((n) => [n.path, n])),
+      aspects,
+      flows: [],
+      rootPath: '/tmp',
+    };
+  }
+
+  it('(a) companion-LLM aspect: a lock entry with touched read:<src> is reported when that file is edited', () => {
+    // A companion-LLM aspect records `read:src/spec.ts` in its touched array.
+    // Editing src/spec.ts must surface the node in the structure cascade with reviewerKind === 'llm'.
+    const owner = makeNode('owner', {
+      meta: { name: 'owner', type: 'engine', mapping: ['src/owner.ts'] },
+    });
+    const neighbour = makeNode('neighbour', {
+      meta: { name: 'neighbour', type: 'engine', aspects: ['companion-check'], mapping: ['src/neighbour.ts'] },
+    });
+    const graph = makeGraphWithAspects([owner, neighbour], [makeCompanionLlmAspect('companion-check')]);
+    const lock: LockFile = {
+      version: 1,
+      verdicts: {
+        'companion-check': {
+          'node:neighbour': {
+            verdict: 'approved',
+            hash: 'h',
+            touched: [['read:src/spec.ts', 'sha-of-spec']],
+          },
+        },
+      },
+      nodes: {},
+    };
+    const result = collectStructureCascade(graph, 'src/spec.ts', 'owner', lock);
+    expect(result).toHaveLength(1);
+    expect(result[0].nodePath).toBe('neighbour');
+    expect(result[0].mode).toBe('precise');
+    expect((result[0] as { reviewerKind: string }).reviewerKind).toBe('llm');
+  });
+
+  it('(b) REGRESSION GUARD: plain LLM aspect (no companion) with the same touched is STILL excluded', () => {
+    // A plain LLM aspect (hasCompanion === false / undefined) must NOT be included
+    // in the structure cascade even if it has touched keys — it has no companion.
+    const owner = makeNode('owner', {
+      meta: { name: 'owner', type: 'engine', mapping: ['src/owner.ts'] },
+    });
+    const neighbour = makeNode('neighbour', {
+      meta: { name: 'neighbour', type: 'engine', aspects: ['plain-llm'], mapping: ['src/neighbour.ts'] },
+    });
+    const graph = makeGraphWithAspects([owner, neighbour], [makePlainLlmAspect('plain-llm')]);
+    const lock: LockFile = {
+      version: 1,
+      verdicts: {
+        'plain-llm': {
+          'node:neighbour': {
+            verdict: 'approved',
+            hash: 'h',
+            touched: [['read:src/spec.ts', 'sha-of-spec']],
+          },
+        },
+      },
+      nodes: {},
+    };
+    // Plain LLM aspect → MUST NOT appear in structure cascade.
+    const result = collectStructureCascade(graph, 'src/spec.ts', 'owner', lock);
+    expect(result).toEqual([]);
+  });
+
+  it('(c1) graph-children: touched key matches the parent node yg-node.yaml', () => {
+    // graph-children:owner → references .yggdrasil/model/owner/yg-node.yaml
+    const owner = makeNode('owner', {
+      meta: { name: 'owner', type: 'engine', mapping: ['src/owner.ts'] },
+    });
+    const neighbour = makeNode('neighbour', {
+      meta: { name: 'neighbour', type: 'engine', aspects: ['det-check'], mapping: ['src/neighbour.ts'] },
+    });
+    const graph = makeGraphWithAspects([owner, neighbour], [{
+      id: 'det-check',
+      name: 'det-check',
+      reviewer: { type: 'deterministic' },
+      artifacts: [],
+    }]);
+    const lock: LockFile = {
+      version: 1,
+      verdicts: {
+        'det-check': {
+          'node:neighbour': {
+            verdict: 'approved',
+            hash: 'h',
+            touched: [['graph-children:owner', 'sha-of-children']],
+          },
+        },
+      },
+      nodes: {},
+    };
+    // Editing .yggdrasil/model/owner/yg-node.yaml should match graph-children:owner
+    const ygNodeFile = '.yggdrasil/model/owner/yg-node.yaml';
+    const result = collectStructureCascade(graph, ygNodeFile, null, lock);
+    expect(result).toHaveLength(1);
+    expect(result[0].nodePath).toBe('neighbour');
+    expect(result[0].mode).toBe('precise');
+
+    // A different yg-node.yaml must NOT match graph-children:owner
+    const otherFile = '.yggdrasil/model/other/yg-node.yaml';
+    const none = collectStructureCascade(graph, otherFile, null, lock);
+    expect(none).toEqual([]);
+  });
+
+  it('(c2) graph-flow: touched key matches the flow yg-flow.yaml', () => {
+    // graph-flow:checkout → references .yggdrasil/flows/checkout/yg-flow.yaml
+    const owner = makeNode('owner', {
+      meta: { name: 'owner', type: 'engine', mapping: ['src/owner.ts'] },
+    });
+    const neighbour = makeNode('neighbour', {
+      meta: { name: 'neighbour', type: 'engine', aspects: ['det-check'], mapping: ['src/neighbour.ts'] },
+    });
+    const graph = makeGraphWithAspects([owner, neighbour], [{
+      id: 'det-check',
+      name: 'det-check',
+      reviewer: { type: 'deterministic' },
+      artifacts: [],
+    }]);
+    const lock: LockFile = {
+      version: 1,
+      verdicts: {
+        'det-check': {
+          'node:neighbour': {
+            verdict: 'approved',
+            hash: 'h',
+            touched: [['graph-flow:checkout', 'sha-of-flow']],
+          },
+        },
+      },
+      nodes: {},
+    };
+    // Editing .yggdrasil/flows/checkout/yg-flow.yaml should match graph-flow:checkout
+    const flowFile = '.yggdrasil/flows/checkout/yg-flow.yaml';
+    const result = collectStructureCascade(graph, flowFile, null, lock);
+    expect(result).toHaveLength(1);
+    expect(result[0].nodePath).toBe('neighbour');
+    expect(result[0].mode).toBe('precise');
+
+    // A different flow file must NOT match graph-flow:checkout
+    const otherFlow = '.yggdrasil/flows/other-flow/yg-flow.yaml';
+    const none = collectStructureCascade(graph, otherFlow, null, lock);
+    expect(none).toEqual([]);
+  });
+
+  it('deterministic aspect carries reviewerKind: deterministic in result', () => {
+    // Existing deterministic aspect path now also returns reviewerKind tag.
+    const owner = makeNode('owner', {
+      meta: { name: 'owner', type: 'engine', mapping: ['src/owner.ts'] },
+    });
+    const neighbour = makeNode('neighbour', {
+      meta: { name: 'neighbour', type: 'engine', aspects: ['det-check'], mapping: ['src/neighbour.ts'] },
+    });
+    const graph = makeGraphWithAspects([owner, neighbour], [{
+      id: 'det-check',
+      name: 'det-check',
+      reviewer: { type: 'deterministic' },
+      artifacts: [],
+    }]);
+    const lock: LockFile = {
+      version: 1,
+      verdicts: {
+        'det-check': {
+          'node:neighbour': {
+            verdict: 'approved',
+            hash: 'h',
+            touched: [['read:src/owner.ts', 'sha']],
+          },
+        },
+      },
+      nodes: {},
+    };
+    const result = collectStructureCascade(graph, 'src/owner.ts', 'owner', lock);
+    expect(result).toHaveLength(1);
+    expect((result[0] as { reviewerKind: string }).reviewerKind).toBe('deterministic');
   });
 });
 

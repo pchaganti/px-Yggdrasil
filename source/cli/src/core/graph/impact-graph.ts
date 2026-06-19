@@ -207,17 +207,29 @@ export function collectIndirectDependents(
 }
 
 /**
- * Does a deterministic entry's stored observation key reference `repoRelative`?
+ * Does a deterministic (or companion-LLM) entry's stored observation key reference
+ * `repoRelative`?
  *
- * The lock records each cross-subject observation a deterministic check made as a
- * `[observationKey, hash]` pair under the entry's `touched` array (spec §3.1). An
- * edit to `repoRelative` invalidates a verdict whose observation set contained:
- *   - read:<p>   / exists:<p>  → p === repoRelative (the bytes / existence probed)
- *   - list:<dir>                → dir === dirname(repoRelative) (the file would
- *                                  appear in that directory listing, so adding /
- *                                  removing / renaming it changes the listing hash)
- *   - graph:<node>             → repoRelative IS that node's yg-node.yaml (any
- *                                  ctx.graph access folds the node's yaml bytes)
+ * The lock records each cross-subject observation a deterministic check (or a
+ * companion-backed LLM reviewer) made as a `[observationKey, hash]` pair under the
+ * entry's `touched` array (spec §3.1). An edit to `repoRelative` invalidates a
+ * verdict whose observation set contained:
+ *   - read:<p>   / exists:<p>     → p === repoRelative (the bytes / existence probed)
+ *   - list:<dir>                  → dir === dirname(repoRelative) (the file would
+ *                                    appear in that directory listing, so adding /
+ *                                    removing / renaming it changes the listing hash)
+ *   - graph:<node>                → repoRelative IS that node's yg-node.yaml (any
+ *                                    ctx.graph access folds the node's yaml bytes)
+ *   - graph-children:<parentNode> → repoRelative IS that parent node's yg-node.yaml
+ *                                    (editing a node's yaml may change its children
+ *                                    membership observed via ctx.graph.children())
+ *   - graph-flow:<flowName>       → repoRelative IS that flow's yg-flow.yaml (editing
+ *                                    the flow file may change participant membership
+ *                                    observed via ctx.graph.flow())
+ *
+ * NOTE: `graph-bytype:<type>` is intentionally NOT file-matchable here — the set of
+ * nodes of a given type is determined by architecture and node metadata across the
+ * whole repo, not by a single file path.
  *
  * Paths are compared in POSIX form. `repoRelative` is already repo-relative POSIX
  * (the impact command resolves it through `resolveFileArg`).
@@ -247,6 +259,24 @@ function touchedReferencesFile(
         if (ygNodeRel === repoRelative) return true;
         break;
       }
+      case 'graph-children': {
+        // graph-children:<parentNodePath> → the parent node's yg-node.yaml.
+        // Editing a node's yaml may change its children membership recorded by
+        // ctx.graph.children(). Maps to the same file as graph:<parentNodePath>.
+        const ygNodeRel = toPosix(path.posix.join('.yggdrasil', 'model', target, 'yg-node.yaml'));
+        if (ygNodeRel === repoRelative) return true;
+        break;
+      }
+      case 'graph-flow': {
+        // graph-flow:<flowName> → .yggdrasil/flows/<flowName>/yg-flow.yaml.
+        // Editing a flow file changes participant membership recorded by
+        // ctx.graph.flow(). The target is the flow's name (directory name under flows/).
+        const ygFlowRel = toPosix(path.posix.join('.yggdrasil', 'flows', target, 'yg-flow.yaml'));
+        if (ygFlowRel === repoRelative) return true;
+        break;
+      }
+      // graph-bytype:<type> is intentionally NOT file-matchable (no single file path
+      // corresponds to the set of all nodes of a type).
       default:
         break;
     }
@@ -255,54 +285,70 @@ function touchedReferencesFile(
 }
 
 /**
- * Find nodes whose effective deterministic aspect reads `repoRelative` CROSS-NODE.
+ * Find nodes whose effective deterministic or companion-LLM aspect reads
+ * `repoRelative` CROSS-NODE.
  *
  * Two modes, re-sourced from the lock (spec §8):
- *   - PRECISE: a deterministic lock entry whose `touched` observation keys
- *     reference `repoRelative` (read:/exists:/list:/graph:) — the (aspect, unit)
- *     verdict WOULD become unverified if the file is edited. The owning node is
- *     reported as mode 'precise'.
- *   - POTENTIAL (cold-start fallback): a node with NO deterministic lock entries
- *     yet whose effective non-draft deterministic aspect's allowed-reads set
- *     includes the file. Reported as mode 'potential' — it MIGHT read the file
- *     when first verified.
+ *   - PRECISE: a deterministic (or companion-LLM) lock entry whose `touched`
+ *     observation keys reference `repoRelative` — the (aspect, unit) verdict WOULD
+ *     become unverified if the file is edited. The owning node is reported as mode
+ *     'precise'.
+ *   - POTENTIAL (cold-start fallback): a node with NO observing lock entries yet
+ *     whose effective non-draft deterministic aspect's allowed-reads set includes
+ *     the file. Reported as mode 'potential' — it MIGHT read the file when first
+ *     verified. (Cold-start applies only to deterministic aspects — companion-LLM
+ *     aspects have no allowed-reads model for the fallback probe.)
  *
  * A node reported under precise mode is never also reported under potential mode.
+ *
+ * Each returned entry carries a `reviewerKind` tag ('deterministic' | 'llm') that
+ * the renderer uses to label cost accurately — deterministic pairs re-verify for
+ * free; companion-LLM pairs bill the reviewer.
  */
 export function collectStructureCascade(
   graph: Graph,
   repoRelative: string,
   ownerNodePath: string | null | undefined,
   lock: LockFile,
-): Array<{ nodePath: string; mode: 'precise' | 'potential' }> {
-  const out: Array<{ nodePath: string; mode: 'precise' | 'potential' }> = [];
+): Array<{ nodePath: string; mode: 'precise' | 'potential'; reviewerKind: 'deterministic' | 'llm' }> {
+  const out: Array<{ nodePath: string; mode: 'precise' | 'potential'; reviewerKind: 'deterministic' | 'llm' }> = [];
 
   for (const [nodePath, node] of graph.nodes) {
     if (ownerNodePath && nodePath === ownerNodePath) continue;
 
     const statuses = computeEffectiveAspectStatuses(node, graph);
-    const detAspectIds = [...computeEffectiveAspects(node, graph)].filter((id) => {
+    // Include non-draft deterministic aspects AND non-draft companion-LLM aspects.
+    // Plain LLM aspects (no companion) are excluded — they have no `touched` map.
+    const observingAspectIds = [...computeEffectiveAspects(node, graph)].filter((id) => {
       if (statuses.get(id) === 'draft') return false;
-      return graph.aspects.find((a) => a.id === id)?.reviewer.type === 'deterministic';
+      const aspect = graph.aspects.find((a) => a.id === id);
+      if (!aspect) return false;
+      if (aspect.reviewer.type === 'deterministic') return true;
+      if (aspect.reviewer.type === 'llm' && aspect.hasCompanion === true) return true;
+      return false;
     });
-    if (detAspectIds.length === 0) continue;
+    if (observingAspectIds.length === 0) continue;
 
-    // ── Precise: any deterministic lock entry on this node whose observations
+    // ── Precise: any observing lock entry on this node whose observations
     //    reference the edited file. Lock unit keys for this node are node:<path>
     //    (per: node) or file:<mapped file> (per: file); the entry's `touched`
     //    carries the recorded observation keys regardless of unit shape.
     let precise = false;
-    let hasAnyDetEntry = false;
-    for (const aspectId of detAspectIds) {
+    let preciseKind: 'deterministic' | 'llm' = 'deterministic';
+    let hasAnyObservingEntry = false;
+    for (const aspectId of observingAspectIds) {
       const unitMap = lock.verdicts[aspectId];
       if (!unitMap) continue;
       for (const unitKey of Object.keys(unitMap)) {
         // Only entries belonging to THIS node count. node:<path> matches by
         // exact path; file:<f> matches when f is mapped to this node.
         if (!unitKeyBelongsToNode(unitKey, nodePath, node)) continue;
-        hasAnyDetEntry = true;
+        hasAnyObservingEntry = true;
         if (touchedReferencesFile(unitMap[unitKey].touched, repoRelative)) {
           precise = true;
+          // Determine reviewer kind from the aspect that owns this entry.
+          const aspect = graph.aspects.find((a) => a.id === aspectId);
+          preciseKind = (aspect?.reviewer.type === 'llm') ? 'llm' : 'deterministic';
           break;
         }
       }
@@ -310,16 +356,17 @@ export function collectStructureCascade(
     }
 
     if (precise) {
-      out.push({ nodePath, mode: 'precise' });
+      out.push({ nodePath, mode: 'precise', reviewerKind: preciseKind });
       continue;
     }
 
-    // ── Cold-start fallback (no deterministic lock entries for this node yet):
-    //    pessimistic allowed-reads probe.
-    if (hasAnyDetEntry) continue; // entries exist but none touched the file → not affected
+    // ── Cold-start fallback (no observing lock entries for this node yet):
+    //    pessimistic allowed-reads probe — applies only to deterministic aspects,
+    //    which have an allowed-reads model. Companion-LLM aspects don't.
+    if (hasAnyObservingEntry) continue; // entries exist but none touched the file → not affected
     const allowed = collectAllowedReadsForAspect(nodePath, graph);
     if (isPathInMapping(repoRelative, [...allowed])) {
-      out.push({ nodePath, mode: 'potential' });
+      out.push({ nodePath, mode: 'potential', reviewerKind: 'deterministic' });
     }
   }
 
