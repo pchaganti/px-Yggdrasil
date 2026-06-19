@@ -59,10 +59,9 @@ function makeGraph(extra?: Partial<Graph>): Graph {
     nodes,
     aspects: [],
     flows: [],
-    relations: [],
     config: {} as Graph['config'],
     ...extra,
-  };
+  } as unknown as Graph;
 }
 
 function makeAspect(id = 'my-aspect'): AspectDef {
