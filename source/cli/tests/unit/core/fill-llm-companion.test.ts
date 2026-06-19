@@ -587,6 +587,81 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
     expect(entry?.hash).toBe(expectedHash);
   });
 
+  it('companion prompt over max_prompt_chars on FIRST fill → infra (callsMade:0), no write, message names aspect + pair', async () => {
+    // Build a project whose companion content makes the assembled prompt exceed a
+    // deliberately tiny max_prompt_chars limit. On the FIRST fill there is no
+    // stored lock entry, so verify-lock would classify the pair as `unverified`
+    // (not prompt-too-large) and fill would proceed. The fill-time gate added in
+    // fill-llm.ts must intercept BEFORE the reviewer is called.
+    const LARGE_COMPANION_CONTENT = 'x'.repeat(10_000); // large enough to exceed 500-char limit
+    const root = await mkdtemp(path.join(tmpdir(), 'yg-fill-sizelimit-'));
+    dirs.push(root);
+    const yggRoot = path.join(root, '.yggdrasil');
+    await mkdir(yggRoot, { recursive: true });
+    await mkdir(path.join(root, 'src'), { recursive: true });
+    // Set a limit that is above the base prompt (~1.2k chars without companions)
+    // but below the companion-augmented prompt (~11k chars with the large file).
+    // This exercises the specific bug: verify-lock sees only the base prompt on
+    // first fill (no stored entry → cannot reconstruct companion bytes) and
+    // classifies the pair as `unverified`; the fill-time gate in fill-llm.ts
+    // must catch it BEFORE the reviewer runs.
+    const cfgWithLimit =
+      'reviewer:\n  tiers:\n    standard:\n      provider: ollama\n      consensus: 1\n      max_prompt_chars: 2000\n      config:\n        model: llama3\n        temperature: 0\n';
+    await writeFile(path.join(yggRoot, 'yg-config.yaml'), cfgWithLimit);
+    await writeFile(
+      path.join(yggRoot, 'yg-architecture.yaml'),
+      'node_types:\n  service:\n    description: s\n    log_required: false\n    relations:\n      uses: [service]\n',
+    );
+    await mkdir(path.join(yggRoot, 'model', 'svc'), { recursive: true });
+    await writeFile(path.join(root, 'src', 'svc.ts'), 'export const x = 1;\n');
+    await writeFile(
+      path.join(yggRoot, 'model', 'svc', 'yg-node.yaml'),
+      'name: svc\ntype: service\ndescription: x\nmapping:\n  - src/svc.ts\nrelations:\n  - type: uses\n    target: companion-node\naspects:\n  - llm-toolarge\n',
+    );
+    await mkdir(path.join(yggRoot, 'model', 'companion-node'), { recursive: true });
+    await writeFile(path.join(root, 'src', 'big-companion.ts'), LARGE_COMPANION_CONTENT);
+    await writeFile(
+      path.join(yggRoot, 'model', 'companion-node', 'yg-node.yaml'),
+      'name: companion-node\ntype: service\ndescription: c\nmapping:\n  - src/big-companion.ts\n',
+    );
+    const aspDir = path.join(yggRoot, 'aspects', 'llm-toolarge');
+    await mkdir(aspDir, { recursive: true });
+    await writeFile(path.join(aspDir, 'yg-aspect.yaml'), 'name: llm-toolarge\ndescription: llm-toolarge rule\nreviewer:\n  type: llm\nstatus: enforced\n');
+    await writeFile(path.join(aspDir, 'content.md'), 'rule\n');
+    // Companion hook returns the large file.
+    await writeFile(
+      path.join(aspDir, 'companion.mjs'),
+      'export function companion() { return [{ path: "src/big-companion.ts" }]; }\n',
+    );
+
+    const graph = await loadGraph(root);
+
+    let reviewerCalls = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() {
+        reviewerCalls++;
+        return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const };
+      },
+    }));
+
+    const w = makeWriter();
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
+
+    // ZERO reviewer calls — the gate intercepted before the reviewer ran.
+    expect(reviewerCalls).toBe(0);
+    expect(result.reviewerCallsMade).toBe(0);
+    // The gate returned an infra disposition — counted, nothing written.
+    expect(result.infraFailures).toBeGreaterThan(0);
+    // No lock entry for the pair.
+    expect(readLock(graph.rootPath).verdicts['llm-toolarge']?.['node:svc']).toBeUndefined();
+    // The message names the aspect and char count / limit information.
+    const output = w.text();
+    expect(output).toContain('llm-toolarge');
+    expect(output).toContain('2000');
+    // The pair stays unverified (yg check would report it).
+    expect(result.checkResult.issues.some((i) => i.code === 'unverified')).toBe(true);
+  });
+
   it('plain LLM aspect (no companion) — hook is never run and the hash is companion-free', async () => {
     const { projectRoot } = await setupProject({
       aspects: [{ id: 'llm-plain', kind: 'llm', status: 'enforced', rule: 'rule a' }],

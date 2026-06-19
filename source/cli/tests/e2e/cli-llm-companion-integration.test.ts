@@ -479,4 +479,48 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (integration)
       rmSync(dir, { recursive: true, force: true });
     }
   }, 40000);
+
+  // ===========================================================================
+  // (+companion-first-fill-too-large) Fill-time gate for companion pairs on
+  //   FIRST fill: when the companion makes the assembled prompt exceed
+  //   max_prompt_chars on the VERY FIRST fill (no stored entry yet), fill must
+  //   fail closed WITHOUT calling the reviewer, write NOTHING to the lock, and
+  //   surface a message naming the pair. This is the inverse of case 22 (which
+  //   fills first then lowers the limit): here the limit is set BEFORE any fill.
+  //
+  // The fill-time gate in fill-llm.ts (companion path only) closes the window
+  // where verify-lock would classify the pair as `unverified` (not
+  // prompt-too-large) on first fill because it cannot reconstruct the companion
+  // bytes without a stored entry — so fill would proceed and bill the reviewer.
+  // ===========================================================================
+  it('(+companion-first-fill-too-large) companion over max_prompt_chars on first fill → 0 reviewer calls, no lock entry, pair names in output', async () => {
+    const dir = copyFixture('first-fill-too-large');
+    const mock = await startMockReviewer({ respond: () => ({ satisfied: true, reason: 'ok' }) });
+    try {
+      pointReviewer(dir, mock.endpoint);
+      // Set max_prompt_chars below every assembled companion-bearing prompt BEFORE
+      // any fill. The fixture's scenario-matches-test companion injects a paired
+      // spec (~hundreds of chars) making each assembled prompt ~3.6k; 500 is
+      // comfortably under. The tier NAME is unchanged, so this is a config edit
+      // that limits the gate without affecting any hypothetical stored hashes.
+      setStandardLimit(dir, 500);
+
+      const callsBefore = mock.chatCount();
+      const fill = await runAsync(['check', '--approve'], dir);
+
+      // ZERO reviewer calls — the fill-time gate intercepted before the reviewer ran.
+      expect(mock.chatCount() - callsBefore).toBe(0);
+      // yg check --approve must exit non-zero (blocked pairs).
+      expect(fill.status).not.toBe(0);
+      // No lock entries for the companion aspect (nothing was written).
+      expect(Object.keys(verdicts(dir, 'scenario-matches-test')).length).toBe(0);
+      // The output names at least one of the over-limit pairs.
+      expect(fill.all).toMatch(/scenario-matches-test/);
+      // The output names the char count and/or limit so the agent can act.
+      expect(fill.all).toMatch(/500/);
+    } finally {
+      await mock.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 40000);
 });

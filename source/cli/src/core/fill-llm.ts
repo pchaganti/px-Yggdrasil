@@ -18,7 +18,7 @@ import { computeLlmInputHash } from './pair-hash.js';
 import { ruleHashFor, contentFor, nodeDescriptionFor, tierHashViewFromTier, companionHashFor } from './pair-inputs.js';
 import { computeNodeMappedFiles } from './pairs.js';
 import { hashBytes } from '../io/hash.js';
-import { buildPairPrompt } from '../llm/prompt.js';
+import { buildPairPrompt, assembledPromptChars } from '../llm/prompt.js';
 import type { PromptReferenceInput, PromptFileInput, PromptCompanionInput } from '../llm/prompt.js';
 import { verifyWithConsensus } from '../llm/aspect-verifier.js';
 import type { LlmProvider } from '../llm/types.js';
@@ -183,7 +183,7 @@ export async function fillLlmPair(
     observations = resolved.companions.observations;
   }
 
-  const prompt = buildPairPrompt({
+  const promptInput = {
     aspect: { id: aspect.id, description: aspect.description ?? '', content: contentFor(aspect, 'content.md') },
     references: referencesForPrompt,
     nodePath: pair.nodePath,
@@ -191,7 +191,46 @@ export async function fillLlmPair(
     files: subjects.map<PromptFileInput>((s) => ({ path: s.path, content: s.bytes.toString('utf8') })),
     companions,
     scope: aspect.scope,
-  });
+  };
+
+  // ── Fill-time size gate for companion pairs (§4, first-fill). ──
+  // verify-lock gates a STORED entry against max_prompt_chars, but on a pair's
+  // FIRST fill there is no stored entry — verify-lock classifies the pair as
+  // `unverified` (not `prompt-too-large`) and fill proceeds, billing the reviewer
+  // for a prompt that may then be refused by the gate on the NEXT `yg check`.
+  // For plain LLM pairs this cannot happen (verify-lock knows subjects+references
+  // on first fill), but companion pairs carry extra bytes verify-lock cannot see
+  // without a stored entry. The guard below closes that window: when companions
+  // were resolved and injected AND the tier sets a limit, measure BEFORE calling
+  // the reviewer. Uses assembledPromptChars (label-free) — the same measurement
+  // verify-lock uses — so fill and verify are consistent.
+  if (aspect.hasCompanion === true && companions.length > 0) {
+    const limit = mergedTier.max_prompt_chars;
+    if (limit !== undefined) {
+      const chars = assembledPromptChars(promptInput);
+      if (chars > limit) {
+        const unitKeyPosix = toPosixPath(pair.unitKey);
+        return {
+          kind: 'infra',
+          why: `assembled prompt for aspect '${aspect.id}' on ${unitKeyPosix} is ${chars} chars, over the '${tierName}' tier limit of ${limit}`,
+          messageData: {
+            what: `Assembled reviewer prompt for aspect '${aspect.id}' on ${unitKeyPosix} is ${chars} chars, over the '${tierName}' tier limit of ${limit}.`,
+            why: 'An over-limit prompt risks context-window truncation and a false verdict. The gate blocks the pair and writes NOTHING — no reviewer call is made.',
+            next:
+              `Remedies, in safety order:\n` +
+              `  1. Narrow scope.files so non-target payload (README, fixtures) leaves the prompt.\n` +
+              `  2. Switch the aspect to per: file — only if the rule is file-local; see \`yg knowledge read writing-llm-aspects\`.\n` +
+              `  3. Split the node so its mapped files divide across smaller nodes.\n` +
+              `  4. Raise max_prompt_chars or move the aspect to a higher-limit tier — note: tier edits cascade re-verification across every aspect resolving to that tier.\n` +
+              `Then re-run: yg check --approve`,
+          },
+          callsMade: 0,
+        };
+      }
+    }
+  }
+
+  const prompt = buildPairPrompt(promptInput);
 
   const consensus = mergedTier.consensus;
   let response;
