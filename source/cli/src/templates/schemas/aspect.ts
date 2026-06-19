@@ -212,8 +212,8 @@ status: enforced                   # optional — aspect-level default. enum: dr
                                    # use references: instead).
                                    #
                                    # ctx mirrors the deterministic check ctx PLUS:
-                                   #   ctx.subject — the unit's subject file(s).
-                                   #     scope.per: file → single File object.
+                                   #   ctx.subject — the unit's subject files. Always File[].
+                                   #     scope.per: file → single-element array [file].
                                    #     scope.per: node → the full subject set (same as ctx.files).
                                    # Read boundaries: same as check.mjs (own mapping, declared-relation
                                    # targets, ancestors, own descendants). Attempting to read outside

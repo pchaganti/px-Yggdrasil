@@ -212,8 +212,9 @@ description.
 // .yggdrasil/aspects/my-rule/companion.mjs
 export async function companion(ctx) {
   // ctx mirrors the deterministic check ctx, plus ctx.subject.
-  // ctx.subject: for scope.per:file → the single subject File;
-  //              for scope.per:node → the full subject set (same as ctx.files).
+  // ctx.subject is always File[] (never a bare File).
+  //   scope.per:file  → single-element array [file].
+  //   scope.per:node  → the full subject set (same as ctx.files).
   //
   // Read files via ctx to DECIDE which paths to return.
   // Return Array<{ path: string, label?: string }>.
@@ -264,7 +265,8 @@ to subject files only.
 // For each test file, locate the paired scenario doc by convention.
 // Test files are named foo.test.ts; scenarios live at docs/scenarios/foo.md.
 export async function companion(ctx) {
-  const file = ctx.subject; // per:file scope — single File
+  // ctx.subject is always File[]. per:file scope → single-element array.
+  const [file] = ctx.subject;
   const stem = file.path.split('/').pop().replace(/\\.test\\.ts$/, '');
   const scenarioPath = \`docs/scenarios/\${stem}.md\`;
   if (ctx.fs.exists(scenarioPath) === 'file') {
@@ -277,18 +279,23 @@ export async function companion(ctx) {
 
 ### Frontmatter parsing
 
-There is no dedicated frontmatter helper. To extract YAML frontmatter from
-a Markdown file, use a regex on the \`---\` block or \`ctx.parseYaml(path)\`
-on a YAML file path:
+There is no dedicated frontmatter helper. To extract YAML frontmatter
+embedded in a Markdown file, use a regex on the \`---\` block — because the
+companion file's \`.content\` is raw Markdown (frontmatter + body), and
+\`ctx.parseYaml\` does NOT parse a raw inline string. A string argument to
+\`ctx.parseYaml\` is treated as a FILE PATH (the runner reads it from disk);
+a File argument parses \`file.content\`. Use \`ctx.parseYaml\` to parse
+separate YAML/JSON files, not embedded frontmatter blocks:
 
 \`\`\`javascript
-// Option 1: regex on the --- block
+// Reading frontmatter from a Markdown file's .content: use a regex.
 function parseFrontmatter(content) {
   const m = content.match(/^---\\n([\\s\\S]*?)\\n---/);
   return m ? m[1] : null;
 }
 
-// Option 2: ctx.parseYaml with a path (path-based, not a content helper)
+// Reading a separate YAML config file by path: ctx.parseYaml(pathString).
+// The string is a file path — the runner reads the file from disk and parses it.
 const data = ctx.parseYaml('docs/config.yaml');
 \`\`\`
 

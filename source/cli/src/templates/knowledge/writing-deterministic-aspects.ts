@@ -196,11 +196,11 @@ interface Ctx {
   // The node being reviewed
   node: GraphNode;
 
-  // ctx.subject — the unit's subject file(s). Available in both check.mjs and
-  // companion.mjs. In check.mjs: same as ctx.files (provided for cross-hook
-  // consistency). In companion.mjs: for scope.per:file → single File object;
-  // scope.per:node → the full subject set (same as ctx.files).
-  subject: File | File[];
+  // ctx.subject — the unit's subject files. Always File[].
+  //   per:file  → single-element array [file]; per:node → the node's subject
+  //   set (same array reference as ctx.files for the whole-node case).
+  //   Available in both check.mjs and companion.mjs for cross-hook consistency.
+  subject: File[];
 
   // The unit's subject files (scope-driven view; child carve-out applied)
   files: File[];
