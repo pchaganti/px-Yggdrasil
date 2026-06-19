@@ -19,6 +19,8 @@
     ".lab/**",
     ".temp/**",
     ".superpowers/**",
+    "**/.superpowers/**",
+    ".claude/**",
     "**/agent-rules.md",
     "AGENTS.md",
     ".cursor/rules/**",
