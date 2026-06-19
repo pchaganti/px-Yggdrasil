@@ -46,12 +46,12 @@ import {
   MISSING_OBSERVATION,
 } from './pair-hash.js';
 import { computeAllowedNodePaths } from '../structure/ctx-graph.js';
-import { ruleHashFor, contentFor, nodeDescriptionFor, tierHashViewFromTier } from './pair-inputs.js';
+import { ruleHashFor, contentFor, nodeDescriptionFor, tierHashViewFromTier, companionHashFor } from './pair-inputs.js';
 import type { ExpectedPair, UnreadableSubject } from './pairs.js';
 import { computeExpectedPairs } from './pairs.js';
 import { selectTierForAspect } from './tier-selection.js';
 import { assembledPromptChars } from '../llm/prompt.js';
-import type { PromptReferenceInput, PromptFileInput } from '../llm/prompt.js';
+import type { PromptReferenceInput, PromptFileInput, PromptCompanionInput } from '../llm/prompt.js';
 
 // ============================================================
 // Public types
@@ -196,6 +196,43 @@ async function verifyLlmPair(
   // ── ruleHash = sha256(content.md bytes). Artifacts carry the loaded text. ──
   const ruleHash = ruleHashFor(aspect, 'content.md');
 
+  // ── Companion symmetry (Task 6). companionHash folds UNCONDITIONALLY: undefined
+  //    for a plain aspect → not folded → the hash is byte-identical to the
+  //    pre-feature contract. A companion aspect (any artifact named companion.mjs,
+  //    even a []-resolving one) folds its companion.mjs digest, so a hook edit
+  //    invalidates the verdict even with no out-of-subject observations. ──
+  const companionHash = companionHashFor(aspect);
+
+  // ── Re-observe the stored touched keys (the companion hook's own out-of-subject
+  //    observations PLUS one read:<path> per companion file the fill read). The
+  //    hook is NOT re-run — reObserve recomputes each key's CURRENT value from
+  //    disk/graph exactly as verifyDetPair does (seeded with pair.nodePath so the
+  //    two runners agree on graph visibility). A changed/vanished value yields a
+  //    mismatch ⇒ unverified, never a throw. A plain aspect stored no touched, so
+  //    touchedNow stays [] and is NOT folded (the hash guards on length). ──
+  const stored = storedEntry?.touched ?? [];
+  const touchedNow: Array<[string, string]> = [];
+  for (const [key] of stored) {
+    touchedNow.push([key, await reObserve(key, graph, pair.nodePath, projectRoot, readBytes)]);
+  }
+
+  // ── Rebuild the label-free companion set for the §4 size gate. fill assembled
+  //    the prompt WITH the resolved companion bytes (buildPairPrompt), so the gate
+  //    must measure them too or it would under-count a companion-heavy prompt. The
+  //    only durable record of which files were companions is the stored touched
+  //    read:<path> keys — re-read each one's CURRENT bytes (a read: key that no
+  //    longer resolves to a file is a hook/graph observation, not a companion, and
+  //    is skipped). assembledPromptChars strips labels (Task 2), so verify (which
+  //    cannot reconstruct labels) measures the SAME label-free <companions>. ──
+  const gateCompanions: PromptCompanionInput[] = [];
+  for (const [key] of stored) {
+    const rel = companionReadPath(key);
+    if (rel === undefined) continue;
+    const bytes = await readBytes(path.resolve(projectRoot, rel));
+    if (bytes === null) continue; // vanished → not a measurable companion this run
+    gateCompanions.push({ path: rel, content: bytes.toString('utf8') });
+  }
+
   // ── Prompt-size gate (§4): only when a tier resolves and sets a limit. ──
   let gate: { chars: number; limit: number; tierName: string } | undefined;
   if (tierResult?.ok) {
@@ -214,6 +251,7 @@ async function verifyLlmPair(
           path: s.path,
           content: s.bytes.toString('utf8'),
         })),
+        companions: gateCompanions,
         scope: aspect.scope,
       });
       if (chars > limit) {
@@ -236,6 +274,11 @@ async function verifyLlmPair(
       files: subjects.map((s) => [s.path, hashCached(path.resolve(projectRoot, s.path), s.bytes)] as [string, string]),
       references: referencesForHash,
       tier: tierHashViewFromTier(tierResult.tierName),
+      // companionHash + touched fold only-when-present (the hash guards): a plain
+      // aspect passes companionHash=undefined and touched=[] → byte-identical to
+      // the pre-feature hash, so existing plain verdicts stay valid.
+      companionHash,
+      touched: touchedNow,
       verdict: storedEntry.verdict,
     });
     valid = expectedHash === storedEntry.hash;
@@ -415,6 +458,18 @@ async function reObserve(
     default:
       return MISSING_OBSERVATION;
   }
+}
+
+/**
+ * Extract the repo-relative path from a companion `read:<path>` observation key,
+ * or undefined when the key is not a `read:` key (graph/list/exists/graph-* keys
+ * are hook observations, NOT companion files, and must not be measured by the
+ * size gate as companion content). The caller still confirms the path resolves to
+ * a real file before counting it — a `read:` key whose file vanished is no longer
+ * a measurable companion this run.
+ */
+function companionReadPath(key: string): string | undefined {
+  return key.startsWith('read:') ? key.slice('read:'.length) : undefined;
 }
 
 async function listDir(absDir: string): Promise<Array<{ name: string; kind: 'file' | 'dir' }> | null> {
