@@ -218,4 +218,20 @@ describe('validator — companion.mjs validation', () => {
     expect(codes).not.toContain('aspect-companion-without-content');
     expect(codes).not.toContain('aspect-companion-with-check');
   });
+
+  it('emits aspect-companion-without-content when an aggregate aspect ships companion.mjs', async () => {
+    const rootPath = await createTempYggdrasil();
+    // aggregate: implies something, no content.md, no check.mjs — but has companion.mjs
+    await createAspectDir(rootPath, 'aggregate-with-companion', ['companion.mjs']);
+    const aspect: import('../../../src/model/graph.js').AspectDef = {
+      ...makeAspect('aggregate-with-companion', { type: 'aggregate' }),
+      implies: ['some-other-aspect'],
+    };
+    const graph = makeGraph(rootPath, { aspects: [aspect] });
+
+    const result = await validate(graph);
+    const codes = result.issues.map((i) => i.code);
+
+    expect(codes).toContain('aspect-companion-without-content');
+  });
 });

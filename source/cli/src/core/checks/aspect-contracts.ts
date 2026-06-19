@@ -10,6 +10,19 @@ import { toPosixPath } from '../../utils/posix.js';
 
 // --- aspect-rule-sources: content.md vs check.mjs mutual exclusion ---
 
+function companionWithCheckIssue(aspectId: string): ValidationIssue {
+  return {
+    severity: 'error',
+    code: 'aspect-companion-with-check',
+    rule: 'aspect-rule-sources',
+    ...issueMsg({
+      what: `Aspect '${aspectId}' has companion.mjs together with check.mjs.`,
+      why: `companion.mjs is an add-on for LLM aspects only; it is incompatible with the deterministic check.mjs runner.`,
+      next: `Remove companion.mjs from .yggdrasil/aspects/${aspectId}/ or convert the aspect to an LLM aspect (replace check.mjs with content.md).`,
+    }),
+  };
+}
+
 export function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const projectRoot = path.dirname(graph.rootPath);
@@ -37,6 +50,19 @@ export function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
             what: `Aspect '${aspect.id}' is an aggregating aspect (no reviewer.type declared, only implies) but ships ${present}.`,
             why: `Aggregating aspects bundle implied aspects and have no own reviewer; a rule source here is never read.`,
             next: `Remove .yggdrasil/aspects/${aspect.id}/${present} to keep it aggregating, or declare reviewer.type explicitly to make it an LLM/deterministic aspect.`,
+          }),
+        });
+      }
+      // companion.mjs is an LLM-only add-on; it is never valid on an aggregate.
+      if (hasCompanionMjs) {
+        issues.push({
+          severity: 'error',
+          code: 'aspect-companion-without-content',
+          rule: 'aspect-rule-sources',
+          ...issueMsg({
+            what: `Aspect '${aspect.id}' has companion.mjs but no content.md.`,
+            why: `companion.mjs is an add-on for LLM aspects; it requires content.md as the primary rule source.`,
+            next: `Add content.md to .yggdrasil/aspects/${aspect.id}/ or remove companion.mjs.`,
           }),
         });
       }
@@ -96,16 +122,7 @@ export function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
       }
       // companion+check is the more-specific conflict; emit it here before the continue.
       if (hasCompanionMjs) {
-        issues.push({
-          severity: 'error',
-          code: 'aspect-companion-with-check',
-          rule: 'aspect-rule-sources',
-          ...issueMsg({
-            what: `Aspect '${aspect.id}' has companion.mjs together with check.mjs.`,
-            why: `companion.mjs is an add-on for LLM aspects only; it is incompatible with the deterministic check.mjs runner.`,
-            next: `Remove companion.mjs from .yggdrasil/aspects/${aspect.id}/ or convert the aspect to an LLM aspect (replace check.mjs with content.md).`,
-          }),
-        });
+        issues.push(companionWithCheckIssue(aspect.id));
       }
       continue;
     }
@@ -168,16 +185,7 @@ export function checkAspectRuleSources(graph: Graph): ValidationIssue[] {
     // emit ONLY aspect-companion-with-check (NOT also aspect-companion-without-content).
     if (hasCompanionMjs) {
       if (hasCheckMjs) {
-        issues.push({
-          severity: 'error',
-          code: 'aspect-companion-with-check',
-          rule: 'aspect-rule-sources',
-          ...issueMsg({
-            what: `Aspect '${aspect.id}' has companion.mjs together with check.mjs.`,
-            why: `companion.mjs is an add-on for LLM aspects only; it is incompatible with the deterministic check.mjs runner.`,
-            next: `Remove companion.mjs from .yggdrasil/aspects/${aspect.id}/ or convert the aspect to an LLM aspect (replace check.mjs with content.md).`,
-          }),
-        });
+        issues.push(companionWithCheckIssue(aspect.id));
       } else if (!hasContentMd) {
         issues.push({
           severity: 'error',
