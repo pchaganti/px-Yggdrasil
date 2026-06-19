@@ -2,7 +2,7 @@
 
 Aspects are verified by reviewers. Yggdrasil ships three reviewer kinds — all operate on the same aspect-node-flow graph; the kind is inferred from which rule source file is present in the aspect directory.
 
-- **LLM reviewer** (inferred when `content.md` is present): ships a `content.md` rule file. An LLM reads the rule and the node's source code, then accepts or rejects.
+- **LLM reviewer** (inferred when `content.md` is present): ships a `content.md` rule file. An LLM reads the rule and the node's source code, then accepts or rejects. An LLM aspect may also ship an optional `companion.mjs` hook — see [Per-unit companion files](#per-unit-companion-files) below.
 - **Deterministic reviewer** (inferred when `check.mjs` is present): ships a `check.mjs` module run by a deterministic runner at zero LLM cost. The check returns a `Violation[]` — no LLM, no nondeterminism, no per-call cost. There is one `check(ctx)` contract: the check receives the node, its subject files (each with a tree-sitter parse tree via `file.ast` when the language has a grammar), the file system, and the graph topology, and can use any of them — inspect a single file's parse tree for syntactic rules, or read related nodes and the file system for cross-node and structural rules. See `yg knowledge read writing-deterministic-aspects`.
 - **Aggregating aspect** (inferred when neither rule source is present but `implies:` is declared): a content-less, check-less named bundle. It has no own reviewer and produces no own verdict. When effective on a node, it expands its `implies:` list and each implied aspect is verified individually. Use it to attach a multi-rule contract as one named entry point backed by N atomic child aspects.
 
@@ -88,7 +88,7 @@ Cost is counted per pair. A `per: node` aspect on a node with 5 source files is 
 
 ### Consensus
 
-Set `consensus: 3` (or any odd number) on a tier in `yg-config.yaml` to run multiple review passes and take the majority vote. Higher confidence, proportionally higher cost. Useful for high-stakes aspects or noisy borderline rules.
+Set `consensus: 3` (or any odd integer) on a tier in `yg-config.yaml` to run multiple review passes and take the majority vote. Higher confidence, proportionally higher cost. Useful for high-stakes aspects or noisy borderline rules.
 
 ```yaml
 reviewer:
@@ -99,6 +99,111 @@ reviewer:
       config:
         model: claude-opus-4-7
 ```
+
+---
+
+## Per-unit companion files
+
+An LLM aspect may ship an optional `companion.mjs` alongside `content.md`. For each verification unit, the runner executes the hook to resolve 0–N read-only companion files from other nodes, and injects those files into that unit's reviewer prompt only. This lets the reviewer see exactly one paired counterpart per unit — a scenario document with its matching test spec, a migration with its schema, a handler with its contract — without embedding the entire related node's source in every prompt.
+
+`companion.mjs` is an **add-on to an LLM aspect, not a new reviewer kind**. Reviewer kind inference is unchanged: `companion.mjs` without `content.md` is a validator error (`aspect-companion-without-content`). `companion.mjs` alongside `check.mjs` is also a validator error (`aspect-companion-with-check`) — companions apply to LLM aspects only. Both codes are blocking errors that prevent `yg check` from passing.
+
+### Directory structure
+
+```
+.yggdrasil/aspects/
+  scenario-faithfulness/
+    yg-aspect.yaml     ← reviewer: { type: llm }
+    content.md         ← the rule
+    companion.mjs      ← per-unit companion hook (optional add-on)
+```
+
+Your agent sees `companion.mjs` listed in the `read:` output of `yg context`, alongside `content.md`.
+
+### The `companion(ctx)` contract
+
+`companion.mjs` must export a named function `companion` (not a default export). The function may be async.
+
+```javascript
+// companion.mjs — must export a named 'companion' function
+export async function companion(ctx) {
+  // ctx.subject — the unit's subject file(s):
+  //   per:file scope → array containing the single file under review
+  //   per:node scope → the node's full subject-file array (same as ctx.files)
+  //
+  // Read a subject file's content and extract the paired path:
+  const text = ctx.subject[0].content;
+  const m = text.match(/^---\n([\s\S]*?)\n---/);
+  if (!m) return [];   // returning [] is valid — unit reviewed with subject only
+  const specPath = m[1].match(/^test:\s*(.+)/m)?.[1]?.trim();
+  if (!specPath) return [];
+  return [{ path: specPath }];   // return paths, never file content
+}
+```
+
+**What `ctx` provides:**
+
+- `ctx.subject` — the unit's subject file(s): per:file → single-element array; per:node → the node's full subject set (same reference as `ctx.files`).
+- `ctx.files` — all subject files for the unit (same as `ctx.subject` for per:node).
+- `ctx.node`, `ctx.graph`, `ctx.fs` — same as the deterministic check context; bounded by the node's allowed-reads.
+- `ctx.parseYaml(file)`, `ctx.parseJson(file)`, `ctx.parseToml(file)`, `ctx.parseAst(file, language)` — parse helpers; each accepts a `File` object or a **path string** (they treat the argument as a file path, not raw text). To parse raw frontmatter text extracted from a subject file, use a regex — not `ctx.parseYaml`.
+
+**What the hook returns:**
+
+The hook returns `Array<{ path: string, label?: string }>` — whole files only; there is no line-range or slicing feature. `label` is an optional human-readable tag that appears in the live reviewer prompt. The hook may read and parse files to decide which paths to return, but it returns paths, never file content.
+
+Returned paths may be absolute or repo-root-relative. The runner normalizes them to repo-root-relative POSIX, dedupes, and sorts them — so the prompt and the hash are deterministic regardless of the hook's return order. A path that escapes the repo root is an infra-fail (the existing allowed-reads guard).
+
+**Returning `[]` is valid** — the unit is reviewed with only its subject files, and no companion block appears in the prompt. To signal an error condition (a missing required counterpart, for example), throw an exception — the hook's job is to resolve paths, not to judge.
+
+**Parsing frontmatter — use a regex:**
+
+```javascript
+// Extract a ---...--- frontmatter block manually (regex):
+const text = ctx.subject[0].content;
+const fmMatch = text.match(/^---\n([\s\S]*?)\n---/);
+if (!fmMatch) return [];
+const key = fmMatch[1].match(/^test:\s*(.+)/m)?.[1]?.trim();
+```
+
+`ctx.parseYaml` treats its argument as a file path, not as a YAML string; to parse text you already hold in memory, use a regex or a manual `---` split.
+
+### Allowed-reads boundary
+
+The companion hook is bounded by the same allowed-reads set as `check.mjs`: the node's own mapping files, its declared relation targets (and their descendants), its ancestor mappings, and its own descendant mappings. To reach a file from another node, declare a relation to that node in `yg-node.yaml`. The boundary is a discipline, not a sandbox — the hook runs with full Node privileges.
+
+### How companion files are injected
+
+Resolved companion files appear in a distinct `<companions>` block in the reviewer prompt, separate from the `<references>` block (static references) and `<source-files>` (the unit's own source). The companions block is absent when the hook returns `[]`. Companion files count toward the tier's `max_prompt_chars` gate, exactly like subject and reference files.
+
+**`yg-suppress` is honored only from the `<source-files>` block.** A suppress marker inside a companion file is ignored — companions are read-only reference material, not the unit under judgment.
+
+### Verdict hashing and invalidation
+
+Two optional ingredients fold into the LLM pair's hash only when present, each under its own independent guard:
+
+1. **`companionHash`** — SHA-256 of `companion.mjs` bytes, present whenever the aspect ships `companion.mjs`. Editing `companion.mjs` re-verifies every pair of the aspect (all pairs, because `companionHash` changes for all).
+2. **`touched`** — the hook's observations (each companion file the hook resolved and the runner read, plus any `ctx.fs`/`ctx.graph` accesses), folded only when `length > 0`. Editing a resolved companion file re-verifies only the pairs that read it.
+
+**Backward-compatibility is load-bearing.** A plain LLM aspect (no `companion.mjs`) passes neither ingredient — the hash is byte-identical to what was stored before this feature existed. There is no lock-format change, no schema-version bump, and no migration.
+
+Adding `companion.mjs` to an existing LLM aspect introduces `companionHash` on the first fill, which re-verifies that aspect's pairs once (a one-time cost on adoption). After that, edits to companion files cost only the pairs that read them.
+
+### What `yg aspect-test --dry-run` shows
+
+`--dry-run` on a companion-bearing LLM aspect runs the hook live and prints the resolved companion paths and the assembled prompt, but makes no reviewer call and does not touch the lock. The `--files` ad-hoc path (testing against an explicit file list without a node) is not available for companion aspects — the hook requires a node to bound its allowed reads.
+
+### Failure modes — fail closed
+
+Any failure to assemble a companion is an **infra-fail**: nothing is written to the lock, `callsMade` is 0, and the pair stays unverified. `yg check` stays red until the problem is resolved. Infra-fail cases include:
+
+- The hook throws an exception.
+- The hook returns a value that is not an array of `{ path }` objects.
+- A returned path does not exist on disk.
+- A returned path falls outside the node's allowed-reads set (the error names the owning node and the companion's owning node, never the subject file).
+- `companion.mjs` fails to import (syntax error, missing dependency).
+
+The hook is a resolver, not a judge — it never emits violations.
 
 ---
 
@@ -436,7 +541,8 @@ Agents may propose adding a suppress marker but must **never** write one without
 
 Both reviewer types record their results the same way: one content-addressed entry per `(aspect, unit)` pair in the committed `.yggdrasil/yg-lock.json`. Each entry stores the verdict and the hash of the inputs that produced it:
 
-- **LLM pair:** the hash folds `content.md`, the subject files, the aspect description, the reference files, and the **name** of the resolved tier. The tier's config — provider, model, endpoint, temperature, consensus — is not folded; only its name. Change any folded input → the pair is unverified.
+- **LLM pair (without companion):** the hash folds `content.md`, the subject files, the aspect description, the reference files, and the **name** of the resolved tier. The tier's config — provider, model, endpoint, temperature, consensus — is not folded; only its name. Change any folded input → the pair is unverified.
+- **LLM pair (with companion.mjs):** additionally folds `companionHash` (SHA-256 of `companion.mjs`) and, when non-empty, the hook's `touched` observations (the companion files the runner read, plus any `ctx.fs`/`ctx.graph` accesses). Both ingredients are folded only when present — a plain LLM aspect's hash is byte-identical to before, with no lock-format change.
 - **Deterministic pair:** the hash folds `check.mjs`, the subject files, and the observation set — every `ctx.fs` read, listing, and existence probe and every `ctx.graph` access the check made beyond its subject files (see [the observation model](#the-observation-model-what-invalidates-a-deterministic-verdict) below). Change the check, a subject file, or any observed value → the pair is unverified.
 
 `yg check` recomputes each pair's input hash and compares it to the lock — no LLM calls, no provider keys, runs instantly. A source edit and an aspect-content edit both surface the same way: the affected pairs no longer match their recorded hash, so check reports them as unverified until `yg check --approve` fills them again.
@@ -449,7 +555,9 @@ Both reviewer types record their results the same way: one content-addressed ent
 
 **Borderline rejections.** Compliant code can be rejected by an LLM that misread the rule. Fix: clarify `content.md`. The escape hatch is better rules, not `yg-suppress`. A recorded refusal is final for unchanged inputs — sharpening the rule is the way to overturn it (and it re-verifies every pair of the aspect).
 
-**Cost spikes when an aspect changes.** Editing a widely-used aspect's content invalidates every pair it produces → N LLM calls to refill. Before such an edit, run `yg impact --aspect <id>` to see the count. Consider `consensus: 1` for high-fan-out aspects.
+**Cost spikes when an aspect changes.** Editing a widely-used aspect's content invalidates every pair it produces → N LLM calls to refill. Before such an edit, run `yg impact --aspect <id>` to see the count. `--aspect` also accounts for `companion.mjs` — editing it invalidates every pair of the aspect just as a `content.md` edit does, at the same billed cost. Consider `consensus: 1` for high-fan-out aspects.
+
+**Companion assembly failure.** If the companion hook throws, returns a bad shape, or resolves a path that does not exist or falls outside the allowed-reads boundary, the pair is an infra-fail: nothing is written, the pair stays unverified, and `yg check` stays red. The error message names the owning nodes (source and target) — never the subject file being reviewed. Fix the hook or the relation declarations and re-run `yg check --approve`.
 
 ### Deterministic reviewer
 

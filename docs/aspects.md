@@ -47,7 +47,7 @@ Specific rules produce reproducible verdicts. "Audit logging should be appropria
 | **LLM** (`content.md`) | judgment calls a human reviewer would make — "mutations must emit audit events", "this handler validates its input semantically" | one call per check (paid) |
 | **Deterministic** (`check.mjs`) | mechanical rules — forbidden API calls, naming conventions, import restrictions | runs locally, free, identical every run |
 
-You don't set the kind in a config field — it's inferred from which file is present (`content.md` → LLM, `check.mjs` → deterministic). See [Reviewers](/reviewers) to write either.
+You don't set the kind in a config field — it's inferred from which file is present (`content.md` → LLM, `check.mjs` → deterministic). An LLM aspect may also ship an optional `companion.mjs` hook that resolves per-unit companion files — see [Reviewers](/reviewers) for authoring depth. See [Reviewers](/reviewers) to write either kind.
 
 ## Status, at a glance
 
@@ -94,6 +94,11 @@ A rule the reviewer checks is the same wherever it came from — the component h
 
 A rule can pull in others. Declare `implies: [other-rule]` and every component that gets the first rule automatically gets the implied ones too, recursively. This lets you group several atomic rules under one named bundle — attach the bundle once, and each child rule still produces its own clean verdict. See [Reviewers](/reviewers) for authoring depth.
 
-## Reference files
+## Reference files and companion files
 
-An LLM rule can lean on supporting material — a lookup table, an error-code catalogue, an API contract. List those files under `references:` and the reviewer reads them as authoritative context alongside your rule. Your agent sees them too, under the `read:` paths in `yg context`. See [Reviewers](/reviewers) for how to declare them.
+An LLM rule has two ways to bring in supporting material:
+
+- **Static references (`references:`)** — a lookup table, an error-code catalogue, an API contract. Listed in `yg-aspect.yaml`; the same files go to the reviewer for every unit. Your agent sees them under the `read:` paths in `yg context`.
+- **Per-unit companion files (`companion.mjs`)** — a hook that resolves different files for each unit under review. Use this when each file being reviewed has a unique counterpart in another node — a scenario document paired with its matching test spec, a migration paired with its schema. The hook returns paths; the runner reads the files and injects them into that unit's prompt only. See [Reviewers — Per-unit companion files](/reviewers#per-unit-companion-files).
+
+The two mechanisms are independent. Static references are identical for every unit; companion files vary per unit. Both count toward the tier's `max_prompt_chars` prompt-size limit. See [Reviewers](/reviewers) for authoring depth on both.

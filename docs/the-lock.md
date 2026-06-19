@@ -25,7 +25,8 @@ Each entry stores the verdict and a hash of the inputs that produced it. The ver
 
 What the hash folds depends on the reviewer kind:
 
-- **LLM pair** — the rule text (`content.md`), the subject files, the aspect description, any reference files, and the **name** of the resolved reviewer tier. The tier's config (provider, model, endpoint, temperature, consensus) is not folded — only its name, so re-pointing a named tier at a different reviewer leaves verdicts valid.
+- **LLM pair (without companion)** — the rule text (`content.md`), the subject files, the aspect description, any reference files, and the **name** of the resolved reviewer tier. The tier's config (provider, model, endpoint, temperature, consensus) is not folded — only its name, so re-pointing a named tier at a different reviewer leaves verdicts valid.
+- **LLM pair (with `companion.mjs`)** — all of the above, plus two additional ingredients folded only when present: `companionHash` (SHA-256 of `companion.mjs`, present whenever the aspect ships `companion.mjs`) and `touched` (the hook's observations — the companion files the runner read plus any `ctx.fs`/`ctx.graph` accesses — folded only when the set is non-empty). A plain LLM aspect passes neither, so its hash is byte-identical to before: there is no lock-format change, no schema-version bump, no migration.
 - **Deterministic pair** — the rule (`check.mjs`), the subject files, and everything the check observed beyond those files: each file it read, each directory it listed, each existence probe (including the ones that came back `false`), and each piece of graph topology it looked at.
 
 Change any folded input and the pair goes unverified. Edit a source file, edit the rule, point the aspect at a different named tier, move a file the check was watching — all of these. The next `yg check --approve` re-verifies them.
@@ -49,8 +50,8 @@ A refusal is a verdict, and it's cached like any other. For unchanged inputs it'
 There are exactly three ways out of a refusal:
 
 1. **Fix the code.** This changes a subject file, which invalidates the pair, which re-verifies it.
-2. **Sharpen the rule.** Editing `content.md` changes the rule hash and re-verifies **every** pair of that aspect — possibly many nodes. Run `yg impact --aspect <id>` first to see the count.
-3. **`yg-suppress`, with your sign-off.** A documented file-level waiver for known debt. See [/reviewers](/reviewers).
+2. **Sharpen the rule.** Editing `content.md` changes the rule hash and re-verifies **every** pair of that aspect — possibly many nodes. Run `yg impact --aspect <id>` first to see the count. For aspects with `companion.mjs`, editing that file also re-verifies every pair (via `companionHash`); editing a resolved companion file re-verifies only the pairs that read it (via `touched`). `yg impact --file <companion-file>` shows the exact blast radius.
+3. **`yg-suppress`, with your sign-off.** A documented file-level waiver for known debt. Markers in companion files are ignored — suppression is scoped to the subject source files only. See [/reviewers](/reviewers).
 
 A cosmetic edit to the rule or the source — a reworded comment, a whitespace change — would also re-roll the verdict. Don't. That is exactly the laundering the missing force command refuses to offer.
 

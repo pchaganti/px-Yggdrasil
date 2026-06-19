@@ -203,7 +203,11 @@ Each file is scored against all roots independently; the longest matching root (
 ## Prompt-size gate
 
 A tier's optional `max_prompt_chars` caps the length of the prompt the LLM
-reviewer assembles for each pair (the rule, reference files, and subject files).
+reviewer assembles for each pair. The prompt for each LLM pair is composed of:
+the rule text (`content.md`), any static reference files, the unit's subject files,
+and — when the aspect ships a `companion.mjs` — any companion files the hook
+resolved for that unit. All of these count toward the limit.
+
 `yg check` measures the assembled prompt for every expected LLM pair and reports
 `prompt-too-large` — a blocking error — when it exceeds the resolved tier's limit.
 The check is deterministic and costs nothing; deterministic pairs have no prompt

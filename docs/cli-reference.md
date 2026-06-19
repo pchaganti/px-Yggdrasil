@@ -57,7 +57,7 @@ yg impact --type <id>
 
 - `--node` — Reverse dependencies, descendants, structural dependents of descendants, flows, aspects, and co-aspect nodes
 - `--file` — Resolve owner, then proceed as `--node`. Also reflects deterministic checks whose recorded observations touched this file (cross-node impact).
-- `--aspect` — All nodes where this aspect is effective (own, hierarchy, flow, or implied), plus structural dependents of affected nodes — the pairs an edit to its rule, description, references, scope, or tier would re-verify
+- `--aspect` — All nodes where this aspect is effective (own, hierarchy, flow, or implied), plus structural dependents of affected nodes — the pairs an edit to its rule, description, references, scope, tier, or `companion.mjs` would re-verify. Editing `companion.mjs` re-verifies every pair of the aspect (billed, not free); editing a resolved companion file re-verifies only the pairs that read it (also billed). `--file <companion-file>` reflects this fan-out via the lock's `touched` observations.
 - `--flow` — All participants and their descendants, plus structural dependents of participants
 - `--type <id>` — All nodes of that architecture type and their source files. Useful
   before adding a default aspect to a type — see how many nodes would be affected.
@@ -91,7 +91,8 @@ verification is all-or-nothing), then reports. Deterministic pairs run first,
 locally, for free; a node with an enforced deterministic refusal has its LLM
 pairs skipped this run. LLM pairs then go to the reviewer per tier and consensus.
 Each real verdict — approved or refused — is recorded in the lock; infrastructure
-failures (provider unreachable, no reviewer configured, a `check.mjs` that throws)
+failures (provider unreachable, no reviewer configured, a `check.mjs` that throws,
+or a `companion.mjs` hook that fails to assemble a companion)
 write nothing and leave the pair unverified. A refusal is cached and final for
 unchanged inputs: re-running does not re-roll it.
 
@@ -114,6 +115,9 @@ status semantics):
 | `lock-invalid` | error | `yg-lock.json` is unparseable, garbled, conflict-markered, or an unknown version — fail closed. |
 | `relation-undeclared-dependency` | error (always) | Built-in relation-conformance check — a component depends on another component's code without a declared relation. Not an aspect: no status, not suppressible. Fix by declaring the relation in `yg-node.yaml` or removing the dependency. |
 | `aspect-check-runtime-error` | error (`--approve` only) | A `check.mjs` failed to import or threw at fill time — fail closed, no verdict written. |
+| `aspect-companion-runtime-error` | error (`--approve` only) | A `companion.mjs` hook failed to assemble a companion (threw, returned a bad shape, resolved a missing or out-of-bounds path, or failed to import) — fail closed, no verdict written. |
+| `aspect-companion-without-content` | error (structural) | An aspect ships `companion.mjs` without `content.md`. Companions are an add-on to LLM aspects; `companion.mjs` alone is invalid. |
+| `aspect-companion-with-check` | error (structural) | An aspect ships both `companion.mjs` and `check.mjs`. Companions apply to LLM aspects only. |
 | `log-entry-missing` | error (`--approve` only) | A `log_required` node changed source without a fresh log entry. |
 | `aspect-status-invalid` | error | Declared `status:` is not one of `draft`, `advisory`, `enforced`. |
 | `aspect-status-downgrade` | error | An attach site declares a status lower than the cascade would yield (bump up OK, downgrade is an error). |
@@ -298,8 +302,11 @@ yg aspect-test --aspect <id> --node <node-path> --dry-run
   for ad-hoc testing before wiring the aspect into the graph.
 - `--check-determinism` — (deterministic) Runs the check twice and exits 1 if the violation
   sets differ (lexically sorted), catching side effects and machine-dependence in `check.mjs`.
-- `--dry-run` — (LLM) Prints the assembled reviewer prompt(s) for the aspect's scope and makes
-  no LLM calls. The sanctioned way to inspect a prompt before switching an aspect to `per: file`.
+- `--dry-run` — (LLM) Runs the companion hook live (if present), then prints the resolved companion
+  paths and the assembled reviewer prompt(s) for the aspect's scope. Makes no LLM calls and does
+  not touch the lock. The sanctioned way to inspect a prompt — including which companion files
+  resolved — before switching an aspect to `per: file`. Not available for companion aspects with
+  `--files` (an explicit file list provides no node context for the hook's allowed-reads boundary).
 
 For a deterministic aspect it runs `check.mjs` and prints violations. For an LLM
 aspect it runs the reviewer (or just prints the prompt under `--dry-run`). Exits 0

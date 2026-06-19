@@ -106,6 +106,8 @@ Before writing a single YAML file, we spent the equivalent of several days restr
 
 **Recommendation:** Use `implies:` when one aspect logically entails another with no exceptions. Keep chains short — depth > 3 is a code smell indicating the aspect boundaries need rethinking.
 
+> **Terminology note:** Implied aspects are sometimes called "companions" informally in the context of an implies bundle. This is unrelated to **companion files** (`companion.mjs`) — an optional hook on an LLM aspect that resolves per-unit files for the reviewer prompt. When you see the word "companion" in this codebase, check the context: in `implies:` + `status_inherit:` prose it refers to an implied sibling aspect; in the reviewer and aspects docs it refers to the `companion.mjs` hook.
+
 ---
 
 ### `status:` — three-level aspect lifecycle
@@ -133,7 +135,7 @@ status: enforced             # vetted; refusals block CI
 
 implies:
   - id: correlation-tracking
-    status_inherit: own-default   # keep companion at its own default
+    status_inherit: own-default   # keep implied sibling at its own default
 ```
 
 **Earn-rate: high.** Status removes the all-or-nothing rollout problem: a

@@ -26,7 +26,8 @@ same way; the level only changes severity. Severity follows status uniformly:
   rule is unclear. Zero cost, zero expected pairs. Use this while iterating
   on the rule text before any node has a real verdict. `draft` is also the
   only way to park an aspect without a provider key — it removes the pairs
-  rather than leaving them red.
+  rather than leaving them red. For LLM aspects with a `companion.mjs` hook:
+  when the aspect is `draft`, the hook never runs.
 - **`advisory`** — rule is complete; gather signal across the repo
   without blocking CI. Pairs are verified and cached normally; refusals and
   unverified pairs surface as warnings. Use this to measure how often a rule
@@ -128,6 +129,8 @@ ports). Channel 7 (implies) does not declare a `status:` — it carries
 
 ## Implies propagation
 
+> **Terminology note:** In the `implies:` mechanism, aspects implied by another aspect are sometimes informally called "companions" in prose (as in "an implies bundle promotes its implied companions"). This is a different concept from **companion files** — the optional `companion.mjs` hook on an LLM aspect that resolves per-unit files for the reviewer. This page uses "implied sibling" or "implied aspect" to avoid ambiguity.
+
 For aspect `A` that implies aspect `B`, propagation to a node depends on
 A's effective status on that node and the `status_inherit:` modifier on
 the implies edge.
@@ -150,7 +153,7 @@ implies:
 Two modes:
 
 - **`strictest`** (default) — B contributes `max(A_effective, B_default)`
-  to the cascade. An implies bundle promotes its companions. If A runs as
+  to the cascade. An implies bundle promotes its implied siblings. If A runs as
   `enforced` and B defaults to `advisory`, B becomes `enforced` on that
   node.
 - **`own-default`** — B contributes `B_default` regardless of A. Use this
