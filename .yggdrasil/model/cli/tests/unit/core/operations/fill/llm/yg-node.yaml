@@ -14,7 +14,10 @@ relations:
     { target: cli/io/lock-store, type: uses },
     { target: cli/llm/shared, type: uses },
     { target: cli/llm/registry, type: uses },
-    { target: cli/structure, type: uses }
+    { target: cli/structure, type: uses },
+    { target: cli/core/pair-hash, type: uses },
+    { target: cli/core/pair-inputs, type: uses },
+    { target: cli/io/stores, type: uses }
   ]
 mapping:
   - source/cli/tests/unit/core/fill-llm.test.ts

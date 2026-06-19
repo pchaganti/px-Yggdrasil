@@ -14,6 +14,7 @@ mapping:
   - source/cli/src/structure/ctx-parsers.ts
   - source/cli/src/structure/runner.ts
   - source/cli/src/structure/observations.ts
+  - source/cli/src/structure/hook-loader.ts
 relations:
   - target: cli/ast/report
     type: calls

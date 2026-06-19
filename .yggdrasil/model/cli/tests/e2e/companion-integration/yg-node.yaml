@@ -1,0 +1,14 @@
+name: E2E Tests — LLM Companion Hook (Integration)
+type: test-suite
+description: "Subprocess E2E integration tests for the companion-hook feature —
+  exercises end-to-end scenarios combining companion resolution with reviewer
+  mechanics: companions change the prompt hash so a source-unchanged but
+  companion-changed pair becomes unverified, aspect-test --dry-run includes
+  companion content in the prompt preview, and the full approve path correctly
+  records verdicts when companions are present."
+aspects: []
+relations:
+  - target: cli/tests/e2e/support
+    type: uses
+mapping:
+  - source/cli/tests/e2e/cli-llm-companion-integration.test.ts

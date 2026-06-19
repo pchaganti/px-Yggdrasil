@@ -1,0 +1,13 @@
+name: E2E Tests — LLM Companion Hook (Core)
+type: test-suite
+description: "Subprocess E2E tests for the companion-hook feature — verifies that
+  companion descriptors returned by a check.mjs hook are resolved, read, and
+  included in the LLM reviewer prompt, that the resolved files appear in the
+  prompt payload captured by the mock reviewer, and that the companion mechanism
+  integrates correctly with the fill-llm and aspect-test paths."
+aspects: []
+relations:
+  - target: cli/tests/e2e/support
+    type: uses
+mapping:
+  - source/cli/tests/e2e/cli-llm-companion.test.ts

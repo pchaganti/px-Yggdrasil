@@ -3,6 +3,10 @@ type: test-suite
 description: Unit tests for aspect artifact-file validation (content.md /
   check.mjs presence) and aspect reference resolution in the validator
 aspects: []
-relations: [ { target: cli/core/validator, type: uses } ]
+relations:
+  - target: cli/core/validator
+    type: uses
+  - target: cli/model/graph
+    type: uses
 mapping:
   - source/cli/tests/unit/core/validator-aspect-files.test.ts

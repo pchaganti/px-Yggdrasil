@@ -42,5 +42,7 @@ relations:
     type: calls
   - target: cli/utils
     type: calls
+  - target: cli/core/companion-resolve
+    type: calls
 mapping:
   - source/cli/src/cli/aspect-test.ts

@@ -1,0 +1,22 @@
+name: Companion Resolve
+type: engine
+description: "Shared post-hook companion resolution — given raw descriptors and
+  observations from a runCompanionHook call, normalizes, deduplicates, sorts,
+  validates allowed-reads, reads each file, and returns the resolved companion
+  set plus updated observations. Used by both the fill-llm path (yg check
+  --approve) and the aspect-test path (dry-run and live). Does NOT call the
+  reviewer, mutate the lock, or contain the A6 taint guard."
+aspects: []
+relations:
+  - target: cli/utils
+    type: calls
+  - target: cli/structure
+    type: calls
+  - target: cli/io/stores
+    type: calls
+  - target: cli/relations/core
+    type: calls
+  - target: cli/core/pair-hash
+    type: calls
+mapping:
+  - source/cli/src/core/companion-resolve.ts

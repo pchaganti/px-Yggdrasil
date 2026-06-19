@@ -1,0 +1,18 @@
+name: Core Companion Resolve Tests
+type: test-suite
+description: "Unit tests for the shared companion-resolve helper — verifies
+  descriptor normalization, deduplication, allowed-reads validation, file
+  reading, and observation recording, including the infra-failure path when a
+  companion path falls outside the node's allowed-reads boundary."
+aspects: []
+relations:
+  - target: cli/core/companion-resolve
+    type: uses
+  - target: cli/io/stores
+    type: uses
+  - target: cli/structure
+    type: uses
+  - target: cli/model/graph
+    type: uses
+mapping:
+  - source/cli/tests/unit/core/companion-resolve.test.ts

@@ -1,0 +1,14 @@
+name: Structure Companion Runner Tests
+type: test-suite
+description: "Unit tests for the companion-hook loader and runner — verifies that
+  runCompanionHook correctly loads a check.mjs, invokes the companion function,
+  collects returned descriptors, and handles error cases (missing export,
+  runtime throw, invalid descriptor shape)."
+aspects: []
+relations:
+  - target: cli/structure
+    type: uses
+  - target: cli/tests/unit/helpers
+    type: uses
+mapping:
+  - source/cli/tests/unit/structure/companion-runner.test.ts

@@ -1,0 +1,13 @@
+name: E2E Tests — LLM Companion Hook (Fail-Closed)
+type: test-suite
+description: "Subprocess E2E tests for companion-hook fail-closed behaviour —
+  verifies that when a companion hook returns descriptors pointing to paths
+  outside the node's allowed-reads, or to unmapped files, the pair is treated
+  as an infra failure (verdict not recorded) rather than silently dropped,
+  and that appropriate diagnostic messages are surfaced."
+aspects: []
+relations:
+  - target: cli/tests/e2e/support
+    type: uses
+mapping:
+  - source/cli/tests/e2e/cli-llm-companion-failclosed.test.ts
