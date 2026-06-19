@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -7,10 +7,9 @@ import { loadGraph } from '../../src/core/graph-loader.js';
 import { validate } from '../../src/core/validator.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const SCHEMAS_SRC = join(__dirname, '..', 'fixtures', 'sample-project', '.yggdrasil', 'schemas');
 
 const YG_CONFIG = `
-version: "5.0.0"
+version: "5.1.0"
 reviewer:
   default: standard
   tiers:
@@ -33,12 +32,7 @@ interface RepoLayout {
 function buildRepo(layout: RepoLayout): string {
   const repo = mkdtempSync(join(tmpdir(), 'yg-status-downgrade-'));
   const ygg = join(repo, '.yggdrasil');
-  mkdirSync(join(ygg, 'schemas'), { recursive: true });
   mkdirSync(join(ygg, 'aspects', 'a'), { recursive: true });
-
-  for (const schema of ['yg-node.yaml', 'yg-aspect.yaml', 'yg-flow.yaml']) {
-    copyFileSync(join(SCHEMAS_SRC, schema), join(ygg, 'schemas', schema));
-  }
 
   writeFileSync(join(ygg, 'yg-config.yaml'), YG_CONFIG, 'utf-8');
   writeFileSync(join(ygg, 'yg-architecture.yaml'), layout.arch, 'utf-8');

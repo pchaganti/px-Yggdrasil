@@ -39,7 +39,6 @@ function mkGraph(nodes: GraphNode[], overrides: Partial<Graph> = {}): Graph {
     nodes: new Map(nodes.map((n) => [n.path, n])),
     aspects: [],
     flows: [],
-    schemas: [],
     rootPath: '/tmp',
     ...overrides,
   } as unknown as Graph;

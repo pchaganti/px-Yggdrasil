@@ -1,7 +1,7 @@
 name: GraphTypes
 type: types
 description: Core graph model types — Graph, GraphNode, Config, Architecture,
-  Aspects, Flows, Schemas
+  Aspects, Flows
 aspects: []
 relations:
   [

@@ -91,7 +91,6 @@ function buildPairsGraph(
     nodes: nodeByPath,
     aspects: aspectDefs,
     flows: [],
-    schemas: [],
     rootPath,
   } as unknown as Graph;
 }

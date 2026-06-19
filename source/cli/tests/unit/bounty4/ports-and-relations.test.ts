@@ -69,7 +69,6 @@ function makeGraph(overrides: Partial<Graph> = {}): Graph {
     nodes: new Map(),
     aspects: [],
     flows: [],
-    schemas: [],
     rootPath: '/tmp/.yggdrasil',
     ...overrides,
   } as Graph;

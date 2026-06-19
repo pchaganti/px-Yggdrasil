@@ -26,7 +26,7 @@ call, no reviewer uncertainty.
 > Writing a file atom (`path`/`content`) in a `when:` is an error — the
 > validator points you at `scope.files` instead, and vice versa. The grammar
 > below is the node-applicability (`when:`) form. For the file forms, see
-> `schemas/yg-architecture.yaml`, `yg knowledge read working-with-architecture`,
+> `yg schemas read architecture`, `yg knowledge read working-with-architecture`,
 > and the [scope section on the Aspects page](/aspects).
 
 ## When to reach for `when`
@@ -58,7 +58,7 @@ when:
     has_mapping: true | false
 ```
 
-Full grammar reference: `schemas/yg-aspect.yaml`.
+Full grammar reference: `yg schemas read aspect`.
 
 ## Where to declare `when`
 

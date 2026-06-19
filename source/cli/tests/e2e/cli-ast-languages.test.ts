@@ -84,14 +84,10 @@ function makeProject(): string {
   const ygg = path.join(dir, '.yggdrasil');
   mkdirSync(path.join(ygg, 'aspects', 'ast-lang'), { recursive: true });
   mkdirSync(path.join(ygg, 'model', 'code'), { recursive: true });
-  mkdirSync(path.join(ygg, 'schemas'), { recursive: true });
   mkdirSync(path.join(dir, 'src'), { recursive: true });
-  for (const s of ['yg-node', 'yg-aspect', 'yg-flow', 'yg-architecture', 'yg-config']) {
-    writeFileSync(path.join(ygg, 'schemas', `${s}.yaml`), 'x: 1\n');
-  }
   writeFileSync(
     path.join(ygg, 'yg-config.yaml'),
-    'version: "5.0.0"\nreviewer:\n  tiers:\n    standard:\n      provider: ollama\n      model: llama\n      endpoint: http://localhost:11434\n',
+    'version: "5.1.0"\nreviewer:\n  tiers:\n    standard:\n      provider: ollama\n      model: llama\n      endpoint: http://localhost:11434\n',
   );
   writeFileSync(
     path.join(ygg, 'yg-architecture.yaml'),

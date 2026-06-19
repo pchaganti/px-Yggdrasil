@@ -5,7 +5,6 @@ import {
   mkdtempSync,
   mkdirSync,
   rmSync,
-  cpSync,
   writeFileSync,
   appendFileSync,
 } from 'node:fs';
@@ -32,23 +31,15 @@ import { fileURLToPath } from 'node:url';
 //      aspect to its OWN default regardless of the implier's status).
 //
 // HERMETIC: each test builds its graph in a fresh mkdtemp and rmSync's in a
-// finally. Schemas are copied read-only from the e2e-lifecycle fixture; the
-// reviewer points at a guaranteed-dead loopback (port 1 never listens). No
-// network, no clock/random in assertions, no committed fixture mutated. Harness
-// duplicated from cli-deterministic-lifecycle.test.ts (self-contained).
+// finally. The reviewer points at a guaranteed-dead loopback (port 1 never
+// listens). No network, no clock/random in assertions, no committed fixture
+// mutated. Harness duplicated from cli-deterministic-lifecycle.test.ts
+// (self-contained).
 // ---------------------------------------------------------------------------
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');
 const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
-const SCHEMAS_DIR = path.join(
-  CLI_ROOT,
-  'tests',
-  'fixtures',
-  'e2e-lifecycle',
-  '.yggdrasil',
-  'schemas',
-);
 
 const distExists = existsSync(BIN_PATH);
 
@@ -75,7 +66,7 @@ function run(
 }
 
 const CONFIG = [
-  'version: "5.0.0"',
+  'version: "5.1.0"',
   'quality:',
   '  max_direct_relations: 20',
   'reviewer:',
@@ -156,7 +147,6 @@ function buildGraph(
   const dir = mkdtempSync(path.join(tmpdir(), `yg-mlvl-${label}-`));
   const ygRoot = path.join(dir, '.yggdrasil');
   mkdirSync(ygRoot, { recursive: true });
-  cpSync(SCHEMAS_DIR, path.join(ygRoot, 'schemas'), { recursive: true });
   writeFileSync(path.join(ygRoot, 'yg-config.yaml'), CONFIG, 'utf-8');
   writeFileSync(path.join(ygRoot, 'yg-architecture.yaml'), archYaml, 'utf-8');
 

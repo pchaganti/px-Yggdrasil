@@ -225,32 +225,6 @@ export function checkUnpairedEvents(graph: Graph): ValidationIssue[] {
   return issues;
 }
 
-// --- Schema validation (required graph-layer schemas present in schemas/) ---
-
-const REQUIRED_SCHEMAS = ['node', 'aspect', 'flow'] as const;
-
-export function checkSchemas(graph: Graph): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
-  const present = new Set(graph.schemas.map((s) => s.schemaType));
-
-  for (const required of REQUIRED_SCHEMAS) {
-    if (!present.has(required)) {
-      issues.push({
-        severity: 'error',
-        code: 'schema-missing',
-        rule: 'missing-schema',
-        ...issueMsg({
-          what: `Schema 'yg-${required}.yaml' missing from .yggdrasil/schemas/.`,
-          why: `Schemas validate graph elements — missing schemas allow invalid ${required} definitions.`,
-          next: `Run yg init to restore missing schemas.`,
-        }),
-      });
-    }
-  }
-
-  return issues;
-}
-
 // --- missing-description: Missing description on nodes, aspects, and flows ---
 
 export function checkMissingDescriptions(graph: Graph): ValidationIssue[] {

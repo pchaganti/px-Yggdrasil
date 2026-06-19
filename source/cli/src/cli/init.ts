@@ -1,9 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { existsSync } from 'node:fs';
-import { mkdir, writeFile, readdir, readFile, stat } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import * as p from '@clack/prompts';
 import { parse as yamlParse, stringify as yamlStringify } from 'yaml';
 import { DEFAULT_CONFIG, DEFAULT_ARCHITECTURE } from '../templates/default-config.js';
@@ -23,38 +21,6 @@ import { toPosixPath } from '../utils/posix.js';
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function getPackageRoot(): string {
-  let dir = path.dirname(fileURLToPath(import.meta.url));
-  while (dir !== path.dirname(dir)) {
-    if (existsSync(path.join(dir, 'package.json'))) {
-      return dir;
-    }
-    dir = path.dirname(dir);
-  }
-  throw new Error('Could not locate package root (no package.json found walking up from init module).');
-}
-
-function getGraphSchemasDir(): string {
-  return path.join(getPackageRoot(), 'graph-schemas');
-}
-
-async function refreshSchemas(yggRoot: string): Promise<void> {
-  const schemasDir = path.join(yggRoot, 'schemas');
-  await mkdir(schemasDir, { recursive: true });
-  const graphSchemasDir = getGraphSchemasDir();
-  try {
-    const entries = await readdir(graphSchemasDir, { withFileTypes: true });
-    const schemaFiles = entries.filter((e) => e.isFile()).map((e) => e.name);
-    for (const file of schemaFiles) {
-      const srcPath = path.join(graphSchemasDir, file);
-      const content = await readFile(srcPath, 'utf-8');
-      await writeFile(path.join(schemasDir, file), content, 'utf-8');
-    }
-  } catch (e: unknown) {
-    debugWrite(`[init] refreshSchemas schema copy failed: ${e instanceof Error ? e.message : String(e)}`);
-  }
-}
 
 function isTTY(): boolean {
   return process.stdout.isTTY === true && process.stdin.isTTY === true;
@@ -514,24 +480,6 @@ async function createYggdrasilStructure(
   await mkdir(path.join(yggRoot, 'model'), { recursive: true });
   await mkdir(path.join(yggRoot, 'aspects'), { recursive: true });
   await mkdir(path.join(yggRoot, 'flows'), { recursive: true });
-  const schemasDir = path.join(yggRoot, 'schemas');
-  await mkdir(schemasDir, { recursive: true });
-
-  const graphSchemasDir = getGraphSchemasDir();
-  try {
-    const entries = await readdir(graphSchemasDir, { withFileTypes: true });
-    const schemaFiles = entries.filter((e) => e.isFile()).map((e) => e.name);
-    for (const file of schemaFiles) {
-      const srcPath = path.join(graphSchemasDir, file);
-      const content = await readFile(srcPath, 'utf-8');
-      await writeFile(path.join(schemasDir, file), content, 'utf-8');
-    }
-  } catch (err) {
-    debugWrite(`[init] createYggdrasilStructure schema copy failed: ${err instanceof Error ? err.message : String(err)}`);
-    process.stdout.write(
-      chalk.yellow(`Warning: Could not copy graph schemas: ${(err as Error).message}\n`),
-    );
-  }
 
   await writeFile(path.join(yggRoot, 'yg-config.yaml'), DEFAULT_CONFIG, 'utf-8');
   await writeFile(path.join(yggRoot, 'yg-architecture.yaml'), DEFAULT_ARCHITECTURE, 'utf-8');
@@ -561,8 +509,6 @@ export async function runVersionUpgrade(
   const { migrationActions, migrationWarnings, withheld } = await coreRunVersionUpgrade({
     yggRoot, migrations: MIGRATIONS, targetVersion: CLI_SUPPORTED_SCHEMA,
   });
-
-  await refreshSchemas(yggRoot);
 
   const architecturePath = path.join(yggRoot, 'yg-architecture.yaml');
   try {
@@ -613,7 +559,7 @@ async function existingInit(projectRoot: string): Promise<void> {
 
   if (currentVersion && currentVersion !== CLI_SUPPORTED_SCHEMA) {
     p.log.step(`Graph schema ${currentVersion} detected — this CLI uses schema ${CLI_SUPPORTED_SCHEMA}. Upgrade required.`);
-    p.log.info('Select the agent platform so rules and schemas advance together.');
+    p.log.info('Select the agent platform so the rules are regenerated for the upgrade.');
     const platform = await promptPlatform();
 
     const s = p.spinner();
@@ -643,7 +589,7 @@ async function existingInit(projectRoot: string): Promise<void> {
   const action = await p.select<string>({
     message: 'What would you like to do?',
     options: [
-      { value: 'upgrade', label: 'Upgrade rules and schemas' },
+      { value: 'upgrade', label: 'Upgrade rules' },
       { value: 'reviewer', label: 'Configure reviewer' },
       { value: 'platform', label: 'Change platform' },
     ],
@@ -654,7 +600,7 @@ async function existingInit(projectRoot: string): Promise<void> {
     case 'upgrade': {
       const platform = await promptPlatform();
       const result = await runVersionUpgrade(projectRoot, yggRoot, platform);
-      p.outro(chalk.green(`Rules and schemas refreshed: ${toPosixPath(path.relative(projectRoot, result.rulesPath))}`));
+      p.outro(chalk.green(`Rules refreshed: ${toPosixPath(path.relative(projectRoot, result.rulesPath))}`));
       break;
     }
     case 'reviewer': {
@@ -683,7 +629,7 @@ export function registerInitCommand(program: Command): void {
   program
     .command('init')
     .description('Initialize Yggdrasil graph in current project')
-    .option('--upgrade', 'Non-interactive: refresh rules and schemas')
+    .option('--upgrade', 'Non-interactive: refresh rules')
     .option('--platform <name>', `Platform for rules file (${PLATFORMS.join(', ')})`)
     .action(async (options: { upgrade?: boolean; platform?: string }) => {
       try {
@@ -779,7 +725,7 @@ export function registerInitCommand(program: Command): void {
           }
 
           process.stdout.write(
-            `Rules and schemas refreshed: ${toPosixPath(path.relative(projectRoot, result.rulesPath))}\n`,
+            `Rules refreshed: ${toPosixPath(path.relative(projectRoot, result.rulesPath))}\n`,
           );
           return;
         }

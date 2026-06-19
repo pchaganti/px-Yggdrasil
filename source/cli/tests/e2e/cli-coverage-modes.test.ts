@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, mkdirSync, rmSync, cpSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,7 +21,6 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');
 const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
-const SCHEMAS_DIR = path.join(CLI_ROOT, 'tests', 'fixtures', 'sample-project', '.yggdrasil', 'schemas');
 const LOOPBACK = 'http://127.0.0.1:11434';
 const distExists = existsSync(BIN_PATH);
 
@@ -48,7 +47,6 @@ function scaffold(label: string, opts: { mapping: string; extraSvcFile?: boolean
   const dir = mkdtempSync(path.join(tmpdir(), `yg-cov-e2e-${label}-`));
   const ygRoot = path.join(dir, '.yggdrasil');
   mkdirSync(path.join(ygRoot, 'model', 'svc'), { recursive: true });
-  cpSync(SCHEMAS_DIR, path.join(ygRoot, 'schemas'), { recursive: true });
   writeFileSync(
     path.join(ygRoot, 'yg-architecture.yaml'),
     ['node_types:', '  service:', "    description: 'A service'", '    log_required: false', '    when:', '      path: "**"', ''].join('\n'),
@@ -57,7 +55,7 @@ function scaffold(label: string, opts: { mapping: string; extraSvcFile?: boolean
   writeFileSync(
     path.join(ygRoot, 'yg-config.yaml'),
     [
-      'version: "5.0.0"',
+      'version: "5.1.0"',
       'coverage:',
       '  required:',
       '    - src/svc/',
@@ -90,7 +88,7 @@ function scaffold(label: string, opts: { mapping: string; extraSvcFile?: boolean
   writeFileSync(path.join(dir, 'lib', 'u.ts'), '', 'utf-8');
   writeFileSync(path.join(dir, 'vendor', 'v.ts'), '', 'utf-8');
   writeFileSync(path.join(dir, 'apps', 'web', 'main.ts'), '', 'utf-8');
-  writeFileSync(path.join(dir, 'apps', '.yggdrasil', 'yg-config.yaml'), 'version: "5.0.0"\n', 'utf-8');
+  writeFileSync(path.join(dir, 'apps', '.yggdrasil', 'yg-config.yaml'), 'version: "5.1.0"\n', 'utf-8');
   git(['init', '-q'], dir);
   git(['config', 'user.email', 't@t.t'], dir);
   git(['config', 'user.name', 't'], dir);

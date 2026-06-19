@@ -155,7 +155,7 @@ describe.skipIf(!distExists)('CLI E2E — yg impact re-sourced from the lock', (
     writeFileSync(
       configPath(dir),
       [
-        'version: "5.0.0"',
+        'version: "5.1.0"',
         '',
         'quality:',
         '  max_direct_relations: 10',

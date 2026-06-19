@@ -93,6 +93,7 @@ describe('KNOWLEDGE_TOPICS', () => {
       '## yg impact',
       '## yg type-suggest',
       '## yg knowledge',
+      '## yg schemas',
     ],
     'log-management': [
       '## Format constraints',

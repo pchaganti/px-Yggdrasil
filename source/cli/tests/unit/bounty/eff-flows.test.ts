@@ -73,7 +73,6 @@ function makeGraph(opts: {
     nodes: opts.nodes,
     aspects: opts.aspects,
     flows: opts.flows,
-    schemas: [],
     rootPath: '/tmp',
   } as unknown as Graph;
 }

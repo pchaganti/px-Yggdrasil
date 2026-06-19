@@ -139,7 +139,6 @@ function buildGraph(yggRoot: string, nodes: NodeSpec[]): Graph {
     nodes: nodeByPath,
     aspects: [],
     flows: [],
-    schemas: [],
     rootPath: yggRoot,
   } as unknown as Graph;
 }

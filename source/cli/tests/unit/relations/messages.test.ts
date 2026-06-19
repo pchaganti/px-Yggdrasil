@@ -52,7 +52,6 @@ function makeGraph(nodes: Array<[string, string]>): Graph {
     nodes: new Map(nodes.map(([p, t]) => [p, node(p, t)])),
     aspects: [],
     flows: [],
-    schemas: [],
     rootPath: path.join(FIXTURE_PROJECT, '.yggdrasil'),
   };
 }

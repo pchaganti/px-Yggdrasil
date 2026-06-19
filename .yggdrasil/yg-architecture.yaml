@@ -52,7 +52,7 @@ node_types:
     log_required: true
     parents: [module]
     relations:
-      calls: [engine, parser-adapter, persistence-adapter, llm-shared, llm-subprocess-base, formatter, utility, ast-adapter, structure-adapter, template, command, command-support, knowledge-doc, migration]
+      calls: [engine, parser-adapter, persistence-adapter, llm-shared, llm-subprocess-base, formatter, utility, ast-adapter, structure-adapter, template, command, command-support, knowledge-doc, schema-doc, migration]
       uses: [types, test-suite]
 
   command-support:
@@ -327,10 +327,12 @@ node_types:
     parents: [module]
 
   schema-doc:
-    description: "Schema reference document — YAML file describing the shape and fields of a graph element."
+    description: "Schema reference document — TypeScript module exporting a YAML schema string for yg schemas read."
     enforce: strict
     when:
-      path: ".yggdrasil/schemas/*.yaml"
+      path: "source/cli/src/templates/schemas/*.ts"
+    aspects:
+      - no-direct-minimatch
     parents: [module]
 
   test-suite:
@@ -421,7 +423,6 @@ node_types:
         - path: "source/cli/tsup.config.ts"
         - path: "source/cli/vitest.config.ts"
         - path: "source/cli/vitest.external.config.ts"
-        - path: "source/cli/graph-schemas/**"
         - path: "source/cli/scripts/**"
         - path: "source/cli/src/**/.gitkeep"
         - path: "source/cli/tests/**/.gitkeep"

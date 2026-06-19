@@ -34,7 +34,6 @@ describe('yg impact --aspect cascade scope (regression)', () => {
         { id: 'ast-aspect', name: 'AST Aspect', reviewer: { type: 'deterministic' as const }, artifacts: [{ filename: 'check.mjs', content: 'export function check(ctx){return[];}' }] },
       ],
       flows: [],
-      schemas: [],
       rootPath: '/fake/.yggdrasil',
     };
 
@@ -82,7 +81,6 @@ describe('yg impact --aspect cascade scope (regression)', () => {
         { id: 'ast-parent', name: 'AST Parent', reviewer: { type: 'deterministic' as const }, artifacts: [{ filename: 'check.mjs', content: 'export function check(ctx){return[];}' }] },
       ],
       flows: [],
-      schemas: [],
       rootPath: '/fake/.yggdrasil',
     };
 

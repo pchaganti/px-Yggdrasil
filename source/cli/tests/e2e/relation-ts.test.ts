@@ -6,7 +6,6 @@ import {
   mkdirSync,
   rmSync,
   writeFileSync,
-  cpSync,
   readFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -24,10 +23,6 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');
 const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
-// Reuse the committed schema files from an existing fixture so the temp repo is
-// structurally valid (a project without schemas raises blocking schema-missing
-// errors, which would mask the relation verdict we are asserting on).
-const SCHEMAS_SRC = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle', '.yggdrasil', 'schemas');
 const distExists = existsSync(BIN_PATH);
 
 function run(args: string[], cwd: string): { stdout: string; status: number | null; all: string } {
@@ -57,10 +52,6 @@ function buildRepo(
 ): string {
   const root = mkdtempSync(path.join(tmpdir(), `yg-rel-ts-${label}-`));
 
-  // Schemas: a graph without them raises blocking schema-missing errors that
-  // would keep exit code at 1 even in the passing (declared-relation) scenario.
-  cpSync(SCHEMAS_SRC, path.join(root, '.yggdrasil', 'schemas'), { recursive: true });
-
   writeFile(
     root,
     '.yggdrasil/yg-architecture.yaml',
@@ -82,7 +73,7 @@ function buildRepo(
     root,
     '.yggdrasil/yg-config.yaml',
     [
-      'version: "5.0.0"',
+      'version: "5.1.0"',
       '',
       'quality:',
       '  max_direct_relations: 10',

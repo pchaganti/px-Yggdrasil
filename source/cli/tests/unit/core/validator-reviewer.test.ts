@@ -41,7 +41,6 @@ function createGraph(overrides: Partial<Graph> = {}): Graph {
     nodes: new Map(),
     aspects: [],
     flows: [],
-    schemas: [],
     rootPath: path.join(FIXTURE_PROJECT, '.yggdrasil'),
     ...overrides,
   };

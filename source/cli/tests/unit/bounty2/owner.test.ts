@@ -76,7 +76,6 @@ function makeGraph(nodes: Array<[string, GraphNode]>): Graph {
     nodes: new Map(nodes),
     aspects: [],
     flows: [],
-    schemas: [],
     rootPath: `${ROOT}/.yggdrasil`,
   } as unknown as Graph;
 }

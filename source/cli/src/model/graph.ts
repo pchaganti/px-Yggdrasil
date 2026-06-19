@@ -266,15 +266,6 @@ export interface FlowDef {
 }
 
 // ============================================================
-// Schema (graph layer reference, lives in schemas/)
-// ============================================================
-
-export interface SchemaDef {
-  /** Inferred from filename: 'node' | 'aspect' | 'flow' */
-  schemaType: string;
-}
-
-// ============================================================
 // Graph (top-level)
 // ============================================================
 
@@ -316,7 +307,6 @@ export interface Graph {
   nodes: Map<string, GraphNode>;
   aspects: AspectDef[];
   flows: FlowDef[];
-  schemas: SchemaDef[];
   /** Absolute path to the .yggdrasil/ directory */
   rootPath: string;
 }

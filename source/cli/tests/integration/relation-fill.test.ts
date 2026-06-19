@@ -53,10 +53,6 @@ describe('relation pass wired into runFill (integration)', () => {
 
     // Architecture: a single mapping-capable type 'service'.
     mkdirSync(path.join(root, '.yggdrasil', 'model'), { recursive: true });
-    mkdirSync(path.join(root, '.yggdrasil', 'schemas'), { recursive: true });
-    writeFileSync(path.join(root, '.yggdrasil', 'schemas', 'yg-node.yaml'), 'type: node\n');
-    writeFileSync(path.join(root, '.yggdrasil', 'schemas', 'yg-aspect.yaml'), 'type: aspect\n');
-    writeFileSync(path.join(root, '.yggdrasil', 'schemas', 'yg-flow.yaml'), 'type: flow\n');
     // `service uses service` is allowed so the declared a --uses--> b relation
     // (added below) is a sanctioned target for the resolved cross-node import.
     writeFileSync(

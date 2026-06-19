@@ -1,6 +1,6 @@
 name: Migrations (current)
 type: migration
-description: "The migration registry — an empty MIGRATIONS list at the schema version the verdict-lock redesign targets. The migrator harness reads this list; there are no current-generation transforms to register."
+description: "The migration registry plus the registered version migrations. MIGRATIONS lists each to-X.Y.Z migration the migrator harness runs; the 5.1.0 migration removes the obsolete schemas/ directory (schema references moved into the yg schemas command)."
 aspects:
   - posix-paths-output
 relations:
@@ -8,3 +8,4 @@ relations:
     type: calls
 mapping:
   - source/cli/src/migrations/index.ts
+  - source/cli/src/migrations/to-5.1.0.ts

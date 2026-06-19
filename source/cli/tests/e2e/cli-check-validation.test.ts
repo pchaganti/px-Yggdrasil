@@ -35,7 +35,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');
 const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
 const SAMPLE_FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'sample-project');
-const SCHEMAS_DIR = path.join(SAMPLE_FIXTURE, '.yggdrasil', 'schemas');
 
 const distExists = existsSync(BIN_PATH);
 
@@ -71,8 +70,6 @@ const LOOPBACK_ENDPOINT = 'http://127.0.0.1:11434';
 
 /**
  * Scaffold a minimal but structurally-complete graph in a fresh temp dir:
- *   - the three required schemas (node/aspect/flow), copied from the committed
- *     fixture so `schema-missing` never adds noise,
  *   - a single `service` node type whose `when` matches everything (so a node
  *     MAY carry a mapping without tripping `type-without-when-with-mapping`),
  *   - a config with one reviewer tier (so `config-reviewer-missing` never adds
@@ -88,7 +85,6 @@ function minimalGraph(label: string, build: (ygRoot: string) => void): string {
   mkdirSync(path.join(ygRoot, 'model'), { recursive: true });
   mkdirSync(path.join(ygRoot, 'aspects'), { recursive: true });
   mkdirSync(path.join(ygRoot, 'flows'), { recursive: true });
-  cpSync(SCHEMAS_DIR, path.join(ygRoot, 'schemas'), { recursive: true });
 
   writeFileSync(
     path.join(ygRoot, 'yg-architecture.yaml'),

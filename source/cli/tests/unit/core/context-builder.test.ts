@@ -87,7 +87,6 @@ describe('context-builder', () => {
         nodes: new Map(),
         aspects: [],
         flows: [],
-        schemas: [],
       };
       const layer = buildHierarchyLayer(ancestor, config, graph);
       expect(layer.attrs).toBeUndefined();
@@ -124,7 +123,6 @@ describe('context-builder', () => {
         nodes: new Map(),
         aspects: [],
         flows: [],
-        schemas: [],
       };
       const layer = await buildOwnLayer(node, config, '/tmp/nonexistent', graph);
       expect(layer.content).toContain('(not found)');
@@ -351,7 +349,6 @@ describe('buildNodeContextData', () => {
       nodes: new Map([['svc', node]]),
       aspects: [parentAspect, childAspect],
       flows: [],
-      schemas: [],
       rootPath: '/tmp',
     };
 
@@ -410,7 +407,6 @@ describe('buildFileContextData', () => {
       nodes: new Map([['svc', node]]),
       aspects: [{ name: 'NameOnlyAspect', id: 'name-only-aspect', reviewer: { type: 'llm' as const }, artifacts: [] }],
       flows: [],
-      schemas: [],
       rootPath: '/tmp',
     };
 
@@ -435,7 +431,6 @@ describe('buildFileContextData', () => {
       // Aspect not in graph.aspects — aspectDef will be undefined
       aspects: [],
       flows: [],
-      schemas: [],
       rootPath: '/tmp',
     };
 
@@ -459,7 +454,6 @@ describe('buildFileContextData', () => {
       nodes: new Map([['svc', node]]),
       aspects: [],
       flows: [],
-      schemas: [],
       rootPath: '/tmp',
     };
 
@@ -480,7 +474,6 @@ describe('buildFileContextData', () => {
       nodes: new Map([['svc', node]]),
       aspects: [],
       flows: [{ path: 'my-flow', name: 'My Flow', nodes: ['svc'] }], // no aspects on flow
-      schemas: [],
       rootPath: '/tmp',
     };
 
@@ -511,7 +504,6 @@ describe('buildFileContextData', () => {
       nodes: new Map([['my/svc', node], ['dep/svc', dep]]),
       aspects: [],
       flows: [],
-      schemas: [],
       rootPath: '/tmp',
     };
 
@@ -560,7 +552,6 @@ describe('collectDependencyAncestors', () => {
         { name: 'Logging', id: 'logging', reviewer: { type: 'llm' as const }, artifacts: [] },
       ],
       flows: [],
-      schemas: [],
       rootPath: '/tmp',
     };
 
@@ -587,7 +578,6 @@ describe('collectDependencyAncestors', () => {
       nodes: new Map([['svc', target]]),
       aspects: [],
       flows: [],
-      schemas: [],
       rootPath: '/tmp',
     };
 
@@ -625,7 +615,6 @@ describe('verifiedAgainst path (Task 31)', () => {
     nodes: new Map([['svc', svcNode]]),
     aspects: [llmAspect, astAspect],
     flows: [],
-    schemas: [],
     rootPath: '/fake/.yggdrasil',
   };
 
@@ -680,7 +669,7 @@ describe('verifiedAgainst path (Task 31)', () => {
     architecture: { node_types: { service: { description: 'svc' } } },
     nodes: new Map([['rich', richNode]]),
     aspects: [aggregateAspect, refAspect, llmAspect],
-    flows: [], schemas: [], rootPath: '/fake/.yggdrasil',
+    flows: [], rootPath: '/fake/.yggdrasil',
   };
 
   it('buildNodeContextData: aggregate aspect verifies against yg-aspect.yaml; references surface', () => {

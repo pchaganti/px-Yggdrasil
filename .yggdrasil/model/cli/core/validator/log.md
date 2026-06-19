@@ -80,3 +80,5 @@ Two related correctness improvements to the validation layer. First, the set of 
 The mapping-overlap validation step became asynchronous because it now resolves globs to concrete files to detect file-level overlaps; the validator awaits it. No change to which violations are reported beyond the added glob-overlap detection.
 ## [2026-06-16T09:52:39.897Z]
 Dropped the secrets-non-credential check registration: yg-secrets is now a general deep-merge overlay over yg-config, so non-credential fields in it are valid and must not be flagged.
+## [2026-06-19T05:55:06.181Z]
+Stops enforcing that schema files are present. The presence requirement is gone because schema references are now embedded in the tool and reached through a command rather than copied into each project, so validation no longer wires in that check.

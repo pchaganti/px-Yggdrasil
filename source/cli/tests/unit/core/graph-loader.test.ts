@@ -22,7 +22,7 @@ describe('loadGraph version gate', () => {
     rmSync(tmpRoot, { recursive: true, force: true });
   });
 
-  it('refuses to load when version > "5.0.0"', async () => {
+  it('refuses to load when version is newer than the supported schema', async () => {
     writeFileSync(join(tmpRoot, '.yggdrasil', 'yg-config.yaml'), 'version: "6.0.0"\n');
     await expect(loadGraph(tmpRoot)).rejects.toThrow(/version "6\.0\.0"/);
     await expect(loadGraph(tmpRoot)).rejects.toThrow(/newer than this CLI supports/i);
@@ -33,16 +33,16 @@ describe('loadGraph version gate', () => {
       expect(e).toBeInstanceOf(UnsupportedSchemaVersionError);
       const err = e as UnsupportedSchemaVersionError;
       expect(err.detectedVersion).toBe('6.0.0');
-      expect(err.maxSupportedVersion).toBe('5.0.0');
+      expect(err.maxSupportedVersion).toBe('5.1.0');
     });
   });
 
-  it('loads when version === "5.0.0"', async () => {
-    writeFileSync(join(tmpRoot, '.yggdrasil', 'yg-config.yaml'), 'version: "5.0.0"\n');
+  it('loads when version equals the supported schema', async () => {
+    writeFileSync(join(tmpRoot, '.yggdrasil', 'yg-config.yaml'), 'version: "5.1.0"\n');
     await expect(loadGraph(tmpRoot)).resolves.toBeDefined();
   });
 
-  it('refuses to load when version < "5.0.0" (older than CLI)', async () => {
+  it('refuses to load when version is older than the supported schema (CLI)', async () => {
     writeFileSync(join(tmpRoot, '.yggdrasil', 'yg-config.yaml'), 'version: "4.3.0"\n');
     await expect(loadGraph(tmpRoot)).rejects.toThrow(/older than this CLI/i);
     await expect(loadGraph(tmpRoot)).rejects.toThrow(/yg init --upgrade/i);
@@ -51,7 +51,7 @@ describe('loadGraph version gate', () => {
       expect(e).toBeInstanceOf(OutdatedSchemaVersionError);
       const err = e as OutdatedSchemaVersionError;
       expect(err.detectedVersion).toBe('4.3.0');
-      expect(err.minSupportedVersion).toBe('5.0.0');
+      expect(err.minSupportedVersion).toBe('5.1.0');
     });
   });
 });
@@ -63,7 +63,7 @@ describe('graph-loader', () => {
     await mkdir(yggRoot, { recursive: true });
     await writeFile(
       path.join(yggRoot, 'yg-config.yaml'),
-      'version: "5.0.0"',
+      'version: "5.1.0"',
       'utf-8',
     );
 
@@ -187,11 +187,6 @@ describe('graph-loader', () => {
     expect(Array.isArray(graph.aspects)).toBe(true);
   });
 
-  it('loads empty schemas when schemas dir does not exist', async () => {
-    const graph = await loadGraph(FIXTURE_PROJECT);
-    expect(Array.isArray(graph.schemas)).toBe(true);
-  });
-
   it('skips subdirectories without yg-node.yaml (hasNodeYaml false)', async () => {
     const { mkdir, writeFile, rm } = await import('node:fs/promises');
     const tmpDir = path.join(__dirname, '../../fixtures/tmp-graph-skip-no-node');
@@ -201,7 +196,7 @@ describe('graph-loader', () => {
     await mkdir(path.join(modelDir, 'svc', 'empty-dir'), { recursive: true });
     await writeFile(
       path.join(yggRoot, 'yg-config.yaml'),
-      'version: "5.0.0"',
+      'version: "5.1.0"',
     );
     await writeFile(path.join(modelDir, 'svc', 'yg-node.yaml'), 'name: Svc\ntype: module\n');
     await writeFile(
@@ -228,7 +223,7 @@ describe('graph-loader', () => {
     await writeFile(path.join(yggRoot, 'aspects'), 'not-a-dir', 'utf-8');
     await writeFile(
       path.join(yggRoot, 'yg-config.yaml'),
-      'version: "5.0.0"',
+      'version: "5.1.0"',
     );
     await writeFile(path.join(modelDir, 'yg-node.yaml'), 'name: S\ntype: service\n');
 
@@ -249,7 +244,7 @@ describe('graph-loader', () => {
     await mkdir(modelDir, { recursive: true });
     await writeFile(
       path.join(yggRoot, 'yg-config.yaml'),
-      'version: "5.0.0"',
+      'version: "5.1.0"',
     );
     await writeFile(path.join(modelDir, 'yg-node.yaml'), 'name: S\ntype: service\n');
     // No aspects/, flows/, schemas/ dirs
@@ -258,7 +253,6 @@ describe('graph-loader', () => {
       const graph = await loadGraph(tmpDir);
       expect(graph.aspects).toEqual([]);
       expect(graph.flows).toEqual([]);
-      expect(graph.schemas).toEqual([]);
       expect(graph.nodes.size).toBeGreaterThan(0);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });

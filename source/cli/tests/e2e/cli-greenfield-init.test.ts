@@ -35,22 +35,13 @@ function run(
   return { stdout, stderr, status: result.status, all: stdout + stderr };
 }
 
-/** Write the three schema presence-stub files yg check requires by name. */
-function writeSchemaStubs(yggRoot: string): void {
-  const schemasDir = path.join(yggRoot, 'schemas');
-  mkdirSync(schemasDir, { recursive: true });
-  for (const schema of ['yg-node', 'yg-aspect', 'yg-flow']) {
-    writeFileSync(path.join(schemasDir, `${schema}.yaml`), `schema: ${schema}\n`, 'utf-8');
-  }
-}
-
 /**
  * Minimal v5 config. The reviewer endpoint points at the dead loopback port 1
  * (no listener on any machine) — but the graphs below carry only deterministic
  * aspects, so the reviewer is never invoked. Including it keeps the config
  * schema-valid without introducing any external dependency.
  */
-const MINIMAL_CONFIG = `version: "5.0.0"
+const MINIMAL_CONFIG = `version: "5.1.0"
 quality:
   max_direct_relations: 10
 reviewer:
@@ -67,7 +58,7 @@ reviewer:
 /**
  * Hand-author a minimal, fully deterministic greenfield graph in a fresh
  * mkdtemp dir: config, architecture with one mapping node type + an
- * organizational parent, schema stubs, two nodes (parent module + child
+ * organizational parent, two nodes (parent module + child
  * widget), one deterministic aspect (no-todo-comments check.mjs), and one
  * source file. Returns the project root. Caller owns cleanup.
  */
@@ -78,7 +69,6 @@ function greenfieldGraph(label: string): string {
   mkdirSync(path.join(yggRoot, 'aspects', 'no-todo-comments'), { recursive: true });
   mkdirSync(path.join(yggRoot, 'flows'), { recursive: true });
   mkdirSync(path.join(dir, 'src', 'widgets'), { recursive: true });
-  writeSchemaStubs(yggRoot);
 
   writeFileSync(path.join(yggRoot, 'yg-config.yaml'), MINIMAL_CONFIG, 'utf-8');
 
@@ -164,13 +154,13 @@ mapping:
 /**
  * A bare repo for the --upgrade scaffold path: just .yggdrasil/yg-config.yaml
  * carrying a version field (the minimum --upgrade needs to detect a version and
- * refresh schemas + rules). No nodes, no architecture.
+ * refresh rules). No nodes, no architecture.
  */
 function bareUpgradeRepo(label: string): string {
   const dir = mkdtempSync(path.join(tmpdir(), `yg-upg-${label}-`));
   const yggRoot = path.join(dir, '.yggdrasil');
   mkdirSync(yggRoot, { recursive: true });
-  writeFileSync(path.join(yggRoot, 'yg-config.yaml'), 'version: "5.0.0"\n', 'utf-8');
+  writeFileSync(path.join(yggRoot, 'yg-config.yaml'), 'version: "5.1.0"\n', 'utf-8');
   return dir;
 }
 
@@ -189,10 +179,10 @@ describe.skipIf(!distExists)('CLI E2E — greenfield / init / platform-install',
     try {
       const { status, stdout } = run(['init', '--upgrade', '--platform', 'generic'], dir);
       expect(status).toBe(0);
-      expect(stdout).toContain('Rules and schemas refreshed');
-      // Schemas refreshed + generic rules file written.
+      expect(stdout).toContain('Rules refreshed');
+      // Generic rules file written (schemas/ is no longer created — schema
+      // references live in the `yg schemas` command).
       expect(existsSync(path.join(dir, '.yggdrasil', 'agent-rules.md'))).toBe(true);
-      expect(existsSync(path.join(dir, '.yggdrasil', 'schemas', 'yg-node.yaml'))).toBe(true);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -355,7 +345,6 @@ describe.skipIf(!distExists)('CLI E2E — greenfield / init / platform-install',
       mkdirSync(path.join(yggRoot, 'model'), { recursive: true });
       mkdirSync(path.join(yggRoot, 'aspects'), { recursive: true });
       mkdirSync(path.join(yggRoot, 'flows'), { recursive: true });
-      writeSchemaStubs(yggRoot);
       writeFileSync(path.join(yggRoot, 'yg-config.yaml'), MINIMAL_CONFIG, 'utf-8');
       writeFileSync(
         path.join(yggRoot, 'yg-architecture.yaml'),

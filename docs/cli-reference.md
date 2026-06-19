@@ -332,5 +332,5 @@ generated (`linguist-generated=true`) and writes `max_prompt_chars: 50000` into 
 generated reviewer tier.
 
 Non-interactive mode: `--upgrade --platform <name>` lifts the config version to the
-current one and refreshes rules, schemas, and platform files — without prompts.
+current one and refreshes rules and platform files — without prompts.
 Useful in scripts and CI.

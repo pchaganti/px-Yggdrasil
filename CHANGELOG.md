@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0] - 2026-06-19
+
+### Added
+
+- **`yg schemas` — a built-in browser for the graph-element schema references.** `yg schemas list` lists the five schemas (`node`, `aspect`, `architecture`, `config`, `flow`); `yg schemas read <name>` prints one schema's field reference. The content is embedded in the CLI and resolves without a project graph, exactly like `yg knowledge` — so the reference for any graph element is one command away, in any directory, and always matches the installed CLI.
+
+### Changed
+
+- **Schema references are no longer per-project files.** The `.yggdrasil/schemas/` directory is gone — schema field references now live in the CLI and are read via `yg schemas read <name>` instead of opening `schemas/<file>.yaml`. A fresh `yg init` no longer creates the directory, and `yg init --upgrade` removes an existing one. Every place that pointed at a schema file — the agent rules, the knowledge topics, the docs, and the CLI's own diagnostics — now points at the command. **Migration:** run `yg init --upgrade` once; it advances the graph schema version to 5.1.0 and deletes the obsolete `schemas/` directory. Existing projects keep working until then — the directory is inert.
+
+### Removed
+
+- **The schema-presence check (`schema-missing`) is gone.** Schemas were only ever validated by filename presence, never by content; with the files removed from the project graph there is nothing to require, so `yg check` no longer reports or needs a `schemas/` directory.
+
 ## [5.0.4] - 2026-06-18
 
 ### Fixed

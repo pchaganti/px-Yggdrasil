@@ -32,7 +32,6 @@ function createGraph(overrides: Partial<Graph> = {}): Graph {
     nodes: new Map(),
     aspects: [{ name: 'Valid', id: 'valid-tag', reviewer: { type: 'llm' as const }, artifacts: [] }],
     flows: [],
-    schemas: [],
     rootPath: path.join(FIXTURE_PROJECT, '.yggdrasil'),
     ...overrides,
   };

@@ -121,7 +121,6 @@ function makeGraph(nodes: Map<string, { path: string; meta: { mapping?: string[]
     architecture: { node_types: {} },
     aspects: [],
     flows: [],
-    schemas: [],
     rootPath: '/fake/.yggdrasil',
   } as unknown as Graph;
 }

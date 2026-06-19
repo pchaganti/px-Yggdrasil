@@ -142,7 +142,7 @@ export async function parseConfig(filePath: string): Promise<YggConfig> {
       throw new ConfigParseError({
         what: `${filename} has unrecognized reviewer: shape`,
         why: 'reviewer: must be a mapping with a `tiers:` block',
-        next: 'see schemas/yg-config.yaml for the expected shape',
+        next: 'run yg schemas read config for the expected shape',
       }, 'config-invalid');
     }
   }

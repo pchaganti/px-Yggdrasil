@@ -31,8 +31,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '..', '..');
 const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
 const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle');
-const SAMPLE_FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'sample-project');
-const SCHEMAS_DIR = path.join(SAMPLE_FIXTURE, '.yggdrasil', 'schemas');
 const distExists = existsSync(BIN_PATH);
 
 const cfgPath = (d: string) => path.join(d, '.yggdrasil', 'yg-config.yaml');
@@ -137,7 +135,6 @@ describe.skipIf(!distExists)('CLI E2E — lock merge (LLM) & piped refusal survi
       mkdirSync(path.join(ygRoot, 'model'), { recursive: true });
       mkdirSync(path.join(ygRoot, 'aspects'), { recursive: true });
       mkdirSync(path.join(ygRoot, 'flows'), { recursive: true });
-      cpSync(SCHEMAS_DIR, path.join(ygRoot, 'schemas'), { recursive: true });
 
       // One enforced LLM aspect (refused by the mock).
       const aDir = path.join(ygRoot, 'aspects', 'must-have-header');

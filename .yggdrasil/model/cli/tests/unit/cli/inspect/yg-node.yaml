@@ -8,6 +8,7 @@ relations:
     { target: cli/ast/runtime, type: uses },
     { target: cli/commands/aspect-test, type: uses },
     { target: cli/commands/knowledge, type: uses },
+    { target: cli/commands/schemas, type: uses },
     { target: cli/commands/suppressions, type: uses },
     { target: cli/commands/tree, type: uses },
     { target: cli/commands/type-suggest, type: uses },
@@ -19,6 +20,7 @@ relations:
   ]
 mapping:
   - source/cli/tests/unit/cli/knowledge.test.ts
+  - source/cli/tests/unit/cli/schemas.test.ts
   - source/cli/tests/unit/cli/aspect-test.test.ts
   - source/cli/tests/unit/cli/tree.test.ts
   - source/cli/tests/unit/cli/type-suggest.test.ts

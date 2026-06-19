@@ -8,3 +8,5 @@ This change deletes the field, the validators that policed its shape, and the do
 The language a parsed-tree check sees for a given file is now derived solely from that file's extension; an unrecognized extension yields no parsed tree rather than a per-aspect error. The drift identity of a graph-aware structural check is deliberately held stable across this change so existing approvals are not invalidated by metadata that never affected behavior.
 ## [2026-06-16T09:52:39.644Z]
 Removed the secrets-non-credential validator: yg-secrets became a general deep-merge overlay over yg-config, so overriding any field locally is the intended use and is no longer rejected.
+## [2026-06-19T05:55:05.694Z]
+Removes the check that required each project to carry schema files on disk. Schema field references now live inside the tool and are read through a command, so a project no longer needs copies of them and their absence is not a defect to flag.

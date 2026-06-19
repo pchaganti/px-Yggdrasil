@@ -9,5 +9,4 @@ mapping:
   - source/cli/.npmignore
   - source/cli/.npmrc
   - source/cli/README.md
-  - source/cli/graph-schemas/
   - source/cli/scripts/

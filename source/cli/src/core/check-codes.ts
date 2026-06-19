@@ -26,7 +26,6 @@ export const STRUCTURAL_CODES = new Set<string>([
   'implied-aspect-missing',
   'aspect-implies-cycle',
   'event-unpaired',
-  'schema-missing',
   'type-without-when-with-mapping',
   'type-when-mismatch',
   'file-mapping-gitignored',

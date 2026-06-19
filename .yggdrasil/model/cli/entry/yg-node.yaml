@@ -24,6 +24,8 @@ relations:
     type: uses
   - target: cli/commands/knowledge
     type: uses
+  - target: cli/commands/schemas
+    type: uses
   - target: cli/commands/log
     type: uses
   - target: cli/commands/suppressions

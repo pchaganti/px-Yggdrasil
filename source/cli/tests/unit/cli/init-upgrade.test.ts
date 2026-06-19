@@ -27,7 +27,7 @@ describe('runVersionUpgrade', () => {
     for (const d of dirsToCleanup.splice(0)) await rm(d, { recursive: true, force: true });
   });
 
-  it('refreshes schemas, bumps version, installs rules for platform', async () => {
+  it('removes schemas/, bumps version, installs rules for platform', async () => {
     const projectRoot = await mkdtemp(path.join(tmpdir(), 'yg-init-upgrade-'));
     dirsToCleanup.push(projectRoot);
     const yggRoot = await scaffoldExistingYgg(projectRoot, '4.0.0');
@@ -47,21 +47,19 @@ describe('runVersionUpgrade', () => {
     const claudeMd = await readFile(path.join(projectRoot, 'CLAUDE.md'), 'utf-8');
     expect(claudeMd).toContain('agent-rules.md');
 
-    // With MIGRATIONS empty the runner lifts the version to CLI_SUPPORTED_SCHEMA
-    // (5.0.0) via the no-migration fallback path and emits an action message.
+    // The to-5.1.0 migration applies to the 4.0.0 seed: it removes the
+    // schemas/ directory and the runner lands the version at 5.1.0.
     const cfg = await readFile(path.join(yggRoot, 'yg-config.yaml'), 'utf-8');
-    expect(cfg).toContain('5.0.0');
+    expect(cfg).toContain('5.1.0');
     expect(result.migrationActions).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('version updated to 5.0.0'),
+        expect.stringContaining('schemas'),
       ]),
     );
 
-    // Schemas directory is populated after refresh
-    const schemaFiles = await (await import('node:fs/promises')).readdir(
-      path.join(yggRoot, 'schemas'),
-    );
-    expect(schemaFiles.length).toBeGreaterThan(0);
+    // The schemas/ directory is removed by the migration — it is no longer a
+    // per-project artifact (schema references live in `yg schemas`).
+    await expect(stat(path.join(yggRoot, 'schemas'))).rejects.toThrow();
 
     // yg-architecture.yaml created if missing
     await expect(stat(path.join(yggRoot, 'yg-architecture.yaml'))).resolves.toBeTruthy();
@@ -70,7 +68,7 @@ describe('runVersionUpgrade', () => {
   it('is a clean no-op when config is already at the supported schema version', async () => {
     const projectRoot = await mkdtemp(path.join(tmpdir(), 'yg-init-upgrade-'));
     dirsToCleanup.push(projectRoot);
-    const yggRoot = await scaffoldExistingYgg(projectRoot, '5.0.0');
+    const yggRoot = await scaffoldExistingYgg(projectRoot, '5.1.0');
 
     const result = await runVersionUpgrade(
       projectRoot,
@@ -78,9 +76,9 @@ describe('runVersionUpgrade', () => {
       'claude-code',
     );
 
-    // Version must stay at 5.0.0 — no write, no false 'Migrated' action.
+    // Version must stay at 5.1.0 — no write, no false 'Migrated' action.
     const cfg = await readFile(path.join(yggRoot, 'yg-config.yaml'), 'utf-8');
-    expect(cfg).toContain('5.0.0');
+    expect(cfg).toContain('5.1.0');
     expect(result.migrationActions).toHaveLength(0);
     expect(result.migrationWarnings).toHaveLength(0);
     expect(result.withheld).toBe(false);

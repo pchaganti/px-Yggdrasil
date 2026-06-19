@@ -1,5 +1,5 @@
 export const summary =
-  'Full yg command reference: check, check --approve, context, aspect-test, impact, tree, aspects, flows, find, log, owner, type-suggest, init, knowledge';
+  'Full yg command reference: check, check --approve, context, aspect-test, impact, tree, aspects, flows, find, log, owner, type-suggest, init, knowledge, schemas';
 
 export const content = `# CLI reference
 
@@ -208,13 +208,23 @@ yg knowledge list              # list all topics with summaries
 yg knowledge read <name>       # print full topic content
 \`\`\`
 
+## yg schemas
+
+Browse the embedded graph-element schema references — the field reference for
+each graph element. Graph-independent: works without a \`.yggdrasil/\` present.
+
+\`\`\`bash
+yg schemas list                # list the schemas (node, aspect, architecture, config, flow)
+yg schemas read <name>         # print one schema's field reference
+\`\`\`
+
 ## yg init
 
 Bootstrap or refresh \`.yggdrasil/\` setup.
 
 \`\`\`bash
 yg init                        # initial setup — writes config (incl. max_prompt_chars) + .gitattributes
-yg init --upgrade              # refresh rules/schemas/platform files + .gitattributes; lift version bookkeeping
+yg init --upgrade              # refresh rules/platform files + .gitattributes; lift version bookkeeping
 yg init --upgrade --platform claude-code   # regenerate for specific platform
 \`\`\`
 

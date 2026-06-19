@@ -30,11 +30,7 @@ import { fileURLToPath } from 'node:url';
 //     `describe.skipIf(!distExists)` dist guard.
 //   - ZERO committed fixtures. Each test authors a complete graph from scratch
 //     inside a fresh mkdtempSync dir via `archGraph(...)` and rmSync(...,{
-//     recursive, force }) in a finally. The three required schema files are
-//     written as one-line presence stubs (the validator's schema-missing check
-//     only inspects FILE PRESENCE — verified in core/checks/relations.ts
-//     checkSchemas: it keys off schemaType, never content), so no fixture bytes
-//     are copied.
+//     recursive, force }) in a finally, so no fixture bytes are copied.
 //   - No network: the config's reviewer tier points at a loopback endpoint that
 //     `yg check`/`yg type-suggest` never dial; the fill-enforcement tests use
 //     only deterministic check.mjs aspects, so no LLM call and no endpoint is
@@ -94,8 +90,8 @@ interface BuildCtx {
 
 /**
  * Scaffold a complete, structurally-valid graph from scratch in a fresh temp
- * dir: the three presence-stub schemas, the supplied yg-architecture.yaml body,
- * a config with one loopback reviewer tier, and empty model/aspects/flows dirs.
+ * dir: the supplied yg-architecture.yaml body, a config with one loopback
+ * reviewer tier, and empty model/aspects/flows dirs.
  * The `build` callback writes the scenario-specific nodes/aspects/source files.
  * Returns the temp dir; the caller rmSync's it in a finally.
  */
@@ -109,13 +105,6 @@ function archGraph(
   mkdirSync(path.join(ygRoot, 'model'), { recursive: true });
   mkdirSync(path.join(ygRoot, 'aspects'), { recursive: true });
   mkdirSync(path.join(ygRoot, 'flows'), { recursive: true });
-  mkdirSync(path.join(ygRoot, 'schemas'), { recursive: true });
-
-  // schema-missing keys off file PRESENCE only (core/checks/relations.ts),
-  // so one-line stubs satisfy it without copying any committed fixture bytes.
-  writeFileSync(path.join(ygRoot, 'schemas', 'yg-node.yaml'), '# schema stub\n', 'utf-8');
-  writeFileSync(path.join(ygRoot, 'schemas', 'yg-aspect.yaml'), '# schema stub\n', 'utf-8');
-  writeFileSync(path.join(ygRoot, 'schemas', 'yg-flow.yaml'), '# schema stub\n', 'utf-8');
 
   writeFileSync(path.join(ygRoot, 'yg-architecture.yaml'), architecture, 'utf-8');
   writeFileSync(

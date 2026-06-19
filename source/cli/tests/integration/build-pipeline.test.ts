@@ -155,11 +155,6 @@ describe('context pipeline integration', () => {
       const yggDir = path.join(root, '.yggdrasil');
       await mkdir(path.join(yggDir, 'model', 'svc'), { recursive: true });
       await mkdir(path.join(yggDir, 'aspects', 'code-style'), { recursive: true });
-      await cp(
-        path.join(FULL_FIXTURE, '.yggdrasil', 'schemas'),
-        path.join(yggDir, 'schemas'),
-        { recursive: true },
-      );
 
       await writeFile(path.join(yggDir, 'yg-config.yaml'), [
         'reviewer:',

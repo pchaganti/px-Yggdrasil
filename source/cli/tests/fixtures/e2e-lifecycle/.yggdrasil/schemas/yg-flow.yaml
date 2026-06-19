@@ -1,4 +1,0 @@
-# Schema presence stub for the e2e-lifecycle test fixture.
-# yg check only requires the node/aspect/flow schemas to be present; their
-# content is not validated. The authoritative schema lives in the main repo.
-schema: yg-flow

@@ -21,7 +21,6 @@ function makeGraph(
     nodes: new Map(),
     aspects: [],
     flows: [],
-    schemas: [],
     rootPath,
   };
 }

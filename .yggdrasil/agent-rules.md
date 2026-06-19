@@ -13,13 +13,12 @@ The CLI (`yg`) never modifies your source or graph files. You create and edit gr
   model/               ← nodes: what exists — hierarchy, relations, file mappings
   aspects/             ← aspects: what must be satisfied — enforceable rules
   flows/               ← flows: business processes with node participation
-  schemas/             ← YAML schemas — read before creating any graph element
   yg-lock.json         ← committed verdict lock; written only by the CLI. Never hand-edit. On a merge conflict take ONE side wholesale, then run yg check --approve (see yg knowledge read verification-and-lock).
 ```
 
-**Nodes** — components. `model/<path>/yg-node.yaml`. Nodes nest by directory — children inherit parent aspects. Schema: `schemas/yg-node.yaml`. Node `mapping:` entries and architecture `when.path` both accept minimatch glob patterns — `*` matches within a single path segment, `**` matches across segments (e.g. `src/db/*Repository.cs` maps only repository files in that directory; `src/**/*.ts` maps all TypeScript files under src).
+**Nodes** — components. `model/<path>/yg-node.yaml`. Nodes nest by directory — children inherit parent aspects. Schema: `yg schemas read node`. Node `mapping:` entries and architecture `when.path` both accept minimatch glob patterns — `*` matches within a single path segment, `**` matches across segments (e.g. `src/db/*Repository.cs` maps only repository files in that directory; `src/**/*.ts` maps all TypeScript files under src).
 
-**Aspects** — enforceable rules. `aspects/<id>/yg-aspect.yaml` + zero or one rule source files. The reviewer kind is inferred from which rule source is present: `content.md` → LLM reviewer; `check.mjs` → deterministic reviewer; neither file but `implies:` declared → aggregating aspect (a named bundle with no own reviewer). The `reviewer:` block in `yg-aspect.yaml` is optional — kind is inferred automatically. If present, an explicit `reviewer.type` must agree with the inferred kind. LLM aspects may set `reviewer.tier:` to pick a named tier from `yg-config.yaml` (otherwise the configured default tier is used). An aspect can declare `implies: [other-aspect]` — implied aspects are included recursively (must be acyclic). LLM aspects may declare `references:` — supporting files (lookup tables, catalogues) included in the reviewer prompt and exposed to the agent under `read:`. An aspect with a rule source may declare `scope:` — `per: node` (default, one verdict over the whole node) or `per: file` (one verdict per subject file), with an optional `files:` filter narrowing which mapped files are the review subject. Schema: `schemas/yg-aspect.yaml`. Aspects also carry a `status:` field (default `enforced`) — three levels `draft / advisory / enforced`. Status is rendering only: it governs how a verdict shows in `yg check` and whether it blocks. `draft` alone changes what is verified — it removes the aspect's verdicts from the expected set entirely.
+**Aspects** — enforceable rules. `aspects/<id>/yg-aspect.yaml` + zero or one rule source files. The reviewer kind is inferred from which rule source is present: `content.md` → LLM reviewer; `check.mjs` → deterministic reviewer; neither file but `implies:` declared → aggregating aspect (a named bundle with no own reviewer). The `reviewer:` block in `yg-aspect.yaml` is optional — kind is inferred automatically. If present, an explicit `reviewer.type` must agree with the inferred kind. LLM aspects may set `reviewer.tier:` to pick a named tier from `yg-config.yaml` (otherwise the configured default tier is used). An aspect can declare `implies: [other-aspect]` — implied aspects are included recursively (must be acyclic). LLM aspects may declare `references:` — supporting files (lookup tables, catalogues) included in the reviewer prompt and exposed to the agent under `read:`. An aspect with a rule source may declare `scope:` — `per: node` (default, one verdict over the whole node) or `per: file` (one verdict per subject file), with an optional `files:` filter narrowing which mapped files are the review subject. Schema: `yg schemas read aspect`. Aspects also carry a `status:` field (default `enforced`) — three levels `draft / advisory / enforced`. Status is rendering only: it governs how a verdict shows in `yg check` and whether it blocks. `draft` alone changes what is verified — it removes the aspect's verdicts from the expected set entirely.
 
 Deterministic aspects ship `check.mjs` instead of `content.md` — the check runs locally at zero LLM cost during `yg check --approve`, and the returned violations are the verdict (cached in the lock like every other verdict; plain `yg check` re-validates the entry by hashing, it never executes the check). There is ONE `check(ctx)` contract: the check reads the node's files, related nodes, and graph metadata through a context object, and may parse any file it reads with tree-sitter. Deterministic aspects must NOT set `reviewer.tier:` — tiers apply only to LLM aspects. See `yg knowledge read writing-deterministic-aspects`.
 
@@ -31,7 +30,7 @@ Aggregating aspects ship neither `content.md` nor `check.mjs` but declare `impli
 
 **Ports** — named entry points on a node with required aspects. A consumer references a port via `consumes` on its relation; the port's aspects then become effective on the consumer (channel 6 below). Ports are how a critical aspect crosses node boundaries — bare relations do NOT propagate aspects. Deep dive (port contracts, channel 6 defense, missing-contract errors): `yg knowledge read ports-and-relations`.
 
-**Architecture** — `yg-architecture.yaml` defines the vocabulary: node types, default aspects per type, allowed parent types, allowed relation targets per type. This is the foundation — read it when starting work on a new repo. Changes require user confirmation. Structure details in `schemas/yg-architecture.yaml`.
+**Architecture** — `yg-architecture.yaml` defines the vocabulary: node types, default aspects per type, allowed parent types, allowed relation targets per type. This is the foundation — read it when starting work on a new repo. Changes require user confirmation. Structure details in `yg schemas read architecture`.
 
 ### How Aspects Reach a Node — 7 Channels + Applicability Filter
 
@@ -122,8 +121,9 @@ Full lock format, hash ingredients, caching policy, merge procedure, garbage-col
 | `yg log merge-resolve --node <path>` | Reconcile log.md after a git merge (validates byte-exact ancestor + union of new entries) |
 | `yg suppressions` | Read-only inventory of active `yg-suppress` markers; warns on unknown aspect-id, wildcard, or unbounded range. Exit 0. |
 | `yg knowledge list` / `yg knowledge read <name>` | Browse deep-reference topics |
+| `yg schemas list` / `yg schemas read <name>` | Browse graph-element schemas (node, aspect, architecture, config, flow) |
 
-Full command reference (`yg aspects`, `yg flows`, `yg owner`, `yg suppressions`, `yg aspect-test`, `yg type-suggest`, `yg init`, `yg log merge-resolve`, all option flags): `yg knowledge read cli-reference`.
+Full command reference (`yg aspects`, `yg flows`, `yg owner`, `yg suppressions`, `yg aspect-test`, `yg type-suggest`, `yg init`, `yg log merge-resolve`, `yg schemas`, all option flags): `yg knowledge read cli-reference`.
 
 ### Impact and Cost
 
@@ -422,11 +422,11 @@ context.
 
 ### When to Create Graph Elements
 
-**Aspect** — when the same pattern appears in 3+ files AND the reviewer can verify it against source code. Both conditions. "Every handler logs audit trail" — pattern + verifiable = aspect. "Code should be readable" — not verifiable, not an aspect. Read `schemas/yg-aspect.yaml` before creating. For reviewer kind (LLM, deterministic, or aggregating), aspect format, cost model: `yg knowledge read aspects-overview`. To write the rules: `yg knowledge read writing-llm-aspects` (or `writing-deterministic-aspects`). Content `.md` files state WHAT must be satisfied and WHY — use the user's words, never invent rationale. Things that do NOT become aspects: knowledge already visible in source code (imports, config), non-enforceable knowledge (business strategy, personas, pricing), and conventions the reviewer cannot check against code. Choose initial status: `draft` if content.md is still being authored or the rule is unclear (no enforcement, no cost); `advisory` if content.md is complete but you want to gather signal across the repo without blocking CI; `enforced` if the rule is vetted on a small set and you want repo-wide enforcement immediately.
+**Aspect** — when the same pattern appears in 3+ files AND the reviewer can verify it against source code. Both conditions. "Every handler logs audit trail" — pattern + verifiable = aspect. "Code should be readable" — not verifiable, not an aspect. Run `yg schemas read aspect` before creating. For reviewer kind (LLM, deterministic, or aggregating), aspect format, cost model: `yg knowledge read aspects-overview`. To write the rules: `yg knowledge read writing-llm-aspects` (or `writing-deterministic-aspects`). Content `.md` files state WHAT must be satisfied and WHY — use the user's words, never invent rationale. Things that do NOT become aspects: knowledge already visible in source code (imports, config), non-enforceable knowledge (business strategy, personas, pricing), and conventions the reviewer cannot check against code. Choose initial status: `draft` if content.md is still being authored or the rule is unclear (no enforcement, no cost); `advisory` if content.md is complete but you want to gather signal across the repo without blocking CI; `enforced` if the rule is vetted on a small set and you want repo-wide enforcement immediately.
 
-**Flow** — when you see a sequence of steps toward a business goal. Not code call sequences — real-world processes. "User places an order" = flow. "Handler calls service" = relation between nodes. Read `schemas/yg-flow.yaml` and `yg knowledge read flows` before creating.
+**Flow** — when you see a sequence of steps toward a business goal. Not code call sequences — real-world processes. "User places an order" = flow. "Handler calls service" = relation between nodes. Run `yg schemas read flow` and `yg knowledge read flows` before creating.
 
-**Node** — one per cohesive feature area. Not per directory, not per file. If a node covers >3 distinct workflows, split into children. Size is bounded by the reviewer prompt, not the node: an LLM aspect assembles its content.md, references, and the unit's subject files into one prompt, checked against the resolved tier's `max_prompt_chars`. Exceeding it is a blocking `prompt-too-large` error naming the pair, with remedies in safety order: narrow `scope.files` (when the overflow is non-target payload), switch the aspect to `per: file` (ONLY if the rule is file-local), split the node, or raise the limit / move to a higher-capability tier (re-pointing an aspect to a different named tier re-verifies that aspect's pairs; editing a tier's own config does not — only the tier name is a verdict input). Deterministic checks read files programmatically with no prompt and are never subject to the gate. Read `schemas/yg-node.yaml` before creating.
+**Node** — one per cohesive feature area. Not per directory, not per file. If a node covers >3 distinct workflows, split into children. Size is bounded by the reviewer prompt, not the node: an LLM aspect assembles its content.md, references, and the unit's subject files into one prompt, checked against the resolved tier's `max_prompt_chars`. Exceeding it is a blocking `prompt-too-large` error naming the pair, with remedies in safety order: narrow `scope.files` (when the overflow is non-target payload), switch the aspect to `per: file` (ONLY if the rule is file-local), split the node, or raise the limit / move to a higher-capability tier (re-pointing an aspect to a different named tier re-verifies that aspect's pairs; editing a tier's own config does not — only the tier name is a verdict input). Deterministic checks read files programmatically with no prompt and are never subject to the gate. Run `yg schemas read node` before creating.
 
 **Port / relation** — when a critical aspect must cross a node boundary, or when a new typed dependency is needed. Bare relations do NOT propagate aspects; ports do. Six relation types exist (`calls`, `uses`, `extends`, `implements`, `emits`, `listens`); event relations must be paired. Deep dive: `yg knowledge read ports-and-relations`.
 
@@ -494,7 +494,7 @@ allowed parents, default aspects, and the `when` predicate that classifies which
 source files belong to each type.
 
 BEFORE editing this file:
-1. Read `schemas/yg-architecture.yaml` — full field reference and `when` predicate grammar.
+1. Run `yg schemas read architecture` — full field reference and `when` predicate grammar.
 2. Check impact: `yg impact --type <id>` for existing types.
 3. Present the proposed change to the user and wait for confirmation before writing it.
 
@@ -514,11 +514,11 @@ When you need to do X, run/read Y:
 
 | Task | Resource |
 |---|---|
-| Edit `yg-architecture.yaml` | `schemas/yg-architecture.yaml` + `yg knowledge read working-with-architecture` |
-| Edit `yg-node.yaml` | `schemas/yg-node.yaml` |
-| Edit `yg-flow.yaml` | `schemas/yg-flow.yaml` + `yg knowledge read flows` |
-| Edit `yg-aspect.yaml` | `schemas/yg-aspect.yaml` + `yg knowledge read aspects-overview` |
-| Edit `yg-config.yaml` | `schemas/yg-config.yaml` + `yg knowledge read configuration` |
+| Edit `yg-architecture.yaml` | `yg schemas read architecture` + `yg knowledge read working-with-architecture` |
+| Edit `yg-node.yaml` | `yg schemas read node` |
+| Edit `yg-flow.yaml` | `yg schemas read flow` + `yg knowledge read flows` |
+| Edit `yg-aspect.yaml` | `yg schemas read aspect` + `yg knowledge read aspects-overview` |
+| Edit `yg-config.yaml` | `yg schemas read config` + `yg knowledge read configuration` |
 | Pick the right type for new file | `yg knowledge read working-with-architecture` |
 | Choose LLM or deterministic reviewer | `yg knowledge read aspects-overview` |
 | Write an LLM aspect | `yg knowledge read writing-llm-aspects` |
@@ -531,12 +531,13 @@ When you need to do X, run/read Y:
 | Flows — definition, participation, propagation | `yg knowledge read flows` |
 | Use CLI commands deeply | `yg knowledge read cli-reference` |
 | Browse all available knowledge topics | `yg knowledge list` |
+| Read a graph-element schema (node/aspect/architecture/config/flow) | `yg schemas read <name>` |
 | Aspect status (draft/advisory/enforced) | `yg knowledge read aspect-status` |
 
 ### Operational Notes
 
 - English only for all files in `.yggdrasil/`. Conversation can be any language.
-- Read the relevant schema from `schemas/` before creating any YAML file.
+- Read the relevant schema via `yg schemas read <name>` before creating any YAML file.
 - When renaming or splitting a node: run `yg flows` and update any flow `nodes` lists that reference the old path. `yg check` will catch broken references but it's faster to fix them proactively.
 - When unsure about anything: ask the user. Do not guess. Do not assume.
 - Never invent rationale for aspects. If you don't know why a requirement exists, ask.

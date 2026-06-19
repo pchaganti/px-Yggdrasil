@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, copyFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,10 +7,9 @@ import { spawnSync } from 'node:child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BIN = path.join(__dirname, '..', '..', 'dist', 'bin.js');
-const SCHEMAS_SRC = path.join(__dirname, '..', 'fixtures', 'sample-project', '.yggdrasil', 'schemas');
 const distExists = existsSync(BIN);
 
-const YG_CONFIG = `version: "5.0.0"
+const YG_CONFIG = `version: "5.1.0"
 quality:
   max_direct_relations: 10
 reviewer:
@@ -50,15 +49,9 @@ function run(
 
 function layout(root: string): void {
   const ygg = path.join(root, '.yggdrasil');
-  mkdirSync(path.join(ygg, 'schemas'), { recursive: true });
   mkdirSync(path.join(ygg, 'aspects', 'touches-a'), { recursive: true });
   mkdirSync(path.join(ygg, 'model', 'N'), { recursive: true });
   mkdirSync(path.join(root, 'src'), { recursive: true });
-
-  // Copy required schema files from sample fixture
-  for (const schema of ['yg-node.yaml', 'yg-aspect.yaml', 'yg-flow.yaml']) {
-    copyFileSync(path.join(SCHEMAS_SRC, schema), path.join(ygg, 'schemas', schema));
-  }
 
   writeFileSync(path.join(root, 'src', 'a.ts'), 'export const x = 1;\n');
   writeFileSync(path.join(ygg, 'yg-architecture.yaml'), YG_ARCH);

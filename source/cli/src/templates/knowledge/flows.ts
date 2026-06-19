@@ -44,7 +44,7 @@ Flow-level aspects accept either a bare string or the object form
 \`{ id, when }\`. The \`when\` predicate filters applicability per
 participant — see \`yg knowledge read conditional-aspects\` for the grammar.
 
-Schema: \`schemas/yg-flow.yaml\`.
+Schema: \`yg schemas read flow\`.
 
 ## Descendant inclusion
 

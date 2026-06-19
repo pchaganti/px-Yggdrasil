@@ -1,0 +1,12 @@
+name: Schema Docs — Graph-element references
+type: schema-doc
+description: In-process schema references served by yg schemas read — the field
+  reference for each graph element (node, aspect, architecture, config, flow),
+  embedded in the CLI binary as TypeScript string modules.
+mapping:
+  - source/cli/src/templates/schemas/index.ts
+  - source/cli/src/templates/schemas/node.ts
+  - source/cli/src/templates/schemas/aspect.ts
+  - source/cli/src/templates/schemas/architecture.ts
+  - source/cli/src/templates/schemas/config.ts
+  - source/cli/src/templates/schemas/flow.ts

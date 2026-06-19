@@ -5,7 +5,6 @@ import {
   writeFileSync,
   rmSync,
   existsSync,
-  copyFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -14,10 +13,9 @@ import { spawnSync } from 'node:child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BIN = path.join(__dirname, '..', '..', 'dist', 'bin.js');
-const SCHEMAS_SRC = path.join(__dirname, '..', 'fixtures', 'sample-project', '.yggdrasil', 'schemas');
 const distExists = existsSync(BIN);
 
-const YG_CONFIG = `version: "5.0.0"
+const YG_CONFIG = `version: "5.1.0"
 quality:
   max_direct_relations: 10
 reviewer:
@@ -71,15 +69,10 @@ describe.skipIf(!distExists)('deterministic aspect implies cascade', () => {
     // editing it folds into both inputHashes — both pairs degrade to unverified
     // and need a re-fill.
     const ygg = path.join(root, '.yggdrasil');
-    mkdirSync(path.join(ygg, 'schemas'), { recursive: true });
     mkdirSync(path.join(ygg, 'aspects', 'structural'), { recursive: true });
     mkdirSync(path.join(ygg, 'aspects', 'astrule'), { recursive: true });
     mkdirSync(path.join(ygg, 'model', 'N'), { recursive: true });
     mkdirSync(path.join(root, 'src'), { recursive: true });
-
-    for (const schema of ['yg-node.yaml', 'yg-aspect.yaml', 'yg-flow.yaml']) {
-      copyFileSync(path.join(SCHEMAS_SRC, schema), path.join(ygg, 'schemas', schema));
-    }
 
     writeFileSync(path.join(root, 'src', 'a.ts'), 'export const x = 1;\n');
     writeFileSync(path.join(ygg, 'yg-architecture.yaml'), YG_ARCH);
@@ -139,14 +132,10 @@ describe.skipIf(!distExists)('deterministic aspect implies cascade', () => {
   // (Deterministic aspects on both sides for hermetic CI — no LLM.)
   it('aspect implies another with status_inherit: strictest — the implied aspect is promoted to enforced and blocks', () => {
     const ygg = path.join(root, '.yggdrasil');
-    mkdirSync(path.join(ygg, 'schemas'), { recursive: true });
     mkdirSync(path.join(ygg, 'aspects', 'gate'), { recursive: true });
     mkdirSync(path.join(ygg, 'aspects', 'child'), { recursive: true });
     mkdirSync(path.join(ygg, 'model', 'N'), { recursive: true });
     mkdirSync(path.join(root, 'src'), { recursive: true });
-    for (const schema of ['yg-node.yaml', 'yg-aspect.yaml', 'yg-flow.yaml']) {
-      copyFileSync(path.join(SCHEMAS_SRC, schema), path.join(ygg, 'schemas', schema));
-    }
     writeFileSync(path.join(root, 'src', 'a.ts'), 'export const x = 1; // BANNED\n');
     writeFileSync(path.join(ygg, 'yg-architecture.yaml'), YG_ARCH);
     writeFileSync(path.join(ygg, 'yg-config.yaml'), YG_CONFIG);

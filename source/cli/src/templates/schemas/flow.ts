@@ -1,4 +1,6 @@
-# yg-flow.yaml — Schema for end-to-end business flows
+export const summary = 'Flow definition — a business process with node participants and propagated aspects.';
+
+export const content = `# yg-flow.yaml — Schema for end-to-end business flows
 # Each flow is a directory under .yggdrasil/flows/ containing this file.
 #
 # A flow describes a business process — what happens in the world,
@@ -22,4 +24,5 @@ aspects:                      # optional — aspects propagate to all flow parti
   - id: conditional-aspect    #   object form with per-site applicability filter
     status: enforced          #   optional — explicit status override (channel 5).
                               #   Must satisfy bump rule (bump up OK, downgrade is validator error).
-    when: <predicate>         #   optional — see schemas/yg-aspect.yaml for grammar
+    when: <predicate>         #   optional — see yg schemas read aspect for grammar
+`;

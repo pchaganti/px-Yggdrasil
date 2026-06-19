@@ -1,4 +1,6 @@
-# yg-node.yaml — Schema for model nodes
+export const summary = 'Node definition — type, mapping, aspects, relations, ports, log.';
+
+export const content = `# yg-node.yaml — Schema for model nodes
 # Every node is a directory under .yggdrasil/model/ containing this file.
 # The node's path in the graph = its directory path relative to model/.
 # Nodes nest by directory — a node at model/orders/handler/ is a child
@@ -13,7 +15,9 @@ aspects:                      # optional — aspect identifiers applied directly
                               # Two forms per entry:
   - simple-aspect             #   bare string — always effective once attached (channel 1)
   - id: conditional-aspect    #   object form — attach with per-site applicability filter
-    when: <predicate>         #   see graph-schemas/yg-aspect.yaml for grammar
+    status: enforced          #   optional — explicit status override (channel 1).
+                              #   Must satisfy bump rule (bump up OK, downgrade is validator error).
+    when: <predicate>         #   optional — see yg schemas read aspect for grammar
                               # Aspects cascade to all child nodes.
 
 ports:                        # optional — named entry points with required aspects
@@ -22,16 +26,27 @@ ports:                        # optional — named entry points with required as
     aspects:                  # required — aspects consumers must satisfy (channel 6)
       - simple-aspect         #   bare string form
       - id: conditional-aspect
-        when: <predicate>     #   object form with per-attach applicability filter
+        status: enforced      #   optional — explicit status override (channel 6).
+                              #   Must satisfy bump rule (bump up OK, downgrade is validator error).
+        when: <predicate>     #   optional — see yg schemas read aspect for grammar
 
 relations:                    # optional — outgoing dependencies to other nodes
+                              # Load-bearing, not just documentation: a built-in deterministic check
+                              # parses this node's mapped code and REFUSES it (relation-undeclared-dependency,
+                              # always an error) if it depends on another mapped node without a relation here.
+                              # One-directional — a declared relation needs no code behind it. See
+                              # \`yg knowledge read ports-and-relations\`.
   - target: other/module-path # required — node path relative to model/
     type: calls               # required — calls | uses | extends | implements | emits | listens
     consumes: [port-name]     # optional — port names consumed from target
-                              # required when target declares ports — otherwise check warns
+                              # required when target declares ports — otherwise yg check emits a
+                              # BLOCKING ERROR (port-missing-consumes) that fails the architecture gate.
+                              # There is no waiver; resolve by adding consumes or removing the ports.
+                              # Naming a target that declares no ports raises consumes-without-ports.
 
 mapping:                      # optional — source files and directories owned by this node
   - src/modules/component/    # directory — all files inside are owned (recursive)
   - src/modules/component.ts  # file — exact match
                               # paths are relative to repository root
                               # each source file must have exactly one owner node
+`;

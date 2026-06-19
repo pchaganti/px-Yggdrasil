@@ -66,7 +66,6 @@ function bareGraph(over: Partial<Graph>): Graph {
     nodes: new Map<string, GraphNode>(),
     aspects: [],
     flows: [],
-    schemas: [],
     rootPath: '/tmp/does-not-matter',
     ...over,
   } as unknown as Graph;

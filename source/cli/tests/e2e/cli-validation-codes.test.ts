@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, mkdirSync, rmSync, cpSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,8 +29,7 @@ import { fileURLToPath } from 'node:url';
 //   - No test reads the network, the wall clock, or any random source. The
 //     scaffolded config points its reviewer tier at a loopback address that
 //     `yg check` never dials.
-//   - Committed fixtures are never mutated — only the schemas/ directory is
-//     COPIED out of the committed sample-project; every node/aspect/flow/source
+//   - Committed fixtures are never mutated — every node/aspect/flow/source
 //     byte is authored inside a per-test mkdtemp and removed in a finally block.
 //   - Every code string and the offending-entity substring asserted below was
 //     verified against the validator / checks / parser source before being
@@ -40,8 +39,6 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');
 const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
-const SAMPLE_FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'sample-project');
-const SCHEMAS_DIR = path.join(SAMPLE_FIXTURE, '.yggdrasil', 'schemas');
 
 const distExists = existsSync(BIN_PATH);
 
@@ -85,9 +82,8 @@ const DEFAULT_ARCHITECTURE = [
 
 /**
  * Scaffold a minimal but structurally-complete graph in a fresh temp dir:
- * the three required schemas (copied from the committed fixture so
- * `schema-missing` never adds noise), an architecture file, a config with one
- * loopback reviewer tier, and empty model/aspects/flows directories.
+ * an architecture file, a config with one loopback reviewer tier, and empty
+ * model/aspects/flows directories.
  *
  * The `build` callback writes the scenario-specific nodes/aspects/flows/source.
  * Returns the temp dir; caller is responsible for rmSync cleanup.
@@ -102,7 +98,6 @@ function minimalGraph(
   mkdirSync(path.join(ygRoot, 'model'), { recursive: true });
   mkdirSync(path.join(ygRoot, 'aspects'), { recursive: true });
   mkdirSync(path.join(ygRoot, 'flows'), { recursive: true });
-  cpSync(SCHEMAS_DIR, path.join(ygRoot, 'schemas'), { recursive: true });
 
   writeFileSync(
     path.join(ygRoot, 'yg-architecture.yaml'),

@@ -27,7 +27,6 @@ function makeGraph(nodes: GraphNode[]): Graph {
     nodes: new Map(nodes.map((n) => [n.path, n])),
     aspects: [],
     flows: [],
-    schemas: [],
     rootPath: '/tmp',
   };
 }
@@ -401,7 +400,6 @@ describe('collectStructureCascade (lock-seeded)', () => {
       nodes: new Map(nodes.map((n) => [n.path, n])),
       aspects,
       flows: [],
-      schemas: [],
       rootPath: '/tmp',
     };
   }

@@ -54,7 +54,6 @@ function makeGraph(rootPath: string, overrides: Partial<Graph> = {}): Graph {
     nodes: new Map(),
     aspects: [],
     flows: [],
-    schemas: [],
     rootPath,
     ...overrides,
   };

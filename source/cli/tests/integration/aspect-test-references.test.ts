@@ -17,7 +17,7 @@ const CLI = join(__dirname, '..', '..', 'dist', 'bin.js');
 // own-file set honors the child carve-out (preview equals the eventual verdict).
 
 const CONFIG = [
-  'version: "5.0.0"',
+  'version: "5.1.0"',
   'reviewer:',
   '  default: standard',
   '  tiers:',

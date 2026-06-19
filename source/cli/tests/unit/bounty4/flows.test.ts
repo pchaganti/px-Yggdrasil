@@ -2,7 +2,7 @@
  * Bug-bounty (bounty4): SPEC-CONFORMANCE audit of flows.
  *
  * Spec source (authoritative): `yg knowledge read flows` +
- * `.yggdrasil/schemas/yg-flow.yaml`.
+ * `yg schemas read flow`.
  *
  * Targets:
  *   - src/core/graph/flows.ts   — collectParticipatingFlows
@@ -489,18 +489,11 @@ describe('yg flows (spawned binary) — lists participants and aspects', () => {
     mkdirSync(ygg, { recursive: true });
 
     // version marker so loadGraph does not reject on schema mismatch
-    writeFileSync(path.join(ygg, 'yg-config.yaml'), 'version: 5.0.0\n');
+    writeFileSync(path.join(ygg, 'yg-config.yaml'), 'version: 5.1.0\n');
     writeFileSync(
       path.join(ygg, 'yg-architecture.yaml'),
       'node_types:\n  service:\n    description: A service\n',
     );
-
-    // minimal required schemas (presence only — content not parsed for `flows`)
-    const schemas = path.join(ygg, 'schemas');
-    mkdirSync(schemas, { recursive: true });
-    for (const s of ['node', 'aspect', 'flow']) {
-      writeFileSync(path.join(schemas, `yg-${s}.yaml`), '# schema\n');
-    }
 
     // one aspect (LLM) so the flow aspect resolves to a real definition
     const aspDir = path.join(ygg, 'aspects', 'deterministic-order');

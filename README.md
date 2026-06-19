@@ -144,7 +144,7 @@ The agent verifies its own code as it works. When it violates a rule, it gets fe
 - run: npx @chrisdudek/yg check
 ```
 
-`yg check` is the deterministic gate: it makes no LLM calls and needs no provider config or keys. It recomputes the input hash of every expected pair and compares it against the verdict recorded in the lock, and also validates structure, schema, coverage, and completeness. If code changed without being verified, the pair no longer matches its recorded hash and check fails.
+`yg check` is the deterministic gate: it makes no LLM calls and needs no provider config or keys. It recomputes the input hash of every expected pair and compares it against the verdict recorded in the lock, and also validates structure, coverage, and completeness. If code changed without being verified, the pair no longer matches its recorded hash and check fails.
 
 ## Supported platforms
 

@@ -135,11 +135,7 @@ async function setupProject(spec: ProjectSpec): Promise<{ projectRoot: string; y
   const yggRoot = path.join(root, '.yggdrasil');
   const nodeDir = path.join(yggRoot, 'model', 'svc');
   await mkdir(nodeDir, { recursive: true });
-  await mkdir(path.join(yggRoot, 'schemas'), { recursive: true });
   await mkdir(path.join(root, 'src'), { recursive: true });
-  await writeFile(path.join(yggRoot, 'schemas', 'yg-node.yaml'), 'type: node\n');
-  await writeFile(path.join(yggRoot, 'schemas', 'yg-aspect.yaml'), 'type: aspect\n');
-  await writeFile(path.join(yggRoot, 'schemas', 'yg-flow.yaml'), 'type: flow\n');
   await writeFile(path.join(yggRoot, 'yg-config.yaml'), spec.configYaml ?? V5_REVIEWER_CONFIG);
   await writeFile(
     path.join(yggRoot, 'yg-architecture.yaml'),

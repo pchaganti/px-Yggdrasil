@@ -5,7 +5,6 @@ import {
   mkdtempSync,
   mkdirSync,
   rmSync,
-  cpSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -17,8 +16,6 @@ import { fileURLToPath } from 'node:url';
 // matrix through the spawned binary.
 //
 // Every test scaffolds a fresh minimal graph in a per-test mkdtemp directory:
-//   - the three required schemas (copied from the committed sample-project so
-//     `schema-missing` never adds noise),
 //   - a single `service` node type whose `when` matches everything,
 //   - ONE node and ONE DETERMINISTIC aspect (so the graph is structurally
 //     complete and fully hermetic — no LLM, no network, no clock, no RNG),
@@ -34,8 +31,8 @@ import { fileURLToPath } from 'node:url';
 //   - `yg check` runs purely on the local graph + filesystem; no reviewer
 //     endpoint is dialed. The valid-config baseline carries a loopback endpoint
 //     that is never contacted.
-//   - The committed fixtures under tests/fixtures/ are never mutated — schemas
-//     are cpSync-copied into mkdtemp; every config is authored in mkdtemp.
+//   - The committed fixtures under tests/fixtures/ are never mutated; every
+//     config is authored in mkdtemp.
 //   - Each temp dir is removed in a finally block.
 //
 // Coverage boundary (no overlap with existing suites):
@@ -52,8 +49,6 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');
 const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
-const SAMPLE_FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'sample-project');
-const SCHEMAS_DIR = path.join(SAMPLE_FIXTURE, '.yggdrasil', 'schemas');
 
 const distExists = existsSync(BIN_PATH);
 
@@ -107,7 +102,6 @@ function scaffold(
   mkdirSync(path.join(ygRoot, 'model', 'widget'), { recursive: true });
   mkdirSync(path.join(ygRoot, 'aspects', 'det'), { recursive: true });
   mkdirSync(path.join(ygRoot, 'flows'), { recursive: true });
-  cpSync(SCHEMAS_DIR, path.join(ygRoot, 'schemas'), { recursive: true });
 
   writeFileSync(
     path.join(ygRoot, 'yg-architecture.yaml'),

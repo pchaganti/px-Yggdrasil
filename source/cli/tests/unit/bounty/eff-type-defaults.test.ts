@@ -94,7 +94,6 @@ function makeGraph(
     nodes: new Map(nodes.map((n) => [n.path, n])),
     flows,
     architecture,
-    schemas: [],
     rootPath: '/tmp',
     config: {},
   } as unknown as Graph;
@@ -288,7 +287,6 @@ describe('channel 3 — own node-type default aspects', () => {
       aspects: [makeAspect('own')],
       nodes: new Map([[node.path, node]]),
       flows: [],
-      schemas: [],
       rootPath: '/tmp',
       config: {},
     } as unknown as Graph;

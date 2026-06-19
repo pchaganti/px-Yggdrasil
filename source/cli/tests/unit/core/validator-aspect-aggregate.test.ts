@@ -51,7 +51,6 @@ function makeGraph(rootPath: string, aspects: AspectDef[]): Graph {
     nodes: new Map(),
     aspects,
     flows: [],
-    schemas: [],
     rootPath,
   };
 }

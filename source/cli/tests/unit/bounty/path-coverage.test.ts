@@ -538,12 +538,8 @@ async function makeProject(opts: {
   const nodeDir = path.join(yggRoot, 'model', 'svc', 'repo');
   await mkdir(nodeDir, { recursive: true });
   await mkdir(path.join(yggRoot, '.drift-state'), { recursive: true });
-  await mkdir(path.join(yggRoot, 'schemas'), { recursive: true });
   await mkdir(path.join(yggRoot, 'model', 'svc'), { recursive: true });
-  await writeFile(path.join(yggRoot, 'schemas', 'yg-node.yaml'), 'type: node\n');
-  await writeFile(path.join(yggRoot, 'schemas', 'yg-aspect.yaml'), 'type: aspect\n');
-  await writeFile(path.join(yggRoot, 'schemas', 'yg-flow.yaml'), 'type: flow\n');
-  await writeFile(path.join(yggRoot, 'yg-config.yaml'), 'version: "5.0.0"\n');
+  await writeFile(path.join(yggRoot, 'yg-config.yaml'), 'version: "5.1.0"\n');
   await writeFile(
     path.join(yggRoot, 'model', 'svc', 'yg-node.yaml'),
     'name: Svc\ntype: service\ndescription: parent\n',

@@ -24,7 +24,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');
 const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
 const LIFECYCLE_FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle');
-const SCHEMAS_DIR = path.join(LIFECYCLE_FIXTURE, '.yggdrasil', 'schemas');
 
 const distExists = existsSync(BIN_PATH);
 
@@ -55,14 +54,12 @@ function run(
 // builder for a hand-rolled, source-free graph used by the pure-validation
 // scenarios. A source-free graph keeps every validation outcome attributable
 // to the relation metadata alone: no `when` predicate to satisfy, no aspect
-// reviewer to run, no approve baseline to manage. The three required schemas
-// are copied from the committed e2e-lifecycle fixture (read-only) so `yg check`
-// emits no schema-missing noise, and the config carries the mandatory reviewer:
-// section pointed at the dead loopback.
+// reviewer to run, no approve baseline to manage. The config carries the
+// mandatory reviewer: section pointed at the dead loopback.
 // ---------------------------------------------------------------------------
 
 const CONFIG = [
-  'version: "5.0.0"',
+  'version: "5.1.0"',
   'quality:',
   '  max_direct_relations: 10',
   'reviewer:',
@@ -132,7 +129,6 @@ function buildGraph(label: string, nodes: NodeSpec[]): string {
   const dir = mkdtempSync(path.join(tmpdir(), `yg-relx-${label}-`));
   const ygRoot = path.join(dir, '.yggdrasil');
   mkdirSync(ygRoot, { recursive: true });
-  cpSync(SCHEMAS_DIR, path.join(ygRoot, 'schemas'), { recursive: true });
   writeFileSync(path.join(ygRoot, 'yg-config.yaml'), CONFIG, 'utf-8');
   writeFileSync(path.join(ygRoot, 'yg-architecture.yaml'), ARCHITECTURE, 'utf-8');
 

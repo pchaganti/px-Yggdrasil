@@ -96,9 +96,19 @@ within it.
 
 ## File-level placement
 
-For generated files where the entire file is exempt, place the marker at
-the file level (outside any function or class). At file level, the
-contextual scope is the whole file.
+When the entire file is exempt, use the bracket form at the file level
+(outside any function or class): a \`yg-suppress-disable(<id>)\` near the top
+and a matching \`yg-suppress-enable(<id>)\` at the end. A bare
+\`yg-suppress-disable(<id>)\` with no enable also covers through to the end of
+the file, but the explicit pair is preferred so the range is unambiguous.
+
+Do NOT reach for the single-line \`yg-suppress(<id>)\` to waive a whole file —
+it covers only the one line that follows it. The single-line form reads as
+whole-file ONLY for an LLM aspect reviewed per node (its verdict is not tied
+to a line); for any line-attributed finding — a deterministic \`check.mjs\`,
+the relation pass, the AST checks — a single marker silently waives just that
+one line. The \`disable\`/\`enable\` bracket waives the file correctly
+regardless of the aspect's reviewer kind.
 
 ## Language support
 

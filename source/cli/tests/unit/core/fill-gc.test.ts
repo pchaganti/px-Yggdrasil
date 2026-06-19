@@ -109,7 +109,6 @@ function buildGraph(
     nodes: nodeByPath,
     aspects: aspectDefs,
     flows: [],
-    schemas: [],
     rootPath,
   } as unknown as Graph;
 }

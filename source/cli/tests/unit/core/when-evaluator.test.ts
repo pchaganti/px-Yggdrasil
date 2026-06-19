@@ -20,7 +20,6 @@ function makeGraph(overrides: Partial<Graph> = {}): Graph {
     nodes: new Map(),
     aspects: [],
     flows: [],
-    schemas: [],
     rootPath: '/tmp',
     ...overrides,
   } as Graph;

@@ -40,7 +40,7 @@ try {
   const pkgDir = path.join(extract, 'package');
   if (!existsSync(pkgDir)) fail('extracted package/ dir missing');
 
-  // 3. Assert every exports/bin path + the WASM grammars + schemas are IN the tarball
+  // 3. Assert every exports/bin path + the WASM grammars are IN the tarball
   const pkgJson = JSON.parse(readFileSync(path.join(pkgDir, 'package.json'), 'utf-8'));
   const mustExist = [pkgJson.bin?.yg];
   for (const e of Object.values(pkgJson.exports ?? {})) {
@@ -86,10 +86,6 @@ try {
   mkdirSync(path.join(proj, 'src'), { recursive: true });
   mkdirSync(path.join(ygg, 'model', 'svc'), { recursive: true });
   mkdirSync(path.join(ygg, 'aspects', 'parse-smoke'), { recursive: true });
-  mkdirSync(path.join(ygg, 'schemas'), { recursive: true });
-  for (const s of ['yg-architecture', 'yg-node', 'yg-aspect', 'yg-flow', 'yg-config']) {
-    writeFileSync(path.join(ygg, 'schemas', `${s}.yaml`), '{}\n');
-  }
   // One file per a couple of DISTINCT grammars so the smoke proves new-language
   // WASMs (python, go) also resolve from the tarball — not just typescript.
   writeFileSync(path.join(proj, 'src', 'a.ts'), '// a\nexport const a = 1;\n');
@@ -97,7 +93,7 @@ try {
   writeFileSync(path.join(proj, 'src', 'a.go'), 'package a\n// a\nvar a = 1\n');
   writeFileSync(
     path.join(ygg, 'yg-config.yaml'),
-    'version: "5.0.0"\nreviewer:\n  tiers:\n    standard:\n      provider: ollama\n      consensus: 1\n      config:\n        model: m\n        endpoint: "http://127.0.0.1:1"\n',
+    'version: "5.1.0"\nreviewer:\n  tiers:\n    standard:\n      provider: ollama\n      consensus: 1\n      config:\n        model: m\n        endpoint: "http://127.0.0.1:1"\n',
   );
   writeFileSync(
     path.join(ygg, 'yg-architecture.yaml'),

@@ -26,7 +26,7 @@ The wizard asks two things:
    the connection.
 
 That's it. Takes about a minute. The wizard creates `.yggdrasil/` with
-config, schemas, architecture defaults, and the rules file for your platform.
+config, architecture defaults, and the rules file for your platform.
 
 The architecture file (`.yggdrasil/yg-architecture.yaml`) ships with an empty
 architecture (`node_types: {}`) and commented examples — node types are defined

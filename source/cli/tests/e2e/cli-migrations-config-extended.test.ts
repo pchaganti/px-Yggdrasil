@@ -5,7 +5,6 @@ import {
   mkdtempSync,
   mkdirSync,
   rmSync,
-  cpSync,
   readFileSync,
   writeFileSync,
 } from 'node:fs';
@@ -40,8 +39,8 @@ import { fileURLToPath } from 'node:url';
 //     tier key, and a yg-secrets overlay field accepted through the check gate.
 //
 // Determinism: every test scaffolds in a fresh mkdtemp dir and rmSync()s it in a
-// finally. The committed fixtures are never mutated (schemas are cpSync-copied,
-// every config/aspect is authored in mkdtemp). No network, no clock, no RNG, no
+// finally. The committed fixtures are never mutated (every config/aspect is
+// authored in mkdtemp). No network, no clock, no RNG, no
 // hardcoded reachable host — the loopback endpoint below is never dialed by the
 // `yg check` / `yg init --upgrade` paths exercised here. Every exit code and
 // message substring was verified against the live dist/bin.js before pinning.
@@ -50,14 +49,6 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');
 const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
-const SCHEMAS_DIR = path.join(
-  CLI_ROOT,
-  'tests',
-  'fixtures',
-  'sample-project',
-  '.yggdrasil',
-  'schemas',
-);
 
 const distExists = existsSync(BIN_PATH);
 
@@ -91,7 +82,7 @@ function bareUpgradeRepo(label: string): string {
   const dir = mkdtempSync(path.join(tmpdir(), `yg-mcx-${label}-`));
   const yggRoot = path.join(dir, '.yggdrasil');
   mkdirSync(yggRoot, { recursive: true });
-  writeFileSync(path.join(yggRoot, 'yg-config.yaml'), 'version: "5.0.0"\n', 'utf-8');
+  writeFileSync(path.join(yggRoot, 'yg-config.yaml'), 'version: "5.1.0"\n', 'utf-8');
   return dir;
 }
 
@@ -101,7 +92,7 @@ function bareUpgradeRepo(label: string): string {
 
 /**
  * Scaffold a structurally-complete, fully-hermetic graph (config + architecture
- * + one node + one deterministic aspect + the three schemas) and write the
+ * + one node + one deterministic aspect) and write the
  * scenario config. Returns the temp dir; caller owns rmSync cleanup. Mirrors the
  * scaffold helper in cli-config-tier-validation but inlined here so this file is
  * self-contained.
@@ -115,7 +106,6 @@ function scaffoldCheck(
   mkdirSync(path.join(ygRoot, 'model', 'widget'), { recursive: true });
   mkdirSync(path.join(ygRoot, 'aspects', 'det'), { recursive: true });
   mkdirSync(path.join(ygRoot, 'flows'), { recursive: true });
-  cpSync(SCHEMAS_DIR, path.join(ygRoot, 'schemas'), { recursive: true });
 
   writeFileSync(
     path.join(ygRoot, 'yg-architecture.yaml'),

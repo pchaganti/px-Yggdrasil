@@ -1,4 +1,6 @@
-# yg-aspect.yaml — Schema for cross-cutting aspects
+export const summary = 'Aspect definition — reviewer kind, scope, status, implies, references, when.';
+
+export const content = `# yg-aspect.yaml — Schema for cross-cutting aspects
 # Each aspect is a directory under .yggdrasil/aspects/ containing this file
 # plus any number of .md content files (for LLM aspects) or a check.mjs
 # (for deterministic aspects).
@@ -59,8 +61,8 @@ status: enforced                   # optional — aspect-level default. enum: dr
 # implies:                         # optional — other aspects included automatically when this
 #                                  # aspect is effective on a node. Two forms:
 #   - simple-aspect-id             # bare string — implied unconditionally (when outer aspect passes)
-#   - id: conditional-aspect-id    # object form — imply only when `when` passes on the node
-#     when: <predicate>            # see `when` section below for grammar
+#   - id: conditional-aspect-id    # object form — imply only when \`when\` passes on the node
+#     when: <predicate>            # see \`when\` section below for grammar
 #     status_inherit: strictest    # optional — propagation modifier for this implies edge.
                                    # enum: strictest | own-default.
                                    # Absent → 'strictest' (implied aspect promotes to
@@ -71,14 +73,14 @@ status: enforced                   # optional — aspect-level default. enum: dr
                                    #
                                    # ASYMMETRY NOTE: attach-site entries on channels
                                    # 1–6 (node, ancestor, architecture type, ancestor
-                                   # type, flow, port) carry an explicit `status:`
+                                   # type, flow, port) carry an explicit \`status:\`
                                    # VALUE. Channel 7 (implies) carries a propagation
-                                   # MODIFIER (`status_inherit:`) instead. Implies is
+                                   # MODIFIER (\`status_inherit:\`) instead. Implies is
                                    # not a direct attach — the implied aspect's status
                                    # is structurally derived from the implier's
                                    # effective status on the node. The modifier
                                    # selects how to derive; a value-overriding
-                                   # `status:` on an implies edge would couple the
+                                   # \`status:\` on an implies edge would couple the
                                    # edge to a literal that becomes stale if the
                                    # implied aspect's own default changes.
                                    # Chains expand recursively. Cycles are forbidden — CLI detects.
@@ -86,7 +88,7 @@ status: enforced                   # optional — aspect-level default. enum: dr
 # when: <predicate>                # optional — applicability filter. If the predicate evaluates
                                    # to false on a node, this aspect is not effective on that node
                                    # regardless of which channel attached it. Combines with
-                                   # attach-site `when` declarations via AND.
+                                   # attach-site \`when\` declarations via AND.
                                    #
                                    # Grammar:
                                    #   when:
@@ -159,7 +161,7 @@ status: enforced                   # optional — aspect-level default. enum: dr
                                    #
                                    # Cost note: editing scope: (per or files) changes the input hash for
                                    # every pair of this aspect — every node using the aspect needs
-                                   # re-verification. Run `yg impact --aspect <id>` before widening or
+                                   # re-verification. Run \`yg impact --aspect <id>\` before widening or
                                    # narrowing the filter.
                                    #
                                    # Example:
@@ -180,15 +182,16 @@ status: enforced                   # optional — aspect-level default. enum: dr
                                    #     - path: source/cli/src/errors/codes.ts
                                    #       description: "Catalogue of valid error codes; reviewer rejects unknown codes."
                                    #
-                                   # Constraints (validated by `yg check`):
+                                   # Constraints (validated by \`yg check\`):
                                    #   - Path is repo-root-relative.
                                    #   - No '..' that escapes the repo root; no leading '/'; no Windows drive letter; no '~'.
                                    #   - File must exist at check time and resolve (after symlink follow) to a regular file.
                                    #   - No duplicates within one aspect.
                                    #
                                    # Drift semantics: changes to referenced files cascade to all nodes where this
-                                   # aspect is effective — same as changes to content.md. Run `yg impact --file <ref>`
+                                   # aspect is effective — same as changes to content.md. Run \`yg impact --file <ref>\`
                                    # before editing a widely-referenced file.
                                    #
                                    # Size limits: per-tier caps via reviewer.tiers.<tier>.references.* in yg-config.yaml.
                                    # Defaults: 64 KiB per file, 256 KiB total per aspect.
+`;

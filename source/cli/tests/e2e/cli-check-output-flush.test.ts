@@ -30,13 +30,10 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cpSync } from 'node:fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');
 const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
-const SAMPLE_FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'sample-project');
-const SCHEMAS_DIR = path.join(SAMPLE_FIXTURE, '.yggdrasil', 'schemas');
 
 const distExists = existsSync(BIN_PATH);
 
@@ -62,7 +59,6 @@ function buildFlushFixture(): string {
   mkdirSync(path.join(ygRoot, 'model'), { recursive: true });
   mkdirSync(path.join(ygRoot, 'aspects'), { recursive: true });
   mkdirSync(path.join(ygRoot, 'flows'), { recursive: true });
-  cpSync(SCHEMAS_DIR, path.join(ygRoot, 'schemas'), { recursive: true });
 
   // Three LLM aspects. Content is minimal but valid — the reviewer is never
   // invoked by `yg check` (only by fill), so the content text is irrelevant to

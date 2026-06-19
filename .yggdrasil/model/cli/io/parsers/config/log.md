@@ -30,3 +30,7 @@ The requirement that a reviewer tier name an explicit endpoint applies only to t
 Added max_prompt_chars as a per-tier config field. It is a quality gate: a positive-integer character cap on the assembled reviewer prompt checked deterministically before the LLM call. It is excluded from tier identity hashing so tuning the cap never invalidates recorded baselines. Absent means unlimited.
 ## [2026-06-16T09:52:39.132Z]
 yg-secrets.yaml is now a general deep-merge overlay over yg-config.yaml: it mirrors the same shape and can override any field locally (most often a tier provider, model, endpoint, or api_key), replacing the previous api_key-only handling. This lets each developer run their own reviewer locally without touching the committed config, which is safe because only the tier name is folded into the verdict hash.
+## [2026-06-19T05:55:06.453Z]
+Drops the parser that read schema files from disk. Schema bodies are no longer stored as per-project files — they are embedded in the tool and served by a command — so nothing reads them off disk and the dedicated reader is unnecessary.
+## [2026-06-19T11:07:37.059Z]
+The configuration-parse error now points the reader at the built-in schemas command for the expected configuration shape, instead of a per-project schema file path that no longer exists. Reason: schema references moved out of every project into the tool, served by a command.

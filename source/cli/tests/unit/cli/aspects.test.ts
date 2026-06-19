@@ -52,7 +52,6 @@ function makeGraph(aspects: AspectDef[], nodes: GraphNode[] = []): Graph {
     nodes: nodesMap,
     aspects,
     flows: [],
-    schemas: [],
   } as Graph;
 }
 

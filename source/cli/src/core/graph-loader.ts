@@ -6,7 +6,6 @@ import type {
   GraphNode,
   AspectDef,
   FlowDef,
-  SchemaDef,
   YggConfig,
   ArchitectureDef,
 } from '../model/graph.js';
@@ -14,7 +13,6 @@ import { parseConfig, ConfigParseError } from '../io/config-parser.js';
 import { parseNodeYaml } from '../io/node-parser.js';
 import { parseAspect } from '../io/aspect-parser.js';
 import { parseFlow } from '../io/flow-parser.js';
-import { parseSchema } from '../io/schema-parser.js';
 import { parseArchitecture } from '../io/architecture-parser.js';
 import { WhenPredicateInvalidError } from '../utils/file-when-parser.js';
 import type { ArchitectureLoadError } from '../model/graph.js';
@@ -23,7 +21,7 @@ import { findYggRoot } from '../io/paths.js';
 import { detectVersion } from './migrator.js';
 import { toPosixPath } from '../utils/posix.js';
 
-export const CLI_SUPPORTED_SCHEMA = '5.0.0';
+export const CLI_SUPPORTED_SCHEMA = '5.1.0';
 
 /**
  * Thrown when the project's yg-config.yaml declares a schema version newer than
@@ -125,7 +123,6 @@ export async function loadGraph(
 
   const aspectsLoad = await loadAspects(path.join(yggRoot, 'aspects'));
   const flows = await loadFlows(path.join(yggRoot, 'flows'));
-  const schemas = await loadSchemas(path.join(yggRoot, 'schemas'));
 
   return {
     config,
@@ -139,7 +136,6 @@ export async function loadGraph(
     nodes,
     aspects: aspectsLoad.aspects,
     flows,
-    schemas,
     rootPath: toPosixPath(yggRoot),
   };
 }
@@ -162,7 +158,7 @@ async function loadArchitecture(
       const whenMsg: IssueMessage = {
         what: error.message,
         why: 'The when: predicate in yg-architecture.yaml could not be parsed. Architecture cannot be loaded until this is fixed.',
-        next: 'Fix the when: predicate syntax in yg-architecture.yaml. See schemas/yg-architecture.yaml for the allowed shape.',
+        next: 'Fix the when: predicate syntax in yg-architecture.yaml. Run yg schemas read architecture for the allowed shape.',
       };
       return {
         architecture: emptyArch,
@@ -309,14 +305,3 @@ async function loadFlows(flowsDir: string): Promise<FlowDef[]> {
   return flows;
 }
 
-async function loadSchemas(schemasDir: string): Promise<SchemaDef[]> {
-  const entries = await readSortedDirOrEmpty(schemasDir);
-  const schemas: SchemaDef[] = [];
-  for (const entry of entries) {
-    if (!entry.isFile()) continue;
-    if (!entry.name.endsWith('.yaml') && !entry.name.endsWith('.yml')) continue;
-    const s = await parseSchema(path.join(schemasDir, entry.name));
-    schemas.push(s);
-  }
-  return schemas;
-}

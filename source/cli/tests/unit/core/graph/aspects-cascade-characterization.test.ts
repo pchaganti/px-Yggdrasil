@@ -88,7 +88,6 @@ function buildRichGraph(): { graph: Graph; node: GraphNode } {
       // channel 5: flow includes the PARENT 'mod' (not the node directly) → via-parent origin
       { path: 'flow1', name: 'flow1', description: '', nodes: ['mod'], aspects: ['F'] },
     ],
-    schemas: [],
     rootPath: '/tmp',
   } as unknown as Graph;
 

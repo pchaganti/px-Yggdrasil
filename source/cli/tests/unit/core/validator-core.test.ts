@@ -33,7 +33,6 @@ function createGraph(overrides: Partial<Graph> = {}): Graph {
     nodes: new Map(),
     aspects: [{ name: 'Valid', id: 'valid-tag', reviewer: { type: 'llm' as const }, artifacts: [] }],
     flows: [],
-    schemas: [],
     rootPath: path.join(FIXTURE_PROJECT, '.yggdrasil'),
     ...overrides,
   };
@@ -180,7 +179,7 @@ describe('validator', () => {
     await mkdir(badNodeDir, { recursive: true });
     await writeFile(
       path.join(yggRoot, 'yg-config.yaml'),
-      'version: "5.0.0"',
+      'version: "5.1.0"',
     );
     await writeFile(path.join(badNodeDir, 'yg-node.yaml'), 'type: service\n# missing name');
 
@@ -218,7 +217,7 @@ describe('validator', () => {
     await mkdir(serviceDir, { recursive: true });
     await writeFile(
       path.join(yggRoot, 'yg-config.yaml'),
-      'version: "5.0.0"',
+      'version: "5.1.0"',
     );
     await writeFile(path.join(serviceDir, 'yg-node.yaml'), 'name: Svc\ntype: service\n');
     await writeFile(path.join(orphanDir, 'readme.md'), '# orphan content');
@@ -577,31 +576,6 @@ describe('validator', () => {
     expect(msgOf(issues[0])).toContain('cycle');
     expect(msgOf(issues[0])).toContain('tag-a');
     expect(msgOf(issues[0])).toContain('tag-b');
-  });
-
-  it('checkSchemas: missing-schema when required schema is missing', async () => {
-    const graph = createGraph();
-    graph.schemas = [{ schemaType: 'node' }, { schemaType: 'aspect' }];
-    // flow missing
-
-    const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.rule === 'missing-schema');
-    expect(issues).toHaveLength(1);
-    expect(issues[0].code).toBe('schema-missing');
-    expect(msgOf(issues[0])).toContain('flow');
-  });
-
-  it('checkSchemas: no missing-schema when all 3 schemas present', async () => {
-    const graph = createGraph();
-    graph.schemas = [
-      { schemaType: 'node' },
-      { schemaType: 'aspect' },
-      { schemaType: 'flow' },
-    ];
-
-    const result = await validate(graph);
-    const issues = result.issues.filter((i) => i.rule === 'missing-schema');
-    expect(issues).toHaveLength(0);
   });
 
   it('scoped validate returns parse error instead of "not found" for broken node', async () => {

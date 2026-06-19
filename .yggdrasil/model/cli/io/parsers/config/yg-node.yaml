@@ -1,9 +1,8 @@
 name: Config Parsers
 type: parser-adapter
 description: Parsers for project configuration YAML — yg-config (reviewer tiers,
-  providers), yg-secrets (api keys), and schema files. Split out from
-  cli/io/parsers so the reviewer sees a focused set of files (3) rather than the
-  original 7.
+  providers) and yg-secrets (api keys). Split out from cli/io/parsers so the
+  reviewer sees a focused set of files (2) rather than the original 7.
 relations:
   - target: cli/model/graph
     type: uses
@@ -12,4 +11,3 @@ relations:
 mapping:
   - source/cli/src/io/config-parser.ts
   - source/cli/src/io/secrets-parser.ts
-  - source/cli/src/io/schema-parser.ts

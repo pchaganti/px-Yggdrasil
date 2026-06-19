@@ -1,5 +1,4 @@
 import type { Migration } from '../core/migrator.js';
+import { migration as to_5_1_0 } from './to-5.1.0.js';
 
-// B4 deletion sweep: legacy migration files removed. MIGRATIONS is empty; the
-// graph is now at the schema version that the verdict-lock redesign targets.
-export const MIGRATIONS: Migration[] = [];
+export const MIGRATIONS: Migration[] = [to_5_1_0];

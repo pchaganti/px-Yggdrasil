@@ -1,8 +1,10 @@
-# yg-config.yaml — Schema for the Yggdrasil project configuration
+export const summary = 'Reviewer config — tiers, quality thresholds, parallelism, schema version.';
+
+export const content = `# yg-config.yaml — Schema for the Yggdrasil project configuration
 # Located at .yggdrasil/yg-config.yaml — one per project.
 # Edit this after running yg init to describe your project.
 
-version: "5.0.0"                  # managed by CLI — do not edit manually. Tracks the CLI version
+version: "5.1.0"                  # managed by CLI — do not edit manually. Tracks the CLI version
                                   # that last initialized or upgraded this config.
 
 quality:                          # optional — quality thresholds
@@ -38,16 +40,17 @@ reviewer:                         # required — aspect verification during yg c
                                   #   (split the node, shorten references, or raise the cap).
                                   #   Never participates in verdict identity — tuning it does not
                                   #   invalidate recorded baselines.
-    # Add more tiers as needed (e.g. a `deep` tier with a higher-capability model for critical aspects).
+    # Add more tiers as needed (e.g. a \`deep\` tier with a higher-capability model for critical aspects).
     # An aspect references a non-default tier via:
     #
     #   reviewer:
     #     type: llm
     #     tier: deep
     #
-    # Tier names match ^[a-zA-Z][a-zA-Z0-9_-]{0,62}$ and `default` is reserved.
+    # Tier names match ^[a-zA-Z][a-zA-Z0-9_-]{0,62}$ and \`default\` is reserved.
     # yg-secrets.yaml is a deep-merge overlay over this file (gitignored): it
     # mirrors the same shape and overrides any field locally — most often a
     # tier's api_key, or pointing a named tier at a different provider/model.
     # Only the tier NAME is folded into a verdict hash, so a local override never
     # invalidates recorded baselines. Keep credentials out of this committed file.
+`;

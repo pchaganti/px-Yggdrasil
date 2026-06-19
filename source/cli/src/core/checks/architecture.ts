@@ -112,7 +112,7 @@ export function checkEnforceStrictWithoutWhen(graph: Graph): ValidationIssue[] {
       const msgData: IssueMessage = {
         what: `Type '${typeId}' has enforce: strict but no when predicate.`,
         why: `enforce: strict requires when — it tells the validator which files must belong to a node of this type. Without when, there's no condition to evaluate.`,
-        next: `Either add a when predicate to type '${typeId}', or remove enforce: strict. See schemas/yg-architecture.yaml.`,
+        next: `Either add a when predicate to type '${typeId}', or remove enforce: strict. Run yg schemas read architecture.`,
       };
       issues.push({
         severity: 'error',

@@ -200,6 +200,29 @@ describe.skipIf(!distExists)('CLI E2E — command surface: mutex, not-found, req
     }
   });
 
+  it('C4: schemas with an UNKNOWN subcommand is rejected (exit 1, "unknown command")', () => {
+    // Mirrors C2 for the new `yg schemas` surface — unknown subcommand branch.
+    const dir = copyFixture('c4');
+    try {
+      const { status, all } = run(['schemas', 'frobnicate'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain("unknown command 'frobnicate'");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('C5: schemas read with NO schema name is rejected (exit 1, missing required argument)', () => {
+    const dir = copyFixture('c5');
+    try {
+      const { status, all } = run(['schemas', 'read'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain("missing required argument 'name'");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   // === D. Numeric / query option validation ===
 
   it('D1: tree --depth with a NEGATIVE value is rejected (exit 1, non-negative integer)', () => {
@@ -301,6 +324,21 @@ describe.skipIf(!distExists)('CLI E2E — command surface: mutex, not-found, req
       const { status, stdout } = run(['knowledge', 'read', 'flows'], dir);
       expect(status).toBe(0);
       expect(stdout).toContain('Flow');
+      expect(stdout.length).toBeGreaterThan(200);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('E6: schemas read needs NO graph — it prints the schema even with no .yggdrasil/ (exit 0)', () => {
+    // The embedded schema reference is graph-independent, exactly like
+    // `yg knowledge read` (E5): it resolves from compiled-in content and never
+    // loads a graph, so it succeeds in a bare directory.
+    const dir = emptyDir('e6');
+    try {
+      const { status, stdout } = run(['schemas', 'read', 'node'], dir);
+      expect(status).toBe(0);
+      expect(stdout).toContain('# yg-node.yaml');
       expect(stdout.length).toBeGreaterThan(200);
     } finally {
       rmSync(dir, { recursive: true, force: true });

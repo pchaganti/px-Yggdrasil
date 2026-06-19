@@ -13,6 +13,7 @@ import { registerLogCommand } from './cli/log.js';
 import { registerFindCommand } from './cli/find.js';
 import { registerTypeSuggestCommand } from './cli/type-suggest.js';
 import { registerKnowledgeCommand } from './cli/knowledge.js';
+import { registerSchemasCommand } from './cli/schemas.js';
 import { registerSuppressionsCommand } from './cli/suppressions.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -42,6 +43,7 @@ registerLogCommand(program);
 registerFindCommand(program);
 registerTypeSuggestCommand(program);
 registerKnowledgeCommand(program);
+registerSchemasCommand(program);
 registerSuppressionsCommand(program);
 
 process.on('unhandledRejection', (reason) => {

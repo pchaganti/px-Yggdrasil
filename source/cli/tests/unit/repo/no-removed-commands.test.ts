@@ -4,7 +4,7 @@
 // `yg approve` and `yg deterministic-test` were REMOVED from the CLI surface and
 // replaced by `yg check --approve` and `yg aspect-test`. This grep-guard scans
 // the source-of-truth files (CLI source + templates, user docs, examples, tools,
-// top-level READMEs, and the config schemas) and FAILS if either removed command
+// top-level READMEs) and FAILS if either removed command
 // appears as a RUNNABLE COMMAND. It is the cheap regression guard that stops a
 // future contributor from quietly re-introducing a dead command in prose, an
 // example, a help string, or a diagnostic.
@@ -55,7 +55,6 @@ const SCAN_DIRS = [
   'docs',
   'examples',
   'tools',
-  '.yggdrasil/schemas', // the config/element schemas shipped with the graph
 ];
 
 /** Individual files to scan (repo-relative). Missing ones are skipped. */

@@ -21,7 +21,6 @@ function makeGraph(flows: FlowDef[]): Graph {
     nodes: new Map(),
     aspects: [],
     flows,
-    schemas: [],
   };
 }
 

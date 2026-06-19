@@ -24,7 +24,7 @@ You work on the Yggdrasil repository: an open-source CLI that provides continuou
 
 ## Yggdrasil-derived local state lives under `.yggdrasil/`
 
-All Yggdrasil-derived local/rebuildable state (caches, indexes, scratch state) MUST live under the `.yggdrasil/` directory — never at the repo root or elsewhere. Gitignore it within `.yggdrasil/` (it is rebuildable and must not be committed). Example: the relation-conformance symbol-index cache lives at `.yggdrasil/.symbols-cache/<lang>.json` and is gitignored. Do not scatter Yggdrasil state outside `.yggdrasil/` (no root-level `.yg-cache/` etc.). The committed graph (model/aspects/flows/schemas/lock) also lives here; keep derived state in dot-prefixed, gitignored subdirectories so it never mixes with the committed graph.
+All Yggdrasil-derived local/rebuildable state (caches, indexes, scratch state) MUST live under the `.yggdrasil/` directory — never at the repo root or elsewhere. Gitignore it within `.yggdrasil/` (it is rebuildable and must not be committed). Example: the relation-conformance symbol-index cache lives at `.yggdrasil/.symbols-cache/<lang>.json` and is gitignored. Do not scatter Yggdrasil state outside `.yggdrasil/` (no root-level `.yg-cache/` etc.). The committed graph (model/aspects/flows/lock) also lives here; keep derived state in dot-prefixed, gitignored subdirectories so it never mixes with the committed graph.
 
 ## Adding Support for a New Agent
 

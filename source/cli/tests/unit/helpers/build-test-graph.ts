@@ -121,7 +121,6 @@ export function buildTestGraph(input: {
     nodes: nodeByPath,
     flows,
     aspects,
-    schemas: [],
     rootPath,
   } as unknown as Graph;
 }

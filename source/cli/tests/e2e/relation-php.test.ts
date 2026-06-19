@@ -6,7 +6,6 @@ import {
   mkdirSync,
   rmSync,
   writeFileSync,
-  cpSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -24,7 +23,6 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');
 const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
-const SCHEMAS_SRC = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle', '.yggdrasil', 'schemas');
 const distExists = existsSync(BIN_PATH);
 
 function run(args: string[], cwd: string): { stdout: string; status: number | null; all: string } {
@@ -51,8 +49,6 @@ function writeFile(root: string, rel: string, content: string): void {
 function buildRepo(label: string, withRelation: boolean): string {
   const root = mkdtempSync(path.join(tmpdir(), `yg-rel-php-${label}-`));
 
-  cpSync(SCHEMAS_SRC, path.join(root, '.yggdrasil', 'schemas'), { recursive: true });
-
   writeFile(
     root,
     '.yggdrasil/yg-architecture.yaml',
@@ -72,7 +68,7 @@ function buildRepo(label: string, withRelation: boolean): string {
     root,
     '.yggdrasil/yg-config.yaml',
     [
-      'version: "5.0.0"',
+      'version: "5.1.0"',
       '',
       'quality:',
       '  max_direct_relations: 10',
@@ -156,7 +152,6 @@ describe.skipIf(!distExists)('CLI E2E — PHP relation conformance (live)', () =
     // contributing edges into b.
     const root = mkdtempSync(path.join(tmpdir(), 'yg-rel-php-group-'));
     try {
-      cpSync(SCHEMAS_SRC, path.join(root, '.yggdrasil', 'schemas'), { recursive: true });
       writeFile(
         root,
         '.yggdrasil/yg-architecture.yaml',
@@ -176,7 +171,7 @@ describe.skipIf(!distExists)('CLI E2E — PHP relation conformance (live)', () =
         root,
         '.yggdrasil/yg-config.yaml',
         [
-          'version: "5.0.0"',
+          'version: "5.1.0"',
           '',
           'quality:',
           '  max_direct_relations: 10',

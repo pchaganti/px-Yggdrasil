@@ -133,7 +133,6 @@ function buildGraph(
     nodes: nodeByPath,
     aspects: [],
     flows: [],
-    schemas: [],
     rootPath: yggRoot,
   } as unknown as Graph;
 }

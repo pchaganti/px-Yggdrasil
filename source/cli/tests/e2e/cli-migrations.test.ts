@@ -80,7 +80,7 @@ describe.skipIf(!distExists)('CLI E2E — schema migrations (version-guard + ide
   it('M2: upgrading an already-v5 repo twice is a no-op — config byte-identical between runs', () => {
     const dir = copyFixture('m2');
     try {
-      // First upgrade on the v5 fixture: nothing to migrate (5.0.0 is the
+      // First upgrade on the v5 fixture: nothing to migrate (5.1.0 is the
       // latest target), so the config must be left untouched.
       const first = run(['init', '--upgrade', '--platform', 'generic'], dir);
       expect(first.status).toBe(0);
@@ -93,7 +93,7 @@ describe.skipIf(!distExists)('CLI E2E — schema migrations (version-guard + ide
 
       expect(afterSecond).toBe(afterFirst);
       // And it is genuinely the v5 shape, not some degenerate empty file.
-      expect(afterSecond).toContain('version: "5.0.0"');
+      expect(afterSecond).toContain('version: "5.1.0"');
       expect(afterSecond).toContain('tiers:');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -147,7 +147,7 @@ describe.skipIf(!distExists)('CLI E2E — schema migrations (version-guard + ide
   // --- 5. Version-too-new guard (config schema newer than the CLI supports) ---
 
   it('M5: a config version newer than the CLI supports blocks `yg check` and `yg tree` (exit 1)', () => {
-    // CLI_SUPPORTED_SCHEMA in graph-loader.ts is 5.0.0; a config at 99.0.0 must
+    // CLI_SUPPORTED_SCHEMA in graph-loader.ts is 5.1.0; a config at 99.0.0 must
     // be refused by every command that loads the graph. We keep the v5 reviewer
     // shape intact and only raise the version field.
     const dir = copyFixture('m5');
@@ -159,7 +159,7 @@ describe.skipIf(!distExists)('CLI E2E — schema migrations (version-guard + ide
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
       expect(check.all).toContain('newer than this CLI supports');
-      expect(check.all).toContain('max: 5.0.0');
+      expect(check.all).toContain('max: 5.1.0');
       // A newer-than-CLI config is an expected USER error (upgrade your CLI),
       // not an internal bug — it must NOT be wrapped as "please file an issue".
       expect(check.all).not.toContain('file an issue');
@@ -168,7 +168,7 @@ describe.skipIf(!distExists)('CLI E2E — schema migrations (version-guard + ide
       const tree = run(['tree'], dir);
       expect(tree.status).toBe(1);
       expect(tree.all).toContain('newer than this CLI supports');
-      expect(tree.all).toContain('max: 5.0.0');
+      expect(tree.all).toContain('max: 5.1.0');
       expect(tree.all).not.toContain('file an issue');
       expect(tree.all).not.toContain('This is a bug');
     } finally {

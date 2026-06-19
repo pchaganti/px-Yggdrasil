@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync, cpSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +16,6 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');
 const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
-const SCHEMAS_SRC = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle', '.yggdrasil', 'schemas');
 const distExists = existsSync(BIN_PATH);
 
 function run(args: string[], cwd: string): { stdout: string; status: number | null; all: string } {
@@ -42,8 +41,6 @@ function writeFile(root: string, rel: string, content: string): void {
 function buildRepo(label: string, withRelation: boolean): string {
   const root = mkdtempSync(path.join(tmpdir(), `yg-rel-c-${label}-`));
 
-  cpSync(SCHEMAS_SRC, path.join(root, '.yggdrasil', 'schemas'), { recursive: true });
-
   writeFile(
     root,
     '.yggdrasil/yg-architecture.yaml',
@@ -63,7 +60,7 @@ function buildRepo(label: string, withRelation: boolean): string {
     root,
     '.yggdrasil/yg-config.yaml',
     [
-      'version: "5.0.0"',
+      'version: "5.1.0"',
       '',
       'quality:',
       '  max_direct_relations: 10',
@@ -109,7 +106,6 @@ function buildRepo(label: string, withRelation: boolean): string {
  */
 function buildDecoyRepo(): string {
   const root = mkdtempSync(path.join(tmpdir(), 'yg-rel-c-decoy-'));
-  cpSync(SCHEMAS_SRC, path.join(root, '.yggdrasil', 'schemas'), { recursive: true });
   writeFile(
     root,
     '.yggdrasil/yg-architecture.yaml',
@@ -129,7 +125,7 @@ function buildDecoyRepo(): string {
     root,
     '.yggdrasil/yg-config.yaml',
     [
-      'version: "5.0.0"',
+      'version: "5.1.0"',
       '',
       'quality:',
       '  max_direct_relations: 10',

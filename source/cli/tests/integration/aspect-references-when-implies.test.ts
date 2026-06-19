@@ -1,16 +1,15 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const CLI = join(__dirname, '..', '..', 'dist', 'bin.js');
-const SCHEMAS_SRC = join(__dirname, '..', 'fixtures', 'sample-project', '.yggdrasil', 'schemas');
 
 const YG_CONFIG = `
-version: "5.0.0"
+version: "5.1.0"
 reviewer:
   default: standard
   tiers:
@@ -39,16 +38,11 @@ describe('integration — aspect references with implies', () => {
     const repo = mkdtempSync(join(tmpdir(), 'yg-refs-impl-'));
     repos.push(repo);
     const ygg = join(repo, '.yggdrasil');
-    mkdirSync(join(ygg, 'schemas'), { recursive: true });
     mkdirSync(join(ygg, 'aspects', 'a'), { recursive: true });
     mkdirSync(join(ygg, 'aspects', 'b'), { recursive: true });
     mkdirSync(join(ygg, 'model', 'svc'), { recursive: true });
     mkdirSync(join(repo, 'src'), { recursive: true });
     mkdirSync(join(repo, 'docs'), { recursive: true });
-
-    for (const schema of ['yg-node.yaml', 'yg-aspect.yaml', 'yg-flow.yaml']) {
-      copyFileSync(join(SCHEMAS_SRC, schema), join(ygg, 'schemas', schema));
-    }
 
     writeFileSync(join(repo, 'src', 'svc.ts'), 'export const x = 1;\n', 'utf-8');
     writeFileSync(join(repo, 'docs', 'refA.md'), 'REFERENCE_A\n', 'utf-8');

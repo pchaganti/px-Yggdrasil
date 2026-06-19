@@ -9,10 +9,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');
 const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
 const PORTS_FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'sample-project-ports');
-// Schemas + config copied verbatim from the ports fixture for the hand-authored
-// minimal graphs below — `yg check` requires the three graph schemas and a
-// parseable yg-config.yaml to be present.
-const FIXTURE_SCHEMAS = path.join(PORTS_FIXTURE, '.yggdrasil', 'schemas');
+// Config copied verbatim from the ports fixture for the hand-authored minimal
+// graphs below — `yg check` requires a parseable yg-config.yaml to be present.
 const FIXTURE_CONFIG = path.join(PORTS_FIXTURE, '.yggdrasil', 'yg-config.yaml');
 
 const distExists = existsSync(BIN_PATH);
@@ -66,17 +64,13 @@ const ALWAYS_FLAG_CHECK = `export function check(ctx) {
 `;
 
 /**
- * Bootstrap a minimal hand-authored graph in a fresh temp dir: the three
- * required schemas + a parseable config copied from the ports fixture, plus an
- * empty src/. Callers add yg-architecture.yaml, nodes, and source files.
+ * Bootstrap a minimal hand-authored graph in a fresh temp dir: a parseable
+ * config copied from the ports fixture, plus an empty src/. Callers add
+ * yg-architecture.yaml, nodes, and source files.
  */
 function scaffoldMinimalGraph(label: string): string {
   const dir = mkdtempSync(path.join(tmpdir(), `yg-pe-${label}-`));
-  const schemasDir = path.join(dir, '.yggdrasil', 'schemas');
-  mkdirSync(schemasDir, { recursive: true });
-  for (const s of ['yg-node.yaml', 'yg-aspect.yaml', 'yg-flow.yaml']) {
-    cpSync(path.join(FIXTURE_SCHEMAS, s), path.join(schemasDir, s));
-  }
+  mkdirSync(path.join(dir, '.yggdrasil'), { recursive: true });
   cpSync(FIXTURE_CONFIG, path.join(dir, '.yggdrasil', 'yg-config.yaml'));
   mkdirSync(path.join(dir, 'src'), { recursive: true });
   return dir;

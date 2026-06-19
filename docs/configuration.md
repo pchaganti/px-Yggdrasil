@@ -6,7 +6,7 @@ Config file: `.yggdrasil/yg-config.yaml`
 
 `yg init` creates this file and configures the reviewer interactively.
 `yg init --upgrade` lifts the graph's config version to the current one and
-refreshes the rules, schemas, and platform files.
+refreshes the rules and platform files.
 
 ---
 
@@ -33,7 +33,7 @@ not in `yg-config.yaml`.
 ## Full annotated example
 
 ```yaml
-version: "5.0.0"
+version: "5.1.0"
 
 reviewer:
   default: standard                 # Required when more than one tier; optional with one

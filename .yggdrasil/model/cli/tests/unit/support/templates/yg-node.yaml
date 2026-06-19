@@ -6,6 +6,7 @@ aspects: []
 relations:
   [
     { target: cli/knowledge-concepts, type: uses },
+    { target: cli/schemas, type: uses },
     { target: cli/templates, type: uses },
     { target: cli/templates-platform, type: uses }
   ]
@@ -13,6 +14,7 @@ mapping:
   - source/cli/tests/unit/templates/commands.test.ts
   - source/cli/tests/unit/templates/default-config.test.ts
   - source/cli/tests/unit/templates/knowledge.test.ts
+  - source/cli/tests/unit/templates/schemas.test.ts
   - source/cli/tests/unit/templates/platform.test.ts
   - source/cli/tests/unit/templates/rules-sections.test.ts
   - source/cli/tests/unit/templates/rules.test.ts

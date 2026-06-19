@@ -18,3 +18,5 @@ Two issue-classification gaps fixed. The secrets-non-credential error blocks the
 The relation-undeclared-dependency code was registered among the structural codes so it is counted in the summary, grouped with its peers, and reachable by the next-step suggestion.
 ## [2026-06-16T09:52:39.403Z]
 Removed the secrets-non-credential-field code: yg-secrets is now a general deep-merge overlay over yg-config rather than an api_key-only file, so a non-credential field in it is valid and no longer a blocking error.
+## [2026-06-19T05:55:05.448Z]
+Retires the structural issue code that reported a missing schema file. Schema references are no longer a per-project graph artifact whose presence is checked; they are delivered by a built-in command and travel with the tool, so a project can never be missing them and the code has nothing left to report.
