@@ -27,7 +27,7 @@
 //   +  relation-removal → infra-fail (out-of-reach companion read) vs GC-prune
 //   +  lock-merge carry-forward of a touched+companionHash entry
 //   +  companion==subject dedupe (returned subject path dropped, no <companions>,
-//      hash equals the no-companion baseline)
+//      no extra touched, and verdicts re-validate on a clean check at zero cost)
 //
 // HERMETIC: fresh mkdtemp copy of the fixture per test, mutated in place, rmSync'd
 // in finally. No fixed ports, no clock/random assertions.
@@ -324,6 +324,10 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (happy path)'
       expect((await runAsync(['check', '--approve'], dir)).status).toBe(0);
       expect(mock.chatCount()).toBe(3);
 
+      // Every prompt MUST carry a <companions> block — the multi-companion hook
+      // returns 3 companions for every unit, so any missing block is a defect.
+      for (const r of mock.chatRequests) expect(r.prompt).toContain('<companions>');
+
       // Every prompt carries ALL three specs as companions, path-sorted.
       for (const r of mock.chatRequests) {
         if (!r.prompt.includes('<companions>')) continue;
@@ -413,7 +417,8 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (happy path)'
         expect(touchedKeys(v[UNIT(s)])).not.toContain(`read:references/e2e-test-scenarios/${s}.md`);
         expect(v[UNIT(s)].touched ?? []).toEqual([]);
       }
-      // Verdicts read back valid with ZERO reviewer calls (hash == [] baseline).
+      // Verdicts read back valid with ZERO reviewer calls: no <companion path=
+      // in any prompt, no extra touched keys, so the stored hashes match.
       const before = mock.chatCount();
       expect(run(['check'], dir).status).toBe(0);
       expect(mock.chatCount() - before).toBe(0);
@@ -444,10 +449,12 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (happy path)'
       writeFileSync(p, readFileSync(p, 'utf-8').replace(/\naspects:\n  - scenario-matches-test\n?/, '\n'), 'utf-8');
 
       // A fill re-canonicalizes the lock; the unexpected entries are GC'd.
+      const callsBefore = mock.chatCount();
       const after = await runAsync(['check', '--approve'], dir);
       expect(after.status).toBe(0);
       // No reviewer calls (nothing expected to fill), and the aspect's verdicts
       // are gone from the lock.
+      expect(mock.chatCount() - callsBefore).toBe(0);
       const v = (readLock(dir).verdicts as Verdicts)['scenario-matches-test'];
       expect(v).toBeUndefined();
       expect(run(['check'], dir).status).toBe(0);
