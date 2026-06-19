@@ -65,7 +65,10 @@ describe('buildPrompt — references block', () => {
     ]);
     const aIdx = out.indexOf('<aspect ');
     const rIdx = out.indexOf('<references>');
-    const sIdx = out.indexOf('<source-files>');
+    // lastIndexOf: the suppress instruction in the <task> preamble now mentions
+    // the literal "<source-files>" (companion suppress-scoping, D1), so indexOf
+    // would match that prose; the actual block is the last occurrence.
+    const sIdx = out.lastIndexOf('<source-files>');
     expect(aIdx).toBeLessThan(rIdx);
     expect(rIdx).toBeLessThan(sIdx);
   });
