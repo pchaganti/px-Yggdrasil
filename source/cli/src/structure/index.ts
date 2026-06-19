@@ -1,4 +1,4 @@
-export type { Ctx, File, FsEntry, GraphNode, Port, Relation, Violation, CheckFunction, RelationType } from './types.js';
+export type { Ctx, File, FsEntry, GraphNode, Port, Relation, Violation, CheckFunction, CompanionFunction, CompanionDescriptor, RelationType } from './types.js';
 export { runStructureAspect, StructureRunnerError } from './runner.js';
 // Re-export AST helpers for structure aspect authors.
 // closest/walk are colocated in ast/walk.ts.

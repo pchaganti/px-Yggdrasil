@@ -1,22 +1,19 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { ensureLoaderRegistered } from '../ast/loader-hook.js';
-import { createCtxFs, UndeclaredFsReadError } from './ctx-fs.js';
-import { createCtxGraph, UndeclaredGraphReadError, computeAllowedNodePaths } from './ctx-graph.js';
-import { createCtxParsers, prewarmupAstCache, enrichFilesWithAst, ParseAstNotPrewarmedError } from './ctx-parsers.js';
-import { collectAllowedReadsForAspect } from './allowed-reads.js';
-import { normalizeMappingPath, isPathInMapping } from './expand-mapping-sync.js';
-import { expandMappingPaths } from '../io/hash.js';
+import { UndeclaredFsReadError } from './ctx-fs.js';
+import { UndeclaredGraphReadError } from './ctx-graph.js';
+import { ParseAstNotPrewarmedError } from './ctx-parsers.js';
+import { normalizeMappingPath } from './expand-mapping-sync.js';
 import { collectSuppressions, isLineSuppressed } from '../ast/suppress.js';
 import type { SuppressedRange } from '../ast/suppress.js';
 import { validateCheckModuleExport } from '../utils/validate-check-module.js';
-import type { Graph, GraphNode as ModelNode } from '../model/graph.js';
-import type { Ctx, Violation, File, Port } from './types.js';
+import type { Graph } from '../model/graph.js';
+import type { Violation } from './types.js';
 import type { ParseCache } from '../ast/parse-cache.js';
-import type { IssueMessage } from '../model/validation.js';
-import { BINARY_EXTENSIONS } from '../utils/binary-extensions.js';
-import { ObservationRecorder } from './observations.js';
+import { StructureRunnerError, loadHookModule, buildUnitCtx } from './hook-loader.js';
+
+// StructureRunnerError is defined in hook-loader.ts (shared by the loader and
+// this runner without a circular import); re-export it here so existing importers
+// (structure/index.ts, callers keying off the runner module) are unaffected.
+export { StructureRunnerError } from './hook-loader.js';
 
 export interface RunStructureAspectParams {
   aspectDir: string;
@@ -52,149 +49,17 @@ export interface RunStructureAspectResult {
   observationsTainted: boolean;
 }
 
-export class StructureRunnerError extends Error {
-  public readonly messageData: IssueMessage;
-  constructor(public readonly code: string, data: IssueMessage) {
-    // Keep the code token in .message so author-facing assertions and logs
-    // that key off the code continue to find it; carry the full what/why/next
-    // in messageData for the structured renderer (parity with AstRunnerError).
-    super(`${code}: ${data.what}\n${data.why}\n${data.next}`);
-    this.messageData = data;
-    this.name = 'StructureRunnerError';
-  }
-}
-
-/**
- * Expand the node's own mapping to a flat list of readable text files.
- * Directory entries are expanded recursively via the gitignore-aware
- * expandMappingPaths helper (same function used by the node-size budget and
- * build-context), so ctx.files exactly matches what the LLM path sees.
- * Files owned by descendant (child) nodes are carved out so a child's
- * aspects apply to those files, not the parent's.
- * Binary files (by extension) and unreadable files are silently skipped.
- *
- * Returns each file's RAW disk bytes alongside its File view so the caller can
- * fold a byte-symmetric `read:` observation if the check accesses a non-subject
- * sibling's content (spec §3.1, Bug 1).
- */
-async function buildOwnFiles(
-  node: ModelNode,
-  projectRoot: string,
-  touchedFiles: string[],
-): Promise<Array<{ file: File; bytes: Buffer }>> {
-  // Collect all mapping entries from child nodes — we exclude any file that falls
-  // under a child's mapping (file-or-directory) to preserve the child-wins model.
-  const childMappingEntries: string[] = [];
-  for (const child of node.children) {
-    for (const raw of child.meta.mapping ?? []) {
-      const p = normalizeMappingPath(raw);
-      if (p) childMappingEntries.push(p);
-    }
-  }
-
-  const rawMapping = (node.meta.mapping ?? [])
-    .map(normalizeMappingPath)
-    .filter((p): p is string => p !== '');
-
-  // Expand directories to constituent files (gitignore-aware).
-  const expanded = await expandMappingPaths(projectRoot, rawMapping);
-
-  const result: Array<{ file: File; bytes: Buffer }> = [];
-  for (const p of expanded) {
-    // Carve out files owned by descendant nodes.
-    if (childMappingEntries.length > 0 && isPathInMapping(p, childMappingEntries)) continue;
-    // Skip binary files by extension.
-    if (BINARY_EXTENSIONS.has(path.extname(p).toLowerCase())) continue;
-    const abs = path.resolve(projectRoot, p);
-    let bytes: Buffer;
-    try {
-      bytes = fs.readFileSync(abs);
-    } catch {
-      continue; // unreadable — skip
-    }
-    const content = bytes.toString('utf8');
-    result.push({ file: { path: p, content }, bytes });
-    touchedFiles.push(p);
-  }
-  return result;
-}
-
-/**
- * Wrap a NON-subject own-file (visible through `ctx.node.files`) so reading its
- * `content` folds a `read:` observation on first access. The raw disk `bytes`
- * make the fold byte-symmetric with verifyLock's re-observation; the recorder
- * dedups, so repeated reads cost one observation. All other File fields
- * (path/ast/language) pass through untouched. If raw bytes are unavailable
- * (defensive — should not happen for a materialized own-file) the content reads
- * back plainly without recording. Spec §3.1 (Bug 1): the observation is what
- * widens invalidation, so a sibling that is never read stays immune.
- */
-function wrapNonSubjectFile(
-  f: File,
-  repoRelPosixPath: string,
-  bytes: Buffer | undefined,
-  recorder: ObservationRecorder,
-): File {
-  if (bytes === undefined) return f;
-  const { content, ...rest } = f;
-  let recorded = false;
-  const wrapped = { ...rest } as File;
-  Object.defineProperty(wrapped, 'content', {
-    enumerable: true,
-    configurable: true,
-    get(): string {
-      if (!recorded) {
-        recorder.recordRead(repoRelPosixPath, bytes);
-        recorded = true;
-      }
-      return content;
-    },
-  });
-  return wrapped;
-}
-
-/**
- * Async mapping path enumeration for prewarmup. Mapping entries may be files
- * or directories; directories are expanded via expandMappingPaths (gitignore-aware).
- */
-async function enumerateMappedFilesAsync(mappingPaths: string[], projectRoot: string): Promise<string[]> {
-  const normalized = mappingPaths
-    .map(normalizeMappingPath)
-    .filter((p): p is string => p !== '');
-  return expandMappingPaths(projectRoot, normalized);
-}
-
 export async function runStructureAspect(
   params: RunStructureAspectParams,
 ): Promise<RunStructureAspectResult> {
-  ensureLoaderRegistered();
   const { aspectDir, aspectId, nodePath, graph, projectRoot, subjectScope } = params;
   const astCache: ParseCache = params.parseCache ?? new Map();
   const touchedFiles: string[] = [];
 
-  const node = graph.nodes.get(nodePath);
-  if (!node) {
-    throw new StructureRunnerError('STRUCTURE_NODE_MISSING', {
-      what: `Node '${nodePath}' not in graph.`,
-      why: `The runner resolves the node by path to load its mapped files and aspects.`,
-      next: `Pass an existing node path, or add the node to the graph.`,
-    });
-  }
-
-  const aspectDirAbs = path.isAbsolute(aspectDir) ? aspectDir : path.resolve(projectRoot, aspectDir);
-  const checkPath = path.join(aspectDirAbs, 'check.mjs');
-
-  let mod: Record<string, unknown>;
-  try {
-    mod = await import(pathToFileURL(checkPath).href) as Record<string, unknown>;
-  } catch (err) {
-    throw new StructureRunnerError('STRUCTURE_LOADER_RESOLVE_FAILED', {
-      what: `Failed to load check.mjs at ${checkPath}: ${(err as Error).message}`,
-      why: `The runner dynamically imports the aspect's check.mjs before invoking it.`,
-      next: `Ensure check.mjs exists at the aspect directory and has no unresolved imports.`,
-    });
-  }
-
+  // Load + validate check.mjs (deterministic hook). loadHookModule registers the
+  // ESM loader and imports the module; the shared export-shape ladder confirms a
+  // named, single-arg, callable `check` before we build the ctx.
+  const mod = await loadHookModule({ aspectDir, projectRoot, filename: 'check.mjs' });
   const exportCheck = validateCheckModuleExport(mod, {
     codePrefix: 'STRUCTURE',
     runnerLabel: `aspect '${aspectId}'`,
@@ -204,110 +69,12 @@ export async function runStructureAspect(
   }
   const checkFn = mod.check as (...args: unknown[]) => unknown;
 
-  const allowedSet = collectAllowedReadsForAspect(nodePath, graph);
-
-  // Construct one ObservationRecorder per run — threaded into all ctx factories.
-  const recorder = new ObservationRecorder();
-
-  // Build the own files first (needed to compute subjectFiles set before creating ctxFs).
-  // We must know which paths are subject files so we can skip recording read: observations
-  // for them — they are hashed separately as subject inputs in the deterministic pair hash.
-  // We collect own file paths from the mapping before actually reading them so that the
-  // subject set is available when ctxFs/ctxGraph/parsers are created.
-  const ownFilesRaw = (node.meta.mapping ?? [])
-    .map(normalizeMappingPath)
-    .filter((p): p is string => p !== '');
-  const ownFilesExpanded = await expandMappingPaths(projectRoot, ownFilesRaw);
-  // The observation-EXCLUSION set: paths hashed as subject inputs are NOT
-  // double-recorded as observations. For a `per: file` pair (subjectScope set)
-  // this is exactly that file, so a sibling read folds as an observation
-  // (contract #8). Absent → the whole node mapping (legacy behavior).
-  const subjectFiles = subjectScope !== undefined
-    ? new Set<string>(subjectScope.map(normalizeMappingPath))
-    : new Set<string>(ownFilesExpanded);
-
-  const ctxFs = createCtxFs({ allowedSet, projectRoot, touchedFiles, recorder, subjectFiles });
-  // Pre-expand each graph-readable node's mapping to concrete files (directory
-  // and glob entries resolved here in the async layer) so ctx.graph.node().files
-  // sees a glob-mapped node's real files. Content is read lazily inside ctx.graph
-  // so touchedFiles still reflects only what the check actually accessed.
-  const expandedFilesByNode = new Map<string, string[]>();
-  for (const id of computeAllowedNodePaths(nodePath, graph)) {
-    const m = graph.nodes.get(id);
-    if (m) expandedFilesByNode.set(id, await enumerateMappedFilesAsync(m.meta.mapping ?? [], projectRoot));
-  }
-  const ctxGraph = createCtxGraph({ currentNodePath: nodePath, graph, projectRoot, touchedFiles, expandedFilesByNode, recorder, subjectFiles });
-  const parsers = createCtxParsers({ allowedSet, projectRoot, touchedFiles, astCache, recorder, subjectFiles });
-
-  const ownFilesWithBytes = await buildOwnFiles(node, projectRoot, touchedFiles);
-  const ownFiles = ownFilesWithBytes.map((x) => x.file);
-  // Raw disk bytes per own-file path — used to fold a byte-symmetric read:
-  // observation if the check accesses a non-subject sibling's content (Bug 1).
-  const bytesByPath = new Map<string, Buffer>();
-  for (const x of ownFilesWithBytes) bytesByPath.set(normalizeMappingPath(x.file.path), x.bytes);
-  // Eagerly parse own-mapping files so ctx.files carry .ast + .language (AST-aspect parity).
-  await prewarmupAstCache({ astCache, projectRoot, files: ownFiles });
-
-  const ownFilesEnriched = enrichFilesWithAst(ownFiles, astCache);
-  // ctx.node.files always exposes the FULL node mapping (node-scoped, §1). When
-  // the subject set is narrowed (subjectScope set, i.e. a per: file pair), a
-  // NON-subject sibling here has its `content` wrapped in a getter that folds a
-  // read: observation on first access — so a check that reads a sibling's
-  // preloaded content (no ctx.fs call) still invalidates when that sibling is
-  // edited (spec §3.1, Bug 1). A sibling that is NEVER accessed records nothing,
-  // preserving scope.files-excluded immunity: the filter bounds the subject, the
-  // OBSERVATION bounds invalidation.
-  //
-  // When the subject set is NOT narrowed (per: node, no override) every own-file
-  // is a subject — nothing to wrap — and ctx.node.files IS ctx.files (same array
-  // reference; the documented alias holds).
-  let nodeFilesEnriched: File[];
-  let ctxFilesEnriched: File[];
-  if (subjectScope !== undefined) {
-    nodeFilesEnriched = recorder !== undefined
-      ? ownFilesEnriched.map((f) => {
-          const p = normalizeMappingPath(f.path);
-          if (subjectFiles.has(p)) return f; // subject — hashed as a subject input
-          return wrapNonSubjectFile(f, p, bytesByPath.get(p), recorder);
-        })
-      : ownFilesEnriched;
-    // ctx.files is the scope-driven subject view: exactly the subjectScope files.
-    ctxFilesEnriched = ownFilesEnriched.filter((f) => subjectFiles.has(normalizeMappingPath(f.path)));
-  } else {
-    nodeFilesEnriched = ownFilesEnriched;
-    ctxFilesEnriched = ownFilesEnriched;
-  }
-  const ctx: Ctx = {
-    node: {
-      id: node.path,
-      type: node.meta.type,
-      mapping: node.meta.mapping ?? [],
-      files: nodeFilesEnriched,
-      ports: (node.meta.ports ?? {}) as Record<string, Port>,
-    },
-    files: ctxFilesEnriched,
-    fs: ctxFs,
-    graph: ctxGraph,
-    parseAst: parsers.parseAst,
-    parseYaml: parsers.parseYaml,
-    parseJson: parsers.parseJson,
-    parseToml: parsers.parseToml,
-  };
-
-  // PREWARMUP. Compute AST input set, prewarm cache.
-  const astInputSet: File[] = [...ownFiles];
-  for (const rel of (node.meta.relations ?? [])) {
-    const target = graph.nodes.get(rel.target);
-    if (!target) continue;
-    for (const p of await enumerateMappedFilesAsync(target.meta.mapping ?? [], projectRoot)) {
-      const abs = path.resolve(projectRoot, p);
-      try {
-        const content = fs.readFileSync(abs, 'utf8');
-        astInputSet.push({ path: p, content });
-      } catch {/* skip */}
-    }
-  }
-  await prewarmupAstCache({ astCache, projectRoot, files: astInputSet });
+  // Build the unit-scoped ctx (shared with the companion resolver). This is the
+  // byte-behavior-preserving head: same recorder, touchedFiles, subjectFiles set,
+  // ctx identity, and AST prewarmup as the legacy inline construction.
+  const { ctx, recorder, ownFiles, astInputSet } = await buildUnitCtx({
+    aspectId, nodePath, graph, projectRoot, astCache, touchedFiles, subjectScope,
+  });
 
   let raw: unknown;
   try {

@@ -368,6 +368,38 @@ describe('runStructureAspect', () => {
     expect(r.violations[0].kind).toBe('structure-aspect-parseast-not-prewarmed');
   });
 
+  // Regression canary for the shared-hook-loader extraction (Task 3). The
+  // deterministic path must keep BYTE-IDENTICAL behavior after buildUnitCtx is
+  // factored out: an async check still hard-rejects (sync-reject policy), and a
+  // normal check still loads, runs, and records touched files.
+  describe('hook-loader extraction canary (deterministic path unchanged)', () => {
+    it('async check.mjs STILL throws STRUCTURE_CHECK_ASYNC (sync-reject policy preserved)', async () => {
+      await writeAspect('canary-async', `export async function check(ctx) { return []; }`);
+      const g = buildTestGraphForStructure({
+        nodes: [{ path: 'N', type: 'module', mapping: ['src/a.ts'] }],
+      });
+      await expect(runStructureAspect({
+        aspectDir: path.join('.yggdrasil/aspects/canary-async'),
+        aspectId: 'canary-async', nodePath: 'N', graph: g, projectRoot,
+      })).rejects.toThrow(/STRUCTURE_CHECK_ASYNC/);
+    });
+
+    it('normal check.mjs still loads, runs, and records touched identically', async () => {
+      await writeAspect('canary-sync', `export function check(ctx) { ctx.fs.read('src/a.ts'); return [{ message: 'ok', file: 'src/a.ts', line: 1 }]; }`);
+      const g = buildTestGraphForStructure({
+        nodes: [{ path: 'N', type: 'module', mapping: ['src/a.ts'] }],
+      });
+      const r = await runStructureAspect({
+        aspectDir: path.join('.yggdrasil/aspects/canary-sync'),
+        aspectId: 'canary-sync', nodePath: 'N', graph: g, projectRoot,
+      });
+      expect(r.succeeded).toBe(true);
+      expect(r.violations).toHaveLength(1);
+      expect(r.violations[0].message).toBe('ok');
+      expect(r.touchedFiles).toContain('src/a.ts');
+    });
+  });
+
   it('node with children — child mapping carved out of own files', async () => {
     // Add a child mapping so buildOwnFiles exercises the child carve-out path
     mkdirSync(path.join(projectRoot, 'src/sub'), { recursive: true });

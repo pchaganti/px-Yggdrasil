@@ -54,6 +54,12 @@ export interface Ctx {
   node: GraphNode;
   /** alias for node.files (own node files with child carve-out) */
   files: File[];
+  /**
+   * the unit's subject file(s): per:file → single; per:node → the node's
+   * subject set (same array reference as `files` for the deterministic
+   * whole-node case).
+   */
+  subject: File[];
 
   fs: {
     exists(path: string): 'file' | 'dir' | false;
@@ -80,6 +86,13 @@ export interface Ctx {
 // `parseAst` is async (web-tree-sitter `parseFile` returns Promise<Tree>) BUT the structure
 // runner enforces synchronous `check.mjs` via the STRUCTURE_CHECK_ASYNC guard (mirroring
 // AST runner). Author CANNOT `await ctx.parseAst(...)` inside `check`.
+//
+// NOTE: the async guard is now POLICY-PARAMETERIZED in the shared hook loader
+// (structure/hook-loader.ts). `check.mjs` keeps the sync-reject policy (a thenable
+// return throws STRUCTURE_CHECK_ASYNC; the return is never awaited). `companion.mjs`
+// uses the await-allow policy (the return MAY be a Promise and IS awaited), so a
+// companion hook can legitimately call async helpers — `parseAst` is still prewarmed
+// and sync in BOTH paths.
 //
 // Resolution: PREWARMUP. The dispatcher pre-parses every file in the aspect's
 // "AST input set" before invoking `check(ctx)`. The AST input set is auto-derived:
@@ -110,3 +123,7 @@ export interface Violation {
 
 /** check.mjs export signature (synchronous) */
 export type CheckFunction = (ctx: Ctx) => Violation[];
+
+export interface CompanionDescriptor { path: string; label?: string }
+/** companion.mjs export — MAY be async (unlike sync-only check). Returns paths, never content. */
+export type CompanionFunction = (ctx: Ctx) => CompanionDescriptor[] | Promise<CompanionDescriptor[]>;
