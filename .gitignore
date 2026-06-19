@@ -40,5 +40,8 @@ Thumbs.db
 # Temporary files
 .temp/
 
+# Subagent-driven-development scratch (ledger, briefs, reports — local only)
+.superpowers/
+
 # Yggdrasil local symbol-index cache (speed-only; rebuildable, never committed)
 .yggdrasil/.symbols-cache/

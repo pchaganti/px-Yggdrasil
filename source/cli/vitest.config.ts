@@ -8,6 +8,10 @@ export default defineConfig({
       '**/node_modules/**',
       '**/dist/**',
       '**/*.external.test.ts',
+      // Fixture mini-repos contain *.spec.ts / *.test.ts files as DATA (e.g. the
+      // companion fixture's paired Playwright specs), not tests to run — never
+      // collect them.
+      '**/tests/fixtures/**',
     ],
     coverage: {
       provider: 'v8',
