@@ -1,0 +1,7 @@
+name: SelfCompanion
+description: A companion-bearing LLM aspect whose hook returns the subject's OWN path — exercises subject-read dedupe (the path is dropped, not injected).
+reviewer:
+  type: llm
+status: enforced
+scope:
+  per: file

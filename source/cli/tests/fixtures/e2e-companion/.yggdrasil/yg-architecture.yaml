@@ -1,0 +1,14 @@
+node_types:
+  docs:
+    description: 'Catalogue of end-to-end test scenario documents (Markdown). Each scenario is paired 1:1 with a Playwright spec owned by a tooling node.'
+    log_required: false
+    when:
+      path: "references/e2e-test-scenarios/**"
+    relations:
+      uses: [tooling]
+
+  tooling:
+    description: 'Playwright-style end-to-end specs. Each spec is the implementation paired to a docs scenario.'
+    log_required: false
+    when:
+      path: "apps/e2e/tests/**"

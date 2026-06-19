@@ -1,0 +1,7 @@
+name: PerNodeCompanion
+description: A per:node companion-bearing LLM aspect — one verdict over the whole node, with the union of all paired specs as companions (fan-in).
+reviewer:
+  type: llm
+status: enforced
+scope:
+  per: node

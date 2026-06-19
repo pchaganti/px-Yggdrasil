@@ -1,0 +1,7 @@
+name: MultiCompanion
+description: A companion-bearing LLM aspect whose hook resolves to ALL paired specs — multiple companion files per unit.
+reviewer:
+  type: llm
+status: enforced
+scope:
+  per: file

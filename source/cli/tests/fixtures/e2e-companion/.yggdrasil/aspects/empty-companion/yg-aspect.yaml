@@ -1,0 +1,7 @@
+name: EmptyCompanion
+description: A companion-bearing LLM aspect whose hook resolves to [] — no companion file is injected, but companionHash still folds.
+reviewer:
+  type: llm
+status: enforced
+scope:
+  per: file

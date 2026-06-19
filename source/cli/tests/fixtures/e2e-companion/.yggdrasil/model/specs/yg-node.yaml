@@ -1,0 +1,5 @@
+name: E2eSpecs
+description: Playwright-style end-to-end specs. Each spec is the implementation paired to a scenario document.
+type: tooling
+mapping:
+  - apps/e2e/tests/*.spec.ts

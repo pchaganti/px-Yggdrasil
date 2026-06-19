@@ -1,0 +1,7 @@
+name: ScenarioMatchesTest
+description: A scenario document's reproduction steps must faithfully describe the behaviour of its paired end-to-end test.
+reviewer:
+  type: llm
+status: enforced
+scope:
+  per: file

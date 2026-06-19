@@ -1,0 +1,7 @@
+name: PlainLlm
+description: A plain LLM aspect with no companion.mjs — backward-compatibility control.
+reviewer:
+  type: llm
+status: enforced
+scope:
+  per: file
