@@ -14,7 +14,7 @@ import path from 'node:path';
 import type { Graph, AspectDef, LlmConfig } from '../model/graph.js';
 import type { VerdictEntry, Verdict } from '../model/lock.js';
 import type { ExpectedPair } from './pairs.js';
-import { computeLlmInputHash, observationKey, hashReadObservation } from './pair-hash.js';
+import { computeLlmInputHash } from './pair-hash.js';
 import { ruleHashFor, contentFor, nodeDescriptionFor, tierHashViewFromTier, companionHashFor } from './pair-inputs.js';
 import { computeNodeMappedFiles } from './pairs.js';
 import { hashBytes } from '../io/hash.js';
@@ -24,12 +24,10 @@ import { verifyWithConsensus } from '../llm/aspect-verifier.js';
 import type { LlmProvider } from '../llm/types.js';
 import { readFileBytes } from '../io/graph-fs.js';
 import { debugWrite } from '../utils/debug-log.js';
-import { toPosix, toPosixPath } from '../utils/posix.js';
+import { toPosixPath } from '../utils/posix.js';
 import { runCompanionHook } from '../structure/hook-loader.js';
-import { collectAllowedReadsForAspect } from '../structure/allowed-reads.js';
-import { resolveAllowedReadPath } from '../structure/ctx-fs.js';
-import { buildOwnerIndex } from '../relations/owner-index.js';
 import type { IssueMessage } from '../model/validation.js';
+import { resolveCompanionDescriptors } from './companion-resolve.js';
 import { readBytesOrEmpty, type LlmFillOutcome } from './fill-shared.js';
 
 /**
@@ -95,83 +93,13 @@ async function resolveCompanions(
     }
   }
 
-  // ── Normalize each returned path to repo-root-relative POSIX, dedupe + sort. ──
-  const allowedSet = collectAllowedReadsForAspect(pair.nodePath, graph);
-  const subjectSet = new Set(pair.subjectFiles.map((p) => toPosix(p)));
-  const normalizedSet = new Set<string>();
-  for (const d of run.descriptors) {
-    // Normalize to repo-root-relative POSIX. A path escaping the repo root is an
-    // allowed-reads guard failure (handled below by resolveAllowedReadPath).
-    const abs = path.resolve(projectRoot, d.path.replace(/\\/g, '/'));
-    const rel = toPosix(path.relative(projectRoot, abs));
-    // Subject-read dedupe: a returned path equal to a unit subject is already a
-    // subject (hashed + prompted as such) — drop it, never inject, never record.
-    if (subjectSet.has(rel)) continue;
-    normalizedSet.add(rel);
+  // ── Delegate post-hook resolution to the shared helper (normalize, dedupe,
+  // sort, allowed-reads guard, readFileBytes, observations merge). ──
+  const resolved = await resolveCompanionDescriptors(graph, projectRoot, pair, aspect, run.descriptors, run.observations);
+  if (resolved.kind === 'infra') {
+    return { kind: 'infra', why: resolved.why, messageData: resolved.messageData };
   }
-  const sortedPaths = [...normalizedSet].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-
-  // ── Validate + read each remaining companion path. Build prompt + observations. ──
-  const promptCompanions: PromptCompanionInput[] = [];
-  // Combine the hook's own out-of-subject observations (reads it made to RESOLVE)
-  // with a read: observation per companion file fill-llm itself reads. Both are
-  // inputs that must invalidate the verdict on edit. Dedupe by key (a path read
-  // both by the hook and re-read here hashes identically — collapse to one).
-  const obsByKey = new Map<string, string>();
-  for (const [k, h] of run.observations) obsByKey.set(k, h);
-
-  // Label lookup so the prompt can carry the author's optional label per path.
-  const labelByPath = new Map<string, string | undefined>();
-  for (const d of run.descriptors) {
-    const abs = path.resolve(projectRoot, d.path.replace(/\\/g, '/'));
-    const rel = toPosix(path.relative(projectRoot, abs));
-    if (!labelByPath.has(rel)) labelByPath.set(rel, d.label);
-  }
-
-  for (const rel of sortedPaths) {
-    // Allowed-reads guard (shared with ctx.fs): normalizes, rejects repo-escape,
-    // enforces the allow-set, and re-checks the real (symlink-resolved) path. Any
-    // failure → infra with a relation-source/target NEXT.
-    try {
-      resolveAllowedReadPath(rel, allowedSet, projectRoot);
-    } catch {
-      return { kind: 'infra', ...companionOutsideAllowedReads(graph, pair, aspect, rel) };
-    }
-    const bytes = await readFileBytes(path.resolve(projectRoot, rel));
-    if (bytes === null) {
-      const what = `Companion file '${rel}' for aspect '${aspect.id}' on ${toPosixPath(pair.unitKey)} could not be read.`;
-      const why = 'A resolved companion is part of the verifier input; reading empty-substituted bytes would desync the producer and verifier and pin a false verdict, so the fill fails closed and writes NOTHING.';
-      const next = `Restore the file at '${rel}' or fix companion.mjs so it returns only existing, relation-reachable paths, then re-run: yg check --approve`;
-      return { kind: 'infra', why: `companion '${rel}' could not be read`, messageData: { what, why, next } };
-    }
-    promptCompanions.push({ path: rel, content: bytes.toString('utf8'), ...(labelByPath.get(rel) !== undefined ? { label: labelByPath.get(rel) } : {}) });
-    obsByKey.set(observationKey('read', rel), hashReadObservation(bytes));
-  }
-
-  const observations = [...obsByKey.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-  return { kind: 'ok', companions: { promptCompanions, observations } };
-}
-
-/**
- * Build the infra messageData for a companion path that resolved OUTSIDE the
- * node's allowed-reads (or escaped the repo root). The NEXT frames the relation
- * SOURCE as pair.nodePath and the TARGET as the owner of the companion path —
- * NEVER pair.subjectFiles / unitKey (a per:file .md subject cannot hold a
- * relation). When the path is unmapped (no owner) the NEXT says so.
- */
-function companionOutsideAllowedReads(
-  graph: Graph,
-  pair: ExpectedPair,
-  aspect: AspectDef,
-  rel: string,
-): { why: string; messageData: IssueMessage } {
-  const owner = buildOwnerIndex(graph.nodes).ownerOf(rel);
-  const what = `Companion file '${rel}' for aspect '${aspect.id}' on ${toPosixPath(pair.unitKey)} is outside the node's allowed-reads.`;
-  const why = 'A companion must be relation-reachable from the reviewed node — the reviewer may only see files the graph permits the node to read, so an out-of-reach companion is an infrastructure fault and the fill fails closed (NOTHING written).';
-  const next = owner === undefined
-    ? `The path '${rel}' is unmapped (no node owns it). Map it to a node and declare a relation from ${toPosixPath(pair.nodePath)} to that node in .yggdrasil/model/${toPosixPath(pair.nodePath)}/yg-node.yaml, or fix companion.mjs to return only relation-reachable paths.`
-    : `declare a relation from ${toPosixPath(pair.nodePath)} to ${toPosixPath(owner)} in .yggdrasil/model/${toPosixPath(pair.nodePath)}/yg-node.yaml, or fix companion.mjs to return only relation-reachable paths.`;
-  return { why: `companion '${rel}' is outside the node's allowed-reads`, messageData: { what, why, next } };
+  return { kind: 'ok', companions: { promptCompanions: resolved.companions, observations: resolved.observations } };
 }
 
 /**

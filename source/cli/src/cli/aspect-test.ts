@@ -15,11 +15,10 @@ import { verifyWithConsensus } from '../llm/aspect-verifier.js';
 import { createLlmProvider } from '../llm/index.js';
 import { selectTierForAspect } from '../core/tier-selection.js';
 import { contentFor, nodeDescriptionFor } from '../core/pair-inputs.js';
-import { readTextFile, readFileBytes } from '../io/graph-fs.js';
-import { toPosix, toPosixPath } from '../utils/posix.js';
+import { readTextFile } from '../io/graph-fs.js';
+import { toPosixPath } from '../utils/posix.js';
 import { runCompanionHook } from '../structure/hook-loader.js';
-import { collectAllowedReadsForAspect } from '../structure/allowed-reads.js';
-import { resolveAllowedReadPath } from '../structure/ctx-fs.js';
+import { resolveCompanionDescriptors } from '../core/companion-resolve.js';
 import type { ExpectedPair } from '../core/pairs.js';
 import type { AspectDef } from '../model/graph.js';
 
@@ -229,9 +228,12 @@ export function registerAspectTestCommand(program: Command): void {
 /**
  * Resolve companions for one pair in aspect-test / dry-run context.
  *
- * Resolution mirrors fill-llm's resolveCompanions exactly: same allowed-reads
- * enforcement, same normalization, same subject-dedupe, same read path. This
- * ensures --dry-run is a faithful preview of what --approve sends to the LLM.
+ * Runs the companion hook once (no A6 taint-retry guard — intentionally omitted
+ * for a diagnostic tool: a tainted observation set is harmless here because we
+ * never hash or write observations). Post-hook resolution is delegated to the
+ * shared resolveCompanionDescriptors helper so --dry-run previews companions
+ * identically to what --approve sends to the LLM, including the rich
+ * allowed-reads NEXT message (relation source + owner node + exact YAML stanza).
  *
  * On hook failure (infra) returns { kind: 'infra' } — the caller prints a
  * buildIssueMessage and continues; it NEVER writes to the lock and NEVER throws.
@@ -252,6 +254,7 @@ async function resolveCompanionsForTest(
   const fullMapping = await computeNodeMappedFiles(graph, pair.nodePath);
   const subjectScope = pair.subjectFiles.length < fullMapping.length ? pair.subjectFiles : undefined;
 
+  // No A6 taint guard (diagnostic only — we never hash or write observations).
   const run = await runCompanionHook({
     aspectDir: aspectDirAbs,
     aspectId: aspect.id,
@@ -265,60 +268,14 @@ async function resolveCompanionsForTest(
     return { kind: 'infra', messageData: run.messageData };
   }
 
-  // Normalize + dedupe + sort — same logic as fill-llm.
-  const allowedSet = collectAllowedReadsForAspect(pair.nodePath, graph);
-  const subjectSet = new Set(pair.subjectFiles.map((p) => toPosix(p)));
-  const normalizedSet = new Set<string>();
-  for (const d of run.descriptors) {
-    const abs = path.resolve(projectRoot, d.path.replace(/\\/g, '/'));
-    const rel = toPosix(path.relative(projectRoot, abs));
-    if (subjectSet.has(rel)) continue;
-    normalizedSet.add(rel);
+  // Delegate post-hook resolution to the shared helper (same logic as fill-llm:
+  // normalize, dedupe, sort, allowed-reads guard with rich NEXT, readFileBytes).
+  const resolved = await resolveCompanionDescriptors(graph, projectRoot, pair, aspect, run.descriptors, run.observations);
+  if (resolved.kind === 'infra') {
+    return { kind: 'infra', messageData: resolved.messageData };
   }
-  const sortedPaths = [...normalizedSet].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-
-  // Label lookup.
-  const labelByPath = new Map<string, string | undefined>();
-  for (const d of run.descriptors) {
-    const abs = path.resolve(projectRoot, d.path.replace(/\\/g, '/'));
-    const rel = toPosix(path.relative(projectRoot, abs));
-    if (!labelByPath.has(rel)) labelByPath.set(rel, d.label);
-  }
-
-  // Validate allowed-reads + read each companion file.
-  const companions: PromptCompanionInput[] = [];
-  for (const rel of sortedPaths) {
-    try {
-      resolveAllowedReadPath(rel, allowedSet, projectRoot);
-    } catch {
-      return {
-        kind: 'infra',
-        messageData: {
-          what: `Companion file '${rel}' for aspect '${aspect.id}' is outside the node's allowed-reads.`,
-          why: 'A companion must be relation-reachable from the reviewed node — the reviewer may only see files the graph permits the node to read.',
-          next: `Declare a relation from ${toPosixPath(pair.nodePath)} to the node owning '${rel}', or fix companion.mjs to return only relation-reachable paths.`,
-        },
-      };
-    }
-    const bytes = await readFileBytes(path.resolve(projectRoot, rel));
-    if (bytes === null) {
-      return {
-        kind: 'infra',
-        messageData: {
-          what: `Companion file '${rel}' for aspect '${aspect.id}' could not be read.`,
-          why: 'A resolved companion file is missing or unreadable.',
-          next: `Restore the file at '${rel}' or fix companion.mjs so it returns only existing, relation-reachable paths.`,
-        },
-      };
-    }
-    companions.push({
-      path: rel,
-      content: bytes.toString('utf8'),
-      ...(labelByPath.get(rel) !== undefined ? { label: labelByPath.get(rel) } : {}),
-    });
-  }
-
-  return { kind: 'ok', companions };
+  // observations are not needed by the diagnostic caller (never hashed/written).
+  return { kind: 'ok', companions: resolved.companions };
 }
 
 // ============================================================
