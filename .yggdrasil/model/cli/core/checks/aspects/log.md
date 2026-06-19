@@ -18,3 +18,5 @@ An aspect's effective enforcement level is the strongest level contributed by an
 Separately, a conditional applicability predicate may key off a consumed port, and such a predicate must reference a port that genuinely exists somewhere in the graph; a predicate naming a phantom port is a graph error. That check previously only fired for the paired relation-and-port shape and missed the bare port-name shape. Both shapes are now validated against the full set of declared ports so an unknown port is reported regardless of how the predicate spells it.
 ## [2026-06-13T10:52:16.035Z]
 A reviewer-configuration error called a project with only mechanical checks an 'AST-only' project. The system's vocabulary for mechanical check.mjs aspects is 'deterministic', never 'AST', so the wording was aligned to avoid an undefined term an agent has to guess at.
+## [2026-06-19T19:18:52.818Z]
+Reject companion misuse at validation time before any review runs: a companion resolver only makes sense for an LLM reviewer, so an aspect that ships one without review content, or alongside a deterministic check, is a configuration error.

@@ -1,0 +1,2 @@
+## [2026-06-19T19:18:53.046Z]
+Provide one shared home for turning a resolver hook's returned paths into prompt-ready companion files: normalise paths to the repo root, drop any path that is already the subject, enforce the reachable-reads boundary, and read the bytes. The review fill and the aspect diagnostic share this single implementation so a path that resolves in the preview resolves identically when the review actually runs; divergence would make the preview lie.

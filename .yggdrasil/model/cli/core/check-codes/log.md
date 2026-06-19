@@ -20,3 +20,5 @@ The relation-undeclared-dependency code was registered among the structural code
 Removed the secrets-non-credential-field code: yg-secrets is now a general deep-merge overlay over yg-config rather than an api_key-only file, so a non-credential field in it is valid and no longer a blocking error.
 ## [2026-06-19T05:55:05.448Z]
 Retires the structural issue code that reported a missing schema file. Schema references are no longer a per-project graph artifact whose presence is checked; they are delivered by a built-in command and travel with the tool, so a project can never be missing them and the code has nothing left to report.
+## [2026-06-19T19:18:52.568Z]
+Register the two new companion-misuse error codes as blocking structural errors so they are categorised with the other aspect rule-source errors in the check summary.

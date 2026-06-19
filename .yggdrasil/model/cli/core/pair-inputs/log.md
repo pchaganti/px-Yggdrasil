@@ -2,3 +2,5 @@
 Producer and verifier must fold byte-identical hash ingredients or every recorded verdict would read as unverified, so the ingredient assembly lives in one shared place that both the fill stage and the check stage call, with each side owning only its own read-failure policy.
 ## [2026-06-16T09:52:38.429Z]
 Same contract as the hash core: the tier hash view folds only the tier NAME. The resolved tier configuration is not a judgment input, so swapping the model or provider behind a named tier does not invalidate recorded verdicts.
+## [2026-06-19T19:19:17.425Z]
+Derive the resolver-source fingerprint from the loaded aspect so the review producer and the verifier compute the paired-review identity from one shared definition and can never disagree, which would otherwise pin every paired verdict to a permanent unverified state.

@@ -91,3 +91,5 @@ This node absorbed the former separate predicate-evaluator node (the WhenPredica
 
 Absorbed history — when evaluator:
 Removed the private descendant-collection helper; the predicate evaluator now imports it from the shared graph traversal module rather than duplicating the traversal.
+## [2026-06-19T19:19:16.898Z]
+Teach the impact cascade that an LLM aspect carrying a companion resolver now leaves observation traces like a deterministic check, so editing a file it observed re-verifies the dependent units, while a plain LLM aspect without a resolver stays excluded to avoid over-reporting blast radius.
