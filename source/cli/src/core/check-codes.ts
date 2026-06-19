@@ -50,6 +50,8 @@ export const STRUCTURAL_CODES = new Set<string>([
   'aspect-unexpected-rule-source',
   'aspect-missing-rule-source',
   'aspect-empty',
+  'aspect-companion-without-content',
+  'aspect-companion-with-check',
   'file-unreadable',
   'aspect-references-on-deterministic',
   'aspect-scope-invalid',

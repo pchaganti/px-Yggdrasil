@@ -24,7 +24,7 @@ async function createTempYggdrasil(): Promise<string> {
 async function createAspectDir(
   rootPath: string,
   aspectId: string,
-  files: ('content.md' | 'check.mjs')[],
+  files: ('content.md' | 'check.mjs' | 'companion.mjs')[],
 ): Promise<void> {
   const aspectDir = path.join(rootPath, 'aspects', aspectId);
   await mkdir(aspectDir, { recursive: true });
@@ -162,5 +162,60 @@ describe('validator — aspect rule-source mutual exclusion', () => {
 
     expect(codes).toContain('aspect-missing-rule-source');
     expect(codes).toContain('aspect-unexpected-rule-source');
+  });
+});
+
+describe('validator — companion.mjs validation', () => {
+  it('emits aspect-companion-without-content when companion.mjs present but no content.md (llm aspect missing rule source)', async () => {
+    const rootPath = await createTempYggdrasil();
+    // companion.mjs only — no content.md, no check.mjs
+    await createAspectDir(rootPath, 'companion-no-content', ['companion.mjs']);
+    const aspect = makeAspect('companion-no-content', 'llm');
+    const graph = makeGraph(rootPath, { aspects: [aspect] });
+
+    const result = await validate(graph);
+    const codes = result.issues.map((i) => i.code);
+
+    expect(codes).toContain('aspect-companion-without-content');
+  });
+
+  it('emits aspect-companion-with-check ONLY (not also aspect-companion-without-content) when companion.mjs + check.mjs both present on an llm aspect', async () => {
+    const rootPath = await createTempYggdrasil();
+    await createAspectDir(rootPath, 'companion-with-check', ['content.md', 'check.mjs', 'companion.mjs']);
+    // Force reviewer type to llm so both files are in play
+    const aspect = makeAspect('companion-with-check', 'llm');
+    const graph = makeGraph(rootPath, { aspects: [aspect] });
+
+    const result = await validate(graph);
+    const codes = result.issues.map((i) => i.code);
+
+    expect(codes).toContain('aspect-companion-with-check');
+    expect(codes).not.toContain('aspect-companion-without-content');
+  });
+
+  it('emits aspect-companion-with-check ONLY when companion.mjs + check.mjs but no content.md', async () => {
+    const rootPath = await createTempYggdrasil();
+    await createAspectDir(rootPath, 'companion-check-only', ['check.mjs', 'companion.mjs']);
+    const aspect = makeAspect('companion-check-only', 'deterministic');
+    const graph = makeGraph(rootPath, { aspects: [aspect] });
+
+    const result = await validate(graph);
+    const codes = result.issues.map((i) => i.code);
+
+    expect(codes).toContain('aspect-companion-with-check');
+    expect(codes).not.toContain('aspect-companion-without-content');
+  });
+
+  it('does NOT emit companion errors when companion.mjs + content.md exist (valid llm aspect with companion)', async () => {
+    const rootPath = await createTempYggdrasil();
+    await createAspectDir(rootPath, 'companion-valid', ['content.md', 'companion.mjs']);
+    const aspect = makeAspect('companion-valid', 'llm');
+    const graph = makeGraph(rootPath, { aspects: [aspect] });
+
+    const result = await validate(graph);
+    const codes = result.issues.map((i) => i.code);
+
+    expect(codes).not.toContain('aspect-companion-without-content');
+    expect(codes).not.toContain('aspect-companion-with-check');
   });
 });

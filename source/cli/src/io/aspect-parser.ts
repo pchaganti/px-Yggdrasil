@@ -96,6 +96,7 @@ export async function parseAspect(
   // aggregating aspect (neither file + implies).
   const hasContentMd = fileExistsSync(path.join(aspectDir, 'content.md'));
   const hasCheckMjs = fileExistsSync(path.join(aspectDir, 'check.mjs'));
+  const hasCompanionMjs = fileExistsSync(path.join(aspectDir, 'companion.mjs'));
   const hasImplies = Array.isArray(raw.implies) && raw.implies.length > 0;
 
   const reviewerResult = parseReviewer(raw.reviewer, idTrimmed, { hasContentMd, hasCheckMjs, hasImplies });
@@ -372,6 +373,7 @@ export async function parseAspect(
       ...(references && { references }),
       ...(status !== undefined && { status }),
       ...(scope !== undefined && { scope }),
+      ...(hasCompanionMjs && { hasCompanion: true }),
     },
   };
 }

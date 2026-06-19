@@ -245,6 +245,12 @@ export interface AspectDef {
    * Forbidden on aggregate aspects (no rule source to scope).
    */
   scope?: ScopeDef;
+  /**
+   * True when companion.mjs is present beside the aspect's rule sources.
+   * Valid only when reviewer.type === 'llm'. Set by the loader when companion.mjs
+   * is detected in the aspect directory.
+   */
+  hasCompanion?: boolean;
 }
 
 // ============================================================
