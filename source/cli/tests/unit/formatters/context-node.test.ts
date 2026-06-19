@@ -460,4 +460,53 @@ describe('formatNodeContext', () => {
     // Should say "2 flows" (plural)
     expect(output).toContain('Participates in (2 flows):');
   });
+
+  it('renders companion read: line for LLM aspect with companionReadPath', () => {
+    const output = formatNodeContext(makeNodeData({
+      aspects: [{
+        id: 'my-llm-aspect',
+        name: 'My LLM Aspect',
+        description: 'Some LLM rule',
+        source: 'own declaration',
+        verifiedAgainst: '.yggdrasil/aspects/my-llm-aspect/content.md',
+        status: 'enforced',
+        companionReadPath: '.yggdrasil/aspects/my-llm-aspect/companion.mjs',
+      }],
+    }));
+
+    expect(output).toContain('read: .yggdrasil/aspects/my-llm-aspect/content.md');
+    expect(output).toContain('read: .yggdrasil/aspects/my-llm-aspect/companion.mjs');
+  });
+
+  it('does NOT render companion read: line for aspect without companionReadPath', () => {
+    const output = formatNodeContext(makeNodeData({
+      aspects: [{
+        id: 'my-plain-llm-aspect',
+        name: 'My Plain LLM Aspect',
+        description: 'Plain LLM rule',
+        source: 'own declaration',
+        verifiedAgainst: '.yggdrasil/aspects/my-plain-llm-aspect/content.md',
+        status: 'enforced',
+      }],
+    }));
+
+    expect(output).not.toContain('companion.mjs');
+  });
+
+  it('does NOT render companion read: line for draft aspect (draft short-circuit)', () => {
+    const output = formatNodeContext(makeNodeData({
+      aspects: [{
+        id: 'my-draft-aspect',
+        name: 'My Draft Aspect',
+        description: 'Draft rule',
+        source: 'own declaration',
+        verifiedAgainst: '.yggdrasil/aspects/my-draft-aspect/content.md',
+        status: 'draft',
+        companionReadPath: '.yggdrasil/aspects/my-draft-aspect/companion.mjs',
+      }],
+    }));
+
+    expect(output).not.toContain('companion.mjs');
+    expect(output).toContain('(reviewer skipped; aspect is draft)');
+  });
 });

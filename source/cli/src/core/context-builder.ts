@@ -188,6 +188,9 @@ export function buildNodeContextData(graph: Graph, nodePath: string): NodeContex
       ? aspectDef.references.map(r => ({ path: toPosixPath(r.path), description: r.description }))
       : undefined;
     const status = effectiveStatuses.get(aspectId) ?? aspectDef?.status ?? 'enforced';
+    const companionReadPath = aspectDef?.reviewer?.type === 'llm' && aspectDef.hasCompanion
+      ? `.yggdrasil/aspects/${aspectId}/companion.mjs`
+      : undefined;
     return {
       id: aspectId,
       name: aspectDef?.name ?? aspectId,
@@ -201,6 +204,7 @@ export function buildNodeContextData(graph: Graph, nodePath: string): NodeContex
       implies: aspectDef?.implies,
       status,
       ...(refs && { references: refs }),
+      ...(companionReadPath && { companionReadPath }),
     };
   });
 
@@ -265,6 +269,9 @@ export function buildFileContextData(graph: Graph, filePath: string, ownerPath: 
       ? aspectDef.references.map(r => ({ path: toPosixPath(r.path), description: r.description }))
       : undefined;
     const status = effectiveStatuses.get(aspectId) ?? aspectDef?.status ?? 'enforced';
+    const companionReadPath = aspectDef?.reviewer?.type === 'llm' && aspectDef.hasCompanion
+      ? `.yggdrasil/aspects/${aspectId}/companion.mjs`
+      : undefined;
     return {
       aspectId,
       aspectDescription: aspectDef?.description ?? aspectDef?.name ?? aspectId,
@@ -275,6 +282,7 @@ export function buildFileContextData(graph: Graph, filePath: string, ownerPath: 
           : `.yggdrasil/aspects/${aspectId}/content.md`,
       status,
       ...(refs && { references: refs }),
+      ...(companionReadPath && { companionReadPath }),
     };
   });
 

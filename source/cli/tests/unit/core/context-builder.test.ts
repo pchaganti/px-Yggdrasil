@@ -689,4 +689,109 @@ describe('verifiedAgainst path (Task 31)', () => {
   });
 });
 
+describe('companionReadPath (Task 7)', () => {
+  const llmAspectWithCompanion: AspectDef = {
+    name: 'LLM With Companion',
+    id: 'llm-companion-aspect',
+    reviewer: { type: 'llm' as const },
+    artifacts: [{ filename: 'content.md', content: 'rule text' }],
+    hasCompanion: true,
+  };
+  const llmAspectNoCompanion: AspectDef = {
+    name: 'LLM No Companion',
+    id: 'llm-plain-aspect',
+    reviewer: { type: 'llm' as const },
+    artifacts: [{ filename: 'content.md', content: 'rule text' }],
+  };
+  const detAspect: AspectDef = {
+    name: 'Deterministic',
+    id: 'det-aspect',
+    reviewer: { type: 'deterministic' as const },
+    artifacts: [{ filename: 'check.mjs', content: 'export function check(ctx){return [];}' }],
+  };
+  const aggAspect: AspectDef = {
+    name: 'Aggregate',
+    id: 'agg-aspect',
+    reviewer: { type: 'aggregate' as const },
+    artifacts: [],
+    implies: ['llm-plain-aspect'],
+  } as unknown as AspectDef;
+
+  const companionNode: GraphNode = {
+    path: 'svc',
+    meta: {
+      name: 'Svc',
+      type: 'service',
+      aspects: ['llm-companion-aspect', 'llm-plain-aspect', 'det-aspect', 'agg-aspect'],
+      mapping: ['src/svc.ts'],
+    },
+    children: [],
+    parent: null,
+  };
+  const companionGraph: Graph = {
+    config: {},
+    architecture: { node_types: { service: { description: 'svc' } } },
+    nodes: new Map([['svc', companionNode]]),
+    aspects: [llmAspectWithCompanion, llmAspectNoCompanion, detAspect, aggAspect],
+    flows: [],
+    rootPath: '/fake/.yggdrasil',
+  };
+
+  it('buildNodeContextData: LLM aspect with hasCompanion emits companionReadPath', () => {
+    const data = buildNodeContextData(companionGraph, 'svc');
+    const aspect = data.aspects.find((a) => a.id === 'llm-companion-aspect');
+    expect(aspect).toBeDefined();
+    expect((aspect as any).companionReadPath).toBe('.yggdrasil/aspects/llm-companion-aspect/companion.mjs');
+  });
+
+  it('buildNodeContextData: plain LLM aspect (no companion) has no companionReadPath', () => {
+    const data = buildNodeContextData(companionGraph, 'svc');
+    const aspect = data.aspects.find((a) => a.id === 'llm-plain-aspect');
+    expect(aspect).toBeDefined();
+    expect((aspect as any).companionReadPath).toBeUndefined();
+  });
+
+  it('buildNodeContextData: deterministic aspect never gets companionReadPath', () => {
+    const data = buildNodeContextData(companionGraph, 'svc');
+    const aspect = data.aspects.find((a) => a.id === 'det-aspect');
+    expect(aspect).toBeDefined();
+    expect((aspect as any).companionReadPath).toBeUndefined();
+  });
+
+  it('buildNodeContextData: aggregate aspect never gets companionReadPath', () => {
+    const data = buildNodeContextData(companionGraph, 'svc');
+    const aspect = data.aspects.find((a) => a.id === 'agg-aspect');
+    expect(aspect).toBeDefined();
+    expect((aspect as any).companionReadPath).toBeUndefined();
+  });
+
+  it('buildFileContextData: LLM aspect with hasCompanion emits companionReadPath', () => {
+    const data = buildFileContextData(companionGraph, 'src/svc.ts', 'svc');
+    const aspect = data.aspects.find((a) => a.aspectId === 'llm-companion-aspect');
+    expect(aspect).toBeDefined();
+    expect((aspect as any).companionReadPath).toBe('.yggdrasil/aspects/llm-companion-aspect/companion.mjs');
+  });
+
+  it('buildFileContextData: plain LLM aspect (no companion) has no companionReadPath', () => {
+    const data = buildFileContextData(companionGraph, 'src/svc.ts', 'svc');
+    const aspect = data.aspects.find((a) => a.aspectId === 'llm-plain-aspect');
+    expect(aspect).toBeDefined();
+    expect((aspect as any).companionReadPath).toBeUndefined();
+  });
+
+  it('buildFileContextData: deterministic aspect never gets companionReadPath', () => {
+    const data = buildFileContextData(companionGraph, 'src/svc.ts', 'svc');
+    const aspect = data.aspects.find((a) => a.aspectId === 'det-aspect');
+    expect(aspect).toBeDefined();
+    expect((aspect as any).companionReadPath).toBeUndefined();
+  });
+
+  it('buildFileContextData: aggregate aspect never gets companionReadPath', () => {
+    const data = buildFileContextData(companionGraph, 'src/svc.ts', 'svc');
+    const aspect = data.aspects.find((a) => a.aspectId === 'agg-aspect');
+    expect(aspect).toBeDefined();
+    expect((aspect as any).companionReadPath).toBeUndefined();
+  });
+});
+
 

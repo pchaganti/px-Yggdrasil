@@ -44,6 +44,8 @@ export interface NodeContextAspect {
   references?: Array<{ path: string; description?: string }>;
   /** Effective enforcement status on this node. Consumers render this. */
   status?: import('../model/graph.js').AspectStatus;
+  /** Present only for LLM aspects that ship companion.mjs (per-unit resolver). */
+  companionReadPath?: string;
 }
 
 export interface NodeContextFlow {
@@ -125,6 +127,9 @@ export function formatNodeContext(data: NodeContextData): string {
             lines.push(`    read: ${posixPath(ref.path)}`);
           }
         }
+      }
+      if (aspect.companionReadPath) {
+        lines.push(`    read: ${posixPath(aspect.companionReadPath)}`);
       }
       if (aspect.implies && aspect.implies.length > 0) {
         lines.push(`    Implies: ${aspect.implies.join(', ')}`);

@@ -269,4 +269,62 @@ describe('formatFileContext', () => {
 
     expect(output).toContain('deterministic [enforced]');
   });
+
+  it('renders companion read: line for LLM aspect with companionReadPath', () => {
+    const output = formatFileContext({
+      filePath: 'source/cli/src/core/validator.ts',
+      ownerPath: 'cli/core/validator',
+      ownerType: 'library',
+      aspects: [{
+        aspectId: 'my-llm-aspect',
+        aspectDescription: 'Some LLM rule',
+        verifiedAgainst: '.yggdrasil/aspects/my-llm-aspect/content.md',
+        status: 'enforced',
+        companionReadPath: '.yggdrasil/aspects/my-llm-aspect/companion.mjs',
+      }],
+      dependencies: [],
+      dependentCount: 0,
+    });
+
+    expect(output).toContain('read: .yggdrasil/aspects/my-llm-aspect/content.md');
+    expect(output).toContain('read: .yggdrasil/aspects/my-llm-aspect/companion.mjs');
+  });
+
+  it('does NOT render companion read: line for aspect without companionReadPath', () => {
+    const output = formatFileContext({
+      filePath: 'source/cli/src/core/validator.ts',
+      ownerPath: 'cli/core/validator',
+      ownerType: 'library',
+      aspects: [{
+        aspectId: 'my-plain-llm-aspect',
+        aspectDescription: 'Plain LLM rule',
+        verifiedAgainst: '.yggdrasil/aspects/my-plain-llm-aspect/content.md',
+        status: 'enforced',
+      }],
+      dependencies: [],
+      dependentCount: 0,
+    });
+
+    expect(output).not.toContain('companion.mjs');
+  });
+
+  it('does NOT render companion read: line for draft aspect (draft short-circuit)', () => {
+    const output = formatFileContext({
+      filePath: 'source/cli/src/core/validator.ts',
+      ownerPath: 'cli/core/validator',
+      ownerType: 'library',
+      aspects: [{
+        aspectId: 'my-draft-aspect',
+        aspectDescription: 'Draft rule',
+        verifiedAgainst: '.yggdrasil/aspects/my-draft-aspect/content.md',
+        status: 'draft',
+        companionReadPath: '.yggdrasil/aspects/my-draft-aspect/companion.mjs',
+      }],
+      dependencies: [],
+      dependentCount: 0,
+    });
+
+    expect(output).not.toContain('companion.mjs');
+    expect(output).toContain('(reviewer skipped; aspect is draft)');
+  });
 });

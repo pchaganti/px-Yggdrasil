@@ -19,6 +19,8 @@ export interface FileContextAspect {
   references?: Array<{ path: string; description?: string }>;
   /** Effective enforcement status for this aspect on the owner node. Consumers render this. */
   status?: import('../model/graph.js').AspectStatus;
+  /** Present only for LLM aspects that ship companion.mjs (per-unit resolver). */
+  companionReadPath?: string;
 }
 
 export interface FileContextDep {
@@ -77,6 +79,9 @@ export function formatFileContext(data: FileContextData): string {
             lines.push(`    read: ${posixPath(ref.path)}`);
           }
         }
+      }
+      if (aspect.companionReadPath) {
+        lines.push(`    read: ${posixPath(aspect.companionReadPath)}`);
       }
       if (aspect.source) {
         lines.push(`    Source: ${posixPath(aspect.source)}`);
