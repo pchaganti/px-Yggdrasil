@@ -62,7 +62,7 @@ import type { IssueMessage } from '../model/validation.js';
 import { debugWrite } from '../utils/debug-log.js';
 import { toPosixPath } from '../utils/posix.js';
 import { fillDetPair } from './fill-det.js';
-import { fillLlmPair, companionRuntimeNotice } from './fill-llm.js';
+import { fillLlmPair } from './fill-llm.js';
 import { runPairPool } from './fill-pool.js';
 import { logGateBlocks } from './fill-log-gate.js';
 import { applyPositiveClosure } from './fill-closure.js';
