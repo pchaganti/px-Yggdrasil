@@ -49,9 +49,10 @@ function copyFixture(label: string): string {
 }
 
 /**
- * Build a minimal v4.x `.yggdrasil` layout from scratch in a fresh temp dir.
- * The migration runner (`yg init --upgrade`) only needs a `version:` field plus
- * a `schemas/` directory to exist; aspects are optional and added per-scenario.
+ * Build a minimal pre-5.1.0 `.yggdrasil` layout from scratch in a fresh temp dir.
+ * The migration runner (`yg init --upgrade`) only needs a `version:` field;
+ * aspects are optional and added per-scenario. The to-5.1.0 migration DELETES
+ * schemas/ (it no longer needs to exist as a precondition).
  * Everything here is written into mkdtemp — the committed fixture is never
  * touched.
  */
@@ -59,21 +60,21 @@ const configPath = (dir: string) =>
   path.join(dir, '.yggdrasil', 'yg-config.yaml');
 
 // ---------------------------------------------------------------------------
-// Migration paths (v4.x → v5.0.0) NOT already covered by cli-lifecycle.test.ts.
+// Migration paths (pre-5.1.0 → 5.1.0) NOT already covered by cli-lifecycle.test.ts.
 // Fully hermetic: no network, no LLM, no real endpoints, fresh mkdtemp per test.
 // ---------------------------------------------------------------------------
 
 describe.skipIf(!distExists)('CLI E2E — schema migrations (version-guard + idempotency)', () => {
   // --- 1. DELETED: v4.x config-content migration (bare-provider → tiers) ---
   // The legacy migration files were removed in the verdict-lock redesign
-  // (src/migrations/index.ts: `MIGRATIONS` is empty). `yg init --upgrade` still
-  // bumps the on-disk `version:` field to 5.0.0, but it no longer TRANSFORMS a
-  // v4 bare-provider reviewer block into the tier shape — there is no migration
-  // step to do so. The original M1 asserted that transform produced `tiers:` /
-  // `provider: ollama` from a bare-provider config; that transform no longer
-  // exists, so the assertion tests a removed surface and is deleted. (The
-  // surviving "older than this CLI" guard for a still-legacy config is exercised
-  // by M3 below; v5 upgrade idempotency by M2.)
+  // (src/migrations/index.ts: `MIGRATIONS` now contains only the to-5.1.0 entry).
+  // `yg init --upgrade` bumps the on-disk `version:` field to 5.1.0 and removes
+  // the schemas/ directory via the to-5.1.0 migration — it no longer TRANSFORMS a
+  // v4 bare-provider reviewer block into the tier shape. The original M1 asserted
+  // that transform produced `tiers:` / `provider: ollama` from a bare-provider
+  // config; that transform no longer exists, so the assertion tests a removed
+  // surface and is deleted. (The surviving "older than this CLI" guard for a
+  // still-legacy config is exercised by M3 below; v5.1.0 upgrade idempotency by M2.)
 
   // --- 2. Idempotency on an already-v5 repo ---
 

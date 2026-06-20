@@ -1,7 +1,6 @@
 name: GraphLoader
 type: engine
-description: Loads the graph from .yggdrasil/ — model nodes, aspects, flows,
-  schemas — into memory
+description: Loads the graph from .yggdrasil/ — model nodes, aspects, flows — into memory
 aspects:
   - silent-missing-files
 relations:

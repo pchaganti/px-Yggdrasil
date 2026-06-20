@@ -75,7 +75,7 @@ function run(
 /**
  * A bare repo for the --upgrade path: just .yggdrasil/yg-config.yaml carrying a
  * version field (the minimum --upgrade needs to detect a version and refresh
- * schemas + rules). No nodes, no architecture. Mirrors bareUpgradeRepo from
+ * rules). No nodes, no architecture. Mirrors bareUpgradeRepo from
  * cli-greenfield-init.
  */
 function bareUpgradeRepo(label: string): string {
@@ -146,8 +146,8 @@ const VALID_TIER = [
 describe.skipIf(!distExists)('CLI E2E — migrations & config remaining paths (platform matrix, migration edges, coercion edges)', () => {
   // =========================================================================
   // GROUP P — platform installer matrix (the seven not E2E-covered elsewhere).
-  // Each asserts: exit 0, the "Rules and schemas refreshed: <path>" line names
-  // the platform's rules path, the file lands on disk, and (where it matters)
+  // Each asserts: exit 0, the "Rules refreshed: <path>" line names the
+  // platform's rules path, the file lands on disk, and (where it matters)
   // whether the shared .yggdrasil/agent-rules.md is co-written.
   // =========================================================================
 

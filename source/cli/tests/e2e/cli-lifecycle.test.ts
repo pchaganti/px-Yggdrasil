@@ -184,12 +184,15 @@ describe.skipIf(!distExists)('CLI E2E — lifecycle (log, aspect-test, platform,
     try {
       const { status } = run(['init', '--upgrade', '--platform', 'generic'], tmpDir);
       expect(status).toBe(0);
-      // With no registered migrations, the runner lifts the on-disk version
-      // directly to the schema version this CLI supports (CLI_SUPPORTED_SCHEMA),
-      // which is independent of the CLI package.json version.
+      // The to-5.1.0 migration is applicable: it removes the schemas/ directory
+      // and bumps the version to 5.1.0 (CLI_SUPPORTED_SCHEMA). The version field
+      // in yg-config.yaml must reflect the CLI-supported schema version after the
+      // migration runs — independent of the CLI package.json version.
       const { CLI_SUPPORTED_SCHEMA } = await import('../../src/core/graph-loader.js');
       const config = readFileSync(path.join(yggDir, 'yg-config.yaml'), 'utf-8');
       expect(config).toContain(`version: "${CLI_SUPPORTED_SCHEMA}"`);
+      // The to-5.1.0 migration must have deleted the schemas/ directory.
+      expect(existsSync(path.join(yggDir, 'schemas'))).toBe(false);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
