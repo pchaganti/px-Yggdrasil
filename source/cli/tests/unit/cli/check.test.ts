@@ -36,8 +36,11 @@ describe('check command', () => {
 
     it('exits 1 when the lock file contains garbled JSON', async () => {
       await withFixtureCopy(async (cwd) => {
+        // The runtime reads the 5.1.0 triad, not the legacy single file — garble a
+        // committed triad file (the nondeterministic verdict file) to exercise the
+        // lock-invalid path.
         await writeFile(
-          path.join(cwd, '.yggdrasil', 'yg-lock.json'),
+          path.join(cwd, '.yggdrasil', 'yg-lock.nondeterministic.json'),
           '{ not valid json',
           'utf-8',
         );
@@ -99,10 +102,10 @@ describe('check command', () => {
   });
 
   describe('output content — garbled lock', () => {
-    it('labels the issue as lock-invalid and references yg-lock.json', async () => {
+    it('labels the issue as lock-invalid and references the lock file', async () => {
       await withFixtureCopy(async (cwd) => {
         await writeFile(
-          path.join(cwd, '.yggdrasil', 'yg-lock.json'),
+          path.join(cwd, '.yggdrasil', 'yg-lock.nondeterministic.json'),
           '{ not valid json',
           'utf-8',
         );
@@ -111,7 +114,9 @@ describe('check command', () => {
           encoding: 'utf-8',
         });
         expect(result.stdout).toContain('lock-invalid');
-        expect(result.stdout).toMatch(/yg-lock\.json/);
+        // The runtime reads the triad, so the garbled committed file referenced in the
+        // error is yg-lock.nondeterministic.json.
+        expect(result.stdout).toMatch(/yg-lock\.nondeterministic\.json/);
       });
     });
 
@@ -120,7 +125,7 @@ describe('check command', () => {
       // and only a single lock-invalid error is emitted.
       await withFixtureCopy(async (cwd) => {
         await writeFile(
-          path.join(cwd, '.yggdrasil', 'yg-lock.json'),
+          path.join(cwd, '.yggdrasil', 'yg-lock.nondeterministic.json'),
           '{ not valid json',
           'utf-8',
         );

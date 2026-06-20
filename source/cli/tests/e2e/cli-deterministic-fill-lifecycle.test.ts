@@ -12,16 +12,19 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readLock as readTriadLock, detLockPath, nondetLockPath, logsLockPath } from '../../src/io/lock-store.js';
 
 // ---------------------------------------------------------------------------
 // CLI E2E — the DETERMINISTIC FILL LIFECYCLE (verdict-lock model).
 //
 // The lifecycle is now: cold `yg check` (unverified, exit 1) → `yg check
-// --approve` (deterministic fill, writes .yggdrasil/yg-lock.json) → `yg check`
-// (verified, exit 0) → source edit → unverified → `yg check --approve` (refused
-// or approved) → fix → fill → verified. There is no `yg approve` command, no
-// `.drift-state/`, and no drift/baseline vocabulary — state lives entirely in
-// .yggdrasil/yg-lock.json and the states are verified / unverified / refused.
+// --approve` (deterministic fill, writes the gitignored
+// .yggdrasil/.yg-lock.deterministic.json) → `yg check` (verified, exit 0) →
+// source edit → unverified → `yg check --approve` (refused or approved) → fix →
+// fill → verified. There is no `yg approve` command, no `.drift-state/`, and no
+// drift/baseline vocabulary — verification state lives in the committed lock
+// triad (yg-lock.nondeterministic.json + yg-lock.logs.json) plus the gitignored
+// .yg-lock.deterministic.json, and the states are verified / unverified / refused.
 //
 // Hermetic — no LLM, no network dependency: the fixture's LLM aspect is stripped
 // so the deterministic `no-todo-comments` (enforced) and `requires-named-export`
@@ -111,24 +114,20 @@ function killReviewer(dir: string): void {
 const ordersFile = (dir: string) => path.join(dir, 'src', 'services', 'orders.ts');
 const paymentsFile = (dir: string) => path.join(dir, 'src', 'services', 'payments.ts');
 
-/** The single state file of the verdict-lock model (replaces .drift-state/<node>.json). */
-const lockPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-lock.json');
+// The deterministic fill writes its verdicts to the gitignored
+// .yg-lock.deterministic.json — the on-disk presence of THIS file is the signal
+// that a deterministic fill has run (the committed nondeterministic/logs files
+// carry no deterministic verdicts). The deterministic-fixture aspects under test
+// (`no-todo-comments`, `requires-named-export`) are all deterministic, so this is
+// the triad file every verdict assertion here actually lands in.
+const detLockFile = (dir: string) => detLockPath(path.join(dir, '.yggdrasil'));
 
-interface LockEntry {
-  hash: string;
-  verdict: 'approved' | 'refused';
-  reason?: string;
-  touched?: unknown[];
-}
-interface Lock {
-  version: number;
-  verdicts: Record<string, Record<string, LockEntry>>;
-  nodes: Record<string, { source?: string }>;
-}
+type Lock = ReturnType<typeof readTriadLock>;
+type LockEntry = NonNullable<Lock['verdicts'][string][string]>;
 
-/** Parse the lock file. */
+/** Read the unified lock by merging the on-disk triad (committed + gitignored det file). */
 function readLock(dir: string): Lock {
-  return JSON.parse(readFileSync(lockPath(dir), 'utf-8')) as Lock;
+  return readTriadLock(path.join(dir, '.yggdrasil'));
 }
 
 /** The stored verdict for an (aspect, node) pair, or undefined if absent. */
@@ -151,15 +150,15 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
       expect(cold.status).toBe(1);
       expect(cold.stdout).toContain('unverified');
       expect(cold.stdout).toContain('services/orders');
-      expect(existsSync(lockPath(dir))).toBe(false);
+      expect(existsSync(detLockFile(dir))).toBe(false);
 
       // Fill: deterministic checks run locally and record approved verdicts.
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
       expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(fill.stdout).toContain('yg check: PASS');
-      // The fill writes the verdict lock with an approved entry for the pair.
-      expect(existsSync(lockPath(dir))).toBe(true);
+      // The fill writes the deterministic verdict lock with an approved entry for the pair.
+      expect(existsSync(detLockFile(dir))).toBe(true);
       const lock = readLock(dir);
       expect(verdictFor(lock, 'no-todo-comments', 'services/orders')?.verdict).toBe('approved');
 
@@ -409,6 +408,72 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
       expect(lock.verdicts['has-doc-comment']).toBeUndefined();
       // The deterministic pairs DID fill (they need no reviewer).
       expect(verdictFor(lock, 'no-todo-comments', 'services/orders')?.verdict).toBe('approved');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // --- F. `--only-deterministic`: the keyless CI / pre-commit gate ---
+  //
+  // The flag fills ONLY deterministic pairs into the gitignored cache and writes
+  // ONLY that file — the committed lock files are never touched (positive closure
+  // skipped, GC scoped to the cache), and the reviewer is never contacted. These
+  // two tests prove those headline properties end-to-end through the real CLI.
+
+  it('F1: --only-deterministic re-fills only the gitignored cache and leaves the committed lock files byte-identical (zero CI churn), keyless', () => {
+    const dir = deterministicFixture('f1-only-det');
+    const ygg = path.join(dir, '.yggdrasil');
+    try {
+      // A full approve writes all three triad files (committed nondet + logs, gitignored det).
+      expect(run(['check', '--approve'], dir).status).toBe(0);
+      const nondetPath = nondetLockPath(ygg);
+      const logsPath = logsLockPath(ygg);
+      expect(existsSync(nondetPath)).toBe(true);
+      expect(existsSync(logsPath)).toBe(true);
+      const nondetBytes = readFileSync(nondetPath);
+      const logsBytes = readFileSync(logsPath);
+
+      // Edit source → the deterministic pair goes unverified.
+      appendFileSync(ordersFile(dir), '\nexport const onlyDetTouch = 1;\n');
+      expect(run(['check'], dir).status).toBe(1);
+
+      // Re-fill with --only-deterministic: keyless, free, writes ONLY the gitignored cache.
+      const det = run(['check', '--approve', '--only-deterministic'], dir);
+      expect(det.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
+      expect(det.status).toBe(0);
+
+      // The committed files are BYTE-IDENTICAL — zero churn in CI / pre-commit.
+      expect(readFileSync(nondetPath).equals(nondetBytes)).toBe(true);
+      expect(readFileSync(logsPath).equals(logsBytes)).toBe(true);
+      // The gitignored cache reflects the re-fill.
+      expect(verdictFor(readLock(dir), 'no-todo-comments', 'services/orders')?.verdict).toBe('approved');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('F2: with an LLM aspect present and the reviewer unreachable, --only-deterministic fills the cache, never contacts the reviewer, and writes no committed lock', () => {
+    const dir = copyFixture('f2-only-det-llm'); // full fixture — keeps the has-doc-comment LLM aspect
+    const ygg = path.join(dir, '.yggdrasil');
+    try {
+      killReviewer(dir);
+      const det = run(['check', '--approve', '--only-deterministic'], dir);
+
+      // Deterministic pairs filled into the gitignored cache.
+      expect(existsSync(detLockFile(dir))).toBe(true);
+      expect(det.stdout).toContain('[det]');
+      expect(verdictFor(readLock(dir), 'no-todo-comments', 'services/orders')?.verdict).toBe('approved');
+
+      // The reviewer was NEVER contacted — a full --approve would say 'unreachable'; this does not.
+      expect(det.all).not.toMatch(/unreachable/i);
+      // No committed lock files were written — only the gitignored cache.
+      expect(existsSync(nondetLockPath(ygg))).toBe(false);
+      expect(existsSync(logsLockPath(ygg))).toBe(false);
+
+      // The LLM pair stays unverified → the gate is red (CI must commit LLM verdicts via a full approve).
+      expect(det.status).toBe(1);
+      expect(det.stdout).toContain('unverified');
+      expect(readLock(dir).verdicts['has-doc-comment']).toBeUndefined();
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

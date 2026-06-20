@@ -1,14 +1,17 @@
 name: Core Migration Tests — Runner and Version Migrations
 type: test-suite
 description: Unit tests for the migrator runner and the registered version
-  migrations — migrator, to-5.1.0 (schemas/ removal).
+  migrations — migrator, to-5.1.0 (schemas/ removal), and the split-lock step.
 aspects: []
 relations:
   [
     { target: cli/core/migrator, type: uses },
     { target: cli/core/migrator-runner, type: uses },
-    { target: cli/core/migrations, type: uses }
+    { target: cli/core/migrations, type: uses },
+    { target: cli/io/lock-store, type: uses },
+    { target: cli/model/lock, type: uses }
   ]
 mapping:
   - source/cli/tests/unit/core/migrator.test.ts
   - source/cli/tests/unit/core/to-5.1.0.test.ts
+  - source/cli/tests/unit/core/split-lock.test.ts

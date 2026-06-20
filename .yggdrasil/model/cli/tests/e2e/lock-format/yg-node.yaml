@@ -2,6 +2,8 @@ name: E2E Tests — Lock File Format
 type: test-suite
 description: "Subprocess E2E proving the on-disk shape and read-boundary gate of the single state file yg-lock.json: canonical serialization, absent file means empty lock, and the read boundary that the runtime keeps."
 aspects: []
-relations: []
+relations:
+  - target: cli/io/lock-store
+    type: uses
 mapping:
   - source/cli/tests/e2e/cli-lock-format.test.ts

@@ -93,7 +93,9 @@ describe('relation pass wired into runFill (integration)', () => {
     const fill = await runFill(graph, { gitTrackedFiles: null, write: () => {} });
 
     // The lock has no relation cache at all — relations are computed live.
-    const raw = readFileSync(path.join(graph.rootPath, 'yg-lock.json'), 'utf-8');
+    // Verdicts live in the committed nondeterministic file under the 5.1.0 triad,
+    // so a stray relation_verdicts section would surface there.
+    const raw = readFileSync(path.join(graph.rootPath, 'yg-lock.nondeterministic.json'), 'utf-8');
     expect(raw).not.toContain('relation_verdicts');
     const parsed = JSON.parse(raw) as { version: number; relation_verdicts?: unknown };
     expect(parsed.version).toBe(1);

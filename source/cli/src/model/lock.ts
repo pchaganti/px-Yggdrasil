@@ -1,5 +1,25 @@
 export const LOCK_FORMAT_VERSION = 1;
+/** Legacy single-file lock (pre-5.1.0). Kept so the 5.1.0 migration can find,
+ *  partition, and delete it. The live runtime no longer reads or writes it. */
 export const LOCK_FILE_NAME = 'yg-lock.json';
+
+/** Committed: LLM verdicts (includes companion-backed LLM entries, which may carry
+ *  `touched`). The bulk of the committed lock; merge-resolved like the old single file. */
+export const LOCK_NONDET_FILE_NAME = 'yg-lock.nondeterministic.json';
+/** Committed: the per-node `nodes` section (source fingerprint + log baseline). Written at
+ *  positive closure and by `yg log merge-resolve`; isolated so log churn stays out of the
+ *  verdict files. */
+export const LOCK_LOGS_FILE_NAME = 'yg-lock.logs.json';
+/** Gitignored: deterministic-aspect verdicts. Pure local cache — regenerated for free by
+ *  `yg check --approve --only-deterministic`; never committed (dot-prefixed per the derived-state
+ *  convention). Absent on a fresh clone = those pairs read as unverified until rematerialized. */
+export const LOCK_DET_FILE_NAME = '.yg-lock.deterministic.json';
+
+/** Partition discriminator: a verdict belongs to the deterministic (gitignored) file iff its
+ *  aspect ships `check.mjs` (`reviewer.type === 'deterministic'`). NOT derivable from a
+ *  VerdictEntry alone — a companion-backed LLM entry also carries `touched`. Callers that
+ *  partition (writeLock, the migration) supply the deterministic aspectId set / classify by
+ *  check.mjs presence; an entry's `touched` field is never the partition key. */
 
 export type Verdict = 'approved' | 'refused';
 

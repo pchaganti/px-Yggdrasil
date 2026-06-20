@@ -3,10 +3,13 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { readLock, serializeLock } from '../../../src/io/lock-store.js';
+import { LOCK_NONDET_FILE_NAME } from '../../../src/model/lock.js';
 
+// v1/v2 verdict content lives in the committed nondeterministic file of the 5.1.0 triad,
+// which readLock parses (and from which a stray v2 relation_verdicts block is dropped).
 function ygRoot(json: string): string {
   const dir = mkdtempSync(path.join(tmpdir(), 'yg-lockmig-'));
-  writeFileSync(path.join(dir, 'yg-lock.json'), json, 'utf-8');
+  writeFileSync(path.join(dir, LOCK_NONDET_FILE_NAME), json, 'utf-8');
   return dir;
 }
 

@@ -33,7 +33,8 @@ export function registerCheckCommand(program: Command): void {
     .command('check')
     .description('Unified graph gate — verification, coverage, completeness')
     .option('--approve', 'Fill every unverified pair (deterministic first, then LLM), then report')
-    .action(async (opts: { approve?: boolean }) => {
+    .option('--only-deterministic', 'With --approve: fill ONLY deterministic pairs (keyless, free); committed locks stay untouched. For CI and pre-commit.')
+    .action(async (opts: { approve?: boolean; onlyDeterministic?: boolean }) => {
       try {
         const cwd = process.cwd();
         const graph = await loadGraphOrAbort(cwd, { tolerateInvalidConfig: true });
@@ -41,15 +42,17 @@ export function registerCheckCommand(program: Command): void {
         const projectRoot = path.dirname(graph.rootPath);
         const gitFiles = collectGitFiles(projectRoot);
 
-        // --approve fills every unverified pair (deterministic first, then LLM),
-        // then reports. Plain `yg check` is a pure read that never executes a
-        // reviewer or a deterministic check.
+        // --approve is the combiner: fill every unverified pair (deterministic first, then
+        // LLM), then report. With --only-deterministic it fills only the free deterministic
+        // pairs and writes only the gitignored lock. Plain `yg check` is a pure read that
+        // never executes a reviewer or a deterministic check.
         if (opts.approve) {
           try {
             // The CLI layer owns formatting: fill.ts (an engine module) emits
             // structured diagnostics; we render them here via buildIssueMessage.
             const fill = await runFill(graph, {
               gitTrackedFiles: gitFiles,
+              onlyDeterministic: opts.onlyDeterministic ?? false,
               emitIssue: (m) => { process.stdout.write(buildIssueMessage(m) + '\n'); },
             });
             process.stdout.write(formatOutput(fill.checkResult));

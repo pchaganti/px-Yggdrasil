@@ -1,9 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { readLock as readTriadLock } from '../../src/io/lock-store.js';
+import {
+  LOCK_NONDET_FILE_NAME,
+  LOCK_LOGS_FILE_NAME,
+  LOCK_DET_FILE_NAME,
+} from '../../src/model/lock.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BIN = path.join(__dirname, '..', '..', 'dist', 'bin.js');
@@ -70,14 +76,17 @@ function layout(root: string): void {
   );
 }
 
-/** The committed verification state lives in a single lock file. */
+/**
+ * The verification state lives in the 5.1.0 lock triad
+ * (nondeterministic/logs/deterministic). Merge them into the unified
+ * { version, verdicts, nodes } shape via the real store reader.
+ */
 function readLock(root: string): {
   version: number;
   verdicts: Record<string, Record<string, { verdict: string; hash: string; touched?: Array<[string, string]> }>>;
   nodes: Record<string, { source?: string }>;
 } {
-  const lockPath = path.join(root, '.yggdrasil', 'yg-lock.json');
-  return JSON.parse(readFileSync(lockPath, 'utf-8')) as ReturnType<typeof readLock>;
+  return readTriadLock(path.join(root, '.yggdrasil'));
 }
 
 describe.skipIf(!distExists)('deterministic aspect lock lifecycle', () => {
@@ -98,7 +107,11 @@ describe.skipIf(!distExists)('deterministic aspect lock lifecycle', () => {
     const coldCheck = run(['check'], root);
     expect(coldCheck.status).toBe(1);
     expect(coldCheck.stdout.toLowerCase()).toContain('unverified');
-    expect(existsSync(path.join(root, '.yggdrasil', 'yg-lock.json'))).toBe(false);
+    // Plain check writes nothing — none of the lock-triad files exist yet.
+    const ygg = path.join(root, '.yggdrasil');
+    expect(existsSync(path.join(ygg, LOCK_NONDET_FILE_NAME))).toBe(false);
+    expect(existsSync(path.join(ygg, LOCK_LOGS_FILE_NAME))).toBe(false);
+    expect(existsSync(path.join(ygg, LOCK_DET_FILE_NAME))).toBe(false);
 
     // 3. yg check --approve: fills the deterministic pair locally (free), writes the lock.
     const fill = run(['check', '--approve'], root);

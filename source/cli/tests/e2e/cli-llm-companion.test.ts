@@ -40,6 +40,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMockReviewer, runAsync } from './support/mock-reviewer.js';
+import { readLock as readLockStore } from '../../src/io/lock-store.js';
+import { LOCK_NONDET_FILE_NAME } from '../../src/model/lock.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '..', '..');
@@ -50,8 +52,14 @@ const distExists = existsSync(BIN_PATH);
 const cfgPath = (d: string) => path.join(d, '.yggdrasil', 'yg-config.yaml');
 const nodeYaml = (d: string, n: string) => path.join(d, '.yggdrasil', 'model', ...n.split('/'), 'yg-node.yaml');
 const aspectDir = (d: string, a: string) => path.join(d, '.yggdrasil', 'aspects', a);
-const lockPath = (d: string) => path.join(d, '.yggdrasil', 'yg-lock.json');
-const readLock = (d: string): Record<string, unknown> => JSON.parse(readFileSync(lockPath(d), 'utf-8'));
+// The 5.1.0 lock is a three-file triad; the unified view is produced by the src
+// store's readLock over the project's .yggdrasil dir. The companion aspects under
+// test are all LLM aspects, so their verdicts are persisted in the committed
+// nondeterministic file (the one readLock parses for LLM verdicts).
+const yggDir = (d: string) => path.join(d, '.yggdrasil');
+const nondetLockPath = (d: string) => path.join(yggDir(d), LOCK_NONDET_FILE_NAME);
+const readLock = (d: string): Record<string, unknown> =>
+  readLockStore(yggDir(d)) as unknown as Record<string, unknown>;
 const scenarioMd = (d: string, name: string) => path.join(d, 'references', 'e2e-test-scenarios', name);
 const specTs = (d: string, name: string) => path.join(d, 'apps', 'e2e', 'tests', name);
 
@@ -517,9 +525,16 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (happy path)'
       const keptEntry = JSON.stringify((lockBefore.verdicts as Verdicts)['scenario-matches-test'][UNIT('login')]);
 
       // Simulate "git checkout --ours": a side that is MISSING the checkout pair.
+      // The companion aspect is an LLM aspect, so its verdicts live in the committed
+      // nondeterministic file — seed the take-a-side state THERE (the `nodes` section
+      // is owned by the logs file, so the nondet file's `nodes` is left empty).
       const sideA = JSON.parse(JSON.stringify(lockBefore));
       delete (sideA.verdicts as Verdicts)['scenario-matches-test'][UNIT('checkout')];
-      writeFileSync(lockPath(dir), JSON.stringify(sideA, null, 2) + '\n', 'utf-8');
+      writeFileSync(
+        nondetLockPath(dir),
+        JSON.stringify({ version: sideA.version, verdicts: sideA.verdicts, nodes: {} }, null, 2) + '\n',
+        'utf-8',
+      );
 
       // The missing pair surfaces as unverified.
       const check = run(['check'], dir);

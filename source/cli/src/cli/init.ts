@@ -33,8 +33,11 @@ function assertNotCancelled<T>(value: T | symbol): asserts value is T {
   }
 }
 
-/** The exact .gitattributes line that marks the lock as generated for diff/review tools. */
-const GITATTRIBUTES_LOCK_LINE = '/.yggdrasil/yg-lock.json linguist-generated=true';
+/** The exact .gitattributes line that marks the committed lock files as generated for
+ *  diff/review tools. The glob covers the triad's committed members
+ *  (yg-lock.nondeterministic.json, yg-lock.logs.json); the gitignored deterministic
+ *  cache is never committed, so it needs no attribute. */
+const GITATTRIBUTES_LOCK_LINE = '/.yggdrasil/yg-lock.*.json linguist-generated=true';
 
 /**
  * Ensure the repo-root .gitattributes carries the lock's linguist-generated
@@ -86,6 +89,9 @@ const YGGDRASIL_GITIGNORE_LINES = [
   'yg-secrets.yaml',
   '.symbols-cache/',
   '.debug.log',
+  // Deterministic-verdict lock: a local cache rebuilt for free by
+  // `yg check --approve --only-deterministic`; never committed.
+  '.yg-lock.deterministic.json',
 ] as const;
 
 /**

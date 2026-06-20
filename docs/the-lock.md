@@ -4,7 +4,19 @@ title: The lock
 
 This is the depth page. Day to day you never touch the lock — your agent runs `yg check` and `yg check --approve`, and the lock takes care of itself. Read this when you want to know exactly how a verdict is stored, when it expires, and why CI can recheck your whole repo without an API key.
 
-The payoff is simple: every verdict is recorded once, in one committed file, `.yggdrasil/yg-lock.json`. Because the file is committed, CI doesn't re-run the reviewer — it recomputes a hash and confirms the recorded verdicts still match the current code. Fast, keyless, and it travels with the repo.
+The payoff is simple: every verdict is recorded so that CI doesn't re-run the reviewer — it recomputes a hash and confirms the recorded verdicts still match the current code. Fast, keyless, and it travels with the repo.
+
+## The three lock files
+
+On disk the lock is a **triad** of files under `.yggdrasil/`, partitioned by the *kind* of reviewer that produced each verdict:
+
+- **`yg-lock.nondeterministic.json`** — **committed.** Holds the LLM-reviewer verdicts. These are expensive to recompute (they need a provider key and a reviewer call), so they travel with the repo.
+- **`yg-lock.logs.json`** — **committed.** Holds the per-node log/closure baseline: each node's source fingerprint and its log integrity. This is what the log gate checks against.
+- **`.yg-lock.deterministic.json`** — **gitignored local cache, never committed.** Holds the deterministic (`check.mjs`) verdicts. These are a pure performance cache: a deterministic check runs locally with no key and no LLM, so a fresh clone can recompute every one of them for free. Committing them only added bytes and merge noise without adding anything a checkout couldn't rebuild on demand.
+
+The split is purely on disk, and purely by reviewer kind — there is no per-entry flag that decides which file an entry lands in. In memory the lock is a single object, `{ version, verdicts, nodes }`, exactly as before; loading reads the triad back into that one shape, and writing partitions it back out.
+
+Because the deterministic verdicts live only in a gitignored cache, a fresh checkout starts with no deterministic cache. Plain `yg check` then reports those pairs as **unverified** until something rematerializes them — `yg check --approve --only-deterministic` (described below) rebuilds the cache for free, no key required.
 
 Everything below names the machinery. The concept pages [/aspects](/aspects), [/nodes](/nodes), and [/relations-flows-ports](/relations-flows-ports) deliberately leave it out so you can start without it.
 
@@ -39,9 +51,15 @@ These are two different jobs.
 
 `yg check` writes nothing. It recomputes each pair's input hash and compares it against the lock. It runs no aspect reviewers, makes no LLM calls, and needs no provider keys — which is why it's the CI gate. (It does recompute relation conformance live; see below.) A mismatch means a pair changed without being re-verified, and check reports it.
 
-`yg check --approve` is the only command that writes verdicts. It fills every unverified pair: deterministic checks first (they run locally, for free), then the LLM pairs. When a pair gets a real verdict — pass or refusal — the entry lands in the lock. Then it reports, just like a plain check.
+`yg check --approve` is the only command that writes verdicts. It fills every unverified pair: deterministic checks first (they run locally, for free), then the LLM pairs. When a pair gets a real verdict — pass or refusal — the entry lands in the lock: the deterministic verdicts in the gitignored cache, the LLM verdicts in the committed `yg-lock.nondeterministic.json`. Then it reports, just like a plain check.
 
 A failed pair never blocks the others. `--approve` records every result it gets and exits non-zero if any error remains.
+
+### `--only-deterministic` — fill the local cache, free and keyless
+
+`yg check --approve --only-deterministic` fills **only** the deterministic pairs. It runs the `check.mjs` checks locally — no provider key, no LLM call, no cost — and writes **only** the gitignored `.yg-lock.deterministic.json` cache. The two committed files are left untouched. Then it reports.
+
+This is the CI / pre-commit gate for the deterministic cache. A fresh checkout has no deterministic cache, so plain `yg check` reports those pairs as unverified; running `yg check --approve --only-deterministic` rematerializes the cache for free and clears them, without ever needing a key or touching a committed file. Use plain `yg check --approve` (no flag) when you also want the LLM pairs filled.
 
 ## Refusals are cached
 
@@ -65,13 +83,19 @@ That is also why a keyless CI `yg check` catches an undeclared dependency: it ma
 
 ## Merge conflicts
 
-When two branches both wrote verdicts, git can leave conflict markers in `yg-lock.json`. Do not hand-stitch the two sides. Pick one side wholesale:
+Only the two **committed** files can ever conflict — `yg-lock.nondeterministic.json` and `yg-lock.logs.json`. The deterministic cache is gitignored, so it never appears in a merge and never conflicts; it is simply rebuilt locally.
+
+When two branches both wrote verdicts, git can leave conflict markers in one of the committed files. Do not hand-stitch the two sides. Pick one side of the conflicting file wholesale:
 
 ```bash
-git checkout --ours -- .yggdrasil/yg-lock.json    # or --theirs
+git checkout --ours -- .yggdrasil/yg-lock.nondeterministic.json    # or --theirs
 yg check --approve
 ```
 
-Prefer the side that covers more of the merged code, to minimize re-verification. This is safe because the lock is self-validating: a verdict you kept by accident can't lie — its hash won't match the current inputs, so it re-verifies. The discarded side's verdicts are simply re-filled on that run.
+The same recovery applies per committed file: take one side of `yg-lock.logs.json` the same way if it also conflicted. Prefer the side that covers more of the merged code, to minimize re-verification. This is safe because the lock is self-validating: a verdict you kept by accident can't lie — its hash won't match the current inputs, so it re-verifies. The discarded side's verdicts are simply re-filled on that run.
 
 Hand-merging entry by entry is the one thing to avoid. A duplicate key or a stray conflict marker makes the whole file invalid, and Yggdrasil fails closed rather than trust a damaged lock.
+
+## Migrating an older single-file lock
+
+Projects created before the split shipped a single committed `yg-lock.json`. `yg init --upgrade` migrates it in place: it splits that one file into the triad, relocating every verdict verbatim — the deterministic verdicts into the gitignored cache, the LLM verdicts and the log/closure baseline into the two committed files. Nothing is re-verified; every recorded verdict is carried over unchanged. The upgrade also adds the deterministic cache to `.yggdrasil/.gitignore` so it never gets committed.

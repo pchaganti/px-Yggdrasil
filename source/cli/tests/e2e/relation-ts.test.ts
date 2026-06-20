@@ -11,6 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readLock } from '../../src/io/lock-store.js';
 
 // ---------------------------------------------------------------------------
 // End-to-end: TypeScript relation conformance is LIVE. We build a temp repo
@@ -139,9 +140,25 @@ describe.skipIf(!distExists)('CLI E2E — TypeScript relation conformance (live)
       expect(ok.all).not.toContain('relation-undeclared-dependency');
 
       // The lock carries no relation cache — relations are live, not stored.
-      const raw = readFileSync(path.join(declared, '.yggdrasil', 'yg-lock.json'), 'utf-8');
-      expect(raw).not.toContain('relation_verdicts');
-      expect(JSON.parse(raw).version).toBe(1);
+      // The 5.1.0 triad splits the lock across three files; assert no relation
+      // cache leaks into ANY of them (committed LLM/log files + the gitignored
+      // deterministic file), and that the merged lock is format version 1.
+      const nondetRaw = readFileSync(
+        path.join(declared, '.yggdrasil', 'yg-lock.nondeterministic.json'),
+        'utf-8',
+      );
+      const logsRaw = readFileSync(
+        path.join(declared, '.yggdrasil', 'yg-lock.logs.json'),
+        'utf-8',
+      );
+      const detRaw = readFileSync(
+        path.join(declared, '.yggdrasil', '.yg-lock.deterministic.json'),
+        'utf-8',
+      );
+      expect(nondetRaw).not.toContain('relation_verdicts');
+      expect(logsRaw).not.toContain('relation_verdicts');
+      expect(detRaw).not.toContain('relation_verdicts');
+      expect(readLock(path.join(declared, '.yggdrasil')).version).toBe(1);
     } finally {
       rmSync(declared, { recursive: true, force: true });
     }

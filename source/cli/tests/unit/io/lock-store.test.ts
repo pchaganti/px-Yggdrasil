@@ -1,13 +1,19 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mkdir, rm, writeFile, stat } from 'node:fs/promises';
+import { mkdir, rm, writeFile, stat, readdir } from 'node:fs/promises';
+import { readFileSync, existsSync } from 'node:fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = path.join(__dirname, '../../fixtures');
 
 import type { LockFile } from '../../../src/model/lock.js';
-import { LOCK_FORMAT_VERSION } from '../../../src/model/lock.js';
+import {
+  LOCK_FORMAT_VERSION,
+  LOCK_NONDET_FILE_NAME,
+  LOCK_LOGS_FILE_NAME,
+  LOCK_DET_FILE_NAME,
+} from '../../../src/model/lock.js';
 
 import {
   readLock,
@@ -16,9 +22,16 @@ import {
   LockInvalidError,
 } from '../../../src/io/lock-store.js';
 
+// The verdict lock is split across a 3-file triad; the in-memory LockFile stays unified.
+// writeLock partitions verdicts by aspect KIND (deterministicAspectIds), never by `touched`.
+// These helpers keep the legacy single-lock tests readable under the new API.
+const EMPTY_DET = new Set<string>();
+/** writeLock(scope:'all') with an explicit deterministic-aspect set (default: none → all LLM). */
+async function writeAll(dir: string, lock: LockFile, detIds: Set<string> = EMPTY_DET): Promise<void> {
+  await writeLock(dir, lock, { scope: 'all', deterministicAspectIds: detIds });
+}
+
 afterEach(async () => {
-  // Clean up all tmp-lock-* directories created by these tests
-  const { readdir } = await import('node:fs/promises');
   const entries = await readdir(FIXTURES_DIR).catch(() => [] as string[]);
   await Promise.all(
     entries
@@ -28,7 +41,7 @@ afterEach(async () => {
 });
 
 describe('lock-store', () => {
-  it('readLock returns empty lock when file absent', async () => {
+  it('readLock returns empty lock when files absent', async () => {
     const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-absent');
     await rm(tmpDir, { recursive: true, force: true });
     await mkdir(tmpDir, { recursive: true });
@@ -60,15 +73,13 @@ describe('lock-store', () => {
         },
       },
     };
-    await writeLock(tmpDir, lock);
+    await writeAll(tmpDir, lock);
     const result = readLock(tmpDir);
     expect(result).toEqual(lock);
   });
 
   it('serializeLock emits code-point-sorted keys, one entry per line, trailing newline', () => {
-    // 'Z' (0x5A) must sort BEFORE 'a' (0x61) in code-point order
-    // 'Zeta-rule' < 'alpha-rule' in code-point order
-    // unit keys: 'node:A-unit' < 'node:b-unit' in code-point order (A=0x41 < b=0x62)
+    // 'Z' (0x5A) must sort BEFORE 'a' (0x61) in code-point order.
     const lock: LockFile = {
       version: LOCK_FORMAT_VERSION,
       verdicts: {
@@ -87,12 +98,6 @@ describe('lock-store', () => {
       },
     };
 
-    // Expected canonical form:
-    // - outer keys: "Zeta-rule" (Z=0x5A) before "alpha-rule" (a=0x61)
-    // - inner unit keys within Zeta-rule: "node:A-unit" (A=0x41) before "node:b-unit" (b=0x62)
-    // - entry fields sorted by code-point: "hash" (h=0x68) < "reason" (r=0x72) < "verdict" (v=0x76)
-    // - each verdict entry on ONE line
-    // - nodes entry on ONE line
     const expected =
       '{\n' +
       '  "version": 1,\n' +
@@ -118,29 +123,26 @@ describe('lock-store', () => {
     const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-bad-json');
     await rm(tmpDir, { recursive: true, force: true });
     await mkdir(tmpDir, { recursive: true });
-    await writeFile(path.join(tmpDir, 'yg-lock.json'), 'not valid json { {', 'utf-8');
+    await writeFile(path.join(tmpDir, LOCK_NONDET_FILE_NAME), 'not valid json { {', 'utf-8');
     expect(() => readLock(tmpDir)).toThrow(LockInvalidError);
   });
 
   it('readLock throws LockInvalidError on an unsupported future version (3)', async () => {
-    // Version 1 (native) and 2 (read leniently, stray relation_verdicts dropped) are
-    // accepted; a higher version was written by a newer CLI and must fail closed
-    // rather than be misinterpreted.
     const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-bad-version');
     await rm(tmpDir, { recursive: true, force: true });
     await mkdir(tmpDir, { recursive: true });
     const badLock = { version: 3, verdicts: {}, nodes: {} };
-    await writeFile(path.join(tmpDir, 'yg-lock.json'), JSON.stringify(badLock), 'utf-8');
+    await writeFile(path.join(tmpDir, LOCK_NONDET_FILE_NAME), JSON.stringify(badLock), 'utf-8');
     expect(() => readLock(tmpDir)).toThrow(LockInvalidError);
   });
 
-  it('LockInvalidError for content containing "<<<<<<<" names git conflict markers and its next: includes the take-a-side procedure (git checkout --ours|--theirs -- .yggdrasil/yg-lock.json, then yg check --approve)', async () => {
+  it('LockInvalidError for content containing "<<<<<<<" names git conflict markers and its next: includes the take-a-side procedure (git checkout --ours|--theirs, then yg check --approve)', async () => {
     const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-conflict');
     await rm(tmpDir, { recursive: true, force: true });
     await mkdir(tmpDir, { recursive: true });
     const conflictContent =
       '<<<<<<< HEAD\n{"version":1,"verdicts":{},"nodes":{}}\n=======\n{"version":1,"verdicts":{},"nodes":{}}\n>>>>>>> branch\n';
-    await writeFile(path.join(tmpDir, 'yg-lock.json'), conflictContent, 'utf-8');
+    await writeFile(path.join(tmpDir, LOCK_NONDET_FILE_NAME), conflictContent, 'utf-8');
     let thrown: unknown;
     try {
       readLock(tmpDir);
@@ -150,20 +152,19 @@ describe('lock-store', () => {
     expect(thrown).toBeInstanceOf(LockInvalidError);
     const err = thrown as InstanceType<typeof LockInvalidError>;
     const { what, next } = err.messageData;
-    // Must mention git conflict markers
     expect(what.toLowerCase()).toMatch(/conflict/);
-    // next must include the take-a-side git commands
     expect(next).toMatch(/git checkout --ours/);
     expect(next).toMatch(/git checkout --theirs/);
-    expect(next).toMatch(/\.yggdrasil\/yg-lock\.json/);
+    // The message names the SPECIFIC committed file that conflicted.
+    expect(next).toMatch(/\.yggdrasil\/yg-lock\.nondeterministic\.json/);
     expect(next).toMatch(/yg check --approve/);
   });
 
-  it('LockInvalidError next: names both recoveries (restore from git / delete the file and re-fill via yg check --approve) and states the full re-verification cost', async () => {
+  it('LockInvalidError next: names both recoveries (restore from git / delete the file and re-fill via yg check --approve) and the re-verification cost', async () => {
     const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-both-recoveries');
     await rm(tmpDir, { recursive: true, force: true });
     await mkdir(tmpDir, { recursive: true });
-    await writeFile(path.join(tmpDir, 'yg-lock.json'), '{ invalid json }', 'utf-8');
+    await writeFile(path.join(tmpDir, LOCK_NONDET_FILE_NAME), '{ invalid json }', 'utf-8');
     let thrown: unknown;
     try {
       readLock(tmpDir);
@@ -173,11 +174,8 @@ describe('lock-store', () => {
     expect(thrown).toBeInstanceOf(LockInvalidError);
     const err = thrown as InstanceType<typeof LockInvalidError>;
     const { next } = err.messageData;
-    // Must name: restore from git
     expect(next).toMatch(/git/);
-    // Must name: delete + re-fill via yg check --approve
     expect(next).toMatch(/yg check --approve/);
-    // Must state re-verification cost
     expect(next).toMatch(/re.verif/i);
   });
 
@@ -198,9 +196,7 @@ describe('lock-store', () => {
       },
       nodes: {},
     };
-    // Write via writeLock — serializer must escape the angle brackets inside the JSON string.
-    await writeLock(tmpDir, lock);
-    // readLock must NOT throw — the line-anchored regex must not match inside JSON string content.
+    await writeAll(tmpDir, lock);
     const result = readLock(tmpDir);
     expect(result.verdicts['my-aspect']['node:billing/cancel'].reason).toBe(
       'reviewer quoted: <<<<<<< HEAD in source',
@@ -225,15 +221,12 @@ describe('lock-store', () => {
       },
       nodes: {},
     };
-    await writeLock(tmpDir, lock);
-    // (i) Each verdict entry must appear on a single line (no raw newline inside the entry line).
+    await writeAll(tmpDir, lock);
     const serialized = serializeLock(lock);
-    // Find the line containing the entry for 'node:billing/cancel'
     const entryLines = serialized
       .split('\n')
       .filter((l) => l.includes('"node:billing/cancel"'));
     expect(entryLines).toHaveLength(1);
-    // (ii) readLock roundtrip returns the exact original string.
     const result = readLock(tmpDir);
     expect(result.verdicts['my-aspect']['node:billing/cancel'].reason).toBe(tricky);
   });
@@ -257,63 +250,36 @@ describe('lock-store', () => {
       nodes: {},
     };
     const serialized = serializeLock(lock);
-    // The extra field must not appear in the serialized output.
     expect(serialized).not.toContain('__extraField');
     expect(serialized).not.toContain('should-be-dropped');
-    // Roundtrip via write+read yields only the known fields.
-    await writeLock(tmpDir, lock);
+    await writeAll(tmpDir, lock);
     const result = readLock(tmpDir);
     const entry = result.verdicts['my-aspect']['node:billing/cancel'];
     expect(entry).toEqual({ verdict: 'approved', hash: 'abc123' });
     expect(Object.keys(entry)).not.toContain('__extraField');
   });
 
-  it('writeLock writes atomically (temp + rename via the existing atomic write helper)', async () => {
-    // We verify atomicity by confirming no .tmp file is left behind after write,
-    // and that the lock can be read back correctly.
+  it('writeLock writes atomically (temp + rename via the existing atomic write helper — no .tmp left behind)', async () => {
     const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-atomic');
     await rm(tmpDir, { recursive: true, force: true });
     await mkdir(tmpDir, { recursive: true });
-    const lock: LockFile = {
-      version: LOCK_FORMAT_VERSION,
-      verdicts: {},
-      nodes: {},
-    };
-    await writeLock(tmpDir, lock);
-    // Verify no .tmp file left (atomic write cleans up)
-    const tmpFilePath = path.join(tmpDir, 'yg-lock.json.tmp');
-    let tmpExists = false;
-    try {
-      await stat(tmpFilePath);
-      tmpExists = true;
-    } catch {
-      tmpExists = false;
-    }
-    expect(tmpExists).toBe(false);
-    // Verify the lock was written and can be read back
+    const lock: LockFile = { version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: {} };
+    await writeAll(tmpDir, lock);
+    // No leftover temp file for ANY of the triad files.
+    const left = (await readdir(tmpDir)).filter((e) => e.endsWith('.tmp'));
+    expect(left).toEqual([]);
     const result = readLock(tmpDir);
     expect(result).toEqual(lock);
   });
 
   // ── Shape validation — the lock must FAIL CLOSED on a malformed structure. ──
-  // Before the fix, readLock coerced a wrong-shaped `verdicts`/`nodes` to `{}` and
-  // returned the entries otherwise as-is. Each of the cases below would therefore
-  // have passed THROUGH the pre-fix readLock (fail open):
-  //   - `verdicts: []` / `nodes: []` → coerced to `{}` → "no verdicts" / "no node
-  //     baseline" with no lock-invalid signal (everything silently unverified, the
-  //     log-integrity baseline silently absent);
-  //   - a verdict entry missing `hash`, with a non-string `verdict`, or a node entry
-  //     with a malformed `log` → returned verbatim, then crashing a downstream consumer
-  //     (fill.ts setEntry, verifyLock, log-integrity) with an UNCLASSIFIED error rather
-  //     than the fail-closed lock-invalid.
-  // The fix routes every one of these to LockInvalidError (fail closed).
 
-  /** Write a raw (possibly malformed) lock file and read it back. */
+  /** Write a raw (possibly malformed) committed lock file and read it back. */
   async function writeRawLock(name: string, content: string): Promise<string> {
     const tmpDir = path.join(FIXTURES_DIR, name);
     await rm(tmpDir, { recursive: true, force: true });
     await mkdir(tmpDir, { recursive: true });
-    await writeFile(path.join(tmpDir, 'yg-lock.json'), content, 'utf-8');
+    await writeFile(path.join(tmpDir, LOCK_NONDET_FILE_NAME), content, 'utf-8');
     return tmpDir;
   }
 
@@ -350,29 +316,35 @@ describe('lock-store', () => {
   });
 
   it('readLock throws LockInvalidError when nodes is an array (fail closed — log baseline not silently absent)', async () => {
-    const tmpDir = await writeRawLock(
-      'tmp-lock-nodes-array',
+    // The nodes section lives in the logs file; put the malformed nodes there.
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-nodes-array');
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true });
+    await writeFile(
+      path.join(tmpDir, LOCK_LOGS_FILE_NAME),
       JSON.stringify({ version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: [] }),
+      'utf-8',
     );
     expect(() => readLock(tmpDir)).toThrow(LockInvalidError);
   });
 
   it('readLock throws LockInvalidError when a nodes entry has a malformed log', async () => {
-    const tmpDir = await writeRawLock(
-      'tmp-lock-node-bad-log',
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-node-bad-log');
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true });
+    await writeFile(
+      path.join(tmpDir, LOCK_LOGS_FILE_NAME),
       JSON.stringify({
         version: LOCK_FORMAT_VERSION,
         verdicts: {},
-        // log is a string, not the {last_entry_datetime, prefix_hash} object.
         nodes: { 'billing/cancel': { source: 'fp', log: 'not-an-object' } },
       }),
+      'utf-8',
     );
     expect(() => readLock(tmpDir)).toThrow(LockInvalidError);
   });
 
   it('readLock routes a =======/>>>>>>> conflict fragment to the conflict (take-a-side) message', async () => {
-    // A half-resolved merge where ONLY the lower half survived: no leading <<<<<<< marker,
-    // but the ======= / >>>>>>> markers remain. Must still be detected as a conflict.
     const tmpDir = await writeRawLock(
       'tmp-lock-conflict-fragment',
       '{"version":1,"verdicts":{},"nodes":{}}\n=======\n{"version":1,"verdicts":{},"nodes":{}}\n>>>>>>> branch\n',
@@ -386,7 +358,6 @@ describe('lock-store', () => {
     expect(thrown).toBeInstanceOf(LockInvalidError);
     const err = thrown as InstanceType<typeof LockInvalidError>;
     const { what, next } = err.messageData;
-    // Must be the conflict-specific message (take-a-side recovery), NOT a generic parse error.
     expect(what.toLowerCase()).toMatch(/conflict/);
     expect(next).toMatch(/git checkout --ours/);
     expect(next).toMatch(/git checkout --theirs/);
@@ -420,34 +391,24 @@ describe('lock-store', () => {
         },
       },
     };
-    await writeLock(tmpDir, lock);
+    await writeAll(tmpDir, lock);
     const result = readLock(tmpDir);
     expect(result).toEqual(lock);
   });
 
-  it('regression: an absent lock file reads back as an empty lock (NOT lock-invalid)', async () => {
+  it('regression: absent lock files read back as an empty lock (NOT lock-invalid)', async () => {
     const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-absent-not-invalid');
     await rm(tmpDir, { recursive: true, force: true });
     await mkdir(tmpDir, { recursive: true });
-    // No file written — absent file is legitimate cold-start state.
     expect(() => readLock(tmpDir)).not.toThrow();
     const result = readLock(tmpDir);
     expect(result).toEqual({ version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: {} });
   });
 
-  // ── Every malformed-shape rejection arm of validateLockShape (fail closed). ──
-  // Each case below exercises a distinct structural-deviation branch. The previous
-  // suite covered a handful (array verdicts/nodes, missing hash, non-string verdict,
-  // bad log object); these complete the enumeration so every `throwMalformed` arm is
-  // proven to reject (LockInvalidError) rather than silently pass.
-
-  it('readLock rethrows a non-ENOENT filesystem error (e.g. EISDIR when the lock path is a directory)', async () => {
-    // Point readLock at a directory whose "yg-lock.json" is itself a directory:
-    // readFileSync then throws EISDIR (not ENOENT), which must propagate unchanged
-    // (NOT be swallowed into an empty cold-start lock).
+  it('readLock rethrows a non-ENOENT filesystem error (e.g. EISDIR when a committed lock path is a directory)', async () => {
     const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-eisdir');
     await rm(tmpDir, { recursive: true, force: true });
-    await mkdir(path.join(tmpDir, 'yg-lock.json'), { recursive: true });
+    await mkdir(path.join(tmpDir, LOCK_NONDET_FILE_NAME), { recursive: true });
     let thrown: unknown;
     try {
       readLock(tmpDir);
@@ -455,9 +416,7 @@ describe('lock-store', () => {
       thrown = e;
     }
     expect(thrown).toBeInstanceOf(Error);
-    // Not the cold-start empty lock — a real fs error surfaced.
     expect((thrown as NodeJS.ErrnoException).code).toBe('EISDIR');
-    // And NOT a LockInvalidError — a genuine fs failure is distinct from corruption.
     expect(thrown).not.toBeInstanceOf(LockInvalidError);
   });
 
@@ -537,7 +496,6 @@ describe('lock-store', () => {
       thrown = e;
     }
     expect(thrown).toBeInstanceOf(LockInvalidError);
-    // describe(null) → "null": exercises the null arm of describe().
     expect((thrown as InstanceType<typeof LockInvalidError>).messageData.what).toMatch(/null/);
   });
 
@@ -603,7 +561,6 @@ describe('lock-store', () => {
         version: LOCK_FORMAT_VERSION,
         verdicts: {
           'my-aspect': {
-            // pair has wrong arity / wrong element types
             'node:billing/cancel': { verdict: 'approved', hash: 'h', touched: [['only-one']] },
           },
         },
@@ -623,25 +580,29 @@ describe('lock-store', () => {
   });
 
   it('readLock throws LockInvalidError when a nodes entry is not a plain object', async () => {
-    const tmpDir = await writeRawLock(
-      'tmp-lock-node-not-object',
-      JSON.stringify({
-        version: LOCK_FORMAT_VERSION,
-        verdicts: {},
-        nodes: { 'billing/cancel': 7 },
-      }),
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-node-not-object');
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true });
+    await writeFile(
+      path.join(tmpDir, LOCK_LOGS_FILE_NAME),
+      JSON.stringify({ version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: { 'billing/cancel': 7 } }),
+      'utf-8',
     );
     expect(() => readLock(tmpDir)).toThrow(LockInvalidError);
   });
 
   it('readLock throws LockInvalidError when a nodes entry has an unexpected key', async () => {
-    const tmpDir = await writeRawLock(
-      'tmp-lock-node-extra-key',
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-node-extra-key');
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true });
+    await writeFile(
+      path.join(tmpDir, LOCK_LOGS_FILE_NAME),
       JSON.stringify({
         version: LOCK_FORMAT_VERSION,
         verdicts: {},
         nodes: { 'billing/cancel': { source: 'fp', mystery: true } },
       }),
+      'utf-8',
     );
     let thrown: unknown;
     try {
@@ -656,29 +617,29 @@ describe('lock-store', () => {
   });
 
   it('readLock throws LockInvalidError when a nodes entry source is a non-string', async () => {
-    const tmpDir = await writeRawLock(
-      'tmp-lock-node-bad-source',
-      JSON.stringify({
-        version: LOCK_FORMAT_VERSION,
-        verdicts: {},
-        nodes: { 'billing/cancel': { source: 99 } },
-      }),
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-node-bad-source');
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true });
+    await writeFile(
+      path.join(tmpDir, LOCK_LOGS_FILE_NAME),
+      JSON.stringify({ version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: { 'billing/cancel': { source: 99 } } }),
+      'utf-8',
     );
     expect(() => readLock(tmpDir)).toThrow(LockInvalidError);
   });
 
   it('readLock throws LockInvalidError when a nodes log has an unexpected key', async () => {
-    const tmpDir = await writeRawLock(
-      'tmp-lock-log-extra-key',
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-log-extra-key');
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true });
+    await writeFile(
+      path.join(tmpDir, LOCK_LOGS_FILE_NAME),
       JSON.stringify({
         version: LOCK_FORMAT_VERSION,
         verdicts: {},
-        nodes: {
-          'billing/cancel': {
-            log: { last_entry_datetime: 'x', prefix_hash: 'y', sneaky: 1 },
-          },
-        },
+        nodes: { 'billing/cancel': { log: { last_entry_datetime: 'x', prefix_hash: 'y', sneaky: 1 } } },
       }),
+      'utf-8',
     );
     let thrown: unknown;
     try {
@@ -693,36 +654,38 @@ describe('lock-store', () => {
   });
 
   it('readLock throws LockInvalidError when a nodes log.last_entry_datetime is a non-string', async () => {
-    const tmpDir = await writeRawLock(
-      'tmp-lock-log-bad-datetime',
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-log-bad-datetime');
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true });
+    await writeFile(
+      path.join(tmpDir, LOCK_LOGS_FILE_NAME),
       JSON.stringify({
         version: LOCK_FORMAT_VERSION,
         verdicts: {},
-        nodes: {
-          'billing/cancel': { log: { last_entry_datetime: 5, prefix_hash: 'y' } },
-        },
+        nodes: { 'billing/cancel': { log: { last_entry_datetime: 5, prefix_hash: 'y' } } },
       }),
+      'utf-8',
     );
     expect(() => readLock(tmpDir)).toThrow(LockInvalidError);
   });
 
   it('readLock throws LockInvalidError when a nodes log.prefix_hash is a non-string', async () => {
-    const tmpDir = await writeRawLock(
-      'tmp-lock-log-bad-prefix',
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-log-bad-prefix');
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true });
+    await writeFile(
+      path.join(tmpDir, LOCK_LOGS_FILE_NAME),
       JSON.stringify({
         version: LOCK_FORMAT_VERSION,
         verdicts: {},
-        nodes: {
-          'billing/cancel': { log: { last_entry_datetime: 'x', prefix_hash: 9 } },
-        },
+        nodes: { 'billing/cancel': { log: { last_entry_datetime: 'x', prefix_hash: 9 } } },
       }),
+      'utf-8',
     );
     expect(() => readLock(tmpDir)).toThrow(LockInvalidError);
   });
 
   it('serializeNodeEntry renders an empty node entry (no source, no log) as {}', async () => {
-    // A node entry that has neither source nor log must serialize to "{}" (the
-    // sortedKeys.length === 0 branch of serializeNodeEntry) and round-trip cleanly.
     const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-empty-node');
     await rm(tmpDir, { recursive: true, force: true });
     await mkdir(tmpDir, { recursive: true });
@@ -733,8 +696,130 @@ describe('lock-store', () => {
     };
     const serialized = serializeLock(lock);
     expect(serialized).toContain('"billing/cancel": {}');
-    await writeLock(tmpDir, lock);
+    await writeAll(tmpDir, lock);
     const result = readLock(tmpDir);
     expect(result.nodes['billing/cancel']).toEqual({});
+  });
+});
+
+// ── Triad partition + scopes (5.1.0 split) ────────────────────────────────────
+describe('lock-store — triad partition & scopes', () => {
+  const TRIAD_LOCK: LockFile = {
+    version: LOCK_FORMAT_VERSION,
+    verdicts: {
+      // deterministic aspect — its verdict carries touched and belongs in the gitignored file.
+      'det-aspect': { 'node:a': { verdict: 'approved', hash: 'hd', touched: [['read:x.ts', 'hx']] } },
+      // plain LLM aspect.
+      'llm-aspect': { 'node:b': { verdict: 'approved', hash: 'hl' } },
+      // companion-backed LLM aspect — ALSO carries touched, but is LLM (committed).
+      'companion-aspect': { 'node:c': { verdict: 'approved', hash: 'hc', touched: [['read:companion-file.ts', 'hcf']] } },
+    },
+    nodes: { a: { source: 'fp-a', log: { last_entry_datetime: '2026-06-20T00:00:00.000Z', prefix_hash: 'ph' } } },
+  };
+  const DET_IDS = new Set(['det-aspect']);
+
+  it('partition by aspect KIND: deterministic → gitignored file; LLM incl. companion-backed (with touched) → committed nondet file; nodes → logs file', async () => {
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-partition');
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true });
+    await writeLock(tmpDir, TRIAD_LOCK, { scope: 'all', deterministicAspectIds: DET_IDS });
+
+    const detRaw = readFileSync(path.join(tmpDir, LOCK_DET_FILE_NAME), 'utf-8');
+    const nondetRaw = readFileSync(path.join(tmpDir, LOCK_NONDET_FILE_NAME), 'utf-8');
+    const logsRaw = readFileSync(path.join(tmpDir, LOCK_LOGS_FILE_NAME), 'utf-8');
+
+    // Gitignored deterministic file: only the deterministic aspect.
+    expect(detRaw).toContain('det-aspect');
+    expect(detRaw).not.toContain('llm-aspect');
+    // R5 GUARANTEE: a companion-backed LLM entry carries `touched` but must NOT be misfiled
+    // into the gitignored deterministic file — partition is by KIND, never by `touched`.
+    expect(detRaw).not.toContain('companion-aspect');
+
+    // Committed nondeterministic file: both LLM aspects (incl. companion-backed); no det.
+    expect(nondetRaw).toContain('llm-aspect');
+    expect(nondetRaw).toContain('companion-aspect');
+    expect(nondetRaw).not.toContain('det-aspect');
+
+    // Committed logs file: the nodes section; no verdicts.
+    expect(logsRaw).toContain('fp-a');
+    expect(logsRaw).not.toContain('det-aspect');
+
+    // readLock merges all three back to the unified lock.
+    expect(readLock(tmpDir)).toEqual(TRIAD_LOCK);
+  });
+
+  it("scope 'deterministic' writes ONLY the gitignored det file — committed files untouched (zero CI churn)", async () => {
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-scope-det');
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true });
+    await writeLock(tmpDir, TRIAD_LOCK, { scope: 'all', deterministicAspectIds: DET_IDS });
+
+    const nondetBefore = readFileSync(path.join(tmpDir, LOCK_NONDET_FILE_NAME), 'utf-8');
+    const logsBefore = readFileSync(path.join(tmpDir, LOCK_LOGS_FILE_NAME), 'utf-8');
+
+    // Mutate det + (hypothetically) LLM in memory, then write only the deterministic scope.
+    const mutated: LockFile = JSON.parse(JSON.stringify(TRIAD_LOCK));
+    mutated.verdicts['det-aspect']['node:a'].hash = 'changed-det';
+    mutated.verdicts['llm-aspect']['node:b'].hash = 'changed-llm';
+    await writeLock(tmpDir, mutated, { scope: 'deterministic', deterministicAspectIds: DET_IDS });
+
+    // Committed files are byte-identical (LLM change NOT persisted).
+    expect(readFileSync(path.join(tmpDir, LOCK_NONDET_FILE_NAME), 'utf-8')).toBe(nondetBefore);
+    expect(readFileSync(path.join(tmpDir, LOCK_LOGS_FILE_NAME), 'utf-8')).toBe(logsBefore);
+    // Deterministic file updated.
+    expect(readFileSync(path.join(tmpDir, LOCK_DET_FILE_NAME), 'utf-8')).toContain('changed-det');
+  });
+
+  it("scope 'logs' writes ONLY the logs file and needs no deterministicAspectIds", async () => {
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-scope-logs');
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true });
+    await writeLock(tmpDir, TRIAD_LOCK, { scope: 'logs' });
+
+    expect(readFileSync(path.join(tmpDir, LOCK_LOGS_FILE_NAME), 'utf-8')).toContain('fp-a');
+    expect(existsSync(path.join(tmpDir, LOCK_NONDET_FILE_NAME))).toBe(false);
+    expect(existsSync(path.join(tmpDir, LOCK_DET_FILE_NAME))).toBe(false);
+  });
+
+  it('a verdict scope without deterministicAspectIds throws (programming guard)', async () => {
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-no-detids');
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true });
+    await expect(writeLock(tmpDir, TRIAD_LOCK, { scope: 'all' })).rejects.toThrow(
+      /deterministicAspectIds is required/,
+    );
+  });
+
+  it('absent gitignored det file (fresh clone): readLock returns committed verdicts + nodes; det verdicts simply absent', async () => {
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-absent-det');
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true });
+    await writeLock(tmpDir, TRIAD_LOCK, { scope: 'all', deterministicAspectIds: DET_IDS });
+    // Simulate a fresh clone: the gitignored deterministic file is not present.
+    await rm(path.join(tmpDir, LOCK_DET_FILE_NAME), { force: true });
+
+    const result = readLock(tmpDir);
+    expect(result.verdicts['det-aspect']).toBeUndefined(); // gitignored, gone
+    expect(result.verdicts['llm-aspect']).toBeDefined(); // committed, survives
+    expect(result.verdicts['companion-aspect']).toBeDefined();
+    expect(result.nodes).toEqual(TRIAD_LOCK.nodes);
+  });
+
+  it('a garbled GITIGNORED deterministic file → lock-invalid with the rematerialize recovery (not a git restore)', async () => {
+    const tmpDir = path.join(FIXTURES_DIR, 'tmp-lock-det-garbled');
+    await rm(tmpDir, { recursive: true, force: true });
+    await mkdir(tmpDir, { recursive: true });
+    await writeFile(path.join(tmpDir, LOCK_DET_FILE_NAME), '{ not json', 'utf-8');
+    let thrown: unknown;
+    try {
+      readLock(tmpDir);
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(LockInvalidError);
+    const { next } = (thrown as InstanceType<typeof LockInvalidError>).messageData;
+    // The gitignored cache recovers by rematerializing, NOT by a git restore.
+    expect(next).toMatch(/--only-deterministic/);
+    expect(next).not.toMatch(/git checkout/);
   });
 });

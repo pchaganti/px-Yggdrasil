@@ -13,6 +13,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readLock, detLockPath } from '../../src/io/lock-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');
@@ -220,11 +221,12 @@ mapping:
       // No ASPECT verdict pair is written for the aspect-less child (it has zero
       // effective aspects). Relations are computed live and never cached, so the
       // child has no aspect pair AND the lock carries no relation section at all.
-      const raw = readFileSync(at(dir, '.yggdrasil/yg-lock.json'), 'utf-8');
+      // The fill is deterministic-only, so the verdict file written is the
+      // gitignored .yg-lock.deterministic.json; assert its raw content carries no
+      // relation section.
+      const raw = readFileSync(detLockPath(at(dir, '.yggdrasil')), 'utf-8');
       expect(raw).not.toContain('relation_verdicts'); // relations are live, not cached
-      const lock = JSON.parse(raw) as {
-        verdicts: Record<string, Record<string, unknown>>;
-      };
+      const lock = readLock(at(dir, '.yggdrasil'));
       const childAspectPairs = Object.values(lock.verdicts).filter((byUnit) =>
         Object.keys(byUnit).includes('node:services/orders/detail'),
       );

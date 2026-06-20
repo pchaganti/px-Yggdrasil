@@ -42,6 +42,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMockReviewer, runAsync, type ChatRequest } from './support/mock-reviewer.js';
+import { readLock as readTriadLock, nondetLockPath } from '../../src/io/lock-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '..', '..');
@@ -53,9 +54,12 @@ const cfgPath = (d: string) => path.join(d, '.yggdrasil', 'yg-config.yaml');
 const nodeYaml = (d: string, n: string) => path.join(d, '.yggdrasil', 'model', ...n.split('/'), 'yg-node.yaml');
 const aspectYaml = (d: string, a: string) => path.join(d, '.yggdrasil', 'aspects', a, 'yg-aspect.yaml');
 const aspectDir = (d: string, a: string) => path.join(d, '.yggdrasil', 'aspects', a);
-const lockPath = (d: string) => path.join(d, '.yggdrasil', 'yg-lock.json');
-const readLockRaw = (d: string): string => readFileSync(lockPath(d), 'utf-8');
-const readLock = (d: string): Record<string, unknown> => JSON.parse(readLockRaw(d));
+const yggDir = (d: string) => path.join(d, '.yggdrasil');
+// scenario-matches-test / plain-llm are LLM aspects: their verdicts live in the
+// committed nondeterministic triad file. Read THAT for byte-unchanged assertions.
+const readLockRaw = (d: string): string => readFileSync(nondetLockPath(yggDir(d)), 'utf-8');
+// Merge the whole triad (nondet LLM + det + logs) into one { version, verdicts, nodes }.
+const readLock = (d: string): Record<string, unknown> => readTriadLock(yggDir(d)) as unknown as Record<string, unknown>;
 const specTs = (d: string, name: string) => path.join(d, 'apps', 'e2e', 'tests', name);
 
 const SCENARIOS = ['checkout', 'login', 'search'] as const;

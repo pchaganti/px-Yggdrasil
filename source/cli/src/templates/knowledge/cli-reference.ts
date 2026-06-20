@@ -31,18 +31,26 @@ Fill every unverified pair, then report. The only writer of verdicts (alongside
 \`yg log merge-resolve\`, which writes the per-node log baseline).
 
 \`\`\`bash
-yg check --approve
+yg check --approve                      # fill everything (deterministic, then LLM), then report
+yg check --approve --only-deterministic # fill ONLY deterministic pairs (free, keyless); the CI / pre-commit gate
 \`\`\`
 
-Verification is repo-wide and all-or-nothing — there are no scoping flags. The
-order: a pre-dispatch header (\`Filling N unverified pairs across M nodes — D
-deterministic (no cost), K reviewer calls (consensus included)\`); the per-node
-log gate; deterministic
-fills first (free); the deterministic gate (a node with an enforced deterministic
-refusal has its LLM fills skipped this run); then LLM fills. A real verdict
-(approved or refused) is written to the lock; every infra disposition writes
-nothing and the pair stays unverified. Refusals are cached and FINAL for unchanged
-inputs. Interrupting is safe — finished pairs persist, the next run resumes.
+Verification is repo-wide and all-or-nothing. The one scoping flag is
+\`--only-deterministic\`: it runs the deterministic fills only (no LLM, no key) and
+writes ONLY the gitignored deterministic cache — the committed lock files are
+never touched (positive closure is skipped, GC is scoped to the cache), so a CI or
+pre-commit run produces zero committed-lock churn. A fresh checkout has no
+deterministic cache, so this rematerializes it; it also re-hashes the committed
+LLM verdicts, so the trailing report still catches a stale committed LLM verdict.
+
+The full-run order: a pre-dispatch header (\`Filling N unverified pairs across M
+nodes — D deterministic (no cost), K reviewer calls (consensus included)\`); the
+per-node log gate; deterministic fills first (free); the deterministic gate (a
+node with an enforced deterministic refusal has its LLM fills skipped this run);
+then LLM fills. A real verdict (approved or refused) is written to the lock; every
+infra disposition writes nothing and the pair stays unverified. Refusals are
+cached and FINAL for unchanged inputs. Interrupting is safe — finished pairs
+persist, the next run resumes.
 
 When nothing was unverified, the summary says \`0 reviewer calls made — all
 expected pairs hold valid verdicts\`. Use \`yg impact\` to predict cost before
@@ -230,8 +238,9 @@ yg init --upgrade              # refresh rules/platform files + .gitattributes; 
 yg init --upgrade --platform claude-code   # regenerate for specific platform
 \`\`\`
 
-\`yg init\` maintains \`.gitattributes\` so \`yg-lock.json\` is marked
-\`linguist-generated\`. Run from repository root only. Never from a subdirectory.
+\`yg init\` maintains \`.gitattributes\` so the committed lock files
+(\`yg-lock.*.json\`) are marked \`linguist-generated\`. Run from repository root only.
+Never from a subdirectory.
 
 ## Validator issue codes — verification and status
 

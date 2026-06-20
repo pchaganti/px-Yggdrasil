@@ -12,6 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readLock } from '../../src/io/lock-store.js';
 
 // Hermetic E2E — RELATIONS: the relation-TYPE matrix (all six types allowed and
 // forbidden), event pairing (both unpaired directions, multi-pair, self-pair),
@@ -984,9 +985,9 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
   // NOT an aspect-verdict input, so these hashes stay byte-identical across it.
   // Relations themselves are no longer in the lock — they are computed live every run.
   function ordersAspectHashes(dir: string): Record<string, string> {
-    const lock = JSON.parse(readFileSync(path.join(dir, '.yggdrasil', 'yg-lock.json'), 'utf-8')) as {
-      verdicts: Record<string, Record<string, { hash: string }>>;
-    };
+    // orders carries only deterministic aspects here (the LLM aspect is stripped), so its
+    // verdicts live in the gitignored .yg-lock.deterministic.json. readLock merges the triad.
+    const lock = readLock(path.join(dir, '.yggdrasil'));
     const aspectHashes: Record<string, string> = {};
     for (const [aspectId, byUnit] of Object.entries(lock.verdicts)) {
       const entry = byUnit['node:services/orders'];
@@ -1082,9 +1083,21 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
       expect(run(['check'], dir).status).toBe(0);
       const before = ordersAspectHashes(dir);
 
-      // The lock carries NO relation cache — relations are computed live.
-      const raw = readFileSync(path.join(dir, '.yggdrasil', 'yg-lock.json'), 'utf-8');
-      expect(raw).not.toContain('relation_verdicts');
+      // The lock carries NO relation cache — relations are computed live. The orders
+      // deterministic verdicts land in the gitignored det file after the fill; assert no
+      // relation cache leaks into ANY committed/det triad file.
+      const nondetRaw = readFileSync(
+        path.join(dir, '.yggdrasil', 'yg-lock.nondeterministic.json'),
+        'utf-8',
+      );
+      const logsRaw = readFileSync(path.join(dir, '.yggdrasil', 'yg-lock.logs.json'), 'utf-8');
+      const detRaw = readFileSync(
+        path.join(dir, '.yggdrasil', '.yg-lock.deterministic.json'),
+        'utf-8',
+      );
+      expect(nondetRaw).not.toContain('relation_verdicts');
+      expect(logsRaw).not.toContain('relation_verdicts');
+      expect(detRaw).not.toContain('relation_verdicts');
 
       // Now REMOVE the relation — a pure graph-structure edit, no source change.
       writeFileSync(

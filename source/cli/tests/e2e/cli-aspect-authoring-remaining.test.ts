@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMockReviewer, runAsync } from './support/mock-reviewer.js';
+import { readLock, detLockPath } from '../../src/io/lock-store.js';
 
 // Hermetic E2E — ASPECT AUTHORING, the remaining (~uncovered) paths:
 //   * ctx.parseYaml / ctx.parseJson / ctx.parseToml — the structured-data parse
@@ -34,7 +35,8 @@ import { startMockReviewer, runAsync } from './support/mock-reviewer.js';
 //     unverified), and a clean re-fill via the reviewer RESTORES them — the full
 //     round-trip.
 //   * aspect REMOVAL lazy lock cleanup: detaching an aspect from a node and
-//     re-filling evicts its stale per-aspect verdict from .yggdrasil/yg-lock.json.
+//     re-filling evicts its stale per-aspect verdict from the verdict lock (the
+//     gitignored .yg-lock.deterministic.json for these deterministic aspects).
 //
 // Harness (run / BIN_PATH / copyFixture / deterministicFixture) is reused verbatim
 // from cli-deterministic-fill-lifecycle.test.ts; the mock-reviewer harness
@@ -95,8 +97,14 @@ const nodeYaml = (dir: string, node: string) =>
 const aspectDir = (dir: string, id: string) => path.join(dir, '.yggdrasil', 'aspects', id);
 const aspectYaml = (dir: string, id: string) => path.join(aspectDir(dir, id), 'yg-aspect.yaml');
 
-/** The single state file of the verdict-lock model (replaces .drift-state/<node>.json). */
-const lockPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-lock.json');
+// The deterministic fill writes its verdicts to the gitignored
+// .yg-lock.deterministic.json — the on-disk presence of THIS file is the signal
+// that a deterministic fill has run (the committed nondeterministic/logs files
+// carry no deterministic verdicts). Every aspect under test here that records a
+// verdict via `yg check --approve` (`parse-helpers`, `extra-rule`,
+// `no-todo-comments`) is deterministic, so this is the triad file those verdicts
+// land in.
+const detLockFile = (dir: string) => detLockPath(path.join(dir, '.yggdrasil'));
 
 /** Author a deterministic aspect (yg-aspect.yaml + check.mjs) into the temp copy. */
 function writeDeterministicAspect(dir: string, id: string, description: string, checkSource: string): void {
@@ -124,9 +132,7 @@ function writeDeterministicAspect(dir: string, id: string, description: string, 
  * an entry for this node. (Replaces the old per-node baseline `aspectVerdicts`.)
  */
 function verdictKeys(dir: string, node: string): string[] {
-  const lock = JSON.parse(readFileSync(lockPath(dir), 'utf-8')) as {
-    verdicts?: Record<string, Record<string, unknown>>;
-  };
+  const lock = readLock(path.join(dir, '.yggdrasil'));
   const unitKey = `node:${node}`;
   return Object.entries(lock.verdicts ?? {})
     .filter(([, byUnit]) => Object.prototype.hasOwnProperty.call(byUnit, unitKey))
@@ -320,7 +326,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
       // non-blocking warning and does not fail the fill.)
       expect(fill.status).toBe(0);
       expect(fill.all).toContain('[det] parse-helpers on node:services/orders — approved');
-      expect(existsSync(lockPath(dir))).toBe(true);
+      expect(existsSync(detLockFile(dir))).toBe(true);
       expect(verdictKeys(dir, 'services/orders')).toContain('parse-helpers');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -511,7 +517,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
 
   // =========================================================================
   // GROUP X — aspect REMOVAL lazy lock cleanup. Detaching an aspect from a node
-  // and re-filling evicts its stale per-aspect verdict from .yggdrasil/yg-lock.json,
+  // and re-filling evicts its stale per-aspect verdict from the verdict lock,
   // so no orphaned verdict lingers. Distinct from the draft-transition eviction
   // pinned by cli-aspect-status-extended (which keeps the aspect, only drafts it).
   // =========================================================================

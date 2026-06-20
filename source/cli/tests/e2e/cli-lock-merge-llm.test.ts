@@ -26,6 +26,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMockReviewer, runAsync } from './support/mock-reviewer.js';
+import { readLock as readMergedLock, nondetLockPath } from '../../src/io/lock-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '..', '..');
@@ -34,8 +35,12 @@ const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle');
 const distExists = existsSync(BIN_PATH);
 
 const cfgPath = (d: string) => path.join(d, '.yggdrasil', 'yg-config.yaml');
-const lockPath = (d: string) => path.join(d, '.yggdrasil', 'yg-lock.json');
-const readLock = (d: string) => JSON.parse(readFileSync(lockPath(d), 'utf-8'));
+// `has-doc-comment` is an LLM aspect → its verdicts live in the committed
+// nondeterministic triad file. Read the merged lock via the src store, and seed
+// the "taken side" into the nondeterministic file the CLI actually parses.
+const ygDir = (d: string) => path.join(d, '.yggdrasil');
+const nondetPath = (d: string) => nondetLockPath(ygDir(d));
+const readLock = (d: string) => readMergedLock(ygDir(d));
 
 function run(args: string[], cwd: string): { all: string; status: number | null } {
   const r = spawnSync('node', [BIN_PATH, ...args], { cwd, encoding: 'utf-8', maxBuffer: 64 * 1024 * 1024 });
@@ -77,12 +82,14 @@ describe.skipIf(!distExists)('CLI E2E — lock merge (LLM) & piped refusal survi
       const keptEntry = JSON.parse(JSON.stringify(lockBefore.verdicts['has-doc-comment']['node:services/orders']));
 
       // Simulate "git checkout --ours" of a side that verified orders but is
-      // MISSING the payments LLM entry (the other branch produced it). Write the
-      // taken side in a NON-canonical shape (as a tool/human merge might) — the
-      // self-validating entries make this safe.
+      // MISSING the payments LLM entry (the other branch produced it). The
+      // `has-doc-comment` verdicts are LLM verdicts → they live in the committed
+      // nondeterministic triad file, which is the file a merge would conflict on.
+      // Write the taken side back into THAT file, in a NON-canonical shape (as a
+      // tool/human merge might) — the self-validating entries make this safe.
       const sideA = JSON.parse(JSON.stringify(lockBefore));
       delete sideA.verdicts['has-doc-comment']['node:services/payments'];
-      writeFileSync(lockPath(dir), JSON.stringify(sideA, null, 2) + '\n', 'utf-8');
+      writeFileSync(nondetPath(dir), JSON.stringify(sideA, null, 2) + '\n', 'utf-8');
 
       // The missing LLM pair surfaces as unverified on a plain check.
       const check = run(['check'], dir);

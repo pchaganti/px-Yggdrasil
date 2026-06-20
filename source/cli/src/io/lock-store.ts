@@ -2,11 +2,17 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { IssueMessage } from '../model/validation.js';
 import type { LockFile, VerdictEntry, LockNodeEntry } from '../model/lock.js';
-import { LOCK_FORMAT_VERSION, LOCK_FILE_NAME } from '../model/lock.js';
+import {
+  LOCK_FORMAT_VERSION,
+  LOCK_FILE_NAME,
+  LOCK_NONDET_FILE_NAME,
+  LOCK_LOGS_FILE_NAME,
+  LOCK_DET_FILE_NAME,
+} from '../model/lock.js';
 import { atomicWriteFile } from '../io/atomic-write.js';
 
 /**
- * The lock file is unparseable, structurally invalid, or has an unrecognized
+ * A lock file is unparseable, structurally invalid, or has an unrecognized
  * version. Fail closed — the runtime never returns a partial lock.
  *
  * Covers:
@@ -26,53 +32,127 @@ export class LockInvalidError extends Error {
   }
 }
 
-/** Absolute path to the lock file given the .yggdrasil root directory. */
+// ── File layout (the 5.1.0 triad) ─────────────────────────────────────────────
+// The lock is split across three files; the in-memory LockFile stays unified.
+//   - nondeterministic.json (committed) → LLM verdicts
+//   - logs.json             (committed) → the `nodes` section
+//   - .deterministic.json   (gitignored) → deterministic verdicts
+// readLock merges all three; writeLock partitions one LockFile back out, by
+// ASPECT KIND (deterministicAspectIds), never by the `touched` field.
+
+/** Absolute path to the LEGACY single-file lock. Kept for the 5.1.0 migration only. */
 export function lockPath(yggRoot: string): string {
   return path.join(yggRoot, LOCK_FILE_NAME);
 }
+/** Absolute path to the committed LLM-verdict file. */
+export function nondetLockPath(yggRoot: string): string {
+  return path.join(yggRoot, LOCK_NONDET_FILE_NAME);
+}
+/** Absolute path to the committed log/closure-state file. */
+export function logsLockPath(yggRoot: string): string {
+  return path.join(yggRoot, LOCK_LOGS_FILE_NAME);
+}
+/** Absolute path to the gitignored deterministic-verdict file. */
+export function detLockPath(yggRoot: string): string {
+  return path.join(yggRoot, LOCK_DET_FILE_NAME);
+}
+
+/** Per-file parse context: drives file-specific recovery guidance. */
+interface ParseCtx {
+  fileName: string;
+  /** Committed files recover via git; the gitignored det file is rematerialized. */
+  committed: boolean;
+}
+
+/** Recovery line for a corrupt/garbled lock file. */
+function recoveryNext(ctx: ParseCtx): string {
+  if (ctx.committed) {
+    return (
+      `restore the file from git (\`git checkout HEAD -- .yggdrasil/${ctx.fileName}\`), OR\n` +
+      'delete the file and re-fill via `yg check --approve` — this re-verifies the affected pairs.'
+    );
+  }
+  return (
+    `delete the file and re-run \`yg check --approve --only-deterministic\` to rematerialize it ` +
+    '(free, no LLM cost — deterministic verdicts are a local cache).'
+  );
+}
 
 /**
- * Read the lock file synchronously.
+ * Read the unified lock by merging the three on-disk files.
  *
- * - Absent file → empty lock (all expected pairs unverified — cold start).
- * - Garbled / invalid version → LockInvalidError (fail closed).
+ * - Each file is independently optional; an absent file contributes empty state
+ *   (cold start — the det file is absent on a fresh clone, so its pairs read as
+ *   unverified until `yg check --approve --only-deterministic` rematerializes it).
+ * - Garbled / conflict-markered / wrong-version file → LockInvalidError (fail closed).
+ * - Verdict namespaces are disjoint across the verdict files (an aspect is wholly
+ *   one kind), so the merge is a plain union. On the rare kind-flip collision the
+ *   deterministic (freshest local) entry wins; verify-lock re-hashes and self-heals.
  *
  * Never returns a partial lock from a garbled file.
  */
 export function readLock(yggRoot: string): LockFile {
+  const nondet = readOneLockFile(nondetLockPath(yggRoot), { fileName: LOCK_NONDET_FILE_NAME, committed: true });
+  const logs = readOneLockFile(logsLockPath(yggRoot), { fileName: LOCK_LOGS_FILE_NAME, committed: true });
+  const det = readOneLockFile(detLockPath(yggRoot), { fileName: LOCK_DET_FILE_NAME, committed: false });
+
+  return {
+    version: LOCK_FORMAT_VERSION,
+    verdicts: { ...nondet.verdicts, ...det.verdicts },
+    nodes: logs.nodes,
+  };
+}
+
+/**
+ * Read the LEGACY single-file lock (pre-5.1.0), validated, as a unified LockFile —
+ * or null if it is absent. Used ONLY by the 5.1.0 split migration; the live runtime
+ * reads the triad via {@link readLock}.
+ */
+export function readLegacyLock(yggRoot: string): LockFile | null {
   const filePath = lockPath(yggRoot);
+  try {
+    readFileSync(filePath, 'utf-8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw err;
+  }
+  const { verdicts, nodes } = readOneLockFile(filePath, { fileName: LOCK_FILE_NAME, committed: true });
+  return { version: LOCK_FORMAT_VERSION, verdicts, nodes };
+}
+
+/**
+ * Read, validate, and project a single lock file to its { verdicts, nodes } sections.
+ * Each file carries the full { version, verdicts, nodes } shape (the irrelevant section
+ * is an empty object); the caller selects which sections it cares about.
+ */
+function readOneLockFile(filePath: string, ctx: ParseCtx): { verdicts: Record<string, Record<string, VerdictEntry>>; nodes: Record<string, LockNodeEntry> } {
   let raw: string;
   try {
     raw = readFileSync(filePath, 'utf-8');
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-      // Absent file is valid cold-start state — return empty lock.
-      return { version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: {} };
+      // Absent file is valid cold-start state — contributes nothing.
+      return { verdicts: {}, nodes: {} };
     }
     throw err;
   }
 
-  // Detect git conflict markers before attempting JSON parse.
-  // Line-anchored regex: real git conflict markers START a line. We match ANY of the three
-  // marker families (<<<<<<<, =======, >>>>>>>) so a half-resolved file where only the
-  // =======/>>>>>>> side survived is still routed to the conflict-specific recovery (taking a
-  // side) rather than falling through to a worse generic parse error. The trailing space is NOT
-  // required (a marker without a label, e.g. a bare `=======`, is still a conflict marker).
-  // A bare substring check would falsely trigger on a verdict reason that quotes diff/conflict
-  // text mid-line — the `^…$`/`m` anchoring keeps the marker line-leading so an embedded run of
-  // 7 angle brackets inside a `reason` string cannot false-positive.
-  if (/^(?:<<<<<<<|=======|>>>>>>>)/m.test(raw)) {
+  // Detect git conflict markers before attempting JSON parse (committed files only —
+  // the gitignored det file is never merged, so a stray marker there falls through to
+  // the parse error with the rematerialize recovery).
+  // Line-anchored regex: real git conflict markers START a line. The `^…/m` anchoring keeps
+  // an embedded run of 7 angle brackets inside a `reason` string from false-positiving.
+  if (ctx.committed && /^(?:<<<<<<<|=======|>>>>>>>)/m.test(raw)) {
     throw new LockInvalidError({
-      what: `${LOCK_FILE_NAME} contains git conflict markers — the file was not resolved after a merge`,
+      what: `${ctx.fileName} contains git conflict markers — the file was not resolved after a merge`,
       why: 'a conflict-markered lock file cannot be parsed; allowing partial content would let stale or wrong verdicts pass as valid, silently breaking enforcement',
       next:
         'resolve the conflict by taking one side wholesale:\n' +
-        '  git checkout --ours -- .yggdrasil/yg-lock.json\n' +
+        `  git checkout --ours -- .yggdrasil/${ctx.fileName}\n` +
         '  OR\n' +
-        '  git checkout --theirs -- .yggdrasil/yg-lock.json\n' +
+        `  git checkout --theirs -- .yggdrasil/${ctx.fileName}\n` +
         'Then run `yg check --approve` to re-verify all pairs whose verdicts may have changed.\n' +
-        'Hand-stitching entries line-by-line is forbidden — structural damage makes the whole file lock-invalid.\n' +
-        'Note: re-running `yg check --approve` will re-verify all unverified pairs (full re-verification cost).',
+        'Hand-stitching entries line-by-line is forbidden — structural damage makes the whole file lock-invalid.',
     });
   }
 
@@ -81,21 +161,17 @@ export function readLock(yggRoot: string): LockFile {
     parsed = JSON.parse(raw);
   } catch {
     throw new LockInvalidError({
-      what: `${LOCK_FILE_NAME} contains unparseable JSON`,
+      what: `${ctx.fileName} contains unparseable JSON`,
       why: 'a garbled lock file cannot be read; allowing partial content would silently skip enforcement on unreadable entries',
-      next:
-        'restore the file from git (`git checkout HEAD -- .yggdrasil/yg-lock.json`), OR\n' +
-        'delete the file and re-fill via `yg check --approve` — this will re-verify all pairs (full re-verification cost).',
+      next: recoveryNext(ctx),
     });
   }
 
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new LockInvalidError({
-      what: `${LOCK_FILE_NAME} does not contain a JSON object`,
+      what: `${ctx.fileName} does not contain a JSON object`,
       why: 'the lock file must be a JSON object with a numeric version field; a non-object cannot be validated',
-      next:
-        'restore the file from git (`git checkout HEAD -- .yggdrasil/yg-lock.json`), OR\n' +
-        'delete the file and re-fill via `yg check --approve` — this will re-verify all pairs (full re-verification cost).',
+      next: recoveryNext(ctx),
     });
   }
 
@@ -103,45 +179,32 @@ export function readLock(yggRoot: string): LockFile {
 
   if (typeof obj.version !== 'number') {
     throw new LockInvalidError({
-      what: `${LOCK_FILE_NAME} is missing a numeric version field`,
+      what: `${ctx.fileName} is missing a numeric version field`,
       why: 'the lock file format requires a numeric version field to validate compatibility; without it the file cannot be trusted',
-      next:
-        'restore the file from git (`git checkout HEAD -- .yggdrasil/yg-lock.json`), OR\n' +
-        'delete the file and re-fill via `yg check --approve` — this will re-verify all pairs (full re-verification cost).',
+      next: recoveryNext(ctx),
     });
   }
 
   if (obj.version !== 1 && obj.version !== 2) {
     throw new LockInvalidError({
-      what: `${LOCK_FILE_NAME} has unsupported version ${obj.version} (this CLI reads version 1 or 2)`,
+      what: `${ctx.fileName} has unsupported version ${obj.version} (this CLI reads version 1 or 2)`,
       why: 'an unrecognized lock version means the file was written by a different or newer CLI; parsing it would risk silently misinterpreting its structure',
-      next:
-        'restore the file from git (`git checkout HEAD -- .yggdrasil/yg-lock.json`), OR\n' +
-        'delete the file and re-fill via `yg check --approve` — this will re-verify all pairs (full re-verification cost).',
+      next: recoveryNext(ctx),
     });
   }
 
   // A stray relation_verdicts (from the unreleased alpha.6 v2 lock) is dropped:
-  // relation conformance is computed live now, so the section is moot. Removing it
-  // here keeps the strict shape validator (which rejects unknown top-level keys)
-  // from tripping on a committed v2 lock.
+  // relation conformance is computed live now, so the section is moot.
   if ('relation_verdicts' in obj) delete obj.relation_verdicts;
 
-  // Validate the SHAPE of the parsed lock. The lock is the only persisted verification state;
-  // a malformed shape must fail CLOSED (LockInvalidError), never silently coerce to empty. The
-  // previous behavior — coercing a wrong-shaped `verdicts`/`nodes` to `{}` — was fail-OPEN: a
-  // hand-corrupted `"verdicts": []` became "no verdicts" (everything unverified, but with no
-  // lock-invalid signal) and a `"nodes": []` made the log-integrity baseline silently absent.
-  // Strict-by-design: the format is fully enumerated and version-gated (an unknown `version`
-  // already fails closed above; version bumps — not extra keys — are the extensibility
-  // mechanism), the canonical serializer only ever emits the known keys, and no consumer reads
-  // any unknown key. So unknown keys at any level are treated as corruption and rejected.
-  validateLockShape(obj);
+  // Validate the SHAPE. The lock is the only persisted verification state; a malformed
+  // shape must fail CLOSED, never silently coerce to empty (which would be fail-open).
+  // Strict-by-design: the format is fully enumerated and version-gated; unknown keys are
+  // corruption, not forward-compatible extension.
+  validateLockShape(obj, ctx);
 
-  // Shape is valid — the parsed object is structurally a LockFile. The cast is sound because
-  // validateLockShape threw on anything that is not.
+  // Shape is valid — the cast is sound because validateLockShape threw on anything else.
   return {
-    version: LOCK_FORMAT_VERSION,
     verdicts: obj.verdicts as Record<string, Record<string, VerdictEntry>>,
     nodes: obj.nodes as Record<string, LockNodeEntry>,
   };
@@ -152,14 +215,12 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** Raise the canonical fail-closed corruption error with the restore-or-refill recovery. */
-function throwMalformed(detail: string): never {
+/** Raise the canonical fail-closed corruption error with file-specific recovery. */
+function throwMalformed(detail: string, ctx: ParseCtx): never {
   throw new LockInvalidError({
-    what: `${LOCK_FILE_NAME} is structurally malformed — ${detail}`,
+    what: `${ctx.fileName} is structurally malformed — ${detail}`,
     why: 'the lock is the only persisted verification state; a malformed lock cannot be trusted, and silently treating it as empty would let unverified code pass as verified (fail open)',
-    next:
-      'restore the file from git (`git checkout HEAD -- .yggdrasil/yg-lock.json`), OR\n' +
-      'delete the file and re-fill via `yg check --approve` — this will re-verify all pairs (full re-verification cost).',
+    next: recoveryNext(ctx),
   });
 }
 
@@ -171,64 +232,65 @@ function throwMalformed(detail: string): never {
  * keys mean corruption, not forward-compatible extension).
  *
  * Accepted shape:
- * - top level: exactly { version, verdicts, nodes } (version validated by caller).
+ * - top level: exactly { version, verdicts, nodes } (version validated by caller). Each split
+ *   file carries all three keys; the section it does not own is an empty object.
  * - verdicts: plain object; every value is a plain object (aspectId → unitKey → entry); every
  *   entry is a plain object with string `verdict` ∈ {approved, refused} and string `hash`;
  *   optional string `reason`; optional `touched` = array of [string, string] pairs.
  * - nodes: plain object; every value is a plain object with optional string `source` and optional
  *   `log` = plain object { last_entry_datetime: string, prefix_hash: string }.
  */
-function validateLockShape(obj: Record<string, unknown>): void {
+function validateLockShape(obj: Record<string, unknown>, ctx: ParseCtx): void {
   // Top-level keys: only version / verdicts / nodes are allowed.
   const TOP_KEYS = new Set(['version', 'verdicts', 'nodes']);
   for (const key of Object.keys(obj)) {
-    if (!TOP_KEYS.has(key)) throwMalformed(`unexpected top-level key "${key}" (allowed: version, verdicts, nodes)`);
+    if (!TOP_KEYS.has(key)) throwMalformed(`unexpected top-level key "${key}" (allowed: version, verdicts, nodes)`, ctx);
   }
 
   // verdicts must be a plain object of aspectId → (unitKey → entry).
   if (!isPlainObject(obj.verdicts)) {
-    throwMalformed('"verdicts" must be a JSON object (found ' + describe(obj.verdicts) + ')');
+    throwMalformed('"verdicts" must be a JSON object (found ' + describe(obj.verdicts) + ')', ctx);
   }
   for (const aspectId of Object.keys(obj.verdicts)) {
     const unitMap = obj.verdicts[aspectId];
     if (!isPlainObject(unitMap)) {
-      throwMalformed(`"verdicts.${aspectId}" must be a JSON object (found ${describe(unitMap)})`);
+      throwMalformed(`"verdicts.${aspectId}" must be a JSON object (found ${describe(unitMap)})`, ctx);
     }
     for (const unitKey of Object.keys(unitMap)) {
-      validateVerdictEntry(unitMap[unitKey], `verdicts.${aspectId}.${unitKey}`);
+      validateVerdictEntry(unitMap[unitKey], `verdicts.${aspectId}.${unitKey}`, ctx);
     }
   }
 
   // nodes must be a plain object of nodePath → node entry.
   if (!isPlainObject(obj.nodes)) {
-    throwMalformed('"nodes" must be a JSON object (found ' + describe(obj.nodes) + ')');
+    throwMalformed('"nodes" must be a JSON object (found ' + describe(obj.nodes) + ')', ctx);
   }
   for (const nodePath of Object.keys(obj.nodes)) {
-    validateNodeEntry(obj.nodes[nodePath], `nodes.${nodePath}`);
+    validateNodeEntry(obj.nodes[nodePath], `nodes.${nodePath}`, ctx);
   }
 }
 
 /** Validate a single VerdictEntry (verdict + hash required; reason + touched optional). */
-function validateVerdictEntry(entry: unknown, at: string): void {
-  if (!isPlainObject(entry)) throwMalformed(`"${at}" must be a JSON object (found ${describe(entry)})`);
+function validateVerdictEntry(entry: unknown, at: string, ctx: ParseCtx): void {
+  if (!isPlainObject(entry)) throwMalformed(`"${at}" must be a JSON object (found ${describe(entry)})`, ctx);
 
   const ENTRY_KEYS = new Set(['verdict', 'hash', 'reason', 'touched']);
   for (const key of Object.keys(entry)) {
-    if (!ENTRY_KEYS.has(key)) throwMalformed(`"${at}" has unexpected key "${key}" (allowed: verdict, hash, reason, touched)`);
+    if (!ENTRY_KEYS.has(key)) throwMalformed(`"${at}" has unexpected key "${key}" (allowed: verdict, hash, reason, touched)`, ctx);
   }
 
   if (entry.verdict !== 'approved' && entry.verdict !== 'refused') {
-    throwMalformed(`"${at}.verdict" must be "approved" or "refused" (found ${describe(entry.verdict)})`);
+    throwMalformed(`"${at}.verdict" must be "approved" or "refused" (found ${describe(entry.verdict)})`, ctx);
   }
   if (typeof entry.hash !== 'string') {
-    throwMalformed(`"${at}.hash" must be a string (found ${describe(entry.hash)})`);
+    throwMalformed(`"${at}.hash" must be a string (found ${describe(entry.hash)})`, ctx);
   }
   if (entry.reason !== undefined && typeof entry.reason !== 'string') {
-    throwMalformed(`"${at}.reason" must be a string when present (found ${describe(entry.reason)})`);
+    throwMalformed(`"${at}.reason" must be a string when present (found ${describe(entry.reason)})`, ctx);
   }
   if (entry.touched !== undefined) {
     if (!Array.isArray(entry.touched)) {
-      throwMalformed(`"${at}.touched" must be an array when present (found ${describe(entry.touched)})`);
+      throwMalformed(`"${at}.touched" must be an array when present (found ${describe(entry.touched)})`, ctx);
     }
     for (let i = 0; i < entry.touched.length; i++) {
       const pair = entry.touched[i];
@@ -238,37 +300,37 @@ function validateVerdictEntry(entry: unknown, at: string): void {
         typeof pair[0] !== 'string' ||
         typeof pair[1] !== 'string'
       ) {
-        throwMalformed(`"${at}.touched[${i}]" must be a [string, string] pair (found ${describe(pair)})`);
+        throwMalformed(`"${at}.touched[${i}]" must be a [string, string] pair (found ${describe(pair)})`, ctx);
       }
     }
   }
 }
 
 /** Validate a single LockNodeEntry (source optional string; log optional {datetime, prefix_hash}). */
-function validateNodeEntry(entry: unknown, at: string): void {
-  if (!isPlainObject(entry)) throwMalformed(`"${at}" must be a JSON object (found ${describe(entry)})`);
+function validateNodeEntry(entry: unknown, at: string, ctx: ParseCtx): void {
+  if (!isPlainObject(entry)) throwMalformed(`"${at}" must be a JSON object (found ${describe(entry)})`, ctx);
 
   const NODE_KEYS = new Set(['source', 'log']);
   for (const key of Object.keys(entry)) {
-    if (!NODE_KEYS.has(key)) throwMalformed(`"${at}" has unexpected key "${key}" (allowed: source, log)`);
+    if (!NODE_KEYS.has(key)) throwMalformed(`"${at}" has unexpected key "${key}" (allowed: source, log)`, ctx);
   }
 
   if (entry.source !== undefined && typeof entry.source !== 'string') {
-    throwMalformed(`"${at}.source" must be a string when present (found ${describe(entry.source)})`);
+    throwMalformed(`"${at}.source" must be a string when present (found ${describe(entry.source)})`, ctx);
   }
   if (entry.log !== undefined) {
     if (!isPlainObject(entry.log)) {
-      throwMalformed(`"${at}.log" must be a JSON object when present (found ${describe(entry.log)})`);
+      throwMalformed(`"${at}.log" must be a JSON object when present (found ${describe(entry.log)})`, ctx);
     }
     const LOG_KEYS = new Set(['last_entry_datetime', 'prefix_hash']);
     for (const key of Object.keys(entry.log)) {
-      if (!LOG_KEYS.has(key)) throwMalformed(`"${at}.log" has unexpected key "${key}" (allowed: last_entry_datetime, prefix_hash)`);
+      if (!LOG_KEYS.has(key)) throwMalformed(`"${at}.log" has unexpected key "${key}" (allowed: last_entry_datetime, prefix_hash)`, ctx);
     }
     if (typeof entry.log.last_entry_datetime !== 'string') {
-      throwMalformed(`"${at}.log.last_entry_datetime" must be a string (found ${describe(entry.log.last_entry_datetime)})`);
+      throwMalformed(`"${at}.log.last_entry_datetime" must be a string (found ${describe(entry.log.last_entry_datetime)})`, ctx);
     }
     if (typeof entry.log.prefix_hash !== 'string') {
-      throwMalformed(`"${at}.log.prefix_hash" must be a string (found ${describe(entry.log.prefix_hash)})`);
+      throwMalformed(`"${at}.log.prefix_hash" must be a string (found ${describe(entry.log.prefix_hash)})`, ctx);
     }
   }
 }
@@ -281,7 +343,8 @@ function describe(value: unknown): string {
 }
 
 /**
- * Canonical serialization of a lock file.
+ * Canonical serialization of a lock file (or a single split file — pass a LockFile
+ * whose unused section is an empty object).
  *
  * Rules (spec §3):
  * - Keys sorted by code-point order (plain Array.prototype.sort(), never localeCompare) at every level.
@@ -371,14 +434,75 @@ function serializeNodeEntry(entry: LockNodeEntry): string {
   return `{${pairs.join(',')}}`;
 }
 
-/**
- * Serialize the lock file to canonical form and write atomically.
- *
- * Uses the existing atomic-write helper (temp + rename) so a crash or signal
- * during the write never leaves a partial lock file.
- */
-export async function writeLock(yggRoot: string, lock: LockFile): Promise<void> {
-  const filePath = lockPath(yggRoot);
-  const content = serializeLock(lock);
+/** Split a verdicts map into deterministic vs nondeterministic by aspect kind. */
+function partitionVerdicts(
+  verdicts: Record<string, Record<string, VerdictEntry>>,
+  deterministicAspectIds: Set<string>,
+): { det: Record<string, Record<string, VerdictEntry>>; nondet: Record<string, Record<string, VerdictEntry>> } {
+  const det: Record<string, Record<string, VerdictEntry>> = {};
+  const nondet: Record<string, Record<string, VerdictEntry>> = {};
+  for (const aspectId of Object.keys(verdicts)) {
+    (deterministicAspectIds.has(aspectId) ? det : nondet)[aspectId] = verdicts[aspectId];
+  }
+  return { det, nondet };
+}
+
+/** Write atomically, skipping the write when on-disk content already matches (no churn). */
+async function writeFileIfChanged(filePath: string, content: string): Promise<void> {
+  try {
+    if (readFileSync(filePath, 'utf-8') === content) return;
+  } catch {
+    // Absent or unreadable → write.
+  }
   await atomicWriteFile(filePath, content);
+}
+
+/** Options for {@link writeLock}. */
+export interface WriteLockOptions {
+  /**
+   * Which files to (re)write:
+   * - 'all' (default): all three files. Requires deterministicAspectIds.
+   * - 'deterministic': ONLY the gitignored det file (committed files untouched —
+   *   the `--only-deterministic` / CI path produces zero committed-lock churn).
+   *   Requires deterministicAspectIds.
+   * - 'logs': ONLY the logs file (the `nodes` section). No partition, so no set needed
+   *   (used by `yg log merge-resolve`, which only mutates `nodes`).
+   */
+  scope?: 'all' | 'deterministic' | 'logs';
+  /** Aspect ids whose verdicts belong in the gitignored deterministic file (reviewer.type === 'deterministic'). */
+  deterministicAspectIds?: Set<string>;
+}
+
+/**
+ * Serialize the unified lock to its split files and write atomically.
+ *
+ * The in-memory LockFile is partitioned by ASPECT KIND (deterministicAspectIds) — never by
+ * the `touched` field, which a companion-backed LLM entry also carries. Each split file is a
+ * full { version, verdicts, nodes } object with its unused section empty.
+ */
+export async function writeLock(yggRoot: string, lock: LockFile, opts: WriteLockOptions = {}): Promise<void> {
+  const scope = opts.scope ?? 'all';
+
+  if (scope === 'logs') {
+    const content = serializeLock({ version: lock.version, verdicts: {}, nodes: lock.nodes });
+    await writeFileIfChanged(logsLockPath(yggRoot), content);
+    return;
+  }
+
+  const detIds = opts.deterministicAspectIds;
+  if (!detIds) {
+    throw new Error(`writeLock: deterministicAspectIds is required for scope '${scope}'`);
+  }
+  const { det, nondet } = partitionVerdicts(lock.verdicts, detIds);
+
+  if (scope === 'deterministic') {
+    const content = serializeLock({ version: lock.version, verdicts: det, nodes: {} });
+    await writeFileIfChanged(detLockPath(yggRoot), content);
+    return;
+  }
+
+  // scope === 'all'
+  await writeFileIfChanged(nondetLockPath(yggRoot), serializeLock({ version: lock.version, verdicts: nondet, nodes: {} }));
+  await writeFileIfChanged(logsLockPath(yggRoot), serializeLock({ version: lock.version, verdicts: {}, nodes: lock.nodes }));
+  await writeFileIfChanged(detLockPath(yggRoot), serializeLock({ version: lock.version, verdicts: det, nodes: {} }));
 }

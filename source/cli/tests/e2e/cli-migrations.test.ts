@@ -188,4 +188,58 @@ describe.skipIf(!distExists)('CLI E2E — schema migrations (version-guard + ide
   // idempotency) all exercised that removed `.drift-state/` machinery, so they
   // are deleted. A stale lock entry for an absent node is now simply GC-pruned by
   // the next fill, not migrated.
+
+  // --- 7. The 5.1.0 lock split: a legacy single yg-lock.json → committed/gitignored triad ---
+
+  it('M7: `yg init --upgrade` splits a legacy yg-lock.json into the triad, preserving every verdict by kind and gitignoring the cache', () => {
+    const dir = copyFixture('lock-split');
+    const ygg = path.join(dir, '.yggdrasil');
+    try {
+      // Downgrade the on-disk version so the to-5.1.0 migration (incl. the split step) runs.
+      writeFileSync(
+        configPath(dir),
+        readFileSync(configPath(dir), 'utf-8').replace(/version:\s*["'][\d.]+["']/, 'version: "5.0.0"'),
+      );
+      // Plant a LEGACY single lock: one deterministic verdict (no-todo-comments ships check.mjs)
+      // and one LLM verdict (has-doc-comment ships content.md), plus a per-node baseline.
+      const legacy = {
+        version: 1,
+        verdicts: {
+          'no-todo-comments': { 'node:services/orders': { verdict: 'approved', hash: 'det-hash', touched: [] } },
+          'has-doc-comment': { 'node:services/orders': { verdict: 'approved', hash: 'llm-hash' } },
+        },
+        nodes: { 'services/orders': { source: 'fp-orders' } },
+      };
+      writeFileSync(path.join(ygg, 'yg-lock.json'), JSON.stringify(legacy), 'utf-8');
+
+      const up = run(['init', '--upgrade', '--platform', 'generic'], dir);
+      expect(up.status).toBe(0);
+
+      // The legacy single file is gone; the triad is present.
+      expect(existsSync(path.join(ygg, 'yg-lock.json'))).toBe(false);
+      const det = JSON.parse(readFileSync(path.join(ygg, '.yg-lock.deterministic.json'), 'utf-8'));
+      const nondet = JSON.parse(readFileSync(path.join(ygg, 'yg-lock.nondeterministic.json'), 'utf-8'));
+      const logs = JSON.parse(readFileSync(path.join(ygg, 'yg-lock.logs.json'), 'utf-8'));
+
+      // Verdicts relocated by KIND and byte-preserved (no re-verification).
+      expect(det.verdicts['no-todo-comments']['node:services/orders']).toEqual({
+        verdict: 'approved',
+        hash: 'det-hash',
+        touched: [],
+      });
+      expect(nondet.verdicts['has-doc-comment']['node:services/orders']).toEqual({
+        verdict: 'approved',
+        hash: 'llm-hash',
+      });
+      expect(det.verdicts['has-doc-comment']).toBeUndefined();
+      expect(nondet.verdicts['no-todo-comments']).toBeUndefined();
+      expect(logs.nodes['services/orders']).toEqual({ source: 'fp-orders' });
+
+      // The gitignored cache was added to .yggdrasil/.gitignore, and the version advanced to 5.1.0.
+      expect(readFileSync(path.join(ygg, '.gitignore'), 'utf-8')).toContain('.yg-lock.deterministic.json');
+      expect(readFileSync(configPath(dir), 'utf-8')).toContain('5.1.0');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

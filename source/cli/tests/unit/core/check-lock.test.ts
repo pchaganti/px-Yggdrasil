@@ -71,7 +71,10 @@ async function seedAndCheck(
   writeFile('src/a.ts', 'code');
   if (verdict === null) {
     const lock: LockFile = { version: LOCK_FORMAT_VERSION, verdicts: {}, nodes: {} };
-    await writeLock(graph.rootPath, lock);
+    const deterministicAspectIds = new Set(
+      graph.aspects.filter((a) => a.reviewer.type === 'deterministic').map((a) => a.id),
+    );
+    await writeLock(graph.rootPath, lock, { scope: 'all', deterministicAspectIds });
   } else {
     await writeSeededLock(graph, {
       verdicts: [{ aspectId: 'asp', unitKey: nodeUnit('svc'), verdict: verdict.verdict, reason: verdict.reason }],
@@ -147,7 +150,10 @@ describe('runCheck — verdict-lock issue emission', () => {
     writeFile('src/a.ts', 'code');
     const graph = buildGraph('enforced');
     mkdirSync(graph.rootPath, { recursive: true });
-    writeFileSync(path.join(graph.rootPath, 'yg-lock.json'), '{ not valid json', 'utf-8');
+    // Write the garbled content to a committed file readLock actually reads (the
+    // nondeterministic LLM-verdict file); the legacy single yg-lock.json is no
+    // longer read by the runtime under the 5.1.0 triad.
+    writeFileSync(path.join(graph.rootPath, 'yg-lock.nondeterministic.json'), '{ not valid json', 'utf-8');
     const result = await runCheck(graph, null);
     expect(result.issues.filter((i) => i.code === 'lock-invalid')).toHaveLength(1);
     expect(result.issues.some((i) => i.code === 'unverified')).toBe(false);

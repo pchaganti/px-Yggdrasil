@@ -5,6 +5,6 @@ description: "Subprocess E2E covering the remaining aspect-authoring paths — a
   ctx parse helpers on conforming and malformed input, and aspect-removal
   baseline cleanup leaving no stale verdict."
 aspects: []
-relations: [ { target: cli/tests/e2e/support, type: uses } ]
+relations: [ { target: cli/tests/e2e/support, type: uses }, { target: cli/io/lock-store, type: uses } ]
 mapping:
   - source/cli/tests/e2e/cli-aspect-authoring-remaining.test.ts

@@ -4,17 +4,26 @@ export const summary =
 export const content = `# Verification and the lock
 
 Every verdict — an LLM reviewer's judgment and a deterministic check's result
-alike — is stored as a content-addressed entry in one committed file,
-\`.yggdrasil/yg-lock.json\`. A verdict is valid exactly while the inputs that
-produced it hash to the stored value. Any input change makes the pair
+alike — is stored as a content-addressed entry in the lock. The lock is a TRIAD of
+files under \`.yggdrasil/\`: \`yg-lock.nondeterministic.json\` (committed — LLM
+verdicts) and \`yg-lock.logs.json\` (committed — the per-node log/closure baseline),
+plus \`.yg-lock.deterministic.json\` (a gitignored local cache — deterministic-check
+verdicts, rebuilt for free on demand; committing them adds nothing but noise). The
+in-memory lock is unified \`{ version, verdicts, nodes }\`; the split is only at the
+I/O boundary, partitioned by aspect KIND. A verdict is valid exactly while the
+inputs that produced it hash to the stored value. Any input change makes the pair
 **unverified**; a status flip never does. States are: **verified / unverified /
 refused**.
 
 \`yg check\` writes nothing — it recomputes each pair's hash and reports, running no
 aspect reviewers and making no LLM calls (it does recompute relation conformance
-live; see below). \`yg check --approve\` fills every unverified pair
-and then reports. These two commands are the only writers of verdicts (with
-\`yg log merge-resolve\` writing the lock's per-node log baseline).
+live; see below). \`yg check --approve\` fills every unverified pair and then
+reports. With \`--only-deterministic\` it fills ONLY deterministic pairs (free,
+keyless) and writes ONLY the gitignored cache — never the committed files — so it
+is the CI / pre-commit gate (a fresh checkout has no deterministic cache, so this
+rematerializes it; it also re-hashes the committed LLM verdicts, catching a stale
+one). These are the only writers of verdicts (with \`yg log merge-resolve\` writing
+the per-node log baseline into \`yg-lock.logs.json\`).
 
 ## Pairs and units
 
@@ -78,6 +87,23 @@ pairs on that node — a legitimate vacuous pass, no verdict, no entry.
   conformance — computed live" below.
 - Serialization is canonical: code-point-sorted keys, stable formatter, trailing
   newline — so git's line merge aligns with entry boundaries.
+
+**On-disk triad (the split).** The object above is the UNIFIED in-memory lock;
+on disk it is partitioned across three files, read back into one and split again
+only at the I/O boundary:
+- \`yg-lock.nondeterministic.json\` (committed) — \`verdicts\` of LLM aspects.
+- \`yg-lock.logs.json\` (committed) — the \`nodes\` section.
+- \`.yg-lock.deterministic.json\` (gitignored) — \`verdicts\` of deterministic aspects.
+
+The partition key is the aspect's KIND, NOT the entry's \`touched\` field: a
+companion-bearing LLM entry also carries \`touched\`, so partitioning by \`touched\`
+would misfile an expensive committed LLM verdict into the throwaway cache. An
+aspect is wholly one kind, so the two verdict files hold disjoint \`aspectId\`
+namespaces and merge-on-read is a plain union. The committed files keep the same
+take-a-side merge story as the old single file; the gitignored cache never
+conflicts. A fresh checkout has no deterministic cache, so those pairs read as
+\`unverified\` until \`yg check --approve --only-deterministic\` rematerializes them
+(free, keyless).
 
 ## inputHash — the frozen contract
 
@@ -211,28 +237,33 @@ canonically. Verdict entries whose pair is no longer in the pair universe (aspec
 detached or deleted, file deleted or unmapped, \`scope\`/filter change, \`when\` now
 false) are pruned, and \`nodes\` entries for node paths that no longer exist are
 pruned. The pair universe for GC ignores status — **draft pairs keep their
-entries**, which is what makes a draft round-trip free.
+entries**, which is what makes a draft round-trip free. Under
+\`--only-deterministic\` the rewrite is scoped to the gitignored cache, so a
+deterministic-only / CI run never rewrites (or GC-prunes) the committed files.
 
-## Merge conflict in yg-lock.json
+## Merge conflict in a committed lock file
 
-\`verdicts\` entries are self-validating, so resolution is trivial and safe by
-construction:
+Only the COMMITTED files can conflict (\`yg-lock.nondeterministic.json\`,
+\`yg-lock.logs.json\`); the gitignored deterministic cache is never committed, so it
+never conflicts. \`verdicts\` entries are self-validating, so resolution is trivial
+and safe by construction:
 
-1. Take ONE side wholesale:
-   \`git checkout --ours -- .yggdrasil/yg-lock.json\` (or \`--theirs\`). Prefer the
-   side covering more of the merged code, to minimize re-verification.
+1. Take ONE side wholesale of the conflicted file:
+   \`git checkout --ours -- .yggdrasil/yg-lock.nondeterministic.json\` (or
+   \`--theirs\`; or the \`.logs.json\` file). Prefer the side covering more of the
+   merged code, to minimize re-verification.
 2. Run \`yg check --approve\`. A wrongly kept line cannot lie — its hash will not
    match current inputs, so it re-verifies; the discarded side's verdicts are
    simply re-filled.
 
 Do NOT hand-merge entry-by-entry even though entries are self-validating —
-structural damage (duplicate keys, stray conflict markers) turns the whole file
+structural damage (duplicate keys, stray conflict markers) turns that file
 \`lock-invalid\` (fail closed). \`lock-invalid\` detection recognizes \`<<<<<<<\`
-conflict markers and points back here.
+conflict markers in either committed file and names the offending one.
 
-When BOTH \`log.md\` files and the lock conflicted, the order is: resolve the lock
-(take a side) → \`yg log merge-resolve --node <path>\` per conflicted log →
-\`yg check --approve\`.
+When BOTH \`log.md\` files and a committed lock file conflicted, the order is:
+resolve the lock file (take a side) → \`yg log merge-resolve --node <path>\` per
+conflicted log → \`yg check --approve\`.
 
 ## Reverting a node
 
@@ -263,11 +294,15 @@ the next \`yg check --approve\`.
 
 ## Absent or garbled lock
 
-An absent file = empty lock (all expected pairs unverified). A garbled or
-unparseable file, or an unrecognized \`version\` (neither 1 nor 2 — 2 is accepted
-only for the backward-compat drop above), is a blocking \`lock-invalid\` error
-(fail closed); the \`next:\` covers both recoveries — restore from git, or delete
-the file and re-fill via \`yg check --approve\` (which re-verifies everything).
+Each triad file is independently optional; an absent file contributes empty
+state. So a fresh checkout (gitignored deterministic cache absent) reads its
+deterministic pairs as unverified until \`yg check --approve --only-deterministic\`
+rematerializes them. A garbled or unparseable file, or an unrecognized \`version\`
+(neither 1 nor 2 — 2 is accepted only for the backward-compat drop above), is a
+blocking \`lock-invalid\` error (fail closed) naming the offending file; for a
+committed file the \`next:\` covers both recoveries (restore from git, or delete
+and re-fill via \`yg check --approve\`); for the gitignored cache the recovery is
+to delete it and re-run \`yg check --approve --only-deterministic\` (free).
 
 ## See also
 

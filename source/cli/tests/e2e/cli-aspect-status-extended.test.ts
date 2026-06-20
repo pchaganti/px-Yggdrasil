@@ -13,6 +13,8 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readLock as readLockStore } from '../../src/io/lock-store.js';
+import type { LockFile } from '../../src/model/lock.js';
 
 // ---------------------------------------------------------------------------
 // Harness — every test runs the REAL dist/bin.js against a fresh mkdtemp copy of
@@ -24,7 +26,9 @@ import { fileURLToPath } from 'node:url';
 // fixture edit reintroduces an LLM aspect.
 //
 // MODEL — `yg approve` / `.drift-state/` are GONE. Verification happens via
-// `yg check --approve` (fill); state lives in `.yggdrasil/yg-lock.json`. A
+// `yg check --approve` (fill); state lives in the 5.1.0 lock triad under
+// `.yggdrasil/` (yg-lock.nondeterministic.json + yg-lock.logs.json + the
+// gitignored .yg-lock.deterministic.json), read here via the merged readLock. A
 // deterministic refusal renders (at `yg check` / fill time) as
 // `<status>  <node>  Aspect '<id>' is refused on <unitKey> by a deterministic
 // check.` with the per-pair fill line `[det] <id> on <unitKey> — approved|refused`.
@@ -123,17 +127,18 @@ const ordersNodeYaml = (dir: string) =>
 const servicesNodeYaml = (dir: string) =>
   path.join(dir, '.yggdrasil', 'model', 'services', 'yg-node.yaml');
 
-const lockPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-lock.json');
+const yggDir = (dir: string) => path.join(dir, '.yggdrasil');
 
-interface LockFile {
-  version: number;
-  verdicts: Record<string, Record<string, { hash: string; reason?: string; touched?: string[]; verdict: string }>>;
-  nodes: Record<string, { source?: string; log?: { last_entry_datetime: string; prefix_hash: string } }>;
-}
-
-/** Parse the repo-wide lock. */
+/**
+ * Parse the repo-wide lock. The 5.1.0 lock is a three-file triad under
+ * `.yggdrasil/` (committed yg-lock.nondeterministic.json + yg-lock.logs.json and
+ * the gitignored .yg-lock.deterministic.json); the store's readLock merges all
+ * three back into the unified { version, verdicts, nodes } shape — so a
+ * deterministic verdict written to .yg-lock.deterministic.json by a fill is read
+ * here exactly like the legacy single file used to be.
+ */
 function readLock(dir: string): LockFile {
-  return JSON.parse(readFileSync(lockPath(dir), 'utf-8')) as LockFile;
+  return readLockStore(yggDir(dir));
 }
 
 /** The per-node source fingerprint hash stored in the lock (undefined if absent). */

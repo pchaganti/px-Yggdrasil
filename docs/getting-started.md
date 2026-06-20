@@ -170,9 +170,18 @@ expected pair and compares it against the verdict recorded in the lock — no
 LLM calls, no provider keys, runs instantly. Exit code 1 means a pair changed
 without being re-verified.
 
+The lock's deterministic verdicts live in a gitignored local cache
+(`.yg-lock.deterministic.json`), so a fresh CI checkout starts without them and
+`yg check` would report those pairs as unverified. Rebuild the cache first — it's
+free and needs no key — with `yg check --approve --only-deterministic`, which fills
+only the deterministic pairs and writes only the gitignored cache. See
+[The lock](/the-lock) for the file layout.
+
 **GitHub Actions:**
 
 ```yaml
+- name: Rebuild the deterministic cache (free, no keys)
+  run: npx @chrisdudek/yg check --approve --only-deterministic
 - name: Check architecture
   run: npx @chrisdudek/yg check
 ```

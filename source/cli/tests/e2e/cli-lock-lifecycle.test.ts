@@ -32,6 +32,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMockReviewer, runAsync } from './support/mock-reviewer.js';
+import { readLock as readTriadLock } from '../../src/io/lock-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '..', '..');
@@ -50,11 +51,16 @@ function run(args: string[], cwd: string): { stdout: string; stderr: string; sta
 
 const cfgPath = (d: string) => path.join(d, '.yggdrasil', 'yg-config.yaml');
 const archPath = (d: string) => path.join(d, '.yggdrasil', 'yg-architecture.yaml');
-const lockPath = (d: string) => path.join(d, '.yggdrasil', 'yg-lock.json');
+// 5.1.0 triad: the committed nondeterministic file holds LLM verdicts; the committed
+// logs file holds the `nodes` section; the gitignored det file holds deterministic
+// verdicts. The legacy single yg-lock.json is no longer written or read. `readLock`
+// below merges all three into one { version, verdicts, nodes }; `nondetLockPath`
+// names the committed LLM file used for cold-start existence and raw-content checks.
+const nondetLockPath = (d: string) => path.join(d, '.yggdrasil', 'yg-lock.nondeterministic.json');
 const nodeYaml = (d: string, n: string) => path.join(d, '.yggdrasil', 'model', ...n.split('/'), 'yg-node.yaml');
 const aspectYaml = (d: string, a: string) => path.join(d, '.yggdrasil', 'aspects', a, 'yg-aspect.yaml');
 const ordersFile = (d: string) => path.join(d, 'src', 'services', 'orders.ts');
-const readLock = (d: string) => JSON.parse(readFileSync(lockPath(d), 'utf-8'));
+const readLock = (d: string) => readTriadLock(path.join(d, '.yggdrasil'));
 
 function pointReviewer(dir: string, endpoint: string): void {
   const p = cfgPath(dir);
@@ -105,7 +111,8 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: lifecycle / closure / GC'
       pointReviewer(dir, mock.endpoint);
 
       // --- COLD START: no lock → every enforced pair unverified → exit 1 ---
-      expect(existsSync(lockPath(dir))).toBe(false);
+      // No committed lock file exists yet (the triad is written only by a fill).
+      expect(existsSync(nondetLockPath(dir))).toBe(false);
       const cold = run(['check'], dir);
       expect(cold.status).toBe(1);
       expect(cold.all).toContain('unverified');
@@ -123,7 +130,7 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: lifecycle / closure / GC'
       // Lock content sane: valid JSON, version 1, sorted keys, entries present.
       const lock = readLock(dir);
       expect(lock.version).toBe(1); // relations are computed live; the lock is back to v1
-      const raw = readFileSync(lockPath(dir), 'utf-8');
+      const raw = readFileSync(nondetLockPath(dir), 'utf-8');
       expect(raw.endsWith('}\n')).toBe(true); // trailing newline
       // top-level aspect ids sorted (code-point)
       const aspectIds = Object.keys(lock.verdicts);
@@ -184,7 +191,9 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: lifecycle / closure / GC'
       expect(fill.all).toContain('No fresh log entry for node');
       expect(fill.all).toContain('services/orders');
       // The blocked node's pairs were NOT verified — no lock entry written for it.
-      const lock = existsSync(lockPath(dir)) ? readLock(dir) : { verdicts: {} };
+      // readLock merges the triad and tolerates absent files (empty sections),
+      // so a never-written deterministic verdict simply reads back absent.
+      const lock = readLock(dir);
       const noTodo = lock.verdicts['no-todo-comments'] ?? {};
       expect(noTodo['node:services/orders']).toBeUndefined();
     } finally {
@@ -206,8 +215,8 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: lifecycle / closure / GC'
       // Closure recorded BOTH the source fingerprint and the log baseline.
       const lock = readLock(dir);
       expect(typeof lock.nodes['services/orders'].source).toBe('string');
-      expect(typeof lock.nodes['services/orders'].log.last_entry_datetime).toBe('string');
-      expect(typeof lock.nodes['services/orders'].log.prefix_hash).toBe('string');
+      expect(typeof lock.nodes['services/orders'].log!.last_entry_datetime).toBe('string');
+      expect(typeof lock.nodes['services/orders'].log!.prefix_hash).toBe('string');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

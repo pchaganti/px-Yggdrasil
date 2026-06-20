@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMockReviewer, runAsync, type ChatReply } from './support/mock-reviewer.js';
+import { readLock } from '../../src/io/lock-store.js';
 
 // ---------------------------------------------------------------------------
 // TIER-IDENTITY cascade E2E (verdict-lock model).
@@ -67,14 +68,18 @@ function copyFixture(label: string): string {
 }
 
 const cfgPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-config.yaml');
-const lockPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-lock.json');
+const yggPath = (dir: string) => path.join(dir, '.yggdrasil');
 
-/** The recorded lock entry for one aspect/unit pair, serialized (or undefined). */
+/**
+ * The recorded lock entry for one aspect/unit pair, serialized (or undefined).
+ *
+ * `has-doc-comment` is an LLM aspect, so its verdict lives in the committed
+ * `yg-lock.nondeterministic.json` of the 5.1.0 triad. `readLock` merges the
+ * three on-disk lock files into the unified shape, returning empty verdicts
+ * when no lock has been written yet.
+ */
 function lockEntry(dir: string, aspectId: string, unitKey: string): string | undefined {
-  if (!existsSync(lockPath(dir))) return undefined;
-  const lock = JSON.parse(readFileSync(lockPath(dir), 'utf-8')) as {
-    verdicts: Record<string, Record<string, unknown>>;
-  };
+  const lock = readLock(yggPath(dir));
   const v = lock.verdicts[aspectId]?.[unitKey];
   return v === undefined ? undefined : JSON.stringify(v);
 }

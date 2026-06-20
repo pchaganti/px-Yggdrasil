@@ -541,7 +541,7 @@ Agents may propose adding a suppress marker but must **never** write one without
 
 ## Verdicts and the lock — shared
 
-Both reviewer types record their results the same way: one content-addressed entry per `(aspect, unit)` pair in the committed `.yggdrasil/yg-lock.json`. Each entry stores the verdict and the hash of the inputs that produced it:
+Both reviewer types record their results the same way: one content-addressed entry per `(aspect, unit)` pair in the lock. Each entry stores the verdict and the hash of the inputs that produced it. On disk the lock is partitioned by reviewer kind — LLM verdicts go to the committed `.yggdrasil/yg-lock.nondeterministic.json`, deterministic verdicts to the gitignored `.yggdrasil/.yg-lock.deterministic.json` cache (rebuilt for free on demand, never committed), with the per-node log/closure baseline in the committed `.yggdrasil/yg-lock.logs.json`. The entry format is identical regardless of which file holds it; see [The lock](/the-lock):
 
 - **LLM pair (without companion):** the hash folds `content.md`, the subject files, the aspect description, the reference files, and the **name** of the resolved tier. The tier's config — provider, model, endpoint, temperature, consensus — is not folded; only its name. Change any folded input → the pair is unverified.
 - **LLM pair (with companion.mjs):** additionally folds `companionHash` (SHA-256 of `companion.mjs`) and, when non-empty, the hook's `touched` observations (the companion files the runner read, plus any `ctx.fs`/`ctx.graph` accesses). Both ingredients are folded only when present — a plain LLM aspect's hash is byte-identical to before, with no lock-format change.

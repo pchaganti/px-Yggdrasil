@@ -383,8 +383,11 @@ describe('impact command', () => {
         },
         nodes: {},
       };
+      // requires-audit is an LLM aspect, so its verdicts live in the committed
+      // nondeterministic file that readLock actually merges (the legacy single
+      // yg-lock.json is no longer read by the runtime).
       await writeFile(
-        path.join(cwd, '.yggdrasil', 'yg-lock.json'),
+        path.join(cwd, '.yggdrasil', 'yg-lock.nondeterministic.json'),
         JSON.stringify(lock, null, 2) + '\n',
         'utf-8',
       );
@@ -421,7 +424,7 @@ describe('impact command', () => {
     it('exits 1 with a clear error when the lock is garbled', async () => {
       await withFixtureCopy(async (cwd) => {
         await writeFile(
-          path.join(cwd, '.yggdrasil', 'yg-lock.json'),
+          path.join(cwd, '.yggdrasil', 'yg-lock.nondeterministic.json'),
           '{ not json',
           'utf-8',
         );
@@ -431,7 +434,9 @@ describe('impact command', () => {
           { cwd, encoding: 'utf-8' },
         );
         expect(result.status).toBe(1);
-        expect(result.stderr).toMatch(/yg-lock\.json/);
+        // The error names the committed lock file that readLock actually reads
+        // and found garbled (the LLM-verdict file under the 5.1.0 triad).
+        expect(result.stderr).toMatch(/yg-lock\.nondeterministic\.json/);
       });
     });
   });

@@ -214,8 +214,21 @@ describe.skipIf(!distExists)('CLI E2E — yg check surfaces blocking validation 
       expect(status).toBe(0);
       // Relations are computed live, not cached: the lock carries no relation
       // section, and the aspect-less node passes the (live) relation check.
-      const raw = readFileSync(path.join(dir, '.yggdrasil', 'yg-lock.json'), 'utf-8');
-      expect(raw).not.toContain('relation_verdicts'); // relations are live, not cached
+      // Under the 5.1.0 triad the lock spans three files; assert that NONE of
+      // them serializes a relation section — read each raw committed/gitignored
+      // file that exists on disk after the fill and check the merged contents.
+      const ygDir = path.join(dir, '.yggdrasil');
+      const lockFiles = [
+        'yg-lock.nondeterministic.json',
+        'yg-lock.logs.json',
+        '.yg-lock.deterministic.json',
+      ];
+      const rawCombined = lockFiles
+        .map((f) => path.join(ygDir, f))
+        .filter((p) => existsSync(p))
+        .map((p) => readFileSync(p, 'utf-8'))
+        .join('\n');
+      expect(rawCombined).not.toContain('relation_verdicts'); // relations are live, not cached
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

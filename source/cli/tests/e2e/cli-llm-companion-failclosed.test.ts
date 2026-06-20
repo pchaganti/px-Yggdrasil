@@ -44,6 +44,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMockReviewer, runAsync, type ChatRequest } from './support/mock-reviewer.js';
+import { readLock as readTriadLock } from '../../src/io/lock-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '..', '..');
@@ -54,8 +55,12 @@ const distExists = existsSync(BIN_PATH);
 const cfgPath = (d: string) => path.join(d, '.yggdrasil', 'yg-config.yaml');
 const nodeYaml = (d: string, n: string) => path.join(d, '.yggdrasil', 'model', ...n.split('/'), 'yg-node.yaml');
 const aspectDir = (d: string, a: string) => path.join(d, '.yggdrasil', 'aspects', a);
-const lockPath = (d: string) => path.join(d, '.yggdrasil', 'yg-lock.json');
-const readLock = (d: string): Record<string, unknown> => JSON.parse(readFileSync(lockPath(d), 'utf-8'));
+// The verdict lock is a three-file triad under .yggdrasil/. The LLM aspects under
+// test here record their verdicts in yg-lock.nondeterministic.json; readTriadLock
+// merges the triad into the unified { version, verdicts, nodes } shape this test
+// inspects.
+const readLock = (d: string): Record<string, unknown> =>
+  readTriadLock(path.join(d, '.yggdrasil')) as unknown as Record<string, unknown>;
 const scenarioMd = (d: string, name: string) => path.join(d, 'references', 'e2e-test-scenarios', name);
 const specTs = (d: string, name: string) => path.join(d, 'apps', 'e2e', 'tests', name);
 

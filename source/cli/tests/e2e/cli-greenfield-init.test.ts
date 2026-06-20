@@ -4,6 +4,7 @@ import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readLock } from '../../src/io/lock-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');
@@ -281,8 +282,10 @@ describe.skipIf(!distExists)('CLI E2E — greenfield / init / platform-install',
   // 3. Greenfield lifecycle: graph before verification, through the real binary.
   //    A hand-authored deterministic graph proves the unverified -> fill ->
   //    verified progression without any LLM call. Verification now happens via
-  //    `yg check --approve` (the fill), and state lives in a single
-  //    `.yggdrasil/yg-lock.json` (the per-node `.drift-state/` files are gone).
+  //    `yg check --approve` (the fill), and state lives in the 5.1.0 lock triad
+  //    (deterministic verdicts in the gitignored
+  //    `.yggdrasil/.yg-lock.deterministic.json`; the per-node `.drift-state/`
+  //    files are gone).
   // -------------------------------------------------------------------------
 
   it('G7: greenfield check reports the node as unverified, then fill -> check clean', () => {
@@ -302,7 +305,11 @@ describe.skipIf(!distExists)('CLI E2E — greenfield / init / platform-install',
       expect(fill.status).toBe(0);
       expect(fill.stdout).toContain('[det] no-todo-comments on node:widgets/widget — approved');
       expect(fill.stdout).toContain('yg check: PASS');
-      expect(existsSync(path.join(dir, '.yggdrasil', 'yg-lock.json'))).toBe(true);
+      // The deterministic verdict lands in the gitignored det file of the 5.1.0
+      // triad, and the merged lock (readLock) carries it as an `approved` verdict.
+      expect(existsSync(path.join(dir, '.yggdrasil', '.yg-lock.deterministic.json'))).toBe(true);
+      const lock = readLock(path.join(dir, '.yggdrasil'));
+      expect(lock.verdicts['no-todo-comments']?.['node:widgets/widget']?.verdict).toBe('approved');
 
       // (c) Re-check -> clean (exit 0), verdict held.
       const after = run(['check'], dir);

@@ -17,6 +17,7 @@ This page is for inspecting or debugging your graph and enforcement state.
 | `yg impact --file <path>` / `--node <path>` / `--aspect <id>` / `--flow <name>` / `--type <id>` | Blast radius analysis |
 | `yg check` | Unified gate — writes nothing, no LLM, no keys |
 | `yg check --approve` | Verify every unverified pair and record the verdicts in the lock |
+| `yg check --approve --only-deterministic` | Fill only the deterministic pairs, free and keyless; writes only the gitignored cache |
 | `yg log add` / `read` / `merge-resolve` | Per-node append-only business log |
 
 ### `yg context`
@@ -68,14 +69,21 @@ Exactly one of `--node`, `--file`, `--aspect`, `--flow`, or `--type` is required
 
 Unified gate combining structural integrity, the prompt-size gate, lock
 verification, coverage, and completeness. It **writes nothing** — it recomputes
-each expected pair's input hash and compares it to the recorded verdict in
-`.yggdrasil/yg-lock.json`. It makes no LLM calls, runs no aspect reviewers, and
-needs no provider config or keys. The one thing it does run over your code is the
-built-in relation-conformance check, live and parse-based, at zero LLM cost.
+each expected pair's input hash and compares it to the recorded verdict in the
+lock (the committed `yg-lock.nondeterministic.json` and `yg-lock.logs.json`, plus
+the gitignored `.yg-lock.deterministic.json` cache; see [The lock](/the-lock)). It
+makes no LLM calls, runs no aspect reviewers, and needs no provider config or keys.
+The one thing it does run over your code is the built-in relation-conformance
+check, live and parse-based, at zero LLM cost.
+
+On a fresh checkout the gitignored deterministic cache is absent, so `yg check`
+reports the deterministic pairs as unverified until `yg check --approve
+--only-deterministic` rebuilds the cache for free.
 
 ```bash
 yg check
 yg check --approve
+yg check --approve --only-deterministic
 ```
 
 Outputs: header (project, counts, coverage), errors grouped by category
@@ -101,6 +109,19 @@ it will fill and how many are deterministic (free) vs. reviewer calls. There is 
 preview or confirmation mode — use `yg impact` to predict cost before an edit, and
 `yg aspect-test --dry-run` to preview a single LLM prompt.
 
+#### `--only-deterministic` — fill the deterministic cache only
+
+`yg check --approve --only-deterministic` fills **only** the deterministic
+(`check.mjs`) pairs. It runs them locally — no provider key, no LLM call, no cost —
+and writes **only** the gitignored `.yg-lock.deterministic.json` cache; the two
+committed lock files are left untouched. Then it reports, like any other check.
+
+This is the CI / pre-commit gate for the deterministic cache. A fresh checkout has
+no deterministic cache, so plain `yg check` reports those pairs as unverified;
+running this command rematerializes the cache for free and clears them, without a
+key and without touching a committed file. Use plain `yg check --approve` (no flag)
+when you also want the LLM pairs filled.
+
 #### Verification and aspect-status issue codes
 
 The validator emits the following codes (see [Aspect Status](/aspect-status) for
@@ -112,7 +133,7 @@ status semantics):
 | `aspect-violation-enforced` | error | Valid `refused` verdict on an enforced pair — blocks `yg check`. |
 | `aspect-violation-advisory` | warning | Valid `refused` verdict on an advisory pair — does not block. |
 | `prompt-too-large` | error | Assembled LLM prompt exceeds the resolved tier's `max_prompt_chars`. Takes precedence over `unverified`; `--approve` skips the pair. |
-| `lock-invalid` | error | `yg-lock.json` is unparseable, garbled, conflict-markered, or an unknown version — fail closed. |
+| `lock-invalid` | error | A lock file is unparseable, garbled, conflict-markered, or an unknown version — fail closed. |
 | `relation-undeclared-dependency` | error (always) | Built-in relation-conformance check — a component depends on another component's code without a declared relation. Not an aspect: no status, not suppressible. Fix by declaring the relation in `yg-node.yaml` or removing the dependency. |
 | `aspect-check-runtime-error` | error (`--approve` only) | A `check.mjs` failed to import or threw at fill time — fail closed, no verdict written. |
 | `aspect-companion-runtime-error` | error (`--approve` only) | A `companion.mjs` failed to resolve/run at fill time (threw, returned a bad shape, resolved a missing or out-of-reach path, or observations stayed inconsistent) — fail closed, no verdict written; plain `yg check` shows the pair as unverified. |
@@ -334,10 +355,14 @@ Interactive wizard. On a new project: walks you through platform selection and
 reviewer setup. On an existing project: offers upgrade, reviewer reconfiguration,
 or platform change.
 
-`yg init` also maintains a `.gitattributes` entry marking `yg-lock.json` as
-generated (`linguist-generated=true`) and writes `max_prompt_chars: 50000` into the
-generated reviewer tier.
+`yg init` also maintains a `.gitattributes` entry marking the committed lock files
+as generated (`linguist-generated=true`), adds the gitignored deterministic cache
+(`.yg-lock.deterministic.json`) to `.yggdrasil/.gitignore`, and writes
+`max_prompt_chars: 50000` into the generated reviewer tier.
 
 Non-interactive mode: `--upgrade --platform <name>` lifts the config version to the
 current one and refreshes rules and platform files — without prompts.
-Useful in scripts and CI.
+Useful in scripts and CI. On a project still using the older single-file
+`yg-lock.json`, `--upgrade` also splits it into the triad in place — relocating
+every verdict verbatim, with no re-verification — and gitignores the deterministic
+cache. See [The lock](/the-lock) for the file layout.

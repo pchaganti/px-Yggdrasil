@@ -84,10 +84,15 @@ export interface RunFillOptions {
    *  emits structured data and never formats it. Defaults to a no-op, so a
    *  caller that wants diagnostics surfaced must provide a sink. */
   emitIssue?: (msg: IssueMessage) => void;
+  /** Fill ONLY deterministic pairs (skip LLM fills + positive closure) and write
+   *  ONLY the gitignored deterministic file — the committed locks are never touched.
+   *  Keyless and free; powers `yg check --approve --only-deterministic` and the CI pipeline. */
+  onlyDeterministic?: boolean;
 }
 
 export interface RunFillResult {
-  /** The final check report after fills (exit semantics: any error ⇒ nonzero). */
+  /** The final check report after fills (exit semantics: any error ⇒ nonzero).
+   *  Printed by the `yg check --approve` combiner. */
   checkResult: CheckResult;
   /** Number of reviewer calls actually dispatched (consensus-inclusive). */
   reviewerCallsMade: number;
@@ -115,6 +120,7 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
   const write = opts.write ?? ((s: string) => { process.stdout.write(s); });
   const emitIssue = opts.emitIssue ?? ((): void => {});
   const projectRoot = path.dirname(graph.rootPath);
+  const onlyDeterministic = opts.onlyDeterministic ?? false;
 
   // ── Step 1: Structural gate. A gating code aborts the whole fill. ──────────
   const validation = await validate(graph);
@@ -148,11 +154,19 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
   }
 
   const detPairs = unverifiedPairs.filter((p) => p.kind === 'deterministic');
-  const llmPairs = unverifiedPairs.filter((p) => p.kind === 'llm');
+  // --only-deterministic: no LLM fills this run. An empty set naturally skips the
+  // reviewer-call budget, the deterministic gate, and the whole step-6 LLM loop.
+  const llmPairs = onlyDeterministic ? [] : unverifiedPairs.filter((p) => p.kind === 'llm');
 
   // Index aspect defs and resolve consensus for the header's call count.
   const aspectById = new Map<string, AspectDef>();
   for (const a of graph.aspects) aspectById.set(a.id, a);
+
+  // Partition key for the split lock: verdicts of these aspects go to the gitignored
+  // deterministic file; all others (LLM, incl. companion-backed) to the committed file.
+  const deterministicAspectIds = new Set(
+    graph.aspects.filter((a) => a.reviewer.type === 'deterministic').map((a) => a.id),
+  );
 
   // ── Step 3: Pre-dispatch header (EXACT). ──────────────────────────────────
   const nodeSet = new Set(unverifiedPairs.map((p) => p.nodePath));
@@ -169,9 +183,11 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
   );
 
   // ── Serialized lock writer (interruption-safe, §7). ───────────────────────
+  // --only-deterministic writes ONLY the gitignored det file; a full run writes all three.
+  const writeScope = onlyDeterministic ? 'deterministic' : 'all';
   let writeChain: Promise<void> = Promise.resolve();
   const persistLock = (): Promise<void> => {
-    writeChain = writeChain.then(() => writeLock(graph.rootPath, lock));
+    writeChain = writeChain.then(() => writeLock(graph.rootPath, lock, { scope: writeScope, deterministicAspectIds }));
     return writeChain;
   };
   const setEntry = async (aspectId: string, unitKey: string, entry: VerdictEntry): Promise<void> => {
@@ -370,7 +386,11 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
   // do not thread step-2 (pre-fill verifyLock) results through. blockedNodes
   // (the step-4 log-gate set) is threaded so a node whose pairs were skipped this
   // run can never close over its stale verdicts.
-  await applyPositiveClosure(graph, projectRoot, lock, blockedNodes, persistLock);
+  // Skipped under --only-deterministic: closure records source + log baseline to the
+  // COMMITTED logs file, which a deterministic-only / CI run must never write.
+  if (!onlyDeterministic) {
+    await applyPositiveClosure(graph, projectRoot, lock, blockedNodes, persistLock);
+  }
 
   // ── Step 8: GC + canonical rewrite (§3.2). ────────────────────────────────
   // Deliberate post-fill re-classification: must see freshly-written verdicts —
@@ -409,6 +429,7 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
   // Make sure all queued writes have flushed before the final read.
   await writeChain;
 
+  // The `yg check --approve` combiner prints this report after filling.
   const checkResult = await runCheck(graph, opts.gitTrackedFiles);
   return { checkResult, reviewerCallsMade, infraFailures, runtimeErrors, companionRuntimeErrors };
 }

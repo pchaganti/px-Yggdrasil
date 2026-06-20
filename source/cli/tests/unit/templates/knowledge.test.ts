@@ -76,7 +76,7 @@ describe('KNOWLEDGE_TOPICS', () => {
       '## Lock format',
       '## inputHash — the frozen contract',
       '## Caching policy',
-      '## Merge conflict in yg-lock.json',
+      '## Merge conflict in a committed lock file',
       '## Reverting a node',
     ],
     configuration: [

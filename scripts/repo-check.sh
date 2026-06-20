@@ -46,7 +46,7 @@ console.log('Coverage OK: lines=' + lines + '%, statements=' + stmts + '%, funct
 \""
 run_step "Docs: build" "$REPO_ROOT/docs" "npm run build"
 run_step "Markdown: lint" "$REPO_ROOT" "npx markdownlint-cli2 \"**/*.md\" \".markdownlint-cli2.jsonc\""
-run_step "Graph: check" "$REPO_ROOT" "node source/cli/dist/bin.js check"
+run_step "Graph: check" "$REPO_ROOT" "node source/cli/dist/bin.js check --approve --only-deterministic"
 
 if [ ${#FAILED[@]} -gt 0 ]; then
   echo ""

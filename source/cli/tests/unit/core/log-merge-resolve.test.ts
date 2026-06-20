@@ -77,11 +77,15 @@ describe('logMergeResolve (core, lock store)', () => {
     // Seed a prior lock baseline at the ancestor boundary; the resolved log is a
     // valid append-only union, so merge-resolve must succeed and ADVANCE it.
     const ancestorBaseline = expectedBaselineFromContent(ANCESTOR_LOG);
-    await writeLock(yggRoot, {
-      version: LOCK_FORMAT_VERSION,
-      verdicts: {},
-      nodes: { billing: { source: 'src-fp', log: ancestorBaseline } },
-    });
+    await writeLock(
+      yggRoot,
+      {
+        version: LOCK_FORMAT_VERSION,
+        verdicts: {},
+        nodes: { billing: { source: 'src-fp', log: ancestorBaseline } },
+      },
+      { scope: 'logs' },
+    );
     const graph = await loadGraph(projectRoot, { tolerateInvalidConfig: true });
     const result = await logMergeResolve({ graph, nodePath, repoRoot: projectRoot });
     expect(result.ok).toBe(true);

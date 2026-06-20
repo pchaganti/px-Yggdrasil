@@ -1,11 +1,18 @@
 name: Migrations (current)
 type: migration
-description: "The migration registry plus the registered version migrations. MIGRATIONS lists each to-X.Y.Z migration the migrator harness runs; the 5.1.0 migration removes the obsolete schemas/ directory (schema references moved into the yg schemas command)."
+description: "The migration registry plus the registered version migrations. MIGRATIONS lists each to-X.Y.Z migration the migrator harness runs; the 5.1.0 migration removes the obsolete schemas/ directory and splits the legacy single lock into the committed/gitignored triad (the split-lock step)."
 aspects:
   - posix-paths-output
 relations:
   - target: cli/core/migrator
     type: calls
+  - target: cli/io/lock-store
+    type: calls
+  - target: cli/model/lock
+    type: uses
+  - target: cli/utils
+    type: calls
 mapping:
   - source/cli/src/migrations/index.ts
   - source/cli/src/migrations/to-5.1.0.ts
+  - source/cli/src/migrations/split-lock.ts

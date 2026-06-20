@@ -25,6 +25,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMockReviewer, runAsync, type ChatReply, type ChatRequest } from './support/mock-reviewer.js';
+import { readLock as readLockStore } from '../../src/io/lock-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '..', '..');
@@ -33,10 +34,13 @@ const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle');
 const distExists = existsSync(BIN_PATH);
 
 const cfgPath = (d: string) => path.join(d, '.yggdrasil', 'yg-config.yaml');
-const lockPath = (d: string) => path.join(d, '.yggdrasil', 'yg-lock.json');
+const yggRoot = (d: string) => path.join(d, '.yggdrasil');
+// Committed LLM-verdict file of the 5.1.0 triad — where a has-doc-comment verdict lands.
+const nondetLockPath = (d: string) => path.join(d, '.yggdrasil', 'yg-lock.nondeterministic.json');
 const ordersFile = (d: string) => path.join(d, 'src', 'services', 'orders.ts');
 const contentMd = (d: string) => path.join(d, '.yggdrasil', 'aspects', 'has-doc-comment', 'content.md');
-const readLock = (d: string) => JSON.parse(readFileSync(lockPath(d), 'utf-8'));
+// Read the unified lock by merging the 5.1.0 triad (nondeterministic + logs + deterministic).
+const readLock = (d: string) => readLockStore(yggRoot(d));
 
 function run(args: string[], cwd: string): { all: string; status: number | null } {
   const r = spawnSync('node', [BIN_PATH, ...args], { cwd, encoding: 'utf-8' });
@@ -167,14 +171,14 @@ describe.skipIf(!distExists)('CLI E2E — fill-stage semantics', () => {
       expect(fill1.status).toBe(1);
       // The reviewer/config failure is reported (what/why/next).
       expect(fill1.all).toContain('no reviewer: section');
-      // FAIL-CLOSED: NOTHING was committed — no lock file, hence no verdict
-      // entry under has-doc-comment that a later check could read as green.
-      expect(existsSync(lockPath(dir))).toBe(false);
+      // FAIL-CLOSED: NOTHING was committed — no committed LLM-verdict file, hence
+      // no verdict entry under has-doc-comment that a later check could read as green.
+      expect(existsSync(nondetLockPath(dir))).toBe(false);
 
       // Re-running does NOT help — the config is still broken.
       const fill2 = run(['check', '--approve'], dir);
       expect(fill2.status).toBe(1);
-      expect(existsSync(lockPath(dir))).toBe(false);
+      expect(existsSync(nondetLockPath(dir))).toBe(false);
 
       // A plain `yg check` stays RED — no false-green over the unreviewed aspect.
       expect(run(['check'], dir).status).toBe(1);

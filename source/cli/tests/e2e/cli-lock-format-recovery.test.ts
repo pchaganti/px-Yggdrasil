@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMockReviewer, runAsync } from './support/mock-reviewer.js';
+import { readLock as readMergedLock, nondetLockPath, logsLockPath, detLockPath } from '../../src/io/lock-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '..', '..');
@@ -24,8 +25,17 @@ const distExists = existsSync(BIN_PATH);
 
 const cfgPath = (d: string) => path.join(d, '.yggdrasil', 'yg-config.yaml');
 const archPath = (d: string) => path.join(d, '.yggdrasil', 'yg-architecture.yaml');
-const lockPath = (d: string) => path.join(d, '.yggdrasil', 'yg-lock.json');
-const readLock = (d: string) => JSON.parse(readFileSync(lockPath(d), 'utf-8'));
+// The 5.1.0 lock is a three-file triad under <dir>/.yggdrasil/. The unified view
+// is read by merging all three (readLock); to seed/garble a scenario we write the
+// specific triad file the CLI actually parses for that scenario:
+//   - LLM verdicts (has-doc-comment) → yg-lock.nondeterministic.json (committed)
+//   - the `nodes` section (per-node source/log baseline) → yg-lock.logs.json (committed)
+//   - deterministic verdicts → .yg-lock.deterministic.json (gitignored)
+const ygDir = (d: string) => path.join(d, '.yggdrasil');
+const nondetPath = (d: string) => nondetLockPath(ygDir(d));
+const logsPath = (d: string) => logsLockPath(ygDir(d));
+const detPath = (d: string) => detLockPath(ygDir(d));
+const readLock = (d: string) => readMergedLock(ygDir(d));
 
 function run(args: string[], cwd: string): { all: string; status: number | null } {
   const r = spawnSync('node', [BIN_PATH, ...args], { cwd, encoding: 'utf-8' });
@@ -129,8 +139,11 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: prompt-too-large / merge 
       }
       delete lock.nodes['services/payments'];
       // Write the taken side in a NON-canonical shape (as a human/tool merge might);
-      // the self-validating entries make this safe — a wrong line cannot lie.
-      writeFileSync(lockPath(dir), JSON.stringify(lock, null, 2) + '\n', 'utf-8');
+      // the self-validating entries make this safe — a wrong line cannot lie. The aspects
+      // here are all deterministic, so the verdicts live in the gitignored det file and the
+      // `nodes` baseline in the committed logs file; write each section to its triad file.
+      writeFileSync(detPath(dir), JSON.stringify({ version: lock.version, verdicts: lock.verdicts, nodes: {} }, null, 2) + '\n', 'utf-8');
+      writeFileSync(logsPath(dir), JSON.stringify({ version: lock.version, verdicts: {}, nodes: lock.nodes }, null, 2) + '\n', 'utf-8');
 
       // The missing pairs surface as unverified.
       const check = run(['check'], dir);
@@ -160,17 +173,20 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: prompt-too-large / merge 
     try {
       run(['check', '--approve'], dir); // establish a valid lock first
 
+      // Garble a COMMITTED triad file (one readLock parses). The committed nondeterministic
+      // file carries the committed-recovery guidance (git restore), which is what these
+      // assertions pin; the message now names the specific triad file that was hit.
       // (a) Garbled JSON.
-      writeFileSync(lockPath(dir), '{ this is not json', 'utf-8');
+      writeFileSync(nondetPath(dir), '{ this is not json', 'utf-8');
       const garbled = run(['check'], dir);
       expect(garbled.status).toBe(1);
       expect(garbled.all).toContain('lock-invalid');
       expect(garbled.all).toContain('unparseable JSON');
-      expect(garbled.all).toContain('git checkout HEAD -- .yggdrasil/yg-lock.json');
+      expect(garbled.all).toContain('git checkout HEAD -- .yggdrasil/yg-lock.nondeterministic.json');
 
       // (b) Git conflict markers.
       writeFileSync(
-        lockPath(dir),
+        nondetPath(dir),
         ['<<<<<<< HEAD', '{ "version": 1, "verdicts": {}, "nodes": {} }', '=======', '{ "version": 1, "verdicts": {}, "nodes": {} }', '>>>>>>> branch', ''].join('\n'),
         'utf-8',
       );
@@ -181,14 +197,17 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: prompt-too-large / merge 
       expect(conflict.all).toContain('git checkout --ours');
 
       // (c) Unknown version.
-      writeFileSync(lockPath(dir), JSON.stringify({ version: 99, verdicts: {}, nodes: {} }) + '\n', 'utf-8');
+      writeFileSync(nondetPath(dir), JSON.stringify({ version: 99, verdicts: {}, nodes: {} }) + '\n', 'utf-8');
       const badVersion = run(['check'], dir);
       expect(badVersion.status).toBe(1);
       expect(badVersion.all).toContain('lock-invalid');
       expect(badVersion.all).toContain('unsupported version 99');
 
       // (d) Delete the lock → cold start works again (all pairs unverified, fill recovers).
-      rmSync(lockPath(dir), { force: true });
+      //     Remove the garbled committed file AND the gitignored deterministic verdict file;
+      //     with both absent every pair reads unverified (cold start), not lock-invalid.
+      rmSync(nondetPath(dir), { force: true });
+      rmSync(detPath(dir), { force: true });
       const cold = run(['check'], dir);
       expect(cold.status).toBe(1);
       expect(cold.all).toContain('unverified');
@@ -210,13 +229,15 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: prompt-too-large / merge 
     const dir = deterministicFixture('at-det');
     try {
       run(['check', '--approve'], dir);
-      const before = readFileSync(lockPath(dir), 'utf-8');
+      // `no-todo-comments` is deterministic → its verdict lives in the gitignored det
+      // triad file. Snapshot THAT file (the one a det aspect-test could plausibly touch).
+      const before = readFileSync(detPath(dir), 'utf-8');
       const test = run(['aspect-test', '--aspect', 'no-todo-comments', '--node', 'services/orders'], dir);
       expect(test.status).toBe(0);
       expect(test.all).toContain('No violations.');
       expect(test.all).toContain('diagnostic only — lock unchanged; yg check still reports the stored verdict');
       // Byte-identical: aspect-test NEVER writes the lock.
-      expect(readFileSync(lockPath(dir), 'utf-8')).toBe(before);
+      expect(readFileSync(detPath(dir), 'utf-8')).toBe(before);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -229,7 +250,9 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: prompt-too-large / merge 
       pointReviewer(dir, mock.endpoint);
       // Establish a lock via a real fill first.
       await runAsync(['check', '--approve'], dir);
-      const before = readFileSync(lockPath(dir), 'utf-8');
+      // `has-doc-comment` is an LLM aspect → its verdict lives in the committed
+      // nondeterministic triad file. Snapshot THAT file to prove aspect-test never writes it.
+      const before = readFileSync(nondetPath(dir), 'utf-8');
       const callsBefore = mock.chatCount();
 
       // --dry-run prints the assembled prompt and makes NO provider call.
@@ -239,14 +262,14 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: prompt-too-large / merge 
       expect(dry.all).toContain('diagnostic only — lock unchanged; yg check still reports the stored verdict');
       expect(mock.chatCount()).toBe(callsBefore); // ZERO new calls
       // Byte-identical lock.
-      expect(readFileSync(lockPath(dir), 'utf-8')).toBe(before);
+      expect(readFileSync(nondetPath(dir), 'utf-8')).toBe(before);
 
       // A LIVE aspect-test (no --dry-run) DOES call the reviewer but STILL never
       // writes the lock — it is a sanctioned diagnostic re-roll.
       const live = await runAsync(['aspect-test', '--aspect', 'has-doc-comment', '--node', 'services/orders'], dir);
       expect(live.all).toContain('diagnostic only — lock unchanged; yg check still reports the stored verdict');
       expect(mock.chatCount()).toBeGreaterThan(callsBefore); // it did call the reviewer
-      expect(readFileSync(lockPath(dir), 'utf-8')).toBe(before); // but the lock is unchanged
+      expect(readFileSync(nondetPath(dir), 'utf-8')).toBe(before); // but the lock is unchanged
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });

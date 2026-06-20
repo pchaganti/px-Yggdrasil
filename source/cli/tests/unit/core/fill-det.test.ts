@@ -539,11 +539,12 @@ describe('GC + canonical rewrite (§3.2)', () => {
     // Closure recorded a nodes[] entry.
     expect(readLock(graph.rootPath).nodes['svc']).toBeDefined();
 
-    // Inject a stale nodes[] entry for a non-existent node, then re-fill.
-    const lockPath = path.join(graph.rootPath, 'yg-lock.json');
-    const raw = JSON.parse(await readFile(lockPath, 'utf-8'));
+    // Inject a stale nodes[] entry for a non-existent node, then re-fill. The
+    // `nodes` section lives in the committed logs file of the triad.
+    const logsLockPath = path.join(graph.rootPath, 'yg-lock.logs.json');
+    const raw = JSON.parse(await readFile(logsLockPath, 'utf-8'));
     raw.nodes['ghost/node'] = { source: 'deadbeef' };
-    await writeFile(lockPath, JSON.stringify(raw));
+    await writeFile(logsLockPath, JSON.stringify(raw));
     graph = await loadGraph(projectRoot);
     await runFill(graph, { gitTrackedFiles: null, write: () => {} });
 
@@ -566,11 +567,12 @@ describe('incremental writeLock', () => {
       ],
     });
     const graph = await loadGraph(projectRoot);
-    const lockPath = path.join(graph.rootPath, 'yg-lock.json');
+    // Deterministic verdicts land in the gitignored det file of the triad.
+    const detLockPath = path.join(graph.rootPath, '.yg-lock.deterministic.json');
     // After a full run both det entries are on disk (the serialized writer
     // flushed each entry). Reading the file back proves the writes landed.
     await runFill(graph, { gitTrackedFiles: null, write: () => {} });
-    const onDisk = JSON.parse(await readFile(lockPath, 'utf-8'));
+    const onDisk = JSON.parse(await readFile(detLockPath, 'utf-8'));
     expect(onDisk.verdicts['det-a']['node:svc'].verdict).toBe('approved');
     expect(onDisk.verdicts['det-b']['node:svc'].verdict).toBe('approved');
   });
@@ -786,6 +788,9 @@ describe('Bug 2 — GC retains entries for an implies-cycle node', () => {
     // this lock synchronously at its start (after only `await validate`), so an
     // unawaited seed write races that read — under the parallel coverage run the
     // write lands late, runFill sees no seed, and GC has no entry to retain.
+    const deterministicAspectIds = new Set(
+      graph.aspects.filter((a) => a.reviewer.type === 'deterministic').map((a) => a.id),
+    );
     await writeLock(graph.rootPath, {
       version: 1,
       verdicts: {
@@ -794,7 +799,7 @@ describe('Bug 2 — GC retains entries for an implies-cycle node', () => {
         'ghost-aspect': { 'node:svc': { verdict: 'approved', hash: 'seed-ghost' } },
       },
       nodes: {},
-    });
+    }, { scope: 'all', deterministicAspectIds });
 
     // Run fill. The cycle node throws during effectiveness (skipped by the pair
     // engine); the clean node fills normally; GC then rewrites the lock.

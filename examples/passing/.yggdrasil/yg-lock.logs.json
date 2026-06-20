@@ -1,9 +1,6 @@
 {
   "version": 1,
   "verdicts": {
-    "requires-audit": {
-      "node:payments": {"hash":"646f6ca16a60df6ad4c9312784d7a3e43273947e3352c0c3a2987f07387f6770","verdict":"approved"}
-    }
   },
   "nodes": {
     "api": {"source":"0aac398b69c28d3c90642035290d3990e405a425ba88c2640bcf9486d6bc2cc9"},

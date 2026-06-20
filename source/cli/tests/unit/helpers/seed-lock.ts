@@ -154,10 +154,13 @@ export async function seedLock(graph: Graph, spec: SeedLockSpec = {}): Promise<L
   return lock;
 }
 
-/** seedLock(...) then persist to <graph.rootPath>/yg-lock.json via the real store. */
+/** seedLock(...) then persist to the lock triad under <graph.rootPath> via the real store. */
 export async function writeSeededLock(graph: Graph, spec: SeedLockSpec = {}): Promise<LockFile> {
   const lock = await seedLock(graph, spec);
-  await writeLock(graph.rootPath, lock);
+  const deterministicAspectIds = new Set(
+    graph.aspects.filter((a) => a.reviewer.type === 'deterministic').map((a) => a.id),
+  );
+  await writeLock(graph.rootPath, lock, { scope: 'all', deterministicAspectIds });
   return lock;
 }
 

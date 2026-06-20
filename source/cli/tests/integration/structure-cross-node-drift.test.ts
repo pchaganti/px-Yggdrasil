@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { readLock as readUnifiedLock } from '../../src/io/lock-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BIN = path.join(__dirname, '..', '..', 'dist', 'bin.js');
@@ -93,8 +94,11 @@ function layout(root: string): void {
 function readLock(root: string): {
   verdicts: Record<string, Record<string, { verdict: string; hash: string; touched?: Array<[string, string]> }>>;
 } {
-  const lockPath = path.join(root, '.yggdrasil', 'yg-lock.json');
-  return JSON.parse(readFileSync(lockPath, 'utf-8')) as ReturnType<typeof readLock>;
+  // The 5.1.0 lock is a three-file triad; readUnifiedLock merges them back into
+  // the unified { version, verdicts, nodes } shape. The `reads-b` aspect is
+  // deterministic, so its verdicts live in the gitignored det file — the merge
+  // surfaces them here just as the legacy single yg-lock.json once did.
+  return readUnifiedLock(path.join(root, '.yggdrasil')) as ReturnType<typeof readLock>;
 }
 
 describe.skipIf(!distExists)('deterministic aspect cross-node invalidation + impact', () => {

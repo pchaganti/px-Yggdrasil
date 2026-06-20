@@ -22,6 +22,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMockReviewer, runAsync, type ChatReply, type ChatRequest } from './support/mock-reviewer.js';
+import { readLock } from '../../src/io/lock-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '..', '..');
@@ -32,7 +33,10 @@ const distExists = existsSync(BIN_PATH);
 const cfgPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-config.yaml');
 const aspectYaml = (dir: string) => path.join(dir, '.yggdrasil', 'aspects', 'has-doc-comment', 'yg-aspect.yaml');
 const ordersFile = (dir: string) => path.join(dir, 'src', 'services', 'orders.ts');
-const lockPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-lock.json');
+const yggDir = (dir: string) => path.join(dir, '.yggdrasil');
+// The 5.1.0 triad: LLM verdicts live in the committed nondeterministic file; readLock
+// merges the three on-disk files back into one { version, verdicts, nodes } view.
+const nondetLockPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-lock.nondeterministic.json');
 
 /** Fresh temp copy of the lifecycle fixture (both service nodes carry the enforced LLM aspect has-doc-comment). */
 function fixture(label: string): string {
@@ -72,7 +76,7 @@ describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via in-process 
       expect(r.all).toContain('[llm] has-doc-comment on node:services/payments — approved');
       expect(r.all).toContain('yg check: PASS');
       // The verdict is written to the lock with an approved entry.
-      const lock = JSON.parse(readFileSync(lockPath(dir), 'utf-8'));
+      const lock = readLock(yggDir(dir));
       expect(lock.verdicts['has-doc-comment']['node:services/orders'].verdict).toBe('approved');
       // One enforced LLM aspect (has-doc-comment) at consensus 1 across the TWO
       // service nodes → two /api/chat calls.
@@ -105,7 +109,7 @@ describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via in-process 
       // The reviewer's reason is folded into the stored verdict (asserted directly
       // against the lock — the `yg check` renderer prints only the first `what`
       // line; `yg aspect-test` would print the full body).
-      const lock = JSON.parse(readFileSync(lockPath(dir), 'utf-8'));
+      const lock = readLock(yggDir(dir));
       expect(lock.verdicts['has-doc-comment']['node:services/orders'].reason).toBe('the file has no leading comment');
       expect(mock.chatCount()).toBe(before); // check did not call the reviewer
 
@@ -203,7 +207,9 @@ describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via in-process 
       expect(r.all).toContain('has-doc-comment');
       expect(r.all).toContain('pairs failed on provider/config errors');
       // Fail-closed: NOTHING written for the failed pair — it stays unverified.
-      expect(existsSync(lockPath(dir)) ? JSON.parse(readFileSync(lockPath(dir), 'utf-8')).verdicts['has-doc-comment'] : undefined).toBeUndefined();
+      // The failed LLM aspect's verdict namespace must be absent from the lock (the
+      // committed nondeterministic file is where this pair WOULD have landed).
+      expect(readLock(yggDir(dir)).verdicts['has-doc-comment']).toBeUndefined();
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
@@ -275,7 +281,10 @@ describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via in-process 
       expect(r.all).toContain('has-doc-comment');
       // diagnostic only — the lock is never written.
       expect(r.all).toContain('diagnostic only — lock unchanged');
-      expect(existsSync(lockPath(dir))).toBe(false);
+      // No LLM verdict is recorded: the committed nondeterministic lock file (where this
+      // pair's verdict would land) is never written by a dry-run.
+      expect(existsSync(nondetLockPath(dir))).toBe(false);
+      expect(readLock(yggDir(dir)).verdicts['has-doc-comment']).toBeUndefined();
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });

@@ -30,6 +30,7 @@ import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readLock } from '../../src/io/lock-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '..', '..');
@@ -52,7 +53,11 @@ function run(args: string[], cwd: string): { stdout: string; stderr: string; all
 
 const archPath = (d: string) => path.join(d, '.yggdrasil', 'yg-architecture.yaml');
 const configPath = (d: string) => path.join(d, '.yggdrasil', 'yg-config.yaml');
-const lockPath = (d: string) => path.join(d, '.yggdrasil', 'yg-lock.json');
+const yggPath = (d: string) => path.join(d, '.yggdrasil');
+// 5.1.0 triad: the legacy single yg-lock.json is gone. LLM verdicts live in the
+// committed nondeterministic file; deterministic verdicts in the gitignored det file.
+const nondetLockPath = (d: string) => path.join(d, '.yggdrasil', 'yg-lock.nondeterministic.json');
+const detLockPath = (d: string) => path.join(d, '.yggdrasil', '.yg-lock.deterministic.json');
 const nodeYaml = (d: string, n: string) => path.join(d, '.yggdrasil', 'model', ...n.split('/'), 'yg-node.yaml');
 const aspectDir = (d: string, a: string) => path.join(d, '.yggdrasil', 'aspects', a);
 
@@ -78,8 +83,20 @@ function dropLlmDefault(dir: string): void {
   rmSync(aspectDir(dir, 'has-doc-comment'), { recursive: true, force: true });
 }
 
-function writeLock(dir: string, lock: unknown): void {
-  writeFileSync(lockPath(dir), JSON.stringify(lock, null, 2) + '\n', 'utf-8');
+/**
+ * Seed a DETERMINISTIC-verdict lock (the CLI ignores the legacy single file;
+ * deterministic verdicts are read from the gitignored .yg-lock.deterministic.json).
+ */
+function writeDetLock(dir: string, lock: unknown): void {
+  writeFileSync(detLockPath(dir), JSON.stringify(lock, null, 2) + '\n', 'utf-8');
+}
+
+/**
+ * Seed an LLM-verdict lock (committed yg-lock.nondeterministic.json — the file
+ * readLock parses for non-deterministic verdicts).
+ */
+function writeNondetLock(dir: string, lock: unknown): void {
+  writeFileSync(nondetLockPath(dir), JSON.stringify(lock, null, 2) + '\n', 'utf-8');
 }
 
 describe.skipIf(!distExists)('CLI E2E — yg impact re-sourced from the lock', () => {
@@ -98,7 +115,9 @@ describe.skipIf(!distExists)('CLI E2E — yg impact re-sourced from the lock', (
 
   it('tags a node:<path> refused verdict with [refused]; the approved sibling is untagged', () => {
     const dir = fixture('refused-node');
-    writeLock(dir, {
+    // no-todo-comments is a DETERMINISTIC aspect → its verdicts live in the
+    // gitignored deterministic file, which readLock (and `yg impact`) merge in.
+    writeDetLock(dir, {
       version: 1,
       verdicts: {
         'no-todo-comments': {
@@ -122,7 +141,8 @@ describe.skipIf(!distExists)('CLI E2E — yg impact re-sourced from the lock', (
     const dir = fixture('refused-file');
     // The unit key is a file path mapped to services/orders (src/services/orders.ts).
     // Impact must resolve file→owner through the graph and tag services/orders.
-    writeLock(dir, {
+    // no-todo-comments is DETERMINISTIC → seed the gitignored deterministic file.
+    writeDetLock(dir, {
       version: 1,
       verdicts: {
         'no-todo-comments': {
@@ -290,9 +310,11 @@ describe.skipIf(!distExists)('CLI E2E — yg impact re-sourced from the lock', (
       const fill = run(['check', '--approve'], dir);
       // Deterministic-only fill — no reviewer, must succeed and record obs-rule.
       expect(fill.all).toContain('[det] obs-rule on node:services/orders — approved');
-      // Sanity: the touched map really references payments.ts cross-node.
-      const lock = JSON.parse(readFileSync(lockPath(dir), 'utf-8'));
-      const touched: Array<[string, string]> = lock.verdicts['obs-rule']['node:services/orders'].touched;
+      // Sanity: the touched map really references payments.ts cross-node. obs-rule
+      // is deterministic → its verdict lands in the gitignored deterministic file;
+      // readLock merges the triad so the verdict is available here.
+      const lock = readLock(yggPath(dir));
+      const touched: Array<[string, string]> = lock.verdicts['obs-rule']['node:services/orders'].touched!;
       const keys = touched.map((t) => t[0]);
       expect(keys).toContain('read:src/services/payments.ts');
       expect(keys).toContain('list:src/services');
@@ -321,8 +343,10 @@ describe.skipIf(!distExists)('CLI E2E — yg impact re-sourced from the lock', (
     const dir = obsRuleFixture('xnode-coldstart', false);
     // No lock at all → collectStructureCascade falls back to
     // collectAllowedReadsForAspect (payments.ts is in services/orders'
-    // allowed-reads via the uses relation) → potential mode.
-    expect(existsSync(lockPath(dir))).toBe(false);
+    // allowed-reads via the uses relation) → potential mode. No --approve ran, so
+    // neither triad verdict file exists on disk.
+    expect(existsSync(detLockPath(dir))).toBe(false);
+    expect(existsSync(nondetLockPath(dir))).toBe(false);
     const { stdout, status } = run(['impact', '--file', 'src/services/payments.ts'], dir);
     expect(status).toBe(0);
     expect(stdout).toContain('Nodes whose deterministic aspects observe src/services/payments.ts [structure]:');
@@ -403,8 +427,10 @@ describe.skipIf(!distExists)('CLI E2E — yg impact re-sourced from the lock', (
 
     // Write a hand-crafted lock: services/orders' companion-rule verdict has
     // touched read:src/services/payments.ts (cross-node). This is the PRECISE
-    // path — the cascade is sourced directly from the lock.
-    writeLock(dir, {
+    // path — the cascade is sourced directly from the lock. companion-rule is an
+    // LLM aspect (content.md present) → its verdict lives in the committed
+    // nondeterministic file.
+    writeNondetLock(dir, {
       version: 1,
       verdicts: {
         'companion-rule': {

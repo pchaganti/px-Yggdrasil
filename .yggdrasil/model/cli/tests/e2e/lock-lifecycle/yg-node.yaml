@@ -5,6 +5,6 @@ description: "Subprocess E2E for the full verdict-lock lifecycle (lock matrix
   log gate plus positive closure, and garbage collection of detached entries.
   Real spawned binary with an in-process mock reviewer."
 aspects: []
-relations: [ { target: cli/tests/e2e/support, type: uses } ]
+relations: [ { target: cli/tests/e2e/support, type: uses }, { target: cli/io/lock-store, type: uses } ]
 mapping:
   - source/cli/tests/e2e/cli-lock-lifecycle.test.ts

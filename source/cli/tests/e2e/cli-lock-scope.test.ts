@@ -13,6 +13,7 @@ import { existsSync, mkdtempSync, rmSync, cpSync, readFileSync, writeFileSync, a
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readLock as readTriadLock } from '../../src/io/lock-store.js';
 
 // Each case spawns the real CLI binary many times; on a loaded CI runner that
 // exceeds vitest's 5000ms default and flakily times out. Use the same 30s budget
@@ -30,8 +31,10 @@ const archPath = (d: string) => path.join(d, '.yggdrasil', 'yg-architecture.yaml
 const flowPath = (d: string) => path.join(d, '.yggdrasil', 'flows', 'order-processing', 'yg-flow.yaml');
 const aspectYaml = (d: string, a: string) => path.join(d, '.yggdrasil', 'aspects', a, 'yg-aspect.yaml');
 const nodeYaml = (d: string, n: string) => path.join(d, '.yggdrasil', 'model', ...n.split('/'), 'yg-node.yaml');
-const lockPath = (d: string) => path.join(d, '.yggdrasil', 'yg-lock.json');
-const readLock = (d: string) => JSON.parse(readFileSync(lockPath(d), 'utf-8'));
+// The verdict lock is the 5.1.0 triad (nondeterministic + logs + gitignored
+// deterministic). Read the MERGED view via the src store, so deterministic
+// verdicts (this suite's subject) surface under `.verdicts` exactly as before.
+const readLock = (d: string) => readTriadLock(path.join(d, '.yggdrasil'));
 
 function run(args: string[], cwd: string): { all: string; status: number | null } {
   const r = spawnSync('node', [BIN_PATH, ...args], { cwd, encoding: 'utf-8' });

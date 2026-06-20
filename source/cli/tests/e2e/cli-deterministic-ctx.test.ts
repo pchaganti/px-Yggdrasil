@@ -12,6 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readLock } from '../../src/io/lock-store.js';
 
 // ---------------------------------------------------------------------------
 // E2E suite — the GRAPH-AWARE deterministic check.mjs surface.
@@ -26,7 +27,9 @@ import { fileURLToPath } from 'node:url';
 // plus the `yg aspect-test` command surface: --node (graph-scoped),
 // --files (ad-hoc), and --check-determinism — and the `yg check --approve`
 // (fill) enforcement surface, which records each (aspect, unit) verdict in
-// .yggdrasil/yg-lock.json with its `touched` observation set.
+// the verdict lock (the deterministic verdicts land in the gitignored
+// .yg-lock.deterministic.json file of the 5.1.0 triad) with its `touched`
+// observation set. Tests read the lock via readLock, which merges the triad.
 //
 // Every aspect / check.mjs used here is AUTHORED INTO A FRESH mkdtemp COPY of
 // the committed e2e-lifecycle fixture. The committed fixture is never mutated;
@@ -127,9 +130,6 @@ function attachAspectToNode(dir: string, nodePath: string, aspectId: string): vo
 
 const ordersFile = (dir: string) => path.join(dir, 'src', 'services', 'orders.ts');
 
-/** The single state file of the verdict-lock model (replaces .drift-state/<node>.json). */
-const lockPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-lock.json');
-
 interface LockVerdict {
   hash: string;
   verdict: 'approved' | 'refused';
@@ -143,10 +143,14 @@ interface LockVerdict {
  * (aspect, node) pair from the verdict lock, or undefined if the pair has no
  * recorded verdict. The lock keys by aspect first, then unitKey
  * (`node:<model-relative path>`).
+ *
+ * Under the 5.1.0 triad the lock is split across three files; readLock merges
+ * them into one { version, verdicts, nodes } object. These aspects are all
+ * deterministic, so their verdicts live in the gitignored
+ * .yg-lock.deterministic.json — readLock folds that in.
  */
 function lockVerdict(dir: string, aspectId: string, node: string): LockVerdict | undefined {
-  if (!existsSync(lockPath(dir))) return undefined;
-  const lock = JSON.parse(readFileSync(lockPath(dir), 'utf-8')) as {
+  const lock = readLock(path.join(dir, '.yggdrasil')) as {
     verdicts?: Record<string, Record<string, LockVerdict>>;
   };
   return lock.verdicts?.[aspectId]?.[`node:${node}`];

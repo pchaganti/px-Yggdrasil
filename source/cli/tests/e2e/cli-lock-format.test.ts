@@ -12,35 +12,53 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  readLock as readTriadLock,
+  nondetLockPath,
+  logsLockPath,
+  detLockPath,
+} from '../../src/io/lock-store.js';
 
 // ---------------------------------------------------------------------------
-// LOCK FILE FORMAT — `.yggdrasil/yg-lock.json`.
+// LOCK FILE FORMAT — the 5.1.0 verdict-lock TRIAD.
 //
-// This suite proves the on-disk shape and the read-boundary gate of the single
-// state file the runtime keeps: `.yggdrasil/yg-lock.json`. (The pre-v… typed
-// per-node `.drift-state/<node>.json` format this file used to assert is REMOVED
-// surface — there is no per-node baseline file anymore; all verdict state lives
-// in one lock — so those assertions are replaced WHOLESALE with lock-format
-// assertions.)
+// This suite proves the on-disk shape and the read-boundary gate of the verdict
+// state the runtime keeps. As of 5.1.0 the single `.yggdrasil/yg-lock.json` is
+// GONE — verification state is split across three sibling files:
+//   * yg-lock.nondeterministic.json (committed)  → LLM verdicts
+//   * yg-lock.logs.json             (committed)  → the `nodes` section
+//                                                  (per-node source fingerprint
+//                                                  + log baseline)
+//   * .yg-lock.deterministic.json   (gitignored) → deterministic-aspect verdicts
+// The in-memory LockFile stays unified — `readLock` merges the three files back
+// into { version, verdicts, nodes }; on disk each file owns its own section and
+// leaves the others as an empty object. (The pre-v… typed per-node
+// `.drift-state/<node>.json` format this file used to assert is REMOVED surface
+// — there is no per-node baseline file anymore — so those assertions are
+// replaced WHOLESALE with lock-triad assertions.)
 //
 // What is pinned here:
 //   * Absent lock = cold start — every pair reports `unverified`, nothing is
 //     silently treated as valid.
-//   * After a fill the lock is valid JSON: version 1, keys sorted at every
+//   * After a fill each triad file is valid JSON: version 1, keys sorted at every
 //     level, one verdict entry per line, a trailing newline, unitKeys prefixed
 //     `node:`/`file:`, verdict entries carry `hash`+`verdict` (+`touched` on
 //     deterministic entries, +`reason` on refused ones), and `nodes.<path>.source`
-//     appears only at positive closure (all enforced pairs approved).
-//   * A garbled / conflict-markered / unknown-version lock is refused at the read
-//     boundary with `lock-invalid` (exit 1) and a copy-pasteable recovery `next:`
-//     (git checkout restore, or delete-and-refill).
-//   * Deleting the lock returns the repo to a clean cold start that re-fills.
+//     (in the logs file) appears only at positive closure (all enforced pairs
+//     approved).
+//   * A garbled / conflict-markered / unknown-version COMMITTED lock file is
+//     refused at the read boundary with `lock-invalid` (exit 1) and a
+//     copy-pasteable recovery `next:` (git checkout restore, or delete-and-refill).
+//     These scenarios target the committed yg-lock.nondeterministic.json — the
+//     file readLock parses and reports by name.
+//   * Deleting the lock triad returns the repo to a clean cold start that re-fills.
 //
 // Hermetic: every test copies the e2e-lifecycle fixture into a FRESH mkdtemp dir,
 // strips the LLM `has-doc-comment` aspect so every effective aspect is
 // deterministic (no network, no LLM), mutates only that copy, and rmSync's it in
 // a finally. Every refuse/pass is driven solely by the deterministic check.mjs
-// aspects (`no-todo-comments` enforced, `requires-named-export` advisory).
+// aspects (`no-todo-comments` enforced, `requires-named-export` advisory) — so
+// every verdict assertion here lands in the gitignored .yg-lock.deterministic.json.
 // ---------------------------------------------------------------------------
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -82,7 +100,24 @@ function deterministicFixture(label: string): string {
   return dir;
 }
 
-const lockPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-lock.json');
+const ygRoot = (dir: string) => path.join(dir, '.yggdrasil');
+
+// ── Triad file paths ───────────────────────────────────────────────────────
+// Deterministic verdicts (every aspect under test is deterministic) land in the
+// gitignored det file; the per-node `source` closure state lands in the committed
+// logs file; the committed nondeterministic file is the LLM-verdict file readLock
+// parses and reports by name on a read-boundary error.
+const nondetFile = (dir: string) => nondetLockPath(ygRoot(dir));
+const logsFile = (dir: string) => logsLockPath(ygRoot(dir));
+const detFile = (dir: string) => detLockPath(ygRoot(dir));
+
+type Lock = ReturnType<typeof readTriadLock>;
+
+/** Read the unified lock by merging the on-disk triad (committed + gitignored det file). */
+function readLock(dir: string): Lock {
+  return readTriadLock(ygRoot(dir));
+}
+
 const ordersFile = (dir: string) => path.join(dir, 'src', 'services', 'orders.ts');
 
 /** A lock-invalid error is a recoverable STATE problem, never a CLI bug. */
@@ -92,14 +127,17 @@ function expectCleanLockError(all: string): void {
   expect(all).not.toContain('file an issue');
 }
 
-describe.skipIf(!distExists)('CLI E2E — yg-lock.json format and read-boundary gate', () => {
+describe.skipIf(!distExists)('CLI E2E — verdict-lock triad format and read-boundary gate', () => {
   // --- 1. Absent lock = cold start: every pair is unverified. ---
 
   it('1: with no lock present, check is a cold start — every pair reports unverified (exit 1)', () => {
     const dir = deterministicFixture('cold');
     try {
-      // The fixture ships NO lock — confirm the cold-start precondition.
-      expect(existsSync(lockPath(dir))).toBe(false);
+      // The fixture ships NO lock — confirm the cold-start precondition: none of
+      // the triad files exist on disk.
+      expect(existsSync(nondetFile(dir))).toBe(false);
+      expect(existsSync(logsFile(dir))).toBe(false);
+      expect(existsSync(detFile(dir))).toBe(false);
 
       const cold = run(['check'], dir);
       expect(cold.status).toBe(1);
@@ -114,37 +152,42 @@ describe.skipIf(!distExists)('CLI E2E — yg-lock.json format and read-boundary 
     }
   });
 
-  // --- 2. After a fill: the lock is well-formed JSON with the documented shape. ---
+  // --- 2. After a fill: each triad file is well-formed JSON with the documented shape. ---
 
-  it('2: after a fill the lock is valid JSON — version 1, keys sorted at every level, trailing newline', () => {
+  it('2: after a fill each triad file is valid JSON — version 1, keys sorted at every level, trailing newline', () => {
     const dir = deterministicFixture('shape');
     try {
       expect(run(['check', '--approve'], dir).status).toBe(0);
-      expect(existsSync(lockPath(dir))).toBe(true);
+      // The deterministic verdicts land in the gitignored det file; the per-node
+      // closure `source` lands in the committed logs file. Both must exist.
+      expect(existsSync(detFile(dir))).toBe(true);
+      expect(existsSync(logsFile(dir))).toBe(true);
 
-      const raw = readFileSync(lockPath(dir), 'utf-8');
-      // Trailing newline.
-      expect(raw.endsWith('\n')).toBe(true);
+      // Trailing newline on every written triad file.
+      for (const f of [nondetFile(dir), logsFile(dir), detFile(dir)]) {
+        expect(readFileSync(f, 'utf-8').endsWith('\n')).toBe(true);
+      }
 
-      const parsed = JSON.parse(raw) as {
-        version: number;
-        verdicts: Record<string, Record<string, Record<string, unknown>>>;
-        nodes: Record<string, { source?: string }>;
-      };
-      expect(parsed.version).toBe(1); // relations are computed live; the lock is back to v1
+      // Each raw file declares version 1 (relations are computed live; the lock is
+      // back to v1).
+      for (const f of [nondetFile(dir), logsFile(dir), detFile(dir)]) {
+        const raw = JSON.parse(readFileSync(f, 'utf-8')) as { version: number };
+        expect(raw.version).toBe(1);
+      }
 
-      // Top-level keys are exactly version/verdicts/nodes (and in sorted order
-      // when iterated, JSON.stringify preserves insertion order — verify sort).
+      // Structural shape is asserted on the MERGED lock — verdicts come from the
+      // det file, nodes from the logs file. Keys sorted at every level.
+      const merged = readLock(dir);
       const sorted = (keys: string[]): boolean =>
         JSON.stringify(keys) === JSON.stringify([...keys].sort());
-      expect(sorted(Object.keys(parsed.verdicts))).toBe(true);
-      expect(sorted(Object.keys(parsed.nodes))).toBe(true);
-      for (const aspectId of Object.keys(parsed.verdicts)) {
-        const byUnit = parsed.verdicts[aspectId];
+      expect(sorted(Object.keys(merged.verdicts))).toBe(true);
+      expect(sorted(Object.keys(merged.nodes))).toBe(true);
+      for (const aspectId of Object.keys(merged.verdicts)) {
+        const byUnit = merged.verdicts[aspectId];
         expect(sorted(Object.keys(byUnit))).toBe(true);
         for (const unitKey of Object.keys(byUnit)) {
           // Entry field keys are themselves sorted (hash, [reason,] touched, verdict).
-          expect(sorted(Object.keys(byUnit[unitKey]))).toBe(true);
+          expect(sorted(Object.keys(byUnit[unitKey] as unknown as Record<string, unknown>))).toBe(true);
         }
       }
     } finally {
@@ -158,9 +201,8 @@ describe.skipIf(!distExists)('CLI E2E — yg-lock.json format and read-boundary 
     const dir = deterministicFixture('entries');
     try {
       expect(run(['check', '--approve'], dir).status).toBe(0);
-      const parsed = JSON.parse(readFileSync(lockPath(dir), 'utf-8')) as {
-        verdicts: Record<string, Record<string, Record<string, unknown>>>;
-      };
+      // Deterministic verdicts live in the gitignored det file; readLock merges it.
+      const parsed = readLock(dir);
 
       const todo = parsed.verdicts['no-todo-comments'];
       const unitKeys = Object.keys(todo);
@@ -171,7 +213,7 @@ describe.skipIf(!distExists)('CLI E2E — yg-lock.json format and read-boundary 
         expect(k.startsWith('node:') || k.startsWith('file:')).toBe(true);
       }
 
-      const entry = todo['node:services/orders'];
+      const entry = todo['node:services/orders'] as unknown as Record<string, unknown>;
       // A clean deterministic verdict: hash + verdict + touched (no reason).
       expect(typeof entry.hash).toBe('string');
       expect(entry.verdict).toBe('approved');
@@ -189,7 +231,9 @@ describe.skipIf(!distExists)('CLI E2E — yg-lock.json format and read-boundary 
   // A refused enforced pair leaves the node short of positive closure, so NO
   // `nodes.<path>.source` is recorded for it — while a refused verdict entry
   // carries a human-readable `reason`. The sibling node, which DID reach closure,
-  // gets its `source`.
+  // gets its `source`. (The `source` closure state lives in the committed logs
+  // file; the verdict entries live in the gitignored det file — readLock merges
+  // both.)
 
   it('4: nodes.<path>.source appears only at positive closure; a refused entry carries hash + reason + verdict', () => {
     const dir = deterministicFixture('closure');
@@ -204,13 +248,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-lock.json format and read-boundary 
       expect(fill.all).toContain('[det] no-todo-comments on node:services/orders — refused');
       expect(fill.all).toContain('[det] no-todo-comments on node:services/payments — approved');
 
-      const parsed = JSON.parse(readFileSync(lockPath(dir), 'utf-8')) as {
-        verdicts: Record<string, Record<string, Record<string, unknown>>>;
-        nodes: Record<string, { source?: string }>;
-      };
+      const parsed = readLock(dir);
 
       // The refused entry: hash + reason + touched + verdict, sorted.
-      const refused = parsed.verdicts['no-todo-comments']['node:services/orders'];
+      const refused = parsed.verdicts['no-todo-comments']['node:services/orders'] as unknown as Record<string, unknown>;
       expect(refused.verdict).toBe('refused');
       expect(typeof refused.hash).toBe('string');
       expect(typeof refused.reason).toBe('string');
@@ -268,9 +309,8 @@ describe.skipIf(!distExists)('CLI E2E — yg-lock.json format and read-boundary 
       );
 
       expect(run(['check', '--approve'], dir).status).toBe(0);
-      const parsed = JSON.parse(readFileSync(lockPath(dir), 'utf-8')) as {
-        verdicts: Record<string, Record<string, Record<string, unknown>>>;
-      };
+      // Deterministic verdicts (incl. the new per:file aspect) merge from the det file.
+      const parsed = readLock(dir);
 
       const scoped = parsed.verdicts['no-todo-scoped'];
       const keys = Object.keys(scoped);
@@ -283,19 +323,23 @@ describe.skipIf(!distExists)('CLI E2E — yg-lock.json format and read-boundary 
   });
 
   // --- 6. Garbled JSON → lock-invalid at the read boundary, with recovery next. ---
+  //
+  // The corrupt-file scenarios target the committed yg-lock.nondeterministic.json:
+  // it is a committed file readLock parses, so a structural defect there is the
+  // read-boundary failure the recovery `next:` is written for.
 
   it('6: an unparseable lock is refused with lock-invalid + a copy-pasteable recovery next (exit 1)', () => {
     const dir = deterministicFixture('garbled');
     try {
       expect(run(['check', '--approve'], dir).status).toBe(0);
-      writeFileSync(lockPath(dir), 'this is not json {{{', 'utf-8');
+      writeFileSync(nondetFile(dir), 'this is not json {{{', 'utf-8');
 
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
       expect(check.all).toContain('lock-invalid');
-      expect(check.all).toContain('yg-lock.json contains unparseable JSON');
+      expect(check.all).toContain('yg-lock.nondeterministic.json contains unparseable JSON');
       // Recovery: restore from git OR delete-and-refill.
-      expect(check.all).toContain('git checkout HEAD -- .yggdrasil/yg-lock.json');
+      expect(check.all).toContain('git checkout HEAD -- .yggdrasil/yg-lock.nondeterministic.json');
       expect(check.all).toContain('yg check --approve');
       expectCleanLockError(check.all);
     } finally {
@@ -310,7 +354,7 @@ describe.skipIf(!distExists)('CLI E2E — yg-lock.json format and read-boundary 
     try {
       expect(run(['check', '--approve'], dir).status).toBe(0);
       writeFileSync(
-        lockPath(dir),
+        nondetFile(dir),
         [
           '<<<<<<< HEAD',
           '{ "version": 1, "verdicts": {}, "nodes": {} }',
@@ -325,10 +369,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-lock.json format and read-boundary 
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
       expect(check.all).toContain('lock-invalid');
-      expect(check.all).toContain('yg-lock.json contains git conflict markers');
+      expect(check.all).toContain('yg-lock.nondeterministic.json contains git conflict markers');
       // The merge-recovery takes one side wholesale, then re-fills.
-      expect(check.all).toContain('git checkout --ours -- .yggdrasil/yg-lock.json');
-      expect(check.all).toContain('git checkout --theirs -- .yggdrasil/yg-lock.json');
+      expect(check.all).toContain('git checkout --ours -- .yggdrasil/yg-lock.nondeterministic.json');
+      expect(check.all).toContain('git checkout --theirs -- .yggdrasil/yg-lock.nondeterministic.json');
       expect(check.all).toContain('yg check --approve');
       expectCleanLockError(check.all);
     } finally {
@@ -342,15 +386,15 @@ describe.skipIf(!distExists)('CLI E2E — yg-lock.json format and read-boundary 
     const dir = deterministicFixture('version');
     try {
       expect(run(['check', '--approve'], dir).status).toBe(0);
-      const parsed = JSON.parse(readFileSync(lockPath(dir), 'utf-8')) as { version: number };
+      const parsed = JSON.parse(readFileSync(nondetFile(dir), 'utf-8')) as { version: number };
       parsed.version = 99;
-      writeFileSync(lockPath(dir), `${JSON.stringify(parsed, null, 2)}\n`, 'utf-8');
+      writeFileSync(nondetFile(dir), `${JSON.stringify(parsed, null, 2)}\n`, 'utf-8');
 
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
       expect(check.all).toContain('lock-invalid');
-      expect(check.all).toContain('yg-lock.json has unsupported version 99 (this CLI reads version 1 or 2)'); // CLI writes v1 and reads v1 native / v2 leniently (stray relation_verdicts dropped)
-      expect(check.all).toContain('git checkout HEAD -- .yggdrasil/yg-lock.json');
+      expect(check.all).toContain('yg-lock.nondeterministic.json has unsupported version 99 (this CLI reads version 1 or 2)'); // CLI writes v1 and reads v1 native / v2 leniently (stray relation_verdicts dropped)
+      expect(check.all).toContain('git checkout HEAD -- .yggdrasil/yg-lock.nondeterministic.json');
       expectCleanLockError(check.all);
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -365,15 +409,18 @@ describe.skipIf(!distExists)('CLI E2E — yg-lock.json format and read-boundary 
       expect(run(['check', '--approve'], dir).status).toBe(0);
       expect(run(['check'], dir).status).toBe(0);
 
-      // Delete the lock entirely — the repo is back to cold start.
-      rmSync(lockPath(dir), { force: true });
+      // Delete the lock triad entirely — the repo is back to cold start.
+      rmSync(nondetFile(dir), { force: true });
+      rmSync(logsFile(dir), { force: true });
+      rmSync(detFile(dir), { force: true });
       const cold = run(['check'], dir);
       expect(cold.status).toBe(1);
       expect(cold.all).toContain('unverified');
 
       // Re-fill writes a fresh lock and the repo is green again.
       expect(run(['check', '--approve'], dir).status).toBe(0);
-      expect(existsSync(lockPath(dir))).toBe(true);
+      expect(existsSync(detFile(dir))).toBe(true);
+      expect(existsSync(logsFile(dir))).toBe(true);
       expect(run(['check'], dir).status).toBe(0);
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -386,7 +433,8 @@ describe.skipIf(!distExists)('CLI E2E — yg-lock.json format and read-boundary 
   // baseline-integrity-tamper code is REMOVED surface) does NOT produce a distinct
   // error: the pair simply no longer hashes to the stored value, so it degrades to
   // `unverified`. The load-bearing guarantee is that a tampered verdict NEVER
-  // passes as valid — it is re-verified, not trusted.
+  // passes as valid — it is re-verified, not trusted. The deterministic verdict
+  // whose hash is tampered lives in the gitignored .yg-lock.deterministic.json.
 
   it('10: hand-editing a stored verdict hash degrades that pair to unverified — never silently green', () => {
     const dir = deterministicFixture('tamper');
@@ -394,13 +442,14 @@ describe.skipIf(!distExists)('CLI E2E — yg-lock.json format and read-boundary 
       expect(run(['check', '--approve'], dir).status).toBe(0);
       expect(run(['check'], dir).status).toBe(0);
 
-      // Overwrite the recorded input hash for one enforced pair with a bogus value.
-      const parsed = JSON.parse(readFileSync(lockPath(dir), 'utf-8')) as {
+      // Overwrite the recorded input hash for one enforced deterministic pair with
+      // a bogus value, in the gitignored det file that holds it.
+      const parsed = JSON.parse(readFileSync(detFile(dir), 'utf-8')) as {
         verdicts: Record<string, Record<string, { hash: string }>>;
       };
       parsed.verdicts['no-todo-comments']['node:services/orders'].hash =
         '0000000000000000000000000000000000000000000000000000000000000000';
-      writeFileSync(lockPath(dir), `${JSON.stringify(parsed, null, 2)}\n`, 'utf-8');
+      writeFileSync(detFile(dir), `${JSON.stringify(parsed, null, 2)}\n`, 'utf-8');
 
       const check = run(['check'], dir);
       expect(check.status).toBe(1);

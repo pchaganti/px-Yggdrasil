@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runVersionUpgrade, ensureGitattributes, ensureYggdrasilGitignore } from '../../../src/cli/init.js';
 
-const LOCK_LINE = '/.yggdrasil/yg-lock.json linguist-generated=true';
-const GITIGNORE_LINES = ['yg-secrets.yaml', '.symbols-cache/', '.debug.log'];
+const LOCK_LINE = '/.yggdrasil/yg-lock.*.json linguist-generated=true';
+const GITIGNORE_LINES = ['yg-secrets.yaml', '.symbols-cache/', '.debug.log', '.yg-lock.deterministic.json'];
 
 async function scaffoldExistingYgg(projectRoot: string, version: string): Promise<string> {
   const yggRoot = path.join(projectRoot, '.yggdrasil');
@@ -209,8 +209,8 @@ describe('ensureYggdrasilGitignore', () => {
     await ensureYggdrasilGitignore(yggRoot);
 
     const gi = await readFile(path.join(yggRoot, '.gitignore'), 'utf-8');
-    // Only the single missing line (.debug.log) was appended; existing content preserved.
-    expect(gi).toBe('custom-local-state\nyg-secrets.yaml\n.symbols-cache/\n.debug.log\n');
+    // The missing lines (.debug.log, .yg-lock.deterministic.json) were appended once; existing content preserved.
+    expect(gi).toBe('custom-local-state\nyg-secrets.yaml\n.symbols-cache/\n.debug.log\n.yg-lock.deterministic.json\n');
     for (const line of GITIGNORE_LINES) {
       const occurrences = gi.split('\n').filter((l) => l.trim() === line).length;
       expect(occurrences).toBe(1);

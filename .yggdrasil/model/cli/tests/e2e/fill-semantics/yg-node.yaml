@@ -8,6 +8,6 @@ description: "Subprocess E2E pinning three fill-stage behaviours: the
   being recorded as refused. Real spawned binary with the in-process mock
   reviewer."
 aspects: []
-relations: [ { target: cli/tests/e2e/support, type: uses } ]
+relations: [ { target: cli/tests/e2e/support, type: uses }, { target: cli/io/lock-store, type: uses } ]
 mapping:
   - source/cli/tests/e2e/cli-fill-semantics.test.ts

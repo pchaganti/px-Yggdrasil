@@ -2,7 +2,11 @@ name: Integration Structure Tests
 type: test-suite
 description: Integration tests for the graph-aware (structure) runner approve lifecycle — the create→approve→edit→re-approve cycle, aspect-status behavior (draft/advisory/enforced), and implied-aspect drift.
 aspects: []
-relations: []
+relations:
+  - target: cli/io/lock-store
+    type: uses
+  - target: cli/model/lock
+    type: uses
 mapping:
   - source/cli/tests/integration/structure-lifecycle.test.ts
   - source/cli/tests/integration/structure-aspect-status.test.ts

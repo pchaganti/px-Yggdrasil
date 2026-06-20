@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMockReviewer, runAsync, type ChatReply } from './support/mock-reviewer.js';
+import { readLock as readTriadLock } from '../../src/io/lock-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '..', '..');
@@ -22,9 +23,12 @@ const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'e2e-lifecycle');
 const distExists = existsSync(BIN_PATH);
 
 const cfgPath = (d: string) => path.join(d, '.yggdrasil', 'yg-config.yaml');
-const lockPath = (d: string) => path.join(d, '.yggdrasil', 'yg-lock.json');
+const yggRoot = (d: string) => path.join(d, '.yggdrasil');
+// LLM verdicts (the subject of every verdict assertion below) live in the committed
+// nondeterministic file of the 5.1.0 triad; read the merged view via the src store.
+const nondetLockPath = (d: string) => path.join(yggRoot(d), 'yg-lock.nondeterministic.json');
 const ordersFile = (d: string) => path.join(d, 'src', 'services', 'orders.ts');
-const readLock = (d: string) => JSON.parse(readFileSync(lockPath(d), 'utf-8'));
+const readLock = (d: string) => readTriadLock(yggRoot(d));
 
 function run(args: string[], cwd: string): { all: string; status: number | null } {
   const r = spawnSync('node', [BIN_PATH, ...args], { cwd, encoding: 'utf-8' });
@@ -143,7 +147,7 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: cached refusals / det gat
       pointReviewer(dir, okMock.endpoint);
       // Clean fill → green lock.
       expect((await runAsync(['check', '--approve'], dir)).status).toBe(0);
-      const lockBefore = readFileSync(lockPath(dir), 'utf-8');
+      const lockBefore = readFileSync(nondetLockPath(dir), 'utf-8');
       const ordersEntryBefore = readLock(dir).verdicts['has-doc-comment']['node:services/orders'];
       const paymentsEntryBefore = readLock(dir).verdicts['has-doc-comment']['node:services/payments'];
       await okMock.close();

@@ -35,10 +35,14 @@ const distExists = existsSync(BIN_PATH);
 // block; the committed fixture bytes are never mutated.
 //
 // MODEL — `yg approve` / `.drift-state/` are GONE. Verification happens via
-// `yg check --approve` (fill); state lives in `.yggdrasil/yg-lock.json` (a single
-// repo-wide file, with the per-node log baseline under `nodes.<path>.log`). The
-// git-recovery workflows therefore move source + log.md + yg-lock.json together
-// (the old trio moved the per-node `.drift-state/<node>.json` instead). The
+// `yg check --approve` (fill); state lives in the 5.1.0 lock TRIAD under
+// `.yggdrasil/`: `yg-lock.nondeterministic.json` (committed — LLM verdicts),
+// `yg-lock.logs.json` (committed — the per-node source fingerprint + log
+// baseline), and `.yg-lock.deterministic.json` (the deterministic-aspect
+// verdicts; gitignored in a real repo but tracked here in the throwaway repo).
+// The git-recovery workflows therefore move source + log.md + the lock triad
+// together (the old trio moved the per-node `.drift-state/<node>.json` instead,
+// and the interim single `yg-lock.json` is no longer written or read). The
 // "source drift" vocabulary is replaced by `unverified`.
 //
 // SCOPE — Supersedes convention, the `yg log read` FORMAT-VIOLATION surfacing
@@ -325,15 +329,19 @@ describe.skipIf(!distExists)('CLI E2E — log remaining: supersedes, read format
   });
 
   // =========================================================================
-  // 6. GIT FULL-REVERT — restore source + log + yg-lock.json together
+  // 6. GIT FULL-REVERT — restore source + log + the lock triad together
   //
-  // Move source, log.md, and yg-lock.json together with one `git checkout HEAD~1
-  // --`. All three move as a unit → no unverified pairs, integrity intact, and a
-  // subsequent fill is clean. (The old contract moved the per-node
-  // `.drift-state/<node>.json`; the lock is now a single repo-wide file.)
+  // Move source, log.md, and the committed lock triad files together with one
+  // `git checkout HEAD~1 --`. They all move as a unit → no unverified pairs,
+  // integrity intact, and a subsequent fill is clean. (The old contract moved
+  // the per-node `.drift-state/<node>.json`; the lock is now the 5.1.0 triad —
+  // `yg-lock.nondeterministic.json` + `yg-lock.logs.json` carry the source
+  // fingerprint + log baseline, and `.yg-lock.deterministic.json` carries the
+  // deterministic verdicts. All three are tracked in this throwaway repo, so
+  // reverting them together moves the whole baseline.)
   // =========================================================================
 
-  it('6A: reverting source + log + yg-lock.json together leaves no unverified/integrity error; fill is clean (exit 0)', () => {
+  it('6A: reverting source + log + the lock triad together leaves no unverified/integrity error; fill is clean (exit 0)', () => {
     const dir = initRepo('full-revert');
     try {
       // Commit A: baseline entry + fill.
@@ -349,12 +357,14 @@ describe.skipIf(!distExists)('CLI E2E — log remaining: supersedes, read format
       git(dir, 'add -A');
       git(dir, 'commit -qm commitB');
 
-      // Revert all three files together to commit A.
+      // Revert source + log + the full lock triad together to commit A.
       git(
         dir,
         'checkout HEAD~1 -- src/services/orders.ts ' +
           '.yggdrasil/model/services/orders/log.md ' +
-          '.yggdrasil/yg-lock.json',
+          '.yggdrasil/yg-lock.nondeterministic.json ' +
+          '.yggdrasil/yg-lock.logs.json ' +
+          '.yggdrasil/.yg-lock.deterministic.json',
       );
       // Source reverted, log back to one entry.
       expect(readFileSync(ordersFile(dir), 'utf-8')).not.toContain('regret');
@@ -375,14 +385,16 @@ describe.skipIf(!distExists)('CLI E2E — log remaining: supersedes, read format
   });
 
   // 6B: the PARTIAL-revert pitfall the contract warns against — restoring
-  // source + log but NOT yg-lock.json. The stale lock still holds commit B's
-  // source hash AND its log baseline datetime (entry two), which no longer exists
-  // after the log revert. So check reports BOTH an `unverified` pair (the source
-  // hash no longer matches the stale lock entry) AND a `log-integrity
-  // (boundary_missing)` error — demonstrating WHY all three files must move as a
-  // unit. (The old contract referenced a per-node `.drift-state/<node>.json`; the
-  // single repo-wide yg-lock.json now carries both the source and log baselines.)
-  it('6B: partial revert (source + log, NOT yg-lock.json) yields unverified + boundary_missing (exit 1)', () => {
+  // source + log but NOT the lock triad. The stale lock still holds commit B's
+  // source hash (in `.yg-lock.deterministic.json`) AND its log baseline datetime
+  // (entry two, in `yg-lock.logs.json`), which no longer exists after the log
+  // revert. So check reports BOTH an `unverified` pair (the source hash no longer
+  // matches the stale deterministic verdict) AND a `log-integrity
+  // (boundary_missing)` error — demonstrating WHY all the baseline files must move
+  // as a unit. (The old contract referenced a per-node `.drift-state/<node>.json`;
+  // the 5.1.0 triad now carries the source baseline in the deterministic file and
+  // the log baseline in the logs file.)
+  it('6B: partial revert (source + log, NOT the lock triad) yields unverified + boundary_missing (exit 1)', () => {
     const dir = initRepo('partial-revert');
     try {
       expect(run(['log', 'add', '--node', 'services/orders', '--reason', 'entry one'], dir).status).toBe(0);
@@ -396,13 +408,17 @@ describe.skipIf(!distExists)('CLI E2E — log remaining: supersedes, read format
       git(dir, 'add -A');
       git(dir, 'commit -qm commitB');
 
-      // Restore ONLY source + log; leave yg-lock.json at commit B.
+      // Restore ONLY source + log; leave the lock triad at commit B.
       git(
         dir,
         'checkout HEAD~1 -- src/services/orders.ts .yggdrasil/model/services/orders/log.md',
       );
-      // Guard: the lock was not touched (still present from commit B).
-      expect(existsSync(path.join(dir, '.yggdrasil', 'yg-lock.json'))).toBe(true);
+      // Guard: the lock was not touched (still present from commit B). The stale
+      // source hash lives in the deterministic file and the stale log baseline in
+      // the logs file — both must still be the commit-B versions for both errors
+      // to fire.
+      expect(existsSync(path.join(dir, '.yggdrasil', '.yg-lock.deterministic.json'))).toBe(true);
+      expect(existsSync(path.join(dir, '.yggdrasil', 'yg-lock.logs.json'))).toBe(true);
 
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);

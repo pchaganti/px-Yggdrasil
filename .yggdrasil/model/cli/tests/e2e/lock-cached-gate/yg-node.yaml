@@ -6,6 +6,6 @@ description: "Subprocess E2E for cached refusals, the deterministic-first gate,
   deterministic check skips a node's LLM calls, and provider failure leaves
   prior entries intact. Real spawned binary with an in-process mock reviewer."
 aspects: []
-relations: [ { target: cli/tests/e2e/support, type: uses } ]
+relations: [ { target: cli/tests/e2e/support, type: uses }, { target: cli/io/lock-store, type: uses } ]
 mapping:
   - source/cli/tests/e2e/cli-lock-cached-gate.test.ts

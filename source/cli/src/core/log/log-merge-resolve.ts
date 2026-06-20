@@ -191,7 +191,9 @@ export async function logMergeResolve(input: LogMergeResolveInput): Promise<LogM
     const entry = lock.nodes[nodePath] ?? {};
     entry.log = baseline;
     lock.nodes[nodePath] = entry;
-    await writeLock(yggRoot, lock);
+    // Only the `nodes` section changed — write just the logs file (no verdict
+    // partition, so no deterministicAspectIds needed).
+    await writeLock(yggRoot, lock, { scope: 'logs' });
   }
 
   return { ok: true, nodePath };

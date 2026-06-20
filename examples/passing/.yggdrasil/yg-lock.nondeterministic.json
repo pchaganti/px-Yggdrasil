@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "verdicts": {
+    "requires-audit": {
+      "node:payments": {"hash":"646f6ca16a60df6ad4c9312784d7a3e43273947e3352c0c3a2987f07387f6770","verdict":"approved"}
+    }
+  },
+  "nodes": {
+  }
+}

@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { rm, stat } from 'node:fs/promises';
 import type { Migration, MigrationResult } from '../core/migrator.js';
+import { splitLock } from './split-lock.js';
 
 type StepResult = { actions: string[]; warnings: string[] };
 type MigrationStep = (yggRoot: string) => Promise<StepResult>;
@@ -27,11 +28,11 @@ async function removeSchemasDirectory(yggRoot: string): Promise<StepResult> {
 // Each concern that targets 5.1.0 is a STEP. Other agent sessions add their
 // 5.1.0 step to this array; the migration aggregates the steps' actions and
 // warnings. Keep steps idempotent so a re-run is safe.
-const STEPS: MigrationStep[] = [removeSchemasDirectory];
+const STEPS: MigrationStep[] = [removeSchemasDirectory, splitLock];
 
 export const migration: Migration = {
   to: '5.1.0',
-  description: 'Remove the schemas/ directory; schema references move to the `yg schemas` command.',
+  description: 'Remove the schemas/ directory (now served by `yg schemas`); split the lock into committed LLM + log files and a gitignored deterministic cache.',
   async run(yggRoot: string): Promise<MigrationResult> {
     const actions: string[] = [];
     const warnings: string[] = [];

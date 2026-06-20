@@ -17,6 +17,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMockReviewer, runAsync, type ChatReply } from './support/mock-reviewer.js';
+import { readLock } from '../../src/io/lock-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '..', '..');
@@ -26,18 +27,11 @@ const distExists = existsSync(BIN_PATH);
 
 const cfgPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-config.yaml');
 const ordersFile = (dir: string) => path.join(dir, 'src', 'services', 'orders.ts');
-const lockPath = (dir: string) => path.join(dir, '.yggdrasil', 'yg-lock.json');
-
-/** Parse the lock file. */
-function lock(dir: string): {
-  verdicts: Record<string, Record<string, { hash: string; verdict: string; reason?: string }>>;
-} {
-  return JSON.parse(readFileSync(lockPath(dir), 'utf-8'));
-}
+const yggPath = (dir: string) => path.join(dir, '.yggdrasil');
 
 /** The recorded lock entry (hash + verdict) for one aspect/unit pair, serialized. */
 function lockEntry(dir: string, aspectId: string, unitKey: string): string {
-  const v = lock(dir).verdicts[aspectId]?.[unitKey];
+  const v = readLock(yggPath(dir)).verdicts[aspectId]?.[unitKey];
   return JSON.stringify(v);
 }
 

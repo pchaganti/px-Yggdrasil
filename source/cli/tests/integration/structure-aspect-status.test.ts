@@ -93,9 +93,33 @@ interface Lock {
   nodes: Record<string, { source?: string }>;
 }
 
+// The 5.1.0 lock is a three-file triad under .yggdrasil/. The legacy single
+// yg-lock.json is no longer written. has-readme is a deterministic aspect, so
+// its verdicts land in the gitignored .yg-lock.deterministic.json; the nodes
+// section lands in yg-lock.logs.json; LLM verdicts in yg-lock.nondeterministic.json.
+// Merge whatever files exist into the unified shape (each file is independently
+// optional — an absent file contributes empty state), mirroring readLock() in
+// src/io/lock-store.ts.
+const TRIAD_FILES = [
+  'yg-lock.nondeterministic.json',
+  'yg-lock.logs.json',
+  '.yg-lock.deterministic.json',
+];
+
+function anyTriadFileExists(root: string): boolean {
+  return TRIAD_FILES.some((f) => existsSync(path.join(root, '.yggdrasil', f)));
+}
+
 function readLock(root: string): Lock {
-  const lockPath = path.join(root, '.yggdrasil', 'yg-lock.json');
-  return JSON.parse(readFileSync(lockPath, 'utf-8')) as Lock;
+  const merged: Lock = { verdicts: {}, nodes: {} };
+  for (const fileName of TRIAD_FILES) {
+    const filePath = path.join(root, '.yggdrasil', fileName);
+    if (!existsSync(filePath)) continue;
+    const parsed = JSON.parse(readFileSync(filePath, 'utf-8')) as Partial<Lock>;
+    Object.assign(merged.verdicts, parsed.verdicts ?? {});
+    Object.assign(merged.nodes, parsed.nodes ?? {});
+  }
+  return merged;
 }
 
 function setStatus(root: string, status: 'draft' | 'advisory' | 'enforced'): void {
@@ -123,7 +147,7 @@ describe.skipIf(!distExists)('deterministic aspect-status integration', () => {
     const check = run(['check'], root);
     expect(check.status).toBe(0);
 
-    if (existsSync(path.join(root, '.yggdrasil', 'yg-lock.json'))) {
+    if (anyTriadFileExists(root)) {
       const lock = readLock(root);
       expect(lock.verdicts['has-readme']).toBeUndefined();
     }
