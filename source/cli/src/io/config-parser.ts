@@ -367,6 +367,10 @@ function parseTier(name: string, raw: unknown, filename: string): LlmConfig {
     temperature: typeof c.temperature === 'number' ? c.temperature : 0,
     consensus: consensusRaw as number,
     timeout: typeof c.timeout === 'number' ? c.timeout * 1000 : undefined,
+    // api_key is read from the tier's config: block (most often supplied via the
+    // gitignored yg-secrets.yaml overlay). Excluded from the verdict hash
+    // (tierHashView folds only the tier NAME), so rotating it invalidates nothing.
+    ...(typeof c.api_key === 'string' ? { api_key: c.api_key } : {}),
     ...(max_prompt_chars !== undefined ? { max_prompt_chars } : {}),
   };
 }

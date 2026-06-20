@@ -157,7 +157,7 @@ async function promptPlatform(): Promise<Platform> {
 // Reviewer configuration flow
 // ---------------------------------------------------------------------------
 
-function needsApiKey(provider: ReviewerProvider): boolean {
+export function needsApiKey(provider: ReviewerProvider): boolean {
   return !CLI_PROVIDERS.includes(provider) && provider !== 'ollama';
 }
 
@@ -352,7 +352,16 @@ async function runReviewerConfigFlow(): Promise<{
 // Write reviewer config into yg-config.yaml
 // ---------------------------------------------------------------------------
 
-async function writeReviewerConfig(
+/**
+ * Name of the single tier `yg init` bootstraps. Shared by writeReviewerConfig
+ * (which defines the tier in yg-config.yaml) and writeSecretsFile (which writes
+ * the tier's api_key into the yg-secrets.yaml overlay) so the two never drift —
+ * the secrets file is a 1:1 deep-merge overlay over the config and must address
+ * the SAME tier.
+ */
+export const BOOTSTRAP_TIER_NAME = 'standard';
+
+export async function writeReviewerConfig(
   yggRoot: string,
   config: { provider: ReviewerProvider; model: string; endpoint?: string },
 ): Promise<void> {
@@ -380,7 +389,7 @@ async function writeReviewerConfig(
 
   raw.reviewer = {
     tiers: {
-      standard: {
+      [BOOTSTRAP_TIER_NAME]: {
         provider: config.provider,
         consensus: 1,
         max_prompt_chars: 50000,
@@ -396,9 +405,8 @@ async function writeReviewerConfig(
 // Write API key to yg-secrets.yaml
 // ---------------------------------------------------------------------------
 
-async function writeSecretsFile(
+export async function writeSecretsFile(
   yggRoot: string,
-  provider: ReviewerProvider,
   apiKey: string,
 ): Promise<void> {
   const secretsPath = path.join(yggRoot, 'yg-secrets.yaml');
@@ -414,15 +422,27 @@ async function writeSecretsFile(
     debugWrite(`[init] writeSecretsFile: ${secretsPath} not found (${e.message}), starting fresh`);
   }
 
+  // yg-secrets.yaml is a 1:1 deep-merge overlay over yg-config.yaml — it mirrors
+  // the SAME shape. The API key belongs to the tier's `config:` block (where the
+  // reviewer reads it from the resolved tier), NOT a provider-level bucket: the
+  // reviewer: section accepts only `default` and `tiers`, and distinct tiers may
+  // use distinct providers — so the credential is per-tier, not per-provider.
   if (!raw.reviewer || typeof raw.reviewer !== 'object') {
     raw.reviewer = {};
   }
   const reviewerSection = raw.reviewer as Record<string, unknown>;
-
-  if (!reviewerSection[provider] || typeof reviewerSection[provider] !== 'object') {
-    reviewerSection[provider] = {};
+  if (!reviewerSection.tiers || typeof reviewerSection.tiers !== 'object') {
+    reviewerSection.tiers = {};
   }
-  (reviewerSection[provider] as Record<string, unknown>).api_key = apiKey;
+  const tiers = reviewerSection.tiers as Record<string, unknown>;
+  if (!tiers[BOOTSTRAP_TIER_NAME] || typeof tiers[BOOTSTRAP_TIER_NAME] !== 'object') {
+    tiers[BOOTSTRAP_TIER_NAME] = {};
+  }
+  const tier = tiers[BOOTSTRAP_TIER_NAME] as Record<string, unknown>;
+  if (!tier.config || typeof tier.config !== 'object') {
+    tier.config = {};
+  }
+  (tier.config as Record<string, unknown>).api_key = apiKey;
 
   await writeFile(secretsPath, yamlStringify(raw), { encoding: 'utf-8', mode: 0o600 });
 }
@@ -470,7 +490,7 @@ async function freshInit(projectRoot: string): Promise<void> {
 
   await writeReviewerConfig(yggRoot, reviewerConfig);
   if (reviewerConfig.apiKey) {
-    await writeSecretsFile(yggRoot, reviewerConfig.provider, reviewerConfig.apiKey);
+    await writeSecretsFile(yggRoot, reviewerConfig.apiKey);
   }
 
   await ensureGitattributes(projectRoot);
@@ -613,7 +633,7 @@ async function existingInit(projectRoot: string): Promise<void> {
       const reviewerConfig = await runReviewerConfigFlow();
       await writeReviewerConfig(yggRoot, reviewerConfig);
       if (reviewerConfig.apiKey) {
-        await writeSecretsFile(yggRoot, reviewerConfig.provider, reviewerConfig.apiKey);
+        await writeSecretsFile(yggRoot, reviewerConfig.apiKey);
       }
       p.outro(chalk.green('Reviewer configured.'));
       break;

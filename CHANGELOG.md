@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.1] - 2026-06-20
+
+### Fixed
+
+- **`yg init` wrote the reviewer API key to a location that broke the next `yg check` — and the key was never actually used.** For every provider that requires an API key (`openai`, `anthropic`, `google`, `openai-compatible`), `yg init` (and the "Change reviewer" reconfigure flow) wrote the key into `yg-secrets.yaml` at a provider-level bucket — `reviewer.<provider>.api_key`. But `yg-secrets.yaml` is a 1:1 deep-merge overlay over `yg-config.yaml`, where the `reviewer:` section accepts only `default` and `tiers`; after the overlay merged, the very next `yg check` failed to parse the config with `config-reviewer-unknown-key` ("unknown key '<provider>' under reviewer:"). The key now lands where the schema, the docs, and the overlay contract already say it belongs: inside the bootstrapped tier's `config:` block — `reviewer.tiers.standard.config.api_key`. Separately, the config parser never copied `config.api_key` out of a tier into the resolved reviewer configuration, so even a hand-placed, correctly-shaped key was silently dropped and only the `*_API_KEY` environment-variable fallback ever worked; the parser now plumbs the tier's `api_key` through. The key stays excluded from the verdict hash (only the tier name is an input), so configuring or rotating a key invalidates no recorded verdicts.
+
 ## [5.1.0] - 2026-06-20
 
 ### Added

@@ -1,0 +1,15 @@
+name: E2E Tests — init API-key secrets shape
+type: test-suite
+description: "Subprocess E2E proving that yg init writes the reviewer API key as a
+  1:1 yg-secrets overlay inside the bootstrapped tier's config (not a provider-
+  level bucket) for every key-requiring provider, that the merged config parses
+  under a real yg check, and that the tier's api_key is actually resolved."
+aspects: []
+relations:
+  - { target: cli/commands/init, type: uses }
+  - { target: cli/io/parsers/config, type: uses }
+  - { target: cli/llm/shared, type: uses }
+  - { target: cli/utils, type: uses }
+  - { target: cli/templates-platform, type: uses }
+mapping:
+  - source/cli/tests/e2e/cli-init-secrets-shape.test.ts
