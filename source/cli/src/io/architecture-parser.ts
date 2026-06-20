@@ -1,3 +1,4 @@
+// yg-suppress(silent-missing-files) Reads a declared, expected graph file; a missing one is a real graph error, so throwing is correct. silent-missing-files governs the loader's optional-directory handling (aspects/, flows/), not parser reads of expected files.
 import { readFile } from 'node:fs/promises';
 import { parse as parseYaml } from 'yaml';
 import type { ArchitectureDef, ArchitectureNodeType, AspectStatus, RelationType } from '../model/graph.js';
