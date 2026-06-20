@@ -152,6 +152,8 @@ export async function companion(ctx) {
 
 The hook returns `Array<{ path: string, label?: string }>` — whole files only; there is no line-range or slicing feature. `label` is an optional human-readable tag that appears in the live reviewer prompt. The hook may read and parse files to decide which paths to return, but it returns paths, never file content.
 
+**Purity requirement:** Like `check.mjs`, the companion hook must be pure — no file writes, no network calls, no `process.exit`. An impure hook yields non-deterministic observations; the runner retries once and then fails closed (reported as `aspect-companion-runtime-error`).
+
 Returned paths may be absolute or repo-root-relative. The runner normalizes them to repo-root-relative POSIX, dedupes, and sorts them — so the prompt and the hash are deterministic regardless of the hook's return order. A path that escapes the repo root is an infra-fail (the existing allowed-reads guard).
 
 **Returning `[]` is valid** — the unit is reviewed with only its subject files, and no companion block appears in the prompt. To signal an error condition (a missing required counterpart, for example), throw an exception — the hook's job is to resolve paths, not to judge.
@@ -174,7 +176,7 @@ The companion hook is bounded by the same allowed-reads set as `check.mjs`: the 
 
 ### How companion files are injected
 
-Resolved companion files appear in a distinct `<companions>` block in the reviewer prompt, separate from the `<references>` block (static references) and `<source-files>` (the unit's own source). The companions block is absent when the hook returns `[]`. Companion files count toward the tier's `max_prompt_chars` gate, exactly like subject and reference files.
+Resolved companion files appear in a distinct `<companions>` block in the reviewer prompt, separate from the `<references>` block (static references) and `<source-files>` (the unit's own source). The companions block is absent when the hook returns `[]`. Companion files count toward the tier's `max_prompt_chars` gate, exactly like subject and reference files. On a companion-bearing pair's first fill the prompt-size check runs at fill time, before the reviewer is called (not at `yg check` time), because the companion bytes are only known once the hook resolves — so a too-large companion prompt is caught and billed nothing on that first approve.
 
 **`yg-suppress` is honored only from the `<source-files>` block.** A suppress marker inside a companion file is ignored — companions are read-only reference material, not the unit under judgment.
 

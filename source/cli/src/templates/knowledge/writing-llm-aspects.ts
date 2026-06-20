@@ -245,6 +245,13 @@ mapping, declared-relation targets, ancestors, and own descendants.
 Attempting to read outside this set is an allowed-reads violation and causes
 an infra-fail (nothing written, pair stays unverified).
 
+### Purity requirement
+
+Like \`check.mjs\`, the companion hook must be pure — no file writes, no network
+calls, no \`process.exit\`. An impure hook yields non-deterministic observations;
+the runner retries once and then fails closed (reported as
+\`aspect-companion-runtime-error\`).
+
 ### Assembly failure
 
 If the hook throws, returns a bad shape, returns a path that does not exist,
@@ -311,6 +318,14 @@ const data = ctx.parseYaml('docs/config.yaml');
 - \`aspect-companion-with-check\` — \`companion.mjs\` is present alongside
   \`check.mjs\`. Companion files are an LLM add-on only.
 
+### Testing companion hooks
+
+Use \`yg aspect-test --aspect <id> --node <path> --dry-run\` to run the hook
+live and inspect the resolved companion paths and assembled prompt without
+making a reviewer call or writing the lock. (The ad-hoc \`--files\` mode is
+unavailable for companion aspects — they need a node's relations to resolve;
+always use \`--node\`.)
+
 ### Cost
 
 - **Editing \`companion.mjs\`** re-verifies ALL pairs of the aspect (same as
@@ -318,6 +333,8 @@ const data = ctx.parseYaml('docs/config.yaml');
 - **Editing a resolved companion file** re-verifies only the pairs that
   observed it — like editing a subject file, not a full re-bill.
 - **\`companion.mjs\`** appears in the aspect's \`read:\` listing (\`yg context\`).
+- To see which pairs read a specific companion file (its re-verification
+  fan-out): \`yg impact --file <path>\`.
 
 ## Reference files
 
