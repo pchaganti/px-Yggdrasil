@@ -343,7 +343,7 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
     expect(entry?.hash).not.toBe(withoutCompanion);
   });
 
-  it('tainted on BOTH runs → 2 hook runs, 0 reviewer calls, infra (callsMade:0), no write', async () => {
+  it('tainted on BOTH runs → 2 hook runs, 0 reviewer calls, companion-runtime-error (callsMade:0), no write', async () => {
     const { projectRoot } = await setupProject({
       aspects: [{
         id: 'llm-taint',
@@ -376,8 +376,9 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
     expect(mockRunCompanionHook).toHaveBeenCalledTimes(2);
     expect(reviewerCalls).toBe(0);
     expect(result.reviewerCallsMade).toBe(0);
-    // Infra disposition — counted, nothing written.
-    expect(result.infraFailures).toBeGreaterThan(0);
+    // Companion-runtime-error disposition — counted separately, nothing written.
+    expect(result.companionRuntimeErrors).toBeGreaterThan(0);
+    expect(result.infraFailures).toBe(0);
     expect(readLock(graph.rootPath).verdicts['llm-taint']?.['node:svc']).toBeUndefined();
     expect(result.checkResult.issues.some((i) => i.code === 'unverified')).toBe(true);
   });
@@ -435,8 +436,12 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
 
     expect(reviewerCalls).toBe(0);
     expect(result.reviewerCallsMade).toBe(0);
-    expect(result.infraFailures).toBeGreaterThan(0);
+    // Hook-throw is a companion-runtime-error, not an infra failure.
+    expect(result.companionRuntimeErrors).toBeGreaterThan(0);
+    expect(result.infraFailures).toBe(0);
     expect(readLock(graph.rootPath).verdicts['llm-throw']?.['node:svc']).toBeUndefined();
+    // The per-pair message contains the token.
+    expect(w.text()).toContain('aspect-companion-runtime-error');
     // The companion message (carrying the hook throw) reaches the diagnostics sink.
     expect(w.text()).toMatch(/companion/i);
   });
@@ -465,7 +470,9 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
 
     expect(reviewerCalls).toBe(0);
     expect(result.reviewerCallsMade).toBe(0);
-    expect(result.infraFailures).toBeGreaterThan(0);
+    // A missing companion path is a companion-runtime-error, not an infra failure.
+    expect(result.companionRuntimeErrors).toBeGreaterThan(0);
+    expect(result.infraFailures).toBe(0);
     expect(readLock(graph.rootPath).verdicts['llm-missing']?.['node:svc']).toBeUndefined();
   });
 
@@ -515,7 +522,9 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
 
     expect(reviewerCalls).toBe(0);
     expect(result.reviewerCallsMade).toBe(0);
-    expect(result.infraFailures).toBeGreaterThan(0);
+    // Out-of-reach path is a companion-runtime-error, not an infra failure.
+    expect(result.companionRuntimeErrors).toBeGreaterThan(0);
+    expect(result.infraFailures).toBe(0);
     expect(readLock(graph.rootPath).verdicts['llm-out']?.['node:svc']).toBeUndefined();
     // The NEXT frames svc as the relation SOURCE and other (the owner) as TARGET —
     // and NEVER interpolates the .md/unit as the relation site.
@@ -523,7 +532,7 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
     expect(w.text()).toContain('.yggdrasil/model/svc/yg-node.yaml');
   });
 
-  it('bad shape (non-array return) → infra (callsMade:0), no write', async () => {
+  it('bad shape (non-array return) → companion-runtime-error (callsMade:0), no write', async () => {
     const { projectRoot } = await setupProject({
       aspects: [{
         id: 'llm-badshape',
@@ -541,7 +550,9 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
     const result = await runFill(graph, { gitTrackedFiles: null, write: () => {} });
     expect(reviewerCalls).toBe(0);
     expect(result.reviewerCallsMade).toBe(0);
-    expect(result.infraFailures).toBeGreaterThan(0);
+    // A bad-shape companion return is a companion-runtime-error, not an infra failure.
+    expect(result.companionRuntimeErrors).toBeGreaterThan(0);
+    expect(result.infraFailures).toBe(0);
     expect(readLock(graph.rootPath).verdicts['llm-badshape']?.['node:svc']).toBeUndefined();
   });
 
@@ -692,5 +703,65 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
     });
     expect(entry?.hash).toBe(plainHash);
     expect(companionHashFor(aspect)).toBeUndefined();
+  });
+
+  // ── New tests: aspect-companion-runtime-error token + summary ────────────────
+
+  it('hook throw → per-pair message contains aspect-companion-runtime-error token', async () => {
+    // When a companion hook throws, the per-pair message emitted to the sink must
+    // contain the token "aspect-companion-runtime-error", mirroring the det pair's
+    // "aspect-check-runtime-error" token. The fill must NOT count it as infraFailures.
+    const { projectRoot } = await setupProject({
+      aspects: [{
+        id: 'llm-token',
+        kind: 'llm',
+        status: 'enforced',
+        rule: 'rule',
+        companion: 'export function companion() { throw new Error("boom"); }\n',
+      }],
+    });
+    const graph = await loadGraph(projectRoot);
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider());
+
+    const w = makeWriter();
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
+
+    // Per-pair token assertion (mirrors det: what: contains "aspect-companion-runtime-error").
+    expect(w.text()).toContain('aspect-companion-runtime-error');
+    // Counted as companionRuntimeErrors, not infraFailures.
+    expect(result.companionRuntimeErrors).toBe(1);
+    expect(result.infraFailures).toBe(0);
+    // No verdict written; pair stays unverified.
+    expect(readLock(graph.rootPath).verdicts['llm-token']?.['node:svc']).toBeUndefined();
+    expect(result.checkResult.issues.some((i) => i.code === 'unverified')).toBe(true);
+  });
+
+  it('fill summary contains aspect-companion-runtime-error token when any companion hook fails', async () => {
+    // The fill summary line must contain the token, mirroring the det summary:
+    // "${n} companion resolution(s) failed to run at fill time — left unverified
+    // (aspect-companion-runtime-error)."
+    const { projectRoot } = await setupProject({
+      aspects: [{
+        id: 'llm-summary',
+        kind: 'llm',
+        status: 'enforced',
+        rule: 'rule',
+        companion: 'export function companion() { throw new Error("summary-test"); }\n',
+      }],
+    });
+    const graph = await loadGraph(projectRoot);
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider());
+
+    const w = makeWriter();
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
+
+    expect(result.companionRuntimeErrors).toBe(1);
+    // The SUMMARY line (emitted once at the end) carries the token and the count.
+    const text = w.text();
+    expect(text).toContain('companion resolution(s) failed to run at fill time');
+    expect(text).toContain('aspect-companion-runtime-error');
+    // The token appears at least twice: once in the per-pair what: and once in the summary.
+    const occurrences = text.split('aspect-companion-runtime-error').length - 1;
+    expect(occurrences).toBeGreaterThanOrEqual(2);
   });
 });

@@ -248,10 +248,15 @@ an infra-fail (nothing written, pair stays unverified).
 ### Assembly failure
 
 If the hook throws, returns a bad shape, returns a path that does not exist,
-or returns a path outside the allowed-reads set, the pair fails closed:
-nothing is written, the pair stays unverified, and the error is reported as
-\`aspect-companion-runtime-error\`. The hook never judges code — any judgment
-logic belongs in the LLM reviewer via \`content.md\`.
+returns a path outside the allowed-reads set, or produces an observation set
+that stays inconsistent across two runs, the pair fails closed: nothing is
+written, the pair stays unverified, and \`yg check --approve\` reports the
+per-pair what/why/next message with the token
+\`aspect-companion-runtime-error\`. A summary line is also emitted at the end
+of the fill run: "N companion resolution(s) failed to run at fill time —
+left unverified (aspect-companion-runtime-error)." This mirrors the
+deterministic \`aspect-check-runtime-error\` pattern exactly. The hook never
+judges code — any judgment logic belongs in the LLM reviewer via \`content.md\`.
 
 ### yg-suppress in companion files
 

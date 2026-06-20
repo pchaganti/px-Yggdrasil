@@ -175,9 +175,14 @@ export async function fillLlmPair(
   if (aspect.hasCompanion === true) {
     const resolved = await resolveCompanions(graph, projectRoot, pair, aspect);
     if (resolved.kind === 'infra') {
-      // Fail closed — NOTHING written, the reviewer is never called (callsMade: 0).
+      // Companion hook/resolution runtime failure — fail closed, NOTHING written,
+      // reviewer never called (callsMade: 0). Counted and summarized as
+      // aspect-companion-runtime-error, the mirror of aspect-check-runtime-error.
+      // Pass the original messageData so its why:/next: (e.g. the relation-source/
+      // target guidance from companionOutsideAllowedReads) is preserved in the
+      // per-pair message while the token-bearing what: is injected.
       debugWrite(`[fill] companion resolution failed for ${aspect.id} on ${pair.unitKey}: ${resolved.messageData.what}`);
-      return { kind: 'infra', why: resolved.why, messageData: resolved.messageData, callsMade: 0 };
+      return { kind: 'companion-runtime-error', why: resolved.why, messageData: companionRuntimeNotice(aspect.id, pair.unitKey, resolved.why, resolved.messageData), callsMade: 0 };
     }
     companions = resolved.companions.promptCompanions;
     observations = resolved.companions.observations;
@@ -290,4 +295,35 @@ export async function fillLlmPair(
   if (observations.length > 0) entry.touched = observations;
   if (verdict === 'refused') entry.reason = response.reason;
   return { kind: 'verdict', entry, callsMade: consensus };
+}
+
+/**
+ * Structured diagnostic for a companion hook/resolution runtime failure — the
+ * direct mirror of detRuntimeNotice in fill-det.ts. Used for all hook-resolution
+ * failures: hook threw / import or syntax error / bad return shape / tainted-twice /
+ * resolved path missing / resolved path outside allowed-reads.
+ *
+ * The token `aspect-companion-runtime-error` appears in `what:` so callers and
+ * tests can assert on it exactly as they do for `aspect-check-runtime-error`.
+ * It is a message token, NOT a registered CheckCode — never add it to
+ * STRUCTURAL_CODES or APPROVE_GATING_CODES.
+ *
+ * When the resolution failure produced a detailed `messageData` (e.g. the
+ * allowed-reads violation with a relation-source/target NEXT), that detail is
+ * preserved: `what:` is replaced with the token-bearing form, but `why:` and
+ * `next:` from `originalMessageData` are kept so actionable guidance is not lost.
+ */
+export function companionRuntimeNotice(aspectId: string, unitKey: string, reason: string, originalMessageData?: IssueMessage): IssueMessage {
+  // why: combines the original what+why so the full diagnostic text (including the
+  // specific failure kind — "companion hook threw", "expected an array of", etc.) is
+  // always surfaced. The original next: is threaded through so actionable guidance
+  // (e.g. "declare a relation from X to Y") is not discarded.
+  const combinedWhy = originalMessageData
+    ? `${originalMessageData.what} ${originalMessageData.why}`
+    : `The companion.mjs crashed, returned an invalid result, or its observations changed mid-run: ${reason}`;
+  return {
+    what: `Companion resolution for '${aspectId}' failed to run on ${toPosixPath(unitKey)} — left unverified (aspect-companion-runtime-error).`,
+    why: combinedWhy,
+    next: originalMessageData?.next ?? `Fix the companion.mjs, then re-run: yg check --approve`,
+  };
 }

@@ -229,12 +229,15 @@ status: enforced                   # optional — aspect-level default. enum: dr
                                    # unit is reviewed with subject files only).
                                    #
                                    # Throw to assert a requirement that cannot be satisfied —
-                                   # the throw becomes an infra-fail (nothing written, pair stays
-                                   # unverified, reported as aspect-companion-runtime-error).
+                                   # the throw becomes a companion-runtime-error (nothing written,
+                                   # pair stays unverified, reported as aspect-companion-runtime-error).
                                    #
                                    # Assembly failure — hook throws, bad return shape, a returned path
-                                   # does not exist, or a path outside the allowed-reads set — is an
-                                   # infra-fail. The hook never judges code; it only resolves paths.
+                                   # does not exist, a path outside the allowed-reads set, or
+                                   # observations stayed inconsistent across two runs — is a
+                                   # companion-runtime-error, counted and summarized separately from
+                                   # provider/infra failures. The hook never judges code; it only
+                                   # resolves paths.
                                    #
                                    # yg-suppress markers in companion files are IGNORED — suppression
                                    # is scoped to subject files only.

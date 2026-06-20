@@ -20,16 +20,20 @@ export type DetFillOutcome =
  *  (consensus-inclusive). Infra causes:
  *    - reference unreadable (a declared reference file could not be read);
  *    - provider error / unparseable response (the reviewer could not produce a verdict);
- *    - companion-assembly failure (companion.mjs threw / returned a bad shape /
- *      a resolved path is missing / a resolved path is outside allowed-reads /
- *      observations stayed inconsistent across two runs). A companion-assembly
- *      failure is decided BEFORE the reviewer runs, so its `callsMade` is 0.
- *  The infra disposition also carries structured `messageData` ({ what, why, next })
- *  so the failure is self-describing at the point it is produced — the bare `why`
- *  stays for callers that fold it into their own surrounding message. */
+ *    - prompt-too-large gate (assembled prompt exceeds the tier limit).
+ *  A companion-runtime-error is a distinct disposition for hook-resolution failures
+ *  (companion.mjs threw / returned a bad shape / a resolved path is missing / a
+ *  resolved path is outside allowed-reads / observations stayed inconsistent across
+ *  two runs). It is decided BEFORE the reviewer runs (callsMade: 0), counted
+ *  separately, and reported as aspect-companion-runtime-error — the exact mirror of
+ *  aspect-check-runtime-error for deterministic pairs.
+ *  Both dispositions carry structured `messageData` ({ what, why, next }) so the
+ *  failure is self-describing at the point it is produced. The bare `why` stays for
+ *  callers that fold it into their own surrounding message. */
 export type LlmFillOutcome =
   | { kind: 'verdict'; entry: VerdictEntry; callsMade: number }
-  | { kind: 'infra'; why: string; messageData?: IssueMessage; callsMade: number };
+  | { kind: 'infra'; why: string; messageData?: IssueMessage; callsMade: number }
+  | { kind: 'companion-runtime-error'; why: string; messageData: IssueMessage; callsMade: 0 };
 
 /**
  * Read a file's raw bytes, returning an empty Buffer when the file is missing or

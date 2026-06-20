@@ -62,7 +62,7 @@ import type { IssueMessage } from '../model/validation.js';
 import { debugWrite } from '../utils/debug-log.js';
 import { toPosixPath } from '../utils/posix.js';
 import { fillDetPair } from './fill-det.js';
-import { fillLlmPair } from './fill-llm.js';
+import { fillLlmPair, companionRuntimeNotice } from './fill-llm.js';
 import { runPairPool } from './fill-pool.js';
 import { logGateBlocks } from './fill-log-gate.js';
 import { applyPositiveClosure } from './fill-closure.js';
@@ -95,6 +95,8 @@ export interface RunFillResult {
   infraFailures: number;
   /** Deterministic pairs whose check.mjs failed to run / tainted (no write). */
   runtimeErrors: number;
+  /** LLM pairs whose companion.mjs failed to resolve/run (no write). */
+  companionRuntimeErrors: number;
 }
 
 /** Abort sentinel — the structural gate failed; no fills ran. */
@@ -201,6 +203,7 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
   let reviewerCallsMade = 0;
   let infraFailures = 0;
   let runtimeErrors = 0;
+  let companionRuntimeErrors = 0;
 
   // ── Step 5: Deterministic fills FIRST (free). ─────────────────────────────
   // A node with an enforced det refusal (fresh OR cached-valid) skips its LLM
@@ -321,7 +324,7 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
       // next run resumes only the rest (§7). Infra dispositions write nothing.
       // setEntry's mutation is synchronous and persistLock serializes the disk
       // writes, so concurrent pool workers cannot corrupt the lock.
-      if (outcome.kind !== 'infra') {
+      if (outcome.kind === 'verdict') {
         await setEntry(item.pair.aspectId, item.pair.unitKey, outcome.entry);
         write(`  [llm] ${item.pair.aspectId} on ${toPosixPath(item.pair.unitKey)} — ${outcome.entry.verdict}\n`);
       }
@@ -334,13 +337,18 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
       const item = group[i];
       const outcome = outcomes[i];
       reviewerCallsMade += outcome.callsMade;
-      if (outcome.kind === 'infra') {
+      if (outcome.kind === 'companion-runtime-error') {
+        // Companion hook/resolution failure — counted separately, emitted with the
+        // per-pair aspect-companion-runtime-error notice (already structured). No
+        // infra counter increment — these are NOT provider/config failures.
+        companionRuntimeErrors += 1;
+        emitIssue(outcome.messageData);
+      } else if (outcome.kind === 'infra') {
         infraFailures += 1;
         infraReport.push({ provider: baseTier.provider, tier: tierName });
         // Prefer the outcome's self-describing messageData when present (mirrors
-        // the det loop) — a companion-assembly failure carries a precise
-        // what/why/next (e.g. the relation-source/target to declare); the generic
-        // provider/config message is the fallback for a bare `why`.
+        // the det loop); the generic provider/config message is the fallback for a
+        // bare `why`.
         if (outcome.messageData) {
           emitIssue(outcome.messageData);
         } else {
@@ -370,7 +378,7 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
   await garbageCollectAndRewrite(graph, lock, persistLock);
 
   // ── Step 9: Summaries + re-run the read. ──────────────────────────────────
-  if (reviewerCallsMade === 0 && infraFailures === 0 && runtimeErrors === 0) {
+  if (reviewerCallsMade === 0 && infraFailures === 0 && runtimeErrors === 0 && companionRuntimeErrors === 0) {
     write('0 reviewer calls made — all expected pairs hold valid verdicts\n');
   }
   if (infraFailures > 0) {
@@ -379,8 +387,8 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
     const ids = [providers, tiers].filter((s) => s.length > 0).join(' / ');
     emitIssue({
       what: `${infraFailures} pairs failed on provider/config errors — re-running will not help until the connection/config is fixed${ids ? ` (${ids})` : ''}.`,
-      why: 'These pairs hit an infrastructure disposition (provider unreachable, tier unresolved, reference unreadable, an unparseable response, or a companion-assembly failure — companion.mjs threw / returned a bad shape / a resolved path is missing or outside allowed-reads / observations stayed inconsistent across two runs). No verdict was written; the pairs stay unverified and the run ends red.',
-      next: 'Fix the reviewer connection/configuration (or the companion.mjs / its returned paths — see the per-pair messages above), then re-run: yg check --approve. To unblock CI without a reviewer, set the affected aspect(s) to status: draft.',
+      why: 'These pairs hit an infrastructure disposition (provider unreachable, tier unresolved, reference unreadable, an unparseable response, or a prompt-too-large gate). No verdict was written; the pairs stay unverified and the run ends red.',
+      next: 'Fix the reviewer connection/configuration, then re-run: yg check --approve. To unblock CI without a reviewer, set the affected aspect(s) to status: draft.',
     });
   }
   if (runtimeErrors > 0) {
@@ -390,10 +398,17 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
       next: 'Fix the failing check.mjs, then re-run: yg check --approve.',
     });
   }
+  if (companionRuntimeErrors > 0) {
+    emitIssue({
+      what: `${companionRuntimeErrors} companion resolution(s) failed to run at fill time — left unverified (aspect-companion-runtime-error).`,
+      why: 'A companion.mjs crashed, returned an invalid result, or its observations changed mid-run. No verdict was written.',
+      next: 'Fix the failing companion.mjs, then re-run: yg check --approve.',
+    });
+  }
 
   // Make sure all queued writes have flushed before the final read.
   await writeChain;
 
   const checkResult = await runCheck(graph, opts.gitTrackedFiles);
-  return { checkResult, reviewerCallsMade, infraFailures, runtimeErrors };
+  return { checkResult, reviewerCallsMade, infraFailures, runtimeErrors, companionRuntimeErrors };
 }
