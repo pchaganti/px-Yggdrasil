@@ -1,0 +1,13 @@
+name: E2E Tests — Meta-modeling
+type: test-suite
+description: "Subprocess E2E tests proving the graph can model files under its own
+  .yggdrasil/ directory: the mapping, references, companion, and companion ctx.fs
+  channels all reach a mapped enforcer check; the built-in relation check does not
+  false-positive on the mapped check; and removing the relation that authorizes the
+  companion/ctx.fs read fails closed while references and mapping still pass."
+aspects: []
+relations:
+  - target: cli/tests/e2e/support
+    type: uses
+mapping:
+  - source/cli/tests/e2e/cli-meta-modeling-integration.test.ts

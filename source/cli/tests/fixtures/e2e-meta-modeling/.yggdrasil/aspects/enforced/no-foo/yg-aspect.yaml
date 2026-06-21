@@ -1,0 +1,3 @@
+name: NoFoo
+description: Application source must not contain a forbidden token. (Deterministic enforcer.)
+status: enforced

@@ -1,0 +1,5 @@
+name: Payloads
+description: Reachable payload files the companion may read or inject.
+type: payload
+mapping:
+  - payloads/*.txt

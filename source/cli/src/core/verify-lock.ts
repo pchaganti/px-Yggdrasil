@@ -9,12 +9,14 @@
  *   - classify each pair as verified / refused / unverified / prompt-too-large.
  *
  * This engine NEVER executes a reviewer and NEVER executes a deterministic
- * check.mjs. For deterministic pairs it re-OBSERVES the stored observation keys
- * (read:/list:/exists:/graph:) against current disk state — a value that changed
- * (or a file/node that vanished) yields a mismatch ⇒ unverified, never a throw
- * (spec §3.1). The fill stage (B2) is the only place check.mjs and the reviewer
- * run; this engine and the fill stage share the same input-assembly helpers so a
- * verdict the fill writes verifies here without re-running anything.
+ * check.mjs. It MAY run an LLM aspect's companion.mjs (the dependency resolver,
+ * never a judge) to size the §4 prompt-size gate over the REAL injected companions
+ * — see the gate below. For deterministic pairs it re-OBSERVES the stored
+ * observation keys (read:/list:/exists:/graph:) against current disk state — a
+ * value that changed (or a file/node that vanished) yields a mismatch ⇒ unverified,
+ * never a throw (spec §3.1). The fill stage (B2) is the only place check.mjs and
+ * the reviewer run; this engine and the fill stage share the same input-assembly
+ * helpers so a verdict the fill writes verifies here without re-running anything.
  *
  * Gate representation (the oversized-but-valid case, spec §3.1 / §4):
  *   - If a pair's stored entry is MISSING or its hash MISMATCHES and its assembled
@@ -52,6 +54,8 @@ import { computeExpectedPairs } from './pairs.js';
 import { selectTierForAspect } from './tier-selection.js';
 import { assembledPromptChars } from '../llm/prompt.js';
 import type { PromptReferenceInput, PromptFileInput, PromptCompanionInput } from '../llm/prompt.js';
+import { resolveCompanionsForPair } from './companion-resolve.js';
+import type { IssueMessage } from '../model/validation.js';
 
 // ============================================================
 // Public types
@@ -62,7 +66,8 @@ export type PairState =
   | { kind: 'verified' }
   | { kind: 'refused'; reason?: string } // valid entry, verdict refused
   | { kind: 'unverified' } // missing entry or hash mismatch
-  | { kind: 'prompt-too-large'; chars: number; limit: number; tierName: string };
+  | { kind: 'prompt-too-large'; chars: number; limit: number; tierName: string }
+  | { kind: 'companion-error'; messageData: IssueMessage }; // companion.mjs could not resolve during the §4 gate
 
 /**
  * A verified pair: the expected pair plus its computed state.
@@ -216,28 +221,27 @@ async function verifyLlmPair(
     touchedNow.push([key, await reObserve(key, graph, pair.nodePath, projectRoot, readBytes)]);
   }
 
-  // ── Rebuild the label-free companion set for the §4 size gate. fill assembled
-  //    the prompt WITH the resolved companion bytes (buildPairPrompt), so the gate
-  //    must measure them too or it would under-count a companion-heavy prompt. The
-  //    only durable record of which files were companions is the stored touched
-  //    read:<path> keys — re-read each one's CURRENT bytes (a read: key that no
-  //    longer resolves to a file is a hook/graph observation, not a companion, and
-  //    is skipped). assembledPromptChars strips labels (Task 2), so verify (which
-  //    cannot reconstruct labels) measures the SAME label-free <companions>. ──
-  const gateCompanions: PromptCompanionInput[] = [];
-  for (const [key] of stored) {
-    const rel = companionReadPath(key);
-    if (rel === undefined) continue;
-    const bytes = await readBytes(path.resolve(projectRoot, rel));
-    if (bytes === null) continue; // vanished → not a measurable companion this run
-    gateCompanions.push({ path: rel, content: bytes.toString('utf8') });
-  }
-
   // ── Prompt-size gate (§4): only when a tier resolves and sets a limit. ──
+  // For a companion aspect the companion set is resolved LIVE here (the same
+  // resolver fill / --dry-run use), NOT reconstructed from the stored `touched`
+  // read: keys: those conflate the hook's DECISION reads (ctx.fs / ctx.graph) with
+  // the files it actually INJECTS, so they would size the prompt at the whole
+  // reachable set instead of the few returned companions. This is why plain
+  // `yg check` MAY run companion.mjs (the resolver, never a judge) — it still runs
+  // no check.mjs and calls no reviewer. A companion that cannot resolve here cannot
+  // be assembled or sized → surface a clear diagnostic (companion-error).
   let gate: { chars: number; limit: number; tierName: string } | undefined;
   if (tierResult?.ok) {
     const limit = tierResult.tier.max_prompt_chars;
     if (limit !== undefined) {
+      let gateCompanions: PromptCompanionInput[] = [];
+      if (aspect.hasCompanion === true) {
+        const resolved = await resolveCompanionsForPair(graph, projectRoot, pair, aspect);
+        if (resolved.kind === 'infra') {
+          return { pair, state: { kind: 'companion-error', messageData: resolved.messageData } };
+        }
+        gateCompanions = resolved.companions.promptCompanions;
+      }
       const chars = assembledPromptChars({
         aspect: {
           id: aspect.id,
@@ -458,18 +462,6 @@ async function reObserve(
     default:
       return MISSING_OBSERVATION;
   }
-}
-
-/**
- * Extract the repo-relative path from a companion `read:<path>` observation key,
- * or undefined when the key is not a `read:` key (graph/list/exists/graph-* keys
- * are hook observations, NOT companion files, and must not be measured by the
- * size gate as companion content). The caller still confirms the path resolves to
- * a real file before counting it — a `read:` key whose file vanished is no longer
- * a measurable companion this run.
- */
-function companionReadPath(key: string): string | undefined {
-  return key.startsWith('read:') ? key.slice('read:'.length) : undefined;
 }
 
 async function listDir(absDir: string): Promise<Array<{ name: string; kind: 'file' | 'dir' }> | null> {

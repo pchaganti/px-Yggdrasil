@@ -1,0 +1,13 @@
+name: E2E Tests — Companion Prompt-Size Gate
+type: test-suite
+description: "Subprocess E2E tests for the verify-lock prompt-size gate on
+  companion-bearing LLM aspects: a companion that reads a large file but injects a
+  small one is measured at the injected size (not the decision-read), an over-limit
+  prompt reports the real char count, and a broken companion surfaces a clear
+  diagnostic when a tier limit is set."
+aspects: []
+relations:
+  - target: cli/tests/e2e/support
+    type: uses
+mapping:
+  - source/cli/tests/e2e/cli-companion-size-integration.test.ts

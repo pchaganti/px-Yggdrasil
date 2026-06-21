@@ -1,0 +1,14 @@
+node_types:
+  doc:
+    description: 'Requirement-like documents reviewed by an LLM aspect that ships a companion.'
+    log_required: false
+    when:
+      path: "references/**"
+    relations:
+      uses: [payload]
+
+  payload:
+    description: 'Reachable payload files the companion may read (decision reads) or inject.'
+    log_required: false
+    when:
+      path: "payloads/**"

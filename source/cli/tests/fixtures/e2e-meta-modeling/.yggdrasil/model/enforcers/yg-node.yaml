@@ -1,0 +1,7 @@
+name: Enforcers
+description: Meta node — maps the enforcer check files under .yggdrasil/ so they become graph subjects.
+type: enforcer
+mapping:
+  - .yggdrasil/aspects/enforced/**/check.mjs
+aspects:
+  - meta/maps-check

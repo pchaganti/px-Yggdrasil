@@ -598,12 +598,14 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
     expect(entry?.hash).toBe(expectedHash);
   });
 
-  it('companion prompt over max_prompt_chars on FIRST fill → infra (callsMade:0), no write, message names aspect + pair', async () => {
+  it('companion prompt over max_prompt_chars on FIRST fill → verify-lock gate (prompt-too-large), reviewer never called, no write', async () => {
     // Build a project whose companion content makes the assembled prompt exceed a
-    // deliberately tiny max_prompt_chars limit. On the FIRST fill there is no
-    // stored lock entry, so verify-lock would classify the pair as `unverified`
-    // (not prompt-too-large) and fill would proceed. The fill-time gate added in
-    // fill-llm.ts must intercept BEFORE the reviewer is called.
+    // deliberately tiny max_prompt_chars limit. verify-lock now resolves the
+    // companion LIVE — even on a first fill with no stored entry — so it classifies
+    // the pair as `prompt-too-large` directly; fill SKIPS prompt-too-large pairs
+    // (gate precedence), so the reviewer is never called and nothing is written.
+    // (The fill-time gate in fill-llm.ts remains as defense-in-depth; it no longer
+    // needs to fire here because verify-lock catches the over-limit prompt first.)
     const LARGE_COMPANION_CONTENT = 'x'.repeat(10_000); // large enough to exceed 500-char limit
     const root = await mkdtemp(path.join(tmpdir(), 'yg-fill-sizelimit-'));
     dirs.push(root);
@@ -612,10 +614,9 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
     await mkdir(path.join(root, 'src'), { recursive: true });
     // Set a limit that is above the base prompt (~1.2k chars without companions)
     // but below the companion-augmented prompt (~11k chars with the large file).
-    // This exercises the specific bug: verify-lock sees only the base prompt on
-    // first fill (no stored entry → cannot reconstruct companion bytes) and
-    // classifies the pair as `unverified`; the fill-time gate in fill-llm.ts
-    // must catch it BEFORE the reviewer runs.
+    // verify-lock resolves the companion live and measures the augmented prompt, so
+    // it classifies the pair prompt-too-large on the first fill — before the
+    // reviewer ever runs.
     const cfgWithLimit =
       'reviewer:\n  tiers:\n    standard:\n      provider: ollama\n      consensus: 1\n      max_prompt_chars: 2000\n      config:\n        model: llama3\n        temperature: 0\n';
     await writeFile(path.join(yggRoot, 'yg-config.yaml'), cfgWithLimit);
@@ -661,16 +662,88 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
     // ZERO reviewer calls — the gate intercepted before the reviewer ran.
     expect(reviewerCalls).toBe(0);
     expect(result.reviewerCallsMade).toBe(0);
-    // The gate returned an infra disposition — counted, nothing written.
-    expect(result.infraFailures).toBeGreaterThan(0);
+    // No infra failure: the pair is a gate SKIP (prompt-too-large), not an infra
+    // disposition — fill never ran it, so it bills nothing and writes nothing.
+    expect(result.infraFailures).toBe(0);
     // No lock entry for the pair.
     expect(readLock(graph.rootPath).verdicts['llm-toolarge']?.['node:svc']).toBeUndefined();
-    // The message names the aspect and char count / limit information.
-    const output = w.text();
-    expect(output).toContain('llm-toolarge');
-    expect(output).toContain('2000');
-    // The pair stays unverified (yg check would report it).
-    expect(result.checkResult.issues.some((i) => i.code === 'unverified')).toBe(true);
+    // The verify-lock gate reported the pair as prompt-too-large, naming the aspect
+    // and the tier limit (caught from the live-measured companion prompt). The
+    // message is on the trailing check report, not the fill-stage emission stream.
+    const ptl = result.checkResult.issues.find((i) => i.code === 'prompt-too-large');
+    expect(ptl).toBeDefined();
+    expect(ptl!.messageData.what).toContain('llm-toolarge');
+    expect(ptl!.messageData.what).toContain('2000');
+  });
+
+  // Shared scaffold: a per:node LLM aspect whose companion.mjs THROWS, with a tier
+  // limit set so verify-lock runs the resolver live to size the gate. The hook throws
+  // → the pair is classified companion-error (a clear diagnostic), the reviewer is
+  // never called, and nothing is written. `status` flips enforced/advisory rendering.
+  async function buildThrowingCompanionProject(status: string): Promise<string> {
+    const root = await mkdtemp(path.join(tmpdir(), 'yg-fill-companion-throw-'));
+    dirs.push(root);
+    const yggRoot = path.join(root, '.yggdrasil');
+    await mkdir(path.join(yggRoot, 'model', 'svc'), { recursive: true });
+    await mkdir(path.join(root, 'src'), { recursive: true });
+    await writeFile(
+      path.join(yggRoot, 'yg-config.yaml'),
+      'reviewer:\n  tiers:\n    standard:\n      provider: ollama\n      consensus: 1\n      max_prompt_chars: 2000\n      config:\n        model: llama3\n        temperature: 0\n',
+    );
+    await writeFile(
+      path.join(yggRoot, 'yg-architecture.yaml'),
+      'node_types:\n  service:\n    description: s\n    log_required: false\n    relations:\n      uses: [service]\n',
+    );
+    await writeFile(path.join(root, 'src', 'svc.ts'), 'export const x = 1;\n');
+    await writeFile(
+      path.join(yggRoot, 'model', 'svc', 'yg-node.yaml'),
+      'name: svc\ntype: service\ndescription: x\nmapping:\n  - src/svc.ts\naspects:\n  - llm-throw\n',
+    );
+    const aspDir = path.join(yggRoot, 'aspects', 'llm-throw');
+    await mkdir(aspDir, { recursive: true });
+    await writeFile(path.join(aspDir, 'yg-aspect.yaml'), `name: llm-throw\ndescription: llm-throw rule\nreviewer:\n  type: llm\nstatus: ${status}\n`);
+    await writeFile(path.join(aspDir, 'content.md'), 'rule\n');
+    await writeFile(path.join(aspDir, 'companion.mjs'), 'export function companion() { throw new Error("companion boom"); }\n');
+    return root;
+  }
+
+  it('an enforced companion that throws during the verify-lock size gate → blocking companion-error, reviewer never called, nothing written', async () => {
+    const root = await buildThrowingCompanionProject('enforced');
+    const graph = await loadGraph(root);
+    let reviewerCalls = 0;
+    mockCreateLlmProvider.mockReturnValue(
+      makeMockProvider({
+        async verifyAspect() {
+          reviewerCalls++;
+          return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const };
+        },
+      }),
+    );
+
+    const result = await runFill(graph, { gitTrackedFiles: null, write: () => {} });
+
+    // Reviewer never called — the companion failed to resolve at the gate (gate precedence).
+    expect(reviewerCalls).toBe(0);
+    // The check report carries a clear, blocking companion-resolution diagnostic.
+    const ce = result.checkResult.issues.find((i) => i.code === 'aspect-companion-runtime-error');
+    expect(ce).toBeDefined();
+    expect(ce!.severity).toBe('error');
+    expect(ce!.messageData.what).toContain('llm-throw');
+    expect(JSON.stringify(ce!.messageData)).toContain('boom');
+    // Nothing written for the pair.
+    expect(readLock(graph.rootPath).verdicts['llm-throw']?.['node:svc']).toBeUndefined();
+  });
+
+  it('an advisory companion that throws during the size gate → companion-error renders as a non-blocking warning', async () => {
+    const root = await buildThrowingCompanionProject('advisory');
+    const graph = await loadGraph(root);
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider());
+
+    const result = await runFill(graph, { gitTrackedFiles: null, write: () => {} });
+
+    const ce = result.checkResult.issues.find((i) => i.code === 'aspect-companion-runtime-error');
+    expect(ce).toBeDefined();
+    expect(ce!.severity).toBe('warning');
   });
 
   it('plain LLM aspect (no companion) — hook is never run and the hash is companion-free', async () => {

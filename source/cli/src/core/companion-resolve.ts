@@ -7,19 +7,24 @@
  * allowed-reads, read each file, and return the resolved companion set + updated
  * observations.
  *
- * This helper has ONE responsibility. It must NOT:
- *   - call the reviewer
- *   - mutate the lock
- *   - contain the A6 taint guard (that is fill-llm's concern)
+ * `resolveCompanionDescriptors` (the post-hook helper) has ONE responsibility and
+ * must NOT call the reviewer, mutate the lock, or contain the A6 taint guard.
+ *
+ * `resolveCompanionsForPair` (added below) is the per-pair orchestrator shared by
+ * the fill path (yg check --approve) and the verify-lock §4 size gate (plain
+ * yg check): it runs the hook with the A6 taint-retry guard and then delegates to
+ * `resolveCompanionDescriptors`. It still never calls the reviewer or mutates the
+ * lock. (aspect-test keeps its own no-A6 diagnostic orchestration.)
  */
 
 import path from 'node:path';
 
 import type { Graph, AspectDef } from '../model/graph.js';
 import type { ExpectedPair } from './pairs.js';
+import { computeNodeMappedFiles } from './pairs.js';
 import type { PromptCompanionInput } from '../llm/prompt.js';
 import type { IssueMessage } from '../model/validation.js';
-import type { RunCompanionHookResult } from '../structure/hook-loader.js';
+import { runCompanionHook, type RunCompanionHookResult } from '../structure/hook-loader.js';
 import { toPosix, toPosixPath } from '../utils/posix.js';
 import { collectAllowedReadsForAspect } from '../structure/allowed-reads.js';
 import { resolveAllowedReadPath } from '../structure/ctx-fs.js';
@@ -143,4 +148,79 @@ export async function resolveCompanionDescriptors(
 
   const observations = [...obsByKey.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   return { kind: 'ok', companions, observations };
+}
+
+/**
+ * The resolved per-unit companion set: the read-only paired files (paths +
+ * content) for the prompt, and the read: observations that fold into the LLM pair
+ * hash so an edit to a companion file invalidates the verdict.
+ */
+export interface ResolvedCompanions {
+  promptCompanions: PromptCompanionInput[];
+  /** [observationKey, observationHash] — the union of the hook's own out-of-subject
+   *  observations AND a read: observation per companion file read here. Sorted +
+   *  deduped (the hash sorts but does not dedupe). */
+  observations: Array<[string, string]>;
+}
+
+/**
+ * Resolve an aspect's companion.mjs over the unit, with the A6 taint guard. Shared
+ * by the fill path (yg check --approve, BEFORE consensus) and the verify-lock §4
+ * size gate (plain yg check, to measure the REAL companion bytes). The whole
+ * resolution fails closed: a torn observation set (tainted twice), a hook throw, a
+ * bad shape, a missing path, or a path outside allowed-reads returns
+ * { kind: 'infra' } — NOTHING is written and the reviewer is never called.
+ *
+ * Mirrors the fill-det A6 taint guard (run once → retry once → still tainted → infra).
+ * This function NEVER calls the reviewer and NEVER mutates the lock.
+ */
+export async function resolveCompanionsForPair(
+  graph: Graph,
+  projectRoot: string,
+  pair: ExpectedPair,
+  aspect: AspectDef,
+): Promise<{ kind: 'ok'; companions: ResolvedCompanions } | { kind: 'infra'; why: string; messageData: IssueMessage }> {
+  const aspectDirAbs = path.join(projectRoot, '.yggdrasil', 'aspects', aspect.id);
+
+  // subjectScope mirrors fill-det: narrow iff the subject set is FEWER files than
+  // the node's full mapping (per:file, or per:node with a scope.files filter). A
+  // plain per:node aspect has subject == full mapping → undefined (legacy ctx).
+  const fullMapping = await computeNodeMappedFiles(graph, pair.nodePath);
+  const subjectScope = pair.subjectFiles.length < fullMapping.length ? pair.subjectFiles : undefined;
+
+  const runOnce = (): ReturnType<typeof runCompanionHook> =>
+    runCompanionHook({
+      aspectDir: aspectDirAbs,
+      aspectId: aspect.id,
+      nodePath: pair.nodePath,
+      graph,
+      projectRoot,
+      subjectScope,
+    });
+
+  // A6 taint guard: run once; a tainted set re-runs once; still tainted → infra.
+  let run = await runOnce();
+  if (run.kind === 'infra') {
+    return { kind: 'infra', why: `companion resolution failed: ${run.messageData.what}`, messageData: run.messageData };
+  }
+  if (run.observationsTainted) {
+    run = await runOnce();
+    if (run.kind === 'infra') {
+      return { kind: 'infra', why: `companion resolution failed: ${run.messageData.what}`, messageData: run.messageData };
+    }
+    if (run.observationsTainted) {
+      const what = `Companion resolution for aspect '${aspect.id}' on ${toPosixPath(pair.unitKey)} produced an inconsistent observation set across two runs.`;
+      const why = 'companion observations remained inconsistent across two runs (a file changed mid-resolution); a torn set cannot be hashed, so the fill fails closed and writes NOTHING — never paying the reviewer over a torn observation set.';
+      const next = 'Re-run once the working tree is stable: yg check --approve';
+      return { kind: 'infra', why: 'companion observations remained inconsistent across two runs', messageData: { what, why, next } };
+    }
+  }
+
+  // ── Delegate post-hook resolution to the shared helper (normalize, dedupe,
+  // sort, allowed-reads guard, readFileBytes, observations merge). ──
+  const resolved = await resolveCompanionDescriptors(graph, projectRoot, pair, aspect, run.descriptors, run.observations);
+  if (resolved.kind === 'infra') {
+    return { kind: 'infra', why: resolved.why, messageData: resolved.messageData };
+  }
+  return { kind: 'ok', companions: { promptCompanions: resolved.companions, observations: resolved.observations } };
 }

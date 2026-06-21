@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Meta-modeling — model and verify the graph's own rule files.** A new `yg knowledge read meta-modeling` topic (and a matching docs-site page) documents mapping files under `.yggdrasil/` into the graph so the rules can review the rules: the four ways a rule file reaches a reviewer (mapping → subject, static `references:`, per-unit `companion.mjs`, deterministic `ctx.fs`), the consequences (mapped checks are parsed by the built-in relation check and reviewed by every effective aspect; never map `.yggdrasil/**` wholesale — it would sweep in the committed lock), and how to keep the blast radius small. This is documentation over behaviour that already worked — no engine change — backed by end-to-end tests proving the mapping / reference / companion / `ctx.fs` channels reach a `.yggdrasil/` check and that removing the relation fails closed ("no relation → error").
+- **Aspect-authoring guidance: directory organization + positive vs negative rules.** `yg knowledge read aspects-overview` (and the Aspects doc) now explain that aspect ids may be nested in directories (a directory with no rule file is a pure organizational grouper; nesting is naming, not cascade), and that an aspect may be positive (something must be present) or negative (something must not be) — including the broad-negative-with-carve-out pattern: attach a prohibition at a parent and exclude the one node type allowed to do the forbidden thing via `when: { not: { node: { type: ... } } }`.
+
+### Fixed
+
+- **`prompt-too-large` over-counted companion-bearing LLM aspects on plain `yg check`.** The read-only size gate reconstructed a companion aspect's prompt from the stored `touched` read-keys, which conflate the files a `companion.mjs` hook merely READ to decide with the files it actually INJECTED — so a hook that read broadly (e.g. via `ctx.graph`) was measured at the size of its whole reachable set and falsely flagged `prompt-too-large`, even though `--dry-run` and the fill stage (which assemble the real companions) measured it correctly. `yg check` now resolves the companion LIVE — the same resolver the fill and `--dry-run` use — and measures only the injected files. A companion that fails to resolve during the gate surfaces a clear diagnostic naming the aspect, the unit, and the hook's error (instead of a generic unverified). Plain `yg check` may now run `companion.mjs` (the dependency resolver, never a judge) when a tier sets a size limit; it still never runs `check.mjs` and never calls a reviewer. An over-limit companion prompt is now caught at the check/verify stage even on a first fill (reviewer never billed, nothing written), rather than only at fill time.
+
 ## [5.1.1] - 2026-06-20
 
 ### Fixed

@@ -1,8 +1,9 @@
-name: Adopter Guides — Reviewers & Showcase
+name: Adopter Guides — Reviewers, Meta-modeling & Showcase
 type: doc-page
-description: "Task-oriented adopter documentation: the reviewers reference and the dogfood showcase."
+description: "Task-oriented adopter documentation: the reviewers reference, the meta-modeling deep dive, and the dogfood showcase."
 aspects: []
 relations: []
 mapping:
   - docs/reviewers.md
+  - docs/meta-modeling.md
   - docs/showcase.md

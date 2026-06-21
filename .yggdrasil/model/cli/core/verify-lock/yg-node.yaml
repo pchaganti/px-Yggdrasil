@@ -29,6 +29,8 @@ relations:
     type: uses
   - target: cli/model/lock
     type: uses
+  - target: cli/core/companion-resolve
+    type: calls
   - target: cli/structure
     type: calls
 mapping:

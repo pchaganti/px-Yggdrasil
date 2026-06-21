@@ -102,3 +102,11 @@ An LLM rule has two ways to bring in supporting material:
 - **Per-unit companion files (`companion.mjs`)** — a hook that resolves different files for each unit under review. Use this when each file being reviewed has a unique counterpart in another node — a scenario document paired with its matching test spec, a migration paired with its schema. The hook returns paths; the runner reads the files and injects them into that unit's prompt only. See [Reviewers — Per-unit companion files](/reviewers#per-unit-companion-files).
 
 The two mechanisms are independent. Static references are identical for every unit; companion files vary per unit. Both count toward the tier's `max_prompt_chars` prompt-size limit. See [Reviewers](/reviewers) for authoring depth on both.
+
+## Organizing rules in directories
+
+A rule's id is its folder path under the rules directory, so ids can nest: `logging/audit` lives at `logging/audit/`. A folder with no rule file of its own is just a grouper. Use nesting to keep a growing rule set legible — group related rules under a shared prefix instead of a flat list. Nesting is naming only; it does not make one rule inherit another. What a rule applies to comes from where it's attached (see [How a rule reaches your code](#how-a-rule-reaches-your-code)), never from where its files sit.
+
+## Positive and negative rules
+
+A rule can require something to be present ("every handler validates its input") or forbid something ("nothing reaches the data store directly") — that's just how the rule is worded. A powerful shape is a broad **negative** rule attached to a parent so it covers every component beneath it, with the one component type that's legitimately allowed to do the forbidden thing carved out — that type carries its own **positive** rules ensuring it does it correctly. The carve-out is a [conditional rule](/conditional-aspects): `when: { not: { node: { type: data-access } } }`. The pattern is general — "no raw outbound HTTP except the gateway", and so on.

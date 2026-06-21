@@ -1,0 +1,5 @@
+name: MapsCheck
+description: A mapped enforcer check file is reviewed as a subject (channel 1 — mapping into .yggdrasil/).
+reviewer:
+  type: llm
+status: enforced

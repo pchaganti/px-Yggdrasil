@@ -129,6 +129,19 @@ function emitPairIssue(vp: VerifiedPair): CheckIssue[] {
         aspectId: pair.aspectId,
       });
       break;
+    case 'companion-error':
+      // The companion resolver (run live to size the §4 gate) failed — the pair
+      // cannot be assembled. Surface the hook's own what/why/next so the agent
+      // diagnoses immediately. Enforced → error (blocks); advisory → warning.
+      issues.push({
+        severity: enforced ? 'error' : 'warning',
+        code: 'aspect-companion-runtime-error',
+        rule: 'aspect-companion-runtime-error',
+        messageData: state.messageData,
+        nodePath: pair.nodePath,
+        aspectId: pair.aspectId,
+      });
+      break;
   }
 
   // Valid-but-oversized: the verdict issue (if any) was already pushed above;
@@ -583,6 +596,11 @@ function computeSuggestedNext(issues: CheckIssue[]): string | null {
   // 4. prompt-too-large — size remedies.
   const promptTooLarge = errors.find(i => i.code === 'prompt-too-large');
   if (promptTooLarge) return promptTooLarge.messageData.next;
+
+  // 4b. companion-error — companion.mjs could not resolve during the size gate;
+  //     its own next carries the fix (stabilize the tree / declare the relation).
+  const companionError = errors.find(i => i.code === 'aspect-companion-runtime-error');
+  if (companionError) return companionError.messageData.next;
 
   // 5. log integrity / format.
   const logIntegrity = errors.find(i => i.code === 'log-integrity');

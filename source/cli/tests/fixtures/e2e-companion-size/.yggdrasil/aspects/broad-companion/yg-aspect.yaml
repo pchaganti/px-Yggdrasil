@@ -1,0 +1,7 @@
+name: BroadCompanion
+description: A document's stated payload contract must match the small paired payload.
+reviewer:
+  type: llm
+status: enforced
+scope:
+  per: file

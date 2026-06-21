@@ -1,0 +1,8 @@
+name: CitesCheck
+description: A requirement may CITE its enforcer check via references (channel 2 — static reference into .yggdrasil/).
+reviewer:
+  type: llm
+status: enforced
+references:
+  - path: .yggdrasil/aspects/enforced/no-foo/check.mjs
+    description: The enforcer check this requirement is realized by.

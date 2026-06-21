@@ -18,5 +18,7 @@ relations:
     type: calls
   - target: cli/core/pair-hash
     type: calls
+  - target: cli/core/pairs
+    type: calls
 mapping:
   - source/cli/src/core/companion-resolve.ts

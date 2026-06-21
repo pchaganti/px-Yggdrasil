@@ -1,0 +1,11 @@
+name: Requirements
+description: Requirement documents that cite (references) and audit (companion) their enforcer checks.
+type: requirement
+mapping:
+  - references/requirements/*.md
+relations:
+  - target: enforcers
+    type: uses
+aspects:
+  - meta/cites-check
+  - meta/audits-check

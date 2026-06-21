@@ -1,0 +1,20 @@
+node_types:
+  app:
+    description: 'Application source guarded by a deterministic enforcer aspect.'
+    log_required: false
+    when:
+      path: "src/**"
+
+  requirement:
+    description: 'Requirement documents that cite and audit their enforcer checks (meta-modeling).'
+    log_required: false
+    when:
+      path: "references/requirements/**"
+    relations:
+      uses: [enforcer]
+
+  enforcer:
+    description: 'Meta nodes that MAP enforcer check files under .yggdrasil/, so the graph models its own rules.'
+    log_required: false
+    when:
+      path: ".yggdrasil/aspects/enforced/**"

@@ -1,0 +1,7 @@
+name: App
+description: Application source guarded by the deterministic enforcer.
+type: app
+mapping:
+  - src/app.ts
+aspects:
+  - enforced/no-foo

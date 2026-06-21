@@ -1,5 +1,5 @@
 export const summary =
-  'What aspects are, when to create, LLM vs deterministic vs aggregating reviewer choice, scope, cost model per pair';
+  'What aspects are, when to create, LLM vs deterministic vs aggregating reviewer choice, scope, cost model per pair, directory organization, positive vs negative aspects';
 
 export const content = `# Aspects overview
 
@@ -192,4 +192,48 @@ Status is rendering only — it never changes a verdict's validity.
 
 Advisory never blocks; enforced always does; only \`draft\` removes a pair from the
 expected set. Deep reference: \`yg knowledge read aspect-status\`.
+
+## Organizing aspects in directories
+
+An aspect's id is its directory path under the aspects root, so ids can be NESTED:
+a rule file at \`<aspects-root>/logging/audit/\` has id \`logging/audit\`. A directory
+that holds no rule file is a pure organizational GROUPER — it just namespaces the
+aspects beneath it. Use this to keep a growing aspect set legible: group related
+rules under a common prefix (\`logging/...\`, \`security/...\`) instead of a flat pile
+of top-level ids, nesting as deep as the structure warrants.
+
+Directory nesting is NAMING only — it does NOT create inheritance or a cascade
+between aspects. A child-directory aspect does not inherit its parent directory's
+rules; cascade comes from the NODE hierarchy and the attach channels, never from
+where an aspect's files sit. When several aspects share a theme or attach point,
+prefer grouping them in a directory (and, for a multi-rule contract behind one
+name, an aggregating aspect) over leaving them scattered.
+
+## Positive and negative aspects
+
+An aspect can require something to BE present (positive — "every public handler
+validates its input") or forbid something from being present (negative — "no
+component reaches the data store directly"). This is purely how the rule file is
+worded: an LLM aspect's prose states the prohibition, a deterministic check returns
+a violation when the forbidden pattern appears. Both are first-class; neither needs
+a special mechanism.
+
+A common, powerful shape is a broad NEGATIVE aspect with a carved-out specialist.
+Attach the prohibition at a parent node so it cascades to every descendant, then
+EXCLUDE the one node type that is legitimately allowed to do the forbidden thing —
+the type that carries its own POSITIVE aspects enforcing that it does so correctly:
+
+\`\`\`yaml
+# "no direct data-store access" — everywhere EXCEPT the data-access layer, which
+# carries its own aspects ensuring it accesses the store correctly.
+when:
+  not:
+    node:
+      type: data-access
+\`\`\`
+
+The exclusion is a \`when\` predicate — deterministic, zero reviewer cost. The pattern
+is general, not storage-specific: "no raw outbound HTTP except the gateway node",
+"no logging-framework bypass except the logging adapter", and so on. Grammar:
+\`yg knowledge read conditional-aspects\`.
 `;

@@ -1,0 +1,7 @@
+name: AuditsCheck
+description: A requirement AUDITS its enforcer check, resolved per-document via companion (channel 3 — dynamic injection from .yggdrasil/; channel 4 — companion ctx.fs read of a .yggdrasil/ file).
+reviewer:
+  type: llm
+status: enforced
+scope:
+  per: file

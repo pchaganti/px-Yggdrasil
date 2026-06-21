@@ -1,0 +1,10 @@
+name: Docs
+description: Requirement-like documents, each reviewed with a paired small payload.
+type: doc
+mapping:
+  - references/*.md
+relations:
+  - target: payloads
+    type: uses
+aspects:
+  - broad-companion
