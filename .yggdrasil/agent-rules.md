@@ -78,7 +78,7 @@ Verification runs per `(aspect, unit)` pair. A **unit** is the subject of one ve
 
 Verification is all-or-nothing and repo-wide: `yg check --approve` fills EVERY unverified pair (deterministic first, free; then LLM). The only scoping flag is `--only-deterministic` (the free, keyless CI gate); `yg impact` is the pre-edit cost predictor. Deterministic checks run first; a node with an enforced deterministic refusal has its LLM pairs skipped that run, so a known-broken node never bills the reviewer. Refusals are cached like approvals.
 
-Interrupting `yg check --approve` is safe: finished verdicts are already committed to the lock; only in-flight pairs are lost and the next run resumes them. Always read the full raw output — no `| grep`, `| head`, `| tail`. The reviewer already ran; the output is the return on that cost.
+Interrupting `yg check --approve` is safe: finished verdicts are already committed to the lock; only in-flight pairs are lost and the next run resumes them. Read the raw output — never pipe it through `| grep`, `| head`, or `| tail`: those silently drop lines and the count you act on stops matching the count the build enforces. When the read-only wall is large, the SANCTIONED way to narrow it is `yg check --summary` (per-node counts only) or `yg check --top [N]` (the N highest-priority blocks; bare `--top` shows just the single suggested-next block) — both always print the TRUE aggregate `Errors (N)`/`Warnings (N)` header and preserve the real exit code, so a narrowed view can never read as a clean build. Orient with `--summary`/`--top`, then drill into a specific block with plain `yg check`. The reviewer already ran; the output is the return on that cost.
 
 A draft aspect produces no expected pairs — nothing is verified, nothing recorded. Advisory refusals render as warnings (never block `yg check`); enforced refusals render as errors (block `yg check`). Verdicts survive status flips, including a `draft` round-trip: an entry for unchanged inputs stays valid when the aspect returns to enforced.
 
@@ -113,6 +113,7 @@ Full lock format, hash ingredients, caching policy, merge procedure, garbage-col
 | `yg check` | Read-only, no LLM calls — re-hash lock verdicts, run the relation check live, validate coverage. Blocks CI. |
 | `yg check --approve` | Fill every unverified pair (deterministic first, then LLM), then report. The only writer of verdicts. |
 | `yg check --approve --only-deterministic` | Fill ONLY deterministic pairs (free, keyless), writing ONLY the gitignored cache; then report. The CI / pre-commit gate. |
+| `yg check --approve --dry-run` | Free cost preview — print the reviewer-call budget (an upper bound) + per-node breakdown, then exit 0 WITHOUT writing or calling the reviewer. |
 | `yg context --file <path>` | Show owning node, effective aspects (`read:` paths), dependencies |
 | `yg context --node <path>` | Show node overview — aspects (with subject-file counts), flows, dependents, log state, source files |
 | `yg aspect-test --aspect <id> --node <path>` | Diagnostic — run a check/reviewer live without touching the lock (`--dry-run` previews an LLM prompt; `--files` for ad-hoc and `--check-determinism`, both deterministic aspects only) |
@@ -131,6 +132,8 @@ Full command reference (`yg aspects`, `yg flows`, `yg owner`, `yg suppressions`,
 ### Impact and Cost
 
 Cost is counted per PAIR. `yg impact` shows which pairs an edit invalidates. For an LLM pair, re-verification is one reviewer request × the tier's consensus count × the number of units — so editing an LLM aspect that touches 20 single-unit nodes is at least 20 reviewer calls. A source-code edit re-verifies every effective non-draft pair whose subject set includes that file. Deterministic pairs run locally and cost zero LLM calls regardless of how many they touch. A `scope` edit (`per` or `files`) invalidates every pair of the aspect — it cascades exactly like a `content.md` edit; run `yg impact --aspect <id>` first. For `companion.mjs` aspects: editing `companion.mjs` re-bills all pairs; a resolved companion edit re-bills only its readers (use `yg impact --file` for fan-out). Plain LLM aspects are unaffected.
+
+Before a repo-wide fill, preview the bill for free: `yg check --approve --dry-run` runs the same classification and budget computation a real `--approve` would, prints the reviewer-call budget plus a per-node / per-aspect breakdown (deterministic pairs are free; each LLM pair shows its consensus call count), then exits 0 WITHOUT calling the reviewer or writing anything. Treat the number as an UPPER BOUND — a node with an enforced deterministic refusal has its LLM fills skipped, and a fresh refusal or infra disposition can leave a pair unfilled, so the real run bills at most that many calls. `yg impact` predicts the blast radius of one edit; `--dry-run` totals the bill across every currently-unverified pair right before you commit to it.
 
 When code doesn't match an aspect, five options:
 
@@ -475,7 +478,7 @@ Authorization rules (these live here — behavioral, not syntax):
 
 - You MUST NEVER write a suppress without explicit user confirmation — no exceptions.
 - You do not invent reasons — the user provides or approves them.
-- The marker applies contextually to surrounding code (function, class, block). At file level, it applies to the entire file.
+- A single-line marker waives ONLY the line directly below it; the bracket disable/enable form (or a bare disable that runs to end of file) waives a range. Suppress scope is resolved once into line ranges and every reviewer kind (LLM and deterministic) honors the exact same ranges — to waive a whole file, use the bracket form, never a single-line marker.
 
 When proposing a suppress (the only path to a written suppress):
 

@@ -483,6 +483,84 @@ reviewer:
       expect(cfg.reviewer?.tiers.main).toBeDefined();
       expect((cfg.reviewer?.tiers.main as unknown as Record<string, unknown>)['max_tokens']).toBeUndefined();
     });
+
+    // --- Retired-field silent-ignore boundary (docs no longer promise an error) ---
+    // The parser reads only the keys it recognizes; retired `quality.*` fields and
+    // unknown `config.*` keys under a tier are SILENTLY IGNORED (no error, no
+    // warning). This is distinct from the unknown-KEY guard, which still rejects a
+    // typo'd top-level key under `reviewer:` or a tier (see the two guard tests
+    // below). The docs previously claimed a clear unknown-key error for retired
+    // fields — these tests pin the true behavior.
+
+    it('retired quality.max_node_chars is silently ignored (parses cleanly)', async () => {
+      const cfg = await parseWithYaml(`reviewer:
+  tiers:
+    main:
+      provider: claude-code
+      consensus: 1
+      config: { model: haiku }
+quality:
+  max_node_chars: 12000
+`);
+      // Resolves without error; the retired field is dropped, the recognized
+      // quality field still defaults.
+      expect(cfg.reviewer?.tiers.main).toBeDefined();
+      expect(cfg.quality?.max_direct_relations).toBe(10);
+      expect((cfg.quality as unknown as Record<string, unknown>)['max_node_chars']).toBeUndefined();
+    });
+
+    it('retired per-tier references: cap block under config is silently ignored', async () => {
+      const cfg = await parseWithYaml(`reviewer:
+  tiers:
+    main:
+      provider: claude-code
+      consensus: 1
+      config:
+        model: haiku
+        references:
+          max_bytes: 4096
+`);
+      expect(cfg.reviewer?.tiers.main).toBeDefined();
+      expect(cfg.reviewer?.tiers.main.model).toBe('haiku');
+    });
+
+    it('config.context_length_field is silently ignored (mirrors max_tokens)', async () => {
+      // context_length_field was never read by the parser; like max_tokens it is an
+      // unrecognized config: key and must not cause a parse error.
+      const cfg = await parseWithYaml(`reviewer:
+  tiers:
+    main:
+      provider: claude-code
+      consensus: 1
+      config:
+        model: haiku
+        context_length_field: num_ctx
+`);
+      expect(cfg.reviewer?.tiers.main).toBeDefined();
+      expect((cfg.reviewer?.tiers.main as unknown as Record<string, unknown>)['context_length_field']).toBeUndefined();
+    });
+
+    it('a typo under reviewer: STILL rejects config-reviewer-unknown-key (distinct from silent-ignore)', async () => {
+      await expect(parseWithYaml(`reviewer:
+  defualt: main
+  tiers:
+    main:
+      provider: claude-code
+      consensus: 1
+      config: { model: haiku }
+`)).rejects.toMatchObject({ code: 'config-reviewer-unknown-key' });
+    });
+
+    it('a typo at the tier top level STILL rejects config-tier-unknown-key (distinct from silent-ignore)', async () => {
+      await expect(parseWithYaml(`reviewer:
+  tiers:
+    main:
+      provider: claude-code
+      consesnsus: 1
+      consensus: 1
+      config: { model: haiku }
+`)).rejects.toMatchObject({ code: 'config-tier-unknown-key' });
+    });
   });
 
   it('defaults coverage to whole-repo required when absent', async () => {

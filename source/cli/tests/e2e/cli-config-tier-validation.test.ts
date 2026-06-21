@@ -544,6 +544,47 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
     }
   });
 
+  // =========================================================================
+  // GROUP I — omitted max_prompt_chars defaults to 50000 (the §4 gate is
+  // unconditional). A tier that leaves the key out still gates oversized prompts.
+  // =========================================================================
+
+  it('I1: a tier OMITTING max_prompt_chars still gates an oversized LLM prompt at the 50000 default (exit 1)', () => {
+    // The shared scaffold() writes NO mapping and NO source file, so an LLM aspect
+    // would form ZERO pairs and `yg check` would pass vacuously. This test therefore
+    // builds a node WITH a mapping, an oversized source file, and an LLM aspect so a
+    // real LLM pair forms — mirroring cli-scope-toolarge.test.ts. The tier omits
+    // max_prompt_chars; the assembled prompt (~60k chars) exceeds the 50000 default,
+    // so plain `yg check` (no --approve, no reviewer call) reports prompt-too-large.
+    const dir = scaffold('prompt-chars-default-gate', {
+      // Tier omits max_prompt_chars entirely.
+      configYaml: ['reviewer:', '  tiers:', VALID_TIER, ''].join('\n'),
+      // LLM aspect (reviewer.type: llm + content.md) so a billable LLM pair forms.
+      aspectYaml: ['name: Det', 'description: An LLM aspect over every file', 'reviewer:', '  type: llm', ''].join('\n'),
+      aspectRule: { file: 'content.md', body: 'Every file must satisfy the rule.\n' },
+    });
+    try {
+      const ygRoot = path.join(dir, '.yggdrasil');
+      // Give the node a real mapping + an oversized source file so a non-vacuous LLM
+      // pair forms whose assembled prompt exceeds the 50000 default.
+      mkdirSync(path.join(dir, 'src'), { recursive: true });
+      writeFileSync(path.join(dir, 'src', 'big.ts'), 'a'.repeat(60_000), 'utf-8');
+      writeFileSync(
+        path.join(ygRoot, 'model', 'widget', 'yg-node.yaml'),
+        ['name: Widget', 'description: A widget node', 'type: service', 'mapping:', '  - src/big.ts', 'aspects:', '  - det', ''].join('\n'),
+        'utf-8',
+      );
+
+      const { status, stdout } = run(['check'], dir);
+      expect(status).toBe(1);
+      // The §4 gate fired at the DEFAULT limit even though the tier omitted the key.
+      expect(stdout).toContain('prompt-too-large');
+      expect(stdout).toContain('50000');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('H2: an LLM aspect referencing a non-existent tier yields aspect-tier-unknown (exit 1)', () => {
     // The aspect PARSES fine (an unknown tier reference is not a parse error),
     // so the node references it and the validator-level checkAspectTierReferences

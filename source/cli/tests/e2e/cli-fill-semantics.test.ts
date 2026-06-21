@@ -261,4 +261,91 @@ describe.skipIf(!distExists)('CLI E2E — fill-stage semantics', () => {
       rmSync(dir, { recursive: true, force: true });
     }
   }, 30000);
+
+  // ===========================================================================
+  // (4) --approve --dry-run: a free cost preview that previews the budget with
+  //     ZERO reviewer calls and writes nothing, and a real --approve afterward
+  //     bills no more than the previewed upper bound.
+  // ===========================================================================
+
+  it('(4) dry-run previews the budget with 0 reviewer calls; real --approve then bills <= the preview', async () => {
+    const dir = copyFixture('dry-run-preview');
+    const mock = await startMockReviewer({ respond: () => ({ satisfied: true, reason: 'ok' }) });
+    try {
+      pointReviewer(dir, mock.endpoint);
+
+      // Preview: structural gate + classification + budget, but NO reviewer
+      // calls and NO writes.
+      const preview = await runAsync(['check', '--approve', '--dry-run'], dir);
+      expect(preview.status).toBe(0); // a preview never blocks.
+      expect(mock.chatCount()).toBe(0); // STRONG OBSERVABLE: zero reviewer calls.
+      // No committed lock file was created by the preview.
+      expect(existsSync(nondetLockPath(dir))).toBe(false);
+
+      // Parse the previewed reviewer-call budget from the header — it must be > 0
+      // (the fixture has effective enforced LLM pairs on the service nodes).
+      const m = preview.all.match(/—\s*\d+ deterministic \(no cost\),\s*(\d+) reviewer calls \(consensus included\)/);
+      expect(m).not.toBeNull();
+      const budget = Number(m![1]);
+      expect(budget).toBeGreaterThan(0);
+      // The upper-bound caveat is present.
+      expect(preview.all).toContain('UPPER BOUND');
+
+      // Now the REAL fill. It bills at most the previewed budget.
+      const real = await runAsync(['check', '--approve'], dir);
+      expect(real.status).toBe(0);
+      expect(mock.chatCount()).toBeGreaterThan(0);
+      expect(mock.chatCount()).toBeLessThanOrEqual(budget);
+      // The real run wrote the committed verdict file.
+      expect(existsSync(nondetLockPath(dir))).toBe(true);
+    } finally {
+      await mock.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  it('(4b) dry-run with nothing unverified previews a 0 budget, 0 reviewer calls, exit 0', async () => {
+    const dir = copyFixture('dry-run-clean');
+    const mock = await startMockReviewer({ respond: () => ({ satisfied: true, reason: 'ok' }) });
+    try {
+      pointReviewer(dir, mock.endpoint);
+
+      // First, a real fill to bring everything green.
+      const fill = await runAsync(['check', '--approve'], dir);
+      expect(fill.status).toBe(0);
+      const callsAfterFill = mock.chatCount();
+      expect(callsAfterFill).toBeGreaterThan(0);
+
+      // Now a preview: nothing is unverified, so the budget is 0 and no reviewer
+      // call is made.
+      const preview = await runAsync(['check', '--approve', '--dry-run'], dir);
+      expect(preview.status).toBe(0);
+      expect(preview.all).toMatch(/Filling 0 unverified pairs[\s\S]*?0 reviewer calls/);
+      expect(mock.chatCount()).toBe(callsAfterFill); // no new calls.
+    } finally {
+      await mock.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  it('(4c) dry-run on a broken config aborts with the same FillGatingError/exit 1 and writes no lock', async () => {
+    const dir = copyFixture('dry-run-broken-cfg');
+    try {
+      const cfg = cfgPath(dir);
+      const original = readFileSync(cfg, 'utf-8');
+      // Strip the entire reviewer: section — the project now has an effective
+      // enforced LLM aspect but no usable reviewer. The step-1 structural gate
+      // fires; a preview of an unrunnable --approve must surface that blocker.
+      writeFileSync(cfg, original.replace(/\nreviewer:[\s\S]*$/, '\n'), 'utf-8');
+
+      const preview = run(['check', '--approve', '--dry-run'], dir);
+      expect(preview.status).toBe(1); // the config gate aborts the preview.
+      expect(preview.all).toContain('no reviewer: section');
+      // FAIL-CLOSED: the gate aborts before the preview emits a budget — nothing
+      // was written.
+      expect(existsSync(nondetLockPath(dir))).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 30000);
 });

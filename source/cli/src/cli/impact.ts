@@ -14,9 +14,11 @@ import {
 } from '../core/graph/impact-graph.js';
 import {
   collectDescendants,
+  computeNodeFillCost,
   handleAspectImpact,
   handleFlowImpact,
   handleTypeImpact,
+  renderNodeFillCost,
 } from './impact-handlers.js';
 import { findOwner } from './owner.js';
 import { projectRootFromGraph, resolveFileArg } from '../io/paths.js';
@@ -92,6 +94,13 @@ export function registerImpactCommand(program: Command): void {
             }
             throw err;
           }
+
+          // Captured when --file resolves to an owner node, so the node-cost
+          // block below can scope its reviewer-call estimate to the edited file.
+          // Declared in the outer handler scope because the --file block's local
+          // `repoRelative` is out of scope at the node-cost render site, and
+          // `options.node` is overwritten with the owner path before then.
+          let editedRepoRel: string | undefined;
 
           // Resolve --file to --node (structural owner) + cascade-via-reference scan
           if (options.file) {
@@ -196,7 +205,10 @@ export function registerImpactCommand(program: Command): void {
               return; // unreachable — keeps TS narrowing ownerResult.nodePath to string
             }
 
-            // Structural owner found — continue to regular node impact
+            // Structural owner found — continue to regular node impact. Capture
+            // the resolved file (repo-relative POSIX, matching subjectFiles) so
+            // the node-cost block scopes its estimate to this file.
+            editedRepoRel = repoRelative;
             process.stdout.write(`${ownerResult.file} -> ${ownerResult.nodePath}\n`);
             options.node = ownerResult.nodePath;
           }
@@ -409,8 +421,10 @@ export function registerImpactCommand(program: Command): void {
             `\nBlast radius: ${allAffected.size} nodes, ${flows.length} flows, ${aspectsInScope.length} aspects\n`,
           );
           process.stdout.write(
-            `  Editing this node re-verifies its own pairs on the next yg check --approve; ` +
-            `the ${allAffected.size} dependent node(s) above are where a behavioural change may need review.\n`,
+            renderNodeFillCost(
+              await computeNodeFillCost(graph, nodePath, lock, editedRepoRel),
+              editedRepoRel ? 'file' : 'node',
+            ),
           );
           if (allAffected.size >= 10) {
             process.stdout.write(`  High blast radius — review direct dependents before changing this node.\n`);

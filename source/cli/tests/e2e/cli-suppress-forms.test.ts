@@ -13,6 +13,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startMockReviewer, runAsync } from './support/mock-reviewer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');
@@ -218,26 +219,24 @@ function setNodeAspects(nodeYamlPath: string, name: string, description: string,
 describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-path matching', () => {
   // --- 1. FILE-LEVEL placement: bare disable() at the top waives the WHOLE file ---
   //
-  // REVIEWER-TYPE-SPECIFIC SUPPRESS SEMANTICS — pinning the DETERMINISTIC behavior.
+  // UNIFIED SUPPRESS SEMANTICS — pinning the (now-shared) LINE-BASED behavior.
   //
-  // Suppress is interpreted differently by the two reviewer types:
-  //   * LLM aspects: the reviewer prompt INSTRUCTS the model that the marker
-  //     "applies contextually to the surrounding code (function, class, or
-  //     block)... at file level, the entire file." So for an LLM aspect a
-  //     single-line / file-level marker IS contextual / whole-file. The
-  //     `yg knowledge read suppress-syntax` "File-level placement" wording
-  //     describes THIS behavior.
-  //   * DETERMINISTIC aspects (AST + structure runners, src/ast/suppress.ts): purely
-  //     LINE-BASED. A single-line `yg-suppress(<id>)` covers exactly ONE line — the
-  //     line immediately below it (`m.line + 1`). A marker on line 1 waives only
-  //     line 2; a violation deeper in the file is NOT waived. The only construct
-  //     that waives "to end of file" is a bare `yg-suppress-disable(<id>)` with NO
-  //     matching `enable` — the unterminated disable range extends through the last
-  //     line.
+  // Suppress is resolved identically for BOTH reviewer kinds. The matcher
+  // (src/ast/suppress.ts) computes line spans once, and the LLM path now injects
+  // those exact spans into the reviewer prompt as <suppressed-ranges> (Task #18) —
+  // so the LLM honors the SAME lines the deterministic runners waive, with no
+  // model-side re-derivation of marker scope. The spans are purely LINE-BASED:
+  //   * A single-line `yg-suppress(<id>)` covers exactly ONE line — the line
+  //     immediately below it (`m.line + 1`). A marker on line 1 waives only line 2;
+  //     a violation deeper in the file is NOT waived (for EITHER reviewer kind).
+  //   * The only construct that waives "to end of file" is a bare
+  //     `yg-suppress-disable(<id>)` with NO matching `enable` — the unterminated
+  //     disable range extends through the last line.
   //
-  // This suite exercises the DETERMINISTIC runners, so the whole-file waiver here is
-  // the unterminated disable. (See test 1b for the proof that the single-line form
-  // does NOT do whole-file scoping under the deterministic runner.)
+  // This suite exercises the DETERMINISTIC runners for the line-span behavior; the
+  // separate "LLM/deterministic parity" block below proves the LLM prompt receives
+  // the same spans. (Test 1b proves the single-line form does NOT do whole-file
+  // scoping — true for both kinds under the unified resolver.)
 
   it('1: a file-level yg-suppress-disable(no-todo-comments) (no enable) waives a TODO deep in the file; fill + check green', () => {
     const dir = hermeticFixture('file-level-disable');
@@ -297,11 +296,11 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
       expect(noMarker.status).toBe(1);
       expect(noMarker.stdout).toContain('[det] no-todo-comments on node:services/payments — refused');
 
-      // (b) A SINGLE-LINE yg-suppress(...) on line 1 still refuses: under the
-      // DETERMINISTIC runner the single-line form covers only the line
-      // immediately below the marker (line 2), not the whole file. (The
-      // contextual / whole-file reading in the suppress-syntax doc is the LLM
-      // reviewer's behavior; deterministic suppress is strictly line-based.)
+      // (b) A SINGLE-LINE yg-suppress(...) on line 1 still refuses: the unified
+      // resolver makes the single-line form cover only the line immediately below
+      // the marker (line 2), not the whole file — for BOTH reviewer kinds. The LLM
+      // is handed that same one-line span via <suppressed-ranges>, so it cannot
+      // over-waive the rest of the file either.
       writeFileSync(
         paymentsFile(dir),
         '// yg-suppress(no-todo-comments) generated file, debt tracked in the issue tracker\n' +
@@ -558,6 +557,145 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
       expect(fill.stdout).toContain('[det] ban-bar on node:services/payments — refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// LLM / deterministic PARITY — the LLM reviewer prompt receives the SAME
+// resolved <suppressed-ranges> spans the deterministic matcher computes (Task
+// #18). Driven by an in-process mock reviewer (the dead-endpoint suite above can
+// only fail-closed to INFRA, never REFUSE, so it cannot exercise the LLM verdict
+// path). The mock captures every /api/chat request, letting us assert the exact
+// suppress block that crossed the wire.
+// ---------------------------------------------------------------------------
+
+/** Point the fixture's reviewer tier at the in-process mock endpoint. */
+function pointReviewerAt(dir: string, endpoint: string): void {
+  const cfgPath = path.join(dir, '.yggdrasil', 'yg-config.yaml');
+  const cfg = readFileSync(cfgPath, 'utf-8').replace(
+    /endpoint:\s*["']?[^"'\n]+["']?/,
+    `endpoint: "${endpoint}"`,
+  );
+  writeFileSync(cfgPath, cfg, 'utf-8');
+}
+
+/** The verifier prompt sent for the given aspect id (the <aspect id="..."> tag). */
+function promptFor(chatRequests: Array<{ prompt: string }>, aspectId: string): string | undefined {
+  return chatRequests.find((r) => r.prompt.includes(`<aspect id="${aspectId}"`))?.prompt;
+}
+
+describe.skipIf(!distExists)('CLI E2E — yg-suppress LLM/deterministic parity (injected ranges reach the reviewer)', () => {
+  it('a single-line yg-suppress(has-doc-comment) injects its resolved 1-line span into the LLM reviewer prompt', async () => {
+    const mock = await startMockReviewer({ respond: () => ({ satisfied: false, reason: 'mock-refuse' }) });
+    const dir = copyFixture('llm-suppress-inject');
+    try {
+      pointReviewerAt(dir, mock.endpoint);
+
+      // orders.ts already starts with a doc comment (has-doc-comment is content-
+      // local). Append a single-line marker for the LLM aspect: the resolver waives
+      // exactly the line BELOW the marker. The exact span (one line) must reach the
+      // reviewer in <suppressed-ranges>.
+      const body = readFileSync(ordersFile(dir), 'utf-8');
+      const markerBlock = [
+        '',
+        '// yg-suppress(has-doc-comment) known debt, tracked in the issue tracker',
+        'export const SUPPRESSED_LINE = 1;',
+        '',
+      ].join('\n');
+      writeFileSync(ordersFile(dir), body + markerBlock, 'utf-8');
+
+      // Derive the resolved span from the written file: a single-line marker waives
+      // exactly the line BELOW it. Compute it by scanning rather than arithmetic so
+      // the assertion can't drift with fixture-content changes.
+      const writtenLines = readFileSync(ordersFile(dir), 'utf-8').split('\n');
+      const markerIdx = writtenLines.findIndex((l) => l.includes('yg-suppress(has-doc-comment)'));
+      const suppressedLine = markerIdx + 2; // 1-based line below the marker
+
+      const res = await runAsync(['check', '--approve'], dir);
+
+      // The has-doc-comment reviewer was called for the orders node.
+      const prompt = promptFor(mock.chatRequests, 'has-doc-comment');
+      expect(prompt).toBeDefined();
+      // The injected block — and the exact resolved 1-line span — crossed the wire.
+      expect(prompt).toContain('</suppressed-ranges>');
+      expect(prompt).toContain('<file path="src/services/orders.ts">');
+      expect(prompt).toContain(`<range start-line="${suppressedLine}" end-line="${suppressedLine}" />`);
+      // The reviewer is instructed to honor exactly those lines (unified text).
+      expect(prompt).toContain('Honor exactly these line ranges');
+      expect(prompt).not.toContain('treat the suppressed code as satisfied');
+      // The mock refused, so has-doc-comment is recorded refused (exit 1) — the
+      // assertion of interest is purely that the block reached the reviewer.
+      expect(res.all).toContain('has-doc-comment');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+      await mock.close();
+    }
+  });
+
+  it('WITHOUT a marker the LLM reviewer prompt carries NO <suppressed-ranges> block', async () => {
+    const mock = await startMockReviewer({ respond: () => ({ satisfied: false, reason: 'mock-refuse' }) });
+    const dir = copyFixture('llm-no-suppress-control');
+    try {
+      pointReviewerAt(dir, mock.endpoint);
+      // No marker touched — the unedited fixture file has no yg-suppress.
+      await runAsync(['check', '--approve'], dir);
+      const prompt = promptFor(mock.chatRequests, 'has-doc-comment');
+      expect(prompt).toBeDefined();
+      // The prose preamble still NAMES <suppressed-ranges> (telling the model where
+      // a block WOULD appear), but no actual block is rendered: its closing tag is
+      // the block-only marker.
+      expect(prompt).not.toContain('</suppressed-ranges>');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+      await mock.close();
+    }
+  });
+
+  it('a wildcard bracket waives the SAME span for the LLM aspect AND a deterministic aspect over those lines', async () => {
+    const mock = await startMockReviewer({ respond: () => ({ satisfied: true, reason: 'mock-approve' }) });
+    const dir = copyFixture('llm-det-parity');
+    try {
+      pointReviewerAt(dir, mock.endpoint);
+
+      // A deterministic token aspect on the orders node + the default LLM aspect.
+      // Wrap one offending line in a wildcard bracket: the SAME span is waived for
+      // both the deterministic check (line-based) and the LLM (via injected range).
+      writeTokenAspect(dir, 'ban-foo', 'BADTOKEN');
+      setNodeAspects(
+        ordersNodeYaml(dir),
+        'OrdersService',
+        'Creates and retrieves customer orders.',
+        'src/services/orders.ts',
+        ['ban-foo', 'has-doc-comment'],
+      );
+
+      const body = readFileSync(ordersFile(dir), 'utf-8');
+      writeFileSync(
+        ordersFile(dir),
+        body +
+          [
+            '',
+            '// yg-suppress-disable(*) generated reconciliation block, debt tracked in the issue tracker',
+            'export const reconcileTag = "BADTOKEN";',
+            '// yg-suppress-enable(*)',
+            '',
+          ].join('\n'),
+        'utf-8',
+      );
+
+      const res = await runAsync(['check', '--approve'], dir);
+
+      // Deterministic ban-foo was waived over the wildcard range — it approves.
+      expect(res.stdout).toContain('[det] ban-foo on node:services/orders — approved');
+      // The wildcard span reached the LLM reviewer too (proving cross-kind parity).
+      const prompt = promptFor(mock.chatRequests, 'has-doc-comment');
+      expect(prompt).toBeDefined();
+      expect(prompt).toContain('</suppressed-ranges>');
+      expect(prompt).toContain('<file path="src/services/orders.ts">');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+      await mock.close();
     }
   });
 });

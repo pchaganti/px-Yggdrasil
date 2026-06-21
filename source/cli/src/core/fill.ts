@@ -88,6 +88,12 @@ export interface RunFillOptions {
    *  ONLY the gitignored deterministic file — the committed locks are never touched.
    *  Keyless and free; powers `yg check --approve --only-deterministic` and the CI pipeline. */
   onlyDeterministic?: boolean;
+  /** Cost preview only: run the structural gate + pair classification + budget
+   *  computation, emit a per-node/per-aspect breakdown, then return WITHOUT
+   *  filling anything. No reviewer calls, no deterministic checks, no lock writes
+   *  — the early-return precedes the serialized writer's construction, so the
+   *  no-write guarantee is structural. Powers `yg check --approve --dry-run`. */
+  dryRun?: boolean;
 }
 
 export interface RunFillResult {
@@ -121,6 +127,7 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
   const emitIssue = opts.emitIssue ?? ((): void => {});
   const projectRoot = path.dirname(graph.rootPath);
   const onlyDeterministic = opts.onlyDeterministic ?? false;
+  const dryRun = opts.dryRun ?? false;
 
   // ── Step 1: Structural gate. A gating code aborts the whole fill. ──────────
   const validation = await validate(graph);
@@ -181,6 +188,48 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
     `Filling ${unverifiedPairs.length} unverified pairs across ${nodeSet.size} nodes — ` +
       `${detPairs.length} deterministic (no cost), ${reviewerCallBudget} reviewer calls (consensus included)\n`,
   );
+
+  // ── Dry-run: cost preview, no writes. ──────────────────────────────────────
+  // Placed AFTER the step-3 budget header and BEFORE the serialized writer is
+  // constructed, so the no-write guarantee is STRUCTURAL — there is no writer to
+  // invoke and no fill loop is reached. This INTENTIONALLY bypasses the step-4
+  // log gate below (a cost preview must not require a fresh log entry); only the
+  // step-1 structural/config gate, which already ran above, can abort a preview.
+  // The breakdown is plain progress text (the engine never formats diagnostics).
+  if (dryRun) {
+    // Group the fill set by node, then split each node's pairs by reviewer kind.
+    // Within the LLM group, resolve each pair's consensus exactly as step 3 did
+    // so the per-aspect numbers reconcile with the header budget.
+    const byNode = new Map<string, ExpectedPair[]>();
+    for (const p of unverifiedPairs) {
+      const list = byNode.get(p.nodePath) ?? [];
+      list.push(p);
+      byNode.set(p.nodePath, list);
+    }
+    for (const nodePath of [...byNode.keys()].sort()) {
+      const nodePairs = byNode.get(nodePath)!;
+      write(`  ${toPosixPath(nodePath)}\n`);
+      const det = nodePairs.filter((p) => p.kind === 'deterministic');
+      const llm = onlyDeterministic ? [] : nodePairs.filter((p) => p.kind === 'llm');
+      for (const p of [...det].sort((a, b) => a.aspectId.localeCompare(b.aspectId, 'en'))) {
+        write(`    [det] ${p.aspectId} on ${toPosixPath(p.unitKey)} — free\n`);
+      }
+      for (const p of [...llm].sort((a, b) => a.aspectId.localeCompare(b.aspectId, 'en'))) {
+        const aspect = aspectById.get(p.aspectId);
+        const reviewer = graph.config.reviewer;
+        const tier = aspect && reviewer ? selectTierForAspect(aspect, reviewer) : undefined;
+        const calls = tier?.ok ? tier.tier.consensus : 1;
+        write(`    [llm] ${p.aspectId} on ${toPosixPath(p.unitKey)} — ${calls} reviewer call(s)\n`);
+      }
+    }
+    write(
+      `${reviewerCallBudget} reviewer call(s) is an UPPER BOUND — a node with an enforced ` +
+        `deterministic refusal has its LLM fills skipped this run, and a fresh refusal or ` +
+        `infra disposition can leave a pair unfilled. Nothing was written; run yg check --approve to fill.\n`,
+    );
+    const checkResult = await runCheck(graph, opts.gitTrackedFiles);
+    return { checkResult, reviewerCallsMade: 0, infraFailures: 0, runtimeErrors: 0, companionRuntimeErrors: 0 };
+  }
 
   // ── Serialized lock writer (interruption-safe, §7). ───────────────────────
   // --only-deterministic writes ONLY the gitignored det file; a full run writes all three.

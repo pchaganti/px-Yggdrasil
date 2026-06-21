@@ -505,4 +505,43 @@ describe('impact command', () => {
       });
     });
   });
+
+  describe('node-cost block', () => {
+    it('--node prints the reviewer-call cost, not the old vague sentence', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync(
+          'node',
+          [BIN_PATH, 'impact', '--node', 'orders/order-service'],
+          { cwd, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(0);
+        // New cost block — substring-stable fragments.
+        expect(result.stdout).toMatch(/reviewer call\(s\)/);
+        expect(result.stdout).toContain('deterministic = free');
+        expect(result.stdout).toMatch(/currently-green verdict\(s\) re-rolled/);
+        expect(result.stdout).toContain('Editing this node re-verifies:');
+        // The vague pre-cost sentence is gone (it had no number).
+        expect(result.stdout).not.toContain(
+          'Editing this node re-verifies its own pairs on the next yg check --approve',
+        );
+        // The terminal Next: line still ends the output.
+        expect(result.stdout).toContain('Next: review the dependents above');
+      });
+    });
+
+    it('--file scopes the cost with "this file" framing', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync(
+          'node',
+          [BIN_PATH, 'impact', '--file', 'src/orders/order.service.ts'],
+          { cwd, encoding: 'utf-8' },
+        );
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain('src/orders/order.service.ts -> orders/order-service');
+        expect(result.stdout).toContain('Editing this file re-verifies:');
+        expect(result.stdout).toMatch(/reviewer call\(s\)/);
+        expect(result.stdout).toContain('deterministic = free');
+      });
+    });
+  });
 });

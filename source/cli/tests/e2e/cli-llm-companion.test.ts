@@ -454,7 +454,7 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (happy path)'
       // Detach the aspect from the node (remove the `aspects:` attach). With no
       // attach and no other channel, the aspect is no longer effective anywhere.
       const p = nodeYaml(dir, 'scenarios');
-      writeFileSync(p, readFileSync(p, 'utf-8').replace(/\naspects:\n  - scenario-matches-test\n?/, '\n'), 'utf-8');
+      writeFileSync(p, readFileSync(p, 'utf-8').replace(/\naspects:\n {2}- scenario-matches-test\n?/, '\n'), 'utf-8');
 
       // A fill re-canonicalizes the lock; the unexpected entries are GC'd.
       const callsBefore = mock.chatCount();
@@ -488,21 +488,26 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (happy path)'
 
       // Remove the `uses` relation to the spec node (the read is now unauthorized).
       const p = nodeYaml(dir, 'scenarios');
-      writeFileSync(p, readFileSync(p, 'utf-8').replace(/relations:\n  - target: specs\n    type: uses\n/, ''), 'utf-8');
+      writeFileSync(p, readFileSync(p, 'utf-8').replace(/relations:\n {2}- target: specs\n {4}type: uses\n/, ''), 'utf-8');
 
       // The companion-file content is also changed so the existing verdicts go
       // unverified and a re-fill is attempted (which then fails to assemble).
       appendFileSync(specTs(dir, 'checkout.spec.ts'), '\n// edited\n');
 
       const refill = await runAsync(['check', '--approve'], dir);
-      // Fill cannot assemble the checkout companion (out-of-reach) → infra-fail:
+      // Fill cannot assemble the companion (out-of-reach) → infra-fail:
       // nothing written for that pair, exit 1.
       expect(refill.status).toBe(1);
-      // The pair stays unverified; the lock did NOT gain a fresh verdict over an
-      // unassembled prompt.
+      // Since v5.2.0 the §4 gate is unconditional (omitted max_prompt_chars → 50000),
+      // so plain `yg check` resolves the companion LIVE to size the gate for EVERY unit
+      // (not only the one whose verdict was invalidated). An out-of-reach companion read
+      // surfaces as a blocking aspect-companion-runtime-error naming the undeclared path
+      // and the relation fix — replacing the generic per-unit "No valid verdict".
       const after = run(['check'], dir);
       expect(after.status).toBe(1);
-      expect(after.all).toContain(`on ${UNIT('checkout')}.`);
+      expect(after.all).toContain('aspect-companion-runtime-error');
+      expect(after.all).toContain('read an undeclared path or node');
+      expect(after.all).toContain('apps/e2e/tests/checkout.spec.ts');
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });

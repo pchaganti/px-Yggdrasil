@@ -25,6 +25,30 @@ follows its effective status: enforced → error (blocks), advisory → warning.
 
 Exit 0 = clean. Exit 1 = errors found. CI runs it cheap and keyless.
 
+### Triage views: \`--top [N]\` and \`--summary\`
+
+Two read-only flags narrow a large \`yg check\` wall without losing fidelity.
+They apply only to the plain read (not \`--approve\`, which has its own
+\`--dry-run\` cost preview), and they are mutually exclusive with each other.
+
+\`\`\`bash
+yg check --top 5    # print only the 5 highest-priority issue blocks
+yg check --top      # print only the single suggested-next block (no value)
+yg check --summary  # print per-node counts only — no per-issue blocks
+\`\`\`
+
+\`--top N\` renders the N highest-priority blocks (in the same priority order the
+\`Next:\` line draws from); a bare \`--top\` (no value) renders zero blocks and
+keeps only the single \`Next:\` line. \`--summary\` prints one line per node —
+\`K unverified (J deterministic-free, L LLM), M refused\` — plus an \`other\` bucket
+for non-pair errors (coverage / log / relation / structural) so the per-node
+totals reconcile with the header. Guardrail: EVERY view always prints the true
+aggregate \`Errors (N)\`/\`Warnings (N)\` header and preserves the real exit code, so
+a narrowed view can never read as a clean build. An invalid \`--top\` value
+(negative, fractional, non-numeric, or an explicit \`0\`) is a guided error, never
+a silent full dump — use bare \`--top\` for the zero-block view. Use these to
+orient, then drill into a block with plain \`yg check\`.
+
 ## yg check --approve
 
 Fill every unverified pair, then report. The only writer of verdicts (alongside
@@ -33,6 +57,7 @@ Fill every unverified pair, then report. The only writer of verdicts (alongside
 \`\`\`bash
 yg check --approve                      # fill everything (deterministic, then LLM), then report
 yg check --approve --only-deterministic # fill ONLY deterministic pairs (free, keyless); the CI / pre-commit gate
+yg check --approve --dry-run            # free cost preview — print the budget + per-node breakdown, write NOTHING, exit 0
 \`\`\`
 
 Verification is repo-wide and all-or-nothing. The one scoping flag is
@@ -55,6 +80,21 @@ persist, the next run resumes.
 When nothing was unverified, the summary says \`0 reviewer calls made — all
 expected pairs hold valid verdicts\`. Use \`yg impact\` to predict cost before
 editing.
+
+\`--dry-run\` (with \`--approve\`) is a free cost preview: it runs the same
+structural gate, pair classification, and budget computation, prints the
+pre-dispatch header plus a per-node / per-aspect breakdown (each deterministic
+pair labelled free; each LLM pair labelled with its consensus call count), then
+exits 0 WITHOUT calling the reviewer, running any \`check.mjs\`, or writing a
+single byte to any lock file. The reviewer-call number is an UPPER BOUND — a
+node with an enforced deterministic refusal has its LLM fills skipped, and a
+fresh refusal or an infrastructure disposition can leave a pair unfilled, so the
+real \`--approve\` bills at most that many calls. The preview always exits 0, even
+when enforced pairs are unverified; it never blocks. Only a broken
+configuration (the step-1 structural gate) aborts the preview — it surfaces the
+same blocker a real \`--approve\` would hit. \`--dry-run\` requires \`--approve\`;
+on its own it is a usage error (plain \`yg check\` is already a free, no-write
+read).
 
 ## yg context
 

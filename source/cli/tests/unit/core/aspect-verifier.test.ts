@@ -14,15 +14,20 @@ function mockProvider(responses: Array<{ satisfied: boolean; reason: string }>):
 }
 
 describe('buildPrompt', () => {
-  it('includes yg-suppress instruction in task block', () => {
+  it('includes the unified yg-suppress instruction in the task block', () => {
     const prompt = buildPrompt(
       { id: 'test-aspect', description: 'Test', content: 'Must do X' },
       'Test node',
       'test/node',
       [{ path: 'test.ts', content: 'code' }],
     );
+    // The instruction now points at pre-resolved <suppressed-ranges> spans and
+    // tells the reviewer to honor exactly those lines (the deterministic matcher's
+    // spans), not to re-derive marker scope. The retired self-interpretation phrase
+    // ('treat the suppressed code as satisfied') must be gone.
     expect(prompt).toContain('yg-suppress');
-    expect(prompt).toContain('treat the suppressed code as satisfied');
+    expect(prompt).toContain('Honor exactly these line ranges');
+    expect(prompt).not.toContain('treat the suppressed code as satisfied');
   });
 
   it('produces self-contained prompt with all content inline', () => {

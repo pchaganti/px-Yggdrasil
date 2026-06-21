@@ -35,7 +35,7 @@ reviewer:                         # required — aspect verification during yg c
         temperature: 0            #       reduces variability — keep at 0
         # timeout: 300            #       Per-call timeout in SECONDS (default 300). Only CLI providers.
       # max_prompt_chars: 200000  # optional — assembled reviewer-prompt character cap (positive integer).
-                                  #   Checked deterministically before the LLM call. Absent = unlimited.
+                                  #   Checked deterministically before the LLM call. Absent defaults to 50000.
                                   #   Exceeding this limit renders a blocking error naming remedies
                                   #   (split the node, shorten references, or raise the cap).
                                   #   Never participates in verdict identity — tuning it does not

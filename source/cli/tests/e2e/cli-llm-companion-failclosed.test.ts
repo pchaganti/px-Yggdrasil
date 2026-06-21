@@ -118,9 +118,10 @@ const verdicts = (d: string, aspectId: string): Verdicts[string] => (readLock(d)
 /**
  * Extract the <source-files>…</source-files> DATA region of a captured prompt
  * (the subject region). NOTE: the literal token "<source-files>" also appears in
- * the task instructions near the top of the prompt ("If a file in <source-files>
- * below …"), so we key off lastIndexOf for the OPENING tag — the data block is the
- * last <source-files> in the prompt — and the (unique) closing tag.
+ * the task instructions near the top of the prompt (the suppress instruction
+ * mentions "spans into the files in <source-files>"), so we key off lastIndexOf
+ * for the OPENING tag — the data block is the last <source-files> in the prompt —
+ * and the (unique) closing tag.
  */
 function sourceFilesRegion(prompt: string): string {
   const start = prompt.lastIndexOf('<source-files>');
@@ -172,10 +173,17 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (fail-closed)
       // never reached the reviewer (resolution precedes consensus).
       expect(mock.chatCount()).toBe(2);
 
-      // `yg check` stays red and names the unverified checkout pair.
+      // `yg check` stays red. Since v5.2.0 the §4 prompt-size gate is unconditional
+      // (an omitted max_prompt_chars defaults to 50000), so plain `yg check` resolves
+      // the companion LIVE to size the gate — and a throwing hook surfaces directly as
+      // a blocking aspect-companion-runtime-error carrying the hook's OWN message,
+      // rather than the generic per-unit "No valid verdict" (unverified) rendering.
       const after = run(['check'], dir);
       expect(after.status).toBe(1);
-      expect(after.all).toContain(`No valid verdict for aspect 'throwing-companion' on ${UNIT('checkout')}.`);
+      expect(after.all).toContain('aspect-companion-runtime-error');
+      expect(after.all).toContain("companion hook threw while resolving companions (aspect 'throwing-companion')");
+      expect(after.all).toContain('boom: deliberate hook failure');
+      // The resolvable login/search pairs are NOT flagged (their companions resolve).
       expect(after.all).not.toContain(`on ${UNIT('login')}.`);
       expect(after.all).not.toContain(`on ${UNIT('search')}.`);
     } finally {
@@ -214,9 +222,15 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (fail-closed)
       // The reviewer was never billed — resolution failed before consensus.
       expect(mock.chatCount()).toBe(0);
 
+      // Since v5.2.0 the §4 gate is unconditional (omitted max_prompt_chars → 50000),
+      // so plain `yg check` resolves the companion LIVE to size the gate. A companion
+      // path that cannot be read surfaces as a blocking aspect-companion-runtime-error
+      // per unit (naming the missing path + the unit), not the generic per-unit
+      // "No valid verdict" unverified rendering.
       const after = run(['check'], dir);
       expect(after.status).toBe(1);
-      for (const s of SCENARIOS) expect(after.all).toContain(`on ${UNIT(s)}.`);
+      expect(after.all).toContain('aspect-companion-runtime-error');
+      for (const s of SCENARIOS) expect(after.all).toContain(`on ${UNIT(s)} could not be read.`);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
@@ -516,11 +530,12 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (fail-closed)
       expect(run(['check'], dir).status).toBe(0);
 
       // Assert the product guarantee (D1): the prompt's INSTRUCTION TEXT scopes suppress
-      // to <source-files>. A regression that changed "If a file in <source-files> below"
-      // to a weaker phrasing would not be caught by the mock alone — this pins the wording.
+      // to <source-files>. The unified instruction (Task #18) points the reviewer at
+      // resolved (start-line, end-line) spans "into the files in <source-files>"; this
+      // pins that wording so a regression to a weaker phrasing is caught.
       const checkoutReq = mock.chatRequests.find((r) => r.prompt.includes('test: checkout.spec.ts'));
       expect(checkoutReq).toBeDefined();
-      expect(checkoutReq!.prompt).toContain('If a file in <source-files> below contains a comment with the marker yg-suppress(<aspect-id>) where');
+      expect(checkoutReq!.prompt).toContain('spans into the files in <source-files>');
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
@@ -575,7 +590,7 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (fail-closed)
       // Assert the product wording (D1): the instruction text that makes a companion-file
       // marker ineffective is the same scoping sentence as in suppress-a. Pin it here too
       // so a wording regression is caught in both the "honored" and "not-honored" branches.
-      expect(checkoutReq!.prompt).toContain('If a file in <source-files> below contains a comment with the marker yg-suppress(<aspect-id>) where');
+      expect(checkoutReq!.prompt).toContain('spans into the files in <source-files>');
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });

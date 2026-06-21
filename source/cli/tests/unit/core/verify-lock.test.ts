@@ -16,6 +16,7 @@ import type { Graph, GraphNode, AspectDef, ScopeDef, LlmConfig } from '../../../
 import type { LockFile, VerdictEntry } from '../../../src/model/lock.js';
 import { nodeUnit, fileUnit, LOCK_FORMAT_VERSION } from '../../../src/model/lock.js';
 import { verifyLock } from '../../../src/core/verify-lock.js';
+import { assembledPromptChars } from '../../../src/llm/prompt.js';
 import {
   hashExistsObservation,
   hashNodeSetObservation,
@@ -778,12 +779,146 @@ describe('verifyLock — prompt-size gate', () => {
     expect(result.pairs[0].oversized!.limit).toBe(SMALL_LIMIT);
   });
 
-  it('a tier without max_prompt_chars never trips the gate', async () => {
-    writeFile('src/a.ts', 'code');
+  // NOTE: this test INVERTS the prior assertion. Before v5.2.0 a tier omitting
+  // max_prompt_chars skipped the gate entirely (effectively unlimited), so an
+  // oversized prompt classified `unverified`. The previous test here asserted
+  // exactly that ("a tier without max_prompt_chars never trips the gate"). It is
+  // intentionally replaced: an omitted key now defaults to DEFAULT_MAX_PROMPT_CHARS
+  // (50000), so the same oversized input now trips `prompt-too-large` at limit 50000.
+  it('a tier omitting max_prompt_chars applies the 50000 default', async () => {
+    writeFile('src/a.ts', 'a'.repeat(60_000)); // pad so the assembled prompt exceeds 50000
     const aspect: TestAspect = { id: 'asp', kind: 'llm', ruleContent: 'rule' };
     const graph = buildGraph([{ path: 'svc', mapping: ['src/a.ts'], aspects: ['asp'] }], [aspect]);
     const result = await verifyLock(graph, emptyLock());
-    expect(result.pairs[0].state.kind).toBe('unverified'); // not prompt-too-large
+    expect(result.pairs[0].state.kind).toBe('prompt-too-large');
+    if (result.pairs[0].state.kind === 'prompt-too-large') {
+      expect(result.pairs[0].state.limit).toBe(50_000);
+      expect(result.pairs[0].state.chars).toBeGreaterThan(50_000);
+    }
+  });
+
+  it('a tier omitting max_prompt_chars: an under-50000 prompt stays unverified (not tripped)', async () => {
+    writeFile('src/a.ts', 'code'); // tiny subject — assembled prompt well under 50000
+    const aspect: TestAspect = { id: 'asp', kind: 'llm', ruleContent: 'rule' };
+    const graph = buildGraph([{ path: 'svc', mapping: ['src/a.ts'], aspects: ['asp'] }], [aspect]);
+    const result = await verifyLock(graph, emptyLock());
+    expect(result.pairs[0].state.kind).toBe('unverified'); // under the default, no gate trip
+  });
+
+  it('a tier omitting max_prompt_chars: 50000 passes, 50001 trips (> strict)', async () => {
+    // Build a baseline prompt, measure it, then pad the subject so the assembled
+    // length lands EXACTLY on 50000 and EXACTLY on 50001 — the gate is `chars > limit`,
+    // so 50000 must pass (unverified) and 50001 must trip (prompt-too-large).
+    const aspect: TestAspect = { id: 'asp', kind: 'llm', ruleContent: 'rule' };
+    const baseInput = {
+      aspect: { id: 'asp', description: '', content: 'rule' },
+      references: [],
+      nodePath: 'svc',
+      nodeDescription: '',
+      files: [{ path: 'src/a.ts', content: '' }],
+      scope: undefined,
+    };
+    const baseChars = assembledPromptChars(baseInput);
+
+    // Subject content length needed to make the assembled prompt exactly N chars.
+    // The subject content is interpolated verbatim (plain ASCII, no XML escaping),
+    // so each added char adds exactly one to the assembled length.
+    const padTo = (n: number) => 'a'.repeat(n - baseChars);
+
+    writeFile('src/a.ts', padTo(50_000));
+    const atLimit = buildGraph([{ path: 'svc', mapping: ['src/a.ts'], aspects: ['asp'] }], [aspect]);
+    const atLimitResult = await verifyLock(atLimit, emptyLock());
+    expect(assembledPromptChars({ ...baseInput, files: [{ path: 'src/a.ts', content: padTo(50_000) }] })).toBe(50_000);
+    expect(atLimitResult.pairs[0].state.kind).toBe('unverified'); // 50000 == limit, not > limit
+
+    writeFile('src/a.ts', padTo(50_001));
+    const overLimit = buildGraph([{ path: 'svc', mapping: ['src/a.ts'], aspects: ['asp'] }], [aspect]);
+    const overLimitResult = await verifyLock(overLimit, emptyLock());
+    expect(overLimitResult.pairs[0].state.kind).toBe('prompt-too-large'); // 50001 > 50000
+    if (overLimitResult.pairs[0].state.kind === 'prompt-too-large') {
+      expect(overLimitResult.pairs[0].state.limit).toBe(50_000);
+    }
+  });
+
+  // REGRESSION (v5.2.0): for a PLAIN LLM aspect verify-lock is the ONLY size gate.
+  // The §4 gate must measure the SAME prompt fill assembles — including the
+  // <suppressed-ranges> block fill injects when a subject carries a yg-suppress
+  // marker. Before the fix verify-lock omitted that block, so it under-measured:
+  // a prompt that is UNDER the limit without the block but OVER it WITH the block
+  // slipped through as `unverified` instead of `prompt-too-large`.
+  it('plain LLM aspect: the injected <suppressed-ranges> block is counted by the §4 gate', async () => {
+    // Subject carries a single-line yg-suppress marker for THIS aspect followed by
+    // a line of code: the marker resolves to a one-line range (start = marker line + 1),
+    // so fill injects a non-empty <suppressed-ranges> block. The block adds bytes
+    // the gate must count.
+    const subject =
+      '// yg-suppress(asp) accepted debt per maintainer\n' +
+      'const x = 1;\n';
+    writeFile('src/a.ts', subject);
+
+    const aspect: TestAspect = { id: 'asp', kind: 'llm', ruleContent: 'rule' };
+
+    // Baseline = the assembled prompt WITHOUT the suppressed-ranges block, computed
+    // through the SAME assembler verify-lock uses (the pre-fix measurement). The
+    // subject content includes the marker bytes either way; only the injected block
+    // differs. Setting the limit to exactly this baseline means: under WITHOUT the
+    // block, over WITH it.
+    const baselineNoBlock = assembledPromptChars({
+      aspect: { id: 'asp', description: '', content: 'rule' },
+      references: [],
+      nodePath: 'svc',
+      nodeDescription: '',
+      files: [{ path: 'src/a.ts', content: subject }],
+      // suppressedRanges intentionally OMITTED → no <suppressed-ranges> block (old behavior).
+      scope: undefined,
+    });
+
+    // Sanity: passing the resolved ranges DOES grow the assembled prompt, so the
+    // block is genuinely load-bearing for the gate (the marker is on line 1, the
+    // waived code is line 2).
+    const baselineWithBlock = assembledPromptChars({
+      aspect: { id: 'asp', description: '', content: 'rule' },
+      references: [],
+      nodePath: 'svc',
+      nodeDescription: '',
+      files: [{ path: 'src/a.ts', content: subject }],
+      suppressedRanges: { byFile: [{ path: 'src/a.ts', ranges: [{ startLine: 2, endLine: 2 }] }] },
+      scope: undefined,
+    });
+    expect(baselineWithBlock).toBeGreaterThan(baselineNoBlock);
+
+    // Limit = exactly the no-block size. Pre-fix verify-lock measured `baselineNoBlock`
+    // (== limit, NOT > limit) → would have classified `unverified`. Post-fix it
+    // measures `baselineWithBlock` (> limit) → `prompt-too-large`.
+    const tier: LlmConfig = {
+      provider: 'ollama', model: 'test', temperature: 0, consensus: 1, max_prompt_chars: baselineNoBlock,
+    };
+    const graph = buildGraph([{ path: 'svc', mapping: ['src/a.ts'], aspects: ['asp'] }], [aspect], { tier });
+
+    const result = await verifyLock(graph, emptyLock());
+    expect(result.pairs[0].state.kind).toBe('prompt-too-large');
+    if (result.pairs[0].state.kind === 'prompt-too-large') {
+      expect(result.pairs[0].state.limit).toBe(baselineNoBlock);
+      expect(result.pairs[0].state.chars).toBe(baselineWithBlock); // the gate counted the block
+    }
+  });
+
+  // EDGE (v5.2.0): a REASONLESS suppress marker cannot be resolved into ranges —
+  // resolveSuppressedRangesForPrompt throws SuppressMarkerError. The §4 gate must
+  // catch it and fail closed as `unverified`, NEVER let the throw escape verifyLock.
+  it('plain LLM aspect: a reasonless suppress marker classifies unverified (no throw)', async () => {
+    // No reason text after the aspect id → SuppressMarkerError out of collectSuppressions.
+    const subject =
+      '// yg-suppress(asp)\n' +
+      'const x = 1;\n';
+    writeFile('src/a.ts', subject);
+
+    const aspect: TestAspect = { id: 'asp', kind: 'llm', ruleContent: 'rule' };
+    // Any tier limit works; a small subject keeps the prompt well under the default.
+    const graph = buildGraph([{ path: 'svc', mapping: ['src/a.ts'], aspects: ['asp'] }], [aspect]);
+
+    const result = await verifyLock(graph, emptyLock()); // must not throw
+    expect(result.pairs[0].state.kind).toBe('unverified');
   });
 });
 

@@ -17,7 +17,7 @@ import type { ExpectedPair } from './pairs.js';
 import { computeLlmInputHash } from './pair-hash.js';
 import { ruleHashFor, contentFor, nodeDescriptionFor, tierHashViewFromTier, companionHashFor } from './pair-inputs.js';
 import { hashBytes } from '../io/hash.js';
-import { buildPairPrompt, assembledPromptChars } from '../llm/prompt.js';
+import { buildPairPrompt, assembledPromptChars, DEFAULT_MAX_PROMPT_CHARS } from '../llm/prompt.js';
 import type { PromptReferenceInput, PromptFileInput, PromptCompanionInput } from '../llm/prompt.js';
 import { verifyWithConsensus } from '../llm/aspect-verifier.js';
 import type { LlmProvider } from '../llm/types.js';
@@ -27,6 +27,8 @@ import { toPosixPath } from '../utils/posix.js';
 import type { IssueMessage } from '../model/validation.js';
 import { resolveCompanionsForPair } from './companion-resolve.js';
 import { readBytesOrEmpty, type LlmFillOutcome } from './fill-shared.js';
+import { resolveSuppressedRangesForPrompt, SuppressMarkerError } from '../structure/index.js';
+import type { PromptSuppressedRangesInput } from '../llm/prompt.js';
 
 /**
  * Fill one LLM pair: load references (a MISSING reference is a LOUD infra
@@ -114,6 +116,34 @@ export async function fillLlmPair(
     observations = resolved.companions.observations;
   }
 
+  // ── Resolve yg-suppress line ranges for THIS aspect over the subjects and
+  // inject them into the prompt, so the LLM honors exactly the same spans the
+  // deterministic matcher waives (no model-side scope re-derivation). Routed
+  // through the structure adapter — the engine may NOT import ast/* directly
+  // (architecture: engine → structure-adapter → ast-adapter is the legal path).
+  // A reasonless marker throws SuppressMarkerError → fail-closed infra (callsMade
+  // 0, NOTHING written), mirroring the deterministic path's disposition. ──
+  let suppressedRanges: PromptSuppressedRangesInput;
+  try {
+    suppressedRanges = await resolveSuppressedRangesForPrompt(subjects, aspect.id);
+  } catch (e) {
+    if (e instanceof SuppressMarkerError) {
+      const where = `${toPosixPath(e.file)}:${e.line}`;
+      debugWrite(`[fill] suppress marker missing reason for ${aspect.id} on ${pair.unitKey}: ${where}`);
+      return {
+        kind: 'infra',
+        why: `a yg-suppress marker at ${where} is missing its required reason`,
+        messageData: {
+          what: `A yg-suppress marker at ${where} (subject of aspect '${aspect.id}') is missing its required reason.`,
+          why: 'A reasonless suppress marker cannot be resolved into a line range, so the suppressed-line set is undefined and the pair cannot be verified. Fail-closed: NOTHING was written, the pair stays unverified, and the reviewer was NOT called.',
+          next: `Add a reason after the marker's closing parenthesis at ${where}, then re-run: yg check --approve`,
+        },
+        callsMade: 0,
+      };
+    }
+    throw e;
+  }
+
   const promptInput = {
     aspect: { id: aspect.id, description: aspect.description ?? '', content: contentFor(aspect, 'content.md') },
     references: referencesForPrompt,
@@ -121,6 +151,7 @@ export async function fillLlmPair(
     nodeDescription: nodeDescriptionFor(graph, pair.nodePath),
     files: subjects.map<PromptFileInput>((s) => ({ path: s.path, content: s.bytes.toString('utf8') })),
     companions,
+    suppressedRanges,
     scope: aspect.scope,
   };
 
@@ -136,28 +167,29 @@ export async function fillLlmPair(
   // the reviewer. Uses assembledPromptChars (label-free) — the same measurement
   // verify-lock uses — so fill and verify are consistent.
   if (aspect.hasCompanion === true && companions.length > 0) {
-    const limit = mergedTier.max_prompt_chars;
-    if (limit !== undefined) {
-      const chars = assembledPromptChars(promptInput);
-      if (chars > limit) {
-        const unitKeyPosix = toPosixPath(pair.unitKey);
-        return {
-          kind: 'infra',
-          why: `assembled prompt for aspect '${aspect.id}' on ${unitKeyPosix} is ${chars} chars, over the '${tierName}' tier limit of ${limit}`,
-          messageData: {
-            what: `Assembled reviewer prompt for aspect '${aspect.id}' on ${unitKeyPosix} is ${chars} chars, over the '${tierName}' tier limit of ${limit}.`,
-            why: 'An over-limit prompt risks context-window truncation and a false verdict. The gate blocks the pair and writes NOTHING — no reviewer call is made.',
-            next:
-              `Remedies, in safety order:\n` +
-              `  1. Narrow scope.files so non-target payload (README, fixtures) leaves the prompt.\n` +
-              `  2. Switch the aspect to per: file — only if the rule is file-local; see \`yg knowledge read writing-llm-aspects\`.\n` +
-              `  3. Split the node so its mapped files divide across smaller nodes.\n` +
-              `  4. Raise max_prompt_chars or move the aspect to a higher-limit tier — note: tier edits cascade re-verification across every aspect resolving to that tier.\n` +
-              `Then re-run: yg check --approve`,
-          },
-          callsMade: 0,
-        };
-      }
+    // A tier that OMITS max_prompt_chars is gated at DEFAULT_MAX_PROMPT_CHARS
+    // (the §4 gate is always active — there is no "unlimited" tier). The guard
+    // is therefore always-true; it is unwrapped, the body kept.
+    const limit = mergedTier.max_prompt_chars ?? DEFAULT_MAX_PROMPT_CHARS;
+    const chars = assembledPromptChars(promptInput);
+    if (chars > limit) {
+      const unitKeyPosix = toPosixPath(pair.unitKey);
+      return {
+        kind: 'infra',
+        why: `assembled prompt for aspect '${aspect.id}' on ${unitKeyPosix} is ${chars} chars, over the '${tierName}' tier limit of ${limit}`,
+        messageData: {
+          what: `Assembled reviewer prompt for aspect '${aspect.id}' on ${unitKeyPosix} is ${chars} chars, over the '${tierName}' tier limit of ${limit}.`,
+          why: 'An over-limit prompt risks context-window truncation and a false verdict. The gate blocks the pair and writes NOTHING — no reviewer call is made.',
+          next:
+            `Remedies, in safety order:\n` +
+            `  1. Narrow scope.files so non-target payload (README, fixtures) leaves the prompt.\n` +
+            `  2. Switch the aspect to per: file — only if the rule is file-local; see \`yg knowledge read writing-llm-aspects\`.\n` +
+            `  3. Split the node so its mapped files divide across smaller nodes.\n` +
+            `  4. Raise max_prompt_chars or move the aspect to a higher-limit tier — note: tier edits cascade re-verification across every aspect resolving to that tier.\n` +
+            `Then re-run: yg check --approve`,
+        },
+        callsMade: 0,
+      };
     }
   }
 

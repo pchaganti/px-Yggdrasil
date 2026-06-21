@@ -354,7 +354,7 @@ function parseTier(name: string, raw: unknown, filename: string): LlmConfig {
       throw new ConfigParseError({
         what: `${filename}: tier '${name}' has invalid max_prompt_chars: ${JSON.stringify(v)}`,
         why: 'max_prompt_chars is the assembled reviewer-prompt character cap; a zero, negative, or fractional value makes the gate nonsensical',
-        next: `set 'max_prompt_chars' to a positive integer like 100000, or remove the key to allow unlimited prompt size`,
+        next: `set 'max_prompt_chars' to a positive integer like 100000 (omitted defaults to 50000).`,
       }, 'config-tier-prompt-chars-invalid');
     }
     max_prompt_chars = v;

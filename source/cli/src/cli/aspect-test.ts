@@ -10,7 +10,8 @@ import type { Violation as AstViolation } from '../ast/types.js';
 import type { Violation as StructureViolation } from '../structure/types.js';
 import { computeExpectedPairs, computeNodeMappedFiles } from '../core/pairs.js';
 import { buildPairPrompt } from '../llm/prompt.js';
-import type { PromptReferenceInput, PromptFileInput, PromptCompanionInput } from '../llm/prompt.js';
+import type { PromptReferenceInput, PromptFileInput, PromptCompanionInput, PromptSuppressedRangesInput } from '../llm/prompt.js';
+import { resolveSuppressedRangesForPrompt, SuppressMarkerError } from '../structure/index.js';
 import { verifyWithConsensus } from '../llm/aspect-verifier.js';
 import { createLlmProvider } from '../llm/index.js';
 import { selectTierForAspect } from '../core/tier-selection.js';
@@ -283,6 +284,39 @@ async function resolveCompanionsForTest(
 // ============================================================
 
 /**
+ * Resolve yg-suppress line ranges for `aspectId` over the already-loaded subject
+ * files, shaped for prompt injection so the diagnostic prompt matches the billed
+ * one byte-for-byte. Routed through the structure adapter (the command already
+ * declares `calls cli/structure`), keeping the engine/command suppress-resolution
+ * paths identical. On a reasonless marker, prints a what/why/next and returns
+ * `null` so the caller skips that pair (the live --approve path treats the same
+ * marker as fail-closed infra).
+ */
+async function resolveSuppressedRangesForTest(
+  files: PromptFileInput[],
+  aspectId: string,
+): Promise<PromptSuppressedRangesInput | null> {
+  const subjects = files.map((f) => ({ path: f.path, bytes: Buffer.from(f.content, 'utf8') }));
+  try {
+    return await resolveSuppressedRangesForPrompt(subjects, aspectId);
+  } catch (e) {
+    if (e instanceof SuppressMarkerError) {
+      const where = `${toPosixPath(e.file)}:${e.line}`;
+      debugWrite(`[aspect-test] suppress marker missing reason for ${aspectId} at ${where}`);
+      process.stderr.write(
+        buildIssueMessage({
+          what: `A yg-suppress marker at ${where} (subject of aspect '${aspectId}') is missing its required reason.`,
+          why: `A reasonless suppress marker cannot be resolved into a line range, so the prompt's suppressed-line set is undefined. The live yg check --approve path treats this as a fail-closed infrastructure error.`,
+          next: `Add a reason after the marker's closing parenthesis at ${where}, then retry.`,
+        }) + '\n',
+      );
+      return null;
+    }
+    throw e;
+  }
+}
+
+/**
  * Run (or dry-run) an LLM aspect against a graph node. Builds pair prompts via
  * computeExpectedPairs filtered to the given aspect+node, runs verifyWithConsensus
  * per prompt, and prints results. The lock is NEVER written.
@@ -410,6 +444,9 @@ async function runLlmAspectTest(
         companions = resolved.companions;
       }
 
+      const suppressedRanges = await resolveSuppressedRangesForTest(files, aspect.id);
+      if (suppressedRanges === null) continue;
+
       const prompt = buildPairPrompt({
         aspect: { id: aspect.id, description: aspect.description ?? '', content: aspectContent },
         references: referencesForPrompt,
@@ -417,6 +454,7 @@ async function runLlmAspectTest(
         nodeDescription,
         files,
         companions,
+        suppressedRanges,
         scope: aspect.scope,
       });
 
@@ -482,6 +520,9 @@ async function runLlmAspectTest(
         }
       }
 
+      const suppressedRanges = await resolveSuppressedRangesForTest(files, aspect.id);
+      if (suppressedRanges === null) continue;
+
       const prompt = buildPairPrompt({
         aspect: { id: aspect.id, description: aspect.description ?? '', content: aspectContent },
         references: referencesForPrompt,
@@ -489,6 +530,7 @@ async function runLlmAspectTest(
         nodeDescription,
         files,
         companions,
+        suppressedRanges,
         scope: aspect.scope,
       });
 

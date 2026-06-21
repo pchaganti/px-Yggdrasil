@@ -42,6 +42,14 @@ export interface CheckIssue extends Omit<ValidationIssue, 'code'> {
   uncoveredCount?: number;
   /** For aspect-newly-active / aspect-violation-*: the aspect this issue concerns */
   aspectId?: string;
+  /**
+   * For pair-derived issues (unverified / refused): the reviewer kind of the
+   * pair. Lets the CLI's `--summary` view split per-node counts into
+   * deterministic-free vs LLM without re-resolving the pair. Data-only — set
+   * from `pair.kind`; absent on non-pair issues (coverage / log / relation /
+   * structural), which the summary buckets as "other".
+   */
+  pairKind?: 'llm' | 'deterministic';
 }
 
 export interface CheckResult {
@@ -100,6 +108,7 @@ function emitPairIssue(vp: VerifiedPair): CheckIssue[] {
         messageData: md,
         nodePath: pair.nodePath,
         aspectId: pair.aspectId,
+        pairKind: pair.kind,
       });
       break;
     }
@@ -111,6 +120,7 @@ function emitPairIssue(vp: VerifiedPair): CheckIssue[] {
         messageData: unverifiedMessage({ aspectId: pair.aspectId, unitKey: pair.unitKey }),
         nodePath: pair.nodePath,
         aspectId: pair.aspectId,
+        pairKind: pair.kind,
       });
       break;
     case 'prompt-too-large':
@@ -170,7 +180,7 @@ function emitPairIssue(vp: VerifiedPair): CheckIssue[] {
  * Log integrity + format for ALL nodes, reading the append-only baseline from
  * the LOCK (`lock.nodes[path].log`) instead of per-node drift state (spec §9).
  * `validateAppendOnly` / `validateFormat` logic is unchanged. Restore strings
- * reference `.yggdrasil/yg-lock.json`.
+ * reference `.yggdrasil/yg-lock.logs.json` (the committed per-node log baseline).
  */
 async function classifyLogStateFromLock(
   graph: Graph,
@@ -188,6 +198,32 @@ async function classifyLogStateFromLock(
 
     const logBaseline = lock.nodes[nodePath]?.log;
 
+    // Detect git conflict markers FIRST — a conflict-markered log.md cannot be
+    // validated for integrity or format, and hand-stitching the two sides would
+    // break the append-only integrity hashes. Route to `yg log merge-resolve`.
+    //
+    // DEVIATION from the JSON-lock parity check (io/lock-store.ts:145, which keys
+    // off `<<<<<<<` | `=======` | `>>>>>>>`): we match ONLY the unambiguous
+    // open/close markers (7 `<` or 7 `>` at line start). A bare `=======` line is
+    // NOT a trigger here — `log.md` is markdown (unlike the JSON lock), where a
+    // run of `=` at line start is a legitimate setext H1 underline / horizontal
+    // rule and would false-positive. A markdown log body never legitimately starts
+    // a line with seven `<` or `>`.
+    if (logContent !== null && (/^<{7}/m.test(logContent) || /^>{7}/m.test(logContent))) {
+      issues.push({
+        severity: 'error',
+        code: 'log-conflict',
+        rule: 'log-conflict',
+        messageData: {
+          what: `Log contains git conflict markers at ${logRel}`,
+          why: 'A conflict-markered log.md cannot be validated; hand-stitching the two sides breaks the append-only integrity hashes — the merge must be reconciled structurally.',
+          next: `yg log merge-resolve --node ${nodePath}`,
+        },
+        nodePath,
+      });
+      continue;
+    }
+
     if (logBaseline) {
       const check = validateAppendOnly(
         logContent ?? '',
@@ -200,7 +236,7 @@ async function classifyLogStateFromLock(
           why: check.reason === 'prefix_modified'
             ? 'Historical (pre-baseline) log content was modified — append-only violated.'
             : 'Baseline boundary entry not found — log was deleted or reset.',
-          next: `Restore from git: git checkout HEAD -- ${logRel} .yggdrasil/yg-lock.json`,
+          next: `Restore from git: git checkout HEAD -- ${logRel} .yggdrasil/yg-lock.logs.json`,
         };
         issues.push({
           severity: 'error',
@@ -561,8 +597,9 @@ function countDraftAspectsAcrossGraph(graph: Graph): number {
 /**
  * Suggest the next command based on the highest-priority error, in the §6 order:
  *   lock-invalid → unverified(enforced) → enforced refusal (three exits / fix
- *   violations, carried per-issue) → prompt-too-large → log integrity/format →
- *   mapped-file-gitignored → structural → coverage → completeness.
+ *   violations, carried per-issue) → prompt-too-large → log conflict →
+ *   log integrity/format → mapped-file-gitignored → structural → coverage →
+ *   completeness.
  *
  * Each lock issue carries its own kind-appropriate `next` in messageData
  * (cached three-exit for an LLM refusal, fix-violations for a deterministic
@@ -602,12 +639,17 @@ function computeSuggestedNext(issues: CheckIssue[]): string | null {
   const companionError = errors.find(i => i.code === 'aspect-companion-runtime-error');
   if (companionError) return companionError.messageData.next;
 
-  // 5. log integrity / format.
+  // 5. log conflict — git conflict markers in log.md outrank integrity/format
+  //    (the file cannot be validated at all; reconcile structurally first).
+  const logConflict = errors.find(i => i.code === 'log-conflict');
+  if (logConflict) return logConflict.messageData.next;
+
+  // 5b. log integrity / format.
   const logIntegrity = errors.find(i => i.code === 'log-integrity');
   if (logIntegrity) {
     const node = logIntegrity.nodePath ?? '<unknown>';
     const count = errors.filter(i => i.code === 'log-integrity').length;
-    return `git checkout HEAD -- .yggdrasil/model/${node}/log.md .yggdrasil/yg-lock.json\n  ${count} log integrity violation${count === 1 ? '' : 's'} — restore from git`;
+    return `git checkout HEAD -- .yggdrasil/model/${node}/log.md .yggdrasil/yg-lock.logs.json\n  ${count} log integrity violation${count === 1 ? '' : 's'} — restore from git`;
   }
   const logFormat = errors.find(i => i.code === 'log-format');
   if (logFormat) {

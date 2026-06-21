@@ -856,3 +856,160 @@ describe('tainted re-run-once → runtime-error fail-closed (unit-pinned)', () =
   });
 });
 
+// =============================================================================
+// 13. Dry-run cost preview — early-return, no writes, per-node/per-aspect
+//     breakdown (the v5.2.0 `--approve --dry-run` path, in-process).
+// =============================================================================
+
+describe('dry-run cost preview (no writes)', () => {
+  it('renders the per-node breakdown for a MIX of det + LLM pairs, writes nothing, returns zero counters', async () => {
+    // Two aspects on one node — a deterministic (free) and an LLM (consensus 1)
+    // pair, both unverified. dryRun must:
+    //   - print the [det]/[llm] breakdown lines (the byNode split branches),
+    //   - resolve the LLM pair's consensus exactly as the header does,
+    //   - print the upper-bound caveat,
+    //   - write NOTHING and return all counters 0.
+    const { projectRoot } = await setupProject({
+      aspects: [
+        { id: 'det-a', kind: 'deterministic', status: 'enforced', rule: DET_PASS },
+        { id: 'llm-a', kind: 'llm', status: 'enforced', rule: 'rule a' },
+      ],
+    });
+    const graph = await loadGraph(projectRoot);
+    // Provider must never be asked during a dry-run — make verifyAspect throw if it is.
+    let verifyCalls = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { verifyCalls++; throw new Error('dry-run must not call the reviewer'); },
+    }));
+
+    const w = makeWriter();
+    const result = await runFill(graph, {
+      gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue, dryRun: true,
+    });
+
+    // No reviewer was ever invoked.
+    expect(verifyCalls).toBe(0);
+    // All counters are zero — nothing was filled.
+    expect(result.reviewerCallsMade).toBe(0);
+    expect(result.infraFailures).toBe(0);
+    expect(result.runtimeErrors).toBe(0);
+    expect(result.companionRuntimeErrors).toBe(0);
+
+    const out = w.text();
+    // The node header and BOTH per-aspect breakdown lines (det free + llm calls).
+    expect(out).toContain('svc');
+    expect(out).toContain('[det] det-a on node:svc — free');
+    expect(out).toContain('[llm] llm-a on node:svc — 1 reviewer call(s)');
+    // The upper-bound caveat (the dry-run-only closing line).
+    expect(out).toContain('reviewer call(s) is an UPPER BOUND');
+    expect(out).toContain('Nothing was written; run yg check --approve to fill.');
+
+    // Structural no-write guarantee: NO verdict landed in any lock file.
+    const lock = readLock(graph.rootPath);
+    expect(lock.verdicts['det-a']).toBeUndefined();
+    expect(lock.verdicts['llm-a']).toBeUndefined();
+    expect(lock.nodes['svc']).toBeUndefined();
+  });
+
+  it('dry-run under --only-deterministic shows ONLY the [det] line (the onlyDeterministic split)', async () => {
+    // Same mix, but onlyDeterministic narrows the dry-run breakdown's LLM group to
+    // [] — exercising the `onlyDeterministic ? [] : ...` branch inside the dry-run
+    // block. The [llm] line must NOT appear; the [det] line must.
+    const { projectRoot } = await setupProject({
+      aspects: [
+        { id: 'det-a', kind: 'deterministic', status: 'enforced', rule: DET_PASS },
+        { id: 'llm-a', kind: 'llm', status: 'enforced', rule: 'rule a' },
+      ],
+    });
+    const graph = await loadGraph(projectRoot);
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider());
+
+    const w = makeWriter();
+    const result = await runFill(graph, {
+      gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue,
+      dryRun: true, onlyDeterministic: true,
+    });
+
+    const out = w.text();
+    expect(out).toContain('[det] det-a on node:svc — free');
+    // onlyDeterministic drops the LLM pair from the preview entirely.
+    expect(out).not.toContain('[llm] llm-a');
+    // Still a no-write preview.
+    expect(result.reviewerCallsMade).toBe(0);
+    const lock = readLock(graph.rootPath);
+    expect(lock.verdicts['det-a']).toBeUndefined();
+  });
+
+  it('groups multiple pairs under the same node (the byNode list-append branch)', async () => {
+    // Two det aspects on one node → the second pair appends to the existing list
+    // (the `byNode.get(p.nodePath) ?? []` non-empty branch). Both [det] lines must
+    // render under the single node header.
+    const { projectRoot } = await setupProject({
+      aspects: [
+        { id: 'det-a', kind: 'deterministic', status: 'enforced', rule: DET_PASS },
+        { id: 'det-b', kind: 'deterministic', status: 'enforced', rule: DET_PASS },
+      ],
+    });
+    const graph = await loadGraph(projectRoot);
+    const w = makeWriter();
+    await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue, dryRun: true });
+
+    const out = w.text();
+    expect(out).toContain('[det] det-a on node:svc — free');
+    expect(out).toContain('[det] det-b on node:svc — free');
+    // Sorted alphabetically by aspect id within the node.
+    expect(out.indexOf('det-a')).toBeLessThan(out.indexOf('det-b'));
+  });
+});
+
+// =============================================================================
+// 14. --only-deterministic (non-dry-run) — fills ONLY det pairs, skips the LLM
+//     loop + positive closure, writes ONLY the gitignored deterministic file.
+// =============================================================================
+
+describe('--only-deterministic fill (in-process)', () => {
+  it('fills det pairs, never dispatches the LLM, and does not record positive closure', async () => {
+    // A mix of det + LLM pairs. onlyDeterministic: the det pair is filled, the LLM
+    // pair is left untouched (no reviewer call), and positive closure is skipped
+    // (no nodes[] source baseline written) because the committed logs file must
+    // not be written on a deterministic-only / CI run.
+    const { projectRoot } = await setupProject({
+      aspects: [
+        { id: 'det-a', kind: 'deterministic', status: 'enforced', rule: DET_PASS },
+        { id: 'llm-a', kind: 'llm', status: 'enforced', rule: 'rule a' },
+      ],
+      logContent: '## [2026-05-11T10:00:00.000Z]\nfirst.\n',
+    });
+    const graph = await loadGraph(projectRoot);
+    let verifyCalls = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { verifyCalls++; return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const }; },
+    }));
+
+    const result = await runFill(graph, { gitTrackedFiles: null, write: () => {}, onlyDeterministic: true });
+
+    // The reviewer was never asked — onlyDeterministic empties the LLM fill set.
+    expect(verifyCalls).toBe(0);
+    expect(result.reviewerCallsMade).toBe(0);
+
+    const lock = readLock(graph.rootPath);
+    // The det pair landed (in the gitignored deterministic file).
+    expect(lock.verdicts['det-a']?.['node:svc']?.verdict).toBe('approved');
+    // The LLM pair stays unverified (not written).
+    expect(lock.verdicts['llm-a']?.['node:svc']).toBeUndefined();
+    // Positive closure was skipped — no source fingerprint recorded.
+    expect(lock.nodes['svc']?.source).toBeUndefined();
+
+    // The committed logs file must NOT have been written by a det-only run.
+    const logsLockPath = path.join(graph.rootPath, 'yg-lock.logs.json');
+    let logsExists = true;
+    try { await readFile(logsLockPath, 'utf-8'); } catch { logsExists = false; }
+    // Either the file does not exist or it carries no nodes baseline — both prove
+    // the closure write was suppressed.
+    if (logsExists) {
+      const logs = JSON.parse(await readFile(logsLockPath, 'utf-8'));
+      expect(logs.nodes?.['svc']?.source).toBeUndefined();
+    }
+  });
+});
+

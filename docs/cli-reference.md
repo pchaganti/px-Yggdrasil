@@ -84,6 +84,7 @@ reports the deterministic pairs as unverified until `yg check --approve
 yg check
 yg check --approve
 yg check --approve --only-deterministic
+yg check --approve --dry-run
 ```
 
 Outputs: header (project, counts, coverage), errors grouped by category
@@ -91,6 +92,32 @@ Outputs: header (project, counts, coverage), errors grouped by category
 result (PASS/FAIL with category counts), and suggested next command.
 
 Exit code 0 if fully clean, 1 if any errors found.
+
+#### `--top [N]` and `--summary` — read-only triage views
+
+When a `yg check` run is large, two read-only flags narrow the output without
+losing fidelity. They apply only to the plain read (not `--approve`, which has
+its own `--dry-run` cost preview) and are mutually exclusive with each other.
+
+```bash
+yg check --top 5    # only the 5 highest-priority issue blocks
+yg check --top      # only the single suggested-next block (flag with no value)
+yg check --summary  # per-node counts only — no per-issue blocks
+```
+
+`--top N` renders the N highest-priority issue blocks, in the same priority
+order the `Next:` line draws from. A bare `--top` (no value) renders zero blocks
+and keeps only the single `Next:` line — the one concrete step to take.
+`--summary` prints one line per node — `K unverified (J deterministic-free, L
+LLM), M refused` — plus an `other` bucket for non-pair errors (coverage, log,
+relation, structural) so the per-node totals reconcile with the header.
+
+**Guardrail:** every view always prints the true aggregate `Errors (N)` /
+`Warnings (N)` header and preserves the real exit code, so a narrowed view can
+never read as a clean build. An invalid `--top` value — negative, fractional,
+non-numeric, or an explicit `0` — is a guided error, not a silent full dump; use
+bare `--top` for the zero-block view. Use these to orient, then drill into a
+specific block with plain `yg check`.
 
 #### `--approve` — fill unverified pairs
 
@@ -105,9 +132,28 @@ write nothing and leave the pair unverified. A refusal is cached and final for
 unchanged inputs: re-running does not re-roll it.
 
 `yg check --approve` prints a pre-dispatch header naming how many pairs and nodes
-it will fill and how many are deterministic (free) vs. reviewer calls. There is no
-preview or confirmation mode — use `yg impact` to predict cost before an edit, and
-`yg aspect-test --dry-run` to preview a single LLM prompt.
+it will fill and how many are deterministic (free) vs. reviewer calls. For a full
+preview before committing to the cost, use `--dry-run` (below); use `yg impact` to
+predict cost before an edit, and `yg aspect-test --dry-run` to preview a single LLM
+prompt.
+
+#### `--dry-run` — free cost preview, no writes
+
+`yg check --approve --dry-run` is a cost preview. It runs the same structural gate,
+pair classification, and budget computation as a real fill, prints the pre-dispatch
+header plus a per-node / per-aspect breakdown — each deterministic pair labelled
+free, each LLM pair labelled with its consensus call count — then exits 0 **without
+calling the reviewer, running any `check.mjs`, or writing a single byte to any lock
+file**. The reviewer-call total is an **upper bound**: a node with an enforced
+deterministic refusal has its LLM pairs skipped, and a fresh refusal or an
+infrastructure failure can leave a pair unfilled, so the real `--approve` bills at
+most that many calls.
+
+The preview always exits 0, even when enforced pairs are unverified — it never
+blocks the build. The only thing that aborts a preview is a broken configuration
+(the structural gate), which surfaces the same blocker a real `--approve` would hit.
+`--dry-run` requires `--approve`; used on its own it is a usage error (plain `yg
+check` is already a free, no-write read).
 
 #### `--only-deterministic` — fill the deterministic cache only
 

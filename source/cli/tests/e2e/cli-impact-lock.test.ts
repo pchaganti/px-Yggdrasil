@@ -463,3 +463,112 @@ describe.skipIf(!distExists)('CLI E2E — yg impact re-sourced from the lock', (
     expect(stdout).toContain('src/services/payments.ts -> services/payments');
   });
 });
+
+describe.skipIf(!distExists)('CLI E2E — yg impact --node/--file reviewer-call cost', () => {
+  // ===========================================================================
+  // The node-cost block (`Editing this {node|file} re-verifies: ...`) reports the
+  // reviewer-call cost of editing a node (or one file under it): the LLM vs
+  // deterministic pair split, the reviewer calls a re-fill dispatches (consensus
+  // folded in), and the count of currently-green verdicts the edit re-rolls. All
+  // sourced from the OWNER node's expected pairs + the on-disk lock. Lock
+  // vocabulary only — never "drift".
+  //
+  // services/orders (type service, mapping src/services/orders.ts) draws:
+  //   has-doc-comment        (LLM, enforced, type default)   → 1 LLM pair
+  //   no-todo-comments       (deterministic, enforced)       → 1 det pair
+  //   requires-named-export  (deterministic, advisory)       → 1 det pair
+  //   wip-rule               (deterministic, draft, own)     → no pair (draft)
+  // ===========================================================================
+
+  /** Rewrite the copied fixture's tier consensus (default 1) to `n`. */
+  function setConsensus(dir: string, n: number): void {
+    writeFileSync(
+      configPath(dir),
+      [
+        'version: "5.1.0"',
+        '',
+        'quality:',
+        '  max_direct_relations: 10',
+        '',
+        'reviewer:',
+        '  default: standard',
+        '  tiers:',
+        '    standard:',
+        '      provider: ollama',
+        `      consensus: ${n}`,
+        '      config:',
+        '        model: "qwen2.5-coder:0.5b"',
+        '        endpoint: "http://host.docker.internal:11434"',
+        '',
+      ].join('\n'),
+      'utf-8',
+    );
+  }
+
+  it('mixed LLM+deterministic node prints the per-kind counts and the reviewer-call cost', () => {
+    const dir = fixture('node-cost-mixed');
+    const { stdout, status } = run(['impact', '--node', 'services/orders'], dir);
+    expect(status).toBe(0);
+    // 1 LLM pair (has-doc-comment) at consensus 1 = 1 reviewer call.
+    expect(stdout).toMatch(/1 LLM pair\(s\) = 1 reviewer call\(s\)/);
+    // 2 deterministic pairs (no-todo-comments, requires-named-export) are free.
+    expect(stdout).toContain('2 deterministic = free');
+    // Cold lock → nothing green yet.
+    expect(stdout).toMatch(/0 currently-green verdict\(s\) re-rolled/);
+    // Lock vocabulary — never "drift".
+    expect(stdout.toLowerCase()).not.toContain('drift');
+  });
+
+  it('consensus 3 multiplies the reviewer-call count (= LLM pairs × consensus)', () => {
+    const dir = fixture('node-cost-consensus3');
+    setConsensus(dir, 3);
+    const { stdout, status } = run(['impact', '--node', 'services/orders'], dir);
+    expect(status).toBe(0);
+    // 1 LLM pair × consensus 3 = 3 reviewer calls.
+    expect(stdout).toMatch(/1 LLM pair\(s\) = 3 reviewer call\(s\)/);
+    expect(stdout).toContain('2 deterministic = free');
+  });
+
+  it('seeded green verdicts surface as currently-green re-rolled', () => {
+    const dir = fixture('node-cost-greens');
+    // Both deterministic pairs of services/orders are approved → 2 greens. Their
+    // verdicts live in the gitignored deterministic file (readLock merges them).
+    writeDetLock(dir, {
+      version: 1,
+      verdicts: {
+        'no-todo-comments': {
+          'node:services/orders': { verdict: 'approved', hash: 'aaa' },
+        },
+        'requires-named-export': {
+          'node:services/orders': { verdict: 'approved', hash: 'bbb' },
+        },
+      },
+      nodes: {},
+    });
+    const { stdout, status } = run(['impact', '--node', 'services/orders'], dir);
+    expect(status).toBe(0);
+    expect(stdout).toMatch(/2 currently-green verdict\(s\) re-rolled/);
+  });
+
+  it('zero-LLM node prints 0 LLM pairs = 0 reviewer calls without crashing', () => {
+    const dir = fixture('node-cost-zero-llm');
+    // Drop the only LLM aspect (has-doc-comment) → services/orders has only
+    // deterministic pairs left.
+    dropLlmDefault(dir);
+    const { stdout, status } = run(['impact', '--node', 'services/orders'], dir);
+    expect(status).toBe(0);
+    expect(stdout).toMatch(/0 LLM pair\(s\) = 0 reviewer call\(s\)/);
+    expect(stdout).toContain('2 deterministic = free');
+  });
+
+  it('--file framing scopes to the edited file and says "Editing this file"', () => {
+    const dir = fixture('node-cost-file');
+    const { stdout, status } = run(['impact', '--file', 'src/services/orders.ts'], dir);
+    expect(status).toBe(0);
+    // The file resolves to its owner node first.
+    expect(stdout).toContain('src/services/orders.ts -> services/orders');
+    // The cost line uses the file framing, scoped to pairs touching this file.
+    expect(stdout).toMatch(/Editing this file re-verifies: 1 LLM pair\(s\) = 1 reviewer call\(s\)/);
+    expect(stdout).toContain('2 deterministic = free');
+  });
+});

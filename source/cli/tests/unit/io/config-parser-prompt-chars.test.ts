@@ -32,10 +32,30 @@ reviewer:
 ${extra}`;
 
 describe('parseConfig — tier max_prompt_chars', () => {
+  // The parser is UNCHANGED by v5.2.0: an omitted key still parses to `undefined`.
+  // The 50000 default is applied at the size GATE (verify-lock / fill-llm), not here —
+  // so this "absent → undefined" assertion stays green.
   it('absent: max_prompt_chars is undefined', async () => {
     const filePath = makeTmpConfig(baseYaml(''));
     const config = await parseConfig(filePath);
     expect(config.reviewer?.tiers.standard.max_prompt_chars).toBeUndefined();
+  });
+
+  it('invalid value: the guided NEXT no longer promises unlimited and points at the 50000 default', async () => {
+    // v5.2.0 dropped the "or remove the key to allow unlimited prompt size" guidance —
+    // an omitted key now defaults to 50000, so the message must not promise unlimited.
+    const filePath = makeTmpConfig(baseYaml('      max_prompt_chars: -5\n'));
+    let caught: unknown;
+    try {
+      await parseConfig(filePath);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(ConfigParseError);
+    const next = (caught as ConfigParseError).messageData.next;
+    expect(next).not.toMatch(/unlimited/i);
+    expect(next).not.toMatch(/remove the key/i);
+    expect(next).toContain('50000');
   });
 
   it('valid positive integer is parsed and stored', async () => {

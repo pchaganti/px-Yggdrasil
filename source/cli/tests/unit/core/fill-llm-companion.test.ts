@@ -256,9 +256,14 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
 
     const result = await runFill(graph, { gitTrackedFiles: null, write: () => {} });
 
-    // Reviewer ran exactly once (consensus 1); the hook ran exactly once (no taint).
+    // Reviewer ran exactly once (consensus 1). The companion hook now runs MORE than
+    // once: since v5.2.0 the §4 prompt-size gate is unconditional (an omitted
+    // max_prompt_chars defaults to 50000), so verify-lock resolves the companion LIVE
+    // on every pass to size the gate — in addition to fill's own resolution. The hook
+    // is a pure resolver (never a judge), so extra invocations are harmless; we assert
+    // it ran (≥1) rather than pinning a brittle pass-count.
     expect(reviewerCalls).toBe(1);
-    expect(mockRunCompanionHook).toHaveBeenCalledTimes(1);
+    expect(mockRunCompanionHook).toHaveBeenCalled();
     expect(result.reviewerCallsMade).toBe(1);
 
     // The companion content reached the reviewer prompt.
@@ -372,15 +377,21 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
 
     const result = await runFill(graph, { gitTrackedFiles: null, write: () => {} });
 
-    // The hook ran exactly twice (initial + re-run-once); the reviewer never ran.
-    expect(mockRunCompanionHook).toHaveBeenCalledTimes(2);
+    // Since v5.2.0 the §4 gate is unconditional (omitted max_prompt_chars → 50000),
+    // so verify-lock resolves the companion LIVE to size the gate — running the A6
+    // taint guard (run once → retry once → torn). A torn set yields a companion-error
+    // at the gate, the pair is no longer `unverified`, and fill SKIPS it. The hook
+    // therefore runs ≥2 times (the gate's taint guard alone runs it twice); the
+    // reviewer never runs and nothing is written. The fail-closed contract is intact;
+    // only the surfacing site moved from the fill stage to the verify-lock gate.
+    expect(mockRunCompanionHook.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(reviewerCalls).toBe(0);
     expect(result.reviewerCallsMade).toBe(0);
-    // Companion-runtime-error disposition — counted separately, nothing written.
-    expect(result.companionRuntimeErrors).toBeGreaterThan(0);
     expect(result.infraFailures).toBe(0);
     expect(readLock(graph.rootPath).verdicts['llm-taint']?.['node:svc']).toBeUndefined();
-    expect(result.checkResult.issues.some((i) => i.code === 'unverified')).toBe(true);
+    // The torn companion surfaces as a blocking companion-resolution diagnostic in the
+    // check report (the verify-lock gate's companion-error → aspect-companion-runtime-error).
+    expect(result.checkResult.issues.some((i) => i.code === 'aspect-companion-runtime-error')).toBe(true);
   });
 
   it('tainted once then settles → verdict IS written (one re-run)', async () => {
@@ -395,11 +406,16 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
     });
     const graph = await loadGraph(projectRoot);
 
+    // First resolution taints, every subsequent resolution settles. Since v5.2.0 the
+    // §4 gate is unconditional, so verify-lock resolves the companion LIVE before fill;
+    // the A6 taint guard (run once → retry once) absorbs the single transient taint and
+    // settles. A one-shot `.mockResolvedValueOnce(settled)` would run dry once the gate
+    // consumed the slot, so we use a durable fallback that converges on the settled set.
     const taintedOnce: RunCompanionHookResult = { kind: 'ok', descriptors: [], touchedFiles: [], observations: [], observationsTainted: true };
     const settled: RunCompanionHookResult = { kind: 'ok', descriptors: [], touchedFiles: [], observations: [], observationsTainted: false };
     mockRunCompanionHook
       .mockResolvedValueOnce(taintedOnce)
-      .mockResolvedValueOnce(settled);
+      .mockResolvedValue(settled);
 
     let reviewerCalls = 0;
     mockCreateLlmProvider.mockReturnValue(makeMockProvider({
@@ -408,7 +424,7 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
 
     const result = await runFill(graph, { gitTrackedFiles: null, write: () => {} });
 
-    expect(mockRunCompanionHook).toHaveBeenCalledTimes(2);
+    // The transient taint settled, so the reviewer ran once and the verdict was written.
     expect(reviewerCalls).toBe(1);
     expect(result.reviewerCallsMade).toBe(1);
     expect(readLock(graph.rootPath).verdicts['llm-settle']?.['node:svc']?.verdict).toBe('approved');
@@ -436,14 +452,18 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
 
     expect(reviewerCalls).toBe(0);
     expect(result.reviewerCallsMade).toBe(0);
-    // Hook-throw is a companion-runtime-error, not an infra failure.
-    expect(result.companionRuntimeErrors).toBeGreaterThan(0);
     expect(result.infraFailures).toBe(0);
     expect(readLock(graph.rootPath).verdicts['llm-throw']?.['node:svc']).toBeUndefined();
-    // The per-pair message contains the token.
-    expect(w.text()).toContain('aspect-companion-runtime-error');
-    // The companion message (carrying the hook throw) reaches the diagnostics sink.
-    expect(w.text()).toMatch(/companion/i);
+    // Since v5.2.0 the §4 gate is unconditional (omitted max_prompt_chars → 50000), so
+    // verify-lock resolves the companion LIVE to size the gate; a throwing hook fails
+    // there as a companion-error, the pair is no longer `unverified`, and fill SKIPS it.
+    // The throw therefore surfaces as a blocking aspect-companion-runtime-error in the
+    // check report rather than via the fill-stage counter. Fail-closed contract intact.
+    const ce = result.checkResult.issues.find((i) => i.code === 'aspect-companion-runtime-error');
+    expect(ce).toBeDefined();
+    // The companion message (carrying the hook throw) reaches the agent via the check report.
+    const ceText = `${ce!.messageData.what}\n${ce!.messageData.why}\n${ce!.messageData.next}`;
+    expect(ceText).toMatch(/companion/i);
   });
 
   it('companion path missing on disk → infra (callsMade:0), no write', async () => {
@@ -470,10 +490,13 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
 
     expect(reviewerCalls).toBe(0);
     expect(result.reviewerCallsMade).toBe(0);
-    // A missing companion path is a companion-runtime-error, not an infra failure.
-    expect(result.companionRuntimeErrors).toBeGreaterThan(0);
     expect(result.infraFailures).toBe(0);
     expect(readLock(graph.rootPath).verdicts['llm-missing']?.['node:svc']).toBeUndefined();
+    // Since v5.2.0 the unconditional §4 gate resolves the companion LIVE; a path that
+    // is allowed but missing on disk fails there → companion-error, the pair is skipped
+    // by fill, and the failure surfaces as a blocking aspect-companion-runtime-error in
+    // the check report (not via the fill-stage counter). Fail-closed contract intact.
+    expect(result.checkResult.issues.some((i) => i.code === 'aspect-companion-runtime-error')).toBe(true);
   });
 
   it('companion path outside allowed-reads → infra (callsMade:0), NEXT names node as relation source', async () => {
@@ -522,14 +545,18 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
 
     expect(reviewerCalls).toBe(0);
     expect(result.reviewerCallsMade).toBe(0);
-    // Out-of-reach path is a companion-runtime-error, not an infra failure.
-    expect(result.companionRuntimeErrors).toBeGreaterThan(0);
     expect(result.infraFailures).toBe(0);
     expect(readLock(graph.rootPath).verdicts['llm-out']?.['node:svc']).toBeUndefined();
-    // The NEXT frames svc as the relation SOURCE and other (the owner) as TARGET —
-    // and NEVER interpolates the .md/unit as the relation site.
-    expect(w.text()).toContain('declare a relation from svc to other');
-    expect(w.text()).toContain('.yggdrasil/model/svc/yg-node.yaml');
+    // Since v5.2.0 the unconditional §4 gate resolves the companion LIVE; an out-of-reach
+    // path fails there → companion-error, fill skips the pair, and the failure surfaces in
+    // the check report (not the fill-stage write stream). The diagnostic's NEXT still frames
+    // svc as the relation SOURCE and other (the owner) as TARGET — and never interpolates the
+    // .md/unit as the relation site. Assert it on the check-report issue's messageData.
+    const ce = result.checkResult.issues.find((i) => i.code === 'aspect-companion-runtime-error');
+    expect(ce).toBeDefined();
+    const ceText = `${ce!.messageData.what}\n${ce!.messageData.why}\n${ce!.messageData.next}`;
+    expect(ceText).toContain('declare a relation from svc to other');
+    expect(ceText).toContain('.yggdrasil/model/svc/yg-node.yaml');
   });
 
   it('bad shape (non-array return) → companion-runtime-error (callsMade:0), no write', async () => {
@@ -550,10 +577,12 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
     const result = await runFill(graph, { gitTrackedFiles: null, write: () => {} });
     expect(reviewerCalls).toBe(0);
     expect(result.reviewerCallsMade).toBe(0);
-    // A bad-shape companion return is a companion-runtime-error, not an infra failure.
-    expect(result.companionRuntimeErrors).toBeGreaterThan(0);
     expect(result.infraFailures).toBe(0);
     expect(readLock(graph.rootPath).verdicts['llm-badshape']?.['node:svc']).toBeUndefined();
+    // Since v5.2.0 the unconditional §4 gate resolves the companion LIVE; a bad-shape
+    // (non-array) return fails there → companion-error, fill skips the pair, and the
+    // failure surfaces as a blocking aspect-companion-runtime-error in the check report.
+    expect(result.checkResult.issues.some((i) => i.code === 'aspect-companion-runtime-error')).toBe(true);
   });
 
   it('a companion path equal to a subject is dropped (no inject, no touched)', async () => {
@@ -676,6 +705,75 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
     expect(ptl!.messageData.what).toContain('2000');
   });
 
+  it('companion prompt over the DEFAULT (omitted max_prompt_chars) on FIRST fill → prompt-too-large at 50000, reviewer never called, no write', async () => {
+    // Mirror of the explicit-limit case above, but the tier OMITS max_prompt_chars.
+    // Before v5.2.0 an omitted key meant "no gate" — an oversized companion prompt
+    // would slip through, the reviewer would be billed, and a verdict written. Now
+    // an omitted key defaults to DEFAULT_MAX_PROMPT_CHARS (50000), so verify-lock
+    // resolves the companion live, measures the augmented prompt, classifies the pair
+    // prompt-too-large at limit 50000, fill SKIPS it — reviewer never called, no write.
+    const LARGE_COMPANION_CONTENT = 'x'.repeat(60_000); // exceeds the 50000 default
+    const root = await mkdtemp(path.join(tmpdir(), 'yg-fill-defaultlimit-'));
+    dirs.push(root);
+    const yggRoot = path.join(root, '.yggdrasil');
+    await mkdir(yggRoot, { recursive: true });
+    await mkdir(path.join(root, 'src'), { recursive: true });
+    // Tier omits max_prompt_chars entirely — the 50000 default must apply.
+    const cfgNoLimit =
+      'reviewer:\n  tiers:\n    standard:\n      provider: ollama\n      consensus: 1\n      config:\n        model: llama3\n        temperature: 0\n';
+    await writeFile(path.join(yggRoot, 'yg-config.yaml'), cfgNoLimit);
+    await writeFile(
+      path.join(yggRoot, 'yg-architecture.yaml'),
+      'node_types:\n  service:\n    description: s\n    log_required: false\n    relations:\n      uses: [service]\n',
+    );
+    await mkdir(path.join(yggRoot, 'model', 'svc'), { recursive: true });
+    await writeFile(path.join(root, 'src', 'svc.ts'), 'export const x = 1;\n');
+    await writeFile(
+      path.join(yggRoot, 'model', 'svc', 'yg-node.yaml'),
+      'name: svc\ntype: service\ndescription: x\nmapping:\n  - src/svc.ts\nrelations:\n  - type: uses\n    target: companion-node\naspects:\n  - llm-toolarge\n',
+    );
+    await mkdir(path.join(yggRoot, 'model', 'companion-node'), { recursive: true });
+    await writeFile(path.join(root, 'src', 'big-companion.ts'), LARGE_COMPANION_CONTENT);
+    await writeFile(
+      path.join(yggRoot, 'model', 'companion-node', 'yg-node.yaml'),
+      'name: companion-node\ntype: service\ndescription: c\nmapping:\n  - src/big-companion.ts\n',
+    );
+    const aspDir = path.join(yggRoot, 'aspects', 'llm-toolarge');
+    await mkdir(aspDir, { recursive: true });
+    await writeFile(path.join(aspDir, 'yg-aspect.yaml'), 'name: llm-toolarge\ndescription: llm-toolarge rule\nreviewer:\n  type: llm\nstatus: enforced\n');
+    await writeFile(path.join(aspDir, 'content.md'), 'rule\n');
+    await writeFile(
+      path.join(aspDir, 'companion.mjs'),
+      'export function companion() { return [{ path: "src/big-companion.ts" }]; }\n',
+    );
+
+    const graph = await loadGraph(root);
+
+    let reviewerCalls = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() {
+        reviewerCalls++;
+        return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const };
+      },
+    }));
+
+    const w = makeWriter();
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
+
+    // ZERO reviewer calls — the default gate intercepted before the reviewer ran.
+    expect(reviewerCalls).toBe(0);
+    expect(result.reviewerCallsMade).toBe(0);
+    // No infra failure: the pair is a gate SKIP (prompt-too-large), not an infra disposition.
+    expect(result.infraFailures).toBe(0);
+    // Nothing written for the pair.
+    expect(readLock(graph.rootPath).verdicts['llm-toolarge']?.['node:svc']).toBeUndefined();
+    // The gate reported prompt-too-large at the DEFAULT limit of 50000.
+    const ptl = result.checkResult.issues.find((i) => i.code === 'prompt-too-large');
+    expect(ptl).toBeDefined();
+    expect(ptl!.messageData.what).toContain('llm-toolarge');
+    expect(ptl!.messageData.what).toContain('50000');
+  });
+
   // Shared scaffold: a per:node LLM aspect whose companion.mjs THROWS, with a tier
   // limit set so verify-lock runs the resolver live to size the gate. The hook throws
   // → the pair is classified companion-error (a clear diagnostic), the reviewer is
@@ -778,12 +876,16 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
     expect(companionHashFor(aspect)).toBeUndefined();
   });
 
-  // ── New tests: aspect-companion-runtime-error token + summary ────────────────
+  // ── aspect-companion-runtime-error surfacing ────────────────────────────────
+  // Since v5.2.0 the §4 prompt-size gate is unconditional (omitted max_prompt_chars
+  // defaults to 50000). verify-lock resolves the companion LIVE to size the gate, so a
+  // throwing companion fails there as a companion-error BEFORE fill, the pair is no
+  // longer `unverified`, and fill SKIPS it. The aspect-companion-runtime-error therefore
+  // surfaces as a blocking issue in the CHECK report — not via the fill-stage per-pair
+  // message / summary counter, which now serve as defense-in-depth only. These two tests
+  // (formerly asserting the fill-stage token + summary line) assert the unified surfacing.
 
-  it('hook throw → per-pair message contains aspect-companion-runtime-error token', async () => {
-    // When a companion hook throws, the per-pair message emitted to the sink must
-    // contain the token "aspect-companion-runtime-error", mirroring the det pair's
-    // "aspect-check-runtime-error" token. The fill must NOT count it as infraFailures.
+  it('hook throw → blocking aspect-companion-runtime-error in the check report, nothing written', async () => {
     const { projectRoot } = await setupProject({
       aspects: [{
         id: 'llm-token',
@@ -796,45 +898,49 @@ describe('Task 5 — companion resolution in the LLM fill path', () => {
     const graph = await loadGraph(projectRoot);
     mockCreateLlmProvider.mockReturnValue(makeMockProvider());
 
-    const w = makeWriter();
-    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
+    const result = await runFill(graph, { gitTrackedFiles: null, write: () => {} });
 
-    // Per-pair token assertion (mirrors det: what: contains "aspect-companion-runtime-error").
-    expect(w.text()).toContain('aspect-companion-runtime-error');
-    // Counted as companionRuntimeErrors, not infraFailures.
-    expect(result.companionRuntimeErrors).toBe(1);
+    // The diagnostic surfaces with the aspect-companion-runtime-error code (the mirror
+    // of the deterministic aspect-check-runtime-error), severity error (enforced).
+    const ce = result.checkResult.issues.find((i) => i.code === 'aspect-companion-runtime-error');
+    expect(ce).toBeDefined();
+    expect(ce!.severity).toBe('error');
+    // Fail-closed: no infra failure, nothing written.
     expect(result.infraFailures).toBe(0);
-    // No verdict written; pair stays unverified.
     expect(readLock(graph.rootPath).verdicts['llm-token']?.['node:svc']).toBeUndefined();
-    expect(result.checkResult.issues.some((i) => i.code === 'unverified')).toBe(true);
   });
 
-  it('fill summary contains aspect-companion-runtime-error token when any companion hook fails', async () => {
-    // The fill summary line must contain the token, mirroring the det summary:
-    // "${n} companion resolution(s) failed to run at fill time — left unverified
-    // (aspect-companion-runtime-error)."
+  it('multiple failing companion hooks each surface a blocking aspect-companion-runtime-error', async () => {
+    // Two aspects whose companions both throw → two blocking companion-resolution
+    // diagnostics in the check report, both fail-closed (nothing written).
     const { projectRoot } = await setupProject({
-      aspects: [{
-        id: 'llm-summary',
-        kind: 'llm',
-        status: 'enforced',
-        rule: 'rule',
-        companion: 'export function companion() { throw new Error("summary-test"); }\n',
-      }],
+      aspects: [
+        {
+          id: 'llm-summary-a',
+          kind: 'llm',
+          status: 'enforced',
+          rule: 'rule',
+          companion: 'export function companion() { throw new Error("summary-test-a"); }\n',
+        },
+        {
+          id: 'llm-summary-b',
+          kind: 'llm',
+          status: 'enforced',
+          rule: 'rule',
+          companion: 'export function companion() { throw new Error("summary-test-b"); }\n',
+        },
+      ],
     });
     const graph = await loadGraph(projectRoot);
     mockCreateLlmProvider.mockReturnValue(makeMockProvider());
 
-    const w = makeWriter();
-    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
+    const result = await runFill(graph, { gitTrackedFiles: null, write: () => {} });
 
-    expect(result.companionRuntimeErrors).toBe(1);
-    // The SUMMARY line (emitted once at the end) carries the token and the count.
-    const text = w.text();
-    expect(text).toContain('companion resolution(s) failed to run at fill time');
-    expect(text).toContain('aspect-companion-runtime-error');
-    // The token appears at least twice: once in the per-pair what: and once in the summary.
-    const occurrences = text.split('aspect-companion-runtime-error').length - 1;
-    expect(occurrences).toBeGreaterThanOrEqual(2);
+    const companionErrors = result.checkResult.issues.filter((i) => i.code === 'aspect-companion-runtime-error');
+    expect(companionErrors.length).toBeGreaterThanOrEqual(2);
+    expect(companionErrors.every((i) => i.severity === 'error')).toBe(true);
+    expect(result.infraFailures).toBe(0);
+    expect(readLock(graph.rootPath).verdicts['llm-summary-a']?.['node:svc']).toBeUndefined();
+    expect(readLock(graph.rootPath).verdicts['llm-summary-b']?.['node:svc']).toBeUndefined();
   });
 });

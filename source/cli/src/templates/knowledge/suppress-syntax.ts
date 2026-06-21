@@ -77,8 +77,10 @@ SELECT * FROM orders;
 The enable marker must repeat the same aspect id as the disable marker —
 only a matching enable closes the range. An enable with no open disable is
 ignored, and a disable with no matching enable suppresses through to the end
-of the file. The matcher does not raise an error for an unmatched marker, so
-keep pairs explicit and review the resulting range yourself.
+of the file (this unbounded-to-EOF range is what \`yg suppressions\` flags as an
+"Unbounded range" warning). The matcher does not raise an error for an
+unmatched marker, so keep pairs explicit and review the resulting range
+yourself. The resolved range is the same for every reviewer kind.
 
 ## Wildcard
 
@@ -103,12 +105,15 @@ and a matching \`yg-suppress-enable(<id>)\` at the end. A bare
 the file, but the explicit pair is preferred so the range is unambiguous.
 
 Do NOT reach for the single-line \`yg-suppress(<id>)\` to waive a whole file —
-it covers only the one line that follows it. The single-line form reads as
-whole-file ONLY for an LLM aspect reviewed per node (its verdict is not tied
-to a line); for any line-attributed finding — a deterministic \`check.mjs\`,
-the relation pass, the AST checks — a single marker silently waives just that
-one line. The \`disable\`/\`enable\` bracket waives the file correctly
-regardless of the aspect's reviewer kind.
+it covers only the one line that follows it. This is true for EVERY aspect kind:
+suppress scope is resolved once, deterministically, into line ranges, and BOTH
+reviewer kinds honor the exact same ranges. A deterministic \`check.mjs\` reads
+those ranges directly; an LLM aspect's reviewer receives them injected into its
+prompt (as resolved \`(start-line, end-line)\` spans) and is instructed to honor
+exactly those lines — it does not re-interpret the marker's scope. So a
+single-line marker waives one line for an LLM aspect just as it does for a
+deterministic one. To waive a whole file, use the \`disable\`/\`enable\` bracket
+(or a bare \`disable\` that runs to end of file) — never a single-line marker.
 
 ## Language support
 

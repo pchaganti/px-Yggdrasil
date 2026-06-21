@@ -22,7 +22,7 @@ reviewer:
     standard:                     # Tier name — referenced by aspect reviewer.tier
       provider: ollama            # LLM provider (ollama, anthropic, openai, claude-code, ...)
       consensus: 1                # Votes per aspect (1 = single call; odd >= 3 = majority vote)
-      max_prompt_chars: 50000     # Optional — cap on the assembled LLM prompt; absent = unlimited.
+      max_prompt_chars: 50000     # Optional — cap on the assembled LLM prompt; absent defaults to 50000.
                                   # yg init writes 50000 so out-of-box adopters keep a guard.
       config:
         model: qwen3              # Model identifier for this provider
@@ -99,7 +99,7 @@ not global.
 Optional cap on the assembled LLM prompt for any pair resolving to this tier —
 scaffold + content.md + references + resolved companion files (when
 \`companion.mjs\` is present) + the unit's subject files + node descriptor.
-Absent = unlimited. \`yg init\` writes \`50000\` into the generated config so
+Absent defaults to 50000. \`yg init\` writes \`50000\` into the generated config so
 out-of-box adopters keep a guard.
 
 A pair whose prompt exceeds the limit is a blocking \`prompt-too-large\` error
@@ -263,10 +263,16 @@ yg init --upgrade
 
 Refreshes rules, platform files, \`.gitattributes\`, and
 \`.yggdrasil/.gitignore\` (see "Local state" above), and lifts the
-config's version bookkeeping to the current schema. The config parser is strict:
-a config carrying an unknown field (e.g. \`quality.max_node_chars\` or a tier
-\`references:\` cap block) gets a clear unknown-key error from \`yg check\` — delete
-those lines. Run from the repository root only. Review the diff before committing.
+config's version bookkeeping to the current schema. Retired \`quality.*\` fields
+(e.g. \`quality.max_node_chars\`) and retired/unknown \`config.*\` keys under a tier
+(e.g. a \`references:\` cap block or \`config.context_length_field\`) are SILENTLY
+IGNORED — no error, no warning. They are simply not read; the parser leaves them
+in your file untouched. Review the diff after upgrade and delete the dead lines
+by hand. This silent-ignore is distinct from the parser's unknown-KEY guard: a
+typo'd top-level key under \`reviewer:\` or under a tier (e.g. \`consesnsus:\`) is
+STILL a hard \`config-reviewer-unknown-key\` / \`config-tier-unknown-key\` error from
+\`yg check\` — a key typo is caught; a retired-field cleanup is not. Run from the
+repository root only. Review the diff before committing.
 
 ### Prompt size, not reference caps
 

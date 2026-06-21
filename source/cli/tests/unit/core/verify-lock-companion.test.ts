@@ -69,6 +69,9 @@ interface TestNode {
   mapping: string[];
   aspects: string[];
   description?: string;
+  /** Outgoing relations — needed so a companion path is relation-reachable when the
+   *  unconditional §4 gate resolves companions LIVE (since v5.2.0). */
+  relations?: Array<{ type: string; target: string }>;
 }
 
 function buildGraph(
@@ -82,6 +85,18 @@ function buildGraph(
   const aspectDefs: AspectDef[] = aspects.map((a) => {
     const artifacts = [{ filename: a.kind === 'llm' ? 'content.md' : 'check.mjs', content: a.ruleContent }];
     if (a.companion !== undefined) artifacts.push({ filename: 'companion.mjs', content: a.companion });
+    // Persist artifacts to disk at .yggdrasil/aspects/<id>/<filename>. Since v5.2.0 the
+    // §4 prompt-size gate is unconditional (an omitted max_prompt_chars defaults to
+    // 50000), so verifyLock resolves a companion aspect's companion.mjs LIVE on every
+    // run to size the gate — exactly as it does against a real loadGraph()'d graph. The
+    // hook loader imports companion.mjs from this on-disk path, so the synthetic graph
+    // must materialize it (previously the gate was skipped when no limit was set, and
+    // these in-memory-only artifacts were never read).
+    const aspectDir = path.join(rootPath, 'aspects', a.id);
+    mkdirSync(aspectDir, { recursive: true });
+    for (const art of artifacts) {
+      writeFileSync(path.join(aspectDir, art.filename), art.content, 'utf-8');
+    }
     return {
       id: a.id,
       name: a.id,
@@ -99,7 +114,10 @@ function buildGraph(
   for (const n of nodes) {
     nodeByPath.set(n.path, {
       path: n.path,
-      meta: { name: n.path, type: 'service', aspects: n.aspects, mapping: n.mapping, description: n.description },
+      meta: {
+        name: n.path, type: 'service', aspects: n.aspects, mapping: n.mapping, description: n.description,
+        ...(n.relations ? { relations: n.relations } : {}),
+      },
       children: [],
       parent: null,
     } as GraphNode);
@@ -259,7 +277,15 @@ describe('verifyLock — LLM companion verdicts', () => {
       id: 'asp', kind: 'llm', ruleContent: 'rule',
       companion: 'export function companion() { return [{ path: "src/partner.ts" }]; }\n',
     };
-    const graph = buildGraph([{ path: 'svc', mapping: ['src/a.ts'], aspects: ['asp'] }], [aspect]);
+    // svc declares a relation to the partner node that owns src/partner.ts, so the
+    // companion is relation-reachable when the unconditional §4 gate resolves it LIVE.
+    const graph = buildGraph(
+      [
+        { path: 'svc', mapping: ['src/a.ts'], aspects: ['asp'], relations: [{ type: 'uses', target: 'partner' }] },
+        { path: 'partner', mapping: ['src/partner.ts'], aspects: [] },
+      ],
+      [aspect],
+    );
     const aspectDef = graph.aspects[0];
     const touched: Array<[string, string]> = [readObs('src/partner.ts')];
     const lock = emptyLock();
@@ -275,14 +301,29 @@ describe('verifyLock — LLM companion verdicts', () => {
     expect((await verifyLock(graph, lock)).pairs[0].state.kind).toBe('unverified');
   });
 
-  it('touched read:<companion> that was DELETED re-observes MISSING → unverified (no throw)', async () => {
+  it('a DELETED companion file degrades the pair without throwing (live §4 gate → companion-error)', async () => {
     writeFile('src/a.ts', 'code');
     writeFile('src/partner.ts', 'present');
     const aspect: TestAspect = {
       id: 'asp', kind: 'llm', ruleContent: 'rule',
       companion: 'export function companion() { return [{ path: "src/partner.ts" }]; }\n',
     };
-    const graph = buildGraph([{ path: 'svc', mapping: ['src/a.ts'], aspects: ['asp'] }], [aspect]);
+    // svc declares a relation to the partner node owning src/partner.ts, so the live §4
+    // gate resolution (unconditional since v5.2.0) treats the companion as reachable.
+    // Since v5.2.0 the §4 gate is unconditional, so verifyLock resolves the companion
+    // LIVE to size the prompt. When the companion file is DELETED, the live resolver can
+    // no longer read it to assemble the prompt → the pair surfaces as `companion-error`
+    // (a clear, blocking diagnostic) BEFORE the stored touched read: re-observation would
+    // have degraded it to `unverified`. The contract that matters is preserved: a deleted
+    // companion degrades the pair without throwing — only the disposition label changed
+    // (the live gate now catches it first, instead of the stored-touched re-observation).
+    const graph = buildGraph(
+      [
+        { path: 'svc', mapping: ['src/a.ts'], aspects: ['asp'], relations: [{ type: 'uses', target: 'partner' }] },
+        { path: 'partner', mapping: ['src/partner.ts'], aspects: [] },
+      ],
+      [aspect],
+    );
     const aspectDef = graph.aspects[0];
     const touched: Array<[string, string]> = [readObs('src/partner.ts')];
     const lock = emptyLock();
@@ -293,7 +334,7 @@ describe('verifyLock — LLM companion verdicts', () => {
     });
     rmSync(path.join(tmpDir, 'src/partner.ts'));
     const result = await verifyLock(graph, lock); // must not throw
-    expect(result.pairs[0].state.kind).toBe('unverified');
+    expect(result.pairs[0].state.kind).toBe('companion-error');
   });
 
   it('plain LLM entry (no companion, no touched) → verified and NOT invalidated by an unrelated cross-node edit', async () => {

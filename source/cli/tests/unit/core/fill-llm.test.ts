@@ -727,5 +727,154 @@ describe('Bug 1 — BOM/non-UTF-8 reference round-trips fill → verify', () => 
   });
 });
 
+// =============================================================================
+// 16. Item #10: per-pair durability — a completed LLM verdict is persisted the
+// moment its pair finishes (inside the runPairPool worker continuation), so an
+// interrupt / mid-pool failure keeps every already-finished verdict and the next
+// run resumes only the rest. Pins the persist-per-pair form at fill.ts (commit
+// ca39916a) and the `outcome.kind === 'verdict'` write guard (commit fb950eea).
+// =============================================================================
+
+const PARALLEL_1_CONFIG = `parallel: 1\n${V5_REVIEWER_CONFIG}`;
+const PARALLEL_2_CONFIG = `parallel: 2\n${V5_REVIEWER_CONFIG}`;
+
+describe('per-pair durability under mid-pool failure (item #10)', () => {
+  it('completed LLM pair is durable before a later mid-pool failure', async () => {
+    // Two enforced LLM aspects on one node, consensus 1, parallel 1 → the pool
+    // dispatches them one at a time. The provider approves the first pair, then
+    // throws on the second (simulating a Ctrl+C / crash mid-pool). The first
+    // verdict must already be on disk; the second must be absent.
+    const { projectRoot } = await setupProject({
+      aspects: [
+        { id: 'llm-a', kind: 'llm', status: 'enforced', rule: 'rule a' },
+        { id: 'llm-b', kind: 'llm', status: 'enforced', rule: 'rule b' },
+      ],
+      configYaml: PARALLEL_1_CONFIG,
+    });
+    const graph = await loadGraph(projectRoot);
+
+    let calls = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() {
+        calls++;
+        if (calls === 1) return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const };
+        throw new Error('ctrl-c interrupt');
+      },
+    }));
+
+    const result = await runFill(graph, { gitTrackedFiles: null, write: () => {} });
+
+    // The first pair to complete persisted its approved verdict before the
+    // second pair's throw — exactly one approved verdict survives on disk.
+    const verdicts = readLock(graph.rootPath).verdicts;
+    const approved = Object.entries(verdicts).flatMap(([aspectId, byUnit]) =>
+      Object.entries(byUnit ?? {})
+        .filter(([, entry]) => entry.verdict === 'approved')
+        .map(([unitKey]) => `${aspectId}:${unitKey}`),
+    );
+    expect(approved).toHaveLength(1);
+    // The throwing pair wrote nothing (infra disposition, fail-closed).
+    expect(result.infraFailures).toBeGreaterThanOrEqual(1);
+    // Sanity: exactly one of the two aspect entries exists; the other is absent.
+    const aPresent = verdicts['llm-a']?.['node:svc'] !== undefined;
+    const bPresent = verdicts['llm-b']?.['node:svc'] !== undefined;
+    expect(aPresent !== bPresent).toBe(true);
+  });
+
+  it('second run bills only the remaining pair', async () => {
+    // After the mid-pool failure above, the surviving verdict is cached and the
+    // second run re-verifies ONLY the still-unverified pair — one provider call.
+    const { projectRoot } = await setupProject({
+      aspects: [
+        { id: 'llm-a', kind: 'llm', status: 'enforced', rule: 'rule a' },
+        { id: 'llm-b', kind: 'llm', status: 'enforced', rule: 'rule b' },
+      ],
+      configYaml: PARALLEL_1_CONFIG,
+    });
+    let graph = await loadGraph(projectRoot);
+
+    // First run: approve pair #1, throw on pair #2.
+    let calls = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() {
+        calls++;
+        if (calls === 1) return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const };
+        throw new Error('ctrl-c interrupt');
+      },
+    }));
+    await runFill(graph, { gitTrackedFiles: null, write: () => {} });
+
+    // Second run: approve-all + count calls. The cached pair is NOT re-billed.
+    graph = await loadGraph(projectRoot);
+    let secondRunCalls = 0;
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() {
+        secondRunCalls++;
+        return { satisfied: true, reason: 'ok', errorSource: 'codeViolation' as const };
+      },
+    }));
+    const result = await runFill(graph, { gitTrackedFiles: null, write: () => {} });
+
+    // Exactly one reviewer call — only the remaining (previously-thrown) pair.
+    expect(secondRunCalls).toBe(1);
+    expect(result.reviewerCallsMade).toBe(1);
+    // Both aspects are now approved on disk.
+    const verdicts = readLock(graph.rootPath).verdicts;
+    expect(verdicts['llm-a']?.['node:svc']?.verdict).toBe('approved');
+    expect(verdicts['llm-b']?.['node:svc']?.verdict).toBe('approved');
+  });
+
+  it('infra outcome inside the pool writes nothing', async () => {
+    // A single LLM pair whose provider returns a provider-sourced non-satisfaction
+    // is an infra disposition INSIDE the pool worker — the `outcome.kind ===
+    // 'verdict'` guard skips the write, so the lock holds no entry for it.
+    const { projectRoot } = await setupProject({
+      aspects: [{ id: 'llm-a', kind: 'llm', status: 'enforced', rule: 'rule a' }],
+      configYaml: PARALLEL_1_CONFIG,
+    });
+    const graph = await loadGraph(projectRoot);
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider({
+      async verifyAspect() { return { satisfied: false, reason: 'rate limited', errorSource: 'provider' as const }; },
+    }));
+    const result = await runFill(graph, { gitTrackedFiles: null, write: () => {} });
+
+    // No verdict written — the in-pool infra disposition is fail-closed.
+    expect(readLock(graph.rootPath).verdicts['llm-a']?.['node:svc']).toBeUndefined();
+    expect(result.infraFailures).toBeGreaterThanOrEqual(1);
+  });
+
+  it('parallel:2 both completed pairs durable, lock not torn', async () => {
+    // Two LLM pairs dispatched concurrently (parallel 2), both approved. Both
+    // verdicts must land on disk uncorrupted, and a fresh verifyLock pass must
+    // classify both as `verified` (the lock was not torn by concurrent writes).
+    const { projectRoot } = await setupProject({
+      aspects: [
+        { id: 'llm-a', kind: 'llm', status: 'enforced', rule: 'rule a' },
+        { id: 'llm-b', kind: 'llm', status: 'enforced', rule: 'rule b' },
+      ],
+      configYaml: PARALLEL_2_CONFIG,
+    });
+    const graph = await loadGraph(projectRoot);
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider()); // approves both
+    await runFill(graph, { gitTrackedFiles: null, write: () => {} });
+
+    // Both verdicts are approved on disk.
+    const verdicts = readLock(graph.rootPath).verdicts;
+    expect(verdicts['llm-a']?.['node:svc']?.verdict).toBe('approved');
+    expect(verdicts['llm-b']?.['node:svc']?.verdict).toBe('approved');
+
+    // A fresh verifyLock pass classifies BOTH pairs as verified — the lock is
+    // intact and re-hashes cleanly against the same inputs.
+    const freshGraph = await loadGraph(projectRoot);
+    const verification = await verifyLock(freshGraph, readLock(freshGraph.rootPath));
+    for (const aspectId of ['llm-a', 'llm-b']) {
+      const vp = verification.pairs.find(
+        (p) => p.pair.aspectId === aspectId && p.pair.unitKey === 'node:svc',
+      );
+      expect(vp?.state.kind).toBe('verified');
+    }
+  });
+});
+
 // Companion-resolution tests have been moved to fill-llm-companion.test.ts
 // to keep both files under the reviewer's 50 000-char prompt limit.

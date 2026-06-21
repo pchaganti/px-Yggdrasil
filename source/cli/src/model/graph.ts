@@ -121,7 +121,7 @@ export interface LlmConfig {
   timeout?: number;
   /**
    * Optional per-tier cap on assembled reviewer-prompt length in characters.
-   * Absent = unlimited. This is a GATE checked deterministically before the LLM
+   * Absent defaults to 50000. This is a GATE checked deterministically before the LLM
    * call — it never participates in verdict identity or hash computation (excluded
    * from canonicalTierJson like api_key and timeout).
    */

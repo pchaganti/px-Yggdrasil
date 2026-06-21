@@ -2,8 +2,40 @@ import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, cp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, cp, rm, writeFile, readFile, readdir, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+
+/** Strip ANSI color codes so block counting / substring matching is stable. */
+function stripAnsi(s: string): string {
+  // eslint-disable-next-line no-control-regex
+  return s.replace(/\x1b\[[0-9;]*m/g, '');
+}
+
+/** Count rendered issue BLOCKS in stripped stdout: lines that begin a block
+ *  ("  <label>  <node>  …" or "  <label> (<n>)") but are NOT Why:/Fix:
+ *  continuation lines. */
+function countBlocks(stdout: string): number {
+  return stripAnsi(stdout)
+    .split('\n')
+    .filter((l) => /^ {2}\S/.test(l) && !/^ {2}(Why:|Fix:)/.test(l))
+    .length;
+}
+
+/** Read every committed lock file under .yggdrasil/ as raw bytes, keyed by name.
+ *  The committed triad is the two yg-lock.*.json files that are NOT dot-prefixed
+ *  (the .yg-lock.deterministic.json cache is gitignored). Returns a stable map so
+ *  a before/after comparison proves byte-identity (and detects a newly-created
+ *  lock file as a changed key). */
+async function readCommittedLockBytes(cwd: string): Promise<Record<string, string>> {
+  const dir = path.join(cwd, '.yggdrasil');
+  const entries = await readdir(dir).catch(() => [] as string[]);
+  const locks = entries.filter((f) => /^yg-lock\..*\.json$/.test(f)).sort();
+  const out: Record<string, string> = {};
+  for (const f of locks) {
+    out[f] = await readFile(path.join(dir, f), 'latin1');
+  }
+  return out;
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../../..');
@@ -178,6 +210,217 @@ describe('check command', () => {
         });
         expect(result.status).toBe(1);
       });
+    });
+  });
+
+  describe('--approve --dry-run cost preview', () => {
+    it('on a cold lock prints the budget + per-node breakdown and leaves committed lock files byte-identical (exit 0)', async () => {
+      // The fixture ships without any lock files. A dry-run runs the structural
+      // gate + classification + budget, prints the breakdown, then returns
+      // WITHOUT writing — the no-write guarantee is structural (the early-return
+      // precedes the serialized writer's construction). Capture committed lock
+      // bytes before/after to prove byte-identity (and that no lock file was
+      // created).
+      await withFixtureCopy(async (cwd) => {
+        const before = await readCommittedLockBytes(cwd);
+
+        const result = spawnSync('node', [BIN_PATH, 'check', '--approve', '--dry-run'], {
+          cwd,
+          encoding: 'utf-8',
+          timeout: 20000,
+        });
+
+        expect(result.status).toBe(0);
+        // Pre-dispatch budget header.
+        expect(result.stdout).toContain('Filling');
+        expect(result.stdout).toContain('reviewer calls (consensus included)');
+        // Per-node / per-aspect breakdown: each LLM pair labelled with its call count.
+        expect(result.stdout).toMatch(/\[llm\] .+ reviewer call\(s\)/);
+        // The honest upper-bound caveat.
+        expect(result.stdout).toContain('UPPER BOUND');
+        // It still ran the read and printed the check report.
+        expect(result.stdout).toMatch(/yg check: (PASS|FAIL)/);
+
+        // STRUCTURAL no-write guarantee: committed lock files are byte-identical
+        // and no new committed lock file was created.
+        const after = await readCommittedLockBytes(cwd);
+        expect(after).toEqual(before);
+      });
+    });
+
+    it('never exits 1 even with unverified enforced pairs', async () => {
+      // The cold fixture has unverified enforced LLM pairs (no lock). A real
+      // `check --approve` (reviewer unreachable) exits 1; a preview exits 0 — it
+      // never blocks the build, it only reports the prospective cost.
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync('node', [BIN_PATH, 'check', '--approve', '--dry-run'], {
+          cwd,
+          encoding: 'utf-8',
+          timeout: 20000,
+        });
+        expect(result.status).toBe(0);
+      });
+    });
+
+    it('--dry-run without --approve is a guided what/why/next usage error (exit 1)', async () => {
+      // --dry-run is a MODE of --approve, not a standalone alias for the plain
+      // read. On its own it is a usage error steering to the right command.
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync('node', [BIN_PATH, 'check', '--dry-run'], {
+          cwd,
+          encoding: 'utf-8',
+          timeout: 20000,
+        });
+        expect(result.status).toBe(1);
+        expect(result.stdout).toContain('--dry-run requires --approve.');
+        // Guided message structure: a why and a next steering to the preview.
+        expect(result.stdout).toContain('yg check --approve --dry-run');
+      });
+    });
+
+    it('previews a node that would otherwise need a fresh log entry (exit 0, no log-entry-required block)', async () => {
+      // Flip the service type to log_required: true. On a cold lock this is a
+      // first verification for nodes owning source, so a real `--approve` would
+      // raise the log gate (`No fresh log entry…`). A dry-run intentionally
+      // bypasses the step-4 log gate — its early-return precedes that gate — so
+      // the preview still runs and exits 0 with NO log-gate block.
+      await withFixtureCopy(async (cwd) => {
+        const archPath = path.join(cwd, '.yggdrasil', 'yg-architecture.yaml');
+        const arch = await readFile(archPath, 'utf-8');
+        await writeFile(archPath, arch.replace(/log_required: false/g, 'log_required: true'), 'utf-8');
+
+        const before = await readCommittedLockBytes(cwd);
+        const result = spawnSync('node', [BIN_PATH, 'check', '--approve', '--dry-run'], {
+          cwd,
+          encoding: 'utf-8',
+          timeout: 20000,
+        });
+
+        expect(result.status).toBe(0);
+        // The preview ran (budget header present)…
+        expect(result.stdout).toContain('Filling');
+        // …and the log gate was NOT triggered.
+        expect(result.stdout).not.toContain('No fresh log entry');
+        expect(result.stdout).not.toContain('log-entry-required');
+        expect(result.stdout).not.toContain('need a fresh log entry');
+
+        // Still no writes.
+        const after = await readCommittedLockBytes(cwd);
+        expect(after).toEqual(before);
+      });
+    });
+  });
+
+  describe('--top / --summary read-only triage views', () => {
+    // The sample-project (cold lock) yields exactly Errors (4): three
+    // unverified pairs + one mapping-path-missing structural error.
+
+    it('--top 1 → exit 1, true Errors(4) header, exactly one block, and a Next line', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync('node', [BIN_PATH, 'check', '--top', '1'], { cwd, encoding: 'utf-8' });
+        expect(result.status).toBe(1);
+        const out = stripAnsi(result.stdout);
+        // Header preserves the TRUE total even though only one block prints.
+        expect(out).toContain('Errors (4):');
+        expect(countBlocks(out)).toBe(1);
+        expect(out).toMatch(/\nNext: /);
+      });
+    });
+
+    it('--summary → exit 1, counts only (no Why:/Fix: blocks), true header', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync('node', [BIN_PATH, 'check', '--summary'], { cwd, encoding: 'utf-8' });
+        expect(result.status).toBe(1);
+        const out = stripAnsi(result.stdout);
+        expect(out).toContain('Errors (4):');
+        // Per-node aggregate rows, no per-issue detail.
+        expect(out).toMatch(/unverified \(\d+ deterministic-free, \d+ LLM\)/);
+        expect(out).not.toContain('Why:');
+        expect(out).not.toContain('Fix:');
+        // The non-pair mapping-path-missing error lands in the "other" bucket.
+        expect(out).toMatch(/users\/missing-service\s+.*other/);
+      });
+    });
+
+    it('bare --top → only the suggestedNext block (zero issue blocks), exit 1', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync('node', [BIN_PATH, 'check', '--top'], { cwd, encoding: 'utf-8' });
+        expect(result.status).toBe(1);
+        const out = stripAnsi(result.stdout);
+        expect(out).toContain('Errors (4):');
+        expect(countBlocks(out)).toBe(0);
+        expect(out).toMatch(/\nNext: /);
+      });
+    });
+
+    it('--top 99 → all four blocks, no crash, exit 1', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync('node', [BIN_PATH, 'check', '--top', '99'], { cwd, encoding: 'utf-8' });
+        expect(result.status).toBe(1);
+        const out = stripAnsi(result.stdout);
+        expect(out).toContain('Errors (4):');
+        expect(countBlocks(out)).toBe(4);
+      });
+    });
+
+    for (const bad of ['-2', 'abc', '0', '1.5']) {
+      it(`--top ${bad} → guided error, exit 1 (no silent full dump)`, async () => {
+        await withFixtureCopy(async (cwd) => {
+          const result = spawnSync('node', [BIN_PATH, 'check', '--top', bad], { cwd, encoding: 'utf-8' });
+          expect(result.status).toBe(1);
+          const out = stripAnsi(result.stdout);
+          expect(out).toContain('--top expects a non-negative whole number');
+          // It must NOT have dumped the full check wall — no issue blocks.
+          expect(countBlocks(out)).toBe(0);
+        });
+      });
+    }
+
+    it('--top 1 --summary → mutual-exclusion guided error, exit 1', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync('node', [BIN_PATH, 'check', '--top', '1', '--summary'], { cwd, encoding: 'utf-8' });
+        expect(result.status).toBe(1);
+        expect(stripAnsi(result.stdout)).toContain('--top and --summary cannot be combined');
+      });
+    });
+
+    it('--summary --approve → guided error (read-only triage cannot combine with the writer), exit 1', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync('node', [BIN_PATH, 'check', '--summary', '--approve'], { cwd, encoding: 'utf-8' });
+        expect(result.status).toBe(1);
+        expect(stripAnsi(result.stdout)).toContain('cannot be combined with --approve');
+      });
+    });
+
+    it('--top 1 on a green fixture → PASS, exit 0, no blocks', async () => {
+      // Hand-author a trivially-green graph: one organizational node, no
+      // aspects, no mapping → zero pairs, zero coverage gaps.
+      const root = await mkdtemp(path.join(tmpdir(), 'ygg-check-green-'));
+      try {
+        const ygg = path.join(root, '.yggdrasil');
+        await mkdir(path.join(ygg, 'model', 'core'), { recursive: true });
+        await mkdir(path.join(ygg, 'aspects'), { recursive: true });
+        await mkdir(path.join(ygg, 'flows'), { recursive: true });
+        await writeFile(path.join(ygg, 'yg-config.yaml'),
+          'version: "5.1.0"\n' +
+          'quality:\n  max_direct_relations: 10\n' +
+          'reviewer:\n  default: standard\n  tiers:\n    standard:\n' +
+          '      provider: ollama\n      consensus: 1\n' +
+          '      config:\n        model: "m"\n        endpoint: "http://127.0.0.1:1"\n', 'utf-8');
+        await writeFile(path.join(ygg, 'yg-architecture.yaml'),
+          'node_types:\n  module:\n    description: \'Organizational grouping.\'\n' +
+          '    allowed_parents: []\n    default_aspects: []\nrelation_types: {}\n', 'utf-8');
+        await writeFile(path.join(ygg, 'model', 'core', 'yg-node.yaml'),
+          'name: core\ntype: module\ndescription: An organizational node with no mapping.\n', 'utf-8');
+
+        const result = spawnSync('node', [BIN_PATH, 'check', '--top', '1'], { cwd: root, encoding: 'utf-8' });
+        expect(result.status).toBe(0);
+        const out = stripAnsi(result.stdout);
+        expect(out).toContain('yg check: PASS');
+        expect(countBlocks(out)).toBe(0);
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
     });
   });
 });

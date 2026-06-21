@@ -162,6 +162,28 @@ export function isLineSuppressed(ranges: SuppressedRange[], aspectId: string, li
   });
 }
 
+/**
+ * Project the suppressed ranges that apply to ONE aspect into a flat, sorted list
+ * of `{startLine, endLine}` line spans. A range applies when it is a wildcard
+ * (`yg-suppress(*)`) or its `aspectIds` set names this aspect — the exact same
+ * predicate `isLineSuppressed` uses, so the lines an LLM reviewer is told to honor
+ * are byte-for-byte the lines the deterministic runner already waives.
+ *
+ * Sorted by `startLine` then `endLine` so the injected prompt block is
+ * deterministic regardless of marker discovery order. Returns `[]` when no range
+ * applies (the caller renders no `<suppressed-ranges>` block, keeping the prompt
+ * byte-identical to the no-suppress case).
+ */
+export function formatSuppressedRangesForAspect(
+  ranges: SuppressedRange[],
+  aspectId: string,
+): Array<{ startLine: number; endLine: number }> {
+  return ranges
+    .filter(r => r.isWildcard || r.aspectIds.has(aspectId))
+    .map(r => ({ startLine: r.startLine, endLine: r.endLine }))
+    .sort((a, b) => (a.startLine - b.startLine) || (a.endLine - b.endLine));
+}
+
 // ── Line scanner (no tree-sitter) ────────────────────────────
 
 export interface SuppressionMarkerInfo {

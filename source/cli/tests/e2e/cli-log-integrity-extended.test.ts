@@ -38,7 +38,7 @@ const distExists = existsSync(BIN_PATH);
 // committed fixture bytes are never mutated.
 //
 // MODEL — `yg approve` / `.drift-state/` are GONE; state lives in
-// `.yggdrasil/yg-lock.json`. Append-only integrity surfaces as `log-integrity`
+// `.yggdrasil/yg-lock.logs.json`. Append-only integrity surfaces as `log-integrity`
 // and format as `log-format`, BOTH at plain `yg check` time (pure reads). The
 // `yg check` rendering shows only the violation-CODE summary line
 // (`Log integrity broken (<reason>)` / `Log format invalid at <path>:`) plus a
@@ -46,7 +46,7 @@ const distExists = existsSync(BIN_PATH);
 // `invalid_datetime`, …) is surfaced by `yg log read`, which runs the same
 // validateFormat before rendering. So each format case asserts the code via
 // `yg check` AND the detailed reason via `yg log read`. The restore-from-git
-// guidance now names `.yggdrasil/yg-lock.json` (the log baseline lives there,
+// guidance now names `.yggdrasil/yg-lock.logs.json` (the log baseline lives there,
 // in `nodes.<path>.log`), not the removed `.drift-state/` path.
 //
 // SCOPE — this suite covers the REMAINING log-domain error paths NOT asserted
@@ -184,8 +184,8 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (append-only), format va
   // entry; the FIRST is pre-baseline, inside the hashed prefix). Editing the
   // FIRST entry's body changes the hashed prefix → validateAppendOnly returns
   // `prefix_modified`. `yg check` surfaces it as code `log-integrity` with
-  // restore-from-git guidance that names log.md AND yg-lock.json (the log
-  // baseline lives in the lock now).
+  // restore-from-git guidance that names log.md AND yg-lock.logs.json (the log
+  // baseline lives in that triad member now).
   // =========================================================================
 
   it('1a: check refuses (exit 1) when pre-baseline log content is modified — prefix_modified', () => {
@@ -202,9 +202,11 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (append-only), format va
       expect(status).toBe(1);
       expect(all).toContain('Log integrity broken (prefix_modified)');
       expect(all).toContain('Historical (pre-baseline) log content was modified — append-only violated.');
-      // Restore-from-git guidance names both the log.md and the lock file.
+      // Restore-from-git guidance names both the log.md and the committed log
+      // baseline (the triad member yg-lock.logs.json), not the retired single-file
+      // yg-lock.json name.
       expect(all).toContain('git checkout HEAD -- .yggdrasil/model/services/orders/log.md');
-      expect(all).toContain('.yggdrasil/yg-lock.json');
+      expect(all).toContain('.yggdrasil/yg-lock.logs.json');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -379,6 +381,44 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (append-only), format va
       expect(stdout).toContain('log-format');
       expect(stdout).toContain('services/orders');
       expect(stdout).toContain('Log format invalid at .yggdrasil/model/services/orders/log.md');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // =========================================================================
+  // GIT CONFLICT MARKERS — a conflict-markered log.md routes to merge-resolve
+  //
+  // A log.md left with unresolved git conflict markers cannot be validated for
+  // integrity or format; hand-stitching the two sides would break the
+  // append-only integrity hashes. `yg check` detects the open/close markers
+  // FIRST and surfaces code `log-conflict`, steering to `yg log merge-resolve`
+  // (NOT the format-fix or restore-from-git guidance).
+  // =========================================================================
+
+  it('2g: conflict markers in log.md → log-conflict, route to merge-resolve (exit 1)', () => {
+    const dir = deterministicFixture('conflict-markers');
+    try {
+      seedOneEntryLogBaseline(dir, 'base entry');
+      // Overwrite the log with an unresolved git conflict (open/close + separator).
+      writeFileSync(
+        ordersLogPath(dir),
+        '## [2026-05-11T10:00:00.000Z]\n' +
+          '<<<<<<< HEAD\n' +
+          'ours reason.\n' +
+          '=======\n' +
+          'theirs reason.\n' +
+          '>>>>>>> branch\n',
+        'utf-8',
+      );
+
+      const { status, all } = run(['check'], dir);
+      expect(status).toBe(1);
+      expect(all).toContain('log-conflict');
+      expect(all).toContain('yg log merge-resolve --node services/orders');
+      // The conflict short-circuits the format validator — the agent is NOT told
+      // to hand-edit the file (which would break the integrity hashes).
+      expect(all).not.toContain('Fix format violations');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

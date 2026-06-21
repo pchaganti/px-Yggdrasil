@@ -41,7 +41,7 @@ reviewer:
     standard:                       # Tier name — referenced by aspect reviewer.tier
       provider: ollama              # LLM provider
       consensus: 1                  # Votes per aspect (odd integer >= 1)
-      max_prompt_chars: 50000       # Cap on the assembled prompt (optional; absent = unlimited)
+      max_prompt_chars: 50000       # Cap on the assembled prompt (optional; absent defaults to 50000)
       config:
         model: qwen3
         endpoint: http://localhost:11434
@@ -124,12 +124,14 @@ reviewer:
 | --- | --- | --- |
 | `provider` | yes | One of the supported providers (see below) |
 | `consensus` | yes | Positive odd integer. `1` = single call. `3` = majority vote. |
-| `max_prompt_chars` | no | Positive integer. Caps the assembled-prompt length for LLM pairs on this tier (see [Prompt-size gate](#prompt-size-gate)). Absent = unlimited. `yg init` writes `50000`. |
+| `max_prompt_chars` | no | Positive integer. Caps the assembled-prompt length for LLM pairs on this tier (see [Prompt-size gate](#prompt-size-gate)). Absent defaults to 50000. `yg init` writes `50000`. |
 | `config.model` | yes | Provider-specific model identifier |
 | `config.temperature` | no | Sampling temperature. Defaults to `0`. |
 | `config.endpoint` | required for `ollama`, `openai-compatible` | API endpoint URL |
 | `config.timeout` | no | Per-call timeout in seconds. Defaults to `300`. Applies to CLI providers only (non-CLI/API providers ignore it). |
-| `config.context_length_field` | no | Ollama: model info field override for context length |
+
+Unknown `config.*` keys are silently ignored (no error, no warning) — only the
+keys listed above are read.
 
 ### Supported providers
 
@@ -260,10 +262,15 @@ yg init --upgrade
 Lifts the graph's config version to the current one and refreshes the rules,
 schemas, and platform files. The legacy single-section reviewer format (flat
 provider keys + `reviewer.active`) is migrated to `reviewer.tiers` automatically.
-The config parser is strict: a `yg-config.yaml` still carrying retired fields
-(`quality.max_node_chars`, per-tier `references:` size caps) fails `yg check` with
-a clear unknown-key error — delete those lines. Run from the repository root only.
-Review the diff before committing.
+Retired fields are SILENTLY IGNORED — a `yg-config.yaml` still carrying
+`quality.max_node_chars`, per-tier `config.references:` size caps, or other
+retired `config.*` keys (e.g. `config.context_length_field`) produces no error and
+no warning; the parser simply does not read them. Review the diff after upgrade
+and delete the dead lines by hand. This is distinct from the parser's
+unknown-KEY guard: a typo'd key under `reviewer:` or under a tier still fails
+`yg check` with a clear `config-reviewer-unknown-key` / `config-tier-unknown-key`
+error — a key typo is caught, a retired-field cleanup is not. Run from the
+repository root only. Review the diff before committing.
 
 ---
 

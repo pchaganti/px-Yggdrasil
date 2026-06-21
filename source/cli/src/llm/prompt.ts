@@ -2,10 +2,31 @@
 import type { ScopeDef } from '../model/graph.js';
 import { escapeXmlText } from './xml-escape.js';
 
+/**
+ * Default prompt-size limit applied when a tier OMITS `max_prompt_chars`.
+ * A hand-authored tier that leaves the key out is gated at this cap (the §4
+ * size gate is always active); only an explicit positive integer overrides it.
+ * `yg init` writes 50000 explicitly, so this default only affects hand-authored
+ * tiers that omit the key. Excluded from the tier hash (`pair-inputs.ts`), so
+ * applying it re-rolls no verdict.
+ */
+export const DEFAULT_MAX_PROMPT_CHARS = 50000;
+
 export interface PromptAspectInput { id: string; description: string; content: string }
 export interface PromptReferenceInput { path: string; description?: string; content: string }
 export interface PromptFileInput { path: string; content: string }
 export interface PromptCompanionInput { path: string; content: string; label?: string }
+/**
+ * Pre-resolved suppress line ranges injected into the reviewer prompt so the LLM
+ * honors EXACTLY the same `(file, startLine..endLine)` spans the deterministic
+ * matcher (`ast/suppress.ts`) computes — no model-side re-derivation of marker
+ * scope. `byFile` carries only files that have at least one applicable range;
+ * an empty `byFile` (or an omitted `suppressedRanges`) renders no block and keeps
+ * the prompt byte-identical to the no-suppress case.
+ */
+export interface PromptSuppressedRangesInput {
+  byFile: Array<{ path: string; ranges: Array<{ startLine: number; endLine: number }> }>;
+}
 export interface PairPromptInput {
   aspect: PromptAspectInput;
   references: PromptReferenceInput[];
@@ -13,6 +34,7 @@ export interface PairPromptInput {
   nodeDescription: string;
   files: PromptFileInput[];           // per-node: whole subject set; per-file: exactly one
   companions?: PromptCompanionInput[];   // resolved per-unit by companion.mjs; absent for plain aspects
+  suppressedRanges?: PromptSuppressedRangesInput; // pre-resolved per-file suppress spans; absent ≙ no waivers
   scope: ScopeDef | undefined;        // undefined ≙ {per:'node'}
 }
 
@@ -30,7 +52,7 @@ const PER_FILE_FRAMING =
  * receiving several. Enforcing this constraint is the caller's responsibility.
  */
 export function buildPairPrompt(input: PairPromptInput): string {
-  const { aspect, references, nodePath, nodeDescription, files, companions, scope } = input;
+  const { aspect, references, nodePath, nodeDescription, files, companions, suppressedRanges, scope } = input;
 
   const isPerFile = scope?.per === 'file';
 
@@ -69,22 +91,37 @@ ${escapeXmlText(c.content, { attribute: false })}
 
   const perFileParagraph = isPerFile ? `\n${PER_FILE_FRAMING}\n` : '';
 
+  // Pre-resolved suppress spans (computed deterministically from yg-suppress
+  // markers by ast/suppress.ts). Only files with at least one applicable range
+  // appear. Rendering this block — and the instruction below — is gated on there
+  // being at least one range, so the prompt stays byte-identical to the
+  // no-suppress case when there are none (golden-pinned).
+  const suppressedFiles = (suppressedRanges?.byFile ?? []).filter(f => f.ranges.length > 0);
+  const suppressedRangesBlock = suppressedFiles.length === 0 ? '' : `
+
+<suppressed-ranges>
+${suppressedFiles.map(f =>
+  `  <file path="${escapeXmlText(f.path, { attribute: true })}">
+${f.ranges.map(r => `    <range start-line="${r.startLine}" end-line="${r.endLine}" />`).join('\n')}
+  </file>`
+).join('\n')}
+</suppressed-ranges>`;
+
   return `<task>
 You verify whether source code satisfies a requirement.
 
 Below is a node (component) with its source files and one aspect (rule set).
 Check every rule in the aspect against the source code.
 
-If a file in <source-files> below contains a comment with the marker yg-suppress(<aspect-id>) where
-<aspect-id> matches the aspect you are checking, treat the suppressed code as satisfied.
-The marker must include a reason after the closing parenthesis. Do not validate the
-reason — accept it as-is. The marker applies contextually to the surrounding code
-(function, class, or block where it appears). If placed at file level, it applies to
-the entire file.
-
-A bracket form also exists: yg-suppress-disable(<aspect-id>) <reason> placed before a
-block in <source-files>, and yg-suppress-enable(<aspect-id>) placed after it, suppresses all code between
-the two markers. Honor the bracket form the same way as the single-line form.
+A yg-suppress marker in a comment waives this aspect for specific lines. Those lines
+have already been resolved for you and are listed in <suppressed-ranges> below, as
+exact (start-line, end-line) spans into the files in <source-files>. Treat every line
+inside a listed span as satisfied — do NOT report a violation on any line covered by a
+span, even if the code there clearly breaks the rule. Honor exactly these line ranges:
+do NOT re-derive the marker's scope yourself (do NOT expand it to the surrounding
+function, class, block, or whole file, and do NOT shrink it). If <suppressed-ranges> is
+absent or lists nothing for a file, no lines in that file are waived. Do not validate
+the reason text on a marker — the spans are authoritative.
 ${perFileParagraph}
 Respond with EXACTLY this JSON, nothing else:
 {"satisfied": true|false, "reason": "explanation with file:line references"}
@@ -94,7 +131,7 @@ Respond with EXACTLY this JSON, nothing else:
 
 <aspect id="${escapeXmlText(aspect.id, { attribute: true })}" description="${escapeXmlText(aspect.description, { attribute: true })}">
 ${aspect.content}
-</aspect>${referencesBlock}${companionsBlock}
+</aspect>${referencesBlock}${companionsBlock}${suppressedRangesBlock}
 
 <source-files>
 ${filesBlock}

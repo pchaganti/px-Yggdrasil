@@ -181,6 +181,72 @@ export function renderFillCost(cost: FillCost, affectedNodes: number): string {
   );
 }
 
+export interface NodeFillCost {
+  llmPairs: number;       // expected LLM pairs in scope (one per unit)
+  detPairs: number;       // expected deterministic pairs in scope (free)
+  reviewerCalls: number;  // Σ over LLM pairs of the pair aspect's resolved consensus
+  greensReRolled: number; // currently-green (approved) pairs in scope a re-fill re-rolls
+}
+
+/**
+ * Cost of re-verifying a node's own pairs after an edit to it: the LLM vs
+ * deterministic pair split, the reviewer calls a re-fill would dispatch (Σ each
+ * LLM pair's resolved tier consensus — aspects may sit on different tiers), and
+ * the count of currently-green verdicts the edit re-rolls.
+ *
+ * Scope is the OWNER node's pairs (NOT graph-wide). When `editedFile` is given
+ * (the `--file` form), the set is further narrowed to pairs whose subject set
+ * includes that file, so a single-file edit reports only the pairs it actually
+ * touches. Greens are counted within the SAME filtered set as the cost.
+ */
+export async function computeNodeFillCost(
+  graph: Graph,
+  nodePath: string,
+  lock: LockFile,
+  editedFile?: string,
+): Promise<NodeFillCost> {
+  const { pairs } = await computeExpectedPairs(graph);
+  const scoped = pairs.filter(
+    (p) =>
+      p.nodePath === nodePath &&
+      (editedFile === undefined || p.subjectFiles.includes(editedFile)),
+  );
+
+  const reviewer = graph.config.reviewer;
+  let llmPairs = 0;
+  let detPairs = 0;
+  let reviewerCalls = 0;
+  let greensReRolled = 0;
+  for (const p of scoped) {
+    if (p.kind === 'llm') {
+      llmPairs += 1;
+      const aspect = graph.aspects.find((a) => a.id === p.aspectId);
+      const tier = aspect && reviewer ? selectTierForAspect(aspect, reviewer) : undefined;
+      reviewerCalls += tier?.ok ? tier.tier.consensus : 1;
+    } else {
+      detPairs += 1;
+    }
+    if (lock.verdicts[p.aspectId]?.[p.unitKey]?.verdict === 'approved') {
+      greensReRolled += 1;
+    }
+  }
+
+  return { llmPairs, detPairs, reviewerCalls, greensReRolled };
+}
+
+/**
+ * Render the reviewer-call cost for editing a node (or a single file under it),
+ * in lock vocabulary (no "drift" words). One line, information-preserving.
+ */
+export function renderNodeFillCost(cost: NodeFillCost, subject: 'node' | 'file'): string {
+  return (
+    `  Editing this ${subject} re-verifies: ${cost.llmPairs} LLM pair(s) = ` +
+    `${cost.reviewerCalls} reviewer call(s) (consensus included); ` +
+    `${cost.detPairs} deterministic = free; ` +
+    `${cost.greensReRolled} currently-green verdict(s) re-rolled.\n`
+  );
+}
+
 export async function handleFlowImpact(
   graph: Graph,
   flowName: string,

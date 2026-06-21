@@ -10,3 +10,5 @@ A report handed to a pipe now drains fully before the process exits, so a long e
 Removed the per-provider secrets merge here: yg-secrets is now a general deep-merge overlay over yg-config applied once at config parse time, so the resolved tier already reflects any local override and no separate merge is needed at review time.
 ## [2026-06-19T19:18:52.103Z]
 Surface the per-unit companion files in the aspect diagnostic so an author can preview, before paying for a review, exactly which paired file the reviewer will see for each unit. The dry run executes the resolver live but never calls the reviewer or writes the lock, and the ad-hoc file mode refuses a companion aspect because resolving a companion needs the graph relations that an ad-hoc file run does not provide.
+## [2026-06-21T16:25:13.357Z]
+The rule-preview command now resolves and shows the waived line ranges the real reviewer would receive, so previewing a model-judged rule reflects the same waivers as a billed run instead of diverging from it.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { collectSuppressions, isLineSuppressed, SuppressMarkerError } from '../../../src/ast/suppress.js';
+import { collectSuppressions, isLineSuppressed, formatSuppressedRangesForAspect, SuppressMarkerError } from '../../../src/ast/suppress.js';
 import { parseFile } from '../../../src/ast/parser.js';
 
 describe('suppress: language-aware comment resolution', () => {
@@ -200,5 +200,67 @@ describe('suppress: wildcard semantics', () => {
     const ranges = collectSuppressions(tree, 'x.ts', 5);
     expect(isLineSuppressed(ranges, 'async-fs', 5)).toBe(true);
     expect(isLineSuppressed(ranges, 'no-console', 5)).toBe(false);
+  });
+});
+
+describe('formatSuppressedRangesForAspect', () => {
+  it('single-line marker → one 1-line span on the line below the marker', async () => {
+    const code = [`a();`, `// yg-suppress(my-aspect) reason`, `b();`].join('\n');
+    const tree = await parseFile('x.ts', code);
+    const ranges = collectSuppressions(tree, 'x.ts', 3);
+    expect(formatSuppressedRangesForAspect(ranges, 'my-aspect')).toEqual([{ startLine: 3, endLine: 3 }]);
+  });
+
+  it('bracket marker → the full disable..enable span', async () => {
+    const code = [
+      `// yg-suppress-disable(my-aspect) reason`,
+      `a();`,
+      `b();`,
+      `// yg-suppress-enable(my-aspect)`,
+      `c();`,
+    ].join('\n');
+    const tree = await parseFile('x.ts', code);
+    const ranges = collectSuppressions(tree, 'x.ts', 5);
+    // disable on line 1 opens at line 2; enable on line 4 closes at line 3.
+    expect(formatSuppressedRangesForAspect(ranges, 'my-aspect')).toEqual([{ startLine: 2, endLine: 3 }]);
+  });
+
+  it('lone disable (no enable) → span runs to EOF (totalLines)', async () => {
+    const code = [`// yg-suppress-disable(my-aspect) reason`, `a();`, `b();`].join('\n');
+    const tree = await parseFile('x.ts', code);
+    const ranges = collectSuppressions(tree, 'x.ts', 3);
+    expect(formatSuppressedRangesForAspect(ranges, 'my-aspect')).toEqual([{ startLine: 2, endLine: 3 }]);
+  });
+
+  it('wildcard marker applies to ANY aspect id', async () => {
+    const code = [`a();`, `// yg-suppress(*) reason`, `b();`].join('\n');
+    const tree = await parseFile('x.ts', code);
+    const ranges = collectSuppressions(tree, 'x.ts', 3);
+    expect(formatSuppressedRangesForAspect(ranges, 'whatever-id')).toEqual([{ startLine: 3, endLine: 3 }]);
+    expect(formatSuppressedRangesForAspect(ranges, 'another-id')).toEqual([{ startLine: 3, endLine: 3 }]);
+  });
+
+  it('returns [] when no range applies to the aspect', async () => {
+    const code = [`a();`, `// yg-suppress(other-aspect) reason`, `b();`].join('\n');
+    const tree = await parseFile('x.ts', code);
+    const ranges = collectSuppressions(tree, 'x.ts', 3);
+    expect(formatSuppressedRangesForAspect(ranges, 'my-aspect')).toEqual([]);
+  });
+
+  it('spans are sorted by startLine then endLine', async () => {
+    const code = [
+      `a();`,
+      `// yg-suppress(my-aspect) reason A`,
+      `b();`,
+      `c();`,
+      `// yg-suppress(my-aspect) reason B`,
+      `d();`,
+    ].join('\n');
+    const tree = await parseFile('x.ts', code);
+    const ranges = collectSuppressions(tree, 'x.ts', 6);
+    expect(formatSuppressedRangesForAspect(ranges, 'my-aspect')).toEqual([
+      { startLine: 3, endLine: 3 },
+      { startLine: 6, endLine: 6 },
+    ]);
   });
 });

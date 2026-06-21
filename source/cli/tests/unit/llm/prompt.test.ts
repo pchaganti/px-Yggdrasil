@@ -178,6 +178,82 @@ describe('assembledPromptChars — label-free gate (D6)', () => {
   });
 });
 
+describe('buildPairPrompt — suppressed-ranges block', () => {
+  const BASE: PairPromptInput = {
+    aspect: { id: 'a', description: 'd', content: 'RULE' },
+    references: [], nodePath: 'n', nodeDescription: '', scope: undefined,
+    files: [{ path: 'src/x.ts', content: 'X' }],
+  };
+
+  it('omitting suppressedRanges is byte-identical to passing an empty byFile', () => {
+    expect(buildPairPrompt({ ...BASE })).toBe(buildPairPrompt({ ...BASE, suppressedRanges: { byFile: [] } }));
+  });
+
+  // NOTE: the instruction prose itself mentions the literal "<suppressed-ranges>"
+  // (telling the reviewer where to look), so the BLOCK's presence is keyed off the
+  // closing tag "</suppressed-ranges>", which appears only in the rendered block.
+  it('an empty byFile renders no <suppressed-ranges> block (byte-identical to omitting)', () => {
+    const out = buildPairPrompt({ ...BASE, suppressedRanges: { byFile: [] } });
+    expect(out).not.toContain('</suppressed-ranges>');
+  });
+
+  it('a file whose ranges array is empty renders no block', () => {
+    const out = buildPairPrompt({ ...BASE, suppressedRanges: { byFile: [{ path: 'src/x.ts', ranges: [] }] } });
+    expect(out).not.toContain('</suppressed-ranges>');
+  });
+
+  it('renders a <suppressed-ranges> block naming the file and exact line spans', () => {
+    const out = buildPairPrompt({ ...BASE, suppressedRanges: { byFile: [
+      { path: 'src/x.ts', ranges: [{ startLine: 10, endLine: 10 }, { startLine: 20, endLine: 25 }] },
+    ] } });
+    expect(out).toContain('</suppressed-ranges>');
+    expect(out).toContain('<file path="src/x.ts">');
+    expect(out).toContain('<range start-line="10" end-line="10" />');
+    expect(out).toContain('<range start-line="20" end-line="25" />');
+  });
+
+  it('the honor-exact-lines instruction is present and the self-interpretation text is GONE', () => {
+    const out = buildPairPrompt({ ...BASE, suppressedRanges: { byFile: [
+      { path: 'src/x.ts', ranges: [{ startLine: 1, endLine: 1 }] },
+    ] } });
+    expect(out).toContain('Honor exactly these line ranges');
+    // The retired self-interpretation phrasings must NOT survive the swap.
+    expect(out).not.toContain('applies to the entire file');
+    expect(out).not.toContain('surrounding code\n(function, class, or block where it appears)');
+    expect(out).not.toContain('treat the suppressed code as satisfied');
+  });
+
+  it('the swapped instruction still references <source-files> (token-dependent tests rely on it)', () => {
+    const out = buildPairPrompt({ ...BASE });
+    expect(out).toContain('<source-files>');
+  });
+
+  it('XML-escapes the file path attribute in the block', () => {
+    const out = buildPairPrompt({ ...BASE, suppressedRanges: { byFile: [
+      { path: 'src/<evil>&"x".ts', ranges: [{ startLine: 3, endLine: 4 }] },
+    ] } });
+    expect(out).toContain('<file path="src/&lt;evil&gt;&amp;&quot;x&quot;.ts">');
+    expect(out).not.toContain('<file path="src/<evil>');
+  });
+
+  it('the block sits before the <source-files> block', () => {
+    const out = buildPairPrompt({ ...BASE, suppressedRanges: { byFile: [
+      { path: 'src/x.ts', ranges: [{ startLine: 1, endLine: 1 }] },
+    ] } });
+    // lastIndexOf on both: the prose preamble mentions each tag once before the
+    // real blocks, so the last occurrence is the rendered block.
+    expect(out.lastIndexOf('<suppressed-ranges>')).toBeLessThan(out.lastIndexOf('<source-files>'));
+  });
+
+  it('assembledPromptChars includes the block (strictly greater than without ranges, equals buildPairPrompt length)', () => {
+    const withRanges: PairPromptInput = { ...BASE, suppressedRanges: { byFile: [
+      { path: 'src/x.ts', ranges: [{ startLine: 1, endLine: 5 }] },
+    ] } };
+    expect(assembledPromptChars(withRanges)).toBe(buildPairPrompt(withRanges).length);
+    expect(assembledPromptChars(withRanges)).toBeGreaterThan(assembledPromptChars(BASE));
+  });
+});
+
 describe('buildPairPrompt — XML escaping (adopter-controlled fields)', () => {
   it('escapes < and & and " in file path attribute', () => {
     const prompt = buildPairPrompt({

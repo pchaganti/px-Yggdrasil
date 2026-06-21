@@ -51,7 +51,7 @@ Corollaries:
 The gate's "mapped source changed" test is computed from a per-node **source
 fingerprint** — one sha256 fold over the sorted \`[path, sha256(bytes)]\` list of
 ALL the node's mapped files (the full mapping, not the scope-filtered subject
-sets; binaries included by bytes). It lives in \`yg-lock.json\` under
+sets; binaries included by bytes). It lives in \`yg-lock.logs.json\` under
 \`nodes.<path>.source\`, written at positive closure. The append-only log integrity
 baseline (boundary datetime + prefix hash) lives beside it under
 \`nodes.<path>.log\`. There is no separate per-node state file.
@@ -166,7 +166,7 @@ cannot silently drop or fabricate entries — and writes the reconciled history 
 the node's \`log\` baseline into the lock. Do NOT manually concatenate the two log
 histories — integrity hashes will break and \`yg check\` will fail.
 
-When BOTH \`log.md\` and \`yg-lock.json\` conflicted, the order is: resolve the lock
+When BOTH \`log.md\` and \`yg-lock.logs.json\` conflicted, the order is: resolve the lock
 (take ONE side wholesale) → \`yg log merge-resolve --node <path>\` per conflicted
 log → \`yg check --approve\`. (Lock merge mechanics:
 \`yg knowledge read verification-and-lock\`.)

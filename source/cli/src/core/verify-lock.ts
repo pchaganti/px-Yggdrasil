@@ -48,12 +48,13 @@ import {
   MISSING_OBSERVATION,
 } from './pair-hash.js';
 import { computeAllowedNodePaths } from '../structure/ctx-graph.js';
+import { resolveSuppressedRangesForPrompt, SuppressMarkerError } from '../structure/index.js';
 import { ruleHashFor, contentFor, nodeDescriptionFor, tierHashViewFromTier, companionHashFor } from './pair-inputs.js';
 import type { ExpectedPair, UnreadableSubject } from './pairs.js';
 import { computeExpectedPairs } from './pairs.js';
 import { selectTierForAspect } from './tier-selection.js';
-import { assembledPromptChars } from '../llm/prompt.js';
-import type { PromptReferenceInput, PromptFileInput, PromptCompanionInput } from '../llm/prompt.js';
+import { assembledPromptChars, DEFAULT_MAX_PROMPT_CHARS } from '../llm/prompt.js';
+import type { PromptReferenceInput, PromptFileInput, PromptCompanionInput, PromptSuppressedRangesInput } from '../llm/prompt.js';
 import { resolveCompanionsForPair } from './companion-resolve.js';
 import type { IssueMessage } from '../model/validation.js';
 
@@ -221,46 +222,71 @@ async function verifyLlmPair(
     touchedNow.push([key, await reObserve(key, graph, pair.nodePath, projectRoot, readBytes)]);
   }
 
-  // ── Prompt-size gate (§4): only when a tier resolves and sets a limit. ──
-  // For a companion aspect the companion set is resolved LIVE here (the same
-  // resolver fill / --dry-run use), NOT reconstructed from the stored `touched`
-  // read: keys: those conflate the hook's DECISION reads (ctx.fs / ctx.graph) with
-  // the files it actually INJECTS, so they would size the prompt at the whole
-  // reachable set instead of the few returned companions. This is why plain
-  // `yg check` MAY run companion.mjs (the resolver, never a judge) — it still runs
-  // no check.mjs and calls no reviewer. A companion that cannot resolve here cannot
-  // be assembled or sized → surface a clear diagnostic (companion-error).
+  // ── Prompt-size gate (§4): active whenever a tier resolves (an omitted
+  // max_prompt_chars is gated at DEFAULT_MAX_PROMPT_CHARS — there is no
+  // "unlimited" tier). For a companion aspect the companion set is resolved LIVE
+  // here (the same resolver fill / --dry-run use), NOT reconstructed from the
+  // stored `touched` read: keys: those conflate the hook's DECISION reads
+  // (ctx.fs / ctx.graph) with the files it actually INJECTS, so they would size
+  // the prompt at the whole reachable set instead of the few returned companions.
+  // Suppressed line ranges are also resolved LIVE (the same resolver fill uses)
+  // so the assembled-prompt size MATCHES what fill / the reviewer see — otherwise
+  // a plain LLM aspect (verify-lock is its only gate) whose <suppressed-ranges>
+  // block tips it over the limit would slip past unflagged. This is why plain
+  // `yg check` MAY run companion.mjs / the suppress resolver (never a judge) — it
+  // still runs no check.mjs and calls no reviewer. Inputs that cannot resolve
+  // here (a companion that fails, a reasonless suppress marker) cannot be
+  // assembled or sized → fail closed (companion-error / unverified).
   let gate: { chars: number; limit: number; tierName: string } | undefined;
   if (tierResult?.ok) {
-    const limit = tierResult.tier.max_prompt_chars;
-    if (limit !== undefined) {
-      let gateCompanions: PromptCompanionInput[] = [];
-      if (aspect.hasCompanion === true) {
-        const resolved = await resolveCompanionsForPair(graph, projectRoot, pair, aspect);
-        if (resolved.kind === 'infra') {
-          return { pair, state: { kind: 'companion-error', messageData: resolved.messageData } };
-        }
-        gateCompanions = resolved.companions.promptCompanions;
+    // A tier that OMITS max_prompt_chars is gated at DEFAULT_MAX_PROMPT_CHARS
+    // (the §4 gate is always active — there is no "unlimited" tier). The guard
+    // is therefore always-true; it is unwrapped, the body kept. This is the
+    // load-bearing gate for plain LLM aspects (a stored entry is re-checked here).
+    const limit = tierResult.tier.max_prompt_chars ?? DEFAULT_MAX_PROMPT_CHARS;
+    let gateCompanions: PromptCompanionInput[] = [];
+    if (aspect.hasCompanion === true) {
+      const resolved = await resolveCompanionsForPair(graph, projectRoot, pair, aspect);
+      if (resolved.kind === 'infra') {
+        return { pair, state: { kind: 'companion-error', messageData: resolved.messageData } };
       }
-      const chars = assembledPromptChars({
-        aspect: {
-          id: aspect.id,
-          description: aspect.description ?? '',
-          content: contentFor(aspect, 'content.md'),
-        },
-        references: referencesForPrompt,
-        nodePath: pair.nodePath,
-        nodeDescription: nodeDescriptionFor(graph, pair.nodePath),
-        files: subjects.map<PromptFileInput>((s) => ({
-          path: s.path,
-          content: s.bytes.toString('utf8'),
-        })),
-        companions: gateCompanions,
-        scope: aspect.scope,
-      });
-      if (chars > limit) {
-        gate = { chars, limit, tierName: tierResult.tierName };
+      gateCompanions = resolved.companions.promptCompanions;
+    }
+    // Resolve suppressed line ranges LIVE — the SAME resolver fill uses (routed
+    // through the structure adapter; fill-llm cannot reach ast/* directly). The
+    // injected <suppressed-ranges> block adds bytes the size gate must count, or
+    // fill (which injects it) and verify (which would not) diverge — and for a
+    // plain LLM aspect verify-lock is the ONLY gate. A reasonless marker throws
+    // SuppressMarkerError: it cannot be sized → fail closed as unverified (the
+    // next --approve re-runs fill-llm, which surfaces the precise what/why/next).
+    let suppressedRanges: PromptSuppressedRangesInput;
+    try {
+      suppressedRanges = await resolveSuppressedRangesForPrompt(subjects, aspect.id);
+    } catch (e) {
+      if (e instanceof SuppressMarkerError) {
+        return { pair, state: { kind: 'unverified' } };
       }
+      throw e;
+    }
+    const chars = assembledPromptChars({
+      aspect: {
+        id: aspect.id,
+        description: aspect.description ?? '',
+        content: contentFor(aspect, 'content.md'),
+      },
+      references: referencesForPrompt,
+      nodePath: pair.nodePath,
+      nodeDescription: nodeDescriptionFor(graph, pair.nodePath),
+      files: subjects.map<PromptFileInput>((s) => ({
+        path: s.path,
+        content: s.bytes.toString('utf8'),
+      })),
+      companions: gateCompanions,
+      suppressedRanges,
+      scope: aspect.scope,
+    });
+    if (chars > limit) {
+      gate = { chars, limit, tierName: tierResult.tierName };
     }
   }
 
