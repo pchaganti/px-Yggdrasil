@@ -48,6 +48,16 @@ the cost surface before you make the change. Counts are reviewer calls
 × consensus for LLM pairs; deterministic pairs are free. `--file` resolves the
 owning node automatically, then proceeds as `--node`.
 
+For `--node` and `--file`, the output ends with a one-line cost summary that
+folds each LLM pair's resolved-tier consensus into the reviewer-call count:
+
+```text
+  Editing this node re-verifies: 3 LLM pair(s) = 9 reviewer call(s) (consensus included); 2 deterministic = free; 4 currently-green verdict(s) re-rolled.
+```
+
+With `--file` the line reads `Editing this file …` and is scoped to the pairs
+whose subject set includes that file.
+
 ```bash
 yg impact --node <path>
 yg impact --file <path>
@@ -152,8 +162,11 @@ most that many calls.
 The preview always exits 0, even when enforced pairs are unverified — it never
 blocks the build. The only thing that aborts a preview is a broken configuration
 (the structural gate), which surfaces the same blocker a real `--approve` would hit.
-`--dry-run` requires `--approve`; used on its own it is a usage error (plain `yg
-check` is already a free, no-write read).
+A cost estimate never demands a fresh log entry, so the preview also **bypasses the
+per-node log gate** — it previews even on `log_required` nodes whose source changed
+since their last closure, where the real `--approve` would require the log entry
+first. `--dry-run` requires `--approve`; used on its own it is a usage error (plain
+`yg check` is already a free, no-write read).
 
 #### `--only-deterministic` — fill the deterministic cache only
 

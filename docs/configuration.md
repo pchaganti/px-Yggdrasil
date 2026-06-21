@@ -127,7 +127,7 @@ reviewer:
 | `max_prompt_chars` | no | Positive integer. Caps the assembled-prompt length for LLM pairs on this tier (see [Prompt-size gate](#prompt-size-gate)). Absent defaults to 50000. `yg init` writes `50000`. |
 | `config.model` | yes | Provider-specific model identifier |
 | `config.temperature` | no | Sampling temperature. Defaults to `0`. |
-| `config.endpoint` | required for `ollama`, `openai-compatible` | API endpoint URL |
+| `config.endpoint` | required for `openai-compatible` (ollama defaults to `http://localhost:11434`) | API endpoint URL |
 | `config.timeout` | no | Per-call timeout in seconds. Defaults to `300`. Applies to CLI providers only (non-CLI/API providers ignore it). |
 
 Unknown `config.*` keys are silently ignored (no error, no warning) — only the

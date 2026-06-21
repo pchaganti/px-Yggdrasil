@@ -492,7 +492,7 @@ yg aspect-test --aspect sibling-test-file --node orders/order-service --check-de
 
 ## Suppression — shared across reviewer types
 
-Source code comments can carry a `yg-suppress` marker to waive a specific aspect. All reviewer types honor the same syntax; they differ only in how scope is interpreted.
+Source code comments can carry a `yg-suppress` marker to waive a specific aspect. All reviewer types honor the same syntax **and the same scope**: a marker's scope is resolved once, deterministically, into exact line ranges, and both reviewer kinds honor those identical ranges.
 
 **Format:** `yg-suppress(<aspect-path>) <reason>`
 
@@ -507,8 +507,12 @@ Source code comments can carry a `yg-suppress` marker to waive a specific aspect
 const data = fs.readFileSync(path, 'utf-8');
 ```
 
-- **Deterministic reviewer:** applies to the **immediately following line**. Deterministic, no scope inference.
-- **LLM reviewer:** the reviewer interprets scope **contextually** — a marker inside a function applies to that function, at file top it applies to the whole file.
+A single-line marker waives **exactly one line — the immediately following line — for every reviewer kind**. There is no contextual or scope inference: the marker never expands to the surrounding function, class, block, or whole file, and never shrinks. The scope is resolved once, deterministically, into a one-line range that both reviewer kinds honor identically:
+
+- **Deterministic reviewer:** the `check.mjs` reads the resolved range directly and treats the line inside it as satisfied.
+- **LLM reviewer:** the reviewer receives the pre-resolved spans in its prompt (a `<suppressed-ranges>` block of exact `(start-line, end-line)` pairs into the source files) and is instructed to honor exactly those lines — it does not re-derive the marker's scope, widen it, or narrow it.
+
+To waive more than one line, use the bracket `disable`/`enable` form below (or a bare `disable`, which runs to end of file) — never a single-line marker.
 
 ### Bracket suppress
 

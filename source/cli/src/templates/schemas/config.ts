@@ -31,7 +31,7 @@ reviewer:                         # required — aspect verification during yg c
       consensus: 1                #     positive odd integer >= 1 (3+ for majority vote). Per-tier.
       config:                     #     provider-specific settings — same fields the provider accepts.
         model: "qwen3.5:9b"       #       model id
-        endpoint: "http://localhost:11434"   # custom endpoint (required for ollama, openai-compatible)
+        endpoint: "http://localhost:11434"   # custom endpoint (required for openai-compatible; ollama defaults to http://localhost:11434)
         temperature: 0            #       reduces variability — keep at 0
         # timeout: 300            #       Per-call timeout in SECONDS (default 300). Only CLI providers.
       # max_prompt_chars: 200000  # optional — assembled reviewer-prompt character cap (positive integer).

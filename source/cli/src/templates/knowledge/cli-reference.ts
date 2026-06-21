@@ -92,9 +92,12 @@ fresh refusal or an infrastructure disposition can leave a pair unfilled, so the
 real \`--approve\` bills at most that many calls. The preview always exits 0, even
 when enforced pairs are unverified; it never blocks. Only a broken
 configuration (the step-1 structural gate) aborts the preview — it surfaces the
-same blocker a real \`--approve\` would hit. \`--dry-run\` requires \`--approve\`;
-on its own it is a usage error (plain \`yg check\` is already a free, no-write
-read).
+same blocker a real \`--approve\` would hit. A cost estimate never demands a fresh
+log entry, so the preview also bypasses the per-node log gate — it previews even
+on \`log_required\` nodes whose source changed since their last closure, where the
+real \`--approve\` would require the log entry first. \`--dry-run\` requires
+\`--approve\`; on its own it is a usage error (plain \`yg check\` is already a free,
+no-write read).
 
 ## yg context
 
@@ -153,6 +156,13 @@ yg impact --type service               # all nodes of this type + coverage
 \`\`\`
 
 Counts are reviewer calls × consensus for LLM pairs; deterministic pairs are free.
+
+For \`--node\` and \`--file\`, the output ends with a one-line cost summary that
+folds each LLM pair's resolved-tier consensus into the reviewer-call count, e.g.
+\`Editing this node re-verifies: 3 LLM pair(s) = 9 reviewer call(s) (consensus
+included); 2 deterministic = free; 4 currently-green verdict(s) re-rolled.\` With
+\`--file\` the line reads \`Editing this file …\` and is scoped to the pairs whose
+subject set includes that file.
 
 ## yg tree
 

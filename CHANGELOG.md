@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.2.0] - 2026-06-21
+
 ### Added
 
 - **`yg impact --node` / `--file` now reports the reviewer-call cost of an edit.** Where the node/file form previously printed a vague sentence with no number, it now shows a precise cost line — `Editing this {node|file} re-verifies: N LLM pair(s) = M reviewer call(s) (consensus included); D deterministic = free; G currently-green verdict(s) re-rolled.` — sourced from the owner node's expected pairs and the committed lock. `--file` scopes the estimate to the pairs whose subject set includes that file; `--node` covers the whole owner node. The reviewer-call count folds each LLM pair's resolved tier consensus, so an aspect on a consensus-3 tier shows three calls per unit. The cost machinery (previously wired only to `--aspect`) now answers the more common question — "what will editing this file cost?" — before you change anything.
