@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
+import { appendFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 import { parseAspectResponse } from '../../../src/llm/cli-base.js';
+import { initDebugLog, _resetForTesting } from '../../../src/utils/debug-log.js';
 
 describe('parseAspectResponse', () => {
   it('parses clean JSON', () => {
@@ -72,5 +76,49 @@ describe('parseAspectResponse', () => {
     const result = parseAspectResponse('I cannot determine if the code is satisfied.');
     expect(result?.satisfied).toBe(false);
     expect(result?.errorSource).toBe('provider');
+  });
+});
+
+// Raw-response debug logging — when debug:true and a reviewer reply cannot be
+// parsed into a verdict, the raw reply is written to .debug.log so the failure can
+// be diagnosed (it is otherwise invisible). The success path stays silent (only on
+// parse failure, per the agreed contract). These are private, opt-in local logs.
+describe('parseAspectResponse — raw-output debug logging', () => {
+  let tmpDir: string;
+
+  function appendFn(filePath: string, text: string): void {
+    appendFileSync(filePath, text, 'utf-8');
+  }
+  function logContent(): string {
+    return readFileSync(path.join(tmpDir, '.debug.log'), 'utf-8');
+  }
+
+  afterEach(() => {
+    _resetForTesting();
+    if (tmpDir) rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('writes the raw reply to the debug log when the reply cannot be parsed', () => {
+    tmpDir = mkdtempSync(path.join(os.tmpdir(), 'yg-parse-fail-'));
+    initDebugLog(tmpDir, true, appendFn);
+    const garbage = 'GARBAGE-NO-VERDICT thinking blah blah no json here at all';
+    const result = parseAspectResponse(garbage);
+    expect(result?.errorSource).toBe('provider');
+    expect(logContent()).toContain(garbage);
+  });
+
+  it('notes an empty reply in the debug log', () => {
+    tmpDir = mkdtempSync(path.join(os.tmpdir(), 'yg-parse-empty-'));
+    initDebugLog(tmpDir, true, appendFn);
+    expect(parseAspectResponse('   ')).toBeUndefined();
+    expect(logContent()).toContain('empty');
+  });
+
+  it('does NOT write the raw reply when the reply parses successfully', () => {
+    tmpDir = mkdtempSync(path.join(os.tmpdir(), 'yg-parse-ok-'));
+    initDebugLog(tmpDir, true, appendFn);
+    const result = parseAspectResponse('{"satisfied": true, "reason": "UNIQUE-SUCCESS-MARKER"}');
+    expect(result?.satisfied).toBe(true);
+    expect(logContent()).not.toContain('UNIQUE-SUCCESS-MARKER');
   });
 });

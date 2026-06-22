@@ -6,12 +6,14 @@ aspects: []
 relations:
   [
     { target: cli/llm/providers, type: uses },
-    { target: cli/llm/subprocess-base, type: uses }
+    { target: cli/llm/subprocess-base, type: uses },
+    { target: cli/utils, type: uses }
   ]
 mapping:
   - source/cli/tests/unit/llm/anthropic.test.ts
   - source/cli/tests/unit/llm/claude-code.test.ts
   - source/cli/tests/unit/llm/cli-base.test.ts
+  - source/cli/tests/unit/llm/ollama.test.ts
   - source/cli/tests/unit/llm/verdict-response-corpus.test.ts
   - source/cli/tests/unit/llm/cli-providers.test.ts
   - source/cli/tests/unit/llm/google.test.ts

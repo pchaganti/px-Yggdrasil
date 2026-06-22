@@ -111,7 +111,13 @@ function extractLastVerdict(text: string): Record<string, unknown> | undefined {
 
 export function parseAspectResponse(output: string): AspectResponse | undefined {
   const trimmed = output.trim();
-  if (!trimmed) return undefined;
+  if (!trimmed) {
+    // Diagnostic (debug:true only): an empty reply is the common ollama failure
+    // when a thinking model spends its whole budget in the reasoning channel and
+    // emits no verdict in `content`. Note it so the failure is not invisible.
+    debugWrite('[parseAspectResponse] reviewer returned an empty reply — nothing to parse');
+    return undefined;
+  }
 
   // 1. Direct JSON
   try { return normalizeResponse(JSON.parse(trimmed)); } catch (err) { debugWrite(`[parseAspectResponse] direct JSON parse failed: ${(err as Error).message}`); }
@@ -140,7 +146,14 @@ export function parseAspectResponse(output: string): AspectResponse | undefined 
   // to contain the word would become a false code-PASS that commits green over
   // unverified code (A3b). Classify it as a PROVIDER (infrastructure) error so the
   // fail-closed gate refuses without committing.
-  debugWrite('[parseAspectResponse] no parseable JSON verdict — classifying as provider error');
+  // Diagnostic (debug:true only): dump the FULL raw reply so an unparseable
+  // verdict can actually be inspected — the provider-error `reason` carries only
+  // the first 160 chars, which is rarely enough to see why parsing failed (e.g. a
+  // leaked thinking wrapper, a differently-named field, a missing `satisfied`).
+  // `output` is the raw text already in hand here; it is not one of the redaction-
+  // gated identifier names (prompt/response/content/body), and the log is a
+  // private, opt-in local file.
+  debugWrite(`[parseAspectResponse] no parseable JSON verdict — classifying as provider error. Raw reply (${output.length} chars): ${output}`);
   return { satisfied: false, reason: `Unparseable reviewer response: ${trimmed.slice(0, 160)}`, errorSource: 'provider' };
 }
 

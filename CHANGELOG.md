@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.2.1] - 2026-06-22
+
+### Fixed
+
+- **An unparseable reviewer reply is now dumped in full to `.debug.log` (under `debug: true`), so the failure can actually be diagnosed.** When a reviewer's response could not be parsed into a verdict, the failure was effectively invisible: the provider-error `reason` carried only the first 160 characters and the complete raw reply was never written anywhere, so an intermittent local-model failure — an empty `content` from a thinking model that spent its whole budget reasoning, a leaked reasoning wrapper, or a reply missing the `satisfied` field — left nothing to inspect. `parseAspectResponse` (the single choke point every provider funnels through, so the fix covers ollama and the CLI-subprocess providers at once) now writes the complete raw reply to the debug log when — and only when — parsing fails, and notes an empty reply distinctly. The logging stays gated on `debug: true` (these are private, opt-in local logs) and never fires on success (a parsed verdict logs nothing). No redaction primitive was introduced and the enforced `provider-redaction` rule is unaffected: the dump references the already-in-hand parse input (`output`), not the redaction-gated provider identifiers (`prompt`/`response`/`content`/`body`). This closes a diagnosis gap surfaced while investigating intermittent ollama parse failures; it does not change any verdict, hash, or exit code.
+
 ## [5.2.0] - 2026-06-21
 
 ### Added
