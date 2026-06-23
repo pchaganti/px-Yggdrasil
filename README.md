@@ -4,9 +4,9 @@
 
 # Yggdrasil
 
-**Your agent will ignore CLAUDE.md. Yggdrasil makes sure it doesn't.**
+**Stop babysitting your agent.**
 
-Architecture rules your agent can't ignore. Before it edits a file, your agent gets the few rules that apply — and writes to them. After, every change is checked before it moves on: by a script that runs locally for free, or by an LLM reviewer. A rule written as a script *runs* — your agent can't quietly optimize it away the way it drops a line in CLAUDE.md. Works with Claude Code, Cursor, Copilot, Codex, Cline, and more. Checks run against your code, not your diffs; the feedback is specific; the agent has to fix before it can move on.
+Your architecture rules become checks it can't skip, run on every change before it moves on. A script runs them locally for free, or an LLM reviews the call a script can't make. Checks run against your code, not your diffs. The feedback is specific, and the agent has to fix before it can move on. Works with Claude Code, Cursor, Copilot, Codex, Cline, and more.
 
 [![CI](https://github.com/krzysztofdudek/Yggdrasil/actions/workflows/ci.yml/badge.svg)](https://github.com/krzysztofdudek/Yggdrasil/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@chrisdudek/yg.svg)](https://www.npmjs.com/package/@chrisdudek/yg)
