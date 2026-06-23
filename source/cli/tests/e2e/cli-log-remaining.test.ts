@@ -357,12 +357,13 @@ describe.skipIf(!distExists)('CLI E2E — log remaining: supersedes, read format
       git(dir, 'add -A');
       git(dir, 'commit -qm commitB');
 
-      // Revert source + log + the full lock triad together to commit A.
+      // Revert source + log + the committed lock files together to commit A. This
+      // deterministic-only fixture has no LLM verdicts, so the nondet file is absent
+      // (empty → no file) and is not part of the revert.
       git(
         dir,
         'checkout HEAD~1 -- src/services/orders.ts ' +
           '.yggdrasil/model/services/orders/log.md ' +
-          '.yggdrasil/yg-lock.nondeterministic.json ' +
           '.yggdrasil/yg-lock.logs.json ' +
           '.yggdrasil/.yg-lock.deterministic.json',
       );

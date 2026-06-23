@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.2.3] - 2026-06-23
+
+### Fixed
+
+- **The "empty section ⇒ no file" rule now covers all three lock files, not just the logs file.** 5.2.2 stopped writing an empty `yg-lock.logs.json`; the two verdict files still wrote an empty `{ "version": 1, "verdicts": {}, "nodes": {} }` husk when they had nothing to record. Now every split file follows the same rule: `yg-lock.nondeterministic.json` is absent when there are no LLM verdicts, `.yg-lock.deterministic.json` (the gitignored cache) is absent when there are no deterministic verdicts, and `yg-lock.logs.json` is absent when there is no `log_required` source fingerprint and no `log.md` — in each case an existing empty husk is removed. `readLock` already treats an absent file as empty state, so this is transparent to every reader and changes no verdict, hash, or exit code; a repo simply carries only the lock files it actually needs. (Tests that assumed a verdict file is always present were updated to read whichever files exist.)
+
 ## [5.2.2] - 2026-06-23
 
 ### Fixed

@@ -83,10 +83,14 @@ pairs on that node — a legitimate vacuous pass, no verdict, no entry.
   \`yg knowledge read log-management\`) and the append-only log integrity baseline.
   The source fingerprint is the log gate's drift basis, so it is recorded ONLY for
   \`log_required\` nodes — a non-log_required node gets a \`nodes\` entry only when it
-  owns a \`log.md\` (then holding just the \`log\` baseline, no \`source\`). When the
-  \`nodes\` section is empty (no log_required node, no \`log.md\`), \`yg-lock.logs.json\`
-  is not written at all — an empty committed husk is removed, and readLock treats
-  an absent file as empty state.
+  owns a \`log.md\` (then holding just the \`log\` baseline, no \`source\`).
+- Empty section ⇒ no file. Each of the three split files is written ONLY when its
+  section is non-empty; when empty it is not written at all (an existing empty husk
+  is removed). So a repo with no LLM aspects has no \`yg-lock.nondeterministic.json\`,
+  one with no \`log_required\` node and no \`log.md\` has no \`yg-lock.logs.json\`, and
+  one with no deterministic aspects has no \`.yg-lock.deterministic.json\`. readLock
+  treats an absent file as empty state, so this is transparent to every reader — a
+  repo only carries the lock files it actually needs.
 - The built-in relation-conformance check is NOT stored in the lock — it is
   recomputed live on every \`yg check\`. The lock holds only aspect \`verdicts\`
   and per-node \`nodes\` facts; there is no relation section. See "Relation

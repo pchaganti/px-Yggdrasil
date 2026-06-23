@@ -76,11 +76,11 @@ describe('splitLock migration step', () => {
     try {
       await splitLock(ygg);
       const nondet = JSON.parse(readFileSync(path.join(ygg, LOCK_NONDET_FILE_NAME), 'utf-8'));
-      const det = JSON.parse(readFileSync(path.join(ygg, LOCK_DET_FILE_NAME), 'utf-8'));
-      // No check.mjs anywhere → every verdict is committed-LLM; the cache is empty.
+      // No check.mjs anywhere → every verdict is committed-LLM; the det cache is
+      // empty, so its file is not written at all (empty → no file).
       expect(nondet.verdicts['det-aspect']).toBeDefined();
       expect(nondet.verdicts['llm-aspect']).toBeDefined();
-      expect(Object.keys(det.verdicts)).toHaveLength(0);
+      expect(existsSync(path.join(ygg, LOCK_DET_FILE_NAME))).toBe(false);
     } finally {
       rmSync(ygg, { recursive: true, force: true });
     }

@@ -162,18 +162,19 @@ describe.skipIf(!distExists)('CLI E2E — verdict-lock triad format and read-bou
       expect(run(['log', 'add', '--node', 'services/orders', '--reason', 'shape fixture'], dir).status).toBe(0);
       expect(run(['check', '--approve'], dir).status).toBe(0);
       // The deterministic verdicts land in the gitignored det file; the log baseline
-      // lands in the committed logs file. Both must exist.
+      // lands in the committed logs file. Both must exist. This fixture has no LLM
+      // verdicts, so the nondet file's section is empty → it is not written at all.
       expect(existsSync(detFile(dir))).toBe(true);
       expect(existsSync(logsFile(dir))).toBe(true);
+      expect(existsSync(nondetFile(dir))).toBe(false);
 
-      // Trailing newline on every written triad file.
-      for (const f of [nondetFile(dir), logsFile(dir), detFile(dir)]) {
+      // Trailing newline + version 1 on every WRITTEN triad file (an empty section
+      // is not written, so only the present files are asserted).
+      const present = [nondetFile(dir), logsFile(dir), detFile(dir)].filter((f) => existsSync(f));
+      for (const f of present) {
         expect(readFileSync(f, 'utf-8').endsWith('\n')).toBe(true);
       }
-
-      // Each raw file declares version 1 (relations are computed live; the lock is
-      // back to v1).
-      for (const f of [nondetFile(dir), logsFile(dir), detFile(dir)]) {
+      for (const f of present) {
         const raw = JSON.parse(readFileSync(f, 'utf-8')) as { version: number };
         expect(raw.version).toBe(1);
       }
@@ -395,10 +396,10 @@ describe.skipIf(!distExists)('CLI E2E — verdict-lock triad format and read-bou
   it('8: a lock with an unsupported version (99) is refused with lock-invalid (exit 1)', () => {
     const dir = deterministicFixture('version');
     try {
-      expect(run(['check', '--approve'], dir).status).toBe(0);
-      const parsed = JSON.parse(readFileSync(nondetFile(dir), 'utf-8')) as { version: number };
-      parsed.version = 99;
-      writeFileSync(nondetFile(dir), `${JSON.stringify(parsed, null, 2)}\n`, 'utf-8');
+      // An empty section is not written, so --approve leaves no nondet file for this
+      // deterministic-only fixture; seed a version-99 nondet directly to exercise the
+      // unknown-version gate (readLock must refuse it).
+      writeFileSync(nondetFile(dir), `${JSON.stringify({ version: 99, verdicts: {}, nodes: {} }, null, 2)}\n`, 'utf-8');
 
       const check = run(['check'], dir);
       expect(check.status).toBe(1);

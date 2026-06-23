@@ -1086,21 +1086,13 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
       // The lock carries NO relation cache — relations are computed live. The orders
       // deterministic verdicts land in the gitignored det file after the fill; assert no
       // relation cache leaks into ANY committed/det triad file.
-      const nondetRaw = readFileSync(
-        path.join(dir, '.yggdrasil', 'yg-lock.nondeterministic.json'),
-        'utf-8',
-      );
-      // The logs file is absent when no node is log_required (empty → no file);
-      // an absent file trivially carries no relation cache.
-      const logsLockFile = path.join(dir, '.yggdrasil', 'yg-lock.logs.json');
-      const logsRaw = existsSync(logsLockFile) ? readFileSync(logsLockFile, 'utf-8') : '';
-      const detRaw = readFileSync(
-        path.join(dir, '.yggdrasil', '.yg-lock.deterministic.json'),
-        'utf-8',
-      );
-      expect(nondetRaw).not.toContain('relation_verdicts');
-      expect(logsRaw).not.toContain('relation_verdicts');
-      expect(detRaw).not.toContain('relation_verdicts');
+      // Each split file is absent when its section is empty (empty → no file); an
+      // absent file trivially carries no relation cache. Read whichever exist.
+      const ygg = path.join(dir, '.yggdrasil');
+      const readIfExists = (p: string) => (existsSync(p) ? readFileSync(p, 'utf-8') : '');
+      expect(readIfExists(path.join(ygg, 'yg-lock.nondeterministic.json'))).not.toContain('relation_verdicts');
+      expect(readIfExists(path.join(ygg, 'yg-lock.logs.json'))).not.toContain('relation_verdicts');
+      expect(readIfExists(path.join(ygg, '.yg-lock.deterministic.json'))).not.toContain('relation_verdicts');
 
       // Now REMOVE the relation — a pure graph-structure edit, no source change.
       writeFileSync(

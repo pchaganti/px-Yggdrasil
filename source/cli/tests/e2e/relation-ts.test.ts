@@ -143,22 +143,14 @@ describe.skipIf(!distExists)('CLI E2E — TypeScript relation conformance (live)
       // The 5.1.0 triad splits the lock across three files; assert no relation
       // cache leaks into ANY of them (committed LLM/log files + the gitignored
       // deterministic file), and that the merged lock is format version 1.
-      const nondetRaw = readFileSync(
-        path.join(declared, '.yggdrasil', 'yg-lock.nondeterministic.json'),
-        'utf-8',
-      );
-      // The logs file is absent when no node is log_required (empty → no file);
-      // an absent file trivially carries no relation cache.
-      const logsLockFile = path.join(declared, '.yggdrasil', 'yg-lock.logs.json');
-      const logsRaw = existsSync(logsLockFile) ? readFileSync(logsLockFile, 'utf-8') : '';
-      const detRaw = readFileSync(
-        path.join(declared, '.yggdrasil', '.yg-lock.deterministic.json'),
-        'utf-8',
-      );
-      expect(nondetRaw).not.toContain('relation_verdicts');
-      expect(logsRaw).not.toContain('relation_verdicts');
-      expect(detRaw).not.toContain('relation_verdicts');
-      expect(readLock(path.join(declared, '.yggdrasil')).version).toBe(1);
+      // Each split file is absent when its section is empty (empty → no file); an
+      // absent file trivially carries no relation cache. Read whichever exist.
+      const ygg = path.join(declared, '.yggdrasil');
+      const readIfExists = (p: string) => (existsSync(p) ? readFileSync(p, 'utf-8') : '');
+      expect(readIfExists(path.join(ygg, 'yg-lock.nondeterministic.json'))).not.toContain('relation_verdicts');
+      expect(readIfExists(path.join(ygg, 'yg-lock.logs.json'))).not.toContain('relation_verdicts');
+      expect(readIfExists(path.join(ygg, '.yg-lock.deterministic.json'))).not.toContain('relation_verdicts');
+      expect(readLock(ygg).version).toBe(1);
     } finally {
       rmSync(declared, { recursive: true, force: true });
     }

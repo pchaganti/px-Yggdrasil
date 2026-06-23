@@ -511,10 +511,11 @@ export interface WriteLockOptions {
 export async function writeLock(yggRoot: string, lock: LockFile, opts: WriteLockOptions = {}): Promise<void> {
   const scope = opts.scope ?? 'all';
 
-  // The LOGS file holds only the per-node log/closure baseline; when no node is
-  // log_required and none owns a log.md, that section is empty and an empty
-  // committed husk is not written at all (removed if present). The verdict files
-  // are always written (an empty verdicts husk is the canonical cold-start shape).
+  // Every split file follows the same rule: when its section is empty there is
+  // nothing to persist, so an empty husk is not written at all (an existing one is
+  // removed). The LOGS file holds the per-node log/closure baseline; the two
+  // verdict files hold the LLM and deterministic verdicts. readLock treats an
+  // absent file as empty state, so this is transparent to every reader.
   if (scope === 'logs') {
     await writeOrRemoveSplitFile(logsLockPath(yggRoot), lock.version, {}, lock.nodes);
     return;
@@ -527,13 +528,12 @@ export async function writeLock(yggRoot: string, lock: LockFile, opts: WriteLock
   const { det, nondet } = partitionVerdicts(lock.verdicts, detIds);
 
   if (scope === 'deterministic') {
-    const content = serializeLock({ version: lock.version, verdicts: det, nodes: {} });
-    await writeFileIfChanged(detLockPath(yggRoot), content);
+    await writeOrRemoveSplitFile(detLockPath(yggRoot), lock.version, det, {});
     return;
   }
 
   // scope === 'all'
-  await writeFileIfChanged(nondetLockPath(yggRoot), serializeLock({ version: lock.version, verdicts: nondet, nodes: {} }));
+  await writeOrRemoveSplitFile(nondetLockPath(yggRoot), lock.version, nondet, {});
   await writeOrRemoveSplitFile(logsLockPath(yggRoot), lock.version, {}, lock.nodes);
-  await writeFileIfChanged(detLockPath(yggRoot), serializeLock({ version: lock.version, verdicts: det, nodes: {} }));
+  await writeOrRemoveSplitFile(detLockPath(yggRoot), lock.version, det, {});
 }

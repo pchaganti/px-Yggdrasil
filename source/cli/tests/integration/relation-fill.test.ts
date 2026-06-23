@@ -22,12 +22,13 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import path from 'node:path';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
 import { loadGraph } from '../../src/core/graph-loader.js';
 import { runFill } from '../../src/core/fill.js';
 import { runCheck } from '../../src/core/check.js';
+import { readLock } from '../../src/io/lock-store.js';
 
 function writeNode(
   root: string,
@@ -92,14 +93,15 @@ describe('relation pass wired into runFill (integration)', () => {
     const graph = await loadGraph(root);
     const fill = await runFill(graph, { gitTrackedFiles: null, write: () => {} });
 
-    // The lock has no relation cache at all — relations are computed live.
-    // Verdicts live in the committed nondeterministic file under the 5.1.0 triad,
-    // so a stray relation_verdicts section would surface there.
-    const raw = readFileSync(path.join(graph.rootPath, 'yg-lock.nondeterministic.json'), 'utf-8');
-    expect(raw).not.toContain('relation_verdicts');
-    const parsed = JSON.parse(raw) as { version: number; relation_verdicts?: unknown };
-    expect(parsed.version).toBe(1);
-    expect(parsed.relation_verdicts).toBeUndefined();
+    // The lock has no relation cache at all — relations are computed live. Each
+    // split file is absent when its section is empty (empty → no file); read
+    // whichever exist, assert no stray relation_verdicts, then confirm the merged
+    // lock version.
+    const readIfExists = (p: string) => (existsSync(p) ? readFileSync(p, 'utf-8') : '');
+    for (const name of ['yg-lock.nondeterministic.json', 'yg-lock.logs.json', '.yg-lock.deterministic.json']) {
+      expect(readIfExists(path.join(graph.rootPath, name))).not.toContain('relation_verdicts');
+    }
+    expect(readLock(graph.rootPath).version).toBe(1);
 
     // a --uses--> b is declared, so the live pass approves both → no relation error.
     const liveIssues = fill.checkResult.issues.filter((i) => i.code === 'relation-undeclared-dependency');
