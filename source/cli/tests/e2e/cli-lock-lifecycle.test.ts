@@ -138,8 +138,10 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: lifecycle / closure / GC'
       // an enforced det entry and the LLM entry are both present + approved
       expect(lock.verdicts['no-todo-comments']['node:services/orders'].verdict).toBe('approved');
       expect(lock.verdicts['has-doc-comment']['node:services/orders'].verdict).toBe('approved');
-      // positive closure recorded the source fingerprint for the changed nodes
-      expect(typeof lock.nodes['services/orders'].source).toBe('string');
+      // services is not a log_required type, so closure records NO source
+      // fingerprint for it (the fingerprint is the log gate's drift basis, kept
+      // only for log_required nodes) — its nodes[] entry is absent entirely.
+      expect(lock.nodes['services/orders']?.source).toBeUndefined();
 
       // --- VERIFIED: a plain read is green, makes no calls ---
       const callsAfterFill = mock.chatCount();
@@ -338,6 +340,9 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: lifecycle / closure / GC'
   it('(11c) deleting a node prunes its nodes[] entry from the lock', () => {
     const dir = deterministicFixture('gc-nodedel');
     try {
+      // Give the non-log_required payments node a log.md so it owns a nodes[]
+      // entry (its append-only log baseline) for the GC-pruning check below.
+      expect(run(['log', 'add', '--node', 'services/payments', '--reason', 'gc fixture'], dir).status).toBe(0);
       expect(run(['check', '--approve'], dir).status).toBe(0);
       expect(readLock(dir).nodes['services/payments']).toBeDefined();
 

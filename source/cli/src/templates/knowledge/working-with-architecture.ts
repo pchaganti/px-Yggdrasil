@@ -130,9 +130,12 @@ prefix (e.g. \`src/handlers\`) covers that file or all files beneath it.
 ## log_required — when to enable the log gate
 
 Each node type may set \`log_required\` (default \`false\`). When \`true\`, a node of
-that type demands a fresh log entry before \`yg check --approve\` whenever its
-mapped source changed since the node's last positive closure (the log gate, see
-\`yg knowledge read log-management\`).
+that type demands a fresh log entry whenever its mapped source changed since the
+node's last positive closure. The requirement is a property of the node TYPE plus
+a source change — independent of the node's aspects or pairs — and is enforced
+read-only: plain \`yg check\` flags a missing entry as a blocking error, so it
+bites even on a node that produces no pairs (the log gate, see \`yg knowledge read
+log-management\`).
 
 Enable it on types whose changes carry business intent worth capturing —
 domain logic, command handlers, persistence adapters, anything where the WHY

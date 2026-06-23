@@ -30,6 +30,8 @@ relations:
     type: calls
   - target: cli/core/log-validator
     type: calls
+  - target: cli/core/log
+    type: calls
   - target: cli/formatters
     type: calls
   - target: cli/io/parsers/config

@@ -309,18 +309,18 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
     }
   });
 
-  // --- 1D. An ALL-DRAFT node produces no fill pairs, so the gate cannot fire ---
+  // --- 1D. An ALL-DRAFT node still requires a log entry for a source change ---
   //
-  // BEHAVIOR CHANGE (ported, not weakened): the old per-node `yg approve` log
-  // gate ran on every approved node regardless of aspect status, so an all-draft
-  // source change still demanded an entry. In the fill model the gate is
-  // PAIR-SCOPED: it only iterates over nodes that own unverified pairs to fill
-  // (core/fill.ts builds its node set from `unverifiedPairs`). Draft aspects
-  // produce NO pairs, so an all-draft node is never in the fill's node set and
-  // the source-change gate has nothing to gate — the fill is vacuously clean
-  // (exit 0) and the gate message never appears. (The gate's status-independence
-  // for nodes that DO have non-draft pairs is pinned by 1B/1C.)
-  it('1D: an all-draft node produces no fill pairs — the source-change gate does not fire (exit 0)', () => {
+  // The log requirement is a property of the node TYPE (`log_required`) plus a
+  // source change — fully DECOUPLED from aspects and pair state. An all-draft node
+  // produces zero fill pairs, so the pair-scoped fill gate never iterates it, but
+  // the requirement is enforced LIVE (core/check.ts classifyLogRequirement) over
+  // every node's source fingerprint, so an unlogged source change is still
+  // flagged. With every aspect draft the fill has nothing to fill (0 pairs), yet
+  // `yg check --approve` ends RED because its final re-check demands the entry.
+  // (The pair-scoped fill gate's status-independence for nodes that DO have
+  // non-draft pairs is pinned by 1B/1C; the read-only detection is pinned by 1G.)
+  it('1D: an all-draft log_required node still requires a log entry for a source change (exit 1)', () => {
     const dir = deterministicFixture('status-indep-draft');
     try {
       enableServiceLogRequired(dir);
@@ -333,11 +333,11 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
       writeFileSync(ordersFile(dir), readFileSync(ordersFile(dir), 'utf-8') + '\nexport const d = 4;\n', 'utf-8');
       const { status, stdout, all } = run(['check', '--approve'], dir);
 
-      // No pairs to fill → the gate never iterates this node → no gate message.
-      expect(status).toBe(0);
-      expect(all).not.toContain(GATE_FIRED);
+      // Zero pairs to fill, yet the requirement still bites: the live check demands
+      // an entry regardless of aspect/pair state, and the run ends red.
+      expect(status).toBe(1);
+      expect(all).toContain("No fresh log entry for node 'services/orders'");
       expect(stdout).toContain('Filling 0 unverified pairs across 0 nodes');
-      expect(stdout).toContain('yg check: PASS');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -417,6 +417,74 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
       // No source change is possible for `empty`, so the mandatory-log gate never
       // fires for it despite log_required:true on the type.
       expect(all).not.toContain("No fresh log entry for node 'services/empty'");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // --- 1G. Plain `yg check` flags a log_required source change even with NO fill pairs ---
+  // The log requirement is a property of the node TYPE (log_required) + a source
+  // change, fully DECOUPLED from aspects: it must hold even when the node produces
+  // no pairs (all aspects draft, no effective aspects, or a change touching only
+  // non-subject files). And it must surface on the READ-ONLY `yg check` — not only
+  // at `--approve` time — so CI catches an unlogged source change on such a node.
+  // Here every effective aspect is driven to draft (zero fill pairs); a plain
+  // `yg check` with a mapped source and no log entry must still go RED.
+  it('1G: plain yg check (no --approve) flags a log_required source change on a node with no fill pairs (exit 1)', () => {
+    const dir = deterministicFixture('plain-check-no-pairs');
+    try {
+      enableServiceLogRequired(dir);
+      // Drive every effective (non-draft) aspect to draft → zero fill pairs.
+      setAspectStatus(dir, 'no-todo-comments', 'draft');
+      setAspectStatus(dir, 'requires-named-export', 'draft');
+      // has-doc-comment is stripped by deterministicFixture; wip-rule is already draft.
+
+      // No log entry anywhere; the mapped source is a first-verification change.
+      // Read-only `yg check` (no fills, no LLM) must still demand the entry.
+      const plain = run(['check'], dir);
+      expect(plain.status).toBe(1);
+      expect(plain.all).toContain("No fresh log entry for node 'services/orders'");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // --- 1H. No log_required node and no log.md → NO yg-lock.logs.json at all ---
+  // The `nodes.<path>.source` fingerprint is the log gate's drift basis, and the
+  // gate never runs for a node whose type is not log_required — so closure records
+  // a source fingerprint ONLY for log_required nodes (recording it elsewhere is
+  // dead data that churns the committed lock). When the whole fixture is
+  // non-log_required with no log.md, the logs-lock `nodes` section is empty, and an
+  // empty committed lock file is not written at all (it is removed if present).
+  it('1H: a repo with no log_required node and no log.md produces no yg-lock.logs.json (empty → absent)', () => {
+    const dir = deterministicFixture('no-source-non-lr');
+    try {
+      // every type ships log_required: false (fixture default) — do NOT enable it.
+      expect(run(['check', '--approve'], dir).status).toBe(0);
+      // Nothing to record → the committed logs lock is absent, not an empty husk.
+      expect(existsSync(path.join(dir, '.yggdrasil', 'yg-lock.logs.json'))).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // --- 1I. A non-log_required node WITH a log.md still gets its integrity baseline ---
+  // The append-only log baseline (`nodes.<path>.log`) protects an existing log's
+  // history and is recorded for ANY node that owns a log.md, independent of
+  // log_required — but still WITHOUT a (dead) source fingerprint.
+  it('1I: a non-log_required node with a log.md records its log baseline (integrity) but no source', () => {
+    const dir = deterministicFixture('non-lr-with-log');
+    try {
+      // services/orders is log_required: false; give it a log.md anyway.
+      expect(run(['log', 'add', '--node', 'services/orders', '--reason', 'context note'], dir).status).toBe(0);
+      expect(run(['check', '--approve'], dir).status).toBe(0);
+      const logsLock = JSON.parse(
+        readFileSync(path.join(dir, '.yggdrasil', 'yg-lock.logs.json'), 'utf-8'),
+      );
+      const entry = logsLock.nodes['services/orders'];
+      expect(entry).toBeDefined();
+      expect(entry.log?.last_entry_datetime).toBeTruthy(); // integrity baseline kept
+      expect(entry.source).toBeUndefined();                // but no dead source fingerprint
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

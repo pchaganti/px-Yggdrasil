@@ -244,6 +244,8 @@ describe('positive closure', () => {
         { id: 'det-a', kind: 'deterministic', status: 'enforced', rule: DET_PASS },
         { id: 'llm-a', kind: 'llm', status: 'enforced', rule: 'rule a' },
       ],
+      // Source fingerprints are recorded at closure ONLY for log_required nodes.
+      logRequired: true,
       logContent: '## [2026-05-11T10:00:00.000Z]\nfirst.\n',
     });
     const graph = await loadGraph(projectRoot);
@@ -257,6 +259,7 @@ describe('positive closure', () => {
   it('an enforced det refusal BLOCKS closure (no fingerprint recorded)', async () => {
     const { projectRoot } = await setupProject({
       aspects: [{ id: 'det-fail', kind: 'deterministic', status: 'enforced', rule: DET_FAIL }],
+      logRequired: true,
       logContent: '## [2026-05-11T10:00:00.000Z]\nfirst.\n',
     });
     const graph = await loadGraph(projectRoot);
@@ -268,6 +271,7 @@ describe('positive closure', () => {
   it('an advisory refusal still closes (does not block)', async () => {
     const { projectRoot } = await setupProject({
       aspects: [{ id: 'det-adv', kind: 'deterministic', status: 'advisory', rule: DET_FAIL }],
+      logRequired: true,
       logContent: '## [2026-05-11T10:00:00.000Z]\nfirst.\n',
     });
     const graph = await loadGraph(projectRoot);
@@ -288,6 +292,9 @@ describe('positive closure', () => {
       aspects: [{ id: 'llm-a', kind: 'llm', status: 'enforced', rule: 'rule a' }],
       mapping: ['src/svc.ts', 'src/helper.ts'],
       files: { 'src/helper.ts': 'export const h = 1;\n' },
+      // log_required so closure records a source fingerprint to hold back.
+      logRequired: true,
+      logContent: '## [2026-05-11T10:00:00.000Z]\nfirst.\n',
     });
     // Run 1: provider approves → pair approved, node closes.
     let graph = await loadGraph(projectRoot);
@@ -300,6 +307,13 @@ describe('positive closure', () => {
     // Edit a mapped file: fingerprint drifts and the LLM subject changes →
     // llm-a is unverified pre-fill.
     await writeFile(path.join(projectRoot, 'src', 'svc.ts'), 'export const x = 2;\n');
+    // Add a FRESH log entry so the §9 gate passes in run 2 — isolating the
+    // unverified-pair closure check (condition c) as the only thing that holds the
+    // fingerprint back, not the log gate.
+    await writeFile(
+      path.join(projectRoot, '.yggdrasil', 'model', 'svc', 'log.md'),
+      '## [2026-05-11T10:00:00.000Z]\nfirst.\n## [2026-05-12T10:00:00.000Z]\nsecond.\n',
+    );
     graph = await loadGraph(projectRoot);
     // Run 2: provider unreachable → the LLM fill writes NOTHING (infra disposition).
     mockCreateLlmProvider.mockReturnValue(makeMockProvider({ isAvailable: async () => false }));

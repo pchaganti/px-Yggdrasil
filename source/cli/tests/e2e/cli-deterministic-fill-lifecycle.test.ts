@@ -429,9 +429,10 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
       const nondetPath = nondetLockPath(ygg);
       const logsPath = logsLockPath(ygg);
       expect(existsSync(nondetPath)).toBe(true);
-      expect(existsSync(logsPath)).toBe(true);
+      // The non-log_required fixture records no source, so the committed logs file
+      // is absent (empty → no file); --only-deterministic must leave it absent.
+      expect(existsSync(logsPath)).toBe(false);
       const nondetBytes = readFileSync(nondetPath);
-      const logsBytes = readFileSync(logsPath);
 
       // Edit source → the deterministic pair goes unverified.
       appendFileSync(ordersFile(dir), '\nexport const onlyDetTouch = 1;\n');
@@ -442,9 +443,10 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
       expect(det.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(det.status).toBe(0);
 
-      // The committed files are BYTE-IDENTICAL — zero churn in CI / pre-commit.
+      // The committed files are untouched — zero churn in CI / pre-commit (nondet
+      // byte-identical; the absent logs file stays absent).
       expect(readFileSync(nondetPath).equals(nondetBytes)).toBe(true);
-      expect(readFileSync(logsPath).equals(logsBytes)).toBe(true);
+      expect(existsSync(logsPath)).toBe(false);
       // The gitignored cache reflects the re-fill.
       expect(verdictFor(readLock(dir), 'no-todo-comments', 'services/orders')?.verdict).toBe('approved');
     } finally {

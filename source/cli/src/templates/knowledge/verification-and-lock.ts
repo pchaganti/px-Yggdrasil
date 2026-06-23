@@ -58,8 +58,8 @@ pairs on that node — a legitimate vacuous pass, no verdict, no entry.
     }
   },
   "nodes": {
-    "billing/cancel": {
-      "source": "<sha256>",                  // source fingerprint — the log gate's basis
+    "billing/cancel": {                       // present ONLY when log_required and/or a log.md exists
+      "source": "<sha256>",                  // source fingerprint — log gate basis; ONLY for log_required nodes
       "log": { "last_entry_datetime": "<ISO>", "prefix_hash": "<sha256>" }
     }
   }
@@ -81,6 +81,12 @@ pairs on that node — a legitimate vacuous pass, no verdict, no entry.
   entirely.
 - \`nodes.<path>\` carries the source fingerprint (the log gate's contract,
   \`yg knowledge read log-management\`) and the append-only log integrity baseline.
+  The source fingerprint is the log gate's drift basis, so it is recorded ONLY for
+  \`log_required\` nodes — a non-log_required node gets a \`nodes\` entry only when it
+  owns a \`log.md\` (then holding just the \`log\` baseline, no \`source\`). When the
+  \`nodes\` section is empty (no log_required node, no \`log.md\`), \`yg-lock.logs.json\`
+  is not written at all — an empty committed husk is removed, and readLock treats
+  an absent file as empty state.
 - The built-in relation-conformance check is NOT stored in the lock — it is
   recomputed live on every \`yg check\`. The lock holds only aspect \`verdicts\`
   and per-node \`nodes\` facts; there is no relation section. See "Relation

@@ -278,12 +278,16 @@ describe('check command', () => {
       });
     });
 
-    it('previews a node that would otherwise need a fresh log entry (exit 0, no log-entry-required block)', async () => {
+    it('previews a node that would otherwise need a fresh log entry — reports the requirement but never hard-stops the fill gate (exit 0, no writes)', async () => {
       // Flip the service type to log_required: true. On a cold lock this is a
-      // first verification for nodes owning source, so a real `--approve` would
-      // raise the log gate (`No fresh log entry…`). A dry-run intentionally
-      // bypasses the step-4 log gate — its early-return precedes that gate — so
-      // the preview still runs and exits 0 with NO log-gate block.
+      // first verification for nodes owning source. A dry-run intentionally
+      // bypasses the step-4 fill gate — its early-return precedes that gate — so
+      // the preview is never ABORTED by the hard-stop (no `log-entry-required`
+      // aggregate, no `need a fresh log entry before --approve`): it computes and
+      // prints the budget. The read-only check report it renders at the end still
+      // surfaces the requirement (a normal check-level `log-entry-missing` error),
+      // exactly as a plain `yg check` would — but the preview exits 0 and writes
+      // nothing.
       await withFixtureCopy(async (cwd) => {
         const archPath = path.join(cwd, '.yggdrasil', 'yg-architecture.yaml');
         const arch = await readFile(archPath, 'utf-8');
@@ -299,10 +303,12 @@ describe('check command', () => {
         expect(result.status).toBe(0);
         // The preview ran (budget header present)…
         expect(result.stdout).toContain('Filling');
-        // …and the log gate was NOT triggered.
-        expect(result.stdout).not.toContain('No fresh log entry');
+        // …the FILL gate hard-stop did NOT fire (no abort, no aggregate block)…
         expect(result.stdout).not.toContain('log-entry-required');
-        expect(result.stdout).not.toContain('need a fresh log entry');
+        expect(result.stdout).not.toContain('need a fresh log entry before --approve');
+        // …yet the read-only check report surfaces the requirement (informational),
+        // confirming the preview reports state without blocking on it.
+        expect(result.stdout).toContain('No fresh log entry');
 
         // Still no writes.
         const after = await readCommittedLockBytes(cwd);

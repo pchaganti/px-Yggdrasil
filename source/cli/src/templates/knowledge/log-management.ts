@@ -20,7 +20,7 @@ working-with-architecture\` is the home for that guidance). To know whether a no
 needs an entry, check its type in \`yg-architecture.yaml\`, or read the node's log
 state line in \`yg context --node\`.
 
-A fresh log entry is required BEFORE \`yg check --approve\` whenever BOTH hold:
+A fresh log entry is required whenever BOTH hold:
 
 - the node's type has \`log_required: true\`, AND
 - the node's mapped source changed since its last positive closure (or this is the
@@ -28,9 +28,20 @@ A fresh log entry is required BEFORE \`yg check --approve\` whenever BOTH hold:
 
 "Fresh" means newer than the entry recorded at that closure — one fresh entry per
 closure cycle. The requirement depends ONLY on the type flag and the source
-change. It is INDEPENDENT of aspect status. A node with no source change
+change. It is INDEPENDENT of aspect status AND of whether the node has any aspects
+or pairs at all — a node that owns source but has no effective (non-draft) aspects
+still needs an entry when its source changes. A node with no source change
 (cascade-only re-verification — an aspect was edited, the source untouched) needs
 no new entry.
+
+The requirement is enforced READ-ONLY. A missing entry is a blocking
+\`log-entry-missing\` error surfaced by plain \`yg check\` itself — computed live
+from each node's source fingerprint, like the relation-conformance check, at zero
+LLM cost — not merely a \`--approve\`-time gate. So a CI run on plain \`yg check\`
+catches an unlogged source change on a \`log_required\` node even when that node
+produces no pairs to fill. \`--approve\` only WRITES (records the closure baseline
+once the entry exists); it never gets a chance to bypass the requirement, because
+its own final re-check surfaces the same error.
 
 ## Positive closure — the cycle
 
@@ -41,7 +52,9 @@ records the node's source fingerprint and the log freshness baseline.
 Corollaries:
 - Advisory refusals do NOT prevent closure.
 - A node with only advisory/deterministic aspects, or no pairs at all, closes
-  vacuously.
+  vacuously — BUT only once the log requirement is satisfied: a \`log_required\`
+  node whose source changed with no fresh entry does not close, and \`yg check\`
+  flags it red regardless of its (lack of) pairs.
 - A red enforced pair of either kind keeps the cycle OPEN — the same log entry
   stays valid through every retry until the node is actually green. Intent does
   not change between retries; only execution does.
@@ -52,9 +65,13 @@ The gate's "mapped source changed" test is computed from a per-node **source
 fingerprint** — one sha256 fold over the sorted \`[path, sha256(bytes)]\` list of
 ALL the node's mapped files (the full mapping, not the scope-filtered subject
 sets; binaries included by bytes). It lives in \`yg-lock.logs.json\` under
-\`nodes.<path>.source\`, written at positive closure. The append-only log integrity
-baseline (boundary datetime + prefix hash) lives beside it under
-\`nodes.<path>.log\`. There is no separate per-node state file.
+\`nodes.<path>.source\`, written at positive closure — but ONLY for \`log_required\`
+nodes, since the fingerprint is the gate's drift basis and the gate never runs
+elsewhere. A non-log_required node records no \`source\`; it gets a \`nodes\` entry
+only when it owns a \`log.md\`, holding just the append-only \`log\` baseline
+(boundary datetime + prefix hash). When the section is empty (no log_required
+node, no \`log.md\`), \`yg-lock.logs.json\` is not written at all — an empty committed
+husk is removed. There is no separate per-node state file.
 
 The basic workflow:
 
@@ -62,10 +79,12 @@ The basic workflow:
   2. \`yg log add --node <path> --reason "<justification>"\`
   3. \`yg check --approve\`
 
-If you forget step 2, the gate raises \`log-entry-missing\` and that node's pairs
-are skipped (other nodes proceed); add the entry and re-run. If a pair is refused,
-iterate on the code WITHOUT adding new log entries — one entry covers all edits
-until the node reaches closure.
+If you forget step 2, plain \`yg check\` raises a blocking \`log-entry-missing\`
+error for that node (caught read-only, regardless of whether the node has pairs);
+at \`--approve\` a node that has pairs additionally has them skipped while other
+nodes proceed, and the run stays red until the entry exists. Add the entry and
+re-run. If a pair is refused, iterate on the code WITHOUT adding new log entries —
+one entry covers all edits until the node reaches closure.
 
 ## Self-contained entry — worked example
 

@@ -15,8 +15,10 @@ import { mappingEntryMatchesFile, normalizeMappingPath, isGlobPattern } from '..
 import { debugWrite } from '../utils/debug-log.js';
 // ── Verdict-lock live path (spec §6) ──────────────────────────
 import { readLock, LockInvalidError } from '../io/lock-store.js';
+import type { LockFile } from '../model/lock.js';
 import { verifyLock } from './verify-lock.js';
 import type { VerifiedPair } from './verify-lock.js';
+import { logGateBlocksNode } from './log/log-gate.js';
 import {
   unverifiedMessage,
   llmRefusedMessage,
@@ -269,6 +271,52 @@ async function classifyLogStateFromLock(
   }
 }
 
+/**
+ * The mandatory-log requirement, enforced LIVE on plain `yg check` (spec §9).
+ *
+ * Independently of any aspect or pair state, a node whose TYPE has
+ * `log_required: true` and whose mapped source fingerprint differs from the
+ * lock's stored baseline (or has none yet — first verification of a node with
+ * mapped source) MUST carry a fresh log entry. The requirement is a property of
+ * the node TYPE plus a source change, fully DECOUPLED from whether the node has
+ * any aspects or pairs — so it is detected here, read-only and at zero LLM cost,
+ * not only at `--approve` fill time. This is what makes the requirement bite on a
+ * node that produces NO fill pairs (all aspects draft, no effective aspects, or a
+ * change touching only non-subject files): such a node is never in the fill's
+ * pair-scoped node set, so without this live check an unlogged source change
+ * would pass `yg check` green. `--approve` writes nothing new for it — its
+ * positive closure already refuses to advance the baseline until an entry exists,
+ * and its final re-check surfaces this same error.
+ *
+ * Reuses logGateBlocksNode — the single source of truth for the
+ * freshness/fingerprint rule shared with the fill gate and positive closure.
+ * Nodes with an unreadable mapped subject are skipped: they already surface a
+ * blocking file-unreadable error and their fingerprint is uncomputable.
+ */
+async function classifyLogRequirement(
+  graph: Graph,
+  projectRoot: string,
+  lock: LockFile,
+  unreadableNodes: Set<string>,
+  issues: CheckIssue[],
+): Promise<void> {
+  for (const [nodePath, node] of graph.nodes) {
+    if (unreadableNodes.has(nodePath)) continue;
+    if (!(await logGateBlocksNode(graph, projectRoot, node, lock))) continue;
+    issues.push({
+      severity: 'error',
+      code: 'log-entry-missing',
+      rule: 'log-entry-missing',
+      messageData: {
+        what: `No fresh log entry for node '${toPosixPath(nodePath)}' — its source changed but no justification entry exists.`,
+        why: `Node type '${node.meta.type}' has log_required: true — every source change needs a log entry capturing WHY. The requirement is a property of the node type plus a source change, independent of aspects; yg check stays red until a fresh entry exists.`,
+        next: `yg log add --node ${toPosixPath(nodePath)} --reason '<justification>', then re-run: yg check --approve`,
+      },
+      nodePath,
+    });
+  }
+}
+
 /** Minimal shape of the lock needed by the check live path. */
 interface LockFileForCheck {
   nodes: Record<string, { log?: { last_entry_datetime: string; prefix_hash: string } }>;
@@ -503,6 +551,13 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
 
     // Log integrity reads its baseline from the lock (spec §9).
     await classifyLogStateFromLock(graph, projectRoot, lock, lockIssues);
+
+    // Mandatory-log requirement (spec §9): a log_required node whose mapped
+    // source changed with no fresh entry, enforced LIVE here so it bites even on
+    // a node that produces no fill pairs. Skip nodes with an unreadable subject
+    // (already a blocking file-unreadable error; fingerprint uncomputable).
+    const unreadableNodes = new Set(verification.unreadable.map((u) => u.nodePath));
+    await classifyLogRequirement(graph, projectRoot, lock, unreadableNodes, lockIssues);
   } catch (err) {
     if (err instanceof LockInvalidError) {
       lockIssues.push({
@@ -620,6 +675,12 @@ function computeSuggestedNext(issues: CheckIssue[]): string | null {
   // 1. lock-invalid — fail closed; restore-or-refill (its own next).
   const lockInvalid = errors.find(i => i.code === 'lock-invalid');
   if (lockInvalid) return lockInvalid.messageData.next;
+
+  // 1b. log-entry-missing — a log_required node's source changed with no fresh
+  //     entry. Outranks unverified: `--approve` is gated on the entry, so adding
+  //     it is the first step before any fill can proceed.
+  const logEntryMissing = errors.find(i => i.code === 'log-entry-missing');
+  if (logEntryMissing) return logEntryMissing.messageData.next;
 
   // 2. unverified (enforced) — fill the lock.
   const unverified = errors.find(i => i.code === 'unverified');

@@ -157,9 +157,12 @@ describe.skipIf(!distExists)('CLI E2E — verdict-lock triad format and read-bou
   it('2: after a fill each triad file is valid JSON — version 1, keys sorted at every level, trailing newline', () => {
     const dir = deterministicFixture('shape');
     try {
+      // Give a node a log.md so the committed logs file exists (a non-log_required
+      // node records no source; the logs file then holds only the log baseline).
+      expect(run(['log', 'add', '--node', 'services/orders', '--reason', 'shape fixture'], dir).status).toBe(0);
       expect(run(['check', '--approve'], dir).status).toBe(0);
-      // The deterministic verdicts land in the gitignored det file; the per-node
-      // closure `source` lands in the committed logs file. Both must exist.
+      // The deterministic verdicts land in the gitignored det file; the log baseline
+      // lands in the committed logs file. Both must exist.
       expect(existsSync(detFile(dir))).toBe(true);
       expect(existsSync(logsFile(dir))).toBe(true);
 
@@ -238,6 +241,13 @@ describe.skipIf(!distExists)('CLI E2E — verdict-lock triad format and read-bou
   it('4: nodes.<path>.source appears only at positive closure; a refused entry carries hash + reason + verdict', () => {
     const dir = deterministicFixture('closure');
     try {
+      // Source fingerprints are recorded at closure ONLY for log_required nodes —
+      // flip the service type on and give both nodes a justification entry so the
+      // gate passes; payments will then carry a source after closing, orders won't.
+      const archPath = path.join(dir, '.yggdrasil', 'yg-architecture.yaml');
+      writeFileSync(archPath, readFileSync(archPath, 'utf-8').replace(/log_required: false/g, 'log_required: true'), 'utf-8');
+      expect(run(['log', 'add', '--node', 'services/orders', '--reason', 'closure fixture'], dir).status).toBe(0);
+      expect(run(['log', 'add', '--node', 'services/payments', '--reason', 'closure fixture'], dir).status).toBe(0);
       // orders violates the enforced no-todo aspect; payments stays clean.
       appendFileSync(ordersFile(dir), '\n// TODO: this refuses on purpose\n');
 
@@ -420,7 +430,8 @@ describe.skipIf(!distExists)('CLI E2E — verdict-lock triad format and read-bou
       // Re-fill writes a fresh lock and the repo is green again.
       expect(run(['check', '--approve'], dir).status).toBe(0);
       expect(existsSync(detFile(dir))).toBe(true);
-      expect(existsSync(logsFile(dir))).toBe(true);
+      // No log_required node and no log.md → the logs file stays absent (empty → no file).
+      expect(existsSync(logsFile(dir))).toBe(false);
       expect(run(['check'], dir).status).toBe(0);
     } finally {
       rmSync(dir, { recursive: true, force: true });

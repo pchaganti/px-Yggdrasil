@@ -126,7 +126,8 @@ describe.skipIf(!distExists)('deterministic aspect lock lifecycle', () => {
     expect(entry).toBeDefined();
     expect(entry!.verdict).toBe('approved');
     expect(typeof entry!.hash).toBe('string');
-    expect(lock.nodes['N']?.source).toBeDefined();
+    // N is not log_required, so closure records no source fingerprint for it.
+    expect(lock.nodes['N']?.source).toBeUndefined();
 
     // 5. Clean check after fill — the recomputed hash matches → verified (exit 0).
     const cleanCheck = run(['check'], root);

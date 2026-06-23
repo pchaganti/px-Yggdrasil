@@ -534,9 +534,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
     try {
       run(['check', '--approve'], dir);
       const verdictBefore = nodeVerdict(dir, 'services/orders', 'no-todo-comments')?.hash;
-      const sourceBefore = nodeSourceHash(dir, 'services/orders');
       expect(verdictBefore).toBeTruthy();
-      expect(sourceBefore).toBeTruthy();
 
       // Flip ONLY the status line — check.mjs and source are unchanged.
       writeFileSync(
@@ -554,10 +552,10 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       expect(drifted.status).toBe(0);
       expect(drifted.stdout).not.toContain('unverified');
 
-      // The recorded verdict hash AND source hash are unchanged — a status flip
-      // is not drift, so there is nothing to re-fill and the lock is untouched.
+      // The recorded verdict hash is unchanged — a status flip is not drift, so
+      // there is nothing to re-fill and the verdict is untouched. (services is not
+      // log_required, so it carries no source hash to compare.)
       expect(nodeVerdict(dir, 'services/orders', 'no-todo-comments')?.hash).toBe(verdictBefore);
-      expect(nodeSourceHash(dir, 'services/orders')).toBe(sourceBefore);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

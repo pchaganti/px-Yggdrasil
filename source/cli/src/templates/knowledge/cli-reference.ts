@@ -93,9 +93,12 @@ real \`--approve\` bills at most that many calls. The preview always exits 0, ev
 when enforced pairs are unverified; it never blocks. Only a broken
 configuration (the step-1 structural gate) aborts the preview — it surfaces the
 same blocker a real \`--approve\` would hit. A cost estimate never demands a fresh
-log entry, so the preview also bypasses the per-node log gate — it previews even
-on \`log_required\` nodes whose source changed since their last closure, where the
-real \`--approve\` would require the log entry first. \`--dry-run\` requires
+log entry, so the preview never HARD-STOPS on the per-node log gate — it previews
+the budget even on \`log_required\` nodes whose source changed since their last
+closure, where a real \`--approve\` would require the entry first. (The preview's
+trailing read-only check report still SURFACES that requirement as a
+\`log-entry-missing\` error, exactly as plain \`yg check\` does — it just exits 0
+and writes nothing.) \`--dry-run\` requires
 \`--approve\`; on its own it is a usage error (plain \`yg check\` is already a free,
 no-write read).
 

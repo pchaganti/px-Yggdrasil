@@ -1090,7 +1090,10 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
         path.join(dir, '.yggdrasil', 'yg-lock.nondeterministic.json'),
         'utf-8',
       );
-      const logsRaw = readFileSync(path.join(dir, '.yggdrasil', 'yg-lock.logs.json'), 'utf-8');
+      // The logs file is absent when no node is log_required (empty → no file);
+      // an absent file trivially carries no relation cache.
+      const logsLockFile = path.join(dir, '.yggdrasil', 'yg-lock.logs.json');
+      const logsRaw = existsSync(logsLockFile) ? readFileSync(logsLockFile, 'utf-8') : '';
       const detRaw = readFileSync(
         path.join(dir, '.yggdrasil', '.yg-lock.deterministic.json'),
         'utf-8',

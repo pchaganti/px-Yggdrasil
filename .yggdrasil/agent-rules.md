@@ -292,21 +292,27 @@ it is enabled on types whose changes carry business intent worth capturing.
 Check the type in `yg-architecture.yaml` (or read the node's log state line
 in `yg context --node`) to know whether an entry is required.
 
-A fresh log entry is required BEFORE `yg check --approve` whenever BOTH hold:
-the node's type has `log_required: true` AND the node's mapped source changed
-since its last positive closure (the moment all the node's enforced pairs last
-went green), or this is the node's first verification and it owns source files.
-The entry must be newer than the one recorded at that closure —
-one fresh entry per closure cycle. This requirement is INDEPENDENT of aspect
-status. A cascade-only re-verification (an aspect edited, the node's source
-untouched) needs no new entry.
+A fresh log entry is required whenever BOTH hold: the node's type has
+`log_required: true` AND the node's mapped source changed since its last
+positive closure (the moment all the node's enforced pairs last went green), or
+this is the node's first verification and it owns source files. The entry must be
+newer than the one recorded at that closure — one fresh entry per closure cycle.
+This requirement is a property of the node TYPE plus a source change: it is
+INDEPENDENT of aspect status AND of whether the node has any aspects or pairs at
+all. A node that owns source but has no effective (non-draft) aspects still needs
+an entry when its source changes. A cascade-only re-verification (an aspect
+edited, the node's source untouched) needs no new entry.
 
   1. Edit source files
   2. `yg log add --node <path> --reason "<justification>"`
   3. `yg check --approve`
 
-If you forget step 2: the gate raises a clear error and that node's pairs are
-skipped (other nodes proceed); add the entry and re-run.
+The requirement is enforced READ-ONLY: a missing entry is a blocking `yg check`
+error in its own right, not only a `--approve`-time gate — so plain `yg check`
+(and a CI run on it) catches an unlogged source change even on a node that
+produces no pairs. If you forget step 2: `yg check` flags that node; at
+`--approve` a node that has pairs has them skipped (other nodes proceed) and the
+run stays red until the entry exists. Add the entry and re-run.
 
 If a pair is refused, iterate on the code WITHOUT adding new log entries. One
 log entry covers all source edits until the node reaches positive closure —

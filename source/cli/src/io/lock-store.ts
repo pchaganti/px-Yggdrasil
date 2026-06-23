@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
 import type { IssueMessage } from '../model/validation.js';
 import type { LockFile, VerdictEntry, LockNodeEntry } from '../model/lock.js';
@@ -457,6 +457,34 @@ async function writeFileIfChanged(filePath: string, content: string): Promise<vo
   await atomicWriteFile(filePath, content);
 }
 
+/** Remove a file if it exists; absent is a no-op (ENOENT swallowed). */
+function removeFileIfExists(filePath: string): void {
+  try {
+    unlinkSync(filePath);
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+  }
+}
+
+/**
+ * Write one split file, OR remove it when it would be empty. A split file is empty
+ * when both its sections are empty objects — there is nothing to persist, so an
+ * empty husk is not written (and an existing one is removed). readLock treats an
+ * absent file as empty state, so this is transparent to every reader.
+ */
+async function writeOrRemoveSplitFile(
+  filePath: string,
+  version: number,
+  verdicts: Record<string, Record<string, VerdictEntry>>,
+  nodes: Record<string, LockNodeEntry>,
+): Promise<void> {
+  if (Object.keys(verdicts).length === 0 && Object.keys(nodes).length === 0) {
+    removeFileIfExists(filePath);
+    return;
+  }
+  await writeFileIfChanged(filePath, serializeLock({ version, verdicts, nodes }));
+}
+
 /** Options for {@link writeLock}. */
 export interface WriteLockOptions {
   /**
@@ -483,9 +511,12 @@ export interface WriteLockOptions {
 export async function writeLock(yggRoot: string, lock: LockFile, opts: WriteLockOptions = {}): Promise<void> {
   const scope = opts.scope ?? 'all';
 
+  // The LOGS file holds only the per-node log/closure baseline; when no node is
+  // log_required and none owns a log.md, that section is empty and an empty
+  // committed husk is not written at all (removed if present). The verdict files
+  // are always written (an empty verdicts husk is the canonical cold-start shape).
   if (scope === 'logs') {
-    const content = serializeLock({ version: lock.version, verdicts: {}, nodes: lock.nodes });
-    await writeFileIfChanged(logsLockPath(yggRoot), content);
+    await writeOrRemoveSplitFile(logsLockPath(yggRoot), lock.version, {}, lock.nodes);
     return;
   }
 
@@ -503,6 +534,6 @@ export async function writeLock(yggRoot: string, lock: LockFile, opts: WriteLock
 
   // scope === 'all'
   await writeFileIfChanged(nondetLockPath(yggRoot), serializeLock({ version: lock.version, verdicts: nondet, nodes: {} }));
-  await writeFileIfChanged(logsLockPath(yggRoot), serializeLock({ version: lock.version, verdicts: {}, nodes: lock.nodes }));
+  await writeOrRemoveSplitFile(logsLockPath(yggRoot), lock.version, {}, lock.nodes);
   await writeFileIfChanged(detLockPath(yggRoot), serializeLock({ version: lock.version, verdicts: det, nodes: {} }));
 }

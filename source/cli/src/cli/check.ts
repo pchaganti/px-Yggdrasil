@@ -265,6 +265,7 @@ export function formatOutput(result: CheckResult, view: CheckView = { kind: 'ful
  */
 const ERROR_CODE_PRIORITY: string[] = [
   'lock-invalid',
+  'log-entry-missing',
   'unverified',
   'aspect-violation-enforced',
   'prompt-too-large',
@@ -440,7 +441,7 @@ function renderErrorSection(errors: CheckIssue[]): string {
   const architecture = errors.filter(i => ARCHITECTURE_CODES.has(i.code));
   const completeness = errors.filter(i => COMPLETENESS_CODES.has(i.code));
   const strict = errors.filter(i => STRICT_CODES.has(i.code));
-  const logErrors = errors.filter(i => i.code === 'log-conflict' || i.code === 'log-integrity' || i.code === 'log-format');
+  const logErrors = errors.filter(i => i.code === 'log-conflict' || i.code === 'log-integrity' || i.code === 'log-format' || i.code === 'log-entry-missing');
   const aspectErrors = errors.filter(i => i.code === 'aspect-violation-enforced');
   const remaining = errors.filter(i =>
     !verification.includes(i) && !unmapped.includes(i) && !structural.includes(i) &&
