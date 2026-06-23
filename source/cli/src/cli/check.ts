@@ -51,20 +51,20 @@ export function registerCheckCommand(program: Command): void {
         // combinations with guided errors before any work runs.
         const wantsTop = opts.top !== undefined;
         if (wantsTop && opts.summary) {
-          process.stdout.write(buildIssueMessage({
+          process.stderr.write(chalk.red(buildIssueMessage({
             what: '--top and --summary cannot be combined.',
             why: 'Both are read-only triage VIEWS of the same `yg check` result — --top renders the N highest-priority blocks, --summary renders per-node counts only. Asking for both at once is ambiguous; pick one lens.',
             next: 'Run: yg check --top <n> (priority blocks), or yg check --summary (per-node counts).',
-          }) + '\n');
+          }) + '\n'));
           await exitAfterFlush(1);
           return;
         }
         if ((wantsTop || opts.summary) && opts.approve) {
-          process.stdout.write(buildIssueMessage({
+          process.stderr.write(chalk.red(buildIssueMessage({
             what: `${wantsTop ? '--top' : '--summary'} cannot be combined with --approve.`,
             why: '--top and --summary triage the READ-ONLY check wall (they narrow the output of plain `yg check`, which writes nothing). --approve is the writer path; its own free cost preview is --dry-run. Mixing a read-only triage view with the writer is contradictory.',
             next: `Run: yg check ${wantsTop ? '--top <n>' : '--summary'} (read-only triage), or yg check --approve --dry-run (preview the writer's cost).`,
-          }) + '\n');
+          }) + '\n'));
           await exitAfterFlush(1);
           return;
         }
@@ -78,11 +78,11 @@ export function registerCheckCommand(program: Command): void {
         } else if (wantsTop) {
           const n = resolveTopValue(opts.top);
           if (n === null) {
-            process.stdout.write(buildIssueMessage({
+            process.stderr.write(chalk.red(buildIssueMessage({
               what: `--top expects a non-negative whole number; got "${String(opts.top)}".`,
               why: '--top N prints the N highest-priority issue blocks. A negative, fractional, or non-numeric value is meaningless, and printing the full wall instead would silently hide that the flag was ignored — masking the very output you tried to narrow.',
               next: 'Run: yg check --top 5 (top 5 blocks), yg check --top (just the suggestedNext block), or yg check (full output).',
-            }) + '\n');
+            }) + '\n'));
             await exitAfterFlush(1);
             return;
           }
@@ -93,11 +93,11 @@ export function registerCheckCommand(program: Command): void {
         // plain read. Without --approve it is a usage error: steer the agent to the
         // intended command rather than silently behaving like `yg check`.
         if (opts.dryRun && !opts.approve) {
-          process.stdout.write(buildIssueMessage({
+          process.stderr.write(chalk.red(buildIssueMessage({
             what: '--dry-run requires --approve.',
             why: '--dry-run previews what `yg check --approve` would fill (the reviewer-call budget and per-node breakdown) without writing or calling the reviewer; it is a mode of --approve, not a variant of the plain read. Plain `yg check` is already a free, no-write read.',
             next: 'Run: yg check --approve --dry-run (cost preview), or yg check (plain read).',
-          }) + '\n');
+          }) + '\n'));
           await exitAfterFlush(1);
           return;
         }
@@ -124,8 +124,14 @@ export function registerCheckCommand(program: Command): void {
               await exitAfterFlush(0);
               return;
             }
+            // Route EVERY exit through exitAfterFlush — a clean run too — so its
+            // drain + unref'd force-exit backstop always runs. The fill stage opens
+            // LLM-provider handles (undici keep-alive sockets, per-request
+            // AbortSignal timers); without the forced exit a CLEAN --approve would
+            // fall through to a bare return and rely on the event loop draining,
+            // hanging indefinitely on any lingering handle after the report printed.
             const hasErrors = fill.checkResult.issues.some(i => i.severity === 'error');
-            if (hasErrors) await exitAfterFlush(1);
+            await exitAfterFlush(hasErrors ? 1 : 0);
             return;
           } catch (err) {
             if (err instanceof FillGatingError) {
@@ -143,8 +149,12 @@ export function registerCheckCommand(program: Command): void {
         // Exit code is derived from the FULL issue set, OUTSIDE formatOutput and
         // independent of the chosen view — a truncated --top/--summary render must
         // never read as a clean build over errors it merely declined to print.
+        // Same as the --approve path: always route the exit through exitAfterFlush
+        // so drain + the force-exit backstop run uniformly (plain check opens no
+        // reviewer handles, but keeping one exit path means the guarantee can't
+        // regress in one branch while holding in the other).
         const hasErrors = result.issues.some(i => i.severity === 'error');
-        if (hasErrors) await exitAfterFlush(1);
+        await exitAfterFlush(hasErrors ? 1 : 0);
       } catch (error) {
         debugWrite(`[check] error: ${(error as Error).message}`);
         abortOnUnexpectedError(error, 'running check');

@@ -272,9 +272,9 @@ describe('check command', () => {
           timeout: 20000,
         });
         expect(result.status).toBe(1);
-        expect(result.stdout).toContain('--dry-run requires --approve.');
+        expect(result.stderr).toContain('--dry-run requires --approve.');
         // Guided message structure: a why and a next steering to the preview.
-        expect(result.stdout).toContain('yg check --approve --dry-run');
+        expect(result.stderr).toContain('yg check --approve --dry-run');
       });
     });
 
@@ -375,8 +375,8 @@ describe('check command', () => {
           const result = spawnSync('node', [BIN_PATH, 'check', '--top', bad], { cwd, encoding: 'utf-8' });
           expect(result.status).toBe(1);
           const out = stripAnsi(result.stdout);
-          expect(out).toContain('--top expects a non-negative whole number');
-          // It must NOT have dumped the full check wall — no issue blocks.
+          expect(stripAnsi(result.stderr)).toContain('--top expects a non-negative whole number');
+          // The error went to stderr; stdout must NOT have dumped the full check wall.
           expect(countBlocks(out)).toBe(0);
         });
       });
@@ -386,7 +386,7 @@ describe('check command', () => {
       await withFixtureCopy(async (cwd) => {
         const result = spawnSync('node', [BIN_PATH, 'check', '--top', '1', '--summary'], { cwd, encoding: 'utf-8' });
         expect(result.status).toBe(1);
-        expect(stripAnsi(result.stdout)).toContain('--top and --summary cannot be combined');
+        expect(stripAnsi(result.stderr)).toContain('--top and --summary cannot be combined');
       });
     });
 
@@ -394,7 +394,7 @@ describe('check command', () => {
       await withFixtureCopy(async (cwd) => {
         const result = spawnSync('node', [BIN_PATH, 'check', '--summary', '--approve'], { cwd, encoding: 'utf-8' });
         expect(result.status).toBe(1);
-        expect(stripAnsi(result.stdout)).toContain('cannot be combined with --approve');
+        expect(stripAnsi(result.stderr)).toContain('cannot be combined with --approve');
       });
     });
 

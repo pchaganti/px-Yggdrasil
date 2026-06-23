@@ -1,8 +1,8 @@
 name: CLI Build & Check Command Tests
 type: test-suite
 description: Unit tests for build and check CLI commands — build-command,
-  build-context, check, check-render, init, init/upgrade, and the shared
-  exit-after-flush command-exit helper.
+  build-context, check, check-render, check-exit (the command-exit force-exit
+  path), init, init/upgrade, and the shared exit-after-flush command-exit helper.
 aspects: []
 relations:
   [
@@ -11,6 +11,8 @@ relations:
     { target: cli/commands/init, type: uses },
     { target: cli/core/context, type: uses },
     { target: cli/core/loader, type: uses },
+    { target: cli/core/fill, type: uses },
+    { target: cli/preamble, type: uses },
     { target: cli/formatters, type: uses },
     { target: cli/exit-after-flush, type: uses }
   ]
@@ -22,3 +24,4 @@ mapping:
   - source/cli/tests/unit/cli/init.test.ts
   - source/cli/tests/unit/cli/init-upgrade.test.ts
   - source/cli/tests/unit/cli/exit-after-flush.test.ts
+  - source/cli/tests/unit/cli/check-exit.test.ts

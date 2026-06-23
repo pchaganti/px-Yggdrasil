@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A clean `yg check --approve` no longer hangs after the report — the success path now force-exits like the error and dry-run paths.** The command routed its exit through `exitAfterFlush` (which drains stdout and arms an unref'd 2-second force-exit backstop) only when there were errors; a clean run fell through to a bare `return` and relied on Node's event loop draining to exit. The fill stage opens LLM-provider handles — undici keep-alive sockets from the global `fetch`, per-request `AbortSignal.timeout` timers — that can outlive the work, so after a large successful fill (e.g. 120 reviewer calls all approved) the report printed but the process never exited. Both the `--approve` and the plain-check exit now go through `exitAfterFlush(hasErrors ? 1 : 0)` unconditionally, so the backstop guarantees the process exits within the grace window regardless of any lingering handle. Exit codes and output are unchanged (0 clean / 1 on errors); only the never-exits-on-success case is fixed. Plain `yg check` makes no reviewer calls so it never leaked a handle, but it is routed through the same single exit path so the guarantee can't regress in one branch while holding in the other.
+- **`yg check` usage/option-validation errors now print to stderr, not stdout.** The four guarded-flag errors — `--top` with `--summary`, `--top`/`--summary` with `--approve`, an invalid `--top` value, and `--dry-run` without `--approve` — were written to stdout; they now go to stderr as the standard red what/why/next block, matching every other command and the CLI error-output contract. The exit code (1) and the message text are unchanged; only the stream differs. Adopters that captured these specific messages from stdout should read stderr instead.
+
 ## [5.2.3] - 2026-06-23
 
 ### Fixed
