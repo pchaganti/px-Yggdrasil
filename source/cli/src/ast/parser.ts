@@ -26,8 +26,15 @@ const GRAMMAR_DIRS = [
 // `Incompatible language version 0`. Memoizing the in-flight promise makes every
 // concurrent caller await the same single init/load. A rejected promise is
 // evicted so a later call can retry rather than inheriting a cached failure.
+//
+// Parser objects are also cached (one per language). Parser construction is
+// synchronous once the Language is loaded; reusing them avoids accumulating
+// unreleased WASM allocations on large repos where hundreds of pairs are verified
+// in one run. Parsers hold no per-parse state (language is set once), so a single
+// instance per language is safe to reuse across sequential parse() calls.
 let initPromise: Promise<void> | null = null;
 const langCache = new Map<string, Promise<Language>>();
+const parserCache = new Map<string, Parser>();
 
 function init(): Promise<void> {
   if (initPromise === null) {
@@ -73,8 +80,13 @@ export async function getParser(extension: string): Promise<Parser> {
     langP.catch(() => { if (langCache.get(cacheKey) === langP) langCache.delete(cacheKey); });
   }
   const lang = await langP;
+  // Check parser cache AFTER awaiting the language so the first concurrent
+  // caller to resume wins the slot; subsequent callers find it already set.
+  const existing = parserCache.get(cacheKey);
+  if (existing) return existing;
   const parser = new Parser();
   parser.setLanguage(lang);
+  parserCache.set(cacheKey, parser);
   return parser;
 }
 

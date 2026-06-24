@@ -250,5 +250,8 @@ export async function runRelationPass(
     }
   }
 
+  for (const entry of parseCache.values()) {
+    if (entry) entry.tree.delete();
+  }
   return { violationsByNode };
 }

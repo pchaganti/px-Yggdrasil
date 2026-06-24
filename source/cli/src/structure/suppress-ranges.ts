@@ -59,6 +59,7 @@ export async function resolveSuppressedRangesForPrompt(
     }
     const totalLines = content.split('\n').length;
     const all = collectSuppressions(tree, subject.path, totalLines, content);
+    tree?.delete();
     const ranges = formatSuppressedRangesForAspect(all, aspectId);
     if (ranges.length > 0) {
       byFile.push({ path: subject.path, ranges });

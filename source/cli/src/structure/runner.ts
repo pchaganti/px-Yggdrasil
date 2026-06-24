@@ -8,6 +8,7 @@ import { validateCheckModuleExport } from '../utils/validate-check-module.js';
 import type { Graph } from '../model/graph.js';
 import type { Violation } from './types.js';
 import type { ParseCache } from '../ast/parse-cache.js';
+import { destroyParseCache } from '../ast/parse-cache.js';
 import { StructureRunnerError, loadHookModule, buildUnitCtx } from './hook-loader.js';
 
 // StructureRunnerError is defined in hook-loader.ts (shared by the loader and
@@ -53,8 +54,10 @@ export async function runStructureAspect(
   params: RunStructureAspectParams,
 ): Promise<RunStructureAspectResult> {
   const { aspectDir, aspectId, nodePath, graph, projectRoot, subjectScope } = params;
+  const ownCache = !params.parseCache;
   const astCache: ParseCache = params.parseCache ?? new Map();
   const touchedFiles: string[] = [];
+  try {
 
   // Load + validate check.mjs (deterministic hook). loadHookModule registers the
   // ESM loader and imports the module; the shared export-shape ladder confirms a
@@ -199,11 +202,14 @@ export async function runStructureAspect(
     return !isLineSuppressed(ranges, aspectId, v.line);
   });
 
-  return {
-    violations: visible,
-    touchedFiles,
-    succeeded: true,
-    observations: recorder.snapshot(),
-    observationsTainted: recorder.tainted,
-  };
+    return {
+      violations: visible,
+      touchedFiles,
+      succeeded: true,
+      observations: recorder.snapshot(),
+      observationsTainted: recorder.tainted,
+    };
+  } finally {
+    if (ownCache) destroyParseCache(astCache);
+  }
 }

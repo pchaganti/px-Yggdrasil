@@ -121,7 +121,9 @@ async function scanMarkersForFile(relFile: string, text: string): Promise<Suppre
   }
   try {
     const tree = await parseFile(relFile, text);
-    return scanSuppressionMarkersInComments(tree, relFile);
+    const result = scanSuppressionMarkersInComments(tree, relFile);
+    tree.delete();
+    return result;
   } catch (error) {
     debugWrite(`[suppressions] parse fallback (raw scan): ${relFile}: ${error instanceof Error ? error.message : String(error)}`);
     return scanSuppressionMarkers(text);

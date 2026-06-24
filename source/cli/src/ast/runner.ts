@@ -68,7 +68,12 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
   // previously provided this narrowing).
   const checkFn = mod.check as (...args: unknown[]) => unknown;
 
+  // Trees parsed here without an external parseCache are locally owned and must
+  // be deleted before this function exits (web-tree-sitter WASM objects are not
+  // GC'd). Trees handed to params.parseCache are the caller's responsibility.
+  const localTrees: Tree[] = [];
   const sourceFiles: SourceFile[] = [];
+  try {
   for (const f of params.files) {
     const cached = params.parseCache?.get(f.path);
     if (cached !== undefined) {
@@ -105,7 +110,11 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
         next: `Fix the syntax error in ${f.path}.`,
       });
     }
-    params.parseCache?.set(f.path, { content, ast });
+    if (params.parseCache) {
+      params.parseCache.set(f.path, { content, ast });
+    } else {
+      localTrees.push(ast);
+    }
     sourceFiles.push({ path: f.path, content, ast });
   }
 
@@ -166,6 +175,9 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
   });
 
   return { violations: filtered };
+  } finally {
+    for (const t of localTrees) t.delete();
+  }
 }
 
 function findFirstErrorNode(node: Node): Node | null {
