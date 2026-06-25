@@ -88,24 +88,17 @@ export async function runRelationPass(
   // 3. Owner index over the whole graph.
   const ownerIndex = buildOwnerIndex(graph.nodes);
 
-  // Parse cache keyed by repo-rel path so step 4 and step 8 never double-parse.
-  const parseCache = new Map<string, ParsedFile | null>();
-  async function getParsed(record: FileRecord): Promise<ParsedFile | null> {
-    if (parseCache.has(record.path)) return parseCache.get(record.path) ?? null;
-    if (!record.language) {
-      parseCache.set(record.path, null);
-      return null;
-    }
-    let parsed: ParsedFile | null;
+  // Parse a single file, returning a ParsedFile with a live WASM tree.
+  // The CALLER must call tree.delete() immediately after use — trees are never cached
+  // here to keep WASM heap usage bounded to O(1) trees at any moment.
+  async function parseSingle(record: FileRecord): Promise<ParsedFile | null> {
+    if (!record.language) return null;
     try {
       const tree = await parseFile(record.path, record.content);
-      parsed = { path: record.path, content: record.content, tree, language: record.language };
+      return { path: record.path, content: record.content, tree, language: record.language };
     } catch {
-      // Non-parseable file → treat as having no declarations/uses. Never throw out of the pass.
-      parsed = null;
+      return null;
     }
-    parseCache.set(record.path, parsed);
-    return parsed;
   }
 
   // 4. Build the shared SymbolTable. Universe = all mapped files of an extractor-backed
@@ -139,11 +132,15 @@ export async function runRelationPass(
     // Cache miss → parse each file, extract declarations, accumulate, persist.
     const symbols: Array<[string, string]> = [];
     for (const record of records) {
-      const parsed = await getParsed(record);
+      const parsed = await parseSingle(record);
       if (!parsed) continue;
-      for (const decl of extractor.declarations(parsed)) {
-        symbols.push([decl.symbolKey, record.path]);
-        symbolTable.declare(language, decl.symbolKey, record.path);
+      try {
+        for (const decl of extractor.declarations(parsed)) {
+          symbols.push([decl.symbolKey, record.path]);
+          symbolTable.declare(language, decl.symbolKey, record.path);
+        }
+      } finally {
+        parsed.tree.delete();
       }
     }
     const toPersist: PersistedSymbolIndex = { builtFrom, symbols };
@@ -166,10 +163,14 @@ export async function runRelationPass(
   const projectGlobalUsings = new Set<string>();
   const projectGlobalUsingAliases = new Map<string, string>();
   for (const record of csharpRecords) {
-    const parsed = await getParsed(record);
+    const parsed = await parseSingle(record);
     if (!parsed) continue;
-    for (const prefix of collectGlobalUsings(parsed)) projectGlobalUsings.add(prefix);
-    for (const [name, fqn] of collectGlobalUsingAliases(parsed)) projectGlobalUsingAliases.set(name, fqn);
+    try {
+      for (const prefix of collectGlobalUsings(parsed)) projectGlobalUsings.add(prefix);
+      for (const [name, fqn] of collectGlobalUsingAliases(parsed)) projectGlobalUsingAliases.set(name, fqn);
+    } finally {
+      parsed.tree.delete();
+    }
   }
   const csharpGlobalUsings = [...projectGlobalUsings];
   const csharpGlobalUsingAliases = [...projectGlobalUsingAliases.entries()];
@@ -215,27 +216,31 @@ export async function runRelationPass(
       const extractor = deps.extractorFor(record.language);
       if (!extractor) continue;
 
-      const parsed = await getParsed(record);
+      const parsed = await parseSingle(record);
       if (!parsed) continue;
 
-      // C# uses the cross-file global-using set as its lowest using tier (R5). Every other
-      // extractor's `uses` ignores extra args, so this is a no-op for them.
-      const detected =
-        record.language === 'csharp'
-          ? csharpUses(parsed, {
-              projectGlobalUsings: csharpGlobalUsings,
-              projectGlobalUsingAliases: csharpGlobalUsingAliases,
-            })
-          : extractor.uses(parsed);
-      for (const dep of detected) {
-        // Ordered first-unique-match-wins walk over the candidate group — the SINGLE
-        // definition shared verbatim with the reference-case runner (resolveCandidateGroup).
-        // A resolved self-edge is pushed here and filtered downstream by verifyNodeDeps
-        // against the node's declared relations.
-        const ownerNode = resolveCandidateGroup(dep.candidates, resolver, record.path, record.language);
-        if (ownerNode !== undefined) {
-          resolvedDeps.push({ fromFile: record.path, line: dep.line, ownerNode });
+      try {
+        // C# uses the cross-file global-using set as its lowest using tier (R5). Every other
+        // extractor's `uses` ignores extra args, so this is a no-op for them.
+        const detected =
+          record.language === 'csharp'
+            ? csharpUses(parsed, {
+                projectGlobalUsings: csharpGlobalUsings,
+                projectGlobalUsingAliases: csharpGlobalUsingAliases,
+              })
+            : extractor.uses(parsed);
+        for (const dep of detected) {
+          // Ordered first-unique-match-wins walk over the candidate group — the SINGLE
+          // definition shared verbatim with the reference-case runner (resolveCandidateGroup).
+          // A resolved self-edge is pushed here and filtered downstream by verifyNodeDeps
+          // against the node's declared relations.
+          const ownerNode = resolveCandidateGroup(dep.candidates, resolver, record.path, record.language);
+          if (ownerNode !== undefined) {
+            resolvedDeps.push({ fromFile: record.path, line: dep.line, ownerNode });
+          }
         }
+      } finally {
+        parsed.tree.delete();
       }
     }
 
@@ -250,8 +255,5 @@ export async function runRelationPass(
     }
   }
 
-  for (const entry of parseCache.values()) {
-    if (entry) entry.tree.delete();
-  }
   return { violationsByNode };
 }

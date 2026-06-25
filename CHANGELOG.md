@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`yg check --approve --only-deterministic` no longer crashes with `Aborted()` on large repos (complete fix).** The 5.2.5 fix freed `Parser` and `Tree` objects that accumulated across pairs, but the `Aborted()` crash persisted because the relation-conformance pass (which always runs, even with zero unverified pairs) accumulated all per-file parse trees simultaneously in a shared cache — on a large repo, hundreds of trees lived concurrently in the WASM heap and exhausted it mid-loop, before the end-of-function cleanup could run. The pass now uses a parse-and-immediately-free discipline: each file is parsed inline and its tree deleted with `try/finally` immediately after the extractor call, so at most one tree is live at any moment. On first run, symbol-table building and dependency resolution each parse their files independently; on subsequent runs the symbol index is loaded from the persisted cache and only the dependency pass re-parses. The per-file cost is the same; the peak WASM heap is now O(1) trees instead of O(files). Exit codes, relation-check semantics, and symbol-index caching are unchanged.
+
+### Changed
+
+- **Coverage scan and suppression scan now use disk-based file enumeration instead of `git ls-files`.** Both `yg check` (coverage/unmapped-file detection) and `yg suppressions` (suppress-marker scan) previously called `git ls-files` to enumerate files. That list includes files deleted from disk with `rm` but not `git rm` — such files appeared as unmapped even though they no longer existed. Both commands now use `walkRepoFiles`, which scans the filesystem directly with full `.gitignore` semantics (cascading nested `.gitignore` files, excludes `.git/` and `.yggdrasil/`). Files that do not exist on disk are invisible to both scans; gitignored files are excluded before they can reach coverage analysis, which also eliminates false `mapped-file-gitignored` detections for force-tracked gitignored files. The scans work correctly in repositories with no git history or in directories without a git repo at all.
+
 ## [5.2.5] - 2026-06-24
 
 ### Fixed
