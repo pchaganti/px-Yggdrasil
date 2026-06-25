@@ -451,7 +451,9 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
 
   function pointReviewer(dir: string, endpoint: string): void {
     const p = path.join(dir, '.yggdrasil', 'yg-config.yaml');
-    writeFileSync(p, readFileSync(p, 'utf-8').replace(/endpoint:\s*["']?[^"'\n]+["']?/, `endpoint: "${endpoint}"`), 'utf-8');
+    const cfg = readFileSync(p, 'utf-8').replace(/endpoint:\s*["']?[^"'\n]+["']?/, `endpoint: "${endpoint}"`);
+    // Disable required coverage so reference files outside src/ (docs/) are advisory-only.
+    writeFileSync(p, `${cfg}\ncoverage:\n  required: []\n`, 'utf-8');
   }
 
   it('R1: editing an LLM aspect reference file invalidates BOTH nodes (unverified); a clean re-fill via the reviewer RESTORES them', async () => {

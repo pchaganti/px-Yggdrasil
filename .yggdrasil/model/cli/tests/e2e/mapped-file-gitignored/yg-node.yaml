@@ -1,6 +1,6 @@
-name: E2E Tests — Mapped-File-Gitignored Silent-Drop Detection
+name: E2E Tests — Gitignored File Visibility in Disk Scan
 type: test-suite
-description: "Subprocess E2E proving yg check raises the blocking mapped-file-gitignored error through the real built binary on a git-initialized fixture: a git-tracked file that is also gitignored (force-added) and reached only through a directory mapping entry is counted covered yet dropped from review (a false green) — the run exits 1 (FAIL) and the rendered error names the file and the .gitignore conflict; a control where the same file is ALSO named directly in the mapping bypasses gitignore so the detection stays quiet. Guards the CLI exit-code + render contract that the runCheck-level integration tests cannot reach."
+description: "Subprocess E2E proving that gitignored files (even force-tracked by git) are invisible to the disk-based coverage scan (walkRepoFiles): a gitignored file in a directory mapping produces no mapped-file-gitignored error and no false green — the disk scanner simply excludes it. Guards the CLI behavior through the real built binary."
 aspects: []
 relations: []
 mapping:

@@ -14,7 +14,8 @@ relations:
     { target: cli/core/fill, type: uses },
     { target: cli/preamble, type: uses },
     { target: cli/formatters, type: uses },
-    { target: cli/exit-after-flush, type: uses }
+    { target: cli/exit-after-flush, type: uses },
+    { target: cli/io/stores, type: uses }
   ]
 mapping:
   - source/cli/tests/unit/cli/build-command.test.ts
@@ -25,3 +26,4 @@ mapping:
   - source/cli/tests/unit/cli/init-upgrade.test.ts
   - source/cli/tests/unit/cli/exit-after-flush.test.ts
   - source/cli/tests/unit/cli/check-exit.test.ts
+  - source/cli/tests/unit/cli/check-disk-scan.test.ts

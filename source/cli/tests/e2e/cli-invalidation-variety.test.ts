@@ -165,12 +165,11 @@ describe.skipIf(!distExists)('CLI E2E — invalidation across every input channe
     const mock = await startMockReviewer();
     try {
       // Point the reviewer at the live mock so the LLM aspect is verified.
+      // Also disable required coverage so reference files outside src/ (docs/)
+      // are advisory-only and do not block the fill.
       const cfgPath = path.join(dir, '.yggdrasil', 'yg-config.yaml');
-      writeFileSync(
-        cfgPath,
-        readFileSync(cfgPath, 'utf-8').replace(/endpoint:\s*["']?[^"'\n]+["']?/, `endpoint: "${mock.endpoint}"`),
-        'utf-8',
-      );
+      const cfg = readFileSync(cfgPath, 'utf-8').replace(/endpoint:\s*["']?[^"'\n]+["']?/, `endpoint: "${mock.endpoint}"`);
+      writeFileSync(cfgPath, `${cfg}\ncoverage:\n  required: []\n`, 'utf-8');
 
       // Declare a reference file on the LLM aspect and create it in the copy.
       const aspectYaml = path.join(dir, '.yggdrasil', 'aspects', 'has-doc-comment', 'yg-aspect.yaml');

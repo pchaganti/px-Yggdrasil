@@ -6,15 +6,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // ---------------------------------------------------------------------------
-// Hermetic E2E for the silent-drop false-green detection (mapped-file-gitignored).
+// Hermetic E2E for gitignored-file handling in the coverage scan.
 //
-// A git-tracked file that is ALSO gitignored (here via `git add -f` after a
-// .gitignore rule) and is reached ONLY through a DIRECTORY mapping entry is
-// counted "covered" by the coverage scan yet is dropped from the node's subject
-// set by the gitignore filter — no reviewer ever sees it (a false green). This
-// suite spawns the REAL built binary against a GIT-INITIALIZED temp fixture and
-// asserts the PROCESS EXIT CODE and the rendered blocking error, the contract
-// the runCheck-level integration tests cannot reach (CLI wrapper + real exit).
+// The coverage scan uses walkRepoFiles (disk scan + gitignore), not git ls-files.
+// A gitignored file is therefore invisible to the scanner regardless of whether
+// git tracks it (git add -f). With the disk-based scan:
+//   - a gitignored file is excluded from the file list (walkRepoFiles skips it)
+//   - directory-mapping expansion also skips gitignored files
+//   - the file is not counted covered AND not in the review subject set
+//   - no false green, no mapped-file-gitignored error
 //
 // No network / clock / random: the reviewer tier points at a loopback that is
 // never dialed by `yg check` (no LLM call on the check path).
@@ -96,18 +96,21 @@ function scaffold(label: string, opts: { rescue?: boolean }): string {
   return dir;
 }
 
-describe('E2E: mapped-file-gitignored silent-drop detection via the real CLI binary', () => {
+describe('E2E: gitignored file handling in the coverage scan (disk-based)', () => {
   it.skipIf(!distExists)(
-    'a git-tracked, gitignored, directory-mapped file is a blocking error: exits 1 (FAIL) and names the file',
+    'a gitignored file (even when force-tracked by git) is invisible to the disk scan — no mapped-file-gitignored error',
     () => {
+      // secret.ts is gitignored and git-force-tracked. With disk scan (walkRepoFiles),
+      // gitignored files are excluded from the file list — secret.ts never appears in
+      // the scan and no false-green detection fires. The node only sees i.ts.
       const dir = scaffold('drop', { rescue: false });
       try {
         const { status, out } = run(['check'], dir);
-        expect(status).toBe(1); // false-green detection blocks
-        expect(out).toContain('FAIL');
-        expect(out).toContain('mapped-file-gitignored');
-        expect(out).toContain('src/svc/secret.ts');
-        expect(out).toContain('.gitignore');
+        // secret.ts invisible to disk scan → no mapped-file-gitignored error
+        expect(out).not.toContain('mapped-file-gitignored');
+        expect(out).not.toContain('secret.ts');
+        // i.ts is covered (mapped), no unmapped files → no blocking errors from coverage
+        expect(status).toBe(0);
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -115,14 +118,11 @@ describe('E2E: mapped-file-gitignored silent-drop detection via the real CLI bin
   );
 
   it.skipIf(!distExists)(
-    'a directly-named mapping entry rescues the file: the silent-drop error is NOT raised',
+    'a directly-named mapping entry for a gitignored file: file is still invisible to disk scan, no error',
     () => {
       const dir = scaffold('rescue', { rescue: true });
       try {
         const { out } = run(['check'], dir);
-        // No mapped-file-gitignored error. (Other unrelated errors, e.g. an
-        // unverified pair on the directly-mapped file, may still keep exit 1 —
-        // assert only that THIS detection stays quiet.)
         expect(out).not.toContain('mapped-file-gitignored');
       } finally {
         rmSync(dir, { recursive: true, force: true });

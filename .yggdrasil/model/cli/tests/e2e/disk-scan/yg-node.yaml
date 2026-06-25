@@ -1,0 +1,11 @@
+name: E2E Tests — Disk-Based Coverage Scan
+type: test-suite
+description: "Subprocess E2E proving yg check uses disk-based file enumeration
+  (walkRepoFiles + gitignore) rather than git ls-files: a coverage scan works
+  without a git repo, and a file deleted from disk with rm (still in the git
+  index) is not reported as unmapped. Guards the CLI disk-scan contract through
+  the real built binary."
+aspects: []
+relations: []
+mapping:
+  - source/cli/tests/e2e/cli-disk-scan.test.ts

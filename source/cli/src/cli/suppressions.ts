@@ -1,9 +1,9 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { readFileSync, existsSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { loadGraphOrAbort, abortOnUnexpectedError } from './preamble.js';
+import { walkRepoFiles } from '../io/repo-scanner.js';
 import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { scanSuppressionMarkers, scanSuppressionMarkersInComments } from '../ast/suppress.js';
@@ -294,21 +294,7 @@ export function registerSuppressionsCommand(program: Command): void {
         initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
 
         const projectRoot = path.dirname(graph.rootPath);
-
-        // Get git-tracked files (same pattern as yg check)
-        let gitFiles: string[] = [];
-        try {
-          const output = execFileSync('git', ['ls-files', '.'], {
-            cwd: projectRoot,
-            encoding: 'utf-8',
-            stdio: ['pipe', 'pipe', 'pipe'],
-          });
-          gitFiles = output.trim().split('\n').filter(f => f.length > 0);
-        } catch (error) {
-          // Not a git repo or git unavailable — proceed with empty list
-          debugWrite(`[suppressions] git ls-files fallback: ${error instanceof Error ? error.message : String(error)}`);
-        }
-
+        const gitFiles = await walkRepoFiles(projectRoot);
         const knownAspectIds = new Set(graph.aspects.map(a => a.id));
         const report = await runSuppressionsScan(projectRoot, gitFiles, knownAspectIds);
         process.stdout.write(formatSuppressionsOutput(report));

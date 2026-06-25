@@ -9,24 +9,8 @@ import type { CheckIssue, CheckResult } from '../core/check.js';
 import { runFill, FillGatingError } from '../core/fill.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { STRUCTURAL_CODES, COMPLETENESS_CODES } from '../core/check-codes.js';
-import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-
-/** Collect the repo's git-tracked files for the coverage scan (null if unavailable). */
-function collectGitFiles(projectRoot: string): string[] | null {
-  try {
-    const output = execFileSync('git', ['ls-files', '.'], {
-      cwd: projectRoot,
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    return output.trim().split('\n').filter((f) => f.length > 0);
-  } catch (e: unknown) {
-    debugWrite(`[check] git ls-files failed: ${e instanceof Error ? e.message : String(e)}`);
-    // Not a git repo or git not available — skip unmapped-files check.
-    return null;
-  }
-}
+import { walkRepoFiles } from '../io/repo-scanner.js';
 
 export function registerCheckCommand(program: Command): void {
   program
@@ -43,7 +27,7 @@ export function registerCheckCommand(program: Command): void {
         const graph = await loadGraphOrAbort(cwd, { tolerateInvalidConfig: true });
         initDebugLog(graph.rootPath, graph.config.debug ?? false, appendToDebugLog);
         const projectRoot = path.dirname(graph.rootPath);
-        const gitFiles = collectGitFiles(projectRoot);
+        const gitFiles = await walkRepoFiles(projectRoot);
 
         // --top and --summary are READ-ONLY triage views over the plain check wall.
         // They are mutually exclusive with each other, and neither combines with
