@@ -3,50 +3,84 @@ layout: home
 title: Yggdrasil
 hero:
   name: Yggdrasil
-  text: Rules your agent can't drive around.
-  tagline: Your agent reads your rules file and applies maybe 70% of it. Yggdrasil makes sure it doesn't.
+  text: Stop babysitting your agent.
+  tagline: Your rules become checks the agent can't skip, run on every change before it moves on. A script runs them for free, or a model reviews the call a script can't make.
   image:
     src: /logo.svg
     alt: Yggdrasil
   actions:
     - theme: brand
-      text: Get Started
+      text: Get started
       link: /getting-started
     - theme: alt
       text: How it works
       link: /how-it-works
+    - theme: alt
+      text: GitHub
+      link: https://github.com/krzysztofdudek/Yggdrasil
 features:
-  - title: Only the rules that matter, every time
-    details: Before the agent edits a file, it gets the handful of rules that touch that file — not a 200-line dump it half-ignores.
-  - title: Caught before it moves on
-    details: Every change is reviewed before the agent continues — by an LLM, or a free local script. Violations have to be fixed to proceed.
-  - title: CI stays green without keys
-    details: Each verdict is recorded once. CI just rechecks the records — no LLM calls, no provider keys, runs instantly.
+  - icon: 🎯
+    title: Only the rules that matter
+    details: Before the agent edits a file, it gets the handful of rules that touch it, not a 200-line dump it half-ignores.
+  - icon: 🛑
+    title: Caught before it moves on
+    details: Every change is reviewed inside the loop, by a free local script or a model. Violations have to be fixed to proceed.
+  - icon: ⚡
+    title: CI with no keys
+    details: Each verdict is recorded once. CI rechecks the records, with no LLM calls and no provider keys.
 ---
 
-Your agent reads `CLAUDE.md` or `.cursorrules` and applies maybe 70% of it. Tests pass, lint passes, the code compiles — but it skipped the audit log on a payment mutation, or called a service it shouldn't from that layer. A rules file is a suggestion. There are no consequences for ignoring it, and no feedback until you're reviewing a PR with 50 changed files.
+## Right now, you are the feedback loop
 
-You lay the track, the agent drives, the reviewer keeps it on the rails. You write the rules and the structure next to your code. The agent does the work. A reviewer checks each change and makes the agent fix course before it moves on.
+Your agent reads `CLAUDE.md` and applies maybe 70% of it. Tests pass, lint passes, the code compiles, but it skipped the audit log on a payment mutation. A rules file is a suggestion. There are three ways to work with an agent, and most people are stuck in the middle.
 
-```text
-agent about to edit a file
-  → yg context: only the rules that touch this file
-  → agent writes code that targets them
-  → yg check --approve: free scripts run first, then the LLM reviewer
-  → reviewer: "audit logging missing in charge()"
-  → agent fixes, re-runs
-  → verdict recorded
-  → CI: yg check — no LLM, no keys
-```
+- **Autocomplete.** It suggests, you write the rest. One small use case.
+- **You are the loop.** It generates whole changes, and you check each one, send it back, check again. This is where the day goes.
+- **A full feedback loop.** It runs a real check, reads the failure, and fixes itself before you look.
 
-A rule is plain Markdown. You write what must be true and why; the reviewer reads it and checks your code against it.
+::: tip Yggdrasil gives the agent a loop of its own.
+Before it edits, `yg context` hands it only the rules that touch the file. After it edits, `yg check` verifies them, and the agent fixes any failure before it moves on. This is code review while the agent works, not after.
+:::
+
+## A rule is plain text
+
+You write what must be true and why. The reviewer reads it and checks your code against it.
 
 ```markdown
 # Audit logging on payment mutations
 
-Every function that changes a payment record must emit an audit
-event before returning. Look for a call to `auditLog.emit()` on
-every path that writes to the payments store.
+Every function that changes a payment record must call
+auditLog.emit() before it returns. A mutation with no
+audit event is a refusal.
 ```
 
-[Get Started](/getting-started) — set up your first verified rule. Works with Claude Code, Cursor, Copilot, Codex, Cline, and more.
+When a script can decide it, the same rule runs locally for free, with no model at all.
+
+## See it catch a mistake
+
+The rule above is in place. The agent writes a refund and skips the audit call.
+
+::: code-group
+
+```ts [what the agent wrote]
+async function refund(req) {
+  await payments.refund(req.body.chargeId)
+  return { ok: true }
+}
+```
+
+```ts [after yg check refused it]
+async function refund(req) {
+  await payments.refund(req.body.chargeId)
+  await audit('refund', req.body.chargeId) // added
+  return { ok: true }
+}
+```
+
+:::
+
+`yg check` refused the first version: *"refund changes a charge with no audit event."* The agent added the call, re-ran, and passed. You reviewed nothing.
+
+::: info Next
+New here? Read [How it works](/how-it-works) for the full picture, then [Get started](/getting-started) and set up your first verified rule in five minutes. Works with Claude Code, Cursor, Copilot, Codex, Cline, and more.
+:::

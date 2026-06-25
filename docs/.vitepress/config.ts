@@ -18,21 +18,20 @@ export default defineConfig({
     logo: "/logo.svg",
     nav: [
       { text: "Home", link: "/" },
-      { text: "Getting Started", link: "/getting-started" },
       { text: "How It Works", link: "/how-it-works" },
+      { text: "Getting Started", link: "/getting-started" },
       { text: "GitHub", link: "https://github.com/krzysztofdudek/Yggdrasil" },
     ],
     sidebar: [
       {
         text: "Start here",
         items: [
-          { text: "Home", link: "/" },
-          { text: "Getting Started", link: "/getting-started" },
           { text: "How It Works", link: "/how-it-works" },
+          { text: "Getting Started", link: "/getting-started" },
         ],
       },
       {
-        text: "Build the rails",
+        text: "Core concepts",
         items: [
           { text: "Aspects", link: "/aspects" },
           { text: "Nodes", link: "/nodes" },

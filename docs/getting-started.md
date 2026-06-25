@@ -2,6 +2,12 @@
 title: Getting Started
 ---
 
+Install, point Yggdrasil at one file, and watch the reviewer enforce a rule you wrote. About five minutes.
+
+::: tip New here?
+Read [How it works](/how-it-works) first for the mental model. This page is the hands-on version.
+:::
+
 ## 1) Install
 
 Requires Node.js 22+.
@@ -119,13 +125,9 @@ Result: FAIL — fix the violation, then re-run: yg check --approve
 
 The agent fixes the code and re-runs `yg check --approve` until all aspects pass.
 
-**Tip — start new aspects at `status: advisory`.** A brand-new aspect on
-an existing codebase often surfaces violations across many files.
-Authoring the aspect with `status: advisory` runs the reviewer and lists
-refusals as warnings — without blocking CI. Once the rule has been
-exercised across the repo and the warnings are clean (or knowingly
-accepted), promote to `status: enforced`. See
-[Aspect Status](/aspect-status) for the full lifecycle.
+::: tip Start new aspects at `status: advisory`
+A brand-new aspect on an existing codebase often surfaces violations across many files. Authoring it as `status: advisory` runs the reviewer and lists refusals as warnings, without blocking CI. Once the rule has been exercised across the repo and the warnings are clean (or knowingly accepted), promote to `status: enforced`. See [Aspect Status](/aspect-status) for the full lifecycle.
+:::
 
 ## 4) Existing codebase (brownfield)
 
@@ -230,8 +232,9 @@ It prints every aspect effective on that file, **where each one came from**
 the cascade; you read the answer. `yg context --node <path>` does the same from
 a node's point of view.
 
-Yggdrasil is zero lock-in. Delete `.yggdrasil/` and your project works
-exactly as before. No build dependencies, no runtime hooks.
+::: info Zero lock-in
+Delete `.yggdrasil/` and your project works exactly as before. No build dependencies, no runtime hooks.
+:::
 
 ---
 
