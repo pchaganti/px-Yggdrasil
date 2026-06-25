@@ -15,8 +15,7 @@
  * `ast/suppress`; its callers may not.
  */
 import { extname } from 'node:path';
-import type { Tree } from 'web-tree-sitter';
-import { parseFile } from '../ast/parser.js';
+import { withParsedFile } from '../ast/parser.js';
 import { collectSuppressions, formatSuppressedRangesForAspect } from '../ast/suppress.js';
 import { getLanguageForExtension } from '../core/graph/language-registry.js';
 import type { PromptSuppressedRangesInput } from '../llm/prompt.js';
@@ -53,13 +52,12 @@ export async function resolveSuppressedRangesForPrompt(
   for (const subject of subjects) {
     const content = subject.bytes.toString('utf8');
     const hasGrammar = getLanguageForExtension(extname(subject.path).toLowerCase()) !== null;
-    let tree: Tree | undefined;
-    if (hasGrammar) {
-      tree = await parseFile(subject.path, content);
-    }
     const totalLines = content.split('\n').length;
-    const all = collectSuppressions(tree, subject.path, totalLines, content);
-    tree?.delete();
+    const all = hasGrammar
+      ? await withParsedFile(subject.path, content, (tree) =>
+          collectSuppressions(tree, subject.path, totalLines, content)
+        )
+      : collectSuppressions(undefined, subject.path, totalLines, content);
     const ranges = formatSuppressedRangesForAspect(all, aspectId);
     if (ranges.length > 0) {
       byFile.push({ path: subject.path, ranges });

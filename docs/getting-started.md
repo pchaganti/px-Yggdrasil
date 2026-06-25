@@ -131,9 +131,9 @@ A brand-new aspect on an existing codebase often surfaces violations across many
 
 ## 4) Existing codebase (brownfield)
 
-By default, `yg check` requires every git-tracked source file to belong to
-some node. On a fresh repo with 200 files and 0 nodes, check fails
-immediately.
+By default, `yg check` requires every source file on disk (respecting
+`.gitignore`, but not requiring git) to belong to some node. On a fresh repo
+with 200 files and 0 nodes, check fails immediately.
 
 You can relax this with a `coverage` block in `yg-config.yaml`. Files under
 `coverage.required` roots remain blocking errors; files outside required (and

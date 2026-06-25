@@ -8,3 +8,9 @@ The suppressions inventory command was unusable because it reported hundreds of 
 Delete tree-sitter Tree object after scanning suppression markers.
 
 The tree parsed in the file-scan path was used synchronously to collect suppression markers and then abandoned — the reference went out of scope but the WASM-backed Tree was never freed. Part of the broader WASM heap leak fix: every Tree created outside a managed ParseCache must be explicitly deleted after use to prevent heap exhaustion on large repos.
+## [2026-06-25T15:25:07.735Z]
+Fixed WASM tree lifecycle bug in the suppressions scanner.
+
+In scanMarkersForFile, a Tree created by parseFile() had its .delete() call on the happy path only — inside the try block but not in a finally. If scanSuppressionMarkersInComments threw synchronously, the catch block returned the raw-text fallback without ever calling tree.delete(), permanently leaking the WASM Tree object on the heap.
+
+Replaced the manual try/delete pattern with withParsedFile, which wraps the parse operation in a function that guarantees tree.delete() in a finally block regardless of whether the callback throws. The suppression scan falls back to the raw-text scanner on any error from withParsedFile (including parse failures), preserving the original best-effort behavior.

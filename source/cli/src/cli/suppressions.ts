@@ -8,7 +8,7 @@ import { initDebugLog, debugWrite } from '../utils/debug-log.js';
 import { appendToDebugLog } from '../io/debug-log-writer.js';
 import { scanSuppressionMarkers, scanSuppressionMarkersInComments } from '../ast/suppress.js';
 import type { SuppressionMarkerInfo } from '../ast/suppress.js';
-import { parseFile } from '../ast/parser.js';
+import { withParsedFile } from '../ast/parser.js';
 import { getLanguageForExtension } from '../core/graph/language-registry.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import { toPosixPath } from '../utils/posix.js';
@@ -120,10 +120,9 @@ async function scanMarkersForFile(relFile: string, text: string): Promise<Suppre
     return scanSuppressionMarkers(text);
   }
   try {
-    const tree = await parseFile(relFile, text);
-    const result = scanSuppressionMarkersInComments(tree, relFile);
-    tree.delete();
-    return result;
+    return await withParsedFile(relFile, text, (tree) =>
+      scanSuppressionMarkersInComments(tree, relFile)
+    );
   } catch (error) {
     debugWrite(`[suppressions] parse fallback (raw scan): ${relFile}: ${error instanceof Error ? error.message : String(error)}`);
     return scanSuppressionMarkers(text);

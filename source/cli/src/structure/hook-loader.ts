@@ -11,6 +11,7 @@ import { expandMappingPaths } from '../io/hash.js';
 import type { Graph, GraphNode as ModelNode } from '../model/graph.js';
 import type { Ctx, CompanionDescriptor, File, Port } from './types.js';
 import type { ParseCache } from '../ast/parse-cache.js';
+import { destroyParseCache } from '../ast/parse-cache.js';
 import type { IssueMessage } from '../model/validation.js';
 import { BINARY_EXTENSIONS } from '../utils/binary-extensions.js';
 import { ObservationRecorder } from './observations.js';
@@ -366,8 +367,10 @@ function companionInfra(what: string, why: string, next: string): CompanionInfra
  */
 export async function runCompanionHook(params: RunCompanionHookParams): Promise<RunCompanionHookResult> {
   const { aspectDir, aspectId, nodePath, graph, projectRoot, subjectScope } = params;
+  const ownCache = !params.parseCache;
   const astCache: ParseCache = params.parseCache ?? new Map();
   const touchedFiles: string[] = [];
+  try {
 
   // 1. Load companion.mjs — infra-fail on import/syntax error.
   let mod: Record<string, unknown>;
@@ -471,4 +474,7 @@ export async function runCompanionHook(params: RunCompanionHookParams): Promise<
     observations: recorder.snapshot(),
     observationsTainted: recorder.tainted,
   };
+  } finally {
+    if (ownCache) destroyParseCache(astCache);
+  }
 }

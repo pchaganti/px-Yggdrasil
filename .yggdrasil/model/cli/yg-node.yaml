@@ -1,5 +1,6 @@
 name: CLI
 type: module
 description: "CLI tool implementing continuous architecture enforcement for AI-assisted development"
-aspects: []
+aspects:
+  - wasm-tree-lifecycle
 relations: []

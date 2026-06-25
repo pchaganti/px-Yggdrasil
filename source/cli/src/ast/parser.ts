@@ -99,3 +99,25 @@ export async function parseFile(filePath: string, content: string): Promise<Tree
   }
   return tree;
 }
+
+/**
+ * Parse a file, call fn with the resulting Tree, and guarantee tree.delete()
+ * in a finally block regardless of whether fn throws. This is the canonical way
+ * to use a WASM Tree for a bounded operation — web-tree-sitter Trees are
+ * heap-allocated in the WASM module and are not GC-managed by JS.
+ *
+ * If parseFile itself throws (grammar load failure, parser returns null),
+ * the exception propagates and no tree is created — nothing to delete.
+ */
+export async function withParsedFile<T>(
+  filePath: string,
+  content: string,
+  fn: (tree: Tree) => T | Promise<T>,
+): Promise<T> {
+  const tree = await parseFile(filePath, content);
+  try {
+    return await fn(tree);
+  } finally {
+    tree.delete();
+  }
+}

@@ -102,6 +102,12 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
         next: `Reinstall the CLI.`,
       });
     }
+    // Register for local cleanup immediately — before any early-exit path
+    // below. If we later transfer ownership to params.parseCache, we pop
+    // from localTrees so the outer finally does not double-delete.
+    if (!params.parseCache) {
+      localTrees.push(ast);
+    }
     if (ast.rootNode.hasError) {
       const err = findFirstErrorNode(ast.rootNode);
       throw new AstRunnerError('AST_SOURCE_PARSE_ERROR', {
@@ -112,8 +118,6 @@ export async function runAstAspect(params: RunAstAspectParams): Promise<RunAstAs
     }
     if (params.parseCache) {
       params.parseCache.set(f.path, { content, ast });
-    } else {
-      localTrees.push(ast);
     }
     sourceFiles.push({ path: f.path, content, ast });
   }
