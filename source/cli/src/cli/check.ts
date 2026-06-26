@@ -270,6 +270,7 @@ export function registerCheckCommand(program: Command): void {
               // The structural gate already printed the gating details.
               debugWrite(`[check] fill aborted by structural gate: ${err instanceof Error ? err.message : String(err)}`);
               await exitAfterFlush(1);
+              return;
             }
             throw err;
           }
@@ -410,8 +411,10 @@ export function formatOutput(result: CheckResult, view: CheckView = { kind: 'ful
     const N = errors.length;
     // Verdict word mirrors renderHeader logic: FAIL if total errors > 0, else PASS.
     const verdictWord = errors.length > 0 ? chalk.red('FAIL') : chalk.green('PASS');
+    // Emoji prefix mirrors renderHeader: same gate (chalk.level > 0) and same symbols.
+    const aspectEmojiPrefix = emoji ? (errors.length > 0 ? '❌ ' : '✅ ') : '';
     // Replace the header already added with the aspect-scoped header line.
-    sections[0] = `${verdictWord}  (aspect '${view.id}' — ${K} of ${N} errors)`;
+    sections[0] = `${aspectEmojiPrefix}${verdictWord}  (aspect '${view.id}' — ${K} of ${N} errors)`;
     if (filteredErrors.length > 0) {
       sections.push('');
       sections.push(renderErrorSection(filteredErrors, drillOpts));

@@ -322,5 +322,5 @@ the behavior is fixed regardless of what \`auto_approve\` is set to in the
 project config, and the run stays key-free and deterministic.
 
 An invalid \`auto_approve\` value (anything other than \`false\`, \`"deterministic"\`,
-or \`"full"\`) is a hard \`config-unknown-key\` error from \`yg check\`.
+or \`"full"\`) is a hard \`config-invalid\` error from \`yg check\`.
 `;
