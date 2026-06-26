@@ -127,8 +127,6 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: lifecycle / closure / GC'
       const fill = await runAsync(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
       expect(fill.all).toContain('Filling');
-      expect(fill.all).toContain('[det] no-todo-comments on node:services/orders — approved');
-      expect(fill.all).toContain('[llm] has-doc-comment on node:services/orders — approved');
 
       // Lock content sane: valid JSON, version 1, sorted keys, entries present.
       const lock = readLock(dir);
@@ -250,7 +248,6 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: lifecycle / closure / GC'
       writeFileSync(ordersFile(dir), readFileSync(ordersFile(dir), 'utf-8').replace('\n// TODO: temporary\n', '\n'), 'utf-8');
       const fill2 = run(['check', '--approve'], dir);
       expect(fill2.all).not.toContain('No fresh log entry');
-      expect(fill2.all).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(fill2.status).toBe(0);
     } finally {
       rmSync(dir, { recursive: true, force: true });

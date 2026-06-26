@@ -167,8 +167,6 @@ describe.skipIf(!distExists)('CLI E2E — invalidation across every input channe
       const refill = run(['check', '--approve'], dir);
       expect(refill.status).toBe(0);
       expect(refill.all).toContain('Filling 2 unverified pairs across 2 nodes');
-      expect(refill.all).toContain('[det] no-todo-comments on node:services/orders — approved');
-      expect(refill.all).toContain('[det] no-todo-comments on node:services/payments — approved');
 
       expect(run(['check'], dir).status).toBe(0);
     } finally {
@@ -221,8 +219,6 @@ describe.skipIf(!distExists)('CLI E2E — invalidation across every input channe
       // Fill records LLM verdicts that capture the reference hash.
       const fill = await runAsync(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.all).toContain('[llm] has-doc-comment on node:services/orders — approved');
-      expect(fill.all).toContain('[llm] has-doc-comment on node:services/payments — approved');
       const callsAfterFill = mock.chatCount();
       expect(callsAfterFill).toBeGreaterThanOrEqual(2);
       expect((await runAsync(['check'], dir)).status).toBe(0);

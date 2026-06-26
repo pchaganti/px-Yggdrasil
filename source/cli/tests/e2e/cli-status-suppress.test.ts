@@ -152,7 +152,6 @@ describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + s
       // A fill records the missing verdict and clears the drift.
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stderr).toContain('[det] wip-rule on node:services/orders — approved');
 
       expect(run(['check'], dir).status).toBe(0);
     } finally {
@@ -258,7 +257,6 @@ describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + s
       const fill = run(['check', '--approve'], dir);
       // Everything inside the bracket range is waived -> the pair approves.
       expect(fill.status).toBe(0);
-      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/payments — approved');
       expect(fill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });

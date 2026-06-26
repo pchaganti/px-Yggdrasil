@@ -279,7 +279,6 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
       // token found." — that per-violation detail now lives in `yg aspect-test`.)
       // Fill-time progress ([det] lines) go to STDERR; final report to STDOUT.
       expect(stderr).toContain('[det] no-banned-word on node:services/orders — refused');
-      expect(stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

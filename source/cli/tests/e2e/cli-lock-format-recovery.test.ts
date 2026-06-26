@@ -169,7 +169,6 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: prompt-too-large / merge 
       // --approve re-verifies ONLY the missing pairs → green. No hand-merge.
       const refill = run(['check', '--approve'], dir);
       expect(refill.status).toBe(0);
-      expect(refill.all).toContain('[det] no-todo-comments on node:services/payments — approved');
       expect(run(['check'], dir).status).toBe(0);
       // The kept (orders) entries were never re-verified — they carried forward.
       expect(refill.all).not.toContain('node:services/orders — approved');

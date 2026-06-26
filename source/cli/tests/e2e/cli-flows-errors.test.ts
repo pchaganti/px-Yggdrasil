@@ -469,7 +469,6 @@ describe.skipIf(!distExists)('CLI E2E — flow definition + filesystem error pat
       const batch = run(['check', '--approve'], dir);
       expect(batch.status).toBe(1);
       // One node passed, one failed — failures do not abort the clean node.
-      expect(batch.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(batch.stderr).toContain('[det] no-todo-comments on node:services/payments — refused');
       // The refusal renders as an enforced finding naming the violating node.
       expect(batch.stdout).toContain('enforced');

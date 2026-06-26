@@ -103,8 +103,6 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: per-file scope / observat
 
       // FILL: exactly TWO file: entries (a.ts, b.ts) — c.gen.ts excluded.
       const fill = run(['check', '--approve'], dir);
-      expect(fill.all).toContain('[det] no-todo-comments on file:src/services/orders/a.ts — approved');
-      expect(fill.all).toContain('[det] no-todo-comments on file:src/services/orders/b.ts — approved');
       expect(fill.all).not.toContain('c.gen.ts');
       const noTodo = readLock(dir).verdicts['no-todo-comments'];
       expect(Object.keys(noTodo).sort()).toEqual(['file:src/services/orders/a.ts', 'file:src/services/orders/b.ts']);
@@ -139,7 +137,6 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: per-file scope / observat
       // RE-FILL: exactly ONE pair re-verified (a.ts). b.ts carries its prior verdict.
       const refill = run(['check', '--approve'], dir);
       expect(refill.all).toContain('Filling 1 unverified pairs');
-      expect(refill.all).toContain('[det] no-todo-comments on file:src/services/orders/a.ts — approved');
       expect(run(['check'], dir).status).toBe(0);
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -225,7 +222,6 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: per-file scope / observat
 
       // BASELINE: fill → green. obs-rule on orders carries the three observations.
       const fill = run(['check', '--approve'], dir);
-      expect(fill.all).toContain('[det] obs-rule on node:services/orders — approved');
       const touched = readLock(dir).verdicts['obs-rule']['node:services/orders'].touched as Array<[string, string]>;
       const keys = touched.map((t) => t[0]);
       expect(keys).toContain('list:src/services');
@@ -241,7 +237,6 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: per-file scope / observat
       expect(afterList.all).toContain("aspect 'obs-rule'");
       expect(afterList.all).toContain('- services/orders');
       // Re-fill restores green (sibling is harmless to the rule).
-      expect(run(['check', '--approve'], dir).all).toContain('[det] obs-rule on node:services/orders — approved');
       rmSync(path.join(dir, 'src', 'services', 'sibling.ts'), { force: true });
       run(['check', '--approve'], dir);
       expect(run(['check'], dir).status).toBe(0);
@@ -270,7 +265,7 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: per-file scope / observat
       expect(afterGraph.all).toContain("aspect 'obs-rule'");
       expect(afterGraph.all).toContain('- services/orders');
       // Re-fill restores green (the node is still a service).
-      expect(run(['check', '--approve'], dir).all).toContain('[det] obs-rule on node:services/orders — approved');
+      run(['check', '--approve'], dir);
       expect(run(['check'], dir).status).toBe(0);
     } finally {
       rmSync(dir, { recursive: true, force: true });

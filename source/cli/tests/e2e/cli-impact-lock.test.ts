@@ -309,7 +309,6 @@ describe.skipIf(!distExists)('CLI E2E — yg impact re-sourced from the lock', (
     if (approve) {
       const fill = run(['check', '--approve'], dir);
       // Deterministic-only fill — no reviewer, must succeed and record obs-rule.
-      expect(fill.all).toContain('[det] obs-rule on node:services/orders — approved');
       // Sanity: the touched map really references payments.ts cross-node. obs-rule
       // is deterministic → its verdict lands in the gitignored deterministic file;
       // readLock merges the triad so the verdict is available here.

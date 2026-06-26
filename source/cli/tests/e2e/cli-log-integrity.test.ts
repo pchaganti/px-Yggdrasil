@@ -225,7 +225,6 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (mandatory gate, heading
 
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(fill.stdout).toContain('yg check: PASS');
     } finally {
       rmSync(dir, { recursive: true, force: true });

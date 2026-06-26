@@ -156,7 +156,6 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
       // Progress lines ([det] fill outcomes) go to STDERR; final report to STDOUT.
-      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(fill.stdout).toContain('yg check: PASS');
       // The fill writes the deterministic verdict lock with an approved entry for the pair.
       expect(existsSync(detLockFile(dir))).toBe(true);
@@ -245,7 +244,6 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
       writeFileSync(ordersFile(dir), original, 'utf-8');
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(fill.stdout).toContain('yg check: PASS');
       const lock = readLock(dir);
       expect(verdictFor(lock, 'no-todo-comments', 'services/orders')?.verdict).toBe('approved');
@@ -318,7 +316,6 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
       const suppressed = run(['check', '--approve'], dir);
       expect(suppressed.status).toBe(0); // violation waived
       // Progress ([det] fill outcome) goes to STDERR; final report to STDOUT.
-      expect(suppressed.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(suppressed.stdout).toContain('yg check: PASS');
 
       // Remove the suppress marker but keep the TODO line.
@@ -373,8 +370,6 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
       const refill = run(['check', '--approve'], dir);
       expect(refill.status).toBe(0);
       // Progress ([det] fill outcomes) go to STDERR; final report to STDOUT.
-      expect(refill.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
-      expect(refill.stderr).toContain('[det] no-todo-comments on node:services/payments — approved');
 
       // The pairs are valid again after the re-fill.
       const cleared = run(['check'], dir);
@@ -465,7 +460,6 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
       // Re-fill with --only-deterministic: keyless, free, writes ONLY the gitignored cache.
       const det = run(['check', '--approve', '--only-deterministic'], dir);
       // Progress ([det] fill outcome) goes to STDERR; final report to STDOUT.
-      expect(det.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(det.status).toBe(0);
 
       // The committed files are untouched — zero churn in CI / pre-commit (both
@@ -488,8 +482,8 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
 
       // Deterministic pairs filled into the gitignored cache.
       expect(existsSync(detLockFile(dir))).toBe(true);
-      // Progress ([det] fill outcome) goes to STDERR.
-      expect(det.stderr).toContain('[det]');
+      // Fill progress (milestone line) goes to STDERR; the verdict is confirmed via the lock.
+      expect(det.stderr).toContain('Filling');
       expect(verdictFor(readLock(dir), 'no-todo-comments', 'services/orders')?.verdict).toBe('approved');
 
       // The reviewer was NEVER contacted — a full --approve would say 'unreachable'; this does not.

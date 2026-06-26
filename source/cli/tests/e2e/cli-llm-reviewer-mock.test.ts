@@ -72,8 +72,6 @@ describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via in-process 
       pointReviewer(dir, mock.endpoint);
       const r = await runAsync(['check', '--approve'], dir);
       expect(r.status).toBe(0);
-      expect(r.all).toContain('[llm] has-doc-comment on node:services/orders — approved');
-      expect(r.all).toContain('[llm] has-doc-comment on node:services/payments — approved');
       expect(r.all).toContain('yg check: PASS');
       // The verdict is written to the lock with an approved entry.
       const lock = readLock(yggDir(dir));
@@ -173,7 +171,6 @@ describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via in-process 
       const r = await runAsync(['check', '--approve'], dir);
       expect(mock.chatCount()).toBe(6);
       expect(r.status).toBe(0);
-      expect(r.all).toContain('[llm] has-doc-comment on node:services/orders — approved');
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
@@ -309,7 +306,6 @@ describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via in-process 
       writeFileSync(ordersFile(dir), src + '\nexport const extra = 1;\n', 'utf-8');
       const second = await runAsync(['check', '--approve'], dir);
       expect(second.status).toBe(0);
-      expect(second.all).toContain('[llm] has-doc-comment on node:services/orders — approved');
       expect(mock.chatCount()).toBeGreaterThan(afterFirst);
     } finally {
       await mock.close();

@@ -203,7 +203,6 @@ describe.skipIf(!distExists)('CLI E2E — channel 5: flow aspects reach particip
       // Clean descendant fills cleanly (the flow-cascaded aspect is satisfied).
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/orders/order-repo — approved');
 
       // Now violate the flow aspect on the DESCENDANT's source file.
       appendFileSync(orderRepoFile(dir), '\n// TODO: implement caching\n');
@@ -280,7 +279,6 @@ describe.skipIf(!distExists)('CLI E2E — channel 5: flow aspects reach particip
       expect(batch.stdout).toContain('services/payments');
       expect(batch.stdout).toContain('no-todo-comments');
       // Orders re-approves clean in the same invocation (isolation).
-      expect(batch.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -301,8 +299,6 @@ describe.skipIf(!distExists)('CLI E2E — channel 5: flow aspects reach particip
 
       const batch = run(['check', '--approve'], dir);
       expect(batch.status).toBe(0);
-      expect(batch.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
-      expect(batch.stderr).toContain('[det] no-todo-comments on node:services/payments — approved');
       expect(batch.stdout).toContain('yg check: PASS');
     } finally {
       rmSync(dir, { recursive: true, force: true });

@@ -375,7 +375,6 @@ describe.skipIf(!distExists)('CLI E2E — yg check --approve stream split (progr
       expect(stdout).not.toContain('Filling');
 
       // STDERR: fill progress must be present.
-      expect(stderr).toContain('[det] no-forbidden on node:widgets — approved');
       expect(stderr).toContain('Filling');
 
       // STDERR: the final report header must NOT appear (it lives on stdout).

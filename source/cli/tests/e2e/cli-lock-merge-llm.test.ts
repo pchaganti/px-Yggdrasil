@@ -108,7 +108,6 @@ describe.skipIf(!distExists)('CLI E2E — lock merge (LLM) & piped refusal survi
       // STRONG OBSERVABLE: exactly ONE new reviewer call — the single missing
       // payments pair. The kept orders pair was NOT re-dispatched.
       expect(mock.chatCount() - callsBefore).toBe(1);
-      expect(refill.all).toContain('[llm] has-doc-comment on node:services/payments — approved');
       expect(refill.all).not.toContain('[llm] has-doc-comment on node:services/orders');
 
       // The kept (orders) entry carried forward byte-identical (no re-review).

@@ -325,7 +325,6 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
       // (The advisory requires-named-export may warn on the data file — that is a
       // non-blocking warning and does not fail the fill.)
       expect(fill.status).toBe(0);
-      expect(fill.all).toContain('[det] parse-helpers on node:services/orders — approved');
       expect(existsSync(detLockFile(dir))).toBe(true);
       expect(verdictKeys(dir, 'services/orders')).toContain('parse-helpers');
     } finally {
@@ -483,8 +482,6 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
       // A clean re-fill re-runs the reviewer on both pairs and restores them.
       const refill = await runAsync(['check', '--approve'], dir);
       expect(refill.status).toBe(0);
-      expect(refill.all).toContain('[llm] has-doc-comment on node:services/orders — approved');
-      expect(refill.all).toContain('[llm] has-doc-comment on node:services/payments — approved');
 
       const cleared = run(['check'], dir);
       expect(cleared.status).toBe(0);

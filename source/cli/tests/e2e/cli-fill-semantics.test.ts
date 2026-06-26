@@ -120,7 +120,6 @@ describe.skipIf(!distExists)('CLI E2E — fill-stage semantics', () => {
         "LLM fills for node 'services/orders' skipped — an enforced deterministic check already refused it.",
       );
       // Only payments' LLM pair was dispatched/recorded this run; orders' was not.
-      expect(fill2.all).toContain('[llm] has-doc-comment on node:services/payments — approved');
       expect(fill2.all).not.toContain('[llm] has-doc-comment on node:services/orders');
 
       // No LLM verdict entry exists for orders — the gate left it unverified.

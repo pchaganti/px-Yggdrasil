@@ -70,7 +70,8 @@ export function registerCheckCommand(program: Command): void {
     .option('--summary', 'Read-only triage: print per-node counts only (no per-issue blocks). Header counts + exit code stay TRUE.')
     .option('--details', 'Read-only: ungrouped, one block per issue (full per-pair detail). Opposite of the default grouped view.')
     .option('--aspect <id>', "Read-only: drill into one rule — show only that aspect's issues, grouped, with the full per-node detail.")
-    .action(async (opts: { approve?: boolean; onlyDeterministic?: boolean; dryRun?: boolean; top?: boolean | string; summary?: boolean; details?: boolean; aspect?: string }) => {
+    .option('-q, --quiet', 'Suppress --approve progress on stderr (only the final report + exit code). No-op with a plain read or --dry-run.')
+    .action(async (opts: { approve?: boolean; onlyDeterministic?: boolean; dryRun?: boolean; top?: boolean | string; summary?: boolean; details?: boolean; aspect?: string; quiet?: boolean }) => {
       try {
         const cwd = process.cwd();
         const graph = await loadGraphOrAbort(cwd, { tolerateInvalidConfig: true });
@@ -229,14 +230,22 @@ export function registerCheckCommand(program: Command): void {
             // Exception: --dry-run's budget breakdown is itself the command's
             // deliverable output (not progress), so its write sink stays on
             // STDOUT. Real fills (dryRun=false) route write to STDERR.
+            // --quiet suppresses the progress stream entirely (write: no-op).
+            // The emitIssue sink (errors/warnings) is NOT affected by --quiet.
+            // --quiet is meaningful only with a fill; with a plain read or
+            // --dry-run it is a harmless no-op (no progress to suppress).
             const isDryRun = opts.dryRun ?? false;
+            const isQuiet = opts.quiet ?? false;
             const fill = await runFill(graph, {
               gitTrackedFiles: gitFiles,
               onlyDeterministic: mode.onlyDeterministic,
               dryRun: isDryRun,
-              write: isDryRun
-                ? (s: string) => { process.stdout.write(s); }
-                : (s: string) => { process.stderr.write(s); },
+              write: isQuiet
+                ? () => {}
+                : isDryRun
+                  ? (s: string) => { process.stdout.write(s); }
+                  : (s: string) => { process.stderr.write(s); },
+              isTTY: !isQuiet && (process.stderr.isTTY ?? false),
               emitIssue: (m) => { process.stderr.write(buildIssueMessage(m) + '\n'); },
             });
             const autoFilled = isConfigDrivenFill && !opts.dryRun;

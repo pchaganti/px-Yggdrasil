@@ -241,7 +241,6 @@ describe.skipIf(!distExists)('CLI E2E — invalidation extended paths', () => {
       // A re-fill re-runs only the invalidated pairs (zero LLM — all deterministic).
       const refill = run(['check', '--approve'], dir);
       expect(refill.status).toBe(0);
-      expect(refill.all).toContain('[det] cross-read-todo on node:services/orders — approved');
       expect(run(['check'], dir).status).toBe(0);
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -297,9 +296,6 @@ describe.skipIf(!distExists)('CLI E2E — invalidation extended paths', () => {
       // Overall exit 1 because the enforced refusal makes the post-fill check fail.
       expect(fill.status).toBe(1);
       // Every pair is processed — the clean nodes approve.
-      expect(fill.all).toContain('[det] no-todo-comments on node:services/inventory — approved');
-      expect(fill.all).toContain('[det] no-todo-comments on node:services/payments — approved');
-      expect(fill.all).toContain('[det] requires-named-export on node:services/orders — approved');
       // The bad pair refuses — not aborted, its sibling pairs still ran.
       expect(fill.all).toContain('[det] no-todo-comments on node:services/orders — refused');
       // The refusal renders as an enforced error in the post-fill check. In the
@@ -355,7 +351,6 @@ describe.skipIf(!distExists)('CLI E2E — invalidation extended paths', () => {
       const reFill = run(['check', '--approve'], dir);
       expect(reFill.status).toBe(0);
       expect(reFill.all).not.toContain('No fresh log entry');
-      expect(reFill.all).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(run(['check'], dir).status).toBe(0);
     } finally {
       rmSync(dir, { recursive: true, force: true });

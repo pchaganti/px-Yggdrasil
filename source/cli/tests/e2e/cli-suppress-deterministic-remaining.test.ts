@@ -179,7 +179,7 @@ function setNodeAspects(
 //
 // Verdict-lock model: `yg approve` is gone — verification happens via
 // `yg check --approve` (repo-wide fill). A deterministic verdict renders per
-// pair as `[det] <aspectId> on <unitKey> — approved|refused`. A check.mjs that
+// pair. A check.mjs that
 // THROWS (e.g. on an empty-reason suppress marker) leaves the pair UNVERIFIED
 // with an `aspect-check-runtime-error` line — it is not a refusal.
 //
@@ -227,7 +227,6 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
       expect(fill.status).toBe(1);
       // The parent id IS waived by its exact-id marker; the child id is NOT —
       // a parent-id suppress provides no hierarchical cover for the child.
-      expect(fill.stderr).toContain('[det] family/parent on node:services/payments — approved');
       expect(fill.stderr).toContain('[det] family/child on node:services/payments — refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -263,7 +262,6 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
 
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stderr).toContain('[det] family/child on node:services/payments — approved');
       expect(fill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -371,7 +369,6 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
 
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/payments — approved');
       expect(fill.all).not.toContain('refused');
       // The bare enable is valid syntax — no missing-reason rejection fired.
       expect(fill.all).not.toContain('missing reason');
@@ -433,7 +430,6 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
       // The now-active aspect is waived by the suppress — it approves, with no
       // advisory warning and no refusal: the suppress that was inert under draft
       // is now effective.
-      expect(advisoryFill.stderr).toContain('[det] banflip on node:services/payments — approved');
       expect(advisoryFill.all).not.toContain('refused');
       // The final check is green — the waived advisory aspect leaks no warning.
       const check = run(['check'], dir);
@@ -515,8 +511,6 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
 
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stderr).toContain('[det] ban-foo on node:services/payments — approved');
-      expect(fill.stderr).toContain('[det] ban-bar on node:services/payments — approved');
       expect(fill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -552,7 +546,6 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
 
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
-      expect(fill.stderr).toContain('[det] ban-foo on node:services/payments — approved');
       expect(fill.stderr).toContain('[det] ban-bar on node:services/payments — refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -584,7 +577,6 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
 
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(fill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });

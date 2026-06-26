@@ -307,7 +307,6 @@ describe.skipIf(!distExists)('CLI E2E — greenfield / init / platform-install',
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
       // Fill-time progress ([det] line) goes to STDERR; final report to STDOUT.
-      expect(fill.stderr).toContain('[det] no-todo-comments on node:widgets/widget — approved');
       expect(fill.stdout).toContain('yg check: PASS');
       // The deterministic verdict lands in the gitignored det file of the 5.1.0
       // triad, and the merged lock (readLock) carries it as an `approved` verdict.

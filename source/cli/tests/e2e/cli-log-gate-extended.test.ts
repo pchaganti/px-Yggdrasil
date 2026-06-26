@@ -235,7 +235,6 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
       // Re-fill WITHOUT adding a new log entry — the gate does not fire.
       const refill = run(['check', '--approve'], dir);
       expect(refill.status).toBe(0);
-      expect(refill.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(refill.all).not.toContain(GATE_FIRED);
 
       // The log was not mutated by the cascade re-fill.
@@ -390,7 +389,6 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
       const { status, stdout, stderr, all } = run(['check', '--approve'], dir);
       expect(status).toBe(0);
       // Fill-time progress ([det] line) goes to STDERR; final report to STDOUT.
-      expect(stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(all).not.toContain(GATE_FIRED);
       // No log.md was ever required or created.
       expect(existsSync(ordersLogPath(dir))).toBe(false);

@@ -186,8 +186,6 @@ mapping:
       expect(fill.status).toBe(0);
       // Both channel-6 port aspects fill clean on the consumer.
       // Fill-time progress ([det] lines) go to STDERR; final report to STDOUT.
-      expect(fill.stderr).toContain('[det] audit-required on node:services/orders — approved');
-      expect(fill.stderr).toContain('[det] refund-logged on node:services/orders — approved');
       const check = run(['check'], dir);
       expect(check.status).toBe(0);
       expect(check.stdout).toContain('PASS');
@@ -580,7 +578,6 @@ mapping:
       const refill = run(['check', '--approve'], dir);
       expect(refill.status).toBe(0);
       // Fill-time progress ([det] line) goes to STDERR; final report to STDOUT.
-      expect(refill.stderr).toContain('[det] refund-logged on node:services/orders — approved');
 
       const cleared = run(['check'], dir);
       expect(cleared.status).toBe(0);

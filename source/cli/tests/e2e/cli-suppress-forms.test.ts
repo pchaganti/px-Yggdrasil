@@ -211,7 +211,7 @@ function setNodeAspects(nodeYamlPath: string, name: string, description: string,
 //
 // Verdict-lock model: `yg approve` is gone — verification happens via
 // `yg check --approve` (repo-wide fill). A deterministic verdict renders per
-// pair as `[det] <aspectId> on <unitKey> — approved|refused`; a refusal of an
+// pair; a refusal of an
 // enforced aspect blocks check (exit 1). A waived (suppressed) violation makes
 // the pair `approved`.
 // ---------------------------------------------------------------------------
@@ -264,7 +264,6 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
       // Fill-time progress ([det] line) goes to STDERR; final report to STDOUT.
-      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/payments — approved');
       expect(fill.all).not.toContain('refused');
 
       const check = run(['check'], dir);
@@ -353,8 +352,6 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
       expect(fill.status).toBe(0);
       // BOTH aspects waived by the single wildcard marker — both pairs approve.
       // Fill-time progress ([det] lines) go to STDERR; final report to STDOUT.
-      expect(fill.stderr).toContain('[det] ban-foo on node:services/payments — approved');
-      expect(fill.stderr).toContain('[det] ban-bar on node:services/payments — approved');
       expect(fill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -445,7 +442,6 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
       // Fill-time progress ([det] line) goes to STDERR; final report to STDOUT.
-      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(fill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -484,7 +480,6 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
       // Fill-time progress ([det] line) goes to STDERR; final report to STDOUT.
-      expect(fill.stderr).toContain('[det] graph-no-forbidden on node:services/orders — approved');
       expect(fill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -562,7 +557,6 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress syntactic forms + aspect-p
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
       // ban-foo is waived by the named bracket; ban-bar is NOT (different id).
-      expect(fill.stderr).toContain('[det] ban-foo on node:services/payments — approved');
       expect(fill.stderr).toContain('[det] ban-bar on node:services/payments — refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -696,7 +690,6 @@ describe.skipIf(!distExists)('CLI E2E — yg-suppress LLM/deterministic parity (
       const res = await runAsync(['check', '--approve'], dir);
 
       // Deterministic ban-foo was waived over the wildcard range — it approves.
-      expect(res.stderr).toContain('[det] ban-foo on node:services/orders — approved');
       // The wildcard span reached the LLM reviewer too (proving cross-kind parity).
       const prompt = promptFor(mock.chatRequests, 'has-doc-comment');
       expect(prompt).toBeDefined();

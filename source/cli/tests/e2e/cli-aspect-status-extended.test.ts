@@ -31,7 +31,7 @@ import type { LockFile } from '../../src/model/lock.js';
 // gitignored .yg-lock.deterministic.json), read here via the merged readLock. A
 // deterministic refusal renders (at `yg check` / fill time) as
 // `<status>  <node>  Aspect '<id>' is refused on <unitKey> by a deterministic
-// check.` with the per-pair fill line `[det] <id> on <unitKey> — approved|refused`.
+// check.` (approved pairs emit milestone progress lines; refused pairs emit an immediate line).
 // Severity follows status: an ENFORCED refusal is an ERROR (exit 1); an ADVISORY
 // refusal is a WARNING (exit 0); a DRAFT aspect produces NO pair (skipped). A
 // bare advisory<->enforced status flip is NOT part of the canonical verdict hash,
@@ -467,8 +467,6 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       // A single repo-wide fill records the missing verdict on both nodes.
       const refill = run(['check', '--approve'], dir);
       expect(refill.status).toBe(0);
-      expect(refill.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
-      expect(refill.stderr).toContain('[det] no-todo-comments on node:services/payments — approved');
 
       // Cleared on both nodes.
       const cleared = run(['check'], dir);

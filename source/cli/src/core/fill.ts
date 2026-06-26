@@ -67,6 +67,7 @@ import { runPairPool } from './fill-pool.js';
 import { logGateBlocks } from './fill-log-gate.js';
 import { applyPositiveClosure } from './fill-closure.js';
 import { garbageCollectAndRewrite } from './fill-gc.js';
+import { ProgressTracker } from './fill-progress.js';
 
 // ============================================================
 // Public surface
@@ -94,6 +95,16 @@ export interface RunFillOptions {
    *  — the early-return precedes the serialized writer's construction, so the
    *  no-write guarantee is structural. Powers `yg check --approve --dry-run`. */
   dryRun?: boolean;
+  /** Whether the write sink is an interactive TTY. Defaults to process.stderr.isTTY ?? false.
+   *  When true, the progress tracker rewrites a single line with \r instead of emitting
+   *  milestone lines. */
+  isTTY?: boolean;
+  /** Clock function for progress/heartbeat (injectable for tests). Defaults to Date.now. */
+  now?: () => number;
+  /** Milestone threshold for non-TTY progress (emit every N pairs). Default: 25% of total, min 1. */
+  milestoneInterval?: number;
+  /** Still-working interval in ms for non-TTY (emit if no completion for this long). Default: 30000. */
+  stillWorkingIntervalMs?: number;
 }
 
 export interface RunFillResult {
@@ -128,6 +139,8 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
   const projectRoot = path.dirname(graph.rootPath);
   const onlyDeterministic = opts.onlyDeterministic ?? false;
   const dryRun = opts.dryRun ?? false;
+  const isTTY = opts.isTTY ?? (process.stderr.isTTY ?? false);
+  const now = opts.now ?? Date.now.bind(Date);
 
   // ── Step 1: Structural gate. A gating code aborts the whole fill. ──────────
   const validation = await validate(graph);
@@ -270,6 +283,27 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
   let runtimeErrors = 0;
   let companionRuntimeErrors = 0;
 
+  // ── Progress tracker — covers all fill pairs (det + LLM). ─────────────────
+  // The tracker is created here (after pair counts are known) so it can
+  // initialise the milestone interval from the total pair count.
+  // It is NOT responsible for setting up real timers — that is done below so
+  // that tests can drive the tracker directly via onTick() with a fake clock.
+  const totalPairs = detPairs.length + llmPairs.length;
+  const tracker = new ProgressTracker(totalPairs, {
+    isTTY,
+    now,
+    milestoneInterval: opts.milestoneInterval,
+    stillWorkingIntervalMs: opts.stillWorkingIntervalMs,
+  });
+
+  // Set up a real timer for heartbeat ticks (TTY rewrite or still-working check).
+  // The interval matches the stillWorkingIntervalMs default / configured value so
+  // we tick often enough to detect a stall. We use a short interval (5s) for
+  // the TTY rewrite so the elapsed-seconds counter stays current.
+  const tickIntervalMs = isTTY ? 5000 : (opts.stillWorkingIntervalMs ?? 30000);
+  const tickInterval = setInterval(() => { tracker.onTick(write); }, tickIntervalMs);
+  tickInterval.unref?.(); // don't keep the process alive if everything else finishes
+
   // ── Step 5: Deterministic fills FIRST (free). ─────────────────────────────
   // A node with an enforced det refusal (fresh OR cached-valid) skips its LLM
   // fills this run. Track which nodes carry such a refusal across BOTH sources.
@@ -288,15 +322,18 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
     if (blockedNodes.has(pair.nodePath)) continue;
     const aspect = aspectById.get(pair.aspectId);
     if (!aspect) continue;
+    tracker.onPairStart('det', pair.aspectId, toPosixPath(pair.unitKey), write);
     const outcome = await fillDetPair(graph, projectRoot, pair, aspect, emitIssue);
     if (outcome.kind === 'runtime-error') {
       runtimeErrors += 1;
       // No write — pair stays unverified, reported as aspect-check-runtime-error.
+      // Count it as a completed pair with infra-like outcome for progress purposes.
+      tracker.onPairComplete('det', pair.aspectId, toPosixPath(pair.unitKey), 'infra', write);
       continue;
     }
     // Real verdict — write the entry.
     await setEntry(pair.aspectId, pair.unitKey, outcome.entry);
-    write(`  [det] ${pair.aspectId} on ${toPosixPath(pair.unitKey)} — ${outcome.entry.verdict}\n`);
+    tracker.onPairComplete('det', pair.aspectId, toPosixPath(pair.unitKey), outcome.entry.verdict, write);
     if (outcome.entry.verdict === 'refused' && pair.status === 'enforced') {
       detEnforcedRefusedNodes.add(pair.nodePath);
     }
@@ -383,6 +420,7 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
 
     // Worker pool bounded by parallel; consensus runs sequentially in-slot.
     const outcomes = await runPairPool(group, parallel, async (item) => {
+      tracker.onPairStart('llm', item.pair.aspectId, toPosixPath(item.pair.unitKey), write);
       const outcome = await fillLlmPair(graph, projectRoot, item.pair, item.aspect, item.tier, item.tierName, baseTier, provider, referencesCache);
       // Persist each verdict the moment its pair completes — like the deterministic
       // loop — so interrupting the run (Ctrl+C) keeps every finished verdict and the
@@ -391,7 +429,9 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
       // writes, so concurrent pool workers cannot corrupt the lock.
       if (outcome.kind === 'verdict') {
         await setEntry(item.pair.aspectId, item.pair.unitKey, outcome.entry);
-        write(`  [llm] ${item.pair.aspectId} on ${toPosixPath(item.pair.unitKey)} — ${outcome.entry.verdict}\n`);
+        tracker.onPairComplete('llm', item.pair.aspectId, toPosixPath(item.pair.unitKey), outcome.entry.verdict, write);
+      } else if (outcome.kind === 'infra' || outcome.kind === 'companion-runtime-error') {
+        tracker.onPairComplete('llm', item.pair.aspectId, toPosixPath(item.pair.unitKey), 'infra', write);
       }
       return outcome;
     });
@@ -474,6 +514,10 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
       next: 'Fix the failing companion.mjs, then re-run: yg check --approve.',
     });
   }
+
+  // Stop the heartbeat timer and clear the TTY progress line before the final report.
+  clearInterval(tickInterval);
+  tracker.clearLine(write);
 
   // Make sure all queued writes have flushed before the final read.
   await writeChain;

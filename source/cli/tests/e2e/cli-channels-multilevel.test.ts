@@ -845,7 +845,6 @@ describe.skipIf(!distExists)(
         expect(refused.stdout).toContain('- root/leaf');
         // The implier itself (no BANNED rule of its own) is satisfied — its fill
         // pair is approved, only the implied aspect refused.
-        expect(refused.stderr).toContain('[det] implier on node:root/leaf — approved');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }

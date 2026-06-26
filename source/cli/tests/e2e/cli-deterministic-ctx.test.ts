@@ -298,7 +298,6 @@ describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface 
       // verdict in the lock, with the node's graph observation in `touched`.
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.all).toContain('[det] graph-name-match on node:services/orders — approved');
       expect(lockVerdict(dir, 'graph-name-match', 'services/orders')?.verdict).toBe('approved');
       // The check read its own node through ctx.graph.node — that folds a
       // graph:<node> observation into the verdict hash.

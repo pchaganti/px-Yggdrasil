@@ -118,7 +118,6 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: cached refusals / det gat
       expect(fill.all).toContain('[det] no-todo-comments on node:services/orders — refused');
       expect(fill.all).toContain("LLM fills for node 'services/orders' skipped — an enforced deterministic check already refused it.");
       // payments has NO det violation → its LLM fill ran. orders' did NOT.
-      expect(fill.all).toContain('[llm] has-doc-comment on node:services/payments — approved');
       expect(fill.all).not.toContain('[llm] has-doc-comment on node:services/orders');
       // Exactly ONE reviewer call (payments only). orders' LLM pair was never dispatched.
       expect(mock.chatCount()).toBe(1);
@@ -136,7 +135,6 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: cached refusals / det gat
       writeFileSync(ordersFile(dir), readFileSync(ordersFile(dir), 'utf-8').replace('\n// TODO: later\n', '\n'), 'utf-8');
       const refill = await runAsync(['check', '--approve'], dir);
       expect(refill.status).toBe(0);
-      expect(refill.all).toContain('[llm] has-doc-comment on node:services/orders — approved');
       expect(mock.chatCount() - callsBefore).toBe(1); // orders' LLM pair, finally.
     } finally {
       await mock.close();

@@ -262,7 +262,6 @@ describe.skipIf(!distExists)('CLI E2E — verdict-lock triad format and read-bou
       // enforced refusal makes the post-fill check FAIL.
       expect(fill.status).toBe(1);
       expect(fill.all).toContain('[det] no-todo-comments on node:services/orders — refused');
-      expect(fill.all).toContain('[det] no-todo-comments on node:services/payments — approved');
 
       const parsed = readLock(dir);
 
