@@ -10,10 +10,12 @@ import type { IssueMessage } from '../model/validation.js';
 import { debugWrite } from '../utils/debug-log.js';
 
 /** Outcome of filling one deterministic pair. A real verdict carries an entry to
- *  write; a runtime-error is an infra disposition (no write — spec §3.2). */
+ *  write; a runtime-error is an infra disposition (no write — spec §3.2) and carries
+ *  the structured notice so the orchestrator can collect and group by aspectId before
+ *  emitting (one message per aspect instead of one per pair). */
 export type DetFillOutcome =
   | { kind: 'verdict'; entry: VerdictEntry }
-  | { kind: 'runtime-error' };
+  | { kind: 'runtime-error'; messageData: IssueMessage };
 
 /** Outcome of filling one LLM pair. A real verdict carries an entry to write; an
  *  infra disposition writes NOTHING (spec §3.2) and carries a reason + `callsMade`

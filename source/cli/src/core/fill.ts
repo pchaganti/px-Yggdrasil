@@ -70,6 +70,64 @@ import { garbageCollectAndRewrite } from './fill-gc.js';
 import { ProgressTracker } from './fill-progress.js';
 
 // ============================================================
+// Internal helpers
+// ============================================================
+
+/**
+ * Emit infrastructure diagnostics grouped by aspectId — one message per aspect
+ * instead of one per pair.  When only one unit is affected the original per-pair
+ * messageData is emitted unchanged (preserving the existing message text and
+ * any actionable detail). When multiple units share the same aspect the grouped
+ * form lists up to `cap` unit keys and appends " … and N more" for the rest.
+ *
+ * `kind` controls the summary tokens injected into the grouped `what:`:
+ *   'det'         → aspect-check-runtime-error token
+ *   'companion'   → aspect-companion-runtime-error token
+ *   'pool-infra'  → generic unverified summary
+ */
+function emitGroupedDiagnostics(
+  items: Array<{ aspectId: string; unitKey: string; messageData: IssueMessage }>,
+  kind: 'det' | 'companion' | 'pool-infra',
+  emitIssue: (msg: IssueMessage) => void,
+): void {
+  if (items.length === 0) return;
+
+  // Group by aspectId; preserve insertion order so output is stable.
+  const byAspect = new Map<string, { unitKeys: string[]; first: IssueMessage }>();
+  for (const item of items) {
+    const posix = toPosixPath(item.unitKey);
+    const existing = byAspect.get(item.aspectId);
+    if (existing) {
+      existing.unitKeys.push(posix);
+    } else {
+      byAspect.set(item.aspectId, { unitKeys: [posix], first: item.messageData });
+    }
+  }
+
+  const cap = 5;
+  for (const [aspectId, { unitKeys, first }] of byAspect) {
+    if (unitKeys.length === 1) {
+      // Single unit — emit the original message unchanged (preserves exact text
+      // and any actionable detail, keeps existing test assertions green).
+      emitIssue(first);
+    } else {
+      // Multiple units of the same aspect — emit one grouped message.
+      const listed = unitKeys.slice(0, cap).join(', ');
+      const overflow = unitKeys.length > cap ? ` … and ${unitKeys.length - cap} more` : '';
+      let what: string;
+      if (kind === 'det') {
+        what = `Deterministic check '${aspectId}' failed to run on ${unitKeys.length} units — left unverified (aspect-check-runtime-error): ${listed}${overflow}`;
+      } else if (kind === 'companion') {
+        what = `Companion resolution for '${aspectId}' failed to run on ${unitKeys.length} units — left unverified (aspect-companion-runtime-error): ${listed}${overflow}`;
+      } else {
+        what = `Reviewer could not verify aspect '${aspectId}' on ${unitKeys.length} units — left unverified: ${listed}${overflow}`;
+      }
+      emitIssue({ what, why: first.why, next: first.next });
+    }
+  }
+}
+
+// ============================================================
 // Public surface
 // ============================================================
 
@@ -283,6 +341,12 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
   let runtimeErrors = 0;
   let companionRuntimeErrors = 0;
 
+  // Collectors for grouped infra diagnostics (emitted AFTER each phase loop so
+  // multiple units of the same aspect produce ONE message instead of N near-identical ones).
+  const detRuntimeItems: Array<{ aspectId: string; unitKey: string; messageData: IssueMessage }> = [];
+  const companionRuntimeItems: Array<{ aspectId: string; unitKey: string; messageData: IssueMessage }> = [];
+  const poolInfraItems: Array<{ aspectId: string; unitKey: string; messageData: IssueMessage }> = [];
+
   // ── Progress tracker — covers all fill pairs (det + LLM). ─────────────────
   // The tracker is created here (after pair counts are known) so it can
   // initialise the milestone interval from the total pair count.
@@ -323,11 +387,12 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
     const aspect = aspectById.get(pair.aspectId);
     if (!aspect) continue;
     tracker.onPairStart('det', pair.aspectId, toPosixPath(pair.unitKey), write);
-    const outcome = await fillDetPair(graph, projectRoot, pair, aspect, emitIssue);
+    const outcome = await fillDetPair(graph, projectRoot, pair, aspect);
     if (outcome.kind === 'runtime-error') {
       runtimeErrors += 1;
       // No write — pair stays unverified, reported as aspect-check-runtime-error.
-      // Count it as a completed pair with infra-like outcome for progress purposes.
+      // Collect for grouped emission after the loop (one message per aspect, not per pair).
+      detRuntimeItems.push({ aspectId: pair.aspectId, unitKey: pair.unitKey, messageData: outcome.messageData });
       tracker.onPairComplete('det', pair.aspectId, toPosixPath(pair.unitKey), 'infra', write);
       continue;
     }
@@ -338,6 +403,9 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
       detEnforcedRefusedNodes.add(pair.nodePath);
     }
   }
+
+  // ── Emit grouped det runtime-error diagnostics (one message per aspect). ────
+  emitGroupedDiagnostics(detRuntimeItems, 'det', emitIssue);
 
   // ── Deterministic gate: report nodes whose LLM fills are skipped. ──────────
   const llmSkippedByDetGate = new Set<string>();
@@ -377,12 +445,17 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
     const tierResult = reviewer ? selectTierForAspect(aspect, reviewer) : undefined;
     if (!tierResult || !tierResult.ok) {
       // No reviewer configured OR tier resolution failed — infra disposition.
+      // Collect for grouped emission after the tier loop.
       infraFailures += 1;
       infraReport.push({ tier: aspect.reviewer.tier });
-      emitIssue({
-        what: `Cannot resolve a reviewer tier for aspect '${pair.aspectId}' on ${toPosixPath(pair.unitKey)} — left unverified.`,
-        why: tierResult && !tierResult.ok ? tierResult.error.why : 'No reviewer is configured for an effective non-draft LLM aspect.',
-        next: tierResult && !tierResult.ok ? tierResult.error.next : 'Add a reviewer tier in .yggdrasil/yg-config.yaml, or set the aspect to status: draft.',
+      poolInfraItems.push({
+        aspectId: pair.aspectId,
+        unitKey: pair.unitKey,
+        messageData: {
+          what: `Cannot resolve a reviewer tier for aspect '${pair.aspectId}' on ${toPosixPath(pair.unitKey)} — left unverified.`,
+          why: tierResult && !tierResult.ok ? tierResult.error.why : 'No reviewer is configured for an effective non-draft LLM aspect.',
+          next: tierResult && !tierResult.ok ? tierResult.error.next : 'Add a reviewer tier in .yggdrasil/yg-config.yaml, or set the aspect to status: draft.',
+        },
       });
       continue;
     }
@@ -436,36 +509,36 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
       return outcome;
     });
 
-    // Tally counters and surface infra dispositions (no persistence here — the
-    // verdicts were already written inside the pool as each pair finished).
+    // Tally counters and collect infra dispositions for grouped emission (no
+    // persistence here — the verdicts were already written inside the pool).
     for (let i = 0; i < group.length; i++) {
       const item = group[i];
       const outcome = outcomes[i];
       reviewerCallsMade += outcome.callsMade;
       if (outcome.kind === 'companion-runtime-error') {
-        // Companion hook/resolution failure — counted separately, emitted with the
-        // per-pair aspect-companion-runtime-error notice (already structured). No
-        // infra counter increment — these are NOT provider/config failures.
+        // Companion hook/resolution failure — counted separately, collected for
+        // grouped emission after the tier loop. No infra counter increment —
+        // these are NOT provider/config failures.
         companionRuntimeErrors += 1;
-        emitIssue(outcome.messageData);
+        companionRuntimeItems.push({ aspectId: item.pair.aspectId, unitKey: item.pair.unitKey, messageData: outcome.messageData });
       } else if (outcome.kind === 'infra') {
         infraFailures += 1;
         infraReport.push({ provider: baseTier.provider, tier: tierName });
-        // Prefer the outcome's self-describing messageData when present (mirrors
-        // the det loop); the generic provider/config message is the fallback for a
-        // bare `why`.
-        if (outcome.messageData) {
-          emitIssue(outcome.messageData);
-        } else {
-          emitIssue({
-            what: `Reviewer could not verify aspect '${item.pair.aspectId}' on ${toPosixPath(item.pair.unitKey)} — left unverified.`,
-            why: outcome.why,
-            next: `Resolve the provider/config problem, then re-run: yg check --approve`,
-          });
-        }
+        // Prefer the outcome's self-describing messageData when present; build a
+        // fallback for a bare `why`. Collect for grouped emission after the tier loop.
+        const messageData: IssueMessage = outcome.messageData ?? {
+          what: `Reviewer could not verify aspect '${item.pair.aspectId}' on ${toPosixPath(item.pair.unitKey)} — left unverified.`,
+          why: outcome.why,
+          next: `Resolve the provider/config problem, then re-run: yg check --approve`,
+        };
+        poolInfraItems.push({ aspectId: item.pair.aspectId, unitKey: item.pair.unitKey, messageData });
       }
     }
   }
+
+  // ── Emit grouped companion and pool-infra diagnostics. ────────────────────
+  emitGroupedDiagnostics(companionRuntimeItems, 'companion', emitIssue);
+  emitGroupedDiagnostics(poolInfraItems, 'pool-infra', emitIssue);
 
   // ── Step 7: Positive closure (§7.5). ──────────────────────────────────────
   // Re-classify against the POST-FILL lock so closure sees the verdicts just

@@ -44,13 +44,17 @@ import { readBytesOrEmpty, type DetFillOutcome } from './fill-shared.js';
  *       observations are meaningless).
  *   (2) a tainted result must NEVER be written — re-run once; still tainted →
  *       runtime-error (no write).
+ *
+ * NOTE: runtime-error outcomes carry the structured messageData so the orchestrator
+ * (fill.ts) can collect and GROUP notices by aspectId before emitting — emitting one
+ * message per aspect when multiple units of the same check fail, rather than N
+ * near-identical per-pair messages.
  */
 export async function fillDetPair(
   graph: Graph,
   projectRoot: string,
   pair: ExpectedPair,
   aspect: AspectDef,
-  emitIssue: (msg: IssueMessage) => void,
 ): Promise<DetFillOutcome> {
   const aspectDirAbs = path.join(projectRoot, '.yggdrasil', 'aspects', aspect.id);
   // The subject is narrowed iff it covers FEWER files than the node's full
@@ -84,25 +88,21 @@ export async function fillDetPair(
   let run = await runOnce();
   // A6 carry-over (1): a result with succeeded === false is an infra disposition.
   if (!run.ok) {
-    emitIssue(detRuntimeNotice(aspect.id, pair.unitKey, run.rendered));
-    return { kind: 'runtime-error' };
+    return { kind: 'runtime-error', messageData: detRuntimeNotice(aspect.id, pair.unitKey, run.rendered) };
   }
   if (run.result.succeeded === false) {
     const reason = run.result.violations.map((v) => v.message).join('\n') || 'check runtime error';
-    emitIssue(detRuntimeNotice(aspect.id, pair.unitKey, reason));
-    return { kind: 'runtime-error' };
+    return { kind: 'runtime-error', messageData: detRuntimeNotice(aspect.id, pair.unitKey, reason) };
   }
   // A6 carry-over (2): a tainted observation set must never be cached — a file
   // changed mid-run. Re-run once; if it taints again, fail closed (no write).
   if (run.result.observationsTainted) {
     run = await runOnce();
     if (!run.ok) {
-      emitIssue(detRuntimeNotice(aspect.id, pair.unitKey, run.rendered));
-      return { kind: 'runtime-error' };
+      return { kind: 'runtime-error', messageData: detRuntimeNotice(aspect.id, pair.unitKey, run.rendered) };
     }
     if (run.result.succeeded === false || run.result.observationsTainted) {
-      emitIssue(detRuntimeNotice(aspect.id, pair.unitKey, 'observations remained inconsistent across two runs (a file changed mid-check)'));
-      return { kind: 'runtime-error' };
+      return { kind: 'runtime-error', messageData: detRuntimeNotice(aspect.id, pair.unitKey, 'observations remained inconsistent across two runs (a file changed mid-check)') };
     }
   }
 
