@@ -450,7 +450,13 @@ function renderTopBody(errors: CheckIssue[], warnings: CheckIssue[], n: number, 
   const chosenWarnings = chosenGroups.filter(g => g.severity === 'warning');
   const renderOneGroup = (g: IssueGroup): string => {
     const lines: string[] = [];
-    renderGroup(g, lines, opts);
+    if (g.code === 'unmapped-files') {
+      renderUnmappedBlock(g.members[0], lines);
+    } else if (g.code === 'uncovered-advisory') {
+      renderUnmappedBlock(g.members[0], lines, 'uncovered');
+    } else {
+      renderGroup(g, lines, opts);
+    }
     return lines.join('\n');
   };
   // Lead each group block with a blank line (separating it from the subheader

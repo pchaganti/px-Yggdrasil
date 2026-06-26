@@ -818,3 +818,33 @@ describe('check render — --top GROUP view (task 2.3)', () => {
     expect(out).toContain('relation-undeclared-dependency');
   });
 });
+
+// ── --top coverage issue dispatch (task 2.3 fix) ─────────────────────────────
+
+describe('check render — --top view: coverage issues (task 2.3 fix)', () => {
+  it('{kind:top,n:1} with unmapped-files error renders via renderUnmappedBlock, not renderGroup', () => {
+    const issue: CheckIssue = {
+      severity: 'error',
+      code: 'unmapped-files',
+      rule: 'unmapped-files',
+      uncoveredFiles: ['src/a.ts', 'src/b.ts'],
+      uncoveredCount: 2,
+      messageData: {
+        what: '2 files are not mapped to any node.',
+        why: 'Unmapped files are not verified by any aspect.',
+        next: 'Add the files to a node mapping or create a new node.',
+      },
+    };
+    const result = baseResult([issue]);
+    const out = stripAnsi(formatOutput(result, { kind: 'top', n: 1 }));
+
+    // renderUnmappedBlock produces "  unmapped (2)" — count label present.
+    expect(out).toContain('unmapped (2)');
+    // File list from uncoveredFiles must appear.
+    expect(out).toContain('src/a.ts');
+    // renderGroup header pattern ("N pairs  N nodes") must NOT appear.
+    expect(out).not.toMatch(/\d+ pairs\s+\d+ nodes/);
+    // renderGroup member line pattern ("- ") for an empty nodePath must NOT appear.
+    expect(out).not.toMatch(/^\s*- \s*$/m);
+  });
+});
