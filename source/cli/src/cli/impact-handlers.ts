@@ -7,6 +7,7 @@ import {
   collectIndirectDependents,
   nodesWithRefusedVerdict,
 } from '../core/graph/impact-graph.js';
+import type { ImpactSet, ImpactReason, UnresolvedUnit } from '../core/graph/impact-graph.js';
 import { FileContentCache } from '../io/file-content-cache.js';
 import { walkRepoFiles } from '../io/repo-scanner.js';
 import { evaluateFileWhen } from '../core/file-when-evaluator.js';
@@ -179,6 +180,76 @@ export function renderFillCost(cost: FillCost, affectedNodes: number): string {
     `  All ${affectedNodes} affected node(s) (${cost.units} pair(s)) would become unverified if this aspect changes — ` +
     `re-verified by yg check --approve at ${cost.reviewerCalls} reviewer call(s) (consensus included).\n`
   );
+}
+
+export interface ImpactNodeRow {
+  nodePath: string;
+  llmPairs: number;
+  reviewerCalls: number;
+  detPairs: number;
+  reasons: ImpactReason[];
+}
+
+export interface ImpactSummary {
+  billedReviewerCalls: number;
+  freeDeterministic: number;
+  greensReRolled: number;
+  byNode: ImpactNodeRow[];
+  unresolved: UnresolvedUnit[];
+}
+
+export function summarizeImpact(set: ImpactSet, graph: Graph, lock: LockFile): ImpactSummary {
+  const reviewer = graph.config.reviewer;
+  const rows = new Map<string, ImpactNodeRow>();
+  let billed = 0, free = 0, greens = 0;
+  for (const p of set.pairs) {
+    const row = rows.get(p.nodePath) ?? { nodePath: p.nodePath, llmPairs: 0, reviewerCalls: 0, detPairs: 0, reasons: [] };
+    for (const r of p.reasons) if (!row.reasons.includes(r)) row.reasons.push(r);
+    if (p.kind === 'llm') {
+      const aspect = graph.aspects.find((a) => a.id === p.aspectId);
+      const tier = aspect && reviewer ? selectTierForAspect(aspect, reviewer) : undefined;
+      const calls = tier?.ok ? tier.tier.consensus : 1;
+      row.llmPairs += 1; row.reviewerCalls += calls; billed += calls;
+    } else { row.detPairs += 1; free += 1; }
+    if (lock.verdicts[p.aspectId]?.[p.unitKey]?.verdict === 'approved') greens += 1;
+    rows.set(p.nodePath, row);
+  }
+  const byNode = [...rows.values()].sort((a, b) => (a.nodePath < b.nodePath ? -1 : a.nodePath > b.nodePath ? 1 : 0));
+  return { billedReviewerCalls: billed, freeDeterministic: free, greensReRolled: greens, byNode, unresolved: set.unresolved };
+}
+
+const REASON_GLOSS: Record<ImpactReason, string> = {
+  own: 'own pairs',
+  reference: 'references this file',
+  'observe-companion': 'companion observes this file',
+  'observe-deterministic': 'deterministic check observes this file',
+  'cold-potential-deterministic': 'may observe this file (cold-start)',
+};
+
+const CAP_NODES = 12;
+
+export function renderImpactTotal(summary: ImpactSummary, editedFile: string, opts: { isTTY: boolean }): string {
+  const lines: string[] = [];
+  lines.push(`\nEditing ${editedFile} invalidates:`);
+  const shown = opts.isTTY && summary.byNode.length > CAP_NODES ? summary.byNode.slice(0, CAP_NODES) : summary.byNode;
+  for (const n of shown) {
+    const parts: string[] = [];
+    if (n.llmPairs > 0) parts.push(`${n.llmPairs} LLM = ${n.reviewerCalls} reviewer call(s)`);
+    if (n.detPairs > 0) parts.push(`${n.detPairs} deterministic`);
+    const why = n.reasons.map((r) => REASON_GLOSS[r]).join(', ');
+    lines.push(`  ${n.nodePath}  ${parts.join(', ')}  (${why})`);
+  }
+  if (opts.isTTY && summary.byNode.length > CAP_NODES) {
+    lines.push(`  ... and ${summary.byNode.length - CAP_NODES} more (yg impact --file ${editedFile} | less)`);
+  }
+  lines.push(`\nTotal to re-verify: ${summary.billedReviewerCalls} reviewer call(s) — billed by yg check --approve.`);
+  lines.push(`                    ${summary.freeDeterministic} deterministic pair(s) — free.`);
+  lines.push(`                    ${summary.greensReRolled} currently-green verdict(s) re-rolled.`);
+  if (summary.unresolved.length > 0) {
+    lines.push(`\nUnresolved (companion failed — will infra-fail at fill; cost unknown):`);
+    for (const u of summary.unresolved) lines.push(`  ${u.nodePath}  aspect '${u.aspectId}'  ${u.why}`);
+  }
+  return lines.join('\n') + '\n';
 }
 
 export interface NodeFillCost {

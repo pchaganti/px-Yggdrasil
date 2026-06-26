@@ -4,8 +4,61 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { mkdtemp, cp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import type { Graph } from '../../../src/model/graph.js';
+import { summarizeImpact, renderImpactTotal } from '../../../src/cli/impact-handlers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+/** Build a minimal Graph with a reviewer config whose default tier has consensus=1.
+ *  The graph has two aspects: 'c' (LLM) and 'd' (deterministic), and two nodes. */
+function makeGraphWithReviewer(): Graph {
+  return {
+    config: {
+      reviewer: {
+        default: 'main',
+        tiers: {
+          main: {
+            provider: 'anthropic',
+            model: 'claude-3-5-haiku-20241022',
+            temperature: 0,
+            consensus: 1,
+          },
+        },
+      },
+    },
+    architecture: { node_types: {} },
+    nodes: new Map([
+      ['scenarios', {
+        path: 'scenarios',
+        meta: { name: 'scenarios', type: 'module' },
+        children: [],
+        parent: null,
+      }],
+      ['specs', {
+        path: 'specs',
+        meta: { name: 'specs', type: 'module' },
+        children: [],
+        parent: null,
+      }],
+    ]),
+    aspects: [
+      {
+        id: 'c',
+        name: 'c',
+        reviewer: { type: 'llm' },
+        status: 'enforced',
+      },
+      {
+        id: 'd',
+        name: 'd',
+        reviewer: { type: 'deterministic' },
+        status: 'enforced',
+      },
+    ],
+    flows: [],
+    rootPath: '/fake/.yggdrasil',
+  } as unknown as Graph;
+}
 const CLI_ROOT = path.join(__dirname, '../../..');
 const BIN_PATH = path.join(CLI_ROOT, 'dist', 'bin.js');
 const FIXTURE = path.join(CLI_ROOT, 'tests', 'fixtures', 'sample-project');
@@ -543,5 +596,36 @@ describe('impact command', () => {
         expect(result.stdout).toContain('deterministic = free');
       });
     });
+  });
+});
+
+describe('summarizeImpact + renderImpactTotal', () => {
+  it('sums billed reviewer calls across llm pairs, counts free deterministic, groups by node', () => {
+    const set = {
+      pairs: [
+        { aspectId: 'c', unitKey: 'file:a', nodePath: 'scenarios', kind: 'llm', reasons: ['observe-companion'], mode: 'precise' },
+        { aspectId: 'd', unitKey: 'node:specs', nodePath: 'specs', kind: 'deterministic', reasons: ['own'], mode: 'precise' },
+      ],
+      unresolved: [],
+    } as any;
+    const graph = makeGraphWithReviewer();
+    const lock = { version: 1, verdicts: {}, nodes: {} } as any;
+    const s = summarizeImpact(set, graph, lock);
+    expect(s.billedReviewerCalls).toBe(1);
+    expect(s.freeDeterministic).toBe(1);
+    expect(s.byNode.map((n) => n.nodePath).sort()).toEqual(['scenarios', 'specs']);
+    const out = renderImpactTotal(s, 'apps/x/a.ts', { isTTY: false });
+    expect(out).toContain('Total to re-verify:');
+    expect(out).toContain('1 reviewer call(s)');
+    expect(out).toContain('1 deterministic');
+    expect(out).not.toContain('reviewer requests × consensus');
+  });
+
+  it('renders an Unresolved line when a companion failed', () => {
+    const set = { pairs: [], unresolved: [{ aspectId: 'c', unitKey: 'file:a', nodePath: 'scenarios', why: 'boom' }] } as any;
+    const s = summarizeImpact(set, makeGraphWithReviewer(), { version: 1, verdicts: {}, nodes: {} } as any);
+    const out = renderImpactTotal(s, 'apps/x/a.ts', { isTTY: false });
+    expect(out).toContain('Unresolved');
+    expect(out).toContain('scenarios');
   });
 });
