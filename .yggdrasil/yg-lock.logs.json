@@ -71,7 +71,7 @@
     "cli/model/lock": {"log":{"last_entry_datetime":"2026-06-12T11:33:00.973Z","prefix_hash":"6c694550e0ebfdd290a0aca8439a9b4fc456a64e410fa638387df6d7fb6e03e8"}},
     "cli/preamble": {"log":{"last_entry_datetime":"2026-06-01T09:41:50.140Z","prefix_hash":"1169a24ada6cc37b8c4ab80c099f2848f81d29922465318ab0a60021c675085a"}},
     "cli/structure": {"log":{"last_entry_datetime":"2026-06-14T05:30:00.000Z","prefix_hash":"cc779352f6413c18fbf19e5712a4bd4afdcb5ea70106abd9be27dc46709d2a25"}},
-    "cli/templates": {"log":{"last_entry_datetime":"2026-06-26T14:13:42.599Z","prefix_hash":"bba81d38e236e37d73783c71ee275e1d1d524a736f235e22f14987b0295f524a"},"source":"9e59a133f63afdfb16484321bac7e0bddbdf2aa6b751d30bdbaeff676a92e55e"},
+    "cli/templates": {"log":{"last_entry_datetime":"2026-06-26T20:34:34.493Z","prefix_hash":"8012f4a3d54a99724bfe0533d5698437486642faa15eaeeb32a33c2d2fc80633"},"source":"26ff51ef5c8826cb8892f6fd71f61304ecd1b6c7e4a6471b6ff5a60780823992"},
     "cli/templates-platform": {"log":{"last_entry_datetime":"2026-06-26T11:34:44.628Z","prefix_hash":"59ca0038b8abef92d00de0f7ca95ec8bccb47037906419b9ea79c41f994eeadc"},"source":"3bf7c00a74489e9d596ed225906036f65f40307405b481268fe4b5c3dc117ad8"},
     "cli/tests/e2e": {"log":{"last_entry_datetime":"2026-05-29T10:07:14.145Z","prefix_hash":"3430d92d98ab483edd4b7634b4cc7ab0206fd50357790981561c2c7f961f11bc"}},
     "cli/tests/e2e/architecture-classification": {"log":{"last_entry_datetime":"2026-05-31T08:36:51.917Z","prefix_hash":"f74cf86bba384d5a7beb84899f073b94b1621ffcb28148bcd75b0b2d16eaa8ae"}},

@@ -227,7 +227,7 @@
       "file:source/cli/src/migrations/index.ts": {"hash":"177f0806d55b1c908f6e8e13b2b2647f5fa5e60fdae0a27239894eb256486344","verdict":"approved"},
       "file:source/cli/src/migrations/split-lock.ts": {"hash":"a4e811d9390c374440fb447528e4f0edbb192784e53187a3c04611fc06364ffe","verdict":"approved"},
       "file:source/cli/src/migrations/to-5.1.0.ts": {"hash":"80f76af2b241d275af85ed2cc38583ee85a0b0cf194d4b3765df2a76fd4e1ca3","verdict":"approved"},
-      "file:source/cli/src/templates/rules.ts": {"hash":"f7614f051958b33f8de7d540962ca61ab8702553473fa43f9ec8e43a7fbbe033","verdict":"approved"},
+      "file:source/cli/src/templates/rules.ts": {"hash":"fc0c17ac143b9d65e750af297b5a126687bdd706df32964b5ef2eb1a7c639afb","verdict":"approved"},
       "file:source/cli/src/utils/binary-check.ts": {"hash":"9a901d564b54bfb64faf222f3d4a0df67bfc1e0198c7eed7c01bba1dbb2b49c7","verdict":"approved"},
       "file:source/cli/src/utils/binary-extensions.ts": {"hash":"e7db4d4c5ccbeeb221b6a2af9f5ff921c8b947f83afadc0f247428386025ab1b","verdict":"approved"},
       "file:source/cli/src/utils/debug-log.ts": {"hash":"ca46fb1782906ed2a79181156fdc603c25fa5ab5ae2614f7301c18ff11dc95b9","verdict":"approved"},
@@ -681,7 +681,7 @@
       "file:source/cli/src/formatters/truncate.ts": {"hash":"472f73e1132e3949ae0c4ba7bdeffd0f4f23e1495d2887cb7fe60cbe730b68d6","verdict":"approved"},
       "file:source/cli/src/templates/default-config.ts": {"hash":"ce45ef3aa7b067637f73144b7d521b1cabc20b4e18d44a3a6a6b8ed83d41e6b5","verdict":"approved"},
       "file:source/cli/src/templates/platform.ts": {"hash":"c0fc8b887b266d938c0f1528d046cfc7736e52eba4721f6dbf34293049e51fb5","verdict":"approved"},
-      "file:source/cli/src/templates/rules.ts": {"hash":"10665dcd02fd302fb41f0cfa45f338645ed1b8c111122369a6877548a957ae48","verdict":"approved"}
+      "file:source/cli/src/templates/rules.ts": {"hash":"53182e0ed311679fed3040657549468d292bbe5627675804235e4e281f931354","verdict":"approved"}
     }
   },
   "nodes": {
