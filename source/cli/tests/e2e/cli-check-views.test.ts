@@ -15,7 +15,7 @@
 // and src/cli/group-issues.ts (groupIssues).
 // =============================================================================
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterAll } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -223,6 +223,10 @@ describe.skipIf(!distExists)('CLI E2E — yg check Phase-2 view flags', () => {
     expect(existsSync(dir)).toBe(true);
   });
 
+  afterAll(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  });
+
   it.sequential('--details: ungrouped view, one block per issue (more blocks than default), exit 1', () => {
     const { stdout, status } = run(['check', '--details'], dir);
     const out = strip(stdout);
@@ -347,9 +351,4 @@ describe.skipIf(!distExists)('CLI E2E — yg check Phase-2 view flags', () => {
     expect(err).toContain('--details cannot be combined with');
   });
 
-  it.sequential('teardown: remove fixture', () => {
-    if (dir && existsSync(dir)) {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
 });

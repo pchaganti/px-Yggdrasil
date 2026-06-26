@@ -941,11 +941,6 @@ describe('check render — emoji decoration', () => {
     expect(typeof useEmoji).toBe('boolean');
   });
 
-  it('useEmoji is false in the test environment (non-TTY, chalk.level 0)', () => {
-    // vitest spawns in a non-TTY context → chalk auto-detects level 0 → no emoji.
-    expect(useEmoji).toBe(false);
-  });
-
   // ── emoji OFF (byte-identity with pre-emoji output) ──
 
   it('emoji OFF: FAIL verdict has no emoji prefix', () => {

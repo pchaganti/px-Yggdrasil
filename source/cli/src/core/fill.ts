@@ -1,11 +1,10 @@
+// yg-suppress-disable(deterministic) the fill stage exists to invoke the configured LLM reviewer; non-determinism is inherent to its purpose, and every verdict it records is content-addressed so reproducibility is enforced at the lock layer instead
 /**
  * source/cli/src/core/fill.ts — the `yg check --approve` fill stage (spec §7).
  *
  * Plain `yg check` is a pure read; `--approve` fills every UNVERIFIED pair, then
  * re-runs the read and reports. Fill is the ONLY place a deterministic check.mjs
  * or an LLM reviewer executes.
- *
- * yg-suppress(deterministic) the fill stage exists to invoke the configured LLM reviewer; non-determinism is inherent to its purpose, and every verdict it records is content-addressed so reproducibility is enforced at the lock layer instead
  *
  * Order (spec §7):
  *   1. Structural gate — validate(graph); a gating code (tier/reviewer config

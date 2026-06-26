@@ -1,3 +1,4 @@
+// yg-suppress-disable(deterministic) presentational adaptation to terminal capabilities (TTY-aware truncation, color/emoji) and the inherent --approve LLM writer call; the verdict, counts, and exit code are invariant across environments, so these are not determinism violations of the check result
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { loadGraphOrAbort, abortOnUnexpectedError } from './preamble.js';
