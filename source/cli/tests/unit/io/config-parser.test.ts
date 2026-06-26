@@ -650,6 +650,33 @@ quality:
     }
   });
 
+  describe('auto_approve field', () => {
+    async function parseTmpConfig(yaml: string): Promise<YggConfig> {
+      const dir = await mkdtemp(path.join(tmpdir(), 'yg-auto-approve-'));
+      await writeFile(path.join(dir, 'yg-config.yaml'), yaml, 'utf-8');
+      try {
+        return await parseConfig(path.join(dir, 'yg-config.yaml'));
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    }
+
+    it('parses auto_approve: deterministic', async () => {
+      const cfg = await parseTmpConfig(`version: "5.1.0"\nauto_approve: deterministic\n`);
+      expect(cfg.auto_approve).toBe('deterministic');
+    });
+
+    it('defaults auto_approve to undefined when absent', async () => {
+      const cfg = await parseTmpConfig(`version: "5.1.0"\n`);
+      expect(cfg.auto_approve).toBeUndefined();
+    });
+
+    it('rejects invalid auto_approve value', async () => {
+      await expect(parseTmpConfig(`version: "5.1.0"\nauto_approve: yes\n`))
+        .rejects.toMatchObject({ code: 'config-invalid' });
+    });
+  });
+
   describe('timeout seconds→ms conversion', () => {
     async function parseWithYaml(yaml: string): Promise<YggConfig> {
       const dir = await mkdtemp(path.join(tmpdir(), 'yg-timeout-'));

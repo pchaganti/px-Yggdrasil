@@ -44,6 +44,8 @@ export interface YggConfig {
   reviewer?: ReviewerConfig;
   parallel?: number;
   debug?: boolean;
+  /** Controls what bare `yg check` does: false = read-only; 'deterministic' = free local fill; 'full' = full reviewer fill. */
+  auto_approve?: 'deterministic' | 'full' | false;
   /** Coverage scope. Absent ⇒ DEFAULT_COVERAGE (whole repo required = today's behavior). */
   coverage?: CoverageConfig;
 }

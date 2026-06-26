@@ -168,12 +168,27 @@ export async function parseConfig(filePath: string): Promise<YggConfig> {
 
   const debug = raw.debug === true ? true : undefined;
 
+  let auto_approve: 'deterministic' | 'full' | false | undefined;
+  if (raw.auto_approve !== undefined && raw.auto_approve !== false) {
+    if (raw.auto_approve !== 'deterministic' && raw.auto_approve !== 'full') {
+      throw new ConfigParseError({
+        what: `${filename}: auto_approve must be false, 'deterministic', or 'full' (got ${JSON.stringify(raw.auto_approve)}).`,
+        why: "auto_approve controls what bare `yg check` does: false = read-only; 'deterministic' = free local fill; 'full' = full reviewer fill.",
+        next: "Set auto_approve to false, deterministic, or full, or remove the key.",
+      }, 'config-invalid');
+    }
+    auto_approve = raw.auto_approve;
+  } else if (raw.auto_approve === false) {
+    auto_approve = false;
+  }
+
   return {
     version,
     quality,
     reviewer,
     parallel,
     debug,
+    auto_approve,
     coverage: parseCoverage(raw.coverage, filename),
   };
 }
