@@ -401,6 +401,14 @@ describe('check command', () => {
       });
     });
 
+    it('--no-approve --only-deterministic → guided error (contradictory flags), exit 1', async () => {
+      await withFixtureCopy(async (cwd) => {
+        const result = spawnSync('node', [BIN_PATH, 'check', '--no-approve', '--only-deterministic'], { cwd, encoding: 'utf-8' });
+        expect(result.status).toBe(1);
+        expect(stripAnsi(result.stderr)).toContain('cannot be combined');
+      });
+    });
+
     it('--top 1 on a green fixture → PASS, exit 0, no blocks', async () => {
       // Hand-author a trivially-green graph: one organizational node, no
       // aspects, no mapping → zero pairs, zero coverage gaps.

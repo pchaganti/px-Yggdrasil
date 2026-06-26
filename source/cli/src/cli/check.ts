@@ -119,6 +119,15 @@ export function registerCheckCommand(program: Command): void {
           await exitAfterFlush(1);
           return;
         }
+        if (opts.approve === false && opts.onlyDeterministic) {
+          process.stderr.write(chalk.red(buildIssueMessage({
+            what: '--no-approve cannot be combined with --only-deterministic.',
+            why: '--no-approve forces a read-only check (no fill); --only-deterministic asks for a deterministic FILL. The two are contradictory.',
+            next: 'Run: yg check --no-approve (read-only), or yg check --approve --only-deterministic (deterministic fill).',
+          }) + '\n'));
+          await exitAfterFlush(1);
+          return;
+        }
         if (opts.aspect !== undefined) {
           // --aspect is a read-only drill-in view and cannot combine with writer or other views.
           if (opts.approve) {
