@@ -582,7 +582,7 @@ describe('impact command', () => {
       });
     });
 
-    it('--file scopes the cost with "this file" framing', async () => {
+    it('--file shows the unified Total to re-verify block', async () => {
       await withFixtureCopy(async (cwd) => {
         const result = spawnSync(
           'node',
@@ -591,9 +591,12 @@ describe('impact command', () => {
         );
         expect(result.status).toBe(0);
         expect(result.stdout).toContain('src/orders/order.service.ts -> orders/order-service');
-        expect(result.stdout).toContain('Editing this file re-verifies:');
+        // New unified Total block replaces the old "Editing this file re-verifies:" line.
+        expect(result.stdout).toContain('Total to re-verify:');
         expect(result.stdout).toMatch(/reviewer call\(s\)/);
-        expect(result.stdout).toContain('deterministic = free');
+        expect(result.stdout).toContain('deterministic pair(s)');
+        // The old framing is gone.
+        expect(result.stdout).not.toContain('Editing this file re-verifies:');
       });
     });
   });

@@ -10,7 +10,7 @@ import {
   collectReverseDependents,
   buildTransitiveChains,
   collectIndirectDependents,
-  collectStructureCascade,
+  collectInvalidatedPairs,
 } from '../core/graph/impact-graph.js';
 import {
   collectDescendants,
@@ -19,7 +19,10 @@ import {
   handleFlowImpact,
   handleTypeImpact,
   renderNodeFillCost,
+  summarizeImpact,
+  renderImpactTotal,
 } from './impact-handlers.js';
+import type { ImpactSummary } from './impact-handlers.js';
 import { findOwner } from './owner.js';
 import { projectRootFromGraph, resolveFileArg } from '../io/paths.js';
 import { readLock, LockInvalidError } from '../io/lock-store.js';
@@ -95,120 +98,54 @@ export function registerImpactCommand(program: Command): void {
             throw err;
           }
 
-          // Captured when --file resolves to an owner node, so the node-cost
-          // block below can scope its reviewer-call estimate to the edited file.
-          // Declared in the outer handler scope because the --file block's local
-          // `repoRelative` is out of scope at the node-cost render site, and
-          // `options.node` is overwritten with the owner path before then.
-          let editedRepoRel: string | undefined;
+          // Set when --file resolves to an owner node, so the shared node-cost
+          // render site uses renderImpactTotal instead of renderNodeFillCost.
+          let fileImpact: { summary: ImpactSummary; repoRelative: string } | undefined;
 
-          // Resolve --file to --node (structural owner) + cascade-via-reference scan
+          // Resolve --file: compute unified invalidated-pair set, then either
+          // exit (no owner) or fall through to the shared node block.
           if (options.file) {
             const repoRoot = projectRootFromGraph(graph.rootPath);
             const repoRelative = resolveFileArg(repoRoot, options.file);
-            const ownerResult = findOwner(graph, repoRoot, repoRelative);
 
-            // Scan all nodes to find those whose aspect references include this file.
-            // An aspect reference is hashed into every LLM pair of nodes carrying
-            // that aspect, so editing the file invalidates those pairs.
-            const refCascadeNodes: string[] = [];
-            for (const [nodePath, node] of graph.nodes) {
-              // Skip the structural owner — it's handled separately
-              if (ownerResult.nodePath && nodePath === ownerResult.nodePath) continue;
-              const effective = computeEffectiveAspects(node, graph);
-              const hasRef = [...effective].some(aspectId => {
-                const aspect = graph.aspects.find(a => a.id === aspectId);
-                return aspect?.references?.some(r => r.path === repoRelative);
-              });
-              if (hasRef) refCascadeNodes.push(nodePath);
+            // Graph-file redirect — graph files are not subject-file edits.
+            if (repoRelative.startsWith('.yggdrasil/')) {
+              process.stdout.write(
+                `${repoRelative} is a graph file — its cost is not a per-pair subject edit.\n` +
+                `Next: to estimate the cost of editing an aspect rule or companion, run yg impact --aspect <id>.\n`,
+              );
+              await exitAfterFlush(0);
+              return;
             }
-            refCascadeNodes.sort();
 
-            // Structure-aspect cascade: nodes whose effective deterministic or
-            // companion-backed LLM aspect OBSERVES this file CROSS-NODE (precise,
-            // from the lock's `touched` maps; cold-start fallback = potential).
-            // See collectStructureCascade.
-            const structureCascade = collectStructureCascade(graph, repoRelative, ownerResult.nodePath, lock);
+            const ownerResult = findOwner(graph, repoRoot, repoRelative);
+            const set = await collectInvalidatedPairs(graph, repoRelative, lock, repoRoot);
 
-            if (!ownerResult.nodePath && refCascadeNodes.length === 0 && structureCascade.length === 0) {
+            // No coverage at all — not mapped, not referenced, not observed.
+            if (!ownerResult.nodePath && set.pairs.length === 0 && set.unresolved.length === 0) {
               process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
                 what: `${repoRelative} -> no graph coverage`,
                 why: 'file is not mapped to any node, is not referenced by any aspect, and is not observed by any deterministic or companion-backed aspect in the graph.',
                 next: 'Add the file to an existing node mapping, or create a new node.',
               })}\n`));
-              process.exit(1);
+              await exitAfterFlush(1);
+              return;
             }
 
-            // Show cascade-via-reference section if any
-            if (refCascadeNodes.length > 0) {
-              process.stdout.write(`\nNodes whose aspects reference ${repoRelative} [reference]:\n`);
-              for (const np of refCascadeNodes) {
-                process.stdout.write(`  ${np} [reference]\n`);
-              }
-              process.stdout.write(
-                `\nBlast radius via references: ${refCascadeNodes.length} node(s) — ` +
-                `editing this file would make their LLM pairs unverified (re-verified by yg check --approve).\n`,
-              );
-            }
-
-            // Show structure-cascade section if any
-            if (structureCascade.length > 0) {
-              // When all cascade entries are deterministic, keep the section header
-              // byte-identical to preserve existing test assertions. When companion-LLM
-              // entries are present, widen the header to include them.
-              const hasCompanionLlmEntry = structureCascade.some((e) => e.reviewerKind === 'llm');
-              const sectionHeader = hasCompanionLlmEntry
-                ? `\nNodes whose deterministic or companion-backed aspects observe ${repoRelative} [structure]:\n`
-                : `\nNodes whose deterministic aspects observe ${repoRelative} [structure]:\n`;
-              process.stdout.write(sectionHeader);
-              for (const { nodePath, mode } of structureCascade) {
-                const suffix = mode === 'potential' ? ' [structure, potential]' : ' [structure]';
-                process.stdout.write(`  ${toPosixPath(nodePath)}${suffix}\n`);
-              }
-              // Blast-radius footer — split by reviewer kind so cost is labelled accurately.
-              const detCount = structureCascade.filter((e) => e.reviewerKind === 'deterministic').length;
-              const llmCount = structureCascade.filter((e) => e.reviewerKind === 'llm').length;
-              if (!hasCompanionLlmEntry) {
-                // Deterministic-only path: byte-identical to previous output.
-                process.stdout.write(
-                  `\nBlast radius via deterministic aspects: ${structureCascade.length} node(s) — ` +
-                  `editing this file would make their deterministic pairs unverified ` +
-                  `(re-verified for free by yg check --approve).\n`,
-                );
-              } else {
-                // Mixed or LLM-companion path: per-kind breakdown.
-                process.stdout.write(
-                  `\nBlast radius via observing aspects: ${structureCascade.length} node(s) — ` +
-                  `editing this file would make their pairs unverified.\n`,
-                );
-                if (detCount > 0) {
-                  process.stdout.write(
-                    `  ${detCount} deterministic node(s) — re-verified for free by yg check --approve.\n`,
-                  );
-                }
-                if (llmCount > 0) {
-                  process.stdout.write(
-                    `  ${llmCount} companion-backed LLM node(s) — re-verified by the reviewer (billed: reviewer requests × consensus × units).\n`,
-                  );
-                }
-              }
-            }
+            const summary = summarizeImpact(set, graph, lock);
 
             if (!ownerResult.nodePath) {
-              // Only cascade nodes found — no structural owner to follow. The
-              // cascade/blast-radius sections above can be long; drain stdout
-              // before the force-exit so a piped consumer is not truncated.
-              process.stdout.write(
-                `\nNext: review the cascade nodes above, then edit; run yg context --node <X> for any you're unsure about.\n`,
-              );
+              // No structural owner — render the Total and exit. This is an
+              // ADD over the old behavior which early-exited with no cost.
+              process.stdout.write(renderImpactTotal(summary, repoRelative, { isTTY: process.stdout.isTTY ?? false }));
               await exitAfterFlush(0);
-              return; // unreachable — keeps TS narrowing ownerResult.nodePath to string
+              return;
             }
 
-            // Structural owner found — continue to regular node impact. Capture
-            // the resolved file (repo-relative POSIX, matching subjectFiles) so
-            // the node-cost block scopes its estimate to this file.
-            editedRepoRel = repoRelative;
+            // Structural owner found — capture for the cost-render site below,
+            // print the owner resolution line, then fall through to the shared
+            // node block for relationship detail.
+            fileImpact = { summary, repoRelative };
             process.stdout.write(`${ownerResult.file} -> ${ownerResult.nodePath}\n`);
             options.node = ownerResult.nodePath;
           }
@@ -420,12 +357,11 @@ export function registerImpactCommand(program: Command): void {
           process.stdout.write(
             `\nBlast radius: ${allAffected.size} nodes, ${flows.length} flows, ${aspectsInScope.length} aspects\n`,
           );
-          process.stdout.write(
-            renderNodeFillCost(
-              await computeNodeFillCost(graph, nodePath, lock, editedRepoRel),
-              editedRepoRel ? 'file' : 'node',
-            ),
-          );
+          if (fileImpact) {
+            process.stdout.write(renderImpactTotal(fileImpact.summary, fileImpact.repoRelative, { isTTY: process.stdout.isTTY ?? false }));
+          } else {
+            process.stdout.write(renderNodeFillCost(await computeNodeFillCost(graph, nodePath, lock), 'node'));
+          }
           if (allAffected.size >= 10) {
             process.stdout.write(`  High blast radius — review direct dependents before changing this node.\n`);
           } else if (allAffected.size > 0) {
