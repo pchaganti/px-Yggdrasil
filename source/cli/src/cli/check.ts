@@ -653,9 +653,20 @@ export function renderGroup(group: IssueGroup, lines: string[], opts: { isTTY: b
   for (const m of shown) {
     const node = m.nodePath ?? '';
     if (group.perMemberReason) {
-      // First detail line from messageData.what (line after line 0)
-      const detail = (m.messageData.what.split('\n')[1] ?? '').trim();
-      lines.push(`${BLOCK_INDENT}- ${node}${detail ? `  ${detail}` : ''}`);
+      // Full what tail: every line AFTER line 0 (line 0 is the generic
+      // "Aspect X refused on UNIT" header already conveyed by the group header).
+      // For LLM refusals line 1 is "Reviewer reason: ..."; for deterministic
+      // refusals line 1 is "Violations:" and lines 2+ are the file:line entries.
+      // Truncating to line 1 silently drops the actionable violation lines.
+      const whatTail = m.messageData.what.split('\n').slice(1).map((l) => l.replace(/\s+$/, ''));
+      if (whatTail.length === 0) {
+        lines.push(`${BLOCK_INDENT}- ${node}`);
+      } else {
+        lines.push(`${BLOCK_INDENT}- ${node}  ${whatTail[0].trim()}`);
+        for (const extra of whatTail.slice(1)) {
+          lines.push(`${BLOCK_INDENT}  ${extra}`);   // continuation, indented one level under the node bullet
+        }
+      }
     } else {
       lines.push(`${BLOCK_INDENT}- ${node}`);
     }

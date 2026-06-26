@@ -107,6 +107,10 @@ describe('check render — refusal detail (full what)', () => {
     expect(out).toContain("enforced  1 pairs  1 nodes  aspect 'ui-no-direct-db'");
     // perMemberReason: what line 1 ('Violations:') appears on the member.
     expect(out).toContain('Violations:');
+    // The actual violation file:line entries must appear — the fix ensures lines 2+ of
+    // messageData.what (the actionable src:line detail) are NOT silently dropped.
+    expect(out).toContain('src/a.ts:10 — forbidden import of database client');
+    expect(out).toContain('src/b.ts:22 — forbidden import of database client');
     // Fix line present.
     expect(out).toContain('Fix: Fix the listed violations');
     // Member line for the node.
