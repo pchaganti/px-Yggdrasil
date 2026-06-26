@@ -108,7 +108,7 @@ export class ProgressTracker {
     if (this.isTTY) {
       // For refused/infra in TTY mode: clear the TTY line first, then emit the permanent line
       if (verdict !== 'approved') {
-        write(`\r${' '.repeat(80)}\r`);
+        write(`\r\x1b[2K`);
         write(`  [${kind}] ${aspectId} on ${unitKey} — ${verdict}\n`);
       }
       this._writeTTYLine(write);
@@ -147,7 +147,7 @@ export class ProgressTracker {
    */
   clearLine(write: (s: string) => void): void {
     if (this.isTTY) {
-      write(`\r${' '.repeat(80)}\r`);
+      write(`\r\x1b[2K`);
     }
   }
 

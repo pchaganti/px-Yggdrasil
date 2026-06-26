@@ -515,12 +515,10 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
     });
   }
 
-  // Stop the heartbeat timer and clear the TTY progress line before the final report.
+  // Drain all queued progress writes first, then stop the timer and clear the TTY line.
+  await writeChain;
   clearInterval(tickInterval);
   tracker.clearLine(write);
-
-  // Make sure all queued writes have flushed before the final read.
-  await writeChain;
 
   // The `yg check --approve` combiner prints this report after filling.
   const checkResult = await runCheck(graph, opts.gitTrackedFiles);

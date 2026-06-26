@@ -316,8 +316,8 @@ describe('ProgressTracker — TTY mode', () => {
     tracker.clearLine(write);
 
     expect(lines.length).toBe(1);
-    // Should start with \r and contain spaces to clear the line
-    expect(lines[0]).toMatch(/^\r/);
+    // Should be the ANSI clear-to-EOL sequence: \r\x1b[2K
+    expect(lines[0]).toBe('\r\x1b[2K');
   });
 
   it('onTick in TTY mode does NOT emit still-working lines', () => {
