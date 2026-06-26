@@ -8,9 +8,15 @@ directory. Run \`yg init\` to bootstrap if missing.
 
 ## yg check
 
-Unified gate — writes nothing. Validates the lock, structure, and coverage; runs
-no aspect reviewers and makes no LLM calls. It does recompute the built-in
-relation-conformance check live (parse + resolve), at zero LLM cost.
+Unified gate. By default: writes nothing, validates the lock, structure, and
+coverage; runs no aspect reviewers and makes no LLM calls. It does recompute
+the built-in relation-conformance check live (parse + resolve), at zero LLM
+cost. Exception: if \`auto_approve\` is configured in \`yg-config.yaml\`, bare
+\`yg check\` auto-fills — \`deterministic\` mode behaves like \`--approve
+--only-deterministic\`, \`full\` mode like \`--approve\`. Explicit CLI flags
+(\`--approve\`, \`--no-approve\`, \`--only-deterministic\`) ALWAYS override
+\`auto_approve\`. CI and pre-commit should always use the explicit flag form to
+stay key-free and deterministic regardless of project config.
 
 \`\`\`bash
 yg check
@@ -25,40 +31,72 @@ follows its effective status: enforced → error (blocks), advisory → warning.
 
 Exit 0 = clean. Exit 1 = errors found. CI runs it cheap and keyless.
 
-### Triage views: \`--top [N]\` and \`--summary\`
+### Default grouped output
 
-Two read-only flags narrow a large \`yg check\` wall without losing fidelity.
-They apply only to the plain read (not \`--approve\`, which has its own
-\`--dry-run\` cost preview), and they are mutually exclusive with each other.
+The default \`yg check\` output is grouped: issues that share the same rule are
+collapsed into one block — the shared why + fix is shown once, and the affected
+nodes are listed beneath. The header shows \`Errors (N) in M groups:\` when there
+is more than one group. \`unverified\` pairs collapse to one group per aspect
+(node lines only, no repeated explanation). The \`Next:\` line is annotated with
+a residual count when the suggested command will not clear every error.
+
+### Triage views: \`--top [N]\`, \`--summary\`, \`--aspect <id>\`, and \`--details\`
+
+Four read-only flags give alternative views of the same issue set. All are
+mutually exclusive with each other, and all are incompatible with \`--approve\`
+(which has its own \`--dry-run\` cost preview). Explicit CLI flags override
+\`auto_approve\` config.
 
 \`\`\`bash
-yg check --top 5    # print only the 5 highest-priority issue blocks
-yg check --top      # print only the single suggested-next block (no value)
-yg check --summary  # print per-node counts only — no per-issue blocks
+yg check --top 5           # print only the 5 highest-priority GROUPS
+yg check --top             # print only the single suggested-next group (no value)
+yg check --summary         # print per-node counts only — no per-issue blocks
+yg check --aspect <id>     # drill into one rule: show only that rule's group
+yg check --details         # ungrouped per-issue view (one block per pair, old style)
 \`\`\`
 
-\`--top N\` renders the N highest-priority blocks (in the same priority order the
-\`Next:\` line draws from); a bare \`--top\` (no value) renders zero blocks and
+\`--top N\` renders the N highest-priority GROUPS (in the same priority order the
+\`Next:\` line draws from); a bare \`--top\` (no value) renders zero groups and
 keeps only the single \`Next:\` line. \`--summary\` prints one line per node —
-\`K unverified (J deterministic-free, L LLM), M refused\` — plus an \`other\` bucket
-for non-pair errors (coverage / log / relation / structural) so the per-node
-totals reconcile with the header. Guardrail: EVERY view always prints the true
-aggregate \`Errors (N)\`/\`Warnings (N)\` header and preserves the real exit code, so
-a narrowed view can never read as a clean build. An invalid \`--top\` value
-(negative, fractional, non-numeric, or an explicit \`0\`) is a guided error, never
-a silent full dump — use bare \`--top\` for the zero-block view. Use these to
-orient, then drill into a block with plain \`yg check\`.
+\`K unverified (J deterministic-free, L LLM), M refused\` — plus a named bucket
+for non-pair errors (coverage / log / relation / structural) so per-node totals
+reconcile with the header. \`--aspect <id>\` shows the single group for that rule
+with full per-node details; its \`Next (this group):\` line is the bare command
+to run. \`--details\` reverts to the old ungrouped per-pair layout — useful when
+you need every individual reviewer reason visible at once.
+
+Guardrail: EVERY view always prints the true aggregate \`Errors (N)\`/\`Warnings (N)\`
+header and preserves the real exit code, so a narrowed view can never read as a
+clean build. An invalid \`--top\` value (negative, fractional, non-numeric, or an
+explicit \`0\`) is a guided error, never a silent full dump — use bare \`--top\` for
+the zero-block view. Read the raw output — never pipe it through \`| grep\`,
+\`| head\`, or \`| tail\`: those silently drop lines and the count you act on stops
+matching the count the build enforces. Orient with \`--summary\`/\`--top\`, drill
+with \`--aspect\` or plain \`yg check\`.
 
 ## yg check --approve
 
 Fill every unverified pair, then report. The only writer of verdicts (alongside
-\`yg log merge-resolve\`, which writes the per-node log baseline).
+\`yg log merge-resolve\`, which writes the per-node log baseline). Explicit flags
+(\`--approve\`, \`--no-approve\`, \`--only-deterministic\`) always override any
+\`auto_approve\` setting in \`yg-config.yaml\`.
+
+During filling, progress is streamed to **stderr** (stdout holds only the clean
+final report). A heartbeat keeps the output from looking hung on long runs.
+Pass \`--quiet\` / \`-q\` to silence the progress stream entirely — useful when
+piping the report or running in environments where stderr noise matters.
 
 \`\`\`bash
 yg check --approve                      # fill everything (deterministic, then LLM), then report
 yg check --approve --only-deterministic # fill ONLY deterministic pairs (free, keyless); the CI / pre-commit gate
 yg check --approve --dry-run            # free cost preview — print the budget + per-node breakdown, write NOTHING, exit 0
+yg check --approve --quiet              # fill everything but silence stderr progress
 \`\`\`
+
+When \`auto_approve\` is set to \`full\` in \`yg-config.yaml\`, bare \`yg check\`
+triggers a full fill and the PASS header shows \`(auto-filled)\` to distinguish it
+from a clean read-only pass. A pre-run banner on stderr warns that reviewer
+calls will be made.
 
 Verification is repo-wide and all-or-nothing. The one scoping flag is
 \`--only-deterministic\`: it runs the deterministic fills only (no LLM, no key) and

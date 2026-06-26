@@ -10,7 +10,8 @@ version: "5.1.0"                  # managed by CLI — do not edit manually. Tra
 quality:                          # optional — quality thresholds
   max_direct_relations: 10        #   maximum outgoing relations per node (warning if above)
 
-parallel: 1                       # optional — concurrency limit for the yg check --approve fill (positive integer, default: 1)
+parallel: 1                       # optional — concurrency limit for the fill pass (positive integer, default: 1).
+                                  # Applies to yg check --approve or to bare yg check when auto_approve is enabled.
 
 debug: false                      # optional — when true, appends all command output to .yggdrasil/.debug.log
                                   # Default: false (off). Log is append-only; rotate or delete manually.
@@ -38,7 +39,8 @@ coverage:                         # optional — scopes the unmapped-files gate.
                                   # Files outside required and excluded are a non-blocking WARNING.
                                   # Subtrees containing their own nested .yggdrasil/ are auto-skipped by every check.
 
-reviewer:                         # required — aspect verification during yg check --approve
+reviewer:                         # required — aspect verification used during yg check --approve
+                                  # or when auto_approve triggers a fill.
   default: standard               # required when more than one tier is configured; optional with exactly one tier.
                                   #   Must reference one of the keys under reviewer.tiers.
   tiers:                          # required — named tier configurations, minimum one entry.

@@ -78,7 +78,7 @@ Verification runs per `(aspect, unit)` pair. A **unit** is the subject of one ve
 
 Verification is all-or-nothing and repo-wide: `yg check --approve` fills EVERY unverified pair (deterministic first, free; then LLM). The only scoping flag is `--only-deterministic` (the free, keyless CI gate); `yg impact` is the pre-edit cost predictor. Deterministic checks run first; a node with an enforced deterministic refusal has its LLM pairs skipped that run, so a known-broken node never bills the reviewer. Refusals are cached like approvals.
 
-Interrupting `yg check --approve` is safe: finished verdicts are already committed to the lock; only in-flight pairs are lost and the next run resumes them. Read the raw output — never pipe it through `| grep`, `| head`, or `| tail`: those silently drop lines and the count you act on stops matching the count the build enforces. When the read-only wall is large, the SANCTIONED way to narrow it is `yg check --summary` (per-node counts only) or `yg check --top [N]` (the N highest-priority blocks; bare `--top` shows just the single suggested-next block) — both always print the TRUE aggregate `Errors (N)`/`Warnings (N)` header and preserve the real exit code, so a narrowed view can never read as a clean build. Orient with `--summary`/`--top`, then drill into a specific block with plain `yg check`. The reviewer already ran; the output is the return on that cost.
+Interrupting `yg check --approve` is safe: finished verdicts are already committed to the lock; only in-flight pairs are lost and the next run resumes them. Read the raw output — never pipe it through `| grep`, `| head`, or `| tail`: those silently drop lines and the count you act on stops matching the count the build enforces. The default `yg check` output is **grouped**: issues with the same rule are collapsed into one block (shared why+fix shown once, affected nodes listed beneath). When the output is still large, the SANCTIONED way to narrow it further is `yg check --summary` (per-node counts only) or `yg check --top [N]` (the N highest-priority GROUPS; bare `--top` shows just the single suggested-next group) — both always print the TRUE aggregate `Errors (N)`/`Warnings (N)` header and preserve the real exit code, so a narrowed view can never read as a clean build. To drill into one rule: `yg check --aspect <id>`. For the old ungrouped per-pair view: `yg check --details`. Orient with `--summary`/`--top`, then drill with `--aspect` or plain `yg check`. The reviewer already ran; the output is the return on that cost.
 
 A draft aspect produces no expected pairs — nothing is verified, nothing recorded. Advisory refusals render as warnings (never block `yg check`); enforced refusals render as errors (block `yg check`). Verdicts survive status flips, including a `draft` round-trip: an entry for unchanged inputs stays valid when the aspect returns to enforced.
 
@@ -98,7 +98,7 @@ Fix a refusal in one of two ways: declare the relation in the node's `yg-node.ya
 
 A verdict is valid exactly while the inputs that produced it hash to the stored value. Any input change — an edited subject file, an edited `content.md` / `check.mjs`, an edited `scope`, or a change to which named tier the aspect uses — makes the pair **unverified**, and `yg check --approve` re-verifies it. For `companion.mjs` aspects: editing `companion.mjs` re-bills all pairs (like `content.md`); a resolved companion edit re-bills only its readers. Plain LLM aspects are unaffected. (A status flip is NOT an input, and neither is a tier's underlying config — only the tier NAME folds in, so swapping the model or provider behind a named tier never invalidates a verdict.) States are: **verified / unverified / refused**.
 
-`yg check` writes nothing and makes no LLM calls: it re-hashes each lock verdict and reports (on plain `yg check` it never runs an aspect reviewer or a deterministic `check.mjs`), and it runs the built-in relation-conformance check live (parse + resolve). `yg check --approve` fills the unverified pairs and then reports; CI / pre-commit run `yg check --approve --only-deterministic` (cheap, keyless — rebuilds the gitignored cache, re-hashes the committed verdicts).
+`yg check` writes nothing and makes no LLM calls by default: it re-hashes each lock verdict and reports (on plain `yg check` it never runs an aspect reviewer or a deterministic `check.mjs`), and it runs the built-in relation-conformance check live (parse + resolve). (Exception: if `auto_approve` is set in `yg-config.yaml`, bare `yg check` auto-fills — `deterministic` behaves like `--approve --only-deterministic`, `full` like `--approve`. Explicit CLI flags `--approve`/`--no-approve`/`--only-deterministic` ALWAYS override `auto_approve`.) `yg check --approve` fills the unverified pairs and then reports; CI / pre-commit run `yg check --approve --only-deterministic` (cheap, keyless — rebuilds the gitignored cache, re-hashes the committed verdicts).
 
 If you modify code without reading the aspect content files (`yg context --file` → follow the `read:` paths), you will likely write code that violates rules you didn't know about. The reviewer will refuse it. You will have to read the aspects anyway, then rewrite. Double cost.
 
@@ -110,10 +110,15 @@ Full lock format, hash ingredients, caching policy, merge procedure, garbage-col
 
 | Command | Purpose |
 |---|---|
-| `yg check` | Read-only, no LLM calls — re-hash lock verdicts, run the relation check live, validate coverage. Blocks CI. |
-| `yg check --approve` | Fill every unverified pair (deterministic first, then LLM), then report. The only writer of verdicts. |
-| `yg check --approve --only-deterministic` | Fill ONLY deterministic pairs (free, keyless), writing ONLY the gitignored cache; then report. The CI / pre-commit gate. |
+| `yg check` | By default: read-only, no LLM calls — re-hash lock verdicts, run the relation check live, validate coverage. Blocks CI. Behavior changes if `auto_approve` is set (see below). |
+| `yg check --approve` | Fill every unverified pair (deterministic first, then LLM), then report. The only writer of verdicts. Overrides `auto_approve`. |
+| `yg check --approve --only-deterministic` | Fill ONLY deterministic pairs (free, keyless), writing ONLY the gitignored cache; then report. The CI / pre-commit gate. Overrides `auto_approve`. |
 | `yg check --approve --dry-run` | Free cost preview — print the reviewer-call budget (an upper bound) + per-node breakdown, then exit 0 WITHOUT writing or calling the reviewer. |
+| `yg check --top [N]` | Read-only: show only the N highest-priority GROUPS (bare `--top` = single suggested-next group). True aggregate header always shown. |
+| `yg check --summary` | Read-only: per-node counts only (no per-issue blocks). True aggregate header always shown. |
+| `yg check --aspect <id>` | Read-only: drill-in view — show only the group for the named rule. |
+| `yg check --details` | Read-only: ungrouped per-issue view (one block per pair, old style). |
+| `yg check --quiet` / `-q` | With `--approve`: silence progress output on stderr. |
 | `yg context --file <path>` | Show owning node, effective aspects (`read:` paths), dependencies |
 | `yg context --node <path>` | Show node overview — aspects (with subject-file counts), flows, dependents, log state, source files |
 | `yg aspect-test --aspect <id> --node <path>` | Diagnostic — run a check/reviewer live without touching the lock (`--dry-run` previews an LLM prompt; `--files` for ad-hoc and `--check-determinism`, both deterministic aspects only) |
@@ -157,7 +162,7 @@ This is a cost/impact trade-off. Assess, propose the option to the user, let the
 
 **Before touching a source file:** `yg context --file <path>`. Read the files listed under `read:` — these are the rules the reviewer will check your code against. For LLM aspects, `read:` points to `content.md` (and `companion.mjs` when present). For deterministic aspects, `read:` points to `check.mjs` — read it to know what rules will be enforced. Aggregating aspects have no `read:` of their own; their implied children each carry their own `read:` paths. For blast radius: `yg impact --file <path>`.
 
-**After modifying code:** iterate edits with plain `yg check` (free — it makes no LLM calls) until the working tree is final, then run `yg check --approve` exactly ONCE at the end. Every source edit after an `--approve` invalidates the verdicts you just paid for, so verifying mid-edit double-pays. Before the final `--approve`, add a `yg log add` entry for each affected node whose type opts into the log gate. Verification is part of the change — the change is not done until `yg check --approve` passes and `yg check` is clean. Do not defer it.
+**After modifying code:** iterate edits with plain `yg check` (free by default — no LLM calls unless `auto_approve` is set in config) until the working tree is final, then run `yg check --approve` exactly ONCE at the end. Every source edit after an `--approve` invalidates the verdicts you just paid for, so verifying mid-edit double-pays. Before the final `--approve`, add a `yg log add` entry for each affected node whose type opts into the log gate. Verification is part of the change — the change is not done until `yg check --approve` passes and `yg check` is clean. Do not defer it.
 
 **End of conversation:** `yg check` — resolve every unverified pair and refusal. `yg check` failures block CI. If any pair stays unverified or an enforced pair is refused, the build breaks.
 
@@ -531,6 +536,7 @@ When you need to do X, run/read Y:
 | Edit `yg-flow.yaml` | `yg schemas read flow` + `yg knowledge read flows` |
 | Edit `yg-aspect.yaml` | `yg schemas read aspect` + `yg knowledge read aspects-overview` |
 | Edit `yg-config.yaml` | `yg schemas read config` + `yg knowledge read configuration` |
+| Configure `auto_approve` | `yg knowledge read configuration` (see "auto_approve" section) |
 | Pick the right type for new file | `yg knowledge read working-with-architecture` |
 | Choose LLM or deterministic reviewer | `yg knowledge read aspects-overview` |
 | Write an LLM aspect | `yg knowledge read writing-llm-aspects` |

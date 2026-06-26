@@ -1,4 +1,4 @@
-export const summary = 'yg-config.yaml fields: version, reviewer tiers, quality thresholds, parallelism';
+export const summary = 'yg-config.yaml fields: version, reviewer tiers, quality thresholds, parallelism, auto_approve (auto-approval mode)';
 
 export const content = `# Configuration (yg-config.yaml)
 
@@ -38,8 +38,19 @@ quality:
   max_direct_relations: 10        # Max out-edges per node before high-fan-out warning
 
 parallel: 1                       # Concurrent pair verifications (default: 1)
+                                  # Applies during yg check --approve or when auto_approve triggers a fill.
+
+auto_approve: false               # Controls the behavior of bare yg check (with no explicit flags).
+                                  #   false (default): read-only — no writes, no LLM calls, no API keys.
+                                  #   "deterministic": behaves as yg check --approve --only-deterministic
+                                  #     (free, keyless local fills only).
+                                  #   "full": behaves as yg check --approve (may call the reviewer).
+                                  # Explicit CLI flags (--approve, --no-approve, --only-deterministic)
+                                  # ALWAYS override this setting.
+                                  # CI / pre-commit: always use the explicit flag form.
 
 debug: false                      # When true, appends all command output to .yggdrasil/.debug.log (default: false)
+                                  # Applies during yg check --approve or when auto_approve triggers a fill.
 \`\`\`
 
 ## Reviewer tiers
@@ -282,4 +293,34 @@ same payload — content.md, references, resolved companion files (when
 \`companion.mjs\` is present), and the unit's subject files — where it actually
 matters. A pair whose prompt exceeds the tier limit is reported as
 \`prompt-too-large\` at \`yg check\` time, before any reviewer call.
+
+## auto_approve
+
+Controls what bare \`yg check\` (with no explicit \`--approve\` / \`--no-approve\` /
+\`--only-deterministic\` flag) does. Three modes:
+
+| Value | Behavior |
+|---|---|
+| \`false\` (default) | Read-only. No writes, no LLM calls, no API keys. |
+| \`"deterministic"\` | Behaves as \`yg check --approve --only-deterministic\` — fills only deterministic pairs (free, keyless, local). |
+| \`"full"\` | Behaves as \`yg check --approve\` — fills all unverified pairs and may call the reviewer (requires keys). |
+
+**Precedence:** Explicit CLI flags (\`--approve\`, \`--no-approve\`,
+\`--only-deterministic\`) ALWAYS override \`auto_approve\` regardless of the
+configured value. Setting \`--no-approve\` on the command line forces read-only
+even when \`auto_approve: full\`.
+
+**When a fill is triggered by \`auto_approve\`:** a pre-run banner on stderr warns
+that reviewer calls will be made, and the PASS header shows \`(auto-filled)\` to
+distinguish it from a clean read-only pass. The \`parallel\` and \`reviewer\` tier
+settings from \`yg-config.yaml\` apply to the fill just as they would for an
+explicit \`--approve\`.
+
+**CI / pre-commit note:** Always use the explicit flag form
+(\`yg check --approve --only-deterministic\`) in automated pipelines. That way
+the behavior is fixed regardless of what \`auto_approve\` is set to in the
+project config, and the run stays key-free and deterministic.
+
+An invalid \`auto_approve\` value (anything other than \`false\`, \`"deterministic"\`,
+or \`"full"\`) is a hard \`config-unknown-key\` error from \`yg check\`.
 `;

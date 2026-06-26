@@ -314,10 +314,15 @@ const STRICT_CODES = new Set(['type-strict-orphan', 'type-strict-misplaced', 'st
  * TRUE error/warning counts and keeps the single `Next:` line — only the body
  * (which issue blocks, if any, are rendered) changes. The exit code is computed
  * outside this function from the full issue set, so no view can read as green.
- *   - full    : header + every error/warning block + Next.
- *   - top  n  : header + at most n issue blocks in suggestedNext priority order
- *               + Next. n === 0 (bare --top) renders zero blocks, Next only.
+ *   - full    : header + every error/warning block grouped by (code, aspectId)
+ *               + Next. Default view.
+ *   - details : header + every error/warning block ungrouped (one block per
+ *               issue, old per-pair style) + Next. Opposite of full.
+ *   - top  n  : header + at most n highest-priority GROUPS in suggestedNext
+ *               priority order + Next. n === 0 (bare --top) renders zero
+ *               groups, Next only.
  *   - summary : header + per-node aggregate counts + Next (no per-issue blocks).
+ *   - aspect  : header + issue group for the named aspect only + Next.
  */
 export type CheckView = { kind: 'full' } | { kind: 'top'; n: number } | { kind: 'summary' } | { kind: 'details' } | { kind: 'aspect'; id: string };
 

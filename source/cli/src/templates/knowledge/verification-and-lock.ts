@@ -15,15 +15,22 @@ inputs that produced it hash to the stored value. Any input change makes the pai
 **unverified**; a status flip never does. States are: **verified / unverified /
 refused**.
 
-\`yg check\` writes nothing — it recomputes each pair's hash and reports, running no
-aspect reviewers and making no LLM calls (it does recompute relation conformance
-live; see below). \`yg check --approve\` fills every unverified pair and then
-reports. With \`--only-deterministic\` it fills ONLY deterministic pairs (free,
-keyless) and writes ONLY the gitignored cache — never the committed files — so it
-is the CI / pre-commit gate (a fresh checkout has no deterministic cache, so this
-rematerializes it; it also re-hashes the committed LLM verdicts, catching a stale
-one). These are the only writers of verdicts (with \`yg log merge-resolve\` writing
-the per-node log baseline into \`yg-lock.logs.json\`).
+\`yg check\` writes nothing by default — it recomputes each pair's hash and
+reports, running no aspect reviewers and making no LLM calls (it does recompute
+relation conformance live; see below). Exception: if \`auto_approve\` is set in
+\`yg-config.yaml\`, bare \`yg check\` auto-fills — \`deterministic\` mode behaves like
+\`--approve --only-deterministic\` (free, keyless, local fills only), \`full\` mode
+like \`--approve\` (may call the reviewer). Explicit CLI flags (\`--approve\`,
+\`--no-approve\`, \`--only-deterministic\`) ALWAYS override \`auto_approve\`. CI and
+pre-commit should always use the explicit flag form to stay key-free and
+deterministic regardless of project config. \`yg check --approve\` fills every
+unverified pair and then reports. With \`--only-deterministic\` it fills ONLY
+deterministic pairs (free, keyless) and writes ONLY the gitignored cache — never
+the committed files — so it is the CI / pre-commit gate (a fresh checkout has no
+deterministic cache, so this rematerializes it; it also re-hashes the committed
+LLM verdicts, catching a stale one). These are the only writers of verdicts (with
+\`yg log merge-resolve\` writing the per-node log baseline into
+\`yg-lock.logs.json\`).
 
 ## Pairs and units
 
