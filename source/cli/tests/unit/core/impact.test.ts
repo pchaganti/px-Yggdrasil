@@ -6,6 +6,7 @@ import {
   collectIndirectDependents,
   nodesWithRefusedVerdict,
   classifyInvalidations,
+  touchedReferencesFile,
 } from '../../../src/core/graph/impact-graph.js';
 import type { Graph, GraphNode, AspectDef } from '../../../src/model/graph.js';
 import type { LockFile, VerdictEntry } from '../../../src/model/lock.js';
@@ -488,5 +489,170 @@ describe('classifyInvalidations (sync buckets)', () => {
     const { pairs: admitted } = classifyInvalidations(pairs, graph, F, lock);
     expect(admitted[0].reasons).toEqual(['observe-deterministic']);
     expect(admitted[0].mode).toBe('precise');
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// touchedReferencesFile — every switch branch
+// ────────────────────────────────────────────────────────────────────────────
+
+describe('touchedReferencesFile', () => {
+  it('returns false when touched is undefined', () => {
+    expect(touchedReferencesFile(undefined, 'src/a/b.ts')).toBe(false);
+  });
+
+  it('returns false when touched is an empty array', () => {
+    expect(touchedReferencesFile([], 'src/a/b.ts')).toBe(false);
+  });
+
+  it('skips a key with no colon (no-colon continue arm) and returns false', () => {
+    // A key with no ':' hits the `sep < 0` continue and is silently ignored.
+    expect(touchedReferencesFile([['weird', 'h']], 'src/a/b.ts')).toBe(false);
+  });
+
+  it('read:<F> matching repoRelative returns true', () => {
+    expect(touchedReferencesFile([['read:src/a/b.ts', 'h']], 'src/a/b.ts')).toBe(true);
+  });
+
+  it('read:<other> (non-matching file) returns false', () => {
+    expect(touchedReferencesFile([['read:src/other/c.ts', 'h']], 'src/a/b.ts')).toBe(false);
+  });
+
+  it('exists:<F> matching repoRelative returns true', () => {
+    expect(touchedReferencesFile([['exists:src/a/b.ts', 'h']], 'src/a/b.ts')).toBe(true);
+  });
+
+  it('exists:<other> (non-matching file) returns false', () => {
+    expect(touchedReferencesFile([['exists:src/a/c.ts', 'h']], 'src/a/b.ts')).toBe(false);
+  });
+
+  it('list:<dir> matching dirname of repoRelative returns true', () => {
+    // repoRelative='src/a/b.ts' → dirname='src/a'; key list:src/a matches
+    expect(touchedReferencesFile([['list:src/a', 'h']], 'src/a/b.ts')).toBe(true);
+  });
+
+  it('list:<other-dir> not matching dirname returns false', () => {
+    expect(touchedReferencesFile([['list:src/other', 'h']], 'src/a/b.ts')).toBe(false);
+  });
+
+  it('graph:<nodePath> whose yg-node.yaml matches repoRelative returns true', () => {
+    // target='cli/x' → .yggdrasil/model/cli/x/yg-node.yaml
+    const repoRel = '.yggdrasil/model/cli/x/yg-node.yaml';
+    expect(touchedReferencesFile([['graph:cli/x', 'h']], repoRel)).toBe(true);
+  });
+
+  it('graph:<nodePath> whose yg-node.yaml does NOT match repoRelative returns false', () => {
+    expect(touchedReferencesFile([['graph:cli/x', 'h']], '.yggdrasil/model/cli/y/yg-node.yaml')).toBe(false);
+  });
+
+  it('graph-children:<parentNodePath> whose yg-node.yaml matches repoRelative returns true', () => {
+    // graph-children maps to the parent node's yg-node.yaml, same as graph:<parent>
+    const repoRel = '.yggdrasil/model/cli/x/yg-node.yaml';
+    expect(touchedReferencesFile([['graph-children:cli/x', 'h']], repoRel)).toBe(true);
+  });
+
+  it('graph-children:<parentNodePath> not matching repoRelative returns false', () => {
+    expect(touchedReferencesFile([['graph-children:cli/x', 'h']], '.yggdrasil/model/cli/y/yg-node.yaml')).toBe(false);
+  });
+
+  it('graph-flow:<flowName> whose yg-flow.yaml matches repoRelative returns true', () => {
+    // target='checkout' → .yggdrasil/flows/checkout/yg-flow.yaml
+    const repoRel = '.yggdrasil/flows/checkout/yg-flow.yaml';
+    expect(touchedReferencesFile([['graph-flow:checkout', 'h']], repoRel)).toBe(true);
+  });
+
+  it('graph-flow:<flowName> not matching repoRelative returns false', () => {
+    expect(touchedReferencesFile([['graph-flow:checkout', 'h']], '.yggdrasil/flows/other/yg-flow.yaml')).toBe(false);
+  });
+
+  it('graph-bytype:<type> (default branch) never matches — returns false', () => {
+    // graph-bytype is intentionally not file-matchable; hits the default break.
+    expect(touchedReferencesFile([['graph-bytype:service', 'h']], 'anything.ts')).toBe(false);
+  });
+
+  it('returns true on first match when multiple keys are present', () => {
+    // first key misses, second key hits read:
+    expect(touchedReferencesFile([
+      ['read:src/a/other.ts', 'h'],
+      ['read:src/a/b.ts', 'h'],
+    ], 'src/a/b.ts')).toBe(true);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// classifyInvalidations — cold-deterministic-potential branch (lines 340-342)
+// ────────────────────────────────────────────────────────────────────────────
+
+describe('classifyInvalidations — cold-deterministic-potential branch', () => {
+  /**
+   * Build a graph where node 'det-node' has:
+   *   - mapping: ['src/det'] (so 'src/det/file.ts' is in allowed-reads)
+   *   - one deterministic aspect 'det-aspect'
+   * No lock entry for the pair → cold path.
+   */
+  function makeDetGraph(): Graph {
+    const nodeN = makeNode('det-node', {
+      meta: {
+        name: 'det-node',
+        type: 'service',
+        aspects: ['det-aspect'],
+        mapping: ['src/det'],
+      },
+    });
+    const detAspect: AspectDef = {
+      id: 'det-aspect',
+      name: 'det-aspect',
+      reviewer: { type: 'deterministic' },
+      artifacts: [],
+    };
+    return {
+      config: {},
+      architecture: { node_types: {} },
+      nodes: new Map([['det-node', nodeN]]),
+      aspects: [detAspect],
+      flows: [],
+      rootPath: '/tmp',
+    };
+  }
+
+  it('cold deterministic pair whose allowed-reads INCLUDES F => admitted with cold-potential-deterministic + potential', () => {
+    const graph = makeDetGraph();
+    // 'src/det/file.ts' is under 'src/det' mapping → in allowed-reads
+    const F = 'src/det/file.ts';
+    const pairs = [
+      {
+        aspectId: 'det-aspect',
+        kind: 'deterministic',
+        unitKey: 'node:det-node',
+        nodePath: 'det-node',
+        subjectFiles: ['src/det/other.ts'], // F is NOT the subject file
+      },
+    ] as any;
+    const lock: LockFile = { version: 1, verdicts: {}, nodes: {} }; // no entry → cold
+    const { pairs: admitted, coldCompanionCandidates } = classifyInvalidations(pairs, graph, F, lock);
+    expect(coldCompanionCandidates).toHaveLength(0);
+    const hit = admitted.find((p) => p.aspectId === 'det-aspect');
+    expect(hit).toBeDefined();
+    expect(hit!.reasons).toEqual(['cold-potential-deterministic']);
+    expect(hit!.mode).toBe('potential');
+  });
+
+  it('cold deterministic pair whose allowed-reads does NOT include F => NOT admitted', () => {
+    const graph = makeDetGraph();
+    // 'src/other/file.ts' is NOT under 'src/det' → not in allowed-reads
+    const F = 'src/other/file.ts';
+    const pairs = [
+      {
+        aspectId: 'det-aspect',
+        kind: 'deterministic',
+        unitKey: 'node:det-node',
+        nodePath: 'det-node',
+        subjectFiles: ['src/det/a.ts'],
+      },
+    ] as any;
+    const lock: LockFile = { version: 1, verdicts: {}, nodes: {} };
+    const { pairs: admitted, coldCompanionCandidates } = classifyInvalidations(pairs, graph, F, lock);
+    expect(coldCompanionCandidates).toHaveLength(0);
+    expect(admitted.find((p) => p.aspectId === 'det-aspect')).toBeUndefined();
   });
 });
