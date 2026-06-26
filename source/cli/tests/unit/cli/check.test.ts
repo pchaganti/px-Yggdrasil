@@ -359,13 +359,16 @@ describe('check command', () => {
       });
     });
 
-    it('--top 99 → all four blocks, no crash, exit 1', async () => {
+    it('--top 99 → all 2 groups shown (4 total errors), no crash, exit 1', async () => {
       await withFixtureCopy(async (cwd) => {
         const result = spawnSync('node', [BIN_PATH, 'check', '--top', '99'], { cwd, encoding: 'utf-8' });
         expect(result.status).toBe(1);
         const out = stripAnsi(result.stdout);
+        // True aggregate: 4 errors (3 unverified + 1 mapping-path-missing).
         expect(out).toContain('Errors (4):');
-        expect(countBlocks(out)).toBe(4);
+        // --top N renders N highest-priority GROUPS, not N individual issues.
+        // The fixture collapses into 2 groups: unverified and mapping-path-missing.
+        expect(countBlocks(out)).toBe(2);
       });
     });
 
