@@ -270,7 +270,7 @@ const ERROR_CODE_PRIORITY: string[] = [
   'mapped-file-gitignored',
 ];
 
-function issuePriorityRank(issue: CheckIssue): number {
+export function issuePriorityRank(issue: CheckIssue): number {
   const idx = ERROR_CODE_PRIORITY.indexOf(issue.code);
   if (idx >= 0) return idx;
   // Unranked errors (structural / architecture / coverage / completeness /
@@ -486,7 +486,7 @@ function renderWarningSection(warnings: CheckIssue[]): string {
  * strictly less informative than `yg aspect-test`. All other codes keep the
  * terse one-line summary.
  */
-const FULL_WHAT_CODES = new Set([
+export const FULL_WHAT_CODES = new Set([
   'aspect-violation-enforced',
   'aspect-violation-advisory',
   // The relation refusal's `what` carries the violation list (each
@@ -585,7 +585,7 @@ function renderUnmappedBlock(issue: CheckIssue, lines: string[], label = 'unmapp
 
 // ── Helpers ────────────────────────────────────────────────
 
-function getIssueLabel(issue: CheckIssue): string {
+export function getIssueLabel(issue: CheckIssue): string {
   // Verdict-lock states (spec §10).
   if (issue.code === 'unverified') return 'unverified';
   if (issue.code === 'prompt-too-large') return 'prompt-too-large';
