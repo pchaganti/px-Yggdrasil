@@ -17,7 +17,7 @@ export interface IssueGroup {
 export function groupIssues(issues: CheckIssue[]): IssueGroup[] {
   const byKey = new Map<string, CheckIssue[]>();
   for (const i of issues) {
-    const key = i.aspectId ? `${i.code} ${i.aspectId}` : i.code;
+    const key = i.aspectId !== undefined ? `${i.code} ${i.aspectId}` : i.code;
     const arr = byKey.get(key) ?? [];
     arr.push(i);
     byKey.set(key, arr);
@@ -31,7 +31,7 @@ export function groupIssues(issues: CheckIssue[]): IssueGroup[] {
     groups.push({
       code: rep.code,
       aspectId: rep.aspectId,
-      severity: rep.severity as 'error' | 'warning',
+      severity: rep.severity,
       label: getIssueLabel(rep),
       pairCount: sorted.length,
       nodeCount: nodes.size,
