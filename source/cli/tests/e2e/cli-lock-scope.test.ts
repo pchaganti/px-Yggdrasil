@@ -131,9 +131,10 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: per-file scope / observat
       // The per-file `what` detail is gone in the default view, but the group
       // header proves only a single pair was invalidated (b.ts's pair stays valid).
       expect(afterIncluded.all).toContain('unverified (not yet reviewed)');
+      // The aspect appears on the body line (not in the group header).
       expect(afterIncluded.all).toContain("aspect 'no-todo-comments'");
-      expect(afterIncluded.all).toMatch(/unverified \(not yet reviewed\)\s+1 pairs\s+1 nodes\s+aspect 'no-todo-comments'/);
-      expect(afterIncluded.all).toContain('- services/orders');
+      expect(afterIncluded.all).toMatch(/unverified \(not yet reviewed\)\s+1 pairs\s+1 nodes$/m);
+      expect(afterIncluded.all).toContain("- services/orders  aspect 'no-todo-comments'");
 
       // RE-FILL: exactly ONE pair re-verified (a.ts). b.ts carries its prior verdict.
       const refill = run(['check', '--approve'], dir);

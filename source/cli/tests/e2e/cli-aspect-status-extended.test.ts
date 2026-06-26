@@ -458,10 +458,11 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       // both nodes). Assert the label + both node lines rather than expecting the
       // node path on the same line as the label.
       expect(drifted.stdout).toContain('unverified (not yet reviewed)');
+      // The aspect appears on each body line (not in the group header).
       expect(drifted.stdout).toContain("aspect 'no-todo-comments'");
-      const driftedLines = drifted.stdout.split('\n');
-      expect(driftedLines.some((l) => l.trim() === '- services/orders')).toBe(true);
-      expect(driftedLines.some((l) => l.trim() === '- services/payments')).toBe(true);
+      // Body lines include the aspect annotation per node.
+      expect(drifted.stdout).toContain("- services/orders  aspect 'no-todo-comments'");
+      expect(drifted.stdout).toContain("- services/payments  aspect 'no-todo-comments'");
 
       // A single repo-wide fill records the missing verdict on both nodes.
       const refill = run(['check', '--approve'], dir);

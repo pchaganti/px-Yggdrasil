@@ -181,8 +181,12 @@ describe('check render — advisory warning hints', () => {
     };
 
     const out = stripAnsi(formatOutput(baseResult([issue])));
-    // Grouped grammar: group header.
-    expect(out).toContain("unverified (not yet reviewed)  1 pairs  1 nodes  aspect 'audit-logging'");
+    // Grouped grammar: unverified groups by CODE ONLY — no aspect in the header.
+    expect(out).toContain("unverified (not yet reviewed)  1 pairs  1 nodes");
+    // The aspect appears on the member body line, not the header.
+    expect(out).toContain("- orders/handler  aspect 'audit-logging'");
+    // The header does NOT carry an aspect segment (unverified spans aspects).
+    expect(out).not.toContain("unverified (not yet reviewed)  1 pairs  1 nodes  aspect 'audit-logging'");
     // The next pointer must be present so the agent knows how to clear it.
     expect(out).toContain('yg check --approve');
   });
@@ -335,10 +339,15 @@ describe('check render — --top view', () => {
   it('full view renders the Errors header with true count and every group', () => {
     const out = stripAnsi(formatOutput(fourErrorResult(), { kind: 'full' }));
     // The fourErrorResult has 3 unverified issues (each with a distinct aspectId)
-    // + 1 mapping-path-missing → 4 groups total.
-    expect(out).toContain('Errors (4) in 4 groups:');
-    // Each group renders a header line starting with two spaces (matching countBlocks).
-    expect(countBlocks(out)).toBe(4);
+    // + 1 mapping-path-missing. Unverified collapses by CODE ONLY → 1 group;
+    // mapping-path-missing → 1 group. Total = 2 groups, 4 issues.
+    expect(out).toContain('Errors (4) in 2 groups:');
+    // Two groups render: one unverified group block + one mapping-path-missing block.
+    expect(countBlocks(out)).toBe(2);
+    // The three unverified aspects appear as body-line annotations (not in header).
+    expect(out).toContain("aspect 'requires-logging'");
+    expect(out).toContain("aspect 'requires-audit'");
+    expect(out).toContain("aspect 'is-deterministic'");
   });
 
   it('{kind:top,n:1} renders the true Errors(4) header, exactly one block, and the Next line', () => {
@@ -361,6 +370,7 @@ describe('check render — --top view', () => {
   it('{kind:top,n:99} renders all blocks without crashing (n exceeds issue count)', () => {
     const out = stripAnsi(formatOutput(fourErrorResult(), { kind: 'top', n: 99 }));
     expect(out).toContain('Errors (4):');
+    // The --top view renders individual issue blocks (not groups) — 4 issues.
     expect(countBlocks(out)).toBe(4);
   });
 
@@ -448,10 +458,32 @@ describe('check render — renderGroup', () => {
     const lines: string[] = [];
     renderGroup(g, lines, { isTTY: false });
     const out = stripAnsi(lines.join('\n'));
-    expect(out).toContain("unverified (not yet reviewed)  3 pairs  3 nodes  aspect 'audit-logging'");
-    expect(out).toContain('- a');
-    expect(out).toContain('- b');
+    // Unverified collapses by CODE ONLY: no aspect in group header.
+    expect(out).toContain("unverified (not yet reviewed)  3 pairs  3 nodes");
+    expect(out).not.toContain("unverified (not yet reviewed)  3 pairs  3 nodes  aspect 'audit-logging'");
+    // Aspect appears on each member body line.
+    expect(out).toContain("- a  aspect 'audit-logging'");
+    expect(out).toContain("- b  aspect 'audit-logging'");
+    expect(out).toContain("- c  aspect 'audit-logging'");
     expect((out.match(/Fix: yg check --approve/g) ?? []).length).toBe(1);
+  });
+
+  it('refused group STILL shows aspect in header (per-(code,aspectId) grouping retained)', () => {
+    const issues: CheckIssue[] = ['a', 'b'].map((n) => ({
+      severity: 'error',
+      code: 'aspect-violation-enforced',
+      rule: 'aspect-violation-enforced',
+      aspectId: 'audit-logging',
+      pairKind: 'llm',
+      nodePath: n,
+      messageData: llmRefusedMessage({ aspectId: 'audit-logging', unitKey: n, reason: 'missing entry' }),
+    } as CheckIssue));
+    const [g] = groupIssues(issues);
+    const lines: string[] = [];
+    renderGroup(g, lines, { isTTY: false });
+    const out = stripAnsi(lines.join('\n'));
+    // Refused groups group by (code, aspectId) — aspect still in header.
+    expect(out).toContain("enforced  2 pairs  2 nodes  aspect 'audit-logging'");
   });
 });
 

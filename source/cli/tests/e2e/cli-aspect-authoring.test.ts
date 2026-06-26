@@ -301,9 +301,9 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
       expect(all).toContain('aspect-check-runtime-error');
       expect(all).toContain('check.mjs returned object, expected Violation[].');
       // The pair is left unverified: it surfaces as a grouped unverified block
-      // naming the aspect and the node, with the fill-it Fix.
-      expect(all).toMatch(/unverified \(not yet reviewed\)\s+1 pairs\s+1 nodes\s+aspect 'ret-nonarray'/);
-      expect(all).toContain('- services/orders');
+      // with the fill-it Fix. The aspect appears on the body line (not the header).
+      expect(all).toMatch(/unverified \(not yet reviewed\)\s+1 pairs\s+1 nodes$/m);
+      expect(all).toContain("- services/orders  aspect 'ret-nonarray'");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -336,9 +336,9 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
       expect(all).toContain('aspect-check-runtime-error');
       expect(all).toContain('boom in check');
       // The pair is left unverified: it surfaces as a grouped unverified block
-      // naming the aspect and the node, with the fill-it Fix.
-      expect(all).toMatch(/unverified \(not yet reviewed\)\s+1 pairs\s+1 nodes\s+aspect 'thrower'/);
-      expect(all).toContain('- services/orders');
+      // with the fill-it Fix. The aspect appears on the body line (not the header).
+      expect(all).toMatch(/unverified \(not yet reviewed\)\s+1 pairs\s+1 nodes$/m);
+      expect(all).toContain("- services/orders  aspect 'thrower'");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

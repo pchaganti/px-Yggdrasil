@@ -110,47 +110,29 @@ const flowYaml = (dir: string) =>
  * gone). Bullets are contiguous and trailing within a group; a blank line ends the
  * group's node list.
  */
+// Since Phase 1.6, all unverified pairs collapse into ONE group keyed by code
+// only. Each body line carries "- <node>  aspect '<id>'" so extracting by
+// node or by aspect is a single-pass scan over body lines.
+
 function unverifiedNodes(all: string): Set<string> {
   const out = new Set<string>();
-  const lines = all.split('\n');
-  let inUnverifiedGroup = false;
-  for (const line of lines) {
-    const t = line.trim();
-    if (t.includes('unverified (not yet reviewed)')) {
-      inUnverifiedGroup = true;
-      continue;
-    }
-    if (inUnverifiedGroup) {
-      const m = t.match(/^- (services\/[a-z]+)$/);
-      if (m) {
-        out.add(m[1]);
-        continue;
-      }
-      // The first non-bullet line after a group's header that is not part of its
-      // why/Fix preamble ends the bullet list; the next group header re-arms.
-      if (t.length === 0) inUnverifiedGroup = false;
-    }
+  // Body lines look like "            - services/orders  aspect 'X'" or
+  // for nodes without aspect annotation "            - services/orders".
+  for (const line of all.split('\n')) {
+    const m = line.match(/^\s+-\s+(services\/[a-z-]+)(?:\s+aspect '[^']+')?$/);
+    if (m) out.add(m[1]);
   }
   return out;
 }
 
-/** The member nodes of a specific aspect's `unverified` group block. */
+/** The member nodes of a specific aspect's `unverified` body lines.
+ *  Since Phase 1.6 the aspect appears on each body line (not the header). */
 function unverifiedNodesForAspect(all: string, aspectId: string): string[] {
-  const lines = all.split('\n');
-  const headerIdx = lines.findIndex(
-    (l) => l.includes('unverified (not yet reviewed)') && l.includes(`aspect '${aspectId}'`),
-  );
-  if (headerIdx === -1) return [];
   const nodes: string[] = [];
-  let started = false;
-  for (let i = headerIdx + 1; i < lines.length; i++) {
-    const t = lines[i].trim();
-    if (t.startsWith('- ')) {
-      nodes.push(t.slice(2).trim());
-      started = true;
-      continue;
-    }
-    if (started && t.length === 0) break;
+  const pattern = new RegExp(`^\\s+-\\s+(\\S+)\\s+aspect '${aspectId}'\\s*$`);
+  for (const line of all.split('\n')) {
+    const m = line.match(pattern);
+    if (m) nodes.push(m[1]);
   }
   return nodes;
 }

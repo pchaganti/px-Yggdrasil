@@ -183,25 +183,16 @@ function wireOrdersToPayments(dir: string): void {
 // per member. The old per-issue `what`
 // ("No valid verdict for aspect '<id>' on <unit>.") is gone for the non-FULL_WHAT
 // unverified code, so to assert WHICH nodes are unverified for a given aspect we
-// extract that aspect's group block and read its `- <node>` bullets.
+// scan body lines that have the form "- <node>  aspect '<id>'".
+// Since Phase 1.6, all unverified issues collapse into ONE code-only group;
+// the aspect appears on each body line rather than in the group header.
 function unverifiedNodesForAspect(all: string, aspectId: string): string[] {
   const lines = all.split('\n');
-  const headerIdx = lines.findIndex(
-    (l) => l.includes('unverified (not yet reviewed)') && l.includes(`aspect '${aspectId}'`),
-  );
-  if (headerIdx === -1) return [];
   const nodes: string[] = [];
-  let started = false;
-  for (let i = headerIdx + 1; i < lines.length; i++) {
-    const t = lines[i].trim();
-    if (t.startsWith('- ')) {
-      nodes.push(t.slice(2).trim());
-      started = true;
-      continue;
-    }
-    // The `- <node>` bullets are contiguous and trailing within the group; the
-    // first blank line after they begin ends this group's node list.
-    if (started && t.length === 0) break;
+  const bodyPattern = new RegExp(`^\\s*-\\s+(\\S+)\\s+aspect '${aspectId.replace(/'/g, "\\'")}'\s*$`);
+  for (const line of lines) {
+    const m = line.match(bodyPattern);
+    if (m) nodes.push(m[1]);
   }
   return nodes;
 }
@@ -235,11 +226,10 @@ describe.skipIf(!distExists)('CLI E2E — invalidation extended paths', () => {
 
       const drifted = run(['check'], dir);
       expect(drifted.status).toBe(1);
-      // The grouped view drops the per-issue `what` for the non-FULL_WHAT
-      // unverified code, so WHICH node is unverified for a given aspect is read
-      // from that aspect's group block's `- <node>` bullets.
-      // The graph-aware pair on the DEPENDENT node is invalidated by the
-      // cross-node edit.
+      // The grouped view collapses all unverified pairs into ONE group by code only
+      // (Phase 1.6); each body line carries "- <node>  aspect '<id>'". Read which
+      // nodes are unverified for a given aspect from those body lines.
+      // The graph-aware pair on the DEPENDENT node is invalidated by the cross-node edit.
       expect(unverifiedNodesForAspect(drifted.all, 'cross-read-todo')).toContain('services/orders');
       // orders' OTHER aspects did NOT read payments, so they stay valid — orders
       // appears under NEITHER no-todo-comments nor requires-named-export.
@@ -471,9 +461,9 @@ describe.skipIf(!distExists)('CLI E2E — invalidation extended paths', () => {
 
       const drifted = run(['check'], dir);
       expect(drifted.status).toBe(1);
-      // The grouped view drops the per-issue `what` for the non-FULL_WHAT
-      // unverified code, so WHICH nodes are unverified per aspect is read from
-      // each aspect's group block's `- <node>` bullets.
+      // The grouped view collapses all unverified pairs into ONE group by code only
+      // (Phase 1.6); each body line carries "- <node>  aspect '<id>'". Read which
+      // nodes are unverified for a given aspect from those body lines.
       // The aspect-content edit invalidates no-todo on BOTH nodes.
       expect(unverifiedNodesForAspect(drifted.all, 'no-todo-comments')).toContain('services/orders');
       expect(unverifiedNodesForAspect(drifted.all, 'no-todo-comments')).toContain('services/payments');
@@ -543,8 +533,8 @@ describe.skipIf(!distExists)('CLI E2E — invalidation extended paths', () => {
       // plus the offending node line.
       expect(drifted.all).toContain('Node maps a file that was deleted or moved.');
       expect(drifted.all).toContain('- services/orders');
-      // The deletion also changes the node's source hash → its pairs go
-      // unverified; read the no-todo-comments group block for the orders node.
+      // The deletion also changes the node's source hash → its pairs go unverified;
+      // the body line "- services/orders  aspect 'no-todo-comments'" confirms it.
       expect(unverifiedNodesForAspect(drifted.all, 'no-todo-comments')).toContain('services/orders');
 
       // Restore the file byte-identically — both issues clear (the recorded

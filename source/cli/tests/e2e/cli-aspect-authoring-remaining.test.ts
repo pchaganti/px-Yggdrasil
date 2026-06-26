@@ -474,11 +474,11 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring remaining paths (pars
       const invalidated = run(['check'], dir);
       expect(invalidated.status).toBe(1);
       expect(invalidated.stdout).toContain('unverified (not yet reviewed)');
-      // Grouped view: a single unverified group for the aspect lists BOTH nodes;
-      // the per-issue `what` ("No valid verdict ...") is no longer in the body.
-      expect(invalidated.stdout).toMatch(/unverified \(not yet reviewed\)\s+2 pairs\s+2 nodes\s+aspect 'has-doc-comment'/);
-      expect(invalidated.stdout).toContain('- services/orders');
-      expect(invalidated.stdout).toContain('- services/payments');
+      // Grouped view: a single unverified group (unverified groups by code only,
+      // no aspect in header); the aspect appears on each body-line instead.
+      expect(invalidated.stdout).toMatch(/unverified \(not yet reviewed\)\s+2 pairs\s+2 nodes$/m);
+      expect(invalidated.stdout).toContain("- services/orders  aspect 'has-doc-comment'");
+      expect(invalidated.stdout).toContain("- services/payments  aspect 'has-doc-comment'");
 
       // A clean re-fill re-runs the reviewer on both pairs and restores them.
       const refill = await runAsync(['check', '--approve'], dir);

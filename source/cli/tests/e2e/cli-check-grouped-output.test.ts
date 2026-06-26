@@ -11,6 +11,11 @@
 // `Next:` line carries a residual parenthetical when --approve cannot clear
 // every error (unverified pairs fill, but refused/relation errors remain).
 //
+// Phase 1.6 change: `unverified` issues group by CODE ONLY (not (code,aspectId)).
+// The group header drops the `aspect '<id>'` segment; instead each member body
+// line appends `  aspect '<id>'` so the agent sees which aspect is unverified
+// on each node without a near-identical group block per aspect.
+//
 // These tests spawn the REAL built binary (dist/bin.js) against a hermetic
 // fixture built in code (mirroring cli-check-output-flush.test.ts), then assert
 // the grouped grammar on PIPED stdout (non-TTY → node lists never truncate).
@@ -170,25 +175,27 @@ describe.skipIf(!distExists)('CLI E2E — yg check grouped default output (Phase
       // Defensive: a single group must NOT carry the " in M groups" segment.
       expect(out).not.toMatch(/Errors \(\d+\) in \d+ groups:/);
 
-      // Exactly ONE group block for the aspect: glossed label + "<P> pairs" +
-      // "<M> nodes" + aspect segment, on a single header line.
+      // Exactly ONE group block for the unverified code: glossed label + "<P> pairs"
+      // + "<M> nodes" — NO aspect segment in the header (unverified groups by code only).
       const groupHeaders = out.match(
-        /^ {2}unverified \(not yet reviewed\) {2}(\d+) pairs {2}(\d+) nodes {2}aspect 'shared'$/gm,
+        /^ {2}unverified \(not yet reviewed\) {2}(\d+) pairs {2}(\d+) nodes$/gm,
       ) ?? [];
       expect(groupHeaders.length).toBe(1);
       // The header reports P = node count pairs over M = node count nodes.
       expect(groupHeaders[0]).toContain(`${nodes.length} pairs`);
       expect(groupHeaders[0]).toContain(`${nodes.length} nodes`);
+      // The header must NOT carry an aspect segment (aspect on body lines instead).
+      expect(out).not.toMatch(/^ {2}unverified \(not yet reviewed\).*aspect 'shared'/m);
 
       // Shared why + Fix lines render once for the whole group (NOT once per node).
       expect(out).toContain('The lock holds no entry for this pair');
       expect(out).toMatch(/^ {12}Fix: yg check --approve$/m);
 
-      // Every affected node is listed one-per-line as "            - <node>".
+      // Every affected node is listed as "            - <node>  aspect 'shared'".
       for (const n of nodes) {
-        expect(out).toMatch(new RegExp(`^ {12}- ${n}$`, 'm'));
+        expect(out).toMatch(new RegExp(`^ {12}- ${n}  aspect 'shared'$`, 'm'));
       }
-      const nodeBullets = (out.match(/^ {12}- \w+$/gm) ?? []).length;
+      const nodeBullets = (out.match(/^ {12}- \w+  aspect 'shared'$/gm) ?? []).length;
       expect(nodeBullets).toBe(nodes.length);
 
       // A clean Next (no residual) — the only errors are unverified, which
@@ -219,13 +226,16 @@ describe.skipIf(!distExists)('CLI E2E — yg check grouped default output (Phase
       // 4 unverified pairs (one per node) + 1 relation error = 5.
       expect(totalErrors).toBe(nodes.length + 2 + 1);
 
-      // ONE group block for the shared aspect, spanning all 4 nodes.
+      // ONE group block for the shared unverified code, spanning all 4 nodes.
+      // Header has NO aspect segment (unverified groups by code only since Phase 1.6).
       const unverifiedHeaders = out.match(
-        /^ {2}unverified \(not yet reviewed\) {2}(\d+) pairs {2}(\d+) nodes {2}aspect 'shared'$/gm,
+        /^ {2}unverified \(not yet reviewed\) {2}(\d+) pairs {2}(\d+) nodes$/gm,
       ) ?? [];
       expect(unverifiedHeaders.length).toBe(1);
       expect(unverifiedHeaders[0]).toContain(`${nodes.length + 2} pairs`);
       expect(unverifiedHeaders[0]).toContain(`${nodes.length + 2} nodes`);
+      // The aspect appears on each body line, not in the header.
+      expect(out).not.toMatch(/^ {2}unverified \(not yet reviewed\).*aspect 'shared'/m);
 
       // ONE relation-undeclared-dependency group block. It carries no aspect
       // segment (built-in check, not an aspect) and DOES retain the per-node
@@ -236,14 +246,13 @@ describe.skipIf(!distExists)('CLI E2E — yg check grouped default output (Phase
       // The affected-node line keeps the file:line → target detail for relations.
       expect(out).toMatch(/^ {12}- importer {2}src\/importer\.ts:\d+ → dep$/m);
 
-      // Each unverified node appears as its own bullet under the shared group.
-      for (const n of [...nodes, 'dep', 'importer']) {
-        // 'importer' also appears in the relation group with detail; assert at
-        // least the bare unverified bullet exists for the plain nodes.
-        if (n !== 'importer') {
-          expect(out).toMatch(new RegExp(`^ {12}- ${n}$`, 'm'));
-        }
+      // Each unverified node appears as "            - <node>  aspect 'shared'".
+      for (const n of [...nodes, 'dep']) {
+        expect(out).toMatch(new RegExp(`^ {12}- ${n}  aspect 'shared'$`, 'm'));
       }
+      // 'importer' appears in the relation group with perMemberReason detail;
+      // it also has an unverified pair — assert the unverified bullet is there.
+      expect(out).toMatch(/^ {12}- importer  aspect 'shared'$/m);
 
       // The partial Next residual: --approve fills the 4 unverified pairs but the
       // 1 relation error remains (needs a code/graph fix). N = 4 filled, K = 1
@@ -251,6 +260,108 @@ describe.skipIf(!distExists)('CLI E2E — yg check grouped default output (Phase
       expect(out).toMatch(
         /^Next: yg check --approve {2}\(fills 4 unverified; 1 error remain — need code\/graph fixes\)$/m,
       );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('TWO DIFFERENT aspects unverified on ONE node collapse into ONE group (Phase 1.6)', () => {
+    // Build a fixture with ONE node and TWO enforced LLM aspects (both unverified
+    // on a cold lock). The old behaviour produced 2 per-(code,aspectId) groups;
+    // the new behaviour produces ONE group with both aspect ids on body lines.
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-check-multi-aspect-'));
+    try {
+      const ygRoot = path.join(dir, '.yggdrasil');
+      mkdirSync(path.join(ygRoot, 'model', 'mynode'), { recursive: true });
+      mkdirSync(path.join(ygRoot, 'flows'), { recursive: true });
+      const srcDir = path.join(dir, 'src');
+      mkdirSync(srcDir, { recursive: true });
+
+      // Two separate enforced LLM aspects.
+      for (const aspectId of ['aspect-alpha', 'aspect-beta']) {
+        const aDir = path.join(ygRoot, 'aspects', aspectId);
+        mkdirSync(aDir, { recursive: true });
+        writeFileSync(
+          path.join(aDir, 'yg-aspect.yaml'),
+          `name: ${aspectId}\ndescription: ${aspectId} rule\nstatus: enforced\n`,
+          'utf-8',
+        );
+        writeFileSync(path.join(aDir, 'content.md'), `# ${aspectId}\n\nRule.\n`, 'utf-8');
+      }
+
+      writeFileSync(
+        path.join(ygRoot, 'yg-architecture.yaml'),
+        [
+          'node_types:',
+          '  svc:',
+          "    description: 'Service node'",
+          '    log_required: false',
+          '    when:',
+          '      path: "src/**"',
+          '',
+        ].join('\n'),
+        'utf-8',
+      );
+
+      writeFileSync(
+        path.join(ygRoot, 'yg-config.yaml'),
+        [
+          'quality:',
+          '  max_direct_relations: 10',
+          'reviewer:',
+          '  tiers:',
+          '    standard:',
+          '      provider: ollama',
+          '      consensus: 1',
+          '      config:',
+          '        model: test',
+          `        endpoint: ${LOOPBACK_ENDPOINT}`,
+          '',
+        ].join('\n'),
+        'utf-8',
+      );
+
+      // One node with both aspects attached.
+      writeFileSync(
+        path.join(ygRoot, 'model', 'mynode', 'yg-node.yaml'),
+        [
+          'name: mynode',
+          'type: svc',
+          'description: mynode',
+          'aspects:',
+          '  - aspect-alpha',
+          '  - aspect-beta',
+          'relations: []',
+          'mapping:',
+          '  - src/mynode.ts',
+          '',
+        ].join('\n'),
+        'utf-8',
+      );
+      writeFileSync(path.join(srcDir, 'mynode.ts'), "export const x = 1;\n", 'utf-8');
+
+      const { status, stdout } = run(['check'], dir);
+      const out = strip(stdout);
+
+      // Both pairs unverified → 2 errors, exit 1.
+      expect(status).toBe(1);
+      expect(out).toMatch(/^Errors \(2\):$/m);
+
+      // ONE group block — no " in M groups" (single group).
+      expect(out).not.toMatch(/Errors \(\d+\) in \d+ groups:/);
+
+      // Group header: no aspect segment (unverified collapses by code only).
+      expect(out).toMatch(/^ {2}unverified \(not yet reviewed\) {2}2 pairs {2}1 nodes$/m);
+      expect(out).not.toMatch(/^ {2}unverified \(not yet reviewed\).*aspect '/m);
+
+      // Body: two lines, one per (node, aspect) pair.
+      expect(out).toMatch(/^ {12}- mynode  aspect 'aspect-alpha'$/m);
+      expect(out).toMatch(/^ {12}- mynode  aspect 'aspect-beta'$/m);
+
+      // Shared why+fix rendered ONCE.
+      expect(out).toContain('The lock holds no entry for this pair');
+      const fixMatches = out.match(/Fix: yg check --approve/g) ?? [];
+      expect(fixMatches.length).toBe(1);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -195,22 +195,18 @@ describe.skipIf(!distExists)('CLI E2E — yg check output survives pipe (flush r
       //    would have been truncated under the pre-fix process.exit() behaviour.
       expect(headerCount).toBeGreaterThan(200);
 
-      // 3. The three LLM aspects each form one group → exactly 3 groups, and the
-      //    header must announce them. (75 nodes × 3 aspects = 225 unverified pairs,
-      //    grouped by (code, aspectId) into 3 groups.)
-      expect(groupCount).toBe(3);
+      // 3. All three LLM aspects now collapse into ONE group (unverified groups by
+      //    CODE ONLY since Phase 1.6 — the group header carries no aspect segment;
+      //    instead each body-line shows "  aspect '<id>'"). So groupCount = 1.
+      expect(groupCount).toBe(1);
 
-      // 4. Each group renders one header line of the grouped grammar:
-      //    "  <glossLabel>  <P> pairs  <M> nodes  aspect '<id>'". Cold (no lock),
-      //    the LLM aspect pairs render as `unverified`, glossed to
-      //    "unverified (not yet reviewed)". Exactly one such header per aspect group.
+      // 4. Exactly ONE unverified group header (no aspect segment in the header).
       const groupHeaders = stripped.match(
-        /^ {2}unverified \(not yet reviewed\) {2}\d+ pairs {2}\d+ nodes {2}aspect '[^']+'$/gm,
+        /^ {2}unverified \(not yet reviewed\) {2}\d+ pairs {2}\d+ nodes$/gm,
       ) ?? [];
-      expect(groupHeaders.length).toBe(3);
+      expect(groupHeaders.length).toBe(1);
 
-      // 5. The per-group "<P> pairs" counts must sum to the header N (no pair is
-      //    silently dropped from a group header).
+      // 5. The single group header's "<P> pairs" count must equal the header N.
       const pairSum = groupHeaders.reduce((acc, line) => {
         const m = line.match(/(\d+) pairs/);
         return acc + (m ? parseInt(m[1], 10) : 0);
@@ -218,12 +214,12 @@ describe.skipIf(!distExists)('CLI E2E — yg check output survives pipe (flush r
       expect(pairSum).toBe(headerCount);
 
       // 6. Count rendered affected-node lines. Each unverified pair surfaces as a
-      //    "            - svcNNN" bullet inside its group block (12-space indent +
-      //    "- " + node path). These self-contained nodes have no cross-node
-      //    dependency, so the live relation pass adds no relation-undeclared block
-      //    and every node bullet belongs to an unverified group. The flush
-      //    invariant is that EVERY pair the header declares is rendered as a bullet.
-      const nodeLineCount = (stripped.match(/^ {12}- svc\d{3}$/gm) ?? []).length;
+      //    "            - svcNNN  aspect '<id>'" bullet inside the group block
+      //    (12-space indent + "- " + node path + "  aspect '<id>'"). These
+      //    self-contained nodes have no cross-node dependency, so the live relation
+      //    pass adds no relation-undeclared block. The flush invariant: EVERY pair
+      //    the header declares is rendered as a bullet.
+      const nodeLineCount = (stripped.match(/^ {12}- svc\d{3}  aspect '[^']+'$/gm) ?? []).length;
       // 75 nodes × 3 LLM aspects = 225 affected-node lines, each unverified cold.
       expect(nodeLineCount).toBe(225);
       // No relation-undeclared block (no cross-node dependency in the fixture).

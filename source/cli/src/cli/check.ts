@@ -690,7 +690,25 @@ export function renderGroup(group: IssueGroup, lines: string[], opts: { isTTY: b
         }
       }
     } else {
-      lines.push(`${BLOCK_INDENT}- ${node}`);
+      // For code-only groups (e.g. `unverified`) group.aspectId is undefined
+      // because the group spans multiple aspects. Annotate each member line
+      // with the member's own aspectId so the agent can see which aspect is
+      // unverified on each node without repeating the shared why+fix.
+      const memberAspectSeg =
+        group.aspectId === undefined && m.aspectId !== undefined
+          ? `  aspect '${m.aspectId}'`
+          : '';
+      // For non-aspect structural/graph issues (e.g. when-predicate-invalid,
+      // log-entry-missing) the member has no aspectId to annotate — instead
+      // surface the first line of `what`, which carries the specific diagnostic
+      // detail (e.g. "Invalid regex in content when:" or "No fresh log entry for
+      // node '...'"). Without this, all members in the group look identical and
+      // the agent cannot distinguish which node or predicate is broken.
+      const whatSeg =
+        !memberAspectSeg && m.messageData.what
+          ? `  ${m.messageData.what.split('\n')[0]}`
+          : '';
+      lines.push(`${BLOCK_INDENT}- ${node}${memberAspectSeg || whatSeg}`);
     }
   }
   if (truncate) {

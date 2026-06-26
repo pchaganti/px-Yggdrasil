@@ -130,9 +130,10 @@ describe.skipIf(!distExists)('CLI E2E — fill-stage semantics', () => {
       // Plain check confirms orders' LLM pair is unverified (no false-green).
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
-      // Grouped view: an unverified group for the LLM aspect lists orders.
-      expect(check.all).toMatch(/unverified \(not yet reviewed\)\s+1 pairs\s+1 nodes\s+aspect 'has-doc-comment'/);
-      expect(check.all).toContain('- services/orders');
+      // Grouped view: unverified groups by code only (no aspect in header).
+      expect(check.all).toMatch(/unverified \(not yet reviewed\)\s+1 pairs\s+1 nodes$/m);
+      // The aspect appears on the body line instead.
+      expect(check.all).toContain("- services/orders  aspect 'has-doc-comment'");
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
