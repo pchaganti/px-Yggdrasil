@@ -203,6 +203,9 @@ export function formatOutput(result: CheckResult, view: CheckView = { kind: 'ful
   const errors = result.issues.filter(i => i.severity === 'error');
   const warnings = result.issues.filter(i => i.severity === 'warning');
 
+  // isTTY controls node-list truncation inside groups (CAP_NODES per group).
+  const opts = { isTTY: process.stdout.isTTY ?? false };
+
   // Header ALWAYS uses the full counts — in every view. Only the body changes.
   const header = renderHeader(result, errors.length, warnings.length);
   const sections: string[] = [header];
@@ -228,11 +231,11 @@ export function formatOutput(result: CheckResult, view: CheckView = { kind: 'ful
   } else {
     if (errors.length > 0) {
       sections.push('');
-      sections.push(renderErrorSection(errors));
+      sections.push(renderErrorSection(errors, opts));
     }
     if (warnings.length > 0) {
       sections.push('');
-      sections.push(renderWarningSection(warnings));
+      sections.push(renderWarningSection(warnings, opts));
     }
   }
 
@@ -423,35 +426,44 @@ function renderHeader(result: CheckResult, errorCount: number, warningCount: num
 
 // ── Error section ──────────────────────────────────────────
 
-function renderErrorSection(errors: CheckIssue[]): string {
-  const lines: string[] = [chalk.red(`Errors (${errors.length}):`)];
+/** Maximum number of issue groups rendered before the overflow hint. */
+const GROUP_CAP = 12;
 
-  // Verdict-lock codes (spec §6/§10): rendered individually as labelled blocks.
-  // `unverified` and `prompt-too-large` lead — they are the highest-priority
-  // remediations after lock-invalid. `lock-invalid` is in STRUCTURAL_CODES, so
-  // it renders in the structural group.
-  const verification = errors.filter(i => i.code === 'unverified' || i.code === 'prompt-too-large');
+/**
+ * Render the Errors section using grouped blocks. Coverage issues
+ * (`unmapped-files`) are separated out and rendered after the groups via
+ * `renderUnmappedBlock`. All other errors are grouped with `groupIssues` and
+ * rendered with `renderGroup`.
+ *
+ * Section sub-header:
+ *   - M > 1 → `Errors (N) in M groups:` (N = total issues including coverage)
+ *   - M === 1 (or zero non-coverage errors) → `Errors (N):`
+ *
+ * Group cap: at most GROUP_CAP (12) groups rendered; if more, an overflow hint
+ * line is appended after the 12th.
+ */
+function renderErrorSection(errors: CheckIssue[], opts: { isTTY: boolean }): string {
   const unmapped = errors.filter(i => COVERAGE_CODES.has(i.code));
-  const structural = errors.filter(i => STRUCTURAL_CODES.has(i.code));
-  const architecture = errors.filter(i => ARCHITECTURE_CODES.has(i.code));
-  const completeness = errors.filter(i => COMPLETENESS_CODES.has(i.code));
-  const strict = errors.filter(i => STRICT_CODES.has(i.code));
-  const logErrors = errors.filter(i => i.code === 'log-conflict' || i.code === 'log-integrity' || i.code === 'log-format' || i.code === 'log-entry-missing');
-  const aspectErrors = errors.filter(i => i.code === 'aspect-violation-enforced');
-  const remaining = errors.filter(i =>
-    !verification.includes(i) && !unmapped.includes(i) && !structural.includes(i) &&
-    !architecture.includes(i) && !completeness.includes(i) && !strict.includes(i) &&
-    !logErrors.includes(i) && !aspectErrors.includes(i),
-  );
+  const rest = errors.filter(i => !COVERAGE_CODES.has(i.code));
+  const groups = groupIssues(rest);
+  const M = groups.length;
+  const N = errors.length;
 
-  for (const group of [verification, aspectErrors, structural, architecture, completeness, strict, logErrors, remaining]) {
-    for (const issue of sortByNodePath(group)) {
-      lines.push('');
-      renderIssueBlock(issue, lines, 'error');
-    }
+  const subheader = M > 1
+    ? chalk.red(`Errors (${N}) in ${M} groups:`)
+    : chalk.red(`Errors (${N}):`);
+  const lines: string[] = [subheader];
+
+  const shown = groups.slice(0, GROUP_CAP);
+  for (const g of shown) {
+    lines.push('');
+    renderGroup(g, lines, opts);
+  }
+  if (groups.length > GROUP_CAP) {
+    lines.push(`  ... in ${groups.length} groups — showing ${GROUP_CAP}; run yg check --top <n> or --aspect <id>`);
   }
 
-  // Unmapped files — compact block with file list
+  // Unmapped files — compact block with file list (unchanged)
   for (const issue of unmapped) {
     lines.push('');
     renderUnmappedBlock(issue, lines);
@@ -462,18 +474,43 @@ function renderErrorSection(errors: CheckIssue[]): string {
 
 // ── Warning section ────────────────────────────────────────
 
-function renderWarningSection(warnings: CheckIssue[]): string {
-  const lines: string[] = [chalk.yellow(`Warnings (${warnings.length}):`)];
+/**
+ * Render the Warnings section using grouped blocks. Coverage issues
+ * (`uncovered-advisory`) are separated out and rendered after the groups via
+ * `renderUnmappedBlock`. All other warnings are grouped with `groupIssues` and
+ * rendered with `renderGroup`.
+ *
+ * Section sub-header:
+ *   - M > 1 → `Warnings (N) in M groups:` (N = total warnings including coverage)
+ *   - M === 1 (or zero non-coverage warnings) → `Warnings (N):`
+ */
+function renderWarningSection(warnings: CheckIssue[], opts: { isTTY: boolean }): string {
   const coverage = warnings.filter(i => i.code === 'uncovered-advisory');
   const rest = warnings.filter(i => i.code !== 'uncovered-advisory');
-  for (const issue of sortByNodePath(rest)) {
+  const groups = groupIssues(rest);
+  const M = groups.length;
+  const N = warnings.length;
+
+  const subheader = M > 1
+    ? chalk.yellow(`Warnings (${N}) in ${M} groups:`)
+    : chalk.yellow(`Warnings (${N}):`);
+  const lines: string[] = [subheader];
+
+  const shown = groups.slice(0, GROUP_CAP);
+  for (const g of shown) {
     lines.push('');
-    renderIssueBlock(issue, lines, 'warning');
+    renderGroup(g, lines, opts);
   }
+  if (groups.length > GROUP_CAP) {
+    lines.push(`  ... in ${groups.length} groups — showing ${GROUP_CAP}; run yg check --top <n> or --aspect <id>`);
+  }
+
+  // Coverage warnings — compact block with file list (unchanged)
   for (const issue of coverage) {
     lines.push('');
     renderUnmappedBlock(issue, lines, 'uncovered');
   }
+
   return lines.join('\n');
 }
 

@@ -55,7 +55,7 @@ function baseResult(issues: CheckIssue[]): CheckResult {
 }
 
 describe('check render — refusal detail (full what)', () => {
-  it('renders the FULL multi-line reviewer reason for an enforced LLM refusal', () => {
+  it('renders grouped block with reviewer reason line for an enforced LLM refusal', () => {
     const reason =
       'The handler does not emit an audit-log entry on the failure branch.\n' +
       'Line 42: catch block returns without logging the rejected request.';
@@ -72,19 +72,19 @@ describe('check render — refusal detail (full what)', () => {
       }),
     };
 
-    const out = formatOutput(baseResult([issue]));
+    const out = stripAnsi(formatOutput(baseResult([issue])));
 
-    // The reviewer reason — the actionable detail living AFTER line 1 of `what`
-    // — must appear in plain `yg check`, not be truncated away.
-    expect(out).toContain('The handler does not emit an audit-log entry on the failure branch.');
-    expect(out).toContain('Line 42: catch block returns without logging the rejected request.');
-    // The cached-verdict marker (line 1 summary) must still be present.
-    expect(out).toContain('cached verdict');
-    // The three-exits next instruction must also reach the agent in full.
+    // Grouped grammar: group header with label, pair/node counts, aspect id.
+    expect(out).toContain("enforced  1 pairs  1 nodes  aspect 'audit-logging'");
+    // perMemberReason: the first detail line of `what` (line 1) appears on the member.
+    expect(out).toContain('Reviewer reason: The handler does not emit an audit-log entry on the failure branch.');
+    // The three-exits Fix block must reach the agent — including the yg-suppress exit.
     expect(out).toContain('yg-suppress');
+    // Member line for the node.
+    expect(out).toContain('- orders/handler');
   });
 
-  it('renders the FULL deterministic violation list for an enforced det refusal', () => {
+  it('renders grouped block with violation header for an enforced det refusal', () => {
     const reason =
       'src/a.ts:10 — forbidden import of database client\n' +
       'src/b.ts:22 — forbidden import of database client';
@@ -101,13 +101,19 @@ describe('check render — refusal detail (full what)', () => {
       }),
     };
 
-    const out = formatOutput(baseResult([issue]));
+    const out = stripAnsi(formatOutput(baseResult([issue])));
 
-    expect(out).toContain('src/a.ts:10 — forbidden import of database client');
-    expect(out).toContain('src/b.ts:22 — forbidden import of database client');
+    // Group header present.
+    expect(out).toContain("enforced  1 pairs  1 nodes  aspect 'ui-no-direct-db'");
+    // perMemberReason: what line 1 ('Violations:') appears on the member.
+    expect(out).toContain('Violations:');
+    // Fix line present.
+    expect(out).toContain('Fix: Fix the listed violations');
+    // Member line for the node.
+    expect(out).toContain('- ui/page');
   });
 
-  it('keeps the terse one-line `what` for a non-refusal issue (prompt-too-large)', () => {
+  it('renders a grouped block for a prompt-too-large issue with Fix: remedies', () => {
     const issue: CheckIssue = {
       severity: 'error',
       code: 'prompt-too-large',
@@ -123,16 +129,18 @@ describe('check render — refusal detail (full what)', () => {
       }),
     };
 
-    const out = formatOutput(baseResult([issue]));
-    // The header (line 1 of what) is present…
-    expect(out).toContain('over the');
-    // …and the safety-ordered remedies from `next` still reach the agent.
+    const out = stripAnsi(formatOutput(baseResult([issue])));
+    // Group header present with correct label and aspect.
+    expect(out).toContain("prompt-too-large  1 pairs  1 nodes  aspect 'some-aspect'");
+    // The safety-ordered remedies from `next` still reach the agent.
     expect(out).toContain('Narrow scope.files');
+    // Member line for the node.
+    expect(out).toContain('- big/node');
   });
 });
 
 describe('check render — advisory warning hints', () => {
-  it('adds "(advisory — not blocking)" to an advisory aspect-violation warning', () => {
+  it('renders a grouped warning block for an advisory aspect-violation warning with fix pointer', () => {
     const issue: CheckIssue = {
       severity: 'warning',
       code: 'aspect-violation-advisory',
@@ -146,13 +154,16 @@ describe('check render — advisory warning hints', () => {
       }),
     };
 
-    const out = formatOutput(baseResult([issue]));
-    expect(out).toContain('(advisory — not blocking)');
-    // Full reason still rendered for advisory refusals too.
+    const out = stripAnsi(formatOutput(baseResult([issue])));
+    // Grouped grammar: group header with advisory label and aspect.
+    expect(out).toContain("advisory  1 pairs  1 nodes  aspect 'audit-logging'");
+    // Reason appears in member detail (perMemberReason: true for aspect-violation-advisory).
     expect(out).toContain('missing audit entry');
+    // Fix block must include the three-exits next.
+    expect(out).toContain('yg-suppress');
   });
 
-  it('adds "(advisory — not blocking)" and a next pointer to an advisory unverified warning', () => {
+  it('renders a grouped warning block for an advisory unverified warning with Fix pointer', () => {
     const issue: CheckIssue = {
       severity: 'warning',
       code: 'unverified',
@@ -165,8 +176,9 @@ describe('check render — advisory warning hints', () => {
       }),
     };
 
-    const out = formatOutput(baseResult([issue]));
-    expect(out).toContain('(advisory — not blocking)');
+    const out = stripAnsi(formatOutput(baseResult([issue])));
+    // Grouped grammar: group header.
+    expect(out).toContain("unverified (not yet reviewed)  1 pairs  1 nodes  aspect 'audit-logging'");
     // The next pointer must be present so the agent knows how to clear it.
     expect(out).toContain('yg check --approve');
   });
@@ -316,9 +328,12 @@ function fourErrorResult(): CheckResult {
 }
 
 describe('check render — --top view', () => {
-  it('full view renders the Errors header with true count and every block', () => {
+  it('full view renders the Errors header with true count and every group', () => {
     const out = stripAnsi(formatOutput(fourErrorResult(), { kind: 'full' }));
-    expect(out).toContain('Errors (4):');
+    // The fourErrorResult has 3 unverified issues (each with a distinct aspectId)
+    // + 1 mapping-path-missing → 4 groups total.
+    expect(out).toContain('Errors (4) in 4 groups:');
+    // Each group renders a header line starting with two spaces (matching countBlocks).
     expect(countBlocks(out)).toBe(4);
   });
 
@@ -433,6 +448,33 @@ describe('check render — renderGroup', () => {
     expect(out).toContain('- a');
     expect(out).toContain('- b');
     expect((out.match(/Fix: yg check --approve/g) ?? []).length).toBe(1);
+  });
+});
+
+describe('check render — grouped full view (task 1.3)', () => {
+  it('header counts reconcile: 2 unverified(x) + 1 refused(y) → Errors (3) in 2 groups:', () => {
+    const issues: CheckIssue[] = [
+      ...['a', 'b'].map((n) => ({
+        severity: 'error',
+        code: 'unverified',
+        rule: 'unverified',
+        aspectId: 'x',
+        pairKind: 'llm',
+        nodePath: n,
+        messageData: unverifiedMessage({ aspectId: 'x', unitKey: n }),
+      } as CheckIssue)),
+      {
+        severity: 'error',
+        code: 'aspect-violation-enforced',
+        rule: 'aspect-violation-enforced',
+        aspectId: 'y',
+        pairKind: 'llm',
+        nodePath: 'a',
+        messageData: llmRefusedMessage({ aspectId: 'y', unitKey: 'a', reason: 'r' }),
+      } as CheckIssue,
+    ];
+    const out = stripAnsi(formatOutput(baseResult(issues)));
+    expect(out).toContain('Errors (3) in 2 groups:');
   });
 });
 
