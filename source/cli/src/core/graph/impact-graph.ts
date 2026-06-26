@@ -4,6 +4,7 @@ import { isPathInMapping } from '../../structure/expand-mapping-sync.js';
 import { computeEffectiveAspects, computeEffectiveAspectStatuses } from './aspects.js';
 import type { Graph, GraphNode } from '../../model/graph.js';
 import type { LockFile } from '../../model/lock.js';
+import type { ExpectedPair } from '../pairs.js';
 import { toPosix } from '../../utils/posix.js';
 
 /**
@@ -396,4 +397,73 @@ function unitKeyBelongsToNode(unitKey: string, nodePath: string, node: GraphNode
     return isPathInMapping(f, mapping.map(toPosix));
   }
   return false;
+}
+
+// ============================================================
+// classifyInvalidations — synchronous invalidation buckets
+// ============================================================
+
+export type ImpactReason =
+  | 'own'                           // F is in the pair's subject set
+  | 'reference'                     // an LLM aspect references F (hashed into every pair of the aspect)
+  | 'observe-companion'             // companion-LLM observation references F (warm lock OR cold-resolved)
+  | 'observe-deterministic'         // deterministic check observation references F (warm lock)
+  | 'cold-potential-deterministic'; // deterministic, no lock entry, F in allowed-reads (free, upper bound)
+
+export interface InvalidatedPair {
+  aspectId: string;
+  unitKey: string;
+  nodePath: string;
+  kind: 'llm' | 'deterministic';
+  reasons: ImpactReason[];
+  mode: 'precise' | 'potential';
+}
+
+export interface UnresolvedUnit { aspectId: string; unitKey: string; nodePath: string; why: string }
+
+export interface ImpactSet { pairs: InvalidatedPair[]; unresolved: UnresolvedUnit[] }
+
+/**
+ * Sync classification. Returns admitted pairs + the cold companion-LLM pairs that need
+ * async resolution (a later task). A pair is a cold candidate ONLY if nothing else already
+ * admitted it (no point running the resolver for a pair already known invalidated).
+ */
+export function classifyInvalidations(
+  pairs: ExpectedPair[],
+  graph: Graph,
+  repoRelative: string,
+  lock: LockFile,
+): { pairs: InvalidatedPair[]; coldCompanionCandidates: ExpectedPair[] } {
+  const admitted: InvalidatedPair[] = [];
+  const coldCompanionCandidates: ExpectedPair[] = [];
+  for (const p of pairs) {
+    const aspect = graph.aspects.find((a) => a.id === p.aspectId);
+    if (!aspect) continue;
+    const reasons: ImpactReason[] = [];
+    let mode: 'precise' | 'potential' = 'precise';
+
+    if (p.subjectFiles.includes(repoRelative)) reasons.push('own');
+    if (p.kind === 'llm' && aspect.references?.some((r) => r.path === repoRelative)) reasons.push('reference');
+
+    const entry = lock.verdicts[p.aspectId]?.[p.unitKey];
+    if (entry) {
+      if (touchedReferencesFile(entry.touched, repoRelative)) {
+        reasons.push(p.kind === 'llm' ? 'observe-companion' : 'observe-deterministic');
+      }
+    } else if (reasons.length === 0) {
+      // cold (no lock entry) and not yet admitted by subject/reference
+      if (p.kind === 'deterministic') {
+        const allowed = collectAllowedReadsForAspect(p.nodePath, graph);
+        if (isPathInMapping(repoRelative, [...allowed])) { reasons.push('cold-potential-deterministic'); mode = 'potential'; }
+      } else if (p.kind === 'llm' && aspect.hasCompanion === true) {
+        const allowed = collectAllowedReadsForAspect(p.nodePath, graph);
+        if (isPathInMapping(repoRelative, [...allowed])) coldCompanionCandidates.push(p);
+      }
+    }
+
+    if (reasons.length > 0) {
+      admitted.push({ aspectId: p.aspectId, unitKey: p.unitKey, nodePath: p.nodePath, kind: p.kind, reasons, mode });
+    }
+  }
+  return { pairs: admitted, coldCompanionCandidates };
 }

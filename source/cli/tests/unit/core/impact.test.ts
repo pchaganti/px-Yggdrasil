@@ -6,6 +6,7 @@ import {
   collectIndirectDependents,
   collectStructureCascade,
   nodesWithRefusedVerdict,
+  classifyInvalidations,
 } from '../../../src/core/graph/impact-graph.js';
 import type { Graph, GraphNode, AspectDef } from '../../../src/model/graph.js';
 import type { LockFile, VerdictEntry } from '../../../src/model/lock.js';
@@ -1025,5 +1026,85 @@ describe('nodesWithRefusedVerdict — longest-mapping owner resolution', () => {
       nodes: {},
     };
     expect([...nodesWithRefusedVerdict(graph, lock, 'shape')]).toEqual(['p/c']);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// Task 1 — synchronous invalidation buckets (classifyInvalidations)
+// ────────────────────────────────────────────────────────────────────────────
+
+describe('classifyInvalidations (sync buckets)', () => {
+  /**
+   * Returns a graph with node 'n' (mapping src/n/**) carrying three aspects:
+   *   - 'd' : deterministic
+   *   - 'c' : companion-LLM (hasCompanion: true)
+   *   - 'p' : plain-LLM with references: [{path: 'src/n/a.ts'}]
+   *
+   * 'src/n/a.ts' is within node 'n' allowed-reads (it matches the mapping).
+   */
+  function makeGraphWithAspects(): Graph {
+    const nodeN = makeNode('n', {
+      meta: {
+        name: 'n',
+        type: 'service',
+        aspects: ['d', 'c', 'p'],
+        mapping: ['src/n'],
+      },
+    });
+    const detAspect: AspectDef = {
+      id: 'd',
+      name: 'd',
+      reviewer: { type: 'deterministic' },
+      artifacts: [],
+    };
+    const companionAspect: AspectDef = {
+      id: 'c',
+      name: 'c',
+      reviewer: { type: 'llm' },
+      artifacts: [],
+      hasCompanion: true,
+    };
+    const plainLlmAspect: AspectDef = {
+      id: 'p',
+      name: 'p',
+      reviewer: { type: 'llm' },
+      artifacts: [],
+      references: [{ path: 'src/n/a.ts' }],
+    };
+    return {
+      config: {},
+      architecture: { node_types: {} },
+      nodes: new Map([['n', nodeN]]),
+      aspects: [detAspect, companionAspect, plainLlmAspect],
+      flows: [],
+      rootPath: '/tmp',
+    };
+  }
+
+  it('admits via subject, reference, warm-observation; defers cold companion-LLM', () => {
+    const graph = makeGraphWithAspects(); // det aspect 'd' on node 'n', companion-LLM 'c' on 'n', plain-LLM 'p' on 'n'
+    const F = 'src/n/a.ts';
+    const pairs = [
+      { aspectId: 'd', kind: 'deterministic', unitKey: 'file:src/n/a.ts', nodePath: 'n', subjectFiles: ['src/n/a.ts'] },
+      { aspectId: 'p', kind: 'llm', unitKey: 'node:n', nodePath: 'n', subjectFiles: ['src/n/b.ts'] }, // references F
+      { aspectId: 'c', kind: 'llm', unitKey: 'file:src/n/x.md', nodePath: 'n', subjectFiles: ['src/n/x.md'] }, // cold companion, F in allowed-reads
+    ] as any;
+    // ensure: aspect 'p' declares references:[{path:'src/n/a.ts'}]; lock empty (all cold); F in node 'n' allowed-reads.
+    const lock = { version: 1, verdicts: {}, nodes: {} } as any;
+    const { pairs: admitted, coldCompanionCandidates } = classifyInvalidations(pairs, graph, F, lock);
+    expect(admitted.find(x => x.aspectId === 'd')?.reasons).toEqual(['own']);
+    expect(admitted.find(x => x.aspectId === 'p')?.reasons).toContain('reference');
+    expect(coldCompanionCandidates.map(x => x.aspectId)).toEqual(['c']);
+    expect(admitted.find(x => x.aspectId === 'c')).toBeUndefined();
+  });
+
+  it('warm deterministic observation referencing F => observe-deterministic, precise', () => {
+    const graph = makeGraphWithAspects();
+    const F = 'src/other/probe.ts';
+    const pairs = [{ aspectId: 'd', kind: 'deterministic', unitKey: 'node:n', nodePath: 'n', subjectFiles: ['src/n/a.ts'] }] as any;
+    const lock = { version: 1, verdicts: { d: { 'node:n': { verdict: 'approved', touched: [['read:src/other/probe.ts', 'h']] } } }, nodes: {} } as any;
+    const { pairs: admitted } = classifyInvalidations(pairs, graph, F, lock);
+    expect(admitted[0].reasons).toEqual(['observe-deterministic']);
+    expect(admitted[0].mode).toBe('precise');
   });
 });
