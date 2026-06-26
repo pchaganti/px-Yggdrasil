@@ -15,7 +15,7 @@ import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadGraph } from '../../src/core/graph-loader.js';
-import { collectInvalidatedPairs } from '../../src/core/graph/impact-graph.js';
+import { collectInvalidatedPairs } from '../../src/cli/impact-handlers.js';
 import type { LockFile } from '../../src/model/lock.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

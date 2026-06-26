@@ -4,17 +4,69 @@ import { buildIssueMessage } from '../formatters/message-builder.js';
 import { collectAncestors } from '../core/context-builder.js';
 import { computeEffectiveAspects, computeEffectiveAspectStatuses } from '../core/graph/aspects.js';
 import {
+  classifyInvalidations,
   collectIndirectDependents,
   nodesWithRefusedVerdict,
+  touchedReferencesFile,
 } from '../core/graph/impact-graph.js';
 import type { ImpactSet, ImpactReason, UnresolvedUnit } from '../core/graph/impact-graph.js';
 import { FileContentCache } from '../io/file-content-cache.js';
 import { walkRepoFiles } from '../io/repo-scanner.js';
 import { evaluateFileWhen } from '../core/file-when-evaluator.js';
 import { computeExpectedPairs } from '../core/pairs.js';
+import { resolveCompanionsForPair } from '../core/companion-resolve.js';
 import { selectTierForAspect } from '../core/tier-selection.js';
 import type { Graph } from '../model/graph.js';
 import type { LockFile } from '../model/lock.js';
+
+// ============================================================
+// collectInvalidatedPairs — async, runs cold companion resolver
+// ============================================================
+
+const COMPANION_RESOLVE_TIMEOUT_MS = 5000;
+const TIMEOUT = Symbol('companion-resolve-timeout');
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | typeof TIMEOUT> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve(TIMEOUT), ms);
+    (timer as { unref?: () => void }).unref?.(); // do not keep the process alive
+    p.then((v) => { clearTimeout(timer); resolve(v); }, (e) => { clearTimeout(timer); reject(e); });
+  });
+}
+
+export async function collectInvalidatedPairs(
+  graph: Graph,
+  repoRelative: string,
+  lock: LockFile,
+  projectRoot: string,
+): Promise<ImpactSet> {
+  const { pairs } = await computeExpectedPairs(graph);
+  const { pairs: admitted, coldCompanionCandidates } = classifyInvalidations(pairs, graph, repoRelative, lock);
+  const unresolved: UnresolvedUnit[] = [];
+
+  for (const p of coldCompanionCandidates) {
+    const aspect = graph.aspects.find((a) => a.id === p.aspectId)!;
+    let result: Awaited<ReturnType<typeof resolveCompanionsForPair>> | typeof TIMEOUT;
+    try {
+      result = await withTimeout(resolveCompanionsForPair(graph, projectRoot, p, aspect), COMPANION_RESOLVE_TIMEOUT_MS);
+    } catch (err) {
+      unresolved.push({ aspectId: p.aspectId, unitKey: p.unitKey, nodePath: p.nodePath, why: (err as Error).message });
+      continue;
+    }
+    if (result === TIMEOUT) {
+      unresolved.push({ aspectId: p.aspectId, unitKey: p.unitKey, nodePath: p.nodePath, why: 'companion resolution timed out' });
+      continue;
+    }
+    if (result.kind === 'infra') {
+      unresolved.push({ aspectId: p.aspectId, unitKey: p.unitKey, nodePath: p.nodePath, why: result.why });
+      continue;
+    }
+    if (touchedReferencesFile(result.companions.observations, repoRelative)) {
+      admitted.push({ aspectId: p.aspectId, unitKey: p.unitKey, nodePath: p.nodePath, kind: p.kind, reasons: ['observe-companion'], mode: 'precise' });
+    }
+  }
+  return { pairs: admitted, unresolved };
+}
 
 export function collectDescendants(graph: Graph, nodePath: string): string[] {
   const node = graph.nodes.get(nodePath);

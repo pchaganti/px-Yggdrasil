@@ -10,10 +10,10 @@ import {
   collectReverseDependents,
   buildTransitiveChains,
   collectIndirectDependents,
-  collectInvalidatedPairs,
 } from '../core/graph/impact-graph.js';
 import {
   collectDescendants,
+  collectInvalidatedPairs,
   computeNodeFillCost,
   handleAspectImpact,
   handleFlowImpact,
