@@ -26,6 +26,15 @@ describe('DEFAULT_CONFIG', () => {
     };
     expect(parsed.quality.max_direct_relations).toBe(10);
   });
+
+  it('DEFAULT_CONFIG contains auto_approve: false', () => {
+    expect(DEFAULT_CONFIG).toMatch(/auto_approve: false/);
+  });
+
+  it('DEFAULT_CONFIG auto_approve parses to false', () => {
+    const parsed = parseYaml(DEFAULT_CONFIG) as Record<string, unknown>;
+    expect(parsed.auto_approve).toBe(false);
+  });
 });
 
 describe('DEFAULT_ARCHITECTURE', () => {

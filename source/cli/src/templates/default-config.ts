@@ -8,6 +8,8 @@ quality:
 # (see yg schemas read config + yg knowledge read configuration)
 
 debug: false
+
+auto_approve: false
 `;
 
 export const DEFAULT_ARCHITECTURE = `# Define your node types below. Each type may have:

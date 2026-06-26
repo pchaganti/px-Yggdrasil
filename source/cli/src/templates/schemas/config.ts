@@ -1,4 +1,4 @@
-export const summary = 'Reviewer config — tiers, quality thresholds, parallelism, schema version.';
+export const summary = 'Reviewer config — tiers, quality thresholds, parallelism, auto-approval, schema version.';
 
 export const content = `# yg-config.yaml — Schema for the Yggdrasil project configuration
 # Located at .yggdrasil/yg-config.yaml — one per project.
@@ -14,6 +14,23 @@ parallel: 1                       # optional — concurrency limit for the yg ch
 
 debug: false                      # optional — when true, appends all command output to .yggdrasil/.debug.log
                                   # Default: false (off). Log is append-only; rotate or delete manually.
+
+auto_approve: false               # optional — controls the behavior of bare \`yg check\` (with no explicit
+                                  #   --approve / --no-approve / --only-deterministic flag).
+                                  #
+                                  #   false (default): read-only. No writes, no LLM calls, no API keys
+                                  #     needed. Equivalent to running \`yg check\` with no flags.
+                                  #   "deterministic": bare \`yg check\` behaves as
+                                  #     \`yg check --approve --only-deterministic\` — fills only
+                                  #     deterministic pairs (free, keyless, local).
+                                  #   "full": bare \`yg check\` behaves as \`yg check --approve\` —
+                                  #     fills all unverified pairs and may call the reviewer (needs keys).
+                                  #
+                                  #   Explicit CLI flags (--approve, --no-approve, --only-deterministic)
+                                  #   ALWAYS override this setting regardless of the configured value.
+                                  #   CI / pre-commit: use the explicit flag form
+                                  #   (\`yg check --approve --only-deterministic\`) to stay deterministic
+                                  #   and key-free regardless of this setting.
 
 coverage:                         # optional — scopes the unmapped-files gate. Absent = whole repo required (today's behavior).
   required: ["/"]                 #   roots where an uncovered tracked file is an ERROR (blocks). "/" = whole repo.
