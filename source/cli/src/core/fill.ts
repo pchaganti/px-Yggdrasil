@@ -92,26 +92,31 @@ function emitGroupedDiagnostics(
 ): void {
   if (items.length === 0) return;
 
-  // Group by aspectId; preserve insertion order so output is stable.
-  const byAspect = new Map<string, { unitKeys: string[]; first: IssueMessage }>();
+  // Group by composite key (aspectId + why + next) so pairs with identical
+  // why+next collapse into ONE message, while pairs with distinct reasons under
+  // the same aspect form SEPARATE messages — each carries its own correct why/next
+  // and its own unit list (lossless grouping).
+  const byAspect = new Map<string, { aspectId: string; unitKeys: string[]; first: IssueMessage }>();
   for (const item of items) {
     const posix = toPosixPath(item.unitKey);
-    const existing = byAspect.get(item.aspectId);
+    const md = item.messageData;
+    const groupKey = `${item.aspectId} ${md.why} ${md.next}`;
+    const existing = byAspect.get(groupKey);
     if (existing) {
       existing.unitKeys.push(posix);
     } else {
-      byAspect.set(item.aspectId, { unitKeys: [posix], first: item.messageData });
+      byAspect.set(groupKey, { aspectId: item.aspectId, unitKeys: [posix], first: md });
     }
   }
 
   const cap = 5;
-  for (const [aspectId, { unitKeys, first }] of byAspect) {
+  for (const { aspectId, unitKeys, first } of byAspect.values()) {
     if (unitKeys.length === 1) {
       // Single unit — emit the original message unchanged (preserves exact text
       // and any actionable detail, keeps existing test assertions green).
       emitIssue(first);
     } else {
-      // Multiple units of the same aspect — emit one grouped message.
+      // Multiple units with the same aspect + identical why/next — emit one grouped message.
       const listed = unitKeys.slice(0, cap).join(', ');
       const overflow = unitKeys.length > cap ? ` … and ${unitKeys.length - cap} more` : '';
       let what: string;

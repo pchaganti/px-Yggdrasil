@@ -453,6 +453,155 @@ describe('pool infra (unresolvable tier) grouped by aspectId', () => {
 });
 
 // =============================================================================
+// Task 4.3 fix — lossless grouping key: distinct why/next under same aspect
+// =============================================================================
+
+describe('distinct-reason grouping (lossless): same aspect, different why/next → separate messages', () => {
+  it('two det pairs of the same aspect with DIFFERENT runtime-error messages → TWO grouped messages', async () => {
+    // Two per-file units of the same det aspect each produce a runtime error with
+    // a DISTINCT error message (different why/next).  The fix must emit TWO separate
+    // grouped messages — one per distinct reason — not one merged message that silently
+    // drops the second unit's distinct why/next.
+    const { projectRoot } = await setupMultiFileProject({
+      detAspectId: 'det-multierr',
+      detRule: DET_PASS, // overridden by mock below
+      files: ['src/a.ts', 'src/b.ts'],
+    });
+    const graph = await loadGraph(projectRoot);
+
+    // Each call gets a DIFFERENT error message so the why/next differ per unit.
+    let callCount = 0;
+    mockRunStructureAspect.mockImplementation(async (): Promise<RunStructureAspectResult> => {
+      callCount++;
+      const suffix = callCount <= 1 ? 'alpha' : 'beta';
+      return {
+        violations: [{ message: `crash-${suffix}` }],
+        touchedFiles: [],
+        succeeded: false,
+        observations: [],
+        observationsTainted: false,
+      };
+    });
+
+    const w = makeWriter();
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
+
+    // Both units hit runtime-error.
+    expect(result.runtimeErrors).toBe(2);
+
+    // The two units produced DIFFERENT error messages → each must appear as a
+    // SEPARATE grouped message.  Filter by the aspect-check-runtime-error token
+    // and the aspect name to exclude the aggregate summary.
+    const detMessages = w.messages().filter(
+      (m) => m.what.includes('aspect-check-runtime-error') && m.what.includes('det-multierr'),
+    );
+    expect(detMessages).toHaveLength(2);
+
+    // Each message must contain ONLY its own unit (a.ts or b.ts), not both.
+    const msgA = detMessages.find((m) => m.what.includes('src/a.ts'));
+    const msgB = detMessages.find((m) => m.what.includes('src/b.ts'));
+    expect(msgA).toBeDefined();
+    expect(msgB).toBeDefined();
+    // The messages must be distinct (different why that includes the respective crash suffix).
+    expect(msgA!.why).not.toEqual(msgB!.why);
+  });
+
+  it('two pool-infra pairs of the same aspect with DIFFERENT why/next → TWO grouped messages', async () => {
+    // Two per-file units of the same LLM aspect each produce a tier-resolution infra
+    // error with a DIFFERENT error reason.  The fix must emit TWO separate messages.
+    const { projectRoot } = await setupMultiFileProject({
+      detAspectId: 'det-pass',
+      detRule: DET_PASS,
+      files: ['src/a.ts', 'src/b.ts'],
+      extraAspects: [{
+        id: 'llm-distincterr',
+        kind: 'llm',
+        rule: 'rule content',
+        scopePer: 'file',
+      }],
+    });
+    const graph = await loadGraph(projectRoot);
+
+    // Each invocation of selectTierForAspect for 'llm-distincterr' alternates
+    // between two distinct failure reasons (odd calls → alpha, even calls → beta).
+    // selectTierForAspect is called once per pair in the step-3 budget loop and
+    // again per pair in the step-6 tier resolution loop; alternating ensures that
+    // the two step-6 calls (which produce the poolInfraItems messageData) each
+    // get a different reason regardless of how many step-3 calls precede them.
+    let tierCallCount = 0;
+    mockSelectTierForAspect.mockImplementation((...args) => {
+      if (args[0].id === 'llm-distincterr') {
+        tierCallCount++;
+        const reason = tierCallCount % 2 === 1 ? 'reason-alpha' : 'reason-beta';
+        return {
+          ok: false as const,
+          error: {
+            what: `no tier for llm-distincterr (${reason})`,
+            why: `no tier configured: ${reason}`,
+            next: `add a tier (${reason})`,
+          },
+        };
+      }
+      return tierSelectRealFn!(...args);
+    });
+    mockCreateLlmProvider.mockReturnValue(makeMockProvider());
+
+    const w = makeWriter();
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
+
+    // 2 infra failures (one per unit).
+    expect(result.infraFailures).toBe(2);
+
+    // TWO separate messages for 'llm-distincterr' — distinct reasons must not merge.
+    const distinctErrMessages = w.messages().filter(
+      (m) => m.what.includes('llm-distincterr') && !m.what.includes('pairs failed on provider'),
+    );
+    expect(distinctErrMessages).toHaveLength(2);
+    // Each message carries its own unit and its own why.
+    const msgA = distinctErrMessages.find((m) => m.why.includes('reason-alpha'));
+    const msgB = distinctErrMessages.find((m) => m.why.includes('reason-beta'));
+    expect(msgA).toBeDefined();
+    expect(msgB).toBeDefined();
+    expect(msgA!.why).not.toEqual(msgB!.why);
+  });
+
+  it('identical why/next under same aspect still collapses to ONE message (regression guard)', async () => {
+    // Sanity check: when both units truly share the same error message, the original
+    // grouping behaviour (one message, both units listed) must be preserved.
+    const { projectRoot } = await setupMultiFileProject({
+      detAspectId: 'det-samerr',
+      detRule: DET_PASS, // overridden by mock
+      files: ['src/a.ts', 'src/b.ts'],
+    });
+    const graph = await loadGraph(projectRoot);
+
+    // Both units produce the SAME error (identical why/next → should collapse).
+    mockRunStructureAspect.mockImplementation(async (): Promise<RunStructureAspectResult> => ({
+      violations: [{ message: 'same-crash' }],
+      touchedFiles: [],
+      succeeded: false,
+      observations: [],
+      observationsTainted: false,
+    }));
+
+    const w = makeWriter();
+    const result = await runFill(graph, { gitTrackedFiles: null, write: w.write, emitIssue: w.emitIssue });
+
+    expect(result.runtimeErrors).toBe(2);
+
+    // Still ONE grouped message (identical reasons → collapsed).
+    const grouped = w.messages().filter(
+      (m) => m.what.includes('aspect-check-runtime-error') && m.what.includes('det-samerr'),
+    );
+    expect(grouped).toHaveLength(1);
+    // The single grouped message lists both units and the count.
+    expect(grouped[0].what).toContain('2 units');
+    expect(grouped[0].what).toContain('src/a.ts');
+    expect(grouped[0].what).toContain('src/b.ts');
+  });
+});
+
+// =============================================================================
 // 4. Per-tier provider-unreachable (already aggregated) → ONE message (unchanged)
 // =============================================================================
 
