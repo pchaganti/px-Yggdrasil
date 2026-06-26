@@ -11,6 +11,7 @@ import { buildIssueMessage } from '../formatters/message-builder.js';
 import { STRUCTURAL_CODES, COMPLETENESS_CODES } from '../core/check-codes.js';
 import path from 'node:path';
 import { walkRepoFiles } from '../io/repo-scanner.js';
+import { groupIssues, type IssueGroup } from './group-issues.js';
 
 export function registerCheckCommand(program: Command): void {
   program
@@ -580,6 +581,51 @@ function renderUnmappedBlock(issue: CheckIssue, lines: string[], label = 'unmapp
   }
   if (md.next) {
     lines.push(`            Fix: ${md.next.split('\n')[0]}`);
+  }
+}
+
+// ── Grouped block render ───────────────────────────────────
+
+const CAP_NODES = 12;
+
+/** Jargon glosses: machine token first, human gloss in parentheses (parseable by tooling). */
+const LABEL_GLOSS: Record<string, string> = { unverified: 'unverified (not yet reviewed)' };
+
+function glossLabel(label: string): string { return LABEL_GLOSS[label] ?? label; }
+
+/**
+ * Render a single IssueGroup as a unified block:
+ *   <glossLabel(label)>  <P> pairs  <M> nodes[  aspect '<id>']
+ *   <sharedWhy>
+ *   Fix: <sharedNext> (single-line) or Fix: + indented continuation lines (multi-line)
+ *   - <node> (one per member; perMemberReason: includes first detail line from messageData.what)
+ *   ... and K more (yg check --aspect <id>)  [TTY-only, when members > CAP_NODES]
+ */
+export function renderGroup(group: IssueGroup, lines: string[], opts: { isTTY: boolean }): void {
+  const aspectSeg = group.aspectId ? `  aspect '${group.aspectId}'` : '';
+  lines.push(`  ${glossLabel(group.label)}  ${group.pairCount} pairs  ${group.nodeCount} nodes${aspectSeg}`);
+  if (group.sharedWhy) lines.push(`${BLOCK_INDENT}${group.sharedWhy}`);
+  if (group.sharedNext) {
+    const nextLines = group.sharedNext.split('\n');
+    lines.push(`${BLOCK_INDENT}Fix: ${nextLines[0]}`);
+    for (const extra of nextLines.slice(1)) lines.push(`${BLOCK_INDENT}${extra}`);
+  }
+  const members = group.members;
+  const truncate = opts.isTTY && members.length > CAP_NODES;
+  const shown = truncate ? members.slice(0, CAP_NODES) : members;
+  for (const m of shown) {
+    const node = m.nodePath ?? '';
+    if (group.perMemberReason) {
+      // First detail line from messageData.what (line after line 0)
+      const detail = (m.messageData.what.split('\n')[1] ?? '').trim();
+      lines.push(`${BLOCK_INDENT}- ${node}${detail ? `  ${detail}` : ''}`);
+    } else {
+      lines.push(`${BLOCK_INDENT}- ${node}`);
+    }
+  }
+  if (truncate) {
+    const drill = group.aspectId ? ` (yg check --aspect ${group.aspectId})` : '';
+    lines.push(`${BLOCK_INDENT}... and ${members.length - CAP_NODES} more${drill}`);
   }
 }
 

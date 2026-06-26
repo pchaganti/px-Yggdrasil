@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { formatOutput, resolveTopValue } from '../../../src/cli/check.js';
+import { formatOutput, resolveTopValue, renderGroup } from '../../../src/cli/check.js';
 import type { CheckView } from '../../../src/cli/check.js';
+import { groupIssues } from '../../../src/cli/group-issues.js';
 import type { CheckResult, CheckIssue } from '../../../src/core/check.js';
 import {
   llmRefusedMessage,
@@ -410,6 +411,28 @@ describe('check render — --summary view', () => {
     // Per-node "other" bucket matches the header — ONE, not the 7 uncovered files.
     expect(out).toMatch(/lib\/widgets\s+.*1 other/);
     expect(out).not.toContain('7 other');
+  });
+});
+
+describe('check render — renderGroup', () => {
+  it('renders ONE grouped block for an aspect failing on many nodes', () => {
+    const issues: CheckIssue[] = ['a', 'b', 'c'].map((n) => ({
+      severity: 'error',
+      code: 'unverified',
+      rule: 'unverified',
+      aspectId: 'audit-logging',
+      pairKind: 'llm',
+      nodePath: n,
+      messageData: unverifiedMessage({ aspectId: 'audit-logging', unitKey: n }),
+    } as CheckIssue));
+    const [g] = groupIssues(issues);
+    const lines: string[] = [];
+    renderGroup(g, lines, { isTTY: false });
+    const out = stripAnsi(lines.join('\n'));
+    expect(out).toContain("unverified (not yet reviewed)  3 pairs  3 nodes  aspect 'audit-logging'");
+    expect(out).toContain('- a');
+    expect(out).toContain('- b');
+    expect((out.match(/Fix: yg check --approve/g) ?? []).length).toBe(1);
   });
 });
 
