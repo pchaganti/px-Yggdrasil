@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`yg check` output now shows emoji decoration on color-capable terminals.** The verdict line is prefixed with `✅` on PASS or `❌` on FAIL; the `Errors (N):` subheader is prefixed with `❌` and the `Warnings (N):` subheader with `⚠️`. Emoji is decoration only — verdict and severity text are always present and fully readable without it. When color is disabled (`NO_COLOR`, non-TTY, or `chalk.level === 0`) the output is byte-identical to the previous text-only format: no emoji, no extra space. CI logs and screen-reader output are unaffected.
+
 ### Changed
 
 - **`unverified` groups now collapse by code only — one group regardless of how many aspects are unverified.** Previously, `yg check` produced one `unverified` block per `(code, aspectId)` pair, so editing a single aspect on a large repo generated N near-identical blocks with the same Why+Fix text. Now all `unverified` issues share one block; the aspect is shown per body line (`- <node>  aspect '<id>'`) instead of in the group header. `refused` (`aspect-violation-enforced`/`advisory`), `prompt-too-large`, and `aspect-companion-runtime-error` are unaffected — their grouping key (per-(code,aspectId)) is unchanged; like other non-perMemberReason structural groups, their body lines now annotate each node with the first line of its diagnostic. Exported `CODE_ONLY_GROUP_CODES` from `group-issues.ts` for use in tests and tooling.

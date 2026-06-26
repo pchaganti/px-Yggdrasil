@@ -363,7 +363,7 @@ export function residualAfterNext(result: CheckResult): string {
   return `  (fills ${N} unverified; ${K} error${K === 1 ? '' : 's'} remain — need code/graph fixes)`;
 }
 
-export function formatOutput(result: CheckResult, view: CheckView = { kind: 'full' }, autoFilled = false): string {
+export function formatOutput(result: CheckResult, view: CheckView = { kind: 'full' }, autoFilled = false, emoji = useEmoji): string {
   const errors = result.issues.filter(i => i.severity === 'error');
   const warnings = result.issues.filter(i => i.severity === 'warning');
 
@@ -371,7 +371,7 @@ export function formatOutput(result: CheckResult, view: CheckView = { kind: 'ful
   const opts = { isTTY: process.stdout.isTTY ?? false };
 
   // Header ALWAYS uses the full counts — in every view. Only the body changes.
-  const header = renderHeader(result, errors.length, warnings.length, autoFilled);
+  const header = renderHeader(result, errors.length, warnings.length, autoFilled, emoji);
   const sections: string[] = [header];
 
   if (view.kind === 'summary' || view.kind === 'top') {
@@ -384,12 +384,14 @@ export function formatOutput(result: CheckResult, view: CheckView = { kind: 'ful
       : renderTopBody(errors, warnings, view.n, opts);
     if (errors.length > 0) {
       sections.push('');
-      sections.push(chalk.red(`Errors (${errors.length}):`));
+      const errPrefix = emoji ? '❌ ' : '';
+      sections.push(chalk.red(`${errPrefix}Errors (${errors.length}):`));
       if (body.errorLines) sections.push(body.errorLines);
     }
     if (warnings.length > 0) {
       sections.push('');
-      sections.push(chalk.yellow(`Warnings (${warnings.length}):`));
+      const warnPrefix = emoji ? '⚠️ ' : '';
+      sections.push(chalk.yellow(`${warnPrefix}Warnings (${warnings.length}):`));
       if (body.warningLines) sections.push(body.warningLines);
     }
   } else if (view.kind === 'aspect') {
@@ -430,22 +432,24 @@ export function formatOutput(result: CheckResult, view: CheckView = { kind: 'ful
     // renderUnmappedBlock. No (code,aspectId) collapsing.
     if (errors.length > 0) {
       sections.push('');
-      sections.push(chalk.red(`Errors (${errors.length}):`));
+      const errPrefix = emoji ? '❌ ' : '';
+      sections.push(chalk.red(`${errPrefix}Errors (${errors.length}):`));
       sections.push(renderDetailsSection(errors, 'error'));
     }
     if (warnings.length > 0) {
       sections.push('');
-      sections.push(chalk.yellow(`Warnings (${warnings.length}):`));
+      const warnPrefix = emoji ? '⚠️ ' : '';
+      sections.push(chalk.yellow(`${warnPrefix}Warnings (${warnings.length}):`));
       sections.push(renderDetailsSection(warnings, 'warning'));
     }
   } else {
     if (errors.length > 0) {
       sections.push('');
-      sections.push(renderErrorSection(errors, opts));
+      sections.push(renderErrorSection(errors, opts, emoji));
     }
     if (warnings.length > 0) {
       sections.push('');
-      sections.push(renderWarningSection(warnings, opts));
+      sections.push(renderWarningSection(warnings, opts, emoji));
     }
   }
 
@@ -633,9 +637,23 @@ function renderSummaryRows(issues: CheckIssue[]): string {
   return lines.join('\n');
 }
 
+// ── Emoji gate ─────────────────────────────────────────────
+
+/**
+ * Emoji decoration is gated on color support.  When chalk has no color
+ * (NO_COLOR env var, non-color terminal, chalk.level === 0) the output is
+ * byte-identical to the pre-emoji text — no leading character, no extra space.
+ * Emoji is decoration only; verdict and severity are always readable as plain
+ * text without it.
+ *
+ * Exported so tests can read the current gate value; the optional `useEmoji`
+ * parameter on `formatOutput` allows tests to override it without mocking.
+ */
+export const useEmoji: boolean = chalk.level > 0;
+
 // ── Header ─────────────────────────────────────────────────
 
-function renderHeader(result: CheckResult, errorCount: number, warningCount: number, autoFilled = false): string {
+function renderHeader(result: CheckResult, errorCount: number, warningCount: number, autoFilled = false, emoji = useEmoji): string {
   let verdict: string;
   if (errorCount > 0) {
     // auto-filled marker is a PASS qualifier only — never shown on FAIL.
@@ -649,6 +667,8 @@ function renderHeader(result: CheckResult, errorCount: number, warningCount: num
   } else {
     verdict = chalk.green('yg check: PASS');
   }
+
+  const emojiPrefix = emoji ? (errorCount > 0 ? '❌ ' : '✅ ') : '';
 
   const metrics: string[] = [`${result.nodeCount} nodes`];
 
@@ -669,7 +689,7 @@ function renderHeader(result: CheckResult, errorCount: number, warningCount: num
     metrics.push(`${result.draftSkipped} draft`);
   }
 
-  return `${verdict}  ${metrics.join(' · ')}`;
+  return `${emojiPrefix}${verdict}  ${metrics.join(' · ')}`;
 }
 
 // ── Error section ──────────────────────────────────────────
@@ -690,16 +710,17 @@ const GROUP_CAP = 12;
  * Group cap: at most GROUP_CAP (12) groups rendered; if more, an overflow hint
  * line is appended after the 12th.
  */
-function renderErrorSection(errors: CheckIssue[], opts: { isTTY: boolean }): string {
+function renderErrorSection(errors: CheckIssue[], opts: { isTTY: boolean }, emoji = useEmoji): string {
   const unmapped = errors.filter(i => COVERAGE_CODES.has(i.code));
   const rest = errors.filter(i => !COVERAGE_CODES.has(i.code));
   const groups = groupIssues(rest);
   const M = groups.length;
   const N = errors.length;
 
+  const errPrefix = emoji ? '❌ ' : '';
   const subheader = M > 1
-    ? chalk.red(`Errors (${N}) in ${M} groups:`)
-    : chalk.red(`Errors (${N}):`);
+    ? chalk.red(`${errPrefix}Errors (${N}) in ${M} groups:`)
+    : chalk.red(`${errPrefix}Errors (${N}):`);
   const lines: string[] = [subheader];
 
   const shown = groups.slice(0, GROUP_CAP);
@@ -732,16 +753,17 @@ function renderErrorSection(errors: CheckIssue[], opts: { isTTY: boolean }): str
  *   - M > 1 → `Warnings (N) in M groups:` (N = total warnings including coverage)
  *   - M === 1 (or zero non-coverage warnings) → `Warnings (N):`
  */
-function renderWarningSection(warnings: CheckIssue[], opts: { isTTY: boolean }): string {
+function renderWarningSection(warnings: CheckIssue[], opts: { isTTY: boolean }, emoji = useEmoji): string {
   const coverage = warnings.filter(i => i.code === 'uncovered-advisory');
   const rest = warnings.filter(i => i.code !== 'uncovered-advisory');
   const groups = groupIssues(rest);
   const M = groups.length;
   const N = warnings.length;
 
+  const warnPrefix = emoji ? '⚠️ ' : '';
   const subheader = M > 1
-    ? chalk.yellow(`Warnings (${N}) in ${M} groups:`)
-    : chalk.yellow(`Warnings (${N}):`);
+    ? chalk.yellow(`${warnPrefix}Warnings (${N}) in ${M} groups:`)
+    : chalk.yellow(`${warnPrefix}Warnings (${N}):`);
   const lines: string[] = [subheader];
 
   const shown = groups.slice(0, GROUP_CAP);

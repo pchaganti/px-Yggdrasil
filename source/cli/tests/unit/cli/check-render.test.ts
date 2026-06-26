@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatOutput, resolveTopValue, renderGroup } from '../../../src/cli/check.js';
+import { formatOutput, resolveTopValue, renderGroup, useEmoji } from '../../../src/cli/check.js';
 import type { CheckView } from '../../../src/cli/check.js';
 import { groupIssues } from '../../../src/cli/group-issues.js';
 import type { CheckResult, CheckIssue } from '../../../src/core/check.js';
@@ -927,5 +927,190 @@ describe('check render — --top view: coverage issues (task 2.3 fix)', () => {
     expect(out).not.toMatch(/\d+ pairs\s+\d+ nodes/);
     // renderGroup member line pattern ("- ") for an empty nodePath must NOT appear.
     expect(out).not.toMatch(/^\s*- \s*$/m);
+  });
+});
+
+// ── Emoji decoration (accessibility invariant) ────────────────────────────────
+
+describe('check render — emoji decoration', () => {
+  // In the vitest environment (non-TTY), chalk.level is 0 → useEmoji is false.
+  // Tests for the emoji-ON path pass `emoji = true` explicitly so they run
+  // correctly regardless of the terminal environment.
+
+  it('useEmoji gate: exported value is a boolean', () => {
+    expect(typeof useEmoji).toBe('boolean');
+  });
+
+  it('useEmoji is false in the test environment (non-TTY, chalk.level 0)', () => {
+    // vitest spawns in a non-TTY context → chalk auto-detects level 0 → no emoji.
+    expect(useEmoji).toBe(false);
+  });
+
+  // ── emoji OFF (byte-identity with pre-emoji output) ──
+
+  it('emoji OFF: FAIL verdict has no emoji prefix', () => {
+    const issue: CheckIssue = {
+      severity: 'error',
+      code: 'aspect-violation-enforced',
+      rule: 'aspect-violation-enforced',
+      nodePath: 'orders/handler',
+      aspectId: 'audit-logging',
+      messageData: { what: 'x', why: 'y', next: 'z' },
+    };
+    const out = stripAnsi(formatOutput(baseResult([issue]), { kind: 'full' }, false, false));
+    // Must start with the raw text, no emoji prefix.
+    expect(out.startsWith('yg check: FAIL')).toBe(true);
+    expect(out).toContain('yg check: FAIL');
+    expect(out).not.toContain('❌');
+    expect(out).not.toContain('✅');
+  });
+
+  it('emoji OFF: PASS verdict has no emoji prefix', () => {
+    const out = stripAnsi(formatOutput(baseResult([]), { kind: 'full' }, false, false));
+    expect(out.startsWith('yg check: PASS')).toBe(true);
+    expect(out).toContain('yg check: PASS');
+    expect(out).not.toContain('✅');
+    expect(out).not.toContain('❌');
+  });
+
+  it('emoji OFF: Errors subheader has no emoji prefix (full view)', () => {
+    const issue: CheckIssue = {
+      severity: 'error',
+      code: 'aspect-violation-enforced',
+      rule: 'aspect-violation-enforced',
+      nodePath: 'orders/handler',
+      aspectId: 'audit-logging',
+      messageData: { what: 'x', why: 'y', next: 'z' },
+    };
+    const out = stripAnsi(formatOutput(baseResult([issue]), { kind: 'full' }, false, false));
+    expect(out).toContain('Errors (1):');
+    expect(out).not.toContain('❌');
+  });
+
+  it('emoji OFF: Warnings subheader has no emoji prefix (full view)', () => {
+    const warning: CheckIssue = {
+      severity: 'warning',
+      code: 'aspect-violation-advisory',
+      rule: 'aspect-violation-advisory',
+      nodePath: 'orders/handler',
+      aspectId: 'audit-logging',
+      messageData: { what: 'x', why: 'y', next: 'z' },
+    };
+    const out = stripAnsi(formatOutput(baseResult([warning]), { kind: 'full' }, false, false));
+    expect(out).toContain('Warnings (1):');
+    expect(out).not.toContain('⚠');
+  });
+
+  // ── emoji ON ──
+
+  it('emoji ON: FAIL verdict is prefixed with the cross-mark emoji', () => {
+    const issue: CheckIssue = {
+      severity: 'error',
+      code: 'aspect-violation-enforced',
+      rule: 'aspect-violation-enforced',
+      nodePath: 'orders/handler',
+      aspectId: 'audit-logging',
+      messageData: { what: 'x', why: 'y', next: 'z' },
+    };
+    const out = stripAnsi(formatOutput(baseResult([issue]), { kind: 'full' }, false, true));
+    expect(out.startsWith('❌ yg check: FAIL')).toBe(true);
+    // Text label must still be present (emoji is decoration only).
+    expect(out).toContain('yg check: FAIL');
+  });
+
+  it('emoji ON: PASS verdict is prefixed with the check-mark emoji', () => {
+    const out = stripAnsi(formatOutput(baseResult([]), { kind: 'full' }, false, true));
+    expect(out.startsWith('✅ yg check: PASS')).toBe(true);
+    // Text label must still be present.
+    expect(out).toContain('yg check: PASS');
+  });
+
+  it('emoji ON: PASS with warnings is prefixed with the check-mark emoji', () => {
+    const warning: CheckIssue = {
+      severity: 'warning',
+      code: 'aspect-violation-advisory',
+      rule: 'aspect-violation-advisory',
+      nodePath: 'orders/handler',
+      aspectId: 'audit-logging',
+      messageData: { what: 'x', why: 'y', next: 'z' },
+    };
+    const result: CheckResult = {
+      ...baseResult([warning]),
+      suggestedNext: null,
+      advisoryWarnings: 1,
+    };
+    const out = stripAnsi(formatOutput(result, { kind: 'full' }, false, true));
+    expect(out.startsWith('✅ yg check: PASS')).toBe(true);
+    expect(out).toContain('yg check: PASS');
+    expect(out).not.toContain('❌');
+  });
+
+  it('emoji ON: Errors subheader is prefixed with the cross-mark emoji (full view)', () => {
+    const issue: CheckIssue = {
+      severity: 'error',
+      code: 'aspect-violation-enforced',
+      rule: 'aspect-violation-enforced',
+      nodePath: 'orders/handler',
+      aspectId: 'audit-logging',
+      messageData: { what: 'x', why: 'y', next: 'z' },
+    };
+    const out = stripAnsi(formatOutput(baseResult([issue]), { kind: 'full' }, false, true));
+    expect(out).toContain('❌ Errors (1):');
+    // Text label still present.
+    expect(out).toContain('Errors (1):');
+  });
+
+  it('emoji ON: Warnings subheader is prefixed with the warning emoji (full view)', () => {
+    const warning: CheckIssue = {
+      severity: 'warning',
+      code: 'aspect-violation-advisory',
+      rule: 'aspect-violation-advisory',
+      nodePath: 'orders/handler',
+      aspectId: 'audit-logging',
+      messageData: { what: 'x', why: 'y', next: 'z' },
+    };
+    const out = stripAnsi(formatOutput(baseResult([warning]), { kind: 'full' }, false, true));
+    // ⚠️ is U+26A0 + U+FE0F (variation selector); just check the warning sign present
+    expect(out).toContain('⚠');
+    expect(out).toContain('Warnings (1):');
+  });
+
+  it('emoji ON: Errors subheader is prefixed with the cross-mark emoji (summary/top views)', () => {
+    const issue: CheckIssue = {
+      severity: 'error',
+      code: 'aspect-violation-enforced',
+      rule: 'aspect-violation-enforced',
+      nodePath: 'orders/handler',
+      aspectId: 'audit-logging',
+      messageData: { what: 'x', why: 'y', next: 'z' },
+    };
+    const outSummary = stripAnsi(formatOutput(baseResult([issue]), { kind: 'summary' }, false, true));
+    expect(outSummary).toContain('❌ Errors (1):');
+
+    const outTop = stripAnsi(formatOutput(baseResult([issue]), { kind: 'top', n: 1 }, false, true));
+    expect(outTop).toContain('❌ Errors (1):');
+  });
+
+  it('emoji ON: Errors/Warnings subheaders are prefixed in details view', () => {
+    const error: CheckIssue = {
+      severity: 'error',
+      code: 'aspect-violation-enforced',
+      rule: 'aspect-violation-enforced',
+      nodePath: 'orders/handler',
+      aspectId: 'audit-logging',
+      messageData: { what: 'x', why: 'y', next: 'z' },
+    };
+    const warning: CheckIssue = {
+      severity: 'warning',
+      code: 'aspect-violation-advisory',
+      rule: 'aspect-violation-advisory',
+      nodePath: 'orders/handler',
+      aspectId: 'audit-logging',
+      messageData: { what: 'x', why: 'y', next: 'z' },
+    };
+    const out = stripAnsi(formatOutput(baseResult([error, warning]), { kind: 'details' }, false, true));
+    expect(out).toContain('❌ Errors (1):');
+    expect(out).toContain('⚠');
+    expect(out).toContain('Warnings (1):');
   });
 });
