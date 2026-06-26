@@ -245,6 +245,14 @@ mapping, declared-relation targets, ancestors, and own descendants.
 Attempting to read outside this set is an allowed-reads violation and causes
 an infra-fail (nothing written, pair stays unverified).
 
+A companion's verdict folds in **everything the hook reads to decide** — not
+only the paths it returns. So read narrowly: resolve the single file you need
+with \`ctx.fs.read\`/\`ctx.fs.exists\` on a specific path. Do NOT materialize a
+whole related node via \`ctx.graph.node(...)\` to inspect it — that reads the
+entire node's content into **every** per-file pair's verdict, so any edit
+anywhere in that node re-verifies (and re-bills) every pair, defeating
+per-unit isolation.
+
 ### Purity requirement
 
 Like \`check.mjs\`, the companion hook must be pure — no file writes, no network
@@ -335,6 +343,12 @@ always use \`--node\`.)
 - **\`companion.mjs\`** appears in the aspect's \`read:\` listing (\`yg context\`).
 - To see which pairs read a specific companion file (its re-verification
   fan-out): \`yg impact --file <path>\`.
+
+Because the verdict folds everything the hook reads to decide, editing any
+read-to-decide file (not only a returned one) re-verifies its readers.
+\`yg impact --file <path>\` previews this precisely — including cold
+companion-backed pairs with no lock entry yet (it runs the resolver, no LLM
+call).
 
 ## Reference files
 

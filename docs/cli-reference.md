@@ -44,19 +44,27 @@ and a log-state line — whether a fresh log entry is required before `yg check
 ### `yg impact`
 
 Predicts which pairs an edit to a node, aspect, flow, or type would invalidate —
-the cost surface before you make the change. Counts are reviewer calls
-× consensus for LLM pairs; deterministic pairs are free. `--file` resolves the
-owning node automatically, then proceeds as `--node`.
+the cost surface before you make the change. Deterministic pairs are free; LLM
+pairs are counted as reviewer calls × consensus.
 
-For `--node` and `--file`, the output ends with a one-line cost summary that
-folds each LLM pair's resolved-tier consensus into the reviewer-call count:
+For `--node`, the output ends with a one-line cost summary that folds each LLM
+pair's resolved-tier consensus into the reviewer-call count:
 
 ```text
   Editing this node re-verifies: 3 LLM pair(s) = 9 reviewer call(s) (consensus included); 2 deterministic = free; 4 currently-green verdict(s) re-rolled.
 ```
 
-With `--file` the line reads `Editing this file …` and is scoped to the pairs
-whose subject set includes that file.
+For `--file`, it ends with a precise `Total to re-verify:` block — billed
+reviewer calls, free deterministic pairs, and currently-green verdicts re-rolled —
+preceded by a per-node breakdown tagged with why each node is affected (own
+pairs / references this file / companion observes this file / deterministic check
+observes this file). To compute this precisely even before the first fill,
+`yg impact` runs the companion resolver for cold companion-backed pairs — it
+makes no LLM call, never runs `check.mjs`, and writes nothing. A companion whose
+hook fails is listed under `Unresolved` (cost unknown; it will infra-fail at
+fill). `--file` resolves the owning node, then reports a precise `Total to
+re-verify` block for the edit (its own output, not the `--node` summary). Editing
+a graph file under `.yggdrasil/` redirects you to `yg impact --aspect <id>`.
 
 ```bash
 yg impact --node <path>
@@ -67,7 +75,7 @@ yg impact --type <id>
 ```
 
 - `--node` — Reverse dependencies, descendants, structural dependents of descendants, flows, aspects, and co-aspect nodes
-- `--file` — Resolve owner, then proceed as `--node`. Also reflects deterministic checks whose recorded observations touched this file (cross-node impact).
+- `--file` — Resolve owner, then report a precise `Total to re-verify` block for the edit (its own output, not the `--node` summary). Also reflects deterministic checks whose recorded observations touched this file (cross-node impact). Runs the companion resolver for cold companion-backed pairs (no LLM call). Editing a `.yggdrasil/` graph file redirects to `yg impact --aspect <id>`. A companion whose hook fails appears under `Unresolved`.
 - `--aspect` — All nodes where this aspect is effective (own, hierarchy, flow, or implied), plus structural dependents of affected nodes — the pairs an edit to its rule, description, references, scope, tier, or `companion.mjs` would re-verify. Editing `companion.mjs` re-verifies every pair of the aspect (billed, not free); editing a resolved companion file re-verifies only the pairs that read it (also billed). `--file <companion-file>` reflects this fan-out via the lock's `touched` observations.
 - `--flow` — All participants and their descendants, plus structural dependents of participants
 - `--type <id>` — All nodes of that architecture type and their source files. Useful

@@ -172,7 +172,8 @@ Cost is counted per PAIR.
   modifying a widely-used aspect to see the re-verification cost.
 - **Editing \`companion.mjs\`** re-verifies ALL pairs of the aspect (like a
   \`content.md\` edit). **Editing a resolved companion file** re-verifies only
-  the pairs that observed it (like editing a subject file, not a full re-bill).
+  the pairs that read it — and the fold covers every file the hook reads to
+  decide, not only what it returns.
   Use \`yg impact --file <companion>\` to see which pairs read a given file.
 
 The prompt-size gate (\`max_prompt_chars\` per tier) bounds an LLM prompt, not the

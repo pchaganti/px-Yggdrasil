@@ -151,7 +151,7 @@ export async function companion(ctx) {
 
 **What the hook returns:**
 
-The hook returns `Array<{ path: string, label?: string }>` — whole files only; there is no line-range or slicing feature. `label` is an optional human-readable tag that appears in the live reviewer prompt. The hook may read and parse files to decide which paths to return, but it returns paths, never file content.
+The hook returns `Array<{ path: string, label?: string }>` — whole files only; there is no line-range or slicing feature. `label` is an optional human-readable tag that appears in the live reviewer prompt. The hook may read and parse files to decide which paths to return, but it returns paths, never file content. What the hook reads to decide also folds into the verdict (not only what it returns). Read the single needed file via `ctx.fs.read`; materializing a whole related node via `ctx.graph` folds that node's entire content into every per-file pair and widens invalidation.
 
 **Purity requirement:** Like `check.mjs`, the companion hook must be pure — no file writes, no network calls, no `process.exit`. An impure hook yields non-deterministic observations; the runner retries once and then fails closed (reported as `aspect-companion-runtime-error`).
 

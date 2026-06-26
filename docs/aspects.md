@@ -99,7 +99,7 @@ A rule can pull in others. Declare `implies: [other-rule]` and every component t
 An LLM rule has two ways to bring in supporting material:
 
 - **Static references (`references:`)** — a lookup table, an error-code catalogue, an API contract. Listed in `yg-aspect.yaml`; the same files go to the reviewer for every unit. Your agent sees them under the `read:` paths in `yg context`.
-- **Per-unit companion files (`companion.mjs`)** — a hook that resolves different files for each unit under review. Use this when each file being reviewed has a unique counterpart in another node — a scenario document paired with its matching test spec, a migration paired with its schema. The hook returns paths; the runner reads the files and injects them into that unit's prompt only. See [Reviewers — Per-unit companion files](/reviewers#per-unit-companion-files).
+- **Per-unit companion files (`companion.mjs`)** — a hook that resolves different files for each unit under review. Use this when each file being reviewed has a unique counterpart in another node — a scenario document paired with its matching test spec, a migration paired with its schema. The hook returns paths; the runner reads the files and injects them into that unit's prompt only. A companion's verdict folds everything it reads to decide, so read narrowly (one file via `ctx.fs.read`). See [Reviewers — Per-unit companion files](/reviewers#per-unit-companion-files).
 
 The two mechanisms are independent. Static references are identical for every unit; companion files vary per unit. Both count toward the tier's `max_prompt_chars` prompt-size limit. See [Reviewers](/reviewers) for authoring depth on both.
 

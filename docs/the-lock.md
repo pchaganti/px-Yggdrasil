@@ -74,7 +74,7 @@ A refusal is a verdict, and it's cached like any other. For unchanged inputs it'
 There are exactly three ways out of a refusal:
 
 1. **Fix the code.** This changes a subject file, which invalidates the pair, which re-verifies it.
-2. **Sharpen the rule.** Editing `content.md` changes the rule hash and re-verifies **every** pair of that aspect — possibly many nodes. Run `yg impact --aspect <id>` first to see the count. For aspects with `companion.mjs`, editing that file also re-verifies every pair (via `companionHash`); editing a resolved companion file re-verifies only the pairs that read it (via `touched`). `yg impact --file <companion-file>` shows the exact blast radius.
+2. **Sharpen the rule.** Editing `content.md` changes the rule hash and re-verifies **every** pair of that aspect — possibly many nodes. Run `yg impact --aspect <id>` first to see the count. For aspects with `companion.mjs`, editing that file also re-verifies every pair (via `companionHash`); editing a resolved companion file re-verifies only the pairs that read it (via `touched`). `yg impact --file <companion-file>` shows the exact blast radius — even cold, before any lock `touched` exists, by running the resolver (no LLM call).
 3. **`yg-suppress`, with your sign-off.** A documented file-level waiver for known debt. Markers in companion files are ignored — suppression is scoped to the subject source files only. See [/reviewers](/reviewers).
 
 A cosmetic edit to the rule or the source — a reworded comment, a whitespace change — would also re-roll the verdict. Don't. That is exactly the laundering the missing force command refuses to offer.

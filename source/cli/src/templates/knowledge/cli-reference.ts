@@ -196,14 +196,18 @@ yg impact --flow order-processing      # all pairs of nodes in this flow
 yg impact --type service               # all nodes of this type + coverage
 \`\`\`
 
-Counts are reviewer calls × consensus for LLM pairs; deterministic pairs are free.
-
-For \`--node\` and \`--file\`, the output ends with a one-line cost summary that
-folds each LLM pair's resolved-tier consensus into the reviewer-call count, e.g.
-\`Editing this node re-verifies: 3 LLM pair(s) = 9 reviewer call(s) (consensus
-included); 2 deterministic = free; 4 currently-green verdict(s) re-rolled.\` With
-\`--file\` the line reads \`Editing this file …\` and is scoped to the pairs whose
-subject set includes that file.
+For \`--node\`, the output ends with a one-line cost summary (\`Editing this node
+re-verifies: N LLM pair(s) = M reviewer call(s); D deterministic = free; G
+currently-green verdict(s) re-rolled\`). For \`--file\`, it ends with a precise
+\`Total to re-verify:\` block -- billed reviewer calls, free deterministic pairs,
+and currently-green verdicts re-rolled -- preceded by a per-node breakdown tagged
+with why each node is affected (own pairs / references this file / companion
+observes this file / deterministic check observes this file). To compute this
+precisely even before the first fill, \`yg impact\` runs the companion resolver for
+cold companion-backed pairs -- it makes no LLM call, never runs \`check.mjs\`, and
+writes nothing. A companion whose hook fails is listed under \`Unresolved\` (cost
+unknown; it will infra-fail at fill). Editing a graph file under \`.yggdrasil/\`
+redirects you to \`yg impact --aspect <id>\`.
 
 ## yg tree
 

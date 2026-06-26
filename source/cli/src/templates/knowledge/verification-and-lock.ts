@@ -152,6 +152,12 @@ re-computed from the \`companion.mjs\` bytes and the stored \`touched\` list is
 re-hashed. The companion hook is NOT re-run at re-validation time; no LLM
 call is made.
 
+The fold captures every out-of-subject file the hook reads to decide. A
+companion that materializes a whole related node via \`ctx.graph\` therefore
+folds that node's entire content into the pair, widening invalidation across
+the node; read the single needed file via \`ctx.fs.read\` to keep per-unit
+isolation.
+
 Deterministic pairs additionally fold the **observation set** — everything the
 check observed through \`ctx\` beyond its subject files, recorded by the runner:
 

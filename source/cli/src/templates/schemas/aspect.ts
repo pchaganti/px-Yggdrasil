@@ -218,6 +218,10 @@ status: enforced                   # optional — aspect-level default. enum: dr
                                    # Read boundaries: same as check.mjs (own mapping, declared-relation
                                    # targets, ancestors, own descendants). Attempting to read outside
                                    # this set is an allowed-reads violation and causes an infra-fail.
+                                   # Read the single needed file via ctx.fs.read/ctx.fs.exists;
+                                   # materializing a related node via ctx.graph folds that node's
+                                   # entire content into every per-file pair (breaks per-unit
+                                   # isolation).
                                    #
                                    # Returned paths:
                                    #   Absolute or relative paths. The runner normalizes each to
@@ -251,8 +255,13 @@ status: enforced                   # optional — aspect-level default. enum: dr
                                    #     companion.mjs re-verifies ALL pairs of the aspect.
                                    #   touched: hook's file observations beyond the subject set —
                                    #     also appears on companion-bearing LLM entries (not only
-                                   #     deterministic entries). Editing a resolved companion file
-                                   #     re-verifies only pairs that read it.
+                                   #     deterministic entries). The verdict folds every
+                                   #     out-of-subject file the hook reads to decide, not only
+                                   #     the paths it returns — editing any such file re-verifies
+                                   #     its readers.
                                    #
                                    # Lock version remains 1 — no schema/format bump.
+                                   # yg impact --file <file> previews the precise companion
+                                   # blast radius, including cold companion-LLM pairs (it runs
+                                   # the resolver, no LLM call).
 `;

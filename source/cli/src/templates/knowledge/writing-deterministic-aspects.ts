@@ -520,9 +520,10 @@ Note: \`companion.mjs\` (the LLM add-on hook) MAY be async — it exports
 files are separate contracts: one for deterministic verdict computation
 (\`check.mjs\`), one for per-unit companion file resolution (\`companion.mjs\`).
 \`companion.mjs\` shares the same allowed-reads boundary as \`check.mjs\` and
-also folds its observations (reads beyond the subject set) into the pair's
-hash — editing a resolved companion file re-verifies only pairs that read it,
-exactly like an observation fold in a deterministic verdict.
+also folds everything it reads to decide (read one file via \`ctx.fs.read\`,
+don't scan a node via \`ctx.graph\`) into the pair's hash — editing a resolved
+companion file re-verifies only pairs that read it, exactly like an
+observation fold in a deterministic verdict.
 
 ## Suppression in deterministic aspects
 
