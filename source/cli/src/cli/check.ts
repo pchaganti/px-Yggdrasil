@@ -11,7 +11,7 @@ import { runFill, FillGatingError } from '../core/fill.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import path from 'node:path';
 import { walkRepoFiles } from '../io/repo-scanner.js';
-import { groupIssues, type IssueGroup, getIssueLabel, issuePriorityRank, FULL_WHAT_CODES } from './group-issues.js';
+import { groupIssues, type IssueGroup, getIssueLabel, FULL_WHAT_CODES } from './group-issues.js';
 import type { YggConfig } from '../model/graph.js';
 
 /**
