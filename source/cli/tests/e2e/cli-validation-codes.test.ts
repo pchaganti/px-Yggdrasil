@@ -197,7 +197,10 @@ describe.skipIf(!distExists)('CLI E2E — yg check validation code matrix (remai
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('aspect-reference-escape');
-      expect(all).toContain('../outside.md');
+      // Per-issue `what` (the offending path '../outside.md') is no longer
+      // rendered in the grouped default view for non-FULL_WHAT codes. Assert the
+      // now-visible group guidance (shared why + Fix) instead.
+      expect(all).toContain('use a path relative to the repository root');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -217,7 +220,10 @@ describe.skipIf(!distExists)('CLI E2E — yg check validation code matrix (remai
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('aspect-reference-duplicate');
-      expect(all).toContain('docs/table.md');
+      // Per-issue `what` (the duplicated path 'docs/table.md') is no longer
+      // rendered in the grouped default view for non-FULL_WHAT codes. Assert the
+      // now-visible group guidance (shared why + Fix) instead.
+      expect(all).toContain('remove the duplicate entry from');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -277,7 +283,10 @@ describe.skipIf(!distExists)('CLI E2E — yg check validation code matrix (remai
       const { status, all } = run(['check'], dir);
       expect(status).toBe(0);
       expect(all).toContain('aspect-references-empty-array');
-      expect(all).toContain('ref-aspect');
+      // The aspect id no longer appears in the per-issue `what` (gone in the
+      // grouped default view for non-FULL_WHAT codes). Assert the now-visible
+      // group guidance (shared why + Fix) instead.
+      expect(all).toContain("either populate the list, or remove the 'references:' line entirely");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -331,7 +340,10 @@ describe.skipIf(!distExists)('CLI E2E — yg check validation code matrix (remai
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('aspect-reviewer-type-invalid');
-      expect(all).toContain('structure');
+      // The offending value ('structure') lived in the per-issue `what`, gone in
+      // the grouped default view for non-FULL_WHAT codes. Assert the now-visible
+      // group guidance (shared why + Fix enumerating the valid types) instead.
+      expect(all).toContain('only "llm", "deterministic", or "aggregate" are valid');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -483,7 +495,11 @@ describe.skipIf(!distExists)('CLI E2E — yg check validation code matrix (remai
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('structural-cycle');
-      expect(all).toContain('a -> b -> a');
+      // The cycle path 'a -> b -> a' lived in the per-issue `what`, gone in the
+      // grouped default view for non-FULL_WHAT codes. Assert the now-visible
+      // group guidance (shared why + Fix) instead.
+      expect(all).toContain('Cycles prevent deterministic context assembly');
+      expect(all).toContain('Break the cycle');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -524,7 +540,11 @@ describe.skipIf(!distExists)('CLI E2E — yg check validation code matrix (remai
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('implied-aspect-missing');
-      expect(all).toContain('ghost-aspect');
+      // The missing implied aspect id ('ghost-aspect') lived in the per-issue
+      // `what`, gone in the grouped default view for non-FULL_WHAT codes. Assert
+      // the now-visible group guidance (shared why + Fix) instead.
+      expect(all).toContain('Implies chain is broken');
+      expect(all).toContain('Create the implied aspect or remove it from the implies list');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

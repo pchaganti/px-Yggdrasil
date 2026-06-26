@@ -135,7 +135,11 @@ describe.skipIf(!distExists)('CLI E2E — scope fail-closed: unreadable subject 
       // FAIL-CLOSED: blocking error, NOT a silent vacuous pass.
       expect(check.status).toBe(1);
       expect(check.all).toContain('file-unreadable');
-      expect(check.all).toContain('could not read subject file');
+      // The per-issue `what` ("could not read subject file") is no longer rendered
+      // in the grouped view; the fail-closed rationale survives in the shared why,
+      // and the unreadable path survives in the Fix text below.
+      expect(check.all).toContain('could not be read, so it was dropped from the review subject set');
+      expect(check.all).toContain('A silently dropped file can turn an enforced rule into a vacuous pass.');
       expect(check.all).toContain('src/services/orders/locked.ts');
       // The error names the marker-rule aspect (the content filter that had to read it).
       expect(check.all).toContain('marker-rule');
@@ -189,7 +193,11 @@ describe.skipIf(!distExists)('CLI E2E — scope fail-closed: unreadable subject 
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
       expect(check.all).toContain('file-unreadable');
-      expect(check.all).toContain('could not read subject file');
+      // The per-issue `what` ("could not read subject file") is no longer rendered
+      // in the grouped view; the fail-closed rationale survives in the shared why,
+      // and the unreadable path survives in the Fix text.
+      expect(check.all).toContain('could not be read, so it was dropped from the review subject set');
+      expect(check.all).toContain('A silently dropped file can turn an enforced rule into a vacuous pass.');
       expect(check.all).toContain('src/services/orders/locked.ts');
 
       // --approve blocks cleanly too (no raw EACCES crash) and writes no verdict.

@@ -234,11 +234,16 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (integration)
 
       const after = run(['check'], dir);
       expect(after.status).toBe(1);
-      // The gate names the pair and the over-limit char count (which includes the
-      // companion spec — proving companion content counts toward the §4 gate).
+      // The gate fires as a prompt-too-large group naming the aspect. Setting the
+      // limit (1500) below the companion-bearing prompt is what trips it — proving
+      // companion content counts toward the §4 gate. The per-unit char/limit numbers
+      // are no longer rendered in the grouped check body (they live in the FILL-time
+      // message; no fill ran here), so we assert the group label + aspect + the
+      // member node line + the why, which carry the same actionable intent.
       expect(after.all).toContain(`prompt-too-large`);
-      expect(after.all).toContain(`for aspect 'scenario-matches-test' on ${UNIT('checkout')} is`);
-      expect(after.all).toContain(`over the 'standard' tier limit of 1500`);
+      expect(after.all).toContain(`aspect 'scenario-matches-test'`);
+      expect(after.all).toContain('- scenarios');
+      expect(after.all).toContain('An over-limit prompt risks context-window truncation and a false verdict.');
       // No reviewer calls during the read-only check.
       expect(mock.chatCount() - callsAfterFill).toBe(0);
     } finally {
@@ -341,9 +346,13 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (integration)
       const check = run(['check'], dir);
       expect(check.status).toBe(0); // advisory never blocks.
       expect(check.all).toContain('Warnings');
-      // Rendered as an advisory refusal warning, not an error block.
-      expect(check.all).toContain(`Aspect 'scenario-matches-test' is refused on ${UNIT('checkout')}`);
-      expect(check.all).toContain('(advisory — not blocking)');
+      // Rendered as an advisory refusal warning group (the `advisory` label), not an
+      // error block. The refusal is a FULL_WHAT code, so the reviewer reason is
+      // retained on the member node line. (The grouped renderer carries NO
+      // "(advisory — not blocking)" suffix — that is per-issue-renderer only.)
+      expect(check.all).toContain('advisory');
+      expect(check.all).toContain(`aspect 'scenario-matches-test'`);
+      expect(check.all).toContain('Reviewer reason: scenario drifted from spec');
       expect(check.all).not.toContain('Errors (');
 
       // Now make the pairs UNVERIFIED by editing companion.mjs (companionHash). An
@@ -352,7 +361,11 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (integration)
       const after = run(['check'], dir);
       expect(after.status).toBe(0); // advisory unverified does not block.
       expect(after.all).toContain('Warnings');
-      expect(after.all).toContain(`No valid verdict for aspect 'scenario-matches-test' on ${UNIT('checkout')}.`);
+      // The per-unit `what` ("No valid verdict … on file:…") is no longer rendered;
+      // an unverified advisory pair surfaces as the glossed unverified group for the
+      // aspect, still a warning (never an error).
+      expect(after.all).toContain('unverified (not yet reviewed)');
+      expect(after.all).toContain(`aspect 'scenario-matches-test'`);
       expect(after.all).not.toContain('Errors (');
     } finally {
       await mock.close();
@@ -520,8 +533,13 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (integration)
       expect(Object.keys(verdicts(dir, 'scenario-matches-test')).length).toBe(0);
       // The output names at least one of the over-limit pairs.
       expect(fill.all).toMatch(/scenario-matches-test/);
-      // The output names the char count and/or limit so the agent can act.
-      expect(fill.all).toMatch(/500/);
+      // The fill-time gate intercepts before the reviewer, so the over-limit pairs
+      // surface as a blocking prompt-too-large group with actionable remediation.
+      // The specific char/limit number is no longer rendered in the default grouped
+      // view; the label + the safety-ordered Fix remedies carry the actionable
+      // intent (raise max_prompt_chars / split the node / narrow scope).
+      expect(fill.all).toContain('prompt-too-large');
+      expect(fill.all).toMatch(/Raise max_prompt_chars/);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });

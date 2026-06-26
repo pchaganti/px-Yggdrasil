@@ -596,8 +596,12 @@ describe.skipIf(!distExists)('CLI E2E — flows extended (multi-aspect / dry-run
       );
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
+      // Grouped view: a missing description is a validation finding, not a parse
+      // throw. The per-issue `what` (the flow name) is no longer in the default
+      // body; assert the group label + shared why/fix.
       expect(check.stdout).toContain('description-missing');
-      expect(check.stdout).toContain("Flow 'OrderProcessing' has no description.");
+      expect(check.stdout).toContain('Description is used in context output');
+      expect(check.stdout).toContain('Add a description field to yg-flow.yaml.');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -70,11 +70,17 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: cached refusals / det gat
       expect(lock.verdicts['has-doc-comment']['node:services/orders'].verdict).toBe('refused');
       expect(lock.verdicts['has-doc-comment']['node:services/orders'].reason).toContain('missing doc comment');
 
-      // Plain check renders the cached refusal (exit 1, enforced) with the cached marker.
+      // Plain check renders the cached refusal (exit 1, enforced). In the grouped
+      // view the `what` line-0 header ("Aspect '...' is refused on ... cached
+      // verdict — the reviewer did NOT re-run; ...") is dropped; the "cached/final"
+      // semantics now live in the shared why, and the retained FULL_WHAT tail is
+      // the "Reviewer reason: <reason>" line carried on the `- <node>` bullet.
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
-      expect(check.all).toContain("Aspect 'has-doc-comment' is refused on node:services/orders.");
-      expect(check.all).toContain('cached verdict — the reviewer did NOT re-run; inputs are identical to the refused review.');
+      expect(check.all).toContain('enforced');
+      expect(check.all).toContain("aspect 'has-doc-comment'");
+      expect(check.all).toContain('A refused verdict for unchanged inputs is final and cached');
+      expect(check.all).toContain('Reviewer reason: missing doc comment');
       // The three exits are present in the rendered Fix line.
       expect(check.all).toContain('Three exits:');
       expect(check.all).toContain('yg impact --aspect has-doc-comment');
@@ -116,9 +122,14 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: cached refusals / det gat
       expect(fill.all).not.toContain('[llm] has-doc-comment on node:services/orders');
       // Exactly ONE reviewer call (payments only). orders' LLM pair was never dispatched.
       expect(mock.chatCount()).toBe(1);
-      // orders' LLM pair stays unverified (never billed).
+      // orders' LLM pair stays unverified (never billed). The per-issue `what`
+      // ("No valid verdict for aspect '<id>' on <unit>.") is gone in the grouped
+      // view for the non-FULL_WHAT unverified code; assert the gloss + aspect
+      // segment + the offending node line instead.
       const check = run(['check'], dir);
-      expect(check.all).toContain("No valid verdict for aspect 'has-doc-comment' on node:services/orders.");
+      expect(check.all).toContain('unverified (not yet reviewed)');
+      expect(check.all).toContain("aspect 'has-doc-comment'");
+      expect(check.all).toContain('- services/orders');
 
       // Fix the det violation → re-fill now runs the LLM for orders.
       const callsBefore = mock.chatCount();
@@ -173,9 +184,14 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: cached refusals / det gat
         if (ordersNow) expect(ordersNow).toEqual(ordersEntryBefore);
 
         // A plain read stays RED — the edited pair is unverified, no false-green.
+        // The per-issue `what` ("No valid verdict for aspect '<id>' on <unit>.")
+        // is gone in the grouped view for the non-FULL_WHAT unverified code;
+        // assert the gloss + aspect segment + the offending node line instead.
         const check = run(['check'], dir);
         expect(check.status).toBe(1);
-        expect(check.all).toContain("No valid verdict for aspect 'has-doc-comment' on node:services/orders.");
+        expect(check.all).toContain('unverified (not yet reviewed)');
+        expect(check.all).toContain("aspect 'has-doc-comment'");
+        expect(check.all).toContain('- services/orders');
       } finally {
         await infraMock.close();
       }

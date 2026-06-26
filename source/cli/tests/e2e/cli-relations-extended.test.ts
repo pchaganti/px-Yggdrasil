@@ -305,15 +305,15 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
     try {
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
-      // One forbidden line per offending relation, each naming the declaring
-      // node, the relation type, the target, and the target's type.
+      // The four forbidden relations collapse into one grouped block keyed by
+      // the code, listing every offending pair under the declaring node.
       expect(stdout).toContain('relation-target-forbidden');
-      expect(stdout).toContain("Relation 'calls' from 'app/p' to 'app/b' (type 'base') is not allowed by the architecture.");
-      expect(stdout).toContain("Relation 'uses' from 'app/p' to 'app/i' (type 'iface') is not allowed by the architecture.");
-      expect(stdout).toContain("Relation 'extends' from 'app/p' to 'app/i' (type 'iface') is not allowed by the architecture.");
-      expect(stdout).toContain("Relation 'implements' from 'app/p' to 'app/b' (type 'base') is not allowed by the architecture.");
+      // Grouped header carries the pair/node counts (4 pairs, 1 node).
+      expect(stdout).toMatch(/relation-target-forbidden\s+4 pairs\s+1 nodes/);
       // The WHY enumerates the allowed targets for the relation type.
       expect(stdout).toContain("Allowed targets for 'calls' from type 'producer': [consumer]");
+      // The declaring node is named in the group's node list.
+      expect(stdout).toContain('- app/p');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -340,9 +340,11 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('relation-target-forbidden');
-      expect(stdout).toContain("Relation 'emits' from 'app/p' to 'app/b' (type 'base') is not allowed by the architecture.");
+      // The forbidden-target WHY enumerates the allowed targets for the type.
       expect(stdout).toContain("Allowed targets for 'emits' from type 'producer': [consumer]");
-      // The unpaired emit is independently reported.
+      // The forbidden relation is attributed to the declaring node.
+      expect(stdout).toContain('- app/p');
+      // The unpaired emit is independently reported (a second group).
       expect(stdout).toContain('event-unpaired');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -432,9 +434,8 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('event-unpaired');
-      expect(stdout).toContain(
-        "Node 'app/p' emits to 'app/c' but 'app/c' has no listens from 'app/p'.",
-      );
+      // The unpaired emit is attributed to the emitter in the group node list.
+      expect(stdout).toContain('- app/p');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -460,9 +461,8 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('event-unpaired');
-      expect(stdout).toContain(
-        "Node 'app/c' listens from 'app/p' but 'app/p' has no emits to 'app/c'.",
-      );
+      // The unpaired listen is attributed to the listener in the group node list.
+      expect(stdout).toContain('- app/c');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -604,9 +604,8 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('event-unpaired');
-      expect(stdout).toContain(
-        "Node 'app/p' emits to 'app/p' but 'app/p' has no listens from 'app/p'.",
-      );
+      // The unpaired self-emit is attributed to the node in the group node list.
+      expect(stdout).toContain('- app/p');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -653,7 +652,9 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('structural-cycle');
-      expect(stdout).toContain('Circular dependency: app/p -> app/p.');
+      // The grouped block carries the shared cycle WHY and the break-the-cycle Fix.
+      expect(stdout).toContain('Cycles prevent deterministic context assembly and cascade tracking.');
+      expect(stdout).toContain('Break the cycle: extract a shared interface, invert a dependency, or merge nodes.');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -701,8 +702,9 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('relation-target-forbidden');
-      expect(stdout).toContain("Relation 'calls' from 'app/p' to 'app' (type 'module') is not allowed by the architecture.");
+      // The shared WHY enumerates the allowed targets; the declaring node is listed.
       expect(stdout).toContain("Allowed targets for 'calls' from type 'producer': [consumer]");
+      expect(stdout).toContain('- app/p');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -731,8 +733,7 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('relation-broken');
-      expect(stdout).toContain("Relation target 'app/ghost' does not exist.");
-      // Attributed to the declaring node.
+      // Attributed to the declaring node (listed in the group's node list).
       expect(stdout).toContain('app/p');
       // The existing-siblings hint surfaces the real nodes under app/.
       expect(stdout).toContain('Existing nodes under app');
@@ -930,7 +931,9 @@ describe.skipIf(!distExists)('CLI E2E — relation-type matrix, event pairing, s
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(0);
       expect(stdout).toContain('high-fan-out');
-      expect(stdout).toContain('Node has 2 direct relations (max: 1).');
+      // The grouped warning carries the shared fan-out WHY and the over-limit node.
+      expect(stdout).toContain('High fan-out makes context packages large and suggests unclear separation of concerns.');
+      expect(stdout).toContain('- app/p');
       // A warning, not an error.
       expect(stdout).toContain('Warnings (1)');
     } finally {

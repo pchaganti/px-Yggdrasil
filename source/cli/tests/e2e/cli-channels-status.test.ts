@@ -242,7 +242,12 @@ describe.skipIf(!distExists)('CLI E2E — status propagation on cascading channe
       expect(fill.stdout).toContain('advisory');
       expect(fill.stdout).toContain('services/orders');
       expect(fill.stdout).toContain('no-banned-word');
-      expect(fill.stdout).toContain('(advisory — not blocking)');
+      // The advisory violation renders under the Warnings section as an
+      // `advisory` group (the grouped renderer drops the old per-issue
+      // "(advisory — not blocking)" suffix; non-blocking is shown by the
+      // Warnings section + PASS verdict).
+      expect(fill.stdout).toContain('Warnings (1):');
+      expect(fill.stdout).toContain("advisory  1 pairs  1 nodes  aspect 'no-banned-word'");
 
       // `yg check` renders it as a non-blocking warning and PASSES.
       const check = run(['check'], dir);
@@ -325,7 +330,12 @@ describe.skipIf(!distExists)('CLI E2E — status propagation on cascading channe
       expect(fill.stdout).toContain('advisory');
       expect(fill.stdout).toContain('services/orders');
       expect(fill.stdout).toContain('no-banned-word');
-      expect(fill.stdout).toContain('(advisory — not blocking)');
+      // The advisory violation renders under the Warnings section as an
+      // `advisory` group (the grouped renderer drops the old per-issue
+      // "(advisory — not blocking)" suffix; non-blocking is shown by the
+      // Warnings section + PASS verdict).
+      expect(fill.stdout).toContain('Warnings (1):');
+      expect(fill.stdout).toContain("advisory  1 pairs  1 nodes  aspect 'no-banned-word'");
 
       const check = run(['check'], dir);
       expect(check.status).toBe(0);
@@ -423,9 +433,11 @@ describe.skipIf(!distExists)('CLI E2E — status propagation on cascading channe
       plantBannedToken(dir);
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
-      expect(fill.stdout).toContain(
-        "Aspect 'no-banned-word' is refused on node:services/orders by a deterministic check",
-      );
+      // Fill-time line names the refused deterministic pair on the node.
+      expect(fill.stdout).toContain('[det] no-banned-word on node:services/orders — refused');
+      // The grouped error body lists the node under the enforced group.
+      expect(fill.stdout).toContain("enforced  1 pairs  1 nodes  aspect 'no-banned-word'");
+      expect(fill.stdout).toContain('- services/orders');
 
       const check = run(['check'], dir);
       expect(check.status).toBe(1);

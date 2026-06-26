@@ -131,10 +131,14 @@ describe.skipIf(!distExists)(
         );
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the type-undefined group header carries the code, the
+        // shared Fix line names the offending type and the remedy, and the
+        // offending node is listed on its own line.
         expect(stdout).toContain('type-undefined');
         expect(stdout).toContain(
-          "Node type 'ghost-type' is not defined in yg-architecture.yaml.",
+          "Fix: Add 'ghost-type' to yg-architecture.yaml or change the node type.",
         );
+        expect(stdout).toContain('- services/orders');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -150,9 +154,12 @@ describe.skipIf(!distExists)(
         writeArch(dir, arch);
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the type-unknown-parent group header carries the code,
+        // and the shared Fix line names the undefined parent and the type that
+        // declared it.
         expect(stdout).toContain('type-unknown-parent');
         expect(stdout).toContain(
-          "Architecture type 'service' declares parent 'ghost-parent' which is not defined in node_types.",
+          "Fix: Add 'ghost-parent' to node_types or remove it from 'service.parents'.",
         );
       } finally {
         rmSync(dir, { recursive: true, force: true });
@@ -191,12 +198,12 @@ describe.skipIf(!distExists)(
         );
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the parent-type-forbidden group header carries the
+        // code, the shared why line names the allowed parent types, and the
+        // misplaced node is listed on its own line.
         expect(stdout).toContain('parent-type-forbidden');
-        expect(stdout).toContain(
-          "(type 'widget') has parent",
-        );
-        expect(stdout).toContain("of type 'module', which is not an allowed parent type.");
         expect(stdout).toContain("Allowed parent types for 'widget': [service]");
+        expect(stdout).toContain('- services/gizmo');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -224,8 +231,10 @@ describe.skipIf(!distExists)(
         );
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the architecture-cycle group header carries the code,
+        // and the shared Fix line explains how to break the cycle.
         expect(stdout).toContain('architecture-cycle');
-        expect(stdout).toContain('Cycle in parents');
+        expect(stdout).toContain('Break the cycle');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -252,8 +261,10 @@ describe.skipIf(!distExists)(
         );
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the architecture-cycle group header carries the code,
+        // and the shared Fix line explains how to break the cycle.
         expect(stdout).toContain('architecture-cycle');
-        expect(stdout).toContain('Cycle in parents');
+        expect(stdout).toContain('Break the cycle');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -301,8 +312,13 @@ describe.skipIf(!distExists)(
         );
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the type-unknown-parent group header carries the code,
+        // and the shared Fix line names the offending parent and the type that
+        // declared it.
         expect(stdout).toContain('type-unknown-parent');
-        expect(stdout).toContain("declares parent 'ghostxyz'");
+        expect(stdout).toContain(
+          "Fix: Add 'ghostxyz' to node_types or remove it from 'bb.parents'.",
+        );
         // The cycle error must NOT appear — unknown parent short-circuits it.
         expect(stdout).not.toContain('architecture-cycle');
       } finally {
@@ -322,9 +338,13 @@ describe.skipIf(!distExists)(
         replaceServiceWhen(dir, '    when: {}');
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the malformed file-when collapses into the
+        // when-predicate-invalid group; the per-issue parse detail is no longer
+        // rendered in the default view, so we assert the code + the shared
+        // why/Fix that direct the agent to fix the predicate syntax.
         expect(stdout).toContain('when-predicate-invalid');
         expect(stdout).toContain(
-          'yg-architecture.yaml: node_types.service.when: when mapping must not be empty',
+          'The when: predicate in yg-architecture.yaml could not be parsed.',
         );
       } finally {
         rmSync(dir, { recursive: true, force: true });
@@ -337,9 +357,13 @@ describe.skipIf(!distExists)(
         replaceServiceWhen(dir, '    when:\n      foo: "bar"');
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the malformed file-when collapses into the
+        // when-predicate-invalid group; the per-issue parse detail is no longer
+        // rendered in the default view, so we assert the code + the shared
+        // why/Fix that direct the agent to fix the predicate syntax.
         expect(stdout).toContain('when-predicate-invalid');
         expect(stdout).toContain(
-          "unknown when key 'foo' (expected one of: all_of, any_of, not, path, content)",
+          'The when: predicate in yg-architecture.yaml could not be parsed.',
         );
       } finally {
         rmSync(dir, { recursive: true, force: true });
@@ -355,9 +379,13 @@ describe.skipIf(!distExists)(
         );
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the malformed file-when collapses into the
+        // when-predicate-invalid group; the per-issue parse detail is no longer
+        // rendered in the default view, so we assert the code + the shared
+        // why/Fix that direct the agent to fix the predicate syntax.
         expect(stdout).toContain('when-predicate-invalid');
         expect(stdout).toContain(
-          'when cannot mix boolean operators with atomic clauses at the same level',
+          'The when: predicate in yg-architecture.yaml could not be parsed.',
         );
       } finally {
         rmSync(dir, { recursive: true, force: true });
@@ -373,9 +401,13 @@ describe.skipIf(!distExists)(
         );
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the malformed file-when collapses into the
+        // when-predicate-invalid group; the per-issue parse detail is no longer
+        // rendered in the default view, so we assert the code + the shared
+        // why/Fix that direct the agent to fix the predicate syntax.
         expect(stdout).toContain('when-predicate-invalid');
         expect(stdout).toContain(
-          'when can have at most one boolean operator at a level (got: all_of, any_of)',
+          'The when: predicate in yg-architecture.yaml could not be parsed.',
         );
       } finally {
         rmSync(dir, { recursive: true, force: true });
@@ -388,8 +420,13 @@ describe.skipIf(!distExists)(
         replaceServiceWhen(dir, '    when:\n      path: 123');
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the malformed file-when collapses into the
+        // when-predicate-invalid group; the per-issue parse detail is no longer
+        // rendered in the default view, so we assert the code + the shared why.
         expect(stdout).toContain('when-predicate-invalid');
-        expect(stdout).toContain('path must be a string (got number)');
+        expect(stdout).toContain(
+          'The when: predicate in yg-architecture.yaml could not be parsed.',
+        );
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -401,8 +438,13 @@ describe.skipIf(!distExists)(
         replaceServiceWhen(dir, '    when:\n      content: 99');
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the malformed file-when collapses into the
+        // when-predicate-invalid group; the per-issue parse detail is no longer
+        // rendered in the default view, so we assert the code + the shared why.
         expect(stdout).toContain('when-predicate-invalid');
-        expect(stdout).toContain('content must be a string (got number)');
+        expect(stdout).toContain(
+          'The when: predicate in yg-architecture.yaml could not be parsed.',
+        );
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -414,8 +456,13 @@ describe.skipIf(!distExists)(
         replaceServiceWhen(dir, '    when:\n      content: "([unclosed"');
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the malformed file-when collapses into the
+        // when-predicate-invalid group; the per-issue parse detail is no longer
+        // rendered in the default view, so we assert the code + the shared why.
         expect(stdout).toContain('when-predicate-invalid');
-        expect(stdout).toContain('Invalid regex in content');
+        expect(stdout).toContain(
+          'The when: predicate in yg-architecture.yaml could not be parsed.',
+        );
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -427,8 +474,13 @@ describe.skipIf(!distExists)(
         replaceServiceWhen(dir, '    when:\n      not: "src/**"');
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the malformed file-when collapses into the
+        // when-predicate-invalid group; the per-issue parse detail is no longer
+        // rendered in the default view, so we assert the code + the shared why.
         expect(stdout).toContain('when-predicate-invalid');
-        expect(stdout).toContain('when must be a YAML mapping');
+        expect(stdout).toContain(
+          'The when: predicate in yg-architecture.yaml could not be parsed.',
+        );
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -440,8 +492,13 @@ describe.skipIf(!distExists)(
         replaceServiceWhen(dir, '    when:\n      all_of: "src/**"');
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the malformed file-when collapses into the
+        // when-predicate-invalid group; the per-issue parse detail is no longer
+        // rendered in the default view, so we assert the code + the shared why.
         expect(stdout).toContain('when-predicate-invalid');
-        expect(stdout).toContain("'all_of' must be an array");
+        expect(stdout).toContain(
+          'The when: predicate in yg-architecture.yaml could not be parsed.',
+        );
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -453,8 +510,13 @@ describe.skipIf(!distExists)(
         replaceServiceWhen(dir, '    when:\n      all_of: []');
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the malformed file-when collapses into the
+        // when-predicate-invalid group; the per-issue parse detail is no longer
+        // rendered in the default view, so we assert the code + the shared why.
         expect(stdout).toContain('when-predicate-invalid');
-        expect(stdout).toContain("'all_of' array must not be empty");
+        expect(stdout).toContain(
+          'The when: predicate in yg-architecture.yaml could not be parsed.',
+        );
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -501,8 +563,13 @@ describe.skipIf(!distExists)(
         );
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the when-unknown-type group header carries the code,
+        // and the shared why/Fix explain that the predicate references a type
+        // not defined in the architecture.
         expect(stdout).toContain('when-unknown-type');
-        expect(stdout).toContain("Unknown node type 'ghost-type' in when");
+        expect(stdout).toContain(
+          'The predicate references a type that is not defined in yg-architecture.yaml; it will never evaluate.',
+        );
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -540,9 +607,12 @@ describe.skipIf(!distExists)(
         );
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the when-unknown-node group header carries the code,
+        // and the shared why explains that the predicate targets a node not in
+        // the graph.
         expect(stdout).toContain('when-unknown-node');
         expect(stdout).toContain(
-          "Referenced node 'services/ghostnode' in when",
+          'The predicate targets a node that is not in the graph.',
         );
       } finally {
         rmSync(dir, { recursive: true, force: true });
@@ -584,10 +654,14 @@ describe.skipIf(!distExists)(
         );
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the when-unknown-port group header carries the code,
+        // the shared why explains the dangling port reference, and the Fix line
+        // names the target node whose yg-node.yaml lacks the port.
         expect(stdout).toContain('when-unknown-port');
         expect(stdout).toContain(
-          "Port 'ghostport' is not declared on node 'services/payments' in when",
+          'The predicate references a port that does not exist on the target node.',
         );
+        expect(stdout).toContain('.yggdrasil/model/services/payments/yg-node.yaml');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -613,12 +687,12 @@ describe.skipIf(!distExists)(
         writeFileSync(ordersNodePath(dir), ordersYaml, 'utf-8');
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the relation-target-forbidden group header carries the
+        // code, the shared why names the allowed targets, and the offending node
+        // is listed on its own line.
         expect(stdout).toContain('relation-target-forbidden');
-        expect(stdout).toContain(
-          "Relation 'calls' from",
-        );
-        expect(stdout).toContain("to 'services/payments' (type 'service') is not allowed by the architecture.");
         expect(stdout).toContain("Allowed targets for 'calls' from type 'service': [module]");
+        expect(stdout).toContain('- services/orders');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -634,10 +708,12 @@ describe.skipIf(!distExists)(
         writeArch(dir, arch);
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the parse failure collapses into the
+        // architecture-invalid group; the specific parser message is no longer
+        // rendered in the default view, so we assert the code + the shared
+        // why/Fix that direct the agent to fix the architecture YAML.
         expect(stdout).toContain('architecture-invalid');
-        expect(stdout).toContain(
-          "unknown relation type 'foobar' (valid types: uses, calls, extends, implements, emits, listens)",
-        );
+        expect(stdout).toContain('yg-architecture.yaml failed to parse.');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -653,10 +729,12 @@ describe.skipIf(!distExists)(
         writeArch(dir, arch);
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the parse failure collapses into the
+        // architecture-invalid group; the specific parser message is no longer
+        // rendered in the default view, so we assert the code + the shared
+        // why/Fix that direct the agent to fix the architecture YAML.
         expect(stdout).toContain('architecture-invalid');
-        expect(stdout).toContain(
-          "has unknown field 'integration_aspects'. Use ports on the target node instead.",
-        );
+        expect(stdout).toContain('yg-architecture.yaml failed to parse.');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -677,9 +755,12 @@ describe.skipIf(!distExists)(
         );
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the enforce-strict-without-when group header carries
+        // the code, and the shared Fix line names the offending type and the
+        // remedy.
         expect(stdout).toContain('enforce-strict-without-when');
         expect(stdout).toContain(
-          "Type 'strictnowhen' has enforce: strict but no when predicate.",
+          "Fix: Either add a when predicate to type 'strictnowhen', or remove enforce: strict.",
         );
       } finally {
         rmSync(dir, { recursive: true, force: true });
@@ -696,10 +777,11 @@ describe.skipIf(!distExists)(
         writeArch(dir, 'node_types: [a, b, c]\n');
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the parse failure collapses into the
+        // architecture-invalid group; the specific parser message is no longer
+        // rendered in the default view, so we assert the code + the shared why.
         expect(stdout).toContain('architecture-invalid');
-        expect(stdout).toContain(
-          "'node_types' must be a YAML mapping (or empty/omitted)",
-        );
+        expect(stdout).toContain('yg-architecture.yaml failed to parse.');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -714,10 +796,11 @@ describe.skipIf(!distExists)(
         );
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the parse failure collapses into the
+        // architecture-invalid group; the specific parser message is no longer
+        // rendered in the default view, so we assert the code + the shared why.
         expect(stdout).toContain('architecture-invalid');
-        expect(stdout).toContain(
-          "node_types.service must have a non-empty 'description' string",
-        );
+        expect(stdout).toContain('yg-architecture.yaml failed to parse.');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -745,8 +828,11 @@ describe.skipIf(!distExists)(
         replaceServiceWhen(dir, '    when:\n      path: "src/services/**"\n    enforce: loose');
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the parse failure collapses into the
+        // architecture-invalid group; the specific parser message is no longer
+        // rendered in the default view, so we assert the code + the shared why.
         expect(stdout).toContain('architecture-invalid');
-        expect(stdout).toContain("enforce must be 'strict'");
+        expect(stdout).toContain('yg-architecture.yaml failed to parse.');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -762,8 +848,11 @@ describe.skipIf(!distExists)(
         writeArch(dir, arch);
         const { status, stdout } = run(['check'], dir);
         expect(status).toBe(1);
+        // Grouped output: the parse failure collapses into the
+        // architecture-invalid group; the specific parser message is no longer
+        // rendered in the default view, so we assert the code + the shared why.
         expect(stdout).toContain('architecture-invalid');
-        expect(stdout).toContain('contains non-string');
+        expect(stdout).toContain('yg-architecture.yaml failed to parse.');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }

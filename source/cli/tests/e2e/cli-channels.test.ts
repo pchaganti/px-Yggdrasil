@@ -235,9 +235,10 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel aspect propagation (ancestor
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.all).toContain('no-banned-word');
-      expect(refused.all).toContain(
-        'is refused on node:services/orders by a deterministic check',
-      );
+      // Fill-time line names the refused deterministic pair on the child node.
+      expect(refused.all).toContain('[det] no-banned-word on node:services/orders — refused');
+      // The grouped error body lists the node under the enforced group.
+      expect(refused.all).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -267,9 +268,10 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel aspect propagation (ancestor
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.all).toContain('no-banned-word');
-      expect(refused.all).toContain(
-        'is refused on node:services/orders by a deterministic check',
-      );
+      // Fill-time line names the refused deterministic pair on the child node.
+      expect(refused.all).toContain('[det] no-banned-word on node:services/orders — refused');
+      // The grouped error body lists the node under the enforced group.
+      expect(refused.all).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -343,7 +345,12 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel aspect propagation (ancestor
       expect(fill.status).toBe(0);
       expect(fill.all).toContain('advisory');
       expect(fill.all).toContain('no-banned-word');
-      expect(fill.all).toContain('(advisory — not blocking)');
+      // The advisory violation renders under the Warnings section as an
+      // `advisory` group (the old per-issue "(advisory — not blocking)" suffix
+      // is not emitted by the grouped renderer); the node is listed there.
+      expect(fill.all).toContain('Warnings (1):');
+      expect(fill.all).toContain("advisory  1 pairs  1 nodes  aspect 'no-banned-word'");
+      expect(fill.all).toContain('- services/orders');
 
       // `yg check` renders it as a non-blocking warning and PASSES.
       const check = run(['check'], dir);
@@ -380,9 +387,10 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel aspect propagation (ancestor
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
       expect(fill.all).toContain('no-banned-word');
-      expect(fill.all).toContain(
-        'is refused on node:services/orders by a deterministic check',
-      );
+      // Fill-time line names the refused deterministic pair on the child node.
+      expect(fill.all).toContain('[det] no-banned-word on node:services/orders — refused');
+      // The grouped error body lists the node under the enforced group.
+      expect(fill.all).toContain('- services/orders');
 
       // And `yg check` renders it as a blocking error, not a warning.
       const check = run(['check'], dir);
@@ -418,9 +426,10 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel aspect propagation (ancestor
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
       expect(fill.all).toContain('no-banned-word');
-      expect(fill.all).toContain(
-        'is refused on node:services/orders by a deterministic check',
-      );
+      // Fill-time line names the refused deterministic pair on the child node.
+      expect(fill.all).toContain('[det] no-banned-word on node:services/orders — refused');
+      // The grouped error body lists the node under the enforced group.
+      expect(fill.all).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -439,9 +448,14 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel aspect propagation (ancestor
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
       expect(check.all).toContain('aspect-status-downgrade');
-      // The child node is named, and the cascade is attributed to the ancestor.
+      // The child node is named in the downgrade group, and the cascading
+      // ancestor source is listed as a group member; the shared why explains
+      // that an explicit attach-site status cannot relax a stricter cascade.
       expect(check.all).toContain('services/orders');
-      expect(check.all).toContain('from ancestor:services');
+      expect(check.all).toContain('- services');
+      expect(check.all).toContain(
+        'An explicit attach-site status cannot relax (downgrade) what already cascades',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

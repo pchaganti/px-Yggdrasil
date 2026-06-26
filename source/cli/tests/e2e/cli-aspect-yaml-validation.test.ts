@@ -46,8 +46,12 @@ describe.skipIf(!distExists)('CLI E2E — yg-aspect.yaml field validation', () =
     try {
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
+      // Grouped view: the per-issue `what` ("missing or empty 'name'") is no
+      // longer in the default body; the aspect-name-missing group label + shared
+      // why/fix convey the same intent.
       expect(check.all).toContain('aspect-name-missing');
-      expect(check.all).toContain("missing or empty 'name'");
+      expect(check.all).toContain('every aspect must declare a name');
+      expect(check.all).toContain('add `name: <YourAspectName>` to the file');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

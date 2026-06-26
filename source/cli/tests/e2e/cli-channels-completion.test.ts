@@ -192,9 +192,10 @@ describe.skipIf(!distExists)('CLI E2E — channel propagation completion (CH5 an
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.all).toContain('no-banned-word');
-      expect(refused.all).toContain(
-        'is refused on node:services/orders by a deterministic check',
-      );
+      // Fill-time line names the refused deterministic pair on the child node.
+      expect(refused.all).toContain('[det] no-banned-word on node:services/orders — refused');
+      // The grouped error body lists the node under the enforced group.
+      expect(refused.all).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -253,9 +254,10 @@ describe.skipIf(!distExists)('CLI E2E — channel propagation completion (CH5 an
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.all).toContain('no-banned-word');
-      expect(refused.all).toContain(
-        'is refused on node:services/orders by a deterministic check',
-      );
+      // Fill-time line names the refused deterministic pair on the child node.
+      expect(refused.all).toContain('[det] no-banned-word on node:services/orders — refused');
+      // The grouped error body lists the node under the enforced group.
+      expect(refused.all).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -300,9 +302,10 @@ describe.skipIf(!distExists)('CLI E2E — channel propagation completion (CH5 an
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.all).toContain('no-banned-word');
-      expect(refused.all).toContain(
-        'is refused on node:services/orders by a deterministic check',
-      );
+      // Fill-time line names the refused deterministic pair on the child node.
+      expect(refused.all).toContain('[det] no-banned-word on node:services/orders — refused');
+      // The grouped error body lists the node under the enforced group.
+      expect(refused.all).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

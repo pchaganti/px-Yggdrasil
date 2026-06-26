@@ -137,8 +137,10 @@ describe.skipIf(!distExists)('CLI E2E — ports / consumes channel-6 contract', 
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('port-undefined');
-      // The offending port name is echoed back so the agent can fix it.
-      expect(stdout).toContain('nonexistent');
+      // The shared WHY echoes the provider's real (available) ports; the
+      // consumer carrying the bad consumes is listed in the group node list.
+      expect(stdout).toContain('Available ports: [charge]');
+      expect(stdout).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

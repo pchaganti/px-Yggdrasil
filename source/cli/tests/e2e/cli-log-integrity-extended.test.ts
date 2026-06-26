@@ -200,7 +200,10 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (append-only), format va
 
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
-      expect(all).toContain('Log integrity broken (prefix_modified)');
+      // The per-issue `what` summary ('Log integrity broken (prefix_modified)')
+      // is gone in the grouped default view (log-integrity is not a FULL_WHAT
+      // code). Assert the group label/code plus the now-visible shared why.
+      expect(all).toContain('log-integrity');
       expect(all).toContain('Historical (pre-baseline) log content was modified — append-only violated.');
       // Restore-from-git guidance names both the log.md and the committed log
       // baseline (the triad member yg-lock.logs.json), not the retired single-file
@@ -222,10 +225,12 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (append-only), format va
 
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
-      // check renders the validation code plus the offending node path.
+      // check renders the validation code plus the offending node path. The
+      // per-issue `what` summary ('Log integrity broken (prefix_modified)') is
+      // gone in the grouped view (log-integrity is not a FULL_WHAT code); the
+      // group label, node line, shared why, and Fix remain.
       expect(stdout).toContain('log-integrity');
       expect(stdout).toContain('services/orders');
-      expect(stdout).toContain('Log integrity broken (prefix_modified)');
       expect(stdout).toContain('append-only violated');
       expect(stdout).toContain('git checkout HEAD --');
     } finally {
@@ -244,9 +249,12 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (append-only), format va
 
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
-      expect(all).toContain('Log integrity broken (boundary_missing)');
-      expect(all).toContain('(file missing)');
-      expect(all).toContain('log was deleted or reset');
+      // The per-issue `what` ('Log integrity broken (boundary_missing)' and the
+      // '(file missing)' detail) is gone in the grouped default view
+      // (log-integrity is not a FULL_WHAT code). Assert the group label/code plus
+      // the now-visible shared why, which still names the deletion/reset cause.
+      expect(all).toContain('log-integrity');
+      expect(all).toContain('Baseline boundary entry not found — log was deleted or reset.');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -274,7 +282,11 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (append-only), format va
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
       expect(check.all).toContain('log-format');
-      expect(check.all).toContain('Log format invalid at .yggdrasil/model/services/orders/log.md');
+      // The per-issue `what` ('Log format invalid at <path>') is gone in the
+      // grouped default view (log-format is not a FULL_WHAT code). Assert the
+      // group's now-visible shared why plus the offending node line instead.
+      expect(check.all).toContain('Log format must be parseable for indexing and integrity.');
+      expect(check.all).toContain('- services/orders');
       // read surfaces the per-line reason detail.
       const read = run(['log', 'read', '--node', 'services/orders'], dir);
       expect(read.status).toBe(1);
@@ -376,11 +388,13 @@ describe.skipIf(!distExists)('CLI E2E — log integrity (append-only), format va
 
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
-      // check renders the validation code, the offending node path, and the
-      // summary line of the `what` block.
+      // check renders the validation code and the offending node path. The
+      // per-issue `what` ('Log format invalid at <path>') is gone in the grouped
+      // default view (log-format is not a FULL_WHAT code); assert the group's
+      // now-visible shared why instead.
       expect(stdout).toContain('log-format');
       expect(stdout).toContain('services/orders');
-      expect(stdout).toContain('Log format invalid at .yggdrasil/model/services/orders/log.md');
+      expect(stdout).toContain('Log format must be parseable for indexing and integrity.');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

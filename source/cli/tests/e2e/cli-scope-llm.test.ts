@@ -158,9 +158,15 @@ describe.skipIf(!distExists)('CLI E2E — scope (LLM-side): per:file / content-a
       appendFileSync(path.join(base, 'a.ts'), 'export const aa = 2;\n');
       const afterEdit = run(['check'], dir);
       expect(afterEdit.status).toBe(1);
-      expect(afterEdit.all).toContain("No valid verdict for aspect 'has-doc-comment' on file:src/services/orders/a.ts.");
-      expect(afterEdit.all).not.toContain('on file:src/services/orders/b.ts.');
-      expect(afterEdit.all).not.toContain('on file:src/services/orders/c.ts.');
+      // Editing a.ts invalidates EXACTLY one per:file pair → the unverified group
+      // shows 1 pair for has-doc-comment. The per-unit subject path (the old
+      // "...on file:src/services/orders/a.ts." what) is no longer rendered in the
+      // grouped view; the 1-pair count + the chatCount delta (1) below prove only
+      // a.ts's pair re-billed, with b.ts/c.ts untouched.
+      expect(afterEdit.all).toContain('unverified (not yet reviewed)');
+      expect(afterEdit.all).toContain('1 pairs');
+      expect(afterEdit.all).toContain("aspect 'has-doc-comment'");
+      expect(afterEdit.all).toContain('- services/orders');
 
       // RE-FILL: exactly ONE additional reviewer call — only a.ts's pair.
       const callsBefore = mock.chatCount();
@@ -264,7 +270,13 @@ describe.skipIf(!distExists)('CLI E2E — scope (LLM-side): per:file / content-a
       writeFileSync(path.join(base, 'other.ts'), '// @reviewed\nexport const o = 1;\nexport const oo = 2;\n');
       const afterMark = run(['check'], dir);
       expect(afterMark.status).toBe(1);
-      expect(afterMark.all).toContain("No valid verdict for aspect 'marker-rule' on node:services/orders.");
+      // Adding the marker grows the subject set → the per:node pair's input hash
+      // changes → it goes unverified. The per-unit `what` ("...on node:services/
+      // orders.") is no longer rendered; the unverified group names the aspect and
+      // the node member line instead.
+      expect(afterMark.all).toContain('unverified (not yet reviewed)');
+      expect(afterMark.all).toContain("aspect 'marker-rule'");
+      expect(afterMark.all).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

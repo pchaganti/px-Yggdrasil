@@ -94,7 +94,11 @@ describe.skipIf(!distExists)('CLI E2E — lock merge (LLM) & piped refusal survi
       // The missing LLM pair surfaces as unverified on a plain check.
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
-      expect(check.all).toContain("No valid verdict for aspect 'has-doc-comment' on node:services/payments.");
+      expect(check.all).toContain('unverified (not yet reviewed)');
+      expect(check.all).toContain("aspect 'has-doc-comment'");
+      expect(check.all).toContain('- services/payments');
+      // The kept orders pair stayed valid — it is NOT listed in the unverified group.
+      expect(check.all).not.toContain('- services/orders');
 
       // --approve re-reviews ONLY the missing pair → green. No hand-merge.
       const callsBefore = mock.chatCount();
@@ -197,24 +201,34 @@ describe.skipIf(!distExists)('CLI E2E — lock merge (LLM) & piped refusal survi
       // eslint-disable-next-line no-control-regex
       const stripped = stdout.replace(/\x1b\[[0-9;]*m/g, '');
 
-      // 1. Declared N from the "Errors (N):" header.
-      const headerMatch = stripped.match(/Errors \((\d+)\):/);
-      expect(headerMatch, 'Expected "Errors (N):" header in output').not.toBeNull();
+      // 1. Declared N from the "Errors (N):" header. The grouped redesign may
+      //    append " in M groups"; here all refusals share one (code, aspect)
+      //    group so M == 1 and the header stays "Errors (N):", but tolerate the
+      //    suffix to stay robust. N is still the true ISSUE count.
+      const headerMatch = stripped.match(/Errors \((\d+)\)( in \d+ groups)?:/);
+      expect(headerMatch, 'Expected "Errors (N)" header in output').not.toBeNull();
       const headerCount = parseInt(headerMatch![1], 10);
 
       // 2. N well above 200 — a large list that would truncate under the pre-fix
       //    process.exit() behaviour.
       expect(headerCount).toBeGreaterThan(200);
 
-      // 3. Count rendered enforced refusal blocks. Each block's first line is
-      //    "  enforced  <nodePath>  Aspect '...' is refused ...".
-      const renderedCount = (stripped.match(/^ {2}enforced {2}/gm) ?? []).length;
+      // 3. Count rendered enforced refusal MEMBER lines. The refusals now render
+      //    as ONE grouped enforced block ("  enforced  N pairs  M nodes  aspect
+      //    '...'") whose members are listed one-per-line as "            - <node>
+      //    Reviewer reason: ...". Count those member bullet lines — that is the
+      //    set of refusals that actually survived the pipe.
+      const renderedCount = (stripped.match(/^ {12}- svc\d{3}/gm) ?? []).length;
 
       // 4. Core assertion: every refusal the header declares is rendered — the
-      //    refusal list survived the pipe.
+      //    refusal list survived the pipe (flush invariant).
       expect(renderedCount).toBe(headerCount);
-      // And it really is the refusal shape (cached marker present).
-      expect(stripped).toContain('cached verdict — the reviewer did NOT re-run');
+      // And it really is the cached enforced-refusal shape: the grouped block
+      // is labelled `enforced`, carries the cached-refusal rationale, and every
+      // member line shows the retained reviewer reason (FULL_WHAT detail).
+      expect(stripped).toContain("enforced  210 pairs  210 nodes  aspect 'must-have-header'");
+      expect(stripped).toContain('A refused verdict for unchanged inputs is final and cached');
+      expect(stripped).toContain('Reviewer reason: seeded refusal reason for the pipe-survival test');
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });

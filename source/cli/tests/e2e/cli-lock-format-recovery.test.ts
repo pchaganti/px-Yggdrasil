@@ -83,10 +83,19 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: prompt-too-large / merge 
       const check1 = run(['check'], dir);
       expect(check1.status).toBe(1);
       expect(check1.all).toContain('prompt-too-large');
-      expect(check1.all).toContain("Assembled reviewer prompt for aspect 'has-doc-comment' on node:services/orders");
-      expect(check1.all).toContain("tier limit of 50");
-      // GATE PRECEDENCE: the pair shows prompt-too-large, NOT a duplicate unverified.
-      expect(check1.all).not.toContain("No valid verdict for aspect 'has-doc-comment'");
+      // prompt-too-large is NOT a FULL_WHAT code, so the per-issue `what`
+      // ("Assembled reviewer prompt for aspect '<id>' on <unit> is N chars, over
+      // the '<tier>' tier limit of 50.") — including the char/limit numbers — is
+      // gone in the grouped read-only view. Assert the group label, the aspect
+      // segment, the now-visible why, and the offending node line instead.
+      expect(check1.all).toContain("aspect 'has-doc-comment'");
+      expect(check1.all).toContain('An over-limit prompt risks context-window truncation and a false verdict.');
+      expect(check1.all).toContain('- services/orders');
+      // GATE PRECEDENCE: the pair shows prompt-too-large, NOT a duplicate
+      // unverified. With the per-issue `what` gone, the surviving unverified
+      // discriminator is that has-doc-comment never appears under an
+      // `unverified (not yet reviewed)` group header.
+      expect(check1.all).not.toMatch(/unverified \(not yet reviewed\)[^\n]*aspect 'has-doc-comment'/);
 
       // FILL skips the over-limit pairs → ZERO reviewer calls. Deterministic pairs still fill.
       const fill1 = await runAsync(['check', '--approve'], dir);
@@ -110,8 +119,10 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: prompt-too-large / merge 
       expect(check2.all).toContain('prompt-too-large');
       // The verdict survived in the lock — lowering the limit did NOT invalidate it.
       expect(readLock(dir).verdicts['has-doc-comment']['node:services/orders'].verdict).toBe('approved');
-      // And it is NOT rendered as unverified.
-      expect(check2.all).not.toContain("No valid verdict for aspect 'has-doc-comment'");
+      // And it is NOT rendered as unverified. The per-issue `what` is gone in the
+      // grouped view, so the surviving discriminator is that has-doc-comment
+      // never appears under an `unverified (not yet reviewed)` group header.
+      expect(check2.all).not.toMatch(/unverified \(not yet reviewed\)[^\n]*aspect 'has-doc-comment'/);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
@@ -145,10 +156,15 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: prompt-too-large / merge 
       writeFileSync(detPath(dir), JSON.stringify({ version: lock.version, verdicts: lock.verdicts, nodes: {} }, null, 2) + '\n', 'utf-8');
       writeFileSync(logsPath(dir), JSON.stringify({ version: lock.version, verdicts: {}, nodes: lock.nodes }, null, 2) + '\n', 'utf-8');
 
-      // The missing pairs surface as unverified.
+      // The missing pairs surface as unverified. The per-issue `what`
+      // ("No valid verdict for aspect '<id>' on <unit>.") is gone in the grouped
+      // view for the non-FULL_WHAT unverified code; assert the gloss + aspect
+      // segment + the offending node line instead.
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
-      expect(check.all).toContain("No valid verdict for aspect 'no-todo-comments' on node:services/payments.");
+      expect(check.all).toContain('unverified (not yet reviewed)');
+      expect(check.all).toContain("aspect 'no-todo-comments'");
+      expect(check.all).toContain('- services/payments');
 
       // --approve re-verifies ONLY the missing pairs → green. No hand-merge.
       const refill = run(['check', '--approve'], dir);
@@ -181,7 +197,10 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: prompt-too-large / merge 
       const garbled = run(['check'], dir);
       expect(garbled.status).toBe(1);
       expect(garbled.all).toContain('lock-invalid');
-      expect(garbled.all).toContain('unparseable JSON');
+      // lock-invalid is not a FULL_WHAT code, so the per-issue `what`
+      // ('unparseable JSON') is gone in the grouped view; the detail now lives in
+      // the shared why. Assert the now-visible why plus the recovery command.
+      expect(garbled.all).toContain('a garbled lock file cannot be read');
       expect(garbled.all).toContain('git checkout HEAD -- .yggdrasil/yg-lock.nondeterministic.json');
 
       // (b) Git conflict markers.
@@ -193,7 +212,9 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: prompt-too-large / merge 
       const conflict = run(['check'], dir);
       expect(conflict.status).toBe(1);
       expect(conflict.all).toContain('lock-invalid');
-      expect(conflict.all).toContain('git conflict markers');
+      // The per-issue `what` ('contains git conflict markers') is gone in the
+      // grouped view; the detail now lives in the shared why.
+      expect(conflict.all).toContain('a conflict-markered lock file cannot be parsed');
       expect(conflict.all).toContain('git checkout --ours');
 
       // (c) Unknown version.
@@ -201,7 +222,9 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: prompt-too-large / merge 
       const badVersion = run(['check'], dir);
       expect(badVersion.status).toBe(1);
       expect(badVersion.all).toContain('lock-invalid');
-      expect(badVersion.all).toContain('unsupported version 99');
+      // The per-issue `what` ('has unsupported version 99 ...') is gone in the
+      // grouped view; the detail now lives in the shared why.
+      expect(badVersion.all).toContain('an unrecognized lock version means the file was written by a different or newer CLI');
 
       // (d) Delete the lock → cold start works again (all pairs unverified, fill recovers).
       //     Remove the garbled committed file AND the gitignored deterministic verdict file;

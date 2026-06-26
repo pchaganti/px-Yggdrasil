@@ -127,7 +127,10 @@ describe.skipIf(!distExists)('CLI E2E — port channel-6 enforcement / relation 
       // error attributed to the consumer node and the port-sourced aspect.
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
-      expect(check.all).toContain("Aspect 'audit-required' is refused on node:services/orders");
+      // The grouped enforced refusal names the port-sourced aspect in its header
+      // and lists the consumer node it refuses on.
+      expect(check.all).toMatch(/enforced\s+1 pairs\s+1 nodes\s+aspect 'audit-required'/);
+      expect(check.all).toContain('- services/orders');
 
       // The violation is reported against the consumer's OWN source file —
       // proving the port contract enforces across the node boundary. The
@@ -373,9 +376,9 @@ mapping:
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('relation-target-forbidden');
-      expect(all).toContain("Relation 'extends' from");
-      expect(all).toContain("to 'other'");
+      // The shared WHY enumerates the allowed targets; the declaring node is listed.
       expect(all).toContain("Allowed targets for 'extends' from type 'derived': [base]");
+      expect(all).toContain('- derived');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -403,9 +406,9 @@ mapping:
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('relation-target-forbidden');
-      expect(all).toContain("Relation 'implements' from");
-      expect(all).toContain("to 'other'");
+      // The shared WHY enumerates the allowed targets; the declaring node is listed.
       expect(all).toContain("Allowed targets for 'implements' from type 'derived': [iface]");
+      expect(all).toContain('- derived');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

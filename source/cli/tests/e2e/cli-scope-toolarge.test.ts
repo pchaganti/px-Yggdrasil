@@ -122,7 +122,11 @@ describe.skipIf(!distExists)('CLI E2E — scope fail-closed: a >5MB content-filt
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
       expect(check.all).toContain('file-unreadable');
-      expect(check.all).toContain('could not evaluate the content filter');
+      // The per-issue `what` ("could not evaluate the content filter") is no longer
+      // rendered in the grouped view; the over-the-scan-limit rationale survives in
+      // the shared why, and the over-limit file path survives in the Fix text below.
+      expect(check.all).toContain('exceeds the scan limit, so the filter could not be applied');
+      expect(check.all).toContain('A silently dropped file can turn an enforced rule into a vacuous pass.');
       expect(check.all).toContain('src/services/orders/big.ts');
       // The error names the marker-rule aspect (the content filter that had to scan it).
       expect(check.all).toContain('marker-rule');

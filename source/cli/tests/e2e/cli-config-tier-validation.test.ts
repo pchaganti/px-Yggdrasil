@@ -164,7 +164,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tier-provider-unknown');
-      expect(stdout).toContain("unknown provider 'bogus-provider'");
+      // Per-issue `what` (the "unknown provider 'bogus-provider'" detail) is gone
+      // from the grouped default view; assert the now-visible shared why + Fix.
+      expect(stdout).toContain('provider must be one the CLI knows how to invoke');
+      expect(stdout).toContain('Fix: use one of: ollama, openai, anthropic');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -178,7 +181,9 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tier-provider-missing');
-      expect(stdout).toContain("tier 'standard' is missing provider");
+      // Per-tier `what` detail is gone from the grouped view; assert the shared why + Fix.
+      expect(stdout).toContain('each tier must declare which provider implements it');
+      expect(stdout).toContain("Fix: add 'provider: <one-of-known>'");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -196,7 +201,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tier-consensus-invalid');
-      expect(stdout).toContain("invalid consensus '2'");
+      // The per-value `what` ("invalid consensus '2'") is gone from the grouped view;
+      // assert the now-visible shared why + Fix that explains the odd-integer rule.
+      expect(stdout).toContain('consensus must be a positive odd integer; even values cannot break ties');
+      expect(stdout).toContain('Fix: use 1 (single call) or an odd number >= 3 for majority vote');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -210,7 +218,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tier-consensus-invalid');
-      expect(stdout).toContain("invalid consensus '0'");
+      // The per-value `what` ("invalid consensus '0'") is gone from the grouped view;
+      // assert the now-visible shared why + Fix that explains the < 1 rejection.
+      expect(stdout).toContain('< 1 is nonsensical');
+      expect(stdout).toContain('Fix: use 1 (single call) or an odd number >= 3 for majority vote');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -224,7 +235,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tier-consensus-invalid');
-      expect(stdout).toContain("invalid consensus '-3'");
+      // The per-value `what` ("invalid consensus '-3'") is gone from the grouped view;
+      // assert the now-visible shared why + Fix that explains the < 1 rejection.
+      expect(stdout).toContain('< 1 is nonsensical');
+      expect(stdout).toContain('Fix: use 1 (single call) or an odd number >= 3 for majority vote');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -238,7 +252,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tier-consensus-invalid');
-      expect(stdout).toContain("invalid consensus '1.5'");
+      // The per-value `what` ("invalid consensus '1.5'") is gone from the grouped view;
+      // assert the now-visible shared why + Fix that explains the integer rule.
+      expect(stdout).toContain('consensus must be a positive odd integer');
+      expect(stdout).toContain('Fix: use 1 (single call) or an odd number >= 3 for majority vote');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -252,7 +269,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tier-consensus-invalid');
-      expect(stdout).toContain("tier 'standard' is missing consensus");
+      // The per-tier `what` ("tier 'standard' is missing consensus") is gone from the
+      // grouped view; assert the now-visible shared why + Fix for the missing-key case.
+      expect(stdout).toContain('consensus is the number of independent reviewer votes per aspect');
+      expect(stdout).toContain('Fix: add `consensus: 1`');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -270,7 +290,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tier-config-missing');
-      expect(stdout).toContain("tier 'standard' is missing config");
+      // The per-tier `what` ("tier 'standard' is missing config") is gone from the
+      // grouped view; assert the now-visible shared why + Fix for the missing-config case.
+      expect(stdout).toContain('provider-specific settings live in config:');
+      expect(stdout).toContain('Fix: add `config: { model: <model-name> }`');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -286,7 +309,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tier-config-missing');
-      expect(stdout).toContain('config.model is missing');
+      // The per-tier `what` ("config.model is missing") is gone from the grouped view;
+      // assert the now-visible shared why + Fix for the missing-model case.
+      expect(stdout).toContain('every tier requires a model id');
+      expect(stdout).toContain('Fix: add `model: <model-name>` under config:');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -300,7 +326,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tier-unknown-key');
-      expect(stdout).toContain("unknown key 'boguskey'");
+      // The per-key `what` ("unknown key 'boguskey'") is gone from the grouped view;
+      // assert the now-visible shared why + Fix listing the accepted tier keys.
+      expect(stdout).toContain('tier accepts only `provider`, `consensus`, `config`, `max_prompt_chars`');
+      expect(stdout).toContain("Fix: move to config: if it's a provider setting, or remove");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -320,7 +349,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tier-name-invalid');
-      expect(stdout).toContain("tier name '1bad' is invalid");
+      // The per-name `what` ("tier name '1bad' is invalid") is gone from the grouped view;
+      // assert the now-visible shared why + Fix (which carries the name-regex constraint).
+      expect(stdout).toContain('tier names must start with a letter and contain only letters, digits, underscore, or hyphen');
+      expect(stdout).toContain('Fix: rename the tier (regex: ^[a-zA-Z][a-zA-Z0-9_-]{0,62}$)');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -334,7 +366,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tier-name-reserved');
-      expect(stdout).toContain("tier name 'default' is reserved");
+      // The per-name `what` ("tier name 'default' is reserved") is gone from the grouped
+      // view; assert the now-visible shared why + Fix explaining the reserved name.
+      expect(stdout).toContain('a tier named "default" is visually identical to reviewer.default pointing to itself');
+      expect(stdout).toContain('Fix: rename the tier (referenced by aspects via reviewer.tier:)');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -362,7 +397,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-default-tier-missing');
-      expect(stdout).toContain('reviewer.default is required when multiple tiers are configured');
+      // The per-issue `what` ("reviewer.default is required when multiple tiers are
+      // configured") is gone from the grouped view; assert the now-visible why + Fix.
+      expect(stdout).toContain('with multiple tiers, the default must be chosen explicitly');
+      expect(stdout).toContain('Fix: set reviewer.default to one of: standard, deep');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -376,7 +414,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-default-tier-unknown');
-      expect(stdout).toContain("reviewer.default is 'ghost' but no tier 'ghost' is configured");
+      // The per-issue `what` ("reviewer.default is 'ghost' but no tier 'ghost' is
+      // configured") is gone from the grouped view; assert the now-visible why + Fix.
+      expect(stdout).toContain('reference must match a tier name');
+      expect(stdout).toContain('Fix: use one of: standard');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -397,7 +438,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-reviewer-missing');
-      expect(stdout).toContain('yg-config.yaml has no reviewer: section');
+      // The per-issue `what` ("yg-config.yaml has no reviewer: section") is gone from the
+      // grouped view; assert the now-visible shared why + Fix.
+      expect(stdout).toContain('Every project must declare at least one reviewer tier');
+      expect(stdout).toContain('Fix: Add `reviewer: { tiers:');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -411,7 +455,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-reviewer-unknown-key');
-      expect(stdout).toContain("unknown key 'bogus' under reviewer:");
+      // The per-key `what` ("unknown key 'bogus' under reviewer:") is gone from the
+      // grouped view; assert the now-visible shared why + Fix.
+      expect(stdout).toContain('the reviewer section accepts only `default` and `tiers`');
+      expect(stdout).toContain("Fix: move provider-specific settings into a tier's config: section");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -427,7 +474,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tiers-empty');
-      expect(stdout).toContain('reviewer.tiers is empty');
+      // The per-issue `what` ("reviewer.tiers is empty") is gone from the grouped view;
+      // assert the now-visible shared why + Fix.
+      expect(stdout).toContain('at least one tier must be defined');
+      expect(stdout).toContain('Fix: add at least one tier entry');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -454,7 +504,11 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tier-prompt-chars-invalid');
-      expect(stdout).toContain("tier 'standard' has invalid max_prompt_chars: -5");
+      // The per-tier `what` ("tier 'standard' has invalid max_prompt_chars: -5") is gone
+      // from the grouped view; assert the now-visible shared why + Fix that rejects
+      // zero/negative/fractional values.
+      expect(stdout).toContain('a zero, negative, or fractional value makes the gate nonsensical');
+      expect(stdout).toContain("Fix: set 'max_prompt_chars' to a positive integer");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -468,7 +522,11 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tier-prompt-chars-invalid');
-      expect(stdout).toContain("tier 'standard' has invalid max_prompt_chars: 0");
+      // The per-tier `what` ("tier 'standard' has invalid max_prompt_chars: 0") is gone
+      // from the grouped view; assert the now-visible shared why + Fix that rejects
+      // zero/negative/fractional values.
+      expect(stdout).toContain('a zero, negative, or fractional value makes the gate nonsensical');
+      expect(stdout).toContain("Fix: set 'max_prompt_chars' to a positive integer");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -482,7 +540,11 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-invalid');
-      expect(stdout).toContain('parallel must be a positive integer >= 1');
+      // The per-issue `what` ("parallel must be a positive integer >= 1") is gone from
+      // the grouped view; assert the now-visible why (which carries the < 1 rejection)
+      // + Fix.
+      expect(stdout).toContain('parallel controls the concurrent-aspect-verification cap; values < 1 cannot make progress');
+      expect(stdout).toContain('Fix: set `parallel: <positive integer>`');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -496,7 +558,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-invalid');
-      expect(stdout).toContain('parallel must be a number');
+      // The per-issue `what` ("parallel must be a number") is gone from the grouped view;
+      // assert the now-visible why + Fix for the parallel-cap config defect.
+      expect(stdout).toContain('parallel controls the concurrent-aspect-verification cap');
+      expect(stdout).toContain('Fix: set `parallel: <positive integer>`');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -508,7 +573,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-invalid');
-      expect(stdout).toContain('empty or not a valid YAML mapping');
+      // The per-issue `what` ("empty or not a valid YAML mapping") is gone from the
+      // grouped view; assert the now-visible why + Fix for the malformed-top-level case.
+      expect(stdout).toContain('the top-level structure must be a YAML mapping with keys like reviewer, quality, parallel');
+      expect(stdout).toContain('Fix: restore the file from version control, or regenerate it via `yg init`');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -538,7 +606,11 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('aspect-tier-on-deterministic');
-      expect(stdout).toContain("reviewer.type: deterministic together with reviewer.tier: 'standard'");
+      // The per-aspect `what` ("reviewer.type: deterministic together with
+      // reviewer.tier: 'standard'") is gone from the grouped view; assert the now-visible
+      // why + Fix that explains why tiers do not apply to deterministic aspects.
+      expect(stdout).toContain('Deterministic aspects run locally without an LLM; tiers do not apply');
+      expect(stdout).toContain('Fix: remove tier: from the aspect');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -578,8 +650,15 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       // The §4 gate fired at the DEFAULT limit even though the tier omitted the key.
+      // prompt-too-large is NOT a FULL_WHAT code, so the per-node `what` carrying the
+      // explicit "50000" limit is gone from the grouped default view. Assert the now-
+      // visible group content proving an LLM pair was actually gated: the group label,
+      // the aspect segment (only aspect-bearing issues carry it), the shared why, and
+      // the member node line.
       expect(stdout).toContain('prompt-too-large');
-      expect(stdout).toContain('50000');
+      expect(stdout).toContain("aspect 'det'");
+      expect(stdout).toContain('An over-limit prompt risks context-window truncation and a false verdict');
+      expect(stdout).toContain('- widget');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -606,7 +685,10 @@ describe.skipIf(!distExists)('CLI E2E — yg-config.yaml reviewer/tier + global-
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('aspect-tier-unknown');
-      expect(stdout).toContain("references tier 'ghosttier' that does not exist");
+      // The per-aspect `what` ("references tier 'ghosttier' that does not exist") is gone
+      // from the grouped view; assert the now-visible shared why + Fix.
+      expect(stdout).toContain('Every tier reference must match a configured tier name under reviewer.tiers');
+      expect(stdout).toContain("Fix: Use one of: standard, or remove 'tier:'");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

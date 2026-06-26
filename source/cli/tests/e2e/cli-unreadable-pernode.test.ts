@@ -139,7 +139,10 @@ describe.skipIf(!distExists)('CLI E2E — per:node fail-closed: unreadable mappe
       const check1 = run(['check'], dir);
       expect(check1.status).toBe(1);
       expect(check1.all).toContain('file-unreadable');
-      expect(check1.all).toContain('could not read subject file');
+      // Grouped view: the per-issue `what` ("could not read subject file") is no
+      // longer in the default body; the shared why carries the fail-closed
+      // rationale and the Fix names the unreadable file + the aspect segment.
+      expect(check1.all).toContain('could not be read, so it cannot be reviewed');
       expect(check1.all).toContain('src/services/orders/svc.ts');
       expect(check1.all).toContain('plain-rule');
 

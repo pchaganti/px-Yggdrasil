@@ -211,8 +211,12 @@ describe.skipIf(!distExists)('CLI E2E — architecture type classification', () 
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('type-when-mismatch');
-      expect(all).toContain("File 'src/widget.ts' is in mapping of node 'widget' (type: service)");
-      expect(all).toContain("does not satisfy 'service'.when");
+      // Per-issue WHAT ("File '...' is in mapping of node '...'") is gone in the
+      // grouped renderer; assert the group's shared `why` (which names the type),
+      // the offending node line, and the Fix hints that convey the same intent.
+      expect(all).toContain("When a node is declared as type 'service', every file in its mapping must satisfy the type's when predicate");
+      expect(all).toContain("satisfies service.when");
+      expect(all).toContain('- widget');
       // The remediation hints point the agent at type-suggest for the file.
       expect(all).toContain('yg type-suggest --file src/widget.ts');
     } finally {
@@ -243,10 +247,11 @@ describe.skipIf(!distExists)('CLI E2E — architecture type classification', () 
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('type-when-mismatch');
-      expect(all).toContain("File 'src/plain.ts' is in mapping of node 'cmd' (type: command)");
-      expect(all).toContain("does not satisfy 'command'.when");
-      // `yg check` collapses the multi-line WHAT to its first line and renders
-      // the NEXT, which names the content-predicate type to refactor against.
+      // Per-issue WHAT is gone in the grouped renderer; assert the group's shared
+      // `why` (which names the type) and the offending node line instead.
+      expect(all).toContain("When a node is declared as type 'command', every file in its mapping must satisfy the type's when predicate");
+      expect(all).toContain('- cmd');
+      // The grouped Fix block names the content-predicate type to refactor against.
       expect(all).toContain('satisfies command.when');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -278,7 +283,12 @@ describe.skipIf(!distExists)('CLI E2E — architecture type classification', () 
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('type-when-mismatch');
-      expect(all).toContain("File 'src/foo.test.ts' is in mapping of node 'cmd' (type: command)");
+      // Per-issue WHAT is gone in the grouped renderer; assert the group's shared
+      // `why`, the offending node line, and the Fix hint naming the test file
+      // (the `not` atom excluded it from command.when).
+      expect(all).toContain("When a node is declared as type 'command', every file in its mapping must satisfy the type's when predicate");
+      expect(all).toContain('- cmd');
+      expect(all).toContain('yg type-suggest --file src/foo.test.ts');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -351,10 +361,11 @@ describe.skipIf(!distExists)('CLI E2E — architecture type classification', () 
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('type-strict-misplaced');
-      // The WHAT first line names the file + strict type; the node id `widget`
-      // is attributed in the error header and the NEXT remediation block.
-      expect(all).toContain("File 'src/auth.secure.ts' satisfies when of type 'secure' (enforce: strict)");
-      expect(all).toContain('widget');
+      // Per-issue WHAT (the file + strict type) is gone in the grouped renderer;
+      // assert the group's shared `why` (which names the strict type), the owner
+      // node line, and the Fix remediation that conveys the same intent.
+      expect(all).toContain("Type 'secure' has enforce: strict");
+      expect(all).toContain('- widget');
       expect(all).toContain("Change 'widget' type to 'secure' if conceptually correct.");
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -424,9 +435,10 @@ describe.skipIf(!distExists)('CLI E2E — architecture type classification', () 
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('strict-overlap-conflict');
-      expect(all).toContain('Two types with enforce: strict have overlapping when predicates');
-      // `yg check` collapses the multi-line WHAT but renders the NEXT, which
-      // names both conflicting types (sorted: audited before secure).
+      // Per-issue WHAT is gone in the grouped renderer; assert the group's shared
+      // `why` explaining the impossible-to-satisfy double-strict overlap.
+      expect(all).toContain('Both types declare enforce: strict');
+      // The grouped Fix block names both conflicting types (sorted: audited before secure).
       expect(all).toContain('yg impact --type audited');
       expect(all).toContain('yg impact --type secure');
       // The conflict supersedes orphan/misplaced for that file.
@@ -471,7 +483,12 @@ describe.skipIf(!distExists)('CLI E2E — architecture type classification', () 
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('type-without-when-with-mapping');
-      expect(all).toContain("Node 'widget' has type 'module' (no `when` — organizational type) but mapping is not empty");
+      // Per-issue WHAT (naming the node + organizational type) is gone in the
+      // grouped renderer; assert the group's shared `why`, the offending node
+      // line, and the Fix naming the organizational type to add a `when` to.
+      expect(all).toContain('Types without `when` are organizational (parent-only). Nodes of such types cannot have mapped files.');
+      expect(all).toContain('- widget');
+      expect(all).toContain("Add a `when` predicate to type 'module'");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -595,7 +612,15 @@ describe.skipIf(!distExists)('CLI E2E — architecture type classification', () 
       expect(fill.status).toBe(1);
       expect(fill.all).toContain('[det] own-type-rule on node:handler — refused');
       expect(fill.all).toContain('own-type-rule');
-      expect(fill.all).toContain("Aspect 'own-type-rule' is refused on node:handler by a deterministic check.");
+      // The post-fill grouped render names the aspect in the group header
+      // (enforced ... aspect 'own-type-rule') and lists the refusing node with its
+      // deterministic Violations tail (FULL_WHAT detail is retained per-node). The
+      // old per-issue WHAT line 0 ("Aspect '...' is refused on <unit> ...") is now
+      // the group-level header and no longer rendered verbatim per issue.
+      expect(fill.all).toContain("enforced");
+      expect(fill.all).toContain("aspect 'own-type-rule'");
+      expect(fill.all).toContain('- handler');
+      expect(fill.all).toContain('own-type-rule: FORBIDDEN_OWN found.');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -634,7 +659,15 @@ describe.skipIf(!distExists)('CLI E2E — architecture type classification', () 
       expect(fill.status).toBe(1);
       expect(fill.all).toContain('[det] parent-type-rule on node:svc/handler — refused');
       expect(fill.all).toContain('parent-type-rule');
-      expect(fill.all).toContain("Aspect 'parent-type-rule' is refused on node:svc/handler by a deterministic check.");
+      // The post-fill grouped render names the ancestor-type aspect in the group
+      // header and lists the nested descendant node with its deterministic
+      // Violations tail (FULL_WHAT detail is retained per-node). The old per-issue
+      // WHAT line 0 ("Aspect '...' is refused on <unit> ...") is now the group
+      // header and no longer rendered verbatim per issue.
+      expect(fill.all).toContain("enforced");
+      expect(fill.all).toContain("aspect 'parent-type-rule'");
+      expect(fill.all).toContain('- svc/handler');
+      expect(fill.all).toContain('parent-type-rule: FORBIDDEN_PARENT found.');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

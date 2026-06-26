@@ -176,7 +176,8 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('aspect-missing-rule-source');
-      expect(all).toContain("Aspect 'has-doc-comment' has reviewer 'llm' but content.md is missing.");
+      // The grouped Fix names the aspect's missing content.md (LLM rule source).
+      expect(all).toContain('Create .yggdrasil/aspects/has-doc-comment/content.md describing the rule.');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -189,7 +190,8 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('aspect-missing-rule-source');
-      expect(all).toContain("Aspect 'no-todo-comments' has reviewer 'deterministic' but check.mjs is missing.");
+      // The grouped Fix names the aspect's missing check.mjs (deterministic rule source).
+      expect(all).toContain('Create .yggdrasil/aspects/no-todo-comments/check.mjs exporting a check function.');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -203,10 +205,11 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('aspect-both-rule-sources');
-      expect(all).toContain("Aspect 'no-todo-comments' has both content.md and check.mjs.");
+      // The shared WHY explains exactly one rule source is allowed.
+      expect(all).toContain('Exactly one rule source is allowed per aspect; the validator cannot infer intent.');
       // The mismatched-file companion error names content.md as the wrong source.
       expect(all).toContain('aspect-unexpected-rule-source');
-      expect(all).toContain("Aspect 'no-todo-comments' has reviewer 'deterministic' but content.md is present.");
+      expect(all).toContain("Remove .yggdrasil/aspects/no-todo-comments/content.md or change reviewer to 'llm'.");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -220,10 +223,11 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('aspect-both-rule-sources');
-      expect(all).toContain("Aspect 'has-doc-comment' has both content.md and check.mjs.");
+      // The shared WHY explains exactly one rule source is allowed.
+      expect(all).toContain('Exactly one rule source is allowed per aspect; the validator cannot infer intent.');
       // The mismatched-file companion error names check.mjs as the wrong source.
       expect(all).toContain('aspect-unexpected-rule-source');
-      expect(all).toContain("Aspect 'has-doc-comment' has reviewer 'llm' but check.mjs is present.");
+      expect(all).toContain("Remove .yggdrasil/aspects/has-doc-comment/check.mjs or change reviewer to 'deterministic'.");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -240,9 +244,9 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
       expect(status).toBe(1);
       // Missing its OWN source (content.md) AND carrying the WRONG one (check.mjs).
       expect(all).toContain('aspect-missing-rule-source');
-      expect(all).toContain("Aspect 'has-doc-comment' has reviewer 'llm' but content.md is missing.");
+      expect(all).toContain('Create .yggdrasil/aspects/has-doc-comment/content.md describing the rule.');
       expect(all).toContain('aspect-unexpected-rule-source');
-      expect(all).toContain("Aspect 'has-doc-comment' has reviewer 'llm' but check.mjs is present.");
+      expect(all).toContain("Remove .yggdrasil/aspects/has-doc-comment/check.mjs or change reviewer to 'deterministic'.");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -258,9 +262,9 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('aspect-missing-rule-source');
-      expect(all).toContain("Aspect 'no-todo-comments' has reviewer 'deterministic' but check.mjs is missing.");
+      expect(all).toContain('Create .yggdrasil/aspects/no-todo-comments/check.mjs exporting a check function.');
       expect(all).toContain('aspect-unexpected-rule-source');
-      expect(all).toContain("Aspect 'no-todo-comments' has reviewer 'deterministic' but content.md is present.");
+      expect(all).toContain("Remove .yggdrasil/aspects/no-todo-comments/content.md or change reviewer to 'llm'.");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -296,7 +300,10 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
       expect(all).toContain('ret-nonarray');
       expect(all).toContain('aspect-check-runtime-error');
       expect(all).toContain('check.mjs returned object, expected Violation[].');
-      expect(all).toContain("No valid verdict for aspect 'ret-nonarray' on node:services/orders.");
+      // The pair is left unverified: it surfaces as a grouped unverified block
+      // naming the aspect and the node, with the fill-it Fix.
+      expect(all).toMatch(/unverified \(not yet reviewed\)\s+1 pairs\s+1 nodes\s+aspect 'ret-nonarray'/);
+      expect(all).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -328,7 +335,10 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
       expect(all).toContain('thrower');
       expect(all).toContain('aspect-check-runtime-error');
       expect(all).toContain('boom in check');
-      expect(all).toContain("No valid verdict for aspect 'thrower' on node:services/orders.");
+      // The pair is left unverified: it surfaces as a grouped unverified block
+      // naming the aspect and the node, with the fill-it Fix.
+      expect(all).toMatch(/unverified \(not yet reviewed\)\s+1 pairs\s+1 nodes\s+aspect 'thrower'/);
+      expect(all).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -487,7 +497,10 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
       expect(all).toContain('aspect-reference-broken');
-      expect(all).toContain("Aspect 'has-doc-comment' references 'docs/atable' but the path resolves to a directory.");
+      // The shared WHY explains references must be regular files; the grouped Fix
+      // names the offending aspect's yg-aspect.yaml.
+      expect(all).toContain('reference files must be regular files; directories cannot be loaded into the reviewer prompt.');
+      expect(all).toContain('.yggdrasil/aspects/has-doc-comment/yg-aspect.yaml');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

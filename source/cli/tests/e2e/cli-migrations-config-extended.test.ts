@@ -289,7 +289,10 @@ describe.skipIf(!distExists)('CLI E2E — migrations & config remaining paths (p
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tiers-missing');
-      expect(stdout).toContain('reviewer.tiers is missing or not a mapping');
+      // Per-issue `what` is gone in the grouped renderer; assert the group's shared
+      // `why` + `Fix:` guidance that conveys the same intent (tiers are required).
+      expect(stdout).toContain('tiers are the only way to declare reviewer configurations');
+      expect(stdout).toContain('Fix: add `reviewer.tiers:');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -305,7 +308,9 @@ describe.skipIf(!distExists)('CLI E2E — migrations & config remaining paths (p
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-default-tier-unknown');
-      expect(stdout).toContain('reviewer.default must be a string');
+      // Per-issue `what` is gone; assert the group's shared `why` + `Fix:` instead.
+      expect(stdout).toContain('default references a tier by name');
+      expect(stdout).toContain('Fix: set reviewer.default to one of: standard');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -319,7 +324,9 @@ describe.skipIf(!distExists)('CLI E2E — migrations & config remaining paths (p
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tier-invalid');
-      expect(stdout).toContain("tier 'standard' is not a mapping");
+      // Per-issue `what` is gone; assert the group's shared `why` + `Fix:` instead.
+      expect(stdout).toContain('each tier is a mapping with provider, consensus, config');
+      expect(stdout).toContain('Fix: replace with `{ provider:');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -335,7 +342,9 @@ describe.skipIf(!distExists)('CLI E2E — migrations & config remaining paths (p
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tier-config-not-mapping');
-      expect(stdout).toContain("tier 'standard' has config: that is not a YAML mapping");
+      // Per-issue `what` is gone; assert the group's shared `why` + `Fix:` instead.
+      expect(stdout).toContain('provider settings are key-value pairs');
+      expect(stdout).toContain('Fix: replace with `config: { model:');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -349,7 +358,9 @@ describe.skipIf(!distExists)('CLI E2E — migrations & config remaining paths (p
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-invalid');
-      expect(stdout).toContain('unrecognized reviewer: shape');
+      // Per-issue `what` is gone; the group's shared `why` distinguishes this
+      // config-invalid variant (the reviewer-shape guard) from the others.
+      expect(stdout).toContain('reviewer: must be a mapping with a `tiers:` block');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -365,7 +376,9 @@ describe.skipIf(!distExists)('CLI E2E — migrations & config remaining paths (p
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-invalid');
-      expect(stdout).toContain('quality must be a mapping');
+      // Per-issue `what` is gone; the group's shared `why` distinguishes the
+      // quality-mapping guard from the other config-invalid variants.
+      expect(stdout).toContain('quality holds named thresholds (max_direct_relations)');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -382,7 +395,9 @@ describe.skipIf(!distExists)('CLI E2E — migrations & config remaining paths (p
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-invalid');
-      expect(stdout).toContain('parallel must be a positive integer >= 1, got 2.5');
+      // Per-issue `what` is gone (it carried the "got 2.5" value); the group's
+      // shared `why` distinguishes the parallel guard from the other variants.
+      expect(stdout).toContain('parallel controls the concurrent-aspect-verification cap');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -417,8 +432,10 @@ describe.skipIf(!distExists)('CLI E2E — migrations & config remaining paths (p
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('config-tier-unknown-key');
-      expect(stdout).toContain("tier 'standard' has unknown key 'references'");
-      // The message enumerates the new authoritative allowed-keys set.
+      // Per-issue `what` (which named the offending 'references' key) is gone in
+      // the grouped renderer; assert the group's shared `why`, which enumerates
+      // the new authoritative allowed-keys set (including max_prompt_chars).
+      expect(stdout).toContain('tier accepts only `provider`, `consensus`, `config`, `max_prompt_chars`');
       expect(stdout).toContain('max_prompt_chars');
     } finally {
       rmSync(dir, { recursive: true, force: true });

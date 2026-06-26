@@ -326,9 +326,10 @@ describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface 
       // The fill records the refusal and the check renderer surfaces the enforced
       // refusal as a blocking error naming the aspect.
       expect(fill.all).toContain('[det] graph-name-match on node:services/orders — refused');
-      expect(fill.all).toContain(
-        "Aspect 'graph-name-match' is refused on node:services/orders by a deterministic check.",
-      );
+      // Grouped view: an enforced refusal group names the aspect; the per-member
+      // `Violations:` tail (FULL_WHAT detail) is retained and names the node.
+      expect(fill.all).toContain("enforced  1 pairs  1 nodes  aspect 'graph-name-match'");
+      expect(fill.all).toContain('- services/orders  Violations:');
       // The graph-aware check's violation message is preserved in the lock reason.
       expect(lockVerdict(dir, 'graph-name-match', 'services/orders')?.verdict).toBe('refused');
       expect(lockVerdict(dir, 'graph-name-match', 'services/orders')?.reason).toContain(

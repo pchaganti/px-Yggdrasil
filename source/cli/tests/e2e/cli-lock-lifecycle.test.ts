@@ -115,8 +115,11 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: lifecycle / closure / GC'
       expect(existsSync(nondetLockPath(dir))).toBe(false);
       const cold = run(['check'], dir);
       expect(cold.status).toBe(1);
-      expect(cold.all).toContain('unverified');
-      expect(cold.all).toContain("No valid verdict for aspect 'no-todo-comments' on node:services/orders.");
+      expect(cold.all).toContain('unverified (not yet reviewed)');
+      // Grouped view: an unverified group for the aspect lists the node; the
+      // per-issue `what` ("No valid verdict ...") is no longer in the default body.
+      expect(cold.all).toContain("aspect 'no-todo-comments'");
+      expect(cold.all).toContain('- services/orders');
       // suggestedNext points at the fill command.
       expect(cold.all).toContain('Next: yg check --approve');
 
@@ -154,10 +157,12 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: lifecycle / closure / GC'
       appendFileSync(ordersFile(dir), '\nexport const extra = 1;\n');
       const drifted = run(['check'], dir);
       expect(drifted.status).toBe(1);
-      expect(drifted.all).toContain('unverified');
-      expect(drifted.all).toContain('node:services/orders');
-      // payments was untouched — its verdict stays valid (no unverified for it).
-      expect(drifted.all).not.toContain('No valid verdict for aspect \'no-todo-comments\' on node:services/payments');
+      expect(drifted.all).toContain('unverified (not yet reviewed)');
+      // Grouped view: the edited node's pairs go unverified and list orders.
+      expect(drifted.all).toContain('- services/orders');
+      // payments was untouched — its verdict stays valid (it is never listed as an
+      // unverified member, so no `- services/payments` line appears).
+      expect(drifted.all).not.toContain('- services/payments');
 
       // --- RE-FILL → verified again. Only the edited node's pairs re-run. ---
       const callsBeforeRefill = mock.chatCount();

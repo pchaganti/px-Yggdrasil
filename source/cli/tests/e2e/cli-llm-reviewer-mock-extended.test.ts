@@ -217,7 +217,13 @@ describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via mock (exten
       expect(check.status).toBe(0);
       expect(check.all).toContain('has-doc-comment');
       expect(check.all.toLowerCase()).toContain('advisory');
-      expect(check.all).toContain('not blocking');
+      // The advisory refusal is NON-BLOCKING: it renders under the Warnings section
+      // as an `advisory` group (exit 0). The grouped renderer no longer prints the
+      // per-issue "(advisory — not blocking)" suffix; non-blocking is shown by the
+      // Warnings section header + the retained reviewer reason on the member line.
+      expect(check.all).toMatch(/Warnings \(\d+\)( in \d+ groups)?:/);
+      expect(check.all).toContain('- services/orders  Reviewer reason: advisory: no comment');
+      expect(check.all).not.toMatch(/Errors \(\d+\)( in \d+ groups)?:/);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });

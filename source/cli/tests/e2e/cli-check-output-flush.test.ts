@@ -6,16 +6,22 @@
 // spawnSync produces), the kernel-side buffer drained asynchronously; process.exit()
 // terminated the process before the buffer was fully consumed, silently truncating
 // the rendered error list. The symptom: `Errors (N)` header reported e.g. 595 but
-// only 168 rendered blocks reached the pipe consumer.
+// only 168 rendered lines reached the pipe consumer.
 //
 // Fix: exitAfterFlush() in src/cli/check.ts waits for process.stdout.writableLength
 // to drain before calling process.exit(). This guarantees the full report survives.
 //
 // This test creates a graph with many LLM-aspect nodes so that `yg check` (cold,
-// no lock) produces well over 200 unverified error blocks in a single run, then
-// asserts that the count of rendered blocks in PIPED stdout equals the N from the
-// "Errors (N)" header AND N > 200. A regression of the truncation bug would cause
-// the rendered count to be less than N, breaking the assertion.
+// no lock) produces well over 200 unverified pairs in a single run. In the
+// Phase-1 GROUPED default output those pairs render as ONE group block per
+// distinct (code, aspectId) — here three aspect groups — and EACH pair surfaces
+// as a `- <node>` affected-node line inside its group. The flush invariant is that
+// EVERY one of those node lines (one per pair the header counts) survives the
+// pipe: the count of rendered `- <node>` lines must equal the N from the
+// "Errors (N) in M groups:" header AND N > 200. A regression of the truncation
+// bug would cause the rendered node-line count to be less than N, breaking the
+// assertion. (Piped stdout is NOT a TTY, so the per-group node-list cap never
+// truncates — every member node renders.)
 // =============================================================================
 
 import { describe, it, expect } from 'vitest';
@@ -156,7 +162,7 @@ function buildFlushFixture(): string {
 }
 
 describe.skipIf(!distExists)('CLI E2E — yg check output survives pipe (flush regression)', () => {
-  it('header count equals rendered unverified block count and N > 200 through a pipe', () => {
+  it('header count equals rendered affected-node line count and N > 200 through a pipe (grouped output)', () => {
     // spawnSync captures stdout via a pipe internally — this is exactly the
     // scenario that triggered the truncation bug. If exitAfterFlush regresses,
     // the rendered count will be less than the header count.
@@ -171,38 +177,62 @@ describe.skipIf(!distExists)('CLI E2E — yg check output survives pipe (flush r
       });
 
       const stdout = r.stdout ?? '';
+      // Strip ANSI escape sequences first so chalk colour codes don't interfere.
+      // eslint-disable-next-line no-control-regex
+      const stripped = stdout.replace(/\x1b\[[0-9;]*m/g, '');
 
-      // 1. Parse the declared N from the "Errors (N):" header line.
-      const headerMatch = stdout.match(/Errors \((\d+)\):/);
-      expect(headerMatch, 'Expected "Errors (N):" header in output').not.toBeNull();
+      // 1. Parse the declared N from the grouped "Errors (N) in M groups:" header.
+      //    The Phase-1 default view carries the optional " in M groups" segment
+      //    whenever there is more than one group; here the 3 aspects form 3 groups,
+      //    so the segment is present. Tolerate both shapes so a 1-group regression
+      //    still parses N rather than silently failing the match.
+      const headerMatch = stripped.match(/Errors \((\d+)\)(?: in (\d+) groups)?:/);
+      expect(headerMatch, 'Expected "Errors (N)[ in M groups]:" header in output').not.toBeNull();
       const headerCount = parseInt(headerMatch![1], 10);
+      const groupCount = headerMatch![2] !== undefined ? parseInt(headerMatch![2], 10) : 1;
 
       // 2. N must be well above 200 — proves we are exercising a large list that
       //    would have been truncated under the pre-fix process.exit() behaviour.
       expect(headerCount).toBeGreaterThan(200);
 
-      // 3. Count rendered error issue blocks. Each block's first line is
-      //    "  <code>  <nodePath>  <what>" (two leading spaces, the error code, two
-      //    more spaces). Cold (no lock), the LLM aspect pairs render as `unverified`.
-      //    Relations are computed LIVE: these self-contained nodes have no cross-node
-      //    dependency, so NO relation-undeclared-dependency block appears. The
-      //    flush-truncation invariant is that EVERY error the header declares is
-      //    rendered, so count both block kinds (relation count is 0 here). We strip
-      //    ANSI escape sequences first so chalk colour codes don't interfere.
-      // eslint-disable-next-line no-control-regex
-      const stripped = stdout.replace(/\x1b\[[0-9;]*m/g, '');
-      const unverifiedCount = (stripped.match(/^ {2}unverified {2}/gm) ?? []).length;
-      const relationCount = (stripped.match(/^ {2}relation-undeclared-dependency {2}/gm) ?? []).length;
-      const renderedCount = unverifiedCount + relationCount;
+      // 3. The three LLM aspects each form one group → exactly 3 groups, and the
+      //    header must announce them. (75 nodes × 3 aspects = 225 unverified pairs,
+      //    grouped by (code, aspectId) into 3 groups.)
+      expect(groupCount).toBe(3);
 
-      // The aspect-unverified blocks alone exceed 200 (75 nodes × 3 LLM aspects = 225).
-      // No node has a cross-node dependency, so the live relation pass adds nothing.
-      expect(unverifiedCount).toBe(225); // 75 mapped nodes × 3 LLM aspects, each unverified cold
-      expect(relationCount).toBe(0); // relations are live; these nodes have no cross-node dependency
+      // 4. Each group renders one header line of the grouped grammar:
+      //    "  <glossLabel>  <P> pairs  <M> nodes  aspect '<id>'". Cold (no lock),
+      //    the LLM aspect pairs render as `unverified`, glossed to
+      //    "unverified (not yet reviewed)". Exactly one such header per aspect group.
+      const groupHeaders = stripped.match(
+        /^ {2}unverified \(not yet reviewed\) {2}\d+ pairs {2}\d+ nodes {2}aspect '[^']+'$/gm,
+      ) ?? [];
+      expect(groupHeaders.length).toBe(3);
 
-      // 4. The core assertion: every error the header declares must be rendered.
-      //    Under the truncation bug, renderedCount < headerCount for large outputs.
-      expect(renderedCount).toBe(headerCount);
+      // 5. The per-group "<P> pairs" counts must sum to the header N (no pair is
+      //    silently dropped from a group header).
+      const pairSum = groupHeaders.reduce((acc, line) => {
+        const m = line.match(/(\d+) pairs/);
+        return acc + (m ? parseInt(m[1], 10) : 0);
+      }, 0);
+      expect(pairSum).toBe(headerCount);
+
+      // 6. Count rendered affected-node lines. Each unverified pair surfaces as a
+      //    "            - svcNNN" bullet inside its group block (12-space indent +
+      //    "- " + node path). These self-contained nodes have no cross-node
+      //    dependency, so the live relation pass adds no relation-undeclared block
+      //    and every node bullet belongs to an unverified group. The flush
+      //    invariant is that EVERY pair the header declares is rendered as a bullet.
+      const nodeLineCount = (stripped.match(/^ {12}- svc\d{3}$/gm) ?? []).length;
+      // 75 nodes × 3 LLM aspects = 225 affected-node lines, each unverified cold.
+      expect(nodeLineCount).toBe(225);
+      // No relation-undeclared block (no cross-node dependency in the fixture).
+      expect(stripped.match(/^ {2}relation-undeclared-dependency {2}/gm)).toBeNull();
+
+      // 7. The core assertion: every error the header declares must be rendered as
+      //    an affected-node bullet. Under the truncation bug, the rendered bullet
+      //    count would be less than headerCount for large outputs.
+      expect(nodeLineCount).toBe(headerCount);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

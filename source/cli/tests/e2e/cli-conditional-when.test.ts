@@ -303,8 +303,11 @@ describe.skipIf(!distExists)('CLI E2E — conditional aspects (`when` predicate)
       // A plain read renders the cached refusal and attributes it to orders, not payments.
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
-      expect(check.all).toContain("Aspect 'no-todo-comments' is refused on node:services/orders");
-      expect(check.all).not.toContain('is refused on node:services/payments');
+      // Grouped view: a single enforced refusal group for the aspect, exactly one
+      // node (orders) listed — payments was gated FALSE and is absent.
+      expect(check.all).toContain("enforced  1 pairs  1 nodes  aspect 'no-todo-comments'");
+      expect(check.all).toContain('- services/orders  Violations:');
+      expect(check.all).not.toContain('- services/payments');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

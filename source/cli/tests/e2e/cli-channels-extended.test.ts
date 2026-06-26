@@ -252,9 +252,10 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.all).toContain('no-banned-word');
-      expect(refused.all).toContain(
-        'is refused on node:services/orders by a deterministic check',
-      );
+      // Fill-time line names the refused deterministic pair on the child node.
+      expect(refused.all).toContain('[det] no-banned-word on node:services/orders — refused');
+      // The grouped error body lists the node under the enforced group.
+      expect(refused.all).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -338,9 +339,10 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.all).toContain('no-banned-word');
-      expect(refused.all).toContain(
-        'is refused on node:services/orders by a deterministic check',
-      );
+      // Fill-time line names the refused deterministic pair on the child node.
+      expect(refused.all).toContain('[det] no-banned-word on node:services/orders — refused');
+      // The grouped error body lists the node under the enforced group.
+      expect(refused.all).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -376,9 +378,10 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.all).toContain('no-banned-word');
-      expect(refused.all).toContain(
-        'is refused on node:services/orders by a deterministic check',
-      );
+      // Fill-time line names the refused deterministic pair on the child node.
+      expect(refused.all).toContain('[det] no-banned-word on node:services/orders — refused');
+      // The grouped error body lists the node under the enforced group.
+      expect(refused.all).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -456,9 +459,10 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.stdout).toContain('no-banned-word');
-      expect(refused.stdout).toContain(
-        'is refused on node:services/orders by a deterministic check',
-      );
+      // Fill-time line names the refused deterministic pair on the child node.
+      expect(refused.stdout).toContain('[det] no-banned-word on node:services/orders — refused');
+      // The grouped error body lists the node under the enforced group.
+      expect(refused.stdout).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -578,13 +582,14 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
       expect(fill.stdout).toContain('no-banned-word');
-      expect(fill.stdout).toContain(
-        'is refused on node:services/orders by a deterministic check',
-      );
-      // payments is gated out of the flow aspect — no refusal names it for
-      // no-banned-word (the only no-banned-word refusal is orders').
+      // Fill-time line names the refused deterministic pair on orders.
+      expect(fill.stdout).toContain('[det] no-banned-word on node:services/orders — refused');
+      // The grouped error body lists orders under the enforced group.
+      expect(fill.stdout).toContain('- services/orders');
+      // payments is gated out of the flow aspect — no no-banned-word pair is
+      // dispatched or refused for it (the only no-banned-word refusal is orders').
       expect(fill.stdout).not.toContain(
-        'no-banned-word\' is refused on node:services/payments',
+        '[det] no-banned-word on node:services/payments',
       );
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -623,9 +628,10 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.all).toContain('no-banned-word');
-      expect(refused.all).toContain(
-        'is refused on node:services/orders by a deterministic check',
-      );
+      // Fill-time line names the refused deterministic pair on the child node.
+      expect(refused.all).toContain('[det] no-banned-word on node:services/orders — refused');
+      // The grouped error body lists the node under the enforced group.
+      expect(refused.all).toContain('- services/orders');
 
       // Drop the ch4 default — now ONLY the gated-FALSE ch2 path remains, so the
       // aspect disappears from the effective set entirely. Proves ch4 was the
@@ -675,9 +681,10 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.stdout).toContain('no-banned-word');
-      expect(refused.stdout).toContain(
-        'is refused on node:services/orders by a deterministic check',
-      );
+      // Fill-time line names the refused deterministic pair on the child node.
+      expect(refused.stdout).toContain('[det] no-banned-word on node:services/orders — refused');
+      // The grouped error body lists the node under the enforced group.
+      expect(refused.stdout).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -697,9 +704,13 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
       expect(check.all).toContain('aspect-status-downgrade');
-      // The child is named, and the cascade is attributed to the ancestor.
+      // The child is named in the downgrade group, the cascading ancestor source
+      // is listed as a member, and the shared why explains the rule.
       expect(check.all).toContain('services/orders');
-      expect(check.all).toContain('from ancestor:services');
+      expect(check.all).toContain('- services');
+      expect(check.all).toContain(
+        'An explicit attach-site status cannot relax (downgrade) what already cascades',
+      );
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

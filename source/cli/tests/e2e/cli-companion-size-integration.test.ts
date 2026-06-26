@@ -82,9 +82,15 @@ describe.skipIf(!distExists)('CLI E2E — companion prompt-size gate', () => {
     }
   }, 40000);
 
-  // Lower the limit BELOW the real small prompt → prompt-too-large, but the reported
-  // char count must be the SMALL real prompt (a few KB), never ~80 KB. Proves the
-  // gate measures the injected companion, not the decision-read.
+  // Lower the limit BELOW the real small prompt → prompt-too-large, but the gate must
+  // measure the SMALL real prompt (a few KB), never ~80 KB. The default grouped
+  // `yg check` view no longer prints the per-issue char count, so the over-count is
+  // proven two ways that survive the output redesign:
+  //   (a) `yg check` at limit 200 DOES flag prompt-too-large (the real prompt > 200);
+  //   (b) `yg aspect-test --dry-run` (unchanged by the redesign) resolves the
+  //       companion LIVE and prints the assembled prompt — it injects ONLY small.txt
+  //       (never big.txt) and the whole prompt is a few KB (< 30000). A gate that
+  //       measured the ~80 KB decision-read could not produce a sub-30 KB prompt.
   it('over-limit reports the REAL small char count, not the decision-read size', async () => {
     const dir = copyFixture('realsize');
     const mock = await startMockReviewer({ respond: () => ({ satisfied: true, reason: 'ok' }) });
@@ -96,12 +102,23 @@ describe.skipIf(!distExists)('CLI E2E — companion prompt-size gate', () => {
       const after = run(['check'], dir);
       expect(after.status).toBe(1);
       expect(after.all).toContain('prompt-too-large');
-      const m = /is (\d+) chars, over the 'standard' tier limit of 200/.exec(after.all);
-      expect(m).not.toBeNull();
-      const chars = Number(m![1]);
-      // Real small prompt is a few KB; big.txt alone is ~80 KB. Must be well under.
-      expect(chars).toBeGreaterThan(200);
-      expect(chars).toBeLessThan(30000);
+      expect(after.all).toContain('broad-companion'); // the gate names the over-limit pair's aspect.
+
+      // The assembled prompt the gate measures is exposed verbatim by aspect-test's
+      // dry-run (no reviewer call, lock untouched). It injects only the small payload
+      // and is a few KB — proving the gate measured the small injected companion, not
+      // the ~80 KB decision-read. (At a 200-char limit the dry-run cannot assemble, so
+      // raise the limit above the real prompt first; the limit is not a verdict input
+      // and aspect-test never writes the lock.)
+      writeFileSync(cfgPath(dir), readFileSync(cfgPath(dir), 'utf-8').replace(/max_prompt_chars: \d+/, 'max_prompt_chars: 30000'), 'utf-8');
+      const dry = await runAsync(['aspect-test', '--aspect', 'broad-companion', '--node', 'docs', '--dry-run'], dir);
+      expect(dry.status).toBe(0);
+      // Only the small payload is injected as a companion — never the large decision-read.
+      expect(dry.all).toContain('payloads/small.txt');
+      expect(dry.all).not.toContain('payloads/big.txt');
+      // The assembled prompt is a few KB; big.txt alone is ~80 KB. Must be well under.
+      expect(dry.all.length).toBeGreaterThan(200);
+      expect(dry.all.length).toBeLessThan(30000);
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });

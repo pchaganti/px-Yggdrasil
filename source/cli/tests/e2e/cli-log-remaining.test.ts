@@ -426,8 +426,11 @@ describe.skipIf(!distExists)('CLI E2E — log remaining: supersedes, read format
       // Stale lock source hash → the pair no longer hashes to the stored verdict.
       expect(all).toContain('unverified');
       // Stale log baseline datetime (entry two) no longer present in the log →
-      // the append-only boundary entry cannot be found.
-      expect(all).toContain('Log integrity broken (boundary_missing)');
+      // the append-only boundary entry cannot be found. Grouped view: the
+      // per-issue `what` ("Log integrity broken (boundary_missing)") is no longer
+      // in the default body; the log-integrity group label + shared why convey it.
+      expect(all).toContain('log-integrity');
+      expect(all).toContain('Baseline boundary entry not found — log was deleted or reset.');
       expect(all).toContain('services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });

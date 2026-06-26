@@ -141,11 +141,16 @@ describe.skipIf(!distExists)('CLI E2E — verdict-lock triad format and read-bou
 
       const cold = run(['check'], dir);
       expect(cold.status).toBe(1);
-      expect(cold.all).toContain('unverified');
-      // Both deterministic-effective nodes report unverified for the enforced
-      // aspect — no entry exists for any pair yet.
-      expect(cold.all).toContain("No valid verdict for aspect 'no-todo-comments' on node:services/orders");
-      expect(cold.all).toContain("No valid verdict for aspect 'no-todo-comments' on node:services/payments");
+      // The grouped view glosses the unverified label and names the aspect in
+      // the group header; the per-issue `what`
+      // ("No valid verdict for aspect '<id>' on <unit>.") is gone for the
+      // non-FULL_WHAT unverified code. Assert the gloss + aspect segment + both
+      // node lines: both deterministic-effective nodes report unverified for the
+      // enforced aspect (no entry exists for any pair yet).
+      expect(cold.all).toContain('unverified (not yet reviewed)');
+      expect(cold.all).toContain("aspect 'no-todo-comments'");
+      expect(cold.all).toContain('- services/orders');
+      expect(cold.all).toContain('- services/payments');
       expect(cold.all).toContain('Next: yg check --approve');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -348,7 +353,10 @@ describe.skipIf(!distExists)('CLI E2E — verdict-lock triad format and read-bou
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
       expect(check.all).toContain('lock-invalid');
-      expect(check.all).toContain('yg-lock.nondeterministic.json contains unparseable JSON');
+      // lock-invalid is not a FULL_WHAT code, so the per-issue `what`
+      // ('contains unparseable JSON') is gone from the grouped view; the detail
+      // now lives in the shared why. Assert the label + the now-visible why.
+      expect(check.all).toContain('a garbled lock file cannot be read');
       // Recovery: restore from git OR delete-and-refill.
       expect(check.all).toContain('git checkout HEAD -- .yggdrasil/yg-lock.nondeterministic.json');
       expect(check.all).toContain('yg check --approve');
@@ -380,7 +388,10 @@ describe.skipIf(!distExists)('CLI E2E — verdict-lock triad format and read-bou
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
       expect(check.all).toContain('lock-invalid');
-      expect(check.all).toContain('yg-lock.nondeterministic.json contains git conflict markers');
+      // lock-invalid is not a FULL_WHAT code, so the per-issue `what`
+      // ('contains git conflict markers') is gone from the grouped view; the
+      // detail now lives in the shared why. Assert the label + the now-visible why.
+      expect(check.all).toContain('a conflict-markered lock file cannot be parsed');
       // The merge-recovery takes one side wholesale, then re-fills.
       expect(check.all).toContain('git checkout --ours -- .yggdrasil/yg-lock.nondeterministic.json');
       expect(check.all).toContain('git checkout --theirs -- .yggdrasil/yg-lock.nondeterministic.json');
@@ -404,7 +415,11 @@ describe.skipIf(!distExists)('CLI E2E — verdict-lock triad format and read-bou
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
       expect(check.all).toContain('lock-invalid');
-      expect(check.all).toContain('yg-lock.nondeterministic.json has unsupported version 99 (this CLI reads version 1 or 2)'); // CLI writes v1 and reads v1 native / v2 leniently (stray relation_verdicts dropped)
+      // lock-invalid is not a FULL_WHAT code, so the per-issue `what`
+      // ('has unsupported version 99 ...') is gone from the grouped view; the
+      // detail now lives in the shared why. Assert the label + the now-visible
+      // why (CLI writes v1 and reads v1 native / v2 leniently).
+      expect(check.all).toContain('an unrecognized lock version means the file was written by a different or newer CLI');
       expect(check.all).toContain('git checkout HEAD -- .yggdrasil/yg-lock.nondeterministic.json');
       expectCleanLockError(check.all);
     } finally {
@@ -465,8 +480,13 @@ describe.skipIf(!distExists)('CLI E2E — verdict-lock triad format and read-bou
 
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
-      // The tampered pair is re-flagged unverified, not accepted.
-      expect(check.all).toContain("No valid verdict for aspect 'no-todo-comments' on node:services/orders");
+      // The tampered pair is re-flagged unverified, not accepted. The per-issue
+      // `what` ("No valid verdict for aspect '<id>' on <unit>.") is gone for the
+      // non-FULL_WHAT unverified code; assert the grouped gloss + aspect segment
+      // + the offending node line instead.
+      expect(check.all).toContain('unverified (not yet reviewed)');
+      expect(check.all).toContain("aspect 'no-todo-comments'");
+      expect(check.all).toContain('- services/orders');
       expect(check.all).toContain('Next: yg check --approve');
     } finally {
       rmSync(dir, { recursive: true, force: true });

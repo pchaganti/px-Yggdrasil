@@ -127,8 +127,13 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: per-file scope / observat
       appendFileSync(path.join(base, 'a.ts'), '\nexport const aa = 2;\n');
       const afterIncluded = run(['check'], dir);
       expect(afterIncluded.status).toBe(1);
-      expect(afterIncluded.all).toContain("No valid verdict for aspect 'no-todo-comments' on file:src/services/orders/a.ts.");
-      expect(afterIncluded.all).not.toContain("on file:src/services/orders/b.ts.");
+      // Grouped view: exactly ONE no-todo-comments pair (a.ts) went unverified.
+      // The per-file `what` detail is gone in the default view, but the group
+      // header proves only a single pair was invalidated (b.ts's pair stays valid).
+      expect(afterIncluded.all).toContain('unverified (not yet reviewed)');
+      expect(afterIncluded.all).toContain("aspect 'no-todo-comments'");
+      expect(afterIncluded.all).toMatch(/unverified \(not yet reviewed\)\s+1 pairs\s+1 nodes\s+aspect 'no-todo-comments'/);
+      expect(afterIncluded.all).toContain('- services/orders');
 
       // RE-FILL: exactly ONE pair re-verified (a.ts). b.ts carries its prior verdict.
       const refill = run(['check', '--approve'], dir);
@@ -231,7 +236,9 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: per-file scope / observat
       writeFileSync(path.join(dir, 'src', 'services', 'sibling.ts'), '// sibling\nexport const s = 1;\n');
       const afterList = run(['check'], dir);
       expect(afterList.status).toBe(1);
-      expect(afterList.all).toContain("No valid verdict for aspect 'obs-rule' on node:services/orders.");
+      expect(afterList.all).toContain('unverified (not yet reviewed)');
+      expect(afterList.all).toContain("aspect 'obs-rule'");
+      expect(afterList.all).toContain('- services/orders');
       // Re-fill restores green (sibling is harmless to the rule).
       expect(run(['check', '--approve'], dir).all).toContain('[det] obs-rule on node:services/orders — approved');
       rmSync(path.join(dir, 'src', 'services', 'sibling.ts'), { force: true });
@@ -244,7 +251,9 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: per-file scope / observat
       writeFileSync(path.join(dir, 'src', 'extras', 'secret.ts'), '// secret\nexport const x = 1;\n');
       const afterExists = run(['check'], dir);
       expect(afterExists.status).toBe(1);
-      expect(afterExists.all).toContain("No valid verdict for aspect 'obs-rule' on node:services/orders.");
+      expect(afterExists.all).toContain('unverified (not yet reviewed)');
+      expect(afterExists.all).toContain("aspect 'obs-rule'");
+      expect(afterExists.all).toContain('- services/orders');
       const refillB = run(['check', '--approve'], dir);
       expect(refillB.all).toContain('[det] obs-rule on node:services/orders — refused');
       // Restore green.
@@ -256,7 +265,9 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: per-file scope / observat
       appendFileSync(nodeYaml(dir, 'services/payments'), '\n# byte-changing trailing comment\n');
       const afterGraph = run(['check'], dir);
       expect(afterGraph.status).toBe(1);
-      expect(afterGraph.all).toContain("No valid verdict for aspect 'obs-rule' on node:services/orders.");
+      expect(afterGraph.all).toContain('unverified (not yet reviewed)');
+      expect(afterGraph.all).toContain("aspect 'obs-rule'");
+      expect(afterGraph.all).toContain('- services/orders');
       // Re-fill restores green (the node is still a service).
       expect(run(['check', '--approve'], dir).all).toContain('[det] obs-rule on node:services/orders — approved');
       expect(run(['check'], dir).status).toBe(0);

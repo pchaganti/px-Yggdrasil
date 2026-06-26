@@ -372,10 +372,14 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0); // advisory does NOT block the fill
       expect(fill.stdout).toContain('[det] no-flowwip on node:services/payments — refused');
-      // Rendered as a non-blocking advisory warning.
+      // Rendered as a non-blocking advisory warning. The grouped renderer drops
+      // the per-issue "(advisory — not blocking)" suffix; non-blocking is now
+      // proven by the WARNING section (not an error), the `advisory` group label,
+      // and the PASS verdict with a warning count (exit 0 already asserted above).
       expect(fill.stdout).toContain('advisory');
-      expect(fill.stdout).toContain('no-flowwip');
-      expect(fill.stdout).toContain('not blocking');
+      expect(fill.stdout).toContain("aspect 'no-flowwip'");
+      expect(fill.stdout).toMatch(/Warnings \(\d+\)( in \d+ groups)?:/);
+      expect(fill.stdout).toContain('yg check: PASS (1 warning)');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

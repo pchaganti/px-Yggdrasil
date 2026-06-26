@@ -141,11 +141,6 @@ function readLock(dir: string): LockFile {
   return readLockStore(yggDir(dir));
 }
 
-/** The per-node source fingerprint hash stored in the lock (undefined if absent). */
-function nodeSourceHash(dir: string, node: string): string | undefined {
-  return readLock(dir).nodes[node]?.source;
-}
-
 /** The persisted per-pair verdict entry for an aspect on a node (model-scoped). */
 function nodeVerdict(
   dir: string,
@@ -250,9 +245,14 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0); // advisory does NOT block
       expect(fill.stdout).toContain('[det] no-banned-word on node:services/orders — refused');
-      // The refusal renders as an advisory warning.
+      // The refusal renders as an advisory warning. The old per-issue WHAT line 0
+      // ("Aspect '...' is refused on <unit>") is now the group header; assert the
+      // grouped warning render — the advisory group naming the aspect and the
+      // refusing node line.
+      expect(fill.stdout).toMatch(/Warnings \(\d+\)( in \d+ groups)?:/);
       expect(fill.stdout).toContain('advisory');
-      expect(fill.stdout).toContain("Aspect 'no-banned-word' is refused on node:services/orders");
+      expect(fill.stdout).toContain("aspect 'no-banned-word'");
+      expect(fill.stdout).toContain('- services/orders');
       expect(fill.stdout).toContain('yg check: PASS');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -292,8 +292,12 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1); // enforced blocks
       expect(refused.stdout).toContain('[det] no-banned-word on node:services/orders — refused');
+      // The old per-issue WHAT line 0 ("Aspect '...' is refused on <unit>") is now
+      // the group header; assert the grouped error render — the ENFORCED group
+      // naming the aspect and the refusing node line.
       expect(refused.stdout).toContain('enforced');
-      expect(refused.stdout).toContain("Aspect 'no-banned-word' is refused on node:services/orders");
+      expect(refused.stdout).toContain("aspect 'no-banned-word'");
+      expect(refused.stdout).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -339,7 +343,12 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.stdout).toContain('[det] no-marker on node:services/orders — refused');
-      expect(refused.stdout).toContain("Aspect 'no-marker' is refused on node:services/orders");
+      // The old per-issue WHAT line 0 ("Aspect '...' is refused on <unit>") is now
+      // the group header; assert the grouped error render — the ENFORCED group
+      // (resolved from omitted-default) naming the aspect and the refusing node.
+      expect(refused.stdout).toContain('enforced');
+      expect(refused.stdout).toContain("aspect 'no-marker'");
+      expect(refused.stdout).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -442,17 +451,17 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
 
       const drifted = run(['check'], dir);
       expect(drifted.status).toBe(1);
-      // unverified fires on BOTH nodes — the flip is graph-wide, not local.
-      expect(drifted.stdout).toContain('unverified');
-      const unverifiedLines = drifted.stdout
-        .split('\n')
-        .filter((l) => l.includes('unverified'));
-      const namesOrders = unverifiedLines.some((l) => l.includes('services/orders'));
-      const namesPayments = unverifiedLines.some((l) => l.includes('services/payments'));
-      expect(namesOrders).toBe(true);
-      expect(namesPayments).toBe(true);
-      // The newly-active aspect is named in the message.
+      // unverified fires on BOTH nodes — the flip is graph-wide, not local. In the
+      // grouped renderer the `unverified` label lives in the group HEADER while the
+      // affected nodes are listed on separate `- <node>` lines under it (the two
+      // pairs share one code+aspectId, so they collapse into a single group naming
+      // both nodes). Assert the label + both node lines rather than expecting the
+      // node path on the same line as the label.
+      expect(drifted.stdout).toContain('unverified (not yet reviewed)');
       expect(drifted.stdout).toContain("aspect 'no-todo-comments'");
+      const driftedLines = drifted.stdout.split('\n');
+      expect(driftedLines.some((l) => l.trim() === '- services/orders')).toBe(true);
+      expect(driftedLines.some((l) => l.trim() === '- services/payments')).toBe(true);
 
       // A single repo-wide fill records the missing verdict on both nodes.
       const refill = run(['check', '--approve'], dir);
@@ -503,12 +512,22 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       );
 
       const advisoryCheck = run(['check'], dir);
-      // Block -> warn on BOTH nodes: the gate now PASSES with two warnings.
+      // Block -> warn on BOTH nodes: the gate now PASSES with two warnings. In the
+      // grouped renderer the `advisory` label lives in the Warnings group HEADER
+      // while the affected nodes are listed on separate `- <node>` lines under it
+      // (the two pairs share one code+aspectId, so they collapse into a single
+      // group naming both nodes). Assert the label + both node lines rather than
+      // expecting the node path on the same line as the label.
       expect(advisoryCheck.status).toBe(0);
       expect(advisoryCheck.stdout).toContain('PASS');
-      const warnLines = advisoryCheck.stdout.split('\n').filter((l) => l.includes('advisory'));
-      expect(warnLines.some((l) => l.includes('services/orders'))).toBe(true);
-      expect(warnLines.some((l) => l.includes('services/payments'))).toBe(true);
+      expect(advisoryCheck.stdout).toMatch(/Warnings \(\d+\)( in \d+ groups)?:/);
+      expect(advisoryCheck.stdout).toContain('advisory');
+      // no-todo-comments is a FULL_WHAT code (aspect-violation-advisory), so each
+      // node line carries its per-member Violations tail (`- <node>  Violations:`)
+      // — match the node-line prefix rather than the bare node path.
+      const advisoryLines = advisoryCheck.stdout.split('\n');
+      expect(advisoryLines.some((l) => l.trim().startsWith('- services/orders'))).toBe(true);
+      expect(advisoryLines.some((l) => l.trim().startsWith('- services/payments'))).toBe(true);
       expect(advisoryCheck.stdout).not.toContain('FAIL');
       // The violation is still recorded (not erased) — the lock keeps the refused
       // verdict with its reason; it just renders as a warning now.
@@ -576,8 +595,12 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
       expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — refused');
+      // The old per-issue WHAT line 0 ("Aspect '...' is refused on <unit>") is now
+      // the group header; assert the grouped enforced render — the aspect-named
+      // group and the refusing node line.
       expect(fill.stdout).toContain('enforced');
-      expect(fill.stdout).toContain("Aspect 'no-todo-comments' is refused on node:services/orders");
+      expect(fill.stdout).toContain("aspect 'no-todo-comments'");
+      expect(fill.stdout).toContain('- services/orders');
 
       // The lock records the REFUSED verdict (not merely absent), with the reason.
       const verdict = nodeVerdict(dir, 'services/orders', 'no-todo-comments');
@@ -591,7 +614,12 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       expect(check.status).toBe(1);
       expect(check.stdout).toContain('enforced');
       expect(check.stdout).toContain('services/orders');
-      expect(check.stdout).toContain("Aspect 'no-todo-comments' is refused on node:services/orders by a deterministic check.");
+      // The old per-issue WHAT line 0 ("Aspect '...' is refused on <unit> by a
+      // deterministic check.") is now the group header; assert the grouped enforced
+      // render — the aspect-named group, the refusing node line, and the shared
+      // `why` confirming the verdict is read from the lock (cached, not re-run).
+      expect(check.stdout).toContain("aspect 'no-todo-comments'");
+      expect(check.stdout).toContain('- services/orders');
       expect(check.stdout).toContain('cached');
       // It is rendered from the lock, not re-flagged as a new unverified pair.
       expect(check.stdout).not.toContain('unverified');
@@ -648,7 +676,13 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.stdout).toContain('[det] imp-b on node:services/orders — refused');
-      expect(refused.stdout).toContain("Aspect 'imp-b' is refused on node:services/orders");
+      // The old per-issue WHAT line 0 ("Aspect '...' is refused on <unit>") is now
+      // the group header; assert the grouped render — the ENFORCED group (proving
+      // the transitive advisory->enforced promotion is real, not cosmetic) naming
+      // the deepest implied aspect and the refusing node line.
+      expect(refused.stdout).toContain('enforced');
+      expect(refused.stdout).toContain("aspect 'imp-b'");
+      expect(refused.stdout).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

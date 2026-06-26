@@ -120,8 +120,11 @@ async function fillGreen(dir: string, endpoint: string): Promise<void> {
 
 /** Assert both LLM pairs render as unverified in `yg check` (exit 1). */
 function expectBothUnverified(all: string): void {
-  expect(all).toContain(`No valid verdict for aspect '${HAS_DOC}' on ${ORDERS}`);
-  expect(all).toContain(`No valid verdict for aspect '${HAS_DOC}' on ${PAYMENTS}`);
+  // Grouped view: one `unverified` group for the aspect, with both nodes listed.
+  expect(all).toContain('unverified (not yet reviewed)');
+  expect(all).toContain(`aspect '${HAS_DOC}'`);
+  expect(all).toContain('- services/orders');
+  expect(all).toContain('- services/payments');
 }
 
 // Two-tier config (default = standard) used to exercise the default-flip

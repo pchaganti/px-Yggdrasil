@@ -103,9 +103,12 @@ describe.skipIf(!distExists)('CLI E2E — LLM reviewer mechanics via in-process 
       expect(check.status).toBe(1);
       expect(check.all).toContain('enforced');
       expect(check.all).toContain('has-doc-comment');
-      expect(check.all).toContain(
-        'is refused on node:services/orders. cached verdict — the reviewer did NOT re-run; inputs are identical to the refused review.',
-      );
+      // The cached refusal renders as an `enforced` group for the aspect; the group
+      // header (the old "...cached verdict — the reviewer did NOT re-run..." what
+      // line 0) is no longer a per-issue line. The member node line carries the
+      // retained refusal detail (refusals are a FULL_WHAT code) — the reviewer reason.
+      expect(check.all).toContain("aspect 'has-doc-comment'");
+      expect(check.all).toContain('- services/orders  Reviewer reason: the file has no leading comment');
       // The reviewer's reason is folded into the stored verdict (asserted directly
       // against the lock — the `yg check` renderer prints only the first `what`
       // line; `yg aspect-test` would print the full body).

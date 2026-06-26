@@ -469,8 +469,12 @@ describe.skipIf(!distExists)('CLI E2E — yg check surfaces blocking validation 
     try {
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
+      // Grouped view: the broken-participant issue surfaces as a flow-node-broken
+      // group. The per-issue `what` (the missing node name) is no longer in the
+      // default body, but the group label + shared why/fix convey the same intent.
       expect(stdout).toContain('flow-node-broken');
-      expect(stdout).toContain('ghost/missing-node');
+      expect(stdout).toContain('Flow participants must exist in the graph.');
+      expect(stdout).toContain('Fix the nodes list in yg-flow.yaml or create the missing node.');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -498,8 +502,12 @@ describe.skipIf(!distExists)('CLI E2E — yg check surfaces blocking validation 
     try {
       const { status, all } = run(['check'], dir);
       expect(status).toBe(1);
+      // Grouped view: the duplicate mapping surfaces as a file-duplicate-mapping
+      // group. The per-issue `what` (the shared file path) is no longer in the
+      // default body; assert the group label, shared why, and the owning node line.
       expect(all).toContain('file-duplicate-mapping');
-      expect(all).toContain('src/shared.ts');
+      expect(all).toContain('Each source file must have exactly one owner node.');
+      expect(all).toContain('- beta');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

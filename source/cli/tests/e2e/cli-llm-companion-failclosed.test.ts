@@ -159,9 +159,13 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (fail-closed)
       const fill = await runAsync(['check', '--approve'], dir);
       // Infra-fail on the checkout pair → exit 1.
       expect(fill.status).toBe(1);
-      // A what/why/next message naming the failure cause + the pair.
-      expect(fill.all).toContain('companion hook threw');
+      // The §4 gate now resolves the companion LIVE during the --approve run's final
+      // report, so the throwing-hook failure surfaces as a blocking grouped
+      // aspect-companion-runtime-error whose shared why carries the hook's OWN error
+      // (the old generic "companion hook threw" what line is no longer rendered).
+      expect(fill.all).toContain('aspect-companion-runtime-error');
       expect(fill.all).toContain('boom: deliberate hook failure');
+      expect(fill.all).toContain('- scenarios');
 
       // The OTHER two pairs filled (reviewer billed for them, not the thrown one).
       const v = verdicts(dir, 'throwing-companion');
@@ -180,12 +184,15 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (fail-closed)
       // rather than the generic per-unit "No valid verdict" (unverified) rendering.
       const after = run(['check'], dir);
       expect(after.status).toBe(1);
+      // Grouped view: the blocking runtime-error group fires for this aspect, its
+      // shared why carries the hook's OWN thrown error, and exactly ONE pair (the
+      // checkout unit) is a member — the resolvable login/search pairs resolve fine
+      // and never enter the group. The per-unit `what` is no longer rendered.
       expect(after.all).toContain('aspect-companion-runtime-error');
-      expect(after.all).toContain("companion hook threw while resolving companions (aspect 'throwing-companion')");
+      expect(after.all).toContain("aspect 'throwing-companion'");
       expect(after.all).toContain('boom: deliberate hook failure');
-      // The resolvable login/search pairs are NOT flagged (their companions resolve).
-      expect(after.all).not.toContain(`on ${UNIT('login')}.`);
-      expect(after.all).not.toContain(`on ${UNIT('search')}.`);
+      expect(after.all).toContain('1 pairs');
+      expect(after.all).toContain('- scenarios');
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
@@ -229,8 +236,13 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (fail-closed)
       // "No valid verdict" unverified rendering.
       const after = run(['check'], dir);
       expect(after.status).toBe(1);
+      // Grouped view: every unit returns the same missing path → all three pairs
+      // are members of the runtime-error group (3 pairs). The per-unit `what`
+      // ("...could not be read.") is no longer rendered; the missing path survives
+      // in the shared Fix text, and the 3-pair count proves every unit is blocked.
       expect(after.all).toContain('aspect-companion-runtime-error');
-      for (const s of SCENARIOS) expect(after.all).toContain(`on ${UNIT(s)} could not be read.`);
+      expect(after.all).toContain('3 pairs');
+      expect(after.all).toContain('does-not-exist.spec.ts');
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
@@ -264,9 +276,11 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (fail-closed)
 
       const fill = await runAsync(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
-      expect(fill.all).toContain("is outside the node's allowed-reads");
-
-      // NEXT names the relation SOURCE (scenarios) and TARGET owner (specs).
+      // Grouped view: the out-of-reach companion surfaces as the blocking
+      // runtime-error group. The per-unit `what` ("is outside the node's
+      // allowed-reads") is no longer rendered; the framing survives in the shared
+      // Fix, which names the relation SOURCE (scenarios) and TARGET owner (specs).
+      expect(fill.all).toContain('aspect-companion-runtime-error');
       expect(fill.all).toContain('declare a relation from scenarios to specs');
       expect(fill.all).toContain('.yggdrasil/model/scenarios/yg-node.yaml');
 
@@ -302,8 +316,12 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (fail-closed)
 
       const fill = await runAsync(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
-      // Message names the shape expectation.
-      expect(fill.all).toContain('expected an array of { path: string, label?: string }');
+      // Grouped view: the bad return shape surfaces as the blocking runtime-error
+      // group. The per-unit `what` ("expected an array of …") is no longer rendered;
+      // the shape requirement survives in the shared why + Fix.
+      expect(fill.all).toContain('aspect-companion-runtime-error');
+      expect(fill.all).toContain('a non-array return cannot be interpreted');
+      expect(fill.all).toContain('Return [] or { path, label? }[] from companion.');
       const v = verdicts(dir, 'badshape-companion');
       for (const s of SCENARIOS) expect(v[UNIT(s)]).toBeUndefined();
       expect(mock.chatCount()).toBe(0);
@@ -327,7 +345,13 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (fail-closed)
       });
       const fill = await runAsync(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
-      expect(fill.all).toContain('not { path: string, label?: string }');
+      // Grouped view: an array element without a string path surfaces as the
+      // blocking runtime-error group. The per-unit `what` ("not { path: string,
+      // label?: string }") is no longer rendered; the descriptor requirement
+      // survives in the shared why + Fix.
+      expect(fill.all).toContain('aspect-companion-runtime-error');
+      expect(fill.all).toContain("Each companion descriptor must carry a string 'path'");
+      expect(fill.all).toContain('Return objects shaped { path: string, label?: string } from companion.');
       const v = verdicts(dir, 'badentry-companion');
       for (const s of SCENARIOS) expect(v[UNIT(s)]).toBeUndefined();
       expect(mock.chatCount()).toBe(0);
@@ -384,7 +408,9 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (fail-closed)
       const chk = run(['check'], dir);
       expect(chk.status).toBe(1);
       expect(chk.all).toContain('aspect-companion-without-content');
-      expect(chk.all).toContain('has companion.mjs but no content.md');
+      // The per-issue `what` ("has companion.mjs but no content.md") is no longer
+      // rendered in the grouped view; the same intent is in the shared why.
+      expect(chk.all).toContain('companion.mjs is an add-on for LLM aspects; it requires content.md as the primary rule source.');
 
       // --approve still reports the validation error and stays red. (The
       // validation error is a graph-validation diagnostic, not a fill gate, so
@@ -422,7 +448,9 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (fail-closed)
       const chk = run(['check'], dir);
       expect(chk.status).toBe(1);
       expect(chk.all).toContain('aspect-companion-with-check');
-      expect(chk.all).toContain('has companion.mjs together with check.mjs');
+      // The per-issue `what` ("has companion.mjs together with check.mjs") is no
+      // longer rendered in the grouped view; the same intent is in the shared why.
+      expect(chk.all).toContain('companion.mjs is an add-on for LLM aspects only; it is incompatible with the deterministic check.mjs runner.');
       // The more-specific code wins: the without-content code must NOT also fire
       // for this aspect (content.md IS present anyway).
       expect(chk.all).not.toContain('aspect-companion-without-content');
@@ -558,7 +586,12 @@ describe.skipIf(!distExists)('CLI E2E — per-unit companion files (fail-closed)
 
       const after = run(['check'], dir);
       expect(after.status).toBe(1);
-      expect(after.all).toContain(`Aspect 'scenario-matches-test' is refused on ${UNIT('checkout')}`);
+      // Grouped view: an enforced refusal renders as an `enforced` group naming the
+      // aspect, with the reviewer reason retained on the member node line (refusals
+      // are a FULL_WHAT code, so the per-node detail survives).
+      expect(after.all).toContain('enforced');
+      expect(after.all).toContain("aspect 'scenario-matches-test'");
+      expect(after.all).toContain('Reviewer reason: rule violated and no honored suppress');
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });

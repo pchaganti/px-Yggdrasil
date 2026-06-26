@@ -178,6 +178,34 @@ function wireOrdersToPayments(dir: string): void {
   );
 }
 
+// The Phase-1 grouped `yg check` body renders one block per (code, aspectId):
+// a group header naming the aspect, the shared why/Fix, then one `- <node>` line
+// per member. The old per-issue `what`
+// ("No valid verdict for aspect '<id>' on <unit>.") is gone for the non-FULL_WHAT
+// unverified code, so to assert WHICH nodes are unverified for a given aspect we
+// extract that aspect's group block and read its `- <node>` bullets.
+function unverifiedNodesForAspect(all: string, aspectId: string): string[] {
+  const lines = all.split('\n');
+  const headerIdx = lines.findIndex(
+    (l) => l.includes('unverified (not yet reviewed)') && l.includes(`aspect '${aspectId}'`),
+  );
+  if (headerIdx === -1) return [];
+  const nodes: string[] = [];
+  let started = false;
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const t = lines[i].trim();
+    if (t.startsWith('- ')) {
+      nodes.push(t.slice(2).trim());
+      started = true;
+      continue;
+    }
+    // The `- <node>` bullets are contiguous and trailing within the group; the
+    // first blank line after they begin ends this group's node list.
+    if (started && t.length === 0) break;
+  }
+  return nodes;
+}
+
 describe.skipIf(!distExists)('CLI E2E — invalidation extended paths', () => {
   // -------------------------------------------------------------------------
   // 1. CROSS-NODE observation.
@@ -207,14 +235,18 @@ describe.skipIf(!distExists)('CLI E2E — invalidation extended paths', () => {
 
       const drifted = run(['check'], dir);
       expect(drifted.status).toBe(1);
+      // The grouped view drops the per-issue `what` for the non-FULL_WHAT
+      // unverified code, so WHICH node is unverified for a given aspect is read
+      // from that aspect's group block's `- <node>` bullets.
       // The graph-aware pair on the DEPENDENT node is invalidated by the
       // cross-node edit.
-      expect(drifted.all).toContain("No valid verdict for aspect 'cross-read-todo' on node:services/orders");
-      // orders' OTHER aspects did NOT read payments, so they stay valid.
-      expect(drifted.all).not.toContain("aspect 'no-todo-comments' on node:services/orders");
-      expect(drifted.all).not.toContain("aspect 'requires-named-export' on node:services/orders");
+      expect(unverifiedNodesForAspect(drifted.all, 'cross-read-todo')).toContain('services/orders');
+      // orders' OTHER aspects did NOT read payments, so they stay valid — orders
+      // appears under NEITHER no-todo-comments nor requires-named-export.
+      expect(unverifiedNodesForAspect(drifted.all, 'no-todo-comments')).not.toContain('services/orders');
+      expect(unverifiedNodesForAspect(drifted.all, 'requires-named-export')).not.toContain('services/orders');
       // payments itself is invalidated as an ordinary source change.
-      expect(drifted.all).toContain("aspect 'no-todo-comments' on node:services/payments");
+      expect(unverifiedNodesForAspect(drifted.all, 'no-todo-comments')).toContain('services/payments');
 
       // A re-fill re-runs only the invalidated pairs (zero LLM — all deterministic).
       const refill = run(['check', '--approve'], dir);
@@ -280,8 +312,15 @@ describe.skipIf(!distExists)('CLI E2E — invalidation extended paths', () => {
       expect(fill.all).toContain('[det] requires-named-export on node:services/orders — approved');
       // The bad pair refuses — not aborted, its sibling pairs still ran.
       expect(fill.all).toContain('[det] no-todo-comments on node:services/orders — refused');
-      // The refusal renders as an enforced error in the post-fill check.
-      expect(fill.all).toContain("Aspect 'no-todo-comments' is refused on node:services/orders by a deterministic check.");
+      // The refusal renders as an enforced error in the post-fill check. In the
+      // grouped view the `what` line-0 header ("Aspect '...' is refused on ...")
+      // is dropped; the retained FULL_WHAT detail is the group label + aspect
+      // segment + the `- <node>` line carrying the deterministic Violations tail.
+      expect(fill.all).toContain('enforced');
+      expect(fill.all).toContain("aspect 'no-todo-comments'");
+      expect(fill.all).toContain('- services/orders');
+      expect(fill.all).toContain('Violations:');
+      expect(fill.all).toContain('TODO comment found');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -432,14 +471,17 @@ describe.skipIf(!distExists)('CLI E2E — invalidation extended paths', () => {
 
       const drifted = run(['check'], dir);
       expect(drifted.status).toBe(1);
+      // The grouped view drops the per-issue `what` for the non-FULL_WHAT
+      // unverified code, so WHICH nodes are unverified per aspect is read from
+      // each aspect's group block's `- <node>` bullets.
       // The aspect-content edit invalidates no-todo on BOTH nodes.
-      expect(drifted.all).toContain("aspect 'no-todo-comments' on node:services/orders");
-      expect(drifted.all).toContain("aspect 'no-todo-comments' on node:services/payments");
+      expect(unverifiedNodesForAspect(drifted.all, 'no-todo-comments')).toContain('services/orders');
+      expect(unverifiedNodesForAspect(drifted.all, 'no-todo-comments')).toContain('services/payments');
       // The source edit additionally invalidates orders' other deterministic aspect.
-      expect(drifted.all).toContain("aspect 'requires-named-export' on node:services/orders");
+      expect(unverifiedNodesForAspect(drifted.all, 'requires-named-export')).toContain('services/orders');
       // NEGATIVE control: the parent metadata edit invalidated nothing — payments'
       // requires-named-export pair (untouched by either real edit) stays valid.
-      expect(drifted.all).not.toContain("aspect 'requires-named-export' on node:services/payments");
+      expect(unverifiedNodesForAspect(drifted.all, 'requires-named-export')).not.toContain('services/payments');
 
       // One repo-wide re-fill clears every invalidation at once.
       const refill = run(['check', '--approve'], dir);
@@ -495,9 +537,15 @@ describe.skipIf(!distExists)('CLI E2E — invalidation extended paths', () => {
       const drifted = run(['check'], dir);
       expect(drifted.status).toBe(1);
       expect(drifted.all).toContain('mapping-path-missing');
-      expect(drifted.all).toContain("Mapping path 'src/services/orders-helpers.ts' does not exist on disk.");
-      // The deletion also changes the node's source hash → its pairs go unverified.
-      expect(drifted.all).toContain("No valid verdict for aspect 'no-todo-comments' on node:services/orders");
+      // mapping-path-missing is not a FULL_WHAT code, so the per-issue `what`
+      // ("Mapping path '...' does not exist on disk.") is gone in the grouped
+      // view; the detail now lives in the shared why. Assert the now-visible why
+      // plus the offending node line.
+      expect(drifted.all).toContain('Node maps a file that was deleted or moved.');
+      expect(drifted.all).toContain('- services/orders');
+      // The deletion also changes the node's source hash → its pairs go
+      // unverified; read the no-todo-comments group block for the orders node.
+      expect(unverifiedNodesForAspect(drifted.all, 'no-todo-comments')).toContain('services/orders');
 
       // Restore the file byte-identically — both issues clear (the recorded
       // verdict's input hash matches again; no re-fill needed).

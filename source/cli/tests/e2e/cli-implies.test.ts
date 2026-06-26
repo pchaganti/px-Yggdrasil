@@ -268,9 +268,11 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
       const { status, stdout } = run(['check', '--approve'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('no-banned-word');
-      expect(stdout).toContain(
-        'is refused on node:services/orders by a deterministic check',
-      );
+      // The old per-issue WHAT line 0 ("... is refused on <unit> by a
+      // deterministic check") is now the group header; assert the grouped render
+      // — the enforced group naming the implied aspect and the refusing node line.
+      expect(stdout).toContain("aspect 'no-banned-word'");
+      expect(stdout).toContain('- services/orders');
       // The implied aspect's pair refused while the implier itself
       // (no-todo-comments) was satisfied — its fill pair is approved. (The fill
       // summary no longer echoes individual violation messages such as "BANNED
@@ -294,9 +296,11 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
       const { status, stdout } = run(['check', '--approve'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('no-fixme');
-      expect(stdout).toContain(
-        "Aspect 'no-fixme' is refused on node:services/orders by a deterministic check",
-      );
+      // The old per-issue WHAT line 0 ("Aspect '...' is refused on <unit> ...")
+      // is now the group header; assert the grouped render — the enforced group
+      // naming the 2-level-deep implied aspect and the refusing node line.
+      expect(stdout).toContain("aspect 'no-fixme'");
+      expect(stdout).toContain('- services/orders');
       // The 2-level-deep implied aspect's pair refused. (Per-violation message
       // text "FIXME token found." moved to `yg aspect-test`; the fill summary
       // reports the pair-level refusal only.)
@@ -319,9 +323,11 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
       const wired = run(['check', '--approve'], dir);
       expect(wired.status).toBe(1);
       expect(wired.stdout).toContain('no-banned-word');
-      expect(wired.stdout).toContain(
-        'is refused on node:services/orders by a deterministic check',
-      );
+      // The old per-issue WHAT line 0 ("... is refused on <unit> ...") is now the
+      // group header; assert the grouped render — the enforced group naming the
+      // implied aspect and the refusing node line — proving the chain was wired.
+      expect(wired.stdout).toContain("aspect 'no-banned-word'");
+      expect(wired.stdout).toContain('- services/orders');
 
       // Sever the chain at level 1: no-todo-comments no longer implies anything.
       setImplies(noTodoYamlPath(dir), NO_TODO_BASE, []);
@@ -371,9 +377,13 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1); // enforced implied aspect blocks
       expect(fill.stdout).toContain('no-banned-word');
-      expect(fill.stdout).toContain(
-        'is refused on node:services/orders by a deterministic check',
-      );
+      // The old per-issue WHAT line 0 ("... is refused on <unit> ...") is now the
+      // group header; assert the grouped render — the ENFORCED group (not advisory)
+      // naming the implied aspect and the refusing node line, proving the implied
+      // aspect kept enforced status and blocked.
+      expect(fill.stdout).toContain('enforced');
+      expect(fill.stdout).toContain("aspect 'no-banned-word'");
+      expect(fill.stdout).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -429,8 +439,14 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0); // advisory does NOT block the fill
       expect(fill.stdout).toContain('no-banned-word');
+      // The advisory refusal renders under the Warnings section (non-blocking).
+      // The old per-issue "(advisory — not blocking)" Fix suffix only existed in
+      // the per-issue renderer; the GROUP renderer (default full view) has no such
+      // suffix — assert the grouped warning render instead.
+      expect(fill.stdout).toMatch(/Warnings \(\d+\)( in \d+ groups)?:/);
       expect(fill.stdout).toContain('advisory');
-      expect(fill.stdout).toContain('(advisory — not blocking)');
+      expect(fill.stdout).toContain("aspect 'no-banned-word'");
+      expect(fill.stdout).toContain('- services/orders');
 
       const check = run(['check'], dir);
       expect(check.status).toBe(0); // advisory violation does NOT fail check
@@ -484,9 +500,12 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('aspect-implies-cycle');
-      // The cycle is named in the message.
-      expect(stdout).toContain('cyc-a');
-      expect(stdout).toContain('cyc-b');
+      // The old per-issue WHAT that named the cycle members (cyc-a, cyc-b) is gone
+      // in the grouped renderer (aspect-implies-cycle is a structural code, not a
+      // FULL_WHAT code). Assert the group's shared `why` + `Fix:` guidance, which
+      // conveys the same intent: the cycle was detected with an actionable fix.
+      expect(stdout).toContain('Cycles in implies prevent aspect resolution.');
+      expect(stdout).toContain('Fix: Break the cycle by removing one implies edge.');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -526,9 +545,12 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
       expect(status).toBe(1);
       // Clean structured validation error — same as test 8.
       expect(all).toContain('aspect-implies-cycle');
-      // The cycle aspects are named in the message.
-      expect(all).toContain('no-banned-word');
-      expect(all).toContain('no-fixme');
+      // The old per-issue WHAT that named the cycle members (no-banned-word,
+      // no-fixme) is gone in the grouped renderer (aspect-implies-cycle is a
+      // structural code, not a FULL_WHAT code). Assert the group's shared `why` +
+      // `Fix:` — same structured guidance as test 8, proving no crash wrapper.
+      expect(all).toContain('Cycles in implies prevent aspect resolution.');
+      expect(all).toContain('Fix: Break the cycle by removing one implies edge.');
       // NOT the unclassified crash wrapper.
       expect(all).not.toContain('Unexpected error');
       expect(all).not.toContain('This is a bug');

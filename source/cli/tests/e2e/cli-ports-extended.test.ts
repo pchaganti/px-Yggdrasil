@@ -390,7 +390,10 @@ mapping:
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
       expect(fill.stdout).toContain('[det] audit-required on node:services/orders — refused');
-      expect(fill.stdout).toContain("Aspect 'audit-required' is refused on node:services/orders");
+      // The grouped enforced refusal names the aspect in its header and lists
+      // the consumer node it refuses on.
+      expect(fill.stdout).toMatch(/enforced\s+1 pairs\s+1 nodes\s+aspect 'audit-required'/);
+      expect(fill.stdout).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -656,9 +659,9 @@ mapping:
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('port-undefined');
-      // The now-missing consumed port and the surviving available port are echoed.
-      expect(stdout).toContain("port 'charge' not found");
+      // The shared WHY echoes the surviving available port; the consumer is listed.
       expect(stdout).toContain('Available ports: [refund]');
+      expect(stdout).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

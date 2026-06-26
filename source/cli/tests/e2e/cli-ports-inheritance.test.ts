@@ -300,8 +300,10 @@ mapping:
       // aspect (channel 7) refuses — proving the implied aspect is enforced.
       expect(fill.stdout).toContain('[det] audit-required on node:services/orders — approved');
       expect(fill.stdout).toContain('[det] diagnostic-logging on node:services/orders — refused');
-      // The enforced refusal renders for the implied aspect on the consumer.
-      expect(fill.stdout).toContain("Aspect 'diagnostic-logging' is refused on node:services/orders");
+      // The grouped enforced refusal names the implied aspect in its header and
+      // lists the consumer node it refuses on.
+      expect(fill.stdout).toMatch(/enforced\s+1 pairs\s+1 nodes\s+aspect 'diagnostic-logging'/);
+      expect(fill.stdout).toContain('- services/orders');
 
       // The recorded Violation[] detail (file + message) surfaces through the
       // diagnostic runner — yg check renders only the one-line headline.
@@ -723,7 +725,9 @@ mapping:
       expect(status).toBe(1);
       // The port contract does not exempt the self-loop from cycle detection.
       expect(all).toContain('structural-cycle');
-      expect(all).toContain('Circular dependency: services/payments -> services/payments.');
+      // The grouped block carries the shared cycle WHY and the break-the-cycle Fix.
+      expect(all).toContain('Cycles prevent deterministic context assembly and cascade tracking.');
+      expect(all).toContain('Break the cycle: extract a shared interface, invert a dependency, or merge nodes.');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

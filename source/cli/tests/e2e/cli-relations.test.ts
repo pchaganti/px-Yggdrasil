@@ -99,8 +99,8 @@ describe.skipIf(!distExists)('CLI E2E — architecture relation rules, event pai
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('relation-broken');
-      // The unresolved target name as it appears in the fixture's yg-node.yaml.
-      expect(stdout).toContain('nonexistent/missing-target');
+      // The grouped block carries the shared unresolvable-dependency WHY.
+      expect(stdout).toContain('This node declares a dependency that cannot be resolved.');
       // It is attributed to the node that declares the broken relation.
       expect(stdout).toContain('orders/broken-service');
     } finally {
@@ -115,11 +115,11 @@ describe.skipIf(!distExists)('CLI E2E — architecture relation rules, event pai
   //    orders/order-service. Removing the listens half leaves the emit
   //    unpaired.
   //
-  //    NOTE ON ASSERTION: the binary's event-unpaired message identifies the
-  //    pair by NODE PATHS ("emits to 'users/user-repo' but ... has no listens
-  //    from ..."), it does NOT echo the event name in that line. So we assert
-  //    on the stable error code plus both node paths — the substrings the
-  //    binary actually emits — rather than on the event name string.
+  //    NOTE ON ASSERTION: in the grouped check output the event-unpaired block
+  //    attributes the unpaired relation to the EMITTER node and lists it under
+  //    the group (the per-issue `what` that named both ends is no longer
+  //    rendered). So we assert on the stable error code plus the emitter node
+  //    path — the substrings the grouped output actually emits.
   // -------------------------------------------------------------------------
   it('2: event-unpaired — removing the listens half of an emits/listens pair fails check', () => {
     const dir = copyFixture(SAMPLE, 'event');
@@ -149,9 +149,8 @@ describe.skipIf(!distExists)('CLI E2E — architecture relation rules, event pai
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('event-unpaired');
-      // Both ends of the now-unpaired event relation are named.
+      // The unpaired emit is attributed to the emitter in the group node list.
       expect(stdout).toContain('orders/order-service');
-      expect(stdout).toContain('users/user-repo');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -101,14 +101,58 @@ const paymentsNodeYaml = (dir: string) =>
 const flowYaml = (dir: string) =>
   path.join(dir, '.yggdrasil', 'flows', 'order-processing', 'yg-flow.yaml');
 
-/** Lines naming a node as having an unverified pair, for set assertions. */
+/**
+ * The set of nodes named in any `unverified (not yet reviewed)` group block, for
+ * set assertions. The Phase-1 grouped `yg check` body collapses every pair of a
+ * given (code, aspectId) into one group header, then lists its member nodes as
+ * `- <node>` bullets — so a node's unverified membership is read from the bullets
+ * inside `unverified` group blocks (the old per-issue `unverified  <node>` line is
+ * gone). Bullets are contiguous and trailing within a group; a blank line ends the
+ * group's node list.
+ */
 function unverifiedNodes(all: string): Set<string> {
   const out = new Set<string>();
-  for (const line of all.split('\n')) {
-    const m = line.match(/unverified\s+(services\/[a-z]+)\s/);
-    if (m) out.add(m[1]);
+  const lines = all.split('\n');
+  let inUnverifiedGroup = false;
+  for (const line of lines) {
+    const t = line.trim();
+    if (t.includes('unverified (not yet reviewed)')) {
+      inUnverifiedGroup = true;
+      continue;
+    }
+    if (inUnverifiedGroup) {
+      const m = t.match(/^- (services\/[a-z]+)$/);
+      if (m) {
+        out.add(m[1]);
+        continue;
+      }
+      // The first non-bullet line after a group's header that is not part of its
+      // why/Fix preamble ends the bullet list; the next group header re-arms.
+      if (t.length === 0) inUnverifiedGroup = false;
+    }
   }
   return out;
+}
+
+/** The member nodes of a specific aspect's `unverified` group block. */
+function unverifiedNodesForAspect(all: string, aspectId: string): string[] {
+  const lines = all.split('\n');
+  const headerIdx = lines.findIndex(
+    (l) => l.includes('unverified (not yet reviewed)') && l.includes(`aspect '${aspectId}'`),
+  );
+  if (headerIdx === -1) return [];
+  const nodes: string[] = [];
+  let started = false;
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const t = lines[i].trim();
+    if (t.startsWith('- ')) {
+      nodes.push(t.slice(2).trim());
+      started = true;
+      continue;
+    }
+    if (started && t.length === 0) break;
+  }
+  return nodes;
 }
 
 describe.skipIf(!distExists)('CLI E2E — invalidation across every input channel', () => {
@@ -128,12 +172,13 @@ describe.skipIf(!distExists)('CLI E2E — invalidation across every input channe
       expect(drifted.status).toBe(1);
       // EXACT set: no-todo-comments on BOTH nodes is unverified — and nothing else.
       // The other aspect (requires-named-export) was NOT touched, so it stays valid.
-      const todoLines = drifted.all
-        .split('\n')
-        .filter((l) => l.includes('unverified') && l.includes("aspect 'no-todo-comments'"));
-      expect(todoLines.length).toBe(2);
-      expect(drifted.all).toContain("No valid verdict for aspect 'no-todo-comments' on node:services/orders");
-      expect(drifted.all).toContain("No valid verdict for aspect 'no-todo-comments' on node:services/payments");
+      // The grouped view collapses both pairs into ONE no-todo-comments group with
+      // a `- <node>` bullet each; the per-issue `what` is gone for the
+      // non-FULL_WHAT unverified code. Read membership from that group's bullets.
+      expect(unverifiedNodesForAspect(drifted.all, 'no-todo-comments').sort()).toEqual([
+        'services/orders',
+        'services/payments',
+      ]);
       expect(drifted.all).not.toContain("aspect 'requires-named-export'");
 
       // A deterministic re-fill re-runs only the invalidated pairs (zero cost).
@@ -206,9 +251,14 @@ describe.skipIf(!distExists)('CLI E2E — invalidation across every input channe
       const drifted = await runAsync(['check'], dir);
       expect(drifted.status).toBe(1);
       // EXACT set: only has-doc-comment, on BOTH nodes — the deterministic
-      // aspects' verdicts are untouched (their inputs did not change).
-      expect(drifted.all).toContain("No valid verdict for aspect 'has-doc-comment' on node:services/orders");
-      expect(drifted.all).toContain("No valid verdict for aspect 'has-doc-comment' on node:services/payments");
+      // aspects' verdicts are untouched (their inputs did not change). The grouped
+      // view collapses both pairs into ONE has-doc-comment group with a `- <node>`
+      // bullet each; the per-issue `what` is gone for the non-FULL_WHAT unverified
+      // code. Read membership from that group's bullets.
+      expect(unverifiedNodesForAspect(drifted.all, 'has-doc-comment').sort()).toEqual([
+        'services/orders',
+        'services/payments',
+      ]);
       expect(drifted.all).not.toContain("aspect 'no-todo-comments'");
       expect(drifted.all).not.toContain("aspect 'requires-named-export'");
 

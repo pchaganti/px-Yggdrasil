@@ -276,9 +276,10 @@ describe.skipIf(!distExists)(
         const refused = run(['check', '--approve'], dir);
         expect(refused.status).toBe(1);
         expect(refused.all).toContain('no-banned-word');
-        expect(refused.all).toContain(
-          'is refused on node:root/sub/leaf by a deterministic check',
-        );
+        // Fill-time line names the refused deterministic pair on the leaf node.
+        expect(refused.all).toContain('[det] no-banned-word on node:root/sub/leaf — refused');
+        // The grouped error body lists the node under the enforced group.
+        expect(refused.all).toContain('- root/sub/leaf');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -310,9 +311,10 @@ describe.skipIf(!distExists)(
         const refused = run(['check', '--approve'], dir);
         expect(refused.status).toBe(1);
         expect(refused.all).toContain('no-banned-word');
-        expect(refused.all).toContain(
-          'is refused on node:root/sub/leaf by a deterministic check',
-        );
+        // Fill-time line names the refused deterministic pair on the leaf node.
+        expect(refused.all).toContain('[det] no-banned-word on node:root/sub/leaf — refused');
+        // The grouped error body lists the node under the enforced group.
+        expect(refused.all).toContain('- root/sub/leaf');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -401,9 +403,10 @@ describe.skipIf(!distExists)(
         const refused = run(['check', '--approve'], dir);
         expect(refused.status).toBe(1);
         expect(refused.all).toContain('no-banned-word');
-        expect(refused.all).toContain(
-          'is refused on node:root/leaf by a deterministic check',
-        );
+        // Fill-time line names the refused deterministic pair on the leaf node.
+        expect(refused.all).toContain('[det] no-banned-word on node:root/leaf — refused');
+        // The grouped error body lists the node under the enforced group.
+        expect(refused.all).toContain('- root/leaf');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -420,9 +423,10 @@ describe.skipIf(!distExists)(
         plantBanned(dir, 'src/root-leaf.ts');
         const refused = run(['check', '--approve'], dir);
         expect(refused.status).toBe(1);
-        expect(refused.all).toContain(
-          'is refused on node:root/leaf by a deterministic check',
-        );
+        // Fill-time line names the refused deterministic pair on the leaf node.
+        expect(refused.all).toContain('[det] no-banned-word on node:root/leaf — refused');
+        // The grouped error body lists the node under the enforced group.
+        expect(refused.all).toContain('- root/leaf');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -439,9 +443,10 @@ describe.skipIf(!distExists)(
         plantBanned(dir, 'src/root-leaf.ts');
         const refused = run(['check', '--approve'], dir);
         expect(refused.status).toBe(1);
-        expect(refused.all).toContain(
-          'is refused on node:root/leaf by a deterministic check',
-        );
+        // Fill-time line names the refused deterministic pair on the leaf node.
+        expect(refused.all).toContain('[det] no-banned-word on node:root/leaf — refused');
+        // The grouped error body lists the node under the enforced group.
+        expect(refused.all).toContain('- root/leaf');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -579,13 +584,13 @@ describe.skipIf(!distExists)(
 
         const fill = run(['check', '--approve'], dir);
         expect(fill.status).toBe(1);
-        expect(fill.all).toContain(
-          'is refused on node:root/leaf by a deterministic check',
-        );
-        // The listener is gated out — no no-banned-word refusal names it.
-        expect(fill.all).not.toContain(
-          'no-banned-word\' is refused on node:root/peer',
-        );
+        // Fill-time line names the refused deterministic pair on the emitter leaf.
+        expect(fill.all).toContain('[det] no-banned-word on node:root/leaf — refused');
+        // The grouped error body lists the node under the enforced group.
+        expect(fill.all).toContain('- root/leaf');
+        // The listener is gated out — no no-banned-word pair is dispatched or
+        // refused for it.
+        expect(fill.all).not.toContain('[det] no-banned-word on node:root/peer');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -714,9 +719,10 @@ describe.skipIf(!distExists)(
         plantBanned(dir, 'src/root-leaf.ts');
         const refused = run(['check', '--approve'], dir);
         expect(refused.status).toBe(1);
-        expect(refused.all).toContain(
-          'is refused on node:root/leaf by a deterministic check',
-        );
+        // Fill-time line names the refused deterministic pair on the leaf node.
+        expect(refused.all).toContain('[det] no-banned-word on node:root/leaf — refused');
+        // The grouped error body lists the node under the enforced group.
+        expect(refused.all).toContain('- root/leaf');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -833,9 +839,10 @@ describe.skipIf(!distExists)(
         const refused = run(['check', '--approve'], dir);
         expect(refused.status).toBe(1);
         expect(refused.stdout).toContain('no-banned-word');
-        expect(refused.stdout).toContain(
-          'is refused on node:root/leaf by a deterministic check',
-        );
+        // Fill-time line names the refused deterministic pair on the leaf node.
+        expect(refused.stdout).toContain('[det] no-banned-word on node:root/leaf — refused');
+        // The grouped error body lists the node under the enforced group.
+        expect(refused.stdout).toContain('- root/leaf');
         // The implier itself (no BANNED rule of its own) is satisfied — its fill
         // pair is approved, only the implied aspect refused.
         expect(refused.stdout).toContain('[det] implier on node:root/leaf — approved');
@@ -880,9 +887,10 @@ describe.skipIf(!distExists)(
         const refused = run(['check', '--approve'], strict);
         expect(refused.status).toBe(1);
         expect(refused.stdout).toContain('no-banned-word');
-        expect(refused.stdout).toContain(
-          'is refused on node:root/leaf by a deterministic check',
-        );
+        // Fill-time line names the refused deterministic pair on the leaf node.
+        expect(refused.stdout).toContain('[det] no-banned-word on node:root/leaf — refused');
+        // The grouped error body lists the node under the enforced group.
+        expect(refused.stdout).toContain('- root/leaf');
       } finally {
         rmSync(strict, { recursive: true, force: true });
       }
@@ -939,9 +947,10 @@ describe.skipIf(!distExists)(
         plantBanned(dir, 'src/root-leaf.ts');
         const refused = run(['check', '--approve'], dir);
         expect(refused.status).toBe(1);
-        expect(refused.stdout).toContain(
-          'is refused on node:root/leaf by a deterministic check',
-        );
+        // Fill-time line names the refused deterministic pair on the leaf node.
+        expect(refused.stdout).toContain('[det] no-banned-word on node:root/leaf — refused');
+        // The grouped error body lists the node under the enforced group.
+        expect(refused.stdout).toContain('- root/leaf');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }

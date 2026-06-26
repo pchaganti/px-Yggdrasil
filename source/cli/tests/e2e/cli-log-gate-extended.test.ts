@@ -334,9 +334,16 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
       const { status, stdout, all } = run(['check', '--approve'], dir);
 
       // Zero pairs to fill, yet the requirement still bites: the live check demands
-      // an entry regardless of aspect/pair state, and the run ends red.
+      // an entry regardless of aspect/pair state, and the run ends red. In the
+      // grouped post-fill check body the per-issue `what`
+      // ("No fresh log entry for node '<node>'") is gone for the non-FULL_WHAT
+      // log-entry-missing code; assert the group label/code, the now-visible why,
+      // the Fix naming the node, and the `- <node>` line instead.
       expect(status).toBe(1);
-      expect(all).toContain("No fresh log entry for node 'services/orders'");
+      expect(all).toContain('log-entry-missing');
+      expect(all).toContain("has log_required: true — every source change needs a log entry");
+      expect(all).toContain('yg log add --node services/orders');
+      expect(all).toContain('- services/orders');
       expect(stdout).toContain('Filling 0 unverified pairs across 0 nodes');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -443,7 +450,14 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
       // Read-only `yg check` (no fills, no LLM) must still demand the entry.
       const plain = run(['check'], dir);
       expect(plain.status).toBe(1);
-      expect(plain.all).toContain("No fresh log entry for node 'services/orders'");
+      // In the grouped read-only check body the per-issue `what`
+      // ("No fresh log entry for node '<node>'") is gone for the non-FULL_WHAT
+      // log-entry-missing code; assert the group label/code, the now-visible why,
+      // the Fix naming the node, and the `- <node>` line instead.
+      expect(plain.all).toContain('log-entry-missing');
+      expect(plain.all).toContain("has log_required: true — every source change needs a log entry");
+      expect(plain.all).toContain('yg log add --node services/orders');
+      expect(plain.all).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -591,7 +605,11 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
       expect(check.all).toContain('log-format');
-      expect(check.all).toContain('Log format invalid');
+      // The per-issue `what` ('Log format invalid at <path>') is gone in the
+      // grouped default view (log-format is not a FULL_WHAT code); assert the
+      // group's now-visible shared why instead. The duplicate-datetime reason
+      // detail still surfaces via `yg log read` below.
+      expect(check.all).toContain('Log format must be parseable for indexing and integrity.');
 
       const read = run(['log', 'read', '--node', 'services/orders'], dir);
       expect(read.status).toBe(1);

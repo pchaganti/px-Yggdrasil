@@ -287,8 +287,12 @@ describe.skipIf(!distExists)('CLI E2E — flow definition + filesystem error pat
       ]);
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
+      // Grouped view: an empty description trips description-missing just like a
+      // missing key. The per-issue `what` (the flow name) is no longer in the
+      // default body; assert the group label + shared why/fix.
       expect(check.stdout).toContain('description-missing');
-      expect(check.stdout).toContain("Flow 'OrderProcessing' has no description.");
+      expect(check.stdout).toContain('Description is used in context output');
+      expect(check.stdout).toContain('Add a description field to yg-flow.yaml.');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

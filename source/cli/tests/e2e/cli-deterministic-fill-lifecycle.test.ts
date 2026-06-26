@@ -194,9 +194,13 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
       const { status, stdout } = run(['check'], dir);
       expect(status).toBe(1);
       // The source hash changed, so the stored verdict no longer hashes-valid.
-      expect(stdout).toContain('unverified');
-      expect(stdout).toContain('services/orders');
-      expect(stdout).toContain("No valid verdict for aspect 'no-todo-comments' on node:services/orders.");
+      // The grouped view glosses the unverified label and names the aspect in the
+      // group header; the per-issue `what`
+      // ("No valid verdict for aspect '<id>' on <unit>.") is gone for the
+      // non-FULL_WHAT unverified code. Assert the gloss + aspect segment + node line.
+      expect(stdout).toContain('unverified (not yet reviewed)');
+      expect(stdout).toContain("aspect 'no-todo-comments'");
+      expect(stdout).toContain('- services/orders');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -210,11 +214,16 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
       // The fill line records the refusal, and the check renderer surfaces the
-      // enforced refusal as a blocking error (first line of the stored `what`).
+      // enforced refusal as a blocking error. In the grouped view the `what`
+      // line-0 header ("Aspect '...' is refused on ...") is dropped; the retained
+      // FULL_WHAT detail is the group label + aspect segment + the `- <node>`
+      // line carrying the deterministic Violations tail.
       expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — refused');
-      expect(fill.stdout).toContain(
-        "Aspect 'no-todo-comments' is refused on node:services/orders by a deterministic check.",
-      );
+      expect(fill.stdout).toContain('enforced');
+      expect(fill.stdout).toContain("aspect 'no-todo-comments'");
+      expect(fill.stdout).toContain('- services/orders');
+      expect(fill.stdout).toContain('Violations:');
+      expect(fill.stdout).toContain('TODO comment found');
       // The lock records the refused verdict (with the violation text in reason).
       const lock = readLock(dir);
       expect(verdictFor(lock, 'no-todo-comments', 'services/orders')?.verdict).toBe('refused');
@@ -317,9 +326,14 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1); // the suppress was what waived it
       expect(refused.stdout).toContain('[det] no-todo-comments on node:services/orders — refused');
-      expect(refused.stdout).toContain(
-        "Aspect 'no-todo-comments' is refused on node:services/orders by a deterministic check.",
-      );
+      // In the grouped view the `what` line-0 header ("Aspect '...' is refused on
+      // ...") is dropped; the retained FULL_WHAT detail is the group label +
+      // aspect segment + the `- <node>` line carrying the Violations tail.
+      expect(refused.stdout).toContain('enforced');
+      expect(refused.stdout).toContain("aspect 'no-todo-comments'");
+      expect(refused.stdout).toContain('- services/orders');
+      expect(refused.stdout).toContain('Violations:');
+      expect(refused.stdout).toContain('TODO comment found');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -341,10 +355,14 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
 
       const drifted = run(['check'], dir);
       expect(drifted.status).toBe(1);
-      // Both nodes report the no-todo-comments pair as unverified.
-      expect(drifted.stdout).toContain('unverified');
-      expect(drifted.stdout).toContain("No valid verdict for aspect 'no-todo-comments' on node:services/orders.");
-      expect(drifted.stdout).toContain("No valid verdict for aspect 'no-todo-comments' on node:services/payments.");
+      // Both nodes report the no-todo-comments pair as unverified. The grouped
+      // view collapses them into one no-todo-comments group with both nodes as
+      // `- <node>` bullets; the per-issue `what` is gone for the non-FULL_WHAT
+      // unverified code. Assert the gloss + aspect segment + both node lines.
+      expect(drifted.stdout).toContain('unverified (not yet reviewed)');
+      expect(drifted.stdout).toContain("aspect 'no-todo-comments'");
+      expect(drifted.stdout).toContain('- services/orders');
+      expect(drifted.stdout).toContain('- services/payments');
 
       const refill = run(['check', '--approve'], dir);
       expect(refill.status).toBe(0);

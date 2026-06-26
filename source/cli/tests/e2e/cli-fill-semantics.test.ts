@@ -130,7 +130,9 @@ describe.skipIf(!distExists)('CLI E2E — fill-stage semantics', () => {
       // Plain check confirms orders' LLM pair is unverified (no false-green).
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
-      expect(check.all).toContain("No valid verdict for aspect 'has-doc-comment' on node:services/orders.");
+      // Grouped view: an unverified group for the LLM aspect lists orders.
+      expect(check.all).toMatch(/unverified \(not yet reviewed\)\s+1 pairs\s+1 nodes\s+aspect 'has-doc-comment'/);
+      expect(check.all).toContain('- services/orders');
     } finally {
       await mock.close();
       rmSync(dir, { recursive: true, force: true });
@@ -254,7 +256,11 @@ describe.skipIf(!distExists)('CLI E2E — fill-stage semantics', () => {
       const callsBefore = mock.chatCount();
       const check = run(['check'], dir);
       expect(check.status).toBe(1);
-      expect(check.all).toContain("Aspect 'has-doc-comment' is refused on node:services/orders.");
+      // Grouped view: an enforced refusal group for the LLM aspect; the retained
+      // per-member tail names orders with its reviewer reason.
+      expect(check.all).toContain("enforced  2 pairs  2 nodes  aspect 'has-doc-comment'");
+      expect(check.all).toContain('A refused verdict for unchanged inputs is final and cached');
+      expect(check.all).toContain('- services/orders  Reviewer reason: sub-majority refusal');
       expect(mock.chatCount()).toBe(callsBefore); // check made no calls.
     } finally {
       await mock.close();

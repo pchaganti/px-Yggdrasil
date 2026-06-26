@@ -295,9 +295,12 @@ describe.skipIf(!distExists)('CLI E2E — greenfield / init / platform-install',
       // `unverified` with guidance pointing at the fill.
       const before = run(['check'], dir);
       expect(before.status).toBe(1);
-      expect(before.stdout).toContain('unverified');
+      expect(before.stdout).toContain('unverified (not yet reviewed)');
       expect(before.stdout).toContain('widgets/widget');
-      expect(before.stdout).toContain("No valid verdict for aspect 'no-todo-comments' on node:widgets/widget.");
+      // Grouped view: the unverified pair surfaces as a group for the aspect with
+      // the node listed and the fill command as the fix.
+      expect(before.stdout).toContain("aspect 'no-todo-comments'");
+      expect(before.stdout).toContain('- widgets/widget');
       expect(before.stdout).toContain('yg check --approve');
 
       // (b) Fill -> exit 0, the deterministic verdict recorded into the lock.
@@ -332,8 +335,12 @@ describe.skipIf(!distExists)('CLI E2E — greenfield / init / platform-install',
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.stdout).toContain('[det] no-todo-comments on node:widgets/widget — refused');
-      expect(refused.stdout).toContain('no-todo-comments');
-      expect(refused.stdout).toContain("Aspect 'no-todo-comments' is refused on node:widgets/widget by a deterministic check.");
+      // Grouped view: an enforced refusal group for the aspect; the per-member
+      // `Violations:` tail (FULL_WHAT detail) is retained and names the TODO site.
+      expect(refused.stdout).toContain("enforced  1 pairs  1 nodes  aspect 'no-todo-comments'");
+      expect(refused.stdout).toContain('A deterministic check recorded these violations');
+      expect(refused.stdout).toContain('- widgets/widget  Violations:');
+      expect(refused.stdout).toContain('TODO found.');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
