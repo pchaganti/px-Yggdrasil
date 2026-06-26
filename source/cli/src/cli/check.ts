@@ -280,7 +280,7 @@ export function formatOutput(result: CheckResult, view: CheckView = { kind: 'ful
     // what stops a truncated view from reading as a clean build.
     const body = view.kind === 'summary'
       ? renderSummaryBody(errors, warnings)
-      : renderTopBody(errors, warnings, view.n);
+      : renderTopBody(errors, warnings, view.n, opts);
     if (errors.length > 0) {
       sections.push('');
       sections.push(chalk.red(`Errors (${errors.length}):`));
@@ -427,38 +427,36 @@ export function issuePriorityRank(issue: CheckIssue): number {
 interface ViewBody { errorLines: string; warningLines: string }
 
 /**
- * Render at most `n` issue blocks in priority order (errors before warnings,
- * stable by nodePath within a tier), splitting the chosen blocks by severity.
+ * Render at most `n` highest-priority GROUPS in priority order (errors before
+ * warnings), splitting the chosen groups by severity so each lands under its
+ * aggregate Errors(N)/Warnings(N) subheader. Each group is rendered via
+ * renderGroup so the node list, shared why/fix, and per-member detail all appear.
  * n === 0 renders nothing — the aggregate subheaders and Next line still print.
+ *
+ * Priority is taken from the group's representative member (groupIssues already
+ * sorts by representative priority). The combined list of error groups followed
+ * by warning groups is sliced at n; sliced groups are then split by severity
+ * for the two subheaders.
  */
-function renderTopBody(errors: CheckIssue[], warnings: CheckIssue[], n: number): ViewBody {
+function renderTopBody(errors: CheckIssue[], warnings: CheckIssue[], n: number, opts: { isTTY: boolean }): ViewBody {
   if (n <= 0) return { errorLines: '', warningLines: '' };
-  const ordered = [...errors, ...warnings].sort((a, b) => {
-    const ra = issuePriorityRank(a);
-    const rb = issuePriorityRank(b);
-    if (ra !== rb) return ra - rb;
-    return (a.nodePath ?? '').localeCompare(b.nodePath ?? '', 'en');
-  });
-  const chosen = ordered.slice(0, n);
-  const renderOne = (issue: CheckIssue): string => {
+  // groupIssues returns groups sorted by representative priority within each
+  // severity. Errors always outrank warnings, so combine errors first.
+  const errorGroups = groupIssues(errors);
+  const warningGroups = groupIssues(warnings);
+  const allGroups = [...errorGroups, ...warningGroups];
+  const chosenGroups = allGroups.slice(0, n);
+  const chosenErrors = chosenGroups.filter(g => g.severity === 'error');
+  const chosenWarnings = chosenGroups.filter(g => g.severity === 'warning');
+  const renderOneGroup = (g: IssueGroup): string => {
     const lines: string[] = [];
-    // Coverage issues (unmapped / uncovered-advisory) render through the compact
-    // block; all other issues through the labelled issue block.
-    if (issue.code === 'unmapped-files') {
-      renderUnmappedBlock(issue, lines);
-    } else if (issue.code === 'uncovered-advisory') {
-      renderUnmappedBlock(issue, lines, 'uncovered');
-    } else {
-      renderIssueBlock(issue, lines, issue.severity === 'error' ? 'error' : 'warning');
-    }
+    renderGroup(g, lines, opts);
     return lines.join('\n');
   };
-  const errBlocks = chosen.filter(i => i.severity === 'error').map(renderOne);
-  const warnBlocks = chosen.filter(i => i.severity === 'warning').map(renderOne);
-  // Lead each block with a blank line (separating it from the subheader and
-  // from the preceding block), matching the full-view spacing.
-  const lead = (blocks: string[]): string => blocks.map(b => `\n${b}`).join('\n');
-  return { errorLines: lead(errBlocks), warningLines: lead(warnBlocks) };
+  // Lead each group block with a blank line (separating it from the subheader
+  // and from the preceding block), matching the full-view spacing.
+  const lead = (groups: IssueGroup[]): string => groups.map(g => `\n${renderOneGroup(g)}`).join('\n');
+  return { errorLines: lead(chosenErrors), warningLines: lead(chosenWarnings) };
 }
 
 // ── Summary view: per-node aggregate counts ────────────────

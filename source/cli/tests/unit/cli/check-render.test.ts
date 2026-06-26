@@ -367,11 +367,12 @@ describe('check render — --top view', () => {
     expect((out.match(/\nNext: /g) ?? []).length).toBe(1);
   });
 
-  it('{kind:top,n:99} renders all blocks without crashing (n exceeds issue count)', () => {
+  it('{kind:top,n:99} renders all GROUP blocks without crashing (n exceeds group count)', () => {
     const out = stripAnsi(formatOutput(fourErrorResult(), { kind: 'top', n: 99 }));
     expect(out).toContain('Errors (4):');
-    // The --top view renders individual issue blocks (not groups) — 4 issues.
-    expect(countBlocks(out)).toBe(4);
+    // The fourErrorResult has 2 groups (unverified x3 collapses → 1; mapping-path-missing → 1).
+    // --top renders at most n GROUPS, so n=99 shows all 2 groups, not 4 individual issues.
+    expect(countBlocks(out)).toBe(2);
   });
 
   it('top view renders the highest-priority block first (unverified before structural)', () => {
@@ -699,5 +700,121 @@ describe('check render — --aspect drill-in view (task 2.2)', () => {
     // The actual exit code (derived from full result.issues) is tested at the CLI action layer.
     const out = formatOutput(baseResult(aspectDrillIssues()), { kind: 'aspect', id: 'x' });
     expect(out.length).toBeGreaterThan(0);
+  });
+});
+
+// ── --top GROUP-based rendering (task 2.3) ────────────────────────────────────
+
+/**
+ * Build a result with 4 DISTINCT error groups:
+ *   1. unverified (aspect x)         — code-only group (CODE_ONLY_GROUP_CODES)
+ *   2. aspect-violation-enforced (y) — refused enforced, aspect y
+ *   3. aspect-violation-enforced (z) — refused enforced, aspect z
+ *   4. relation-undeclared-dependency (no aspectId) — structural
+ *
+ * Priority order (issuePriorityRank): unverified (rank 2) < enforced (rank 3)
+ * < relation (unranked ERROR, rank = ERROR_CODE_PRIORITY.length=10).
+ * So groups in order: unverified → aspect y → aspect z → relation.
+ */
+function fourGroupErrorResult(): CheckResult {
+  const issues: CheckIssue[] = [
+    // Group 1: unverified (code-only group — collapses by code, regardless of aspect)
+    {
+      severity: 'error',
+      code: 'unverified',
+      rule: 'unverified',
+      nodePath: 'auth/handler',
+      aspectId: 'aspect-x',
+      pairKind: 'llm',
+      messageData: unverifiedMessage({ aspectId: 'aspect-x', unitKey: 'auth/handler#aspect-x' }),
+    } as CheckIssue,
+    // Group 2: refused enforced, aspect y
+    {
+      severity: 'error',
+      code: 'aspect-violation-enforced',
+      rule: 'aspect-violation-enforced',
+      aspectId: 'aspect-y',
+      pairKind: 'llm',
+      nodePath: 'orders/service',
+      messageData: llmRefusedMessage({ aspectId: 'aspect-y', unitKey: 'orders/service#aspect-y', reason: 'missing audit on aspect y' }),
+    } as CheckIssue,
+    // Group 3: refused enforced, aspect z
+    {
+      severity: 'error',
+      code: 'aspect-violation-enforced',
+      rule: 'aspect-violation-enforced',
+      aspectId: 'aspect-z',
+      pairKind: 'llm',
+      nodePath: 'billing/service',
+      messageData: llmRefusedMessage({ aspectId: 'aspect-z', unitKey: 'billing/service#aspect-z', reason: 'missing validation on aspect z' }),
+    } as CheckIssue,
+    // Group 4: relation-undeclared-dependency (structural, no aspectId)
+    {
+      severity: 'error',
+      code: 'relation-undeclared-dependency',
+      rule: 'relation-undeclared-dependency',
+      nodePath: 'payments/processor',
+      messageData: {
+        what: 'payments/processor depends on billing/service but has no declared relation.',
+        why: 'Every statically-resolvable cross-node dependency must be declared as a relation.',
+        next: 'Add a relation entry in payments/processor/yg-node.yaml.',
+      },
+    } as CheckIssue,
+  ];
+  return {
+    ...baseResult(issues),
+    // All 4 issues are errors; suggestedNext points at highest-priority (unverified).
+    suggestedNext: 'yg check --approve',
+  };
+}
+
+describe('check render — --top GROUP view (task 2.3)', () => {
+  it('{kind:top,n:2} renders exactly 2 group blocks, the true Errors(4) header, and a Next line', () => {
+    const result = fourGroupErrorResult();
+    const out = stripAnsi(formatOutput(result, { kind: 'top', n: 2 }));
+    // TRUE header — never truncated.
+    expect(out).toContain('Errors (4):');
+    // Exactly 2 GROUP blocks rendered (not 2 individual issues).
+    expect(countBlocks(out)).toBe(2);
+    // Next line always present.
+    expect(out).toMatch(/\nNext: /);
+  });
+
+  it('{kind:top,n:2} shows the 2 highest-priority groups (unverified, aspect-y) and NOT the lower ones', () => {
+    const result = fourGroupErrorResult();
+    const out = stripAnsi(formatOutput(result, { kind: 'top', n: 2 }));
+    // Group 1 (unverified, highest priority) must appear.
+    expect(out).toContain('unverified (not yet reviewed)');
+    // Group 2 (aspect-violation-enforced aspect-y, second priority) must appear.
+    expect(out).toContain("aspect 'aspect-y'");
+    // Group 3 (aspect-z) must NOT appear.
+    expect(out).not.toContain("aspect 'aspect-z'");
+    // Group 4 (relation-undeclared-dependency) must NOT appear.
+    expect(out).not.toContain('relation-undeclared-dependency');
+  });
+
+  it('{kind:top,n:0} bare-top renders zero group blocks; subheaders and Next still print', () => {
+    const result = fourGroupErrorResult();
+    const out = stripAnsi(formatOutput(result, { kind: 'top', n: 0 }));
+    // TRUE header present.
+    expect(out).toContain('Errors (4):');
+    // Zero group blocks.
+    expect(countBlocks(out)).toBe(0);
+    // Next line still present.
+    expect(out).toMatch(/\nNext: /);
+    // Exactly one Next line.
+    expect((out.match(/\nNext: /g) ?? []).length).toBe(1);
+  });
+
+  it('{kind:top,n:4} renders all 4 groups when n equals group count', () => {
+    const result = fourGroupErrorResult();
+    const out = stripAnsi(formatOutput(result, { kind: 'top', n: 4 }));
+    expect(out).toContain('Errors (4):');
+    expect(countBlocks(out)).toBe(4);
+    // All four group labels present.
+    expect(out).toContain('unverified (not yet reviewed)');
+    expect(out).toContain("aspect 'aspect-y'");
+    expect(out).toContain("aspect 'aspect-z'");
+    expect(out).toContain('relation-undeclared-dependency');
   });
 });
