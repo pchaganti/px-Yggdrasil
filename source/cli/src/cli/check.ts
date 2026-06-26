@@ -199,6 +199,23 @@ export function resolveTopValue(raw: boolean | string | undefined): number | nul
   return n;
 }
 
+/**
+ * When `result.suggestedNext` starts with `yg check --approve` AND there is at
+ * least one error whose code is NOT `unverified` (i.e. refused/relation/
+ * structural/etc.), returns a parenthetical annotating partial coverage:
+ *   (fills <N> unverified; <K> errors remain — need code/graph fixes)
+ * where N = count of error issues with code `unverified`, K = count of error
+ * issues with code !== `unverified`. Otherwise returns ''.
+ */
+export function residualAfterNext(result: CheckResult): string {
+  if (!result.suggestedNext?.startsWith('yg check --approve')) return '';
+  const errors = result.issues.filter(i => i.severity === 'error');
+  const N = errors.filter(i => i.code === 'unverified').length;
+  const K = errors.filter(i => i.code !== 'unverified').length;
+  if (K === 0) return '';
+  return `  (fills ${N} unverified; ${K} error${K === 1 ? '' : 's'} remain — need code/graph fixes)`;
+}
+
 export function formatOutput(result: CheckResult, view: CheckView = { kind: 'full' }): string {
   const errors = result.issues.filter(i => i.severity === 'error');
   const warnings = result.issues.filter(i => i.severity === 'warning');
@@ -246,8 +263,13 @@ export function formatOutput(result: CheckResult, view: CheckView = { kind: 'ful
     // suggestedNext and prints no Next line — a clean run is self-evidently done.
     // Show only the first line — the actionable command, without annotation text.
     const nextCmd = result.suggestedNext.split('\n')[0];
+    // In the full view, annotate the Next line when --approve will only partially
+    // clear errors (some refused/structural/relation errors remain after filling
+    // unverified pairs). Triage views (top/summary) are already narrowed — they
+    // do not annotate to avoid double-messaging.
+    const residual = view.kind === 'full' ? residualAfterNext(result) : '';
     sections.push('');
-    sections.push(`Next: ${nextCmd}`);
+    sections.push(`Next: ${nextCmd}${residual}`);
   }
 
   sections.push('');

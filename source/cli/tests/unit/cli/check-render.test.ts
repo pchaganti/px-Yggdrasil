@@ -482,6 +482,46 @@ describe('check render — grouped full view (task 1.3)', () => {
   });
 });
 
+describe('check render — Next: residual annotation (task 1.4)', () => {
+  it('annotates Next when --approve will not clear all error groups', () => {
+    const issues: CheckIssue[] = [
+      {severity:'error',code:'unverified',rule:'unverified',aspectId:'x',pairKind:'llm',nodePath:'a',messageData:unverifiedMessage({aspectId:'x',unitKey:'a'})} as CheckIssue,
+      {severity:'error',code:'aspect-violation-enforced',rule:'aspect-violation-enforced',aspectId:'y',pairKind:'llm',nodePath:'a',messageData:llmRefusedMessage({aspectId:'y',unitKey:'a',reason:'r'})} as CheckIssue,
+    ];
+    const out = stripAnsi(formatOutput(baseResult(issues)));
+    expect(out).toMatch(/Next: yg check --approve {2}\(fills 1 unverified; 1 errors? remain/);
+  });
+
+  it('does NOT annotate Next when all errors are unverified (--approve will clear all)', () => {
+    const issues: CheckIssue[] = [
+      {severity:'error',code:'unverified',rule:'unverified',aspectId:'x',pairKind:'llm',nodePath:'a',messageData:unverifiedMessage({aspectId:'x',unitKey:'a'})} as CheckIssue,
+      {severity:'error',code:'unverified',rule:'unverified',aspectId:'y',pairKind:'llm',nodePath:'b',messageData:unverifiedMessage({aspectId:'y',unitKey:'b'})} as CheckIssue,
+    ];
+    const out = stripAnsi(formatOutput(baseResult(issues)));
+    expect(out).toMatch(/\nNext: yg check --approve\n/);
+    expect(out).not.toContain('fills');
+  });
+
+  it('does NOT annotate Next on a fully-green run (suggestedNext is null)', () => {
+    const green: CheckResult = {
+      projectName: 'test',
+      nodeCount: 1,
+      nodeTypeCounts: new Map(),
+      aspectCount: 1,
+      flowCount: 0,
+      coveredFiles: 0,
+      totalFiles: 0,
+      issues: [],
+      suggestedNext: null,
+      advisoryWarnings: 0,
+      draftSkipped: 0,
+    };
+    const out = stripAnsi(formatOutput(green));
+    expect(out).not.toContain('Next:');
+    expect(out).not.toContain('fills');
+  });
+});
+
 describe('resolveTopValue', () => {
   const cases: Array<[boolean | string | undefined, number | null]> = [
     [undefined, 0],
