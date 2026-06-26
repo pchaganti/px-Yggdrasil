@@ -93,3 +93,5 @@ Absorbed history — when evaluator:
 Removed the private descendant-collection helper; the predicate evaluator now imports it from the shared graph traversal module rather than duplicating the traversal.
 ## [2026-06-19T19:19:16.898Z]
 Teach the impact cascade that an LLM aspect carrying a companion resolver now leaves observation traces like a deterministic check, so editing a file it observed re-verifies the dependent units, while a plain LLM aspect without a resolver stays excluded to avoid over-reporting blast radius.
+## [2026-06-26T19:06:30.492Z]
+Added the invalidated-pair-set builder behind yg impact --file: a single deduped set of (aspect, unit) pairs an edit invalidates, gathered from subject, aspect-reference, lock-observation, and cold buckets. For a cold companion-backed LLM aspect (no lock entry yet) it runs the companion resolver — gated by a cheap static allowed-reads pre-filter and a timeout — to learn the exact files the unit reads, so the blast radius is precise even before the first fill; a resolver failure marks the unit unresolved rather than admitting or guessing. This stays read-only: no lock write, no LLM, no check.mjs.

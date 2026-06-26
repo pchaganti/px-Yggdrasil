@@ -1,0 +1,2 @@
+## [2026-06-26T19:06:30.762Z]
+Added the summary and renderer for the unified yg impact --file cost: it folds the invalidated-pair set into billed reviewer calls (summing each LLM pair resolved-tier consensus), free deterministic pairs, and currently-green verdicts re-rolled, grouped per node with machine-token-first reason glosses, and lists companions that failed to resolve as unresolved. The owner-scoped node cost renderer is retained unchanged for yg impact --node.

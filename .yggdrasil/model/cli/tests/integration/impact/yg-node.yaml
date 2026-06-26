@@ -1,0 +1,13 @@
+name: Impact Cold-Companion Integration Test
+type: test-suite
+description: Integration test for yg impact's cold companion-LLM resolution — with no
+  lock entry, collectInvalidatedPairs runs the companion resolver to compute the precise
+  dependency set, verified against the e2e-companion fixture.
+aspects: []
+relations:
+  - target: cli/impact-handlers
+    type: uses
+  - target: cli/core/loader
+    type: uses
+mapping:
+  - source/cli/tests/integration/impact-cold-companion.test.ts

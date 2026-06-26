@@ -8,6 +8,8 @@ relations:
     type: calls
   - target: cli/core/pairs
     type: calls
+  - target: cli/core/companion-resolve
+    type: calls
   - target: cli/core/reviewer-tiers
     type: calls
   - target: cli/core/file-when-evaluator
