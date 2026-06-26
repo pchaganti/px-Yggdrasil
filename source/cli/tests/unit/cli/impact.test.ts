@@ -187,7 +187,7 @@ describe('impact command', () => {
         // The blast-radius footer must precede the Next line; Next is the LAST
         // substantive line so the actionable step is never buried.
         const brIdx = result.stdout.indexOf('Blast radius:');
-        const nextIdx = result.stdout.indexOf('Next: review the dependents above');
+        const nextIdx = result.stdout.indexOf('Run yg context --node orders/order-service');
         expect(brIdx).toBeGreaterThan(-1);
         expect(nextIdx).toBeGreaterThan(brIdx);
         expect(result.stdout).toContain('yg context --node orders/order-service');
@@ -577,8 +577,8 @@ describe('impact command', () => {
         expect(result.stdout).not.toContain(
           'Editing this node re-verifies its own pairs on the next yg check --approve',
         );
-        // The terminal Next: line still ends the output.
-        expect(result.stdout).toContain('Next: review the dependents above');
+        // The terminal Next: line still ends the output (structured what/why/next format).
+        expect(result.stdout).toContain('Run yg context --node orders/order-service');
       });
     });
 

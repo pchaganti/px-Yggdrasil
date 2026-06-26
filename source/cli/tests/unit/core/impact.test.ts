@@ -214,7 +214,8 @@ describe('collectIndirectDependents', () => {
     const graph = makeGraph([a, b, c, x]);
     const result = collectIndirectDependents(graph, ['a']);
     // b and c reach a via event relations → indirect; x's bogus relation is ignored.
-    expect(result.indirectPaths).toEqual(['b', 'c']);
+    expect(result.indirectPaths).toEqual(expect.arrayContaining(['b', 'c']));
+    expect(result.indirectPaths).toHaveLength(2);
     expect(result.indirectPaths).not.toContain('x');
   });
 

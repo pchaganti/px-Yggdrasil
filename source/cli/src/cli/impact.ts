@@ -111,8 +111,11 @@ export function registerImpactCommand(program: Command): void {
             // Graph-file redirect — graph files are not subject-file edits.
             if (repoRelative.startsWith('.yggdrasil/')) {
               process.stdout.write(
-                `${repoRelative} is a graph file — its cost is not a per-pair subject edit.\n` +
-                `Next: to estimate the cost of editing an aspect rule or companion, run yg impact --aspect <id>.\n`,
+                buildIssueMessage({
+                  what: `${repoRelative} is a graph file — its cost is not a per-pair subject edit.`,
+                  why: 'The per-pair cost model tracks subject-file edits; rule and companion hash changes are not modeled as per-pair subjects.',
+                  next: 'To estimate the cost of editing an aspect rule or companion, run yg impact --aspect <id>.',
+                }) + '\n',
               );
               await exitAfterFlush(0);
               return;
@@ -368,7 +371,11 @@ export function registerImpactCommand(program: Command): void {
             process.stdout.write(`  Review direct dependents before changing this node.\n`);
           }
           process.stdout.write(
-            `\nNext: review the dependents above, then edit; run yg context --node ${toPosixPath(nodePath)} for any you're unsure about.\n`,
+            '\n' + buildIssueMessage({
+              what: `You are about to change node ${toPosixPath(nodePath)}.`,
+              why: 'Dependents listed above may be affected by changes to this node.',
+              next: `Run yg context --node ${toPosixPath(nodePath)} for any dependent you are unsure about.`,
+            }) + '\n',
           );
         } catch (error) {
           debugWrite(`[impact] command failed: ${(error as Error).message}`);
