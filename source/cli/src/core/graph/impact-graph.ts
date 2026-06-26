@@ -5,6 +5,8 @@ import { computeEffectiveAspects, computeEffectiveAspectStatuses } from './aspec
 import type { Graph, GraphNode } from '../../model/graph.js';
 import type { LockFile } from '../../model/lock.js';
 import type { ExpectedPair } from '../pairs.js';
+import { computeExpectedPairs } from '../pairs.js';
+import { resolveCompanionsForPair } from '../companion-resolve.js';
 import { toPosix } from '../../utils/posix.js';
 
 /**
@@ -466,4 +468,53 @@ export function classifyInvalidations(
     }
   }
   return { pairs: admitted, coldCompanionCandidates };
+}
+
+// ============================================================
+// collectInvalidatedPairs — async, runs cold companion resolver
+// ============================================================
+
+const COMPANION_RESOLVE_TIMEOUT_MS = 5000;
+const TIMEOUT = Symbol('companion-resolve-timeout');
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | typeof TIMEOUT> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve(TIMEOUT), ms);
+    (timer as { unref?: () => void }).unref?.(); // do not keep the process alive
+    p.then((v) => { clearTimeout(timer); resolve(v); }, (e) => { clearTimeout(timer); reject(e); });
+  });
+}
+
+export async function collectInvalidatedPairs(
+  graph: Graph,
+  repoRelative: string,
+  lock: LockFile,
+  projectRoot: string,
+): Promise<ImpactSet> {
+  const { pairs } = await computeExpectedPairs(graph);
+  const { pairs: admitted, coldCompanionCandidates } = classifyInvalidations(pairs, graph, repoRelative, lock);
+  const unresolved: UnresolvedUnit[] = [];
+
+  for (const p of coldCompanionCandidates) {
+    const aspect = graph.aspects.find((a) => a.id === p.aspectId)!;
+    let result: Awaited<ReturnType<typeof resolveCompanionsForPair>> | typeof TIMEOUT;
+    try {
+      result = await withTimeout(resolveCompanionsForPair(graph, projectRoot, p, aspect), COMPANION_RESOLVE_TIMEOUT_MS);
+    } catch (err) {
+      unresolved.push({ aspectId: p.aspectId, unitKey: p.unitKey, nodePath: p.nodePath, why: (err as Error).message });
+      continue;
+    }
+    if (result === TIMEOUT) {
+      unresolved.push({ aspectId: p.aspectId, unitKey: p.unitKey, nodePath: p.nodePath, why: 'companion resolution timed out' });
+      continue;
+    }
+    if (result.kind === 'infra') {
+      unresolved.push({ aspectId: p.aspectId, unitKey: p.unitKey, nodePath: p.nodePath, why: result.why });
+      continue;
+    }
+    if (touchedReferencesFile(result.companions.observations, repoRelative)) {
+      admitted.push({ aspectId: p.aspectId, unitKey: p.unitKey, nodePath: p.nodePath, kind: p.kind, reasons: ['observe-companion'], mode: 'precise' });
+    }
+  }
+  return { pairs: admitted, unresolved };
 }
