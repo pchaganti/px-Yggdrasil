@@ -25,6 +25,7 @@ relations:
     type: calls
   - target: cli/utils
     type: calls
+  - target: cli/group-issues
+    type: calls
 mapping:
   - source/cli/src/cli/check.ts
-  - source/cli/src/cli/group-issues.ts

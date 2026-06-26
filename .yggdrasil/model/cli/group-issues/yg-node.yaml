@@ -1,0 +1,13 @@
+name: Group Issues
+type: command-support
+description: "Command-layer helper that collapses a flat CheckIssue list into
+  grouped IssueGroup records for the yg check grouped output view. Houses
+  the shared FULL_WHAT_CODES, getIssueLabel, and issuePriorityRank utilities
+  consumed by both the grouping logic and the check command renderer."
+mapping:
+  - source/cli/src/cli/group-issues.ts
+relations:
+  - target: cli/core/check-codes
+    type: calls
+  - target: cli/core/check
+    type: calls

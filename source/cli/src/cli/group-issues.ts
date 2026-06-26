@@ -1,5 +1,5 @@
 import type { CheckIssue } from '../core/check.js';
-import { getIssueLabel, issuePriorityRank, FULL_WHAT_CODES } from './check.js';
+import { STRUCTURAL_CODES, COMPLETENESS_CODES } from '../core/check-codes.js';
 
 export interface IssueGroup {
   code: string;
@@ -25,6 +25,77 @@ export interface IssueGroup {
  * Now they collapse into one block, with each line annotating its aspect.
  */
 export const CODE_ONLY_GROUP_CODES = new Set(['unverified']);
+
+// ── Shared code-set constants ────────────────────────────────
+
+/** Architecture-rule issue codes (relation, parent, type, port violations). */
+const ARCHITECTURE_CODES = new Set(['relation-target-forbidden', 'parent-type-forbidden', 'type-undefined', 'port-missing-aspect', 'port-missing-consumes', 'port-undefined', 'consumes-without-ports']);
+
+/** Strict-type enforcement issue codes. */
+const STRICT_CODES = new Set(['type-strict-orphan', 'type-strict-misplaced', 'strict-overlap-conflict']);
+
+/**
+ * Codes whose `messageData.what` carries the actionable refusal detail (the
+ * reviewer's reason / the deterministic violation list) on lines AFTER the first.
+ * For these, the full multi-line `what` is rendered — truncating to line 1 would
+ * hide the very thing the agent needs to fix the code, leaving plain `yg check`
+ * strictly less informative than `yg aspect-test`. All other codes keep the
+ * terse one-line summary.
+ */
+export const FULL_WHAT_CODES = new Set([
+  'aspect-violation-enforced',
+  'aspect-violation-advisory',
+  // The relation refusal's `what` carries the violation list (each
+  // `<file>:<line> → undeclared dependency on <node>`) on lines after the
+  // first; truncating to line 1 would hide which import in which file drives
+  // the refusal — the very thing the agent needs to declare or remove.
+  'relation-undeclared-dependency',
+]);
+
+/**
+ * Priority rank for an issue, mirroring computeSuggestedNext's §6 cascade so the
+ * --top view surfaces the same issues the suggestedNext line points at, in the
+ * same order. Lower rank = higher priority. Errors always outrank warnings.
+ */
+const ERROR_CODE_PRIORITY: string[] = [
+  'lock-invalid',
+  'log-entry-missing',
+  'unverified',
+  'aspect-violation-enforced',
+  'prompt-too-large',
+  'aspect-companion-runtime-error',
+  'log-conflict',
+  'log-integrity',
+  'log-format',
+  'mapped-file-gitignored',
+];
+
+export function issuePriorityRank(issue: CheckIssue): number {
+  const idx = ERROR_CODE_PRIORITY.indexOf(issue.code);
+  if (idx >= 0) return idx;
+  // Unranked errors (structural / architecture / coverage / completeness /
+  // strict) sort after the explicitly-ranked ones but before warnings.
+  if (issue.severity === 'error') return ERROR_CODE_PRIORITY.length;
+  // Warnings always last.
+  return ERROR_CODE_PRIORITY.length + 1;
+}
+
+export function getIssueLabel(issue: CheckIssue): string {
+  // Verdict-lock states (spec §10).
+  if (issue.code === 'unverified') return 'unverified';
+  if (issue.code === 'prompt-too-large') return 'prompt-too-large';
+  if (issue.code === 'lock-invalid') return 'lock-invalid';
+  if (issue.code === 'aspect-violation-advisory') return 'advisory';
+  if (issue.code === 'aspect-violation-enforced') return 'enforced';
+  if (issue.code === 'log-conflict') return 'log-conflict';
+  if (issue.code === 'log-integrity') return 'log-integrity';
+  if (issue.code === 'log-format') return 'log-format';
+  if (STRUCTURAL_CODES.has(issue.code)) return issue.code;
+  if (ARCHITECTURE_CODES.has(issue.code)) return issue.code;
+  if (COMPLETENESS_CODES.has(issue.code)) return issue.code;
+  if (STRICT_CODES.has(issue.code)) return issue.code;
+  return issue.code;
+}
 
 export function groupIssues(issues: CheckIssue[]): IssueGroup[] {
   const byKey = new Map<string, CheckIssue[]>();

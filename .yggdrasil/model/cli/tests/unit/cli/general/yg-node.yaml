@@ -8,6 +8,7 @@ relations:
   [
     { target: cli/commands/build-context, type: uses },
     { target: cli/commands/check, type: uses },
+    { target: cli/group-issues, type: uses },
     { target: cli/commands/init, type: uses },
     { target: cli/core/context, type: uses },
     { target: cli/core/loader, type: uses },
@@ -28,3 +29,4 @@ mapping:
   - source/cli/tests/unit/cli/check-exit.test.ts
   - source/cli/tests/unit/cli/check-disk-scan.test.ts
   - source/cli/tests/unit/cli/resolve-approve-mode.test.ts
+  - source/cli/tests/unit/cli/group-issues.test.ts

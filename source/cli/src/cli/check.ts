@@ -8,10 +8,9 @@ import { runCheck } from '../core/check.js';
 import type { CheckIssue, CheckResult } from '../core/check.js';
 import { runFill, FillGatingError } from '../core/fill.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
-import { STRUCTURAL_CODES, COMPLETENESS_CODES } from '../core/check-codes.js';
 import path from 'node:path';
 import { walkRepoFiles } from '../io/repo-scanner.js';
-import { groupIssues, type IssueGroup } from './group-issues.js';
+import { groupIssues, type IssueGroup, getIssueLabel, issuePriorityRank, FULL_WHAT_CODES } from './group-issues.js';
 import type { YggConfig } from '../model/graph.js';
 
 /**
@@ -299,14 +298,12 @@ export function registerCheckCommand(program: Command): void {
 /** Code sets for grouping errors by category. STRUCTURAL_CODES and
  *  COMPLETENESS_CODES are shared with the check engine via core/check-codes.ts
  *  so the rendered grouping and the summary tally cannot drift apart. */
-const ARCHITECTURE_CODES = new Set(['relation-target-forbidden', 'parent-type-forbidden', 'type-undefined', 'port-missing-aspect', 'port-missing-consumes', 'port-undefined', 'consumes-without-ports']);
 // `unmapped-files` renders through renderUnmappedBlock (count + file list).
 // `mapping-path-missing` is NOT a coverage code: it carries a nodePath and
 // structured messageData, so it falls through to the normal validation-error
 // renderer (code + node path + what/why/next) — renderUnmappedBlock would
 // otherwise drop both the code and the offending node path.
 const COVERAGE_CODES = new Set(['unmapped-files']);
-const STRICT_CODES = new Set(['type-strict-orphan', 'type-strict-misplaced', 'strict-overlap-conflict']);
 
 /**
  * Read-only render mode for `yg check`. Selected by --top / --summary; the
@@ -503,34 +500,6 @@ function renderDetailsSection(issues: CheckIssue[], mode: 'error' | 'warning'): 
 }
 
 // ── Top view: prioritized blocks ───────────────────────────
-
-/**
- * Priority rank for an issue, mirroring computeSuggestedNext's §6 cascade so the
- * --top view surfaces the same issues the suggestedNext line points at, in the
- * same order. Lower rank = higher priority. Errors always outrank warnings.
- */
-const ERROR_CODE_PRIORITY: string[] = [
-  'lock-invalid',
-  'log-entry-missing',
-  'unverified',
-  'aspect-violation-enforced',
-  'prompt-too-large',
-  'aspect-companion-runtime-error',
-  'log-conflict',
-  'log-integrity',
-  'log-format',
-  'mapped-file-gitignored',
-];
-
-export function issuePriorityRank(issue: CheckIssue): number {
-  const idx = ERROR_CODE_PRIORITY.indexOf(issue.code);
-  if (idx >= 0) return idx;
-  // Unranked errors (structural / architecture / coverage / completeness /
-  // strict) sort after the explicitly-ranked ones but before warnings.
-  if (issue.severity === 'error') return ERROR_CODE_PRIORITY.length;
-  // Warnings always last.
-  return ERROR_CODE_PRIORITY.length + 1;
-}
 
 /** A triage-view body split by severity, so each block lands under its
  *  aggregate Errors(N)/Warnings(N) subheader (rendered by formatOutput). */
@@ -792,23 +761,6 @@ function renderWarningSection(warnings: CheckIssue[], opts: { isTTY: boolean }, 
 // ── Per-issue block ────────────────────────────────────────
 
 /**
- * Codes whose `messageData.what` carries the actionable refusal detail (the
- * reviewer's reason / the deterministic violation list) on lines AFTER the first.
- * For these, the full multi-line `what` is rendered — truncating to line 1 would
- * hide the very thing the agent needs to fix the code, leaving plain `yg check`
- * strictly less informative than `yg aspect-test`. All other codes keep the
- * terse one-line summary.
- */
-export const FULL_WHAT_CODES = new Set([
-  'aspect-violation-enforced',
-  'aspect-violation-advisory',
-  // The relation refusal's `what` carries the violation list (each
-  // `<file>:<line> → undeclared dependency on <node>`) on lines after the
-  // first; truncating to line 1 would hide which import in which file drives
-  // the refusal — the very thing the agent needs to declare or remove.
-  'relation-undeclared-dependency',
-]);
-
 /** Indent applied to continuation lines so they align under the block body. */
 const BLOCK_INDENT = '            ';
 
@@ -968,25 +920,6 @@ export function renderGroup(group: IssueGroup, lines: string[], opts: { isTTY: b
     const drill = group.aspectId ? ` (yg check --aspect ${group.aspectId})` : '';
     lines.push(`${BLOCK_INDENT}... and ${members.length - CAP_NODES} more${drill}`);
   }
-}
-
-// ── Helpers ────────────────────────────────────────────────
-
-export function getIssueLabel(issue: CheckIssue): string {
-  // Verdict-lock states (spec §10).
-  if (issue.code === 'unverified') return 'unverified';
-  if (issue.code === 'prompt-too-large') return 'prompt-too-large';
-  if (issue.code === 'lock-invalid') return 'lock-invalid';
-  if (issue.code === 'aspect-violation-advisory') return 'advisory';
-  if (issue.code === 'aspect-violation-enforced') return 'enforced';
-  if (issue.code === 'log-conflict') return 'log-conflict';
-  if (issue.code === 'log-integrity') return 'log-integrity';
-  if (issue.code === 'log-format') return 'log-format';
-  if (STRUCTURAL_CODES.has(issue.code)) return issue.code;
-  if (ARCHITECTURE_CODES.has(issue.code)) return issue.code;
-  if (COMPLETENESS_CODES.has(issue.code)) return issue.code;
-  if (STRICT_CODES.has(issue.code)) return issue.code;
-  return issue.code;
 }
 
 
