@@ -121,8 +121,9 @@ aspects: [a]
     const all = stdout + stderr;
     // Structural owner: svc
     expect(all).toContain('svc');
-    // Cascade via reference: consumer
+    // Cascade via reference: consumer appears in the unified invalidation block
     expect(all).toContain('consumer');
-    expect(all).toContain('[reference]');
+    expect(all).toContain('references this file');
+    expect(all).toContain('Total to re-verify:');
   });
 });
