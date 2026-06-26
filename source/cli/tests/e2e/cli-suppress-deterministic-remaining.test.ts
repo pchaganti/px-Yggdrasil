@@ -227,8 +227,8 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
       expect(fill.status).toBe(1);
       // The parent id IS waived by its exact-id marker; the child id is NOT —
       // a parent-id suppress provides no hierarchical cover for the child.
-      expect(fill.stdout).toContain('[det] family/parent on node:services/payments — approved');
-      expect(fill.stdout).toContain('[det] family/child on node:services/payments — refused');
+      expect(fill.stderr).toContain('[det] family/parent on node:services/payments — approved');
+      expect(fill.stderr).toContain('[det] family/child on node:services/payments — refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -263,7 +263,7 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
 
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stdout).toContain('[det] family/child on node:services/payments — approved');
+      expect(fill.stderr).toContain('[det] family/child on node:services/payments — approved');
       expect(fill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -300,8 +300,9 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
 
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
-      expect(fill.stdout).toContain('aspect-check-runtime-error');
-      expect(fill.stdout).toContain('yg-suppress(no-todo-comments) missing reason');
+      // Runtime-error diagnostics (emitIssue) go to STDERR; final report to STDOUT.
+      expect(fill.stderr).toContain('aspect-check-runtime-error');
+      expect(fill.stderr).toContain('yg-suppress(no-todo-comments) missing reason');
       // The throw leaves the pair unverified (no verdict written), not refused.
       expect(fill.stdout).toContain('unverified');
     } finally {
@@ -332,8 +333,9 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
 
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
-      expect(fill.stdout).toContain('aspect-check-runtime-error');
-      expect(fill.stdout).toContain('yg-suppress-disable(no-todo-comments) missing reason');
+      // Runtime-error diagnostics (emitIssue) go to STDERR; final report to STDOUT.
+      expect(fill.stderr).toContain('aspect-check-runtime-error');
+      expect(fill.stderr).toContain('yg-suppress-disable(no-todo-comments) missing reason');
       expect(fill.stdout).toContain('unverified');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -369,7 +371,7 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
 
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/payments — approved');
+      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/payments — approved');
       expect(fill.all).not.toContain('refused');
       // The bare enable is valid syntax — no missing-reason rejection fired.
       expect(fill.all).not.toContain('missing reason');
@@ -431,7 +433,7 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
       // The now-active aspect is waived by the suppress — it approves, with no
       // advisory warning and no refusal: the suppress that was inert under draft
       // is now effective.
-      expect(advisoryFill.stdout).toContain('[det] banflip on node:services/payments — approved');
+      expect(advisoryFill.stderr).toContain('[det] banflip on node:services/payments — approved');
       expect(advisoryFill.all).not.toContain('refused');
       // The final check is green — the waived advisory aspect leaks no warning.
       const check = run(['check'], dir);
@@ -471,7 +473,7 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
       // Advisory violation does NOT block the fill, but IS surfaced as refused +
       // a non-blocking advisory warning.
       expect(advisoryFill.status).toBe(0);
-      expect(advisoryFill.stdout).toContain('[det] banflip on node:services/payments — refused');
+      expect(advisoryFill.stderr).toContain('[det] banflip on node:services/payments — refused');
       expect(advisoryFill.all).toContain('advisory');
       expect(advisoryFill.all).toContain('banflip');
     } finally {
@@ -513,8 +515,8 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
 
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stdout).toContain('[det] ban-foo on node:services/payments — approved');
-      expect(fill.stdout).toContain('[det] ban-bar on node:services/payments — approved');
+      expect(fill.stderr).toContain('[det] ban-foo on node:services/payments — approved');
+      expect(fill.stderr).toContain('[det] ban-bar on node:services/payments — approved');
       expect(fill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -550,8 +552,8 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
 
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
-      expect(fill.stdout).toContain('[det] ban-foo on node:services/payments — approved');
-      expect(fill.stdout).toContain('[det] ban-bar on node:services/payments — refused');
+      expect(fill.stderr).toContain('[det] ban-foo on node:services/payments — approved');
+      expect(fill.stderr).toContain('[det] ban-bar on node:services/payments — refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -582,7 +584,7 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
 
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
+      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(fill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -609,7 +611,7 @@ describe.skipIf(!distExists)('CLI E2E — deterministic suppress: hierarchy / em
 
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
-      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — refused');
+      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/orders — refused');
       // The block comment was parsed (no missing-reason error) — it simply did
       // not match the violated aspect id.
       expect(fill.all).not.toContain('missing reason');

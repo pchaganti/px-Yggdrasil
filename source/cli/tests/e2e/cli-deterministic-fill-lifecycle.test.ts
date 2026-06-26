@@ -155,7 +155,8 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
       // Fill: deterministic checks run locally and record approved verdicts.
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
+      // Progress lines ([det] fill outcomes) go to STDERR; final report to STDOUT.
+      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(fill.stdout).toContain('yg check: PASS');
       // The fill writes the deterministic verdict lock with an approved entry for the pair.
       expect(existsSync(detLockFile(dir))).toBe(true);
@@ -213,12 +214,13 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
       appendFileSync(ordersFile(dir), '\n// TODO: refactor this later\n');
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
+      // Progress ([det] fill outcome) goes to STDERR; final report to STDOUT.
       // The fill line records the refusal, and the check renderer surfaces the
       // enforced refusal as a blocking error. In the grouped view the `what`
       // line-0 header ("Aspect '...' is refused on ...") is dropped; the retained
       // FULL_WHAT detail is the group label + aspect segment + the `- <node>`
       // line carrying the deterministic Violations tail.
-      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — refused');
+      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/orders — refused');
       expect(fill.stdout).toContain('enforced');
       expect(fill.stdout).toContain("aspect 'no-todo-comments'");
       expect(fill.stdout).toContain('- services/orders');
@@ -243,7 +245,7 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
       writeFileSync(ordersFile(dir), original, 'utf-8');
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
+      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(fill.stdout).toContain('yg check: PASS');
       const lock = readLock(dir);
       expect(verdictFor(lock, 'no-todo-comments', 'services/orders')?.verdict).toBe('approved');
@@ -263,8 +265,8 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
 
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0); // advisory refusal does NOT block the fill
-      // The advisory pair is recorded refused, but the check renders it as a warning.
-      expect(fill.stdout).toContain('[det] requires-named-export on node:services/payments — refused');
+      // Progress ([det] fill outcome) goes to STDERR; final report to STDOUT.
+      expect(fill.stderr).toContain('[det] requires-named-export on node:services/payments — refused');
       expect(fill.stdout).toContain('advisory');
       expect(fill.stdout).toContain('requires-named-export');
 
@@ -282,7 +284,9 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
     try {
       appendFileSync(ordersFile(dir), '\n// WIP marker here\n');
       const fill = run(['check', '--approve'], dir);
-      // The draft aspect never produces a pair, so the fill never mentions it...
+      // The draft aspect never produces a pair, so the fill never mentions it on
+      // either stderr (progress) or stdout (report).
+      expect(fill.stderr).not.toContain('[det] wip-rule');
       expect(fill.stdout).not.toContain('[det] wip-rule');
       // ...and the WIP line itself caused no deterministic refusal (no TODO present).
       expect(fill.stdout).not.toContain('refused');
@@ -313,7 +317,8 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
 
       const suppressed = run(['check', '--approve'], dir);
       expect(suppressed.status).toBe(0); // violation waived
-      expect(suppressed.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
+      // Progress ([det] fill outcome) goes to STDERR; final report to STDOUT.
+      expect(suppressed.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(suppressed.stdout).toContain('yg check: PASS');
 
       // Remove the suppress marker but keep the TODO line.
@@ -325,7 +330,8 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
 
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1); // the suppress was what waived it
-      expect(refused.stdout).toContain('[det] no-todo-comments on node:services/orders — refused');
+      // Progress ([det] fill outcome) goes to STDERR; final report to STDOUT.
+      expect(refused.stderr).toContain('[det] no-todo-comments on node:services/orders — refused');
       // In the grouped view the `what` line-0 header ("Aspect '...' is refused on
       // ...") is dropped; the retained FULL_WHAT detail is the group label +
       // aspect segment + the `- <node>` line carrying the Violations tail.
@@ -366,8 +372,9 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
 
       const refill = run(['check', '--approve'], dir);
       expect(refill.status).toBe(0);
-      expect(refill.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
-      expect(refill.stdout).toContain('[det] no-todo-comments on node:services/payments — approved');
+      // Progress ([det] fill outcomes) go to STDERR; final report to STDOUT.
+      expect(refill.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
+      expect(refill.stderr).toContain('[det] no-todo-comments on node:services/payments — approved');
 
       // The pairs are valid again after the re-fill.
       const cleared = run(['check'], dir);
@@ -457,7 +464,8 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
 
       // Re-fill with --only-deterministic: keyless, free, writes ONLY the gitignored cache.
       const det = run(['check', '--approve', '--only-deterministic'], dir);
-      expect(det.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
+      // Progress ([det] fill outcome) goes to STDERR; final report to STDOUT.
+      expect(det.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(det.status).toBe(0);
 
       // The committed files are untouched — zero churn in CI / pre-commit (both
@@ -480,7 +488,8 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
 
       // Deterministic pairs filled into the gitignored cache.
       expect(existsSync(detLockFile(dir))).toBe(true);
-      expect(det.stdout).toContain('[det]');
+      // Progress ([det] fill outcome) goes to STDERR.
+      expect(det.stderr).toContain('[det]');
       expect(verdictFor(readLock(dir), 'no-todo-comments', 'services/orders')?.verdict).toBe('approved');
 
       // The reviewer was NEVER contacted — a full --approve would say 'unreachable'; this does not.

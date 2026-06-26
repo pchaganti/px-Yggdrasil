@@ -311,12 +311,13 @@ describe.skipIf(!distExists)('CLI E2E — flows extended (multi-aspect / dry-run
       // One repo-wide fill records every pair's verdict independently.
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
+      // Fill-time progress ([det] lines) go to STDERR; grouped report to STDOUT.
       // orders: alpha refused, beta approved.
-      expect(fill.stdout).toContain('[det] flow-alpha on node:services/orders — refused');
-      expect(fill.stdout).toContain('[det] flow-beta on node:services/orders — approved');
+      expect(fill.stderr).toContain('[det] flow-alpha on node:services/orders — refused');
+      expect(fill.stderr).toContain('[det] flow-beta on node:services/orders — approved');
       // payments: beta refused, alpha approved.
-      expect(fill.stdout).toContain('[det] flow-beta on node:services/payments — refused');
-      expect(fill.stdout).toContain('[det] flow-alpha on node:services/payments — approved');
+      expect(fill.stderr).toContain('[det] flow-beta on node:services/payments — refused');
+      expect(fill.stderr).toContain('[det] flow-alpha on node:services/payments — approved');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -400,13 +401,14 @@ describe.skipIf(!distExists)('CLI E2E — flows extended (multi-aspect / dry-run
       // Clean child fills (the flow aspect is satisfied).
       const clean = run(['check', '--approve'], dir);
       expect(clean.status).toBe(0);
-      expect(clean.stdout).toContain('[det] no-todo-comments on node:services/orders/order-repo — approved');
+      // Fill-time progress ([det] line) goes to STDERR; final report to STDOUT.
+      expect(clean.stderr).toContain('[det] no-todo-comments on node:services/orders/order-repo — approved');
 
       // Violate the flow-delivered enforced aspect on the child source.
       appendFileSync(orderRepoFile(dir), '\n// TODO: implement caching\n');
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
-      expect(refused.stdout).toContain('[det] no-todo-comments on node:services/orders/order-repo — refused');
+      expect(refused.stderr).toContain('[det] no-todo-comments on node:services/orders/order-repo — refused');
       expect(refused.stdout).toContain('enforced');
       expect(refused.stdout).toContain('services/orders/order-repo');
     } finally {

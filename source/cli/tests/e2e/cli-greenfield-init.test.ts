@@ -306,7 +306,8 @@ describe.skipIf(!distExists)('CLI E2E — greenfield / init / platform-install',
       // (b) Fill -> exit 0, the deterministic verdict recorded into the lock.
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stdout).toContain('[det] no-todo-comments on node:widgets/widget — approved');
+      // Fill-time progress ([det] line) goes to STDERR; final report to STDOUT.
+      expect(fill.stderr).toContain('[det] no-todo-comments on node:widgets/widget — approved');
       expect(fill.stdout).toContain('yg check: PASS');
       // The deterministic verdict lands in the gitignored det file of the 5.1.0
       // triad, and the merged lock (readLock) carries it as an `approved` verdict.
@@ -334,7 +335,8 @@ describe.skipIf(!distExists)('CLI E2E — greenfield / init / platform-install',
       // Re-fill: the deterministic check now refuses the enforced aspect.
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
-      expect(refused.stdout).toContain('[det] no-todo-comments on node:widgets/widget — refused');
+      // Fill-time progress ([det] line) goes to STDERR; grouped report to STDOUT.
+      expect(refused.stderr).toContain('[det] no-todo-comments on node:widgets/widget — refused');
       // Grouped view: an enforced refusal group for the aspect; the per-member
       // `Violations:` tail (FULL_WHAT detail) is retained and names the TODO site.
       expect(refused.stdout).toContain("enforced  1 pairs  1 nodes  aspect 'no-todo-comments'");

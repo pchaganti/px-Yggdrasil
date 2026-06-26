@@ -203,7 +203,7 @@ describe.skipIf(!distExists)('CLI E2E — channel 5: flow aspects reach particip
       // Clean descendant fills cleanly (the flow-cascaded aspect is satisfied).
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders/order-repo — approved');
+      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/orders/order-repo — approved');
 
       // Now violate the flow aspect on the DESCENDANT's source file.
       appendFileSync(orderRepoFile(dir), '\n// TODO: implement caching\n');
@@ -227,7 +227,7 @@ describe.skipIf(!distExists)('CLI E2E — channel 5: flow aspects reach particip
       const refused = run(['check', '--approve'], dir);
       // The flow-attached enforced aspect rejects the descendant's TODO.
       expect(refused.status).toBe(1);
-      expect(refused.stdout).toContain('[det] no-todo-comments on node:services/orders/order-repo — refused');
+      expect(refused.stderr).toContain('[det] no-todo-comments on node:services/orders/order-repo — refused');
       // Rendered as an enforced cached refusal naming the descendant + aspect.
       expect(refused.stdout).toContain('enforced');
       expect(refused.stdout).toContain('services/orders/order-repo');
@@ -245,7 +245,7 @@ describe.skipIf(!distExists)('CLI E2E — channel 5: flow aspects reach particip
       appendFileSync(paymentsFile(dir), '\n// TODO: fix\n');
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
-      expect(refused.stdout).toContain('[det] no-todo-comments on node:services/payments — refused');
+      expect(refused.stderr).toContain('[det] no-todo-comments on node:services/payments — refused');
       expect(refused.stdout).toContain('enforced');
       expect(refused.stdout).toContain('no-todo-comments');
     } finally {
@@ -276,11 +276,11 @@ describe.skipIf(!distExists)('CLI E2E — channel 5: flow aspects reach particip
       appendFileSync(noTodoCheckMjs(dir), '\n// cascade-trigger: trivial no-op comment\n');
       const batch = run(['check', '--approve'], dir);
       expect(batch.status).toBe(1);
-      expect(batch.stdout).toContain('[det] no-todo-comments on node:services/payments — refused');
+      expect(batch.stderr).toContain('[det] no-todo-comments on node:services/payments — refused');
       expect(batch.stdout).toContain('services/payments');
       expect(batch.stdout).toContain('no-todo-comments');
       // Orders re-approves clean in the same invocation (isolation).
-      expect(batch.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
+      expect(batch.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -301,8 +301,8 @@ describe.skipIf(!distExists)('CLI E2E — channel 5: flow aspects reach particip
 
       const batch = run(['check', '--approve'], dir);
       expect(batch.status).toBe(0);
-      expect(batch.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
-      expect(batch.stdout).toContain('[det] no-todo-comments on node:services/payments — approved');
+      expect(batch.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
+      expect(batch.stderr).toContain('[det] no-todo-comments on node:services/payments — approved');
       expect(batch.stdout).toContain('yg check: PASS');
     } finally {
       rmSync(dir, { recursive: true, force: true });

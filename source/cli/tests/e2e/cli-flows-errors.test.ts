@@ -469,8 +469,8 @@ describe.skipIf(!distExists)('CLI E2E — flow definition + filesystem error pat
       const batch = run(['check', '--approve'], dir);
       expect(batch.status).toBe(1);
       // One node passed, one failed — failures do not abort the clean node.
-      expect(batch.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
-      expect(batch.stdout).toContain('[det] no-todo-comments on node:services/payments — refused');
+      expect(batch.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
+      expect(batch.stderr).toContain('[det] no-todo-comments on node:services/payments — refused');
       // The refusal renders as an enforced finding naming the violating node.
       expect(batch.stdout).toContain('enforced');
       expect(batch.stdout).toContain('services/payments');
@@ -500,7 +500,8 @@ describe.skipIf(!distExists)('CLI E2E — flow definition + filesystem error pat
       // verdict (the refused verdict is cached against unchanged inputs).
       const second = run(['check', '--approve'], dir);
       expect(second.status).toBe(1);
-      expect(second.stdout).toContain('0 reviewer calls made — all expected pairs hold valid verdicts');
+      // Fill progress (including "0 reviewer calls made" notice) goes to STDERR.
+      expect(second.stderr).toContain('0 reviewer calls made — all expected pairs hold valid verdicts');
 
       // Fixing the source changes the inputs → the pair goes unverified again →
       // the next fill re-runs the now-clean check and approves it.

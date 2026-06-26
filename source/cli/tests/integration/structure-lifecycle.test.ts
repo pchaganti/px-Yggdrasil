@@ -116,8 +116,8 @@ describe.skipIf(!distExists)('deterministic aspect lock lifecycle', () => {
     // 3. yg check --approve: fills the deterministic pair locally (free), writes the lock.
     const fill = run(['check', '--approve'], root);
     expect(fill.status).toBe(0);
-    // The pre-dispatch header announces the fill plan.
-    expect(fill.stdout).toMatch(/1 deterministic/);
+    // The pre-dispatch header (fill progress) goes to STDERR.
+    expect(fill.stderr).toMatch(/1 deterministic/);
 
     // 4. The lock records an approved verdict for (touches-a, node:N) and N's
     //    source fingerprint at positive closure.

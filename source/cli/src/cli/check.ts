@@ -220,11 +220,24 @@ export function registerCheckCommand(program: Command): void {
           try {
             // The CLI layer owns formatting: fill.ts (an engine module) emits
             // structured diagnostics; we render them here via buildIssueMessage.
+            //
+            // Stream split: STDOUT carries ONLY the final check report
+            // (formatOutput below). Everything emitted during the fill goes to
+            // STDERR so that a caller capturing stdout gets a clean, parseable
+            // report without interspersed progress or diagnostic lines.
+            //
+            // Exception: --dry-run's budget breakdown is itself the command's
+            // deliverable output (not progress), so its write sink stays on
+            // STDOUT. Real fills (dryRun=false) route write to STDERR.
+            const isDryRun = opts.dryRun ?? false;
             const fill = await runFill(graph, {
               gitTrackedFiles: gitFiles,
               onlyDeterministic: mode.onlyDeterministic,
-              dryRun: opts.dryRun ?? false,
-              emitIssue: (m) => { process.stdout.write(buildIssueMessage(m) + '\n'); },
+              dryRun: isDryRun,
+              write: isDryRun
+                ? (s: string) => { process.stdout.write(s); }
+                : (s: string) => { process.stderr.write(s); },
+              emitIssue: (m) => { process.stderr.write(buildIssueMessage(m) + '\n'); },
             });
             const autoFilled = isConfigDrivenFill && !opts.dryRun;
             process.stdout.write(formatOutput(fill.checkResult, { kind: 'full' }, autoFilled));

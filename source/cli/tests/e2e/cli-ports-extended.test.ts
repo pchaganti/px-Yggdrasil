@@ -185,8 +185,9 @@ mapping:
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
       // Both channel-6 port aspects fill clean on the consumer.
-      expect(fill.stdout).toContain('[det] audit-required on node:services/orders — approved');
-      expect(fill.stdout).toContain('[det] refund-logged on node:services/orders — approved');
+      // Fill-time progress ([det] lines) go to STDERR; final report to STDOUT.
+      expect(fill.stderr).toContain('[det] audit-required on node:services/orders — approved');
+      expect(fill.stderr).toContain('[det] refund-logged on node:services/orders — approved');
       const check = run(['check'], dir);
       expect(check.status).toBe(0);
       expect(check.stdout).toContain('PASS');
@@ -278,11 +279,12 @@ mapping:
         ALWAYS_FLAG_CHECK,
         'Consumers of the charge port must record an audit trail for every charge.',
       );
-      const { status, stdout } = run(['check', '--approve'], dir);
+      const { status, stdout, stderr } = run(['check', '--approve'], dir);
       expect(status).toBe(0); // advisory refusal never blocks fill
       // The advisory pair fills with a refused verdict; the headline still PASSes
       // (with the refusal surfaced as a non-blocking warning).
-      expect(stdout).toContain('[det] audit-required on node:services/orders — refused');
+      // Fill-time progress ([det] line) goes to STDERR; final report to STDOUT.
+      expect(stderr).toContain('[det] audit-required on node:services/orders — refused');
       expect(stdout).toContain('PASS (1 warning)');
       expect(stdout).toContain('advisory');
       expect(stdout).toContain('audit-required');
@@ -336,7 +338,8 @@ mapping:
       // fires. (A draft aspect is excluded from the expected-pair set entirely.)
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stdout).toContain('Filling 0 unverified pairs across 0 nodes');
+      // Fill-time progress goes to STDERR; final report to STDOUT.
+      expect(fill.stderr).toContain('Filling 0 unverified pairs across 0 nodes');
       expect(fill.stdout).not.toContain('refused');
 
       // yg check tallies the draft and passes — the draft port aspect is dormant.
@@ -389,7 +392,8 @@ mapping:
       // exit 1, the pair fills refused, and the enforced refusal renders.
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
-      expect(fill.stdout).toContain('[det] audit-required on node:services/orders — refused');
+      // Fill-time progress ([det] line) goes to STDERR; grouped report to STDOUT.
+      expect(fill.stderr).toContain('[det] audit-required on node:services/orders — refused');
       // The grouped enforced refusal names the aspect in its header and lists
       // the consumer node it refuses on.
       expect(fill.stdout).toMatch(/enforced\s+1 pairs\s+1 nodes\s+aspect 'audit-required'/);
@@ -575,7 +579,8 @@ mapping:
       // Re-filling verifies the newly-active port aspect and clears it.
       const refill = run(['check', '--approve'], dir);
       expect(refill.status).toBe(0);
-      expect(refill.stdout).toContain('[det] refund-logged on node:services/orders — approved');
+      // Fill-time progress ([det] line) goes to STDERR; final report to STDOUT.
+      expect(refill.stderr).toContain('[det] refund-logged on node:services/orders — approved');
 
       const cleared = run(['check'], dir);
       expect(cleared.status).toBe(0);

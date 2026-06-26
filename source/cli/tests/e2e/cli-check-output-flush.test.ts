@@ -234,3 +234,154 @@ describe.skipIf(!distExists)('CLI E2E — yg check output survives pipe (flush r
     }
   });
 });
+
+// =============================================================================
+// Stream split: --approve progress goes to STDERR; STDOUT carries only the
+// final check report. This invariant lets callers capture a clean, parseable
+// report on stdout without progress noise, while still observing fill progress
+// on stderr.
+//
+// This test creates a tiny fixture with ONE deterministic pair (a check.mjs
+// aspect) so that `yg check --approve` produces exactly one `[det] …` progress
+// line and a final `yg check:` report line. The assertion:
+//   - STDOUT does NOT contain the `[det]` / `Filling` progress lines.
+//   - STDOUT DOES contain the `yg check:` final report header.
+//   - STDERR DOES contain the `[det]` / `Filling` progress lines.
+//   - STDERR does NOT contain the `yg check:` final report header.
+//
+// Dry-run (--approve --dry-run) is the exception: its write sink stays on
+// STDOUT because the budget breakdown IS the command's deliverable output, not
+// background progress. This file does not test the dry-run path; it is covered
+// by the unit tests in tests/unit/cli/check.test.ts.
+// =============================================================================
+
+/**
+ * Build a hermetic fixture with one node + one deterministic aspect (always
+ * approves). The deterministic pair is unverified on cold lock, so
+ * `yg check --approve` must fill it and emit exactly one `[det]` progress line.
+ */
+function buildStreamSplitFixture(): string {
+  const dir = mkdtempSync(path.join(tmpdir(), 'yg-stream-split-'));
+  const ygRoot = path.join(dir, '.yggdrasil');
+
+  mkdirSync(path.join(ygRoot, 'model', 'widgets'), { recursive: true });
+  mkdirSync(path.join(ygRoot, 'aspects', 'no-forbidden'), { recursive: true });
+  mkdirSync(path.join(ygRoot, 'flows'), { recursive: true });
+  mkdirSync(path.join(dir, 'src'), { recursive: true });
+
+  // Deterministic aspect that always approves (no violations in source).
+  writeFileSync(
+    path.join(ygRoot, 'aspects', 'no-forbidden', 'yg-aspect.yaml'),
+    ['name: no-forbidden', 'description: Stream split test aspect', 'status: enforced', ''].join('\n'),
+    'utf-8',
+  );
+  // check.mjs: accepts ctx and returns an empty violation array — always approves.
+  writeFileSync(
+    path.join(ygRoot, 'aspects', 'no-forbidden', 'check.mjs'),
+    [
+      'export function check(ctx) {',
+      '  // No forbidden tokens in this fixture — always approve.',
+      '  return [];',
+      '}',
+      '',
+    ].join('\n'),
+    'utf-8',
+  );
+
+  // Architecture: one node type with the deterministic aspect as default.
+  writeFileSync(
+    path.join(ygRoot, 'yg-architecture.yaml'),
+    [
+      'node_types:',
+      '  widget:',
+      "    description: 'Stream split test node type'",
+      '    log_required: false',
+      '    when:',
+      '      path: "src/**"',
+      '    aspects:',
+      '      - no-forbidden',
+      '',
+    ].join('\n'),
+    'utf-8',
+  );
+
+  // Config: reviewer section required even for deterministic-only projects.
+  // Point the endpoint at the dead loopback so no network call is ever made.
+  writeFileSync(
+    path.join(ygRoot, 'yg-config.yaml'),
+    [
+      'quality:',
+      '  max_direct_relations: 10',
+      'reviewer:',
+      '  tiers:',
+      '    standard:',
+      '      provider: ollama',
+      '      consensus: 1',
+      '      config:',
+      '        model: test',
+      `        endpoint: ${LOOPBACK_ENDPOINT}`,
+      '',
+    ].join('\n'),
+    'utf-8',
+  );
+
+  // One node + source file.
+  writeFileSync(
+    path.join(ygRoot, 'model', 'widgets', 'yg-node.yaml'),
+    [
+      'name: Widget',
+      'type: widget',
+      'description: Stream split test node',
+      'aspects: []',
+      'relations: []',
+      'mapping:',
+      '  - src/widget.ts',
+      '',
+    ].join('\n'),
+    'utf-8',
+  );
+  writeFileSync(
+    path.join(dir, 'src', 'widget.ts'),
+    "export const widget = 'widget';\n",
+    'utf-8',
+  );
+
+  return dir;
+}
+
+describe.skipIf(!distExists)('CLI E2E — yg check --approve stream split (progress to stderr, report to stdout)', () => {
+  it('STDOUT contains only the final yg check: report; STDERR contains the [det] progress and Filling lines', () => {
+    const dir = buildStreamSplitFixture();
+    try {
+      // spawnSync with encoding captures both stdout and stderr separately —
+      // exactly the scenario this invariant must hold for.
+      const r = spawnSync('node', [BIN_PATH, 'check', '--approve', '--only-deterministic'], {
+        cwd: dir,
+        encoding: 'utf-8',
+        maxBuffer: 4 * 1024 * 1024,
+      });
+
+      // Strip ANSI so pattern matching is not confused by colour codes.
+      // eslint-disable-next-line no-control-regex
+      const strip = (s: string): string => (s ?? '').replace(/\x1b\[[0-9;]*m/g, '');
+      const stdout = strip(r.stdout);
+      const stderr = strip(r.stderr);
+
+      // STDOUT: the final report header must be present.
+      expect(stdout).toMatch(/yg check: (PASS|FAIL)/);
+
+      // STDOUT: progress lines must NOT appear.
+      expect(stdout).not.toMatch(/\[det\]/);
+      expect(stdout).not.toContain('Filling');
+
+      // STDERR: fill progress must be present.
+      expect(stderr).toContain('[det] no-forbidden on node:widgets — approved');
+      expect(stderr).toContain('Filling');
+
+      // STDERR: the final report header must NOT appear (it lives on stdout).
+      expect(stderr).not.toMatch(/yg check: (PASS|FAIL)/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

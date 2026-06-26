@@ -244,7 +244,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       appendFileSync(ordersFile(dir), '\n// BANNED token here\n');
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0); // advisory does NOT block
-      expect(fill.stdout).toContain('[det] no-banned-word on node:services/orders — refused');
+      expect(fill.stderr).toContain('[det] no-banned-word on node:services/orders — refused');
       // The refusal renders as an advisory warning. The old per-issue WHAT line 0
       // ("Aspect '...' is refused on <unit>") is now the group header; assert the
       // grouped warning render — the advisory group naming the aspect and the
@@ -291,7 +291,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       appendFileSync(ordersFile(dir), '\n// BANNED token here\n');
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1); // enforced blocks
-      expect(refused.stdout).toContain('[det] no-banned-word on node:services/orders — refused');
+      expect(refused.stderr).toContain('[det] no-banned-word on node:services/orders — refused');
       // The old per-issue WHAT line 0 ("Aspect '...' is refused on <unit>") is now
       // the group header; assert the grouped error render — the ENFORCED group
       // naming the aspect and the refusing node line.
@@ -342,7 +342,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       appendFileSync(ordersFile(dir), '\n// MARKER here\n');
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
-      expect(refused.stdout).toContain('[det] no-marker on node:services/orders — refused');
+      expect(refused.stderr).toContain('[det] no-marker on node:services/orders — refused');
       // The old per-issue WHAT line 0 ("Aspect '...' is refused on <unit>") is now
       // the group header; assert the grouped error render — the ENFORCED group
       // (resolved from omitted-default) naming the aspect and the refusing node.
@@ -392,7 +392,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
       // No pairs to fill across the whole graph (both nodes are all-draft now).
-      expect(fill.stdout).toContain('Filling 0 unverified pairs across 0 nodes');
+      expect(fill.stderr).toContain('Filling 0 unverified pairs across 0 nodes');
       // No VERDICT is recorded for any draft aspect — the lock's verdicts map is
       // empty. (The fill still writes a per-node source fingerprint as routine
       // bookkeeping, but no draft aspect contributes a verdict.)
@@ -467,8 +467,8 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       // A single repo-wide fill records the missing verdict on both nodes.
       const refill = run(['check', '--approve'], dir);
       expect(refill.status).toBe(0);
-      expect(refill.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
-      expect(refill.stdout).toContain('[det] no-todo-comments on node:services/payments — approved');
+      expect(refill.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
+      expect(refill.stderr).toContain('[det] no-todo-comments on node:services/payments — approved');
 
       // Cleared on both nodes.
       const cleared = run(['check'], dir);
@@ -595,7 +595,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       appendFileSync(ordersFile(dir), '\n// TODO: persisted refusal\n');
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
-      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — refused');
+      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/orders — refused');
       // The old per-issue WHAT line 0 ("Aspect '...' is refused on <unit>") is now
       // the group header; assert the grouped enforced render — the aspect-named
       // group and the refusing node line.
@@ -676,7 +676,7 @@ describe.skipIf(!distExists)('CLI E2E — aspect-status combinatorics (draft max
       appendFileSync(ordersFile(dir), '\n// BBB token\n');
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
-      expect(refused.stdout).toContain('[det] imp-b on node:services/orders — refused');
+      expect(refused.stderr).toContain('[det] imp-b on node:services/orders — refused');
       // The old per-issue WHAT line 0 ("Aspect '...' is refused on <unit>") is now
       // the group header; assert the grouped render — the ENFORCED group (proving
       // the transitive advisory->enforced promotion is real, not cosmetic) naming

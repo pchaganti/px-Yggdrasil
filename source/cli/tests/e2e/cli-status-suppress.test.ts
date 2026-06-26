@@ -152,7 +152,7 @@ describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + s
       // A fill records the missing verdict and clears the drift.
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stdout).toContain('[det] wip-rule on node:services/orders — approved');
+      expect(fill.stderr).toContain('[det] wip-rule on node:services/orders — approved');
 
       expect(run(['check'], dir).status).toBe(0);
     } finally {
@@ -186,8 +186,9 @@ describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + s
 
       const refill = run(['check', '--approve'], dir);
       expect(refill.status).toBe(0);
-      expect(refill.stdout).toContain('Filling 0 unverified pairs');
-      expect(refill.stdout).toContain('0 reviewer calls made — all expected pairs hold valid verdicts');
+      expect(refill.stderr).toContain('Filling 0 unverified pairs');
+      // Fill progress (including "0 reviewer calls made" notice) goes to STDERR.
+      expect(refill.stderr).toContain('0 reviewer calls made — all expected pairs hold valid verdicts');
       expect(refill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -257,7 +258,7 @@ describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + s
       const fill = run(['check', '--approve'], dir);
       // Everything inside the bracket range is waived -> the pair approves.
       expect(fill.status).toBe(0);
-      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/payments — approved');
+      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/payments — approved');
       expect(fill.all).not.toContain('refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -287,7 +288,7 @@ describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + s
 
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
-      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/payments — refused');
+      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/payments — refused');
       expect(fill.stdout).toContain('enforced');
       expect(fill.stdout).toContain('no-todo-comments');
     } finally {
@@ -318,7 +319,7 @@ describe.skipIf(!distExists)('CLI E2E — status-flip drift/render semantics + s
 
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
-      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — refused');
+      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/orders — refused');
       expect(fill.stdout).toContain('enforced');
 
       // aspect-test surfaces the per-line detail: exactly ONE TODO is reported —

@@ -235,7 +235,7 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
       // Re-fill WITHOUT adding a new log entry — the gate does not fire.
       const refill = run(['check', '--approve'], dir);
       expect(refill.status).toBe(0);
-      expect(refill.stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
+      expect(refill.stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(refill.all).not.toContain(GATE_FIRED);
 
       // The log was not mutated by the cascade re-fill.
@@ -331,7 +331,7 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
 
       // Source change, no log entry at all, no prior baseline.
       writeFileSync(ordersFile(dir), readFileSync(ordersFile(dir), 'utf-8') + '\nexport const d = 4;\n', 'utf-8');
-      const { status, stdout, all } = run(['check', '--approve'], dir);
+      const { status, stdout, stderr, all } = run(['check', '--approve'], dir);
 
       // Zero pairs to fill, yet the requirement still bites: the live check demands
       // an entry regardless of aspect/pair state, and the run ends red. In the
@@ -344,7 +344,8 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
       expect(all).toContain("has log_required: true — every source change needs a log entry");
       expect(all).toContain('yg log add --node services/orders');
       expect(all).toContain('- services/orders');
-      expect(stdout).toContain('Filling 0 unverified pairs across 0 nodes');
+      // Fill progress goes to STDERR; final report to STDOUT.
+      expect(stderr).toContain('Filling 0 unverified pairs across 0 nodes');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -386,9 +387,10 @@ describe.skipIf(!distExists)('CLI E2E — log gate semantics, format edges, node
 
       // Source change, still no log entry.
       writeFileSync(ordersFile(dir), readFileSync(ordersFile(dir), 'utf-8') + '\nexport const e = 5;\n', 'utf-8');
-      const { status, stdout, all } = run(['check', '--approve'], dir);
+      const { status, stdout, stderr, all } = run(['check', '--approve'], dir);
       expect(status).toBe(0);
-      expect(stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
+      // Fill-time progress ([det] line) goes to STDERR; final report to STDOUT.
+      expect(stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
       expect(all).not.toContain(GATE_FIRED);
       // No log.md was ever required or created.
       expect(existsSync(ordersLogPath(dir))).toBe(false);

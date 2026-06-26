@@ -459,8 +459,8 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.stdout).toContain('no-banned-word');
-      // Fill-time line names the refused deterministic pair on the child node.
-      expect(refused.stdout).toContain('[det] no-banned-word on node:services/orders — refused');
+      // Fill-time progress ([det] line) goes to STDERR; grouped report to STDOUT.
+      expect(refused.stderr).toContain('[det] no-banned-word on node:services/orders — refused');
       // The grouped error body lists the node under the enforced group.
       expect(refused.stdout).toContain('- services/orders');
     } finally {
@@ -582,13 +582,13 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
       expect(fill.stdout).toContain('no-banned-word');
-      // Fill-time line names the refused deterministic pair on orders.
-      expect(fill.stdout).toContain('[det] no-banned-word on node:services/orders — refused');
+      // Fill-time progress ([det] lines) go to STDERR; grouped report to STDOUT.
+      expect(fill.stderr).toContain('[det] no-banned-word on node:services/orders — refused');
       // The grouped error body lists orders under the enforced group.
       expect(fill.stdout).toContain('- services/orders');
       // payments is gated out of the flow aspect — no no-banned-word pair is
       // dispatched or refused for it (the only no-banned-word refusal is orders').
-      expect(fill.stdout).not.toContain(
+      expect(fill.stderr).not.toContain(
         '[det] no-banned-word on node:services/payments',
       );
     } finally {
@@ -681,8 +681,8 @@ describe.skipIf(!distExists)('CLI E2E — 7-channel `when` on cascading channels
       const refused = run(['check', '--approve'], dir);
       expect(refused.status).toBe(1);
       expect(refused.stdout).toContain('no-banned-word');
-      // Fill-time line names the refused deterministic pair on the child node.
-      expect(refused.stdout).toContain('[det] no-banned-word on node:services/orders — refused');
+      // Fill-time progress ([det] line) goes to STDERR; grouped report to STDOUT.
+      expect(refused.stderr).toContain('[det] no-banned-word on node:services/orders — refused');
       // The grouped error body lists the node under the enforced group.
       expect(refused.stdout).toContain('- services/orders');
     } finally {

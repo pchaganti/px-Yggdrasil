@@ -238,7 +238,7 @@ describe.skipIf(!distExists)('CLI E2E — status propagation on cascading channe
       // / "not blocking: ...") is replaced by the fill's non-blocking warning.
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stdout).toContain('[det] no-banned-word on node:services/orders — refused');
+      expect(fill.stderr).toContain('[det] no-banned-word on node:services/orders — refused');
       expect(fill.stdout).toContain('advisory');
       expect(fill.stdout).toContain('services/orders');
       expect(fill.stdout).toContain('no-banned-word');
@@ -326,7 +326,7 @@ describe.skipIf(!distExists)('CLI E2E — status propagation on cascading channe
       // Advisory via CH4 does NOT block the fill — exit 0, recorded-not-blocking.
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stdout).toContain('[det] no-banned-word on node:services/orders — refused');
+      expect(fill.stderr).toContain('[det] no-banned-word on node:services/orders — refused');
       expect(fill.stdout).toContain('advisory');
       expect(fill.stdout).toContain('services/orders');
       expect(fill.stdout).toContain('no-banned-word');
@@ -434,7 +434,7 @@ describe.skipIf(!distExists)('CLI E2E — status propagation on cascading channe
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(1);
       // Fill-time line names the refused deterministic pair on the node.
-      expect(fill.stdout).toContain('[det] no-banned-word on node:services/orders — refused');
+      expect(fill.stderr).toContain('[det] no-banned-word on node:services/orders — refused');
       // The grouped error body lists the node under the enforced group.
       expect(fill.stdout).toContain("enforced  1 pairs  1 nodes  aspect 'no-banned-word'");
       expect(fill.stdout).toContain('- services/orders');

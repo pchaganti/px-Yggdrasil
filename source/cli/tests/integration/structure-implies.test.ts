@@ -103,8 +103,8 @@ describe.skipIf(!distExists)('deterministic aspect implies cascade', () => {
     // Initial fill — BOTH the implier and the implied pair are computed and filled.
     const fill = run(['check', '--approve'], root);
     expect(fill.status).toBe(0);
-    // The header reports 2 deterministic pairs (structural + the implied astrule).
-    expect(fill.stdout).toMatch(/2 deterministic/);
+    // The header reports 2 deterministic pairs (structural + the implied astrule); goes to STDERR.
+    expect(fill.stderr).toMatch(/2 deterministic/);
 
     // Mutate the subject file shared by both pairs.
     writeFileSync(path.join(root, 'src', 'a.ts'), 'export const x = 2;\n');

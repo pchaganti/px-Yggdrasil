@@ -840,12 +840,12 @@ describe.skipIf(!distExists)(
         expect(refused.status).toBe(1);
         expect(refused.stdout).toContain('no-banned-word');
         // Fill-time line names the refused deterministic pair on the leaf node.
-        expect(refused.stdout).toContain('[det] no-banned-word on node:root/leaf — refused');
+        expect(refused.stderr).toContain('[det] no-banned-word on node:root/leaf — refused');
         // The grouped error body lists the node under the enforced group.
         expect(refused.stdout).toContain('- root/leaf');
         // The implier itself (no BANNED rule of its own) is satisfied — its fill
         // pair is approved, only the implied aspect refused.
-        expect(refused.stdout).toContain('[det] implier on node:root/leaf — approved');
+        expect(refused.stderr).toContain('[det] implier on node:root/leaf — approved');
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -888,7 +888,7 @@ describe.skipIf(!distExists)(
         expect(refused.status).toBe(1);
         expect(refused.stdout).toContain('no-banned-word');
         // Fill-time line names the refused deterministic pair on the leaf node.
-        expect(refused.stdout).toContain('[det] no-banned-word on node:root/leaf — refused');
+        expect(refused.stderr).toContain('[det] no-banned-word on node:root/leaf — refused');
         // The grouped error body lists the node under the enforced group.
         expect(refused.stdout).toContain('- root/leaf');
       } finally {
@@ -948,7 +948,7 @@ describe.skipIf(!distExists)(
         const refused = run(['check', '--approve'], dir);
         expect(refused.status).toBe(1);
         // Fill-time line names the refused deterministic pair on the leaf node.
-        expect(refused.stdout).toContain('[det] no-banned-word on node:root/leaf — refused');
+        expect(refused.stderr).toContain('[det] no-banned-word on node:root/leaf — refused');
         // The grouped error body lists the node under the enforced group.
         expect(refused.stdout).toContain('- root/leaf');
       } finally {

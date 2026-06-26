@@ -216,7 +216,7 @@ mapping:
       // fill resolves the parent and never records a verdict for the child.
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stdout).toContain('[det] audit-required on node:services/orders — approved');
+      expect(fill.stderr).toContain('[det] audit-required on node:services/orders — approved');
 
       // No ASPECT verdict pair is written for the aspect-less child (it has zero
       // effective aspects). Relations are computed live and never cached, so the
@@ -298,8 +298,8 @@ mapping:
       expect(fill.status).toBe(1);
       // Per-pair fill verdicts: the implier (channel 6) holds; the implied
       // aspect (channel 7) refuses — proving the implied aspect is enforced.
-      expect(fill.stdout).toContain('[det] audit-required on node:services/orders — approved');
-      expect(fill.stdout).toContain('[det] diagnostic-logging on node:services/orders — refused');
+      expect(fill.stderr).toContain('[det] audit-required on node:services/orders — approved');
+      expect(fill.stderr).toContain('[det] diagnostic-logging on node:services/orders — refused');
       // The grouped enforced refusal names the implied aspect in its header and
       // lists the consumer node it refuses on.
       expect(fill.stdout).toMatch(/enforced\s+1 pairs\s+1 nodes\s+aspect 'diagnostic-logging'/);
@@ -530,8 +530,8 @@ mapping:
       // (relay port). Both port aspects fill clean.
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stdout).toContain('[det] audit-required on node:services/orders — approved');
-      expect(fill.stdout).toContain('[det] relay-tracked on node:services/top — approved');
+      expect(fill.stderr).toContain('[det] audit-required on node:services/orders — approved');
+      expect(fill.stderr).toContain('[det] relay-tracked on node:services/top — approved');
       const check = run(['check'], dir);
       expect(check.status).toBe(0);
       expect(check.stdout).toContain('PASS');

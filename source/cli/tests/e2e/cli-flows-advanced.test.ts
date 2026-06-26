@@ -335,15 +335,16 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
       const fill = run(['check', '--approve'], dir);
       // Service participant: predicate TRUE → enforced flow aspect applies → refuse.
       expect(fill.status).toBe(1);
-      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/orders — refused');
+      // Fill-time progress ([det] lines) go to STDERR; grouped report to STDOUT.
+      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/orders — refused');
       expect(fill.stdout).toContain('enforced');
       expect(fill.stdout).toContain('services/orders');
 
       // Gateway participant: predicate FALSE → no-todo-comments never reaches it,
       // so there is NO such pair for the gateway — the identical TODO is not
       // judged. The gateway's own requires-named-export still approves.
-      expect(fill.stdout).not.toContain('no-todo-comments on node:gateways/api');
-      expect(fill.stdout).toContain('[det] requires-named-export on node:gateways/api — approved');
+      expect(fill.stderr).not.toContain('no-todo-comments on node:gateways/api');
+      expect(fill.stderr).toContain('[det] requires-named-export on node:gateways/api — approved');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -371,7 +372,8 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
 
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0); // advisory does NOT block the fill
-      expect(fill.stdout).toContain('[det] no-flowwip on node:services/payments — refused');
+      // Fill-time progress ([det] line) goes to STDERR; final report to STDOUT.
+      expect(fill.stderr).toContain('[det] no-flowwip on node:services/payments — refused');
       // Rendered as a non-blocking advisory warning. The grouped renderer drops
       // the per-issue "(advisory — not blocking)" suffix; non-blocking is now
       // proven by the WARNING section (not an error), the `advisory` group label,
@@ -585,8 +587,9 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
       // A repo-wide fill records the missing verdict on each participant.
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stdout).toContain('[det] no-flowguard on node:services/orders — approved');
-      expect(fill.stdout).toContain('[det] no-flowguard on node:services/payments — approved');
+      // Fill-time progress ([det] lines) go to STDERR; final report to STDOUT.
+      expect(fill.stderr).toContain('[det] no-flowguard on node:services/orders — approved');
+      expect(fill.stderr).toContain('[det] no-flowguard on node:services/payments — approved');
 
       // Cascade cleared: check is green and the unverified finding is gone.
       const cleared = run(['check'], dir);
@@ -715,7 +718,8 @@ describe.skipIf(!distExists)('CLI E2E — advanced flow-aspect mechanics (condit
       // A repo-wide fill records the flow aspect's verdict on the new participant.
       const fill = run(['check', '--approve'], dir);
       expect(fill.status).toBe(0);
-      expect(fill.stdout).toContain('[det] no-todo-comments on node:services/inventory — approved');
+      // Fill-time progress ([det] line) goes to STDERR; final report to STDOUT.
+      expect(fill.stderr).toContain('[det] no-todo-comments on node:services/inventory — approved');
 
       const cleared = run(['check'], dir);
       expect(cleared.status).toBe(0);

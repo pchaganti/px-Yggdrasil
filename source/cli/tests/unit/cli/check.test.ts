@@ -171,17 +171,19 @@ describe('check command', () => {
   });
 
   describe('--approve flag dispatch', () => {
-    it('dispatches to the fill path and prints "Filling" in stdout', async () => {
+    it('dispatches to the fill path and prints "Filling" on stderr (not stdout)', async () => {
       // --approve should invoke runFill (not just runCheck). The fixture has
       // LLM aspects with an unreachable reviewer, so fill prints a "Filling N
       // unverified pairs…" line before attempting the reviewer calls.
+      // Progress goes to STDERR so STDOUT carries only the final check report.
       await withFixtureCopy(async (cwd) => {
         const result = spawnSync('node', [BIN_PATH, 'check', '--approve'], {
           cwd,
           encoding: 'utf-8',
           timeout: 20000,
         });
-        expect(result.stdout).toContain('Filling');
+        expect(result.stderr).toContain('Filling');
+        expect(result.stdout).not.toContain('Filling');
       });
     });
 

@@ -265,7 +265,7 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
       expect(run(['check', '--approve'], dir).status).toBe(0);
 
       appendFileSync(ordersFile(dir), '\n// this constant is BANNED here\n');
-      const { status, stdout } = run(['check', '--approve'], dir);
+      const { status, stdout, stderr } = run(['check', '--approve'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('no-banned-word');
       // The old per-issue WHAT line 0 ("... is refused on <unit> by a
@@ -277,8 +277,9 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
       // (no-todo-comments) was satisfied — its fill pair is approved. (The fill
       // summary no longer echoes individual violation messages such as "BANNED
       // token found." — that per-violation detail now lives in `yg aspect-test`.)
-      expect(stdout).toContain('[det] no-banned-word on node:services/orders — refused');
-      expect(stdout).toContain('[det] no-todo-comments on node:services/orders — approved');
+      // Fill-time progress ([det] lines) go to STDERR; final report to STDOUT.
+      expect(stderr).toContain('[det] no-banned-word on node:services/orders — refused');
+      expect(stderr).toContain('[det] no-todo-comments on node:services/orders — approved');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -293,7 +294,7 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
       expect(run(['check', '--approve'], dir).status).toBe(0);
 
       appendFileSync(ordersFile(dir), '\n// FIXME: handle this case\n');
-      const { status, stdout } = run(['check', '--approve'], dir);
+      const { status, stdout, stderr } = run(['check', '--approve'], dir);
       expect(status).toBe(1);
       expect(stdout).toContain('no-fixme');
       // The old per-issue WHAT line 0 ("Aspect '...' is refused on <unit> ...")
@@ -304,7 +305,8 @@ describe.skipIf(!distExists)('CLI E2E — implied aspects (channel 7 / implies)'
       // The 2-level-deep implied aspect's pair refused. (Per-violation message
       // text "FIXME token found." moved to `yg aspect-test`; the fill summary
       // reports the pair-level refusal only.)
-      expect(stdout).toContain('[det] no-fixme on node:services/orders — refused');
+      // Fill-time progress ([det] line) goes to STDERR; final report to STDOUT.
+      expect(stderr).toContain('[det] no-fixme on node:services/orders — refused');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
