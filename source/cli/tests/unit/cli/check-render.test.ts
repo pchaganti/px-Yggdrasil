@@ -819,6 +819,87 @@ describe('check render — --top GROUP view (task 2.3)', () => {
   });
 });
 
+// ── PASS (auto-filled) header marker (task 3.4) ────────────────────────────────
+
+describe('check render — PASS (auto-filled) header marker (task 3.4)', () => {
+  function greenResult(): CheckResult {
+    return {
+      projectName: 'test',
+      nodeCount: 2,
+      nodeTypeCounts: new Map(),
+      aspectCount: 3,
+      flowCount: 1,
+      coveredFiles: 5,
+      totalFiles: 5,
+      issues: [],
+      suggestedNext: null,
+      advisoryWarnings: 0,
+      draftSkipped: 0,
+    };
+  }
+  function warningsOnlyGreenResult(): CheckResult {
+    const w: CheckIssue = {
+      severity: 'warning',
+      code: 'aspect-violation-advisory',
+      rule: 'aspect-violation-advisory',
+      nodePath: 'orders/handler',
+      aspectId: 'audit-logging',
+      messageData: { what: 'missing audit', why: 'required', next: 'fix it' },
+    };
+    return {
+      projectName: 'test',
+      nodeCount: 1,
+      nodeTypeCounts: new Map(),
+      aspectCount: 1,
+      flowCount: 0,
+      coveredFiles: 0,
+      totalFiles: 0,
+      issues: [w],
+      suggestedNext: 'fix it',
+      advisoryWarnings: 1,
+      draftSkipped: 0,
+    };
+  }
+
+  it('autoFilled=false, no errors, no warnings → plain PASS (no marker)', () => {
+    const out = stripAnsi(formatOutput(greenResult(), { kind: 'full' }, false));
+    expect(out).toContain('yg check: PASS');
+    expect(out).not.toContain('auto-filled');
+  });
+
+  it('autoFilled=true, no errors, no warnings → PASS (auto-filled)', () => {
+    const out = stripAnsi(formatOutput(greenResult(), { kind: 'full' }, true));
+    expect(out).toContain('PASS (auto-filled)');
+    expect(out).not.toContain('FAIL');
+  });
+
+  it('autoFilled=true, warnings present → PASS (auto-filled, N warnings)', () => {
+    const out = stripAnsi(formatOutput(warningsOnlyGreenResult(), { kind: 'full' }, true));
+    expect(out).toContain('PASS (auto-filled, 1 warning)');
+    expect(out).not.toContain('FAIL');
+  });
+
+  it('autoFilled=false, warnings present → plain PASS (N warnings) no marker', () => {
+    const out = stripAnsi(formatOutput(warningsOnlyGreenResult(), { kind: 'full' }, false));
+    expect(out).toContain('PASS (1 warning)');
+    expect(out).not.toContain('auto-filled');
+  });
+
+  it('FAIL result with autoFilled=true does NOT say (auto-filled) on the FAIL line', () => {
+    const issue: CheckIssue = {
+      severity: 'error',
+      code: 'unverified',
+      rule: 'unverified',
+      nodePath: 'orders/handler',
+      aspectId: 'audit-logging',
+      messageData: { what: 'unverified', why: 'why', next: 'fix' },
+    };
+    const out = stripAnsi(formatOutput(baseResult([issue]), { kind: 'full' }, true));
+    expect(out).toContain('yg check: FAIL');
+    expect(out).not.toContain('auto-filled');
+  });
+});
+
 // ── --top coverage issue dispatch (task 2.3 fix) ─────────────────────────────
 
 describe('check render — --top view: coverage issues (task 2.3 fix)', () => {

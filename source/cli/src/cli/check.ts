@@ -196,10 +196,27 @@ export function registerCheckCommand(program: Command): void {
           return;
         }
 
+        // autoFilled is true when the fill was driven by config (auto_approve),
+        // NOT by an explicit --approve / --only-deterministic flag. Used to mark
+        // the PASS header as (auto-filled) so agents can distinguish config-driven
+        // fills from user-requested ones.
+        const isConfigDrivenFill =
+          mode.approve &&
+          opts.approve === undefined &&
+          opts.onlyDeterministic !== true;
+
         // Fill path: runs when --approve is explicit OR when auto_approve in config
         // promotes bare `yg check` to a fill. Triage views always stay read-only.
         // --dry-run is a preview mode of fill: previews cost without writing.
         if (mode.approve) {
+          // Banner: warn before spending on the LLM reviewer, but ONLY for
+          // config-driven full auto-fill (not deterministic, not explicit --approve).
+          const isConfigFull =
+            isConfigDrivenFill && graph.config?.auto_approve === 'full';
+          if (isConfigFull && !opts.dryRun) {
+            process.stderr.write("auto-approve: full — bare 'yg check' will call the reviewer.\n");
+          }
+
           try {
             // The CLI layer owns formatting: fill.ts (an engine module) emits
             // structured diagnostics; we render them here via buildIssueMessage.
@@ -209,7 +226,8 @@ export function registerCheckCommand(program: Command): void {
               dryRun: opts.dryRun ?? false,
               emitIssue: (m) => { process.stdout.write(buildIssueMessage(m) + '\n'); },
             });
-            process.stdout.write(formatOutput(fill.checkResult));
+            const autoFilled = isConfigDrivenFill && !opts.dryRun;
+            process.stdout.write(formatOutput(fill.checkResult, { kind: 'full' }, autoFilled));
             // A dry-run is a cost preview only — it never writes and must never fail
             // the build for unverified/refused pairs it merely previewed. Exit 0 always.
             if (opts.dryRun) {
@@ -323,7 +341,7 @@ export function residualAfterNext(result: CheckResult): string {
   return `  (fills ${N} unverified; ${K} error${K === 1 ? '' : 's'} remain — need code/graph fixes)`;
 }
 
-export function formatOutput(result: CheckResult, view: CheckView = { kind: 'full' }): string {
+export function formatOutput(result: CheckResult, view: CheckView = { kind: 'full' }, autoFilled = false): string {
   const errors = result.issues.filter(i => i.severity === 'error');
   const warnings = result.issues.filter(i => i.severity === 'warning');
 
@@ -331,7 +349,7 @@ export function formatOutput(result: CheckResult, view: CheckView = { kind: 'ful
   const opts = { isTTY: process.stdout.isTTY ?? false };
 
   // Header ALWAYS uses the full counts — in every view. Only the body changes.
-  const header = renderHeader(result, errors.length, warnings.length);
+  const header = renderHeader(result, errors.length, warnings.length, autoFilled);
   const sections: string[] = [header];
 
   if (view.kind === 'summary' || view.kind === 'top') {
@@ -595,10 +613,15 @@ function renderSummaryRows(issues: CheckIssue[]): string {
 
 // ── Header ─────────────────────────────────────────────────
 
-function renderHeader(result: CheckResult, errorCount: number, warningCount: number): string {
+function renderHeader(result: CheckResult, errorCount: number, warningCount: number, autoFilled = false): string {
   let verdict: string;
   if (errorCount > 0) {
+    // auto-filled marker is a PASS qualifier only — never shown on FAIL.
     verdict = chalk.red('yg check: FAIL');
+  } else if (autoFilled && warningCount > 0) {
+    verdict = `${chalk.green('yg check: PASS')} (auto-filled, ${warningCount} warning${warningCount === 1 ? '' : 's'})`;
+  } else if (autoFilled) {
+    verdict = `${chalk.green('yg check: PASS')} (auto-filled)`;
   } else if (warningCount > 0) {
     verdict = `${chalk.green('yg check: PASS')} (${warningCount} warning${warningCount === 1 ? '' : 's'})`;
   } else {

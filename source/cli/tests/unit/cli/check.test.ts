@@ -440,4 +440,92 @@ describe('check command', () => {
       }
     });
   });
+
+  describe('auto_approve config — banner and PASS (auto-filled) marker (task 3.4)', () => {
+    /**
+     * Write a minimal green graph (no aspects, no mapping) with auto_approve set,
+     * so bare `yg check` auto-fills and produces a green (PASS) result with the
+     * correct header marker and stderr banner.
+     */
+    async function withAutoApproveFixture<T>(
+      autoApprove: string,
+      fn: (cwd: string) => Promise<T>,
+    ): Promise<T> {
+      const root = await mkdtemp(path.join(tmpdir(), 'ygg-auto-approve-'));
+      try {
+        const ygg = path.join(root, '.yggdrasil');
+        await mkdir(path.join(ygg, 'model', 'core'), { recursive: true });
+        await mkdir(path.join(ygg, 'aspects'), { recursive: true });
+        await mkdir(path.join(ygg, 'flows'), { recursive: true });
+        await writeFile(
+          path.join(ygg, 'yg-config.yaml'),
+          `version: "5.1.0"\n` +
+          `auto_approve: "${autoApprove}"\n` +
+          `quality:\n  max_direct_relations: 10\n` +
+          `reviewer:\n  default: standard\n  tiers:\n    standard:\n` +
+          `      provider: ollama\n      consensus: 1\n` +
+          `      config:\n        model: "m"\n        endpoint: "http://127.0.0.1:1"\n`,
+          'utf-8',
+        );
+        await writeFile(
+          path.join(ygg, 'yg-architecture.yaml'),
+          'node_types:\n  module:\n    description: \'Organizational grouping.\'\n' +
+          '    allowed_parents: []\n    default_aspects: []\nrelation_types: {}\n',
+          'utf-8',
+        );
+        await writeFile(
+          path.join(ygg, 'model', 'core', 'yg-node.yaml'),
+          'name: core\ntype: module\ndescription: An organizational node with no mapping.\n',
+          'utf-8',
+        );
+        return await fn(root);
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    }
+
+    it('auto_approve:full bare `yg check` prints banner to stderr and PASS (auto-filled) header', async () => {
+      await withAutoApproveFixture('full', async (cwd) => {
+        const result = spawnSync('node', [BIN_PATH, 'check'], {
+          cwd,
+          encoding: 'utf-8',
+          timeout: 10000,
+        });
+        // Banner on stderr only.
+        expect(result.stderr).toContain("auto-approve: full — bare 'yg check' will call the reviewer.");
+        // Header on stdout marks the auto-fill.
+        expect(stripAnsi(result.stdout)).toContain('PASS (auto-filled)');
+        // Banner must NOT appear in stdout.
+        expect(result.stdout).not.toContain("auto-approve: full");
+      });
+    });
+
+    it('auto_approve:deterministic bare `yg check` does NOT print banner (free/keyless fill)', async () => {
+      await withAutoApproveFixture('deterministic', async (cwd) => {
+        const result = spawnSync('node', [BIN_PATH, 'check'], {
+          cwd,
+          encoding: 'utf-8',
+          timeout: 10000,
+        });
+        // No banner — deterministic fill is free, no reviewer cost.
+        expect(result.stderr).not.toContain("auto-approve: full");
+        // Header still marks the auto-fill.
+        expect(stripAnsi(result.stdout)).toContain('PASS (auto-filled)');
+      });
+    });
+
+    it('explicit --approve does NOT print banner even when auto_approve:full is configured', async () => {
+      await withAutoApproveFixture('full', async (cwd) => {
+        const result = spawnSync('node', [BIN_PATH, 'check', '--approve'], {
+          cwd,
+          encoding: 'utf-8',
+          timeout: 10000,
+        });
+        // No banner — user explicitly asked for --approve, cost is expected.
+        expect(result.stderr).not.toContain("auto-approve: full");
+        // No auto-filled marker — explicit user action, not config-driven.
+        expect(stripAnsi(result.stdout)).not.toContain('auto-filled');
+      });
+    });
+  });
 });
