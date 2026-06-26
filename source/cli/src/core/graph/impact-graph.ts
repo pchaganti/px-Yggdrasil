@@ -1,8 +1,7 @@
 import path from 'node:path';
 import { collectAllowedReadsForAspect } from '../../structure/allowed-reads.js';
 import { isPathInMapping } from '../../structure/expand-mapping-sync.js';
-import { computeEffectiveAspects, computeEffectiveAspectStatuses } from './aspects.js';
-import type { Graph, GraphNode } from '../../model/graph.js';
+import type { Graph } from '../../model/graph.js';
 import type { LockFile } from '../../model/lock.js';
 import type { ExpectedPair } from '../pairs.js';
 import { toPosix } from '../../utils/posix.js';
@@ -281,120 +280,6 @@ export function touchedReferencesFile(
       default:
         break;
     }
-  }
-  return false;
-}
-
-/**
- * Find nodes whose effective deterministic or companion-LLM aspect reads
- * `repoRelative` CROSS-NODE.
- *
- * Two modes, re-sourced from the lock (spec §8):
- *   - PRECISE: a deterministic (or companion-LLM) lock entry whose `touched`
- *     observation keys reference `repoRelative` — the (aspect, unit) verdict WOULD
- *     become unverified if the file is edited. The owning node is reported as mode
- *     'precise'.
- *   - POTENTIAL (cold-start fallback): a node with NO observing lock entries yet
- *     whose effective non-draft deterministic aspect's allowed-reads set includes
- *     the file. Reported as mode 'potential' — it MIGHT read the file when first
- *     verified. (Cold-start applies only to deterministic aspects — companion-LLM
- *     aspects have no allowed-reads model for the fallback probe.)
- *
- * A node reported under precise mode is never also reported under potential mode.
- *
- * Each returned entry carries a `reviewerKind` tag ('deterministic' | 'llm') that
- * the renderer uses to label cost accurately — deterministic pairs re-verify for
- * free; companion-LLM pairs bill the reviewer.
- */
-export function collectStructureCascade(
-  graph: Graph,
-  repoRelative: string,
-  ownerNodePath: string | null | undefined,
-  lock: LockFile,
-): Array<{ nodePath: string; mode: 'precise' | 'potential'; reviewerKind: 'deterministic' | 'llm' }> {
-  const out: Array<{ nodePath: string; mode: 'precise' | 'potential'; reviewerKind: 'deterministic' | 'llm' }> = [];
-
-  for (const [nodePath, node] of graph.nodes) {
-    if (ownerNodePath && nodePath === ownerNodePath) continue;
-
-    const statuses = computeEffectiveAspectStatuses(node, graph);
-    // Include non-draft deterministic aspects AND non-draft companion-LLM aspects.
-    // Plain LLM aspects (no companion) are excluded — they have no `touched` map.
-    const observingAspectIds = [...computeEffectiveAspects(node, graph)].filter((id) => {
-      if (statuses.get(id) === 'draft') return false;
-      const aspect = graph.aspects.find((a) => a.id === id);
-      if (!aspect) return false;
-      if (aspect.reviewer.type === 'deterministic') return true;
-      if (aspect.reviewer.type === 'llm' && aspect.hasCompanion === true) return true;
-      return false;
-    });
-    if (observingAspectIds.length === 0) continue;
-
-    // ── Precise: any observing lock entry on this node whose observations
-    //    reference the edited file. Lock unit keys for this node are node:<path>
-    //    (per: node) or file:<mapped file> (per: file); the entry's `touched`
-    //    carries the recorded observation keys regardless of unit shape.
-    let precise = false;
-    let preciseKind: 'deterministic' | 'llm' = 'deterministic';
-    let hasAnyObservingEntry = false;
-    for (const aspectId of observingAspectIds) {
-      const unitMap = lock.verdicts[aspectId];
-      if (!unitMap) continue;
-      for (const unitKey of Object.keys(unitMap)) {
-        // Only entries belonging to THIS node count. node:<path> matches by
-        // exact path; file:<f> matches when f is mapped to this node.
-        if (!unitKeyBelongsToNode(unitKey, nodePath, node)) continue;
-        hasAnyObservingEntry = true;
-        if (touchedReferencesFile(unitMap[unitKey].touched, repoRelative)) {
-          precise = true;
-          // Determine reviewer kind from the aspect that owns this entry.
-          const aspect = graph.aspects.find((a) => a.id === aspectId);
-          preciseKind = (aspect?.reviewer.type === 'llm') ? 'llm' : 'deterministic';
-          break;
-        }
-      }
-      if (precise) break;
-    }
-
-    if (precise) {
-      out.push({ nodePath, mode: 'precise', reviewerKind: preciseKind });
-      continue;
-    }
-
-    // ── Cold-start fallback (no observing lock entries for this node yet):
-    //    pessimistic allowed-reads probe — applies ONLY to deterministic aspects,
-    //    which have an allowed-reads model. Companion-LLM aspects don't.
-    //    Skip entirely when no deterministic aspect is among observingAspectIds.
-    if (hasAnyObservingEntry) continue; // entries exist but none touched the file → not affected
-    const hasDetAspect = observingAspectIds.some(
-      (id) => graph.aspects.find((a) => a.id === id)?.reviewer.type === 'deterministic',
-    );
-    if (!hasDetAspect) continue;
-    const allowed = collectAllowedReadsForAspect(nodePath, graph);
-    if (isPathInMapping(repoRelative, [...allowed])) {
-      out.push({ nodePath, mode: 'potential', reviewerKind: 'deterministic' });
-    }
-  }
-
-  // Code-unit comparison (locale-independent, deterministic across environments),
-  // consistent with the plain .sort() calls elsewhere in this module.
-  out.sort((a, b) => (a.nodePath < b.nodePath ? -1 : a.nodePath > b.nodePath ? 1 : 0));
-  return out;
-}
-
-/**
- * True when a lock unit key belongs to `nodePath`. A `node:<path>` key matches by
- * exact path; a `file:<repoRelPosix>` key matches when that file is mapped to the
- * node (per-file scope). Uses the node's mapping for the file-key case.
- */
-function unitKeyBelongsToNode(unitKey: string, nodePath: string, node: GraphNode): boolean {
-  if (unitKey.startsWith('node:')) {
-    return unitKey.slice('node:'.length) === nodePath;
-  }
-  if (unitKey.startsWith('file:')) {
-    const f = toPosix(unitKey.slice('file:'.length));
-    const mapping = node.meta.mapping ?? [];
-    return isPathInMapping(f, mapping.map(toPosix));
   }
   return false;
 }
