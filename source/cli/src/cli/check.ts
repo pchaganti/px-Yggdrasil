@@ -22,7 +22,8 @@ export function registerCheckCommand(program: Command): void {
     .option('--dry-run', 'With --approve: free cost preview — print the budget + per-node/per-aspect breakdown, then exit 0 WITHOUT writing anything or calling the reviewer.')
     .option('--top [n]', 'Read-only triage: print only the N highest-priority issue blocks (bare --top = just the single suggestedNext block). Header counts + exit code stay TRUE.')
     .option('--summary', 'Read-only triage: print per-node counts only (no per-issue blocks). Header counts + exit code stay TRUE.')
-    .action(async (opts: { approve?: boolean; onlyDeterministic?: boolean; dryRun?: boolean; top?: boolean | string; summary?: boolean }) => {
+    .option('--details', 'Read-only: ungrouped, one block per issue (full per-pair detail). Opposite of the default grouped view.')
+    .action(async (opts: { approve?: boolean; onlyDeterministic?: boolean; dryRun?: boolean; top?: boolean | string; summary?: boolean; details?: boolean }) => {
       try {
         const cwd = process.cwd();
         const graph = await loadGraphOrAbort(cwd, { tolerateInvalidConfig: true });
@@ -53,12 +54,32 @@ export function registerCheckCommand(program: Command): void {
           await exitAfterFlush(1);
           return;
         }
+        if (opts.details && (wantsTop || opts.summary)) {
+          process.stderr.write(chalk.red(buildIssueMessage({
+            what: '--details cannot be combined with --top or --summary.',
+            why: '--details, --top, and --summary are all mutually exclusive read-only views of the same `yg check` result — each presents the issue set through a different lens. Asking for more than one at once is ambiguous; pick one.',
+            next: 'Run: yg check --details (ungrouped per-issue), yg check --top <n> (priority blocks), or yg check --summary (per-node counts).',
+          }) + '\n'));
+          await exitAfterFlush(1);
+          return;
+        }
+        if (opts.details && opts.approve) {
+          process.stderr.write(chalk.red(buildIssueMessage({
+            what: '--details cannot be combined with --approve.',
+            why: '--details is a read-only view of the plain `yg check` result (it writes nothing). --approve is the writer path. Mixing a read-only view with the writer is contradictory.',
+            next: 'Run: yg check --details (read-only ungrouped view), or yg check --approve (fill unverified pairs).',
+          }) + '\n'));
+          await exitAfterFlush(1);
+          return;
+        }
 
         // Resolve the read-only triage view. undefined --top = absent (full view);
         // a numeric/garbage --top is validated here (a NaN/negative/0-as-garbage
         // value is a guided error, never a silent full dump).
         let view: CheckView = { kind: 'full' };
-        if (opts.summary) {
+        if (opts.details) {
+          view = { kind: 'details' };
+        } else if (opts.summary) {
           view = { kind: 'summary' };
         } else if (wantsTop) {
           const n = resolveTopValue(opts.top);
@@ -172,7 +193,7 @@ const STRICT_CODES = new Set(['type-strict-orphan', 'type-strict-misplaced', 'st
  *               + Next. n === 0 (bare --top) renders zero blocks, Next only.
  *   - summary : header + per-node aggregate counts + Next (no per-issue blocks).
  */
-export type CheckView = { kind: 'full' } | { kind: 'top'; n: number } | { kind: 'summary' };
+export type CheckView = { kind: 'full' } | { kind: 'top'; n: number } | { kind: 'summary' } | { kind: 'details' };
 
 /**
  * Parse a raw --top value into a non-negative block count, or null on garbage.
@@ -245,6 +266,20 @@ export function formatOutput(result: CheckResult, view: CheckView = { kind: 'ful
       sections.push(chalk.yellow(`Warnings (${warnings.length}):`));
       if (body.warningLines) sections.push(body.warningLines);
     }
+  } else if (view.kind === 'details') {
+    // --details: ungrouped, one block per issue, grouped only by severity into
+    // Errors(N): / Warnings(N): sections. Coverage issues still render via
+    // renderUnmappedBlock. No (code,aspectId) collapsing.
+    if (errors.length > 0) {
+      sections.push('');
+      sections.push(chalk.red(`Errors (${errors.length}):`));
+      sections.push(renderDetailsSection(errors, 'error'));
+    }
+    if (warnings.length > 0) {
+      sections.push('');
+      sections.push(chalk.yellow(`Warnings (${warnings.length}):`));
+      sections.push(renderDetailsSection(warnings, 'warning'));
+    }
   } else {
     if (errors.length > 0) {
       sections.push('');
@@ -267,13 +302,37 @@ export function formatOutput(result: CheckResult, view: CheckView = { kind: 'ful
     // clear errors (some refused/structural/relation errors remain after filling
     // unverified pairs). Triage views (top/summary) are already narrowed — they
     // do not annotate to avoid double-messaging.
-    const residual = view.kind === 'full' ? residualAfterNext(result) : '';
+    const residual = (view.kind === 'full' || view.kind === 'details') ? residualAfterNext(result) : '';
     sections.push('');
     sections.push(`Next: ${nextCmd}${residual}`);
   }
 
   sections.push('');
   return sections.join('\n');
+}
+
+// ── Details view: ungrouped, one block per issue ──────────
+
+/**
+ * Render every issue as an individual block (no (code,aspectId) collapsing).
+ * Coverage issues (`unmapped-files` / `uncovered-advisory`) render via
+ * `renderUnmappedBlock`; all others via `renderIssueBlock`. Produces a flat
+ * list of blocks separated by blank lines, matching the spacing used in
+ * the --top view.
+ */
+function renderDetailsSection(issues: CheckIssue[], mode: 'error' | 'warning'): string {
+  const lines: string[] = [];
+  for (const issue of issues) {
+    lines.push('');
+    if (issue.code === 'unmapped-files') {
+      renderUnmappedBlock(issue, lines);
+    } else if (issue.code === 'uncovered-advisory') {
+      renderUnmappedBlock(issue, lines, 'uncovered');
+    } else {
+      renderIssueBlock(issue, lines, mode);
+    }
+  }
+  return lines.join('\n');
 }
 
 // ── Top view: prioritized blocks ───────────────────────────

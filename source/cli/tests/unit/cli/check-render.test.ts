@@ -554,6 +554,48 @@ describe('check render — Next: residual annotation (task 1.4)', () => {
   });
 });
 
+describe('check render — --details view (task 2.1)', () => {
+  it('produces THREE separate per-issue blocks for 3 unverified issues on the same aspect across 3 nodes', () => {
+    const issues: CheckIssue[] = ['node-a', 'node-b', 'node-c'].map((n) => ({
+      severity: 'error',
+      code: 'unverified',
+      rule: 'unverified',
+      aspectId: 'audit-logging',
+      pairKind: 'llm',
+      nodePath: n,
+      messageData: unverifiedMessage({ aspectId: 'audit-logging', unitKey: `${n}#audit-logging` }),
+    } as CheckIssue));
+
+    const detailsOut = stripAnsi(formatOutput(baseResult(issues), { kind: 'details' }));
+    const fullOut    = stripAnsi(formatOutput(baseResult(issues), { kind: 'full' }));
+
+    // --details must render THREE individual blocks (one per issue), not one grouped block.
+    expect(countBlocks(detailsOut)).toBe(3);
+    // Each node appears in its own "unverified … <node>" block.
+    expect(detailsOut).toContain('unverified  node-a');
+    expect(detailsOut).toContain('unverified  node-b');
+    expect(detailsOut).toContain('unverified  node-c');
+    // The default grouped view collapses these into ONE block.
+    expect(countBlocks(fullOut)).toBe(1);
+  });
+
+  it('still renders the true Errors(N) header and Next line in --details view', () => {
+    const issues: CheckIssue[] = ['node-a', 'node-b'].map((n) => ({
+      severity: 'error',
+      code: 'unverified',
+      rule: 'unverified',
+      aspectId: 'audit-logging',
+      pairKind: 'llm',
+      nodePath: n,
+      messageData: unverifiedMessage({ aspectId: 'audit-logging', unitKey: `${n}#audit-logging` }),
+    } as CheckIssue));
+
+    const out = stripAnsi(formatOutput(baseResult(issues), { kind: 'details' }));
+    expect(out).toContain('Errors (2):');
+    expect(out).toMatch(/\nNext: /);
+  });
+});
+
 describe('resolveTopValue', () => {
   const cases: Array<[boolean | string | undefined, number | null]> = [
     [undefined, 0],
