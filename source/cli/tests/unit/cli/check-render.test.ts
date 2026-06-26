@@ -623,3 +623,81 @@ describe('resolveTopValue', () => {
     }
   });
 });
+
+// ── Aspect drill-in view: --aspect <id> (task 2.2) ────────────────────────────
+
+describe('check render — --aspect drill-in view (task 2.2)', () => {
+  /** Build issues: 2 errors on aspect 'x' (nodes 'node-a', 'node-b'), 1 error on aspect 'y' (node 'node-c'). */
+  function aspectDrillIssues(): CheckIssue[] {
+    return [
+      {
+        severity: 'error',
+        code: 'aspect-violation-enforced',
+        rule: 'aspect-violation-enforced',
+        aspectId: 'x',
+        pairKind: 'llm',
+        nodePath: 'node-a',
+        messageData: llmRefusedMessage({ aspectId: 'x', unitKey: 'node-a#x', reason: 'missing entry A' }),
+      } as CheckIssue,
+      {
+        severity: 'error',
+        code: 'aspect-violation-enforced',
+        rule: 'aspect-violation-enforced',
+        aspectId: 'x',
+        pairKind: 'llm',
+        nodePath: 'node-b',
+        messageData: llmRefusedMessage({ aspectId: 'x', unitKey: 'node-b#x', reason: 'missing entry B' }),
+      } as CheckIssue,
+      {
+        severity: 'error',
+        code: 'aspect-violation-enforced',
+        rule: 'aspect-violation-enforced',
+        aspectId: 'y',
+        pairKind: 'llm',
+        nodePath: 'node-c',
+        messageData: llmRefusedMessage({ aspectId: 'y', unitKey: 'node-c#y', reason: 'y issue' }),
+      } as CheckIssue,
+    ];
+  }
+
+  it('filters to aspect x: contains "aspect x", shows 2 of 3 errors, no y-issue content', () => {
+    const out = stripAnsi(formatOutput(baseResult(aspectDrillIssues()), { kind: 'aspect', id: 'x' }));
+    // Header must mention the aspect id and K of N counts.
+    expect(out).toContain("aspect 'x'");
+    expect(out).toContain('2 of 3 errors');
+    // y-issue content must NOT appear.
+    expect(out).not.toContain('node-c');
+    expect(out).not.toContain('y issue');
+    // Both x-nodes must appear.
+    expect(out).toContain('node-a');
+    expect(out).toContain('node-b');
+    // Next (this group): line must be present.
+    expect(out).toMatch(/\nNext \(this group\): /);
+  });
+
+  it('drill-in uses isTTY:false — no truncation even when members exceed CAP_NODES', () => {
+    // Build 15 issues on aspect 'x' — exceeds the CAP_NODES=12 truncation threshold.
+    const manyIssues: CheckIssue[] = Array.from({ length: 15 }, (_, i) => ({
+      severity: 'error',
+      code: 'aspect-violation-enforced',
+      rule: 'aspect-violation-enforced',
+      aspectId: 'x',
+      pairKind: 'llm',
+      nodePath: `node-${i}`,
+      messageData: llmRefusedMessage({ aspectId: 'x', unitKey: `node-${i}#x`, reason: `reason-${i}` }),
+    } as CheckIssue));
+    const out = stripAnsi(formatOutput(baseResult(manyIssues), { kind: 'aspect', id: 'x' }));
+    // All 15 nodes must appear — no "... and N more" truncation.
+    for (let i = 0; i < 15; i++) {
+      expect(out).toContain(`node-${i}`);
+    }
+    expect(out).not.toContain('... and');
+  });
+
+  it('exit code logic is outside formatOutput — aspect view does not affect it', () => {
+    // This is a contract test: formatOutput must not throw or return empty on aspect view.
+    // The actual exit code (derived from full result.issues) is tested at the CLI action layer.
+    const out = formatOutput(baseResult(aspectDrillIssues()), { kind: 'aspect', id: 'x' });
+    expect(out.length).toBeGreaterThan(0);
+  });
+});

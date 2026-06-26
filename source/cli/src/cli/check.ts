@@ -23,7 +23,8 @@ export function registerCheckCommand(program: Command): void {
     .option('--top [n]', 'Read-only triage: print only the N highest-priority issue blocks (bare --top = just the single suggestedNext block). Header counts + exit code stay TRUE.')
     .option('--summary', 'Read-only triage: print per-node counts only (no per-issue blocks). Header counts + exit code stay TRUE.')
     .option('--details', 'Read-only: ungrouped, one block per issue (full per-pair detail). Opposite of the default grouped view.')
-    .action(async (opts: { approve?: boolean; onlyDeterministic?: boolean; dryRun?: boolean; top?: boolean | string; summary?: boolean; details?: boolean }) => {
+    .option('--aspect <id>', "Read-only: drill into one rule — show only that aspect's issues, grouped, with the full per-node detail.")
+    .action(async (opts: { approve?: boolean; onlyDeterministic?: boolean; dryRun?: boolean; top?: boolean | string; summary?: boolean; details?: boolean; aspect?: string }) => {
       try {
         const cwd = process.cwd();
         const graph = await loadGraphOrAbort(cwd, { tolerateInvalidConfig: true });
@@ -72,12 +73,36 @@ export function registerCheckCommand(program: Command): void {
           await exitAfterFlush(1);
           return;
         }
+        if (opts.aspect !== undefined) {
+          // --aspect is a read-only drill-in view and cannot combine with writer or other views.
+          if (opts.approve) {
+            process.stderr.write(chalk.red(buildIssueMessage({
+              what: '--aspect cannot be combined with --approve.',
+              why: '--aspect is a read-only drill-in view (it writes nothing). --approve is the writer path. Mixing a read-only view with the writer is contradictory.',
+              next: 'Run: yg check --aspect <id> (read-only drill-in), or yg check --approve (fill unverified pairs).',
+            }) + '\n'));
+            await exitAfterFlush(1);
+            return;
+          }
+          if (wantsTop || opts.summary || opts.details) {
+            const conflicting = wantsTop ? '--top' : opts.summary ? '--summary' : '--details';
+            process.stderr.write(chalk.red(buildIssueMessage({
+              what: `--aspect cannot be combined with ${conflicting}.`,
+              why: '--aspect, --top, --summary, and --details are all mutually exclusive read-only views of the same `yg check` result. Asking for more than one at once is ambiguous; pick one.',
+              next: `Run: yg check --aspect <id> (drill-in view), or yg check ${conflicting} (that view alone).`,
+            }) + '\n'));
+            await exitAfterFlush(1);
+            return;
+          }
+        }
 
         // Resolve the read-only triage view. undefined --top = absent (full view);
         // a numeric/garbage --top is validated here (a NaN/negative/0-as-garbage
         // value is a guided error, never a silent full dump).
         let view: CheckView = { kind: 'full' };
-        if (opts.details) {
+        if (opts.aspect !== undefined) {
+          view = { kind: 'aspect', id: opts.aspect };
+        } else if (opts.details) {
           view = { kind: 'details' };
         } else if (opts.summary) {
           view = { kind: 'summary' };
@@ -193,7 +218,7 @@ const STRICT_CODES = new Set(['type-strict-orphan', 'type-strict-misplaced', 'st
  *               + Next. n === 0 (bare --top) renders zero blocks, Next only.
  *   - summary : header + per-node aggregate counts + Next (no per-issue blocks).
  */
-export type CheckView = { kind: 'full' } | { kind: 'top'; n: number } | { kind: 'summary' } | { kind: 'details' };
+export type CheckView = { kind: 'full' } | { kind: 'top'; n: number } | { kind: 'summary' } | { kind: 'details' } | { kind: 'aspect'; id: string };
 
 /**
  * Parse a raw --top value into a non-negative block count, or null on garbage.
@@ -266,6 +291,38 @@ export function formatOutput(result: CheckResult, view: CheckView = { kind: 'ful
       sections.push(chalk.yellow(`Warnings (${warnings.length}):`));
       if (body.warningLines) sections.push(body.warningLines);
     }
+  } else if (view.kind === 'aspect') {
+    // --aspect <id>: drill-in view — show ONLY issues for the named aspect,
+    // grouped, with the full node list (no truncation). The TRUE total error
+    // count (N) stays visible in the header line so the user knows how much
+    // of the total wall this aspect represents.
+    const drillOpts = { isTTY: false }; // never truncate in drill-in
+    const filtered = result.issues.filter(i => i.aspectId === view.id);
+    const filteredErrors = filtered.filter(i => i.severity === 'error');
+    const filteredWarnings = filtered.filter(i => i.severity === 'warning');
+    const K = filteredErrors.length;
+    const N = errors.length;
+    // Verdict word mirrors renderHeader logic: FAIL if total errors > 0, else PASS.
+    const verdictWord = errors.length > 0 ? chalk.red('FAIL') : chalk.green('PASS');
+    // Replace the header already added with the aspect-scoped header line.
+    sections[0] = `${verdictWord}  (aspect '${view.id}' — ${K} of ${N} errors)`;
+    if (filteredErrors.length > 0) {
+      sections.push('');
+      sections.push(renderErrorSection(filteredErrors, drillOpts));
+    }
+    if (filteredWarnings.length > 0) {
+      sections.push('');
+      sections.push(renderWarningSection(filteredWarnings, drillOpts));
+    }
+    // Next (this group): the first line of the highest-priority filtered issue's next.
+    const firstFiltered = [...filteredErrors, ...filteredWarnings][0];
+    if (firstFiltered?.messageData.next) {
+      const nextCmd = firstFiltered.messageData.next.split('\n')[0];
+      sections.push('');
+      sections.push(`Next (this group): ${nextCmd}`);
+    }
+    sections.push('');
+    return sections.join('\n');
   } else if (view.kind === 'details') {
     // --details: ungrouped, one block per issue, grouped only by severity into
     // Errors(N): / Warnings(N): sections. Coverage issues still render via
