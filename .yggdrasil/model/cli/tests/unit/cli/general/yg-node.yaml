@@ -27,3 +27,4 @@ mapping:
   - source/cli/tests/unit/cli/exit-after-flush.test.ts
   - source/cli/tests/unit/cli/check-exit.test.ts
   - source/cli/tests/unit/cli/check-disk-scan.test.ts
+  - source/cli/tests/unit/cli/resolve-approve-mode.test.ts

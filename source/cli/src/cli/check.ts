@@ -12,12 +12,58 @@ import { STRUCTURAL_CODES, COMPLETENESS_CODES } from '../core/check-codes.js';
 import path from 'node:path';
 import { walkRepoFiles } from '../io/repo-scanner.js';
 import { groupIssues, type IssueGroup } from './group-issues.js';
+import type { YggConfig } from '../model/graph.js';
+
+/**
+ * Resolve the effective approve mode from explicit CLI flags and graph config.
+ *
+ * Precedence (highest to lowest):
+ *   1. Explicit `--no-approve` (opts.approve === false) → always read-only.
+ *   2. Explicit `--only-deterministic` (implies approve) → approve + det.
+ *   3. Explicit `--approve` (opts.approve === true) → approve, det from flag.
+ *   4. No explicit approve flag → from config.auto_approve:
+ *        'deterministic' → approve + det
+ *        'full'          → approve, not det
+ *        false/undefined → read-only (today's default behavior)
+ */
+export function resolveApproveMode(
+  opts: { approve?: boolean; onlyDeterministic?: boolean },
+  config: YggConfig | undefined,
+): { approve: boolean; onlyDeterministic: boolean } {
+  // EXPLICIT --no-approve always wins — even over config.
+  if (opts.approve === false) {
+    return { approve: false, onlyDeterministic: false };
+  }
+
+  // EXPLICIT --only-deterministic implies approve (regardless of config).
+  if (opts.onlyDeterministic === true) {
+    return { approve: true, onlyDeterministic: true };
+  }
+
+  // EXPLICIT --approve with no --only-deterministic.
+  if (opts.approve === true) {
+    return { approve: true, onlyDeterministic: false };
+  }
+
+  // No explicit approve flag — fall back to config.auto_approve.
+  const autoApprove = config?.auto_approve;
+  if (autoApprove === 'deterministic') {
+    return { approve: true, onlyDeterministic: true };
+  }
+  if (autoApprove === 'full') {
+    return { approve: true, onlyDeterministic: false };
+  }
+
+  // false / undefined → read-only (today's default behavior).
+  return { approve: false, onlyDeterministic: false };
+}
 
 export function registerCheckCommand(program: Command): void {
   program
     .command('check')
     .description('Unified graph gate — verification, coverage, completeness')
     .option('--approve', 'Fill every unverified pair (deterministic first, then LLM), then report')
+    .option('--no-approve', 'Force read-only mode even when auto_approve is configured (overrides config)')
     .option('--only-deterministic', 'With --approve: fill ONLY deterministic pairs (keyless, free); committed locks stay untouched. For CI and pre-commit.')
     .option('--dry-run', 'With --approve: free cost preview — print the budget + per-node/per-aspect breakdown, then exit 0 WITHOUT writing anything or calling the reviewer.')
     .option('--top [n]', 'Read-only triage: print only the N highest-priority issue blocks (bare --top = just the single suggestedNext block). Header counts + exit code stay TRUE.')
@@ -120,10 +166,18 @@ export function registerCheckCommand(program: Command): void {
           view = { kind: 'top', n };
         }
 
+        // Resolve the effective approve mode. Triage views (--top / --summary /
+        // --details / --aspect) are READ-ONLY and must NOT trigger a fill even
+        // when auto_approve is configured — force read-only when any view is selected.
+        const isTriageView = wantsTop || opts.summary || opts.details || opts.aspect !== undefined;
+        const mode = isTriageView
+          ? { approve: false, onlyDeterministic: false }
+          : resolveApproveMode(opts, graph.config);
+
         // --dry-run is a preview MODE of --approve, not a standalone alias for the
-        // plain read. Without --approve it is a usage error: steer the agent to the
-        // intended command rather than silently behaving like `yg check`.
-        if (opts.dryRun && !opts.approve) {
+        // plain read. Without an effective approve mode it is a usage error: steer
+        // the agent to the intended command rather than silently behaving like `yg check`.
+        if (opts.dryRun && !mode.approve) {
           process.stderr.write(chalk.red(buildIssueMessage({
             what: '--dry-run requires --approve.',
             why: '--dry-run previews what `yg check --approve` would fill (the reviewer-call budget and per-node breakdown) without writing or calling the reviewer; it is a mode of --approve, not a variant of the plain read. Plain `yg check` is already a free, no-write read.',
@@ -133,18 +187,16 @@ export function registerCheckCommand(program: Command): void {
           return;
         }
 
-        // --approve is the combiner: fill every unverified pair (deterministic first, then
-        // LLM), then report. With --only-deterministic it fills only the free deterministic
-        // pairs and writes only the gitignored lock. With --dry-run it previews the cost and
-        // writes nothing. Plain `yg check` is a pure read that never executes a reviewer or
-        // a deterministic check.
-        if (opts.approve) {
+        // Fill path: runs when --approve is explicit OR when auto_approve in config
+        // promotes bare `yg check` to a fill. Triage views always stay read-only.
+        // --dry-run is a preview mode of fill: previews cost without writing.
+        if (mode.approve) {
           try {
             // The CLI layer owns formatting: fill.ts (an engine module) emits
             // structured diagnostics; we render them here via buildIssueMessage.
             const fill = await runFill(graph, {
               gitTrackedFiles: gitFiles,
-              onlyDeterministic: opts.onlyDeterministic ?? false,
+              onlyDeterministic: mode.onlyDeterministic,
               dryRun: opts.dryRun ?? false,
               emitIssue: (m) => { process.stdout.write(buildIssueMessage(m) + '\n'); },
             });
@@ -856,7 +908,4 @@ export function getIssueLabel(issue: CheckIssue): string {
   return issue.code;
 }
 
-function sortByNodePath(issues: CheckIssue[]): CheckIssue[] {
-  return [...issues].sort((a, b) => (a.nodePath ?? '').localeCompare(b.nodePath ?? '', 'en'));
-}
 
