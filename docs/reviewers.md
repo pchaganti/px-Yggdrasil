@@ -77,7 +77,8 @@ $ yg check --approve
     chargeCard() does not emit an audit event.
     No call to auditLog.emit() found in any mutation path.
 
-Result: FAIL — fix the violation, then re-run: yg check --approve
+yg check: FAIL  Errors: 1  Warnings: 0
+Next: fix the violation, then re-run: yg check --approve
 ```
 
 If the reviewer rejects compliant code, the fix is improving the aspect's `content.md` — make the rule clearer and more specific. Sharpening the rule re-verifies every pair of the aspect. The escape hatch is better rules, not bypassing enforcement.
@@ -551,7 +552,7 @@ Both reviewer types record their results the same way: one content-addressed ent
 - **LLM pair (with companion.mjs):** additionally folds `companionHash` (SHA-256 of `companion.mjs`) and, when non-empty, the hook's `touched` observations (the companion files the runner read, plus any `ctx.fs`/`ctx.graph` accesses). Both ingredients are folded only when present — a plain LLM aspect's hash is byte-identical to before, with no lock-format change.
 - **Deterministic pair:** the hash folds `check.mjs`, the subject files, and the observation set — every `ctx.fs` read, listing, and existence probe and every `ctx.graph` access the check made beyond its subject files (see [the observation model](#the-observation-model-what-invalidates-a-deterministic-verdict) below). Change the check, a subject file, or any observed value → the pair is unverified.
 
-`yg check` recomputes each pair's input hash and compares it to the lock — no LLM calls, no provider keys, runs instantly. A source edit and an aspect-content edit both surface the same way: the affected pairs no longer match their recorded hash, so check reports them as unverified until `yg check --approve` fills them again.
+`yg check` by default recomputes each pair's input hash and compares it to the lock — no LLM calls, no provider keys, runs instantly. If `auto_approve` is set to `deterministic` or `full` in `yg-config.yaml`, bare `yg check` may fill pairs automatically (see [Configuration](/configuration#auto-approve-config)); explicit CLI flags always override the config. A source edit and an aspect-content edit both surface the same way: the affected pairs no longer match their recorded hash, so check reports them as unverified until `yg check --approve` fills them again.
 
 ---
 

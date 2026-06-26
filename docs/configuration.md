@@ -24,6 +24,7 @@ refreshes the rules and platform files.
 - **quality** — Quality thresholds (see [Quality config](#quality-config) below).
 - **parallel** — Concurrent aspect verifications across nodes (positive integer).
 - **debug** — Set `true` to append all CLI output to `.yggdrasil/.debug.log`.
+- **auto_approve** — Auto-fill mode for bare `yg check` (default `false`; see [Auto-approve config](#auto-approve-config) below).
 
 Node types are defined in the separate **architecture file** (`.yggdrasil/yg-architecture.yaml`),
 not in `yg-config.yaml`.
@@ -57,6 +58,7 @@ quality:
 
 parallel: 10
 debug: false
+auto_approve: false   # false (default) | deterministic | full
 ```
 
 ---
@@ -271,6 +273,36 @@ unknown-KEY guard: a typo'd key under `reviewer:` or under a tier still fails
 `yg check` with a clear `config-reviewer-unknown-key` / `config-tier-unknown-key`
 error — a key typo is caught, a retired-field cleanup is not. Run from the
 repository root only. Review the diff before committing.
+
+---
+
+## Auto-approve config
+
+`auto_approve` controls what bare `yg check` does when you run it without explicit
+`--approve`, `--no-approve`, or `--only-deterministic` flags.
+
+| Value | Behavior |
+| --- | --- |
+| `false` (default) | Read-only: recomputes hashes, validates, reports. Writes nothing, makes no LLM calls, needs no keys. |
+| `deterministic` | Behaves like `yg check --approve --only-deterministic` — fills only deterministic pairs (free, keyless), writes only the gitignored cache. |
+| `full` | Behaves like `yg check --approve` — fills every unverified pair including LLM pairs. |
+
+**Precedence:** explicit CLI flags always override `auto_approve`. Passing
+`--approve`, `--no-approve`, or `--only-deterministic` on the command line takes
+effect regardless of what the config says.
+
+**CI note:** CI and pre-commit scripts should always use explicit flags
+(`yg check --approve --only-deterministic`) — the CI-is-free-and-keyless guarantee
+is about explicit flag use, not `auto_approve`. Set `auto_approve` for local
+developer convenience only.
+
+When a fill triggered by `auto_approve` produces a PASS, the result line shows
+`(auto-filled)` to indicate that verdicts were written during this run.
+
+```yaml
+# .yggdrasil/yg-config.yaml
+auto_approve: deterministic   # fill the deterministic cache automatically on bare yg check
+```
 
 ---
 

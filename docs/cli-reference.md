@@ -15,7 +15,7 @@ This page is for inspecting or debugging your graph and enforcement state.
 |---------|---------|
 | `yg context --file <path>` / `--node <path>` | Assemble context package |
 | `yg impact --file <path>` / `--node <path>` / `--aspect <id>` / `--flow <name>` / `--type <id>` | Blast radius analysis |
-| `yg check` | Unified gate — writes nothing, no LLM, no keys |
+| `yg check` | Unified gate — by default writes nothing, no LLM, no keys (see `auto_approve` in [Configuration](/configuration)) |
 | `yg check --approve` | Verify every unverified pair and record the verdicts in the lock |
 | `yg check --approve --only-deterministic` | Fill only the deterministic pairs, free and keyless; writes only the gitignored cache |
 | `yg log add` / `read` / `merge-resolve` | Per-node append-only business log |
@@ -81,9 +81,13 @@ Unified gate combining structural integrity, the prompt-size gate, lock
 verification, coverage, and completeness. It **writes nothing** — it recomputes
 each expected pair's input hash and compares it to the recorded verdict in the
 lock (the committed `yg-lock.nondeterministic.json` and `yg-lock.logs.json`, plus
-the gitignored `.yg-lock.deterministic.json` cache; see [The lock](/the-lock)). It
+the gitignored `.yg-lock.deterministic.json` cache; see [The lock](/the-lock)). By default it
 makes no LLM calls, runs no aspect reviewers, and needs no provider config or keys.
-The one thing it does run over your code is the built-in relation-conformance
+If `auto_approve` is set to `deterministic` or `full` in `yg-config.yaml`, bare
+`yg check` behaves like `yg check --approve --only-deterministic` or `yg check
+--approve` respectively — explicit CLI flags (`--approve`, `--no-approve`,
+`--only-deterministic`) always take precedence over the config setting.
+The one thing it always runs over your code is the built-in relation-conformance
 check, live and parse-based, at zero LLM cost.
 
 On a fresh checkout the gitignored deterministic cache is absent, so `yg check`
@@ -97,37 +101,53 @@ yg check --approve --only-deterministic
 yg check --approve --dry-run
 ```
 
-Outputs: header (project, counts, coverage), errors grouped by category
-(verification, structural, architecture, coverage, completeness), warnings,
-result (PASS/FAIL with category counts), and suggested next command.
+Outputs: header (project, counts, coverage), errors grouped by rule — each group
+identifies the failing rule (`(code, aspectId)`) and lists the affected
+nodes/files compactly; `--details` expands to the old per-pair view; warnings,
+result (PASS/FAIL with group counts), and suggested next command. On color-capable
+terminals, verdict and error/warning headers include emoji decoration (stripped
+under `NO_COLOR` and in CI).
 
 Exit code 0 if fully clean, 1 if any errors found.
 
-#### `--top [N]` and `--summary` — read-only triage views
+#### `--top [N]`, `--summary`, `--details`, `--aspect <id>`, and `--quiet` — output control
 
-When a `yg check` run is large, two read-only flags narrow the output without
-losing fidelity. They apply only to the plain read (not `--approve`, which has
-its own `--dry-run` cost preview) and are mutually exclusive with each other.
+The default output groups issues by rule. Several flags adjust the view; they
+apply only to the plain read (not `--approve`, which has its own `--dry-run` cost
+preview); `--top`, `--summary`, `--details`, and `--aspect` are mutually exclusive.
 
 ```bash
-yg check --top 5    # only the 5 highest-priority issue blocks
-yg check --top      # only the single suggested-next block (flag with no value)
-yg check --summary  # per-node counts only — no per-issue blocks
+yg check --top 5      # only the 5 highest-priority rule groups
+yg check --top        # only the single suggested-next group (flag with no value)
+yg check --summary    # per-node counts only — no per-issue blocks
+yg check --details    # ungrouped per-pair view (old full output)
+yg check --aspect <id>  # drill into one rule — all pairs for that aspect
+yg check --approve --quiet  # suppress progress output during --approve (stderr)
 ```
 
-`--top N` renders the N highest-priority issue blocks, in the same priority
-order the `Next:` line draws from. A bare `--top` (no value) renders zero blocks
+`--top N` renders the N highest-priority **rule groups**, in the same priority
+order the `Next:` line draws from. A bare `--top` (no value) renders zero groups
 and keeps only the single `Next:` line — the one concrete step to take.
 `--summary` prints one line per node — `K unverified (J deterministic-free, L
 LLM), M refused` — plus an `other` bucket for non-pair errors (coverage, log,
 relation, structural) so the per-node totals reconcile with the header.
+`--details` expands the output to the old per-pair view (useful when you need to
+see every individual file in a group). `--aspect <id>` restricts output to pairs
+of a single aspect, useful for drilling into one rule after seeing it in the
+grouped view. `--quiet` / `-q` silences the `--approve` fill-progress on stderr,
+leaving only the final report on stdout.
+
+**Precedence:** explicit CLI flags (`--approve`, `--no-approve`,
+`--only-deterministic`) override `auto_approve` in `yg-config.yaml`. The config
+setting affects bare `yg check` only; CI scripts should always use explicit flags.
 
 **Guardrail:** every view always prints the true aggregate `Errors (N)` /
 `Warnings (N)` header and preserves the real exit code, so a narrowed view can
 never read as a clean build. An invalid `--top` value — negative, fractional,
 non-numeric, or an explicit `0` — is a guided error, not a silent full dump; use
-bare `--top` for the zero-block view. Use these to orient, then drill into a
-specific block with plain `yg check`.
+bare `--top` for the zero-group view. Use `--summary` and `--top` to orient, then
+drill into a specific rule group with `--aspect <id>` or the full view with plain
+`yg check`.
 
 #### `--approve` — fill unverified pairs
 

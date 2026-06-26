@@ -4,6 +4,8 @@ title: The lock
 
 This is the depth page. Day to day you never touch the lock — your agent runs `yg check` and `yg check --approve`, and the lock takes care of itself. Read this when you want to know exactly how a verdict is stored, when it expires, and why CI can recheck your whole repo without an API key.
 
+> **Note:** By default `yg check` is read-only — it writes nothing, makes no LLM calls, and needs no keys. When `auto_approve` is set to `deterministic` or `full` in `yg-config.yaml`, bare `yg check` behaves like `yg check --approve --only-deterministic` or `yg check --approve` respectively. Explicit CLI flags always override the config. CI scripts use explicit flags and are unaffected by `auto_approve`.
+
 The payoff is simple: every verdict is recorded so that CI doesn't re-run the reviewer — it recomputes a hash and confirms the recorded verdicts still match the current code. Fast, keyless, and it travels with the repo.
 
 ## The three lock files
@@ -51,7 +53,9 @@ One thing is deliberately **not** an input: the aspect's status. Flipping `draft
 
 These are two different jobs.
 
-`yg check` writes nothing. It recomputes each pair's input hash and compares it against the lock. It runs no aspect reviewers, makes no LLM calls, and needs no provider keys — which is why it's the CI gate. (It does recompute relation conformance live; see below.) A mismatch means a pair changed without being re-verified, and check reports it.
+`yg check` by default writes nothing. It recomputes each pair's input hash and compares it against the lock. It runs no aspect reviewers, makes no LLM calls, and needs no provider keys — which is why it's the CI gate. (It does recompute relation conformance live; see below.) A mismatch means a pair changed without being re-verified, and check reports it.
+
+However, when `auto_approve` is configured in `yg-config.yaml`, bare `yg check` may fill pairs automatically: `auto_approve: deterministic` behaves like `yg check --approve --only-deterministic`; `auto_approve: full` behaves like `yg check --approve`. CI scripts use explicit flags (`yg check --approve --only-deterministic`) and are unaffected by `auto_approve` — the CI-is-free-and-keyless guarantee holds.
 
 `yg check --approve` is the only command that writes verdicts. It fills every unverified pair: deterministic checks first (they run locally, for free), then the LLM pairs. When a pair gets a real verdict — pass or refusal — the entry lands in the lock: the deterministic verdicts in the gitignored cache, the LLM verdicts in the committed `yg-lock.nondeterministic.json`. Then it reports, just like a plain check.
 

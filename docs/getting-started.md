@@ -90,13 +90,13 @@ $ yg check
 my-project — 1 nodes, 1 aspects, 0 flows
 Coverage: 1/1 source files (100%)
 
-Errors (1):
-  unverified payments / requires-audit — no valid verdict
-       This (aspect, node) pair has never been verified:
-         src/payments/
-       Verify it, then: yg check --approve
+Errors (1) in 1 group:
 
-Result: FAIL (1 error, 0 warnings)
+  unverified — requires-audit (1 node)
+    payments  [src/payments/]
+    This pair has never been verified. Next: yg check --approve
+
+yg check: FAIL  Errors: 1  Warnings: 0
 ```
 
 Check detected that the `requires-audit` rule on `src/payments/` has no recorded
@@ -202,8 +202,11 @@ productive. Learn the rest the day you actually need it.
 - **Node** — maps a set of source files (a `yg-node.yaml` with a `mapping:`).
 - **Aspect** — one enforceable rule (`content.md` for the LLM reviewer, or
   `check.mjs` for a deterministic one).
-- **`yg check`** — the gate. Hash-only, no LLM, no keys, runs in CI. Red
-  until every changed pair is re-verified.
+- **`yg check`** — the gate. By default hash-only, no LLM, no keys, runs in CI.
+  Red until every changed pair is re-verified. (If `auto_approve` is set in
+  `yg-config.yaml`, bare `yg check` may fill pairs automatically — see
+  [Configuration](/configuration#auto-approve-config). CI scripts always use
+  explicit flags and are unaffected.)
 - **`yg check --approve`** — verifies the unverified pairs (deterministic for
   free, then LLM) and records the verdicts in the lock so check goes green.
 
