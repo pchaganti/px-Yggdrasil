@@ -1,8 +1,9 @@
 import { Parser, Language, Tree } from 'web-tree-sitter';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
 import { getGrammarForExtension } from '../core/graph/language-registry.js';
 
 const _require = createRequire(import.meta.url);
@@ -35,6 +36,27 @@ const GRAMMAR_DIRS = [
 let initPromise: Promise<void> | null = null;
 const langCache = new Map<string, Promise<Language>>();
 const parserCache = new Map<string, Parser>();
+
+const wasmHashCache = new Map<string, string>();
+
+/**
+ * Returns the SHA-256 hex digest of the resolved .wasm bytes for the grammar
+ * associated with `extension`, memoized per extension. Computable without
+ * triggering a parse or Language.load — safe to call on a cold cache-hit path.
+ * Throws (same as resolveWasm) if no grammar exists for the extension.
+ */
+export function grammarWasmHash(extension: string): string {
+  const cached = wasmHashCache.get(extension);
+  if (cached !== undefined) return cached;
+  const info = getGrammarForExtension(extension);
+  if (!info) {
+    throw new Error(`no grammar for extension '${extension}'`);
+  }
+  const wasmPath = resolveWasm(info.wasmFile, info.wasmPackage);
+  const hash = createHash('sha256').update(readFileSync(wasmPath)).digest('hex');
+  wasmHashCache.set(extension, hash);
+  return hash;
+}
 
 function init(): Promise<void> {
   if (initPromise === null) {
