@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.4.0] - 2026-06-27
+
 ### Added
 
 - Architecture relations now support a per-type `default: allow | deny` policy, a `['*']` wildcard target (any type), and a meaningful empty list — enabling pure sinks and per-relation-type lock-downs in `yg-architecture.yaml`.
