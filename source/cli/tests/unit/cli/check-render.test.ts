@@ -488,6 +488,78 @@ describe('check render — renderGroup', () => {
   });
 });
 
+// ── Fix 4: divergent per-node `next`/`why` renders per-member ──────────────────
+describe('check render — Fix 4: divergent per-node fix surfaces EACH node\'s command', () => {
+  it('a log-entry-missing group of 2 nodes renders BOTH yg log add commands (not just the first)', () => {
+    const issues: CheckIssue[] = [
+      {
+        severity: 'error', code: 'log-entry-missing', rule: 'log-entry-missing', nodePath: 'billing/charge',
+        messageData: {
+          what: "No fresh log entry for node 'billing/charge' — its source changed but no justification entry exists.",
+          why: "Node type 'command' has log_required: true.",
+          next: "yg log add --node billing/charge --reason '<justification>', then re-run: yg check --approve",
+        },
+      } as CheckIssue,
+      {
+        severity: 'error', code: 'log-entry-missing', rule: 'log-entry-missing', nodePath: 'orders/handler',
+        messageData: {
+          what: "No fresh log entry for node 'orders/handler' — its source changed but no justification entry exists.",
+          why: "Node type 'command' has log_required: true.",
+          next: "yg log add --node orders/handler --reason '<justification>', then re-run: yg check --approve",
+        },
+      } as CheckIssue,
+    ];
+    const out = stripAnsi(formatOutput(baseResult(issues)));
+    // BOTH nodes' own commands must appear — not just the alphabetically-first one.
+    expect(out).toContain('yg log add --node billing/charge');
+    expect(out).toContain('yg log add --node orders/handler');
+    // The misleading SINGLE shared "Fix:" line naming only the first node must NOT appear.
+    // (A single shared Fix line would render exactly one of the two commands.)
+    const sharedFixLines = out.split('\n').filter((l) => /^ {12}Fix: yg log add/.test(l));
+    expect(sharedFixLines.length).toBe(0);
+  });
+
+  it('a relation-target-forbidden group with divergent why surfaces BOTH why variants', () => {
+    const issues: CheckIssue[] = [
+      {
+        severity: 'error', code: 'relation-target-forbidden', rule: 'relation-target-forbidden', nodePath: 'a/x',
+        messageData: { what: 'forbidden on a/x', why: "Allowed targets for 'uses' from type 'svc': [repo]", next: "Change the relation type for a/x." },
+      } as CheckIssue,
+      {
+        severity: 'error', code: 'relation-target-forbidden', rule: 'relation-target-forbidden', nodePath: 'b/y',
+        messageData: { what: 'forbidden on b/y', why: "Type 'svc' denies relation 'uses' by default.", next: "Open 'uses' for type 'svc' (for b/y)." },
+      } as CheckIssue,
+    ];
+    const out = stripAnsi(formatOutput(baseResult(issues)));
+    // Both distinct why variants reach the agent.
+    expect(out).toContain("Allowed targets for 'uses' from type 'svc'");
+    expect(out).toContain("Type 'svc' denies relation 'uses' by default");
+    // Both distinct next commands reach the agent.
+    expect(out).toContain('Change the relation type for a/x.');
+    expect(out).toContain("Open 'uses' for type 'svc' (for b/y).");
+  });
+
+  it('a SHARED-fix group (LLM refusal, identical next) still collapses to ONE Fix line', () => {
+    const issues: CheckIssue[] = ['a', 'b', 'c'].map((n) => ({
+      severity: 'error',
+      code: 'aspect-violation-enforced',
+      rule: 'aspect-violation-enforced',
+      aspectId: 'audit-logging',
+      pairKind: 'llm',
+      nodePath: n,
+      messageData: llmRefusedMessage({ aspectId: 'audit-logging', unitKey: n, reason: `reason-${n}` }),
+    } as CheckIssue));
+    const out = stripAnsi(formatOutput(baseResult(issues)));
+    // The shared three-exits Fix block renders exactly once (collapsed).
+    const fixLineCount = out.split('\n').filter((l) => /^ {12}Fix: /.test(l)).length;
+    expect(fixLineCount).toBe(1);
+    // Per-member reason still shows each node's distinct reason (FULL_WHAT path).
+    expect(out).toContain('reason-a');
+    expect(out).toContain('reason-b');
+    expect(out).toContain('reason-c');
+  });
+});
+
 describe('check render — grouped full view (task 1.3)', () => {
   it('header counts reconcile: 2 unverified(x) + 1 refused(y) → Errors (3) in 2 groups:', () => {
     const issues: CheckIssue[] = [
@@ -700,6 +772,30 @@ describe('check render — --aspect drill-in view (task 2.2)', () => {
     // The actual exit code (derived from full result.issues) is tested at the CLI action layer.
     const out = formatOutput(baseResult(aspectDrillIssues()), { kind: 'aspect', id: 'x' });
     expect(out.length).toBeGreaterThan(0);
+  });
+
+  // Fix 6(b): an aspect with ZERO issues this run, while OTHER errors exist, must
+  // still surface a global Next — the early return on the empty drill-in used to
+  // dead-end the agent with no next step.
+  it('aspect with zero matching issues falls through to a global Next when other errors exist', () => {
+    // aspectDrillIssues() has errors on aspects x and y (none on 'z'). The global
+    // result has a suggestedNext (baseResult sets it because there ARE errors).
+    const out = stripAnsi(formatOutput(baseResult(aspectDrillIssues()), { kind: 'aspect', id: 'z' }));
+    // Header still names the requested aspect and shows 0 of N.
+    expect(out).toContain("aspect 'z'");
+    expect(out).toContain('0 of 3 errors');
+    // No drill-in "Next (this group):" line (there are no matching issues)…
+    expect(out).not.toMatch(/Next \(this group\):/);
+    // …but a GLOBAL Next must still point the agent somewhere (no dead-end).
+    expect(out).toMatch(/\nNext: /);
+  });
+
+  it('aspect with matching issues keeps the "Next (this group):" form (no global Next)', () => {
+    const out = stripAnsi(formatOutput(baseResult(aspectDrillIssues()), { kind: 'aspect', id: 'x' }));
+    // Matching issues → the drill-in group-scoped Next is used.
+    expect(out).toMatch(/Next \(this group\): /);
+    // …and NOT the global Next form (avoid double-messaging).
+    expect(out).not.toMatch(/\nNext: /);
   });
 });
 

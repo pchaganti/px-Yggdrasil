@@ -11,6 +11,23 @@ export interface IssueGroup {
   sharedWhy: string;
   sharedNext: string;
   perMemberReason: boolean;
+  /**
+   * True when the group's members carry ≥2 DISTINCT `next` values — the fix is
+   * NODE-SPECIFIC (e.g. `log-entry-missing` → `yg log add --node X`,
+   * `relation-undeclared-dependency` / architecture errors whose `next` names the
+   * node). A single shared `Fix:` line (the alphabetically-first member's) would
+   * mislead the agent: it fixes one node, re-runs, stays red. When set, the
+   * renderer surfaces EACH member's own `next` beside its bullet instead.
+   * False when every member shares one `next` (LLM refusals, unverified, etc.) —
+   * those keep the collapsed single `Fix:` block.
+   */
+  divergentNext: boolean;
+  /**
+   * True when the group's members carry ≥2 DISTINCT `why` values (e.g.
+   * `relation-target-forbidden` — allow-list-excludes vs default-deny). When set,
+   * the renderer surfaces each member's own `why` rather than only the first's.
+   */
+  divergentWhy: boolean;
   members: CheckIssue[];
 }
 
@@ -116,6 +133,11 @@ export function groupIssues(issues: CheckIssue[]): IssueGroup[] {
     // For code-only groups the aspectId spans multiple aspects — set to
     // undefined so the group header does NOT print `aspect '<id>'`.
     const isCodeOnly = CODE_ONLY_GROUP_CODES.has(rep.code);
+    // Detect whether the per-node fix (next) and/or rationale (why) diverge across
+    // members. ≥2 distinct values means the shared single block (the first
+    // member's) would misrepresent the others — render per-member instead.
+    const distinctNext = new Set(sorted.map((m) => m.messageData.next ?? ''));
+    const distinctWhy = new Set(sorted.map((m) => m.messageData.why ?? ''));
     groups.push({
       code: rep.code,
       aspectId: isCodeOnly ? undefined : rep.aspectId,
@@ -126,6 +148,8 @@ export function groupIssues(issues: CheckIssue[]): IssueGroup[] {
       sharedWhy: rep.messageData.why,
       sharedNext: rep.messageData.next,
       perMemberReason: FULL_WHAT_CODES.has(rep.code),
+      divergentNext: distinctNext.size > 1,
+      divergentWhy: distinctWhy.size > 1,
       members: sorted,
     });
   }

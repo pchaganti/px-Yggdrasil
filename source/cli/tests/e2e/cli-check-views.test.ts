@@ -351,4 +351,35 @@ describe.skipIf(!distExists)('CLI E2E — yg check Phase-2 view flags', () => {
     expect(err).toContain('--details cannot be combined with');
   });
 
+  // ── Fix 7: read-only triage views cannot combine with the fill flag ──────────
+  it.sequential('--summary --only-deterministic: rejected (read-only view + fill flag), exit 1', () => {
+    const { stderr, status } = run(['check', '--summary', '--only-deterministic'], dir);
+    const err = strip(stderr);
+    expect(status).toBe(1);
+    expect(err).toContain('--summary cannot be combined with --only-deterministic');
+    // Guided next surfaces both intents.
+    expect(err).toContain('yg check --summary');
+    expect(err).toContain('yg check --approve --only-deterministic');
+  });
+
+  it.sequential('--top --only-deterministic: rejected (read-only view + fill flag), exit 1', () => {
+    const { stderr, status } = run(['check', '--top', '--only-deterministic'], dir);
+    const err = strip(stderr);
+    expect(status).toBe(1);
+    expect(err).toContain('--top cannot be combined with --only-deterministic');
+  });
+
+  // ── Fix 6(a): unknown aspect id is a clear error, not a silent 0-count FAIL ───
+  it.sequential('--aspect <unknown-id>: clear "unknown aspect" error naming the id, exit 1', () => {
+    const { stdout, stderr, status } = run(['check', '--aspect', 'totally-bogus-aspect'], dir);
+    const err = strip(stderr);
+    const out = strip(stdout);
+    expect(status).toBe(1);
+    // Error names the unknown id and says it is unknown.
+    expect(err).toContain("Unknown aspect 'totally-bogus-aspect'");
+    // It must NOT render the misleading drill-in "0 of N errors" FAIL.
+    expect(out).not.toContain('0 of');
+    expect(out).not.toContain("aspect 'totally-bogus-aspect'");
+  });
+
 });

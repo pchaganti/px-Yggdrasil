@@ -97,6 +97,31 @@ describe.skipIf(!distExists)('CLI E2E — yg check --quiet flag', () => {
     }
   });
 
+  it('(4) --approve --dry-run --quiet: the budget preview STILL prints on STDOUT (--dry-run wins over --quiet)', () => {
+    const dir = deterministicFixture('quiet-dryrun');
+    try {
+      // Cold lock: --dry-run previews the budget without writing or calling the
+      // reviewer. --quiet must NOT swallow it — the budget is the deliverable.
+      const result = run(['check', '--approve', '--dry-run', '--quiet'], dir);
+
+      // The budget breakdown reaches STDOUT (the dry-run path's deliverable).
+      // The dry-run-specific UPPER BOUND budget line is emitted via the `write`
+      // sink — which --quiet must NOT swallow when --dry-run is also set.
+      expect(result.stdout).not.toBe('');
+      expect(result.stdout).toContain('reviewer call(s) is an UPPER BOUND');
+      // The per-pair budget breakdown also lands on stdout.
+      expect(result.stdout).toMatch(/Filling \d+ unverified pairs/);
+
+      // --quiet still keeps stderr free of progress.
+      expect(result.stderr).toBe('');
+
+      // --dry-run always exits 0 (it is a cost preview, never a verdict).
+      expect(result.status).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('(3) plain `yg check` with --quiet: no-op (no progress anyway on read-only), exit 0 on verified', () => {
     const dir = deterministicFixture('quiet-plain-check');
     try {

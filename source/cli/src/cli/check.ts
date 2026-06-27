@@ -70,7 +70,7 @@ export function registerCheckCommand(program: Command): void {
     .option('--summary', 'Read-only triage: print per-node counts only (no per-issue blocks). Header counts + exit code stay TRUE.')
     .option('--details', 'Read-only: ungrouped, one block per issue (full per-pair detail). Opposite of the default grouped view.')
     .option('--aspect <id>', "Read-only: drill into one rule — show only that aspect's issues, grouped, with the full per-node detail.")
-    .option('-q, --quiet', 'Suppress --approve progress on stderr (only the final report + exit code). No-op with a plain read or --dry-run.')
+    .option('-q, --quiet', 'Suppress --approve progress on stderr (only the final report + exit code). No-op with a plain read; with --dry-run the budget preview still prints (--dry-run wins).')
     .action(async (opts: { approve?: boolean; onlyDeterministic?: boolean; dryRun?: boolean; top?: boolean | string; summary?: boolean; details?: boolean; aspect?: string; quiet?: boolean }) => {
       try {
         const cwd = process.cwd();
@@ -98,6 +98,24 @@ export function registerCheckCommand(program: Command): void {
             what: `${wantsTop ? '--top' : '--summary'} cannot be combined with --approve.`,
             why: '--top and --summary triage the READ-ONLY check wall (they narrow the output of plain `yg check`, which writes nothing). --approve is the writer path; its own free cost preview is --dry-run. Mixing a read-only triage view with the writer is contradictory.',
             next: `Run: yg check ${wantsTop ? '--top <n>' : '--summary'} (read-only triage), or yg check --approve --dry-run (preview the writer's cost).`,
+          })}`) + '\n');
+          await exitAfterFlush(1);
+          return;
+        }
+        // --only-deterministic is a FILL flag (it implies --approve). The
+        // read-only triage views (--top / --summary / --details / --aspect) would
+        // each be force-read-only by the isTriageView override below, SILENTLY
+        // dropping the requested deterministic fill — the user would believe they
+        // filled the deterministic pairs when they did not. Reject the
+        // contradiction outright rather than running a read-only check. (The
+        // --no-approve + --only-deterministic mutex below covers the explicit
+        // read-only flag; this covers the implicit read-only of a triage view.)
+        if (opts.onlyDeterministic && (wantsTop || opts.summary || opts.details || opts.aspect !== undefined)) {
+          const viewFlag = wantsTop ? '--top' : opts.summary ? '--summary' : opts.details ? '--details' : '--aspect';
+          process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
+            what: `${viewFlag} cannot be combined with --only-deterministic.`,
+            why: `${viewFlag} is a READ-ONLY view of the plain \`yg check\` result (it narrows output and writes nothing). --only-deterministic is a FILL flag (it implies --approve, writing the deterministic verdict cache). Mixing a read-only view with the writer would silently drop the fill — the deterministic pairs would NOT be filled.`,
+            next: `Run: yg check ${viewFlag}${opts.aspect !== undefined ? ' <id>' : wantsTop ? ' <n>' : ''} (read-only view), or yg check --approve --only-deterministic (deterministic fill).`,
           })}`) + '\n');
           await exitAfterFlush(1);
           return;
@@ -146,6 +164,28 @@ export function registerCheckCommand(program: Command): void {
               what: `--aspect cannot be combined with ${conflicting}.`,
               why: '--aspect, --top, --summary, and --details are all mutually exclusive read-only views of the same `yg check` result. Asking for more than one at once is ambiguous; pick one.',
               next: `Run: yg check --aspect <id> (drill-in view), or yg check ${conflicting} (that view alone).`,
+            })}`) + '\n');
+            await exitAfterFlush(1);
+            return;
+          }
+          // Validate the drill-in target against the REAL aspect ids in the graph.
+          // An unknown / mistyped id would otherwise render a misleading "0 of N
+          // errors" FAIL that looks like the rule merely has no issues this run —
+          // sending the agent chasing a nonexistent aspect. Name the unknown id
+          // explicitly and (when the set is small enough) list the real ones.
+          const knownAspectIds = (graph.aspects ?? []).map((a) => a.id);
+          if (!knownAspectIds.includes(opts.aspect)) {
+            const idList = knownAspectIds.slice().sort((a, b) => a.localeCompare(b, 'en'));
+            const known =
+              idList.length === 0
+                ? 'The graph defines no aspects.'
+                : idList.length <= 30
+                  ? `Known aspect ids: ${idList.join(', ')}.`
+                  : `The graph defines ${idList.length} aspects.`;
+            process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
+              what: `Unknown aspect '${opts.aspect}'.`,
+              why: `--aspect drills into ONE rule by its aspect id, but '${opts.aspect}' is not an aspect defined in this graph — so the filter would match nothing and render a misleading "0 of N errors" view. ${known}`,
+              next: 'Run: yg aspects (list every aspect id), then yg check --aspect <id> with a real id; or yg check (full wall).',
             })}`) + '\n');
             await exitAfterFlush(1);
             return;
@@ -230,20 +270,24 @@ export function registerCheckCommand(program: Command): void {
             // Exception: --dry-run's budget breakdown is itself the command's
             // deliverable output (not progress), so its write sink stays on
             // STDOUT. Real fills (dryRun=false) route write to STDERR.
-            // --quiet suppresses the progress stream entirely (write: no-op).
-            // The emitIssue sink (errors/warnings) is NOT affected by --quiet.
-            // --quiet is meaningful only with a fill; with a plain read or
-            // --dry-run it is a harmless no-op (no progress to suppress).
+            // --quiet suppresses the progress stream (write → no-op) for a REAL
+            // fill only. --dry-run WINS over --quiet: the budget preview is the
+            // command's primary deliverable, never progress, so it always reaches
+            // STDOUT even when --quiet is also set — otherwise `--approve
+            // --dry-run --quiet` would silently drop the entire budget. The
+            // emitIssue sink (errors/warnings) is NOT affected by --quiet.
+            // --quiet is meaningful only with a REAL fill; with a plain read it
+            // is a harmless no-op (no progress to suppress).
             const isDryRun = opts.dryRun ?? false;
             const isQuiet = opts.quiet ?? false;
             const fill = await runFill(graph, {
               gitTrackedFiles: gitFiles,
               onlyDeterministic: mode.onlyDeterministic,
               dryRun: isDryRun,
-              write: isQuiet
-                ? () => {}
-                : isDryRun
-                  ? (s: string) => { process.stdout.write(s); }
+              write: isDryRun
+                ? (s: string) => { process.stdout.write(s); }
+                : isQuiet
+                  ? () => {}
                   : (s: string) => { process.stderr.write(s); },
               isTTY: !isQuiet && (process.stderr.isTTY ?? false),
               emitIssue: (m) => { process.stderr.write(buildIssueMessage(m) + '\n'); },
@@ -429,9 +473,14 @@ export function formatOutput(result: CheckResult, view: CheckView = { kind: 'ful
       const nextCmd = firstFiltered.messageData.next.split('\n')[0];
       sections.push('');
       sections.push(`Next (this group): ${nextCmd}`);
+      sections.push('');
+      return sections.join('\n');
     }
-    sections.push('');
-    return sections.join('\n');
+    // Empty filtered set (this aspect has zero issues THIS run): do NOT dead-end.
+    // Fall through to the global `result.suggestedNext` block below so the agent
+    // still gets a next step pointing at the rest of the wall (e.g. when other
+    // errors remain). With no global suggestedNext (a clean run) nothing prints —
+    // self-evidently done. The aspect-scoped header (0 of N) is already in place.
   } else if (view.kind === 'details') {
     // --details: ungrouped, one block per issue, grouped only by severity into
     // Errors(N): / Warnings(N): sections. Coverage issues still render via
@@ -864,20 +913,47 @@ function glossLabel(label: string): string { return LABEL_GLOSS[label] ?? label;
 /**
  * Render a single IssueGroup as a unified block:
  *   <glossLabel(label)>  <P> pairs  <M> nodes[  aspect '<id>']
- *   <sharedWhy>
- *   Fix: <sharedNext> (single-line) or Fix: + indented continuation lines (multi-line)
+ *   <sharedWhy>                         (only when `why` is shared across members)
+ *   Fix: <sharedNext>                   (only when `next` is shared across members)
  *   - <node> (one per member; perMemberReason: includes first detail line from messageData.what)
+ *       Why: <member why>              (only when group.divergentWhy)
+ *       Fix: <member next>             (only when group.divergentNext)
  *   ... and K more (yg check --aspect <id>)  [TTY-only, when members > CAP_NODES]
+ *
+ * Divergence handling (Fix 4): when the members carry node-specific `next`
+ * (and/or `why`) — `log-entry-missing`, `relation-undeclared-dependency`,
+ * architecture errors — a SINGLE shared `Fix:`/`Why:` would name only the
+ * alphabetically-first node and mislead the agent. In that case the shared line
+ * is suppressed and each member's own command/rationale is rendered beneath its
+ * bullet. Shared-fix groups (LLM refusals, unverified, …) keep the collapsed
+ * single block.
  */
 export function renderGroup(group: IssueGroup, lines: string[], opts: { isTTY: boolean }): void {
   const aspectSeg = group.aspectId ? `  aspect '${group.aspectId}'` : '';
   lines.push(`  ${glossLabel(group.label)}  ${group.pairCount} pairs  ${group.nodeCount} nodes${aspectSeg}`);
-  if (group.sharedWhy) lines.push(`${BLOCK_INDENT}${group.sharedWhy}`);
-  if (group.sharedNext) {
+  // Shared why/fix render once ABOVE the member list — but only when they are
+  // genuinely shared. A divergent why/next belongs per-member (below), so the
+  // shared line is suppressed here to avoid naming only the first node.
+  if (group.sharedWhy && !group.divergentWhy) lines.push(`${BLOCK_INDENT}${group.sharedWhy}`);
+  if (group.sharedNext && !group.divergentNext) {
     const nextLines = group.sharedNext.split('\n');
     lines.push(`${BLOCK_INDENT}Fix: ${nextLines[0]}`);
     for (const extra of nextLines.slice(1)) lines.push(`${BLOCK_INDENT}${extra}`);
   }
+  // Per-member why/fix continuation, emitted under each bullet when divergent.
+  // Indented one level (two spaces) deeper than the bullet so it reads as a
+  // child of that node, matching the perMemberReason `what`-tail indentation.
+  const MEMBER_DETAIL_INDENT = `${BLOCK_INDENT}  `;
+  const emitDivergentDetail = (m: CheckIssue): void => {
+    if (group.divergentWhy && m.messageData.why) {
+      lines.push(`${MEMBER_DETAIL_INDENT}Why: ${m.messageData.why.split('\n')[0]}`);
+    }
+    if (group.divergentNext && m.messageData.next) {
+      const nextLines = m.messageData.next.split('\n');
+      lines.push(`${MEMBER_DETAIL_INDENT}Fix: ${nextLines[0]}`);
+      for (const extra of nextLines.slice(1)) lines.push(`${MEMBER_DETAIL_INDENT}${extra}`);
+    }
+  };
   const members = group.members;
   const truncate = opts.isTTY && members.length > CAP_NODES;
   const shown = truncate ? members.slice(0, CAP_NODES) : members;
@@ -898,6 +974,9 @@ export function renderGroup(group: IssueGroup, lines: string[], opts: { isTTY: b
           lines.push(`${BLOCK_INDENT}  ${extra}`);   // continuation, indented one level under the node bullet
         }
       }
+      // Divergent per-node why/fix (e.g. relation-undeclared-dependency, whose
+      // `what` is the violation list AND whose `next` names the node's stanza).
+      emitDivergentDetail(m);
     } else {
       // For code-only groups (e.g. `unverified`) group.aspectId is undefined
       // because the group spans multiple aspects. Annotate each member line
@@ -918,6 +997,10 @@ export function renderGroup(group: IssueGroup, lines: string[], opts: { isTTY: b
           ? `  ${m.messageData.what.split('\n')[0]}`
           : '';
       lines.push(`${BLOCK_INDENT}- ${node}${memberAspectSeg || whatSeg}`);
+      // Divergent per-node why/fix (e.g. log-entry-missing → `yg log add --node X`,
+      // relation-target-forbidden → allow-list vs default-deny). Without this the
+      // group would render only the first member's command/rationale.
+      emitDivergentDetail(m);
     }
   }
   if (truncate) {

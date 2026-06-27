@@ -120,9 +120,18 @@ Exit code 0 if fully clean, 1 if any errors found.
 
 #### `--top [N]`, `--summary`, `--details`, `--aspect <id>`, and `--quiet` — output control
 
-The default output groups issues by rule. Several flags adjust the view; they
-apply only to the plain read (not `--approve`, which has its own `--dry-run` cost
-preview); `--top`, `--summary`, `--details`, and `--aspect` are mutually exclusive.
+The default output groups issues by rule. When a rule's fix is **node-specific**
+(the `Next:` command names the node — e.g. a per-node log entry, or declaring a
+dependency in one node's file), the group prints **each** affected node's own fix
+beneath its line, instead of a single shared `Fix:` that would name only the first
+node. Rules with a genuinely shared fix (reviewer refusals, unverified pairs)
+still collapse to one `Fix:` line.
+
+Several flags adjust the view; they are all **read-only** views of the plain read
+and apply only to it. None combines with a fill flag — neither `--approve` nor
+`--only-deterministic` (the fill path has its own `--dry-run` cost preview).
+`--top`, `--summary`, `--details`, and `--aspect` are mutually exclusive with
+each other.
 
 ```bash
 yg check --top 5      # only the 5 highest-priority rule groups
@@ -142,8 +151,14 @@ relation, structural) so the per-node totals reconcile with the header.
 `--details` expands the output to the old per-pair view (useful when you need to
 see every individual file in a group). `--aspect <id>` restricts output to pairs
 of a single aspect, useful for drilling into one rule after seeing it in the
-grouped view. `--quiet` / `-q` silences the `--approve` fill-progress on stderr,
-leaving only the final report on stdout.
+grouped view. An **unknown / mistyped** `--aspect` id is a guided error naming
+the id (run `yg aspects` for the real list) rather than a misleading `0 of N`
+view; when a valid aspect simply has no issues this run while other errors remain,
+the drill-in still surfaces the global `Next:` so you are never left at a dead end.
+`--quiet` / `-q` silences the `--approve` fill-progress on stderr, leaving only the
+final report on stdout. With `--dry-run` the budget preview is the command's
+deliverable, so `--dry-run` wins over `--quiet` — the budget still prints on
+stdout; `--quiet` only suppresses the non-dry-run progress.
 
 **Precedence:** explicit CLI flags (`--approve`, `--no-approve`,
 `--only-deterministic`) override `auto_approve` in `yg-config.yaml`. The config
