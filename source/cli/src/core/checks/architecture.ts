@@ -319,21 +319,29 @@ export function checkArchitectureRelations(graph: Graph): ValidationIssue[] {
 
   for (const [nodePath, node] of graph.nodes) {
     const typeConfig = graph.architecture.node_types[node.meta.type];
-    if (!typeConfig?.relations || !node.meta.relations || node.meta.relations.length === 0) {
+    if (!typeConfig || !node.meta.relations || node.meta.relations.length === 0) {
+      continue;
+    }
+
+    const lists = typeConfig.relations;
+    const def = typeConfig.relationDefault ?? 'allow';
+
+    // Fast path: nothing constrains this type's relations.
+    if ((!lists || Object.keys(lists).length === 0) && def === 'allow') {
       continue;
     }
 
     for (const rel of node.meta.relations) {
-      const allowedTypes = typeConfig.relations[rel.type];
-      if (!allowedTypes) continue; // Unconstrained relation type
-
+      const allowed = lists?.[rel.type];
       const target = graph.nodes.get(rel.target);
       if (!target) continue; // relation-target-missing catches this
 
-      if (!allowedTypes.includes(target.meta.type)) {
+      if (allowed !== undefined) {
+        // Explicit list (including []). '*' matches any target type.
+        if (allowed.includes('*') || allowed.includes(target.meta.type)) continue;
         const msgData: IssueMessage = {
           what: `Relation '${rel.type}' from '${nodePath}' to '${rel.target}' (type '${target.meta.type}') is not allowed by the architecture.`,
-          why: `Allowed targets for '${rel.type}' from type '${node.meta.type}': [${allowedTypes.join(', ')}]`,
+          why: `Allowed targets for '${rel.type}' from type '${node.meta.type}': [${allowed.join(', ')}]`,
           next: `Either change the relation type, change the target node's type, or update yg-architecture.yaml to allow this relation.`,
         };
         issues.push({
@@ -344,7 +352,22 @@ export function checkArchitectureRelations(graph: Graph): ValidationIssue[] {
           ...issueMsg(msgData),
           messageData: msgData,
         });
+      } else if (def === 'deny') {
+        const msgData: IssueMessage = {
+          what: `Relation '${rel.type}' from '${nodePath}' to '${rel.target}' (type '${target.meta.type}') is not allowed by the architecture.`,
+          why: `Type '${node.meta.type}' denies relation '${rel.type}' by default (relations.default: deny, and no allow-list entry permits this target).`,
+          next: `Open '${rel.type}' for type '${node.meta.type}' in yg-architecture.yaml (list target types, or ['*'] for any), change a node's type, or remove the relation.`,
+        };
+        issues.push({
+          severity: 'error',
+          code: 'relation-target-forbidden',
+          rule: 'invalid-relation-target',
+          nodePath,
+          ...issueMsg(msgData),
+          messageData: msgData,
+        });
       }
+      // else: unlisted + default allow ⇒ permitted
     }
   }
 

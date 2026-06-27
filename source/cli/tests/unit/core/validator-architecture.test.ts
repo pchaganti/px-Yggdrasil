@@ -1,10 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { writeFile, mkdir, rm } from 'node:fs/promises';
+import { writeFile, mkdir, rm, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { validate } from '../../../src/core/validator.js';
 import { loadGraph } from '../../../src/core/graph-loader.js';
 import type { Graph, GraphNode } from '../../../src/model/graph.js';
+import { parseArchitecture } from '../../../src/io/architecture-parser.js';
+import { checkArchitectureRelations } from '../../../src/core/checks/architecture.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_PROJECT = path.join(__dirname, '../../fixtures/sample-project');
@@ -581,5 +584,87 @@ describe('checkStrictOverlapConflict', () => {
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('checkArchitectureRelations — default policy, empty list, wildcard', () => {
+  const tmps: string[] = [];
+  afterEach(async () => {
+    for (const d of tmps.splice(0)) await rm(d, { recursive: true, force: true });
+  });
+  async function archFrom(yaml: string) {
+    const dir = await mkdtemp(path.join(tmpdir(), 'yg-arch-'));
+    tmps.push(dir);
+    const file = path.join(dir, 'yg-architecture.yaml');
+    await writeFile(file, yaml, 'utf-8');
+    return parseArchitecture(file);
+  }
+  // node `from` (type S) declares one relation `relType` → node `to` (type T)
+  function graphWith(architecture: any, S: string, relType: string, T: string) {
+    const nodes = new Map<string, any>([
+      ['from', { path: 'from', meta: { type: S, relations: [{ target: 'to', type: relType }] } }],
+      ['to', { path: 'to', meta: { type: T } }],
+    ]);
+    return { config: {}, architecture, nodes, aspects: [], flows: [], rootPath: '/x' } as any;
+  }
+
+  it('default: deny rejects an unlisted relation type to any target', async () => {
+    const arch = await archFrom(`
+node_types:
+  sink: { description: "s", relations: { default: deny } }
+  other: { description: "o" }
+`);
+    const issues = checkArchitectureRelations(graphWith(arch, 'sink', 'uses', 'other'));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].code).toBe('relation-target-forbidden');
+    expect(issues[0].messageData?.why).toMatch(/denies relation 'uses' by default/);
+  });
+
+  it('default: deny + listens: ["*"] allows listens to any target', async () => {
+    const arch = await archFrom(`
+node_types:
+  sink: { description: "s", relations: { default: deny, listens: ['*'] } }
+  other: { description: "o" }
+`);
+    expect(checkArchitectureRelations(graphWith(arch, 'sink', 'listens', 'other'))).toHaveLength(0);
+  });
+
+  it('explicit empty list [] denies that relation type', async () => {
+    const arch = await archFrom(`
+node_types:
+  svc: { description: "s", relations: { uses: [] } }
+  other: { description: "o" }
+`);
+    const issues = checkArchitectureRelations(graphWith(arch, 'svc', 'uses', 'other'));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].messageData?.why).toMatch(/Allowed targets for 'uses'/);
+  });
+
+  it('wildcard ["*"] in an explicit list allows any target', async () => {
+    const arch = await archFrom(`
+node_types:
+  svc: { description: "s", relations: { uses: ['*'] } }
+  other: { description: "o" }
+`);
+    expect(checkArchitectureRelations(graphWith(arch, 'svc', 'uses', 'other'))).toHaveLength(0);
+  });
+
+  it('omitted default keeps unlisted relation types unconstrained (regression)', async () => {
+    const arch = await archFrom(`
+node_types:
+  svc: { description: "s", relations: { uses: [domain] } }
+  other: { description: "o" }
+`);
+    // `calls` is unlisted, default omitted ⇒ allow
+    expect(checkArchitectureRelations(graphWith(arch, 'svc', 'calls', 'other'))).toHaveLength(0);
+  });
+
+  it('listed non-empty list still rejects a forbidden target (regression)', async () => {
+    const arch = await archFrom(`
+node_types:
+  svc: { description: "s", relations: { uses: [domain] } }
+  other: { description: "o" }
+`);
+    expect(checkArchitectureRelations(graphWith(arch, 'svc', 'uses', 'other'))).toHaveLength(1);
   });
 });
