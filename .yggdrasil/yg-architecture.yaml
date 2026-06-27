@@ -11,6 +11,8 @@ node_types:
   project:
     description: "Top-level grouping — root of the hierarchy. One per repository."
     parents: []
+    relations:
+      default: deny
 
   module:
     description: "Domain grouping — organizes children under shared domain responsibility."
@@ -31,6 +33,8 @@ node_types:
     parents: [module]
     relations:
       calls: [command]
+      uses: [command]
+      default: deny
 
   command:
     description: "CLI command handler — registers a Commander subcommand and formats output. Every file must export register<X>Command."
@@ -54,6 +58,7 @@ node_types:
     relations:
       calls: [engine, parser-adapter, persistence-adapter, llm-shared, llm-subprocess-base, formatter, utility, ast-adapter, structure-adapter, template, command, command-support, knowledge-doc, schema-doc, migration]
       uses: [types, test-suite]
+      default: deny
 
   command-support:
     description: "Shared command-layer support — helpers used by command handlers but registering no Commander subcommand (e.g. graph-load-or-abort, the unexpected-error funnel). Lives in cli/ so it may legally import both the engine (loadGraph) and formatters (buildIssueMessage) that command handlers need, without each handler duplicating the logic. Distinguished from `command` by the absence of a register<X>Command export."
@@ -73,6 +78,7 @@ node_types:
     relations:
       calls: [engine, parser-adapter, persistence-adapter, formatter, utility]
       uses: [types]
+      default: deny
 
   engine:
     description: "Core domain logic — algorithms, validation, assembly, drift detection. No I/O, no console output, no LLM calls."
@@ -95,6 +101,7 @@ node_types:
     relations:
       calls: [engine, parser-adapter, persistence-adapter, llm-shared, utility, formatter, relations-adapter, structure-adapter]
       uses: [types]
+      default: deny
 
   migration:
     description: "Schema migration — upgrades a .yggdrasil graph from one version to the next. Named to-X.Y.Z.ts."
@@ -112,6 +119,7 @@ node_types:
     relations:
       calls: [engine, parser-adapter, persistence-adapter, utility]
       uses: [types]
+      default: deny
 
   parser-adapter:
     description: "File-reading parser adapters: read a file from disk and return a typed model object. In-memory parsers live in engine."
@@ -133,6 +141,7 @@ node_types:
     relations:
       calls: [utility, formatter, persistence-adapter]
       uses: [types]
+      default: deny
 
   persistence-adapter:
     description: "Every filesystem-touching helper lives here: stores, caches, scanners, graph I/O, atomic writes."
@@ -162,6 +171,7 @@ node_types:
     relations:
       calls: [persistence-adapter, utility]
       uses: [types]
+      default: deny
 
   ast-adapter:
     description: "AST adapter — AST runtime, structural helpers, and report types for deterministic code analysis."
@@ -180,6 +190,7 @@ node_types:
     relations:
       calls: [utility, llm-shared, ast-adapter, engine]
       uses: [types]
+      default: deny
 
   structure-adapter:
     description: "Structure adapter — structure aspect runtime, ctx surface, allowed-reads guard."
@@ -197,6 +208,7 @@ node_types:
     relations:
       calls: [utility, ast-adapter, engine, persistence-adapter, structure-adapter]
       uses: [types]
+      default: deny
 
   relations-adapter:
     description: "Relation-conformance subsystem — per-language dependency extractors, resolvers, and the pass/verify engine. Deterministic static code analysis."
@@ -214,6 +226,7 @@ node_types:
     relations:
       calls: [engine, ast-adapter, structure-adapter, persistence-adapter, llm-shared, utility, relations-adapter]
       uses: [types]
+      default: deny
 
   llm-provider:
     description: "LLM provider — vendor-specific adapter implementing the provider interface. One file per vendor."
@@ -229,6 +242,7 @@ node_types:
     relations:
       calls: [llm-shared, llm-subprocess-base, utility]
       uses: [types]
+      default: deny
 
   llm-shared:
     description: "LLM shared infrastructure — aspect verifier, model fetcher, provider factory, API utilities, types, index. Plumbing; no uniform semantic contract."
@@ -246,6 +260,8 @@ node_types:
     relations:
       calls: [llm-provider, utility]
       uses: [types]
+      extends: [llm-shared]
+      default: deny
 
   llm-subprocess-base:
     description: "Subprocess-based LLM provider substrate — spawns child processes for CLI-native LLMs (claude-code, codex, gemini-cli). Exempt from deterministic; redaction is what matters."
@@ -260,6 +276,7 @@ node_types:
     relations:
       calls: [utility]
       uses: [types]
+      default: deny
 
   formatter:
     description: "Output formatter — pure functions that assemble human/agent-readable CLI output strings. No I/O, no business logic."
@@ -274,6 +291,7 @@ node_types:
     relations:
       calls: [utility]
       uses: [types]
+      default: deny
 
   types:
     description: "Type definitions — pure TypeScript type/interface/enum declarations. No runtime behavior, no executable statements."
@@ -283,6 +301,9 @@ node_types:
     aspects:
       - no-direct-minimatch
     parents: [module]
+    relations:
+      uses: [types]
+      default: deny
 
   utility:
     description: "Pure helper utilities — no I/O, no side effects on import, no direct filesystem access (fs-touching helpers live in persistence-adapter)."
@@ -301,6 +322,7 @@ node_types:
     relations:
       calls: [utility]
       uses: [types]
+      default: deny
 
   template:
     description: "Content template — generates agent-facing rules content and platform installation files."
@@ -316,6 +338,7 @@ node_types:
     relations:
       calls: [utility, template]
       uses: [types]
+      default: deny
 
   knowledge-doc:
     description: "Knowledge document — TypeScript module exporting a markdown string for yg knowledge read."
@@ -325,6 +348,9 @@ node_types:
     aspects:
       - no-direct-minimatch
     parents: [module]
+    relations:
+      uses: [knowledge-doc]
+      default: deny
 
   schema-doc:
     description: "Schema reference document — TypeScript module exporting a YAML schema string for yg schemas read."
@@ -334,6 +360,8 @@ node_types:
     aspects:
       - no-direct-minimatch
     parents: [module]
+    relations:
+      default: deny
 
   test-suite:
     description: "Test suite — integration and unit tests guarding system invariants. Centralized under source/cli/tests/ (plural). Includes test files (.ts) and generated artifacts such as snapshot files."
@@ -353,6 +381,8 @@ node_types:
     when:
       path: "docs/**/*.md"
     parents: [module]
+    relations:
+      default: deny
 
   build-script:
     description: "Build/repo script — shell, JS, or TS scripts for CI and local development tasks under scripts/."
@@ -363,12 +393,16 @@ node_types:
         - path: "scripts/*.mjs"
         - path: "scripts/*.ts"
     parents: [module]
+    relations:
+      default: deny
 
   example:
     description: "Example material — demo files for Yggdrasil adopters. Not enforced strict (examples may be incomplete by design)."
     when:
       path: "examples/**"
     parents: [module]
+    relations:
+      default: deny
 
   ci-config:
     description: "CI and tooling configuration — GitHub Actions workflows, TypeScript config, package manifests, test/build tooling config."
@@ -384,6 +418,8 @@ node_types:
         - path: "source/cli/vitest*.config.ts"
         - path: "source/cli/tsup.config.ts"
     parents: [project, module]
+    relations:
+      default: deny
 
   repo-config:
     description: "Repository configuration and developer tooling — root-level dotfiles, dev tool config, docs site infrastructure, and CLI package configuration files."
@@ -427,12 +463,16 @@ node_types:
         - path: "source/cli/src/**/.gitkeep"
         - path: "source/cli/tests/**/.gitkeep"
     parents: [project, module]
+    relations:
+      default: deny
 
   test-fixture:
     description: "Test fixture projects — self-contained mini-repos used as data for integration and E2E tests."
     when:
       path: "source/cli/tests/fixtures/**"
     parents: [module]
+    relations:
+      default: deny
 
   reference-catalogue:
     description: "Catalogue of structured reference docs under reference/<kind>/. Each kind declares its structure in reference/<kind>/_reference-schema.yaml; the generic deterministic aspects reference/doc-shape + reference/layout + reference/section-body enforce it. First kind: the relations name-resolution case catalogue (one .md per identification case, 1:1 with a runCase test)."
@@ -447,3 +487,4 @@ node_types:
     parents: [module, reference-catalogue]
     relations:
       uses: [test-suite]
+      default: deny
