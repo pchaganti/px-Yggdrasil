@@ -48,6 +48,12 @@ export interface DeclaredSymbol { symbolKey: string; line: number }
 export interface ParsedFile { path: string; content: string; tree: Tree; language: string }
 export interface DependencyExtractor {
   readonly languages: ReadonlySet<string>;
+  /** Monotonically increasing integer; bumped on any change to this extractor's
+   *  `declarations()` or `uses()` output shape (keys, ordering, new detected kind).
+   *  Folds into the AST cache key so that a version bump automatically invalidates
+   *  all cached entries for this extractor. Seed values preserve each language's
+   *  current `SYMBOL_INDEX_VERSION`-equivalent history. */
+  readonly rev: number;
   declarations(file: ParsedFile): DeclaredSymbol[];
   uses(file: ParsedFile): DetectedDep[];
 }

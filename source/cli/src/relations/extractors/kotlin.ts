@@ -263,6 +263,7 @@ function declarations(file: ParsedFile): DeclaredSymbol[] {
 
 export const kotlinExtractor: DependencyExtractor = {
   languages: new Set(['kotlin']),
+  rev: 2,
   declarations,
   uses,
 };

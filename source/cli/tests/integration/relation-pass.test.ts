@@ -19,6 +19,7 @@ const EXT = '.ts';
 // nothing for any other file, and no declarations anywhere.
 const stubExtractor: DependencyExtractor = {
   languages: new Set(['typescript']),
+  rev: 1,
   declarations() {
     return [];
   },
@@ -137,6 +138,7 @@ describe('runRelationPass (integration)', () => {
 // Stub emitting one import from a/foo.ts → ../b/sub/deep (a nested node's file).
 const nestedStub: DependencyExtractor = {
   languages: new Set(['typescript']),
+  rev: 1,
   declarations() {
     return [];
   },

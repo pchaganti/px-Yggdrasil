@@ -85,6 +85,7 @@ function functionName(def: Node): string | undefined {
 
 export const cppExtractor: DependencyExtractor = {
   languages: new Set(['cpp']),
+  rev: 1,
   declarations,
   uses,
 };

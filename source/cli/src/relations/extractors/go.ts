@@ -102,6 +102,7 @@ function declarations(file: ParsedFile): DeclaredSymbol[] {
 
 export const goExtractor: DependencyExtractor = {
   languages: new Set(['go']),
+  rev: 1,
   declarations,
   uses,
 };

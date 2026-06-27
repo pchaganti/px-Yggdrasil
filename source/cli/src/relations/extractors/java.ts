@@ -332,6 +332,7 @@ function declarations(file: ParsedFile): DeclaredSymbol[] {
 
 export const javaExtractor: DependencyExtractor = {
   languages: new Set(['java']),
+  rev: 3,
   declarations,
   uses,
 };

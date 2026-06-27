@@ -328,6 +328,7 @@ function declarations(file: ParsedFile): DeclaredSymbol[] {
 
 export const rustExtractor: DependencyExtractor = {
   languages: new Set(['rust']),
+  rev: 1,
   declarations,
   uses,
 };

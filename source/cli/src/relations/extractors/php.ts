@@ -260,6 +260,7 @@ function declarations(file: ParsedFile): DeclaredSymbol[] {
 
 export const phpExtractor: DependencyExtractor = {
   languages: new Set(['php']),
+  rev: 1,
   declarations,
   uses,
 };

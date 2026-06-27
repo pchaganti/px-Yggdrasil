@@ -160,6 +160,7 @@ function declarations(file: ParsedFile): DeclaredSymbol[] {
 
 export const pythonExtractor: DependencyExtractor = {
   languages: new Set(['python']),
+  rev: 1,
   declarations,
   uses,
 };

@@ -304,6 +304,7 @@ function declarations(file: ParsedFile): DeclaredSymbol[] {
 
 export const rubyExtractor: DependencyExtractor = {
   languages: new Set(['ruby']),
+  rev: 1,
   declarations,
   uses,
 };
