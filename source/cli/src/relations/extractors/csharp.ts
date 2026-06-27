@@ -409,116 +409,97 @@ export interface CsharpUsesOptions {
   projectGlobalUsingAliases?: Array<[string, string]>;
 }
 
-function uses(file: ParsedFile, options: CsharpUsesOptions = {}): DetectedDep[] {
-  const out: DetectedDep[] = [];
+/**
+ * One alias-UNRESOLVED per-reference descriptor emitted by `extractCsharpRefs` (the pure half).
+ *
+ * WHY UNRESOLVED (design §14 Correction A): C# `uses()` consults the MERGED alias map
+ * (file-local ∪ project-global) DURING the walk — at `pushRef`'s leftmost-segment alias lookup
+ * and the `S::Tail` alias rewrite — to decide whether a reference is emitted at all and with
+ * what key. A project-global alias added in ANOTHER file changes what this file emits, so the
+ * cached fact must be PRE-assembly: the alias merge + candidate building is deferred entirely to
+ * `assembleCsharpCandidates`. The descriptor carries no live AST node (the tree is destroyed
+ * after `tree.delete()`) — every node-derived input is precomputed here, notably the
+ * enclosing-namespace chain (`enclosingNs`).
+ */
+export type CsharpRefDescriptor =
+  /** A plain `pushRef(ref, node, line, rooted)` reference: a dotted partial name or bare
+   *  identifier. `rooted` (a `global::`-stripped or `using static` target form) resolves
+   *  verbatim-only; otherwise alias/enclosing-ns/using-prefix expansion applies on assembly. */
+  | { kind: 'plain'; ref: string; line: number; rooted: boolean; enclosingNs: string[] }
+  /** An `S::Tail` alias-qualified reference (`alias_qualified_name`, non-`global` alias). Emitted
+   *  only on assembly IF the merged alias map binds `aliasName` → its rewritten `${fqn}.${tail}`
+   *  resolves verbatim-from-root; otherwise dropped (extern/unknown alias → R13 silence). */
+  | { kind: 'alias'; aliasName: string; tail: string; line: number; enclosingNs: string[] }
+  /** A `using static N.C;` / `global using static N.C;` TARGET edge — the concrete type whose
+   *  static members are imported. Resolves verbatim-from-root as its sole candidate (A8/A11). */
+  | { kind: 'static'; fqn: string; line: number }
+  /** An attribute usage `[Foo]` / `[FooAttribute]` — TWO readings (`written` + the optional
+   *  `Attribute`-suffixed form) merged into ONE ordered group on assembly (E9). */
+  | { kind: 'attr'; written: string; suffixed?: string; line: number; enclosingNs: string[] };
+
+/**
+ * The pure, alias-UNRESOLVED extract of one C# file — the cacheable fact (design §14 Correction
+ * A). It is a function of the file's bytes/AST ALONE: NO `options`, NO alias merge, NO
+ * project-global resolution. `assembleCsharpCandidates` turns it (plus the live project-global
+ * scope) into the final `DetectedDep[]`.
+ */
+export interface CsharpExtract {
+  /** The file-scoped namespace FQN (`namespace Foo.Bar;`), or '' if none. */
+  fileNs: string;
+  /** The full FILE-LOCAL using scope from `buildUsingScope` (prefixes, globalPrefixes, aliases,
+   *  globalAliases, staticTargets) — alias merge with the project-global set is deferred. */
+  scope: UsingScope;
+  /** The per-reference descriptors in original walk EMIT ORDER (static targets first, then the
+   *  alias-RHS embedded-types walk, then the main walk). Replaying them in order reproduces the
+   *  exact `DetectedDep[]` order — load-bearing for the downstream violation-reason order. */
+  refs: CsharpRefDescriptor[];
+}
+
+/**
+ * Extract one C# file's alias-UNRESOLVED reference descriptors + full file-local using scope.
+ *
+ * PURE over the file's bytes/AST: takes NO `options` and does NO alias/using/project-global
+ * resolution. Because the AST node is destroyed after `tree.delete()`, every descriptor carries
+ * its enclosing-namespace chain PRECOMPUTED as `string[]` (never a live node). The emit ORDER —
+ * `using static` targets first, then the C#12 alias-RHS embedded-types walk, then the main
+ * type-position walk — is preserved exactly; `assembleCsharpCandidates` replays it in order.
+ */
+export function extractCsharpRefs(file: ParsedFile): CsharpExtract {
   const scope = buildUsingScope(file);
   const fileNs = fileScopedNamespace(file.tree.rootNode);
-
-  // Project-wide `global using` aliases (A12): a `global using Alias = N.Type;` declared in ANY
-  // file is usable in EVERY file. Merge the aggregated set BELOW this file's own aliases — a
-  // file-local alias of the same name takes precedence (the local directive wins for this file).
-  for (const [name, fqn] of options.projectGlobalUsingAliases ?? []) {
-    if (!scope.aliases.has(name)) scope.aliases.set(name, fqn);
-  }
-
-  // The using-import binding level (R2/R9: an UNORDERED set at one scope). File-local plain
-  // usings + this file's own `global using` + the project-wide aggregated global usings, all
-  // at one tier. Sorted by code point so the candidate display order is deterministic and never
-  // load-bearing; the CS0104 set rule (≥2 distinct files → silence) is order-independent.
-  const usingPrefixes = [
-    ...new Set([
-      ...scope.prefixes,
-      ...scope.globalPrefixes,
-      ...(options.projectGlobalUsings ?? []),
-    ]),
-  ].sort();
-
-  /** Drop undefined/empty/duplicate keys preserving first-seen order. */
-  const dedupKeys = (keys: Array<string | undefined>): string[] => {
-    const seen = new Set<string>();
-    const out2: string[] = [];
-    for (const k of keys) {
-      if (k === undefined || k === '') continue;
-      if (seen.has(k)) continue;
-      seen.add(k);
-      out2.push(k);
-    }
-    return out2;
-  };
-
-  /**
-   * Build and push ONE ordered candidate group for a reference whose written text is `ref` (a
-   * dotted partial name or a bare identifier). Candidate order = C# name-binding order:
-   *   [alias-expansion?] ++ [enclosing-ns chain innermost→outermost]
-   *                       ++ [using-prefix block, sorted] ++ [verbatim / bare top-level]
-   * with resolution refinements attached as hint metadata (invisible to the group's display
-   * shape, which reads only `symbolKey`):
-   *   - the alias candidate carries a CO-DEFINITION set (R8): the alias target plus the same
-   *     simple name's enclosing-ns + verbatim readings — if the alias AND a same-named member
-   *     both resolve (2+ distinct files), the simple name is ambiguous → silence.
-   *   - the using-prefix candidates form ONE CS0104 set (R9): classification resolves the union
-   *     of all using-prefix expansions; 2+ distinct files → ambiguous → silence.
-   *   - a using-prefix candidate on a MULTI-segment ref is `nestedOnly` (R4): `using A;` + `B.T`
-   *     may bind `A.B+T` (B a type, T nested) but NEVER the dotted `A.B.T` (B a sub-namespace).
-   */
-  const pushRef = (ref: string, node: Node, line: number, rooted = false): void => {
-    // A `global::`-rooted reference (R12) is resolved as a fully-qualified name FROM THE ROOT —
-    // no alias, no enclosing-namespace, no using-prefix expansion; the verbatim is the sole
-    // candidate.
-    if (rooted) {
-      out.push({ candidates: [{ kind: 'symbol', symbolKey: ref }], kind: 'import', line });
-      return;
-    }
-
-    const lead = ref.split('.')[0];
-    const multi = ref.includes('.');
-    const aliasTarget = scope.aliases.get(lead);
-    const enclosing = enclosingNamespaceChain(fileNs, node).map((ns) => `${ns}.${ref}`);
-
-    // The using-prefix expansions (one CS0104 set). A multi-segment ref under a using prefix is
-    // nested-split-only (R4); a single-segment ref binds the verbatim namespace.type.
-    const usingMembers: SymbolSetMember[] = usingPrefixes.map((p) => ({
-      symbolKey: `${p}.${ref}`,
-      nestedOnly: multi,
-    }));
-
-    const candidates: TargetHint[] = [];
-    const pushed = new Set<string>();
-    const add = (hint: TargetHint): void => {
-      if (hint.kind === 'symbol') {
-        if (pushed.has(hint.symbolKey)) return;
-        pushed.add(hint.symbolKey);
-      }
-      candidates.push(hint);
-    };
-
-    if (aliasTarget !== undefined) {
-      // The alias rewrites the leftmost segment; the dotted tail follows it.
-      const tail = ref.slice(lead.length); // leading '.', or '' for a bare ref
-      const aliasKey = `${aliasTarget}${tail}`;
-      // Co-definition set (R8): the alias target competes with a same-named enclosing-ns member
-      // and the verbatim reading — 2+ of these resolving = ambiguous → silence.
-      const coDef: SymbolSetMember[] = dedupKeys([aliasKey, ...enclosing, ref]).map((k) => ({
-        symbolKey: k,
-      }));
-      add({ kind: 'symbol', symbolKey: aliasKey, set: coDef });
-    }
-
-    for (const k of enclosing) add({ kind: 'symbol', symbolKey: k });
-
-    for (const m of usingMembers) {
-      add({ kind: 'symbol', symbolKey: m.symbolKey, nestedOnly: m.nestedOnly, set: usingMembers });
-    }
-
-    add({ kind: 'symbol', symbolKey: ref }); // verbatim / bare top-level — LAST
-
-    if (candidates.length === 0) return;
-    out.push({ candidates, kind: 'import', line });
-  };
+  const refs: CsharpRefDescriptor[] = [];
 
   // A node id is recorded here once its TYPE reference has been emitted, so a later, broader
   // walk visit (e.g. the generic outermost-qualified_name pass) never re-emits the same node.
   const emitted = new Set<number>();
+
+  /** Emit a plain reference descriptor (alias-unresolved). `enclosingNs` is precomputed from the
+   *  node before the tree is destroyed; the alias/using expansion happens later, on assembly. */
+  const pushRef = (ref: string, node: Node, line: number, rooted = false): void => {
+    refs.push({
+      kind: 'plain',
+      ref,
+      line,
+      rooted,
+      enclosingNs: enclosingNamespaceChain(fileNs, node),
+    });
+  };
+
+  /** Emit an attribute descriptor (the two-reading `[Foo]`/`[FooAttribute]` group). */
+  const pushAttribute = (
+    written: string,
+    suffixed: string | undefined,
+    node: Node,
+    line: number,
+  ): void => {
+    refs.push({
+      kind: 'attr',
+      written,
+      suffixed,
+      line,
+      enclosingNs: enclosingNamespaceChain(fileNs, node),
+    });
+  };
 
   /**
    * Emit references for every NAMED type a TYPE node carries, descending the type-constructor
@@ -556,21 +537,22 @@ function uses(file: ParsedFile, options: CsharpUsesOptions = {}): DetectedDep[] 
           if (nameField !== null) emitTypeNode(nameField);
           return;
         }
-        // `S::Tail` where `S` is an in-file `using S = N;` namespace alias (B5): rewrite the
-        // leftmost `S` to its aliased namespace FQN `N` and resolve `N.Tail` from the root (the
-        // alias RHS is fully-qualified, so the rewritten name is a verbatim FQN). Fires ONLY when
-        // `S` is a confirmed file-local using-alias — an extern/unknown alias (`Lib::A.B`) is left
-        // untouched (its `::` text cannot collide with a dot-only key → R13 silence-by-luck).
+        // `S::Tail` where `S` is an in-file `using S = N;` namespace alias (B5): the leftmost
+        // `S` is rewritten to its aliased FQN ON ASSEMBLY (the merged alias map decides emit-or-
+        // not — an extern/unknown alias is dropped → R13 silence). The descriptor is emitted
+        // UNCONDITIONALLY here, alias-unresolved; assembly drops it when the alias is absent.
+        // (The original's conditional `emitted.add` here is unobservable — an
+        // `alias_qualified_name` node is only ever reached once via `emitTypeNode`.)
         if (aliasField !== null) {
-          const aliasFqn = scope.aliases.get(aliasField.text);
-          if (aliasFqn !== undefined) {
-            if (emitted.has(typeNode.id)) return;
-            emitted.add(typeNode.id);
-            const nameField = typeNode.childForFieldName('name');
-            if (nameField !== null) {
-              const tail = stripGlobalQualifier(nameField.text);
-              pushRef(`${aliasFqn}.${tail}`, typeNode, typeNode.startPosition.row + 1, true);
-            }
+          const nameField = typeNode.childForFieldName('name');
+          if (nameField !== null) {
+            refs.push({
+              kind: 'alias',
+              aliasName: aliasField.text,
+              tail: stripGlobalQualifier(nameField.text),
+              line: typeNode.startPosition.row + 1,
+              enclosingNs: enclosingNamespaceChain(fileNs, typeNode),
+            });
           }
         }
         return;
@@ -614,17 +596,12 @@ function uses(file: ParsedFile, options: CsharpUsesOptions = {}): DetectedDep[] 
   // ── `using static N.C;` / `global using static N.C;` TARGET edge (A8/A11) ────────────────
   // The directive imports the static MEMBERS of the concrete type `N.C` — the target type
   // itself is a real, fully-qualified type dependency of this file (never a namespace prefix:
-  // a sibling `N.Baz` is never imported). Resolve it FROM THE ROOT as its sole candidate (like
-  // an alias RHS): no enclosing-ns / using-prefix expansion, so it stays zero-FP (the target
-  // either maps to an in-graph node → edge, or is external/unmapped → silence). The line is the
-  // directive's own line; `global using static` carries the same target edge from its declaring
-  // file (it is the file that textually names the target).
+  // a sibling `N.Baz` is never imported). It resolves FROM THE ROOT as its sole candidate (like
+  // an alias RHS): no enclosing-ns / using-prefix expansion. Emitted FIRST (matching the
+  // original walk's leading static-target loop) so the descriptor order — and thus the final
+  // edge order — is preserved.
   for (const target of scope.staticTargets) {
-    out.push({
-      candidates: [{ kind: 'symbol', symbolKey: target.fqn }],
-      kind: 'import',
-      line: target.line,
-    });
+    refs.push({ kind: 'static', fqn: target.fqn, line: target.line });
   }
 
   // ── C#12 alias-RHS embedded named types (R7 + A6) ───────────────────────────────────────
@@ -829,13 +806,144 @@ function uses(file: ParsedFile, options: CsharpUsesOptions = {}): DetectedDep[] 
     return undefined;
   });
 
+  return { fileNs, scope, refs };
+}
+
+/**
+ * Assemble the final `DetectedDep[]` from a pure C# extract plus the LIVE project-global scope.
+ *
+ * This is the live half (design §14 Correction A): it merges the file-local alias map with
+ * `options.projectGlobalUsingAliases` (file-local wins, identical to the original `uses`), builds
+ * the `usingPrefixes` union (file prefixes ∪ file global-prefixes ∪ `options.projectGlobalUsings`),
+ * then replays the extract's descriptors IN ORDER through the `pushRef` / `S::Tail` rewrite /
+ * `pushAttribute` candidate-assembly logic — preserving the original emit order (the per-reference
+ * group order is load-bearing; it drives the violation-reason order downstream).
+ */
+export function assembleCsharpCandidates(
+  extract: CsharpExtract,
+  options: CsharpUsesOptions = {},
+): DetectedDep[] {
+  const out: DetectedDep[] = [];
+  const { scope, refs } = extract;
+
+  // Project-wide `global using` aliases (A12): a `global using Alias = N.Type;` declared in ANY
+  // file is usable in EVERY file. Merge the aggregated set BELOW this file's own aliases — a
+  // file-local alias of the same name takes precedence (the local directive wins for this file).
+  // Copy first so the cached extract's `scope.aliases` is never mutated (it may be reused across
+  // option variants / runs).
+  const aliases = new Map(scope.aliases);
+  for (const [name, fqn] of options.projectGlobalUsingAliases ?? []) {
+    if (!aliases.has(name)) aliases.set(name, fqn);
+  }
+
+  // The using-import binding level (R2/R9: an UNORDERED set at one scope). File-local plain
+  // usings + this file's own `global using` + the project-wide aggregated global usings, all
+  // at one tier. Sorted by code point so the candidate display order is deterministic and never
+  // load-bearing; the CS0104 set rule (≥2 distinct files → silence) is order-independent.
+  const usingPrefixes = [
+    ...new Set([
+      ...scope.prefixes,
+      ...scope.globalPrefixes,
+      ...(options.projectGlobalUsings ?? []),
+    ]),
+  ].sort();
+
+  /** Drop undefined/empty/duplicate keys preserving first-seen order. */
+  const dedupKeys = (keys: Array<string | undefined>): string[] => {
+    const seen = new Set<string>();
+    const out2: string[] = [];
+    for (const k of keys) {
+      if (k === undefined || k === '') continue;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out2.push(k);
+    }
+    return out2;
+  };
+
+  /**
+   * Build and push ONE ordered candidate group for a reference whose written text is `ref` (a
+   * dotted partial name or a bare identifier) with its precomputed `enclosingNs` chain. Candidate
+   * order = C# name-binding order:
+   *   [alias-expansion?] ++ [enclosing-ns chain innermost→outermost]
+   *                       ++ [using-prefix block, sorted] ++ [verbatim / bare top-level]
+   * with resolution refinements attached as hint metadata (invisible to the group's display
+   * shape, which reads only `symbolKey`):
+   *   - the alias candidate carries a CO-DEFINITION set (R8): the alias target plus the same
+   *     simple name's enclosing-ns + verbatim readings — if the alias AND a same-named member
+   *     both resolve (2+ distinct files), the simple name is ambiguous → silence.
+   *   - the using-prefix candidates form ONE CS0104 set (R9): classification resolves the union
+   *     of all using-prefix expansions; 2+ distinct files → ambiguous → silence.
+   *   - a using-prefix candidate on a MULTI-segment ref is `nestedOnly` (R4): `using A;` + `B.T`
+   *     may bind `A.B+T` (B a type, T nested) but NEVER the dotted `A.B.T` (B a sub-namespace).
+   */
+  const pushRef = (ref: string, enclosingNs: string[], line: number, rooted: boolean): void => {
+    // A `global::`-rooted reference (R12) is resolved as a fully-qualified name FROM THE ROOT —
+    // no alias, no enclosing-namespace, no using-prefix expansion; the verbatim is the sole
+    // candidate.
+    if (rooted) {
+      out.push({ candidates: [{ kind: 'symbol', symbolKey: ref }], kind: 'import', line });
+      return;
+    }
+
+    const lead = ref.split('.')[0];
+    const multi = ref.includes('.');
+    const aliasTarget = aliases.get(lead);
+    const enclosing = enclosingNs.map((ns) => `${ns}.${ref}`);
+
+    // The using-prefix expansions (one CS0104 set). A multi-segment ref under a using prefix is
+    // nested-split-only (R4); a single-segment ref binds the verbatim namespace.type.
+    const usingMembers: SymbolSetMember[] = usingPrefixes.map((p) => ({
+      symbolKey: `${p}.${ref}`,
+      nestedOnly: multi,
+    }));
+
+    const candidates: TargetHint[] = [];
+    const pushed = new Set<string>();
+    const add = (hint: TargetHint): void => {
+      if (hint.kind === 'symbol') {
+        if (pushed.has(hint.symbolKey)) return;
+        pushed.add(hint.symbolKey);
+      }
+      candidates.push(hint);
+    };
+
+    if (aliasTarget !== undefined) {
+      // The alias rewrites the leftmost segment; the dotted tail follows it.
+      const tail = ref.slice(lead.length); // leading '.', or '' for a bare ref
+      const aliasKey = `${aliasTarget}${tail}`;
+      // Co-definition set (R8): the alias target competes with a same-named enclosing-ns member
+      // and the verbatim reading — 2+ of these resolving = ambiguous → silence.
+      const coDef: SymbolSetMember[] = dedupKeys([aliasKey, ...enclosing, ref]).map((k) => ({
+        symbolKey: k,
+      }));
+      add({ kind: 'symbol', symbolKey: aliasKey, set: coDef });
+    }
+
+    for (const k of enclosing) add({ kind: 'symbol', symbolKey: k });
+
+    for (const m of usingMembers) {
+      add({ kind: 'symbol', symbolKey: m.symbolKey, nestedOnly: m.nestedOnly, set: usingMembers });
+    }
+
+    add({ kind: 'symbol', symbolKey: ref }); // verbatim / bare top-level — LAST
+
+    if (candidates.length === 0) return;
+    out.push({ candidates, kind: 'import', line });
+  };
+
   /** Emit a two-reading attribute group (`written` and its `Attribute`-suffixed form) as ONE
    *  ordered group, each reading carrying its own alias/enclosing-ns/using/verbatim candidates,
    *  concatenated so the verbatim short form is reached only when nothing nearer binds. */
-  function pushAttribute(written: string, suffixed: string | undefined, node: Node, line: number): void {
+  const pushAttribute = (
+    written: string,
+    suffixed: string | undefined,
+    enclosingNs: string[],
+    line: number,
+  ): void => {
     const before = out.length;
-    pushRef(written, node, line);
-    if (suffixed !== undefined) pushRef(suffixed, node, line);
+    pushRef(written, enclosingNs, line, false);
+    if (suffixed !== undefined) pushRef(suffixed, enclosingNs, line, false);
     // Merge the (at most two) groups just pushed into one ordered group so both readings live
     // in a single reference (an attribute is ONE dependency, resolved by whichever name binds).
     if (out.length > before + 1) {
@@ -852,9 +960,44 @@ function uses(file: ParsedFile, options: CsharpUsesOptions = {}): DetectedDep[] 
       }
       out.push({ candidates: merged, kind: 'import', line });
     }
+  };
+
+  // Replay the descriptors in original emit order (static targets first, then alias-RHS embedded
+  // types, then the main walk) — the order is load-bearing for the downstream reason order.
+  for (const r of refs) {
+    switch (r.kind) {
+      case 'static':
+        // `using static N.C;` TARGET edge (A8/A11): resolve verbatim from root, sole candidate.
+        out.push({ candidates: [{ kind: 'symbol', symbolKey: r.fqn }], kind: 'import', line: r.line });
+        break;
+      case 'plain':
+        pushRef(r.ref, r.enclosingNs, r.line, r.rooted);
+        break;
+      case 'alias': {
+        // `S::Tail` (B5): rewrite the leftmost alias to its aliased FQN and resolve `N.Tail` from
+        // the root (verbatim FQN). Fires ONLY when `S` is a confirmed alias in the MERGED map —
+        // an extern/unknown alias (`Lib::A.B`) is dropped (its `::` text cannot collide with a
+        // dot-only key → R13 silence-by-luck).
+        const aliasFqn = aliases.get(r.aliasName);
+        if (aliasFqn !== undefined) {
+          pushRef(`${aliasFqn}.${r.tail}`, r.enclosingNs, r.line, true);
+        }
+        break;
+      }
+      case 'attr':
+        pushAttribute(r.written, r.suffixed, r.enclosingNs, r.line);
+        break;
+    }
   }
 
   return out;
+}
+
+/** The C# `uses()` — the delegating composition of the pure extract and the live assemble. The
+ *  parity invariant `uses(file, opts) === assembleCsharpCandidates(extractCsharpRefs(file), opts)`
+ *  holds by construction (this IS that composition). */
+function uses(file: ParsedFile, options: CsharpUsesOptions = {}): DetectedDep[] {
+  return assembleCsharpCandidates(extractCsharpRefs(file), options);
 }
 
 /** The C# `uses` with the optional cross-file global-using scope — called directly by the
