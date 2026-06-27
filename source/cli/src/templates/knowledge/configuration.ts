@@ -256,7 +256,8 @@ to the \`.yggdrasil/\` directory):
 
 \`\`\`
 yg-secrets.yaml      # provider API keys
-.symbols-cache/      # the relation pass's per-language symbol-index cache
+.symbols-cache/      # the relation pass's legacy per-language symbol-index cache
+.ast-cache/          # the relation pass's content-addressed per-file AST fact cache
 .debug.log           # the opt-in command debug log
 \`\`\`
 

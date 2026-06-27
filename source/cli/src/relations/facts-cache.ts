@@ -3,24 +3,94 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { atomicWriteFile } from '../io/atomic-write.js';
 import type { DeclaredSymbol, DetectedDep } from './extractors/types.js';
+import type { CsharpExtract } from './extractors/csharp.js';
 
 /** Cache schema version. Bump whenever the on-disk shard format changes. */
 export const CACHE_SCHEMA_VERSION = 1;
 
-/**
- * Forward declaration for the C# extract type defined in a later task.
- * Declared as `unknown` here to avoid a circular dependency; callers that
- * need the full type should import `CsharpExtract` from its own module once
- * it exists.
- */
-export type CsharpExtract = unknown;
+/** Re-export so callers can `import { CsharpExtract } from facts-cache` if convenient. */
+export type { CsharpExtract } from './extractors/csharp.js';
 
 /** Extracted facts for one source file (declarations + detected dependencies). */
 export interface FileFacts {
   declarations: DeclaredSymbol[];
   uses: DetectedDep[];
-  /** C#-specific extract (optional; full type defined in a later task). */
+  /**
+   * C#-specific pre-assembly extract (alias-UNRESOLVED). Present ONLY for C# files. Its
+   * `scope.aliases` / `scope.globalAliases` are JavaScript `Map`s — see the serialization
+   * note below: a plain `JSON.stringify(new Map())` is `"{}"` and SILENTLY drops every entry,
+   * which would empty the alias map on a cache hit and false-green an alias-qualified edge.
+   * `writeFacts`/`loadFacts` (de)serialize those two `Map`s as entry arrays at the boundary.
+   */
   csharp?: CsharpExtract;
+}
+
+/**
+ * On-disk mirror of a `CsharpExtract` with the two `UsingScope` `Map`s flattened to entry
+ * arrays so they survive JSON. THIS is the heart of the false-green guard for C#: a `Map`
+ * round-trips through `JSON.stringify` as `"{}"` (an empty object), so persisting a
+ * `CsharpExtract` verbatim would reload an EMPTY alias map → alias-qualified references stop
+ * resolving → a real cross-node dependency is silenced → the gate goes falsely GREEN. We
+ * therefore convert `aliases` / `globalAliases` to `[key, value][]` on write and rebuild the
+ * `Map`s on read. The rest of the extract (`prefixes`, `globalPrefixes`, `staticTargets`,
+ * `refs`, `fileNs`) is already JSON-plain and copies through unchanged.
+ */
+interface SerializedCsharpExtract {
+  fileNs: string;
+  scope: {
+    prefixes: string[];
+    globalPrefixes: string[];
+    aliases: Array<[string, string]>;
+    globalAliases: Array<[string, string]>;
+    staticTargets: Array<{ fqn: string; line: number }>;
+  };
+  refs: CsharpExtract['refs'];
+}
+
+/** Flatten a `CsharpExtract`'s `Map`s to entry arrays for safe JSON persistence. */
+function serializeCsharp(c: CsharpExtract): SerializedCsharpExtract {
+  return {
+    fileNs: c.fileNs,
+    scope: {
+      prefixes: c.scope.prefixes,
+      globalPrefixes: c.scope.globalPrefixes,
+      aliases: [...c.scope.aliases],
+      globalAliases: [...c.scope.globalAliases],
+      staticTargets: c.scope.staticTargets,
+    },
+    refs: c.refs,
+  };
+}
+
+/** Rebuild a `CsharpExtract` (with live `Map`s) from its persisted entry-array mirror. Returns
+ *  `null` if the stored shape is malformed (any missing/ill-typed field → cache miss). */
+function deserializeCsharp(raw: unknown): CsharpExtract | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const s = raw as Partial<SerializedCsharpExtract>;
+  if (typeof s.fileNs !== 'string') return null;
+  if (!s.scope || typeof s.scope !== 'object') return null;
+  const sc = s.scope as Partial<SerializedCsharpExtract['scope']>;
+  if (
+    !Array.isArray(sc.prefixes) ||
+    !Array.isArray(sc.globalPrefixes) ||
+    !Array.isArray(sc.aliases) ||
+    !Array.isArray(sc.globalAliases) ||
+    !Array.isArray(sc.staticTargets)
+  ) {
+    return null;
+  }
+  if (!Array.isArray(s.refs)) return null;
+  return {
+    fileNs: s.fileNs,
+    scope: {
+      prefixes: sc.prefixes,
+      globalPrefixes: sc.globalPrefixes,
+      aliases: new Map(sc.aliases),
+      globalAliases: new Map(sc.globalAliases),
+      staticTargets: sc.staticTargets,
+    },
+    refs: s.refs,
+  };
 }
 
 /** Returns the root of the AST cache directory tree for a given graph root. */
@@ -60,7 +130,8 @@ interface ShardBody {
   key: string;
   declarations: DeclaredSymbol[];
   uses: DetectedDep[];
-  csharp?: CsharpExtract;
+  /** The C# extract in its JSON-safe (Map-flattened) on-disk form. */
+  csharp?: SerializedCsharpExtract;
 }
 
 /**
@@ -109,7 +180,12 @@ export async function loadFacts(
     uses: parsed.uses,
   };
   if (parsed.csharp !== undefined) {
-    facts.csharp = parsed.csharp;
+    // Rebuild the C# extract's `Map`s from their entry-array mirror. A malformed mirror
+    // (any missing field) is treated as a CACHE MISS for the whole shard — never a silent
+    // empty alias map (which would false-green an alias-qualified edge).
+    const csharp = deserializeCsharp(parsed.csharp);
+    if (csharp === null) return null;
+    facts.csharp = csharp;
   }
   return facts;
 }
@@ -136,7 +212,9 @@ export async function writeFacts(
     key,
     declarations: facts.declarations,
     uses: facts.uses,
-    ...(facts.csharp !== undefined ? { csharp: facts.csharp } : {}),
+    // Flatten the C# extract's `Map`s to entry arrays BEFORE JSON.stringify — a bare `Map`
+    // stringifies to `"{}"` and would silently lose every alias entry (the false-green vector).
+    ...(facts.csharp !== undefined ? { csharp: serializeCsharp(facts.csharp) } : {}),
   };
   await atomicWriteFile(p, JSON.stringify(body));
 }

@@ -1,15 +1,37 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import path from 'node:path';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
 import { loadGraph } from '../../src/core/graph-loader.js';
 import { runRelationPass } from '../../src/relations/pass.js';
+import { extractorForLanguage } from '../../src/relations/extractors/registry.js';
+import { makeResolvePathToFile } from '../../src/relations/resolve-path.js';
 import type {
   DependencyExtractor,
   DetectedDep,
   ParsedFile,
 } from '../../src/relations/extractors/types.js';
+
+import { CACHE_SCHEMA_VERSION } from '../../src/relations/facts-cache.js';
+
+/** List every content-addressed AST shard under `<astCacheDir>/v<N>/` (empty if absent). The
+ *  versioned subdir scopes the count to the NEW fact cache only — never the old symbol-index
+ *  `symbols-<lang>.json` files that may share the same root dir. */
+function listShards(astCacheDir: string): string[] {
+  const versioned = path.join(astCacheDir, `v${CACHE_SCHEMA_VERSION}`);
+  if (!existsSync(versioned)) return [];
+  const out: string[] = [];
+  const walkDir = (d: string): void => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) walkDir(p);
+      else if (e.name.endsWith('.json')) out.push(p);
+    }
+  };
+  walkDir(versioned);
+  return out.sort();
+}
 
 // Extension that getLanguageForExtension maps to a real language so language
 // detection is non-null and an extractor key ('typescript') exists.
@@ -149,3 +171,115 @@ const nestedStub: DependencyExtractor = {
     return [];
   },
 };
+
+// ---------------------------------------------------------------------------
+// AST fact-cache wiring (Task 6): the second run over an UNCHANGED project must
+// (1) produce byte-identical verdicts and (2) write NO new shard (every file is
+// a cache hit, so the tree-sitter parse is skipped). The C# case additionally
+// proves the alias `Map` survives the JSON cache round-trip — a cross-file
+// `global using` alias must still resolve on a cached run.
+// ---------------------------------------------------------------------------
+describe('runRelationPass — AST fact cache', () => {
+  let root: string;
+
+  function arch(root: string): void {
+    mkdirSync(path.join(root, '.yggdrasil', 'model'), { recursive: true });
+    writeFileSync(
+      path.join(root, '.yggdrasil', 'yg-architecture.yaml'),
+      `node_types:\n  service:\n    description: 'unit'\n    log_required: false\n    when:\n      path: "**"\n`,
+      'utf-8',
+    );
+    writeFileSync(
+      path.join(root, '.yggdrasil', 'yg-config.yaml'),
+      `quality:\n  max_direct_relations: 10\n`,
+      'utf-8',
+    );
+  }
+
+  function w(root: string, rel: string, content: string): void {
+    const abs = path.join(root, rel);
+    mkdirSync(path.dirname(abs), { recursive: true });
+    writeFileSync(abs, content, 'utf-8');
+  }
+
+  beforeEach(() => {
+    root = mkdtempSync(path.join(tmpdir(), 'rel-astcache-'));
+    arch(root);
+  });
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('a second run over an unchanged project writes NO new shard and yields identical verdicts (real TS extractor)', async () => {
+    // Two nodes, a real cross-node TS import a → b, NO relation declared → a is refused.
+    writeNode(root, 'a', 'A', 'src/a');
+    writeNode(root, 'b', 'B', 'src/b');
+    w(root, 'src/a/foo.ts', `import { bar } from '../b/bar.js';\nexport const foo = bar;\n`);
+    w(root, 'src/b/bar.ts', `export const bar = 2;\n`);
+
+    const astCacheDir = path.join(root, '.yggdrasil', '.ast-cache');
+    const deps = {
+      extractorFor: extractorForLanguage,
+      resolvePathToFile: makeResolvePathToFile(root),
+      symbolIndexDir: astCacheDir,
+    };
+
+    const graph1 = await loadGraph(root);
+    const first = await runRelationPass(graph1, root, deps);
+    const shardsAfterFirst = listShards(astCacheDir);
+    // A cold run parsed both files and wrote a shard per (TS) file.
+    expect(shardsAfterFirst.length).toBeGreaterThan(0);
+
+    const graph2 = await loadGraph(root);
+    const second = await runRelationPass(graph2, root, deps);
+    const shardsAfterSecond = listShards(astCacheDir);
+
+    // (1) Identical verdicts both runs.
+    expect([...second.violationsByNode.entries()].map(([k, v]) => [k, v.verdict, v.reason])).toEqual(
+      [...first.violationsByNode.entries()].map(([k, v]) => [k, v.verdict, v.reason]),
+    );
+    // (2) The second run wrote NO new shard — every parse was a cache hit.
+    expect(shardsAfterSecond).toEqual(shardsAfterFirst);
+  });
+
+  it('resolves a cross-file C# global-using ALIAS edge on a CACHED run (Map round-trip)', async () => {
+    // Mirrors reference/relations/csharp/csharp-global-using-alias.md, READ-ONLY oracle:
+    //   global using Cust = MyApp.Models.Customer;  (node g)
+    //   class C { Cust c; }                          (node c → must resolve to node m)
+    //   namespace MyApp.Models; class Customer { }   (node m)
+    // c declares NO relation to m → c must be refused on BOTH runs. The alias map lives in
+    // the cached C# extract's `scope.aliases`/`globalAliases` (JS Maps); if the cache round-trip
+    // dropped them, the second (cached) run would silence the edge and approve c → false green.
+    writeNode(root, 'g', 'G', 'src/g');
+    writeNode(root, 'c', 'C', 'src/c');
+    writeNode(root, 'm', 'M', 'src/m');
+    w(root, 'src/g/Globals.cs', `global using Cust = MyApp.Models.Customer;\n`);
+    w(root, 'src/c/Use.cs', `class C { Cust c; }\n`);
+    w(root, 'src/m/Customer.cs', `namespace MyApp.Models;\npublic class Customer { }\n`);
+
+    const astCacheDir = path.join(root, '.yggdrasil', '.ast-cache');
+    const deps = {
+      extractorFor: extractorForLanguage,
+      resolvePathToFile: makeResolvePathToFile(root),
+      symbolIndexDir: astCacheDir,
+    };
+
+    const graph1 = await loadGraph(root);
+    const first = await runRelationPass(graph1, root, deps);
+    expect(first.violationsByNode.get('c')!.verdict).toBe('refused');
+    expect(first.violationsByNode.get('c')!.violations.some((v) => v.ownerNode === 'm')).toBe(true);
+    const shardsAfterFirst = listShards(astCacheDir);
+
+    // Second run sources the C# extract from the cache (no re-parse). The alias map must
+    // survive the JSON round-trip → c still resolves to m → still refused.
+    const graph2 = await loadGraph(root);
+    const second = await runRelationPass(graph2, root, deps);
+    const shardsAfterSecond = listShards(astCacheDir);
+
+    expect(second.violationsByNode.get('c')!.verdict).toBe('refused');
+    expect(second.violationsByNode.get('c')!.violations.some((v) => v.ownerNode === 'm')).toBe(true);
+    // No new shard on the cached run.
+    expect(shardsAfterSecond).toEqual(shardsAfterFirst);
+  });
+});

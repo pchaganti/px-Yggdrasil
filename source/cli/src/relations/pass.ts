@@ -2,20 +2,20 @@ import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 
 import type { Graph } from '../model/graph.js';
-import { parseFile } from '../ast/parser.js';
+import { parseFile, grammarWasmHash } from '../ast/parser.js';
 import { getLanguageForExtension } from '../core/graph/language-registry.js';
 import { ensureLoaderRegistered } from '../ast/loader-hook.js';
 import { expandMappingPaths, hashString } from '../io/hash.js';
 
 import { buildOwnerIndex } from './owner-index.js';
-import {
-  SymbolTable,
-  loadSymbolIndex,
-  writeSymbolIndex,
-  type PersistedSymbolIndex,
-} from './symbol-table.js';
+import { SymbolTable } from './symbol-table.js';
 import { makeResolver, resolveCandidateGroup } from './resolver.js';
-import { csharpUses, collectGlobalUsings, collectGlobalUsingAliases } from './extractors/csharp.js';
+import {
+  extractCsharpRefs,
+  assembleCsharpCandidates,
+  type CsharpExtract,
+} from './extractors/csharp.js';
+import { loadFacts, writeFacts, factsKey } from './facts-cache.js';
 import { verifyNodeDeps, type ResolvedDep, type RelationGraphView, type Violation } from './verifier.js';
 import type {
   DependencyExtractor,
@@ -37,7 +37,16 @@ export interface RelationPassResult {
 export interface RelationPassDeps {
   extractorFor: (language: string) => DependencyExtractor | undefined;
   resolvePathToFile: (specifier: string, fromFile: string, language: string, isPackage?: boolean) => string | undefined;
-  symbolIndexDir: string; // local cache dir, e.g. <root>/.yggdrasil/.symbols-cache
+  /**
+   * Root of the content-addressed AST fact cache, e.g. `<root>/.yggdrasil/.ast-cache`.
+   * (Field name kept for call-site stability; its meaning is now the `.ast-cache` dir — the
+   * per-file fact cache that skips the tree-sitter parse of unchanged files, NOT the retired
+   * per-language `.symbols-cache` symbol index.) The cache is SPEED-only: it caches the pure
+   * extractor facts (declarations / uses / C# pre-assembly extract) of a file, keyed by the
+   * file's raw content hash + language + grammar wasm hash + extractor rev. The resolve/verify
+   * join stays LIVE every run, so a cached fact can never carry a stale relation verdict.
+   */
+  symbolIndexDir: string;
 }
 
 interface FileRecord {
@@ -49,24 +58,26 @@ interface FileRecord {
 }
 
 /**
- * The pure extractor output of ONE file, produced by a SINGLE tree-sitter parse.
- * Holding these facts (not the live `Tree`) lets every phase — the symbol build, the
- * C# global-using pre-pass, and the per-node `uses()` resolution — read one file's
- * extraction without re-parsing it, while keeping WASM heap at O(1) live trees (the
- * tree is deleted inside `extractFileFacts` before the facts are returned).
+ * The pure extractor output of ONE file, produced by a SINGLE tree-sitter parse (or read
+ * verbatim from the content-addressed fact cache when the file is unchanged). Holding these
+ * facts (not the live `Tree`) lets every phase — the symbol build, the C# global-using
+ * pre-pass, and the per-node `uses()` resolution — read one file's extraction without
+ * re-parsing it, while keeping WASM heap at O(1) live trees (the tree is deleted inside
+ * `extractFileFacts` before the facts are returned).
  *
- * `uses` is the per-file detected dependencies for every NON-C# language. For C# it is
- * `null`: C# `uses()` folds the project-wide `global using` aggregate (built only AFTER
- * every C# file has been walked), so its `uses()` is computed LIVE per node, after the
- * pre-pass, exactly as before — a later task splits that seam. The two `csharp*` fields
- * carry that file's contribution to the project-wide global-using aggregate (empty for
- * non-C# files).
+ * `uses` is the per-file detected dependencies for every NON-C# language. For C# it is `null`:
+ * C# `uses()` folds the project-wide `global using` aggregate (built only AFTER every C# file
+ * has been walked), so the final candidate groups are ASSEMBLED LIVE per node from the cached
+ * pre-assembly `csharp` extract — never cached as resolved candidates (a `global using` alias
+ * added in another file changes what THIS file emits, design §7/§14 Correction A). `csharp` is
+ * the alias-UNRESOLVED extract (`extractCsharpRefs`) for C# files, `undefined` otherwise; it
+ * carries this file's own `global using` prefixes/aliases (in `scope.globalPrefixes` /
+ * `scope.globalAliases`) so the project-wide pre-pass reads them from cache without re-parsing.
  */
 interface FileFacts {
   declarations: DeclaredSymbol[];
-  uses: DetectedDep[] | null; // null ⇔ C# (resolved live after the pre-pass)
-  csharpGlobalUsings: string[];
-  csharpGlobalUsingAliases: Array<[string, string]>;
+  uses: DetectedDep[] | null; // null ⇔ C# (candidates assembled live after the pre-pass)
+  csharp: CsharpExtract | null; // non-null ⇔ C#
 }
 
 export async function runRelationPass(
@@ -125,14 +136,15 @@ export async function runRelationPass(
   }
 
   // Parse a file ONCE and return its pure extractor facts. The single walk runs
-  // `declarations()` (+ for non-C# `uses()`, + for C# the two global-using collectors)
+  // `declarations()` (+ for non-C# `uses()`, + for C# the alias-UNRESOLVED `extractCsharpRefs`)
   // inside ONE try/finally that ALWAYS deletes the tree — even if an extractor throws
   // mid-extraction — so a thrown extractor never leaks a WASM tree. Returns `null` iff
   // the parse itself failed or the file has no language, so callers can distinguish a
-  // failed parse from a legitimately empty file (never treat a failure as empty facts).
-  // The facts are then reused by the symbol build, the C# pre-pass, and per-node
-  // resolution, so each file is parsed at most once here (C# pays one extra LIVE parse
-  // for `uses()` after the pre-pass — see FileFacts).
+  // failed parse from a legitimately empty file (never treat a failure as empty facts; a
+  // `null` is never written to the cache — design §14 Correction B). The facts are then reused
+  // by the symbol build, the C# pre-pass, and per-node resolution, so each file is parsed at
+  // most once here — including C#, whose candidate groups are now ASSEMBLED live from the
+  // cached pre-assembly extract (no re-parse).
   async function extractFileFacts(
     record: FileRecord,
     extractor: DependencyExtractor,
@@ -142,23 +154,94 @@ export async function runRelationPass(
     try {
       const declarations = extractor.declarations(parsed);
       const isCsharp = record.language === 'csharp';
-      // C# `uses()` needs the project-wide global-using aggregate (built only after every
-      // C# file is walked), so it is resolved LIVE per node after the pre-pass — not here.
+      // C#: cache the alias-UNRESOLVED extract; the project-wide global-using aggregate is
+      // folded LIVE per node at assembly time (after the pre-pass) — never baked into the
+      // cached fact. Non-C#: `uses()` is a pure function of the file's bytes → cache it.
       const uses = isCsharp ? null : extractor.uses(parsed);
-      const csharpGlobalUsings = isCsharp ? collectGlobalUsings(parsed) : [];
-      const csharpGlobalUsingAliases = isCsharp ? collectGlobalUsingAliases(parsed) : [];
-      return { declarations, uses, csharpGlobalUsings, csharpGlobalUsingAliases };
+      const csharp = isCsharp ? extractCsharpRefs(parsed) : null;
+      return { declarations, uses, csharp };
     } finally {
       parsed.tree.delete();
     }
   }
 
-  // 4. Single-walk extraction. Universe = all mapped files of an extractor-backed language
-  //    (broad universe so ambiguity is detected across the repo). Parse each such file ONCE
-  //    here (via extractFileFacts) and reuse the result for the symbol build, the C# pre-pass,
-  //    and the per-node resolution below — no phase re-parses. A failed parse (null) is simply
-  //    absent from factsByPath (never recorded as empty facts), exactly as the old per-phase
-  //    `if (!parsed) continue;` skipped it.
+  // Eager per-extension grammar wasm hash, memoized once per extension present in the run,
+  // BEFORE any cache lookup. Critical: on an all-hit run the parser is never invoked, so a
+  // lazily-derived grammar hash would never be produced and a grammar upgrade would go
+  // unnoticed (every file would stay a stale hit). `grammarWasmHash` itself memoizes per
+  // extension; this local map only caches the (extension → hash | null) lookup so a file whose
+  // extension has no grammar is recorded as `null` (→ uncacheable, always parsed live).
+  const grammarHashByExt = new Map<string, string | null>();
+  const grammarHashForExt = (ext: string): string | null => {
+    const hit = grammarHashByExt.get(ext);
+    if (hit !== undefined) return hit;
+    let h: string | null;
+    try {
+      h = grammarWasmHash(ext);
+    } catch {
+      h = null; // no grammar for this extension → cannot content-address → always parse live
+    }
+    grammarHashByExt.set(ext, h);
+    return h;
+  };
+
+  // Cache-backed fact resolution for one file. Computes the content-key (raw content hash +
+  // language + grammar wasm hash + extractor rev), tries the AST fact cache, and on a MISS
+  // parses live via `extractFileFacts` and writes the shard back — but ONLY on a successful
+  // parse (a `null` is fail-closed-to-parse: nothing is written, the file re-parses next run).
+  // A file with no grammar hash (no grammar for its extension) is never cacheable → parse live.
+  // The returned in-memory `FileFacts` is shaped per language: non-C# carries `uses`; C# carries
+  // the alias-UNRESOLVED `csharp` extract (assembled live downstream).
+  async function loadOrExtractFacts(
+    record: FileRecord,
+    extractor: DependencyExtractor,
+  ): Promise<FileFacts | null> {
+    const language = record.language!;
+    const isCsharp = language === 'csharp';
+    const grammarHash = grammarHashForExt(path.extname(record.path));
+
+    // No grammar hash → cannot key the cache. Parse live, do not cache.
+    if (grammarHash === null) return extractFileFacts(record, extractor);
+
+    const key = factsKey({
+      contentHash: record.hash,
+      language,
+      grammarHash,
+      rev: extractor.rev,
+    });
+
+    const cached = await loadFacts(deps.symbolIndexDir, language, key);
+    if (cached) {
+      // HIT — rebuild the in-memory per-file fact from the cached extractor output. The cache
+      // skips the PARSE, never the downstream join (symbol declare / resolve / assemble).
+      return {
+        declarations: cached.declarations,
+        uses: isCsharp ? null : cached.uses,
+        csharp: isCsharp ? (cached.csharp ?? null) : null,
+      };
+    }
+
+    // MISS — parse live. A failed parse writes NOTHING (fail-closed-to-parse).
+    const facts = await extractFileFacts(record, extractor);
+    if (!facts) return null;
+
+    // Persist the pure extractor output. C# stores its alias-unresolved extract under `csharp`
+    // (with `uses: []` unused); non-C# stores `uses` (no `csharp`). `writeFacts` is create-only.
+    await writeFacts(deps.symbolIndexDir, language, key, {
+      declarations: facts.declarations,
+      uses: facts.uses ?? [],
+      ...(facts.csharp !== null ? { csharp: facts.csharp } : {}),
+    });
+    return facts;
+  }
+
+  // 4. Per-file fact resolution. Universe = all mapped files of an extractor-backed language
+  //    (broad universe so ambiguity is detected across the repo). Each such file's facts come
+  //    from the content-addressed AST cache when its bytes/grammar/extractor are unchanged
+  //    (NO parse), else from a live single walk (then cached). The result feeds the symbol
+  //    build, the C# pre-pass, and the per-node resolution below — no phase re-parses. A failed
+  //    parse (null) is simply absent from factsByPath (never recorded as empty facts), exactly
+  //    as the old per-phase `if (!parsed) continue;` skipped it.
   const symbolTable = new SymbolTable();
   const recordsByLanguage = new Map<string, FileRecord[]>();
   for (const record of fileRecords) {
@@ -177,64 +260,52 @@ export async function runRelationPass(
     if (!record.language) continue;
     const extractor = deps.extractorFor(record.language);
     if (!extractor) continue;
-    const facts = await extractFileFacts(record, extractor);
+    const facts = await loadOrExtractFacts(record, extractor);
     if (facts) factsByPath.set(record.path, facts);
   }
 
-  // 4a. Build the shared SymbolTable. Per language: try the persisted index (builtFrom-keyed);
-  //     on a miss, declare from the already-extracted per-file facts (NO re-parse) and persist.
-  //     The cache read/write is preserved verbatim from before; only the parse it used to gate
-  //     is now the single walk above (so the in-memory symbol table is identical either way —
-  //     decls are a pure function of the same bytes).
+  // 4a. Build the shared SymbolTable by re-declaring EVERY file's declarations every run (cached
+  //     or fresh). The cache skips the PARSE, never the `declare()` — ambiguity (`defCount` /
+  //     `filesFor`, and Ruby's intentionally non-deduped reopenings) is a CROSS-FILE property; a
+  //     hit that skipped re-declaring would under-count `defCount`, make an ambiguous symbol look
+  //     unique, and silence a real ambiguity → false green (design §8 mandatory invariant). The
+  //     table is order-independent (`Map<key, Set<file>>`), so re-declaring all files in any order
+  //     reproduces the same table.
   for (const [language, records] of recordsByLanguage) {
-    const builtFrom: Array<[string, string]> = records
-      .map((r): [string, string] => [r.path, r.hash])
-      .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-
-    const cached = loadSymbolIndex(deps.symbolIndexDir, language, builtFrom);
-    if (cached) {
-      for (const [symbolKey, file] of cached.symbols) symbolTable.declare(language, symbolKey, file);
-      continue;
-    }
-
-    // Cache miss → accumulate declarations from the single-walk facts, declare, persist.
-    const symbols: Array<[string, string]> = [];
     for (const record of records) {
       const facts = factsByPath.get(record.path);
       if (!facts) continue;
       for (const decl of facts.declarations) {
-        symbols.push([decl.symbolKey, record.path]);
         symbolTable.declare(language, decl.symbolKey, record.path);
       }
     }
-    const toPersist: PersistedSymbolIndex = { builtFrom, symbols };
-    await writeSymbolIndex(deps.symbolIndexDir, language, toPersist);
   }
 
   // 4.5 C# global-using pre-pass (R5). A `global using N;` declared in ANY C# file is a
   //     project-wide import that qualifies bare names in EVERY C# file. Aggregate every C#
   //     file's `global using` namespace prefixes once, then inject the set into each file's
-  //     `uses()` below (as the lowest using tier). This is the one cross-file scope channel
-  //     the per-file extractor cannot see on its own. Implicit/SDK global usings remain
+  //     candidate assembly below (as the lowest using tier). This is the one cross-file scope
+  //     channel the per-file extractor cannot see on its own. Implicit/SDK global usings remain
   //     invisible to a source-only tool → the names they would import stay silenced (correct).
   //     Also aggregate every file's `global using Alias = N.Type;` project-wide aliases (A12):
   //     a global-using alias declared in ANY file is usable in EVERY file, resolved in the
   //     declaring file's context (the alias RHS is fully-qualified, so the captured FQN is the
   //     target). A later same-named global alias overwrites an earlier one (last-wins is benign:
   //     a genuine cross-file collision is a compile error C# itself rejects; our zero-FP floor is
-  //     that a file-local alias of the same name always takes precedence, enforced in uses()).
-  //     This now reads from the single-walk facts — NO C# re-parse — but MUST still complete
-  //     (aggregate ALL C# files) BEFORE per-node resolution: a `global using` in any file
-  //     changes another file's bare-name resolution, so the full aggregate is the input to
-  //     every per-node C# uses() call below.
+  //     that a file-local alias of the same name always takes precedence, enforced in assembly).
+  //     This reads from the CACHED per-file C# extract (`facts.csharp.scope.globalPrefixes /
+  //     globalAliases`) — NO C# re-parse — but MUST still complete (aggregate ALL C# files)
+  //     BEFORE per-node assembly: a `global using` in any file changes another file's bare-name
+  //     resolution, so the full aggregate is the input to every per-node `assembleCsharpCandidates`
+  //     call below.
   const csharpRecords = recordsByLanguage.get('csharp') ?? [];
   const projectGlobalUsings = new Set<string>();
   const projectGlobalUsingAliases = new Map<string, string>();
   for (const record of csharpRecords) {
     const facts = factsByPath.get(record.path);
-    if (!facts) continue;
-    for (const prefix of facts.csharpGlobalUsings) projectGlobalUsings.add(prefix);
-    for (const [name, fqn] of facts.csharpGlobalUsingAliases) projectGlobalUsingAliases.set(name, fqn);
+    if (!facts || facts.csharp === null) continue;
+    for (const prefix of facts.csharp.scope.globalPrefixes) projectGlobalUsings.add(prefix);
+    for (const [name, fqn] of facts.csharp.scope.globalAliases) projectGlobalUsingAliases.set(name, fqn);
   }
   const csharpGlobalUsings = [...projectGlobalUsings];
   const csharpGlobalUsingAliases = [...projectGlobalUsingAliases.entries()];
@@ -265,8 +336,8 @@ export async function runRelationPass(
     },
   };
 
-  // 6. Per node: collect detected uses (from the single-walk facts for every non-C# file;
-  //    LIVE per-file for C#, which folds the project-wide global-using aggregate built above),
+  // 6. Per node: collect detected uses (the cached `uses` for every non-C# file; for C# the
+  //    candidate groups ASSEMBLED LIVE from the cached extract + the project-global aggregate),
   //    resolve each, verify undeclared cross-node dependencies, and form the LIVE result.
   const violationsByNode = new Map<string, NodeViolations>();
 
@@ -296,20 +367,18 @@ export async function runRelationPass(
       if (!extractor) continue;
 
       if (record.language === 'csharp') {
-        // C# uses() folds the cross-file global-using aggregate as its lowest using tier (R5),
-        // so it is resolved LIVE here — one re-parse per C# file — exactly as before. A later
-        // task splits this seam to source it from cached facts.
-        const parsed = await parseSingle(record);
-        if (!parsed) continue;
-        try {
-          const detected = csharpUses(parsed, {
-            projectGlobalUsings: csharpGlobalUsings,
-            projectGlobalUsingAliases: csharpGlobalUsingAliases,
-          });
-          resolveDetected(record, detected, resolvedDeps);
-        } finally {
-          parsed.tree.delete();
-        }
+        // C# candidate groups fold the cross-file global-using aggregate as their lowest using
+        // tier (R5), so they are ASSEMBLED LIVE here from the file's cached pre-assembly extract
+        // (`facts.csharp`) plus the project-wide aggregate built above — NO C# re-parse. This is
+        // where C# finally stops re-parsing unchanged files. A file whose parse failed is absent
+        // from factsByPath — skip it, exactly as `if (!parsed) continue;` did.
+        const facts = factsByPath.get(record.path);
+        if (!facts || facts.csharp === null) continue;
+        const detected = assembleCsharpCandidates(facts.csharp, {
+          projectGlobalUsings: csharpGlobalUsings,
+          projectGlobalUsingAliases: csharpGlobalUsingAliases,
+        });
+        resolveDetected(record, detected, resolvedDeps);
         continue;
       }
 

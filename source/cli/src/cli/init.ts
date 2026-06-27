@@ -80,7 +80,8 @@ export async function ensureGitattributes(repoRoot: string): Promise<void> {
  *  local state lives under `.yggdrasil/` and is rebuildable or secret — it must
  *  never be committed:
  *    - `yg-secrets.yaml`  — provider API keys
- *    - `.symbols-cache/`  — the relation pass's per-language symbol-index cache
+ *    - `.symbols-cache/`  — the relation pass's legacy per-language symbol-index cache
+ *    - `.ast-cache/`      — the relation pass's content-addressed per-file AST fact cache
  *    - `.debug.log`       — the opt-in command debug log
  *  This is the single source of truth for what init writes into the local
  *  gitignore (both fresh init and every --upgrade). Paths are relative to the
@@ -88,6 +89,9 @@ export async function ensureGitattributes(repoRoot: string): Promise<void> {
 const YGGDRASIL_GITIGNORE_LINES = [
   'yg-secrets.yaml',
   '.symbols-cache/',
+  // Content-addressed per-file AST fact cache: a local speed cache the relation pass rebuilds
+  // free on the next run; never committed.
+  '.ast-cache/',
   '.debug.log',
   // Deterministic-verdict lock: a local cache rebuilt for free by
   // `yg check --approve --only-deterministic`; never committed.

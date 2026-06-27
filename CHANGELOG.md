@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The relation-conformance pass now caches per-file AST extraction, so an unchanged file is no longer re-parsed every `yg check`.** A new content-addressed per-file fact cache lives at `.yggdrasil/.ast-cache/` (gitignored, rebuildable, never committed): each file's pure extractor output (declarations + detected uses, and for C# the alias-unresolved pre-assembly extract) is keyed by the file's raw content hash + language + grammar wasm hash + extractor revision. A hit skips the tree-sitter parse entirely while the symbol-table rebuild and the whole resolve/verify join stay LIVE every run, so the relation verdict is still the current truth of the code against the graph — a cached fact can never carry a stale relation verdict, and a failed parse is never cached (it re-parses every run, fail-closed-to-parse). C# alias maps are (de)serialized as entry arrays at the cache boundary so a cross-file `global using` alias edge still resolves on a cached run. `yg init --upgrade` adds `.ast-cache/` to the local `.yggdrasil/.gitignore`.
+
 ## [5.4.0] - 2026-06-27
 
 ### Added

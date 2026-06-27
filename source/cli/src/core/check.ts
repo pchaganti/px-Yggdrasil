@@ -28,7 +28,7 @@ import {
 // ── Relation-conformance (computed live, parse + resolve every run) ──
 import { runRelationPass } from '../relations/pass.js';
 import { extractorForLanguage } from '../relations/extractors/registry.js';
-import { relationIndexDir } from '../relations/index-dir.js';
+import { astCacheDir } from '../relations/facts-cache.js';
 import { relationRefusedMessage } from '../relations/messages.js';
 import { makeResolvePathToFile } from '../relations/resolve-path.js';
 import { buildOwnerIndex } from '../relations/owner-index.js';
@@ -536,7 +536,9 @@ export async function runCheck(graph: Graph, gitTrackedFiles: string[] | null): 
     const relResult = await runRelationPass(graph, projectRoot, {
       extractorFor: extractorForLanguage,
       resolvePathToFile: makeResolvePathToFile(projectRoot, buildOwnerIndex(graph.nodes).ownerOf),
-      symbolIndexDir: relationIndexDir(graph.rootPath),
+      // Repurposed field: now the content-addressed AST fact cache root (.ast-cache), the
+      // per-file parse cache that skips the tree-sitter re-parse of unchanged files.
+      symbolIndexDir: astCacheDir(graph.rootPath),
     });
     for (const [nodeId, nv] of relResult.violationsByNode) {
       if (nv.verdict !== 'refused') continue;
