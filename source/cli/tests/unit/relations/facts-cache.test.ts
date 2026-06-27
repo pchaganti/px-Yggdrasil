@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { mkdtempSync } from 'node:fs';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { astCacheDir, factsKey, loadFacts, writeFacts } from '../../../src/relations/facts-cache.js';
@@ -12,8 +12,13 @@ import {
 import type { ParsedFile } from '../../../src/relations/extractors/types.js';
 
 describe('facts-cache', () => {
+  let root: string;
   let dir: string;
-  beforeEach(() => { dir = astCacheDir(mkdtempSync(path.join(os.tmpdir(), 'astc-'))); });
+  beforeEach(() => {
+    root = mkdtempSync(path.join(os.tmpdir(), 'astc-'));
+    dir = astCacheDir(root);
+  });
+  afterEach(() => { rmSync(root, { recursive: true, force: true }); });
   const key = factsKey({ contentHash: 'abc', language: 'typescript', grammarHash: 'g1', rev: 1 });
 
   it('round-trips facts', async () => {
