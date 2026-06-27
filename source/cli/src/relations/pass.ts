@@ -20,6 +20,8 @@ import { verifyNodeDeps, type ResolvedDep, type RelationGraphView, type Violatio
 import type {
   DependencyExtractor,
   ParsedFile,
+  DeclaredSymbol,
+  DetectedDep,
 } from './extractors/types.js';
 
 export interface NodeViolations {
@@ -44,6 +46,27 @@ interface FileRecord {
   hash: string;
   language: string | null;
   nodeId: string;
+}
+
+/**
+ * The pure extractor output of ONE file, produced by a SINGLE tree-sitter parse.
+ * Holding these facts (not the live `Tree`) lets every phase — the symbol build, the
+ * C# global-using pre-pass, and the per-node `uses()` resolution — read one file's
+ * extraction without re-parsing it, while keeping WASM heap at O(1) live trees (the
+ * tree is deleted inside `extractFileFacts` before the facts are returned).
+ *
+ * `uses` is the per-file detected dependencies for every NON-C# language. For C# it is
+ * `null`: C# `uses()` folds the project-wide `global using` aggregate (built only AFTER
+ * every C# file has been walked), so its `uses()` is computed LIVE per node, after the
+ * pre-pass, exactly as before — a later task splits that seam. The two `csharp*` fields
+ * carry that file's contribution to the project-wide global-using aggregate (empty for
+ * non-C# files).
+ */
+interface FileFacts {
+  declarations: DeclaredSymbol[];
+  uses: DetectedDep[] | null; // null ⇔ C# (resolved live after the pre-pass)
+  csharpGlobalUsings: string[];
+  csharpGlobalUsingAliases: Array<[string, string]>;
 }
 
 export async function runRelationPass(
@@ -101,9 +124,41 @@ export async function runRelationPass(
     }
   }
 
-  // 4. Build the shared SymbolTable. Universe = all mapped files of an extractor-backed
-  //    language (broad universe so ambiguity is detected across the repo). Per language:
-  //    try the persisted index (builtFrom-keyed); rebuild + persist on a miss.
+  // Parse a file ONCE and return its pure extractor facts. The single walk runs
+  // `declarations()` (+ for non-C# `uses()`, + for C# the two global-using collectors)
+  // inside ONE try/finally that ALWAYS deletes the tree — even if an extractor throws
+  // mid-extraction — so a thrown extractor never leaks a WASM tree. Returns `null` iff
+  // the parse itself failed or the file has no language, so callers can distinguish a
+  // failed parse from a legitimately empty file (never treat a failure as empty facts).
+  // The facts are then reused by the symbol build, the C# pre-pass, and per-node
+  // resolution, so each file is parsed at most once here (C# pays one extra LIVE parse
+  // for `uses()` after the pre-pass — see FileFacts).
+  async function extractFileFacts(
+    record: FileRecord,
+    extractor: DependencyExtractor,
+  ): Promise<FileFacts | null> {
+    const parsed = await parseSingle(record);
+    if (!parsed) return null;
+    try {
+      const declarations = extractor.declarations(parsed);
+      const isCsharp = record.language === 'csharp';
+      // C# `uses()` needs the project-wide global-using aggregate (built only after every
+      // C# file is walked), so it is resolved LIVE per node after the pre-pass — not here.
+      const uses = isCsharp ? null : extractor.uses(parsed);
+      const csharpGlobalUsings = isCsharp ? collectGlobalUsings(parsed) : [];
+      const csharpGlobalUsingAliases = isCsharp ? collectGlobalUsingAliases(parsed) : [];
+      return { declarations, uses, csharpGlobalUsings, csharpGlobalUsingAliases };
+    } finally {
+      parsed.tree.delete();
+    }
+  }
+
+  // 4. Single-walk extraction. Universe = all mapped files of an extractor-backed language
+  //    (broad universe so ambiguity is detected across the repo). Parse each such file ONCE
+  //    here (via extractFileFacts) and reuse the result for the symbol build, the C# pre-pass,
+  //    and the per-node resolution below — no phase re-parses. A failed parse (null) is simply
+  //    absent from factsByPath (never recorded as empty facts), exactly as the old per-phase
+  //    `if (!parsed) continue;` skipped it.
   const symbolTable = new SymbolTable();
   const recordsByLanguage = new Map<string, FileRecord[]>();
   for (const record of fileRecords) {
@@ -117,8 +172,21 @@ export async function runRelationPass(
     list.push(record);
   }
 
+  const factsByPath = new Map<string, FileFacts>();
+  for (const record of fileRecords) {
+    if (!record.language) continue;
+    const extractor = deps.extractorFor(record.language);
+    if (!extractor) continue;
+    const facts = await extractFileFacts(record, extractor);
+    if (facts) factsByPath.set(record.path, facts);
+  }
+
+  // 4a. Build the shared SymbolTable. Per language: try the persisted index (builtFrom-keyed);
+  //     on a miss, declare from the already-extracted per-file facts (NO re-parse) and persist.
+  //     The cache read/write is preserved verbatim from before; only the parse it used to gate
+  //     is now the single walk above (so the in-memory symbol table is identical either way —
+  //     decls are a pure function of the same bytes).
   for (const [language, records] of recordsByLanguage) {
-    const extractor = deps.extractorFor(language)!;
     const builtFrom: Array<[string, string]> = records
       .map((r): [string, string] => [r.path, r.hash])
       .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
@@ -129,18 +197,14 @@ export async function runRelationPass(
       continue;
     }
 
-    // Cache miss → parse each file, extract declarations, accumulate, persist.
+    // Cache miss → accumulate declarations from the single-walk facts, declare, persist.
     const symbols: Array<[string, string]> = [];
     for (const record of records) {
-      const parsed = await parseSingle(record);
-      if (!parsed) continue;
-      try {
-        for (const decl of extractor.declarations(parsed)) {
-          symbols.push([decl.symbolKey, record.path]);
-          symbolTable.declare(language, decl.symbolKey, record.path);
-        }
-      } finally {
-        parsed.tree.delete();
+      const facts = factsByPath.get(record.path);
+      if (!facts) continue;
+      for (const decl of facts.declarations) {
+        symbols.push([decl.symbolKey, record.path]);
+        symbolTable.declare(language, decl.symbolKey, record.path);
       }
     }
     const toPersist: PersistedSymbolIndex = { builtFrom, symbols };
@@ -159,18 +223,18 @@ export async function runRelationPass(
   //     target). A later same-named global alias overwrites an earlier one (last-wins is benign:
   //     a genuine cross-file collision is a compile error C# itself rejects; our zero-FP floor is
   //     that a file-local alias of the same name always takes precedence, enforced in uses()).
+  //     This now reads from the single-walk facts — NO C# re-parse — but MUST still complete
+  //     (aggregate ALL C# files) BEFORE per-node resolution: a `global using` in any file
+  //     changes another file's bare-name resolution, so the full aggregate is the input to
+  //     every per-node C# uses() call below.
   const csharpRecords = recordsByLanguage.get('csharp') ?? [];
   const projectGlobalUsings = new Set<string>();
   const projectGlobalUsingAliases = new Map<string, string>();
   for (const record of csharpRecords) {
-    const parsed = await parseSingle(record);
-    if (!parsed) continue;
-    try {
-      for (const prefix of collectGlobalUsings(parsed)) projectGlobalUsings.add(prefix);
-      for (const [name, fqn] of collectGlobalUsingAliases(parsed)) projectGlobalUsingAliases.set(name, fqn);
-    } finally {
-      parsed.tree.delete();
-    }
+    const facts = factsByPath.get(record.path);
+    if (!facts) continue;
+    for (const prefix of facts.csharpGlobalUsings) projectGlobalUsings.add(prefix);
+    for (const [name, fqn] of facts.csharpGlobalUsingAliases) projectGlobalUsingAliases.set(name, fqn);
   }
   const csharpGlobalUsings = [...projectGlobalUsings];
   const csharpGlobalUsingAliases = [...projectGlobalUsingAliases.entries()];
@@ -201,9 +265,24 @@ export async function runRelationPass(
     },
   };
 
-  // 6. Per node: parse its extractor-backed files, collect detected uses, resolve
-  //    each, verify undeclared cross-node dependencies, and form the LIVE result.
+  // 6. Per node: collect detected uses (from the single-walk facts for every non-C# file;
+  //    LIVE per-file for C#, which folds the project-wide global-using aggregate built above),
+  //    resolve each, verify undeclared cross-node dependencies, and form the LIVE result.
   const violationsByNode = new Map<string, NodeViolations>();
+
+  // Resolve one file's detected uses into cross-node edges (shared by both paths below).
+  const resolveDetected = (record: FileRecord, detected: DetectedDep[], resolvedDeps: ResolvedDep[]): void => {
+    for (const dep of detected) {
+      // Ordered first-unique-match-wins walk over the candidate group — the SINGLE
+      // definition shared verbatim with the reference-case runner (resolveCandidateGroup).
+      // A resolved self-edge is pushed here and filtered downstream by verifyNodeDeps
+      // against the node's declared relations.
+      const ownerNode = resolveCandidateGroup(dep.candidates, resolver, record.path, record.language!);
+      if (ownerNode !== undefined) {
+        resolvedDeps.push({ fromFile: record.path, line: dep.line, ownerNode });
+      }
+    }
+  };
 
   for (const [nodeId] of graph.nodes) {
     const records = fileRecords.filter((r) => r.nodeId === nodeId);
@@ -216,32 +295,29 @@ export async function runRelationPass(
       const extractor = deps.extractorFor(record.language);
       if (!extractor) continue;
 
-      const parsed = await parseSingle(record);
-      if (!parsed) continue;
-
-      try {
-        // C# uses the cross-file global-using set as its lowest using tier (R5). Every other
-        // extractor's `uses` ignores extra args, so this is a no-op for them.
-        const detected =
-          record.language === 'csharp'
-            ? csharpUses(parsed, {
-                projectGlobalUsings: csharpGlobalUsings,
-                projectGlobalUsingAliases: csharpGlobalUsingAliases,
-              })
-            : extractor.uses(parsed);
-        for (const dep of detected) {
-          // Ordered first-unique-match-wins walk over the candidate group — the SINGLE
-          // definition shared verbatim with the reference-case runner (resolveCandidateGroup).
-          // A resolved self-edge is pushed here and filtered downstream by verifyNodeDeps
-          // against the node's declared relations.
-          const ownerNode = resolveCandidateGroup(dep.candidates, resolver, record.path, record.language);
-          if (ownerNode !== undefined) {
-            resolvedDeps.push({ fromFile: record.path, line: dep.line, ownerNode });
-          }
+      if (record.language === 'csharp') {
+        // C# uses() folds the cross-file global-using aggregate as its lowest using tier (R5),
+        // so it is resolved LIVE here — one re-parse per C# file — exactly as before. A later
+        // task splits this seam to source it from cached facts.
+        const parsed = await parseSingle(record);
+        if (!parsed) continue;
+        try {
+          const detected = csharpUses(parsed, {
+            projectGlobalUsings: csharpGlobalUsings,
+            projectGlobalUsingAliases: csharpGlobalUsingAliases,
+          });
+          resolveDetected(record, detected, resolvedDeps);
+        } finally {
+          parsed.tree.delete();
         }
-      } finally {
-        parsed.tree.delete();
+        continue;
       }
+
+      // Every non-C# file's uses() came from the single walk above (no re-parse). A file whose
+      // parse failed is absent from factsByPath — skip it, exactly as `if (!parsed) continue;` did.
+      const facts = factsByPath.get(record.path);
+      if (!facts || facts.uses === null) continue;
+      resolveDetected(record, facts.uses, resolvedDeps);
     }
 
     const violations = verifyNodeDeps(nodeId, resolvedDeps, graphView);
