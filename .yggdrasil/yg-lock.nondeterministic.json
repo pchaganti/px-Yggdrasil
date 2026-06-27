@@ -268,6 +268,7 @@
     },
     "test-deterministic": {
       "file:source/cli/tests/e2e/cli-architecture-classification.test.ts": {"hash":"505c48f4801a1f0ef45c6dd303e174dcdb081a271272f00fd01af54c300ee8d9","verdict":"approved"},
+      "file:source/cli/tests/e2e/cli-architecture-relation-defaults.test.ts": {"hash":"694d1452bd37f3d7017899a1e6f17715b850debccf72f1ebf33a512bf2064165","verdict":"approved"},
       "file:source/cli/tests/e2e/cli-architecture-when-validation.test.ts": {"hash":"26758a7dc09fcdfa1623d43e58bf393de40488e97cb8f6830208508bf055395e","verdict":"approved"},
       "file:source/cli/tests/e2e/cli-aspect-authoring-remaining.test.ts": {"hash":"315789ca23630cdf3ebe9f2ea74229defdda3b6b50124933ae0f44f7e903f823","verdict":"approved"},
       "file:source/cli/tests/e2e/cli-aspect-authoring.test.ts": {"hash":"3ff5011476d9445912d1f4ec5f24bad159d830b475aca547b9bc5a9099ad9aa7","verdict":"approved"},
