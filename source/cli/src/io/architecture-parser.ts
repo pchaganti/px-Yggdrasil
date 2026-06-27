@@ -71,7 +71,7 @@ export async function parseArchitecture(filePath: string): Promise<ArchitectureD
         )
       : undefined;
 
-    const relations: Partial<Record<RelationType, string[]>> | undefined = parseRelations(entry.relations, typeName);
+    const { lists: relations, relationDefault } = parseRelations(entry.relations, typeName);
 
     let logRequired: boolean | undefined;
     if (entry.log_required !== undefined) {
@@ -105,6 +105,7 @@ export async function parseArchitecture(filePath: string): Promise<ArchitectureD
       ...(aspectStatus && { aspectStatus }),
       parents: parents && parents.length > 0 ? parents : undefined,
       relations: relations,
+      ...(relationDefault !== undefined && { relationDefault }),
       ...(logRequired !== undefined && { log_required: logRequired }),
       ...(when !== undefined && { when }),
       ...(enforce !== undefined && { enforce }),
@@ -119,9 +120,9 @@ export async function parseArchitecture(filePath: string): Promise<ArchitectureD
 function parseRelations(
   relationsRaw: unknown,
   typeName: string,
-): Partial<Record<RelationType, string[]>> | undefined {
+): { lists: Partial<Record<RelationType, string[]>> | undefined; relationDefault?: 'allow' | 'deny' } {
   if (relationsRaw === undefined) {
-    return undefined;
+    return { lists: undefined };
   }
 
   if (typeof relationsRaw !== 'object' || Array.isArray(relationsRaw)) {
@@ -129,31 +130,42 @@ function parseRelations(
   }
 
   const relations: Partial<Record<RelationType, string[]>> = {};
+  let relationDefault: 'allow' | 'deny' | undefined;
 
-  for (const [relType, targets] of Object.entries(relationsRaw as Record<string, unknown>)) {
-    if (!VALID_RELATION_TYPES.has(relType)) {
+  for (const [key, value] of Object.entries(relationsRaw as Record<string, unknown>)) {
+    if (key === 'default') {
+      if (value !== 'allow' && value !== 'deny') {
+        throw new Error(
+          `yg-architecture.yaml: node_types.${typeName}.relations.default must be 'allow' or 'deny' (got: ${JSON.stringify(value)})`,
+        );
+      }
+      relationDefault = value;
+      continue;
+    }
+
+    if (!VALID_RELATION_TYPES.has(key)) {
       throw new Error(
-        `yg-architecture.yaml: node_types.${typeName}.relations: unknown relation type '${relType}' (valid types: ${Array.from(VALID_RELATION_TYPES).join(', ')})`,
+        `yg-architecture.yaml: node_types.${typeName}.relations: unknown relation type '${key}' (valid types: ${Array.from(VALID_RELATION_TYPES).join(', ')}; or 'default')`,
       );
     }
 
-    if (!Array.isArray(targets)) {
+    if (!Array.isArray(value)) {
       throw new Error(
-        `yg-architecture.yaml: node_types.${typeName}.relations.${relType} must be an array`,
+        `yg-architecture.yaml: node_types.${typeName}.relations.${key} must be an array`,
       );
     }
 
     const targetStrings = assertStringArray(
-      targets as unknown[],
-      `yg-architecture.yaml: node_types.${typeName}.relations.${relType}`,
+      value as unknown[],
+      `yg-architecture.yaml: node_types.${typeName}.relations.${key}`,
       'target type name',
     );
-    if (targetStrings.length > 0) {
-      relations[relType as RelationType] = targetStrings;
-    }
+    // Preserve empty lists: [] means "deny all targets for this relation type".
+    relations[key as RelationType] = targetStrings;
   }
 
-  return Object.keys(relations).length > 0 ? relations : {};
+  const hasLists = Object.keys(relations).length > 0;
+  return { lists: hasLists ? relations : {}, relationDefault };
 }
 
 /**

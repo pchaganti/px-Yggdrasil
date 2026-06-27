@@ -267,6 +267,78 @@ node_types:
     await cleanup(file);
   });
 
+  it('preserves an empty relation list (does not drop it)', async () => {
+    const file = await writeTmp('yg-architecture.yaml', `
+node_types:
+  service:
+    description: "test"
+    relations:
+      uses: []
+`);
+    const arch = await parseArchitecture(file);
+    expect(arch.node_types.service.relations?.uses).toEqual([]);
+    await cleanup(file);
+  });
+
+  it('parses relations.default scalar (allow/deny) into relationDefault', async () => {
+    const file = await writeTmp('yg-architecture.yaml', `
+node_types:
+  sink:
+    description: "test"
+    relations:
+      default: deny
+  open:
+    description: "test"
+    relations:
+      default: allow
+`);
+    const arch = await parseArchitecture(file);
+    expect(arch.node_types.sink.relationDefault).toBe('deny');
+    expect(arch.node_types.open.relationDefault).toBe('allow');
+    await cleanup(file);
+  });
+
+  it('leaves relationDefault undefined when no default key is present', async () => {
+    const file = await writeTmp('yg-architecture.yaml', `
+node_types:
+  service:
+    description: "test"
+    relations:
+      uses: [domain]
+`);
+    const arch = await parseArchitecture(file);
+    expect(arch.node_types.service.relationDefault).toBeUndefined();
+    expect(arch.node_types.service.relations?.uses).toEqual(['domain']);
+    await cleanup(file);
+  });
+
+  it('throws on an invalid relations.default value', async () => {
+    const file = await writeTmp('yg-architecture.yaml', `
+node_types:
+  service:
+    description: "test"
+    relations:
+      default: maybe
+`);
+    await expect(parseArchitecture(file)).rejects.toThrow(/relations\.default must be 'allow' or 'deny'/);
+    await cleanup(file);
+  });
+
+  it('does not treat the default key as an unknown relation type', async () => {
+    const file = await writeTmp('yg-architecture.yaml', `
+node_types:
+  sink:
+    description: "test"
+    relations:
+      default: deny
+      listens: ['*']
+`);
+    const arch = await parseArchitecture(file);
+    expect(arch.node_types.sink.relationDefault).toBe('deny');
+    expect(arch.node_types.sink.relations?.listens).toEqual(['*']);
+    await cleanup(file);
+  });
+
   describe('architecture-parser v4 changes', () => {
     it('rejects integration_aspects as unknown field', async () => {
       const file = await writeTmp('yg-architecture.yaml', `

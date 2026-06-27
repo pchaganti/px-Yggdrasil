@@ -177,7 +177,7 @@
       "file:source/cli/src/migrations/to-5.1.0.ts": {"hash":"c3623b412db169f58ad16599f9df26ca20fb34af58f9a721be99bc2312b9df5e","verdict":"approved"}
     },
     "parser-contract": {
-      "file:source/cli/src/io/architecture-parser.ts": {"hash":"e69ec84e378aa7e2b4c53fc39ce4470724307538b489517969f2283f973c4627","verdict":"approved"},
+      "file:source/cli/src/io/architecture-parser.ts": {"hash":"3b1a9aa6a3c46baa8a1cc159daa5d7b65981d23f9e1a88cf5d0830cd9886203b","verdict":"approved"},
       "file:source/cli/src/io/aspect-parser.ts": {"hash":"367d82687214f8bf5edc09be64cbf14631750dadbc405deb275b6ef1d1cced5a","verdict":"approved"},
       "file:source/cli/src/io/config-parser.ts": {"hash":"2df8b3bc363cb64a8dd788d0dddb15c7ace5d79542515b067104b0bf4236f194","verdict":"approved"},
       "file:source/cli/src/io/flow-parser.ts": {"hash":"20c5fd1b6934f5ace0c14912f4130bee3a6bb0b0e1ad6c5a4f052178523f4ded","verdict":"approved"},
@@ -263,7 +263,7 @@
       "node:cli/io/lock-store": {"hash":"7655dcd5606e8f90db908107b9f89108956487c0a7bcf371f13ef04e2ca5517b","verdict":"approved"},
       "node:cli/io/parsers/aspect": {"hash":"92b46d0af35e65099ada9c353761548ae1d981a33bffa1f17d96e159c693540e","verdict":"approved"},
       "node:cli/io/parsers/config": {"hash":"783cab2f4a86669830e10a6f3d5733ecfd1266227837f5a1ec4bc4107ef9453d","verdict":"approved"},
-      "node:cli/io/parsers/graph": {"hash":"55554a0d9e66cd8a66d8d321398c3063f8c21ef37e6def216ec5494903f26814","verdict":"approved"},
+      "node:cli/io/parsers/graph": {"hash":"622a01a466930002fd7a04beb8f0db6f4c91741aa5f604e7c2be90b3c72ba0a1","verdict":"approved"},
       "node:cli/io/stores": {"hash":"54eab68ee3aa2bdb6ad923e23fb668eb524e086525b17b158d22bae2f59433c9","verdict":"approved"}
     },
     "test-deterministic": {
@@ -515,7 +515,7 @@
       "file:source/cli/tests/unit/helpers/build-test-graph.ts": {"hash":"043a46790d81e2c4b4407176d748be2f9eea5dcfd47b125cb3c1608c569440be","verdict":"approved"},
       "file:source/cli/tests/unit/helpers/seed-lock.ts": {"hash":"e821fa5a784841656fc927f01a32282906f163006fe1f50d76d600619b2e9184","verdict":"approved"},
       "file:source/cli/tests/unit/io/architecture-parser-status.test.ts": {"hash":"abdcf9db930be244273862d668d5e6a6460fab8d153c46f36fae9282fe8d85b2","verdict":"approved"},
-      "file:source/cli/tests/unit/io/architecture-parser.test.ts": {"hash":"76649515da9a035b51cab8372ac8f2c3cc893777681a03478c92c7f8bb86eb09","verdict":"approved"},
+      "file:source/cli/tests/unit/io/architecture-parser.test.ts": {"hash":"c4da698b2567425da4688be38fb1c1cf6b7d38535e2766607d6bc1cf1a6a8301","verdict":"approved"},
       "file:source/cli/tests/unit/io/artifact-reader.test.ts": {"hash":"041e4efa33ce0162297ee80f03d0efc8cfedd1e3e23b1bea14336747f1a7223d","verdict":"approved"},
       "file:source/cli/tests/unit/io/aspect-parser-aggregate.test.ts": {"hash":"9ea661142e01e2a8b1ce70844bb89163358d1e62680c9e88525adad0ad33a372","verdict":"approved"},
       "file:source/cli/tests/unit/io/aspect-parser-deterministic.test.ts": {"hash":"a0409dd3a1ed8a969335049e3dbab0330f7dac4fd28c337a6cdd276824c18187","verdict":"approved"},

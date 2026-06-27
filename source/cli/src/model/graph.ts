@@ -64,6 +64,13 @@ export interface ArchitectureNodeType {
   parents?: string[];
   relations?: Partial<Record<RelationType, string[]>>;
   /**
+   * Default policy for relation types NOT listed in `relations`.
+   * 'allow' (the default when undefined) ⇒ unlisted relation types may target
+   * any node type. 'deny' ⇒ unlisted relation types target nothing (sink).
+   * An explicit per-type list always overrides this for that relation type.
+   */
+  relationDefault?: 'allow' | 'deny';
+  /**
    * Whether nodes of this type require a log entry per source-file change.
    * Undefined means caller should apply its own default (typically true).
    */

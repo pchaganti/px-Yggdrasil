@@ -59,7 +59,7 @@
     "cli/io/parsers": {"log":{"last_entry_datetime":"2026-05-28T07:05:20.439Z","prefix_hash":"37f42209106cd013687ba25b3ed69aa0d8e956cd9e93c096dc77f236dfa28aae"}},
     "cli/io/parsers/aspect": {"log":{"last_entry_datetime":"2026-06-19T19:19:17.923Z","prefix_hash":"c1bb1745b5dfd7e31a58598b8008d01ec34acb72341ce1e2c4ef4f02afb4cf41"},"source":"cdb5547c5e1d283968112801d4cfc32da71cd40630ec4651010fee3c70ebcfd7"},
     "cli/io/parsers/config": {"log":{"last_entry_datetime":"2026-06-26T11:34:39.623Z","prefix_hash":"2971960d268440932df6d0010dec19c83d3ccc68c0a633679a9d7c9beecc3514"},"source":"b854548c7d704b97f3513f27633777e325134ce27b2a72cb175b57cbbe318c52"},
-    "cli/io/parsers/graph": {"log":{"last_entry_datetime":"2026-06-20T07:11:26.357Z","prefix_hash":"e29ed2479fb1353228eea9571702f4e01e838c79a56ba05191b5675b0bfc4a1d"},"source":"3023d15307e0f891c6bae9018c1ee8de8b1b9baec9f4bcf3236a165adab2dd50"},
+    "cli/io/parsers/graph": {"log":{"last_entry_datetime":"2026-06-27T06:58:17.571Z","prefix_hash":"e66f000ec21cdcfed7909bf853e1b42b3ce2d62997068f8de2dca3f7df86a9d5"},"source":"063b7f9a9476e798dfecb6425a756e84575384a4453f214ca9dd5da4d3bfdb11"},
     "cli/io/stores": {"log":{"last_entry_datetime":"2026-06-17T09:37:46.090Z","prefix_hash":"86bad27a792230e7c589c8dcfeb05cfda194171182cf367ee98718f0a9fae0c0"},"source":"339affc8deed2001047d01d033beb59ab0687f266dc097efc587a52be595bdf5"},
     "cli/knowledge": {"log":{"last_entry_datetime":"2026-05-29T08:33:39.060Z","prefix_hash":"3552dea263b549d286032427d5bcdb04868b462ef253508b34411990fc432a73"}},
     "cli/knowledge-concepts": {"log":{"last_entry_datetime":"2026-06-13T05:34:22.962Z","prefix_hash":"3b0c73d2106fb0660438da59ceaf03d23ba5ca976e352d9874f912e4dbb510f7"}},
