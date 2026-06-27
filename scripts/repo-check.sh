@@ -44,6 +44,13 @@ if (lines < 90 || stmts < 90 || funcs < 90 || br < 90) {
 }
 console.log('Coverage OK: lines=' + lines + '%, statements=' + stmts + '%, functions=' + funcs + '%, branches=' + br + '%');
 \""
+# Guard: the AST-extraction-cache false-green audit (warm, then cache-on vs cache-off,
+# asserting per-file facts AND violationsByNode deep-equal over a C# global-using +
+# global-using-alias corpus) is the standing proof that the cache never serves a stale
+# relation verdict. The full suite above already runs it, but name it as an explicit step
+# so the proof fails LOUDLY if the test is ever renamed or skipped out of the suite —
+# the same defence as the E2E binary guard above.
+run_step "Relations: AST-cache false-green audit" "$REPO_ROOT/source/cli" "npx vitest run tests/unit/relations/ast-cache-audit.test.ts"
 run_step "Docs: build" "$REPO_ROOT/docs" "npm run build"
 run_step "Markdown: lint" "$REPO_ROOT" "npx markdownlint-cli2 \"**/*.md\" \".markdownlint-cli2.jsonc\""
 run_step "Graph: check" "$REPO_ROOT" "node source/cli/dist/bin.js check --approve --only-deterministic"
