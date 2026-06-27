@@ -13,6 +13,7 @@ mapping:
   - source/cli/tests/unit/ast/index-exports.test.ts
   - source/cli/tests/unit/ast/parser.test.ts
   - source/cli/tests/unit/ast/parser-concurrency.test.ts
+  - source/cli/tests/unit/ast/parser-wasm-hash.test.ts
   - source/cli/tests/unit/ast/report.test.ts
   - source/cli/tests/unit/ast/suppress.test.ts
   - source/cli/tests/unit/ast/walk.test.ts

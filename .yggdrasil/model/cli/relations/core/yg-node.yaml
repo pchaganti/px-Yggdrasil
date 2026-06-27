@@ -2,11 +2,13 @@ name: Relations Core
 type: relations-adapter
 description: Relation-conformance engine — the live pass orchestration, symbol
   table and owner index, path resolution, the resolver, allowed-type lookup,
-  index directory, and verifier. Deterministic static dependency analysis over
-  the graph, computed live on every check.
+  the content-addressed per-file extraction cache and its on/off audit, and the
+  verifier. Deterministic static dependency analysis over the graph, computed
+  live on every check.
 mapping:
   - source/cli/src/relations/allowed-types.ts
-  - source/cli/src/relations/index-dir.ts
+  - source/cli/src/relations/audit.ts
+  - source/cli/src/relations/facts-cache.ts
   - source/cli/src/relations/messages.ts
   - source/cli/src/relations/owner-index.ts
   - source/cli/src/relations/pass.ts

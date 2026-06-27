@@ -9,7 +9,9 @@ relations:
   [
     { target: cli/relations/core, type: uses },
     { target: cli/relations/extractors, type: uses },
-    { target: cli/io/parsers/graph, type: uses }
+    { target: cli/io/parsers/graph, type: uses },
+    { target: cli/ast/runtime, type: uses },
+    { target: cli/core/loader, type: uses }
   ]
 mapping:
   - source/cli/tests/unit/relations/symbol-table.test.ts
@@ -20,3 +22,7 @@ mapping:
   - source/cli/tests/unit/relations/verifier.test.ts
   - source/cli/tests/unit/relations/candidate-parity.test.ts
   - source/cli/tests/unit/relations/index-dir.test.ts
+  - source/cli/tests/unit/relations/extractor-rev.test.ts
+  - source/cli/tests/unit/relations/facts-cache.test.ts
+  - source/cli/tests/unit/relations/csharp-parity.test.ts
+  - source/cli/tests/unit/relations/ast-cache-audit.test.ts
