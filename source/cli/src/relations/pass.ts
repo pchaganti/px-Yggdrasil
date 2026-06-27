@@ -30,8 +30,27 @@ export interface NodeViolations {
   violations: Violation[];
 }
 
+/**
+ * The pure extractor output of ONE file returned by `runRelationPass`.
+ * Exported so the cache-audit harness can deep-equal the per-file facts between
+ * a cache-HIT run and a cache-DISABLED run.
+ *
+ * `uses` is `null` for C# files (candidates are assembled live from the pre-assembly
+ * `csharp` extract after the project-wide global-using pre-pass — never cached as
+ * resolved candidates). `csharp` is non-null for C#, null for every other language.
+ */
+export interface FileFacts {
+  declarations: DeclaredSymbol[];
+  uses: DetectedDep[] | null; // null ⇔ C# (assembled live)
+  csharp: CsharpExtract | null; // non-null ⇔ C#
+}
+
 export interface RelationPassResult {
   violationsByNode: Map<string, NodeViolations>;
+  /** Per-file extractor facts (repo-rel POSIX path → facts). Always populated.
+   *  Exposed so the cache-audit harness can deep-equal a cache-HIT run against a
+   *  cache-DISABLED run — a mismatch means an incomplete key or a broken round-trip. */
+  factsByPath: Map<string, FileFacts>;
 } // key = nodeId (node.path)
 
 export interface RelationPassDeps {
@@ -47,6 +66,14 @@ export interface RelationPassDeps {
    * join stays LIVE every run, so a cached fact can never carry a stale relation verdict.
    */
   symbolIndexDir: string;
+  /**
+   * When `true`, the pass NEVER reads from the fact cache (`loadFacts` is bypassed —
+   * every file is forced to a MISS) and NEVER writes back to it (`writeFacts` is a
+   * no-op). Every file is always parsed fresh. Used exclusively by the cache-audit
+   * harness to produce a ground-truth run for deep-equal comparison against a cache-HIT
+   * run. Not intended for production use.
+   */
+  disableCache?: boolean;
 }
 
 interface FileRecord {
@@ -57,28 +84,8 @@ interface FileRecord {
   nodeId: string;
 }
 
-/**
- * The pure extractor output of ONE file, produced by a SINGLE tree-sitter parse (or read
- * verbatim from the content-addressed fact cache when the file is unchanged). Holding these
- * facts (not the live `Tree`) lets every phase — the symbol build, the C# global-using
- * pre-pass, and the per-node `uses()` resolution — read one file's extraction without
- * re-parsing it, while keeping WASM heap at O(1) live trees (the tree is deleted inside
- * `extractFileFacts` before the facts are returned).
- *
- * `uses` is the per-file detected dependencies for every NON-C# language. For C# it is `null`:
- * C# `uses()` folds the project-wide `global using` aggregate (built only AFTER every C# file
- * has been walked), so the final candidate groups are ASSEMBLED LIVE per node from the cached
- * pre-assembly `csharp` extract — never cached as resolved candidates (a `global using` alias
- * added in another file changes what THIS file emits, design §7/§14 Correction A). `csharp` is
- * the alias-UNRESOLVED extract (`extractCsharpRefs`) for C# files, `undefined` otherwise; it
- * carries this file's own `global using` prefixes/aliases (in `scope.globalPrefixes` /
- * `scope.globalAliases`) so the project-wide pre-pass reads them from cache without re-parsing.
- */
-interface FileFacts {
-  declarations: DeclaredSymbol[];
-  uses: DetectedDep[] | null; // null ⇔ C# (candidates assembled live after the pre-pass)
-  csharp: CsharpExtract | null; // non-null ⇔ C#
-}
+// The exported `FileFacts` interface above is used directly throughout the pass body.
+// No internal alias needed — it is both the extractor-output shape and the public audit type.
 
 export async function runRelationPass(
   graph: Graph,
@@ -192,6 +199,10 @@ export async function runRelationPass(
   // A file with no grammar hash (no grammar for its extension) is never cacheable → parse live.
   // The returned in-memory `FileFacts` is shaped per language: non-C# carries `uses`; C# carries
   // the alias-UNRESOLVED `csharp` extract (assembled live downstream).
+  //
+  // When `deps.disableCache` is true, EVERY lookup is forced to a MISS and no shard is written.
+  // This is the cache-audit path: callers compare the returned facts against a prior cache-HIT
+  // run; any difference is an incomplete key or a broken round-trip → gate fails.
   async function loadOrExtractFacts(
     record: FileRecord,
     extractor: DependencyExtractor,
@@ -203,36 +214,43 @@ export async function runRelationPass(
     // No grammar hash → cannot key the cache. Parse live, do not cache.
     if (grammarHash === null) return extractFileFacts(record, extractor);
 
-    const key = factsKey({
-      contentHash: record.hash,
-      language,
-      grammarHash,
-      rev: extractor.rev,
-    });
+    // Cache-audit mode: bypass read AND write — parse every file fresh, prove
+    // that the same facts emerge from parsing as from the cache.
+    if (!deps.disableCache) {
+      const key = factsKey({
+        contentHash: record.hash,
+        language,
+        grammarHash,
+        rev: extractor.rev,
+      });
 
-    const cached = await loadFacts(deps.symbolIndexDir, language, key);
-    if (cached) {
-      // HIT — rebuild the in-memory per-file fact from the cached extractor output. The cache
-      // skips the PARSE, never the downstream join (symbol declare / resolve / assemble).
-      return {
-        declarations: cached.declarations,
-        uses: isCsharp ? null : cached.uses,
-        csharp: isCsharp ? (cached.csharp ?? null) : null,
-      };
+      const cached = await loadFacts(deps.symbolIndexDir, language, key);
+      if (cached) {
+        // HIT — rebuild the in-memory per-file fact from the cached extractor output. The cache
+        // skips the PARSE, never the downstream join (symbol declare / resolve / assemble).
+        return {
+          declarations: cached.declarations,
+          uses: isCsharp ? null : cached.uses,
+          csharp: isCsharp ? (cached.csharp ?? null) : null,
+        };
+      }
+
+      // MISS — parse live. A failed parse writes NOTHING (fail-closed-to-parse).
+      const facts = await extractFileFacts(record, extractor);
+      if (!facts) return null;
+
+      // Persist the pure extractor output. C# stores its alias-unresolved extract under `csharp`
+      // (with `uses: []` unused); non-C# stores `uses` (no `csharp`). `writeFacts` is create-only.
+      await writeFacts(deps.symbolIndexDir, language, key, {
+        declarations: facts.declarations,
+        uses: facts.uses ?? [],
+        ...(facts.csharp !== null ? { csharp: facts.csharp } : {}),
+      });
+      return facts;
     }
 
-    // MISS — parse live. A failed parse writes NOTHING (fail-closed-to-parse).
-    const facts = await extractFileFacts(record, extractor);
-    if (!facts) return null;
-
-    // Persist the pure extractor output. C# stores its alias-unresolved extract under `csharp`
-    // (with `uses: []` unused); non-C# stores `uses` (no `csharp`). `writeFacts` is create-only.
-    await writeFacts(deps.symbolIndexDir, language, key, {
-      declarations: facts.declarations,
-      uses: facts.uses ?? [],
-      ...(facts.csharp !== null ? { csharp: facts.csharp } : {}),
-    });
-    return facts;
+    // disableCache=true: parse live, never read or write shards.
+    return extractFileFacts(record, extractor);
   }
 
   // 4. Per-file fact resolution. Universe = all mapped files of an extractor-backed language
@@ -400,5 +418,5 @@ export async function runRelationPass(
     }
   }
 
-  return { violationsByNode };
+  return { violationsByNode, factsByPath };
 }
