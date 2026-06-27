@@ -58,12 +58,10 @@ export interface RelationPassDeps {
   resolvePathToFile: (specifier: string, fromFile: string, language: string, isPackage?: boolean) => string | undefined;
   /**
    * Root of the content-addressed AST fact cache, e.g. `<root>/.yggdrasil/.ast-cache`.
-   * (Field name kept for call-site stability; its meaning is now the `.ast-cache` dir — the
-   * per-file fact cache that skips the tree-sitter parse of unchanged files, NOT the retired
-   * per-language `.symbols-cache` symbol index.) The cache is SPEED-only: it caches the pure
-   * extractor facts (declarations / uses / C# pre-assembly extract) of a file, keyed by the
-   * file's raw content hash + language + grammar wasm hash + extractor rev. The resolve/verify
-   * join stays LIVE every run, so a cached fact can never carry a stale relation verdict.
+   * The cache is SPEED-only: it caches the pure extractor facts (declarations / uses /
+   * C# pre-assembly extract) of a file, keyed by the file's raw content hash + language +
+   * grammar wasm hash + extractor rev. The resolve/verify join stays LIVE every run, so a
+   * cached fact can never carry a stale relation verdict.
    */
   symbolIndexDir: string;
   /**

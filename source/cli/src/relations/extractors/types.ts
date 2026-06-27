@@ -51,8 +51,7 @@ export interface DependencyExtractor {
   /** Monotonically increasing integer; bumped on any change to this extractor's
    *  `declarations()` or `uses()` output shape (keys, ordering, new detected kind).
    *  Folds into the AST cache key so that a version bump automatically invalidates
-   *  all cached entries for this extractor. Seed values preserve each language's
-   *  current `SYMBOL_INDEX_VERSION`-equivalent history. */
+   *  all cached entries for this extractor. */
   readonly rev: number;
   declarations(file: ParsedFile): DeclaredSymbol[];
   uses(file: ParsedFile): DetectedDep[];

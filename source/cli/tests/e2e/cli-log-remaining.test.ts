@@ -103,11 +103,11 @@ function initRepo(label: string): string {
   git(dir, 'init -q -b main');
   git(dir, 'config user.email t@t.test');
   git(dir, 'config user.name Test');
-  // The relation pass writes a rebuildable symbol-index cache to
-  // `.yggdrasil/.symbols-cache/`; it must never be committed (a real repo
+  // The relation pass writes a rebuildable AST fact cache to
+  // `.yggdrasil/.ast-cache/`; it must never be committed (a real repo
   // gitignores it). Exclude it via .git/info/exclude — a non-tracked ignore —
   // so `git add -A` skips it and the coverage gate never flags it as unmapped.
-  writeFileSync(path.join(dir, '.git', 'info', 'exclude'), '.yggdrasil/.symbols-cache/\n', 'utf-8');
+  writeFileSync(path.join(dir, '.git', 'info', 'exclude'), '.yggdrasil/.ast-cache/\n', 'utf-8');
   return dir;
 }
 
