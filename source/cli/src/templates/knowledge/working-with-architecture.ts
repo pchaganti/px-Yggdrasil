@@ -127,6 +127,10 @@ Examples:
 Plain (non-glob) entries remain unchanged: an exact file path or a directory
 prefix (e.g. \`src/handlers\`) covers that file or all files beneath it.
 
+## Allowed relations and default policy
+
+A node type may also set \`relations.default: deny\` to forbid every relation type it does not explicitly list (a sink), open a single relation type to any target with \`['*']\`, or forbid one with an empty list \`[]\`. An omitted \`default\` means allow.
+
 ## log_required — when to enable the log gate
 
 Each node type may set \`log_required\` (default \`false\`). When \`true\`, a node of

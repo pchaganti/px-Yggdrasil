@@ -61,6 +61,19 @@ node_types:
 
     parents: [<type-id>, ...]                # optional — allowed parent node types in the hierarchy.
 
-    relations:                               # optional — allowed relation targets by relation type.
-      <relation-type>: [<type-id>, ...]      # calls | uses | extends | implements | emits | listens
+    relations:                               # optional — per-relation-type allow-list.
+      # A relation type is constrained by listing its allowed target node types.
+      #   uses: [domain, data-access]   → only those target types
+      #   uses: ['*']                   → any target type
+      #   uses: []                      → no target (relation type forbidden)
+      #   (relation type omitted)       → governed by \`default\` below
+      # default: allow | deny           → policy for relation types NOT listed.
+      #   omitted ⇒ allow (every unlisted relation type may target any type).
+      #   deny    ⇒ unlisted relation types target nothing (a sink).
+      # Examples:
+      #   { default: deny }                       → pure sink
+      #   { default: deny, listens: ['*'] }       → sink that may listen to anything
+      #   { default: allow, uses: [] }            → everything open except \`uses\`
+      uses: [<target-type>, ...]
+      default: allow
 `;

@@ -26,7 +26,7 @@ There are six relation types, in two families:
 - **Structural** — `calls`, `uses`, `extends`, `implements`
 - **Event-based** — `emits`, `listens`
 
-The architecture file constrains which types may target which. Each node type declares the relation types it is allowed to use and the target node types each may reach; `yg check` rejects a relation that breaks those rules. So if you decide a `service` may only `call` other services and `use` libraries, the graph holds every service to that.
+The architecture file constrains which types may target which. Each node type either leaves a relation type unconstrained (the default — it may target any type) or lists the target node types it may reach; `yg check` rejects a relation whose target is not in a declared list. You can also lock a type down: `default: deny` forbids every relation type the node does not explicitly list (a sink), an empty list (`uses: []`) forbids a single relation type, and the wildcard (`uses: ['*']`) opens one to any target. An omitted `default` means allow, so this is fully backward-compatible. So if you decide a `service` may only `call` other services and `use` libraries, the graph holds every service to that.
 
 Event relations come in pairs. If A `emits` to B, then B must declare a `listens` from A. `yg check` enforces the pairing.
 

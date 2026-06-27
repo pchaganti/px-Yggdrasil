@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Architecture relations now support a per-type `default: allow | deny` policy, a `['*']` wildcard target (any type), and a meaningful empty list — enabling pure sinks and per-relation-type lock-downs in `yg-architecture.yaml`.
+
+### Changed
+
+- An explicit empty relation target list (e.g. `uses: []`) in `yg-architecture.yaml` now means "deny all targets for that relation type". Previously it was silently dropped and behaved as allow-all. Graphs that relied on `[]` being ignored are affected; omitting the key preserves the old allow-all behavior.
+
 ## [5.3.0] - 2026-06-26
 
 ### Added

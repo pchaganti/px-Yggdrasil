@@ -28,9 +28,7 @@ Event relations must be paired: if A emits to B, B must declare a
 
 ## Architecture controls allowed relations
 
-\`yg-architecture.yaml\`'s allowed-relations configuration per type controls
-which relation types may target which node types. The validator rejects
-relations not permitted by the architecture.
+Architecture controls which relation types are allowed between which node types. By default a relation type is unconstrained — it may target any node type. A type constrains a relation type by listing its allowed targets (e.g. \`uses: [domain, data-access]\`); the validator then rejects any target not in that list. Three more controls let you lock a type down: \`default: deny\` makes every unlisted relation type target nothing (a sink); an empty list \`uses: []\` forbids that one relation type entirely; and the wildcard \`uses: ['*']\` opens a relation type to any target (useful under \`default: deny\`). An omitted \`default\` means allow, so existing graphs are unaffected.
 
 When a needed relation is not allowed by the architecture:
 1. Use a different relation type that IS allowed
