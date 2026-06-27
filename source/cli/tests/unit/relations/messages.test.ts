@@ -169,3 +169,36 @@ describe('relationUnverifiedMessage', () => {
     expect(m.next).toContain('yg check --approve');
   });
 });
+
+describe('allowedRelationTypes — default policy + wildcard + empty list', () => {
+  const arch = (nt: Record<string, any>) => ({ node_types: nt });
+
+  it('default: deny returns only explicitly-allowed relation types', () => {
+    const a = arch({
+      sink: { description: 's', relationDefault: 'deny', relations: { listens: ['bus'] } },
+      bus: { description: 'b' },
+      other: { description: 'o' },
+    });
+    expect(allowedRelationTypes(a as any, 'sink', 'bus')).toEqual(['listens']);
+    expect(allowedRelationTypes(a as any, 'sink', 'other')).toEqual([]);
+  });
+
+  it('wildcard ["*"] makes a relation type allowed for any target', () => {
+    const a = arch({
+      sink: { description: 's', relationDefault: 'deny', relations: { listens: ['*'] } },
+      other: { description: 'o' },
+    });
+    expect(allowedRelationTypes(a as any, 'sink', 'other')).toEqual(['listens']);
+  });
+
+  it('empty list [] excludes that relation type', () => {
+    const a = arch({
+      svc: { description: 's', relations: { uses: [] } },
+      other: { description: 'o' },
+    });
+    // uses excluded; the other five are unlisted + default allow ⇒ included
+    expect(allowedRelationTypes(a as any, 'svc', 'other')).toEqual([
+      'calls', 'extends', 'implements', 'emits', 'listens',
+    ]);
+  });
+});

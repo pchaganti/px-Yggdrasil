@@ -6,16 +6,20 @@
  * reads (`checkArchitectureRelations` in core/checks/architecture.ts): the
  * per-type `relations:` table in yg-architecture.yaml, modelled as
  * `ArchitectureNodeType.relations` — a `Partial<Record<RelationType, string[]>>`
- * mapping each relation type to the node types it may target.
+ * mapping each relation type to the node types it may target, and
+ * `ArchitectureNodeType.relationDefault` — the policy for relation types NOT
+ * listed in `relations`.
  *
  * Semantics mirror the validator exactly:
- *   - A relation type ABSENT from the `relations:` map is UNCONSTRAINED — it may
- *     target any node type (the validator's `if (!allowedTypes) continue`).
- *   - A relation type PRESENT in the map is allowed only when `toType` is in its
- *     target list (the validator's `allowedTypes.includes(target.type)`).
+ *   - A relation type ABSENT from the `relations:` map is governed by
+ *     `relationDefault` (undefined ⇒ 'allow'): 'allow' means any target is
+ *     permitted; 'deny' means no target is permitted.
+ *   - A relation type PRESENT in the map is allowed when `toType` is listed OR
+ *     the list contains the wildcard `'*'` (any target). An empty list `[]`
+ *     means no target is permitted for that relation type.
  *
- * When the `fromType` has no `relations:` table at all, every relation type is
- * unconstrained (the validator skips the node entirely), so all six are allowed.
+ * When the `fromType` has no `relations:` table at all and no `relationDefault`,
+ * every relation type is unconstrained (allow-all), so all six are returned.
  */
 import type { ArchitectureDef, RelationType } from '../model/graph.js';
 
@@ -31,8 +35,9 @@ export const RELATION_TYPES: readonly RelationType[] = [
 
 /**
  * Allowed relation types from `fromType` to `toType` under the architecture's
- * allow-list. Returns them in canonical `RELATION_TYPES` order. An empty array
- * means a dead-end: no relation type may connect those two node types.
+ * allow-list and default policy. Returns them in canonical `RELATION_TYPES`
+ * order. An empty array means a dead-end: no relation type may connect those
+ * two node types.
  *
  * Unknown node types (not declared in the architecture) yield an empty array —
  * there is no allow-list to consult, so nothing can be sanctioned.
@@ -44,20 +49,19 @@ export function allowedRelationTypes(
 ): RelationType[] {
   const fromConfig = architecture.node_types[fromType];
   if (!fromConfig) return [];
-  // An unknown target type cannot be sanctioned by any constrained relation; and
-  // an unconstrained relation type would still allow it, so we keep the same
-  // per-relation logic below rather than short-circuiting here.
-  const relations = fromConfig.relations;
+  const lists = fromConfig.relations;
+  const def = fromConfig.relationDefault ?? 'allow';
 
   const out: RelationType[] = [];
   for (const rt of RELATION_TYPES) {
-    const allowedTargets = relations?.[rt];
-    if (!allowedTargets) {
-      // Unconstrained relation type → any target permitted (mirrors validator).
-      out.push(rt);
+    const allowedTargets = lists?.[rt];
+    if (allowedTargets === undefined) {
+      // Unlisted relation type → governed by the default policy.
+      if (def === 'allow') out.push(rt);
       continue;
     }
-    if (allowedTargets.includes(toType)) out.push(rt);
+    // Explicit list (including []). '*' matches any target type.
+    if (allowedTargets.includes('*') || allowedTargets.includes(toType)) out.push(rt);
   }
   return out;
 }
