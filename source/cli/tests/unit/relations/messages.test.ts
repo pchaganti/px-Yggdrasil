@@ -1,8 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeFile, rm, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { relationRefusedMessage, relationUnverifiedMessage } from '../../../src/relations/messages.js';
 import { allowedRelationTypes } from '../../../src/relations/allowed-types.js';
+import { parseArchitecture } from '../../../src/io/architecture-parser.js';
 import type { Graph, GraphNode } from '../../../src/model/graph.js';
 import type { Violation } from '../../../src/relations/verifier.js';
 
@@ -200,5 +203,67 @@ describe('allowedRelationTypes — default policy + wildcard + empty list', () =
     expect(allowedRelationTypes(a as any, 'svc', 'other')).toEqual([
       'calls', 'extends', 'implements', 'emits', 'listens',
     ]);
+  });
+});
+
+describe('allowedRelationTypes — via real parseArchitecture (FIX C)', () => {
+  const dirsToCleanup: string[] = [];
+  afterEach(async () => {
+    for (const d of dirsToCleanup.splice(0)) await rm(d, { recursive: true, force: true });
+  });
+
+  async function archFromYaml(yaml: string) {
+    const dir = await mkdtemp(path.join(tmpdir(), 'yg-arch-msg-'));
+    dirsToCleanup.push(dir);
+    const file = path.join(dir, 'yg-architecture.yaml');
+    await writeFile(file, yaml, 'utf-8');
+    return parseArchitecture(file);
+  }
+
+  it('empty list [] via real parser: relation type is excluded for any target', async () => {
+    const arch = await archFromYaml(`
+node_types:
+  svc:
+    description: "service"
+    relations:
+      uses: []
+  other:
+    description: "other"
+`);
+    // uses:[] → uses is denied; remaining five unlisted + default allow → included
+    expect(allowedRelationTypes(arch, 'svc', 'other')).toEqual([
+      'calls', 'extends', 'implements', 'emits', 'listens',
+    ]);
+  });
+
+  it("wildcard ['*'] via real parser: relation type is allowed for any target", async () => {
+    const arch = await archFromYaml(`
+node_types:
+  svc:
+    description: "service"
+    relations:
+      uses: ['*']
+  other:
+    description: "other"
+`);
+    // uses:['*'] → uses allowed for any target including 'other'
+    expect(allowedRelationTypes(arch, 'svc', 'other')).toContain('uses');
+  });
+});
+
+describe('allowedRelationTypes — mixed wildcard list (FIX D)', () => {
+  it("list containing both '*' and a named type: any target is allowed ('*' wins)", () => {
+    const arch = {
+      node_types: {
+        svc: { description: 's', relations: { uses: ['*', 'domain'] } },
+        domain: { description: 'd' },
+        other: { description: 'o' },
+        third: { description: 't' },
+      },
+    };
+    // '*' in the list means any target is permitted, regardless of named entries
+    expect(allowedRelationTypes(arch as any, 'svc', 'domain')).toContain('uses');
+    expect(allowedRelationTypes(arch as any, 'svc', 'other')).toContain('uses');
+    expect(allowedRelationTypes(arch as any, 'svc', 'third')).toContain('uses');
   });
 });

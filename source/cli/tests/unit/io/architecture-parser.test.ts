@@ -492,6 +492,13 @@ describe('parseArchitecture — when and enforce', () => {
     });
   });
 
+  it("throws when a node type is named '*' (reserved wildcard token)", async () => {
+    const yaml = `node_types:\n  '*':\n    description: "This name is reserved"\n`;
+    await withArchYaml(yaml, async (fp) => {
+      await expect(parseArchitecture(fp)).rejects.toThrow(/node type name '\*' is reserved/);
+    });
+  });
+
   it('node: atom in node_types.X.when → error mentions "node_types.*.when" and not "scope.files"', async () => {
     const yaml = `node_types:
   command:

@@ -29,6 +29,12 @@ export async function parseArchitecture(filePath: string): Promise<ArchitectureD
 
   const nodeTypes: Record<string, ArchitectureNodeType> = {};
   for (const [typeName, val] of Object.entries(nodeTypesObj)) {
+    if (typeName === '*') {
+      throw new Error(
+        `yg-architecture.yaml: node type name '*' is reserved — '*' is the any-target wildcard in relation lists and cannot be used as a node type name.`,
+      );
+    }
+
     const entry = val as Record<string, unknown>;
     if (!entry || typeof entry !== 'object' || typeof entry.description !== 'string' || entry.description.trim() === '') {
       throw new Error(

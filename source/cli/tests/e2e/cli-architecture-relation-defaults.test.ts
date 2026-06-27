@@ -104,7 +104,9 @@ describe.skipIf(!distExists)('CLI E2E — architecture relation default policy',
   it('C2: default:deny + calls:[*] allows calls to a same-type target', () => {
     const dir = setup('c2', rel('default: deny', "calls: ['*']"), 'services/payments', 'calls');
     try {
-      expect(run(['check'], dir).all).not.toContain('relation-target-forbidden');
+      const { status, all } = run(['check', '--approve', '--only-deterministic'], dir);
+      expect(status).toBe(0);
+      expect(all).not.toContain('relation-target-forbidden');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -113,7 +115,9 @@ describe.skipIf(!distExists)('CLI E2E — architecture relation default policy',
   it('C3: default:deny + calls:[*] allows calls to a cross-type (module) target', () => {
     const dir = setup('c3', rel('default: deny', "calls: ['*']"), 'services', 'calls');
     try {
-      expect(run(['check'], dir).all).not.toContain('relation-target-forbidden');
+      const { status, all } = run(['check', '--approve', '--only-deterministic'], dir);
+      expect(status).toBe(0);
+      expect(all).not.toContain('relation-target-forbidden');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -135,7 +139,9 @@ describe.skipIf(!distExists)('CLI E2E — architecture relation default policy',
   it('C5: wildcard calls:[*] allows any target', () => {
     const dir = setup('c5', rel("calls: ['*']"), 'services/payments', 'calls');
     try {
-      expect(run(['check'], dir).all).not.toContain('relation-target-forbidden');
+      const { status, all } = run(['check', '--approve', '--only-deterministic'], dir);
+      expect(status).toBe(0);
+      expect(all).not.toContain('relation-target-forbidden');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -144,7 +150,9 @@ describe.skipIf(!distExists)('CLI E2E — architecture relation default policy',
   it('C6: non-empty list allows a listed same-type target (regression)', () => {
     const dir = setup('c6', rel('calls: [service]'), 'services/payments', 'calls');
     try {
-      expect(run(['check'], dir).all).not.toContain('relation-target-forbidden');
+      const { status, all } = run(['check', '--approve', '--only-deterministic'], dir);
+      expect(status).toBe(0);
+      expect(all).not.toContain('relation-target-forbidden');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -166,7 +174,9 @@ describe.skipIf(!distExists)('CLI E2E — architecture relation default policy',
   it('C8: omitted default leaves an unlisted relation type unconstrained', () => {
     const dir = setup('c8', rel('uses: [service]'), 'services/payments', 'calls');
     try {
-      expect(run(['check'], dir).all).not.toContain('relation-target-forbidden');
+      const { status, all } = run(['check', '--approve', '--only-deterministic'], dir);
+      expect(status).toBe(0);
+      expect(all).not.toContain('relation-target-forbidden');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -187,7 +197,9 @@ describe.skipIf(!distExists)('CLI E2E — architecture relation default policy',
   it('C10: explicit default:allow leaves an unlisted relation type unconstrained', () => {
     const dir = setup('c10', rel('default: allow'), 'services/payments', 'calls');
     try {
-      expect(run(['check'], dir).all).not.toContain('relation-target-forbidden');
+      const { status, all } = run(['check', '--approve', '--only-deterministic'], dir);
+      expect(status).toBe(0);
+      expect(all).not.toContain('relation-target-forbidden');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

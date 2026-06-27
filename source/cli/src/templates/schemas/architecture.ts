@@ -70,6 +70,8 @@ node_types:
       # default: allow | deny           → policy for relation types NOT listed.
       #   omitted ⇒ allow (every unlisted relation type may target any type).
       #   deny    ⇒ unlisted relation types target nothing (a sink).
+      # Note: '*' is reserved as the any-target wildcard in relation lists and
+      #   must not be used as a node-type name (the parser rejects it).
       # Examples:
       #   { default: deny }                       → pure sink
       #   { default: deny, listens: ['*'] }       → sink that may listen to anything

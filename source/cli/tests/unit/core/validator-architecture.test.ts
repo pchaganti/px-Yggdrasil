@@ -667,4 +667,14 @@ node_types:
 `);
     expect(checkArchitectureRelations(graphWith(arch, 'svc', 'uses', 'other'))).toHaveLength(1);
   });
+
+  it('non-empty explicit list: target type IS listed → allowed (positive path)', async () => {
+    const arch = await archFrom(`
+node_types:
+  svc: { description: "s", relations: { uses: [domain] } }
+  domain: { description: "d" }
+`);
+    // svc uses domain → domain IS in the uses list → 0 issues
+    expect(checkArchitectureRelations(graphWith(arch, 'svc', 'uses', 'domain'))).toHaveLength(0);
+  });
 });

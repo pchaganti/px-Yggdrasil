@@ -8,7 +8,8 @@ aspects: []
 relations:
   [
     { target: cli/relations/core, type: uses },
-    { target: cli/relations/extractors, type: uses }
+    { target: cli/relations/extractors, type: uses },
+    { target: cli/io/parsers/graph, type: uses }
   ]
 mapping:
   - source/cli/tests/unit/relations/symbol-table.test.ts
