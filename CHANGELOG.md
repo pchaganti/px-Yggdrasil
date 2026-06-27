@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The AST fact cache no longer fails closed-to-empty for a C# file with a malformed shard.** A cached shard that matched a C# file's content key but was missing its C#-specific extract was treated as a valid "no C# data" hit, silently skipping that file downstream — erasing a real cross-node C# dependency and letting the relation gate go falsely green. Such a shard is now treated as a cache miss, so the file is re-parsed (fail-closed-to-parse, never to empty). Non-C# files are unaffected.
+- **Widened the AST fact-cache key from 64 to 128 bits** so a birthday collision (which could serve one file's cached extract for another and slip past the cache's identity check) is infeasible. Existing shards keyed at the old width are ignored and re-parsed once; the cache is gitignored and rebuildable, so no action is required.
+
 ### Changed
 
 - **The relation-conformance pass now caches per-file AST extraction, so an unchanged file is no longer re-parsed every `yg check`.** A new content-addressed per-file fact cache lives at `.yggdrasil/.ast-cache/` (gitignored, rebuildable, never committed): each file's pure extractor output (declarations + detected uses, and for C# the alias-unresolved pre-assembly extract) is keyed by the file's raw content hash + language + grammar wasm hash + extractor revision. A hit skips the tree-sitter parse entirely while the symbol-table rebuild and the whole resolve/verify join stay LIVE every run, so the relation verdict is still the current truth of the code against the graph — a cached fact can never carry a stale relation verdict, and a failed parse is never cached (it re-parses every run, fail-closed-to-parse). C# alias maps are (de)serialized as entry arrays at the cache boundary so a cross-file `global using` alias edge still resolves on a cached run. `yg init --upgrade` adds `.ast-cache/` to the local `.yggdrasil/.gitignore`.

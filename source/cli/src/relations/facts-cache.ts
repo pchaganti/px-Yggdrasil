@@ -103,6 +103,12 @@ export function astCacheDir(graphRoot: string): string {
  * content-addressing inputs. Different inputs always produce different keys
  * so no two distinct `(contentHash, language, grammarHash, rev)` tuples can
  * collide inside the same shard directory.
+ *
+ * Width is 32 hex chars = 128 bits of the SHA-256 digest. This makes a birthday
+ * collision (which would serve one file's shard for another and slip past the
+ * `parsed.key !== key` identity assertion, since that compares the SAME truncation)
+ * infeasible. 64 bits was a false-green CLASS: at 128 bits the collision probability
+ * is negligible even across an astronomically large shard population.
  */
 export function factsKey(args: {
   contentHash: string;
@@ -111,7 +117,7 @@ export function factsKey(args: {
   rev: number;
 }): string {
   const payload = `${args.contentHash}\0${args.language}\0${args.grammarHash}\0${args.rev}`;
-  return createHash('sha256').update(payload).digest('hex').slice(0, 16);
+  return createHash('sha256').update(payload).digest('hex').slice(0, 32);
 }
 
 /** Shard path for a given cache root, language, and key. */

@@ -212,8 +212,9 @@ export async function runRelationPass(
     // No grammar hash → cannot key the cache. Parse live, do not cache.
     if (grammarHash === null) return extractFileFacts(record, extractor);
 
-    // Cache-audit mode: bypass read AND write — parse every file fresh, prove
-    // that the same facts emerge from parsing as from the cache.
+    // Cache-ENABLED path: read the shard; on a HIT skip the parse, on a MISS parse live and
+    // write the shard back. (The cache-audit BYPASS — never read, never write, always parse —
+    // lives at the `disableCache=true` return at the bottom of this function.)
     if (!deps.disableCache) {
       const key = factsKey({
         contentHash: record.hash,
@@ -223,13 +224,20 @@ export async function runRelationPass(
       });
 
       const cached = await loadFacts(deps.symbolIndexDir, language, key);
-      if (cached) {
+      // A C# HIT is valid ONLY when the shard actually carries the `csharp` extract. A shard
+      // that matches the key but LACKS `csharp` (`cached.csharp === undefined`) is NOT a
+      // null-csharp hit — that would yield `csharp: null` and silently SKIP the file downstream
+      // (`facts.csharp === null` → continue), erasing a real C# cross-node edge → false green.
+      // Treat it as a MISS so the file falls through to the live parse below (fail-closed-to-PARSE,
+      // never fail-closed-to-empty). For non-C# files an absent `csharp` is legitimate (stays null).
+      if (cached && (!isCsharp || cached.csharp !== undefined)) {
         // HIT — rebuild the in-memory per-file fact from the cached extractor output. The cache
         // skips the PARSE, never the downstream join (symbol declare / resolve / assemble).
+        // `cached.csharp` is guaranteed present here for C# (guard above).
         return {
           declarations: cached.declarations,
           uses: isCsharp ? null : cached.uses,
-          csharp: isCsharp ? (cached.csharp ?? null) : null,
+          csharp: isCsharp ? cached.csharp! : null,
         };
       }
 
@@ -247,7 +255,8 @@ export async function runRelationPass(
       return facts;
     }
 
-    // disableCache=true: parse live, never read or write shards.
+    // Cache-audit BYPASS (disableCache=true): never read AND never write — parse every file
+    // fresh, proving the same facts emerge from parsing as the cache would have served.
     return extractFileFacts(record, extractor);
   }
 

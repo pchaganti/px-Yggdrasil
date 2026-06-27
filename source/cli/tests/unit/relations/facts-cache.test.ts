@@ -21,6 +21,19 @@ describe('facts-cache', () => {
   afterEach(() => { rmSync(root, { recursive: true, force: true }); });
   const key = factsKey({ contentHash: 'abc', language: 'typescript', grammarHash: 'g1', rev: 1 });
 
+  // The key is 32 lowercase-hex chars = 128 bits of SHA-256. 64 bits (16 chars) was a
+  // false-green CLASS: a birthday collision could serve one file's shard for another and the
+  // `parsed.key !== key` identity assertion can't catch it (same truncation). 128 bits makes
+  // a collision infeasible. (Widening orphans any pre-existing 16-char shards → one-time cold
+  // re-parse; the cache is gitignored/rebuildable, so that is benign.)
+  it('produces a 128-bit (32 hex char) key', () => {
+    expect(key).toMatch(/^[0-9a-f]{32}$/);
+    // Distinct inputs still produce distinct keys at the wider width.
+    const other = factsKey({ contentHash: 'abc', language: 'typescript', grammarHash: 'g2', rev: 1 });
+    expect(other).toMatch(/^[0-9a-f]{32}$/);
+    expect(other).not.toBe(key);
+  });
+
   it('round-trips facts', async () => {
     await writeFacts(dir, 'typescript', key, { declarations: [], uses: [] });
     expect(await loadFacts(dir, 'typescript', key)).toEqual({ declarations: [], uses: [] });

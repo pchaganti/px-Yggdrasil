@@ -13,7 +13,11 @@ import type {
   ParsedFile,
 } from '../../src/relations/extractors/types.js';
 
-import { CACHE_SCHEMA_VERSION } from '../../src/relations/facts-cache.js';
+import { CACHE_SCHEMA_VERSION, factsKey, writeFacts } from '../../src/relations/facts-cache.js';
+import { hashString } from '../../src/io/hash.js';
+import { grammarWasmHash } from '../../src/ast/parser.js';
+import { csharpExtractor } from '../../src/relations/extractors/csharp.js';
+import { ensureLoaderRegistered } from '../../src/ast/loader-hook.js';
 
 /** List every content-addressed AST shard under `<astCacheDir>/v<N>/` (empty if absent). The
  *  versioned subdir scopes the count to the NEW fact cache only — never the old symbol-index
@@ -281,5 +285,56 @@ describe('runRelationPass — AST fact cache', () => {
     expect(second.violationsByNode.get('c')!.violations.some((v) => v.ownerNode === 'm')).toBe(true);
     // No new shard on the cached run.
     expect(shardsAfterSecond).toEqual(shardsAfterFirst);
+  });
+
+  it('re-parses a C# file whose on-disk shard matches the key but LACKS `csharp` (fail-closed-to-PARSE, not to empty)', async () => {
+    // FALSE-GREEN GUARD. A C# shard that matches the content-key but is MISSING its `csharp`
+    // field (e.g. a malformed/partially-written shard, or one written by an older code path)
+    // must NOT be treated as a null-csharp HIT — that would silently SKIP the file downstream
+    // (`facts.csharp === null` → continue) and erase a real cross-node C# dependency → the
+    // relation gate goes falsely GREEN over an undeclared edge. The cache HIT for a C# file is
+    // only valid when `csharp` is present; otherwise the file MUST fall through to a live parse.
+    //
+    // Setup mirrors the alias-edge oracle: `Cust c;` in node c must resolve to `Customer` in
+    // node m; c declares NO relation to m, so c MUST be refused. We pre-write a csharp-LESS
+    // shard for c's file at its exact content-key BEFORE the pass runs (writeFacts is
+    // create-only, so this primes the shard the pass will read). With the bug the pass reads
+    // this shard as a null-csharp hit and skips c's file → c is approved (false green). With
+    // the fix the absent-`csharp` hit is a MISS → live re-parse → c is still refused.
+    ensureLoaderRegistered();
+    writeNode(root, 'g', 'G', 'src/g');
+    writeNode(root, 'c', 'C', 'src/c');
+    writeNode(root, 'm', 'M', 'src/m');
+    const useSrc = `global using Cust = MyApp.Models.Customer;\nclass C { Cust c; }\n`;
+    // Keep the alias + use in a single file owned by node c so resolution does not depend on a
+    // second cached shard; node m supplies the target type.
+    w(root, 'src/c/Use.cs', useSrc);
+    w(root, 'src/m/Customer.cs', `namespace MyApp.Models;\npublic class Customer { }\n`);
+
+    const astCacheDir = path.join(root, '.yggdrasil', '.ast-cache');
+
+    // Pre-write a MALFORMED (csharp-less) shard for c's file at its exact content-key. A
+    // FileFacts with `csharp` undefined makes writeFacts emit a shard with NO `csharp` field —
+    // structurally valid (passes loadFacts) but missing the C# extract.
+    const cKey = factsKey({
+      contentHash: hashString(useSrc),
+      language: 'csharp',
+      grammarHash: grammarWasmHash('.cs'),
+      rev: csharpExtractor.rev,
+    });
+    await writeFacts(astCacheDir, 'csharp', cKey, { declarations: [], uses: [] });
+
+    const deps = {
+      extractorFor: extractorForLanguage,
+      resolvePathToFile: makeResolvePathToFile(root),
+      symbolIndexDir: astCacheDir,
+    };
+
+    const graph = await loadGraph(root);
+    const result = await runRelationPass(graph, root, deps);
+
+    // The csharp-less shard must NOT have silenced the edge: c re-parsed → still refused on m.
+    expect(result.violationsByNode.get('c')!.verdict).toBe('refused');
+    expect(result.violationsByNode.get('c')!.violations.some((v) => v.ownerNode === 'm')).toBe(true);
   });
 });
