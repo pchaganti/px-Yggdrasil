@@ -16,7 +16,8 @@ relations:
     { target: cli/preamble, type: uses },
     { target: cli/formatters, type: uses },
     { target: cli/exit-after-flush, type: uses },
-    { target: cli/io/stores, type: uses }
+    { target: cli/io/stores, type: uses },
+    { target: cli/core/check, type: uses }
   ]
 mapping:
   - source/cli/tests/unit/cli/build-command.test.ts

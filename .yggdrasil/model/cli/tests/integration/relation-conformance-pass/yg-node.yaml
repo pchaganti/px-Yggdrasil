@@ -13,7 +13,9 @@ relations:
     { target: cli/io/lock-store, type: uses },
     { target: cli/model/lock, type: uses },
     { target: cli/relations/core, type: uses },
-    { target: cli/relations/extractors, type: uses }
+    { target: cli/relations/extractors, type: uses },
+    { target: cli/ast/runtime, type: uses },
+    { target: cli/io/stores, type: uses }
   ]
 mapping:
   - source/cli/tests/integration/relation-pass.test.ts
