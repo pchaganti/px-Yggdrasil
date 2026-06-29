@@ -5,17 +5,22 @@ description: >-
   stems, the SHELL nav rail / panel / refresh / approve / theme / deep-link / provenance pins, and
   the overlays ⌘K / glossary / approve cost-preview), kept in lock-step with §3a A. Each spec
   declares which surfaces it covers via an exported COVERS string array. This deterministic check,
-  scope per node, parses the manifest and unions every spec's COVERS, then REFUSES if any manifest
-  surface is covered by no spec (a missing surface blocks the build — that is the point), if a spec
+  scope per node, parses the manifest and — for every surface a spec CLAIMS in COVERS — verifies
+  the spec body actually EXERCISES that surface: each surface maps to navigation markers (its hash
+  route, key chord, or load-bearing DOM seam) and the spec text must contain at least one, so a
+  COVERS claim can never outrun the test. It then unions every spec's verified COVERS and REFUSES
+  if any manifest surface is covered by no spec (a missing surface blocks the build — that is the
+  point), if a spec claims a surface its body never navigates to (a hollow declaration), if a spec
   omits its COVERS export, if a COVERS id is not in the manifest (a stale/typo id covering nothing),
-  or if the manifest itself cannot be read (fail closed — never a silent empty-manifest pass).
-  AST-based: it reads the string-array literals from the syntax tree, never raw text. SCOPE LIMIT:
-  COVERS is a DECLARED surface→spec mapping, not mechanical proof that the spec actually drives the
-  surface — this tripwire guarantees a covering spec EXISTS and is named, not that it asserts the
-  right thing. The real proof that each surface is exercised is the live `npm run test:e2e:portal`
-  run in repo-check.sh (real Chromium against the real emitted page) plus the e2e-public-surface
-  aspect (the suite stays a black box over the shipped CLI). Do not over-read a green here as proof
-  of behaviour; read it as proof the coverage map has no holes.
+  if a manifest id has no navigation markers defined (fail closed — an unmappable claim), or if the
+  manifest itself cannot be read (fail closed — never a silent empty-manifest pass). AST-based: it
+  reads the string-array literals from the syntax tree, never raw text. SCOPE LIMIT: it binds COVERS
+  to an exercised navigation marker, not a full behavioural proof — it guarantees a covering spec
+  EXISTS, is named, AND drives the surface, not that the spec's assertions are correct. The real
+  proof that each surface renders/transitions correctly is the live `npm run test:e2e:portal` run in
+  repo-check.sh (real Chromium against the real emitted page) plus the e2e-public-surface aspect (the
+  suite stays a black box over the shipped CLI). Do not over-read a green here as proof of behaviour;
+  read it as proof the coverage map has no holes and no COVERS claim is hollow.
 status: enforced
 scope:
   per: node

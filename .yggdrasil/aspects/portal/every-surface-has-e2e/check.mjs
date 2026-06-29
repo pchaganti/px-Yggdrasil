@@ -6,8 +6,13 @@ import { walk } from '@chrisdudek/yg/ast';
 // covers via an exported `COVERS` string array — a stable marker. This check, per node:
 //
 //   1. parses SURFACE_MANIFEST from the mapped support/surfaces.ts (the source of truth);
-//   2. unions every spec's exported COVERS array;
-//   3. REFUSES if any manifest surface is covered by NO spec — a missing surface is the whole
+//   2. for every spec's exported COVERS array, verifies the spec actually EXERCISES each
+//      surface it claims — the spec body must contain the navigation/marker the surface is
+//      reached by (a hash route, a key chord, or the surface's own DOM seam). A spec that
+//      claims a surface its body never drives is REFUSED (a declaration with no navigation
+//      behind it is exactly the hollow-COVERS defect this binds shut);
+//   3. unions every spec's verified COVERS;
+//   4. REFUSES if any manifest surface is covered by NO spec — a missing surface is the whole
 //      point: adding a surface to the manifest without a covering spec blocks the build.
 //
 // It also refuses a COVERS id that is NOT in the manifest (a typo / stale id that silently
@@ -16,16 +21,13 @@ import { walk } from '@chrisdudek/yg/ast';
 // literals from the syntax tree (an `export const X = ['a','b']`), never raw text, so a string
 // that merely mentions a surface id elsewhere is not a false positive.
 //
-// SCOPE LIMIT — read a green here correctly. COVERS is a DECLARED surface→spec mapping, not a
-// mechanical proof that the spec actually opens the surface and asserts it. This deterministic
-// tripwire guarantees a covering spec EXISTS and is named for every manifest surface (no holes,
-// no stale ids, never a silent empty-manifest pass) — it does NOT execute a browser and cannot
-// know whether the named spec drives the right thing. The real proof that each surface is
-// exercised is the live `npm run test:e2e:portal` run in repo-check.sh (real Chromium against the
-// real emitted page) PLUS the e2e-public-surface aspect (the suite stays a black box over the
-// shipped CLI). A green from THIS check means the coverage map has no holes; it is not a substitute
-// for the live run. (Each spec keeps its COVERS adjacent to the real surface→hash navigation it
-// asserts, so the declared id and the driven surface stay in lock-step by review.)
+// WHAT A GREEN HERE MEANS — read it correctly. A green proves the coverage map has no holes
+// AND that every claimed surface is bound to a real navigation marker its covering spec drives
+// (COVERS can no longer outrun the spec body). It still does NOT execute a browser; the live
+// proof that each surface renders/transitions correctly is the `npm run test:e2e:portal` run in
+// repo-check.sh (real Chromium against the real emitted page) PLUS the e2e-public-surface aspect
+// (the suite stays a black box over the shipped CLI). A green from THIS check means the coverage
+// map has no holes and no claim is hollow; it is not a substitute for the live run.
 
 /** Pull the literal value out of a tree-sitter string / no-substitution template_string node. */
 function stringValue(node) {
@@ -81,6 +83,58 @@ function isSurfacesModule(filePath) {
   return /\/support\/surfaces\.ts$/.test(filePath) || /(^|\/)surfaces\.ts$/.test(filePath);
 }
 
+// ── The surface → navigation table ───────────────────────────────────────────────────────
+//
+// Each §3a manifest surface maps to the navigation markers a spec uses to actually DRIVE it: a
+// hash route, a key chord, or the surface's own load-bearing DOM seam (the class/attribute the
+// view/overlay/shell renders). A spec that claims a surface in COVERS must contain at least one
+// of its markers — otherwise the claim is hollow (declared but never navigated to) and the spec
+// is refused. Markers are deliberately navigation-bearing, NOT the bare surface id: many ids
+// (e.g. `tree` → "Structure", `relations` → "Relations & boundaries") never appear verbatim, so
+// matching the id text would let a spec that merely mentions the word pass. Each entry below is a
+// regex source; the spec's full source text is tested against every alternative for the id.
+//
+// Keep an entry for EVERY id in SURFACE_MANIFEST — a manifest id with no table entry is itself a
+// configuration hole and is reported (fail closed: an unknown id can never be "exercised").
+const NAV_MARKERS = {
+  // Full views V1–V9: reached by hash route, by the nav-rail label, or by the view's own seam.
+  overview: ['#/view/overview', "navTo\\(page, 'Overview'\\)", '\\.ov-verdict', '\\.ov-residue', '\\.ov-precise'],
+  coverage: ['#/view/coverage', "navTo\\(page, 'Coverage & audit'\\)", '\\.cov-ledger', '\\.cov-bar'],
+  tree: ['#/view/tree', "navTo\\(page, 'Structure'\\)", '\\.tree-mount', '\\.tree-row'],
+  relations: ['#/view/relations', "navTo\\(page, 'Relations & boundaries'\\)", '\\.mtx-canvas', '\\.mtx-mirror', '\\.rel-hub'],
+  rulebook: ['#/view/rulebook', "navTo\\(page, 'Rulebook'\\)", '\\.rb-table'],
+  types: ['#/view/types', "navTo\\(page, 'Type model'\\)", '\\.ty-grid', '\\.ty-card'],
+  flows: ['#/view/flows', "navTo\\(page, 'Flows'\\)", '\\.fl-gallery', '\\.fl-detail'],
+  suppressions: ['#/view/suppressions', "navTo\\(page, 'Suppressions'\\)", '\\.sup-table'],
+  start: ['#/view/start', "navTo\\(page, 'Start here'\\)", '\\.st-card', '\\.st-steps'],
+  // Persistent shell chrome.
+  'shell-nav': ['\\.app-rail', '\\.rail-link'],
+  'shell-panel': ['\\.app-panel', '#/node/', '\\.pan-path', '\\.pan-asprow'],
+  'shell-refresh': ['\\.topbar-refresh'],
+  'shell-approve': ['\\.topbar-approve'],
+  'shell-theme': ['\\.topbar-theme', 'data-theme'],
+  'shell-deeplink': ['page\\.reload', '#/node/', '#/view/'],
+  'shell-prov': ['\\.pan-prov', '\\.pan-fresh'],
+  // Overlays.
+  'ov-palette': ['Meta\\+k', 'Control\\+k', '\\.rail-cmdk', '\\.palette-'],
+  'ov-glossary': ['data-term', '\\.term\\['],
+  'ov-approve': ['\\.topbar-approve', 'reviewer call', "page\\.on\\('dialog'"],
+};
+
+/**
+ * Does the spec body actually exercise `surfaceId`? True iff its source text matches at least one
+ * of the surface's navigation markers. `markers` is undefined for an id with no table entry —
+ * the caller treats that as an unmappable claim (fail closed).
+ */
+function specDrives(specText, surfaceId) {
+  const markers = NAV_MARKERS[surfaceId];
+  if (!markers) return false;
+  for (const m of markers) {
+    if (new RegExp(m).test(specText)) return true;
+  }
+  return false;
+}
+
 export function check(ctx) {
   const violations = [];
 
@@ -113,7 +167,25 @@ export function check(ctx) {
   }
   const manifestSet = new Set(manifest);
 
-  // 2. Union every spec's exported COVERS.
+  // Fail closed on a manifest id the navigation table does not know — it can never be proven
+  // exercised, so it must not silently read as coverable.
+  for (const surface of manifest) {
+    if (!Object.prototype.hasOwnProperty.call(NAV_MARKERS, surface)) {
+      violations.push({
+        file: manifestFile,
+        line: 1,
+        column: 0,
+        message:
+          `§3a surface '${surface}' is in the manifest but the every-surface-has-e2e navigation table has no ` +
+          `markers for it, so a spec's COVERS claim for it cannot be bound to a real navigation. Add the ` +
+          `surface's navigation markers (its hash route / key chord / DOM seam) to NAV_MARKERS in this check.`,
+      });
+    }
+  }
+
+  // 2. For every spec, union its COVERS — but only after verifying the spec BODY drives each
+  //    surface it claims. A claimed surface with no matching navigation marker is a hollow
+  //    declaration and is refused; it does NOT count toward coverage.
   const covered = new Set();
   const coverers = new Map(); // surfaceId -> [spec paths] (for the error message)
   for (const file of ctx.files) {
@@ -131,6 +203,7 @@ export function check(ctx) {
       });
       continue;
     }
+    const specText = file.content ?? file.ast.rootNode.text;
     for (const id of covers) {
       if (!manifestSet.has(id)) {
         violations.push({
@@ -144,6 +217,20 @@ export function check(ctx) {
         });
         continue;
       }
+      if (!specDrives(specText, id)) {
+        const markers = NAV_MARKERS[id] ?? [];
+        violations.push({
+          file: file.path,
+          line: 1,
+          column: 0,
+          message:
+            `Portal e2e spec '${file.path}' claims §3a surface '${id}' in COVERS, but its body never drives that ` +
+            `surface — none of its navigation markers (${markers.join(', ')}) appears in the spec. A COVERS entry ` +
+            `must be backed by real navigation: open the surface (its hash route / key chord / DOM seam) and ` +
+            `assert it, or drop '${id}' from this spec's COVERS so the claim cannot outrun the test.`,
+        });
+        continue;
+      }
       covered.add(id);
       const list = coverers.get(id) ?? [];
       list.push(file.path);
@@ -151,7 +238,7 @@ export function check(ctx) {
     }
   }
 
-  // 3. Every manifest surface must be covered by at least one spec.
+  // 3. Every manifest surface must be covered (and genuinely driven) by at least one spec.
   for (const surface of manifest) {
     if (!covered.has(surface)) {
       violations.push({
@@ -160,9 +247,9 @@ export function check(ctx) {
         column: 0,
         message:
           `§3a surface '${surface}' has NO Playwright + Chromium e2e spec covering it. Every navigable surface ` +
-          `must be driven by at least one real-browser spec that declares it in COVERS. Add a spec (or extend ` +
-          `an existing one) that opens this surface and asserts it renders / its transitions land, and list ` +
-          `'${surface}' in that spec's exported COVERS array.`,
+          `must be driven by at least one real-browser spec that declares it in COVERS AND actually navigates to ` +
+          `it. Add a spec (or extend an existing one) that opens this surface and asserts it renders / its ` +
+          `transitions land, and list '${surface}' in that spec's exported COVERS array.`,
       });
     }
   }

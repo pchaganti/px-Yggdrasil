@@ -67,6 +67,22 @@ describe('portal per-node derivation (honest state, effective aspects, relations
     expect(det!.pairState).toBe('verified');
   });
 
+  it('a verified effective-aspect row on the real repo carries non-empty foldedInputs (covered bytes)', () => {
+    // The attestation drill-through is backed by real data: a green row cites the exact subject
+    // files the verdict covers. cli/core/fill is all-green on the real lock, so its verified rows
+    // must carry foldedInputs drawn from the node's mapped source — never an empty fabrication.
+    const fill = byPath.get('cli/core/fill')!;
+    const verifiedRow = fill.effectiveAspects.find((a) => a.pairState === 'verified');
+    expect(verifiedRow).toBeDefined();
+    expect(verifiedRow!.foldedInputs).toBeDefined();
+    expect(verifiedRow!.foldedInputs!.length).toBeGreaterThan(0);
+    // Every cited path is one of the node's real subject files (a faithful "these exact bytes").
+    for (const f of verifiedRow!.foldedInputs!) {
+      expect(typeof f).toBe('string');
+      expect(f.length).toBeGreaterThan(0);
+    }
+  });
+
   it('an LLM effective aspect carries tier + consensus + billed cost', () => {
     const fill = byPath.get('cli/core/fill')!;
     const llm = fill.effectiveAspects.find((a) => a.kind === 'llm');
@@ -182,6 +198,42 @@ describe('per-node derivation — honest states on synthetic inputs', () => {
     expect(out.get('ref')!.effectiveAspects[0].pairState).toBe('refused');
     expect(out.get('unv')!.state).toBe('unverified');
     expect(out.get('gate')!.state).toBe('unverified'); // gate state collapses
+  });
+
+  it('a verified row carries foldedInputs (covered bytes); a refused row carries the reviewer reason', () => {
+    // The node-attestation drill-through: a VERIFIED effective-aspect row must cite the exact
+    // subject files the verdict covers ("this green attests these exact bytes"), and a REFUSED
+    // row must cite the reviewer's "no". buildEffectiveAspect threads both off the per-unit pairs.
+    const aOk = aspectDef('a-ok', 'deterministic');
+    const aRef = aspectDef('a-ref', 'deterministic');
+    const okNode = node('ok', 'module', ['a-ok'], ['f.ts']);
+    const refNode = node('ref', 'module', ['a-ref'], ['f.ts']);
+    const graph = {
+      nodes: new Map([['ok', okNode], ['ref', refNode]]),
+      aspects: [aOk, aRef],
+      flows: [],
+      architecture: { node_types: {} },
+    } as unknown as Graph;
+    const verification: LockVerification = {
+      pairs: [
+        vp('a-ok', 'ok', { kind: 'verified' }),
+        vp('a-ref', 'ref', { kind: 'refused', reason: 'rule X violated on line 7' }),
+      ],
+      unreadable: [],
+    };
+    const out = new Map(
+      buildPortalNodes(graph, {} as never, verification, syntheticCheck([]), new Map(), { byFile: new Map() }).map((n) => [n.path, n]),
+    );
+    const okRow = out.get('ok')!.effectiveAspects.find((a) => a.aspectId === 'a-ok')!;
+    expect(okRow.pairState).toBe('verified');
+    // foldedInputs = the verdict's covered subject files (vp builds subjectFiles: ['f.ts']).
+    expect(okRow.foldedInputs).toEqual(['f.ts']);
+    expect(okRow.reason).toBeUndefined();
+    const refRow = out.get('ref')!.effectiveAspects.find((a) => a.aspectId === 'a-ref')!;
+    expect(refRow.pairState).toBe('refused');
+    expect(refRow.reason).toBe('rule X violated on line 7');
+    // A refused row does not fabricate folded inputs (those gate the "green attests" block).
+    expect(refRow.foldedInputs).toBeUndefined();
   });
 
   it('rollupState bubbles a refused child to a no-rule parent without changing the parent own state', () => {

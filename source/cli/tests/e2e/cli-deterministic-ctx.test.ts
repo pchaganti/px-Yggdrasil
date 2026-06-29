@@ -128,6 +128,35 @@ function attachAspectToNode(dir: string, nodePath: string, aspectId: string): vo
   }
 }
 
+/**
+ * Append a `uses` relation to a node's yg-node.yaml (creating the `relations:`
+ * block if absent). Used to flip a graph-aware check's reachability of the
+ * target node from THROW (unreachable) to RETURN (reachable).
+ */
+function addUsesRelation(dir: string, nodePath: string, target: string): void {
+  const nodeYaml = path.join(dir, '.yggdrasil', 'model', ...nodePath.split('/'), 'yg-node.yaml');
+  const content = readFileSync(nodeYaml, 'utf-8');
+  const block = `relations:\n  - type: uses\n    target: ${target}\n`;
+  writeFileSync(nodeYaml, content.trimEnd() + '\n' + block, 'utf-8');
+}
+
+/**
+ * Strip the exact `uses` relation block that addUsesRelation appended (mirror
+ * inverse). Removes the three appended lines verbatim so the node returns to its
+ * pre-relation yaml bytes, flipping a graph-aware check's reachability of the
+ * target back from RETURN (reachable) to THROW (unreachable).
+ */
+function removeUsesRelation(dir: string, nodePath: string, target: string): void {
+  const nodeYaml = path.join(dir, '.yggdrasil', 'model', ...nodePath.split('/'), 'yg-node.yaml');
+  const content = readFileSync(nodeYaml, 'utf-8');
+  const block = `relations:\n  - type: uses\n    target: ${target}\n`;
+  const stripped = content.replace('\n' + block, '\n');
+  if (stripped === content) {
+    throw new Error(`removeUsesRelation: no 'uses' relation to ${target} found on ${nodePath}`);
+  }
+  writeFileSync(nodeYaml, stripped.trimEnd() + '\n', 'utf-8');
+}
+
 const ordersFile = (dir: string) => path.join(dir, 'src', 'services', 'orders.ts');
 
 interface LockVerdict {
@@ -273,6 +302,37 @@ const GLOB_GRAPH_FILES_CHECK = `export function check(ctx) {
     }];
   }
   return [];
+}
+`;
+
+// Reachability rule (mirrors the dogfood `sibling-test-file` shape): try to
+// reach a target node and REFUSE (via a caught throw) when it is unreachable.
+// Unlike CROSS_GRAPH_READ_CHECK this SWALLOWS the UndeclaredGraphReadError, so
+// the fill records a refused verdict (cached) instead of an uncached runtime
+// error — exactly the path where a stale refusal could survive a relation add.
+const REACH_TARGET_OR_REFUSE_CHECK = `export function check(ctx) {
+  const violations = [];
+  try {
+    ctx.graph.node('services/payments');
+  } catch {
+    violations.push({
+      file: ctx.files[0] ? ctx.files[0].path : ctx.node.id,
+      line: 1,
+      column: 0,
+      message: "Cannot reach 'services/payments'. Add a 'uses' relation to this node.",
+    });
+  }
+  return violations;
+}
+`;
+
+// A check that returns a "violation" against a file it was NOT given (not in
+// the node's mapping, not reached via a relation). The structure runner rejects
+// this with a structured STRUCTURE_CHECK_FILE_NOT_IN_CONTEXT error — a CLASSIFIED
+// aspect-author error, not a CLI bug. Under --check-determinism this previously
+// routed through the generic "error it does not classify" abort.
+const VIOLATION_OUT_OF_CONTEXT_CHECK = `export function check(ctx) {
+  return [{ file: 'src/services/payments.ts', line: 1, message: 'violation against a non-context file' }];
 }
 `;
 
@@ -587,6 +647,137 @@ describe.skipIf(!distExists)('CLI E2E — graph-aware deterministic ctx surface 
       // Post-fix: ctx.graph expands the glob, so it sees the same file ctx.files does.
       expect(test.all).toContain('No violations');
       expect(test.all).not.toContain('glob mapping not expanded');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // Reachability invalidation: an UNREACHABLE ctx.graph.node(id) probe that the
+  // check SWALLOWS (try/catch → refuse) must fold a graph observation so that
+  // ADDING the relation that makes the target reachable INVALIDATES the cached
+  // refusal — without manually deleting the deterministic cache. (Dogfood: a
+  // command node missing its `uses` relation refused + cached forever even after
+  // the relation was added, because the throw was never folded into `touched`.)
+  // -------------------------------------------------------------------------
+
+  it('R: adding the relation that makes an unreachable ctx.graph.node target reachable self-invalidates the cached refusal', () => {
+    const dir = deterministicFixture('reach-invalidate');
+    try {
+      writeAspect(dir, 'reach-or-refuse', 'Node must declare a relation reaching services/payments.', REACH_TARGET_OR_REFUSE_CHECK);
+      attachAspectToNode(dir, 'services/orders', 'reach-or-refuse');
+
+      // 1) services/orders has NO relation to services/payments → the probe throws,
+      //    the check swallows it and refuses; the fill caches the refused verdict.
+      const refuse = run(['check', '--approve'], dir);
+      expect(refuse.status).toBe(1);
+      expect(lockVerdict(dir, 'reach-or-refuse', 'services/orders')?.verdict).toBe('refused');
+      // The unreachable probe folded a graph observation of the CALLING node, so
+      // a later relation add changes that observation's value.
+      expect(touchedKeys(dir, 'reach-or-refuse', 'services/orders')).toContain('graph:services/orders');
+
+      // 2) Add the `uses` relation so services/payments becomes reachable. Do NOT
+      //    touch any source file and do NOT delete the deterministic cache.
+      addUsesRelation(dir, 'services/orders', 'services/payments');
+
+      // 3) Plain `yg check` must now report the cached refusal as STALE (unverified)
+      //    — proving the verdict self-invalidated on the reachability change. Before
+      //    the fix this stayed RED-as-refused forever (the relation add was invisible
+      //    to the hash) or, worse, GREEN over the unreviewed refusal.
+      const recheck = run(['check'], dir);
+      expect(recheck.all).toContain('unverified');
+      expect(recheck.all).not.toContain('reach-or-refuse on node:services/orders — refused');
+
+      // 4) Re-fill: the probe now RETURNS the node (reachable), the check finds no
+      //    violation, and the verdict re-verifies GREEN — with NO manual cache delete.
+      const refill = run(['check', '--approve'], dir);
+      expect(refill.status).toBe(0);
+      expect(lockVerdict(dir, 'reach-or-refuse', 'services/orders')?.verdict).toBe('approved');
+
+      // 5) A final plain check is clean (exit 0) — the cache invalidated itself.
+      const clean = run(['check'], dir);
+      expect(clean.status).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // Reachability invalidation — INVERSE direction. Scenario R proves a relation
+  // ADD (unreachable→reachable) self-invalidates a cached REFUSAL. This proves
+  // the symmetric, more dangerous direction: a relation REMOVE
+  // (reachable→unreachable) self-invalidates a cached APPROVAL — so a node that
+  // SHOULD now refuse cannot keep serving a stale green. Same self-invalidation,
+  // no manual cache delete: ctx.graph.node() folds the CALLING node's
+  // graph:<self> observation on EVERY probe (reachable AND unreachable), so the
+  // node yaml byte change on the relation remove moves the verdict's inputHash.
+  // -------------------------------------------------------------------------
+
+  it('R-inverse: removing the relation that makes a reachable ctx.graph.node target unreachable self-invalidates the cached approval', () => {
+    const dir = deterministicFixture('reach-invalidate-inverse');
+    try {
+      writeAspect(dir, 'reach-or-refuse', 'Node must declare a relation reaching services/payments.', REACH_TARGET_OR_REFUSE_CHECK);
+      attachAspectToNode(dir, 'services/orders', 'reach-or-refuse');
+
+      // 1) Start with the `uses` relation PRESENT → services/payments is reachable,
+      //    the probe RETURNS (no throw), the check finds no violation, and the fill
+      //    caches an APPROVED verdict.
+      addUsesRelation(dir, 'services/orders', 'services/payments');
+      const approve = run(['check', '--approve'], dir);
+      expect(approve.status).toBe(0);
+      expect(lockVerdict(dir, 'reach-or-refuse', 'services/orders')?.verdict).toBe('approved');
+      // The reachable probe folded the CALLING node's graph observation (the same
+      // key the unreachable branch folds), so removing the relation will move it.
+      expect(touchedKeys(dir, 'reach-or-refuse', 'services/orders')).toContain('graph:services/orders');
+
+      // 2) REMOVE the `uses` relation so services/payments becomes unreachable
+      //    again. Do NOT touch any source file and do NOT delete the deterministic
+      //    cache (.yggdrasil/.yg-lock.deterministic.json stays in place).
+      removeUsesRelation(dir, 'services/orders', 'services/payments');
+
+      // 3) Plain `yg check` (NOT --approve) must now report the cached approval as
+      //    STALE (unverified) — proving the verdict self-invalidated on the
+      //    reachability change. Before the fold-on-every-probe fix the approval
+      //    would survive (the relation remove was invisible to the hash), leaving
+      //    a stale GREEN over code that should now refuse — the dangerous direction.
+      const recheck = run(['check'], dir);
+      expect(recheck.all).toContain('unverified');
+
+      // 4) Re-fill: the probe now THROWS (unreachable), the check swallows it and
+      //    refuses, and the verdict re-verifies as REFUSED — with NO manual cache
+      //    delete. The stale green could not survive the relation remove.
+      const refill = run(['check', '--approve'], dir);
+      expect(refill.status).toBe(1);
+      expect(lockVerdict(dir, 'reach-or-refuse', 'services/orders')?.verdict).toBe('refused');
+      expect(refill.all).toContain('[det] reach-or-refuse on node:services/orders — refused');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // aspect-test --check-determinism on a deterministic aspect whose check
+  // produces a CLASSIFIED runner error (here: a violation against a file the
+  // check was not given) must render that structured what/why/next and exit 1
+  // — NOT route through the generic "CLI encountered an error it does not
+  // classify / file an issue" abort.
+  // -------------------------------------------------------------------------
+
+  it('F: --check-determinism surfaces a classified runner error cleanly (no "does not classify")', () => {
+    const dir = deterministicFixture('det-classified-error');
+    try {
+      writeAspect(dir, 'out-of-context', 'Returns a violation against a non-context file (author error).', VIOLATION_OUT_OF_CONTEXT_CHECK);
+      attachAspectToNode(dir, 'services/orders', 'out-of-context');
+
+      const res = run(['aspect-test', '--aspect', 'out-of-context', '--node', 'services/orders', '--check-determinism'], dir);
+      // Exit 1 (the aspect under test has a problem) — but a CLEAN, classified one.
+      expect(res.status).toBe(1);
+      // The structured runner message (what/why/next) is rendered verbatim.
+      expect(res.all).toContain("Violation references file 'src/services/payments.ts' not in ctx");
+      expect(res.all).toContain('Author cannot synthesize violations against files they were not given.');
+      // The generic unclassified-error wrapper must NOT appear.
+      expect(res.all).not.toContain('does not classify');
+      expect(res.all).not.toContain('please file an issue');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

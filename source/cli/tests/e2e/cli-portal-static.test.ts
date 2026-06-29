@@ -16,6 +16,34 @@ const FIXTURE_ROOT = path.join(CLI_ROOT, 'tests', 'fixtures', 'portal-basic');
 
 const distExists = existsSync(BIN_PATH);
 
+/**
+ * The executable/markup network references an offline page must never carry. Asserted against
+ * the EXECUTABLE SURFACE only (the inlined application/json data region stripped first).
+ */
+const LOADABLE = [
+  /<script[^>]*\ssrc\s*=/i,
+  /<link[^>]*\shref\s*=\s*["'](?:https?:)?\/\//i,
+  /\bsrc\s*=\s*["'](?:https?:)?\/\//i,
+  /url\(\s*["']?(?:https?:)?\/\//i,
+  /\bfetch\s*\(/i,
+  /\bnew\s+(?:WebSocket|XMLHttpRequest|EventSource)\b/i,
+  /\b(?:cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com|esm\.sh|skypack\.dev|googleapis\.com|gstatic\.com)\b/i,
+] as const;
+
+/**
+ * Strip the inlined `<script id="portal-data" type="application/json">…</script>` DATA region,
+ * returning the executable/markup surface (inlined JS modules + HTML/CSS). The JSON is inert
+ * payload the browser never executes and can legitimately contain URLs / "fetch(" from the graph,
+ * so it must be excluded from the offline proof. The strict-guard test proves a real network
+ * reference on the remaining surface is still caught.
+ */
+function stripDataRegion(html: string): string {
+  return html.replace(
+    /<script id="portal-data" type="application\/json">[\s\S]*?<\/script>/g,
+    '<script id="portal-data" type="application/json"></script>',
+  );
+}
+
 const tmpDirs: string[] = [];
 
 afterAll(() => {
@@ -69,19 +97,36 @@ describe.skipIf(!distExists)('CLI E2E — yg portal --static (self-contained off
     expect(paths).toContain('api/users');
   });
 
-  it('has no externally-loadable network / CDN reference (fully offline)', () => {
-    const loadable = [
-      /<script[^>]*\ssrc\s*=/i,
-      /<link[^>]*\shref\s*=\s*["'](?:https?:)?\/\//i,
-      /\bsrc\s*=\s*["'](?:https?:)?\/\//i,
-      /url\(\s*["']?(?:https?:)?\/\//i,
-      /\bfetch\s*\(/i,
-      /\bnew\s+(?:WebSocket|XMLHttpRequest|EventSource)\b/i,
-      /\b(?:cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com|esm\.sh|skypack\.dev|googleapis\.com|gstatic\.com)\b/i,
-    ];
-    for (const re of loadable) {
-      expect(html, `offline violation: ${re}`).not.toMatch(re);
+  it('has no externally-loadable network / CDN reference on the executable surface (fully offline)', () => {
+    // Scan ONLY the executable/markup surface — the inlined JS modules + HTML/CSS — with the
+    // inlined application/json PortalData region PARSED OUT first. The real graph data (node
+    // descriptions, source snippets, rule prose) can legitimately contain "fetch(", a URL, or
+    // "url("; that JSON is inert payload the browser never executes, so greping it would
+    // false-positive. The proof stays strict on the surface that actually runs.
+    const surface = stripDataRegion(html);
+    for (const re of LOADABLE) {
+      expect(surface, `offline violation on executable surface: ${re}`).not.toMatch(re);
     }
+  });
+
+  it('the offline proof is strict: a genuine network reference on the code surface still fails', () => {
+    // Guard the guard. Injecting a real <script src=http> + fetch('http…') into the EXECUTABLE
+    // surface (outside the JSON data region) must still be caught after the strip — proving the
+    // parse-out did not blind the assertion. The same strings inside the JSON payload are ignored.
+    const tampered = html.replace(
+      '</body>',
+      '<script src="https://cdn.jsdelivr.net/x.js"></script><script>fetch("https://evil.example/x")</script></body>',
+    );
+    const surface = stripDataRegion(tampered);
+    expect(surface).toMatch(/<script[^>]*\ssrc\s*=/i);
+    expect(surface).toMatch(/\bfetch\s*\(/i);
+    // A fetch( that exists ONLY inside the JSON data region is correctly NOT on the surface.
+    const fetchInData = html.replace(
+      /<script id="portal-data" type="application\/json">/,
+      '<script id="portal-data" type="application/json">{"x":"fetch(https://api.example/y)"}',
+    );
+    expect(fetchInData).toMatch(/fetch\(/); // present somewhere (inside the JSON)
+    expect(stripDataRegion(fetchInData)).not.toMatch(/\bfetch\s*\(/i); // but NOT on the executable surface
   });
 
   it('inlined the vendored layout library', () => {

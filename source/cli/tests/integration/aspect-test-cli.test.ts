@@ -282,7 +282,13 @@ describe.skipIf(!distExists)('yg aspect-test', () => {
       projectRoot,
     );
     expect(status).toBe(1);
-    expect(stderr).toContain('DEFAULT_EXPORT');
+    // The structure runner error is now rendered as its structured what/why/next
+    // (parity with the --files path), so assert the human wording, not the
+    // internal DEFAULT_EXPORT code token, and confirm the generic
+    // "does not classify / file an issue" wrapper is absent.
+    expect(stderr).toContain('NAMED export is required');
+    expect(stderr).not.toContain('DEFAULT_EXPORT');
+    expect(stderr).not.toContain('please file an issue');
   });
 
   it('--node --check-determinism exits 0 when results are stable', () => {

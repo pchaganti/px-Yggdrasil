@@ -282,11 +282,13 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
   //    or returns an invalid result is NOT a code refusal: the fill classifies it
   //    as `aspect-check-runtime-error` and LEAVES THE PAIR UNVERIFIED (no verdict
   //    written), so the run ends red (exit 1) until the check.mjs is fixed.
-  //  * The DIAGNOSTIC surface — `yg aspect-test`. It surfaces the well-classified
-  //    runner error text (STRUCTURE_CHECK_*, AST_*) but through the GENERIC
-  //    abortOnUnexpectedError "file an issue" wrapper (a pinned BUG, not encoded as
-  //    correct; full detail in .temp/dogfood-report.md). Exit 1 + the runner's own
-  //    message text are still present, so those are what we pin.
+  //  * The DIAGNOSTIC surface — `yg aspect-test`. A classified runner error
+  //    (StructureRunnerError / AstRunnerError) is now rendered as its structured
+  //    what/why/next (parity across --node and --files), with exit 1 — NOT routed
+  //    through the generic abortOnUnexpectedError "does not classify / file an
+  //    issue" wrapper and NOT leaking the internal STRUCTURE_CHECK_* / AST_* code
+  //    prefix. The runner's own message text is what we pin; the wrapper and the
+  //    code token must be ABSENT.
   // =========================================================================
 
   it('B1: a check returning a NON-ARRAY is an aspect-check-runtime-error at fill time — left unverified (exit 1)', () => {
@@ -309,17 +311,20 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
     }
   });
 
-  it('B2: a check returning a NON-ARRAY fails aspect-test --node (exit 1, STRUCTURE_CHECK_RETURN_SHAPE)', () => {
+  it('B2: a check returning a NON-ARRAY fails aspect-test --node (exit 1, structured runner message)', () => {
     const dir = deterministicFixture('b2');
     try {
       writeDeterministicAspect(dir, 'ret-nonarray', 'enforced', 'export function check(ctx) { return { nope: true }; }\n');
       attachToOrders(dir, 'ret-nonarray');
       const { status, all } = run(['aspect-test', '--aspect', 'ret-nonarray', '--node', 'services/orders'], dir);
       expect(status).toBe(1);
-      expect(all).toContain('STRUCTURE_CHECK_RETURN_SHAPE');
+      // The structure runner error (a CLASSIFIED aspect-author error) is rendered
+      // as its structured what/why/next — mirroring the --files path (B5/B7) — not
+      // routed through the generic "does not classify / file an issue" wrapper or
+      // leaking the internal STRUCTURE_CHECK_* code prefix.
       expect(all).toContain('check.mjs returned object, expected Violation[].');
-      // BUG: surfaced through the generic "file an issue" wrapper (see note above).
-      expect(all).toContain('This is a bug — please file an issue');
+      expect(all).not.toContain('STRUCTURE_CHECK_RETURN_SHAPE');
+      expect(all).not.toContain('This is a bug — please file an issue');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -344,16 +349,19 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
     }
   });
 
-  it('B4: a check that THROWS fails aspect-test --node (exit 1, STRUCTURE_CHECK_THROWN)', () => {
+  it('B4: a check that THROWS fails aspect-test --node (exit 1, structured runner message)', () => {
     const dir = deterministicFixture('b4');
     try {
       writeDeterministicAspect(dir, 'thrower', 'enforced', 'export function check(ctx) { throw new Error("boom in check"); }\n');
       attachToOrders(dir, 'thrower');
       const { status, all } = run(['aspect-test', '--aspect', 'thrower', '--node', 'services/orders'], dir);
       expect(status).toBe(1);
-      expect(all).toContain('STRUCTURE_CHECK_THROWN');
+      // Structured what/why/next (parity with the --files path in B5); no internal
+      // code prefix, no generic "file an issue" wrapper.
       expect(all).toContain("check.mjs threw an exception while running (aspect 'thrower').");
       expect(all).toContain('boom in check');
+      expect(all).not.toContain('STRUCTURE_CHECK_THROWN');
+      expect(all).not.toContain('This is a bug — please file an issue');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -378,15 +386,18 @@ describe.skipIf(!distExists)('CLI E2E — aspect authoring & deterministic check
     }
   });
 
-  it('B6: an ASYNC check fails aspect-test --node (exit 1, STRUCTURE_CHECK_ASYNC)', () => {
+  it('B6: an ASYNC check fails aspect-test --node (exit 1, structured runner message)', () => {
     const dir = deterministicFixture('b6');
     try {
       writeDeterministicAspect(dir, 'asyncer', 'enforced', 'export async function check(ctx) { return []; }\n');
       attachToOrders(dir, 'asyncer');
       const { status, all } = run(['aspect-test', '--aspect', 'asyncer', '--node', 'services/orders'], dir);
       expect(status).toBe(1);
-      expect(all).toContain('STRUCTURE_CHECK_ASYNC');
+      // Structured what/why/next (parity with the --files path in B7); no internal
+      // code prefix, no generic "file an issue" wrapper.
       expect(all).toContain('check.mjs returned a Promise; only synchronous returns are supported.');
+      expect(all).not.toContain('STRUCTURE_CHECK_ASYNC');
+      expect(all).not.toContain('This is a bug — please file an issue');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

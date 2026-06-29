@@ -151,7 +151,24 @@ export function createCtxGraph(params: CtxGraphParams): CtxGraph {
 
   return {
     node(id) {
-      assertAllowed(id);
+      // Every ctx.graph.node() reachability decision derives ENTIRELY from the
+      // CALLING node's own yg-node.yaml (its declared relations, via
+      // computeAllowedNodePaths) — the probed target's bytes are reachability-blind.
+      // Fold the CALLING node's graph: observation on EVERY probe, reachable OR not,
+      // so a relation change in EITHER direction invalidates the cached verdict:
+      //   - ADDING the relation that makes `id` reachable (was throwing → now found), and
+      //   - REMOVING the relation that makes `id` unreachable again (was found → now throws),
+      // both change the calling node's yaml bytes ⇒ the verdict re-verifies. The
+      // verifier's reObserve('graph:<currentNodePath>') re-reads that same yg-node.yaml
+      // from disk, so the two sides stay byte-symmetric (spec §3.1 over-record — a probe
+      // is always an observation; deterministic, free; idempotent with toPublicNode's
+      // own graph:<target> fold when id === the calling node).
+      const self = graph.nodes.get(currentNodePath);
+      if (self) recordGraphNode(self);
+
+      if (!allowed.has(id)) {
+        assertAllowed(id); // throws UndeclaredGraphReadError
+      }
       const m = graph.nodes.get(id);
       if (!m) {
         // NEGATIVE lookup: the node is absent. Record an absent graph:

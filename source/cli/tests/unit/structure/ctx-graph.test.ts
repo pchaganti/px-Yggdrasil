@@ -3,6 +3,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createCtxGraph, UndeclaredGraphReadError } from '../../../src/structure/ctx-graph.js';
+import { ObservationRecorder } from '../../../src/structure/observations.js';
+import { observationKey } from '../../../src/core/pair-hash.js';
 import { buildTestGraphForStructure } from '../helpers/build-test-graph-structure.js';
 import { cleanupTestGraphs } from '../helpers/build-test-graph.js';
 
@@ -40,6 +42,24 @@ describe('ctx.graph', () => {
     });
     const ctxGraph = createCtxGraph({ currentNodePath: 'A', graph: g, projectRoot, touchedFiles: [] });
     expect(() => ctxGraph.node('C')).toThrow(UndeclaredGraphReadError);
+  });
+
+  it('node() records a graph observation of the CALLING node before throwing for an unreachable target', () => {
+    // Reachability is a function of the calling node's relations, so an unreachable
+    // probe must fold the CALLING node's graph: observation BEFORE throwing —
+    // otherwise a later relation add (which makes the target reachable) never
+    // invalidates the cached refusal. This pins the FIX E recorder contract.
+    const g = buildTestGraphForStructure({
+      nodes: [{ path: 'A', type: 'm', mapping: [] }, { path: 'C', type: 'm', mapping: [] }],
+    });
+    const recorder = new ObservationRecorder();
+    const ctxGraph = createCtxGraph({ currentNodePath: 'A', graph: g, projectRoot, touchedFiles: [], recorder });
+    expect(() => ctxGraph.node('C')).toThrow(UndeclaredGraphReadError);
+    const keys = recorder.snapshot().map(([k]) => k);
+    // The CALLING node ('A') is folded — NOT the probed target ('C'), whose bytes
+    // are reachability-blind.
+    expect(keys).toContain(observationKey('graph', 'A'));
+    expect(keys).not.toContain(observationKey('graph', 'C'));
   });
 
   it('node() allows hierarchy (parent always allowed)', () => {

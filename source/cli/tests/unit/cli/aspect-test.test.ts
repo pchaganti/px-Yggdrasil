@@ -13,8 +13,20 @@ vi.mock('../../../src/cli/preamble.js', () => ({
 
 // Mock both deterministic runners so we control violations / non-determinism
 // without authoring real check.mjs fixtures.
-vi.mock('../../../src/ast/runner.js', () => ({ runAstAspect: vi.fn() }));
-vi.mock('../../../src/structure/runner.js', () => ({ runStructureAspect: vi.fn() }));
+// Mock the runners. The command classifies runner errors via `instanceof`, so
+// the mock must expose constructors for AstRunnerError / StructureRunnerError —
+// otherwise `instanceof undefined` throws. These mocked runners are vi.fn() and
+// never throw the real error types in these tests (every thrown value here comes
+// from the mocked process.exit), so stub classes that simply yield `false` for
+// the instanceof check are sufficient and side-effect-free.
+vi.mock('../../../src/ast/runner.js', () => ({
+  runAstAspect: vi.fn(),
+  AstRunnerError: class AstRunnerError extends Error {},
+}));
+vi.mock('../../../src/structure/runner.js', () => ({
+  runStructureAspect: vi.fn(),
+  StructureRunnerError: class StructureRunnerError extends Error {},
+}));
 
 // Mock the LLM provider factory (no real reviewer).
 vi.mock('../../../src/llm/index.js', () => ({

@@ -74,7 +74,8 @@ export function buildPortalNodes(
   // Optional: absent/empty means no node is treated as touched (the cold baseline).
   freshByNode: Map<string, boolean> = new Map(),
 ): PortalNode[] {
-  // Index pair states by node path → aspectId → the per-unit pair states.
+  // Index pair states by node path → aspectId → the per-unit pair records
+  // (state PLUS the verdict's covered subject files / refusal reason for drill-through).
   const pairsByNode = indexPairsByNode(verification.pairs);
   // Index node-scoped issues by node path (for the `warning` own-state signal).
   const issuesByNode = indexIssuesByNode(check.issues);
@@ -109,9 +110,22 @@ export function buildPortalNodes(
   return [...built.values()];
 }
 
-/** Map nodePath → aspectId → list of pair states for that aspect's units. */
-function indexPairsByNode(pairs: VerifiedPair[]): Map<string, Map<string, PortalPairState[]>> {
-  const out = new Map<string, Map<string, PortalPairState[]>>();
+/**
+ * One per-unit verdict record for the panel's attestation drill-through. `state` is the
+ * collapsed honest pair-state; `subjectFiles` is the exact byte set the verdict covers for
+ * that unit (the "these exact bytes" a green attests); `reason` is the refusal message a
+ * refused verdict carries. Kept alongside the state so a VERIFIED row can cite its inputs
+ * and a REFUSED row can cite the reviewer's "no" — the panel renders both.
+ */
+interface PairRecord {
+  state: PortalPairState;
+  subjectFiles: string[];
+  reason?: string;
+}
+
+/** Map nodePath → aspectId → list of per-unit verdict records for that aspect's units. */
+function indexPairsByNode(pairs: VerifiedPair[]): Map<string, Map<string, PairRecord[]>> {
+  const out = new Map<string, Map<string, PairRecord[]>>();
   for (const vp of pairs) {
     const np = vp.pair.nodePath;
     let byAspect = out.get(np);
@@ -120,22 +134,23 @@ function indexPairsByNode(pairs: VerifiedPair[]): Map<string, Map<string, Portal
       out.set(np, byAspect);
     }
     const list = byAspect.get(vp.pair.aspectId) ?? [];
-    list.push(toPairState(vp));
+    list.push(toPairRecord(vp));
     byAspect.set(vp.pair.aspectId, list);
   }
   return out;
 }
 
-/** Collapse a VerifiedPair into the honest pair-state taxonomy (gate states → unverified). */
-function toPairState(vp: VerifiedPair): PortalPairState {
+/** Collapse a VerifiedPair into a record: honest state (gate states → unverified) + drill-through data. */
+function toPairRecord(vp: VerifiedPair): PairRecord {
+  const subjectFiles = vp.pair.subjectFiles ?? [];
   switch (vp.state.kind) {
     case 'verified':
-      return 'verified';
+      return { state: 'verified', subjectFiles };
     case 'refused':
-      return 'refused';
+      return { state: 'refused', subjectFiles, reason: vp.state.reason };
     default:
       // unverified | prompt-too-large | companion-error → not green, not a code "no".
-      return 'unverified';
+      return { state: 'unverified', subjectFiles };
   }
 }
 
@@ -167,7 +182,7 @@ function invertRelations(graph: Graph): Map<string, PortalRelationIn[]> {
 function buildOne(
   node: GraphNode,
   graph: Graph,
-  pairsByNode: Map<string, Map<string, PortalPairState[]>>,
+  pairsByNode: Map<string, Map<string, PairRecord[]>>,
   issuesByNode: Map<string, CheckIssue[]>,
   relationsIn: Map<string, PortalRelationIn[]>,
   logContents: Map<string, string>,
@@ -250,7 +265,7 @@ function buildEffectiveAspect(
   node: GraphNode,
   graph: Graph,
   statuses: Map<string, AspectStatus>,
-  nodePairs: Map<string, PortalPairState[]> | undefined,
+  nodePairs: Map<string, PairRecord[]> | undefined,
 ): PortalEffectiveAspect {
   const def = graph.aspects.find((a) => a.id === aspectId);
   const aggregate = isAggregateAspect(graph, aspectId);
@@ -290,11 +305,29 @@ function buildEffectiveAspect(
   // pairState: the worst per-unit state across this aspect's units on the node.
   // An aggregate aspect has no pair → 'n/a'. A draft aspect produces no expected
   // pair → 'n/a'. Otherwise collapse the unit states (refused > unverified > verified).
-  const pairStates = nodePairs?.get(aspectId);
+  const records = nodePairs?.get(aspectId);
   const pairState: PortalPairState =
-    aggregate || status === 'draft' || !pairStates || pairStates.length === 0
+    aggregate || status === 'draft' || !records || records.length === 0
       ? 'n/a'
-      : worstPairState(pairStates);
+      : worstPairState(records.map((r) => r.state));
+
+  // Attestation drill-through (the panel renders these). A VERIFIED row carries the exact
+  // covered byte set ("this green attests these exact bytes"); a REFUSED row carries the
+  // reviewer's "no". Aggregate / draft rows have no verdict → neither. We thread the data
+  // off the per-unit records that produced `pairState`: the union of covered subject files
+  // for a verified row, and the first non-empty refusal reason for a refused row.
+  let foldedInputs: string[] | undefined;
+  let reason: string | undefined;
+  if (!aggregate && status !== 'draft' && records && records.length > 0) {
+    if (pairState === 'verified') {
+      const files = new Set<string>();
+      for (const r of records) for (const f of r.subjectFiles) files.add(f);
+      const sorted = [...files].sort();
+      if (sorted.length > 0) foldedInputs = sorted;
+    } else if (pairState === 'refused') {
+      reason = records.find((r) => r.state === 'refused' && r.reason)?.reason;
+    }
+  }
 
   return {
     aspectId,
@@ -306,6 +339,8 @@ function buildEffectiveAspect(
     channel,
     origin,
     pairState,
+    ...(reason !== undefined ? { reason } : {}),
+    ...(foldedInputs !== undefined ? { foldedInputs } : {}),
   };
 }
 

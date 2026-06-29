@@ -3,8 +3,8 @@ import path from 'node:path';
 import { loadGraphOrAbort, abortOnUnexpectedError } from './preamble.js';
 import { exitAfterFlush } from './exit-after-flush.js';
 import { debugWrite } from '../utils/debug-log.js';
-import { runAstAspect } from '../ast/runner.js';
-import { runStructureAspect } from '../structure/runner.js';
+import { runAstAspect, AstRunnerError } from '../ast/runner.js';
+import { runStructureAspect, StructureRunnerError } from '../structure/runner.js';
 import { buildIssueMessage } from '../formatters/message-builder.js';
 import type { Violation as AstViolation } from '../ast/types.js';
 import type { Violation as StructureViolation } from '../structure/types.js';
@@ -217,6 +217,21 @@ export function registerAspectTestCommand(program: Command): void {
         await exitAfterFlush(1);
       } catch (e: unknown) {
         debugWrite(`[aspect-test] run failed: ${e instanceof Error ? e.message : String(e)}`);
+        // A deterministic runner error (StructureRunnerError / AstRunnerError)
+        // already carries a fully-formed what/why/next in `messageData` — a
+        // check.mjs that threw, returned the wrong shape, or failed to load. It
+        // is a classified, actionable failure of the aspect under test, NOT an
+        // unclassified CLI bug, so render its structured message and exit 1
+        // instead of routing it through abortOnUnexpectedError's generic
+        // "encountered an error it does not classify / file an issue" wrapper.
+        // This also keeps --check-determinism clean: if either of the two runs
+        // throws a runner error, the user sees the real cause, not a CLI-bug
+        // message.
+        if (e instanceof StructureRunnerError || e instanceof AstRunnerError) {
+          process.stderr.write(buildIssueMessage(e.messageData) + '\n');
+          await exitAfterFlush(1);
+          return;
+        }
         abortOnUnexpectedError(e, 'running aspect-test');
       }
     });

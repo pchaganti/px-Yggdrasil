@@ -11,11 +11,14 @@ description: >-
   outside the honest model. AST-based over JavaScript (only real string literals and member
   accesses are inspected, so the word in a comment is never a violation); a view file that
   contains no state rendering at all is exempt (it has nothing to anchor). SCOPE LIMIT: this is a
-  deterministic TRIPWIRE — it demands the shared states anchor only when the file TOUCHES the
-  honest-state vocabulary (a state-* class token, or a state-helper member name like cssClass /
-  badge / glyph / plain). A view that fabricates a green through an UNRELATED class token it
-  invented (one outside that vocabulary) does not trip this anchor; that collapse is caught by the
-  enforced per-file LLM aspect honest-state-never-collapsed, which is the PRIMARY guard (it reads
-  the view's actual rendering against the no-collapse rule). This anchor is the cheap structural
-  backstop that keeps a refactor from quietly dropping the shared model; it is not the semantic judge.
+  deterministic TRIPWIRE — it demands the shared states anchor when the file TOUCHES the
+  honest-state vocabulary, which it now reads broadly: a state-* class token, a state-helper member
+  name like cssClass / badge / glyph / plain, OR an ad-hoc GREEN / pass color class — a class token
+  that paints its own green via a word like green / ok / pass / verified (e.g. is-green, ok-cell,
+  bg-green, verified-row). So a view that fabricates a green through an unrelated class it invented
+  now still trips this anchor. The green-token trigger is per CSS class token (a prose sentence or a
+  glossary key like 'verified' is not a class token and never trips it). The deeper semantic check —
+  that the rendered states do not collapse into one another — remains the enforced per-file LLM
+  aspect honest-state-never-collapsed, the PRIMARY guard; this anchor is the cheap structural
+  backstop that keeps a refactor from quietly dropping the shared model, not the semantic judge.
 status: enforced
