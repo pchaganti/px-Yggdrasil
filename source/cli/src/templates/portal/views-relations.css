@@ -1,0 +1,214 @@
+/*
+ * Relations & Boundaries (V4) styles — the fan-in/out hubs, the live boundary (phantom /
+ * forbidden-type violations + the neutral declared-only class + the UNKNOWN degraded state),
+ * and the Canvas allowed-relations matrix with its DOM mirror.
+ *
+ * Split from views.css so each CSS file stays a focused unit under the size cap. Tokens come
+ * from tokens.css; relation-presence hues in the matrix are the one non-state accent and are
+ * clearly labelled as relation types, not verdicts.
+ */
+
+/* ── V4 Relations & Boundaries ───────────────────────────────────────────── */
+.rel-part {
+  margin-bottom: 26px;
+}
+.rel-parth {
+  font-size: 15px;
+  margin: 0 0 10px;
+}
+.rel-hubcols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.rel-hubh {
+  font-size: 13px;
+  margin: 0 0 2px;
+}
+.rel-hubcap {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.rel-hubrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  padding: 4px 0;
+  text-align: left;
+}
+.rel-hubrow:hover {
+  background: var(--surface-2);
+}
+.rel-hubname {
+  flex: 1;
+  font-size: 12.5px;
+}
+.rel-hubbar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--accent);
+  opacity: 0.65;
+}
+.rel-hubn {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+  width: 28px;
+  text-align: right;
+}
+.rel-bhead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.rel-summary {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.rel-scard {
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 12px 16px;
+  background: var(--surface-1);
+  min-width: 150px;
+}
+.rel-scard b {
+  font-size: 22px;
+}
+.rel-scard-l {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.rel-scard-err {
+  border-color: var(--refused);
+}
+.rel-class {
+  margin-bottom: 16px;
+}
+.rel-classh {
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+.rel-clean {
+  color: var(--verified);
+  font-size: 12.5px;
+}
+.rel-empty,
+.rel-decl-intro {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.rel-viol {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  font-size: 12.5px;
+}
+.rel-viol-src {
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+.rel-stanza {
+  flex-basis: 100%;
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border-radius: 7px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  white-space: pre;
+}
+.rel-decl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 12.5px;
+}
+.rel-decl-mark {
+  color: var(--accent-text);
+}
+.rel-decl-note {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.rel-unknown {
+  border: 1px dashed var(--unverified);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--unverified-bg);
+}
+.rel-unknown p {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ── V4 matrix (Canvas + DOM mirror) ─────────────────────────────────────── */
+.mtx-canvas {
+  display: block;
+  max-width: 100%;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface-1);
+}
+.mtx-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.mtx-legend-k {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mtx-legend-empty {
+  color: var(--text-muted);
+}
+.mtx-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.mtx-mirror {
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--bg);
+  font-size: 12px;
+}
+.mtx-mirror-row {
+  padding: 2px 0;
+}
+.mtx-arrow {
+  color: var(--text-muted);
+}
+.mtx-rels {
+  color: var(--accent-text);
+}
+.mtx-empty {
+  color: var(--text-muted);
+  margin: 0;
+}

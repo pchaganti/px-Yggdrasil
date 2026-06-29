@@ -1,0 +1,28 @@
+name: PortalPipeline
+type: portal-pipeline
+description: >-
+  The portal extraction pipeline. extractPortalData loads the graph committed-only
+  (noSecrets), walks repo files, and REUSES the CLI's read-only functions — runCheck
+  (severities + coverage), verifyLock (per-pair states), computeExpectedPairs (the
+  pair denominator) — to derive the PortalData contract with counts that provably
+  equal `yg check`. Read-only: no lock write, no LLM call. The per-node honest-state
+  derivation (derive-nodes.ts) turns the engine's own results into one PortalNode per
+  graph node; the catalogues, the live boundary, hubs, and the worklist are filled by
+  the remaining derivation files mapped here. The matrix forbids portal-pipeline →
+  portal-pipeline, so the derivation modules are mapped into this single pipeline node
+  (intra-node imports need no relation) rather than split into sub-nodes. The pipeline
+  reaches the engine ONLY through the single facade (cli/portal/engine-api): it calls the
+  facade and uses the data contract, and declares no direct relation to any engine
+  subsystem. The facade produces the FULL live boundary (phantom + declared-only +
+  forbidden-type) and the live suppression inventory; the pipeline consumes them.
+relations:
+  - target: cli/portal/engine-api
+    type: calls
+  - target: cli/portal/contract
+    type: uses
+mapping:
+  - source/cli/src/portal/extract.ts
+  - source/cli/src/portal/derive-nodes.ts
+  - source/cli/src/portal/derive-node-state.ts
+  - source/cli/src/portal/derive-catalogue.ts
+  - source/cli/src/portal/derive-rest.ts

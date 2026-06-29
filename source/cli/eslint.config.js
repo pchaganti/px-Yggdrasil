@@ -22,6 +22,21 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['dist/', 'build/', 'coverage/', 'node_modules/', '*.config.*', '*.min.js'],
+    // The portal frontend assets (templates/portal/js + vendor) are committed BROWSER
+    // code, not Node/TS source: they legitimately use browser globals (document, window)
+    // and, for the vendored layout library, are taken as-shipped. They are enforced by the
+    // portal frontend aspects (no-node-imports-in-frontend / no-cdn-no-network /
+    // no-network-egress / no-secrets-strings / focused-file-size), not by the Node eslint
+    // config, whose environment cannot model the browser.
+    ignores: [
+      'dist/',
+      'build/',
+      'coverage/',
+      'node_modules/',
+      '*.config.*',
+      '*.min.js',
+      'src/templates/portal/js/',
+      'src/templates/portal/vendor/',
+    ],
   },
 );

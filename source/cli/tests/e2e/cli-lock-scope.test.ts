@@ -13,7 +13,7 @@ import { existsSync, mkdtempSync, rmSync, cpSync, readFileSync, writeFileSync, a
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readLock as readTriadLock } from '../../src/io/lock-store.js';
+import { readLock as readTriadLock } from './support/read-lock.js';
 
 // Each case spawns the real CLI binary many times; on a loaded CI runner that
 // exceeds vitest's 5000ms default and flakily times out. Use the same 30s budget

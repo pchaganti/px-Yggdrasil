@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMockReviewer, runAsync } from './support/mock-reviewer.js';
-import { readLock, detLockPath } from '../../src/io/lock-store.js';
+import { readLock, detLockPath } from './support/read-lock.js';
 
 // Hermetic E2E — ASPECT AUTHORING, the remaining (~uncovered) paths:
 //   * ctx.parseYaml / ctx.parseJson / ctx.parseToml — the structured-data parse

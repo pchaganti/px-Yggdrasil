@@ -11,7 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readLock } from '../../src/io/lock-store.js';
+import { readLock } from './support/read-lock.js';
 
 // ---------------------------------------------------------------------------
 // End-to-end: TypeScript relation conformance is LIVE. We build a temp repo

@@ -1,0 +1,10 @@
+name: Portal Tests
+type: module
+description: >-
+  Organizational root for the portal's own test suites. Holds no source mapping itself;
+  its typed children own the test files. The Playwright + Chromium end-to-end suite lives
+  under e2e — it drives the real `yg portal` output of real fixture projects through the
+  public CLI surface only, in a real browser, asserting every §3a navigable surface and
+  transition renders and that the page never diverges from `yg check`.
+aspects: []
+relations: []

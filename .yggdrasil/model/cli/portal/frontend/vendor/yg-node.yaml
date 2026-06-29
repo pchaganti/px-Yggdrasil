@@ -1,0 +1,13 @@
+name: PortalFrontendVendor
+type: portal-frontend-vendor
+description: >-
+  The portal's vendored third-party frontend asset — d3-hierarchy, a compact offline subset
+  (the hierarchy() builder + the Reingold-Tilford / Buchheim tidy-tree layout). Committed as
+  a static asset so the portal has no runtime npm dependency and no CDN reference; the
+  serializer inlines it verbatim into the static page. Taken as shipped, so it is exempt from
+  the focused-file-size cap; the no-network-egress aspect guards that exemption — the
+  vendored code may do layout math only and must never touch the network.
+aspects: []
+relations: []
+mapping:
+  - source/cli/src/templates/portal/vendor/d3-hierarchy.js

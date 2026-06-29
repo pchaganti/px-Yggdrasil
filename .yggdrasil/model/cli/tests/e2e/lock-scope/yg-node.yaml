@@ -3,7 +3,7 @@ type: test-suite
 description: "Subprocess E2E for per-file scope with a files filter and observation invalidation (lock matrix part 3): irrelevant-edit immunity, per-file entries, and list/exists/graph observation changes forcing re-verification. Deterministic-only — real spawned binary, no reviewer needed."
 aspects: []
 relations:
-  - target: cli/io/lock-store
+  - target: cli/tests/e2e/support
     type: uses
 mapping:
   - source/cli/tests/e2e/cli-lock-scope.test.ts

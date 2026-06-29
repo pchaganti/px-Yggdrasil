@@ -1,0 +1,10 @@
+name: PortalNoSecretsStrings
+description: >-
+  The portal frontend never touches secrets — the CLI owns keys and the page reads only
+  the committed-config-derived PortalData, which never carries a secret. A frontend
+  string literal that even mentions the secrets file ('yg-secrets') or an 'api_key'
+  field is a red flag — either an attempt to surface a secret or dead code that
+  misunderstands the secrets boundary. AST-based for JavaScript (only real string /
+  template literals are inspected, so the word in a comment or identifier is not a
+  violation); a quoted-only content scan for HTML/CSS, which have no AST grammar.
+status: enforced

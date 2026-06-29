@@ -1,0 +1,96 @@
+name: Portal Extraction Integration Tests
+type: test-suite
+description: >-
+  Integration tests for the portal extraction pipeline against the REAL repo graph
+  (real .yggdrasil/ + source). Asserts the count-parity gate: every count
+  extractPortalData emits equals what runCheck / computeExpectedPairs report, so the
+  portal can never diverge from `yg check`. Also drives buildCounts directly with a
+  synthetic pair list spanning every pair-state kind, pinning that the two fail-closed
+  gate states (prompt-too-large, companion-error) bucket into unverified, never green.
+  Also covers the static emit: extractPortalData on a real fixture project fed to
+  emitStatic produces ONE self-contained offline page — exactly one inlined-PortalData
+  script that round-trips, no externally-loadable network/CDN reference, valid HTML. Also
+  asserts the LIVE full boundary (phantom / declared-only / forbidden-type derived from the
+  SAME facade functions, never hardcoded) and the live suppression inventory on the real
+  repo, and the single-engine-seam structural invariant — the extraction pipeline reaches
+  the engine only through the facade. Also covers the vanilla FRONTEND modules: the real
+  committed browser module source is evaluated in a node:vm sandbox over a minimal DOM shim
+  and driven with the real fixture's PortalData, asserting the honest 8-state model (each
+  state a distinct color-class + glyph + label, never collapsed), the hash-router grammar
+  round-trips, the ⌘K palette fuzzy-matches and routes real entities, the consumer reads the
+  inlined snapshot and detects served-vs-static, and the tree builds the real hierarchy.
+  Also covers the per-surface VIEW modules the same way (real committed view source in the
+  vm sandbox, driven by the real fixture's PortalData): the Overview verdict stays honest
+  (never green when pairs are unverified) and its Start-here / precise-picture / residue links
+  route; the Coverage ledger shows the visible denominator and the separated non-pair track and
+  its live counts equal the pipeline counts (== yg check); the Node Attestation panel renders
+  identity + effective aspects + relations and routes each; the Structure view mounts the shared
+  virtualized tree; and Relations & Boundaries renders the hubs and the live boundary with the
+  three classes kept honest — phantom / forbidden-type as violations, declared-only NEUTRAL
+  (never red, never a violation), and the UNKNOWN degraded state surfaced rather than faked clean.
+  Also covers the catalogue / orientation VIEW modules the same way (real committed view source in
+  the vm sandbox, driven by the real fixture's PortalData AND by the real repo's own PortalData
+  produced through the public `yg portal --static` CLI surface): the Rulebook renders the three
+  honest aspect tallies (normal V/R/U, aggregating "judges nothing", vacuous "verifies nothing"
+  with its resolved reason) and expands an aspect into honest per-node cells; the Type Model
+  renders the architecture vocabulary as capability discovery without inventing a verdict color;
+  the Flows lens renders the three honest flow states (verified / weakest-link / nothing-checked,
+  the all-no-rule flow never green); the Suppressions inventory surfaces risk flags
+  (wildcard / unbounded / typo) with the waived-not-a-pass framing and an honest empty state; and
+  the Start-here on-ramp walks five graph-derived steps ending in the full honest colour key.
+  Also covers Phase-5 audit depth: the attestation provenance the facade reads (the committed-lock
+  hash folds only the committed triad and is stable across extractions; the git commit ref is read
+  read-only from .git, null for a non-git dir, never fabricated), and the file-aware loop — a real
+  fixture closed through the public CLI then edited reads the touched node `unverified` (its source
+  fingerprint differs from the committed baseline) while the untouched node stays verified, the
+  whole-repo green never overriding it. And the Phase-5 frontend the same vm-sandbox way: the
+  CSV / JSON export builders round-trip back to the same rows and the download path is an in-page
+  Blob / data-URI with no network; the node digest pins the commit ref + lock hash; a touched node
+  reads unverified across Overview / Tree / panel; the verdict bar carries an ARIA group role +
+  text label; every interactive control is a keyboard-operable native element; the allowed-relations
+  matrix keeps its DOM-list mirror; and `--no-write` view-only mode disables the write control.
+aspects: []
+relations:
+  - target: cli/portal/pipeline
+    type: uses
+  - target: cli/portal/engine-api
+    type: uses
+  - target: cli/portal/serializer
+    type: uses
+  - target: cli/portal/server
+    type: uses
+  - target: cli/portal/contract
+    type: uses
+  - target: cli/core/check
+    type: uses
+  - target: cli/core/loader
+    type: uses
+  - target: cli/core/pairs
+    type: uses
+  - target: cli/core/verify-lock
+    type: uses
+  - target: cli/core/log
+    type: uses
+  - target: cli/io/stores
+    type: uses
+  - target: cli/io/lock-store
+    type: uses
+  - target: cli/model/lock
+    type: uses
+  - target: cli/model/graph
+    type: uses
+mapping:
+  - source/cli/tests/integration/portal-extract.test.ts
+  - source/cli/tests/integration/portal-derive-nodes.test.ts
+  - source/cli/tests/integration/portal-derive-catalogue.test.ts
+  - source/cli/tests/integration/portal-derive-rest.test.ts
+  - source/cli/tests/integration/portal-static-emit.test.ts
+  - source/cli/tests/integration/portal-single-seam.test.ts
+  - source/cli/tests/integration/portal-boundary.test.ts
+  - source/cli/tests/integration/portal-server.test.ts
+  - source/cli/tests/integration/portal-frontend-modules.test.ts
+  - source/cli/tests/integration/portal-views.test.ts
+  - source/cli/tests/integration/portal-views-rulebook.test.ts
+  - source/cli/tests/integration/portal-attestation-meta.test.ts
+  - source/cli/tests/integration/portal-phase5-frontend.test.ts
+  - source/cli/tests/integration/portal-engine-api-provenance.test.ts

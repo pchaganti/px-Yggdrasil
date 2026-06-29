@@ -1,0 +1,340 @@
+/*
+ * Per-surface view styles — Overview (V1), Coverage & Audit (V2), the Node Attestation
+ * panel (SHELL-panel), Structure (V3), and Relations & Boundaries (V4).
+ *
+ * Tokens come from tokens.css (including the honest status palette); the shell frame from
+ * shell.css; the shared in-stage pieces from app.css. This file holds only the view-specific
+ * layout, so each CSS file stays a focused unit. The only saturated color is a state, resolved
+ * through the state classes in tokens.css; relation-presence hues in the matrix are the one
+ * non-state accent and are clearly labelled as relation types, not verdicts.
+ */
+
+.stage-body {
+  margin-bottom: 18px;
+}
+.view-lead {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0 0 14px;
+}
+
+/* ── V1 Overview ─────────────────────────────────────────────────────────── */
+.ov-hero {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.ov-verdict {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-1);
+  padding: 18px 20px;
+}
+.ov-verdict-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.ov-verdict-sub {
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  margin: 8px 0 0;
+  line-height: 1.55;
+}
+.ov-door {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-1);
+  padding: 16px;
+}
+.ov-door h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+.ov-door p {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.ov-door-link,
+.ov-precise {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 9px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--accent-text);
+  font-weight: 550;
+  cursor: pointer;
+}
+.ov-sectlabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  margin: 4px 2px 9px;
+}
+.ov-residue {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.reslink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 9px 13px;
+  font: inherit;
+  font-size: 13px;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.reslink:hover {
+  border-color: var(--border-strong);
+}
+.reslink-arrow {
+  color: var(--accent-text);
+}
+.ov-precise {
+  width: 100%;
+  justify-content: flex-start;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+}
+.ov-precise-frac {
+  font-weight: 650;
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.ov-foot,
+.cov-prov {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+/* ── V2 Coverage & Audit ─────────────────────────────────────────────────── */
+.cov-ledger {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-1);
+  padding: 16px 18px;
+  margin-bottom: 18px;
+}
+.cov-lhead {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.cov-frac {
+  font-size: 22px;
+  font-weight: 650;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.cov-den {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.cov-lbl {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.cov-right {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.cov-bar {
+  display: flex;
+  height: 32px;
+  border-radius: 7px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+.cov-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 11px;
+}
+.cov-seg-v {
+  background: var(--verified);
+}
+.cov-seg-v-det {
+  background: color-mix(in srgb, var(--verified) 78%, #000);
+}
+.cov-seg-r {
+  background: var(--refused);
+}
+.cov-seg-u {
+  background: var(--unverified);
+}
+.cov-seg-empty {
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+.cov-barlabels,
+.cov-nonpair,
+.cov-livewrap {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 9px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.cov-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cov-key-sub {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.cov-hair {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 12px 0 0;
+}
+.cov-nptag {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.cov-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 6px 11px;
+  font-size: 12px;
+  background: var(--bg);
+}
+.cov-livebadge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: #fff;
+  background: var(--live);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.cov-prov {
+  margin: 12px 0 0;
+}
+.cov-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 2px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.cov-section-count {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.cov-jump {
+  margin-left: auto;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 6px 11px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--accent-text);
+  cursor: pointer;
+}
+.cov-jump-residue {
+  color: var(--text-secondary);
+}
+.cov-card,
+.cov-calm {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+  overflow: hidden;
+}
+.cov-calm {
+  padding: 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.cov-worow-wrap {
+  border-bottom: 1px solid var(--border-subtle);
+}
+.cov-worow-wrap:last-child {
+  border-bottom: 0;
+}
+.cov-worow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px 4px;
+}
+.cov-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.cov-worow-id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.cov-worow-reason {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+.cov-worow-meta {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.cov-deeplink,
+.cov-rulehdr {
+  border: 1px solid var(--border-subtle);
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 1px 8px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.cov-rulehdr {
+  display: block;
+  border: 0;
+  margin: 0 0 10px 16px;
+  color: var(--accent-text);
+  text-align: left;
+}
+

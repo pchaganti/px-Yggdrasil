@@ -1,7 +1,8 @@
 name: E2E Tests — Support Helpers
 type: test-suite
-description: "Shared helper module for the end-to-end test suites — an in-process mock that speaks the reviewer provider's HTTP protocol on an ephemeral loopback port, capturing every verdict request so a suite can drive and assert the reviewer mechanics deterministically, plus an asynchronous spawn helper that keeps the parent event loop alive to serve that mock while the spawned binary makes its calls."
+description: "Shared helper modules for the end-to-end test suites — an in-process mock that speaks the reviewer provider's HTTP protocol on an ephemeral loopback port, capturing every verdict request so a suite can drive and assert the reviewer mechanics deterministically; an asynchronous spawn helper that keeps the parent event loop alive to serve that mock while the spawned binary makes its calls; and a read-only lock-triad reader that parses the committed lock files a project's `.yggdrasil` directory holds (the nondeterministic, logs, and gitignored deterministic files) and merges them into the unified verdicts/nodes view the suites assert on — entirely off the public CLI surface, importing nothing from the CLI's internal modules."
 aspects: []
 relations: []
 mapping:
   - source/cli/tests/e2e/support/mock-reviewer.ts
+  - source/cli/tests/e2e/support/read-lock.ts

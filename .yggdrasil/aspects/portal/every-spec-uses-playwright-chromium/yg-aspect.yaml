@@ -1,0 +1,14 @@
+name: PortalEverySpecUsesPlaywrightChromium
+description: >-
+  Every portal end-to-end SPEC must actually be a Playwright + Chromium browser test — never a
+  fake/smoke file that imports nothing and asserts nothing in a browser. The suite runs under the
+  chromium project (playwright.config.ts), so a real spec drives a real Chromium page. This check
+  enforces, per *.spec.ts file, two AST-derived facts: (1) it imports Playwright's `test` — directly
+  from '@playwright/test' or via the project's Playwright fixture re-export './support/fixtures'
+  (which is itself verified to import '@playwright/test', so the indirect path cannot be a lie); and
+  (2) it actually drives a browser page (page.goto / page.locator / page.keyboard / page.request /
+  page.evaluate / page.reload), so it opens the page and asserts in the browser rather than no-opping.
+  AST-based, scope per node — the whole suite's files are inspected together.
+status: enforced
+scope:
+  per: node

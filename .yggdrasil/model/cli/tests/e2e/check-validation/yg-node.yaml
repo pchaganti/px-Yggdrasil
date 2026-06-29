@@ -5,8 +5,6 @@ aspects: []
 relations:
   - target: cli/tests/e2e/support
     type: uses
-  - target: cli/io/lock-store
-    type: uses
 mapping:
   - source/cli/tests/e2e/cli-check-validation.test.ts
   - source/cli/tests/e2e/cli-check-output-flush.test.ts

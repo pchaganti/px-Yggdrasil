@@ -107,6 +107,53 @@ describe('relation pass — edge cases (live)', () => {
     expect(result.violationsByNode.get('a')!.verdict).toBe('approved');
   });
 
+  // ── Additive read-only accessor: detectedEdgesByNode ──────────────────────
+  //
+  // detectedEdgesByNode is the FULL set of uniquely-resolved cross-node edges — the
+  // SUPERSET of violationsByNode (the undeclared subset). It must include a DECLARED edge
+  // (which is correctly absent from the verdict) AND every undeclared edge, while never
+  // including a self / ancestor / descendant edge. The portal boundary's declared-only and
+  // forbidden-type classes are joins over this set, so this is the contract they rely on.
+  it('detectedEdgesByNode is the full superset (declared + undeclared), excluding self/lineage', async () => {
+    // Node A depends (via three C includes) on B, C, and D. A DECLARES only the B edge.
+    writeNodeRaw(root, 'a', 'name: A\ntype: service\nrelations:\n  - target: b\n    type: calls\nmapping:\n  - src/a\n');
+    writeNode(root, 'b', 'B', 'src/b');
+    writeNode(root, 'c', 'C', 'src/c');
+    writeNode(root, 'd', 'D', 'src/d');
+    w(root, 'src/a/main.c', '#include "../b/hb.h"\n#include "../c/hc.h"\n#include "../d/hd.h"\n');
+    w(root, 'src/b/hb.h', '/* b */\n');
+    w(root, 'src/c/hc.h', '/* c */\n');
+    w(root, 'src/d/hd.h', '/* d */\n');
+
+    const graph = await loadGraph(root);
+    const result = await runRelationPass(graph, root, {
+      extractorFor: extractorForLanguage,
+      resolvePathToFile: makeResolvePathToFile(root),
+      symbolIndexDir: path.join(root, '.yg-cache-detected'),
+    });
+
+    // detected = the FULL superset: B (declared) + C + D (undeclared).
+    const detected = result.detectedEdgesByNode.get('a');
+    expect(detected).toBeDefined();
+    expect([...detected!].sort()).toEqual(['b', 'c', 'd']);
+
+    // violations = only the UNDECLARED subset: C and D. The declared B edge is excluded.
+    const a = result.violationsByNode.get('a');
+    expect(a?.verdict).toBe('refused');
+    const violationTargets = new Set(a!.violations.map((v) => v.ownerNode));
+    expect(violationTargets.has('b')).toBe(false); // declared → not a violation
+    expect(violationTargets.has('c')).toBe(true);
+    expect(violationTargets.has('d')).toBe(true);
+
+    // The set difference detected − violations is exactly the declared edge.
+    const detectedSet = new Set(detected);
+    const declaredOnly = [...detectedSet].filter((t) => !violationTargets.has(t));
+    expect(declaredOnly).toEqual(['b']);
+
+    // A node with no detected cross-node edge has no entry (B/C/D map only headers).
+    expect(result.detectedEdgesByNode.has('b')).toBe(false);
+  });
+
   it('refuses a node that depends on an owned-but-unenumerated (gitignored) header', async () => {
     writeNode(root, 'a', 'A', 'src/a');
     writeNode(root, 'b', 'B', 'src/b');

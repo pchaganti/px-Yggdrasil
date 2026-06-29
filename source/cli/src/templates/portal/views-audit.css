@@ -1,0 +1,108 @@
+/*
+ * Phase-5 audit-depth styles — the portable-export bar, the file-aware freshness strip on the
+ * landing, and the node panel's provenance pins + freshness banner. Kept in its own focused
+ * file so the larger view stylesheets stay under the focused-file cap. Tokens come from
+ * tokens.css; the only saturated color is a state, resolved through the shared state classes —
+ * nothing here invents a green.
+ */
+
+/* ── Portable export bar (Coverage & Audit + Suppressions) ─────────────────── */
+.exp-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 18px;
+}
+.exp-lbl {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-right: 4px;
+}
+.exp-btn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.exp-btn:hover {
+  background: var(--surface-2);
+}
+.exp-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── V1 file-aware freshness strip (the heartbeat) ─────────────────────────── */
+.ov-fresh {
+  border: 1px dashed var(--state-unverified-border, var(--border));
+  border-left-width: 4px;
+  border-radius: 12px;
+  background: var(--surface-1);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.ov-fresh-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+.ov-fresh-sub {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin: 6px 0 10px;
+}
+.ov-fresh-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ov-fresh-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-size: 11.5px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.ov-fresh-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Node panel: provenance pins + freshness banner ────────────────────────── */
+.pan-prov {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.pan-prov-k {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 7px;
+  background: var(--surface-2);
+}
+.pan-fresh {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border: 1px dashed var(--state-unverified-border, var(--border));
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}

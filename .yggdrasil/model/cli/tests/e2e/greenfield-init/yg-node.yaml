@@ -3,7 +3,7 @@ type: test-suite
 description: "Subprocess E2E for the headless init/upgrade and platform-install paths — scaffold via init --upgrade, the platform rules-file matrix (claude-code, cursor, codex, opencode, amp, generic), the greenfield approve lifecycle, an empty no-node repo, and the unknown-platform and missing-version guards."
 aspects: []
 relations:
-  - target: cli/io/lock-store
+  - target: cli/tests/e2e/support
     type: uses
 mapping:
   - source/cli/tests/e2e/cli-greenfield-init.test.ts

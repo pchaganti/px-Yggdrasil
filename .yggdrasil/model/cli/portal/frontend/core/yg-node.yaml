@@ -1,0 +1,24 @@
+name: PortalFrontendCore
+type: portal-frontend-core
+description: >-
+  The portal frontend core — the shell HTML, the CSS token system, and the vanilla browser
+  modules that consume the inlined PortalData and render the page. The shell carries
+  placeholder markers the serializer replaces with the inlined CSS, data, vendored layout
+  library, and the concatenated modules. The modules are focused, single-responsibility
+  files that each attach to one shared window.YgPortal global (no module system on a single
+  offline page): namespace + DOM helpers, the honest-state model (color + glyph + border +
+  plain label per state, never collapsed into one green), the plain-language glossary, the
+  hash router (every view + entity deep-linkable, percent-encoded file-units), the ⌘K
+  command palette (a pure fuzzy matcher + its overlay), the PortalData consumer (inlined
+  snapshot or, when served, a read-only /data refresh reached through an indirect lookup so
+  the static page contains no callable network primitive), the DOM-virtualized node tree
+  (laid out with the vendored d3-hierarchy), the three-region shell (nav rail + top bar with
+  Refresh/Approve/⌘K/theme + node-panel slot), the view dispatcher, and the bootstrap that
+  orchestrates them. Framework-free, offline, no Node imports, no network/CDN references, no
+  secret strings; each file stays under the focused-file-size cap.
+aspects: []
+relations: []
+mapping:
+  - source/cli/src/templates/portal/shell.html
+  - source/cli/src/templates/portal/*.css
+  - source/cli/src/templates/portal/js/*.js

@@ -1,0 +1,208 @@
+/*
+ * V9 Start here styles — the new-joiner on-ramp.
+ *
+ * A centered, card-framed 5-step wizard derived entirely from the live PortalData. Tokens come
+ * from tokens.css; the area dots and the colour-key in the final step read their treatment from
+ * the shared honest-state model (`.state-*`), so this file invents no green of its own.
+ */
+
+.st-frame {
+  width: 760px;
+  max-width: 96%;
+  margin: 0 auto;
+}
+.st-steps {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.st-step {
+  flex: 1;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--surface-3);
+}
+.st-step-done {
+  background: var(--accent);
+}
+.st-step-now {
+  background: var(--accent-text);
+}
+.st-stepno {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.st-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-1);
+  padding: 24px 26px;
+}
+.st-h1 {
+  font-size: 23px;
+  font-weight: 650;
+  margin: 0 0 12px;
+  letter-spacing: -0.01em;
+}
+.st-lead {
+  font-size: 14.5px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0 0 16px;
+}
+.st-lead-sm {
+  font-size: 13px;
+  margin: 6px 0 0;
+}
+.st-areas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+.st-area {
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 11px 13px;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+}
+.st-area-link {
+  font: inherit;
+  cursor: pointer;
+}
+.st-area-link:hover {
+  border-color: var(--border-strong);
+}
+.st-area-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.st-area b {
+  font-size: 13.5px;
+}
+.st-area span {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.st-fact {
+  font-size: 22px;
+  font-weight: 650;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.st-flowcard {
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--bg);
+  padding: 16px 18px;
+  margin: 8px 0;
+}
+.st-flowcard > b {
+  font-size: 15px;
+}
+.st-flow-d {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 6px 0 10px;
+  line-height: 1.5;
+}
+.st-flow-meta {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.st-inline-link {
+  margin-top: 12px;
+  display: inline-flex;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  border-radius: 9px;
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--accent-text);
+  font-weight: 550;
+  cursor: pointer;
+}
+.st-key {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0 4px;
+}
+.st-key-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--bg);
+}
+.st-key-text b {
+  font-weight: 600;
+}
+.st-key-text span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 1px;
+}
+.st-roadmap {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 18px 0 4px;
+}
+.st-chip {
+  font-size: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 4px 11px;
+  color: var(--text-muted);
+}
+.st-chip-now {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: var(--surface-3);
+}
+.st-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 22px;
+}
+.st-btn {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 9px 15px;
+  font: inherit;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.st-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.st-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.st-skip {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+}

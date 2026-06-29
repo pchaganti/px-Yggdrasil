@@ -12,7 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readLock } from '../../src/io/lock-store.js';
+import { readLock } from './support/read-lock.js';
 
 // ---------------------------------------------------------------------------
 // E2E suite — the GRAPH-AWARE deterministic check.mjs surface.

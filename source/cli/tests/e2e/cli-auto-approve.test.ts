@@ -24,7 +24,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { startMockReviewer, runAsync } from './support/mock-reviewer.js';
-import { readLock as readTriadLock, detLockPath } from '../../src/io/lock-store.js';
+import { readLock as readTriadLock, detLockPath } from './support/read-lock.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '..', '..');

@@ -1,0 +1,11 @@
+name: PortalLoadGraphNoSecretsFlag
+description: >-
+  Every loadGraph / loadGraphOrAbort call in a portal backend file must pass an
+  options object with noSecrets: true, and every parseConfig call must pass
+  skipSecretsOverlay: true. The default loader merges yg-secrets.yaml, so the
+  committed-only read must be opt-in and explicit at every call site — this closes
+  the default-options overlay-merge trap. POSITIVE rule: the call is the subject;
+  a missing or non-literal-true flag is the violation. Alias-proof: a local alias of
+  a loader (import { loadGraph as load } or const lg = loadGraph) is resolved back to
+  its canonical symbol before matching, so an aliased call is checked identically.
+status: enforced

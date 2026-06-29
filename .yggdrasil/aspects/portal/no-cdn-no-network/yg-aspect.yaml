@@ -1,0 +1,11 @@
+name: PortalNoCdnNoNetwork
+description: >-
+  The portal frontend must be fully self-contained and offline. No frontend file may
+  reference the network: no absolute http(s):// URL, no protocol-relative //host
+  reference, no CSS url() pointing off-origin, no <script>/<link> loading an external
+  resource, and no known CDN / package host (jsdelivr, unpkg, cdnjs, esm.sh, skypack,
+  googleapis, gstatic). A single CDN reference breaks the offline guarantee and the
+  page-never-phones-home trust property. Content-based by necessity (HTML and CSS have
+  no AST grammar); it fires only on genuine reference shapes (a URL in src/href/url(),
+  an http(s) scheme), never on every occurrence of the substring http.
+status: enforced

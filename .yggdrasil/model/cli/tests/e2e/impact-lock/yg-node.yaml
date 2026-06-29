@@ -3,7 +3,7 @@ type: test-suite
 description: "Subprocess E2E for yg impact reading a real on-disk yg-lock.json: the refused-verdict annotation on node: and file: units, the per-pair LLM fill-cost lines computed as consensus times units, and the cross-node deterministic touched-map cascade where a precise --file edit narrows the re-verification set versus a cold-start potential. yg impact is a pure read, so the lock is hand-written or produced by a deterministic-only approve — never a live reviewer."
 aspects: []
 relations:
-  - target: cli/io/lock-store
+  - target: cli/tests/e2e/support
     type: uses
 mapping:
   - source/cli/tests/e2e/cli-impact-lock.test.ts

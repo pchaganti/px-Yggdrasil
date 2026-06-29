@@ -2,13 +2,11 @@ name: E2E Tests — Lifecycle
 type: test-suite
 description: Subprocess-based end-to-end tests that spawn the compiled
   dist/bin.js binary and assert on stdout/stderr/exit code for state-mutating
-  and lifecycle commands (approve, log, deterministic-test, platform rules
-  installation, init/upgrade and v5 reviewer-tier migration)
+  and lifecycle commands (log, aspect-test, platform rules installation via
+  init --upgrade, and init/upgrade version advancement). Pure black box — every
+  assertion is over the spawned binary and the files it writes; nothing is
+  imported from the CLI's internal modules.
 aspects: []
-relations:
-  [
-    { target: cli/core/loader, type: uses },
-    { target: cli/templates-platform, type: uses }
-  ]
+relations: []
 mapping:
   - source/cli/tests/e2e/cli-lifecycle.test.ts

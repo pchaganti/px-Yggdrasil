@@ -1,0 +1,19 @@
+{
+  "comment": "Type config for the Playwright + Chromium portal e2e. These specs run page.evaluate() callbacks in a real browser (so they need the DOM lib) and use Playwright's bundler module resolution (extensionless relative imports of ./support/*). The repo's tsconfig.check.json uses NodeNext + ES2022-only libs for the shipped CLI and intentionally excludes this tree; `npm run typecheck:e2e` type-checks it against this config instead. Playwright's own runner transpiles via esbuild (types stripped), so this config is what gives the specs a real type bar.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
+}

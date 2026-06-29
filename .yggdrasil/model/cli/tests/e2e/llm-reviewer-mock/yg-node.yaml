@@ -9,6 +9,6 @@ description: "Subprocess E2E proving the LLM reviewer machinery against an
   an advisory refusal does not block, dry-run never calls the reviewer, a source
   edit re-invokes it, and the request carries the configured tier model."
 aspects: []
-relations: [ { target: cli/tests/e2e/support, type: uses }, { target: cli/io/lock-store, type: uses } ]
+relations: [ { target: cli/tests/e2e/support, type: uses } ]
 mapping:
   - source/cli/tests/e2e/cli-llm-reviewer-mock.test.ts

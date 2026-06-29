@@ -1,0 +1,319 @@
+import type { Graph, GraphNode } from '../model/graph.js';
+import type { LockFile } from '../model/lock.js';
+import {
+  computeEffectiveAspects,
+  computeEffectiveAspectStatuses,
+  getAspectStatusSources,
+  isAggregateAspect,
+  selectTierForAspect,
+  parseLog,
+  type CheckResult,
+  type CheckIssue,
+  type LockVerification,
+  type VerifiedPair,
+  type AspectStatus,
+} from './engine-api.js';
+import type {
+  PortalNode,
+  PortalPairState,
+  PortalEffectiveAspect,
+  PortalRelationOut,
+  PortalRelationIn,
+  PortalLogEntry,
+  PortalSuppression,
+} from './contract.js';
+import {
+  worstPairState,
+  computeOwnState,
+  computeRollup,
+  collectNodeSuppressions,
+  computeNotApplicable,
+} from './derive-node-state.js';
+
+/**
+ * derive-nodes — the per-node honest-state derivation.
+ *
+ * For each graph node it computes: `checked` (has at least one REAL verdict-bearing
+ * pair — an effective row with a non-`n/a` pair state — never merely an effective
+ * aspect that resolves to zero pairs), the effective-aspect rows (kind / tier / consensus / cost /
+ * status / channel / origin + the pair state read off the VerifiedPair for that
+ * aspect+unit), the node's own honest `state` (worst pair state, else `no-rule`
+ * when unchecked, else `warning` when a node-scoped advisory issue applies),
+ * the `rollupState` rolled bottom-up over descendants but KEPT SEPARATE from the
+ * own state, both relation directions, the parsed log, and the node's suppressions.
+ *
+ * Pure orchestration over engine RESULTS — it iterates `verification.pairs`,
+ * `check.issues`, `report` entries and the graph; it never re-hashes or
+ * re-derives a verdict. Read-only: no lock write, no LLM call.
+ */
+
+/** A pre-built suppression inventory keyed for fast per-node filtering. */
+export interface SuppressionsByFile {
+  /** repo-rel POSIX file path → suppression entries detected in that file. */
+  byFile: Map<string, PortalSuppression[]>;
+}
+
+/**
+ * Build the per-node detail array. `logContents` maps node path → raw log.md text
+ * (read by the impure caller; parsed here). `suppressions` is the already-built
+ * inventory (filtered per node by the node's mapped files).
+ */
+export function buildPortalNodes(
+  graph: Graph,
+  // `lock` is part of the stable derivation signature (forward-compat with the
+  // catalogue/boundary steps that key off the same lock); the per-node detail is
+  // derived entirely from the already-verified pairs, so it is not read here.
+  _lock: LockFile,
+  verification: LockVerification,
+  check: CheckResult,
+  logContents: Map<string, string>,
+  suppressions: SuppressionsByFile,
+  // The file-aware loop: nodePath → true when the node's mapped source changed since
+  // its last positive closure. A fresh node's own state is forced to at least
+  // `unverified` ("we don't know"), so a touched file never reads green anywhere.
+  // Optional: absent/empty means no node is treated as touched (the cold baseline).
+  freshByNode: Map<string, boolean> = new Map(),
+): PortalNode[] {
+  // Index pair states by node path → aspectId → the per-unit pair states.
+  const pairsByNode = indexPairsByNode(verification.pairs);
+  // Index node-scoped issues by node path (for the `warning` own-state signal).
+  const issuesByNode = indexIssuesByNode(check.issues);
+  // relationsIn: invert every declared relation across the graph.
+  const relationsIn = invertRelations(graph);
+
+  const built = new Map<string, PortalNode>();
+  for (const [path, node] of graph.nodes) {
+    built.set(
+      path,
+      buildOne(
+        node,
+        graph,
+        pairsByNode,
+        issuesByNode,
+        relationsIn,
+        logContents,
+        suppressions,
+        freshByNode.get(path) === true,
+      ),
+    );
+  }
+
+  // Roll up bottom-up: a node's rollupState is the worst of its own state and the
+  // rollupState of every direct child. Compute over the in-memory tree so the order
+  // is leaves-first; `built` is keyed by path so we resolve children by their paths.
+  for (const [path, node] of graph.nodes) {
+    const portal = built.get(path)!;
+    portal.rollupState = computeRollup(node, built);
+  }
+
+  return [...built.values()];
+}
+
+/** Map nodePath → aspectId → list of pair states for that aspect's units. */
+function indexPairsByNode(pairs: VerifiedPair[]): Map<string, Map<string, PortalPairState[]>> {
+  const out = new Map<string, Map<string, PortalPairState[]>>();
+  for (const vp of pairs) {
+    const np = vp.pair.nodePath;
+    let byAspect = out.get(np);
+    if (!byAspect) {
+      byAspect = new Map();
+      out.set(np, byAspect);
+    }
+    const list = byAspect.get(vp.pair.aspectId) ?? [];
+    list.push(toPairState(vp));
+    byAspect.set(vp.pair.aspectId, list);
+  }
+  return out;
+}
+
+/** Collapse a VerifiedPair into the honest pair-state taxonomy (gate states → unverified). */
+function toPairState(vp: VerifiedPair): PortalPairState {
+  switch (vp.state.kind) {
+    case 'verified':
+      return 'verified';
+    case 'refused':
+      return 'refused';
+    default:
+      // unverified | prompt-too-large | companion-error → not green, not a code "no".
+      return 'unverified';
+  }
+}
+
+/** Map nodePath → its node-scoped check issues (those carrying a nodePath). */
+function indexIssuesByNode(issues: CheckIssue[]): Map<string, CheckIssue[]> {
+  const out = new Map<string, CheckIssue[]>();
+  for (const i of issues) {
+    if (!i.nodePath) continue;
+    const list = out.get(i.nodePath) ?? [];
+    list.push(i);
+    out.set(i.nodePath, list);
+  }
+  return out;
+}
+
+/** Build the reverse relation index: target path → {source, type}[]. */
+function invertRelations(graph: Graph): Map<string, PortalRelationIn[]> {
+  const out = new Map<string, PortalRelationIn[]>();
+  for (const [path, node] of graph.nodes) {
+    for (const rel of node.meta.relations ?? []) {
+      const list = out.get(rel.target) ?? [];
+      list.push({ source: path, type: rel.type });
+      out.set(rel.target, list);
+    }
+  }
+  return out;
+}
+
+function buildOne(
+  node: GraphNode,
+  graph: Graph,
+  pairsByNode: Map<string, Map<string, PortalPairState[]>>,
+  issuesByNode: Map<string, CheckIssue[]>,
+  relationsIn: Map<string, PortalRelationIn[]>,
+  logContents: Map<string, string>,
+  suppressions: SuppressionsByFile,
+  fresh: boolean,
+): PortalNode {
+  const path = node.path;
+  const mapping = node.meta.mapping ?? [];
+
+  const effectiveIds = computeEffectiveAspects(node, graph);
+  const statuses = computeEffectiveAspectStatuses(node, graph);
+  const nodePairs = pairsByNode.get(path);
+
+  const effectiveAspects: PortalEffectiveAspect[] = [];
+  for (const aspectId of [...effectiveIds].sort()) {
+    // Aggregate aspects are effective (their implied children expand) but have no
+    // own reviewer / verdict — they are surfaced as an `aggregate` row, never a pair.
+    effectiveAspects.push(
+      buildEffectiveAspect(aspectId, node, graph, statuses, nodePairs),
+    );
+  }
+
+  // `checked` = the node has at least one REAL verdict-bearing pair, NOT merely a
+  // non-draft effective aspect. An empty-mapping container that inherits a type-default
+  // aspect has `hasNonDraftEffectiveAspects === true` yet produces ZERO expected pairs
+  // (computeExpectedPairs yields no pair for an empty mapping or an all-vacuous subject
+  // set), so every effective row resolves to `n/a`. Seeding such a node `verified` would
+  // fabricate a green over a node nothing actually checks — the exact honesty defect. A
+  // node is checked ONLY when an effective row carries a non-`n/a` pair state (verified /
+  // refused / unverified); otherwise it is honestly `no-rule` (nothing verdict-bearing
+  // here), exactly like the sibling empty nodes that already read no-rule.
+  const checked = effectiveAspects.some((ea) => ea.pairState !== 'n/a');
+
+  const ownState = computeOwnState(
+    checked,
+    effectiveAspects,
+    issuesByNode.get(path) ?? [],
+    fresh,
+  );
+
+  const relationsOut: PortalRelationOut[] = (node.meta.relations ?? []).map((r) => ({
+    target: r.target,
+    type: r.type,
+    ...(r.consumes ? { consumes: r.consumes } : {}),
+  }));
+
+  const log: PortalLogEntry[] = parseLog(logContents.get(path) ?? '').map((e) => ({
+    when: e.datetime,
+    body: e.body,
+  }));
+
+  const nodeSuppressions = collectNodeSuppressions(mapping, suppressions);
+  const notApplicable = computeNotApplicable(node, graph, effectiveIds);
+
+  return {
+    path,
+    name: node.meta.name,
+    type: node.meta.type,
+    ...(node.meta.description ? { description: node.meta.description } : {}),
+    parent: node.parent ? node.parent.path : null,
+    mapping,
+    sourceFileCount: mapping.length,
+    isTest: node.meta.type === 'test-suite',
+    checked,
+    fresh,
+    state: ownState,
+    // Provisional — overwritten by the bottom-up roll-up pass; seeded to own state.
+    rollupState: ownState,
+    effectiveAspects,
+    notApplicable,
+    relationsOut,
+    relationsIn: relationsIn.get(path) ?? [],
+    suppressions: nodeSuppressions,
+    log,
+  };
+}
+
+function buildEffectiveAspect(
+  aspectId: string,
+  node: GraphNode,
+  graph: Graph,
+  statuses: Map<string, AspectStatus>,
+  nodePairs: Map<string, PortalPairState[]> | undefined,
+): PortalEffectiveAspect {
+  const def = graph.aspects.find((a) => a.id === aspectId);
+  const aggregate = isAggregateAspect(graph, aspectId);
+  const kind: PortalEffectiveAspect['kind'] = aggregate
+    ? 'aggregate'
+    : def?.reviewer.type === 'deterministic'
+      ? 'deterministic'
+      : 'llm';
+
+  // Provenance: the highest-priority status source (channel 1 wins display order).
+  const sources = getAspectStatusSources(node, aspectId, graph);
+  const primary = sources.length > 0 ? sources.reduce((a, b) => (a.channel <= b.channel ? a : b)) : undefined;
+  const channel = primary?.channel ?? 7; // 7 = implied (no direct attach source)
+  const origin = primary?.origin ?? impliedOrigin(graph, aspectId);
+
+  const status = statuses.get(aspectId) ?? 'enforced';
+
+  // Cost + tier/consensus apply only to LLM aspects. A free, keyless reviewer
+  // (a local CLI provider) is still classed `billed` here only when the resolved
+  // tier reports a paid provider — but the contract distinguishes free/billed by
+  // reviewer KIND: deterministic and aggregate are always free; LLM is billed.
+  let tier: string | undefined;
+  let consensus: number | undefined;
+  let cost: PortalEffectiveAspect['cost'] = 'free';
+  if (kind === 'llm' && def) {
+    cost = 'billed';
+    const reviewer = graph.config?.reviewer;
+    if (reviewer) {
+      const sel = selectTierForAspect(def, reviewer);
+      if (sel.ok) {
+        tier = sel.tierName;
+        consensus = sel.tier.consensus;
+      }
+    }
+  }
+
+  // pairState: the worst per-unit state across this aspect's units on the node.
+  // An aggregate aspect has no pair → 'n/a'. A draft aspect produces no expected
+  // pair → 'n/a'. Otherwise collapse the unit states (refused > unverified > verified).
+  const pairStates = nodePairs?.get(aspectId);
+  const pairState: PortalPairState =
+    aggregate || status === 'draft' || !pairStates || pairStates.length === 0
+      ? 'n/a'
+      : worstPairState(pairStates);
+
+  return {
+    aspectId,
+    kind,
+    ...(tier !== undefined ? { tier } : {}),
+    ...(consensus !== undefined ? { consensus } : {}),
+    cost,
+    status,
+    channel,
+    origin,
+    pairState,
+  };
+}
+
+/** Origin label when an aspect reaches the node only via implies (channel 7). */
+function impliedOrigin(graph: Graph, aspectId: string): string {
+  for (const other of graph.aspects) {
+    if (other.implies?.includes(aspectId)) return `implied:${other.id}`;
+  }
+  return 'unknown';
+}
+

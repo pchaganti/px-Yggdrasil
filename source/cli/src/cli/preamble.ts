@@ -42,7 +42,7 @@ export function abortOnUnexpectedError(error: unknown, context: string): never {
  */
 export async function loadGraphOrAbort(
   rootPath: string,
-  options: { tolerateInvalidConfig?: boolean } = {},
+  options: { tolerateInvalidConfig?: boolean; noSecrets?: boolean } = {},
 ): Promise<Graph> {
   try {
     return await loadGraph(rootPath, options);

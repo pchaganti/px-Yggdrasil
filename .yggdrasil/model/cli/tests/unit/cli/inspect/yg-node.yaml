@@ -11,6 +11,7 @@ relations:
     { target: cli/commands/schemas, type: uses },
     { target: cli/commands/suppressions, type: uses },
     { target: cli/commands/tree, type: uses },
+    { target: cli/commands/portal, type: uses },
     { target: cli/commands/type-suggest, type: uses },
     { target: cli/core/pairs, type: uses },
     { target: cli/llm/shared, type: uses },
@@ -24,6 +25,7 @@ mapping:
   - source/cli/tests/unit/cli/schemas.test.ts
   - source/cli/tests/unit/cli/aspect-test.test.ts
   - source/cli/tests/unit/cli/tree.test.ts
+  - source/cli/tests/unit/cli/portal.test.ts
   - source/cli/tests/unit/cli/type-suggest.test.ts
   - source/cli/tests/unit/cli/suppressions.test.ts
   - source/cli/tests/unit/cli/suppressions-disk-scan.test.ts

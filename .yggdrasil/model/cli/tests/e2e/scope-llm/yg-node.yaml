@@ -8,6 +8,6 @@ description: "Subprocess E2E for per-file scope on an LLM aspect via the
   a deterministic aspect still covers them. Real spawned binary over the async
   mock."
 aspects: []
-relations: [ { target: cli/tests/e2e/support, type: uses }, { target: cli/io/lock-store, type: uses } ]
+relations: [ { target: cli/tests/e2e/support, type: uses } ]
 mapping:
   - source/cli/tests/e2e/cli-scope-llm.test.ts

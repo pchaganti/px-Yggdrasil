@@ -26,7 +26,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMockReviewer, runAsync } from './support/mock-reviewer.js';
-import { readLock as readMergedLock, nondetLockPath } from '../../src/io/lock-store.js';
+import { readLock as readMergedLock, nondetLockPath } from './support/read-lock.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '..', '..');

@@ -1,0 +1,16 @@
+name: PortalApproveShellsCliOnly
+description: >-
+  The portal's ONE write action — Approve — must SHELL OUT to the existing CLI as a
+  child process, never re-implement fill in-process. This pins the approve shape: any
+  child-process spawn the server makes to run a `check` (an argument array containing
+  the literal 'check' token) must (1) pass the fill flag as a literal '--approve'
+  string — never a value built from process.env, a variable, or string concatenation,
+  so the write path cannot be impersonated or silently turned into a no-op — and (2)
+  contain NO process.env member access anywhere in the same argument array, so neither
+  the command, the bin reference, nor the flag can be swapped at runtime. The server
+  also may not call the in-process check entry point (runCheck / runFill / fillLlmPair)
+  by imported name — those are the engine's own fill path; the portal reaches them only
+  through the spawned CLI, which owns secrets and the lock write. AST-based: only spawn
+  call-expression arguments and imported call names are inspected; a string literal that
+  merely contains '--approve' elsewhere is never a violation.
+status: enforced

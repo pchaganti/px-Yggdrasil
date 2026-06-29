@@ -8,6 +8,6 @@ description: "Subprocess E2E proving the reviewer fails closed on an
   Driven by the in-process mock so the fail-closed mechanics are exercised
   deterministically with no real model."
 aspects: []
-relations: [ { target: cli/tests/e2e/support, type: uses }, { target: cli/io/lock-store, type: uses } ]
+relations: [ { target: cli/tests/e2e/support, type: uses } ]
 mapping:
   - source/cli/tests/e2e/cli-fail-closed-mock.test.ts

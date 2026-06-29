@@ -73,6 +73,21 @@ Mark entries **RESOLVED** (with commit SHA) once fixed, or **DEFERRED** (with re
 
 Do NOT use the auto memory system. All persistent knowledge goes into CLAUDE.md or AGENTS.md — nowhere else.
 
+## Working Preferences (maintainer-set; apply by default in this repo)
+
+- **Quality over cost.** Iterate as much as needed; do not skimp on rigor to save effort or tokens.
+- **High bar, out-of-the-box.** Aim for genuinely excellent — not "good enough" — and think past the obvious framing.
+- **Never hardcode assumptions; derive and verify.** Establish facts from the real config/code and check them, rather than asserting "probably X" when X depends on configuration. (E.g. whether a reviewer costs money or needs an API key depends on the configured provider — a hosted API does; a local/CLI provider like `claude-code` does not — read the config, don't guess.)
+- **Don't expose internals in user-facing surfaces.** A person sees *what* is happening in plain terms — not the names of commands, flags, or internal mechanisms.
+- **Use multi-agent processes for substantive work** — opinion panels, adversarial review, research workflows — rather than a single pass. When external research is wanted, offer a ready-to-run research prompt in a code block so the maintainer can run it with their own agent.
+- **Ground yourself before designing.** Read all of `yg knowledge` and `yg schemas` so you understand the engine completely before proposing a design.
+- **Graph before code, hierarchically; lock the design in.** Design the target architecture + aspects up front, then calibrate as work proceeds. Concrete ("betonuj") the intended rules, relations, and architecture in Yggdrasil — a hierarchical model + aspects — so a future session cannot build anything inconsistent with the design (`yg check` refuses the drift). Where a preference here is mechanically checkable, prefer encoding it as an **aspect**, not just prose.
+- **No artificial mocking.** Tests run against real on-disk fixture projects (a real `.yggdrasil/` graph + real source), never fabricated data. E2E tests use **only the public CLI surface** (spawn the built `bin.js`), drive the real output in **Playwright + Chromium** — every path, properly, not a token smoke test — and assert consistency with `yg check`. This matches the repo's existing `source/cli/tests/fixtures/**` + `source/cli/tests/e2e/` convention.
+
+**Task-dependent — ask, don't assume.** A few preferences vary by task; at the start of a relevant task, ask the maintainer rather than defaulting:
+- **Working mode** — run fully autonomously with minimal reporting, or collaborate with check-ins along the way.
+- **Visual deliverables** — whether to route the visual layer through Claude Design (rendered previews on claude.ai) for review.
+
 ## When Evaluating `yg check` or `scripts/repo-check.sh`
 
 Consider both:

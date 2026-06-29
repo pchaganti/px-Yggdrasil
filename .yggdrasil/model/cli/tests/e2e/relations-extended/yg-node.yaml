@@ -3,7 +3,7 @@ type: test-suite
 description: "Subprocess E2E proving the relation-type matrix and cascade paths — each of the six relation types validated against allowed targets, relation-target-forbidden across multiple type pairs, event emits/listens pairing and multi-pair, relation-broken, self-relation, relation to an organizational parent, relation add/remove and target-contract-change cascade, transitive non-propagation, and high fan-out."
 aspects: []
 relations:
-  - target: cli/io/lock-store
+  - target: cli/tests/e2e/support
     type: uses
 mapping:
   - source/cli/tests/e2e/cli-relations-extended.test.ts

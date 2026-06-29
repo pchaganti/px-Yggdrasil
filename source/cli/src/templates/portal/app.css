@@ -1,0 +1,250 @@
+/*
+ * Component styles — the count header, the tree, the node panel, the glossary tooltip,
+ * and the command-palette overlay.
+ *
+ * The reusable surface pieces the views compose. Tokens come from tokens.css; the shell
+ * frame from shell.css. Calm, dense, document-like; the only saturated color is a state
+ * (resolved through the state classes in tokens.css). This file stays focused on the
+ * in-stage components and the ⌘K overlay.
+ */
+
+/* ── Count header + chips ───────────────────────────────────────────────── */
+.stage-header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 16px;
+  margin-bottom: 18px;
+}
+.stage-title {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+.stage-sub {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  margin: 0 0 16px;
+}
+.count-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.count-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-1);
+  font-size: 13px;
+}
+.chip-count {
+  font-weight: 600;
+}
+.chip-label {
+  color: var(--text-secondary);
+}
+
+.stage-intro {
+  margin-bottom: 14px;
+}
+.stage-vtitle {
+  font-size: 16px;
+  margin: 0 0 2px;
+}
+.stage-vblurb {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.stage-note {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  padding: 10px 12px;
+  margin: 4px 0 18px;
+}
+
+/* ── Tree (virtualized) ─────────────────────────────────────────────────── */
+.tree-mount {
+  margin: 4px 0 18px;
+}
+.tree-scroller {
+  position: relative;
+  height: 60vh;
+  min-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+}
+.tree-spacer {
+  position: relative;
+  width: 100%;
+}
+.tree-window {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  will-change: transform;
+}
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 28px;
+  padding-right: 12px;
+  border-bottom: 1px solid var(--surface-2);
+  font-size: 13px;
+  cursor: pointer;
+}
+.tree-row:hover {
+  background: var(--surface-3);
+}
+.tree-name {
+  font-weight: 500;
+}
+.tree-type {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* ── Node panel ─────────────────────────────────────────────────────────── */
+.panel-title {
+  font-size: 13px;
+  margin: 0 0 10px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  word-break: break-all;
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.panel-sub {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  margin: 0;
+}
+
+/* ── Glossary term tooltip ──────────────────────────────────────────────── */
+.term {
+  border-bottom: 1px dotted var(--border-strong);
+  cursor: help;
+}
+
+/* ── Command palette overlay ────────────────────────────────────────────── */
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 60px;
+  background: rgba(0, 0, 0, 0.32);
+  z-index: 50;
+}
+.palette-box {
+  width: 640px;
+  max-width: 92vw;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04), 0 16px 40px -10px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+.palette-input {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.palette-search-ic {
+  color: var(--text-muted);
+}
+.palette-field {
+  flex: 1;
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 16px;
+}
+.palette-field:focus {
+  outline: none;
+}
+.palette-results {
+  max-height: 380px;
+  overflow: auto;
+  padding: 6px;
+}
+.palette-empty {
+  padding: 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.palette-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.palette-row.on {
+  background: var(--surface-3);
+}
+.palette-ic {
+  width: 18px;
+  text-align: center;
+  color: var(--text-muted);
+}
+.palette-nm {
+  font-weight: 500;
+}
+.palette-sub {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+.palette-kind {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: 5px;
+  padding: 0 6px;
+}
+.palette-foot {
+  display: flex;
+  gap: 16px;
+  padding: 9px 14px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.portal-error {
+  color: var(--refused);
+  padding: 24px;
+  font-size: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}

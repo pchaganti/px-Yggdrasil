@@ -1,0 +1,199 @@
+/*
+ * Node Attestation panel (SHELL-panel) styles.
+ *
+ * Split from views.css so each CSS file stays a focused unit under the size cap. Tokens come
+ * from tokens.css (including the honest status palette); the only saturated color is a state.
+ */
+
+ */
+
+/* ── SHELL-panel: Node Attestation ───────────────────────────────────────── */
+.pan-head {
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+.pan-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.pan-path {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  word-break: break-all;
+}
+.pan-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.pan-desc {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 8px 0 0;
+}
+.pan-copy,
+.pan-norule-link,
+.pan-rellink,
+.pan-aspname,
+.pan-viol-link {
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  color: var(--accent-text);
+  padding: 0;
+}
+.pan-copy {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.pan-sect {
+  border-top: 1px solid var(--surface-2);
+  padding: 12px 0;
+}
+.pan-h {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin: 0 0 9px;
+}
+.pan-count {
+  color: var(--text-muted);
+}
+.pan-asprow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 0;
+  font-size: 12.5px;
+}
+.pan-aspname {
+  font-weight: 500;
+}
+.pan-badge {
+  font-size: 10.5px;
+  border-radius: 5px;
+  padding: 1px 6px;
+  color: var(--text-secondary);
+  background: var(--surface-2);
+}
+.pan-badge-llm {
+  color: var(--accent-text);
+}
+.pan-chan {
+  font-size: 10px;
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: 5px;
+  padding: 0 5px;
+}
+.pan-drill {
+  flex-basis: 100%;
+  border-left: 2px solid var(--verified);
+  padding: 6px 0 6px 10px;
+  margin: 2px 0 0 4px;
+}
+.pan-drill-h {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.pan-check {
+  display: flex;
+  gap: 7px;
+  font-size: 11.5px;
+}
+.pan-check-c {
+  color: var(--verified);
+}
+.pan-caveat {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  line-height: 1.45;
+}
+.pan-reason {
+  flex-basis: 100%;
+  border-left: 2px solid var(--refused);
+  margin: 4px 0 0;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.pan-rels,
+.pan-na {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pan-rel,
+.pan-na-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12.5px;
+}
+.pan-reltype {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: 5px;
+  padding: 0 5px;
+}
+.pan-na-why {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.pan-supp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.pan-supp-reason {
+  flex-basis: 100%;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.pan-risk {
+  font-size: 10px;
+  color: var(--refused);
+  border: 1px solid var(--refused);
+  border-radius: 5px;
+  padding: 0 5px;
+}
+.pan-log {
+  margin-bottom: 10px;
+}
+.pan-log-when {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.pan-log-body {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.pan-norule {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+

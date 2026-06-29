@@ -1,0 +1,17 @@
+name: PortalCountParityViaReuse
+description: >-
+  The portal's counts must be DERIVED by reusing the CLI's read-only functions,
+  never re-implemented. The REAL guarantee is the POSITIVE node-id manifest plus the
+  count-parity integration test: each pipeline node must actually CALL its required
+  reuse function(s) (runCheck + computeExpectedPairs) — keyed by node id, not by file
+  basename, so renaming or splitting a file cannot evade it — and the integration test
+  asserts the emitted counts equal `yg check` on the real graph. The NEGATIVE arms are
+  a TRIPWIRE, not the guarantee: they catch the obvious drift shapes — a verdict-hashing
+  import (createHash/hashInputs) and a hand-rolled reducer/loop over raw lock verdicts
+  (the `.verdicts` map directly OR a local bound from it: `const entries = lock.verdicts`,
+  `const { verdicts } = lock`) — but are inherently heuristic and an obfuscated re-count
+  can evade them, which is precisely why the positive manifest and the parity test carry
+  the weight. AST-based, scope per node.
+status: enforced
+scope:
+  per: node

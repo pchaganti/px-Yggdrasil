@@ -25,7 +25,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMockReviewer, runAsync, type ChatReply, type ChatRequest } from './support/mock-reviewer.js';
-import { readLock as readLockStore } from '../../src/io/lock-store.js';
+import { readLock as readLockStore } from './support/read-lock.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '..', '..');

@@ -1,0 +1,62 @@
+name: PortalEngineApi
+type: portal-engine-api
+description: >-
+  The portal's SINGLE read-only gateway to the engine. engine-api.ts wraps every engine
+  call the portal needs — loadPortalGraph (committed-only, noSecrets), runPortalCheck,
+  readAndVerifyLock, computePortalPairs, scanPortalUncovered, readNodeLog, the
+  effective-aspect/status helpers, the FULL live boundary (api/boundary.ts: phantom +
+  declared-only + forbidden-type, joined from the relation pass and the architecture
+  matrix), and the live suppression inventory (api/suppress-scan.ts: the relocated
+  yg-suppress scan). This ONE node concentrates the entire portal→engine coupling (the
+  single seam) so the extraction pipeline never reaches an engine subsystem directly — it
+  imports only this facade and the data contract. Read-only by construction: no lock
+  writer is imported and the graph is loaded committed-only. The boundary join changes no
+  engine logic; it reuses an additive read-only detected-edge accessor on the relation
+  pass.
+relations:
+  - target: cli/preamble
+    type: calls
+  - target: cli/io/stores
+    type: calls
+  - target: cli/io/lock-store
+    type: calls
+  - target: cli/core/check
+    type: calls
+  - target: cli/core/verify-lock
+    type: calls
+  - target: cli/core/pairs
+    type: calls
+  - target: cli/core/loader
+    type: calls
+  - target: cli/core/log
+    type: calls
+  - target: cli/core/graph
+    type: calls
+  - target: cli/core/parsing
+    type: calls
+  - target: cli/core/reviewer-tiers
+    type: calls
+  - target: cli/core/language-registry
+    type: calls
+  - target: cli/group-issues
+    type: calls
+  - target: cli/relations/core
+    type: calls
+  - target: cli/relations/extractors
+    type: calls
+  - target: cli/ast/runtime
+    type: calls
+  - target: cli/formatters
+    type: calls
+  - target: cli/utils
+    type: calls
+  - target: cli/model/graph
+    type: uses
+  - target: cli/model/lock
+    type: uses
+  - target: cli/portal/contract
+    type: uses
+mapping:
+  - source/cli/src/portal/engine-api.ts
+  - source/cli/src/portal/api/boundary.ts
+  - source/cli/src/portal/api/suppress-scan.ts

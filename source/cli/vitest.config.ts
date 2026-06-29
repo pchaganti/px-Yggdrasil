@@ -12,6 +12,10 @@ export default defineConfig({
       // companion fixture's paired Playwright specs), not tests to run — never
       // collect them.
       '**/tests/fixtures/**',
+      // The portal Playwright + Chromium e2e suite has its own runner
+      // (playwright.config.ts → `npm run test:e2e:portal`). Vitest must not collect
+      // its *.spec.ts files — they import @playwright/test, not vitest.
+      '**/tests/portal-e2e/**',
     ],
     coverage: {
       provider: 'v8',

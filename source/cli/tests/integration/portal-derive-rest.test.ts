@@ -1,0 +1,217 @@
+import { describe, it, expect, beforeAll } from 'vitest';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { extractPortalData } from '../../src/portal/extract.js';
+import {
+  buildBoundary,
+  buildSuppressions,
+  buildHubs,
+  buildResidue,
+  buildWorklist,
+} from '../../src/portal/derive-rest.js';
+import type {
+  PortalData,
+  PortalNode,
+  BoundaryInput,
+  SuppressionMarkerInput,
+} from '../../src/portal/contract.js';
+import type { CheckResult } from '../../src/core/check.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// The REAL repo root (real .yggdrasil/ graph + real source).
+const REPO_ROOT = path.resolve(__dirname, '../../../..');
+
+// Hubs, residue, the worklist, and the LIVE boundary, on the REAL repo. The boundary +
+// suppression inventory are now produced by the facade (the single engine seam): the
+// boundary is computed live (never UNKNOWN on a parseable repo) and the suppression
+// inventory is populated. The pure builders are branch-covered directly below with
+// synthetic inputs (no fabricated PortalData).
+
+describe('portal rest derivation (hubs / residue / worklist / boundary) — real repo', () => {
+  let data: PortalData;
+
+  beforeAll(async () => {
+    data = await extractPortalData(REPO_ROOT, { writeEnabled: false });
+  }, 180_000);
+
+  it('the top fan-out hub is cli/core/fill with 21 declared relations', () => {
+    expect(data.hubs.fanOut.length).toBeGreaterThan(0);
+    expect(data.hubs.fanOut[0].path).toBe('cli/core/fill');
+    expect(data.hubs.fanOut[0].count).toBe(21);
+    // descending order invariant.
+    for (let i = 1; i < data.hubs.fanOut.length; i++) {
+      expect(data.hubs.fanOut[i - 1].count).toBeGreaterThanOrEqual(data.hubs.fanOut[i].count);
+    }
+  });
+
+  it('fan-in hubs are ranked and the heaviest is a shared utility/store node', () => {
+    expect(data.hubs.fanIn.length).toBeGreaterThan(0);
+    for (let i = 1; i < data.hubs.fanIn.length; i++) {
+      expect(data.hubs.fanIn[i - 1].count).toBeGreaterThanOrEqual(data.hubs.fanIn[i].count);
+    }
+  });
+
+  it('the worklist contains the advisory high-fan-out group for cli/core/fill', () => {
+    const hfo = data.worklist.find((w) => w.rule === 'high-fan-out');
+    expect(hfo).toBeDefined();
+    expect(hfo!.severity).toBe('warning');
+    expect(hfo!.nodes).toContain('cli/core/fill');
+  });
+
+  it('the boundary is LIVE (computed, never UNKNOWN) on the real parseable repo', () => {
+    expect(data.boundary.unknown).toBe(false);
+    // A green repo has no undeclared (phantom) dependency and no architecture-forbidden
+    // edge; declared-only edges (declared relations with no static code backing) are
+    // expected and surfaced — never hidden.
+    expect(data.boundary.phantom).toEqual([]);
+    expect(data.boundary.forbiddenType).toEqual([]);
+    expect(Array.isArray(data.boundary.declaredOnly)).toBe(true);
+  });
+
+  it('the residue lists the real no-rule nodes and never hides them', () => {
+    // scripts / tools / examples etc. own source but carry no rule — they must appear.
+    expect(data.residue.noRuleNodes).toContain('scripts');
+    // Every residue no-rule node must also read state==='no-rule' in the node detail.
+    const byPath = new Map(data.nodes.map((n) => [n.path, n]));
+    for (const p of data.residue.noRuleNodes) {
+      expect(byPath.get(p)!.state).toBe('no-rule');
+    }
+  });
+});
+
+// ── Pure-builder branch coverage (synthetic inputs, real builder functions) ───
+
+describe('portal rest builders — honest branches', () => {
+  it('buildBoundary(null) is UNKNOWN; a populated input is clean/false and deduped+sorted', () => {
+    expect(buildBoundary(null).unknown).toBe(true);
+
+    const input: BoundaryInput = {
+      phantom: [
+        { source: 'b', target: 'x' },
+        { source: 'a', target: 'y' },
+        { source: 'a', target: 'y' }, // duplicate
+      ],
+      declaredOnly: [],
+      forbiddenType: [{ source: 'c', target: 'z' }],
+    };
+    const b = buildBoundary(input);
+    expect(b.unknown).toBe(false);
+    // deduped to 2, sorted by source then target.
+    expect(b.phantom).toEqual([
+      { source: 'a', target: 'y' },
+      { source: 'b', target: 'x' },
+    ]);
+    expect(b.forbiddenType).toEqual([{ source: 'c', target: 'z' }]);
+  });
+
+  it('buildSuppressions carries the risk flag and sorts by file then line', () => {
+    const markers: SuppressionMarkerInput[] = [
+      { file: 'src/b.ts', line: 10, aspectId: 'a1', reason: 'r' },
+      { file: 'src/a.ts', line: 30, aspectId: '*', reason: 'silence all', risk: 'wildcard' },
+      { file: 'src/a.ts', line: 5, aspectId: 'a2', reason: 'r2', risk: 'unbounded' },
+    ];
+    const out = buildSuppressions(markers);
+    expect(out.map((s) => `${s.file}:${s.line}`)).toEqual(['src/a.ts:5', 'src/a.ts:30', 'src/b.ts:10']);
+    const wildcard = out.find((s) => s.aspectId === '*')!;
+    expect(wildcard.risk).toBe('wildcard');
+    expect(out.filter((s) => s.risk).length).toBe(2);
+  });
+
+  it('buildHubs omits zero-degree nodes and ranks descending', () => {
+    const nodes = [
+      mkNode('n1', 3, 1),
+      mkNode('n2', 0, 0),
+      mkNode('n3', 5, 2),
+    ];
+    const hubs = buildHubs(nodes);
+    expect(hubs.fanOut.map((h) => h.path)).toEqual(['n3', 'n1']);
+    expect(hubs.fanOut[0].count).toBe(5);
+    // n2 (zero degree) is omitted from both lists.
+    expect(hubs.fanOut.find((h) => h.path === 'n2')).toBeUndefined();
+    expect(hubs.fanIn.find((h) => h.path === 'n2')).toBeUndefined();
+  });
+
+  it('buildResidue collects only mapped no-rule nodes and sorts uncovered files', () => {
+    const nodes = [
+      { ...mkNode('keep', 0, 0), state: 'no-rule' as const, mapping: ['f.ts'] },
+      { ...mkNode('drop-empty', 0, 0), state: 'no-rule' as const, mapping: [] },
+      { ...mkNode('verified-node', 0, 0), state: 'verified' as const, mapping: ['g.ts'] },
+    ];
+    const residue = buildResidue(nodes, ['z.ts', 'a.ts']);
+    expect(residue.noRuleNodes).toEqual(['keep']);
+    expect(residue.uncoveredFiles).toEqual(['a.ts', 'z.ts']);
+  });
+
+  it('buildWorklist reuses groupIssues — empty issues yield an empty worklist', () => {
+    const check = { issues: [] } as unknown as CheckResult;
+    expect(buildWorklist(check)).toEqual([]);
+  });
+});
+
+function mkNode(p: string, outDeg: number, inDeg: number): PortalNode {
+  return {
+    path: p,
+    name: p,
+    type: 'module',
+    parent: null,
+    mapping: [],
+    sourceFileCount: 0,
+    isTest: false,
+    checked: false,
+    fresh: false,
+    state: 'no-rule',
+    rollupState: 'no-rule',
+    effectiveAspects: [],
+    notApplicable: [],
+    relationsOut: Array.from({ length: outDeg }, (_, i) => ({ target: `t${i}`, type: 'calls' })),
+    relationsIn: Array.from({ length: inDeg }, (_, i) => ({ source: `s${i}`, type: 'calls' })),
+    suppressions: [],
+    log: [],
+  };
+}
+
+describe('portal rest builders — additional honest branches', () => {
+  it('buildBoundary surfaces declaredOnly edges (sorted, deduped)', () => {
+    const b = buildBoundary({
+      phantom: [],
+      declaredOnly: [
+        { source: 'z', target: 'a' },
+        { source: 'a', target: 'b' },
+      ],
+      forbiddenType: [],
+    });
+    expect(b.unknown).toBe(false);
+    expect(b.declaredOnly).toEqual([
+      { source: 'a', target: 'b' },
+      { source: 'z', target: 'a' },
+    ]);
+  });
+
+  it('buildWorklist maps grouped issues to rule/why/fix/nodes (deduped, sorted)', () => {
+    const check = {
+      issues: [
+        {
+          severity: 'error',
+          code: 'unverified',
+          rule: 'unverified',
+          nodePath: 'node-b',
+          messageData: { what: 'w', why: 'shared why', next: 'yg check --approve' },
+        },
+        {
+          severity: 'error',
+          code: 'unverified',
+          rule: 'unverified',
+          nodePath: 'node-a',
+          messageData: { what: 'w', why: 'shared why', next: 'yg check --approve' },
+        },
+      ],
+    } as unknown as CheckResult;
+    const wl = buildWorklist(check);
+    expect(wl).toHaveLength(1);
+    expect(wl[0].rule).toBe('unverified');
+    expect(wl[0].severity).toBe('error');
+    expect(wl[0].why).toBe('shared why');
+    expect(wl[0].fix).toBe('yg check --approve');
+    expect(wl[0].nodes).toEqual(['node-a', 'node-b']); // sorted, deduped
+  });
+});

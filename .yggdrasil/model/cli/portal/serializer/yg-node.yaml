@@ -1,0 +1,20 @@
+name: PortalSerializer
+type: portal-pipeline
+description: >-
+  The portal static-emit serializer. emitStatic(data, outPath) turns one PortalData into
+  ONE self-contained offline HTML file: it reads the committed frontend assets (the shell
+  template, the CSS, the vendored layout library, the bootstrap JS), inlines all of them
+  plus JSON.stringify(data), and writes the result atomically. Per the drift-fix, the
+  JSON.stringify-the-whole-PortalData seam lives HERE — on a covered portal-pipeline node —
+  not on the command, so the serialization boundary is enforced by the portal aspects. The
+  data embed is hardened for a script element (escaping <, >, &, U+2028/U+2029). Read-only
+  over the templates; the only write is the output file. It does not derive counts, so the
+  count-parity manifest does not require it to call runCheck / computeExpectedPairs.
+relations:
+  - target: cli/io/atomic-write
+    type: calls
+    consumes: [write-atomic]
+  - target: cli/portal/contract
+    type: uses
+mapping:
+  - source/cli/src/portal/serializer.ts

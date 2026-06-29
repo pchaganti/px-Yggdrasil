@@ -1,0 +1,11 @@
+name: PortalNoNetworkEgress
+description: >-
+  Vendored third-party frontend code (the inlined layout library) may do layout math
+  only — it must perform NO network egress. Banned: a call to or construction of a
+  network-transport API (fetch, XMLHttpRequest, WebSocket, EventSource,
+  navigator.sendBeacon, importScripts) and any http(s):// or protocol-relative //host
+  URL in the file. The vendor file is exempt from the focused-file-size cap (third-party
+  code is taken as shipped), so this egress ban is the guard that keeps that exemption
+  safe. AST-based for the call/constructor shapes (a string 'fetch' in a comment is not a
+  call); content-based only for the URL scheme.
+status: enforced

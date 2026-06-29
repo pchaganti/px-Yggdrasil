@@ -32,5 +32,7 @@ relations:
     type: uses
   - target: cli/commands/type-suggest
     type: uses
+  - target: cli/commands/portal
+    type: calls
 mapping:
   - source/cli/src/bin.ts

@@ -1,4 +1,5 @@
-import { readFileSync, unlinkSync } from 'node:fs';
+import { readFileSync, unlinkSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import type { IssueMessage } from '../model/validation.js';
 import type { LockFile, VerdictEntry, LockNodeEntry } from '../model/lock.js';
@@ -55,6 +56,33 @@ export function logsLockPath(yggRoot: string): string {
 /** Absolute path to the gitignored deterministic-verdict file. */
 export function detLockPath(yggRoot: string): string {
   return path.join(yggRoot, LOCK_DET_FILE_NAME);
+}
+
+/**
+ * A content hash over the COMMITTED lock triad — the nondeterministic verdict file and the
+ * per-node logs/closure file — read by their bytes and folded into one sha256. This is a
+ * content-addressed digest of the committed lock ARTIFACT (for attestation / provenance), NOT
+ * a re-derivation of any verdict or count. The gitignored deterministic cache is deliberately
+ * EXCLUDED: it is absent on a fresh clone and never committed, so folding it would make the hash
+ * differ across machines for the same commit. Returns '' when no committed lock exists yet (a
+ * greenfield graph), so a caller states "no committed lock" rather than a fabricated hash.
+ * Read-only.
+ */
+export function committedLockContentHash(yggRoot: string): string {
+  const parts: Buffer[] = [];
+  for (const file of [nondetLockPath(yggRoot), logsLockPath(yggRoot)]) {
+    if (!existsSync(file)) continue;
+    try {
+      parts.push(readFileSync(file));
+    } catch {
+      // An unreadable committed lock file is treated as absent — the hash never fabricates
+      // bytes it could not read; a missing/unreadable triad yields '' (no committed lock).
+    }
+  }
+  if (parts.length === 0) return '';
+  const hash = createHash('sha256');
+  for (const p of parts) hash.update(p);
+  return hash.digest('hex');
 }
 
 /** Per-file parse context: drives file-specific recovery guidance. */

@@ -1,0 +1,12 @@
+name: PortalHonestStateNeverCollapsed
+description: >-
+  The honesty moat. A portal view must never collapse distinct verdict states into one
+  "green": 'verified' is the only green; no-rule / not-applicable / draft / unverified are
+  not a pass; advisory / warning is not green; a declared-only boundary edge is not a
+  violation; and the absence of red is not a pass. The reviewer reads the view module against
+  this rule.
+reviewer:
+  type: llm
+scope:
+  per: file
+status: enforced

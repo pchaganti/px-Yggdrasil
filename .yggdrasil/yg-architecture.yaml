@@ -56,8 +56,8 @@ node_types:
     log_required: true
     parents: [module]
     relations:
-      calls: [engine, parser-adapter, persistence-adapter, llm-shared, llm-subprocess-base, formatter, utility, ast-adapter, structure-adapter, template, command, command-support, knowledge-doc, schema-doc, migration]
-      uses: [types, test-suite]
+      calls: [engine, parser-adapter, persistence-adapter, llm-shared, llm-subprocess-base, formatter, utility, ast-adapter, structure-adapter, template, command, command-support, knowledge-doc, schema-doc, migration, portal-pipeline, portal-engine-api, portal-server]
+      uses: [types, test-suite, portal-contract]
       default: deny
 
   command-support:
@@ -417,6 +417,7 @@ node_types:
         - path: "source/cli/eslint.config.*"
         - path: "source/cli/vitest*.config.ts"
         - path: "source/cli/tsup.config.ts"
+        - path: "source/cli/playwright.config.ts"
     parents: [project, module]
     relations:
       default: deny
@@ -487,4 +488,152 @@ node_types:
     parents: [module, reference-catalogue]
     relations:
       uses: [test-suite]
+      default: deny
+
+  # ── Portal (Heartwood) backend types — the read-only web-portal extension ──
+  # Pure extension over the CLI's existing read-only functions; no change to
+  # verification logic. Recursive+strict whens force-classify any .ts placed under
+  # source/cli/src/portal/ so a misplaced backend file cannot orphan into an
+  # unenforced coverage warning.
+
+  portal-contract:
+    description: "The PortalData data-contract at source/cli/src/portal/contract.ts — the PortalData / PortalNode / ... interfaces plus the exported STATES const tuple, the single typed seam between the backend pipeline and the frontend. Pure type/const declarations; no runtime behavior, no cross-node imports."
+    enforce: strict
+    when:
+      path: "source/cli/src/portal/contract.ts"
+    aspects:
+      - no-direct-minimatch
+    parents: [module]
+    relations:
+      uses: [types]
+      default: deny
+
+  portal-pipeline:
+    description: "Portal extraction-pipeline modules under source/cli/src/portal/ (extract.ts + derive-*.ts). They REUSE the CLI's read-only functions (loadGraphOrAbort, walkRepoFiles, runCheck, verifyLock, computeExpectedPairs) to derive PortalData — read-only orchestration that loads the graph committed-only (noSecrets), walks repo files, calls the engine's read-only entry points, and assembles the data contract. Forbidden: writing the lock, reading secrets, re-hashing/re-implementing a count. contract.ts is excluded (portal-contract); server/** is excluded; *.test.ts is excluded. Recursive+strict so ANY .ts under source/cli/src/portal/ is force-classified."
+    enforce: strict
+    when:
+      all_of:
+        - path: "source/cli/src/portal/**/*.ts"
+        - not:
+            path: "source/cli/src/portal/contract.ts"
+        - not:
+            path: "source/cli/src/portal/engine-api.ts"
+        - not:
+            path: "source/cli/src/portal/api/**"
+        - not:
+            path: "source/cli/src/portal/server/**"
+        - not:
+            path: "**/*.test.ts"
+    aspects:
+      - portal/no-secrets-import
+      - portal/loadgraph-nosecrets-flag
+      - portal/no-lock-writer-import
+      - portal/count-parity-via-reuse
+      - portal/focused-file-size
+      - portal/focused-file-exports
+      - posix-paths-source
+      - no-direct-minimatch
+    log_required: true
+    parents: [module]
+    relations:
+      calls: [portal-engine-api, persistence-adapter]
+      uses: [types, portal-contract]
+      default: deny
+
+  portal-engine-api:
+    description: "The portal's SINGLE read-only gateway to the engine — source/cli/src/portal/engine-api.ts (+ portal/api/**). It wraps EVERY engine call the portal needs (loadPortalGraph noSecrets, runPortalCheck, readAndVerifyLock, computePortalPairs, computePortalBoundary FULL phantom+declared-only+forbidden-type, scanPortalSuppressions, readNodeLog, and the effective-aspect/status helpers) behind a clean API, concentrating the portal→engine coupling into ONE node (the single seam) instead of a spider of relations. READ-ONLY by construction: it imports NO lock writer and loads the graph committed-only (noSecrets). The extraction pipeline reaches the engine ONLY through this facade. Recursive+strict so any .ts under portal/engine-api.ts or portal/api/ is force-classified here."
+    enforce: strict
+    when:
+      all_of:
+        - any_of:
+            - path: "source/cli/src/portal/engine-api.ts"
+            - path: "source/cli/src/portal/api/**/*.ts"
+        - not:
+            path: "**/*.test.ts"
+    aspects:
+      - portal/no-secrets-import
+      - portal/loadgraph-nosecrets-flag
+      - portal/no-lock-writer-import
+      - portal/count-parity-via-reuse
+      - portal/focused-file-size
+      - posix-paths-source
+      - no-direct-minimatch
+    log_required: true
+    parents: [module]
+    relations:
+      calls: [engine, command-support, persistence-adapter, relations-adapter, ast-adapter, formatter, utility]
+      uses: [types, portal-contract]
+      default: deny
+
+  portal-server:
+    description: "The portal's loopback read-only HTTP server under source/cli/src/portal/server/**. It binds 127.0.0.1 ONLY (never 0.0.0.0 / never exposed), serves the live portal page at /, GET /data (a fresh, no-persist re-extraction of PortalData), GET /static/* (committed frontend assets), GET /approve/dry-run (the cost preview), and POST /approve (the ONE write action). Read-only by default. The single write — Approve — SPAWNS the existing CLI binary (yg check --approve, plus --only-deterministic when the LLM checkbox is off) as a child process; it NEVER re-implements fill, NEVER imports a lock writer, and NEVER reads secrets itself (the spawned CLI owns keys). View-only mode (--no-write) rejects POST /approve with 409. The server reaches the engine ONLY through the portal's own modules: it CALLS the pipeline (extractPortalData) and the serializer (page render + asset read), and USES the data contract — it declares NO direct relation to any engine subsystem. Recursive+strict so any .ts under portal/server/ is force-classified here; *.test.ts is excluded."
+    enforce: strict
+    when:
+      all_of:
+        - path: "source/cli/src/portal/server/**/*.ts"
+        - not:
+            path: "**/*.test.ts"
+    aspects:
+      - portal/loopback-only
+      - portal/approve-shells-cli-only
+      - portal/no-secrets-import
+      - portal/no-lock-writer-import
+      - portal/focused-file-size
+      - posix-paths-source
+      - no-direct-minimatch
+    log_required: true
+    parents: [module]
+    relations:
+      calls: [portal-pipeline, portal-engine-api]
+      uses: [types, portal-contract]
+      default: deny
+
+  portal-frontend-core:
+    description: "Portal frontend (browser) core — the shell.html, the CSS, and the non-view browser JS that parses the inlined PortalData and renders the page. Vanilla, framework-free, offline. Recursive+strict over the frontend asset root, EXCLUDING the vendored layout library (vendor/**, classified as portal-frontend-vendor) and the per-surface view modules (js/views/**, reserved for portal-frontend-view in a later phase). Default aspects forbid Node imports, network/CDN references, and secret strings, and keep each file focused. No relations: a browser file has no graph-level dependency on another node's code."
+    enforce: strict
+    when:
+      all_of:
+        - any_of:
+            - path: "source/cli/src/templates/portal/*.html"
+            - path: "source/cli/src/templates/portal/*.css"
+            - path: "source/cli/src/templates/portal/*.js"
+            - path: "source/cli/src/templates/portal/js/**/*.js"
+        - not:
+            path: "source/cli/src/templates/portal/vendor/**"
+        - not:
+            path: "source/cli/src/templates/portal/js/views/**"
+    aspects:
+      - portal/no-node-imports-in-frontend
+      - portal/no-cdn-no-network
+      - portal/no-secrets-strings
+      - portal/focused-file-size
+    parents: [module]
+    relations:
+      default: deny
+
+  portal-frontend-view:
+    description: "Portal frontend (browser) per-surface VIEW modules — one focused file per §3a surface under source/cli/src/templates/portal/js/views/. Each consumes the inlined PortalData and renders one surface (Overview, Coverage & Audit, the Node Attestation panel, the Structure tree, Relations & Boundaries) per its design mockup and the honest-state palette. The same envelope as the frontend core (no Node imports, no network/CDN references, no secret strings, focused file size) PLUS the honesty moat: every view must reference the shared honest-state model (never invent an ad-hoc green) and must never collapse distinct verdict states into one green. Recursive+strict over js/views/** so any view file is force-classified into this type. No relations: a browser file has no graph-level dependency on another node's code."
+    enforce: strict
+    when:
+      path: "source/cli/src/templates/portal/js/views/**/*.js"
+    aspects:
+      - portal/honest-state-never-collapsed
+      - portal/honest-state-anchor
+      - portal/no-node-imports-in-frontend
+      - portal/no-cdn-no-network
+      - portal/no-secrets-strings
+      - portal/focused-file-size
+    parents: [module]
+    relations:
+      default: deny
+
+  portal-frontend-vendor:
+    description: "Portal frontend vendored third-party assets — the inlined layout library (d3-hierarchy), committed as a static asset under source/cli/src/templates/portal/vendor/. Taken as shipped (third-party code), so it is deliberately NOT subject to the focused-file-size cap; the no-network-egress aspect is the guard that keeps that exemption safe — vendored code may do layout math only and must never touch the network. Recursive+strict over vendor/**."
+    enforce: strict
+    when:
+      path: "source/cli/src/templates/portal/vendor/**"
+    aspects:
+      - portal/no-network-egress
+    parents: [module]
+    relations:
       default: deny

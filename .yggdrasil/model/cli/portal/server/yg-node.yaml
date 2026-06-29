@@ -1,0 +1,32 @@
+name: PortalServer
+type: portal-server
+description: >-
+  The portal's loopback read-only HTTP server. startServer binds node:http to
+  127.0.0.1 ONLY (never 0.0.0.0 / never exposed) and returns a handle with .close()
+  so it is always teardownable in tests; binding to port 0 yields an ephemeral port.
+  Routes: GET / serves the live portal page (the serializer renders the inlined
+  PortalData); GET /data is Refresh — a fresh, fully read-only re-extraction
+  (extractPortalData) on every call that persists NOTHING, so the committed lock and
+  the gitignored deterministic cache are byte-unchanged across repeated refreshes;
+  GET /static/* serves committed frontend assets through the serializer's asset reader;
+  GET /approve/dry-run returns the reviewer-call-count / cost preview by spawning
+  `yg check --approve --dry-run`; POST /approve is the ONE write — it SPAWNS the existing
+  CLI (`yg check --approve`, with `--only-deterministic` when the LLM checkbox is off),
+  never re-implements fill, never imports a lock writer, and never reads secrets (the
+  spawned CLI owns keys). View-only mode (--no-write) rejects POST /approve with HTTP 409.
+  The server reaches the engine ONLY through the portal's own modules: it CALLS the
+  pipeline (extractPortalData) and the serializer (page render + asset read) and USES the
+  data contract — no direct relation to any engine subsystem. Approve is a child-process
+  spawn of the CLI binary, not a module import, so it creates no import-level relation.
+relations:
+  - target: cli/portal/pipeline
+    type: calls
+  - target: cli/portal/serializer
+    type: calls
+  - target: cli/portal/contract
+    type: uses
+mapping:
+  - source/cli/src/portal/server/server.ts
+  - source/cli/src/portal/server/router.ts
+  - source/cli/src/portal/server/approve.ts
+  - source/cli/src/portal/server/page.ts

@@ -51,6 +51,19 @@ export interface RelationPassResult {
    *  Exposed so the cache-audit harness can deep-equal a cache-HIT run against a
    *  cache-DISABLED run — a mismatch means an incomplete key or a broken round-trip. */
   factsByPath: Map<string, FileFacts>;
+  /**
+   * ADDITIVE, read-only: the FULL set of statically-detected cross-node code edges
+   * keyed by source nodeId → the set of resolved target nodeIds it depends on. This is
+   * the SUPERSET of `violationsByNode` (which carries only the UNDECLARED subset) — every
+   * edge the resolver uniquely resolved to another node, whether declared or not, and
+   * BEFORE the declared/ancestor filtering that `verifyNodeDeps` applies. Self-edges and
+   * ancestor/descendant edges are excluded (they are never a relation between two distinct
+   * nodes). Populated from the same `resolvedDeps` the verdict pass already computes, so it
+   * adds no parse and changes no verdict logic. Consumers (the portal boundary join) use it
+   * to compute declared-only (declared MINUS detected) and forbidden-type (detected ×
+   * architecture matrix) without re-parsing.
+   */
+  detectedEdgesByNode: Map<string, Set<string>>;
 } // key = nodeId (node.path)
 
 export interface RelationPassDeps {
@@ -365,6 +378,10 @@ export async function runRelationPass(
   //    candidate groups ASSEMBLED LIVE from the cached extract + the project-global aggregate),
   //    resolve each, verify undeclared cross-node dependencies, and form the LIVE result.
   const violationsByNode = new Map<string, NodeViolations>();
+  // ADDITIVE: the full set of resolved cross-node edges per source node (declared OR not),
+  // for read-only consumers. Self / ancestor / descendant edges are not real edges between
+  // two distinct nodes, so they are excluded here exactly as `verifyNodeDeps` skips them.
+  const detectedEdgesByNode = new Map<string, Set<string>>();
 
   // Resolve one file's detected uses into cross-node edges (shared by both paths below).
   const resolveDetected = (record: FileRecord, detected: DetectedDep[], resolvedDeps: ResolvedDep[]): void => {
@@ -414,6 +431,19 @@ export async function runRelationPass(
       resolveDetected(record, facts.uses, resolvedDeps);
     }
 
+    // ADDITIVE read-only edge set: every uniquely-resolved cross-node target, declared or
+    // not, with self / ancestor / descendant edges excluded (not edges between two distinct
+    // nodes). This is the full detected superset; verifyNodeDeps below narrows it to the
+    // undeclared subset for the verdict. No extra parse — `resolvedDeps` is already built.
+    const edges = new Set<string>();
+    for (const d of resolvedDeps) {
+      const m = d.ownerNode;
+      if (m === nodeId) continue;
+      if (graphView.isAncestorOf(m, nodeId) || graphView.isAncestorOf(nodeId, m)) continue;
+      edges.add(m);
+    }
+    if (edges.size > 0) detectedEdgesByNode.set(nodeId, edges);
+
     const violations = verifyNodeDeps(nodeId, resolvedDeps, graphView);
     if (violations.length) {
       const reason = violations
@@ -425,5 +455,5 @@ export async function runRelationPass(
     }
   }
 
-  return { violationsByNode, factsByPath };
+  return { violationsByNode, factsByPath, detectedEdgesByNode };
 }

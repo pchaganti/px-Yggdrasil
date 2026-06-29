@@ -1,20 +1,19 @@
 name: SuppressionsCommand
 type: command
-description: Read-only inventory of active yg-suppress markers across
-  git-tracked files via yg suppressions; warns on unknown aspect id, wildcard,
-  or unbounded disable range. Always exits 0.
+description: >-
+  Read-only inventory of active yg-suppress markers across git-tracked files via
+  yg suppressions; warns on unknown aspect id, wildcard, or unbounded disable range.
+  Always exits 0. The scan implementation now lives behind the portal facade
+  (cli/portal/engine-api, file portal/api/suppress-scan.ts); this command is a thin shell
+  that loads the graph, walks the repo, runs the relocated scan via the facade, and
+  renders its output unchanged — so it CALLS the facade rather than the ast / formatter /
+  language-registry subsystems directly.
 aspects: []
 relations:
-  - target: cli/ast/runtime
-    type: calls
-  - target: cli/core/loader
+  - target: cli/portal/engine-api
     type: calls
   - target: cli/tests/unit/cli
     type: uses
-  - target: cli/core/language-registry
-    type: calls
-  - target: cli/formatters
-    type: calls
   - target: cli/io/stores
     type: calls
   - target: cli/preamble

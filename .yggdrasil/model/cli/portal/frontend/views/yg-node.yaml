@@ -1,0 +1,26 @@
+name: PortalFrontendViews
+type: portal-frontend-view
+description: >-
+  The portal frontend per-surface view modules — one focused, single-responsibility file per
+  §3a surface, each a vanilla browser IIFE that attaches to the shared window.YgPortal global
+  (no module system on a single offline page) and renders ONE surface from the inlined
+  PortalData per its design mockup and the honest-state palette. The view dispatcher routes
+  the current view to one of these renderers; each wires its own §3a transitions through the
+  shared hash router. The set in this phase: the Overview landing (file-aware entry +
+  plain-language verdict + a Start-here door + residue links + a precise-picture preview that
+  links to the full ledger), the Coverage & Audit ledger (the full coverage bar + the
+  separated non-pair track + live counters that equal yg check + the rule-grouped worklist +
+  provenance + jump-to-next), the Node Attestation panel (effective aspects with channel and
+  folded inputs + relations both directions + the when-filtered-out set + log timeline +
+  suppressions + a copyable attestation digest), the Structure tree (the shared virtualized
+  node tree with state coloring and selection), and Relations & Boundaries (the Canvas
+  allowed-relations matrix + the fan-in/fan-out hub ranking + the LIVE boundary with its three
+  honest classes — phantom and forbidden-type as violations, declared-only rendered neutrally,
+  plus the UNKNOWN degraded state). Every view reads its glyph + color-class + label from the
+  one shared honest-state model and must never collapse the distinct verdict states into a
+  single green; no Node imports, no network/CDN references, no secret strings; each file stays
+  under the focused-file-size cap.
+aspects: []
+relations: []
+mapping:
+  - source/cli/src/templates/portal/js/views/**/*.js

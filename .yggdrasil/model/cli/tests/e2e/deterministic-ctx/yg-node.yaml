@@ -3,7 +3,7 @@ type: test-suite
 description: "Subprocess E2E proving the graph-aware deterministic check.mjs surface — ctx.graph/ctx.files/ctx.parseAst, the allowed-reads boundary error, --check-determinism stable vs non-deterministic, and the --node graph-scoped vs --files ad-hoc mode split."
 aspects: []
 relations:
-  - target: cli/io/lock-store
+  - target: cli/tests/e2e/support
     type: uses
 mapping:
   - source/cli/tests/e2e/cli-deterministic-ctx.test.ts

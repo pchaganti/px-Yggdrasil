@@ -1,0 +1,256 @@
+/*
+ * V7 Flows + V8 Suppressions styles.
+ *
+ * The business-language flow lens (V7: gallery + detail, three honest flow states) and the
+ * risk-first waiver inventory (V8). Tokens come from tokens.css; every verdict / waived color is
+ * resolved through the shared state classes (`.state-*`), so this file invents no green — a flow
+ * pill and a participant dot read their treatment from the shared honest-state model.
+ */
+
+/* ── V7 Flows ────────────────────────────────────────────────────────────── */
+.fl-layout {
+  display: grid;
+  grid-template-columns: 290px 1fr;
+  gap: 18px;
+}
+.fl-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.fl-card {
+  text-align: left;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--surface-1);
+  font: inherit;
+  cursor: pointer;
+}
+.fl-card-sel {
+  border-color: var(--accent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.fl-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fl-card-top b {
+  font-weight: 600;
+}
+.fl-card-d {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 3px;
+  line-height: 1.45;
+}
+.fl-state {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 5px;
+  padding: 1px 7px;
+  border: 1px solid currentColor;
+}
+.fl-detail {
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--surface-1);
+  padding: 18px;
+}
+.fl-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fl-detail-head h2 {
+  margin: 0;
+  font-size: 17px;
+}
+.fl-detail-head .fl-state {
+  margin-left: 0;
+}
+.fl-detail-d {
+  color: var(--text-secondary);
+  margin: 6px 0 16px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.fl-h5 {
+  margin: 14px 0 9px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+}
+.fl-parts {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.fl-part {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font: inherit;
+  font-size: 13px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 6px 11px;
+  background: var(--bg);
+  cursor: pointer;
+  text-align: left;
+}
+.fl-part:hover {
+  border-color: var(--border-strong);
+}
+.fl-part-desc {
+  margin-left: 18px;
+}
+.fl-part-path {
+  min-width: 0;
+}
+.fl-part-tag {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-muted);
+  border: 1px dashed var(--border);
+  border-radius: 5px;
+  padding: 0 6px;
+}
+.fl-asps {
+  display: inline-flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.fl-asp {
+  font-size: 11px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 5px;
+  padding: 1px 7px;
+  color: var(--text-secondary);
+  background: var(--bg);
+  cursor: pointer;
+}
+.fl-asp:hover {
+  border-color: var(--border-strong);
+}
+.fl-rel-none {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.fl-foot {
+  margin-top: 14px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* ── V8 Suppressions ─────────────────────────────────────────────────────── */
+.sup-banner {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--unverified-bg);
+  border: 1px solid color-mix(in srgb, var(--unverified) 40%, transparent);
+  color: var(--unverified);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+.sup-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.sup-table thead td {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.sup-table tbody td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12.5px;
+  vertical-align: top;
+}
+.sup-locbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.sup-locbtn:disabled {
+  cursor: default;
+}
+.sup-locpath {
+  color: var(--accent-text);
+  font-size: 12px;
+}
+.sup-asp {
+  border: 1px solid color-mix(in srgb, var(--waived) 40%, transparent);
+  color: var(--waived);
+  background: none;
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sup-flag {
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 5px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+.sup-flag-wild {
+  color: var(--refused);
+  background: var(--refused-bg);
+}
+.sup-flag-unb {
+  color: var(--unverified);
+  background: var(--unverified-bg);
+}
+.sup-flag-other {
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.sup-flag-ok {
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+.sup-reason {
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.sup-empty {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-1);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.sup-empty b {
+  font-size: 15px;
+}
+.sup-empty p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}

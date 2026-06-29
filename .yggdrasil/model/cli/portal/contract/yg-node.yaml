@@ -1,0 +1,12 @@
+name: PortalContract
+type: portal-contract
+description: >-
+  The PortalData data-contract (PortalData / PortalNode / PortalAspect / PortalFlow /
+  PortalType / PortalBoundary / PortalSuppression interfaces) plus the exported STATES
+  const tuple anchoring the honest-state taxonomy. The single typed seam between the
+  backend pipeline and the frontend. Pure type/const declarations — no runtime
+  behavior, no cross-node imports.
+aspects: []
+relations: []
+mapping:
+  - source/cli/src/portal/contract.ts

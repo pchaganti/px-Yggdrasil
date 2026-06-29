@@ -1,0 +1,209 @@
+/*
+ * Design tokens + base + the honest status palette.
+ *
+ * The visual language's foundation: Radix Slate neutrals + Radix Blue accent as CSS custom
+ * properties (light is :root, dark is [data-theme="dark"], so theming "just works"), the
+ * base body/type/focus rules, and the HONEST STATUS PALETTE — every state rendered with
+ * color + glyph + border-style, never color alone (accessibility). The only saturated color
+ * on the page is a state. The shell/component layouts live in sibling files; this file is
+ * the source of truth a renderer's state classes resolve against.
+ */
+
+:root {
+  --bg: #fcfcfd;
+  --surface-1: #f9f9fb;
+  --surface-2: #f0f0f3;
+  --surface-3: #e8e8ec;
+  --surface-4: #e0e1e6;
+  --border-subtle: #d9d9e0;
+  --border: #cdced6;
+  --border-strong: #b9bbc6;
+  --text-muted: #8b8d98;
+  --text-secondary: #60646c;
+  --text-primary: #1c2024;
+  --accent: #0090ff;
+  --accent-hover: #0588f0;
+  --accent-text: #0d74ce;
+  --focus-ring: #5eb1ef;
+  --verified: #208368;
+  --verified-bg: #e6f7ed;
+  --refused: #ce2c31;
+  --refused-bg: #feebec;
+  --unverified: #9a6700;
+  --unverified-bg: #fff7c2;
+  --norule: #60646c;
+  --norule-bg: #f0f0f3;
+  --waived: #8e4ec6;
+  --waived-bg: #f7edfe;
+  --live: #0d74ce;
+}
+
+[data-theme='dark'] {
+  --bg: #111113;
+  --surface-1: #18191b;
+  --surface-2: #212225;
+  --surface-3: #272a2d;
+  --surface-4: #2e3135;
+  --border-subtle: #363a3f;
+  --border: #43484e;
+  --border-strong: #5a6168;
+  --text-muted: #696e77;
+  --text-secondary: #b0b4ba;
+  --text-primary: #edeef0;
+  --accent: #0090ff;
+  --accent-hover: #3b9eff;
+  --accent-text: #70b8ff;
+  --focus-ring: #2870bd;
+  --verified: #3dd9a4;
+  --verified-bg: #0f2e22;
+  --refused: #ff9592;
+  --refused-bg: #3b1219;
+  --unverified: #ffca16;
+  --unverified-bg: #302008;
+  --norule: #b0b4ba;
+  --norule-bg: #212225;
+  --waived: #bf7af0;
+  --waived-bg: #2b1c3b;
+  --live: #70b8ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+}
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font: 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+.mono,
+.chip-count,
+.tree-type {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-feature-settings: 'tnum', 'liga';
+}
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+/* ── Honest status palette — color + glyph + border, never color alone ──── */
+.state-glyph {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  flex: none;
+}
+.state-verified {
+  color: var(--verified);
+}
+.state-glyph.state-verified {
+  background: var(--verified-bg);
+  border: 2px solid var(--verified);
+}
+.state-refused {
+  color: var(--refused);
+}
+.state-glyph.state-refused {
+  background: var(--refused-bg);
+  border: 2px solid var(--refused);
+}
+.state-unverified {
+  color: var(--unverified);
+}
+.state-glyph.state-unverified {
+  background: var(--unverified-bg);
+  border: 2px dashed var(--unverified);
+}
+.state-no-rule {
+  color: var(--norule);
+}
+.state-glyph.state-no-rule {
+  background: var(--norule-bg);
+  border: 2px dotted var(--norule);
+}
+.state-warning {
+  color: var(--unverified);
+}
+.state-glyph.state-warning {
+  background: var(--unverified-bg);
+  border: 2px dashed var(--unverified);
+}
+.state-not-applicable {
+  color: var(--text-muted);
+}
+.state-glyph.state-not-applicable {
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+}
+.state-suppressed {
+  color: var(--waived);
+}
+.state-glyph.state-suppressed {
+  background: var(--waived-bg);
+  border: 2px dashed var(--waived);
+}
+.state-draft {
+  color: var(--text-muted);
+}
+.state-glyph.state-draft {
+  background: var(--surface-2);
+  border: 2px dotted var(--text-muted);
+}
+.state-boundary {
+  color: var(--refused);
+}
+.state-glyph.state-boundary {
+  background: var(--refused-bg);
+  border: 2px solid var(--refused);
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--refused-bg),
+    var(--refused-bg) 3px,
+    transparent 3px,
+    transparent 6px
+  );
+}
+
+/* ── Legend ─────────────────────────────────────────────────────────────── */
+.legend {
+  margin-top: 6px;
+}
+.legend-h {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+}
+.legend-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 11px 13px;
+  background: var(--surface-1);
+}
+.legend-text b {
+  font-weight: 600;
+}
+.legend-text span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 1px;
+}

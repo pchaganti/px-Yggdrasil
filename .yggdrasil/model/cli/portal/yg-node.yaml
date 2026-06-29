@@ -1,0 +1,10 @@
+name: Portal
+type: module
+description: >-
+  Yggdrasil read-only web portal ('yg portal' / Heartwood) — a pure extension that
+  reads the graph and lock and renders an honest audit page. No change to verification
+  logic. Organizational root; typed children own all source mappings. The backend
+  extraction pipeline reuses the CLI's read-only functions to derive one JSON data
+  contract; the frontend (later phases) consumes that contract.
+aspects: []
+relations: []

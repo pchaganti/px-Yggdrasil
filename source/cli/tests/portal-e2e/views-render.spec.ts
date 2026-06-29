@@ -1,0 +1,164 @@
+/*
+ * §3a full views V1–V9 — each view RENDERS its real data + its honest palette.
+ *
+ * Drives the REAL `yg portal --static` page (frozen portal-basic fixture for exact assertions,
+ * the repo's own graph for the rich surfaces that need flows/suppressions/types). Each view is
+ * reached the way a user reaches it — a click on the nav rail — and asserted to render its real
+ * content AND to carry the always-present honest-state legend (the palette), proving no state
+ * collapses to a single "green".
+ *
+ * Public surface only: the page is a real CLI emit; no PortalData is fabricated, no internal
+ * imported. COVERS is the stable marker the `portal/every-surface-has-e2e` aspect reads.
+ */
+import { test, expect } from './support/fixtures';
+
+// Surfaces this spec covers (the §3a manifest ids). Read by portal/every-surface-has-e2e.
+export const COVERS = [
+  'overview',
+  'coverage',
+  'tree',
+  'relations',
+  'rulebook',
+  'types',
+  'flows',
+  'suppressions',
+  'start',
+  // The persistent left navigation rail (SHELL-nav): exercised by every navTo() below and
+  // asserted directly in the first test (the always-present grouped rail links).
+  'shell-nav',
+];
+
+/** Click a nav-rail link by its visible label and wait for the stage to settle. */
+async function navTo(page: import('@playwright/test').Page, label: string) {
+  await page.locator('.app-rail .rail-link', { hasText: label }).first().click();
+}
+
+/** Assert the honest-state legend (the palette) is present with every state shown distinctly. */
+async function expectHonestPalette(page: import('@playwright/test').Page) {
+  const legend = page.locator('.legend');
+  await expect(legend).toBeVisible();
+  // The nine honest states each render as a legend item with a glyph badge + label.
+  const items = page.locator('.legend .legend-item');
+  await expect(items).toHaveCount(9);
+  // "verified" is the only green and must be labelled as the only green.
+  await expect(page.locator('.legend')).toContainText('verified');
+  await expect(page.locator('.legend')).toContainText('no rule');
+  await expect(page.locator('.legend')).toContainText('live boundary');
+}
+
+test.describe('§3a views V1–V9 — render real data + honest palette', () => {
+  test('V1 Overview renders the plain-language verdict + residue + palette', async ({ page, basicPage }) => {
+    await page.goto(basicPage);
+    // SHELL-nav: the persistent left navigation rail is always present, with its grouped one-click
+    // rail links into the full views (this is the surface every navTo() below clicks).
+    await expect(page.locator('.app-rail')).toBeVisible();
+    await expect(page.locator('.app-rail .rail-link', { hasText: 'Coverage & audit' })).toHaveCount(1);
+    await expect(page.locator('.app-rail .rail-link', { hasText: 'Structure' })).toHaveCount(1);
+    await expect(page.locator('.app-rail .rail-link')).not.toHaveCount(0);
+    // Default hash → overview. portal-basic has 2 unverified pairs → "waiting to be checked".
+    await expect(page.locator('.ov-verdict')).toBeVisible();
+    await expect(page.locator('.ov-verdict')).toContainText('waiting to be checked');
+    // The residue is the honest unguarded surface, made clickable.
+    await expect(page.locator('.ov-residue .reslink')).not.toHaveCount(0);
+    // The precise-picture preview shows the real fraction (0 / 2 verified for this fixture).
+    await expect(page.locator('.ov-precise')).toContainText('/ 2');
+    await expectHonestPalette(page);
+  });
+
+  test('V2 Coverage & Audit renders the verdict bar, non-pair track, LIVE counters', async ({ page, basicPage }) => {
+    await page.goto(basicPage);
+    await navTo(page, 'Coverage & audit');
+    await expect(page.locator('.cov-ledger')).toBeVisible();
+    // The bar is sized by real pair STATES; portal-basic is all-unverified so the unverified
+    // segment exists and there is NO verified segment (an unverified pair never paints green).
+    await expect(page.locator('.cov-bar .cov-seg-u')).toHaveCount(1);
+    await expect(page.locator('.cov-bar .cov-seg-v')).toHaveCount(0);
+    // The separated non-pair track is present and barred from the coverage fraction.
+    await expect(page.locator('.cov-nonpair')).toContainText('not in coverage fraction');
+    // LIVE counters equal yg check (boundary + blocking errors).
+    await expect(page.locator('.cov-live').first()).toContainText('LIVE');
+    await expect(page.locator('.cov-livewrap')).toContainText('blocking errors');
+    // The rule-grouped worklist surfaces the unverified group (2 nodes).
+    await expect(page.locator('.cov-worow')).not.toHaveCount(0);
+    await expectHonestPalette(page);
+  });
+
+  test('V3 Structure renders the real node hierarchy', async ({ page, basicPage }) => {
+    await page.goto(basicPage);
+    await navTo(page, 'Structure');
+    await expect(page.locator('.tree-mount')).toBeVisible();
+    // The three real fixture nodes appear in the tree, identified by their stable data-path.
+    await expect(page.locator('.tree-row[data-path="api"]')).toHaveCount(1);
+    await expect(page.locator('.tree-row[data-path="api/orders"]')).toHaveCount(1);
+    await expect(page.locator('.tree-row[data-path="api/users"]')).toHaveCount(1);
+    await expectHonestPalette(page);
+  });
+
+  test('V4 Relations & Boundaries renders matrix (Canvas + DOM mirror), hubs, live boundary', async ({
+    page,
+    repoPage,
+  }) => {
+    await page.goto(repoPage);
+    await navTo(page, 'Relations & boundaries');
+    // (a) the allowed-relations matrix: a Canvas grid AND its screen-reader DOM-list mirror.
+    await expect(page.locator('canvas.mtx-canvas')).toHaveCount(1);
+    await expect(page.locator('.mtx-mirror')).toBeVisible();
+    await expect(page.locator('.mtx-mirror .mtx-mirror-row')).not.toHaveCount(0);
+    // (b) the fan-in / fan-out hubs (the real repo has load-bearing nodes).
+    await expect(page.locator('.rel-hubcol')).toHaveCount(2);
+    await expect(page.locator('.rel-hubrow')).not.toHaveCount(0);
+    // (c) the live boundary, LIVE-badged, recomputed now.
+    await expect(page.locator('.rel-bhead')).toContainText('LIVE');
+    // Declared-only edges are NEUTRAL, not violations (the repo has 100+ of them).
+    await expect(page.locator('.rel-class-info')).toContainText('legitimate, never red');
+    await expectHonestPalette(page);
+  });
+
+  test('V5 Rulebook renders the catalogue with honest tallies', async ({ page, repoPage }) => {
+    await page.goto(repoPage);
+    await navTo(page, 'Rulebook');
+    await expect(page.locator('table.rb-table')).toBeVisible();
+    await expect(page.locator('.rb-table tbody .rb-row')).not.toHaveCount(0);
+    // The kind badges distinguish LLM / deterministic / aggregating — never one collapsed cell.
+    await expect(page.locator('.rb-badge')).not.toHaveCount(0);
+    await expectHonestPalette(page);
+  });
+
+  test('V6 Type Model renders the architecture vocabulary as capability discovery', async ({ page, repoPage }) => {
+    await page.goto(repoPage);
+    await navTo(page, 'Type model');
+    await expect(page.locator('.ty-grid .ty-card')).not.toHaveCount(0);
+    // It is the grammar, not a verdict — the lead states it paints no green/red.
+    await expect(page.locator('.view-lead')).toContainText('grammar');
+    await expectHonestPalette(page);
+  });
+
+  test('V7 Flows renders the gallery + a flow detail with honest flow state', async ({ page, repoPage }) => {
+    await page.goto(repoPage);
+    await navTo(page, 'Flows');
+    await expect(page.locator('.fl-gallery .fl-card')).not.toHaveCount(0);
+    await expect(page.locator('.fl-detail')).toBeVisible();
+    // A flow state pill is present (verified / weakest-link / nothing-checked — never just green).
+    await expect(page.locator('.fl-state').first()).toBeVisible();
+    await expectHonestPalette(page);
+  });
+
+  test('V8 Suppressions renders the risk-first waiver inventory', async ({ page, repoPage }) => {
+    await page.goto(repoPage);
+    await navTo(page, 'Suppressions');
+    // The repo has 20+ active waivers including risk-flagged ones.
+    await expect(page.locator('table.sup-table')).toBeVisible();
+    await expect(page.locator('.sup-table tbody .sup-row')).not.toHaveCount(0);
+    // At least one risk flag is surfaced (the repo has wildcard / unbounded / typo markers).
+    await expect(page.locator('.sup-flag').first()).toBeVisible();
+    await expectHonestPalette(page);
+  });
+
+  test('V9 Start here renders the five-step graph-derived on-ramp', async ({ page, repoPage }) => {
+    await page.goto(repoPage);
+    await navTo(page, 'Start here');
+    await expect(page.locator('.st-card .st-h1')).toContainText('What this system is');
+    await expect(page.locator('.st-steps .st-step')).toHaveCount(5);
+    await expectHonestPalette(page);
+  });
+});

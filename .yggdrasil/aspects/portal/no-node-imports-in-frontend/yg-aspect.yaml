@@ -1,0 +1,11 @@
+name: PortalNoNodeImportsInFrontend
+description: >-
+  Portal frontend (browser) files must never reach for a Node.js capability. The
+  frontend runs inside a browser tab from a self-contained file or a loopback page —
+  there is no module system, no process, no Node built-ins. Banned: require(...), a
+  static import from a node: specifier or a bare core module (fs/path/http/crypto/…),
+  a dynamic import of a node: specifier, and a reference to the process global. Such
+  code is dead or throws at runtime. AST-based over JavaScript files (HTML/CSS have no
+  grammar and are skipped here — their network surface is covered by no-cdn-no-network);
+  a string literal that merely contains the word require or process is never a violation.
+status: enforced

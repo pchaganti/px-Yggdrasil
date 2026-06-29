@@ -13,7 +13,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readLock, detLockPath } from '../../src/io/lock-store.js';
+import { readLock, detLockPath } from './support/read-lock.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '../..');

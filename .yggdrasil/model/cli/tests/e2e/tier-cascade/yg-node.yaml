@@ -5,6 +5,6 @@ description: "Subprocess E2E proving a change to an LLM aspect resolved reviewer
   via the tier-identity synthetic hash, and that api_key rotation does not
   cascade."
 aspects: []
-relations: [ { target: cli/tests/e2e/support, type: uses }, { target: cli/io/lock-store, type: uses } ]
+relations: [ { target: cli/tests/e2e/support, type: uses } ]
 mapping:
   - source/cli/tests/e2e/cli-tier-cascade.test.ts

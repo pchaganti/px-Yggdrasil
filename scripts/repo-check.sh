@@ -23,6 +23,11 @@ run_step() {
 }
 
 run_step "CLI: typecheck" "$REPO_ROOT/source/cli" "npm run typecheck"
+# The portal Playwright e2e specs run page.evaluate() in a real browser (DOM lib) and use
+# bundler module resolution, so they are type-checked against their own tsconfig (the shipped-CLI
+# typecheck above excludes them). Playwright's runner strips types via esbuild, so this is the
+# real type bar on the specs.
+run_step "CLI: typecheck (portal e2e)" "$REPO_ROOT/source/cli" "npm run typecheck:e2e"
 run_step "CLI: lint" "$REPO_ROOT/source/cli" "npm run lint"
 run_step "CLI: build" "$REPO_ROOT/source/cli" "npm run build"
 # Guard (D4): the spawned-binary E2E suites self-skip via describe.skipIf(!distExists).
@@ -51,6 +56,15 @@ console.log('Coverage OK: lines=' + lines + '%, statements=' + stmts + '%, funct
 # so the proof fails LOUDLY if the test is ever renamed or skipped out of the suite —
 # the same defence as the E2E binary guard above.
 run_step "Relations: AST-cache false-green audit" "$REPO_ROOT/source/cli" "npx vitest run tests/unit/relations/ast-cache-audit.test.ts"
+# Portal Playwright + Chromium e2e — the §3a surface/transition coverage gate. Drives the REAL
+# `yg portal` output of real fixture projects through the public CLI in a real browser, and the
+# two enforcing aspects (portal/every-surface-has-e2e, portal/every-spec-uses-playwright-chromium)
+# refuse the suite if a surface loses its spec or a spec stops being a real Chromium test. The
+# Chromium browser is rebuildable, not committed; if it is missing we fail LOUDLY with the install
+# command (never a silent skip that would go green over zero browser coverage — same defence as the
+# E2E binary guard above). Requires the dist/bin.js built in the build step.
+run_step "Portal: e2e Chromium present (guard)" "$REPO_ROOT/source/cli" "npx playwright install chromium --dry-run >/dev/null 2>&1 && node -e \"const{chromium}=require('@playwright/test');const p=chromium.executablePath();require('fs').accessSync(p);\" || { echo 'Chromium for Playwright is not installed — the portal e2e would silently skip. Run: (cd source/cli && npx playwright install --with-deps chromium)'; exit 1; }"
+run_step "Portal: e2e (Playwright + Chromium)" "$REPO_ROOT/source/cli" "npm run test:e2e:portal"
 run_step "Docs: build" "$REPO_ROOT/docs" "npm run build"
 run_step "Markdown: lint" "$REPO_ROOT" "npx markdownlint-cli2 \"**/*.md\" \".markdownlint-cli2.jsonc\""
 run_step "Graph: check" "$REPO_ROOT" "node source/cli/dist/bin.js check --approve --only-deterministic"

@@ -74,7 +74,7 @@ const FALLBACK_CONFIG: YggConfig = {};
 
 export async function loadGraph(
   projectRoot: string,
-  options: { tolerateInvalidConfig?: boolean } = {},
+  options: { tolerateInvalidConfig?: boolean; noSecrets?: boolean } = {},
 ): Promise<Graph> {
   const yggRoot = await findYggRoot(projectRoot);
 
@@ -91,7 +91,9 @@ export async function loadGraph(
   let configErrorMessage: IssueMessage | undefined;
   let config = FALLBACK_CONFIG;
   try {
-    config = await parseConfig(path.join(yggRoot, 'yg-config.yaml'));
+    // noSecrets threads the committed-only read down to the config parser: when set,
+    // yg-secrets.yaml is never opened or merged. Default (unset) is unchanged.
+    config = await parseConfig(path.join(yggRoot, 'yg-config.yaml'), { skipSecretsOverlay: options.noSecrets });
   } catch (error) {
     if (error instanceof ConfigParseError) {
       // Structured config error — always capture (never rethrow), propagate structured message

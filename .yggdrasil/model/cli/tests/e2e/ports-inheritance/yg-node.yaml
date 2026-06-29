@@ -3,7 +3,7 @@ type: test-suite
 description: "Subprocess E2E proving port inheritance and transitive propagation — a port on a parent consumed by a relation reaching a child of the consumer, an implies chain seeded by a port-sourced aspect crossing channel 6 to channel 7, recursive propagation through a consumer chain, consumes-port when with combinators, and port description validation."
 aspects: []
 relations:
-  - target: cli/io/lock-store
+  - target: cli/tests/e2e/support
     type: uses
 mapping:
   - source/cli/tests/e2e/cli-ports-inheritance.test.ts

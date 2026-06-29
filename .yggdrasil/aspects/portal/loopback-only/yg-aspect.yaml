@@ -1,0 +1,14 @@
+name: PortalLoopbackOnly
+description: >-
+  The portal HTTP server must bind to the loopback interface ONLY — it is a local,
+  read-only window, never an exposed service. Every `.listen(...)` call on a server
+  object must pin the host to a loopback literal (127.0.0.1, localhost, or ::1),
+  passed either as the positional host argument (server.listen(port, host[, cb]))
+  or as the `host` field of an options object (server.listen({ port, host })).
+  BANNED, as an external/all-interfaces bind: an explicit non-loopback host literal
+  (0.0.0.0, ::, an empty string, or any other address/hostname), AND an omitted host
+  (a bare server.listen(port) binds every interface by default — so the absence of a
+  loopback host is itself the violation). AST-based: only the arguments of a `.listen`
+  member call are inspected — a string literal that merely contains an address
+  elsewhere in the file is never a violation.
+status: enforced

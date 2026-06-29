@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Yggdrasil Portal — Heartwood</title>
+    <style>
+      /* __PORTAL_CSS__ */
+    </style>
+  </head>
+  <body>
+    <main id="portal-root" role="main"></main>
+
+    <!--
+      The portal data contract, inlined as one JSON blob. The consumer parses this
+      element's text content; nothing on the page reaches the network. type="application/json"
+      keeps the browser from executing it as script.
+    -->
+    <script id="portal-data" type="application/json">
+      /* __PORTAL_DATA__ */
+    </script>
+
+    <!-- Vendored layout library (offline, no CDN). Exposes the global `d3`. -->
+    <script>
+      /* __PORTAL_VENDOR__ */
+    </script>
+
+    <!--
+      Portal frontend modules, inlined in dependency order. No module system on a single
+      offline file — each module attaches to the shared window.YgPortal global, so a plain
+      sequence of <script> blocks shares code without import/require. The bootstrap runs last.
+    -->
+    <script>
+      /* __PORTAL_MODULES__ */
+    </script>
+  </body>
+</html>

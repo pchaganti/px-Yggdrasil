@@ -321,6 +321,39 @@ reviewer:
       const cfg = await parseConfig(configPath);
       expect(cfg.reviewer?.tiers.cheap.model).toBe('haiku');
     });
+
+    it('v5 tier config carries api_key and endpoint through to the resolved tier', async () => {
+      // api_key in a tier's config: block is the documented landing site for the
+      // gitignored yg-secrets.yaml overlay; an explicit endpoint is what an
+      // openai-compatible tier requires (no safe default host). Both must survive
+      // the parse onto the resolved tier. (Previously exercised only incidentally
+      // by an e2e suite that imported parseConfig in-process; pinned here as a
+      // first-class unit assertion so the branches stay covered without coupling
+      // the e2e suite to an internal module.)
+      const tmpDir = path.join(FIXTURES_DIR, 'tmp-v5-key-endpoint');
+      await mkdir(tmpDir, { recursive: true });
+      const configPath = path.join(tmpDir, 'yg-config.yaml');
+      await writeFile(configPath, `
+version: "5.0.0"
+reviewer:
+  tiers:
+    standard:
+      provider: openai-compatible
+      consensus: 1
+      config:
+        model: test-model
+        endpoint: "https://example.test/v1"
+        temperature: 0
+        api_key: "sk-secret-xyz"
+`, 'utf-8');
+
+      const cfg = await parseConfig(configPath);
+      const tier = cfg.reviewer?.tiers.standard;
+      expect(tier?.provider).toBe('openai-compatible');
+      expect(tier?.endpoint).toBe('https://example.test/v1');
+      expect(tier?.temperature).toBe(0);
+      expect((tier as unknown as Record<string, unknown>).api_key).toBe('sk-secret-xyz');
+    });
   });
 
   describe('parseConfig v5 error codes', () => {
@@ -711,6 +744,59 @@ quality:
         model: haiku
 `);
       expect(cfg.reviewer?.tiers.main.timeout).toBeUndefined();
+    });
+  });
+
+  describe('skipSecretsOverlay — committed-only config read', () => {
+    // A fixture dir with BOTH yg-config.yaml (committed) and yg-secrets.yaml
+    // (gitignored overlay) that injects a tier api_key. The default read merges
+    // the overlay (behavior unchanged); skipSecretsOverlay:true reads committed
+    // config ONLY, so the injected api_key never appears.
+    async function makeConfigWithSecrets(): Promise<string> {
+      const dir = await mkdtemp(path.join(tmpdir(), 'yg-skip-secrets-'));
+      await writeFile(
+        path.join(dir, 'yg-config.yaml'),
+        `reviewer:
+  tiers:
+    standard:
+      provider: claude-code
+      consensus: 1
+      config:
+        model: haiku
+`,
+        'utf-8',
+      );
+      await writeFile(
+        path.join(dir, 'yg-secrets.yaml'),
+        `reviewer:
+  tiers:
+    standard:
+      config:
+        api_key: SECRET-FROM-OVERLAY
+`,
+        'utf-8',
+      );
+      return path.join(dir, 'yg-config.yaml');
+    }
+
+    it('default read merges the yg-secrets.yaml overlay (behavior unchanged)', async () => {
+      const filePath = await makeConfigWithSecrets();
+      try {
+        const cfg = await parseConfig(filePath);
+        expect(cfg.reviewer?.tiers.standard.api_key).toBe('SECRET-FROM-OVERLAY');
+      } finally {
+        await rm(path.dirname(filePath), { recursive: true, force: true });
+      }
+    });
+
+    it('skipSecretsOverlay:true reads committed config only — no overlay api_key', async () => {
+      const filePath = await makeConfigWithSecrets();
+      try {
+        const cfg = await parseConfig(filePath, { skipSecretsOverlay: true });
+        expect(cfg.reviewer?.tiers.standard.api_key).toBeUndefined();
+      } finally {
+        await rm(path.dirname(filePath), { recursive: true, force: true });
+      }
     });
   });
 

@@ -12,7 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readLock as readTriadLock, detLockPath, nondetLockPath, logsLockPath } from '../../src/io/lock-store.js';
+import { readLock as readTriadLock, detLockPath, nondetLockPath, logsLockPath } from './support/read-lock.js';
 
 // ---------------------------------------------------------------------------
 // CLI E2E — the DETERMINISTIC FILL LIFECYCLE (verdict-lock model).

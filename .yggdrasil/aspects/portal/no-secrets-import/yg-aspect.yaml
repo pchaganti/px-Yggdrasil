@@ -1,0 +1,13 @@
+name: PortalNoSecretsImport
+description: >-
+  Portal backend files must never reach the secrets-overlay layer. Banned:
+  importing the secrets-overlay module (io/secrets-parser, io/config-overlay) —
+  statically OR via a dynamic import('...') — any secrets-reading symbol by
+  imported name, namespace, or alias (including a dynamic-import namespace binding),
+  and a direct filesystem read (readFileSync/readFile/createReadStream/openSync and
+  fs/promises equivalents) of a path naming the secrets file (yg-secrets). Config is
+  read only via the committed-only path (loadGraph noSecrets / parseConfig
+  skipSecretsOverlay). AST-based: only import/export declarations, dynamic-import and
+  fs-read call expressions, and import-bound member calls are inspected — a plain
+  string literal that merely contains a secret-shaped word is never a violation.
+status: enforced

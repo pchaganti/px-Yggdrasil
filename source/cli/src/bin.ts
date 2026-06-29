@@ -15,6 +15,7 @@ import { registerTypeSuggestCommand } from './cli/type-suggest.js';
 import { registerKnowledgeCommand } from './cli/knowledge.js';
 import { registerSchemasCommand } from './cli/schemas.js';
 import { registerSuppressionsCommand } from './cli/suppressions.js';
+import { registerPortalCommand } from './cli/portal.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -45,6 +46,7 @@ registerTypeSuggestCommand(program);
 registerKnowledgeCommand(program);
 registerSchemasCommand(program);
 registerSuppressionsCommand(program);
+registerPortalCommand(program);
 
 process.on('unhandledRejection', (reason) => {
   const msg = reason instanceof Error ? reason.message : String(reason);

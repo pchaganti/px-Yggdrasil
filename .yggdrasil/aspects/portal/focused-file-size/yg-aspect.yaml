@@ -1,0 +1,7 @@
+name: PortalFocusedFileSize
+description: >-
+  Each portal backend file is a focused unit with a defined boundary. A hard
+  line cap keeps a single file from accreting unrelated responsibilities; when a
+  file approaches the cap it is a signal to split it into a derivation child, not
+  to grow it. The cap counts physical lines of the source file.
+status: enforced

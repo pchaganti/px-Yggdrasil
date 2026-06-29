@@ -1,0 +1,40 @@
+name: Portal E2E — Playwright + Chromium
+type: test-suite
+description: >-
+  The portal's public-surface end-to-end suite (Playwright + Chromium). Every spec drives the
+  REAL `yg portal` output of a REAL on-disk fixture project (the frozen portal-basic / portal-fresh
+  graphs, or this repo's own graph) through the PUBLIC CLI surface — it spawns dist/bin.js
+  (`yg portal --static`, or `yg portal --port 0`) and opens the page it wrote (file://) or the
+  loopback server in a real Chromium browser; it NEVER imports a portal internal and NEVER
+  fabricates a PortalData. Coverage spans every §3a navigable path: each full view V1–V9 renders
+  its real data plus the always-present honest-state palette; the SHELL Node-Attestation panel
+  opens from a node reference and shows identity / effective aspects / relations / log /
+  suppressions / attestation digest; the ⌘K command palette opens, fuzzy-matches a real entity,
+  and routes; glossary tooltips carry plain definitions; the theme toggle flips data-theme; a deep
+  link reopens the entity and its panel on reload; the §3a per-view transition-table rows actually
+  navigate; Refresh re-fetches read-only and writes nothing; the Approve flow shows the dry-run
+  cost preview and — confirmed over a temp fixture — runs the real fill so the next data follows
+  the CLI to green; --no-write disables the write control and the server rejects a stray write 409;
+  the file-aware loop renders a touched file as unverified everywhere; the page's verdict counts
+  EQUAL `yg check` on the same fixture; and the accessibility contract holds in the real browser
+  (ARIA verdict bar, keyboard-only traversal, the Canvas matrix's DOM-list mirror, reduced-motion).
+  The support/ helpers are off the public surface too — they spawn the bin and read the files it
+  wrote, importing nothing from src/**.
+aspects:
+  - e2e-public-surface
+  - portal/every-surface-has-e2e
+  - portal/every-spec-uses-playwright-chromium
+relations: []
+mapping:
+  - source/cli/tests/portal-e2e/views-render.spec.ts
+  - source/cli/tests/portal-e2e/panel-and-global.spec.ts
+  - source/cli/tests/portal-e2e/transitions-perview.spec.ts
+  - source/cli/tests/portal-e2e/overlays-and-shell.spec.ts
+  - source/cli/tests/portal-e2e/served-refresh-approve.spec.ts
+  - source/cli/tests/portal-e2e/consistency-with-check.spec.ts
+  - source/cli/tests/portal-e2e/a11y.spec.ts
+  - source/cli/tests/portal-e2e/file-aware-loop.spec.ts
+  - source/cli/tests/portal-e2e/support/harness.ts
+  - source/cli/tests/portal-e2e/support/surfaces.ts
+  - source/cli/tests/portal-e2e/support/fixtures.ts
+  - source/cli/tests/portal-e2e/tsconfig.json

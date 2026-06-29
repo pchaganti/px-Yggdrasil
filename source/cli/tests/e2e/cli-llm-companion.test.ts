@@ -40,8 +40,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMockReviewer, runAsync } from './support/mock-reviewer.js';
-import { readLock as readLockStore } from '../../src/io/lock-store.js';
-import { LOCK_NONDET_FILE_NAME } from '../../src/model/lock.js';
+import { readLock as readLockStore } from './support/read-lock.js';
+import { LOCK_NONDET_FILE_NAME } from './support/read-lock.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_ROOT = path.join(__dirname, '..', '..');

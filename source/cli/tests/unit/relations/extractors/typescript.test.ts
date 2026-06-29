@@ -56,6 +56,21 @@ describe('typescript extractor — uses()', () => {
     expect(uses.filter((u) => u.candidates[0].kind === 'path')).toHaveLength(1);
     expect(uses[0].candidates[0]).toEqual({ kind: 'path', specifier: './d' });
   });
+  it('detects a no-substitution template-literal dynamic import() and require(), still skips interpolated', async () => {
+    // A backtick specifier with no `${…}` is static and statically resolvable — TS/esbuild/Node
+    // treat it identically to a quoted string — so it must yield an edge. An INTERPOLATED
+    // template literal stays non-static and skipped.
+    const { uses } = await run(
+      'const a = import(`./a`);\nconst b = require(`./b`);\nconst c = import(`./x-${v}`);',
+    );
+    expect(uses).toContainEqual(
+      expect.objectContaining({ candidates: [{ kind: 'path', specifier: './a' }] }),
+    );
+    expect(uses).toContainEqual(
+      expect.objectContaining({ candidates: [{ kind: 'path', specifier: './b' }] }),
+    );
+    expect(uses.filter((u) => u.candidates[0].kind === 'path')).toHaveLength(2);
+  });
   it('javascript: detects require + import, no crash on no-type-syntax', async () => {
     const { uses } = await run(`import x from './x';\nconst y = require('./y');`, '.js', 'javascript');
     expect(uses).toHaveLength(2);

@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startMockReviewer, runAsync, type ChatReply } from './support/mock-reviewer.js';
-import { readLock } from '../../src/io/lock-store.js';
+import { readLock } from './support/read-lock.js';
 
 // ---------------------------------------------------------------------------
 // TIER-IDENTITY cascade E2E (verdict-lock model).

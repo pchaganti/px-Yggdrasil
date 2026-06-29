@@ -8,6 +8,7 @@ relations:
     { target: cli/core/migrator, type: uses },
     { target: cli/core/migrator-runner, type: uses },
     { target: cli/core/migrations, type: uses },
+    { target: cli/core/loader, type: uses },
     { target: cli/io/lock-store, type: uses },
     { target: cli/model/lock, type: uses }
   ]

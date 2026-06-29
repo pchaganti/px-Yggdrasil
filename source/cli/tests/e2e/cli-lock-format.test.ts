@@ -17,7 +17,7 @@ import {
   nondetLockPath,
   logsLockPath,
   detLockPath,
-} from '../../src/io/lock-store.js';
+} from './support/read-lock.js';
 
 // ---------------------------------------------------------------------------
 // LOCK FILE FORMAT — the 5.1.0 verdict-lock TRIAD.

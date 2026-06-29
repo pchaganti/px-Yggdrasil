@@ -1,0 +1,21 @@
+name: PortalHonestStateAnchor
+description: >-
+  Every portal view module must render verdict state THROUGH the one shared honest-state
+  model (window.YgPortal.states) — the single source of truth for glyph + color-class +
+  border + plain label per state, where 'verified' is the only green and the distinct
+  states are never collapsed. A POSITIVE anchor: a view file that paints state must
+  reference the shared model, so a future refactor cannot quietly grow a view that invents
+  its own green. It also bans a hardcoded green STATE-CLASS string literal in a view
+  ('state-verified' / 'state-green' / 'state-ok') — the verified color-class must come from
+  the shared states.cssClass(), never be hand-written, so a green can never be fabricated
+  outside the honest model. AST-based over JavaScript (only real string literals and member
+  accesses are inspected, so the word in a comment is never a violation); a view file that
+  contains no state rendering at all is exempt (it has nothing to anchor). SCOPE LIMIT: this is a
+  deterministic TRIPWIRE — it demands the shared states anchor only when the file TOUCHES the
+  honest-state vocabulary (a state-* class token, or a state-helper member name like cssClass /
+  badge / glyph / plain). A view that fabricates a green through an UNRELATED class token it
+  invented (one outside that vocabulary) does not trip this anchor; that collapse is caught by the
+  enforced per-file LLM aspect honest-state-never-collapsed, which is the PRIMARY guard (it reads
+  the view's actual rendering against the no-collapse rule). This anchor is the cheap structural
+  backstop that keeps a refactor from quietly dropping the shared model; it is not the semantic judge.
+status: enforced

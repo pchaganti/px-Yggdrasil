@@ -3,7 +3,7 @@ type: test-suite
 description: "Subprocess E2E for the deterministic fill path — check.mjs verdicts are computed live at fill time, written to the lock with their observation folds, and re-verified read-only by a later yg check. Real spawned binary, no reviewer."
 aspects: []
 relations:
-  - target: cli/io/lock-store
+  - target: cli/tests/e2e/support
     type: uses
 mapping:
   - source/cli/tests/e2e/cli-deterministic-fill-lifecycle.test.ts

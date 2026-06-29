@@ -1,0 +1,13 @@
+node_types:
+  module:
+    description: 'Logical grouping of related services'
+    log_required: false
+  service:
+    description: 'Discrete service unit'
+    # log_required so positive closure records a committed source fingerprint baseline —
+    # the file-aware loop compares the live fingerprint against it to detect a touched file.
+    log_required: true
+    when:
+      path: "**"
+    aspects:
+      - no-todo-comments

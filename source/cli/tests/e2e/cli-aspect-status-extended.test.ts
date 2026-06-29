@@ -13,8 +13,8 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readLock as readLockStore } from '../../src/io/lock-store.js';
-import type { LockFile } from '../../src/model/lock.js';
+import { readLock as readLockStore } from './support/read-lock.js';
+import type { LockFile } from './support/read-lock.js';
 
 // ---------------------------------------------------------------------------
 // Harness — every test runs the REAL dist/bin.js against a fresh mkdtemp copy of

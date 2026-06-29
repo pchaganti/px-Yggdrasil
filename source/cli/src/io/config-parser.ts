@@ -92,7 +92,10 @@ const PROVIDER_DEFAULTS: Record<string, Partial<LlmConfig>> = {
   'gemini-cli': { model: 'gemini-2.5-flash' },
 };
 
-export async function parseConfig(filePath: string): Promise<YggConfig> {
+export async function parseConfig(
+  filePath: string,
+  opts?: { skipSecretsOverlay?: boolean },
+): Promise<YggConfig> {
   const filename = path.basename(filePath);
   const content = await readFile(filePath, 'utf-8');
   const baseRaw = parseYaml(content) as Record<string, unknown>;
@@ -109,7 +112,12 @@ export async function parseConfig(filePath: string): Promise<YggConfig> {
   // It can override any field — most often a tier's provider/model/endpoint/api_key —
   // without touching the committed config. The tier NAME is the only verdict input,
   // so an overlay never invalidates recorded baselines.
-  const overlay = await loadConfigOverlay(path.dirname(filePath));
+  //
+  // `skipSecretsOverlay` reads the COMMITTED yg-config.yaml only: the overlay file is
+  // never opened and never merged. This is the committed-only path a read-only consumer
+  // (e.g. a surface that must provably never touch local secrets) uses. The DEFAULT path
+  // is unchanged — the overlay is loaded and merged exactly as before.
+  const overlay = opts?.skipSecretsOverlay ? undefined : await loadConfigOverlay(path.dirname(filePath));
   const raw = overlay ? deepMerge(baseRaw, overlay) : baseRaw;
 
   const version = typeof raw.version === 'string' ? raw.version.trim() : undefined;

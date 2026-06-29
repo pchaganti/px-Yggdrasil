@@ -7,6 +7,14 @@ source/cli/coverage/
 /coverage/
 *.log
 
+# Playwright (Chromium) portal-e2e — runner artifacts + downloaded browser binaries
+# (rebuildable: `npx playwright install chromium`; never committed)
+source/cli/.playwright/
+**/.playwright/
+test-results/
+playwright-report/
+ms-playwright/
+
 # Environment
 .env*
 

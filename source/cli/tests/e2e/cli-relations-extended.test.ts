@@ -12,7 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readLock } from '../../src/io/lock-store.js';
+import { readLock } from './support/read-lock.js';
 
 // Hermetic E2E — RELATIONS: the relation-TYPE matrix (all six types allowed and
 // forbidden), event pairing (both unpaired directions, multi-pair, self-pair),

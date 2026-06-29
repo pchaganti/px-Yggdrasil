@@ -1,0 +1,194 @@
+/*
+ * The three-region shell layout — nav rail, top bar, center stage, node panel.
+ *
+ * The persistent chrome the portal lives in: a left navigation rail (brand, ⌘K trigger,
+ * grouped view links), a top bar (live status + Refresh/Approve cluster, breadcrumb, ⌘K
+ * search, theme toggle), the center stage the dispatcher renders into, and a right-hand
+ * node-panel slot that opens on selection. Border-first elevation; one accent voltage
+ * (the primary button + the active rail link). Tokens come from tokens.css.
+ */
+
+.app-grid {
+  display: grid;
+  grid-template-columns: 248px 1fr 0;
+  min-height: 100vh;
+}
+.app-grid:has(.app-panel.open) {
+  grid-template-columns: 248px 1fr 340px;
+}
+.app-rail {
+  border-right: 1px solid var(--border-subtle);
+  background: var(--surface-1);
+  min-width: 0;
+}
+.rail-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.rail-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: linear-gradient(150deg, var(--verified), var(--accent));
+  flex: none;
+}
+.rail-brand b {
+  font-weight: 600;
+}
+.rail-brand-sub {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.rail-cmdk {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 28px);
+  margin: 12px 14px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.rail-cmdk kbd {
+  margin-left: auto;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 6px;
+  color: var(--text-secondary);
+}
+.rail-h {
+  padding: 6px 16px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+}
+.rail-nav {
+  display: flex;
+  flex-direction: column;
+}
+.rail-link {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 16px;
+  border: 0;
+  border-left: 2px solid transparent;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+.rail-link:hover {
+  background: var(--surface-2);
+}
+.rail-link.on {
+  color: var(--text-primary);
+  background: var(--surface-3);
+  border-left-color: var(--accent);
+}
+.rail-glyph {
+  width: 16px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.app-main {
+  min-width: 0;
+}
+.app-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 22px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.topbar-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.topbar-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--verified);
+}
+.topbar-dot.muted {
+  background: var(--text-muted);
+}
+.topbar-crumb {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.topbar-spacer {
+  flex: 1;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.btn.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.btn-free {
+  font-size: 10px;
+  color: var(--verified);
+}
+
+.app-stage {
+  padding: 20px 22px 64px;
+  max-width: 1040px;
+}
+.app-panel {
+  border-left: 1px solid var(--border-subtle);
+  background: var(--surface-1);
+  padding: 0;
+  overflow: hidden;
+}
+.app-panel.open {
+  padding: 18px 18px 28px;
+}

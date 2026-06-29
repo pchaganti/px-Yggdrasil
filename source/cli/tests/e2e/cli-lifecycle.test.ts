@@ -40,159 +40,85 @@ function run(
 // surface that survived (log, platform install, init/upgrade, version) and
 // re-points the former `deterministic-test` diagnostics onto `yg aspect-test`.
 describe.skipIf(!distExists)('CLI E2E — lifecycle (log, aspect-test, platform, init)', () => {
-  // --- platform installation (direct unit tests) ---
+  // --- platform installation (black-box: drive `yg init --upgrade --platform <x>`) ---
+  //
+  // `init --upgrade --platform <x>` is NON-interactive (no TTY needed) and refreshes
+  // the rules file for that platform on an existing graph. Each case seeds a tmpDir
+  // with a minimal valid .yggdrasil/yg-config.yaml, spawns the real binary, asserts
+  // a clean exit, and asserts the platform's expected rules file(s) landed on disk —
+  // the same install surface the old direct-import tests covered, now exercised purely
+  // as a black box through the public CLI (no import of the internal install module).
 
-  it('installRulesForPlatform cursor creates .cursor/rules/yggdrasil.mdc', async () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-cursor-'));
-    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
+  /** Seed a tmpDir with a minimal upgradeable graph and return it. Caller owns cleanup. */
+  function upgradeableRepo(label: string): string {
+    const dir = mkdtempSync(path.join(tmpdir(), `yg-e2e-platform-${label}-`));
+    mkdirSync(path.join(dir, '.yggdrasil'), { recursive: true });
+    writeFileSync(path.join(dir, '.yggdrasil', 'yg-config.yaml'), 'version: "1.0.0"\n', 'utf-8');
+    return dir;
+  }
 
-    try {
-      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
-      await installRulesForPlatform(tmpDir, 'cursor');
-      expect(existsSync(path.join(tmpDir, '.cursor', 'rules', 'yggdrasil.mdc'))).toBe(true);
-    } finally {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
+  // [platform id, relative paths every install of that platform must produce]
+  const PLATFORM_CASES: ReadonlyArray<readonly [string, readonly string[]]> = [
+    ['cursor', ['.cursor/rules/yggdrasil.mdc']],
+    ['cline', ['.clinerules/yggdrasil.md']],
+    ['claude-code', ['CLAUDE.md', '.yggdrasil/agent-rules.md']],
+    ['copilot', ['.github/copilot-instructions.md']],
+    ['windsurf', ['.windsurf/rules/yggdrasil.md']],
+    ['aider', ['.aider.conf.yml', '.yggdrasil/agent-rules.md']],
+    ['gemini', ['GEMINI.md', '.yggdrasil/agent-rules.md']],
+    ['roocode', ['.roo/rules/yggdrasil.md']],
+    ['codex', ['AGENTS.md']],
+    ['generic', ['.yggdrasil/agent-rules.md']],
+  ];
 
-  it('installRulesForPlatform cline creates .clinerules/yggdrasil.md', async () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-cline-'));
-    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
+  it.each(PLATFORM_CASES)(
+    'init --upgrade --platform %s installs its rules file(s) (exit 0)',
+    (platform, expectedPaths) => {
+      const tmpDir = upgradeableRepo(platform);
+      try {
+        const { status } = run(['init', '--upgrade', '--platform', platform], tmpDir);
+        expect(status).toBe(0);
+        for (const rel of expectedPaths) {
+          expect(existsSync(path.join(tmpDir, ...rel.split('/')))).toBe(true);
+        }
+      } finally {
+        rmSync(tmpDir, { recursive: true, force: true });
+      }
+    },
+  );
 
-    try {
-      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
-      await installRulesForPlatform(tmpDir, 'cline');
-      expect(existsSync(path.join(tmpDir, '.clinerules', 'yggdrasil.md'))).toBe(true);
-    } finally {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  it('installRulesForPlatform claude-code creates CLAUDE.md and agent-rules.md', async () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-claude-'));
-    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
-
-    try {
-      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
-      await installRulesForPlatform(tmpDir, 'claude-code');
-      expect(existsSync(path.join(tmpDir, 'CLAUDE.md'))).toBe(true);
-      expect(existsSync(path.join(tmpDir, '.yggdrasil', 'agent-rules.md'))).toBe(true);
-    } finally {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  it('installRulesForPlatform copilot creates .github/copilot-instructions.md', async () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-copilot-'));
-    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
-
-    try {
-      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
-      await installRulesForPlatform(tmpDir, 'copilot');
-      expect(existsSync(path.join(tmpDir, '.github', 'copilot-instructions.md'))).toBe(true);
-    } finally {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  it('installRulesForPlatform windsurf creates .windsurf/rules/yggdrasil.md', async () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-windsurf-'));
-    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
-
-    try {
-      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
-      await installRulesForPlatform(tmpDir, 'windsurf');
-      expect(existsSync(path.join(tmpDir, '.windsurf', 'rules', 'yggdrasil.md'))).toBe(true);
-    } finally {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  it('installRulesForPlatform aider creates .aider.conf.yml and agent-rules.md', async () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-aider-'));
-    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
-
-    try {
-      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
-      await installRulesForPlatform(tmpDir, 'aider');
-      expect(existsSync(path.join(tmpDir, '.aider.conf.yml'))).toBe(true);
-      expect(existsSync(path.join(tmpDir, '.yggdrasil', 'agent-rules.md'))).toBe(true);
-    } finally {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  it('installRulesForPlatform gemini creates GEMINI.md and agent-rules.md', async () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-gemini-'));
-    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
-
-    try {
-      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
-      await installRulesForPlatform(tmpDir, 'gemini');
-      expect(existsSync(path.join(tmpDir, 'GEMINI.md'))).toBe(true);
-      expect(existsSync(path.join(tmpDir, '.yggdrasil', 'agent-rules.md'))).toBe(true);
-    } finally {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  it('installRulesForPlatform roocode creates .roo/rules/yggdrasil.md', async () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-roocode-'));
-    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
-
-    try {
-      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
-      await installRulesForPlatform(tmpDir, 'roocode');
-      expect(existsSync(path.join(tmpDir, '.roo', 'rules', 'yggdrasil.md'))).toBe(true);
-    } finally {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  it('installRulesForPlatform codex creates AGENTS.md', async () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-codex-'));
-    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
-
-    try {
-      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
-      await installRulesForPlatform(tmpDir, 'codex');
-      expect(existsSync(path.join(tmpDir, 'AGENTS.md'))).toBe(true);
-    } finally {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  it('installRulesForPlatform generic creates agent-rules.md only', async () => {
-    const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-platform-generic-'));
-    mkdirSync(path.join(tmpDir, '.yggdrasil'), { recursive: true });
-
-    try {
-      const { installRulesForPlatform } = await import('../../src/templates/platform.js');
-      await installRulesForPlatform(tmpDir, 'generic');
-      expect(existsSync(path.join(tmpDir, '.yggdrasil', 'agent-rules.md'))).toBe(true);
-    } finally {
-      rmSync(tmpDir, { recursive: true, force: true });
-    }
-  });
-
-  it('init --upgrade advances config version to the CLI-supported schema version', async () => {
+  it('init --upgrade advances an outdated config version and removes the legacy schemas/ dir', () => {
+    // The migration framework advances an outdated graph version forward and runs
+    // its data migrations (the to-5.1.0 step deletes the legacy schemas/ directory).
+    // Public-surface assertions only: clean exit, version no longer the seeded
+    // "1.0.0", the new version is a valid semver, schemas/ is gone, and a second
+    // upgrade is idempotent (the version does not move again). The exact-equality
+    // assertion against the CLI-supported schema constant lives in the unit suite
+    // (tests/unit/core/graph-loader-supported-schema.test.ts) where importing the
+    // constant is legitimate — e2e never imports an internal module.
     const tmpDir = mkdtempSync(path.join(tmpdir(), 'yg-e2e-upgrade-version-'));
     const yggDir = path.join(tmpDir, '.yggdrasil');
     mkdirSync(path.join(yggDir, 'schemas'), { recursive: true });
     writeFileSync(path.join(yggDir, 'yg-config.yaml'), 'version: "1.0.0"\n', 'utf-8');
 
     try {
-      const { status } = run(['init', '--upgrade', '--platform', 'generic'], tmpDir);
-      expect(status).toBe(0);
-      // The to-5.1.0 migration is applicable: it removes the schemas/ directory
-      // and bumps the version to 5.1.0 (CLI_SUPPORTED_SCHEMA). The version field
-      // in yg-config.yaml must reflect the CLI-supported schema version after the
-      // migration runs — independent of the CLI package.json version.
-      const { CLI_SUPPORTED_SCHEMA } = await import('../../src/core/graph-loader.js');
-      const config = readFileSync(path.join(yggDir, 'yg-config.yaml'), 'utf-8');
-      expect(config).toContain(`version: "${CLI_SUPPORTED_SCHEMA}"`);
-      // The to-5.1.0 migration must have deleted the schemas/ directory.
+      const first = run(['init', '--upgrade', '--platform', 'generic'], tmpDir);
+      expect(first.status).toBe(0);
+
+      const advanced = readFileSync(path.join(yggDir, 'yg-config.yaml'), 'utf-8');
+      const versionMatch = advanced.match(/version:\s*"([^"]+)"/);
+      expect(versionMatch).not.toBeNull();
+      const advancedVersion = versionMatch![1];
+      expect(advancedVersion).not.toBe('1.0.0');
+      expect(advancedVersion).toMatch(/^\d+\.\d+\.\d+$/);
+      // The to-5.1.0 migration must have deleted the legacy schemas/ directory.
       expect(existsSync(path.join(yggDir, 'schemas'))).toBe(false);
+
+      // Idempotence: a second upgrade leaves the version untouched (already current).
+      const second = run(['init', '--upgrade', '--platform', 'generic'], tmpDir);
+      expect(second.status).toBe(0);
+      const after = readFileSync(path.join(yggDir, 'yg-config.yaml'), 'utf-8');
+      expect(after.match(/version:\s*"([^"]+)"/)?.[1]).toBe(advancedVersion);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }

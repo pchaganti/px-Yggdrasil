@@ -1,0 +1,10 @@
+name: PortalFrontend
+type: module
+description: >-
+  The portal frontend (browser layer) — a pure consumer of the PortalData contract. Vanilla
+  HTML/CSS/JS, framework-free, offline. Organizational grouping; typed children own the
+  mappings: core (the shell, CSS, and bootstrap that parse the inlined data and render the
+  page) and vendor (the inlined third-party layout library). The per-surface views arrive
+  in a later phase.
+aspects: []
+relations: []
