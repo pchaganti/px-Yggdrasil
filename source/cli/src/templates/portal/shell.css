@@ -43,14 +43,18 @@
   text-align: left;
 }
 .rail-logo {
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
-  /* A deep chip so the gold brand mark reads on either theme; the SVG sits inside, contained. */
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  /* A deep chip so the gold brand mark reads on either theme; the SVG sits inside, contained.
+     A soft drop shadow + a hairline seat the chip on the near-white light rail (so it does not
+     read as a flat tile pasted onto the chrome) while staying unobtrusive in the dark theme. */
   background: linear-gradient(160deg, #20242c, #15171b);
   object-fit: contain;
-  padding: 3px;
+  padding: 4px;
   flex: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 .rail-brand b {
   font-weight: 600;
