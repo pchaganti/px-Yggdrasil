@@ -11,6 +11,26 @@
   padding-bottom: 12px;
   margin-bottom: 12px;
 }
+/* Anchored to the panel's top-right corner (the panel is a positioned containing block in both
+   the wide grid-column and the narrow fixed-overlay layouts). */
+.pan-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+.pan-close:hover {
+  color: var(--text-primary);
+  background: var(--surface-2);
+}
 .pan-title {
   display: flex;
   align-items: center;

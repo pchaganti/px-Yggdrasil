@@ -80,6 +80,24 @@
 }
 
 /* ── Tree (virtualized) ─────────────────────────────────────────────────── */
+.tree-filter {
+  margin: 4px 0 8px;
+}
+.tree-filter-input {
+  width: 100%;
+  padding: 7px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+/* "You are here" marker for a row revealed by a palette pick / deep-link. */
+.tree-row-revealed {
+  background: var(--surface-3);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
 .tree-mount {
   margin: 4px 0 18px;
 }

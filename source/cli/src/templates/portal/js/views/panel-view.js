@@ -30,11 +30,27 @@
     return s;
   }
 
+  /** A plain-language sentence for an aspect's reviewer kind / tier / consensus / cost. */
+  function kindPlain(a) {
+    if (a.kind === 'llm') {
+      var s = 'An AI reviewer';
+      if (a.tier) s += ' on the “' + a.tier + '” tier';
+      if (a.consensus) s += ', voting ' + a.consensus + '×,';
+      s += ' judges this rule';
+      s += a.cost === 'billed' ? ' — it may cost a paid API call.' : ' — free (a local reviewer).';
+      return s;
+    }
+    if (a.kind === 'aggregate') return 'A bundle that groups other rules — it judges nothing of its own.';
+    return 'A free local script checks this rule mechanically — no AI, no cost.';
+  }
+
   function aspectRow(a, nav) {
     var row = dom.el('div', 'pan-asprow');
     var name = dom.el('button', 'pan-aspname mono');
     name.type = 'button';
     name.textContent = a.aspectId;
+    var aspectDef = Yg.glossary && Yg.glossary.lookup ? Yg.glossary.lookup('aspect') : null;
+    if (aspectDef) name.setAttribute('title', a.aspectId + ' — ' + aspectDef);
     name.addEventListener('click', function () {
       nav({ view: 'rulebook', aspect: a.aspectId });
     });
@@ -46,8 +62,21 @@
         : a.kind === 'aggregate'
           ? 'aggregating · judges nothing'
           : 'deterministic · free';
-    row.appendChild(dom.el('span', 'pan-badge pan-badge-' + a.kind, kindLabel));
-    row.appendChild(dom.el('span', 'pan-chan', CHANNELS[a.channel] || a.origin || ''));
+    // Plain-language tooltip so the dense kind / tier / cost vocabulary is legible to a non-expert.
+    var badge = dom.el('span', 'pan-badge pan-badge-' + a.kind, kindLabel);
+    badge.setAttribute('title', kindPlain(a));
+    badge.setAttribute('aria-label', kindLabel + ' — ' + kindPlain(a));
+    row.appendChild(badge);
+    // The provenance / attach channel, with a plain definition (own / ancestor / type / flow / …).
+    var chanId = CHANNELS[a.channel] || a.origin || '';
+    var chan = dom.el('span', 'pan-chan', chanId);
+    var chanDef = chanId && Yg.glossary && Yg.glossary.lookup ? Yg.glossary.lookup(chanId) : null;
+    if (chanDef) {
+      chan.setAttribute('title', chanDef);
+      chan.setAttribute('aria-label', chanId + ': ' + chanDef);
+      chan.setAttribute('tabindex', '0');
+    }
+    row.appendChild(chan);
     var st = a.pairState === 'n/a' ? 'not-applicable' : a.pairState;
     row.appendChild(Yg.states.badge(st));
 
@@ -155,6 +184,16 @@
     // Identity.
     var meta = (data && data.meta) || {};
     var head = dom.el('div', 'pan-head');
+    // A close affordance — essential when the panel is a right-overlay sheet on a narrow window,
+    // harmless as an extra dismiss on a wide one. Drops the node from the route (panel closes),
+    // staying on the current view.
+    var close = dom.el('button', 'pan-close', '×');
+    close.type = 'button';
+    close.setAttribute('aria-label', 'Close panel');
+    close.addEventListener('click', function () {
+      nav({ view: route.view || 'overview' });
+    });
+    head.appendChild(close);
     var title = dom.el('div', 'pan-title');
     title.appendChild(Yg.states.badge(node.state));
     title.appendChild(dom.el('b', null, node.name || node.path));

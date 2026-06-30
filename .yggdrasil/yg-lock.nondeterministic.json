@@ -191,13 +191,13 @@
       "file:source/cli/src/templates/portal/js/views/coverage-view.js": {"hash":"555fb29b7a17bf9685956875aa45bf5ead3b127e8345dab29716133f9ec89303","verdict":"approved"},
       "file:source/cli/src/templates/portal/js/views/flows-view.js": {"hash":"e88455b431c36864988ad80b68eeaa437b3a17dd9b55f91cc67c329be0e1cad7","verdict":"approved"},
       "file:source/cli/src/templates/portal/js/views/overview-view.js": {"hash":"83fc988a2f0d1400913a1c6cdd7e97119b6f983bfdaed21464433d93ce17814b","verdict":"approved"},
-      "file:source/cli/src/templates/portal/js/views/panel-view.js": {"hash":"d378dd8a2460863826b6cf4c907353151848bfb8b5e0e1dac85b8ad1a4ae1d50","verdict":"approved"},
+      "file:source/cli/src/templates/portal/js/views/panel-view.js": {"hash":"c0332487f006bb21f3f2a1b4ff9c9cfbb53a2ce03de0767c5966970e9ba7b782","verdict":"approved"},
       "file:source/cli/src/templates/portal/js/views/relations-matrix.js": {"hash":"3250ef9da3da7a895ffce47d41e2bfe72aa4a6704c34b05ec9ee3b7d2ebbfdc8","verdict":"approved"},
       "file:source/cli/src/templates/portal/js/views/relations-view.js": {"hash":"66bb915b6ba520949feb5f8e956633d71c7f846db787e486ec1108b81e133a26","verdict":"approved"},
       "file:source/cli/src/templates/portal/js/views/rulebook-view.js": {"hash":"e34cde2ad8acb07951daea97e2e28614460a80f0248a1003bed71d073235f9b1","verdict":"approved"},
       "file:source/cli/src/templates/portal/js/views/start-view.js": {"hash":"f6bf7141d71c4bb46f98ab61633f2b948bc4c5a453dcead26ee555976bcac59a","verdict":"approved"},
       "file:source/cli/src/templates/portal/js/views/suppressions-view.js": {"hash":"d9bd9650950bf1dc3f28cf3c0bc3d893185ff9a601ccd0708b370ecf3e3bca10","verdict":"approved"},
-      "file:source/cli/src/templates/portal/js/views/tree-view.js": {"hash":"8dd8cb5e8bd06c65fa03c82e7cee6e744158773b43fff39578d514f65cd38700","verdict":"approved"},
+      "file:source/cli/src/templates/portal/js/views/tree-view.js": {"hash":"13445fb2aa87e6098e6940a27a68fcc9273471f52ca1e025ac94ede54586c48a","verdict":"approved"},
       "file:source/cli/src/templates/portal/js/views/types-view.js": {"hash":"b4c668adaa1cd97171ca8b5ae9953ee984ebeb2eacaaad6788acfc55d637bbfd","verdict":"approved"}
     },
     "posix-paths-output": {

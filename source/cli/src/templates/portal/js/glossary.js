@@ -35,6 +35,14 @@
     waived: 'Someone told the reviewer to skip a rule here, on purpose, with a reason. Not the same as verified.',
     unverified: "The code changed, so no reviewer has confirmed it yet. Not a pass — just “we don’t know”.",
     suppressed: 'A waiver tells the reviewer to skip a rule on specific lines, with a reason. Waived is not verified.',
+    cost: 'A free local script costs nothing; an AI reviewer may cost a paid API call each time it judges.',
+    // Where a rule comes from — its provenance / attach channel onto this component.
+    own: 'This rule is set directly on this component.',
+    ancestor: 'This rule is inherited from a parent component.',
+    'own-type': 'This rule applies to every component of this type.',
+    'ancestor-type': "Inherited from a parent component's type.",
+    port: 'This rule crosses in from a named contract this component consumes.',
+    implied: 'Pulled in by another rule that includes this one.',
   };
 
   /** The plain definition for a term id, or null when the term is unknown. */

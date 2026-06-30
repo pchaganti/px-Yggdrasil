@@ -36,10 +36,33 @@
     );
     stage.appendChild(intro);
 
+    // In-tree filter: at hundreds of nodes, "where does X live" needs a filter that prunes the
+    // hierarchy to matches (plus their ancestors) in place — the ⌘K palette only jumps to a panel.
+    var filterWrap = dom.el('div', 'tree-filter');
+    var filterInput = dom.el('input', 'tree-filter-input');
+    filterInput.type = 'search';
+    filterInput.placeholder = 'Filter components by name or path…';
+    filterInput.setAttribute('aria-label', 'Filter the structure tree by component name or path');
+    filterWrap.appendChild(filterInput);
+    stage.appendChild(filterWrap);
+
     var mount = dom.el('section', 'tree-mount');
     stage.appendChild(mount);
-    Yg.tree.render(mount, data, function (path) {
+    var controller = Yg.tree.render(mount, data, function (path) {
       if (ctx && ctx.onSelect) ctx.onSelect(path);
     });
+
+    var debounce;
+    filterInput.addEventListener('input', function () {
+      var v = filterInput.value;
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(function () {
+        if (controller && controller.filter) controller.filter(v);
+      }, 120);
+    });
+
+    // Reveal-on-select: a palette pick or a deep-link to a node scrolls the tree to it and marks
+    // it, so the user lands ON the node in the hierarchy, not only in the side panel.
+    if (route && route.node && controller && controller.reveal) controller.reveal(route.node);
   };
 })();

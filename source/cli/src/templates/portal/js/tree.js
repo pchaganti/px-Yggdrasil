@@ -76,7 +76,14 @@
    */
   function render(mount, data, onSelect) {
     var d3 = window.d3;
-    var rows = flattenLayout(buildForest(data.nodes || []), d3);
+    var nodes = data.nodes || [];
+    var allRows = flattenLayout(buildForest(nodes), d3);
+    var rows = allRows;
+    var revealPath = null;
+
+    // path -> parent path, so a filter can keep a match's ancestors (its place in the hierarchy).
+    var parentOf = {};
+    for (var pi = 0; pi < nodes.length; pi += 1) parentOf[nodes[pi].path] = nodes[pi].parent || null;
 
     var scroller = dom.el('div', 'tree-scroller');
     scroller.setAttribute('role', 'tree');
@@ -94,14 +101,60 @@
       var last = Math.min(rows.length, Math.ceil((top + height) / ROW_H) + OVERSCAN);
       dom.clear(win);
       win.style.transform = 'translateY(' + first * ROW_H + 'px)';
-      for (var i = first; i < last; i += 1) win.appendChild(buildRow(rows[i], onSelect));
+      for (var i = first; i < last; i += 1) win.appendChild(buildRow(rows[i], onSelect, revealPath));
     }
 
     scroller.addEventListener('scroll', paint);
     paint();
 
+    /** Prune the tree to rows matching `q` (by name or path) plus their ancestors; empty = all. */
+    function filter(q) {
+      var query = String(q || '').trim().toLowerCase();
+      if (!query) {
+        rows = allRows;
+      } else {
+        var keep = {};
+        for (var i = 0; i < allRows.length; i += 1) {
+          var nd = allRows[i].node;
+          if ((nd.name || '').toLowerCase().indexOf(query) >= 0 || (nd.path || '').toLowerCase().indexOf(query) >= 0) {
+            keep[nd.path] = true;
+            var p = parentOf[nd.path];
+            while (p) {
+              keep[p] = true;
+              p = parentOf[p];
+            }
+          }
+        }
+        rows = allRows.filter(function (r) {
+          return keep[r.node.path];
+        });
+      }
+      spacer.style.height = rows.length * ROW_H + 'px';
+      scroller.scrollTop = 0;
+      paint();
+    }
+
+    /** Scroll the tree to `path` (in the current row set) and mark it, so a palette pick / deep
+        link lands the user ON the node in the hierarchy, not only in the side panel. */
+    function reveal(path) {
+      var idx = -1;
+      for (var i = 0; i < rows.length; i += 1) {
+        if (rows[i].node.path === path) {
+          idx = i;
+          break;
+        }
+      }
+      if (idx < 0) return;
+      revealPath = path;
+      var height = scroller.clientHeight || ROW_H * 24;
+      scroller.scrollTop = Math.max(0, idx * ROW_H - Math.floor(height / 2) + ROW_H);
+      paint();
+    }
+
     return {
-      rowCount: rows.length,
+      rowCount: allRows.length,
+      filter: filter,
+      reveal: reveal,
       destroy: function () {
         scroller.removeEventListener('scroll', paint);
         if (scroller.parentNode) scroller.parentNode.removeChild(scroller);
@@ -109,12 +162,13 @@
     };
   }
 
-  function buildRow(row, onSelect) {
+  function buildRow(row, onSelect, revealPath) {
     var n = row.node;
     var li = dom.el('div', 'tree-row ' + Yg.states.cssClass(n.state));
     li.setAttribute('role', 'treeitem');
     li.setAttribute('tabindex', '0');
     li.setAttribute('data-path', n.path);
+    if (revealPath && n.path === revealPath) li.classList.add('tree-row-revealed');
     li.style.paddingLeft = 12 + row.depth * 16 + 'px';
     li.appendChild(Yg.states.badge(n.state));
     li.appendChild(dom.el('span', 'tree-name', n.name || n.path));
