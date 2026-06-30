@@ -63,9 +63,11 @@ function buildAspect(def: AspectDef, graph: Graph, states: PortalPairState[]): P
     scope,
     hasWhen: def.when !== undefined,
     implies: def.implies ?? [],
-    ...(def.description !== undefined ? { description: def.description } : {}),
-    ...(ruleProse !== undefined ? { ruleProse } : {}),
-    ...(checkSource !== undefined ? { checkSource } : {}),
+    // Optional content fields assigned directly — an undefined value is omitted by the
+    // JSON.stringify embed, so no conditional spread is needed (and none is left half-covered).
+    description: def.description,
+    ruleProse,
+    checkSource,
     tally: buildTally(def, graph, status, states),
   };
 }

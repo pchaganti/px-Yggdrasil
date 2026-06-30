@@ -71,7 +71,7 @@
     "cli/model/graph": {"log":{"last_entry_datetime":"2026-06-12T14:17:35.026Z","prefix_hash":"3aa682544c082b133a9e2148dc08d8088ef240ef92274620d0dc44384f7cf0e6"}},
     "cli/model/lock": {"log":{"last_entry_datetime":"2026-06-12T11:33:00.973Z","prefix_hash":"6c694550e0ebfdd290a0aca8439a9b4fc456a64e410fa638387df6d7fb6e03e8"}},
     "cli/portal/engine-api": {"log":{"last_entry_datetime":"2026-06-29T12:36:31.021Z","prefix_hash":"13ba21e1713bb02615c14c40b11d50f2be2f17e418c0fd43a7e185bfceefa0a2"},"source":"149ea660a9c5728076fc1674276810d95c5ac5e7917235d60c63c682a408ff45"},
-    "cli/portal/pipeline": {"log":{"last_entry_datetime":"2026-06-30T10:04:46.339Z","prefix_hash":"6322aac2c34522c86fc48a1ae92605ab1ce5f7871e7eddaf0407a2d682f33e30"},"source":"6e727c5bd99fc89352ef296ddbd487ebbbd9dbc9e97c5f718247aa0e048b6ba9"},
+    "cli/portal/pipeline": {"log":{"last_entry_datetime":"2026-06-30T11:10:13.459Z","prefix_hash":"108dff912e66f6c4bd3b97a546cc45a2ab0bd832297cb72758054728197dbb59"},"source":"70ed510f63698e40d5da043a6924307c524001cad415f80710f1580242447278"},
     "cli/portal/serializer": {"log":{"last_entry_datetime":"2026-06-30T09:37:58.732Z","prefix_hash":"14053216fe2d5c16a767c1d6ecdc3db1d035df129612ef8676267ce644131fc2"},"source":"55e0a8495a1ca4230732f84c3bfdeabe05cb78e0f387f704f3519cdc2ccff4cb"},
     "cli/portal/server": {"log":{"last_entry_datetime":"2026-06-29T06:49:44.331Z","prefix_hash":"8331f1c8b1302ca922a8eb95472d45ee44031d3dafbefcaec19ac0a72a8a5de2"},"source":"47c2ee3469c6f5fbad902afcc4e4f0c5493e8da9cd0dec8640dc4ad3cac4fd46"},
     "cli/preamble": {"log":{"last_entry_datetime":"2026-06-01T09:41:50.140Z","prefix_hash":"1169a24ada6cc37b8c4ab80c099f2848f81d29922465318ab0a60021c675085a"}},

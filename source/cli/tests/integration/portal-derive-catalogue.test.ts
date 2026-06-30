@@ -5,6 +5,8 @@ import { loadGraph } from '../../src/core/graph-loader.js';
 import { readLock } from '../../src/io/lock-store.js';
 import { verifyLock } from '../../src/core/verify-lock.js';
 import { buildAspects, buildFlows, buildTypes } from '../../src/portal/derive-catalogue.js';
+import { readPortalAsset } from '../../src/portal/serializer.js';
+import { displayPairState } from '../../src/portal/derive-nodes.js';
 import type { PortalAspect } from '../../src/portal/contract.js';
 import type { Graph, AspectDef, FlowDef, GraphNode } from '../../src/model/graph.js';
 import type { VerifiedPair, PairState } from '../../src/core/verify-lock.js';
@@ -316,5 +318,54 @@ describe('catalogue — tally + flow-state honest branches (synthetic)', () => {
     expect(t.strict).toBe(true);
     expect(t.logRequired).toBe(true);
     expect(t.nodeCount).toBe(1);
+  });
+
+  it('a draft aspect renders as vacuous with the draft reason', () => {
+    const a = detAspect('d', 'draft');
+    const graph = { nodes: new Map(), aspects: [a], flows: [], architecture: { node_types: {} } } as unknown as Graph;
+    const [built] = buildAspects(graph, []);
+    expect(built.tally.render).toBe('vacuous');
+    if (built.tally.render === 'vacuous') expect(built.tally.reason).toMatch(/draft/);
+  });
+
+  it('buildFlows handles a flow with no aspects and a non-existent participant', () => {
+    const flow = { path: 'f', name: 'F', nodes: ['ghost'] } as unknown as FlowDef;
+    const graph = { nodes: new Map(), aspects: [], flows: [flow], architecture: { node_types: {} } } as unknown as Graph;
+    const [built] = buildFlows(graph, () => undefined);
+    expect(built.aspects).toEqual([]); // flow.aspects ?? []
+    expect(built.participants).toEqual(['ghost']); // ghost added, not expanded (node not found)
+    expect(built.state).toBe('nothing-checked'); // computeFlowState skips the missing node
+  });
+
+  it('buildTypes handles no description, null relation targets, and zero nodes; and no node_types', () => {
+    const graph = {
+      nodes: new Map(),
+      aspects: [],
+      flows: [],
+      architecture: { node_types: { bare: { relations: { calls: null } } } },
+    } as unknown as Graph;
+    const [t] = buildTypes(graph);
+    expect(t.description).toBeUndefined(); // def.description ? {} : {} false arm
+    expect(t.allowedRelations['calls']).toEqual([]); // targets ?? []
+    expect(t.parents).toEqual([]); // def.parents ?? []
+    expect(t.nodeCount).toBe(0); // countByType.get(id) ?? 0
+    const empty = { nodes: new Map(), aspects: [], flows: [], architecture: {} } as unknown as Graph;
+    expect(buildTypes(empty)).toEqual([]); // node_types ?? {}
+  });
+
+  it('displayPairState keeps an enforced refusal blocking, an advisory refusal a warning', () => {
+    expect(displayPairState('refused', 'enforced')).toBe('refused');
+    expect(displayPairState('refused', 'advisory')).toBe('warning');
+    expect(displayPairState('verified', 'enforced')).toBe('verified');
+  });
+
+  it('readPortalAsset rejects unsafe paths and serves committed assets with a content type', async () => {
+    expect(await readPortalAsset('')).toBeNull(); // empty after strip
+    expect(await readPortalAsset('//')).toBeNull(); // empty after leading-slash strip
+    expect(await readPortalAsset('../escape')).toBeNull(); // path traversal out of the asset root
+    expect(await readPortalAsset('no/such/file.js')).toBeNull(); // does not exist
+    expect((await readPortalAsset('tokens.css'))?.contentType).toBe('text/css; charset=utf-8');
+    expect((await readPortalAsset('js/namespace.js'))?.contentType).toBe('text/javascript; charset=utf-8');
+    expect((await readPortalAsset('shell.html'))?.contentType).toBe('text/html; charset=utf-8');
   });
 });
