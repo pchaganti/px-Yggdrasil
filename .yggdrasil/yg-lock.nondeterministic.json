@@ -191,7 +191,7 @@
       "file:source/cli/src/templates/portal/js/views/coverage-view.js": {"hash":"555fb29b7a17bf9685956875aa45bf5ead3b127e8345dab29716133f9ec89303","verdict":"approved"},
       "file:source/cli/src/templates/portal/js/views/flows-view.js": {"hash":"8e49bd2d09fad713925c28b1cc71615fe65e4c779c0fa7bc4a711767dfaa33eb","verdict":"approved"},
       "file:source/cli/src/templates/portal/js/views/overview-view.js": {"hash":"83fc988a2f0d1400913a1c6cdd7e97119b6f983bfdaed21464433d93ce17814b","verdict":"approved"},
-      "file:source/cli/src/templates/portal/js/views/panel-view.js": {"hash":"edd818f81442b7f2724a7c88d90c5689175b14879ceb79dc76730d738566b13e","verdict":"approved"},
+      "file:source/cli/src/templates/portal/js/views/panel-view.js": {"hash":"bf35b14ae5b0f13118ac066ca815965ac0601ee8469b8ffc9d4d19867c39f00e","verdict":"approved"},
       "file:source/cli/src/templates/portal/js/views/relations-matrix.js": {"hash":"3250ef9da3da7a895ffce47d41e2bfe72aa4a6704c34b05ec9ee3b7d2ebbfdc8","verdict":"approved"},
       "file:source/cli/src/templates/portal/js/views/relations-view.js": {"hash":"66bb915b6ba520949feb5f8e956633d71c7f846db787e486ec1108b81e133a26","verdict":"approved"},
       "file:source/cli/src/templates/portal/js/views/rulebook-view.js": {"hash":"e34cde2ad8acb07951daea97e2e28614460a80f0248a1003bed71d073235f9b1","verdict":"approved"},

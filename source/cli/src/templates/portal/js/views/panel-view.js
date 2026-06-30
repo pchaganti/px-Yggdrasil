@@ -61,7 +61,12 @@
         c.appendChild(dom.el('span', 'mono', a.foldedInputs[i]));
         drill.appendChild(c);
       }
-      drill.appendChild(dom.el('div', 'pan-caveat', 'Tier config may be locally overridden via a secrets overlay; only the tier name is hashed. Shown values come from committed config only.'));
+      // The tier/secrets-overlay caveat is about the LLM reviewer's tier ONLY.
+      // A deterministic check has no tier/reviewer, so the note is irrelevant
+      // (and misleading) there — gate it to LLM aspects.
+      if (a.kind === 'llm') {
+        drill.appendChild(dom.el('div', 'pan-caveat', 'Tier config may be locally overridden via a secrets overlay; only the tier name is hashed. Shown values come from committed config only.'));
+      }
       row.appendChild(drill);
     } else if (a.pairState === 'refused' && a.reason) {
       var q = dom.el('blockquote', 'pan-reason', a.reason);
