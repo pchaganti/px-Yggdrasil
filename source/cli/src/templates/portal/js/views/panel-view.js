@@ -159,13 +159,19 @@
   }
 
   /**
-   * Render the attestation panel for `route.node` into the shell panel element. `ctx.navigate`
-   * routes the panel's links (relation rows, aspect names, the no-rule → Type Model door).
-   * When the route names no node, the panel closes. Returns nothing.
+   * Render the shared inspector panel. `route.node` opens a NODE's attestation (below);
+   * `route.aspect` opens a RULE's detail (delegated to the panel-aspect module — the aspect-side
+   * mirror). `ctx.navigate` routes the panel's links. When the route names neither, the panel
+   * closes. Returns nothing.
    */
   Yg.views.panel = function (panel, route, data, ctx) {
     var nav = ctx && ctx.navigate ? ctx.navigate : function () {};
     dom.clear(panel);
+    if (route && route.aspect && !route.node && Yg.panelAspect) {
+      panel.classList.add('open');
+      Yg.panelAspect(panel, route, data, nav);
+      return;
+    }
     if (!route || !route.node) {
       panel.classList.remove('open');
       return;

@@ -31,6 +31,38 @@
   color: var(--text-primary);
   background: var(--surface-2);
 }
+/* Aspect inspector: a flex badge row, and the rule prose as a wrapped, scrollable mono block. */
+.pan-aspect .pan-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.pan-rule {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface-1);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-height: 340px;
+  overflow-y: auto;
+}
+.pan-rule-h {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0 0 6px;
+}
+.pan-rule-code {
+  font-size: 11px;
+  max-height: 420px;
+}
 .pan-title {
   display: flex;
   align-items: center;

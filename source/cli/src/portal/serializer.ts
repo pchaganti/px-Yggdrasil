@@ -95,6 +95,7 @@ const MODULE_ORDER = [
   'js/views/flows-view.js',
   'js/views/suppressions-view.js',
   'js/views/start-view.js',
+  'js/views/panel-aspect.js',
   'js/views/panel-view.js',
   'js/bootstrap.js',
 ];

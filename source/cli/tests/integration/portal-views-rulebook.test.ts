@@ -62,6 +62,7 @@ const MODULES = [
   'views/flows-view.js',
   'views/suppressions-view.js',
   'views/start-view.js',
+  'views/panel-aspect.js',
   'views/panel-view.js',
 ];
 
@@ -287,19 +288,22 @@ describe('portal Phase-4 chunk-2 view modules (real source, real data)', () => {
     expect(text).toContain(reason);
   });
 
-  it('V5 expands a selected aspect into honest per-node cells that route to the panel', async () => {
+  it('V5 opens a selected aspect in the inspector panel with honest per-node cells that route', async () => {
     const Yg = await loadYg();
-    const stage = makeNode('div');
+    const panel = makeNode('div');
     const routes: Array<Record<string, string>> = [];
-    Yg.views.rulebook(stage, { view: 'rulebook', aspect: 'no-todo-comments' }, fixture, {
+    // The aspect detail is the aspect-side mirror of the node attestation: it renders in the
+    // SHARED panel (Yg.views.panel) for an aspect route, not inline in the rulebook list.
+    Yg.views.panel(panel, { view: 'rulebook', aspect: 'no-todo-comments' }, fixture, {
       navigate: (r: Record<string, string>) => routes.push(r),
     });
-    expect(classesIn(stage).has('rb-expand')).toBe(true);
+    expect(classesIn(panel).has('pan-aspect')).toBe(true);
+    expect(classesIn(panel).has('rb-cell')).toBe(true);
     // A node cell carries an honest state badge and routes to that node's panel (V5 → SHELL-panel).
-    expect(clickFirst(stage, (n) => n.classList && n.classList.contains('rb-cell'))).toBe(true);
+    expect(clickFirst(panel, (n) => n.classList && n.classList.contains('rb-cell'))).toBe(true);
     expect(routes.some((r) => r.view === 'tree' && typeof r.node === 'string')).toBe(true);
     // No cell fabricates a green class.
-    expect(classesIn(stage).has('state-green')).toBe(false);
+    expect(classesIn(panel).has('state-green')).toBe(false);
   });
 
   // ── V6 Type Model ───────────────────────────────────────────────────────────

@@ -53,6 +53,7 @@ function buildAspect(def: AspectDef, graph: Graph, states: PortalPairState[]): P
   const status = def.status ?? 'enforced';
   const scope: 'node' | 'file' = def.scope?.per === 'file' ? 'file' : 'node';
   const ruleProse = def.artifacts.find((a) => a.filename === 'content.md')?.content;
+  const checkSource = def.artifacts.find((a) => a.filename === 'check.mjs')?.content;
 
   return {
     id: def.id,
@@ -62,7 +63,9 @@ function buildAspect(def: AspectDef, graph: Graph, states: PortalPairState[]): P
     scope,
     hasWhen: def.when !== undefined,
     implies: def.implies ?? [],
+    ...(def.description !== undefined ? { description: def.description } : {}),
     ...(ruleProse !== undefined ? { ruleProse } : {}),
+    ...(checkSource !== undefined ? { checkSource } : {}),
     tally: buildTally(def, graph, status, states),
   };
 }

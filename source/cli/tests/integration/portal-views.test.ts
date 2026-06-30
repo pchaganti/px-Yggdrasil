@@ -41,6 +41,7 @@ const MODULES = [
   'views/tree-view.js',
   'views/relations-matrix.js',
   'views/relations-view.js',
+  'views/panel-aspect.js',
   'views/panel-view.js',
 ];
 

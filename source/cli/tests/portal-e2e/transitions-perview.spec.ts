@@ -104,13 +104,15 @@ test.describe('§3a D — V4 Relations transitions', () => {
 });
 
 test.describe('§3a D — V5 Rulebook transitions', () => {
-  test('aspect row → detail (in-view) → node cell → SHELL-panel', async ({ page, basicPage }) => {
+  test('aspect row → detail (inspector panel) → node cell → SHELL-panel', async ({ page, basicPage }) => {
     await page.goto(basicPage + '#/view/rulebook');
-    // Click the aspect id to expand its detail (in-view), then a node cell → panel.
+    // Click the aspect id: its detail opens in the shared inspector panel (not inline), then a
+    // node cell in that panel re-targets the panel to the node's own attestation.
     await page.locator('.rb-idbtn', { hasText: 'no-todo-comments' }).click();
-    await expect(page.locator('.rb-expand')).toBeVisible();
-    await page.locator('.rb-cell').first().click();
     const panel = page.locator('.app-panel');
+    await expect(panel).toHaveClass(/open/);
+    await expect(panel.locator('.pan-aspect')).toContainText('no-todo-comments');
+    await panel.locator('.rb-cell').first().click();
     await expect(panel).toHaveClass(/open/);
     await expect(panel.locator('.pan-path')).toHaveText(/api\/(orders|users)/);
   });

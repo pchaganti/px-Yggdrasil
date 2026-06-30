@@ -88,7 +88,7 @@
       nav(selected ? { view: 'rulebook' } : { view: 'rulebook', aspect: a.id });
     });
     idCell.appendChild(idBtn);
-    var prose = a.ruleProse ? firstLine(a.ruleProse) : a.name;
+    var prose = a.description || (a.ruleProse ? firstLine(a.ruleProse) : '') || a.name;
     if (prose) idCell.appendChild(dom.el('span', 'rb-desc', prose));
     tr.appendChild(idCell);
 
@@ -124,74 +124,6 @@
     return '';
   }
 
-  /**
-   * The honest per-node cell list for the selected aspect: every node the aspect lands on,
-   * each carrying its own verdict state (verified / refused / unverified / waived / n-a). Each
-   * cell routes to that node's attestation panel (§3a V5: node cell → SHELL-panel).
-   */
-  function expansion(aspect, data, nav) {
-    var box = dom.el('div', 'rb-expand');
-    box.appendChild(dom.el('h5', null, aspect.id + ' — every node it lands on (honest cells)'));
-
-    var cells = dom.el('div', 'rb-cells');
-    var found = 0;
-    var nodes = data.nodes || [];
-    for (var i = 0; i < nodes.length; i += 1) {
-      var node = nodes[i];
-      var eff = (node.effectiveAspects || []).filter(function (e) {
-        return e.aspectId === aspect.id;
-      })[0];
-      var na = !eff
-        ? (node.notApplicable || []).filter(function (e) {
-            return e.aspectId === aspect.id;
-          })[0]
-        : null;
-      if (!eff && !na) continue;
-      found += 1;
-      cells.appendChild(nodeCell(node, eff, na, nav));
-    }
-    if (found === 0) {
-      cells.appendChild(
-        dom.el('p', 'rb-empty', 'This rule lands on no node right now — it verifies nothing. Not a pass.'),
-      );
-    }
-    box.appendChild(cells);
-    box.appendChild(cellLegend());
-    return box;
-  }
-
-  /** One honest node cell: the node's verdict state badge + path, routing to its panel. */
-  function nodeCell(node, eff, na, nav) {
-    var state = na ? 'not-applicable' : pairToState(eff);
-    var cell = dom.el('button', 'rb-cell ' + Yg.states.cssClass(state));
-    cell.type = 'button';
-    cell.appendChild(Yg.states.badge(state));
-    cell.appendChild(dom.el('span', 'mono', node.path));
-    cell.appendChild(dom.el('span', 'rb-cell-st', Yg.states.label(state)));
-    cell.addEventListener('click', function () {
-      nav({ view: 'tree', node: node.path });
-    });
-    return cell;
-  }
-
-  /** Map a pair state to an honest render state (a suppressed pair reads as waived). */
-  function pairToState(eff) {
-    if (!eff) return 'no-rule';
-    if (eff.pairState === 'n/a') return 'not-applicable';
-    return eff.pairState;
-  }
-
-  function cellLegend() {
-    var box = dom.el('div', 'rb-legend');
-    var states = ['verified', 'refused', 'unverified', 'suppressed', 'not-applicable'];
-    for (var i = 0; i < states.length; i += 1) {
-      var k = dom.el('span', 'rb-legend-k');
-      k.appendChild(Yg.states.badge(states[i]));
-      k.appendChild(dom.el('span', null, Yg.states.label(states[i])));
-      box.appendChild(k);
-    }
-    return box;
-  }
 
   function counts(aspects) {
     var llm = 0;
@@ -228,17 +160,8 @@
       var isSel = aspects[i].id === selectedId;
       if (isSel) selectedAspect = aspects[i];
       tbody.appendChild(aspectRow(aspects[i], isSel, nav));
-      // Inline accordion: the selected rule's detail opens directly UNDER its own row (a
-      // full-width expansion row), so the detail is visible AT the clicked rule, never pushed
-      // below the entire list. Keyboard-navigable (the id button toggles it; cells are buttons).
-      if (isSel) {
-        var exRow = dom.el('tr', 'rb-expand-row');
-        var exCell = dom.el('td', 'rb-expand-cell');
-        exCell.setAttribute('colspan', '6');
-        exCell.appendChild(expansion(aspects[i], data, nav));
-        exRow.appendChild(exCell);
-        tbody.appendChild(exRow);
-      }
+      // The selected rule's full detail opens in the shared inspector panel (the aspect-side
+      // mirror of the node attestation), reached via the #/aspect/<id> route — not inline here.
     }
     table.appendChild(tbody);
     stage.appendChild(table);

@@ -200,8 +200,12 @@ export interface PortalAspect {
   hasWhen: boolean;
   /** Aspect ids this aspect includes recursively (channel 7). */
   implies: string[];
+  /** The human description from the aspect's yg-aspect.yaml (a one-to-few-line summary). */
+  description?: string;
   /** The rule prose (content.md) for an LLM aspect; absent for deterministic/aggregate. */
   ruleProse?: string;
+  /** The deterministic check source (check.mjs) for a deterministic aspect; absent otherwise. */
+  checkSource?: string;
   tally: PortalAspectTally;
 }
 

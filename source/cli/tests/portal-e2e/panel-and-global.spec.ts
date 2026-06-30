@@ -49,13 +49,15 @@ test.describe('§3a SHELL-panel — Node Attestation + global transitions', () =
     await expect(aspRow).toContainText('not a stale pass');
   });
 
-  test('the effective-aspect name routes to V5 aspect detail', async ({ page, basicPage }) => {
+  test('the effective-aspect name opens the rule in the inspector panel', async ({ page, basicPage }) => {
     await page.goto(basicPage + '#/node/api%2Forders');
     await page.locator('.app-panel .pan-aspname', { hasText: 'no-todo-comments' }).click();
     await expect(page).toHaveURL(/#\/aspect\/no-todo-comments/);
-    // The rulebook opened with that aspect selected/expanded.
-    await expect(page.locator('.rb-expand')).toBeVisible();
-    await expect(page.locator('.rb-expand')).toContainText('no-todo-comments');
+    // The shared inspector panel now shows that rule's detail (the aspect-side attestation),
+    // not the node — one detail surface for both entity kinds.
+    const panel = page.locator('.app-panel');
+    await expect(panel).toHaveClass(/open/);
+    await expect(panel.locator('.pan-aspect')).toContainText('no-todo-comments');
   });
 
   test('a "Depended on by" / "Depends on" relation row re-targets the panel', async ({ page, repoPage }) => {
