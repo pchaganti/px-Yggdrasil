@@ -190,7 +190,15 @@
     var selected = flows.filter(function (f) {
       return f.name === selectedName;
     })[0];
-    layout.appendChild(detail(selected || flows[0], data, nav));
+    if (route && route.flow && !selected) {
+      // A deep-link to a flow that no longer exists — say so honestly instead of silently
+      // presenting a DIFFERENT flow as if the link had resolved.
+      var nf = dom.el('div', 'fl-detail');
+      nf.appendChild(dom.el('p', 'rb-empty', 'No flow named "' + route.flow + '" — it may have been removed.'));
+      layout.appendChild(nf);
+    } else {
+      layout.appendChild(detail(selected || flows[0], data, nav));
+    }
     stage.appendChild(layout);
   };
 })();

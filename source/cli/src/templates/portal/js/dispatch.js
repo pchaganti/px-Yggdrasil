@@ -139,6 +139,14 @@
     dom.clear(stage);
     stage.appendChild(renderCounts(data));
 
+    // A stale / mistyped hash degraded to overview — say so honestly rather than letting the
+    // redirect read as a successful navigation (the router carries the requested-but-unknown token).
+    if (route && route.notFound) {
+      var nf = dom.el('div', 'stage-notfound');
+      nf.appendChild(dom.el('span', null, 'Nothing at “' + route.notFound + '” — showing Overview.'));
+      stage.appendChild(nf);
+    }
+
     var view = route.view || 'overview';
     var info = VIEW_INFO[view] || VIEW_INFO.overview;
 

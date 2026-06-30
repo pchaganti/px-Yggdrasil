@@ -51,6 +51,16 @@
 .stage-intro {
   margin-bottom: 14px;
 }
+.stage-notfound {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--unverified);
+  border-radius: 8px;
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
 .stage-vtitle {
   font-size: 16px;
   margin: 0 0 2px;

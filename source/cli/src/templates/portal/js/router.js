@@ -75,7 +75,8 @@
 
     if (kind === 'view') {
       var id = segs[1];
-      return { view: isKnownView(id) ? id : 'overview' };
+      if (isKnownView(id)) return { view: id };
+      return { view: 'overview', notFound: id || '(none)' };
     }
 
     if (kind === 'node' && segs[1]) {
@@ -99,7 +100,9 @@
     // Bare `#/view-id` shorthand (no `view/` prefix) — accept a known view id directly.
     if (isKnownView(kind)) return { view: kind };
 
-    return { view: 'overview' };
+    // An unrecognized hash — degrade to overview but carry the requested token so the page can
+    // say "nothing here" honestly, instead of silently presenting overview as if it resolved.
+    return { view: 'overview', notFound: segs.join('/') };
   }
 
   function enc(seg) {

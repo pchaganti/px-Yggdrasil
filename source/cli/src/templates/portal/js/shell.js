@@ -106,7 +106,9 @@
       brand.appendChild(logo);
     }
     brand.appendChild(dom.el('b', null, 'Yggdrasil'));
-    brand.appendChild(dom.el('span', 'rail-brand-sub', data.meta.writeEnabled ? 'live view' : 'view-only'));
+    // A static export is a frozen snapshot (no server), not a live view — say so honestly.
+    var brandSub = !Yg.consumer.isServed() ? 'snapshot' : data.meta.writeEnabled ? 'live view' : 'view-only';
+    brand.appendChild(dom.el('span', 'rail-brand-sub', brandSub));
     brand.addEventListener('click', function () {
       handlers.onNavigate('overview');
     });
@@ -162,7 +164,15 @@
     var live = dom.el('span', 'topbar-live');
     var dot = dom.el('span', 'topbar-dot');
     live.appendChild(dot);
-    var liveText = dom.el('span', null, data.meta.writeEnabled ? 'Live · re-checks free on refresh' : 'View-only');
+    var liveText = dom.el(
+      'span',
+      null,
+      !Yg.consumer.isServed()
+        ? 'Exported snapshot — re-run yg portal for a live view'
+        : data.meta.writeEnabled
+          ? 'Live · re-checks free on refresh'
+          : 'View-only',
+    );
     live.appendChild(liveText);
     bar.appendChild(live);
 
@@ -172,6 +182,12 @@
     var spacer = dom.el('span', 'topbar-spacer');
     bar.appendChild(spacer);
 
+    // Refresh and Approve are live ONLY when the page is served by `yg portal`. On a static
+    // export they cannot reach the server, so they are disabled UP FRONT with a plain reason
+    // (never click-to-discover), and the page never presents a write it cannot perform.
+    var served = Yg.consumer.isServed();
+    var staticReason = 'Available only when the portal is served by `yg portal` — this is a read-only export.';
+
     var refresh = dom.el('button', 'btn topbar-refresh');
     refresh.type = 'button';
     refresh.appendChild(dom.el('span', null, '↻ Refresh'));
@@ -179,12 +195,21 @@
     refresh.addEventListener('click', function () {
       handlers.onRefresh();
     });
-    if (!Yg.consumer.isServed()) refresh.disabled = true;
+    if (!served) {
+      refresh.disabled = true;
+      refresh.title = staticReason;
+      refresh.setAttribute('aria-label', 'Refresh — ' + staticReason);
+    }
     bar.appendChild(refresh);
 
     var approve = dom.el('button', 'btn primary topbar-approve', '✓ Approve');
     approve.type = 'button';
-    approve.disabled = !data.meta.writeEnabled;
+    approve.disabled = !data.meta.writeEnabled || !served;
+    if (approve.disabled) {
+      var approveReason = !served ? staticReason : 'View-only mode (--no-write) — approving is disabled.';
+      approve.title = approveReason;
+      approve.setAttribute('aria-label', '✓ Approve — ' + approveReason);
+    }
     approve.addEventListener('click', function () {
       handlers.onApprove();
     });

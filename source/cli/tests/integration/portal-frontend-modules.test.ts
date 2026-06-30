@@ -190,8 +190,9 @@ describe('portal frontend modules (real source, real fixture data)', () => {
     // A node path's slashes survive the encode/decode.
     const deep = router.serialize({ view: 'tree', node: 'a/b/c/d' });
     expect(router.parse(deep)).toEqual({ view: 'tree', node: 'a/b/c/d' });
-    // An unknown view id degrades to overview (never a blank page).
-    expect(router.parse('#/view/does-not-exist')).toEqual({ view: 'overview' });
+    // An unknown view id degrades to overview (never a blank page) but carries the unknown token
+    // so the page can say "nothing here" honestly instead of a silent redirect.
+    expect(router.parse('#/view/does-not-exist')).toEqual({ view: 'overview', notFound: 'does-not-exist' });
   });
 
   it('the ⌘K palette fuzzy-matches and routes real fixture entities', async () => {

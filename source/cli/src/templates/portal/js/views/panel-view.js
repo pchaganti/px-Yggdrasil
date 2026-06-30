@@ -68,9 +68,14 @@
         drill.appendChild(dom.el('div', 'pan-caveat', 'Tier config may be locally overridden via a secrets overlay; only the tier name is hashed. Shown values come from committed config only.'));
       }
       row.appendChild(drill);
-    } else if (a.pairState === 'refused' && a.reason) {
-      var q = dom.el('blockquote', 'pan-reason', a.reason);
-      row.appendChild(q);
+    } else if ((a.pairState === 'refused' || a.pairState === 'warning') && a.reason) {
+      // A refusal — blocking (enforced, 'refused') OR non-blocking (advisory, 'warning') — must
+      // cite the reviewer's reason here, the canonical per-node attestation surface. An advisory
+      // refusal additionally states it does not block, so a warning reads honestly on its own.
+      row.appendChild(dom.el('blockquote', 'pan-reason', a.reason));
+      if (a.pairState === 'warning') {
+        row.appendChild(dom.el('div', 'pan-caveat', 'Advisory rule — non-blocking signal, not a pass and not a clean check.'));
+      }
     } else if (a.pairState === 'unverified') {
       row.appendChild(dom.el('div', 'pan-caveat', 'Inputs changed or were never checked — not a stale pass. Run the reviewer to confirm.'));
     }

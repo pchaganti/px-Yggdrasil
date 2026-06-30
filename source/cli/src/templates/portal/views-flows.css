@@ -216,8 +216,10 @@
   white-space: nowrap;
 }
 .sup-flag-wild {
-  color: var(--refused);
-  background: var(--refused-bg);
+  /* A waiver RISK flag, not a verdict — kept off the reserved refused-verdict red so a risky
+     waiver never reads as a failed check. Amber, matching the sibling unbounded-range flag. */
+  color: var(--unverified);
+  background: var(--unverified-bg);
 }
 .sup-flag-unb {
   color: var(--unverified);
