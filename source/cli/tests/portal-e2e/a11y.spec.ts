@@ -35,10 +35,16 @@ test.describe('accessibility — ARIA, keyboard, Canvas mirror, reduced-motion',
     basicPage,
   }) => {
     await page.goto(basicPage);
-    // The legend renders all nine states; each badge is role="img" with an aria-label.
+    // The honest key is the pinned collapsible legend bar. Its always-visible compact chips
+    // carry all nine states (the expanded grid repeats them with full descriptions), so the
+    // compact row is exactly nine distinct chips — never a state collapsed away.
+    const chipBadges = page.locator('.legend-chip .state-glyph');
+    await expect(chipBadges).toHaveCount(9);
+    // EVERY badge in the legend bar (the compact chips AND the expanded descriptions) is
+    // role="img" with a non-empty aria-label and a glyph — state is never colour-only.
     const badges = page.locator('.legend .state-glyph');
-    await expect(badges).toHaveCount(9);
     const count = await badges.count();
+    expect(count, 'the legend bar carries the compact chips plus the expandable descriptions').toBeGreaterThanOrEqual(9);
     for (let i = 0; i < count; i += 1) {
       const b = badges.nth(i);
       await expect(b).toHaveAttribute('role', 'img');

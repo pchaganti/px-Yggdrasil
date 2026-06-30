@@ -35,15 +35,18 @@ async function navTo(page: import('@playwright/test').Page, label: string) {
 
 /** Assert the honest-state legend (the palette) is present with every state shown distinctly. */
 async function expectHonestPalette(page: import('@playwright/test').Page) {
-  const legend = page.locator('.legend');
+  // The honest key is the single pinned legend bar (present once, not re-rendered per view).
+  const legend = page.locator('.legend-bar');
+  await expect(legend).toHaveCount(1);
   await expect(legend).toBeVisible();
-  // The nine honest states each render as a legend item with a glyph badge + label.
-  const items = page.locator('.legend .legend-item');
-  await expect(items).toHaveCount(9);
+  // Its always-visible compact row shows all nine honest states as distinct glyph+label chips;
+  // the expandable grid repeats them with full descriptions. Neither collapses a state away.
+  await expect(page.locator('.legend-chip')).toHaveCount(9);
+  await expect(page.locator('.legend .legend-item')).toHaveCount(9);
   // "verified" is the only green and must be labelled as the only green.
-  await expect(page.locator('.legend')).toContainText('verified');
-  await expect(page.locator('.legend')).toContainText('no rule');
-  await expect(page.locator('.legend')).toContainText('live boundary');
+  await expect(legend).toContainText('verified');
+  await expect(legend).toContainText('no rule');
+  await expect(legend).toContainText('live boundary');
 }
 
 test.describe('§3a views V1–V9 — render real data + honest palette', () => {

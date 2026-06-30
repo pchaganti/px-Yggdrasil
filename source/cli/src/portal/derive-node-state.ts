@@ -20,14 +20,20 @@ import type { SuppressionsByFile } from './derive-nodes.js';
  * stays under the focused-file cap; the rank tables live here as the single source of truth.
  */
 
+// Display-state ranks. `warning` is the status-adjusted rendering of an advisory refusal:
+// it is WORSE than a clean `verified` (so a unit advisory-refusal promotes the node to
+// warning) but never outranks a real blocking `refused` or an `unverified`, mirroring the
+// node-level STATE_RANK ordering below. This keeps an advisory refusal honest — signal, not a
+// blocking "no" — without ever letting it read as green.
 const PAIR_RANK: Record<PortalPairState, number> = {
-  refused: 3,
-  unverified: 2,
+  refused: 4,
+  unverified: 3,
+  warning: 2,
   verified: 1,
   'n/a': 0,
 };
 
-/** The worst (highest-rank) pair state across an aspect's units on a node. */
+/** The worst (highest-rank) display pair state across an aspect's units on a node. */
 export function worstPairState(states: PortalPairState[]): PortalPairState {
   return states.reduce((worst, s) => (PAIR_RANK[s] > PAIR_RANK[worst] ? s : worst), 'verified');
 }
@@ -48,10 +54,13 @@ const STATE_RANK: Record<PortalState, number> = {
  * actually checks it). A checked node otherwise reads the worst pair state across its
  * aspects, then promoted
  * to `warning` when a node-scoped advisory issue (e.g. high-fan-out) applies but
- * no pair is refused/unverified. An enforced error issue surfaces as `refused`
- * only when it is a code refusal pair; structural/coverage node issues that are
- * errors are reflected by the worklist, not the node's own pill, except advisory
- * warnings which promote a clean node to `warning`.
+ * no pair is refused/unverified. A `warning` pair state — the status-adjusted rendering
+ * of an ADVISORY refusal — likewise promotes an otherwise-clean node to `warning`; it
+ * never reddens the node, because an advisory refusal is non-blocking signal, not a
+ * blocking "no". An enforced error issue surfaces as `refused` only when it is a code
+ * refusal pair; structural/coverage node issues that are errors are reflected by the
+ * worklist, not the node's own pill, except advisory warnings which promote a clean node
+ * to `warning`.
  *
  * The file-aware loop overrides last: when the node's source has CHANGED since its
  * last positive closure (`fresh`), its state is forced to at least `unverified` —
@@ -70,8 +79,11 @@ export function computeOwnState(
 
   if (checked) {
     for (const ea of effectiveAspects) {
+      // pairState is already status-adjusted: an advisory refusal reads `warning`, so it
+      // promotes the node to `warning` and never to a blocking `refused`.
       if (ea.pairState === 'refused' && STATE_RANK['refused'] > STATE_RANK[worst]) worst = 'refused';
       else if (ea.pairState === 'unverified' && STATE_RANK['unverified'] > STATE_RANK[worst]) worst = 'unverified';
+      else if (ea.pairState === 'warning' && STATE_RANK['warning'] > STATE_RANK[worst]) worst = 'warning';
     }
 
     // A node-scoped warning issue (advisory) promotes an otherwise-clean node to

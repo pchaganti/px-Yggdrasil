@@ -66,13 +66,44 @@
     return chip;
   }
 
-  /** The always-visible honest legend — every state by color + glyph + plain label. */
-  function renderLegend() {
-    var box = dom.el('section', 'legend');
-    box.appendChild(dom.el('h2', 'legend-h', 'The honest key'));
-    var grid = dom.el('div', 'legend-grid');
+  /**
+   * The honest key as ONE compact, collapsible bar pinned to the bottom of the viewport — built
+   * ONCE by the shell, never re-rendered inside a view's scrolling stage. Collapsed it is a single
+   * row of state glyph+label chips; the toggle expands it to the full plain-language descriptions
+   * (the same text as the chips' titles). Every state stays distinct (color + glyph + label) and
+   * a11y intact — each badge is role="img" with an aria-label from the shared honest-state model,
+   * so the key never collapses any state into one green.
+   */
+  function buildLegendBar() {
+    var bar = dom.el('aside', 'legend legend-bar');
+    bar.setAttribute('aria-label', 'The honest key — what each state colour and glyph means');
+
+    var head = dom.el('div', 'legend-bar-head');
+    var toggle = dom.el('button', 'legend-toggle');
+    toggle.type = 'button';
+    toggle.setAttribute('aria-expanded', 'false');
+    var caret = dom.el('span', 'legend-caret', '▸');
+    toggle.appendChild(caret);
+    toggle.appendChild(dom.el('span', 'legend-h', 'The honest key'));
+    head.appendChild(toggle);
+
+    // Collapsed chips — one per state, glyph + plain label, the full description as a title.
+    var chips = dom.el('div', 'legend-chips');
     for (var i = 0; i < Yg.states.ORDER.length; i += 1) {
-      var state = Yg.states.ORDER[i];
+      var s = Yg.states.ORDER[i];
+      var chip = dom.el('span', 'legend-chip ' + Yg.states.cssClass(s));
+      chip.appendChild(Yg.states.badge(s));
+      chip.appendChild(dom.el('span', 'legend-chip-l', Yg.states.label(s)));
+      chip.setAttribute('title', Yg.states.plain(s));
+      chips.appendChild(chip);
+    }
+    head.appendChild(chips);
+    bar.appendChild(head);
+
+    // Expanded detail — the full plain-language descriptions, the same text as the legacy key.
+    var grid = dom.el('div', 'legend-grid');
+    for (var j = 0; j < Yg.states.ORDER.length; j += 1) {
+      var state = Yg.states.ORDER[j];
       var item = dom.el('div', 'legend-item ' + Yg.states.cssClass(state));
       item.appendChild(Yg.states.badge(state));
       var t = dom.el('div', 'legend-text');
@@ -81,17 +112,28 @@
       item.appendChild(t);
       grid.appendChild(item);
     }
-    box.appendChild(grid);
-    return box;
+    bar.appendChild(grid);
+
+    toggle.addEventListener('click', function () {
+      var open = bar.classList.contains('legend-open');
+      if (open) bar.classList.remove('legend-open');
+      else bar.classList.add('legend-open');
+      toggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+      caret.textContent = open ? '▸' : '▾';
+    });
+
+    return bar;
   }
 
   /**
    * Render the view named by `route.view` into `stage`. `onSelect(path)` routes a node to its
    * attestation panel; `navigate(route)` is the general router hop the views wire their §3a
    * transitions through (falls back to onSelect-shaped navigation when absent). Every view gets
-   * the honest count header and the shared honest legend; the body is rendered by the matching
-   * Yg.views.<view> module. A view with no registered renderer yet gets an honest scaffold, so a
-   * not-yet-built surface is never mistaken for a clean pass.
+   * the honest count header; the body is rendered by the matching Yg.views.<view> module. The
+   * shared honest legend is NOT appended here — it lives once, as the pinned collapsible legend
+   * bar the shell mounts (buildLegendBar), so it is never re-rendered inside a view's scrolling
+   * stage. A view with no registered renderer yet gets an honest scaffold, so a not-yet-built
+   * surface is never mistaken for a clean pass.
    */
   function render(stage, route, data, onSelect, navigate) {
     dom.clear(stage);
@@ -118,11 +160,14 @@
     if (typeof renderer === 'function') {
       renderer(body, route, data, { onSelect: onSelect, navigate: nav });
     } else {
-      body.appendChild(dom.el('p', 'stage-note', 'This surface is rendered in a later phase. Below is the honest key every view shares.'));
+      body.appendChild(dom.el('p', 'stage-note', 'This surface is rendered in a later phase. The honest key for every state is in the pinned bar at the bottom of the page.'));
     }
-
-    stage.appendChild(renderLegend());
   }
 
-  Yg.dispatch = { render: render, VIEW_INFO: VIEW_INFO, _renderCounts: renderCounts, _renderLegend: renderLegend };
+  Yg.dispatch = {
+    render: render,
+    VIEW_INFO: VIEW_INFO,
+    _renderCounts: renderCounts,
+    buildLegendBar: buildLegendBar,
+  };
 })();

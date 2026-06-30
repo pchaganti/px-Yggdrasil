@@ -49,11 +49,27 @@ describe('portal catalogue derivation (aspects / flows / types) — real repo', 
     }
   });
 
-  it('each normal aspect tally sums V+R+U to its unit count', () => {
+  it('each normal aspect tally sums V+R+W+U to its unit count', () => {
+    // The tally is status-adjusted: an advisory refusal counts as `warning`, kept distinct from
+    // the blocking `refused`, so the four buckets together account for every unit.
     for (const a of aspects) {
       if (a.tally.render === 'normal') {
-        expect(a.tally.verified + a.tally.refused + a.tally.unverified).toBe(a.tally.units);
+        expect(a.tally.verified + a.tally.refused + a.tally.warning + a.tally.unverified).toBe(a.tally.units);
       }
+    }
+  });
+
+  it('an advisory aspect with a refused unit tallies it as a warning, never a blocking refused', () => {
+    // On the real repo `portal/focused-file-exports` is an ADVISORY deterministic aspect that
+    // refuses a unit (5 exports > advisory cap 4). Its tally must show that as a `warning`, not a
+    // blocking `refused` — the same honesty the count chips and node pills enforce.
+    const fileExports = aspects.find((a) => a.id === 'portal/focused-file-exports');
+    expect(fileExports).toBeDefined();
+    expect(fileExports!.status).toBe('advisory');
+    expect(fileExports!.tally.render).toBe('normal');
+    if (fileExports!.tally.render === 'normal') {
+      expect(fileExports!.tally.refused).toBe(0); // advisory refusal never inflates the blocking bucket
+      expect(fileExports!.tally.warning).toBeGreaterThanOrEqual(1);
     }
   });
 
@@ -183,9 +199,14 @@ describe('portal catalogue — honest renderings on the branches the real graph 
 function detAspect(id: string, status: AspectDef['status'] = 'enforced'): AspectDef {
   return { name: id, id, reviewer: { type: 'deterministic' }, artifacts: [], status } as unknown as AspectDef;
 }
-function vpair(aspectId: string, nodePath: string, state: PairState): VerifiedPair {
+function vpair(
+  aspectId: string,
+  nodePath: string,
+  state: PairState,
+  status: AspectDef['status'] = 'enforced',
+): VerifiedPair {
   return {
-    pair: { aspectId, kind: 'deterministic', unitKey: nodeUnit(nodePath), nodePath, status: 'enforced', subjectFiles: ['f.ts'] },
+    pair: { aspectId, kind: 'deterministic', unitKey: nodeUnit(nodePath), nodePath, status, subjectFiles: ['f.ts'] },
     state,
   };
 }
@@ -209,8 +230,31 @@ describe('catalogue — tally + flow-state honest branches (synthetic)', () => {
     if (built.tally.render === 'normal') {
       expect(built.tally.verified).toBe(1);
       expect(built.tally.refused).toBe(1);
+      expect(built.tally.warning).toBe(0); // no advisory pair here
       expect(built.tally.unverified).toBe(2); // plain unverified + the gate state
       expect(built.tally.units).toBe(4);
+    }
+  });
+
+  it('an advisory aspect tallies a refused unit as a warning, never a blocking refused', () => {
+    // A refused verdict on an ADVISORY aspect is non-blocking signal: the tally counts it as a
+    // `warning`, keeping the blocking `refused` bucket at zero. An enforced refusal on the SAME
+    // aspect (if it had one) would still count as refused — status is per pair.
+    const a = detAspect('adv', 'advisory');
+    const n = gnode('n', ['adv'], ['f.ts']);
+    const graph = { nodes: new Map([['n', n]]), aspects: [a], flows: [], architecture: { node_types: {} } } as unknown as Graph;
+    const pairs = [
+      vpair('adv', 'n', { kind: 'verified' }, 'advisory'),
+      vpair('adv', 'n2', { kind: 'refused', reason: 'cap exceeded' }, 'advisory'),
+    ];
+    const [built] = buildAspects(graph, pairs);
+    expect(built.tally.render).toBe('normal');
+    if (built.tally.render === 'normal') {
+      expect(built.tally.verified).toBe(1);
+      expect(built.tally.refused).toBe(0); // the advisory refusal did NOT land in the blocking bucket
+      expect(built.tally.warning).toBe(1); // it is a non-blocking warning instead
+      expect(built.tally.unverified).toBe(0);
+      expect(built.tally.units).toBe(2);
     }
   });
 

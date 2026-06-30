@@ -5,8 +5,6 @@
  * from tokens.css (including the honest status palette); the only saturated color is a state.
  */
 
- */
-
 /* ── SHELL-panel: Node Attestation ───────────────────────────────────────── */
 .pan-head {
   border-bottom: 1px solid var(--border-subtle);

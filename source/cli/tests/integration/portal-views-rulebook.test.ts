@@ -464,12 +464,14 @@ describe('portal Phase-4 chunk-2 view modules (real source, real data)', () => {
 
   // ── Dispatcher integration ────────────────────────────────────────────────────
 
-  it('the dispatcher routes each new view to its renderer and always keeps the honest legend', async () => {
+  it('the dispatcher routes each new view to its renderer; the honest legend is the one pinned bar, not per view', async () => {
     const Yg = await loadYg();
     for (const view of ['rulebook', 'types', 'flows', 'suppressions', 'start']) {
       const stage = makeNode('div');
       Yg.dispatch.render(stage, { view }, fixture, () => undefined, () => undefined);
-      expect(classesIn(stage).has('legend'), `${view} keeps the honest legend`).toBe(true);
+      // The honest legend is the single pinned bar the shell mounts — not re-rendered inside a
+      // view's scrolling stage, so it can be pinned to the viewport bottom and never duplicated.
+      expect(classesIn(stage).has('legend'), `${view} does not re-render the legend in-stage`).toBe(false);
       expect(textOf(stage)).not.toMatch(/rendered in a later phase/i);
     }
   });

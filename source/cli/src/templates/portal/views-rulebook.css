@@ -148,12 +148,19 @@
   color: var(--unverified);
 }
 
-/* ── V5 per-aspect node-cell expansion ───────────────────────────────────── */
+/* ── V5 per-aspect node-cell expansion (inline accordion under the row) ───── */
+.rb-expand-row {
+  background: var(--surface-2);
+}
+.rb-expand-cell {
+  padding: 0 10px 12px !important;
+  border-bottom: 1px solid var(--border) !important;
+}
 .rb-expand {
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: 10px;
-  margin: 12px 0 4px;
+  margin: 4px 0;
   padding: 13px 15px;
 }
 .rb-expand h5 {

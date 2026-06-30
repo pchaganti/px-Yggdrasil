@@ -27,8 +27,18 @@ export const STATES = [
 
 export type PortalState = (typeof STATES)[number];
 
-/** The reviewer-pair states for a single (aspect, unit) pair. */
-export type PortalPairState = 'verified' | 'refused' | 'unverified' | 'n/a';
+/**
+ * The reviewer-pair DISPLAY states for a single (aspect, unit) pair — status-adjusted.
+ *
+ * `warning` is the status-adjusted rendering of a `refused` verdict on an ADVISORY aspect:
+ * per the honesty model, an advisory refusal is non-blocking signal, so it renders as a
+ * warning, NEVER as a blocking `refused` (which would contradict `yg check`). A
+ * refused+ENFORCED pair stays `refused` — a real, blocking "no". verified / unverified /
+ * n/a are unchanged. The transform lives in `displayPairState` (derive-nodes.ts); every
+ * surface that paints a pair state reads it through that one transform so no view can show
+ * an advisory refusal as a blocking refused.
+ */
+export type PortalPairState = 'verified' | 'refused' | 'unverified' | 'warning' | 'n/a';
 
 export interface PortalCounts {
   nodes: number;
@@ -39,8 +49,19 @@ export interface PortalCounts {
   pairsDet: number;
   // Pair states (a reviewer or check produced them).
   verified: number;
+  // ENFORCED refusals only — a real, blocking "no" that equals what `yg check` blocks on.
   refused: number;
   unverified: number;
+  /**
+   * Status-adjusted bucket: pairs whose verdict is `refused` but whose effective aspect status
+   * is ADVISORY. Per the honesty model an advisory refusal is non-blocking signal — it renders
+   * as a WARNING, never as a blocking `refused`, and it is ALREADY reflected in `warnings`
+   * (runCheck emits the advisory deterministic refusal as a warning issue). This bucket keeps
+   * the count-parity identity whole without double-counting: it is the refused-but-advisory
+   * pairs that left the `refused` bucket, so
+   * verified + refused + unverified + advisoryRefused === pairsTotal still holds.
+   */
+  advisoryRefused: number;
   // Non-pair track — kept structurally separate from the pair states above.
   noRule: number;
   draft: number;
@@ -154,14 +175,17 @@ export interface PortalNode {
 
 /**
  * Per-aspect tally with three HONEST renderings, never collapsed to one number:
- *   - normal     — V/R/U over the aspect's expected pairs (a reviewer/check produced them).
+ *   - normal     — V/R/W/U over the aspect's expected pairs (a reviewer/check produced them).
+ *                  `warning` is the status-adjusted count of refused-but-ADVISORY units — a
+ *                  non-blocking signal, kept distinct from a blocking `refused` so an advisory
+ *                  aspect's tally never paints a refusal red.
  *   - aggregate  — an aggregating bundle has no own reviewer: it "judges nothing".
  *   - vacuous    — a rule-bearing aspect that resolves to ZERO expected pairs
  *                  (no effective node, all-draft, or scope/when excludes everything):
  *                  it "verifies nothing". The `reason` explains why.
  */
 export type PortalAspectTally =
-  | { render: 'normal'; verified: number; refused: number; unverified: number; units: number }
+  | { render: 'normal'; verified: number; refused: number; warning: number; unverified: number; units: number }
   | { render: 'aggregate' }
   | { render: 'vacuous'; reason: string };
 

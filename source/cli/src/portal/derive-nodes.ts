@@ -11,6 +11,7 @@ import {
   type CheckIssue,
   type LockVerification,
   type VerifiedPair,
+  type PairState,
   type AspectStatus,
 } from './engine-api.js';
 import type {
@@ -51,6 +52,26 @@ import {
 export interface SuppressionsByFile {
   /** repo-rel POSIX file path → suppression entries detected in that file. */
   byFile: Map<string, PortalSuppression[]>;
+}
+
+/**
+ * The single status-adjustment transform: map a raw verdict kind + the pair's EFFECTIVE
+ * aspect status to the honest DISPLAY pair state, exactly as `yg check` renders it.
+ *
+ * A `refused` verdict on an ADVISORY aspect is non-blocking signal — it displays as `warning`,
+ * NEVER as a blocking `refused` (that would contradict `yg check`, which renders advisory
+ * refusals as warnings). A refused+ENFORCED pair stays `refused` (a real, blocking "no").
+ * `verified` stays `verified`; every other kind (unverified and the two fail-closed gate
+ * states prompt-too-large / companion-error) collapses to `unverified` — not green, not a
+ * code "no". This is the ONE place the portal turns a raw verdict into a displayed pair state;
+ * buildCounts, the per-node own-state, the effective-aspect rows, and the aspect tally all
+ * read it, so no surface can paint an advisory refusal as a blocking refused.
+ */
+export function displayPairState(rawKind: PairState['kind'], status: AspectStatus): PortalPairState {
+  if (rawKind === 'verified') return 'verified';
+  if (rawKind === 'refused') return status === 'advisory' ? 'warning' : 'refused';
+  // unverified | prompt-too-large | companion-error → not green, not a code "no".
+  return 'unverified';
 }
 
 /**
@@ -140,18 +161,20 @@ function indexPairsByNode(pairs: VerifiedPair[]): Map<string, Map<string, PairRe
   return out;
 }
 
-/** Collapse a VerifiedPair into a record: honest state (gate states → unverified) + drill-through data. */
+/**
+ * Collapse a VerifiedPair into a record: the status-adjusted DISPLAY state (an advisory
+ * refusal → `warning`, gate states → `unverified`) + drill-through data. The refusal `reason`
+ * is preserved for BOTH a blocking `refused` row and a status-adjusted `warning` row — an
+ * advisory refusal still carries the reviewer's "no" the panel renders, it just renders it as
+ * non-blocking signal.
+ */
 function toPairRecord(vp: VerifiedPair): PairRecord {
   const subjectFiles = vp.pair.subjectFiles ?? [];
-  switch (vp.state.kind) {
-    case 'verified':
-      return { state: 'verified', subjectFiles };
-    case 'refused':
-      return { state: 'refused', subjectFiles, reason: vp.state.reason };
-    default:
-      // unverified | prompt-too-large | companion-error → not green, not a code "no".
-      return { state: 'unverified', subjectFiles };
+  const state = displayPairState(vp.state.kind, vp.pair.status);
+  if (vp.state.kind === 'refused') {
+    return { state, subjectFiles, reason: vp.state.reason };
   }
+  return { state, subjectFiles };
 }
 
 /** Map nodePath → its node-scoped check issues (those carrying a nodePath). */
@@ -302,9 +325,11 @@ function buildEffectiveAspect(
     }
   }
 
-  // pairState: the worst per-unit state across this aspect's units on the node.
-  // An aggregate aspect has no pair → 'n/a'. A draft aspect produces no expected
-  // pair → 'n/a'. Otherwise collapse the unit states (refused > unverified > verified).
+  // pairState: the worst per-unit DISPLAY state across this aspect's units on the node. The
+  // records already carry the status-adjusted state (an advisory refusal reads `warning`), so a
+  // node with an advisory-refused unit reports `warning` here, never a blocking `refused`. An
+  // aggregate aspect has no pair → 'n/a'. A draft aspect produces no expected pair → 'n/a'.
+  // Otherwise collapse the unit states (refused > unverified > warning > verified).
   const records = nodePairs?.get(aspectId);
   const pairState: PortalPairState =
     aggregate || status === 'draft' || !records || records.length === 0
@@ -312,10 +337,11 @@ function buildEffectiveAspect(
       : worstPairState(records.map((r) => r.state));
 
   // Attestation drill-through (the panel renders these). A VERIFIED row carries the exact
-  // covered byte set ("this green attests these exact bytes"); a REFUSED row carries the
-  // reviewer's "no". Aggregate / draft rows have no verdict → neither. We thread the data
-  // off the per-unit records that produced `pairState`: the union of covered subject files
-  // for a verified row, and the first non-empty refusal reason for a refused row.
+  // covered byte set ("this green attests these exact bytes"); a REFUSED row — and a status-
+  // adjusted advisory refusal shown as a WARNING — carries the reviewer's "no". Aggregate /
+  // draft rows have no verdict → neither. We thread the data off the per-unit records that
+  // produced `pairState`: the union of covered subject files for a verified row, and the first
+  // non-empty refusal reason for a refused / advisory-warning row.
   let foldedInputs: string[] | undefined;
   let reason: string | undefined;
   if (!aggregate && status !== 'draft' && records && records.length > 0) {
@@ -324,8 +350,8 @@ function buildEffectiveAspect(
       for (const r of records) for (const f of r.subjectFiles) files.add(f);
       const sorted = [...files].sort();
       if (sorted.length > 0) foldedInputs = sorted;
-    } else if (pairState === 'refused') {
-      reason = records.find((r) => r.state === 'refused' && r.reason)?.reason;
+    } else if (pairState === 'refused' || pairState === 'warning') {
+      reason = records.find((r) => r.reason)?.reason;
     }
   }
 

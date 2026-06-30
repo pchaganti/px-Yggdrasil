@@ -20,6 +20,13 @@
   border-right: 1px solid var(--border-subtle);
   background: var(--surface-1);
   min-width: 0;
+  /* Pinned: the rail stays visible on scroll with its own overflow, so the tabs never
+     scroll away. The shell grid has min-height:100vh and the page/body scrolls. */
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
 }
 .rail-brand {
   display: flex;
@@ -121,6 +128,12 @@
   gap: 12px;
   padding: 10px 22px;
   border-bottom: 1px solid var(--border-subtle);
+  /* Pinned to the top of the scroll, above the stage, with a solid background so the
+     content scrolling beneath it never shows through. */
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg);
 }
 .topbar-live {
   display: inline-flex;
@@ -180,15 +193,30 @@
 }
 
 .app-stage {
-  padding: 20px 22px 64px;
-  max-width: 1040px;
+  /* The bottom padding clears the pinned honest-key bar (see .legend-bar) so the last
+     row of content is never hidden behind it. */
+  padding: 20px 22px 96px;
+  /* Use the available width: wide surfaces (matrix, tree, tables) get the room they need.
+     A generous cap keeps long prose readable; margin-inline:auto centers it so the stage is
+     never a left-clipped column. */
+  max-width: 1600px;
+  margin-inline: auto;
+  width: 100%;
 }
 .app-panel {
-  border-left: 1px solid var(--border-subtle);
   background: var(--surface-1);
   padding: 0;
-  overflow: hidden;
+  /* The panel is its own scroll column: pinned full-height with its own overflow so a long
+     refusal reason or folded-input drill-through scrolls inside the panel instead of being
+     clipped. Closed, it is a zero-width slot with NO border — a left border on a 0-width grid
+     column would otherwise push the page 1px wider than the viewport (a spurious h-scrollbar). */
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
 }
 .app-panel.open {
+  border-left: 1px solid var(--border-subtle);
   padding: 18px 18px 28px;
 }

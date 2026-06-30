@@ -64,6 +64,13 @@
     app.appendChild(rail.el);
     app.appendChild(main);
     app.appendChild(panel);
+
+    // The honest key as ONE pinned, collapsible bottom bar — built once here, never inside a
+    // view's scrolling stage, so it can be pinned and the stage clears it via its bottom padding.
+    if (Yg.dispatch && typeof Yg.dispatch.buildLegendBar === 'function') {
+      app.appendChild(Yg.dispatch.buildLegendBar());
+    }
+
     root.appendChild(app);
 
     return {

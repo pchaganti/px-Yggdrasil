@@ -18,7 +18,7 @@ import {
   type PairComputation,
 } from './engine-api.js';
 import type { PortalData, PortalCounts, PortalPairState, PortalSuppression } from './contract.js';
-import { buildPortalNodes, type SuppressionsByFile } from './derive-nodes.js';
+import { buildPortalNodes, displayPairState, type SuppressionsByFile } from './derive-nodes.js';
 import { buildAspects, buildFlows, buildTypes } from './derive-catalogue.js';
 import { buildBoundary, buildSuppressions, buildHubs, buildResidue, buildWorklist } from './derive-rest.js';
 
@@ -91,7 +91,7 @@ export async function extractPortalData(
   const pairStatesByNode = new Map<string, PortalPairState[]>();
   for (const vp of verification.pairs) {
     const list = pairStatesByNode.get(vp.pair.nodePath) ?? [];
-    list.push(collapsePairState(vp.state.kind));
+    list.push(collapsePairState(vp));
     pairStatesByNode.set(vp.pair.nodePath, list);
   }
   const aspects = buildAspects(graph, verification.pairs);
@@ -162,11 +162,15 @@ function normalizeAutoApprove(value: 'deterministic' | 'full' | false | undefine
   return 'false';
 }
 
-/** Collapse a pair-state kind into the honest taxonomy (gate states → unverified). */
-function collapsePairState(kind: string): PortalPairState {
-  if (kind === 'verified') return 'verified';
-  if (kind === 'refused') return 'refused';
-  return 'unverified';
+/**
+ * Collapse a VerifiedPair into the honest DISPLAY taxonomy via the single status-adjustment
+ * transform: an advisory refusal → `warning`, the gate states → `unverified`. Used for the
+ * per-node pair-state index that feeds the honest flow state — so a flow whose only "problem"
+ * is an advisory refusal reads its participant as a non-blocking warning, never a blocking
+ * refused.
+ */
+function collapsePairState(vp: LockVerification['pairs'][number]): PortalPairState {
+  return displayPairState(vp.state.kind, vp.pair.status);
 }
 
 /** Index the flat suppression inventory by file so per-node filtering is O(mapped files). */
@@ -187,6 +191,13 @@ function indexSuppressionsByFile(flat: PortalSuppression[]): SuppressionsByFile 
  * (prompt-too-large, companion-error) are counted as unverified — they are not
  * green and not a reviewer's "no".
  *
+ * Pair states are bucketed by the status-adjusted DISPLAY state (the single
+ * `displayPairState` transform), so a `refused` verdict on an ADVISORY aspect lands in
+ * `advisoryRefused` — NOT `refused`. `refused` then counts ENFORCED refusals only, matching
+ * what `yg check` blocks on, while the advisory refusal is the non-blocking warning it already
+ * shows up as in `warnings` (runCheck emits it as a warning issue). The count-parity identity
+ * stays whole: verified + refused + unverified + advisoryRefused === expected pairs.
+ *
  * The residue-track counts (suppressed / noRule / notApplicable) are seeded 0 here and
  * filled by a post-pass in extractPortalData, because each is derived from the built
  * node array / residue ledger / suppression inventory — data that does not exist yet at
@@ -201,13 +212,21 @@ export function buildCounts(
   let verified = 0;
   let refused = 0;
   let unverified = 0;
+  let advisoryRefused = 0;
   for (const vp of pairs) {
-    switch (vp.state.kind) {
+    // Bucket by the status-adjusted display state, so an advisory refusal never reads as a
+    // blocking `refused` (it is the non-blocking warning `yg check` already reports).
+    switch (displayPairState(vp.state.kind, vp.pair.status)) {
       case 'verified':
         verified += 1;
         break;
       case 'refused':
+        // ENFORCED refusal — a real, blocking "no".
         refused += 1;
+        break;
+      case 'warning':
+        // ADVISORY refusal — non-blocking signal, already counted in `warnings`.
+        advisoryRefused += 1;
         break;
       default:
         // unverified | prompt-too-large | companion-error → not green, not a code "no".
@@ -236,6 +255,7 @@ export function buildCounts(
     verified,
     refused,
     unverified,
+    advisoryRefused,
     // The residue-track counts (noRule / notApplicable / suppressed) are NOT part of the
     // count-parity identity and cannot be computed here — each depends on data derived AFTER
     // this seam (the built node array, the residue ledger, the suppression inventory). They

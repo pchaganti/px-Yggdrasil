@@ -164,9 +164,13 @@
 }
 
 /* ── V4 matrix (Canvas + DOM mirror) ─────────────────────────────────────── */
+.mtx-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  margin-bottom: 10px;
+}
 .mtx-canvas {
   display: block;
-  max-width: 100%;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   background: var(--surface-1);

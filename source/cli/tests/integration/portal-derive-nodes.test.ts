@@ -200,6 +200,44 @@ describe('per-node derivation — honest states on synthetic inputs', () => {
     expect(out.get('gate')!.state).toBe('unverified'); // gate state collapses
   });
 
+  it('an ADVISORY refused pair drives state=warning (never refused) and pairState=warning, keeping the reason', () => {
+    // The honesty fix at the per-node seam: a deterministic refusal on an ADVISORY aspect is
+    // non-blocking signal. The node must read `warning`, NEVER `refused`, and the effective-aspect
+    // row must display `warning` while still carrying the reviewer's stated reason. A refused
+    // verdict on an ENFORCED aspect on the SAME run still reddens its node — status is per pair.
+    const aAdv = aspectDef('a-adv', 'deterministic', 'advisory');
+    const aEnf = aspectDef('a-enf', 'deterministic', 'enforced');
+    const advNode = node('adv', 'module', ['a-adv'], ['f.ts']);
+    const enfNode = node('enf', 'module', ['a-enf'], ['f.ts']);
+    const graph = {
+      nodes: new Map([['adv', advNode], ['enf', enfNode]]),
+      aspects: [aAdv, aEnf],
+      flows: [],
+      architecture: { node_types: {} },
+    } as unknown as Graph;
+    // The pair's effective status is carried on pair.status; an advisory pair uses 'advisory'.
+    const advRefused: VerifiedPair = {
+      pair: { aspectId: 'a-adv', kind: 'deterministic', unitKey: nodeUnit('adv'), nodePath: 'adv', status: 'advisory', subjectFiles: ['f.ts'] },
+      state: { kind: 'refused', reason: '5 exports > advisory cap 4' },
+    };
+    const verification: LockVerification = {
+      pairs: [advRefused, vp('a-enf', 'enf', { kind: 'refused', reason: 'enforced no' })],
+      unreadable: [],
+    };
+    const out = new Map(
+      buildPortalNodes(graph, {} as never, verification, syntheticCheck([]), new Map(), { byFile: new Map() }).map((n) => [n.path, n]),
+    );
+    // Advisory-refused node: warning, never refused.
+    expect(out.get('adv')!.state).toBe('warning');
+    const advRow = out.get('adv')!.effectiveAspects.find((a) => a.aspectId === 'a-adv')!;
+    expect(advRow.pairState).toBe('warning');
+    expect(advRow.status).toBe('advisory');
+    expect(advRow.reason).toBe('5 exports > advisory cap 4'); // the reviewer's "no" is still cited
+    // Enforced-refused node on the same run is still a blocking refused — status is per pair.
+    expect(out.get('enf')!.state).toBe('refused');
+    expect(out.get('enf')!.effectiveAspects[0].pairState).toBe('refused');
+  });
+
   it('a verified row carries foldedInputs (covered bytes); a refused row carries the reviewer reason', () => {
     // The node-attestation drill-through: a VERIFIED effective-aspect row must cite the exact
     // subject files the verdict covers ("this green attests these exact bytes"), and a REFUSED

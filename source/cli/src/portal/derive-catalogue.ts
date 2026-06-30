@@ -5,6 +5,7 @@ import {
   hasNonDraftEffectiveAspects,
   type VerifiedPair,
 } from './engine-api.js';
+import { displayPairState } from './derive-nodes.js';
 import type {
   PortalAspect,
   PortalAspectTally,
@@ -43,14 +44,8 @@ export function buildAspects(graph: Graph, pairs: VerifiedPair[]): PortalAspect[
 }
 
 function collapsePairState(vp: VerifiedPair): PortalPairState {
-  switch (vp.state.kind) {
-    case 'verified':
-      return 'verified';
-    case 'refused':
-      return 'refused';
-    default:
-      return 'unverified';
-  }
+  // Status-adjusted: an advisory refusal reads `warning` in the tally, never a blocking `refused`.
+  return displayPairState(vp.state.kind, vp.pair.status);
 }
 
 function buildAspect(def: AspectDef, graph: Graph, states: PortalPairState[]): PortalAspect {
@@ -77,7 +72,8 @@ function buildAspect(def: AspectDef, graph: Graph, states: PortalPairState[]): P
  *   - aggregate  → "judges nothing" (a content-less bundle: no own reviewer/verdict).
  *   - vacuous    → "verifies nothing" with a resolved reason (draft, no effective
  *                  node, or scope/when excludes every subject) — zero expected pairs.
- *   - normal     → V/R/U over the aspect's expected pairs.
+ *   - normal     → V/R/W/U over the aspect's expected pairs (W = advisory refusals, shown as
+ *                  non-blocking warnings, never folded into the blocking `refused` count).
  */
 function buildTally(
   def: AspectDef,
@@ -93,13 +89,15 @@ function buildTally(
   }
   let verified = 0;
   let refused = 0;
+  let warning = 0;
   let unverified = 0;
   for (const s of states) {
     if (s === 'verified') verified += 1;
     else if (s === 'refused') refused += 1;
+    else if (s === 'warning') warning += 1;
     else unverified += 1;
   }
-  return { render: 'normal', verified, refused, unverified, units: states.length };
+  return { render: 'normal', verified, refused, warning, unverified, units: states.length };
 }
 
 /** Explain WHY a rule-bearing aspect resolves to zero expected pairs. */

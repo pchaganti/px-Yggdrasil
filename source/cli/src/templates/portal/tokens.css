@@ -173,21 +173,81 @@ body {
   );
 }
 
-/* ── Legend ─────────────────────────────────────────────────────────────── */
-.legend {
-  margin-top: 6px;
-}
+/* ── Legend — the honest key, as ONE pinned collapsible bottom bar ───────── */
 .legend-h {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.6px;
   color: var(--text-muted);
-  margin: 0 0 12px;
+  margin: 0;
 }
+.legend-bar {
+  /* Pinned once to the bottom of the viewport, full width, above the stage content. The stage
+     reserves matching bottom padding so its last row never hides behind the collapsed bar. */
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  background: var(--surface-1);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -2px 8px -4px rgba(0, 0, 0, 0.18);
+  padding: 8px 22px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.legend-bar-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.legend-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  padding: 2px 0;
+  color: var(--text-secondary);
+}
+.legend-caret {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.legend-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+}
+.legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.legend-chip .state-glyph {
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
+}
+.legend-chip-l {
+  white-space: nowrap;
+}
+/* The full descriptions are hidden until the bar is expanded. */
 .legend-grid {
+  display: none;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.legend-bar.legend-open .legend-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
 }
 .legend-item {
   display: flex;
@@ -195,8 +255,8 @@ body {
   gap: 12px;
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
-  padding: 11px 13px;
-  background: var(--surface-1);
+  padding: 10px 12px;
+  background: var(--bg);
 }
 .legend-text b {
   font-weight: 600;

@@ -77,12 +77,18 @@
     // expected-pair kind totals — a verified segment must be exactly as wide as the verified
     // count, so an unverified pair can never paint green. The verified label states the LLM-vs-
     // deterministic makeup of the expected universe honestly without faking a verified split.
+    // Advisory refusals are a real expected-pair state, but per the honesty model they render
+    // as a NON-BLOCKING warning, never a blocking `refused`. They get their own warning-coloured
+    // segment + key so the bar still accounts for every expected pair without ever showing an
+    // advisory refusal as a blocking red. `refused` here is ENFORCED refusals only (== yg check).
+    var advisoryRefused = c.advisoryRefused || 0;
     var bar = dom.el('div', 'cov-bar');
     bar.setAttribute('role', 'group');
     bar.setAttribute('aria-label', 'verified ' + c.verified + ' of ' + c.pairsTotal + ' expected pairs');
     var segs = [
       barSeg('cov-seg-v', c.verified, c.verified > 0 ? c.verified + ' verified' : ''),
       barSeg('cov-seg-r', c.refused, ''),
+      barSeg(Yg.states.cssClass('warning'), advisoryRefused, ''),
       barSeg('cov-seg-u', c.unverified, ''),
     ];
     for (var i = 0; i < segs.length; i += 1) if (segs[i]) bar.appendChild(segs[i]);
@@ -91,7 +97,8 @@
 
     var labels = dom.el('div', 'cov-barlabels');
     labels.appendChild(key('verified', c.verified, 'of ' + c.pairsLLM + ' LLM + ' + c.pairsDet + ' deterministic expected'));
-    labels.appendChild(key('refused', c.refused));
+    labels.appendChild(key('refused', c.refused, 'enforced — blocks (== yg check)'));
+    if (advisoryRefused > 0) labels.appendChild(key('warning', advisoryRefused, 'advisory refusal — does not block'));
     labels.appendChild(key('unverified', c.unverified));
     ledger.appendChild(labels);
 

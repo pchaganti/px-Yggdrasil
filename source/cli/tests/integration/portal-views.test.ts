@@ -345,17 +345,34 @@ describe('portal Phase-4 view modules (real source, real fixture data)', () => {
     expect(classesIn(unknownBox as FakeNode).has('state-verified')).toBe(false);
   });
 
-  it('the dispatcher routes each view to its registered renderer and always renders the honest legend', async () => {
+  it('the dispatcher routes each view to its registered renderer; the honest legend is the one pinned bar, not re-rendered per view', async () => {
     const Yg = await loadYg() as unknown as {
-      dispatch: { render: (stage: FakeNode, route: unknown, data: PortalData, onSelect: () => void, nav: () => void) => void };
+      dispatch: {
+        render: (stage: FakeNode, route: unknown, data: PortalData, onSelect: () => void, nav: () => void) => void;
+        buildLegendBar: () => FakeNode;
+      };
+      states: { ORDER: string[]; cssClass: (s: string) => string };
     };
     for (const view of ['overview', 'coverage', 'tree', 'relations']) {
       const stage = makeNode('div');
       Yg.dispatch.render(stage, { view }, data, () => undefined, () => undefined);
-      // The shared honest legend is on every view (never collapsed away).
-      expect(classesIn(stage).has('legend')).toBe(true);
+      // The honest legend is NOT re-rendered inside the scrolling stage — it lives once as the
+      // pinned legend bar the shell mounts (so it can be pinned and never duplicated per view).
+      expect(classesIn(stage).has('legend')).toBe(false);
       // No "rendered in a later phase" scaffold for a built view.
       expect(textOf(stage)).not.toMatch(/rendered in a later phase/i);
     }
+    // The single shared legend bar carries every honest state distinctly through the shared
+    // model — one compact chip per state, never a state collapsed away, no fabricated green.
+    const bar = Yg.dispatch.buildLegendBar();
+    const barCls = classesIn(bar);
+    expect(barCls.has('legend')).toBe(true);
+    expect(barCls.has('legend-bar')).toBe(true);
+    const chips = walk(bar).filter((n) => n.classList && n.classList.contains('legend-chip'));
+    expect(chips.length).toBe(Yg.states.ORDER.length);
+    for (const s of Yg.states.ORDER) expect(barCls.has(Yg.states.cssClass(s))).toBe(true);
+    // The honest model's only green is 'verified' — the bar never invents another green class.
+    expect(barCls.has('state-green')).toBe(false);
+    expect(barCls.has('state-ok')).toBe(false);
   });
 });

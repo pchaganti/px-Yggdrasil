@@ -165,13 +165,18 @@
 
     mount.appendChild(dom.el('p', 'view-lead', "What's allowed to depend on what — the architecture's node-type × node-type rules. An empty cell means no relation is permitted there. This is allowed, not actual: conformance is the live boundary check below."));
 
+    // The dense grid keeps its intrinsic pixel size and scrolls WITHIN its own container
+    // (overflow-x on .mtx-scroll), so a wide matrix never pushes the page into a horizontal
+    // scrollbar — it stays legible and contained instead of being scaled down.
+    var scroll = dom.el('div', 'mtx-scroll');
     var canvas = document.createElement('canvas');
     canvas.className = 'mtx-canvas';
     canvas.width = ROWLBL + axis.length * CELL + 4;
     canvas.height = HEADER + axis.length * CELL + 4;
     canvas.setAttribute('role', 'img');
     canvas.setAttribute('aria-label', 'Allowed-relations matrix; a list mirror follows');
-    mount.appendChild(canvas);
+    scroll.appendChild(canvas);
+    mount.appendChild(scroll);
     drawCanvas(canvas, axis, typesById);
 
     mount.appendChild(legend());

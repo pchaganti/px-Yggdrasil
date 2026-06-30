@@ -76,12 +76,49 @@ describe('portal extraction — count parity with yg check (the trust core)', ()
     expect(data.meta.counts.totalFiles).toBe(checkTotal);
   });
 
-  it('verified + refused + unverified covers every expected pair', () => {
+  it('verified + refused + unverified + advisoryRefused covers every expected pair', () => {
+    // The count-parity identity is status-adjusted: a refused verdict on an ADVISORY aspect
+    // leaves the `refused` bucket for `advisoryRefused` (it renders as a non-blocking warning,
+    // never a blocking refusal), so the identity now folds that fourth bucket back in. The
+    // ledger still accounts for EVERY expected pair without ever showing an advisory refusal
+    // as a blocking refused.
     expect(
-      data.meta.counts.verified + data.meta.counts.refused + data.meta.counts.unverified,
+      data.meta.counts.verified +
+        data.meta.counts.refused +
+        data.meta.counts.unverified +
+        data.meta.counts.advisoryRefused,
     ).toBe(expectedPairCount);
     expect(data.meta.counts.pairsTotal).toBe(expectedPairCount);
     expect(data.meta.counts.pairsLLM + data.meta.counts.pairsDet).toBe(expectedPairCount);
+  });
+
+  it('the blocking refused count is ENFORCED refusals only (this repo: 0), advisory refusals are warnings', () => {
+    // The honesty fix proven on the real repo: `portal/focused-file-exports` is an ADVISORY
+    // deterministic aspect that refuses `cli/portal/pipeline` (5 exports > advisory cap 4). Its
+    // verdict is `refused`, but its DISPLAY state is a non-blocking warning — so the portal's
+    // blocking `refused` count is 0 (matching `yg check`, which reports 0 errors here), and the
+    // advisory refusal lands in `advisoryRefused`, NOT `refused`. There are no enforced refusals
+    // on this repo, so `refused` is exactly 0.
+    expect(data.meta.counts.refused).toBe(0);
+    // At least one advisory-refused pair exists on this repo (the focused-file-exports refusal),
+    // and it is the non-blocking warning yg check already reports — never a blocking refused.
+    expect(data.meta.counts.advisoryRefused).toBeGreaterThanOrEqual(1);
+    // The advisory refusal is reflected in `warnings` (runCheck emits it as a warning issue) and
+    // is NOT double-counted as a blocking error — the portal's blocking truth equals `yg check`.
+    expect(data.meta.counts.errors).toBe(errors);
+    expect(data.meta.counts.warnings).toBe(warnings);
+    // The owning node reads `warning` (advisory signal), never `refused` (a blocking "no").
+    const pipeline = data.nodes.find((n) => n.path === 'cli/portal/pipeline');
+    expect(pipeline).toBeDefined();
+    expect(pipeline!.state).not.toBe('refused');
+    const advisoryRow = pipeline!.effectiveAspects.find((e) => e.aspectId === 'portal/focused-file-exports');
+    expect(advisoryRow).toBeDefined();
+    // The advisory aspect's row displays `warning`, never a blocking `refused`, and still carries
+    // the reviewer's stated reason (an advisory refusal is shown, just as non-blocking signal).
+    expect(advisoryRow!.status).toBe('advisory');
+    expect(advisoryRow!.pairState).toBe('warning');
+    expect(typeof advisoryRow!.reason).toBe('string');
+    expect((advisoryRow!.reason ?? '').length).toBeGreaterThan(0);
   });
 
   it('catalogue counts are derived, not literals', () => {
@@ -181,22 +218,30 @@ describe('portal extraction — count parity with yg check (the trust core)', ()
 //
 // The integration tests above prove count parity on the REAL repo, but the real lock
 // happens to be all-green, so the bucketing SWITCH in buildCounts (verified / refused /
-// default→unverified) is exercised only on its `verified` arm. This unit-level block
-// drives buildCounts directly with a SYNTHETIC pair list carrying AT LEAST ONE of EACH
-// PairState.kind — including the two fail-closed gate states (prompt-too-large,
-// companion-error) that must never read as green and never as a code "no". It pins the
-// invariant the portal's honesty rests on: every expected pair lands in exactly one of
-// verified / refused / unverified, and the two gate states fall into unverified.
+// advisory-warning / default→unverified) is exercised only on its `verified` arm. This
+// unit-level block drives buildCounts directly with a SYNTHETIC pair list carrying AT LEAST
+// ONE of EACH PairState.kind — including the two fail-closed gate states (prompt-too-large,
+// companion-error) that must never read as green and never as a code "no", AND a refused
+// verdict on an ADVISORY aspect that must land in `advisoryRefused` (a non-blocking warning),
+// never in the blocking `refused` bucket. It pins the invariant the portal's honesty rests on:
+// every expected pair lands in exactly one of verified / refused / advisoryRefused / unverified,
+// the two gate states fall into unverified, and an advisory refusal never reads as a blocking
+// refused.
 
 /** One ExpectedPair per synthetic state; unitKey is unique so they are distinct pairs. */
-function expectedPair(aspectId: string, kind: 'llm' | 'deterministic', i: number): ExpectedPair {
+function expectedPair(
+  aspectId: string,
+  kind: 'llm' | 'deterministic',
+  i: number,
+  status: ExpectedPair['status'] = 'enforced',
+): ExpectedPair {
   const nodePath = `synthetic/node-${i}`;
   return {
     aspectId,
     kind,
     unitKey: nodeUnit(nodePath),
     nodePath,
-    status: 'enforced',
+    status,
     subjectFiles: [`source/synthetic/file-${i}.ts`],
   };
 }
@@ -236,43 +281,58 @@ function syntheticCheck(opts: {
 }
 
 describe('buildCounts — pair-state bucketing over every kind (the honesty switch)', () => {
-  // One pair per PairState.kind. The two gate states carry their full payload so we are
-  // exercising the REAL state shapes, not a stripped stand-in.
-  const states: PairState[] = [
-    { kind: 'verified' },
-    { kind: 'refused', reason: 'a reviewer said no' },
-    { kind: 'unverified' },
-    { kind: 'prompt-too-large', chars: 99_999, limit: 40_000, tierName: 'default' },
+  // One pair per bucket. The two gate states carry their full payload so we are exercising
+  // the REAL state shapes, not a stripped stand-in. The 6th pair is a refused verdict on an
+  // ADVISORY aspect (status carried on the pair) — it must land in `advisoryRefused`, never in
+  // the blocking `refused` bucket. Each tuple is (verdict state, effective aspect status).
+  const cases: Array<{ state: PairState; status: ExpectedPair['status'] }> = [
+    { state: { kind: 'verified' }, status: 'enforced' },
+    { state: { kind: 'refused', reason: 'a reviewer said no' }, status: 'enforced' },
+    { state: { kind: 'unverified' }, status: 'enforced' },
+    { state: { kind: 'prompt-too-large', chars: 99_999, limit: 40_000, tierName: 'default' }, status: 'enforced' },
     {
-      kind: 'companion-error',
-      messageData: { what: 'companion hook threw', why: 'infra', next: 'fix the hook' },
+      state: { kind: 'companion-error', messageData: { what: 'companion hook threw', why: 'infra', next: 'fix the hook' } },
+      status: 'enforced',
     },
+    // Advisory refusal — status-adjusted to a non-blocking warning, NOT a blocking refused.
+    { state: { kind: 'refused', reason: 'advisory cap exceeded' }, status: 'advisory' },
   ];
 
   // Distinct expected pairs (alternating kind so the LLM/det split is also non-trivial),
   // and a verified-pair list of the same length keyed 1:1 to the synthetic states.
-  const expected: ExpectedPair[] = states.map((_, i) =>
-    expectedPair(`synthetic/aspect-${i}`, i % 2 === 0 ? 'llm' : 'deterministic', i),
+  const expected: ExpectedPair[] = cases.map((c, i) =>
+    expectedPair(`synthetic/aspect-${i}`, i % 2 === 0 ? 'llm' : 'deterministic', i, c.status),
   );
-  const pairs: VerifiedPair[] = states.map((state, i) => verifiedPair(expected[i], state));
+  const pairs: VerifiedPair[] = cases.map((c, i) => verifiedPair(expected[i], c.state));
 
   const graph = syntheticGraph(7, 3, 2);
   const check = syntheticCheck({ errors: 4, warnings: 1, coveredFiles: 9, totalFiles: 11, draftSkipped: 6 });
   const counts = buildCounts(graph, check, pairs, expected);
 
-  it('verified + refused + unverified === total expected pairs (identity holds)', () => {
-    expect(counts.verified + counts.refused + counts.unverified).toBe(expected.length);
+  it('verified + refused + unverified + advisoryRefused === total expected pairs (identity holds)', () => {
+    expect(
+      counts.verified + counts.refused + counts.unverified + counts.advisoryRefused,
+    ).toBe(expected.length);
     expect(counts.pairsTotal).toBe(expected.length);
     expect(counts.pairsLLM + counts.pairsDet).toBe(expected.length);
   });
 
   it('the two fail-closed gate states land in UNVERIFIED — not refused, not dropped', () => {
-    // states: 1 verified, 1 refused, and 3 unverified-bucket (unverified + the two gates).
+    // cases: 1 verified, 1 enforced refused, and 3 unverified-bucket (unverified + the two gates).
     expect(counts.verified).toBe(1);
     expect(counts.refused).toBe(1);
     // prompt-too-large AND companion-error each fall into unverified (the default arm),
     // alongside the plain unverified pair → 3 total. They are NOT green and NOT a code "no".
     expect(counts.unverified).toBe(3);
+  });
+
+  it('an ADVISORY refusal lands in advisoryRefused, never in the blocking refused bucket', () => {
+    // The honesty switch: a `refused` verdict on an advisory aspect is non-blocking signal — it
+    // is bucketed as `advisoryRefused` (a warning), so `refused` counts ONLY the enforced
+    // refusal. This is the unit-level proof of the same status-adjustment the real-repo parity
+    // test asserts end-to-end.
+    expect(counts.advisoryRefused).toBe(1);
+    expect(counts.refused).toBe(1); // the enforced refusal only — the advisory one did NOT inflate it
   });
 
   it('derives catalogue, coverage, and severity counts off the engine results, not literals', () => {
@@ -285,8 +345,8 @@ describe('buildCounts — pair-state bucketing over every kind (the honesty swit
     expect(counts.totalFiles).toBe(11);
     expect(counts.uncoveredFiles).toBe(2);
     expect(counts.draft).toBe(6);
-    // pairs alternate llm/det across 5 synthetic pairs → 3 llm, 2 det.
+    // pairs alternate llm/det across 6 synthetic pairs → 3 llm, 3 det.
     expect(counts.pairsLLM).toBe(3);
-    expect(counts.pairsDet).toBe(2);
+    expect(counts.pairsDet).toBe(3);
   });
 });

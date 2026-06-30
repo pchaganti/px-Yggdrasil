@@ -50,11 +50,14 @@
       cell.appendChild(note);
       return cell;
     }
-    // normal — a micro-bar sized by the real pair states, so an unverified unit never paints green.
+    // normal — a micro-bar sized by the real pair states, so an unverified unit never paints
+    // green and an advisory refusal paints its own warning segment, never a blocking red.
     var bar = dom.el('div', 'rb-bar');
+    var warning = tally.warning || 0;
     var segs = [
       { state: 'verified', n: tally.verified },
       { state: 'refused', n: tally.refused },
+      { state: 'warning', n: warning },
       { state: 'unverified', n: tally.unverified },
     ];
     for (var i = 0; i < segs.length; i += 1) {
@@ -65,13 +68,10 @@
     }
     if (!bar.firstChild) bar.appendChild(dom.el('i', 'rb-bar-seg ' + Yg.states.cssClass('no-rule')));
     cell.appendChild(bar);
-    cell.appendChild(
-      dom.el(
-        'div',
-        'rb-covnum mono',
-        tally.verified + ' verified / ' + tally.refused + ' refused / ' + tally.unverified + ' unverified',
-      ),
-    );
+    var num =
+      tally.verified + ' verified / ' + tally.refused + ' refused / ' +
+      (warning > 0 ? warning + ' advisory / ' : '') + tally.unverified + ' unverified';
+    cell.appendChild(dom.el('div', 'rb-covnum mono', num));
     return cell;
   }
 
@@ -228,13 +228,22 @@
       var isSel = aspects[i].id === selectedId;
       if (isSel) selectedAspect = aspects[i];
       tbody.appendChild(aspectRow(aspects[i], isSel, nav));
+      // Inline accordion: the selected rule's detail opens directly UNDER its own row (a
+      // full-width expansion row), so the detail is visible AT the clicked rule, never pushed
+      // below the entire list. Keyboard-navigable (the id button toggles it; cells are buttons).
+      if (isSel) {
+        var exRow = dom.el('tr', 'rb-expand-row');
+        var exCell = dom.el('td', 'rb-expand-cell');
+        exCell.setAttribute('colspan', '6');
+        exCell.appendChild(expansion(aspects[i], data, nav));
+        exRow.appendChild(exCell);
+        tbody.appendChild(exRow);
+      }
     }
     table.appendChild(tbody);
     stage.appendChild(table);
 
-    if (selectedAspect) {
-      stage.appendChild(expansion(selectedAspect, data, nav));
-    } else if (selectedId) {
+    if (!selectedAspect && selectedId) {
       // A deep-linked aspect id that no longer exists — honest, never a blank.
       stage.appendChild(dom.el('p', 'rb-empty', 'No rule named "' + selectedId + '" — it may have been removed.'));
     }
