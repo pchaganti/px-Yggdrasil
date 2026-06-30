@@ -33,7 +33,7 @@
   function renderCounts(data) {
     var c = data.meta.counts;
     var header = dom.el('header', 'stage-header');
-    header.appendChild(dom.el('h1', 'stage-title', data.meta.projectName + ' — Heartwood'));
+    header.appendChild(dom.el('h1', 'stage-title', data.meta.projectName));
     var sub = dom.el('p', 'stage-sub');
     sub.appendChild(Yg.glossary.term('aspect', c.aspects + ' aspects'));
     sub.appendChild(document.createTextNode(' · ' + c.nodes + ' nodes · ' + c.flows + ' flows · generated ' + data.meta.generatedAt));

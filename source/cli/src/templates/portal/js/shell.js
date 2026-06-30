@@ -94,8 +94,18 @@
 
     var brand = dom.el('button', 'rail-brand');
     brand.type = 'button';
-    brand.appendChild(dom.el('span', 'rail-logo'));
-    brand.appendChild(dom.el('b', null, 'Heartwood'));
+    // The brand mark: reuse the inline data: URI the serializer injected into the favicon
+    // link (single source, no network). Guarded so the non-DOM test sandbox (no querySelector)
+    // and any environment lacking the link simply omit the mark rather than break. The mark is
+    // decorative (alt=''), as the adjacent text already names the product.
+    var favicon = document.querySelector && document.querySelector('link[rel~="icon"]');
+    if (favicon && favicon.getAttribute('href')) {
+      var logo = dom.el('img', 'rail-logo');
+      logo.src = favicon.getAttribute('href');
+      logo.alt = '';
+      brand.appendChild(logo);
+    }
+    brand.appendChild(dom.el('b', null, 'Yggdrasil'));
     brand.appendChild(dom.el('span', 'rail-brand-sub', data.meta.writeEnabled ? 'live view' : 'view-only'));
     brand.addEventListener('click', function () {
       handlers.onNavigate('overview');

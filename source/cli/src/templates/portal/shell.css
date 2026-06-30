@@ -43,10 +43,13 @@
   text-align: left;
 }
 .rail-logo {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  background: linear-gradient(150deg, var(--verified), var(--accent));
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  /* A deep chip so the gold brand mark reads on either theme; the SVG sits inside, contained. */
+  background: linear-gradient(160deg, #20242c, #15171b);
+  object-fit: contain;
+  padding: 3px;
   flex: none;
 }
 .rail-brand b {

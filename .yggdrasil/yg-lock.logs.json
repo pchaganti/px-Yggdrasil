@@ -72,7 +72,7 @@
     "cli/model/lock": {"log":{"last_entry_datetime":"2026-06-12T11:33:00.973Z","prefix_hash":"6c694550e0ebfdd290a0aca8439a9b4fc456a64e410fa638387df6d7fb6e03e8"}},
     "cli/portal/engine-api": {"log":{"last_entry_datetime":"2026-06-29T12:36:31.021Z","prefix_hash":"13ba21e1713bb02615c14c40b11d50f2be2f17e418c0fd43a7e185bfceefa0a2"},"source":"149ea660a9c5728076fc1674276810d95c5ac5e7917235d60c63c682a408ff45"},
     "cli/portal/pipeline": {"log":{"last_entry_datetime":"2026-06-30T04:55:32.594Z","prefix_hash":"93c5d9faf573e905212c347153d377d09742e215a3756f099c5448ee19f0effe"},"source":"f002f7a035ea0889fabfdcbaaf52e8286327523d3b139f2f87c9f4fb48c94d44"},
-    "cli/portal/serializer": {"log":{"last_entry_datetime":"2026-06-29T12:36:31.624Z","prefix_hash":"a765ed05f57a8e4dc2b13002e26bf6501b2e66c0967d69ebee1b9b3cc2523dfe"},"source":"8203f636a2890d67d65ce2d4ef8e2e240e0198d8c8f494ba4a1dec4a79262e83"},
+    "cli/portal/serializer": {"log":{"last_entry_datetime":"2026-06-30T06:45:51.273Z","prefix_hash":"c1d6cd6e7bd0eaa8074e1fb57444ee1a5f984ffc971897a0347dd0dd834630fa"},"source":"13623fcdcc171cc0f4d8b7f378e3197f02b1ed57b738fe983c283f78142fc39d"},
     "cli/portal/server": {"log":{"last_entry_datetime":"2026-06-29T06:49:44.331Z","prefix_hash":"8331f1c8b1302ca922a8eb95472d45ee44031d3dafbefcaec19ac0a72a8a5de2"},"source":"47c2ee3469c6f5fbad902afcc4e4f0c5493e8da9cd0dec8640dc4ad3cac4fd46"},
     "cli/preamble": {"log":{"last_entry_datetime":"2026-06-01T09:41:50.140Z","prefix_hash":"1169a24ada6cc37b8c4ab80c099f2848f81d29922465318ab0a60021c675085a"}},
     "cli/structure": {"log":{"last_entry_datetime":"2026-06-14T05:30:00.000Z","prefix_hash":"cc779352f6413c18fbf19e5712a4bd4afdcb5ea70106abd9be27dc46709d2a25"}},
