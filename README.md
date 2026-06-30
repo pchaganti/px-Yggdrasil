@@ -93,6 +93,16 @@ You lay the track, the agent drives. Your rules and structure live in a small gr
 
 A rule can apply to one component or many. You attach it once, and the tool computes everywhere it lands. You never copy-paste a rule onto each file. See the [docs](https://krzysztofdudek.github.io/Yggdrasil/) for how that works. **Ports** are the one explicit exception: a bare relation between nodes does not carry an aspect across a component boundary, but consuming a named port does. That keeps inheritance deliberate, never accidental.
 
+## See the whole graph: the portal
+
+The graph is text next to your code. `yg portal` turns it into a picture: a read-only map of your architecture in the browser, showing every component, every rule, and whether each one is actually verified against the code right now. The only green is a check a reviewer ran and approved against the current code, nothing is rounded up.
+
+<p align="center">
+  <img src="docs/public/portal-overview-dark.png" alt="The Yggdrasil portal — overview" width="900" />
+</p>
+
+Click a rule to read its actual text and every component it lands on; click a component to see why it passed or what it still needs. It runs locally and writes nothing (one explicit approve button aside), or `yg portal --static` writes a single self-contained file you can hand to anyone, no checkout required. See the [portal docs](https://krzysztofdudek.github.io/Yggdrasil/portal).
+
 ## Two kinds of rule
 
 Every aspect names its reviewer, and the two are not equal:
@@ -203,6 +213,7 @@ Works with any AI coding agent. `yg init` sets up the rules file your agent expe
 - `yg check --approve`: verify every unverified pair (deterministic first, for free; then LLM) and record the verdicts in the lock.
 - `yg aspect-test`: run an aspect of either kind against a node or files on demand, including an LLM `--dry-run` prompt preview; never writes the lock.
 - `yg log add | read | merge-resolve`: the per-node decision log.
+- `yg portal`: a read-only browser view of the whole graph and its current verification state (`--static` writes a self-contained offline file).
 - `yg impact`, `yg tree`, `yg find`, `yg aspects`, `yg flows`, `yg owner`, `yg suppressions`, `yg type-suggest`: navigate and query the graph.
 - `yg knowledge list | read <name>`: the built-in reference topics (aspects, ports and relations, flows, the lock, and more).
 

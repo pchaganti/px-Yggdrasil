@@ -41,6 +41,7 @@ export default defineConfig({
       {
         text: "Author & operate",
         items: [
+          { text: "The Portal", link: "/portal" },
           { text: "Reviewers", link: "/reviewers" },
           { text: "Aspect Status", link: "/aspect-status" },
           { text: "Conditional Aspects", link: "/conditional-aspects" },
