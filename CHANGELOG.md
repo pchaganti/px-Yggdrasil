@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Four new keyless example projects showing the free, local layer.** `examples/` gains `no-secrets-in-logs` (a deterministic `check.mjs` refusing any log call that references a secret/PII field — a PCI concern), `layered-architecture` (the built-in relation check enforcing `web → domain → data` layering live, no lock, no key), `pure-transforms` (the same deterministic layer over **Python** — reproducible ETL transforms, no wall-clock or randomness), and `checkout-flow` (one deterministic rule attached to a `flow`, propagated to every checkout step). Each is a standalone, runnable project with its own README (scenario → run → the one edit that breaks the rule → the exact refusal), needs **no API key**, and is covered by the shipped-examples e2e guard so they cannot silently rot. Until now every shipped example used the LLM layer; these are the first deterministic + relation examples. The examples index now leads with them.
+
 ## [5.4.1] - 2026-07-01
 
 ### Added

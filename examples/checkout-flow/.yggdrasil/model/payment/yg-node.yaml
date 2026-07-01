@@ -1,0 +1,8 @@
+name: Payment
+type: step
+description: "Checkout step 2 — capture payment for the reviewed cart"
+relations:
+  - target: telemetry
+    type: uses
+mapping:
+  - src/payment.ts

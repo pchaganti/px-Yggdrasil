@@ -1,0 +1,24 @@
+version: "5.1.0"
+
+quality:
+  max_direct_relations: 10
+
+# The pipeline source lives under src/. The README is documentation, not code, so
+# scope the coverage gate to src/ (where uncovered code is an error) and mark the
+# docs root silent. This keeps a keyless clone green out of the box.
+coverage:
+  required: ["src"]
+  excluded: ["README.md"]
+
+# This example is fully KEYLESS: its only aspect is deterministic, so no reviewer
+# is ever contacted. The CLI still requires a reviewer section for future LLM
+# aspects, so a minimal tier is declared here with an unreachable endpoint — a
+# stray LLM pair could never reach a live service.
+reviewer:
+  tiers:
+    standard:
+      provider: ollama
+      consensus: 1
+      config:
+        model: unused
+        endpoint: http://127.0.0.1:1

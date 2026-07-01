@@ -1,0 +1,8 @@
+name: Checkout
+description: "The e-commerce checkout process: shopper reviews the cart, payment is captured, then fulfillment is scheduled"
+nodes:
+  - cart
+  - payment
+  - fulfillment
+aspects:
+  - emits-telemetry

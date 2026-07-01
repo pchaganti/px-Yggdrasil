@@ -1,0 +1,5 @@
+yg-secrets.yaml
+.symbols-cache/
+.ast-cache/
+.debug.log
+.yg-lock.deterministic.json

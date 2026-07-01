@@ -1,0 +1,8 @@
+name: Fulfillment
+type: step
+description: "Checkout step 3 — hand the paid order to the warehouse"
+relations:
+  - target: telemetry
+    type: uses
+mapping:
+  - src/fulfillment.ts

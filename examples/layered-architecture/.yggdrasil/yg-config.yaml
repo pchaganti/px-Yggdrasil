@@ -1,0 +1,21 @@
+version: "5.1.0"
+
+quality:
+  max_direct_relations: 10
+
+# The graph covers the source tree; every file under src/ must be mapped to a
+# node (an unmapped src file is a blocking error). The example's own README is
+# documentation, not source under enforcement, so it is excluded from the scan.
+coverage:
+  required:
+    - src
+  excluded:
+    - README.md
+
+reviewer:
+  tiers:
+    standard:
+      provider: claude-code
+      consensus: 1
+      config:
+        model: haiku

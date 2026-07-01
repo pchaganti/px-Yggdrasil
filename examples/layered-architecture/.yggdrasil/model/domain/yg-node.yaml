@@ -1,0 +1,9 @@
+name: Ride Service
+type: service
+description: "Booking and completion rules for rides"
+aspects: []
+relations:
+  - target: data
+    type: calls
+mapping:
+  - src/domain/rideService.ts

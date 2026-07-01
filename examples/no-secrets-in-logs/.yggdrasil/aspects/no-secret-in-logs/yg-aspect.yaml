@@ -1,0 +1,2 @@
+name: No Secret In Logs
+description: "A logging statement must never reference a raw secret or PII field (PCI-DSS)."

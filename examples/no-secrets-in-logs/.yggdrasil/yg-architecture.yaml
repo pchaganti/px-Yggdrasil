@@ -1,0 +1,12 @@
+node_types:
+  service:
+    description: "Payments component providing charge/refund functionality"
+    when:
+      path: "src/**"
+    relations:
+      calls: [service, library]
+      uses: [library]
+  library:
+    description: "Shared utility code with no domain knowledge (logging, masking)"
+    when:
+      path: "src/**"

@@ -1,0 +1,5 @@
+name: Deterministic Transforms
+description: "Functions in the transforms package must be reproducible: no wall-clock reads and no randomness."
+reviewer:
+  type: deterministic
+status: enforced

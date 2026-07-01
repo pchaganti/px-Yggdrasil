@@ -1,0 +1,5 @@
+node_types:
+  pipeline:
+    description: "An analytics/ETL data pipeline: orchestration plus its transform packages"
+    when:
+      path: "src/**"

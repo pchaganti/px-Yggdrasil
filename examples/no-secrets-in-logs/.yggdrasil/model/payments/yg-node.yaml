@@ -1,0 +1,11 @@
+name: Payments
+type: service
+description: "Card charge and refund use cases"
+aspects:
+  - no-secret-in-logs
+relations:
+  - target: logging
+    type: uses
+mapping:
+  - src/charge.ts
+  - src/refund.ts

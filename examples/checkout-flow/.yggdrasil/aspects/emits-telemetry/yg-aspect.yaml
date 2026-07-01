@@ -1,0 +1,2 @@
+name: Emits Telemetry
+description: "Every checkout step must emit a telemetry event via a track(...) call so the funnel can be reconstructed"

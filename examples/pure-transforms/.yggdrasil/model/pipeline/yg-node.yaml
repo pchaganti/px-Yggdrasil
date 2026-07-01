@@ -1,0 +1,9 @@
+name: Pipeline
+type: pipeline
+description: "Analytics ETL pipeline: orchestrator plus its pure transform packages"
+aspects:
+  - deterministic-transforms
+relations: []
+mapping:
+  - src/pipeline.py
+  - src/transforms/*.py

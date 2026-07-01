@@ -1,0 +1,7 @@
+name: Ride Repository
+type: repository
+description: "Persistence for ride records"
+aspects: []
+relations: []
+mapping:
+  - src/data/rideRepository.ts

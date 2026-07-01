@@ -1,0 +1,26 @@
+node_types:
+  handler:
+    description: "Web layer — translates HTTP requests into domain calls"
+    when:
+      path: "src/web/**"
+    relations:
+      # A handler may ONLY call the domain layer. `default: deny` closes every
+      # other relation type, so the web layer cannot reach persistence by any
+      # means — 'repository' is unreachable from a handler, not just via `calls`.
+      default: deny
+      calls: [service]
+  service:
+    description: "Domain layer — business rules; reaches persistence via a repository"
+    when:
+      path: "src/domain/**"
+    relations:
+      # The domain layer may ONLY call the data layer.
+      default: deny
+      calls: [repository]
+  repository:
+    description: "Data layer — persistence and data access; owns the store"
+    when:
+      path: "src/data/**"
+    relations:
+      # The data layer is a pure sink — it depends on no other layer.
+      default: deny

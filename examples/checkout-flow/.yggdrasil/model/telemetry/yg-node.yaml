@@ -1,0 +1,5 @@
+name: Telemetry
+type: library
+description: "Shared telemetry helper exposing track() for every checkout step"
+mapping:
+  - src/telemetry.ts

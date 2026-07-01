@@ -1,0 +1,12 @@
+node_types:
+  step:
+    description: "A single handler in the checkout business process (review cart, capture payment, schedule fulfillment)"
+    when:
+      path: "src/**"
+    log_required: false
+    relations:
+      uses: [library]
+  library:
+    description: "Shared utility code with no domain knowledge (telemetry, formatting)"
+    when:
+      path: "src/**"

@@ -1,0 +1,8 @@
+name: Cart
+type: step
+description: "Checkout step 1 — the shopper reviews the cart before paying"
+relations:
+  - target: telemetry
+    type: uses
+mapping:
+  - src/cart.ts

@@ -1,0 +1,8 @@
+name: Logging
+type: library
+description: "Structured logger and PAN masking helper for the payments service"
+aspects:
+  - no-secret-in-logs
+relations: []
+mapping:
+  - src/logger.ts

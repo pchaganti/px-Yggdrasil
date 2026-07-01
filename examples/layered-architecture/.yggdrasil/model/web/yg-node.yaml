@@ -1,0 +1,9 @@
+name: Ride Handler
+type: handler
+description: "HTTP endpoints for booking and completing rides"
+aspects: []
+relations:
+  - target: domain
+    type: calls
+mapping:
+  - src/web/rideHandler.ts

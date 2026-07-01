@@ -1,0 +1,21 @@
+version: "5.1.0"
+
+quality:
+  max_direct_relations: 10
+
+# Enforcement targets the source tree. Only files under src/ must be mapped to
+# a node; the README and graph metadata are not graph-covered code.
+coverage:
+  required: ["src"]
+  excluded: ["/"]
+
+# This example is KEYLESS: its only rule is a deterministic check.mjs, which
+# runs locally at zero cost with no API key. A reviewer tier is still required
+# by the config schema (for any future LLM aspect); it is never invoked here.
+reviewer:
+  tiers:
+    standard:
+      provider: claude-code
+      consensus: 1
+      config:
+        model: haiku
