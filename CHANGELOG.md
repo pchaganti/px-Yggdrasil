@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.4.1] - 2026-07-01
+
 ### Added
 
+- **Non-interactive `yg init` for Docker, devcontainers, and CI.** A fresh graph can now be bootstrapped without the interactive wizard: `yg init --platform <name> --provider <name> --model <m> [--endpoint <url>]`. `--model` is required — init applies no default model. `--endpoint` is defaulted for Ollama and required for an OpenAI-compatible provider; API keys are read from the provider's env var (never a flag, so they never land in shell history). A missing key is non-fatal — the config is written and can be completed later. The interactive wizard's non-TTY error now points at these flags instead of only saying a terminal is required.
+- **The reviewer setup now leads with the free, keyless path.** In the interactive wizard the zero-key CLI-agent providers (Claude Code, Codex, Gemini CLI) are listed first and the installed-agent path is pre-selected as the default — most adopters already run one, so the reviewer needs no API key and adds no separate API bill. The getting-started reviewer-setup docs are corrected to match: the model-fetch + connection-validation step applies only to API providers, not the CLI-agent path.
 - **Adopter documentation for the portal — a docs-site page and a README preview.** The read-only architecture portal (`yg portal`) now has a dedicated docs page (what it is, how to open the live local view and the self-contained `--static` export, a tour of the views, and the honest-state principle) wired into the site nav under "Author & operate", plus a section with a screenshot in the README so the portal is visible before install. The CLI list in the README also gains a `yg portal` entry. Documentation only — no code or behavior change.
 
 ### Fixed

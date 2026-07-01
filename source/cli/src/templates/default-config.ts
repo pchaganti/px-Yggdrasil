@@ -4,6 +4,17 @@ export const DEFAULT_CONFIG = `version: "5.1.0"
 quality:
   max_direct_relations: 10
 
+# Coverage — which files must belong to a node.
+# Fresh projects start in "require nothing" mode: every unmapped file surfaces as
+# a NON-blocking warning (not a blocking error), so your very first \`yg check\` is
+# green while you adopt incrementally. Add a path prefix to \`required\` (e.g.
+# "src/") to make that area blocking once you start mapping it. NOTE: an ABSENT
+# coverage block defaults to requiring the WHOLE repo — this explicit empty list
+# is what opts a fresh project into require-nothing.
+coverage:
+  required: []
+  excluded: []
+
 # Reviewer configuration added by: yg init
 # (see yg schemas read config + yg knowledge read configuration)
 

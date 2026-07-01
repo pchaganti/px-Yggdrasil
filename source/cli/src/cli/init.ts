@@ -138,6 +138,15 @@ export async function ensureYggdrasilGitignore(yggRoot: string): Promise<void> {
 
 const API_PROVIDERS: ReviewerProvider[] = ['anthropic', 'openai', 'google', 'openai-compatible', 'ollama'];
 const CLI_PROVIDERS: ReviewerProvider[] = ['claude-code', 'codex', 'gemini-cli'];
+/** Every valid --provider value (free CLI-agent providers first, then API/local). */
+const ALL_PROVIDERS: ReviewerProvider[] = [...CLI_PROVIDERS, ...API_PROVIDERS];
+/** Env var each API provider reads its key from, for non-interactive init. */
+const API_KEY_ENV: Partial<Record<ReviewerProvider, string>> = {
+  anthropic: 'ANTHROPIC_API_KEY',
+  openai: 'OPENAI_API_KEY',
+  google: 'GOOGLE_API_KEY',
+  'openai-compatible': 'OPENAI_API_KEY',
+};
 const CLAUDE_CODE_ALIASES = [
   { value: 'haiku', label: 'haiku' },
   { value: 'sonnet', label: 'sonnet' },
@@ -258,18 +267,23 @@ async function runReviewerConfigFlow(): Promise<{
   apiKey?: string;
   endpoint?: string;
 }> {
-  // 1. Provider selection
+  // 1. Provider selection.
+  // Free, no-key options come first and the installed-agent path is the default:
+  // most adopters already run an agent CLI (Claude Code / Codex / Gemini), so the
+  // reviewer needs no separate API key or bill. API providers follow for those who
+  // want a dedicated key.
   const provider = await p.select<ReviewerProvider>({
     message: 'Which provider should verify your code?',
+    initialValue: 'claude-code' as ReviewerProvider,
     options: [
-      { value: 'anthropic' as ReviewerProvider, label: 'Anthropic', hint: 'API — Claude models' },
-      { value: 'openai' as ReviewerProvider, label: 'OpenAI', hint: 'API — GPT models' },
-      { value: 'google' as ReviewerProvider, label: 'Google', hint: 'API — Gemini models' },
-      { value: 'ollama' as ReviewerProvider, label: 'Ollama', hint: 'Local — no API costs' },
-      { value: 'openai-compatible' as ReviewerProvider, label: 'OpenAI-compatible', hint: 'API — custom endpoint' },
-      { value: 'claude-code' as ReviewerProvider, label: 'Claude Code', hint: 'CLI — uses installed claude' },
-      { value: 'codex' as ReviewerProvider, label: 'Codex', hint: 'CLI — uses installed codex' },
-      { value: 'gemini-cli' as ReviewerProvider, label: 'Gemini CLI', hint: 'CLI — uses installed gemini' },
+      { value: 'claude-code' as ReviewerProvider, label: 'Claude Code', hint: 'CLI — free, no API key; uses installed claude' },
+      { value: 'codex' as ReviewerProvider, label: 'Codex', hint: 'CLI — free, no API key; uses installed codex' },
+      { value: 'gemini-cli' as ReviewerProvider, label: 'Gemini CLI', hint: 'CLI — free, no API key; uses installed gemini' },
+      { value: 'ollama' as ReviewerProvider, label: 'Ollama', hint: 'Local — no API costs; needs a local install' },
+      { value: 'anthropic' as ReviewerProvider, label: 'Anthropic', hint: 'API key — Claude models' },
+      { value: 'openai' as ReviewerProvider, label: 'OpenAI', hint: 'API key — GPT models' },
+      { value: 'google' as ReviewerProvider, label: 'Google', hint: 'API key — Gemini models' },
+      { value: 'openai-compatible' as ReviewerProvider, label: 'OpenAI-compatible', hint: 'API key — custom endpoint' },
     ],
   });
   assertNotCancelled(provider);
@@ -460,9 +474,9 @@ async function freshInit(projectRoot: string): Promise<void> {
 
   if (!isTTY()) {
     process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
-      what: 'yg init requires an interactive terminal.',
-      why: 'Setup requires interactive prompts to configure platform and reviewer.',
-      next: 'Run yg init in an interactive terminal session.',
+      what: 'yg init requires an interactive terminal (no --provider given).',
+      why: 'The interactive wizard needs prompts to configure platform and reviewer. Docker, devcontainer, and CI runs have no TTY.',
+      next: `Run yg init in an interactive terminal, OR bootstrap non-interactively: yg init --platform <name> --provider <name> [--model <m>] [--endpoint <url>]. Supported providers: ${ALL_PROVIDERS.join(', ')}.`,
     })}\n`));
     process.exit(1);
   }
@@ -484,8 +498,9 @@ async function freshInit(projectRoot: string): Promise<void> {
   p.log.step('Step 2: Reviewer provider');
   p.log.info(
     'The reviewer checks your source code against aspect rules during yg check --approve.\n' +
-    '  API providers make HTTP calls. CLI providers delegate to an installed agent.\n' +
-    '  For local review without API costs, use Ollama.',
+    '  If you already run an agent CLI (Claude Code, Codex, Gemini), pick it — the\n' +
+    '  reviewer then needs no API key and adds no separate API bill. Ollama runs\n' +
+    '  locally with no API cost. API providers (Anthropic, OpenAI, Google) need a key.',
   );
   const reviewerConfig = await runReviewerConfigFlow();
 
@@ -517,6 +532,80 @@ async function createYggdrasilStructure(
   // yg-secrets.yaml is created by writeSecretsFile when user provides an API key
 
   await installRulesForPlatform(projectRoot, platform);
+}
+
+// ---------------------------------------------------------------------------
+// Non-interactive fresh init (Docker / devcontainer / CI bootstrap)
+// ---------------------------------------------------------------------------
+
+/**
+ * Non-interactive fresh bootstrap. Runs the SAME write-path as interactive
+ * freshInit (createYggdrasilStructure + writeReviewerConfig [+ writeSecretsFile])
+ * but takes every choice from flags instead of prompts, and performs NO model
+ * fetch or connection test — so it works in a non-TTY context (Docker,
+ * devcontainer, CI) where the wizard cannot run.
+ *
+ * The caller has already validated that `platform` and `provider` are recognized
+ * values. Here: CLI-agent providers fall back to a built-in default model when
+ * --model is omitted; API/local providers require --model. Ollama defaults its
+ * endpoint; openai-compatible requires --endpoint. API keys are read from the
+ * provider's env var (never a flag, so they never land in shell history); a
+ * missing key is non-fatal — the config is written and can be fixed later,
+ * mirroring the interactive flow's "saved anyway".
+ */
+export async function freshInitNonInteractive(
+  projectRoot: string,
+  yggRoot: string,
+  opts: { platform: Platform; provider: ReviewerProvider; model?: string; endpoint?: string },
+): Promise<void> {
+  const { platform, provider } = opts;
+
+  const model = opts.model?.trim();
+  if (!model) {
+    process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
+      what: '--model is required for non-interactive init.',
+      why: 'Non-interactive init records the reviewer model verbatim and applies no default — the model must be named explicitly.',
+      next: `Re-run naming a model: yg init --platform ${platform} --provider ${provider} --model <name>.`,
+    })}\n`));
+    process.exit(1);
+  }
+
+  let endpoint = opts.endpoint?.trim() || undefined;
+  if (needsEndpoint(provider) && !endpoint) {
+    if (provider === 'ollama') {
+      endpoint = 'http://localhost:11434';
+    } else {
+      process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
+        what: `--endpoint is required for provider '${provider}'.`,
+        why: 'An OpenAI-compatible provider has no default base URL — the reviewer needs an endpoint to call.',
+        next: `Re-run naming an endpoint: yg init --platform ${platform} --provider ${provider} --model ${model} --endpoint <url>.`,
+      })}\n`));
+      process.exit(1);
+    }
+  }
+
+  await createYggdrasilStructure(projectRoot, yggRoot, platform);
+  await writeReviewerConfig(yggRoot, { provider, model, endpoint });
+
+  if (needsApiKey(provider)) {
+    const envVar = API_KEY_ENV[provider];
+    const apiKey = (envVar ? process.env[envVar] : undefined)?.trim();
+    if (apiKey) {
+      await writeSecretsFile(yggRoot, apiKey);
+    } else {
+      process.stdout.write(chalk.yellow(`${buildIssueMessage({
+        what: `No API key found${envVar ? ` in $${envVar}` : ''}; wrote the config without one.`,
+        why: 'An API provider needs a key before the reviewer can run; init records the config anyway so setup is not blocked.',
+        next: `Set ${envVar ?? 'the provider API key environment variable'} (or add the key to .yggdrasil/yg-secrets.yaml) before running yg check --approve.`,
+      })}\n`));
+    }
+  }
+
+  await ensureGitattributes(projectRoot);
+
+  process.stdout.write(chalk.green(
+    `Yggdrasil initialized (platform: ${platform}, provider: ${provider}, model: ${model}). Run yg check to get started.\n`,
+  ));
 }
 
 // ---------------------------------------------------------------------------
@@ -661,7 +750,10 @@ export function registerInitCommand(program: Command): void {
     .description('Initialize Yggdrasil graph in current project')
     .option('--upgrade', 'Non-interactive: refresh rules')
     .option('--platform <name>', `Platform for rules file (${PLATFORMS.join(', ')})`)
-    .action(async (options: { upgrade?: boolean; platform?: string }) => {
+    .option('--provider <name>', `Non-interactive fresh init: reviewer provider (${ALL_PROVIDERS.join(', ')})`)
+    .option('--model <name>', 'Non-interactive fresh init: reviewer model (required)')
+    .option('--endpoint <url>', 'Non-interactive fresh init: reviewer endpoint (ollama / openai-compatible)')
+    .action(async (options: { upgrade?: boolean; platform?: string; provider?: string; model?: string; endpoint?: string }) => {
       try {
         const projectRoot = process.cwd();
         const yggRoot = path.join(projectRoot, '.yggdrasil');
@@ -784,6 +876,39 @@ export function registerInitCommand(program: Command): void {
 
         if (exists) {
           await existingInit(projectRoot);
+        } else if (options.provider) {
+          // Non-interactive fresh bootstrap (Docker / devcontainer / CI). Validate
+          // platform + provider up front, then run the prompt-free write-path.
+          if (!options.platform) {
+            process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
+              what: '--provider requires --platform for non-interactive init.',
+              why: 'A fresh graph must install the rules file for a specific agent platform; there is no prompt to ask in non-interactive mode.',
+              next: `Pass --platform <name>. Supported: ${PLATFORMS.join(', ')}.`,
+            })}\n`));
+            process.exit(1);
+          }
+          if (!PLATFORMS.includes(options.platform as Platform)) {
+            process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
+              what: `Unknown platform '${options.platform}'.`,
+              why: 'The --platform value must match one of the supported agent platforms.',
+              next: `Use one of: ${PLATFORMS.join(', ')}`,
+            })}\n`));
+            process.exit(1);
+          }
+          if (!ALL_PROVIDERS.includes(options.provider as ReviewerProvider)) {
+            process.stderr.write(chalk.red(`Error: ${buildIssueMessage({
+              what: `Unknown provider '${options.provider}'.`,
+              why: 'The --provider value must match one of the supported reviewer providers.',
+              next: `Use one of: ${ALL_PROVIDERS.join(', ')}`,
+            })}\n`));
+            process.exit(1);
+          }
+          await freshInitNonInteractive(projectRoot, yggRoot, {
+            platform: options.platform as Platform,
+            provider: options.provider as ReviewerProvider,
+            model: options.model,
+            endpoint: options.endpoint,
+          });
         } else {
           await freshInit(projectRoot);
         }

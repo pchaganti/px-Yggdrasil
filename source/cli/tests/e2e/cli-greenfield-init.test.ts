@@ -419,4 +419,70 @@ describe.skipIf(!distExists)('CLI E2E — greenfield / init / platform-install',
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  // -------------------------------------------------------------------------
+  // 6. Non-interactive fresh init (Docker / devcontainer / CI bootstrap).
+  //    A fresh empty dir + --provider routes to the prompt-free write-path
+  //    (the wizard hard-fails in a non-TTY, which spawnSync is). These drive
+  //    the FULL headless bootstrap and the green-from-first-check contract
+  //    through the real binary.
+  // -------------------------------------------------------------------------
+
+  it('G12: non-interactive fresh init writes a require-nothing config and the first check is green', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-noninteractive-'));
+    try {
+      const init = run(['init', '--platform', 'claude-code', '--provider', 'claude-code', '--model', 'haiku'], dir);
+      expect(init.status).toBe(0);
+      expect(init.stdout).toContain('Yggdrasil initialized');
+      const cfg = readFileSync(path.join(dir, '.yggdrasil', 'yg-config.yaml'), 'utf-8');
+      // Fresh config opts into require-nothing coverage and records the named tier.
+      expect(cfg).toContain('coverage:');
+      expect(cfg).toMatch(/required:\s*\[\]/);
+      expect(cfg).toContain('provider: claude-code');
+      expect(cfg).toContain('model: haiku');
+      // The very first check on the untouched repo is GREEN (unmapped files are
+      // non-blocking warnings, not blocking errors).
+      const check = run(['check'], dir);
+      expect(check.status).toBe(0);
+      expect(check.stdout).toContain('PASS');
+      expect(check.stdout).toContain('uncovered');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('G13: non-interactive init without --model is rejected — no default model is applied (exit 1)', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-noninteractive-nomodel-'));
+    try {
+      const { status, stderr } = run(['init', '--platform', 'claude-code', '--provider', 'claude-code'], dir);
+      expect(status).toBe(1);
+      expect(stderr).toContain('--model is required');
+      // Nothing was written — the guard fires before any structure is created.
+      expect(existsSync(path.join(dir, '.yggdrasil'))).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('G14: non-interactive init with --provider but no --platform is rejected (exit 1)', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-noninteractive-noplatform-'));
+    try {
+      const { status, stderr } = run(['init', '--provider', 'claude-code', '--model', 'haiku'], dir);
+      expect(status).toBe(1);
+      expect(stderr).toContain('--provider requires --platform');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('G15: non-interactive init with an unknown --provider is rejected (exit 1)', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'yg-noninteractive-badprovider-'));
+    try {
+      const { status, stderr } = run(['init', '--platform', 'claude-code', '--provider', 'bogus-xyz', '--model', 'x'], dir);
+      expect(status).toBe(1);
+      expect(stderr).toContain("Unknown provider 'bogus-xyz'");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

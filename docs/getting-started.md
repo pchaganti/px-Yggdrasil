@@ -27,12 +27,29 @@ The wizard asks two things:
 
 1. **Which AI coding platform?** (Cursor, Claude Code, Copilot, etc.)
    This installs a rules file that teaches your agent the Yggdrasil protocol.
-2. **Which reviewer provider?** (Anthropic, OpenAI, Google, Ollama, etc.)
-   The wizard fetches available models, lets you pick one, and validates
-   the connection.
+2. **Which reviewer provider?** The reviewer verifies your code against your
+   rules. If you already run an agent CLI — **Claude Code, Codex, or Gemini
+   CLI** — pick it: it needs **no API key** and adds no separate API bill, and
+   the wizard just checks the tool is on your PATH. That is the default, and the
+   fastest way to start. Ollama runs locally with no API cost. The API providers
+   (Anthropic, OpenAI, Google) need a key — for those, the wizard fetches the
+   available models, lets you pick one, validates the connection, and stores the
+   key in `.yggdrasil/yg-secrets.yaml` (automatically gitignored; you can set it
+   via `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GOOGLE_API_KEY` instead).
 
-That's it. Takes about a minute. The wizard creates `.yggdrasil/` with
-config, architecture defaults, and the rules file for your platform.
+The wizard creates `.yggdrasil/` with config, architecture defaults, and the
+rules file for your platform.
+
+::: tip No terminal? (Docker, devcontainer, CI)
+Bootstrap a fresh graph non-interactively with flags instead of prompts:
+
+```bash
+yg init --platform claude-code --provider claude-code --model haiku
+```
+
+`--model` is required (init applies no default). Pass `--endpoint` for Ollama or
+an OpenAI-compatible provider. API keys are read from the provider's env var.
+:::
 
 The architecture file (`.yggdrasil/yg-architecture.yaml`) ships with an empty
 architecture (`node_types: {}`) and commented examples — node types are defined
@@ -42,27 +59,28 @@ do it:
 
 > "Add a node type 'api' with a default aspect 'requires-auth'."
 
-If you selected an API provider, the wizard stores your API key in
-`.yggdrasil/yg-secrets.yaml` (automatically gitignored). You can also
-set keys via environment variables (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
-`GOOGLE_API_KEY`) instead.
-
 ## 3) Your first aspect
 
-After init, you have an empty graph. If you run `yg check` now, you'll see
-all your source files listed as unmapped:
+After init, you have an empty graph, and `yg init` starts you in "require
+nothing" mode (`coverage.required: []` in `yg-config.yaml`). So your first
+`yg check` is **green** — every file shows up as a non-blocking warning, not a
+blocking error:
 
 ```text
 $ yg check
 
-my-project — 0 nodes, 0 aspects, 0 flows
-Coverage: 0/50 source files (0%)
+yg check: PASS (1 warning)  0 nodes · 0/50 files (0%) · 0 aspects · 0 flows
 
-Errors (1):
-  unmapped-files — 50 source files have no graph coverage.
+Warnings (1):
+
+  uncovered (50)
+            src/…  (every file, listed)
+            Why: Not under a coverage.required root — visible but non-blocking. Bring an area under graph coverage to enforce it.
+            Fix: Map these files to a node, or add their root to coverage.required to make this an error.
 ```
 
-This is expected. Tell your agent to create the first rule.
+Nothing is enforced yet — the warnings are your to-do list. Tell your agent to
+create the first rule.
 
 Example prompt:
 
@@ -131,15 +149,21 @@ A brand-new aspect on an existing codebase often surfaces violations across many
 
 ## 4) Existing codebase (brownfield)
 
-By default, `yg check` requires every source file on disk (respecting
-`.gitignore`, but not requiring git) to belong to some node. On a fresh repo
-with 200 files and 0 nodes, check fails immediately.
+`yg init` writes `coverage.required: []` — "require nothing" — so a fresh repo
+of any size is **green from the first check**, with every unmapped file shown as
+a non-blocking warning. You tighten coverage as you go: add a path prefix to
+`coverage.required` in `yg-config.yaml` (e.g. `- src/payments/`) and files under
+it become blocking errors until they belong to a node; files outside required
+(and not excluded) stay non-blocking warnings; files under `coverage.excluded`
+are silent. Subtrees with their own nested `.yggdrasil/` are auto-skipped. See
+[Configuration](/configuration) for details.
 
-You can relax this with a `coverage` block in `yg-config.yaml`. Files under
-`coverage.required` roots remain blocking errors; files outside required (and
-not excluded) become non-blocking warnings; files under `coverage.excluded`
-are silent. Subtrees with their own nested `.yggdrasil/` are auto-skipped.
-See [Configuration](/configuration) for details.
+::: info Whole-repo default
+An _absent_ coverage block — or a repo initialized before this became the
+default — requires the **whole** repo (every file is a blocking error until
+mapped). Add an explicit `coverage: { required: [], excluded: [] }` to opt into
+require-nothing.
+:::
 
 The fast path: **minimal nodes (no aspects) for everything you're not working
 on, proper nodes with aspects for what you are.**
