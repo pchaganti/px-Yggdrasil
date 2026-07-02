@@ -281,7 +281,7 @@
       "node:cli/io/parsers/aspect": {"hash":"92b46d0af35e65099ada9c353761548ae1d981a33bffa1f17d96e159c693540e","verdict":"approved"},
       "node:cli/io/parsers/config": {"hash":"ab9e72155bda2d6212231f4fd8bc31886de7a4629afc0b60e68aa85e2bee8395","verdict":"approved"},
       "node:cli/io/parsers/graph": {"hash":"a31851295a6bf47fd3d9f12569f9a6477b7f40d263e4de60b03908c3bce8f5a6","verdict":"approved"},
-      "node:cli/io/stores": {"hash":"54eab68ee3aa2bdb6ad923e23fb668eb524e086525b17b158d22bae2f59433c9","verdict":"approved"}
+      "node:cli/io/stores": {"hash":"cbd955d8077408ca034f74d20774a3105319798f490c58906266f33e0d306f2b","verdict":"approved"}
     },
     "test-deterministic": {
       "file:source/cli/tests/e2e/cli-architecture-classification.test.ts": {"hash":"505c48f4801a1f0ef45c6dd303e174dcdb081a271272f00fd01af54c300ee8d9","verdict":"approved"},
@@ -684,7 +684,7 @@
       "file:source/cli/tests/unit/utils/mapping-path.test.ts": {"hash":"b82d7c1e32f697154269ee09c1e6801a0bf5ab7a258f856d99e973f474b92c81","verdict":"approved"},
       "file:source/cli/tests/unit/utils/node-path-validator.test.ts": {"hash":"137ca3c3803e029d84ab72fd1efadbe2cd45d06e5dd628ec31977933e73423f1","verdict":"approved"},
       "file:source/cli/tests/unit/utils/paths.test.ts": {"hash":"53e3dc236f1be0d501a88697bfe1aad56bd5d6be187a5bead152a60b8e7ed077","verdict":"approved"},
-      "file:source/cli/tests/unit/utils/repo-scan.test.ts": {"hash":"6db5598a10208db1c9f4dcdae57a06a48867ce3e40ab437177f742cd8cb4b5dc","verdict":"approved"},
+      "file:source/cli/tests/unit/utils/repo-scan.test.ts": {"hash":"eb9be6ffd276b2696cdb34606d07f471da4e72579d1f4b2f011f54b3b7765583","verdict":"approved"},
       "file:source/cli/tests/unit/utils/validate-check-module.test.ts": {"hash":"ed4975971d6e6e1839d580307b337fb8c073295ab0b187a1cddf53c064b6fd41","verdict":"approved"}
     },
     "what-why-next": {

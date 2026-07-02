@@ -58,9 +58,11 @@ async function collectFiles(
 
   const results: string[] = [];
   for (const entry of entries) {
+    // `.git` is skipped in BOTH forms: the directory (normal checkout) and the
+    // pointer FILE `gitdir: ...` (git worktree / submodule checkout).
+    if (entry.name === '.git') continue;
     const absPath = join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (entry.name === '.git') continue;
       if (entry.name === YGGDRASIL_DIRNAME && dir === projectRoot) continue;
       if (isIgnoredByStack(absPath, localStack)) continue;
       results.push(...(await collectFiles(absPath, projectRoot, localStack)));
@@ -99,7 +101,8 @@ export function excludeNestedGraphSubtrees(relPaths: string[]): string[] {
 
 /**
  * Walk all files in the repo, returning repo-relative POSIX paths.
- * Excludes `.yggdrasil/`, `.git/`, symlinks, and gitignore-matched files.
+ * Excludes `.yggdrasil/`, `.git` (directory or worktree/submodule pointer file),
+ * symlinks, and gitignore-matched files.
  * Excludes subtrees that contain their own nested `.yggdrasil/` directory.
  */
 export async function walkRepoFiles(projectRoot: string): Promise<string[]> {

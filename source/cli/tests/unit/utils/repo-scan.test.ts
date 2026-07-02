@@ -42,6 +42,26 @@ describe('walkRepoFiles', () => {
     expect(files.every((f) => !f.startsWith('.yggdrasil/'))).toBe(true);
   });
 
+  it('skips the .git directory at any depth', async () => {
+    mkdirSync(join(tmpDir, '.git'));
+    writeFileSync(join(tmpDir, '.git/HEAD'), 'ref: refs/heads/main\n');
+    mkdirSync(join(tmpDir, 'sub'));
+    mkdirSync(join(tmpDir, 'sub/.git'));
+    writeFileSync(join(tmpDir, 'sub/.git/HEAD'), 'ref: refs/heads/main\n');
+    writeFileSync(join(tmpDir, 'src.ts'), '');
+    const files = await walkRepoFiles(tmpDir);
+    expect(files).toEqual(['src.ts']);
+  });
+
+  it('skips the .git pointer FILE (worktree / submodule form) at any depth', async () => {
+    writeFileSync(join(tmpDir, '.git'), 'gitdir: /repo/.git/worktrees/wt\n');
+    mkdirSync(join(tmpDir, 'sub'));
+    writeFileSync(join(tmpDir, 'sub/.git'), 'gitdir: ../.git/modules/sub\n');
+    writeFileSync(join(tmpDir, 'src.ts'), '');
+    const files = await walkRepoFiles(tmpDir);
+    expect(files).toEqual(['src.ts']);
+  });
+
   it('respects cascading gitignore', async () => {
     mkdirSync(join(tmpDir, 'sub'));
     writeFileSync(join(tmpDir, 'sub/.gitignore'), 'local.ts\n');

@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`yg check` no longer flags `.git` as an unmapped file in git worktrees.** In a worktree (and in submodule checkouts) `.git` is a small pointer file rather than a directory; the repository scan skipped only the directory form, so every run in a fresh worktree reported one false blocking coverage error — `unmapped: .git` — on an otherwise green repository. The scan now skips `.git` in both forms, at any depth, so a green build stays green in a worktree.
+
 ### Security
 
 - **The portal's local server no longer puts internal error detail in its data responses.** When a background data request to the local portal fails, the server now returns a generic message and writes the full technical reason (paths, stack) to the terminal running the portal — visible only to the person who started it — instead of including it in the response body. Even though the portal only listens on the local loopback address, on a shared machine that address is reachable by other local accounts, so internal detail no longer travels on the wire. The human-readable error page shown in the browser is unchanged.
-- **Repository CI and release workflows hardened, and a committed CodeQL configuration added.** The CI workflow now runs with a least-privilege, read-only token; the release workflow passes the computed version and dist-tag through the environment instead of interpolating them directly into shell commands (injection-safe). A committed CodeQL setup (`.github/workflows/codeql.yml` + `.github/codeql/codeql-config.yml`) makes code scanning reproducible from the repository and scopes the security queries to shipped code. These are repository-internal changes with no effect on the published package.
+- **Repository CI and release workflows hardened.** The CI workflow now runs with a least-privilege, read-only token; the release workflow passes the computed version and dist-tag through the environment instead of interpolating them directly into shell commands (injection-safe). These are repository-internal changes with no effect on the published package. (A committed CodeQL workflow briefly added alongside this hardening was removed again before release — code scanning runs via the repository's GitHub setup instead.)
 
 ## [5.4.2] - 2026-07-02
 
