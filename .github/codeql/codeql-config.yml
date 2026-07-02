@@ -1,0 +1,17 @@
+name: 'Yggdrasil CodeQL config'
+
+# Scope the security queries to shipped product code. The excluded paths are either not
+# part of the published package or not our code to fix:
+#   - source/cli/tests: the test suites are not shipped and are not an attack surface;
+#     a CodeQL finding in test-only helper code is noise, not a product risk.
+#   - **/vendor/**: vendored third-party bundles (e.g. the d3 hierarchy layout) are
+#     upstream code, not ours to modify.
+#
+# Deliberately NOT excluded: the committed portal frontend under
+# source/cli/src/templates/portal/**. That JavaScript ships to adopters and runs in
+# their browsers, so it is exactly the code that should stay under XSS/DOM scanning.
+# Individual false positives there are dismissed on the dashboard with a documented
+# reason rather than by hiding the whole path.
+paths-ignore:
+  - source/cli/tests
+  - '**/vendor/**'

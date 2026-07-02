@@ -189,7 +189,11 @@ function wireOrdersToPayments(dir: string): void {
 function unverifiedNodesForAspect(all: string, aspectId: string): string[] {
   const lines = all.split('\n');
   const nodes: string[] = [];
-  const bodyPattern = new RegExp(`^\\s*-\\s+(\\S+)\\s+aspect '${aspectId.replace(/'/g, "\\'")}'\\s*$`);
+  // Escape every regex metacharacter (including backslash) before interpolating the id into
+  // the pattern, so an id with special characters matches literally instead of being parsed
+  // as regex syntax.
+  const escapedId = aspectId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const bodyPattern = new RegExp(`^\\s*-\\s+(\\S+)\\s+aspect '${escapedId}'\\s*$`);
   for (const line of lines) {
     const m = line.match(bodyPattern);
     if (m) nodes.push(m[1]);

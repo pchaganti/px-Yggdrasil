@@ -139,7 +139,17 @@ export async function handleRequest(
 
     sendJson(res, 404, { error: 'not-found', method, path: pathname });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    sendJson(res, 500, { error: 'internal', message });
+    // The raw error can carry internal detail — filesystem paths, stack frames. That belongs
+    // to whoever runs the portal, not on the HTTP response: even though the server is loopback
+    // only, on a shared host the loopback address is reachable by other local accounts. Write
+    // the full reason to the terminal running the portal (visible only to the process owner)
+    // and return a generic message to the client. The `yg check` guidance points the operator
+    // there for the real cause.
+    const detail = err instanceof Error ? (err.stack ?? err.message) : String(err);
+    process.stderr.write(`[portal] request handler error (${method} ${pathname}): ${detail}\n`);
+    sendJson(res, 500, {
+      error: 'internal',
+      message: 'The portal hit an internal error. Check the terminal running the portal for details.',
+    });
   }
 }

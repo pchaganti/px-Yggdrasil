@@ -6,6 +6,11 @@ on:
   push:
     branches: [main]
 
+# Least-privilege default token: this workflow only reads the repo (checkout, build,
+# test, coverage upload). No job needs write scope, so pin the GITHUB_TOKEN to read-only.
+permissions:
+  contents: read
+
 jobs:
   quality:
     runs-on: ubuntu-latest

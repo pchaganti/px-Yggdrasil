@@ -9,6 +9,7 @@ mapping:
   - .editorconfig
   - .gitattributes
   - .github/CODEOWNERS
+  - .github/codeql/codeql-config.yml
   - .github/dependabot.yml
   - .gitignore
   - .nvmrc

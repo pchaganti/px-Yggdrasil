@@ -323,7 +323,7 @@
       "file:source/cli/tests/e2e/cli-impact.test.ts": {"hash":"1ff342990f3bc8e512cecfb10bd4c2e9621f9d26f7a85bdc0a848937f9e4a03e","verdict":"approved"},
       "file:source/cli/tests/e2e/cli-implies.test.ts": {"hash":"891c0fcf96936d9fb86b9f53f4c72ca7c2d19901b39a456ccc665f258499080f","verdict":"approved"},
       "file:source/cli/tests/e2e/cli-init-secrets-shape.test.ts": {"hash":"e9afe024766cf0ed73301402ef84bc90da12c6aa40d275206a1730746882e81b","verdict":"approved"},
-      "file:source/cli/tests/e2e/cli-invalidation-extended.test.ts": {"hash":"81ab6f3af67b06100f11bd6fd78fbd013c79a57b39b0b43f300d47f15ff39c34","verdict":"approved"},
+      "file:source/cli/tests/e2e/cli-invalidation-extended.test.ts": {"hash":"bd1a6092f71644e955c890623adafa00122dcd71418e82dcd67755659c87fc51","verdict":"approved"},
       "file:source/cli/tests/e2e/cli-invalidation-variety.test.ts": {"hash":"5eb9f981764f277cfdc46cb5b6c9c5aaf308178aad1e8ba85033ea3c999a9ddd","verdict":"approved"},
       "file:source/cli/tests/e2e/cli-lifecycle.test.ts": {"hash":"6da4d445ac6e732f9e3e64df933327d66d381ca7f7f0ea9982dc1e21f300b941","verdict":"approved"},
       "file:source/cli/tests/e2e/cli-llm-companion-failclosed.test.ts": {"hash":"b9ac908ac122430f04d26eb57d903b5c8218514e9d96304a9484360eda8c2839","verdict":"approved"},
