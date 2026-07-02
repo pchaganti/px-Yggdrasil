@@ -36,8 +36,8 @@ From the agent's point of view, every change runs this cycle:
 4. **On a failure**, the agent gets specific feedback (which rule, which file, what is wrong), fixes it in the same session, and re-runs. It loops here until green.
 5. **In CI**, plain `yg check` confirms the recorded verdicts still hold for the current code.
 
-::: info CI is free and keyless
-`yg check` in CI does not call the reviewer and needs no API keys. It only confirms that the results already recorded still hold. If a file changed but was never re-verified, `yg check` goes red and the build stops. The verification happens locally while the agent works; CI just confirms it was done. The mechanics live in [The lock](/the-lock).
+::: info CI is free and keyless — and a green build can't lie
+`yg check` in CI does not call the reviewer and needs no API keys. It only confirms that the results already recorded still hold. Each verdict is tied by hash to the exact code it checked, so a file that changed but was never re-verified turns the build red — a stale or unverified change can't ride through as green. The verification happens locally while the agent works; CI just re-proves it was done. The mechanics live in [The lock](/the-lock).
 :::
 
 ## See it catch a mistake

@@ -8,6 +8,10 @@
 
 AI agents write your code now. Yggdrasil checks their work the moment they write it, against rules you set, so code that breaks your rules never reaches your review. The check runs inside the agent's loop: it writes, Yggdrasil checks, and on a failure the agent gets a precise error and has to fix it before it moves on. The same check runs in CI, for free, with no API keys. Works with Claude Code, Cursor, Copilot, Codex, Cline, and more.
 
+And a green build can't quietly lie: every rule was actually checked against the exact code that's shipping, and CI re-proves it for free — no keys, no model calls.
+
+Call it **guardrails your agent can't bypass**, policy-as-code for coding agents, or a drift gate for your architecture — the idea is the same: your rules, enforced.
+
 [![CI](https://github.com/krzysztofdudek/Yggdrasil/actions/workflows/ci.yml/badge.svg)](https://github.com/krzysztofdudek/Yggdrasil/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@chrisdudek/yg.svg)](https://www.npmjs.com/package/@chrisdudek/yg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -88,7 +92,7 @@ Aspects are scoped. The agent only sees the ones that touch the file it's workin
 You lay the track, the agent drives. Your rules and structure live in a small graph next to your code, under `.yggdrasil/`, with three first-class elements:
 
 - **Nodes** group source files into components.
-- **Aspects** are the rules attached to nodes ("Every public endpoint must use rate limiting", "All command handlers must validate input with zod", "No direct database access from this layer").
+- **Aspects** are the rules attached to nodes ("Every public endpoint must use rate limiting", "All command handlers must validate input with zod", "No direct database access from this layer"). It's Yggdrasil's own word for an enforceable rule — unrelated to aspect-oriented programming.
 - **Flows** mark business processes that span components, so an aspect on a flow reaches every participant.
 
 A rule can apply to one component or many. You attach it once, and the tool computes everywhere it lands. You never copy-paste a rule onto each file. See the [docs](https://krzysztofdudek.github.io/Yggdrasil/) for how that works. **Ports** are the one explicit exception: a bare relation between nodes does not carry an aspect across a component boundary, but consuming a named port does. That keeps inheritance deliberate, never accidental.
@@ -222,6 +226,9 @@ Works with any AI coding agent. `yg init` sets up the rules file your agent expe
 **How is this different from CLAUDE.md or .cursorrules?**
 Rules files are flat text dumped into every prompt. No scoping, no verification. Yggdrasil delivers only the rules relevant to each file and reviews the output against them.
 
+**How is this different from an agent hook or a pre-commit hook?**
+A hook is a real, free, in-loop gate — and you should use one. Yggdrasil's own deterministic layer (`check.mjs`) *is* exactly that: a script that runs every time and can't be talked past. Point a `PreToolUse` or pre-commit hook at `yg check` and you've wired Yggdrasil into the loop. What a bare hook has no notion of is three things: *which* rule applies to *which* file (Yggdrasil hands the agent only the rules that touch the file it's editing), rules that need judgment rather than a script (the LLM layer), and a content-addressed lock that lets CI re-prove every rule — including an LLM verdict — against the current code for free, with no key. The hook is the trigger; the graph and the lock are what it triggers.
+
 **How is this different from linters?**
 Linters check syntax and patterns. "Rate limiting required" isn't a lint rule. "No direct DB access from this layer" isn't in any AST. "All mutations must emit audit events" can't be checked with regex. Yggdrasil reviews against rules that only exist in your head until you write them down. And where a rule *is* mechanically checkable, you can write it as a script that runs for free.
 
@@ -235,7 +242,7 @@ Locally, `yg check --approve` sends LLM aspects to the reviewer and runs script 
 Delete `.yggdrasil/` and the rules file. No runtime dependencies, no build hooks, nothing left behind.
 
 **Is this just another AI code review bot?**
-No. AI code review bots scan diffs for bugs after the fact. Yggdrasil runs a reviewer against specific rules you wrote, inside the agent's loop, so violations get fixed in the same session rather than piling up in a PR that nobody has time to read. The rules are yours; the enforcement is what Yggdrasil adds.
+No. Review bots hunt for bugs against their own general model of "good code" — and some now run in the CLI or the agent loop too, so timing alone isn't the difference. Yggdrasil checks *your* specific rules, the ones only you know; delivers just the relevant ones per file; and records each verdict in a committed, content-addressed lock that CI re-proves for free with no key. The rules are yours; the durable, keyless proof is what Yggdrasil adds.
 
 ## Examples
 

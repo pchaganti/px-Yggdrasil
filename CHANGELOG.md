@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Four new keyless example projects showing the free, local layer.** `examples/` gains `no-secrets-in-logs` (a deterministic `check.mjs` refusing any log call that references a secret/PII field — a PCI concern), `layered-architecture` (the built-in relation check enforcing `web → domain → data` layering live, no lock, no key), `pure-transforms` (the same deterministic layer over **Python** — reproducible ETL transforms, no wall-clock or randomness), and `checkout-flow` (one deterministic rule attached to a `flow`, propagated to every checkout step). Each is a standalone, runnable project with its own README (scenario → run → the one edit that breaks the rule → the exact refusal), needs **no API key**, and is covered by the shipped-examples e2e guard so they cannot silently rot. Until now every shipped example used the LLM layer; these are the first deterministic + relation examples. The examples index now leads with them.
 
+### Changed
+
+- **Sharper positioning on the README and docs.** The FAQ now answers "how is this different from an agent hook or a pre-commit hook?" head-on — a hook is a real, free, in-loop gate (Yggdrasil's own `check.mjs` is one); the difference is per-file rule delivery, the judgment layer, and a content-addressed lock CI re-proves for free — and the "AI code review bot" answer is refreshed to concede that some bots now run in the loop too (timing alone isn't the difference) and re-anchor on your-specific-rules plus the keyless proof. The README and docs hero/CI cards lead with "a green build can't lie" (each verdict is hash-tied to the exact code and re-proven keyless in CI), and the docs SEO description plus the README hero add the category terms this audience searches — guardrails, policy-as-code for coding agents, drift gate — with a one-line note that "aspect" here is unrelated to aspect-oriented programming. Copy only — no code or behavior change, and no concept was renamed.
+
 ## [5.4.1] - 2026-07-01
 
 ### Added

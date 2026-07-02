@@ -3,7 +3,7 @@ import { defineConfig } from "vitepress";
 export default defineConfig({
   base: "/Yggdrasil/",
   title: "Yggdrasil",
-  description: "Continuous architecture enforcement for AI-assisted development",
+  description: "Architecture guardrails your AI coding agent can't skip — policy-as-code for coding agents, enforced in the loop and re-checked free in CI. A drift gate for your architecture.",
   vite: {
     build: {
       // esbuild is force-upgraded to >= 0.28.1 via an npm `overrides` entry to patch two

@@ -26,8 +26,8 @@ features:
     title: Caught before it moves on
     details: Every change is reviewed inside the loop, by a free local script or a model. Violations have to be fixed to proceed.
   - icon: ⚡
-    title: CI with no keys
-    details: Each verdict is recorded once. CI rechecks the records, with no LLM calls and no provider keys.
+    title: A green build can't lie
+    details: Each verdict is tied by hash to the exact code it checked. CI re-proves every rule with no LLM calls and no keys, so a change that was never re-verified can't ride through green.
 ---
 
 ## Right now, you are the feedback loop
