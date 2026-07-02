@@ -239,6 +239,13 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
   // --only-deterministic: no LLM fills this run. An empty set naturally skips the
   // reviewer-call budget, the deterministic gate, and the whole step-6 LLM loop.
   const llmPairs = onlyDeterministic ? [] : unverifiedPairs.filter((p) => p.kind === 'llm');
+  // Under --only-deterministic the LLM pairs are intentionally NOT filled (no
+  // reviewer this run). Count them so the pre-dispatch header and the closing
+  // summary can say so honestly, instead of implying the run reviewed or
+  // verified them. Zero outside --only-deterministic (they land in llmPairs).
+  const skippedLlmPairs = onlyDeterministic
+    ? unverifiedPairs.filter((p) => p.kind === 'llm').length
+    : 0;
 
   // Index aspect defs and resolve consensus for the header's call count.
   const aspectById = new Map<string, AspectDef>();
@@ -263,6 +270,15 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
     `Filling ${unverifiedPairs.length} unverified pairs across ${nodeSet.size} nodes — ` +
       `${detPairs.length} deterministic (no cost), ${reviewerCallBudget} reviewer calls (consensus included)\n`,
   );
+  // Deterministic-only mode fills the free deterministic pairs but leaves every
+  // unverified LLM pair untouched. Say so up front — otherwise the header reads
+  // as if all N unverified pairs are being handled this run.
+  if (skippedLlmPairs > 0) {
+    write(
+      `  Deterministic-only mode — ${skippedLlmPairs} LLM pair${skippedLlmPairs === 1 ? '' : 's'} will NOT be reviewed this run; ` +
+        `run \`yg check --approve\` to review ${skippedLlmPairs === 1 ? 'it' : 'them'}.\n`,
+    );
+  }
 
   // ── Dry-run: cost preview, no writes. ──────────────────────────────────────
   // Placed AFTER the step-3 budget header and BEFORE the serialized writer is
@@ -315,7 +331,11 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
     return writeChain;
   };
   const setEntry = async (aspectId: string, unitKey: string, entry: VerdictEntry): Promise<void> => {
-    (lock.verdicts[aspectId] ??= {})[unitKey] = entry;
+    // Normalize the storage key to POSIX — the committed lock is shared across
+    // platforms, and every read/compare/display of a unitKey already normalizes,
+    // so a raw OS-native key (backslashes on Windows) would be stored under a key
+    // no normalized lookup could find. A no-op on POSIX.
+    (lock.verdicts[aspectId] ??= {})[toPosixPath(unitKey)] = entry;
     await persistLock();
   };
 
@@ -565,7 +585,16 @@ export async function runFill(graph: Graph, opts: RunFillOptions): Promise<RunFi
 
   // ── Step 9: Summaries + re-run the read. ──────────────────────────────────
   if (reviewerCallsMade === 0 && infraFailures === 0 && runtimeErrors === 0 && companionRuntimeErrors === 0) {
-    write('0 reviewer calls made — all expected pairs hold valid verdicts\n');
+    if (skippedLlmPairs > 0) {
+      // --only-deterministic made no reviewer calls BY DESIGN, but LLM pairs were
+      // left unverified — do NOT claim every pair holds a valid verdict.
+      write(
+        `0 reviewer calls made — deterministic-only mode; ${skippedLlmPairs} LLM pair${skippedLlmPairs === 1 ? '' : 's'} left unverified. ` +
+          `Run \`yg check --approve\` to review ${skippedLlmPairs === 1 ? 'it' : 'them'}.\n`,
+      );
+    } else {
+      write('0 reviewer calls made — all expected pairs hold valid verdicts\n');
+    }
   }
   if (infraFailures > 0) {
     const providers = [...new Set(infraReport.map((r) => r.provider).filter(Boolean))].join(', ');

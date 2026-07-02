@@ -395,6 +395,21 @@ export function resolveTopValue(raw: boolean | string | undefined): number | nul
 }
 
 /**
+ * The `Next:` footer (and the `Next (this group):` triage line) normally shows
+ * only the FIRST line of an issue's `next` — the actionable command, with the
+ * trailing explanation trimmed. That assumes line 1 stands alone. It does not
+ * for a heading-introduced list such as a refusal's `Three exits:\n  1. …\n
+ * 2. …`, where line 1 is a bare heading and the actionable content is the lines
+ * beneath it. Truncating there dead-ends the reader on `Next: Three exits:` with
+ * nothing after the colon. Rule: a first line that ends in `:` is a heading, so
+ * surface the WHOLE block; otherwise keep the terse first-line-only form.
+ */
+export function nextPointer(next: string): string {
+  const firstLine = next.split('\n')[0];
+  return firstLine.trimEnd().endsWith(':') ? next : firstLine;
+}
+
+/**
  * When `result.suggestedNext` starts with `yg check --approve` AND there is at
  * least one error whose code is NOT `unverified` (i.e. refused/relation/
  * structural/etc.), returns a parenthetical annotating partial coverage:
@@ -470,7 +485,7 @@ export function formatOutput(result: CheckResult, view: CheckView = { kind: 'ful
     // Next (this group): the first line of the highest-priority filtered issue's next.
     const firstFiltered = [...filteredErrors, ...filteredWarnings][0];
     if (firstFiltered?.messageData.next) {
-      const nextCmd = firstFiltered.messageData.next.split('\n')[0];
+      const nextCmd = nextPointer(firstFiltered.messageData.next);
       sections.push('');
       sections.push(`Next (this group): ${nextCmd}`);
       sections.push('');
@@ -513,8 +528,10 @@ export function formatOutput(result: CheckResult, view: CheckView = { kind: 'ful
     // warnings-only PASS, where it falls back to the first advisory aspect-violation
     // warning's `next`. A FULLY-GREEN run (no errors, no warnings) yields a null
     // suggestedNext and prints no Next line — a clean run is self-evidently done.
-    // Show only the first line — the actionable command, without annotation text.
-    const nextCmd = result.suggestedNext.split('\n')[0];
+    // Show only the first line — the actionable command, without annotation text
+    // — UNLESS that first line is a heading introducing a list (e.g. a refusal's
+    // "Three exits:"), where the whole block IS the actionable content.
+    const nextCmd = nextPointer(result.suggestedNext);
     // In the full view, annotate the Next line when --approve will only partially
     // clear errors (some refused/structural/relation errors remain after filling
     // unverified pairs). Triage views (top/summary) are already narrowed — they

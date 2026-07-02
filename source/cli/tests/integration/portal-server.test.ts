@@ -83,8 +83,21 @@ describe('portal loopback server — read-only surface + no-persist refresh', ()
     expect(handle.port).toBeGreaterThan(0);
   });
 
-  it('GET / serves the self-contained portal page with the inlined live data', async () => {
+  it('GET / serves the instant loading shell that boots the full page from /render', async () => {
     const res = await fetch(`${handle.url}/`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/html');
+    const html = await res.text();
+    expect(html.trimStart().toLowerCase().startsWith('<!doctype html>')).toBe(true);
+    // The shell is instant + self-contained: it carries NO inlined portal data (that
+    // is the heavy /render payload) and boots the real page by fetching /render.
+    expect((html.match(/<script id="portal-data" type="application\/json">/g) ?? []).length).toBe(0);
+    expect(html).toContain('/render');
+    expect(html).toContain('yg-boot'); // the loading-shell container
+  });
+
+  it('GET /render serves the self-contained portal page with the inlined live data', async () => {
+    const res = await fetch(`${handle.url}/render`);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('text/html');
     const html = await res.text();
@@ -320,6 +333,24 @@ describe('portal loopback server — handler error surfaces as a structured 500 
     const body = (await res.json()) as { error: string; message: string };
     expect(body.error).toBe('internal');
     expect(typeof body.message).toBe('string');
+  }, 60_000);
+
+  it('GET /render on a project with no graph returns a human-readable HTML error page (not raw JSON)', async () => {
+    const res = await fetch(`${handle.url}/render`);
+    expect(res.status).toBe(500);
+    // A person navigated here — surface a readable page, not a JSON blob.
+    expect(res.headers.get('content-type')).toContain('text/html');
+    const html = await res.text();
+    expect(html.trimStart().toLowerCase().startsWith('<!doctype html>')).toBe(true);
+    expect(html).toMatch(/could ?n.?t|unable|problem|went wrong/i);
+    expect(html).not.toContain('{"error"'); // never the raw JSON shape
+  }, 60_000);
+
+  it('GET / still serves the instant loading shell even when the graph is broken', async () => {
+    const res = await fetch(`${handle.url}/`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/html');
+    expect(await res.text()).toContain('yg-boot');
   }, 60_000);
 });
 

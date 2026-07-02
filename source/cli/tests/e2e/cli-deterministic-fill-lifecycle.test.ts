@@ -500,4 +500,28 @@ describe.skipIf(!distExists)('CLI E2E — deterministic fill/verify/refuse/statu
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it('F3: --only-deterministic reports SKIPPED LLM pairs honestly — it never claims all pairs hold valid verdicts', () => {
+    const dir = copyFixture('f3-honest-skip'); // full fixture — keeps the has-doc-comment LLM aspect
+    try {
+      const det = run(['check', '--approve', '--only-deterministic'], dir);
+
+      // Deterministic pairs fill; the LLM pair (has-doc-comment) is skipped → red.
+      expect(det.status).toBe(1);
+
+      // BUG: the summary used to print "all expected pairs hold valid verdicts"
+      // even though LLM pairs were left unverified. It must NOT claim that here.
+      expect(det.all).not.toContain('all expected pairs hold valid verdicts');
+      // Instead it must state the skip honestly and point at the full approve.
+      expect(det.all).toContain('left unverified');
+      expect(det.all).toMatch(/deterministic-only mode/i);
+      expect(det.all).toMatch(/yg check --approve/);
+
+      // BUG: the pre-dispatch header must flag that LLM pairs will NOT be reviewed
+      // this run — not imply it is filling them.
+      expect(det.all).toMatch(/will NOT be reviewed/i);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

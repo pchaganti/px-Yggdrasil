@@ -1,12 +1,14 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { freshPortalData, renderLivePage, readStaticAsset } from './page.js';
+import { freshPortalData, renderLivePage, readStaticAsset, loadingShell, errorPage } from './page.js';
 import { runApproveViaCli, dryRunApproveViaCli } from './approve.js';
 
 /**
  * server/router — maps one HTTP request to one response for the loopback portal server.
  *
  * Routes:
- *   GET  /              → the live portal page (fresh PortalData, rendered by the serializer)
+ *   GET  /              → the instant loading shell (no disk access); it boots /render client-side
+ *   GET  /render        → the live portal page (fresh PortalData, rendered by the serializer);
+ *                         a render failure returns a human-readable HTML error page, not JSON
  *   GET  /data          → Refresh: a fresh, read-only re-extraction of PortalData (JSON)
  *   GET  /static/*      → committed frontend assets (path-safe; 404 outside the asset tree)
  *   GET  /approve/dry-run → the reviewer-call / cost preview (shells the CLI dry-run)
@@ -66,9 +68,25 @@ export async function handleRequest(
 
   try {
     if (method === 'GET' && pathname === '/') {
-      const data = await freshPortalData(config.projectRoot, config.writeEnabled);
-      const html = await renderLivePage(data);
-      sendText(res, 200, 'text/html; charset=utf-8', html);
+      // The instant loading shell — no graph access, so the browser paints immediately
+      // instead of staring at a blank page while the whole extraction + render runs. The
+      // shell fetches /render and swaps it in (URL stays / → the opened hash route survives).
+      sendText(res, 200, 'text/html; charset=utf-8', loadingShell());
+      return;
+    }
+
+    if (method === 'GET' && pathname === '/render') {
+      // The heavy page: fresh PortalData → rendered HTML. A failure here reaches a person
+      // (the shell swaps this response into the document), so surface a readable HTML error
+      // page, never the raw JSON blob the generic 500 handler would emit for an API route.
+      try {
+        const data = await freshPortalData(config.projectRoot, config.writeEnabled);
+        const html = await renderLivePage(data);
+        sendText(res, 200, 'text/html; charset=utf-8', html);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        sendText(res, 500, 'text/html; charset=utf-8', errorPage(message));
+      }
       return;
     }
 

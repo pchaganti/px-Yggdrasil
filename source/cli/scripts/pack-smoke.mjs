@@ -65,6 +65,24 @@ try {
   }
   log(`tarball OK — bin+exports present, ${grammars.length} grammar(s), ${nodeTypeFiles.length} node-types.json file(s)`);
 
+  // 3b. Assert the PORTAL static assets ship. `yg portal` reads shell.html, the
+  // CSS bundle, the js modules, and the vendor lib from dist/templates/portal at
+  // runtime. A files-allowlist that matches only *.js/*.d.ts/*.wasm silently drops
+  // *.html and *.css — the js gets in but shell.html does not, so the server 500s
+  // with ENOENT on first page load. Guard every asset kind the server reads.
+  const portalDir = path.join(pkgDir, 'dist/templates/portal');
+  if (!existsSync(path.join(portalDir, 'shell.html'))) {
+    fail('portal shell.html not in tarball (dist/templates/portal/shell.html) — check the "files" allowlist ships *.html');
+  }
+  const portalCss = existsSync(portalDir) ? readdirSync(portalDir).filter((f) => f.endsWith('.css')) : [];
+  if (portalCss.length === 0) {
+    fail('no portal CSS in tarball (dist/templates/portal/*.css) — check the "files" allowlist ships *.css');
+  }
+  if (!existsSync(path.join(portalDir, 'vendor', 'd3-hierarchy.js'))) {
+    fail('portal vendor lib not in tarball (dist/templates/portal/vendor/d3-hierarchy.js)');
+  }
+  log(`portal assets OK — shell.html + ${portalCss.length} css file(s) + vendor lib present`);
+
   // 4. Install PROD deps only (no devDeps → no tree-sitter-* fallback)
   log('npm install --omit=dev…');
   execSync('npm install --omit=dev --no-audit --no-fund --silent', { cwd: pkgDir, stdio: 'inherit' });

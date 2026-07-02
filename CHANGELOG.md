@@ -7,13 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.4.2] - 2026-07-02
+
 ### Added
 
+- **The portal shows an instant loading screen and a readable error page.** Opening `yg portal` now paints an immediate loading indicator instead of a blank page while it reads a large graph, then swaps in the full view when it is ready (the address stays the same, so a deep-linked view still opens). If the page cannot be built, the browser now shows a plain-language error page with a concrete next step instead of a raw JSON error blob. Both pages are fully self-contained, so they render even when the portal's own assets are what failed.
 - **Four new keyless example projects showing the free, local layer.** `examples/` gains `no-secrets-in-logs` (a deterministic `check.mjs` refusing any log call that references a secret/PII field — a PCI concern), `layered-architecture` (the built-in relation check enforcing `web → domain → data` layering live, no lock, no key), `pure-transforms` (the same deterministic layer over **Python** — reproducible ETL transforms, no wall-clock or randomness), and `checkout-flow` (one deterministic rule attached to a `flow`, propagated to every checkout step). Each is a standalone, runnable project with its own README (scenario → run → the one edit that breaks the rule → the exact refusal), needs **no API key**, and is covered by the shipped-examples e2e guard so they cannot silently rot. Until now every shipped example used the LLM layer; these are the first deterministic + relation examples. The examples index now leads with them.
 
 ### Changed
 
 - **Sharper positioning on the README and docs.** The FAQ now answers "how is this different from an agent hook or a pre-commit hook?" head-on — a hook is a real, free, in-loop gate (Yggdrasil's own `check.mjs` is one); the difference is per-file rule delivery, the judgment layer, and a content-addressed lock CI re-proves for free — and the "AI code review bot" answer is refreshed to concede that some bots now run in the loop too (timing alone isn't the difference) and re-anchor on your-specific-rules plus the keyless proof. The README and docs hero/CI cards lead with "a green build can't lie" (each verdict is hash-tied to the exact code and re-proven keyless in CI), and the docs SEO description plus the README hero add the category terms this audience searches — guardrails, policy-as-code for coding agents, drift gate — with a one-line note that "aspect" here is unrelated to aspect-oriented programming. Copy only — no code or behavior change, and no concept was renamed.
+
+### Fixed
+
+- **`yg portal` was broken in the published package — it could not find its own page.** The npm publish allowlist shipped only the compiled JavaScript and grammar assets, so the portal's `shell.html` and stylesheets were never packed; a published install failed on first page load with `ENOENT … shell.html`. The allowlist now ships the portal's `.html` and `.css` assets, and the pack-and-smoke gate asserts the portal assets are present in the tarball so this cannot regress unnoticed.
+- **`yg check --approve --only-deterministic` no longer reads as if it reviewed everything.** In deterministic-only mode the run skips the LLM reviewer by design, but the pre-dispatch header and the closing summary previously implied every unverified pair had been handled — the summary even said "all expected pairs hold valid verdicts" while LLM pairs were left unreviewed. Both now count the LLM pairs left unverified and point at a full `yg check --approve` to review them.
+- **The `Next:` pointer no longer dead-ends on a bare `Three exits:`.** When the highest-priority next step was a cached refusal — whose guidance is a heading introducing three numbered ways out — the pointer printed only the first line (`Three exits:`) and dropped the options beneath it. A next step whose first line is a heading (ends in a colon) now surfaces the whole block.
 
 ## [5.4.1] - 2026-07-01
 

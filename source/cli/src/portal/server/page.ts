@@ -1,5 +1,6 @@
 import { extractPortalData } from '../extract.js';
 import { renderPortalPage, readPortalAsset, type PortalAsset } from '../serializer.js';
+import { renderLoadingShell, renderErrorPage } from './boot-pages.js';
 import type { PortalData } from '../contract.js';
 
 /**
@@ -28,6 +29,20 @@ export async function freshPortalData(projectRoot: string, writeEnabled: boolean
 /** Render the live portal page (HTML string) for an already-extracted PortalData. */
 export async function renderLivePage(data: PortalData): Promise<string> {
   return renderPortalPage(data);
+}
+
+/**
+ * The instant loading shell for `GET /` — no data, no disk access. It boots the full page by
+ * fetching `/render` client-side, so the browser paints immediately instead of waiting on the
+ * whole extraction + render before the first byte.
+ */
+export function loadingShell(): string {
+  return renderLoadingShell();
+}
+
+/** A human-readable HTML error page for a failed top-level render (`GET /render`). */
+export function errorPage(message: string): string {
+  return renderErrorPage(message);
 }
 
 /** Read a committed frontend asset for `/static/*`, or `null` when missing / unsafe. */

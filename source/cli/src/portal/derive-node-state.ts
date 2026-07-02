@@ -3,7 +3,6 @@ import type { CheckIssue } from './engine-api.js';
 import type {
   PortalNode,
   PortalState,
-  PortalPairState,
   PortalEffectiveAspect,
   PortalSuppression,
 } from './contract.js';
@@ -20,23 +19,8 @@ import type { SuppressionsByFile } from './derive-nodes.js';
  * stays under the focused-file cap; the rank tables live here as the single source of truth.
  */
 
-// Display-state ranks. `warning` is the status-adjusted rendering of an advisory refusal:
-// it is WORSE than a clean `verified` (so a unit advisory-refusal promotes the node to
-// warning) but never outranks a real blocking `refused` or an `unverified`, mirroring the
-// node-level STATE_RANK ordering below. This keeps an advisory refusal honest — signal, not a
-// blocking "no" — without ever letting it read as green.
-const PAIR_RANK: Record<PortalPairState, number> = {
-  refused: 4,
-  unverified: 3,
-  warning: 2,
-  verified: 1,
-  'n/a': 0,
-};
-
-/** The worst (highest-rank) display pair state across an aspect's units on a node. */
-export function worstPairState(states: PortalPairState[]): PortalPairState {
-  return states.reduce((worst, s) => (PAIR_RANK[s] > PAIR_RANK[worst] ? s : worst), 'verified');
-}
+// The worst-display-pair-state reducer and its rank table now live in the focused
+// derive-pair-state child (kept there so this file stays under the export cap).
 
 const STATE_RANK: Record<PortalState, number> = {
   refused: 4,

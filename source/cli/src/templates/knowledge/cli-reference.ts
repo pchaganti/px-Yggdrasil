@@ -116,8 +116,11 @@ cached and FINAL for unchanged inputs. Interrupting is safe — finished pairs
 persist, the next run resumes.
 
 When nothing was unverified, the summary says \`0 reviewer calls made — all
-expected pairs hold valid verdicts\`. Use \`yg impact\` to predict cost before
-editing.
+expected pairs hold valid verdicts\`. Under \`--only-deterministic\` the header and
+summary instead name the LLM pairs left unverified — they are skipped by design,
+not reviewed — and point at a full \`yg check --approve\` to review them, so a
+deterministic-only run never reads as if it verified everything. Use \`yg impact\`
+to predict cost before editing.
 
 \`--dry-run\` (with \`--approve\`) is a free cost preview: it runs the same
 structural gate, pair classification, and budget computation, prints the

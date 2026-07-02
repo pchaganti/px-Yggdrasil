@@ -100,4 +100,54 @@ test.describe('§3a SHELL-top — Refresh (read-only) + Approve (the one write)'
     });
     expect(res.status()).toBe(409);
   });
+
+  test('the loading shell paints an instant spinner, then swaps in the full page', async ({ page, t }) => {
+    const project = freshFixtureCopy(t, 'portal-basic');
+    const { baseUrl } = await servedPortal(t, { cwd: project });
+
+    // Delay the heavy render so the instant shell is observable — this is the whole point:
+    // the browser must show progress immediately, not a blank page, while /render runs.
+    await page.route('**/render*', async (route) => {
+      await new Promise((r) => setTimeout(r, 700));
+      await route.continue();
+    });
+
+    await page.goto(baseUrl + '/');
+    // Before the swap: a spinner + a plain-language "what's happening" message are visible.
+    await expect(page.locator('#yg-boot .yg-spinner')).toBeVisible();
+    await expect(page.locator('#yg-boot')).toContainText(/Reading your architecture/i);
+
+    // After /render resolves, the real page boots in place (URL stays /, hash route preserved).
+    await expect(page.locator('.topbar-refresh')).toBeVisible({ timeout: 15_000 });
+    await page.unroute('**/render*');
+  });
+
+  test('when /render fails, the shell swaps the HTML error page into the document (no blank page, no JSON)', async ({
+    page,
+    t,
+  }) => {
+    // The server's real error-page HTML for a failed /render is covered at the HTTP level in the
+    // integration suite (GET /render on a graph-less project → 500 text/html, readable, no JSON).
+    // Here we cover the CLIENT half: the shell's boot must swap a 500 /render response into the
+    // document as a readable page — the fetch resolves for a 500, so the same document.write path
+    // runs — instead of leaving the spinner up or exposing a JSON body. We stand in a 500 HTML
+    // response that mirrors the server's error page.
+    const project = freshFixtureCopy(t, 'portal-basic');
+    const { baseUrl } = await servedPortal(t, { cwd: project });
+
+    await page.route('**/render*', (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: 'text/html; charset=utf-8',
+        body: '<!doctype html><html><head><meta charset="utf-8"><title>err</title></head><body><div class="yg-box"><div class="yg-title">The portal couldn’t load your architecture</div><div class="yg-sub">Run <code>yg check</code> in your terminal.</div></div></body></html>',
+      }),
+    );
+
+    await page.goto(baseUrl + '/');
+    await expect(page.locator('body')).toContainText(/couldn.?t load your architecture/i);
+    // The spinner is gone (the document was replaced) and no raw JSON error is exposed.
+    await expect(page.locator('#yg-boot .yg-spinner')).toHaveCount(0);
+    expect(await page.content()).not.toContain('{"error"');
+    await page.unroute('**/render*');
+  });
 });

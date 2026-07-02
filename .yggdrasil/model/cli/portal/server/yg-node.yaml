@@ -4,8 +4,10 @@ description: >-
   The portal's loopback read-only HTTP server. startServer binds node:http to
   127.0.0.1 ONLY (never 0.0.0.0 / never exposed) and returns a handle with .close()
   so it is always teardownable in tests; binding to port 0 yields an ephemeral port.
-  Routes: GET / serves the live portal page (the serializer renders the inlined
-  PortalData); GET /data is Refresh — a fresh, fully read-only re-extraction
+  Routes: GET / serves an instant, self-contained loading shell (boot-pages, no graph
+  access) that fetches /render and swaps in the full page; GET /render renders the live
+  portal page (the serializer renders the inlined PortalData) and returns a human-readable
+  HTML error page (never JSON) on a render failure; GET /data is Refresh — a fresh, fully read-only re-extraction
   (extractPortalData) on every call that persists NOTHING, so the committed lock and
   the gitignored deterministic cache are byte-unchanged across repeated refreshes;
   GET /static/* serves committed frontend assets through the serializer's asset reader;
@@ -30,3 +32,4 @@ mapping:
   - source/cli/src/portal/server/router.ts
   - source/cli/src/portal/server/approve.ts
   - source/cli/src/portal/server/page.ts
+  - source/cli/src/portal/server/boot-pages.ts

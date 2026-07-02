@@ -20,7 +20,8 @@ import {
 import type { PortalData, PortalCounts, PortalPairState, PortalSuppression } from './contract.js';
 import { buildPortalNodes, displayPairState, type SuppressionsByFile } from './derive-nodes.js';
 import { buildAspects, buildFlows, buildTypes } from './derive-catalogue.js';
-import { buildBoundary, buildSuppressions, buildHubs, buildResidue, buildWorklist } from './derive-rest.js';
+import { buildSuppressions, buildHubs, buildResidue, buildWorklist } from './derive-rest.js';
+import { buildBoundary } from './derive-boundary.js';
 
 /**
  * Extract the portal data contract from a project's graph + lock.

@@ -92,33 +92,26 @@ describe('portal extraction — count parity with yg check (the trust core)', ()
     expect(data.meta.counts.pairsLLM + data.meta.counts.pairsDet).toBe(expectedPairCount);
   });
 
-  it('the blocking refused count is ENFORCED refusals only (this repo: 0), advisory refusals are warnings', () => {
-    // The honesty fix proven on the real repo: `portal/focused-file-exports` is an ADVISORY
-    // deterministic aspect that refuses `cli/portal/pipeline` (5 exports > advisory cap 4). Its
-    // verdict is `refused`, but its DISPLAY state is a non-blocking warning — so the portal's
-    // blocking `refused` count is 0 (matching `yg check`, which reports 0 errors here), and the
-    // advisory refusal lands in `advisoryRefused`, NOT `refused`. There are no enforced refusals
-    // on this repo, so `refused` is exactly 0.
+  it('the blocking refused count is ENFORCED refusals only (this repo: 0); advisory refusals never block', () => {
+    // Blocking `refused` counts ENFORCED refusals only. This repo has none, so it is exactly 0,
+    // matching `yg check` (0 errors). The honesty invariant: an ADVISORY aspect's refusal renders
+    // as a non-blocking `warning` — it lands in `advisoryRefused`, never in the blocking `refused`
+    // bucket, and never reddens its node. Asserted here as a live-repo invariant across every
+    // advisory row (the concrete advisory-refused-unit rendering is exercised synthetically in the
+    // catalogue derivation tests), so it does not depend on any one coincidental refusal existing.
     expect(data.meta.counts.refused).toBe(0);
-    // At least one advisory-refused pair exists on this repo (the focused-file-exports refusal),
-    // and it is the non-blocking warning yg check already reports — never a blocking refused.
-    expect(data.meta.counts.advisoryRefused).toBeGreaterThanOrEqual(1);
-    // The advisory refusal is reflected in `warnings` (runCheck emits it as a warning issue) and
-    // is NOT double-counted as a blocking error — the portal's blocking truth equals `yg check`.
+    // The portal's blocking truth equals `yg check`.
     expect(data.meta.counts.errors).toBe(errors);
     expect(data.meta.counts.warnings).toBe(warnings);
-    // The owning node reads `warning` (advisory signal), never `refused` (a blocking "no").
-    const pipeline = data.nodes.find((n) => n.path === 'cli/portal/pipeline');
-    expect(pipeline).toBeDefined();
-    expect(pipeline!.state).not.toBe('refused');
-    const advisoryRow = pipeline!.effectiveAspects.find((e) => e.aspectId === 'portal/focused-file-exports');
-    expect(advisoryRow).toBeDefined();
-    // The advisory aspect's row displays `warning`, never a blocking `refused`, and still carries
-    // the reviewer's stated reason (an advisory refusal is shown, just as non-blocking signal).
-    expect(advisoryRow!.status).toBe('advisory');
-    expect(advisoryRow!.pairState).toBe('warning');
-    expect(typeof advisoryRow!.reason).toBe('string');
-    expect((advisoryRow!.reason ?? '').length).toBeGreaterThan(0);
+    // No advisory aspect row on any node renders as a blocking `refused`, and no node is reddened
+    // to `refused` by an advisory aspect — an advisory refusal is a warning, never a blocking "no".
+    for (const node of data.nodes) {
+      for (const row of node.effectiveAspects) {
+        if (row.status === 'advisory') {
+          expect(row.pairState).not.toBe('refused');
+        }
+      }
+    }
   });
 
   it('catalogue counts are derived, not literals', () => {

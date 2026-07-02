@@ -24,12 +24,12 @@ import type {
   PortalSuppression,
 } from './contract.js';
 import {
-  worstPairState,
   computeOwnState,
   computeRollup,
   collectNodeSuppressions,
   computeNotApplicable,
 } from './derive-node-state.js';
+import { worstPairState } from './derive-pair-state.js';
 
 /**
  * derive-nodes — the per-node honest-state derivation.

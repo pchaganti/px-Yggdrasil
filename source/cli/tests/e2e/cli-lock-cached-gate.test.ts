@@ -98,6 +98,55 @@ describe.skipIf(!distExists)('CLI E2E — lock matrix: cached refusals / det gat
   }, 30000);
 
   // ===========================================================================
+  // Regression — the `Next:` footer must NOT truncate a multi-line "Three
+  // exits:" pointer to its bare heading. computeSuggestedNext hands the footer
+  // the refusal's full `next` (the heading plus the three numbered exits); the
+  // renderer used to print only line 1 ("Three exits:"), dead-ending the agent
+  // with a colon and nothing after it. This covers both the enforced (error)
+  // and advisory (warnings-only PASS) refusal footers — the same render path.
+  // ===========================================================================
+
+  it("(2b) an ENFORCED cached refusal renders the three exits under the Next footer, not a bare 'Three exits:' heading", async () => {
+    const dir = copyFixture('footer-enforced');
+    const mock = await startMockReviewer({ respond: () => ({ satisfied: false, reason: 'missing doc comment' }) });
+    try {
+      pointReviewer(dir, mock.endpoint);
+      await runAsync(['check', '--approve'], dir); // cache the enforced refusal
+      const check = run(['check'], dir); // plain read renders the cached refusal (exit 1)
+      expect(check.status).toBe(1);
+      // The footer must carry the actual exits — not dead-end on the heading.
+      expect(check.all).toMatch(/Next: Three exits:\n\s+1\. Fix the code/);
+      expect(check.all).toMatch(/\n\s+2\. Sharpen the aspect/);
+      expect(check.all).toMatch(/\n\s+3\. Propose a `yg-suppress`/);
+    } finally {
+      await mock.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  it("(2c) an ADVISORY cached refusal (warnings-only PASS) renders the three exits under the Next footer, not a bare 'Three exits:' heading", async () => {
+    const dir = copyFixture('footer-advisory');
+    // Flip the LLM aspect to advisory: its refusal becomes a warning, so the run
+    // is a warnings-only PASS whose suggestedNext falls back to this refusal's
+    // `next` — the exact case a real project hit.
+    const aspPath = path.join(dir, '.yggdrasil', 'aspects', 'has-doc-comment', 'yg-aspect.yaml');
+    writeFileSync(aspPath, readFileSync(aspPath, 'utf-8').replace(/status:\s*enforced/, 'status: advisory'), 'utf-8');
+    const mock = await startMockReviewer({ respond: () => ({ satisfied: false, reason: 'missing doc comment' }) });
+    try {
+      pointReviewer(dir, mock.endpoint);
+      await runAsync(['check', '--approve'], dir); // cache the advisory refusal
+      const check = run(['check'], dir); // warnings-only PASS (exit 0)
+      expect(check.status).toBe(0);
+      expect(check.all).toContain('advisory');
+      // Even on a warnings-only PASS, the footer must carry the exits.
+      expect(check.all).toMatch(/Next: Three exits:\n\s+1\. Fix the code/);
+    } finally {
+      await mock.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  // ===========================================================================
   // MATRIX (3) — DETERMINISTIC-FIRST GATE
   //   enforced det violation + LLM aspect on the same node → fill makes ZERO
   //   reviewer calls for that node, reports the skip; fix det violation → re-fill
